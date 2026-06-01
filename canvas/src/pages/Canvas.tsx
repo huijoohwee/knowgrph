@@ -221,7 +221,12 @@ export default function CanvasPage() {
                 aria-label="Workspace Toolbar Header"
                 onPointerDown={() => setToolbarHeaderElevated(true)}
               >
-                <nav className="kg-workspace-overlay-canvas-toolbar absolute top-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] left-[calc(var(--kg-safe-left)+var(--kg-canvas-viewport-edge-gap))] right-[calc(var(--kg-safe-right)+var(--kg-canvas-viewport-edge-gap))] z-[200] flex min-w-0 items-start justify-end overflow-visible bg-transparent" aria-label="Canvas Toolbar" role="navigation">
+                <nav
+                  className="kg-workspace-overlay-canvas-toolbar absolute top-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] left-[calc(var(--kg-safe-left)+var(--kg-canvas-viewport-edge-gap))] right-[calc(var(--kg-safe-right)+var(--kg-canvas-viewport-edge-gap))] z-[200] flex min-w-0 items-start justify-end overflow-visible bg-transparent"
+                  style={{ left: workspacePaneBoundaryCss }}
+                  aria-label="Canvas Toolbar"
+                  role="navigation"
+                >
                   <div className="pointer-events-auto min-w-0 max-w-full">
                     {workspaceDocumentSwitchPending ? (
                       <div

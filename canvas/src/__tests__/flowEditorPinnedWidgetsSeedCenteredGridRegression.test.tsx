@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
-import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'

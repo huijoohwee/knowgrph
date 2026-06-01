@@ -3,6 +3,10 @@ import { Download } from 'lucide-react'
 import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTable'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
 import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename, type MarkdownMediaDownloadKind } from './mediaDownload'
 
@@ -11,12 +15,15 @@ const tableShellClassName = `mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg bor
 const tableHeaderClassName = `${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.text.primary}`
 const tableCellBorderClassName = `border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
 const preBlockClassName = `mt-3 mb-3 overflow-x-auto p-3 rounded border ${UI_THEME_TOKENS.panel.border}`
+const getMediaFrameClassName = (cardPreviewMode?: boolean) =>
+  cardPreviewMode === true ? CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME : mediaFrameClassName
 
 type RenderOpts = {
   activeDocumentPath: string
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
   markdownPresentationMode: boolean
+  markdownCardPreviewMode?: boolean
   renderNodeText: (text: string, key: React.Key) => React.ReactNode
   fragmentOptions?: {
     enabled: boolean
@@ -97,7 +104,7 @@ const looksLikePlaceholderMediaSrc = (value: string): boolean => {
   return false
 }
 
-const renderDownloadControl = (src: string, kind: MarkdownMediaDownloadKind, key: React.Key): React.ReactNode => {
+const renderDownloadControl = (src: string, kind: MarkdownMediaDownloadKind, key: React.Key, cardPreviewMode?: boolean): React.ReactNode => {
   const href = buildMarkdownMediaDownloadHref(src)
   if (!href) return null
   const filename = deriveMarkdownMediaDownloadFilename(src, kind)
@@ -109,8 +116,10 @@ const renderDownloadControl = (src: string, kind: MarkdownMediaDownloadKind, key
       title="Download media"
       aria-label="Download media"
       className={[
-        'absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded border shadow-sm',
-        UI_THEME_TOKENS.panel.border,
+        cardPreviewMode === true
+          ? 'absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded'
+          : 'absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded border shadow-sm',
+        cardPreviewMode === true ? '' : UI_THEME_TOKENS.panel.border,
         UI_THEME_TOKENS.panel.bg,
         UI_THEME_TOKENS.text.primary,
         'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
@@ -132,6 +141,7 @@ export const renderSafeHtmlBlockImpl = (
   const win = (globalThis as unknown as { window?: Window }).window
   if (!win) return null
   const raw = String(html || '').trim()
+  const cardPreviewMode = opts.markdownCardPreviewMode === true
   if (!raw || !raw.includes('<')) return null
   try {
     const NodeRef = (globalThis as unknown as { Node?: typeof Node }).Node || (win as unknown as { Node?: typeof Node }).Node
@@ -251,9 +261,12 @@ export const renderSafeHtmlBlockImpl = (
               fit="contain"
               mediaThumbnailDataAttr
               mediaStyle={Object.keys(style).length ? style : undefined}
-              mediaClassName={`inline-block max-w-full h-auto ${mediaFrameClassName}`}
+              mediaClassName={[
+                cardPreviewMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME : 'inline-block max-w-full h-auto',
+                getMediaFrameClassName(cardPreviewMode),
+              ].filter(Boolean).join(' ')}
             />
-            {renderDownloadControl(srcCandidate, 'image', `${key}-download`)}
+            {renderDownloadControl(srcCandidate, 'image', `${key}-download`, cardPreviewMode)}
           </span>
         )
       }
@@ -272,8 +285,11 @@ export const renderSafeHtmlBlockImpl = (
         const imgResolved = deps.applyMediaProxySrc(deps.resolveHref(imgCandidate, opts.activeDocumentPath))
         return (
           <span key={key} className="relative inline-block group align-middle">
-            <picture className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={img?.getAttribute('alt') || ''} loading="lazy" decoding="async" className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} /></picture>
-            {renderDownloadControl(imgCandidate, 'image', `${key}-download`)}
+            <picture className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={img?.getAttribute('alt') || ''} loading="lazy" decoding="async" className={[
+              cardPreviewMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME : 'inline-block max-w-full h-auto',
+              getMediaFrameClassName(cardPreviewMode),
+            ].filter(Boolean).join(' ')} /></picture>
+            {renderDownloadControl(imgCandidate, 'image', `${key}-download`, cardPreviewMode)}
           </span>
         )
       }
@@ -310,10 +326,14 @@ export const renderSafeHtmlBlockImpl = (
               videoLoop={el.hasAttribute('loop')}
               videoPoster={poster}
               mediaThumbnailDataAttr
-              mediaClassName={['max-w-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined}
+              mediaClassName={[
+                cardPreviewMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME : 'max-w-full',
+                getMediaFrameClassName(cardPreviewMode),
+                safeClass,
+              ].filter(Boolean).join(' ') || undefined}
               mediaStyle={safeStyle}
             />
-            {renderDownloadControl(sourceCandidate, 'video', `${key}-download`)}
+            {renderDownloadControl(sourceCandidate, 'video', `${key}-download`, cardPreviewMode)}
           </section>
         )
       }

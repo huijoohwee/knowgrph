@@ -75,6 +75,17 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   if (bootstrapText.includes('const outlineText = useDebouncedValue(activeText, 160, args.activePath)')) {
     throw new Error('Expected markdown workspace bootstrap state not to debounce TOC outline parsing directly from stale cross-path editor text')
   }
+  const debouncedValueText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'hooks', 'useDebouncedValue.ts'))
+  if (!debouncedValueText.includes('const valueRef = React.useRef(v)')
+    || !debouncedValueText.includes('const resetKeyRef = React.useRef(resetKey)')
+    || !debouncedValueText.includes('if (Object.is(valueRef.current, val)) return')
+    || !debouncedValueText.includes('if (Object.is(resetKeyRef.current, resetKey)) return')
+    || !debouncedValueText.includes('if (Object.is(valueRef.current, value)) return')) {
+    throw new Error('Expected shared debounced value hook to avoid scheduling same-value updates during reset-key churn')
+  }
+  if (debouncedValueText.includes('setV(value)')) {
+    throw new Error('Expected shared debounced value reset path not to synchronously dispatch during reset-key churn')
+  }
   const documentSwitchText = readUtf8(markdownWorkspaceDocumentSwitchPath())
   if (!documentSwitchText.includes('export function isMarkdownWorkspaceDocumentSwitchPending(args:')) {
     throw new Error('Expected markdown workspace document switching to centralize pending-state ownership in a shared helper')
@@ -317,6 +328,18 @@ export const testMarkdownWorkspaceSelectionUsesEntryIndexForSwitchHotPath = () =
   if (!selectionText.includes('const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])')) {
     throw new Error('Expected markdown workspace selection to build one entries index per entries revision instead of scanning on active-path switches')
   }
+  if (!selectionText.includes('if (selectionPathRef.current === normalized) return')
+    || !selectionText.includes('if (normalizeMarkdownWorkspaceSelectionPath(args.activePath) === normalized) return')
+    || !selectionText.includes('selectionPath: selectionPathRef.current')
+    || !selectionText.includes('setSelectionPathSafe(nextSelectionPath)')) {
+    throw new Error('Expected markdown workspace selection effects to avoid scheduling same-path state updates during workspace open')
+  }
+  if (!syncText.includes('const activePath = normalizeMarkdownWorkspaceSelectionPath(args.activePath)')
+    || !syncText.includes('resolveMarkdownWorkspaceDocsMirrorCanonicalPath(rawActivePath, args.entriesIndex)')
+    || !syncText.includes('const selectionPath = normalizeMarkdownWorkspaceSelectionPath(args.selectionPath)')
+    || !syncText.includes('if (activePath && selectionPath === activePath) return undefined')) {
+    throw new Error('Expected workspace selection helpers to normalize path aliases before invalidating pending active-document paths')
+  }
   if (!derivedText.includes('entriesIndex: WorkspaceEntriesIndex') || !derivedText.includes('getWorkspaceEntry(args.entriesIndex, args.activePath)')) {
     throw new Error('Expected selection derivation to resolve active and selection entries through the shared entries index')
   }
@@ -554,8 +577,28 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!initialPaneVisibilityText.includes('args.webpageView ||') || !initialPaneVisibilityText.includes('args.workspaceEditorOverlayOpen')) {
     throw new Error('Expected workspace main pane normalization to include webpage view and canonical overlay-open semantics')
   }
+  if (!mainText.includes('splitPaneVisibility,')
+    || !initialPaneVisibilityText.includes('splitPaneVisibility: MarkdownWorkspacePaneVisibility')
+    || !initialPaneVisibilityText.includes('areMarkdownWorkspacePaneVisibilitiesEqual(args.splitPaneVisibility, nextVisibility)')
+    || !initialPaneVisibilityText.includes('if (!args.splitPaneVisibility.html) return')
+    || !initialPaneVisibilityText.includes('if (args.splitPaneVisibility.viewer && args.splitPaneVisibility.html) return')) {
+    throw new Error('Expected workspace pane preset normalization to check current visibility before scheduling state updates')
+  }
+  if (!mainText.includes('if (viewerInlineMarkdownDraftText !== null) setViewerInlineMarkdownDraftText(null)')
+    || !mainText.includes('if (viewerInlineViewerText !== null) setViewerInlineViewerText(null)')
+    || !mainText.includes('if (jsonDerivedMarkdownDraft !== null) setJsonDerivedMarkdownDraft(null)')
+    || !mainText.includes('if (jsonDerivedMarkdownDraft !== jsonDerivedMarkdownBase) setJsonDerivedMarkdownDraft(jsonDerivedMarkdownBase)')) {
+    throw new Error('Expected workspace draft reset effects to avoid scheduling no-op state updates during workspace open')
+  }
   if (dropdownText.includes('flushSync')) {
     throw new Error('Expected toolbar dropdown selection not to force a synchronous close commit before opening Workspace View')
+  }
+  if (dropdownText.includes("if (!open) {\n      optionButtonRefs.current = []\n      setExpandedOptionId(null)")) {
+    throw new Error('Expected closed toolbar dropdown effects not to re-clear expanded state on every parent option churn')
+  }
+  if (!dropdownText.includes('if (expandedOptionId !== null) setExpandedOptionId(null)')
+    || !dropdownText.includes('if (activeParentOptionId && expandedOptionId == null) setExpandedOptionId(activeParentOptionId)')) {
+    throw new Error('Expected toolbar dropdown expanded state writes to be guarded against closed-menu update loops')
   }
   if (editorPaneText.includes('const lineStarts = React.useMemo')) {
     throw new Error('Expected markdown editor pane not to scan full text for line starts during open render')

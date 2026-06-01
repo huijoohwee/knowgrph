@@ -77,6 +77,10 @@ export interface GraphStateCanvasRuntime {
   );
   requestGraphCanvasArrange: (req: { type: 'center'; scope: 'selection' | 'all' } | { type: 'distribute'; axis: 'x' | 'y' }) => void;
   clearGraphCanvasArrangeRequest: () => void;
+
+  flowEditorLayoutRebalanceRequest: null | { type: 'balanced-spread'; at: number };
+  requestFlowEditorLayoutRebalance: () => void;
+  clearFlowEditorLayoutRebalanceRequest: () => void;
   zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number };
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => void;
   zoomStateByKey: Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>

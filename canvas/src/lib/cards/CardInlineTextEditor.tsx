@@ -6,11 +6,14 @@ import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
+type CardInlineTextEditActivation = 'doubleClick' | 'click'
+
 type CardInlineTextEditorProps = {
   value: string
   ariaLabel: string
   placeholder: string
   canEdit?: boolean
+  editActivation?: CardInlineTextEditActivation
   editRequestKey?: string | number | null
   multiline?: boolean
   displayClassName?: string
@@ -24,12 +27,28 @@ type CardInlineTextEditorProps = {
 
 const normalizeEditorValue = (value: string): string => String(value ?? '').replace(/\r/g, '')
 
+const shouldIgnoreInlineEditTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof Element)) return false
+  return !!target.closest([
+    'button',
+    'select',
+    'input',
+    'textarea',
+    'a',
+    '[role="menu"]',
+    '[role="menuitem"]',
+    '[contenteditable="true"]',
+    '[data-kg-card-media-interactive="1"]',
+  ].join(','))
+}
+
 export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(props: CardInlineTextEditorProps) {
   const {
     value,
     ariaLabel,
     placeholder,
     canEdit = false,
+    editActivation = 'doubleClick',
     editRequestKey = null,
     multiline = false,
     displayClassName,
@@ -92,6 +111,16 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     setEditing(false)
   }, [value])
 
+  const openEditorFromDisplayEvent = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!canEdit) return false
+    if (shouldIgnoreInlineEditTarget(event.target)) return false
+    event.preventDefault()
+    event.stopPropagation()
+    setDraft(normalizeEditorValue(value))
+    setEditing(true)
+    return true
+  }, [canEdit, value])
+
   const displayValue = readMarkdownSigilDisplayText(value)
   const showPlaceholder = !displayValue
   const showMarkdownPreview =
@@ -145,20 +174,22 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         showPlaceholder ? emptyClassName || `${UI_THEME_TOKENS.text.tertiary} italic` : '',
       ].join(' ').trim()}
       title={showPlaceholder ? placeholder : displayValue}
+      data-kg-card-inline-edit="1"
+      data-kg-card-inline-edit-activation={editActivation}
       onDoubleClick={event => {
-        if (!canEdit) return
-        event.preventDefault()
-        event.stopPropagation()
-        setEditing(true)
+        if (editActivation !== 'doubleClick') return
+        openEditorFromDisplayEvent(event)
       }}
       onMouseDown={event => {
         if (!canEdit) return
-        if (event.detail < 2) return
+        if (shouldIgnoreInlineEditTarget(event.target)) return
+        if (editActivation !== 'click' && event.detail < 2) return
         event.stopPropagation()
       }}
       onClick={event => {
         if (!canEdit) return
-        if (editing) event.stopPropagation()
+        if (editActivation !== 'click') return
+        openEditorFromDisplayEvent(event)
       }}
       onDragStart={event => {
         event.preventDefault()

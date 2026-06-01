@@ -6,7 +6,12 @@ import net from "node:net";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import { callBrowserApiRuntime } from "./browser-api-runtime.js";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "./local-tool-contract.js";
 import {
@@ -15,6 +20,12 @@ import {
   buildKnowgrphVdeoxplnRoutingPlan,
   validateKnowgrphVdeoxplnRegistry,
 } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
+import {
+  KNOWGRPH_MCP_APP_RESOURCE_URI,
+  buildKnowgrphMcpAppsCapabilities,
+  buildKnowgrphMcpAppsResourceDescriptor,
+  buildKnowgrphMcpAppsResourceReadResult,
+} from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 
 const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000");
 const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000");
@@ -37,6 +48,16 @@ const UI_TARGETS = /** @type {const} */ ({
   canvas: { label: "Canvas", query: "" },
   workspaceEditor: { label: "Workspace Editor", query: "openEditorWorkspace=1" },
   geospatial: { label: "Geospatial", query: "kgGeo=1" },
+});
+const LOCAL_MCP_APP_URL = buildCanvasUrl({
+  host: DEFAULT_UI_HOST,
+  port: DEFAULT_UI_PORT,
+  target: "canvas",
+});
+const LOCAL_MCP_APP_TOOL_NAME = KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList;
+const LOCAL_MCP_APP_RESOURCE = buildKnowgrphMcpAppsResourceDescriptor({
+  appUrl: LOCAL_MCP_APP_URL,
+  updatedAt: "local",
 });
 
 function resolveRootDir() {
@@ -219,6 +240,8 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
+      ...buildKnowgrphMcpAppsCapabilities(),
     },
   }
 );
@@ -227,6 +250,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: LOCAL_MCP_TOOLS,
   };
+});
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  return {
+    resources: [LOCAL_MCP_APP_RESOURCE],
+  };
+});
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const uri = String(request.params?.uri || "").trim();
+  if (uri !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
+    throw new Error(`Unknown resource: ${uri}`);
+  }
+  return buildKnowgrphMcpAppsResourceReadResult({
+    appUrl: LOCAL_MCP_APP_URL,
+    updatedAt: "local",
+    toolName: LOCAL_MCP_APP_TOOL_NAME,
+    toolNames: LOCAL_MCP_TOOLS.map((tool) => tool.name),
+  });
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {

@@ -83,6 +83,53 @@ export const buildCanvasViewOptions = (
         : nodeShapeMode === 'hex'
           ? 'Node Shape: Hex'
           : 'Node Shape: Circle'
+  const flowEditorLayoutChildren: readonly CanvasViewOption[] = [
+    {
+      id: 'layout:flowEditorRebalance',
+      title: 'Re-balance Flow Editor layout',
+      label: 'Re-balance',
+      Icon: Columns2,
+      disabled: state.geospatialEnabled,
+      disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+      enableHint: state.geospatialEnabled ? 'Switch to Document Mode to enable' : undefined,
+    },
+  ]
+  const d3LikeLayoutChildren: readonly CanvasViewOption[] = [
+    {
+      id: 'layout:block',
+      title: 'Block layout',
+      label: 'Block',
+      Icon: Columns2,
+      disabled: state.geospatialEnabled || !state.isD3Like2dLayoutToggle,
+      disabledReason: state.geospatialEnabled
+        ? 'Disabled in Geospatial Mode'
+        : !state.isD3Like2dLayoutToggle
+          ? 'Available for D3 and Flowchart renderer'
+          : undefined,
+      enableHint: state.geospatialEnabled
+        ? 'Switch to Document Mode to enable'
+        : !state.isD3Like2dLayoutToggle
+          ? 'Switch renderer to D3 or Flowchart'
+          : undefined,
+    },
+    {
+      id: 'layout:radial',
+      title: 'Radial layout',
+      label: 'Radial',
+      Icon: CircleDot,
+      disabled: state.geospatialEnabled || !state.isD3Like2dLayoutToggle,
+      disabledReason: state.geospatialEnabled
+        ? 'Disabled in Geospatial Mode'
+        : !state.isD3Like2dLayoutToggle
+          ? 'Available for D3 and Flowchart renderer'
+          : undefined,
+      enableHint: state.geospatialEnabled
+        ? 'Switch to Document Mode to enable'
+        : !state.isD3Like2dLayoutToggle
+          ? 'Switch renderer to D3 or Flowchart'
+          : undefined,
+    },
+  ]
 
   const optionsWithDisabled = rendererOptions.map(option => {
     const supportsD3LikeLayout = isD3Like2dRenderer(option.id)
@@ -124,42 +171,7 @@ export const buildCanvasViewOptions = (
       label: 'Layout',
       Icon: Columns2,
       dividerBefore: true,
-      children: [
-        {
-          id: 'layout:block',
-          title: 'Block layout',
-          label: 'Block',
-          Icon: Columns2,
-          disabled: state.geospatialEnabled || !state.isD3Like2dLayoutToggle,
-          disabledReason: state.geospatialEnabled
-            ? 'Disabled in Geospatial Mode'
-            : !state.isD3Like2dLayoutToggle
-              ? 'Available for D3 and Flowchart renderer'
-              : undefined,
-          enableHint: state.geospatialEnabled
-            ? 'Switch to Document Mode to enable'
-            : !state.isD3Like2dLayoutToggle
-              ? 'Switch renderer to D3 or Flowchart'
-              : undefined,
-        },
-        {
-          id: 'layout:radial',
-          title: 'Radial layout',
-          label: 'Radial',
-          Icon: CircleDot,
-          disabled: state.geospatialEnabled || !state.isD3Like2dLayoutToggle,
-          disabledReason: state.geospatialEnabled
-            ? 'Disabled in Geospatial Mode'
-            : !state.isD3Like2dLayoutToggle
-              ? 'Available for D3 and Flowchart renderer'
-              : undefined,
-          enableHint: state.geospatialEnabled
-            ? 'Switch to Document Mode to enable'
-            : !state.isD3Like2dLayoutToggle
-              ? 'Switch renderer to D3 or Flowchart'
-              : undefined,
-        },
-      ],
+      children: state.canvas2dRenderer === 'flowEditor' ? flowEditorLayoutChildren : d3LikeLayoutChildren,
     },
     {
       id: 'document:menu',

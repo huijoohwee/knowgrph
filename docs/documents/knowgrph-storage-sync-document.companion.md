@@ -203,7 +203,7 @@ flowchart TB
 | Segment | Source | Example |
 |---|---|---|
 | `workspaceId` | D1 `documents.workspace_id` | `kgws:canonical-docs` |
-| `canonicalPath` | D1 `documents.canonical_path` | `huijoohwee/docs/knowgrph-maps-readme.md` |
+| `canonicalPath` | D1 `documents.canonical_path` | `huijoohwee/docs/workspace-readme.md` |
 
 **Response**: `200 Content-Type: text/markdown; charset=utf-8` with raw `content_md`. `404` if document not found or soft-deleted. No authentication required (public read).
 

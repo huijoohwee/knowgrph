@@ -19,14 +19,24 @@ import {
   CardMediaLoadingSkeleton,
   CardMediaPreview,
 } from '@/lib/cards/CardMediaPreview'
+import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
 import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorPanelChrome'
 import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
+import {
+  normalizeRichMediaPanelInlineSrcDoc,
+  RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
+} from '@/lib/render/richMediaPanelSrcDoc'
 import {
   isDirectPlayableCardMedia,
   type CardMediaPlaceholderVariant,
   type CardMediaSkeletonVariant,
 } from '@/lib/cards/cardMediaPreviewUtils'
+import {
+  CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE,
+  CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
@@ -69,6 +79,10 @@ export type RichMediaPanelProps = {
   onDoubleClickCapture?: React.MouseEventHandler<HTMLDivElement>
   onContextMenuCapture?: React.MouseEventHandler<HTMLDivElement>
   widgetToolbarActive?: boolean
+  frameMode?: 'panel' | 'surface'
+  resizeHandlePlacement?: 'root' | 'external'
+  scrollOwner?: 'media' | 'panel'
+  onInlineContentSize?: (size: { width: number; height: number }) => void
   panelChrome?: 'none' | 'flowEditor'
   panel?: {
     activeTab: RichMediaPanelTab
@@ -88,13 +102,133 @@ export type RichMediaPanelProps = {
   onPanelChange?: (next: { activeTab: RichMediaPanelTab; freezeConnectedOutput: boolean; text?: string }) => void
 }
 
+export type RichMediaPanelResizeHandlers = {
+  onResizeStart?: (args: { pointerId: number; clientX: number; clientY: number }) => void
+  onResize?: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => void
+  onResizeEnd?: (args: { pointerId: number; clientX: number; clientY: number }) => void
+}
+
+export function beginRichMediaPanelResizeDrag(args: RichMediaPanelResizeHandlers & {
+  event: React.PointerEvent<HTMLElement>
+  onBeforeStart?: (event: PointerEvent) => void
+}): boolean {
+  const e = args.event
+  if (e.button !== 0) return false
+  const native = e.nativeEvent
+  const pointerId = native.pointerId
+  const x0 = native.clientX
+  const y0 = native.clientY
+  try {
+    args.onBeforeStart?.(native)
+  } catch {
+    void 0
+  }
+  try {
+    e.preventDefault()
+    e.stopPropagation()
+  } catch {
+    void 0
+  }
+  try {
+    args.onResizeStart?.({ pointerId, clientX: x0, clientY: y0 })
+  } catch {
+    void 0
+  }
+  startPointerDrag({
+    ev: native,
+    cursor: 'nwse-resize',
+    onMove: ev => {
+      try {
+        args.onResize?.({
+          pointerId: ev.pointerId,
+          clientX: ev.clientX,
+          clientY: ev.clientY,
+          dx: ev.clientX - x0,
+          dy: ev.clientY - y0,
+        })
+      } catch {
+        void 0
+      }
+    },
+    onEnd: ev => {
+      try {
+        args.onResizeEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
+      } catch {
+        void 0
+      }
+    },
+    onCancel: ev => {
+      try {
+        args.onResizeEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
+      } catch {
+        void 0
+      }
+    },
+  })
+  return true
+}
+
+export function RichMediaPanelResizeHandle(props: {
+  onPointerDown: React.PointerEventHandler<HTMLButtonElement>
+  placement?: 'root' | 'panel'
+  style?: React.CSSProperties
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Resize"
+      data-kg-resize-handle="se"
+      data-kg-rich-media-resize-handle="1"
+      data-kg-rich-media-resize-placement={props.placement || 'root'}
+      style={{
+        position: 'absolute',
+        right: 0,
+        bottom: 0,
+        width: 22,
+        height: 22,
+        background: 'transparent',
+        cursor: 'nwse-resize',
+        pointerEvents: 'auto',
+        zIndex: 20,
+        ...(props.style || null),
+      }}
+      onPointerDown={props.onPointerDown}
+    >
+      <span
+        aria-hidden="true"
+        data-kg-rich-media-resize-handle-shape="corner"
+        style={{
+          position: 'absolute',
+          right: 5,
+          bottom: 5,
+          width: 9,
+          height: 9,
+          borderRadius: 0,
+          background: 'transparent',
+          borderRight: '1px solid var(--kg-text-tertiary, rgba(100, 116, 139, 0.6))',
+          borderBottom: '1px solid var(--kg-text-tertiary, rgba(100, 116, 139, 0.6))',
+          boxShadow: 'none',
+          opacity: 0.72,
+          transition: 'var(--kg-transition-group-resize-dot)',
+        }}
+      />
+    </button>
+  )
+}
+
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
   const rootRef = React.useRef<HTMLElement | null>(null)
+  const inlineSrcDocFrameRef = React.useRef<HTMLIFrameElement | null>(null)
   const forwardWheelTo = props.forwardWheelTo
   const onPanelChange = props.onPanelChange
   const title = String(props.title || '').trim() || 'Media node'
   const panelChrome = props.panelChrome === 'flowEditor' ? 'flowEditor' : 'none'
   const showFlowEditorChrome = panelChrome === 'flowEditor'
+  const frameMode = props.frameMode === 'surface' ? 'surface' : 'panel'
+  const useSurfaceFrame = frameMode === 'surface' && !showFlowEditorChrome
+  const resizeHandlePlacement = props.resizeHandlePlacement === 'external' ? 'external' : 'root'
+  const scrollOwner = props.scrollOwner === 'panel' ? 'panel' : 'media'
+  const onInlineContentSize = props.onInlineContentSize
   const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
   const rawUrl = String(props.url || '').trim()
   const openUrl = String(props.openUrl || '').trim() || rawUrl
@@ -168,6 +302,40 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })
   }, [props.overlayId])
   const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc
+  const normalizedInlineSrcDoc = React.useMemo(() => {
+    return normalizeRichMediaPanelInlineSrcDoc({
+      srcDoc: effectiveInlineSrcDoc,
+      title,
+    })
+  }, [effectiveInlineSrcDoc, title])
+  const [inlineSrcDocContentSize, setInlineSrcDocContentSize] = React.useState<{ width: number; height: number } | null>(null)
+  React.useEffect(() => {
+    setInlineSrcDocContentSize(null)
+  }, [normalizedInlineSrcDoc])
+  React.useEffect(() => {
+    if (!normalizedInlineSrcDoc) return
+    if (scrollOwner !== 'panel') return
+    const onMessage = (event: MessageEvent) => {
+      const frame = inlineSrcDocFrameRef.current
+      if (!frame || event.source !== frame.contentWindow) return
+      const data = event.data
+      if (!data || typeof data !== 'object') return
+      const payload = data as { type?: unknown; width?: unknown; height?: unknown }
+      if (payload.type !== RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE) return
+      const width = typeof payload.width === 'number' && Number.isFinite(payload.width) ? Math.ceil(payload.width) : 0
+      const height = typeof payload.height === 'number' && Number.isFinite(payload.height) ? Math.ceil(payload.height) : 0
+      if (!(width > 0) || !(height > 0)) return
+      const nextSize = { width, height }
+      setInlineSrcDocContentSize(prev => (
+        prev && Math.abs(prev.width - width) <= 1 && Math.abs(prev.height - height) <= 1
+          ? prev
+          : nextSize
+      ))
+      onInlineContentSize?.(nextSize)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [normalizedInlineSrcDoc, onInlineContentSize, scrollOwner])
 
   const panel = props.panel || null
   const panelActiveTab = panel ? panel.activeTab : 'auto'
@@ -183,7 +351,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     hasRenderableUrl: !!rawUrl,
     hasInlineSrcDoc: !!effectiveInlineSrcDoc,
   })
-  const showTextEditor = Boolean(panel && panelSelectedTab === 'text' && panelFreezeConnectedOutput)
   const [panelDraftText, setPanelDraftText] = React.useState<string>('')
   React.useEffect(() => {
     if (!panel) {
@@ -199,15 +366,10 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     if (panelFreezeConnectedOutput) return panelDraftText || panel.text || panel.connectedText || ''
     return panel.connectedText || panel.text || ''
   }, [panel, panelDraftText, panelFreezeConnectedOutput, panelSelectedTab])
-  const showPanelMarkdownPreview = Boolean(panel && panelSelectedTab === 'text' && !showTextEditor && panelDisplayText.trim())
   const panelMarkdownDocumentPath = React.useMemo(() => {
     const base = String(props.overlayId || title || 'rich-media-panel').trim() || 'rich-media-panel'
     return `/__rich_media_panel/${encodeURIComponent(base)}.md`
   }, [props.overlayId, title])
-  const hasDirectRenderableUrl = !!rawUrl
-  const isTextPanelEmpty = kind === 'iframe' && !hasDirectRenderableUrl && !effectiveInlineSrcDoc && !showPanelMarkdownPreview
-  const isStaticMediaPanelEmpty = (kind === 'image' || kind === 'svg' || kind === 'video') && !hasDirectRenderableUrl
-  const isEmptyPanel = isTextPanelEmpty || isStaticMediaPanelEmpty
 
   const forceSnapshotIframe = React.useMemo(() => {
     if (kind !== 'iframe') return false
@@ -249,6 +411,22 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true
   const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode
   const panelControlsHidden = isFlowEditorRenderer !== true
+  const canInlineEditPanelText = Boolean(
+    panel
+    && panelSelectedTab === 'text'
+    && typeof onPanelChange === 'function',
+  )
+  const showPanelTextSurface = Boolean(
+    panel
+    && panelSelectedTab === 'text'
+    && (canInlineEditPanelText || panelDisplayText.trim()),
+  )
+  const showPanelInlineTextEditor = showPanelTextSurface && canInlineEditPanelText
+  const showPanelMarkdownPreview = Boolean(showPanelTextSurface && !showPanelInlineTextEditor && panelDisplayText.trim())
+  const hasDirectRenderableUrl = !!rawUrl
+  const isTextPanelEmpty = kind === 'iframe' && !hasDirectRenderableUrl && !effectiveInlineSrcDoc && !showPanelTextSurface
+  const isStaticMediaPanelEmpty = (kind === 'image' || kind === 'svg' || kind === 'video') && !hasDirectRenderableUrl
+  const isEmptyPanel = isTextPanelEmpty || isStaticMediaPanelEmpty
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || flowEditorInteractionMode === true || isFlowEditorRenderer === true
   const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
@@ -362,55 +540,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
 
   const onResizePointerDown = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (!installResize) return
-    if (e.button !== 0) return
-    selectSelf(e.nativeEvent)
-    try {
-      e.preventDefault()
-      e.stopPropagation()
-    } catch {
-      void 0
-    }
-    const native = e.nativeEvent
-    const pointerId = native.pointerId
-    const x0 = native.clientX
-    const y0 = native.clientY
-    try {
-      props.onResizeStart?.({ pointerId, clientX: x0, clientY: y0 })
-    } catch {
-      void 0
-    }
-    startPointerDrag({
-      ev: native,
-      cursor: 'nwse-resize',
-      onMove: ev => {
-        try {
-          props.onResize?.({
-            pointerId: ev.pointerId,
-            clientX: ev.clientX,
-            clientY: ev.clientY,
-            dx: ev.clientX - x0,
-            dy: ev.clientY - y0,
-          })
-        } catch {
-          void 0
-        }
-      },
-      onEnd: ev => {
-        try {
-          props.onResizeEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
-        } catch {
-          void 0
-        }
-      },
-      onCancel: ev => {
-        try {
-          props.onResizeEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
-        } catch {
-          void 0
-        }
-      },
+    beginRichMediaPanelResizeDrag({
+      event: e,
+      onBeforeStart: selectSelf,
+      onResizeStart: props.onResizeStart,
+      onResize: props.onResize,
+      onResizeEnd: props.onResizeEnd,
     })
-  }, [installResize, props, selectSelf])
+  }, [installResize, props.onResize, props.onResizeEnd, props.onResizeStart, selectSelf])
 
   const startHeaderDrag = React.useCallback((native: PointerEvent) => {
     if (!installHeaderDrag) return false
@@ -588,25 +725,49 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
               : 'undefined'
         : 'undefined'
   const shouldHideSurfaceUntilReady = hideUntilReady && !ready && !isEmptyPanel && !panelIsLoading
+  const panelOwnsInlineSrcDocScroll = useSurfaceFrame && scrollOwner === 'panel' && kind === 'iframe' && !!effectiveInlineSrcDoc
+  const inlineSrcDocPanelContentHeight =
+    panelOwnsInlineSrcDocScroll && inlineSrcDocContentSize && inlineSrcDocContentSize.height > 0
+      ? Math.ceil(inlineSrcDocContentSize.height)
+      : 0
+  const inlineSrcDocEmbeddedSurfaceHeight = inlineSrcDocPanelContentHeight > 0
+    ? `calc(${inlineSrcDocPanelContentHeight}px + ${CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE} + ${CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE})`
+    : ''
   const rootStyle: React.CSSProperties = {
     ...PANEL_FRAME_ROOT_STYLE,
-    position: flowEditorInteractionMode ? 'absolute' : 'relative',
-    ...(flowEditorFrontmatterDocumentMode
+    position: panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
+    ...(!useSurfaceFrame && flowEditorFrontmatterDocumentMode
       ? {
           borderRadius: '12px',
           boxShadow: '0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px -4px rgba(0,0,0,0.10)',
           background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
         }
       : null),
+    ...(useSurfaceFrame
+      ? {
+          border: 0,
+          borderRadius: 0,
+          background: 'transparent',
+          boxShadow: 'none',
+          overflow: panelOwnsInlineSrcDocScroll ? 'visible' : undefined,
+        }
+      : null),
     pointerEvents: shouldHideSurfaceUntilReady ? 'none' : (headerPassthrough ? 'none' : (workspaceEditorOverlayOpen || canvasOverlayProxyEnabled ? 'auto' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'))),
     opacity: shouldHideSurfaceUntilReady ? 0 : 1,
     transition: 'opacity 180ms ease-out',
     ...(props.style || null),
+    ...(inlineSrcDocPanelContentHeight > 0
+      ? {
+          height: inlineSrcDocEmbeddedSurfaceHeight,
+          minHeight: '100%',
+        }
+      : null),
   }
   const bodySurfaceStyle: React.CSSProperties = {
     ...PANEL_FRAME_BODY_STYLE,
-    position: flowEditorInteractionMode ? 'absolute' : 'relative',
+    position: panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
     padding: 0,
+    overflow: panelOwnsInlineSrcDocScroll ? 'visible' : undefined,
     pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
   }
   const chromeBodySurfaceStyle: React.CSSProperties = {
@@ -627,19 +788,65 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
     touchAction: 'auto',
   }), [allowPanelContentPointerEvents, forwardingEnabled])
+  const inlineSrcDocSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
+    ...iframeSurfaceStyle,
+    borderRadius: 0,
+    ...(panelOwnsInlineSrcDocScroll
+      ? {
+          pointerEvents: 'none',
+          touchAction: 'pan-y',
+        }
+      : null),
+    ...(inlineSrcDocPanelContentHeight > 0
+      ? {
+          height: `${inlineSrcDocPanelContentHeight}px`,
+          minHeight: '100%',
+        }
+      : null),
+  }), [iframeSurfaceStyle, inlineSrcDocPanelContentHeight, panelOwnsInlineSrcDocScroll])
+  const inlineSrcDocEmbeddedSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
+    display: 'block',
+    width: '100%',
+    height: '100%',
+    minHeight: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+    pointerEvents: 'auto',
+    touchAction: panelOwnsInlineSrcDocScroll ? 'pan-y' : 'auto',
+    ...(inlineSrcDocPanelContentHeight > 0
+      ? {
+          height: inlineSrcDocEmbeddedSurfaceHeight,
+          minHeight: '100%',
+        }
+      : null),
+  }), [inlineSrcDocEmbeddedSurfaceHeight, inlineSrcDocPanelContentHeight, panelOwnsInlineSrcDocScroll])
+  const resizeHandle = installResize && resizeHandlePlacement === 'root'
+    ? <RichMediaPanelResizeHandle placement="root" onPointerDown={onResizePointerDown} />
+    : null
   const renderSurfaceChildren = (
     <>
-      {showTextEditor && !panelControlsHidden ? (
+      {showPanelInlineTextEditor ? (
         <section
+          aria-label="Rich media markdown preview"
+          data-kg-rich-media-markdown-preview="1"
+          data-kg-rich-media-inline-edit="1"
+          data-kg-canvas-wheel-ignore="true"
+          className={CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME}
           style={{
-            position: 'absolute',
-            inset: 10,
-            zIndex: 3,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
+            width: '100%',
+            height: '100%',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehaviorY: 'contain',
+            overscrollBehaviorX: 'none',
+            scrollbarGutter: 'stable',
+            borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
             pointerEvents: 'auto',
+            touchAction: 'pan-y',
           }}
+          data-kg-media-scroll-surface="1"
           onPointerDownCapture={e => {
             try {
               e.stopPropagation()
@@ -655,26 +862,22 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             }
           }}
         >
-          <textarea
-            value={panelDraftText}
-            onChange={e => {
-              const next = String(e.target.value || '')
+          <CardInlineTextEditor
+            value={panelDisplayText}
+            ariaLabel={`${title} text`}
+            placeholder="Add text"
+            canEdit={true}
+            editActivation="click"
+            multiline
+            rows={8}
+            markdownPreview="auto"
+            onCommit={nextValue => {
+              const next = String(nextValue || '')
               setPanelDraftText(next)
               props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: next })
             }}
-            style={{
-              flex: 1,
-              width: '100%',
-              resize: 'none',
-              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.6)',
-              border: '1px solid var(--kg-border)',
-              padding: 10,
-              fontSize: 13,
-              lineHeight: 1.35,
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-              background: 'rgba(255,255,255,0.94)',
-              color: 'var(--kg-foreground, rgba(0,0,0,0.86))',
-            }}
+            displayClassName="block h-full min-h-full w-full overflow-y-auto overflow-x-hidden"
+            editorClassName="block h-full min-h-full w-full overflow-y-auto overflow-x-hidden font-mono text-xs leading-5"
           />
         </section>
       ) : null}
@@ -722,15 +925,18 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           aria-label="Rich media markdown preview"
           data-kg-rich-media-markdown-preview="1"
           data-kg-canvas-wheel-ignore="true"
+          className={CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME}
           style={{
             width: '100%',
             height: '100%',
             overflowY: 'auto',
             overflowX: 'hidden',
+            overscrollBehaviorY: 'contain',
+            overscrollBehaviorX: 'none',
+            scrollbarGutter: 'stable',
             borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-            background: 'transparent',
-            pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : 'auto') : 'none',
-            touchAction: 'pan-x pan-y',
+            pointerEvents: 'auto',
+            touchAction: 'pan-y',
           }}
           data-kg-media-scroll-surface="1"
         >
@@ -740,7 +946,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             uiPanelTextFontClass={uiPanelTextFontClass}
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
             richMediaDataAttrs
-            previewScrollable
           />
         </section>
       ) : panelIsLoading ? (
@@ -753,17 +958,26 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         <CardMediaEmptyPlaceholder variant={expectedEmptyPlaceholderVariant} richMediaDataAttrs />
       ) : kind === 'iframe' ? (
         effectiveInlineSrcDoc ? (
-          <SharedWebpageSurface
-            renderMode="iframe"
-            webpageUrl={proxiedUrl}
-            title={title}
-            iframeSrc="about:blank"
-            iframeSrcDoc={effectiveInlineSrcDoc}
-            iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            iframeReferrerPolicy="no-referrer"
-            style={iframeSurfaceStyle}
-            onLoad={() => setReady(true)}
-          />
+          <section
+            aria-label="Rich media embedded preview"
+            data-kg-rich-media-embedded-preview="1"
+            className={CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME}
+            style={inlineSrcDocEmbeddedSurfaceStyle}
+          >
+            <SharedWebpageSurface
+              renderMode="iframe"
+              webpageUrl={proxiedUrl}
+              title={title}
+              iframeSrc="about:blank"
+              iframeSrcDoc={normalizedInlineSrcDoc}
+              iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              iframeRef={inlineSrcDocFrameRef}
+              iframeScrolling={panelOwnsInlineSrcDocScroll ? 'no' : undefined}
+              iframeReferrerPolicy="no-referrer"
+              style={inlineSrcDocSurfaceStyle}
+              onLoad={() => setReady(true)}
+            />
+          </section>
         ) : iframeEmbed?.direct ? (
           <CardMediaPreview
             kind="iframe"
@@ -848,41 +1062,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           }}
         />
       )}
-      {installResize ? (
-        <button
-          type="button"
-          aria-label="Resize"
-          data-kg-resize-handle="se"
-          style={{
-            position: 'absolute',
-            right: 0,
-            bottom: 0,
-            width: 22,
-            height: 22,
-            background: 'transparent',
-            cursor: 'nwse-resize',
-            pointerEvents: 'auto',
-            zIndex: 20,
-          }}
-          onPointerDown={onResizePointerDown}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              right: 0,
-              bottom: 0,
-              width: 10,
-              height: 10,
-              borderRadius: 999,
-              background: 'transparent',
-              border: '2px solid var(--kg-canvas-accent)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-              transition: 'var(--kg-transition-group-resize-dot)',
-            }}
-          />
-        </button>
-      ) : null}
     </>
   )
 
@@ -931,6 +1110,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-resize-enabled={installResize ? '1' : undefined}
       data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}
       data-kg-rich-media-flow-editor-chrome={showFlowEditorChrome ? '1' : undefined}
+      data-kg-rich-media-frame-mode={useSurfaceFrame ? 'surface' : undefined}
       style={{
         ...rootStyle,
         ...(showFlowEditorChrome
@@ -948,6 +1128,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       onContextMenuCapture={props.onContextMenuCapture}
     >
       {renderedSurface}
+      {resizeHandle}
     </section>
   )
 })

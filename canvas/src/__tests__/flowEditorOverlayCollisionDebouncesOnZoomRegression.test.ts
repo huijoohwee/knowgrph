@@ -61,8 +61,14 @@ export function testFlowEditorOverlayCollisionSkipsSelfCommittedStoreChurn() {
   if (!text.includes('observedStorePosSignatureRef.current = currentSig')) {
     throw new Error('expected overlay collision runtime to memoize the last observed graph-scoped signature before rescheduling')
   }
-  if (!text.includes('const unsubPinned = useGraphStore.subscribe(s => s.flowWidgetPinnedByNodeId, handlePosLikeChange)')) {
-    throw new Error('expected overlay collision pinned-state subscription to reuse the graph-scoped signature guard instead of scheduling blindly')
+  if (text.includes('panelScaleKey') || text.includes('pinSig')) {
+    throw new Error('expected overlay collision settle keys to ignore zoom-scale and pin-state changes')
+  }
+  if (text.includes('const unsubWorld = useGraphStore.subscribe') || text.includes('const unsubWorldByKey = useGraphStore.subscribe')) {
+    throw new Error('expected overlay collision subscriptions to ignore zoom-maintained world-position writes')
+  }
+  if (text.includes('const unsubPinned = useGraphStore.subscribe') || text.includes('const unsubPinnedByKey = useGraphStore.subscribe')) {
+    throw new Error('expected overlay collision subscriptions to ignore pin/unpin authority changes')
   }
   if (!text.includes('st.openWidgetNodeIdsByRenderer?.flowEditor')) {
     throw new Error('expected overlay collision warmup and open-widget watcher to prefer Flow Editor renderer-scoped widget ids')

@@ -1,4 +1,4 @@
-import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 
 export function computeDefaultWidgetFloatingPos(args: {
   stackIndex?: number

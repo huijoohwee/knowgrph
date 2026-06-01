@@ -1,7 +1,9 @@
+import { buildKnowgrphMcpAppsServerReadiness } from './mcpAppsReadyContract.mjs'
+
 export const buildAgentSurfaceInspectionPayload = (args = {}) => {
   const baseUrl = String(args.baseUrl || '').replace(/\/+$/, '')
   const originUrl = baseUrl ? new URL(`${baseUrl}/`).origin : ''
-  return {
+  const payload = {
     baseUrl,
     healthUrl: `${baseUrl}/health`,
     mcpUrl: `${baseUrl}/mcp`,
@@ -23,6 +25,14 @@ export const buildAgentSurfaceInspectionPayload = (args = {}) => {
     agentCard: args.agentCard,
     agentSkills: args.agentSkills,
     commerce: args.commerce,
+  }
+  return {
+    ...payload,
+    mcpAppsServerReadiness: buildKnowgrphMcpAppsServerReadiness({
+      baseUrl,
+      updatedAt: args.updatedAt || args.health?.updatedAt || '',
+      mcpServerCard: args.mcpServerCard,
+    }),
   }
 }
 

@@ -16,7 +16,7 @@ import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConf
 import { computeDynamicNodePortHandlePx, computeZoomScaledPortHandlePx, shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { drawInfiniteGridInWorldContext } from '@/lib/canvas/infiniteGrid'
 import { readEdgePathCurveOptions, traceEdgePathOnCanvas } from '@/lib/graph/edgeTypes'
-import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetScale, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 

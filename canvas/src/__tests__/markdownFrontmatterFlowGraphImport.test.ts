@@ -2186,14 +2186,14 @@ export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingF
   if (!inputNode) throw new Error('expected node 1')
   const inputData = (((inputNode.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
   if (!String(inputData.note || '').includes('@flag:local state for UI; data object for downstream')) {
-    throw new Error('expected NumberInput advisory flag in node 1 data.note')
+    throw new Error('expected input-node downstream data advisory flag in node 1 data.note')
   }
 
   const colorNode = nodeById.get('4') || null
   if (!colorNode) throw new Error('expected node 4')
   const colorData = (((colorNode.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
-  if (!String(colorData.note || '').includes('@flag:CustomHandle isolates per-handle connection state')) {
-    throw new Error('expected ColorPreview advisory flag in node 4 data.note')
+  if (!String(colorData.note || '').includes('per-handle connection state')) {
+    throw new Error('expected per-handle connection state advisory flag in node 4 data.note')
   }
 
   const edge = flowEdges.find(e => String(e.id || '') === 'e7-8') || null

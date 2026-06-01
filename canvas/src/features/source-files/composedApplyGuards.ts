@@ -55,6 +55,18 @@ export function shouldClearComposedGraphForEmptyState(args: {
   return !args.hasEnabledSourceFiles || !args.hasEnabledContent
 }
 
+export function shouldDeferComposedGraphRender(args: {
+  graphData: GraphData | null | undefined
+  layers: ReadonlyArray<ComposedApplyGuardLayer>
+}): boolean {
+  const metadata =
+    args.graphData?.metadata && typeof args.graphData.metadata === 'object'
+      ? (args.graphData.metadata as Record<string, unknown>)
+      : {}
+  if (String(metadata.sourceLayerComposition || '') === 'compose') return false
+  return args.layers.some(layer => layer.enabled && !!layer.parsedGraphData)
+}
+
 export function resolveComposedApplyDeferralReason(args: {
   layers: ReadonlyArray<ComposedApplyGuardLayer>
   composedGraphData: GraphData | null | undefined

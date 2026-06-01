@@ -2,25 +2,36 @@ import React from 'react'
 
 import { computeFlowGroupAabb, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
+import {
+  buildFlowOverlayBoundsFromRects,
+  deriveFlowOverlayCollectiveViewportState,
+  type VisibleFlowViewport,
+} from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
 import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
-import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import {
   isCanonicalFrontmatterBuiltInWidgetNode,
+  resolveGraphNodeIdByCanonicalId,
   shouldAutoPlaceFlowEditorWidget,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceGraphMutationBlocked, type WorkspaceGraphMutationState } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import {
+  collectCanonicalFlowEditorOverlayRectEntries,
   emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent,
+  findFlowEditorOverlaySurfaceRoot,
+  FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   FLOW_EDITOR_INTERACTION_FRAME_EVENT,
+  isTransientOffscreenRichMediaOverlayRoot,
+  queryFlowEditorOverlayRootsForSurface,
+  RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   computeBalancedSpreadBaseGapPx,
   computeBalancedSpreadViewportMargins,
   computeBalancedSpreadSpacingPx,
-  isHorizontalOverlayStrip,
-  isVerticalOverlayCluster,
+  shouldForceBalancedSpreadReseed,
 } from '@/lib/ui/overlayBalancedSpread'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import type { GraphData } from '@/lib/graph/types'
@@ -35,6 +46,8 @@ import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
+import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
+import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import {
   type FlowWidgetPinnedById,
   type FlowWidgetScreenPosById,
@@ -44,6 +57,34 @@ import {
 import { getCachedFlowEditorContainmentGroupLookup } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeGroupLookup'
 
 const FLOW_EDITOR_RUNTIME_SCENE_TRACE_KEY = '__flowEditorRuntimeSceneDebug'
+
+type FlowRuntimeZoomTransform = { k: number; x: number; y: number }
+
+function readFiniteRuntimeZoomTransform(runtime: FlowNativeRuntime | null | undefined): FlowRuntimeZoomTransform | null {
+  const t = runtime?.transform || null
+  const k = typeof t?.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : null
+  const x = typeof t?.x === 'number' && Number.isFinite(t.x) ? t.x : null
+  const y = typeof t?.y === 'number' && Number.isFinite(t.y) ? t.y : null
+  if (k == null || x == null || y == null) return null
+  return { k, x, y }
+}
+
+function hasViewportOffset(transform: FlowRuntimeZoomTransform | null | undefined): boolean {
+  if (!transform) return false
+  return Math.abs(transform.k - 1) > 1e-3 || Math.abs(transform.x) > 0.5 || Math.abs(transform.y) > 0.5
+}
+
+function resolveFlowEditorCollectiveCenterShift(args: {
+  preferredShift: number
+  minShift: number
+  maxShift: number
+}): number {
+  const preferred = Number.isFinite(args.preferredShift) ? args.preferredShift : 0
+  const min = Number.isFinite(args.minShift) ? args.minShift : 0
+  const max = Number.isFinite(args.maxShift) ? args.maxShift : 0
+  if (min > max) return preferred
+  return Math.max(min, Math.min(max, preferred))
+}
 
 function pushFlowEditorRuntimeSceneTrace(entry: {
   reason: string
@@ -106,6 +147,7 @@ export function useFlowEditorRuntimeScene(args: {
   viewportH: number
   schema: unknown
   overlayTopologyLayoutSignature: string
+  flowEditorLayoutRebalanceRequest?: null | { type: 'balanced-spread'; at: number }
   zoomViewKeyRef: React.MutableRefObject<string | null>
 }) {
   const flowRuntimeRefRef = React.useRef<React.MutableRefObject<FlowNativeRuntime | null> | null>(null)
@@ -131,8 +173,45 @@ export function useFlowEditorRuntimeScene(args: {
         && Number.isFinite(world.x)
         && Number.isFinite(world.y)
       ))
-    return autoSeedWorldNodes.length > 0
-  }, [])
+    if (autoSeedWorldNodes.length === 0) return false
+    const k = typeof lastUsable.k === 'number' && Number.isFinite(lastUsable.k) && lastUsable.k > 0
+      ? lastUsable.k
+      : null
+    const x = typeof lastUsable.x === 'number' && Number.isFinite(lastUsable.x) ? lastUsable.x : null
+    const y = typeof lastUsable.y === 'number' && Number.isFinite(lastUsable.y) ? lastUsable.y : null
+    if (k == null || x == null || y == null) return false
+    const visibleViewport = getVisibleViewport()
+    const panelW = WIDGET_BASE_SIZE.width * k
+    const panelH = WIDGET_BASE_SIZE.height * k
+    let minX = Number.POSITIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+    for (let i = 0; i < autoSeedWorldNodes.length; i += 1) {
+      const world = autoSeedWorldNodes[i]!
+      const left = world.x * k + x
+      const top = world.y * k + y
+      minX = Math.min(minX, left)
+      minY = Math.min(minY, top)
+      maxX = Math.max(maxX, left + panelW)
+      maxY = Math.max(maxY, top + panelH)
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return false
+    const marginX = Math.max(24, visibleViewport.width * 0.08)
+    const marginY = Math.max(24, visibleViewport.height * 0.08)
+    const offscreen =
+      maxX <= visibleViewport.left - marginX
+      || maxY <= visibleViewport.top - marginY
+      || minX >= visibleViewport.right + marginX
+      || minY >= visibleViewport.bottom + marginY
+    if (offscreen) return false
+    return (
+      maxX > visibleViewport.left
+      && maxY > visibleViewport.top
+      && minX < visibleViewport.right
+      && minY < visibleViewport.bottom
+    )
+  }, [getVisibleViewport])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -186,7 +265,35 @@ export function useFlowEditorRuntimeScene(args: {
     const sceneNodeCount = Array.isArray(sceneNodes) ? sceneNodes.length : 0
     const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     const positionsReady = runtime?.positionsReady === true
+    const liveRuntimeTransform = readFiniteRuntimeZoomTransform(runtime)
     if (Array.isArray(sceneNodes) && sceneNodes.length <= 0) {
+      const st = useGraphStore.getState()
+      const persisted = getEffectiveZoomStateForKey({
+        zoomViewKey: args.zoomViewKeyRef.current,
+        zoomStateByKey: st.zoomStateByKey,
+        zoomState: st.zoomState,
+      })
+      const persistedK = typeof persisted?.k === 'number' && Number.isFinite(persisted.k) ? persisted.k : null
+      const persistedX = typeof persisted?.x === 'number' && Number.isFinite(persisted.x) ? persisted.x : null
+      const persistedY = typeof persisted?.y === 'number' && Number.isFinite(persisted.y) ? persisted.y : null
+      const persistedTransform =
+        persistedK != null && persistedX != null && persistedY != null
+          ? { k: persistedK, x: persistedX, y: persistedY }
+          : null
+      const interactionInProgress = Date.now() - lastInteractionFrameAtMsRef.current < 620
+      if (liveRuntimeTransform && (interactionInProgress || hasViewportOffset(liveRuntimeTransform) || !hasViewportOffset(persistedTransform))) {
+        lastUsableZoomTransformRef.current = liveRuntimeTransform
+        pushFlowEditorRuntimeSceneTrace({
+          reason: 'scene-empty-using-live-runtime-transform',
+          sceneNodeCount,
+          positionsReady,
+          workspaceMutationBlocked,
+          viewportW: args.viewportW,
+          viewportH: args.viewportH,
+          transform: liveRuntimeTransform,
+        })
+        return liveRuntimeTransform
+      }
       const lastUsable = lastUsableZoomTransformRef.current
       if (lastUsable) {
         pushFlowEditorRuntimeSceneTrace({
@@ -200,21 +307,7 @@ export function useFlowEditorRuntimeScene(args: {
         })
         return lastUsable
       }
-      const st = useGraphStore.getState()
-      const persisted = getEffectiveZoomStateForKey({
-        zoomViewKey: args.zoomViewKeyRef.current,
-        zoomStateByKey: st.zoomStateByKey,
-        zoomState: st.zoomState,
-      })
-      const persistedK = typeof persisted?.k === 'number' && Number.isFinite(persisted.k) ? persisted.k : null
-      const persistedX = typeof persisted?.x === 'number' && Number.isFinite(persisted.x) ? persisted.x : null
-      const persistedY = typeof persisted?.y === 'number' && Number.isFinite(persisted.y) ? persisted.y : null
-      if (
-        persistedK != null
-        && persistedX != null
-        && persistedY != null
-      ) {
-        const persistedTransform = { k: persistedK, x: persistedX, y: persistedY }
+      if (persistedTransform) {
         pushFlowEditorRuntimeSceneTrace({
           reason: 'scene-empty-using-persisted-transform',
           sceneNodeCount,
@@ -251,11 +344,7 @@ export function useFlowEditorRuntimeScene(args: {
       })
       return { k: 1, x: 0, y: 0 }
     }
-    const t = runtime?.transform || null
-    const k = typeof t?.k === 'number' && Number.isFinite(t.k) ? t.k : null
-    const x = typeof t?.x === 'number' && Number.isFinite(t.x) ? t.x : null
-    const y = typeof t?.y === 'number' && Number.isFinite(t.y) ? t.y : null
-    if (k == null || x == null || y == null) {
+    if (!liveRuntimeTransform) {
       pushFlowEditorRuntimeSceneTrace({
         reason: 'runtime-transform-unavailable',
         sceneNodeCount,
@@ -267,7 +356,7 @@ export function useFlowEditorRuntimeScene(args: {
       })
       return null
     }
-    const next = { k, x, y }
+    const next = liveRuntimeTransform
     lastUsableZoomTransformRef.current = next
     pushFlowEditorRuntimeSceneTrace({
       reason: 'runtime-transform-live',
@@ -317,6 +406,8 @@ export function useFlowEditorRuntimeScene(args: {
 
   const seededPinnedWidgetWorldPosKeyRef = React.useRef<string>('')
   const lastAutoSeedLayoutSignatureRef = React.useRef<string>('')
+  const lastHandledLayoutRebalanceAtRef = React.useRef<number>(0)
+  const domCollectiveRecoveryAttemptByScopeRef = React.useRef<Record<string, number>>({})
   React.useEffect(() => {
     const prev = workspaceMutationBlockedPrevRef.current
     workspaceMutationBlockedPrevRef.current = workspaceMutationBlocked
@@ -340,6 +431,254 @@ export function useFlowEditorRuntimeScene(args: {
     seededPinnedWidgetWorldPosKeyRef.current = ''
     lastAutoSeedLayoutSignatureRef.current = ''
   }, [args.viewportH, args.viewportW, shouldPreserveWorkspaceReopenAuthorities, workspaceMutationBlocked])
+  useIsomorphicLayoutEffect(() => {
+    if (!args.active) return
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    let cancelled = false
+    let rafId: number | null = null
+    let observer: MutationObserver | null = null
+    let readinessAttempts = 0
+    const run = (): boolean => {
+      if (cancelled) return true
+      const roots = queryFlowEditorOverlayRootsForSurface({
+        surfaceId: args.flowEditorSurfaceId,
+        selector: FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
+      })
+      if (roots.length <= 1) return false
+      const surfaceRoot = findFlowEditorOverlaySurfaceRoot(args.flowEditorSurfaceId)
+      const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
+      const surfaceOffsetLeft = surfaceRect && Number.isFinite(surfaceRect.left) ? Number(surfaceRect.left) : 0
+      const surfaceOffsetTop = surfaceRect && Number.isFinite(surfaceRect.top) ? Number(surfaceRect.top) : 0
+      const rootRectItems = roots.map(root => {
+        const rect = root.getBoundingClientRect()
+        return {
+          id: String(root.dataset.kgWidget || '').trim(),
+          left: rect.left - surfaceOffsetLeft,
+          top: rect.top - surfaceOffsetTop,
+          right: rect.right - surfaceOffsetLeft,
+          bottom: rect.bottom - surfaceOffsetTop,
+        }
+      })
+      const bounds = buildFlowOverlayBoundsFromRects({
+        items: rootRectItems,
+      })
+      const boundsIds = bounds?.ids || []
+      if (!bounds || boundsIds.length <= 1) return true
+      const visibleViewport = getVisibleViewport()
+      const visibleViewportCenterX = visibleViewport.left + visibleViewport.width / 2
+      const visibleViewportCenterY = visibleViewport.top + visibleViewport.height / 2
+      const viewportState = deriveFlowOverlayCollectiveViewportState({
+        bounds,
+        visibleViewport: {
+          left: visibleViewport.left,
+          top: visibleViewport.top,
+          right: visibleViewport.right,
+          bottom: visibleViewport.bottom,
+          width: visibleViewport.width,
+          height: visibleViewport.height,
+          centerX: visibleViewportCenterX,
+          centerY: visibleViewportCenterY,
+        },
+      })
+      const measuredCenterX = (bounds.minX + bounds.maxX) / 2
+      const measuredCenterY = (bounds.minY + bounds.maxY) / 2
+      const measuredCenterShiftX = visibleViewportCenterX - measuredCenterX
+      const measuredCenterShiftY = visibleViewportCenterY - measuredCenterY
+      const measuredCenterToleranceX = Math.max(24, visibleViewport.width * 0.06)
+      const measuredCenterToleranceY = Math.max(24, visibleViewport.height * 0.08)
+      const measuredAspect = bounds.width / Math.max(1, bounds.height)
+      const measuredShapeBalanced =
+        viewportState?.fitsVisibleViewport === true
+        && measuredAspect >= 0.18
+        && measuredAspect <= 6
+      const needsMeasuredCenterShift =
+        measuredShapeBalanced
+        && (
+          Math.abs(measuredCenterShiftX) > measuredCenterToleranceX
+          || Math.abs(measuredCenterShiftY) > measuredCenterToleranceY
+        )
+      if (viewportState?.balanced === true && !needsMeasuredCenterShift) return true
+      const idsKey = boundsIds
+        .map(id => String(id || '').trim())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
+        .join(',')
+      const scopeKey = [
+        String(args.overlayTopologyLayoutSignature || '').trim(),
+        String(args.flowEditorSurfaceId || '').trim(),
+        idsKey,
+        `${Math.round(visibleViewport.left)}:${Math.round(visibleViewport.top)}:${Math.round(visibleViewport.width)}x${Math.round(visibleViewport.height)}`,
+      ].join('|')
+      const attempts = domCollectiveRecoveryAttemptByScopeRef.current[scopeKey] || 0
+      if (attempts >= 2) return true
+      domCollectiveRecoveryAttemptByScopeRef.current = {
+        ...domCollectiveRecoveryAttemptByScopeRef.current,
+        [scopeKey]: attempts + 1,
+      }
+      const st = useGraphStore.getState()
+      const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
+      const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
+      const currentWorld = resolveScopedFlowWidgetNodeMap({
+        graphMetaKey: graphKey,
+        keyedByGraphMetaKey: (st as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, FlowWidgetWorldPosById> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
+        globalByNodeId: (st as unknown as { flowWidgetWorldPosByNodeId?: FlowWidgetWorldPosById }).flowWidgetWorldPosByNodeId,
+      })
+      const currentScreen = resolveScopedFlowWidgetNodeMap({
+        graphMetaKey: graphKey,
+        keyedByGraphMetaKey: (st as unknown as { flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, FlowWidgetScreenPosById> }).flowWidgetPosByNodeIdByGraphMetaKey,
+        globalByNodeId: (st as unknown as { flowWidgetPosByNodeId?: FlowWidgetScreenPosById }).flowWidgetPosByNodeId,
+      })
+      const z =
+        getLiveZoomTransform()
+        || getEffectiveZoomStateForKey({
+          zoomViewKey: args.zoomViewKeyRef.current,
+          zoomStateByKey: st.zoomStateByKey,
+          zoomState: st.zoomState,
+        })
+        || { k: 1, x: 0, y: 0 }
+      const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
+      const zoomX = typeof z.x === 'number' && Number.isFinite(z.x) ? z.x : 0
+      const zoomY = typeof z.y === 'number' && Number.isFinite(z.y) ? z.y : 0
+      const safeZoomK = Math.max(0.001, zoomK)
+      const balancedViewportPreset = resolveBalancedViewportPreset({
+        graphData: graphDataForSeeding,
+        fallbackPreset: 'widgetCanvas',
+      })
+      const spreadMargins = computeBalancedSpreadViewportMargins({
+        viewportW: visibleViewport.width,
+        viewportH: visibleViewport.height,
+        preset: balancedViewportPreset,
+      })
+      const baseGapPx = computeBalancedSpreadBaseGapPx({
+        viewportW: visibleViewport.width,
+        viewportH: visibleViewport.height,
+        preset: balancedViewportPreset,
+        margins: spreadMargins,
+      })
+      const panelScale = computeCollectiveFollowPinnedScale({
+        zoomK,
+        viewportW: visibleViewport.width,
+        viewportH: visibleViewport.height,
+        count: Math.max(1, boundsIds.length),
+        baseWidth: WIDGET_BASE_SIZE.width,
+        baseHeight: WIDGET_BASE_SIZE.height,
+        viewportPreset: balancedViewportPreset,
+        fitToViewport: false,
+      })
+      const panelScreen = computeWidgetScaledSize(panelScale)
+      const gapScreenPx = computeBalancedSpreadSpacingPx({
+        baseGapPx,
+        zoomK,
+        count: Math.max(1, boundsIds.length),
+        preset: balancedViewportPreset,
+      })
+      const placed = needsMeasuredCenterShift
+        ? rootRectItems
+            .map(item => ({
+              id: String(item.id || '').trim(),
+              x: item.left + measuredCenterShiftX,
+              y: item.top + measuredCenterShiftY,
+            }))
+            .filter(item => item.id && Number.isFinite(item.x) && Number.isFinite(item.y))
+        : placeWidgetsCenteredInGroupBounds({
+            ids: boundsIds,
+            bounds: {
+              minX: visibleViewport.left + spreadMargins.left,
+              minY: visibleViewport.top + spreadMargins.top,
+              maxX: visibleViewport.right - spreadMargins.right,
+              maxY: visibleViewport.bottom - spreadMargins.bottom,
+            },
+            cellW: panelScreen.width + gapScreenPx,
+            cellH: panelScreen.height + gapScreenPx,
+            gapWorld: gapScreenPx,
+            snapWorld: value => value,
+          })
+      if (placed.length <= 0) return true
+      const nextWorld = { ...currentWorld }
+      const nextScreen = { ...currentScreen }
+      let changedWorld = false
+      let changedScreen = false
+      for (let i = 0; i < placed.length; i += 1) {
+        const p = placed[i]!
+        const id = String(p.id || '').trim()
+        if (!id) continue
+        const world = {
+          x: (p.x - zoomX) / safeZoomK,
+          y: (p.y - zoomY) / safeZoomK,
+        }
+        const prevWorld = nextWorld[id]
+        if (!prevWorld || Math.abs(prevWorld.x - world.x) > 0.0001 || Math.abs(prevWorld.y - world.y) > 0.0001) {
+          nextWorld[id] = world
+          changedWorld = true
+        }
+        const screen = { left: p.x, top: p.y }
+        const prevScreen = nextScreen[id]
+        if (!prevScreen || Math.abs(prevScreen.left - screen.left) > 0.0001 || Math.abs(prevScreen.top - screen.top) > 0.0001) {
+          nextScreen[id] = screen
+          changedScreen = true
+        }
+      }
+      if (!changedWorld && !changedScreen) return true
+      if (isWorkspaceGraphMutationBlocked(st)) {
+        useGraphStore.setState(prev => buildWorkspaceBlockedFlowWidgetSeedPatch({
+          prevState: prev as FlowWidgetSeedStoreState,
+          graphDataForSeeding,
+          nextWorld,
+          nextScreenPos: nextScreen,
+          changedScreenPos: changedScreen,
+        }) as Partial<typeof prev>)
+      } else {
+        if (changedScreen) st.setFlowWidgetPosByNodeId(nextScreen)
+        if (changedWorld) st.setFlowWidgetWorldPosByNodeId(nextWorld)
+      }
+      return true
+    }
+    const scheduleReadinessRetry = () => {
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null
+        if (run()) return
+        readinessAttempts += 1
+        if (readinessAttempts < 240) scheduleReadinessRetry()
+      })
+    }
+    if (!run()) {
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        observer = new MutationObserver(() => {
+          if (!run()) return
+          observer?.disconnect()
+          observer = null
+        })
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['data-kg-widget', 'data-kg-flow-editor-surface', 'style'],
+        })
+      }
+      scheduleReadinessRetry()
+    }
+    return () => {
+      cancelled = true
+      observer?.disconnect()
+      observer = null
+      if (rafId != null) {
+        try {
+          window.cancelAnimationFrame(rafId)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [
+    args.active,
+    args.flowEditorSurfaceId,
+    args.overlayTopologyLayoutSignature,
+    args.viewportH,
+    args.viewportW,
+    flowWidgetPinnedCount,
+    flowWidgetWorldPosCount,
+    getVisibleViewport,
+  ])
   useIsomorphicLayoutEffect(() => {
     if (!args.active) return
     const st = useGraphStore.getState()
@@ -379,16 +718,62 @@ export function useFlowEditorRuntimeScene(args: {
     const effectiveOpenIds = Array.isArray(widgetPlacementContext?.effectiveOpenWidgetNodeIds)
       ? widgetPlacementContext!.effectiveOpenWidgetNodeIds
       : []
+    const knownWidgetNodeIds = new Set<string>([
+      ...effectiveOpenIds.map(id => String(id || '').trim()).filter(Boolean),
+      ...Object.keys(worldById),
+      ...Object.keys(posById),
+      ...Object.keys(pinnedById),
+      ...Array.from(nodeTypeById.keys()),
+    ])
+    const resolveActiveSurfaceOverlayWidgetId = (rawId: string): string => {
+      const id = String(rawId || '').trim()
+      if (!id) return ''
+      if (knownWidgetNodeIds.has(id)) return id
+      return resolveGraphNodeIdByCanonicalId(graphDataForSeeding, id) || id
+    }
+    const activeSurfaceOverlayPinnedById: FlowWidgetPinnedById = {}
+    const activeSurfaceOverlayWidgetIds = (() => {
+      if (typeof document === 'undefined') return []
+      const seen = new Set<string>()
+      const out: string[] = []
+      const roots = queryFlowEditorOverlayRootsForSurface({
+        surfaceId: args.flowEditorSurfaceId,
+        selector: FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
+      })
+      for (let i = 0; i < roots.length; i += 1) {
+        const root = roots[i]
+        const id = resolveActiveSurfaceOverlayWidgetId(String(root?.dataset?.kgWidget || '').trim())
+        if (!id || seen.has(id)) continue
+        const pinnedAttr = String(root?.dataset?.kgWidgetPinned || '').trim()
+        if (pinnedAttr === '0') activeSurfaceOverlayPinnedById[id] = false
+        if (pinnedAttr === '1') activeSurfaceOverlayPinnedById[id] = true
+        seen.add(id)
+        out.push(id)
+      }
+      return out
+    })()
+    const placementPinnedById: FlowWidgetPinnedById = {
+      ...pinnedById,
+      ...activeSurfaceOverlayPinnedById,
+    }
     const effectiveOrFallbackOpenIds = effectiveOpenIds.length > 0
-      ? effectiveOpenIds
+      ? Array.from(new Set([
+          ...effectiveOpenIds.map(id => String(id || '').trim()).filter(Boolean),
+          ...activeSurfaceOverlayWidgetIds,
+        ]))
       : (
           graphMetaKind === 'frontmatter-flow'
-            ? Object.keys(worldById)
+            ? Array.from(new Set([
+                ...Object.keys(worldById),
+                ...Object.keys(posById),
+                ...activeSurfaceOverlayWidgetIds,
+              ]))
               .map(id => String(id || '').trim())
               .filter(Boolean)
             : []
         )
     if (effectiveOrFallbackOpenIds.length === 0) return
+    const activeSurfaceOverlayWidgetIdSet = new Set(activeSurfaceOverlayWidgetIds)
     const runtimeSceneNodeCount = (() => {
       const runtime = flowRuntimeRefRef.current?.current
       const nodes = runtime?.scene?.nodes
@@ -400,7 +785,7 @@ export function useFlowEditorRuntimeScene(args: {
       .map(id => String(id || '').trim())
       .filter(Boolean)
       .filter(id => {
-        const v = pinnedById[id]
+        const v = placementPinnedById[id]
         const pinned = typeof v === 'boolean' ? v : defaultPinnedInCanvas
         if (!pinned) return false
         if (forceSceneEmptyReseed) return true
@@ -432,14 +817,35 @@ export function useFlowEditorRuntimeScene(args: {
       )
     const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
     const workspaceMutationBlockedForSeed = isWorkspaceGraphMutationBlocked(st)
+    const layoutRebalanceRequestAt =
+      args.flowEditorLayoutRebalanceRequest?.type === 'balanced-spread'
+      && typeof args.flowEditorLayoutRebalanceRequest.at === 'number'
+      && Number.isFinite(args.flowEditorLayoutRebalanceRequest.at)
+        ? args.flowEditorLayoutRebalanceRequest.at
+        : 0
+    const layoutRebalanceRequested =
+      layoutRebalanceRequestAt > 0
+      && layoutRebalanceRequestAt !== lastHandledLayoutRebalanceAtRef.current
     const isFirstFrontmatterInitSeed = isFrontmatterFlow && seededPinnedWidgetWorldPosKeyRef.current.length === 0
+    const liveHasViewportOffset = hasViewportOffset(liveZoom)
     const shouldUseNeutralSeedZoomForFrontmatterInit =
-      isFirstFrontmatterInitSeed
-      || (isFrontmatterFlow && workspaceMutationBlockedForSeed)
+      !layoutRebalanceRequested
+      && !liveHasViewportOffset
+      && !persistedHasViewportOffset
+      && (
+        isFirstFrontmatterInitSeed
+        || (isFrontmatterFlow && workspaceMutationBlockedForSeed)
+      )
     const shouldUseNeutralSeedZoom =
       (runtimeSceneNodeCount <= 0 && !persistedHasViewportOffset)
       || shouldUseNeutralSeedZoomForFrontmatterInit
-    const allowPersistedViewportOffsetSeed = !workspaceMutationBlockedForSeed
+    const allowPersistedViewportOffsetSeed =
+      !workspaceMutationBlockedForSeed
+      || (
+        isFrontmatterFlow
+        && persistedHasViewportOffset
+        && (!liveZoom || liveLooksDefault)
+      )
     const z =
       (shouldUseNeutralSeedZoom ? { k: 1, x: 0, y: 0 } : null)
       || (allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)
@@ -469,8 +875,9 @@ export function useFlowEditorRuntimeScene(args: {
             .map(id => String(id || '').trim())
             .filter(Boolean)
             .filter(id => {
-              const v = pinnedById[id]
-              return typeof v === 'boolean' ? v : defaultPinnedInCanvas
+              const v = placementPinnedById[id]
+              const pinned = typeof v === 'boolean' ? v : defaultPinnedInCanvas
+              return pinned || activeSurfaceOverlayWidgetIdSet.has(id)
             })
     )
       .filter((id, index, arr) => arr.indexOf(id) === index)
@@ -484,6 +891,7 @@ export function useFlowEditorRuntimeScene(args: {
       baseWidth: WIDGET_BASE_SIZE.width,
       baseHeight: WIDGET_BASE_SIZE.height,
       viewportPreset: balancedViewportPreset,
+      fitToViewport: false,
     })
     const widgetGrid = readWidgetGridLayoutSettings(args.schema)
     const gapBasePx = widgetGrid.gridEnabled ? Math.max(baseGapPx, widgetGrid.gapPx) : baseGapPx
@@ -517,6 +925,98 @@ export function useFlowEditorRuntimeScene(args: {
           maxX: (visibleViewport.right - horizontalMargin - zoomX) / safeZoomK,
           maxY: (visibleViewport.bottom - verticalMargin - zoomY) / safeZoomK,
         }
+    const activeRichMediaWorldObstacles = (() => {
+      if (typeof document === 'undefined') return []
+      const surfaceRoot = findFlowEditorOverlaySurfaceRoot(args.flowEditorSurfaceId)
+      const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
+      const surfaceOffsetLeft = surfaceRect && Number.isFinite(surfaceRect.left) ? Number(surfaceRect.left) : 0
+      const surfaceOffsetTop = surfaceRect && Number.isFinite(surfaceRect.top) ? Number(surfaceRect.top) : 0
+      const richMediaEls = queryFlowEditorOverlayRootsForSurface({
+        surfaceId: args.flowEditorSurfaceId,
+        selector: RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+      })
+      const entries = collectCanonicalFlowEditorOverlayRectEntries(richMediaEls)
+      const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
+      for (let i = 0; i < entries.length; i += 1) {
+        const entry = entries[i]!
+        const rect = entry.rect
+        if (!rect || isTransientOffscreenRichMediaOverlayRoot(entry.el, rect)) continue
+        const screenLeft = Number(rect.left) - surfaceOffsetLeft
+        const screenTop = Number(rect.top) - surfaceOffsetTop
+        const screenRight = Number(rect.right) - surfaceOffsetLeft
+        const screenBottom = Number(rect.bottom) - surfaceOffsetTop
+        if (!Number.isFinite(screenLeft) || !Number.isFinite(screenTop) || !Number.isFinite(screenRight) || !Number.isFinite(screenBottom)) continue
+        const left = (screenLeft - zoomX) / safeZoomK
+        const top = (screenTop - zoomY) / safeZoomK
+        const right = (screenRight - zoomX) / safeZoomK
+        const bottom = (screenBottom - zoomY) / safeZoomK
+        const width = right - left
+        const height = bottom - top
+        if (!(width > 0) || !(height > 0)) continue
+        obstacles.push({ id: `rich-media:${entry.id}`, left, top, width, height })
+      }
+      return obstacles
+    })()
+    const seedCollisionSchema = (args.schema || defaultSchema) as GraphSchema
+    const overlapsSeedRect = (
+      a: { left: number; top: number; width: number; height: number },
+      b: { left: number; top: number; width: number; height: number },
+      gap: number,
+    ) => {
+      const ax2 = a.left + a.width + gap
+      const ay2 = a.top + a.height + gap
+      const bx2 = b.left + b.width + gap
+      const by2 = b.top + b.height + gap
+      return a.left < bx2 && b.left < ax2 && a.top < by2 && b.top < ay2
+    }
+    const avoidActiveRichMediaSeedObstacles = (placed: Array<{ id: string; x: number; y: number }>) => {
+      if (activeRichMediaWorldObstacles.length === 0 || placed.length === 0) return placed
+      let items = placed.map(p => ({
+        id: p.id,
+        left: p.x,
+        top: p.y,
+        width: panelWorldW,
+        height: panelWorldH,
+        movable: true,
+      }))
+      const hasObstacleOverlap = () => items.some(item =>
+        activeRichMediaWorldObstacles.some(obstacle => overlapsSeedRect(item, obstacle, gapWorld)),
+      )
+      if (!hasObstacleOverlap()) return placed
+      for (let pass = 0; pass < 3 && hasObstacleOverlap(); pass += 1) {
+        const relaxed = relaxOverlayPanelsWithCollision({
+          schema: seedCollisionSchema,
+          items,
+          obstacles: activeRichMediaWorldObstacles,
+          gapPx: gapWorld,
+          strength: 0.85,
+          iterations: 12,
+          steps: 14,
+          anchorStrength: 0.08,
+          maxAnchorShiftPx: Math.max(
+            panelWorldW + gapWorld,
+            panelWorldH + gapWorld,
+            Math.min(visibleViewport.width, visibleViewport.height) / safeZoomK * 0.42,
+          ),
+          maxSpeedPxPerStep: 180 / safeZoomK,
+        })
+        const relaxedById = new Map(relaxed.map(item => [item.id, item]))
+        items = items.map(item => {
+          const next = relaxedById.get(item.id)
+          return next ? { ...item, left: next.left, top: next.top } : item
+        })
+      }
+      const relaxedById = new Map(items.map(item => [item.id, item]))
+      return placed.map(p => {
+        const next = relaxedById.get(p.id)
+        if (!next) return p
+        return {
+          id: p.id,
+          x: snapWorld(next.left),
+          y: snapWorld(next.top),
+        }
+      })
+    }
     const normalizeSeedBoundsToViewport = (bounds: { minX: number; minY: number; maxX: number; maxY: number }) => {
       const bounded = {
         minX: Number.isFinite(bounds.minX) ? bounds.minX : viewportBounds.minX,
@@ -538,7 +1038,7 @@ export function useFlowEditorRuntimeScene(args: {
     const balancedHeroRowGapScale = frontmatterRenderSettings?.balancedHeroRowGapScale
     const balancedHeroRowStaggerScale = frontmatterRenderSettings?.balancedHeroRowStaggerScale
     const placeSpreadGridInBounds = (ids: string[], bounds: { minX: number; minY: number; maxX: number; maxY: number }) =>
-      placeWidgetsCenteredInGroupBounds({
+      avoidActiveRichMediaSeedObstacles(placeWidgetsCenteredInGroupBounds({
         ids,
         bounds: normalizeSeedBoundsToViewport(bounds),
         cellW,
@@ -548,7 +1048,7 @@ export function useFlowEditorRuntimeScene(args: {
         preferredFirstRowCount: balancedHeroRowCount,
         preferredRowGapScale: balancedHeroRowGapScale,
         preferredSingleRowStaggerScale: balancedHeroRowStaggerScale,
-      })
+      }))
 
     const viewportBucketId = '__viewport__'
     const allBoundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
@@ -576,6 +1076,89 @@ export function useFlowEditorRuntimeScene(args: {
       })
       .join('|')
     const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${visibleViewport.left},${visibleViewport.top},${visibleViewport.width}x${visibleViewport.height}|${bucketSignature}`
+    const visibleViewportState: VisibleFlowViewport = {
+      left: visibleViewport.left,
+      top: visibleViewport.top,
+      right: visibleViewport.right,
+      bottom: visibleViewport.bottom,
+      width: visibleViewport.width,
+      height: visibleViewport.height,
+      centerX: visibleViewport.left + visibleViewport.width / 2,
+      centerY: visibleViewport.top + visibleViewport.height / 2,
+    }
+    const currentPinnedCollectiveBounds = buildFlowOverlayBoundsFromRects({
+      items: pinnedOpenIds
+        .map(id => {
+          const world = worldById[id]
+          if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) return null
+          const left = world.x * safeZoomK + zoomX
+          const top = world.y * safeZoomK + zoomY
+          return {
+            id,
+            left,
+            top,
+            width: panelWorldW * safeZoomK,
+            height: panelWorldH * safeZoomK,
+          }
+        })
+        .filter((item): item is { id: string; left: number; top: number; width: number; height: number } => !!item),
+    })
+    const currentPinnedCollectiveViewportState =
+      currentPinnedCollectiveBounds && currentPinnedCollectiveBounds.ids?.length === pinnedOpenIds.length
+        ? deriveFlowOverlayCollectiveViewportState({
+            bounds: currentPinnedCollectiveBounds,
+            visibleViewport: visibleViewportState,
+          })
+        : null
+    const currentPinnedCollectiveAlreadyBalanced =
+      pinnedOpenIds.length > 1
+      && currentPinnedCollectiveViewportState?.balanced === true
+    const markLayoutRebalanceHandled = () => {
+      if (layoutRebalanceRequested) lastHandledLayoutRebalanceAtRef.current = layoutRebalanceRequestAt
+    }
+    const initialCollectiveCenteringPass =
+      seededPinnedWidgetWorldPosKeyRef.current.length === 0
+      && lastAutoSeedLayoutSignatureRef.current.length === 0
+    const collectiveCentroidOffCenter = (
+      items: Array<{ left: number; top: number; width: number; height: number }>,
+      bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    ) => {
+      if (items.length <= 1) return false
+      let minLeft = Number.POSITIVE_INFINITY
+      let minTop = Number.POSITIVE_INFINITY
+      let maxRight = Number.NEGATIVE_INFINITY
+      let maxBottom = Number.NEGATIVE_INFINITY
+      let centroidX = 0
+      let centroidY = 0
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i]!
+        const width = Math.max(1, Number(item.width) || 1)
+        const height = Math.max(1, Number(item.height) || 1)
+        minLeft = Math.min(minLeft, item.left)
+        minTop = Math.min(minTop, item.top)
+        maxRight = Math.max(maxRight, item.left + width)
+        maxBottom = Math.max(maxBottom, item.top + height)
+        centroidX += item.left + width / 2
+        centroidY += item.top + height / 2
+      }
+      if (!Number.isFinite(minLeft) || !Number.isFinite(minTop) || !Number.isFinite(maxRight) || !Number.isFinite(maxBottom)) return false
+      centroidX /= items.length
+      centroidY /= items.length
+      const targetCenterX = (bounds.minX + bounds.maxX) / 2
+      const targetCenterY = (bounds.minY + bounds.maxY) / 2
+      const toleranceX = Math.max(panelWorldW * 0.32, gapWorld * 1.75, (bounds.maxX - bounds.minX) * 0.045)
+      const toleranceY = Math.max(panelWorldH * 0.32, gapWorld * 1.75, (bounds.maxY - bounds.minY) * 0.045)
+      const outsideBounds =
+        maxRight <= bounds.minX
+        || maxBottom <= bounds.minY
+        || minLeft >= bounds.maxX
+        || minTop >= bounds.maxY
+      return (
+        outsideBounds
+        || Math.abs(centroidX - targetCenterX) > toleranceX
+        || Math.abs(centroidY - targetCenterY) > toleranceY
+      )
+    }
 
     const overlapEligible = (() => {
       const idsByBucket = new Map<string, string[]>()
@@ -584,6 +1167,7 @@ export function useFlowEditorRuntimeScene(args: {
       const autoSeedLayoutChanged =
         lastAutoSeedLayoutSignatureRef.current.length > 0
         && lastAutoSeedLayoutSignatureRef.current !== currentLayoutSignature
+        && !currentPinnedCollectiveAlreadyBalanced
       for (let i = 0; i < pinnedOpenIds.length; i += 1) {
         const id = pinnedOpenIds[i]!
         const world = worldById[id]
@@ -598,7 +1182,11 @@ export function useFlowEditorRuntimeScene(args: {
         const frontmatterPinnedWidget =
           graphMetaKind === 'frontmatter-flow'
           && isCanonicalFrontmatterBuiltInWidgetNode({ id, type: nodeTypeId })
-        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world, nodeTypeId }) && !frontmatterPinnedWidget) continue
+        const autoPlaceCandidate =
+          shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world, nodeTypeId })
+          || frontmatterPinnedWidget
+          || initialCollectiveCenteringPass
+        if (!autoPlaceCandidate) continue
         if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
         const list = idsByBucket.get(bucketId) || []
         list.push(id)
@@ -624,7 +1212,7 @@ export function useFlowEditorRuntimeScene(args: {
           overlappingIds.add(id)
         }
       }
-      for (const ids of idsByBucket.values()) {
+      for (const [bucketId, ids] of idsByBucket.entries()) {
         const bucketItems = ids
           .map(id => {
             const world = worldById[id]
@@ -634,11 +1222,12 @@ export function useFlowEditorRuntimeScene(args: {
           .filter((item): item is { id: string; left: number; top: number; width: number; height: number } => !!item)
         const hasResidueCluster =
           bucketItems.length >= 3
-          && (
-            isVerticalOverlayCluster({ items: bucketItems, gapPx: gapWorld })
-            || isHorizontalOverlayStrip({ items: bucketItems, gapPx: gapWorld })
-          )
-        if (hasResidueCluster) {
+          && shouldForceBalancedSpreadReseed({ items: bucketItems, gapPx: gapWorld })
+        const bucketBounds = allBoundsByBucket.get(bucketId) || viewportBounds
+        const needsInitialCentroidSeed =
+          initialCollectiveCenteringPass
+          && collectiveCentroidOffCenter(bucketItems, bucketBounds)
+        if (hasResidueCluster || needsInitialCentroidSeed) {
           for (let i = 0; i < bucketItems.length; i += 1) overlappingIds.add(bucketItems[i]!.id)
           continue
         }
@@ -654,7 +1243,17 @@ export function useFlowEditorRuntimeScene(args: {
       }
       return Array.from(overlappingIds)
     })()
-    let pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
+    const forcedLayoutRebalanceIds = layoutRebalanceRequested ? pinnedOpenIds : []
+    const forcedInitialCollectiveIds =
+      initialCollectiveCenteringPass && pendingRaw.length > 0 && pinnedOpenIds.length > 1
+        ? pinnedOpenIds
+        : []
+    let pending = Array.from(new Set([
+      ...pendingRaw,
+      ...overlapEligible,
+      ...forcedInitialCollectiveIds,
+      ...forcedLayoutRebalanceIds,
+    ])).sort((a, b) => a.localeCompare(b))
     const fullFrontmatterCollectiveIds = isFrontmatterFlow ? Array.from(new Set(effectiveOrFallbackOpenIds.map(id => String(id || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)) : []
     const shouldReseedWholeFrontmatterCollective =
       isFrontmatterFlow
@@ -662,9 +1261,12 @@ export function useFlowEditorRuntimeScene(args: {
       && (
         forceSceneEmptyReseed
         || (pending.length > 0 && pending.length < fullFrontmatterCollectiveIds.length)
-      )
+    )
     if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds
-    if (pending.length === 0) return
+    if (pending.length === 0) {
+      markLayoutRebalanceHandled()
+      return
+    }
 
     const idsByBucket = new Map<string, string[]>()
     const boundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
@@ -685,8 +1287,11 @@ export function useFlowEditorRuntimeScene(args: {
     }
     const bucketIds = Array.from(idsByBucket.keys()).sort((a, b) => a.localeCompare(b))
     const pendingSet = new Set(pending)
-    const seedKey = `${pending.join(',')}|${currentLayoutSignature}`
-    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !forceSceneEmptyReseed) return
+    const seedKey = `${pending.join(',')}|${currentLayoutSignature}|${layoutRebalanceRequested ? `rebalance:${layoutRebalanceRequestAt}` : 'auto'}`
+    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !forceSceneEmptyReseed) {
+      markLayoutRebalanceHandled()
+      return
+    }
 
     const nextWorld = { ...worldById }
     const nextScreenPos = { ...posById }
@@ -695,7 +1300,7 @@ export function useFlowEditorRuntimeScene(args: {
     const nextAutoSeedPositions: Record<string, { x: number; y: number }> = {}
     const syncScreenAuthorityPosition = (id: string, world: { x: number; y: number }) => {
       changedScreenPos = syncFlowWidgetScreenAuthorityPosition({
-        id, world, nextScreenPos, pinnedById, defaultPinnedInCanvas, graphMetaKind, zoomK, zoomX, zoomY,
+        id, world, nextScreenPos, pinnedById: placementPinnedById, defaultPinnedInCanvas, graphMetaKind, zoomK, zoomX, zoomY,
       }) || changedScreenPos
     }
     for (let i = 0; i < bucketIds.length; i += 1) {
@@ -752,8 +1357,16 @@ export function useFlowEditorRuntimeScene(args: {
         const maxDx = viewportBounds.maxX - maxRight
         const minDy = viewportBounds.minY - minTop
         const maxDy = viewportBounds.maxY - maxBottom
-        const shiftX = Math.max(minDx, Math.min(maxDx, targetCenterX - centroidX))
-        const shiftY = Math.max(minDy, Math.min(maxDy, targetCenterY - centroidY))
+        const shiftX = resolveFlowEditorCollectiveCenterShift({
+          preferredShift: targetCenterX - centroidX,
+          minShift: minDx,
+          maxShift: maxDx,
+        })
+        const shiftY = resolveFlowEditorCollectiveCenterShift({
+          preferredShift: targetCenterY - centroidY,
+          minShift: minDy,
+          maxShift: maxDy,
+        })
         if (Math.abs(shiftX) > 0.0001 || Math.abs(shiftY) > 0.0001) {
           for (let i = 0; i < autoSeedIds.length; i += 1) {
             const id = autoSeedIds[i]!
@@ -767,6 +1380,22 @@ export function useFlowEditorRuntimeScene(args: {
           }
           changed = true
         }
+      }
+      const obstacleAdjusted = avoidActiveRichMediaSeedObstacles(autoSeedIds
+        .map(id => {
+          const world = nextWorld[id]
+          if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) return null
+          return { id, x: world.x, y: world.y }
+        })
+        .filter((item): item is { id: string; x: number; y: number } => !!item))
+      for (let i = 0; i < obstacleAdjusted.length; i += 1) {
+        const p = obstacleAdjusted[i]!
+        const prev = nextWorld[p.id]
+        if (!prev || (Math.abs(prev.x - p.x) <= 0.0001 && Math.abs(prev.y - p.y) <= 0.0001)) continue
+        nextWorld[p.id] = { x: p.x, y: p.y }
+        nextAutoSeedPositions[p.id] = { x: p.x, y: p.y }
+        syncScreenAuthorityPosition(p.id, nextWorld[p.id]!)
+        changed = true
       }
     }
     latestAutoSeedWorldPosByNodeIdRef.current = nextAutoSeedPositions
@@ -782,13 +1411,18 @@ export function useFlowEditorRuntimeScene(args: {
     if (!changed && !changedScreenPos) {
       seededPinnedWidgetWorldPosKeyRef.current = seedKey
       lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
+      markLayoutRebalanceHandled()
       return
     }
     const hasMissingWorldSeeds = pendingRaw.length > 0
-    const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed
-    if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) return
+    const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed || layoutRebalanceRequested
+    if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) {
+      markLayoutRebalanceHandled()
+      return
+    }
     seededPinnedWidgetWorldPosKeyRef.current = seedKey
     lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
+    markLayoutRebalanceHandled()
     if (workspaceMutationBlockedForSeed) {
       useGraphStore.setState(prev => buildWorkspaceBlockedFlowWidgetSeedPatch({
         prevState: prev as FlowWidgetSeedStoreState,
@@ -804,6 +1438,7 @@ export function useFlowEditorRuntimeScene(args: {
   }, [
     args.active,
     args.flowEditorSurfaceId,
+    args.flowEditorLayoutRebalanceRequest,
     args.openWidgetNodeIds,
     args.overlayTopologyLayoutSignature,
     args.schema,

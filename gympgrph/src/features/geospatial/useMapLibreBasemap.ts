@@ -7,6 +7,10 @@ import {
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 import { tryCreateGrabMapsLibraryMap } from 'grph-shared/geospatial/grabMapsLibrary'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
+import {
+  normalizeGeoPoiRichMediaProperties,
+  type GeoPoiRichMediaProperties,
+} from 'grph-shared/geospatial/poiRichMedia'
 import { LS_KEYS } from '../../lib/config.js'
 import {
   MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
@@ -27,6 +31,7 @@ type BasemapProbe = {
 type BasemapResult = {
   map: any | null
   probe: BasemapProbe
+  basemapUnavailable: boolean
   mapError: string | null
   styleRevision: number
 }
@@ -37,6 +42,7 @@ type BasemapPoiClickDetail = {
   lat: number
   address?: string
   category?: string
+  properties?: GeoPoiRichMediaProperties
 }
 
 const EMPTY_PROBE: BasemapProbe = { tileSourceId: '', tilesLoaded: false, canvasW: 0, canvasH: 0, zoom: 0, lng: 0, lat: 0 }
@@ -48,6 +54,8 @@ const INITIAL_3D_BEARING = 0
 const RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL = MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
 const GRABMAPS_RUNTIME_NAVIGATION_GRACE_MS = 1200
 const GRABMAPS_IDLE_SERVICE_ERROR_FALLBACK_THRESHOLD = 3
+const BASEMAP_SOURCE_ACTIVITY_GRACE_MS = 12_000
+const HOST_GRAPH_SOURCE_PREFIX = 'kg-host-graph:nodes'
 
 const resolveBasemapStyle = (rawStyleUrl: string | null | undefined) => {
   const trimmed = String(rawStyleUrl || '').trim()
@@ -395,6 +403,20 @@ const readPoiCategoryFromFeature = (feature: unknown): string => {
   return typeof raw === 'string' && raw.trim() ? raw.trim() : ''
 }
 
+const readPoiPropertiesFromFeature = (feature: unknown): GeoPoiRichMediaProperties => {
+  if (!feature || typeof feature !== 'object') return {}
+  const props = (feature as { properties?: unknown }).properties
+  return normalizeGeoPoiRichMediaProperties(props)
+}
+
+const isGraphOverlayFeature = (feature: unknown): boolean => {
+  if (!feature || typeof feature !== 'object') return false
+  const props = (feature as { properties?: unknown }).properties
+  if (!props || typeof props !== 'object') return false
+  const record = props as Record<string, unknown>
+  return typeof record.kgCategory === 'string' && String(record.id || '').trim() !== ''
+}
+
 const readFeaturePointCoordinates = (feature: unknown): [number, number] | null => {
   if (!feature || typeof feature !== 'object') return null
   const geometry = (feature as { geometry?: unknown }).geometry
@@ -425,6 +447,7 @@ export function useMapLibreBasemap(args: {
   const [state, setState] = React.useState<BasemapResult>({
     map: null,
     probe: EMPTY_PROBE,
+    basemapUnavailable: false,
     mapError: null,
     styleRevision: 0,
   })
@@ -459,7 +482,7 @@ export function useMapLibreBasemap(args: {
     })
   }, [])
 
-  const computeProbe = React.useCallback((map: any): BasemapProbe => {
+  const computeProbe = React.useCallback((map: any, options?: { basemapRenderable?: boolean }): BasemapProbe => {
     if (!map) return EMPTY_PROBE
     const canvas = map.getCanvas?.()
     const canvasW = canvas && typeof canvas.width === 'number' ? canvas.width : 0
@@ -469,7 +492,7 @@ export function useMapLibreBasemap(args: {
     const lng = center && typeof center.lng === 'number' ? center.lng : 0
     const lat = center && typeof center.lat === 'number' ? center.lat : 0
 
-    const tilesLoaded = typeof map.areTilesLoaded === 'function' ? map.areTilesLoaded() === true : false
+    const tilesLoaded = (typeof map.areTilesLoaded === 'function' && map.areTilesLoaded() === true) || options?.basemapRenderable === true
     const tileSourceId = ''
     return { tileSourceId, tilesLoaded, canvasW, canvasH, zoom, lng, lat }
   }, [])
@@ -486,16 +509,16 @@ export function useMapLibreBasemap(args: {
   React.useEffect(() => {
     if (!enabled) {
       setState((prev: BasemapResult) =>
-        prev.map || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
-          ? { ...prev, map: null, probe: EMPTY_PROBE, mapError: null, styleRevision: 0 }
+        prev.map || prev.basemapUnavailable || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
+          ? { ...prev, map: null, probe: EMPTY_PROBE, basemapUnavailable: false, mapError: null, styleRevision: 0 }
           : prev,
       )
       return
     }
     // Reset style revision before mounting/re-mounting so host-side layer writes wait for the next style.load.
     setState((prev: BasemapResult) =>
-      prev.map || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
-        ? { ...prev, map: null, probe: EMPTY_PROBE, mapError: null, styleRevision: 0 }
+      prev.map || prev.basemapUnavailable || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
+        ? { ...prev, map: null, probe: EMPTY_PROBE, basemapUnavailable: false, mapError: null, styleRevision: 0 }
         : prev,
     )
 
@@ -504,11 +527,17 @@ export function useMapLibreBasemap(args: {
     let resizeObserver: ResizeObserver | null = null
     let probeInterval: ReturnType<typeof setInterval> | null = null
     let mountRetryTimer: ReturnType<typeof setTimeout> | null = null
+    let basemapVisibilityTimer: ReturnType<typeof setTimeout> | null = null
     let abortNoiseCleanup: (() => void) | null = null
     let grabMapsFallbackApplied = false
     let grabMapsBootstrapPending = false
     let unsafeRuntimeFallbackApplied = false
+    let blankBasemapStyleFallbackApplied = false
+    let basemapRenderableConfirmationCount = 0
+    let requestedOpenFreeMapLiberty = false
     let lastNavigationAtMs = 0
+    let lastBasemapSourceActivityAtMs = 0
+    let basemapSourceRenderable = false
     let consecutiveIdleGrabMapsServiceErrors = 0
     let removePoiClickBinding: (() => void) | null = null
     const requestedGrabMapsStyle = isGrabMapsUrl(resolveBasemapStyle(targetStyleUrl) || '')
@@ -521,6 +550,99 @@ export function useMapLibreBasemap(args: {
       } catch {
         void 0
       }
+    }
+
+    const clearBasemapVisibilityTimer = () => {
+      if (!basemapVisibilityTimer) return
+      clearTimeout(basemapVisibilityTimer)
+      basemapVisibilityTimer = null
+    }
+
+    const markBasemapRenderable = () => {
+      clearBasemapVisibilityTimer()
+      setState((prev: BasemapResult) => (
+        prev.basemapUnavailable || prev.mapError
+          ? { ...prev, basemapUnavailable: false, mapError: null }
+          : prev
+      ))
+    }
+
+    const hasRecentBasemapSourceActivity = (): boolean => {
+      return lastBasemapSourceActivityAtMs > 0 && Date.now() - lastBasemapSourceActivityAtMs <= BASEMAP_SOURCE_ACTIVITY_GRACE_MS
+    }
+
+    const computeEffectiveProbe = (): BasemapProbe => {
+      return computeProbe(map, { basemapRenderable: basemapSourceRenderable })
+    }
+
+    const markBasemapSourceActivity = (renderable: boolean) => {
+      lastBasemapSourceActivityAtMs = Date.now()
+      if (!renderable || !map) return
+      basemapSourceRenderable = true
+      basemapRenderableConfirmationCount = Math.max(basemapRenderableConfirmationCount, 2)
+      setProbe(computeEffectiveProbe())
+      markBasemapRenderable()
+    }
+
+    const markBasemapUnavailable = () => {
+      if (cancelled) return
+      setState((prev: BasemapResult) => {
+        if (prev.basemapUnavailable) return prev
+        return { ...prev, basemapUnavailable: true, mapError: null }
+      })
+    }
+
+    const switchBlankBasemapToSafeStyle = (): boolean => {
+      if (!map || typeof map.setStyle !== 'function') return false
+      if (blankBasemapStyleFallbackApplied) return false
+      if (!requestedGrabMapsStyle) return false
+      blankBasemapStyleFallbackApplied = true
+      basemapRenderableConfirmationCount = 0
+      basemapSourceRenderable = false
+      lastBasemapSourceActivityAtMs = 0
+      notifyGrabMapsFallback()
+      applyGrabMapsAutomaticFallback()
+      try {
+        map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
+        setState((prev: BasemapResult) => ({ ...prev, basemapUnavailable: false, mapError: null, styleRevision: 0 }))
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    const scheduleBasemapVisibilityProbe = (delayOverrideMs?: number) => {
+      clearBasemapVisibilityTimer()
+      const delayMs = delayOverrideMs ?? Math.max(800, Number.isFinite(vectorFallbackMs) ? Math.floor(vectorFallbackMs) : 2_000)
+      basemapVisibilityTimer = setTimeout(() => {
+        basemapVisibilityTimer = null
+        if (cancelled || !map) return
+        const probe = computeEffectiveProbe()
+        if (probe.tilesLoaded) {
+          basemapRenderableConfirmationCount += 1
+          setState((prev: BasemapResult) => (
+            prev.basemapUnavailable || prev.mapError
+              ? { ...prev, basemapUnavailable: false, mapError: null }
+              : prev
+          ))
+          if (basemapRenderableConfirmationCount >= 2) {
+            markBasemapRenderable()
+            return
+          }
+          scheduleBasemapVisibilityProbe(3_000)
+          return
+        }
+        if (hasRecentBasemapSourceActivity()) {
+          scheduleBasemapVisibilityProbe(4_000)
+          return
+        }
+        basemapRenderableConfirmationCount = 0
+        if (switchBlankBasemapToSafeStyle()) {
+          scheduleBasemapVisibilityProbe()
+          return
+        }
+        markBasemapUnavailable()
+      }, delayMs)
     }
 
     const mount = async () => {
@@ -560,7 +682,7 @@ export function useMapLibreBasemap(args: {
       }
 
       try {
-        const mlRaw = await import('maplibre-gl')
+        const mlRaw = await import('maplibre-gl/dist/maplibre-gl.js')
         if (cancelled) return
         const mlAny = mlRaw as unknown as any
         const MapConstructor = mlAny?.Map || mlAny?.default?.Map
@@ -614,12 +736,12 @@ export function useMapLibreBasemap(args: {
         }
 
         const style = resolveBasemapStyle(targetStyleUrl)
-        const requestedOpenFreeMapLiberty = isOpenFreeMapLibertyUrl(style)
+        requestedOpenFreeMapLiberty = isOpenFreeMapLibertyUrl(style)
 
         if (style == null) {
           setState((prev: BasemapResult) =>
             prev.map || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
-              ? { ...prev, map: null, probe: EMPTY_PROBE, mapError: null, styleRevision: 0 }
+              ? { ...prev, map: null, probe: EMPTY_PROBE, basemapUnavailable: false, mapError: null, styleRevision: 0 }
               : prev,
           )
           return
@@ -733,7 +855,7 @@ export function useMapLibreBasemap(args: {
               const clickPoint = ev && typeof ev === 'object' && 'point' in ev ? (ev as { point?: unknown }).point : null
               const candidates = clickPoint ? map.queryRenderedFeatures(clickPoint) : []
               const features = Array.isArray(candidates) ? candidates : []
-              const picked = features.find((f: unknown) => readPoiLabelFromFeature(f))
+              const picked = features.find((f: unknown) => !isGraphOverlayFeature(f) && readPoiLabelFromFeature(f))
               const label = readPoiLabelFromFeature(picked)
               if (!picked || !label) return
               const poiCoords = readFeaturePointCoordinates(picked)
@@ -747,6 +869,7 @@ export function useMapLibreBasemap(args: {
                   lat,
                   address: readPoiAddressFromFeature(picked),
                   category: readPoiCategoryFromFeature(picked),
+                  properties: readPoiPropertiesFromFeature(picked),
                 })
               } catch {
                 void 0
@@ -778,7 +901,11 @@ export function useMapLibreBasemap(args: {
           if (openFreeMapAbort && typeof map?.setStyle === 'function') {
             try {
               map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
-              setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+              basemapRenderableConfirmationCount = 0
+              basemapSourceRenderable = false
+              lastBasemapSourceActivityAtMs = 0
+              setState((prev: BasemapResult) => ({ ...prev, basemapUnavailable: false, mapError: null, styleRevision: 0 }))
+              scheduleBasemapVisibilityProbe()
             } catch {
               setState((prev: BasemapResult) => ({ ...prev, mapError: trimmed }))
             }
@@ -795,7 +922,11 @@ export function useMapLibreBasemap(args: {
             try {
               applyGrabMapsAutomaticFallback()
               map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
-              setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+              basemapRenderableConfirmationCount = 0
+              basemapSourceRenderable = false
+              lastBasemapSourceActivityAtMs = 0
+              setState((prev: BasemapResult) => ({ ...prev, basemapUnavailable: false, mapError: null, styleRevision: 0 }))
+              scheduleBasemapVisibilityProbe()
               return true
             } catch {
               return false
@@ -817,7 +948,11 @@ export function useMapLibreBasemap(args: {
             try {
               setRuntimeProjectionMode('mercator')
               map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
-              setState((prev: BasemapResult) => ({ ...prev, mapError: null, styleRevision: 0 }))
+              basemapRenderableConfirmationCount = 0
+              basemapSourceRenderable = false
+              lastBasemapSourceActivityAtMs = 0
+              setState((prev: BasemapResult) => ({ ...prev, basemapUnavailable: false, mapError: null, styleRevision: 0 }))
+              scheduleBasemapVisibilityProbe()
               return true
             } catch {
               return false
@@ -856,6 +991,8 @@ export function useMapLibreBasemap(args: {
         map.on?.('style.load', () => {
           if (cancelled) return
           consecutiveIdleGrabMapsServiceErrors = 0
+          basemapSourceRenderable = false
+          lastBasemapSourceActivityAtMs = 0
           if (requestedGrabMapsStyle) {
             grabMapsBootstrapPending = false
           }
@@ -871,6 +1008,7 @@ export function useMapLibreBasemap(args: {
           if (viewportSizingMode === 'fit') {
             map.resize?.()
           }
+          scheduleBasemapVisibilityProbe()
           setState((prev: BasemapResult) => ({ ...prev, styleRevision: prev.styleRevision + 1 }))
         })
 
@@ -882,17 +1020,32 @@ export function useMapLibreBasemap(args: {
               || (typeof map.loaded === 'function' && map.loaded() === true)
             if (!loaded) return
             setState((prev: BasemapResult) => (prev.styleRevision > 0 ? prev : { ...prev, styleRevision: 1 }))
+            scheduleBasemapVisibilityProbe()
           } catch {
             void 0
           }
         })
 
+        map.on?.('sourcedata', (e: any) => {
+          if (cancelled) return
+          const sourceId = String(e && typeof e === 'object' && 'sourceId' in e ? e.sourceId || '' : '').trim()
+          if (!sourceId || sourceId.startsWith(HOST_GRAPH_SOURCE_PREFIX)) return
+          const hasTilePayload = !!(e && typeof e === 'object' && ('coord' in e || 'tile' in e))
+          markBasemapSourceActivity(hasTilePayload)
+        })
+
         const updateProbe = () => {
           if (cancelled || !map) return
-          if (typeof map.areTilesLoaded === 'function' && map.areTilesLoaded() === true) {
+          const probe = computeEffectiveProbe()
+          if (probe.tilesLoaded) {
             consecutiveIdleGrabMapsServiceErrors = 0
+            setState((prev: BasemapResult) => (
+              prev.basemapUnavailable || prev.mapError
+                ? { ...prev, basemapUnavailable: false, mapError: null }
+                : prev
+            ))
           }
-          setProbe(computeProbe(map))
+          setProbe(probe)
         }
 
         const markNavigationActivity = () => {
@@ -939,6 +1092,7 @@ export function useMapLibreBasemap(args: {
           map.resize?.()
           align3dViewportCenter()
           setState((prev: BasemapResult) => (prev.styleRevision > 0 ? prev : { ...prev, styleRevision: 1 }))
+          scheduleBasemapVisibilityProbe()
           if (canvasRenderMode === '3d') {
             try {
               map.jumpTo?.({
@@ -982,7 +1136,7 @@ export function useMapLibreBasemap(args: {
         let loggedTilesLoaded = false
         probeInterval = setInterval(() => {
           if (cancelled || !map) return
-          const probe = computeProbe(map)
+          const probe = computeEffectiveProbe()
           setProbe(probe)
           if (debug) {
             if (!loggedCanvasReady && probe.canvasW > 0 && probe.canvasH > 0) {
@@ -1002,9 +1156,17 @@ export function useMapLibreBasemap(args: {
               }
             }
           }
+          if (probe.tilesLoaded) {
+            setState((prev: BasemapResult) => (
+              prev.basemapUnavailable || prev.mapError
+                ? { ...prev, basemapUnavailable: false, mapError: null }
+                : prev
+            ))
+          }
         }, debug ? 1_000 : Math.max(1_500, Math.floor(vectorFallbackMs)))
 
-        setState((prev: BasemapResult) => ({ ...prev, map, mapError: null }))
+        scheduleBasemapVisibilityProbe()
+        setState((prev: BasemapResult) => ({ ...prev, map, basemapUnavailable: false, mapError: null }))
       } catch (err) {
         if (cancelled) return
         const msg = err instanceof Error ? err.message : String(err || '')
@@ -1016,10 +1178,10 @@ export function useMapLibreBasemap(args: {
           }
           map = null
           setRuntimeProjectionMode('mercator')
-          setState((prev: BasemapResult) => ({ ...prev, map: null, mapError: null, styleRevision: 0 }))
+          setState((prev: BasemapResult) => ({ ...prev, map: null, basemapUnavailable: false, mapError: null, styleRevision: 0 }))
           return
         }
-        setState((prev: BasemapResult) => ({ ...prev, map: null, mapError: msg || 'Map init failed' }))
+        setState((prev: BasemapResult) => ({ ...prev, map: null, basemapUnavailable: true, mapError: msg || 'Map init failed' }))
       }
     }
 
@@ -1031,6 +1193,7 @@ export function useMapLibreBasemap(args: {
         clearTimeout(mountRetryTimer)
         mountRetryTimer = null
       }
+      clearBasemapVisibilityTimer()
       if (probeInterval) {
         clearInterval(probeInterval)
         probeInterval = null

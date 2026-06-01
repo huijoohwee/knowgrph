@@ -33,3 +33,17 @@ export function testMarkdownDesignOverlayBlockDragIsRafThrottled() {
     throw new Error('expected markdown design block drag to avoid mapping all blocks on each move')
   }
 }
+
+export function testMarkdownPreviewViewerDoesNotMeasureLayoutAfterStyleWrites() {
+  const p = resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownPreviewViewer.impl.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (text.includes('__kgMarkdownViewerWidthPx') || text.includes('--kg-scrollbar-width')) {
+    throw new Error('expected MarkdownPreviewViewer to remove stale measured-width globals and scrollbar CSS writes')
+  }
+  if (text.includes('offsetWidth') || text.includes('clientWidth') || text.includes('getBoundingClientRect()')) {
+    throw new Error('expected MarkdownPreviewViewer root sizing to avoid synchronous layout reads')
+  }
+  if (text.includes('style.setProperty')) {
+    throw new Error('expected MarkdownPreviewViewer root sizing to stay CSS-owned instead of imperative style writes')
+  }
+}

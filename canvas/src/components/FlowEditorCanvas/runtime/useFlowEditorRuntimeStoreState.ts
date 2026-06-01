@@ -22,6 +22,7 @@ export function useFlowEditorRuntimeStoreState() {
       frontmatterModeEnabled: s.frontmatterModeEnabled,
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
+      flowEditorLayoutRebalanceRequest: s.flowEditorLayoutRebalanceRequest,
       collapsedGroupIds: s.collapsedGroupIds,
       markdownDocumentName: s.markdownDocumentName,
       markdownDocumentSourceUrl: s.markdownDocumentSourceUrl,

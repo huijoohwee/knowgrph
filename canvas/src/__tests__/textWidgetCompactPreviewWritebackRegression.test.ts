@@ -16,6 +16,17 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
   if (!text.includes('const nextProperties = applyWidgetCompactPreviewTextUpdate({')) {
     throw new Error('expected NodeOverlayEditorForm to delegate compact preview text mutation to the shared helper')
   }
+  if (
+    !text.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
+    || !text.includes('onCommit={setCompactPreviewText}')
+    || !text.includes('editActivation="click"')
+    || !text.includes('markdownPreview="auto"')
+  ) {
+    throw new Error('expected Widget compact preview text edits to reuse the shared Storyboard Card inline editor')
+  }
+  if (text.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')) {
+    throw new Error('expected Widget compact preview to avoid a parallel markdown/read-only branch outside the shared Card inline editor')
+  }
   if (!text.includes('return buildWidgetCompactPreviewViewModel({')) {
     throw new Error('expected NodeOverlayEditorForm to delegate compact preview presentation state to the shared view-model helper')
   }

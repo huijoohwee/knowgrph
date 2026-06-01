@@ -10,6 +10,11 @@ import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail
 import { getWebpageFallbackInfo } from 'grph-shared/rich-media/webpageFallback'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildWebpageLayoutCacheKey, getMarkdownWebpageSnapshotPreset } from '@/lib/websites/webpageLayoutPresets'
@@ -25,6 +30,10 @@ const mediaFrameClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI
 const mediaShellClassName = `w-full h-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden relative`
 const mediaLoadButtonClassName = `text-xs px-3 py-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const mediaLinkClassName = `text-xs underline ${UI_THEME_TOKENS.text.primary}`
+const getMediaFrameClassName = (cardPreviewMode?: boolean) =>
+  cardPreviewMode === true ? CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME : mediaFrameClassName
+const getMediaShellClassName = (cardPreviewMode?: boolean) =>
+  cardPreviewMode === true ? CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME : mediaShellClassName
 
 export const MediaIframe = React.memo(function MediaIframe({
   src,
@@ -37,6 +46,7 @@ export const MediaIframe = React.memo(function MediaIframe({
   containerStyle,
   className,
   style,
+  cardPreviewMode,
 }: {
   src: string
   title: string
@@ -48,6 +58,7 @@ export const MediaIframe = React.memo(function MediaIframe({
   containerStyle?: React.CSSProperties
   className?: string
   style?: React.CSSProperties
+  cardPreviewMode?: boolean
 }) {
   const [error, setError] = React.useState(false)
   const [forceProxy, setForceProxy] = React.useState(false)
@@ -65,7 +76,7 @@ export const MediaIframe = React.memo(function MediaIframe({
   const inferredKind = inferMediaKindFromUrl(rawSrc)
 
   if (inferredKind === 'image' || inferredKind === 'svg') {
-    return <MediaImage src={rawSrc} alt={title} className={className} style={style} />
+    return <MediaImage src={rawSrc} alt={title} className={className} style={style} cardPreviewMode={cardPreviewMode} />
   }
   if (inferredKind === 'video') {
     return richMediaPanelMode === 'snapshot' ? (
@@ -77,9 +88,10 @@ export const MediaIframe = React.memo(function MediaIframe({
         containerStyle={containerStyle}
         className={className}
         style={style}
+        cardPreviewMode={cardPreviewMode}
       />
     ) : (
-      <MediaVideo src={rawSrc} className={className} style={style} />
+      <MediaVideo src={rawSrc} className={className} style={style} cardPreviewMode={cardPreviewMode} />
     )
   }
   if (inferredKind === 'audio') {
@@ -95,6 +107,7 @@ export const MediaIframe = React.memo(function MediaIframe({
         containerStyle={containerStyle}
         className={className}
         style={style}
+        cardPreviewMode={cardPreviewMode}
       />
     )
   }
@@ -119,7 +132,7 @@ export const MediaIframe = React.memo(function MediaIframe({
             interactive={preferEmbed || embedMode === 'direct'}
             fit="contain"
             mediaThumbnailDataAttr
-            mediaClassName={['w-full h-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
+            mediaClassName={['w-full h-full', getMediaFrameClassName(cardPreviewMode), className].filter(Boolean).join(' ') || undefined}
             mediaStyle={style}
             iframeEmbedMode={embedMode === 'direct' ? 'direct' : forceProxy ? 'proxy' : 'auto'}
             iframeScriptPolicy={scriptPolicy || ((preferEmbed || forceProxy) ? 'allow' : undefined)}
@@ -135,7 +148,7 @@ export const MediaIframe = React.memo(function MediaIframe({
             iframeSandbox={embed.sandbox}
             iframeReferrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
             iframeLoading="lazy"
-            className={['w-full h-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
+            className={['w-full h-full', getMediaFrameClassName(cardPreviewMode), className].filter(Boolean).join(' ') || undefined}
             style={style}
             iframeRenderer={frameProps => (
               <iframe
@@ -160,7 +173,7 @@ export const MediaIframe = React.memo(function MediaIframe({
           />
         )
       ) : (
-        <div className={`w-full h-full ${mediaFrameClassName} bg-black/5 flex items-center justify-center`}>
+        <div className={`w-full h-full ${getMediaFrameClassName(cardPreviewMode)} bg-black/5 flex items-center justify-center`}>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -194,6 +207,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   containerStyle,
   className,
   style,
+  cardPreviewMode,
 }: {
   url: string
   title: string
@@ -204,6 +218,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   containerStyle?: React.CSSProperties
   className?: string
   style?: React.CSSProperties
+  cardPreviewMode?: boolean
 }) {
   const normalizedUrl = String(url || '').trim()
   const fallbackInfo = React.useMemo(() => getWebpageFallbackInfo(normalizedUrl, title), [normalizedUrl, title])
@@ -248,7 +263,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
         <div
           className={
             [
-              mediaShellClassName,
+              getMediaShellClassName(cardPreviewMode),
               className,
             ]
               .filter(Boolean)
@@ -294,6 +309,7 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
   containerStyle,
   className,
   style,
+  cardPreviewMode,
 }: {
   url: string
   title: string
@@ -302,6 +318,7 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
   containerStyle?: React.CSSProperties
   className?: string
   style?: React.CSSProperties
+  cardPreviewMode?: boolean
 }) {
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
   const preferEmbed = richMediaPanelMode === 'embed'
@@ -346,6 +363,7 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
       containerStyle={containerStyle}
       className={className}
       style={style}
+      cardPreviewMode={cardPreviewMode}
     />
   ) : (
     <SharedWebpageSnapshotSurface
@@ -375,7 +393,7 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
         <div
           className={
             [
-              mediaShellClassName,
+              getMediaShellClassName(cardPreviewMode),
               className,
             ]
               .filter(Boolean)
@@ -399,6 +417,7 @@ export const MediaVideo = ({
   controls,
   className,
   style,
+  cardPreviewMode,
 }: {
   src: string
   poster?: string
@@ -409,6 +428,7 @@ export const MediaVideo = ({
   controls?: boolean
   className?: string
   style?: React.CSSProperties
+  cardPreviewMode?: boolean
 }) => {
   const [error, setError] = React.useState(false)
   const primarySrc = applyMediaProxySrc(src)
@@ -431,7 +451,7 @@ export const MediaVideo = ({
       videoLoop={loop}
       videoPoster={poster}
       mediaThumbnailDataAttr
-      mediaClassName={['w-full max-w-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
+      mediaClassName={['w-full max-w-full', getMediaFrameClassName(cardPreviewMode), className].filter(Boolean).join(' ') || undefined}
       mediaStyle={style}
       onError={() => {
         if (!useFallback && primarySrc !== src) {
@@ -506,6 +526,7 @@ export const MediaImage = ({
   height,
   className,
   style: styleProp,
+  cardPreviewMode,
 }: {
   src?: string
   alt: string
@@ -513,6 +534,7 @@ export const MediaImage = ({
   height?: number | null
   className?: string
   style?: React.CSSProperties
+  cardPreviewMode?: boolean
 }) => {
   const [error, setError] = React.useState(false)
   const style: React.CSSProperties = { ...(styleProp || {}) }
@@ -538,7 +560,11 @@ export const MediaImage = ({
       fit="contain"
       mediaThumbnailDataAttr
       mediaStyle={Object.keys(style).length ? style : undefined}
-      mediaClassName={['block mx-auto max-w-full h-auto', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
+      mediaClassName={[
+        cardPreviewMode === true ? CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME : 'block mx-auto max-w-full h-auto',
+        getMediaFrameClassName(cardPreviewMode),
+        className,
+      ].filter(Boolean).join(' ') || undefined}
       onError={() => {
         if (!useFallback && primarySrc !== src) {
           setUseFallback(true)

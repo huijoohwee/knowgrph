@@ -2,6 +2,12 @@ import React from 'react'
 import type { GeospatialViewMode } from 'grph-shared/geospatial/events'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 import { UI_THEME_TOKENS } from 'grph-shared/ui/themeTokens'
+import { coercePanelTypography, type PanelTypography } from 'grph-shared/ui/panelTypography'
+import {
+  KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME,
+  KTV_ROW_LABEL_CELL_CLASS_NAME,
+  KTV_ROW_VALUE_CELL_CLASS_NAME,
+} from 'grph-shared/ui/keyTypeValueRows'
 import { requestGeospatialCurrentLocation, requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit.js'
 import { LS_KEYS } from './lib/config.js'
 import { useGympgrphStore } from './store.js'
@@ -30,9 +36,12 @@ type GeospatialPanelHostProps = {
   active?: boolean
   showDatasetsManager?: boolean
   panelTypography?: unknown
+  renderTypeIcon?: (args: { typeLabel: string }) => React.ReactNode
   snapshot?: unknown
   handlers?: unknown
 }
+
+type GeoPanelTypeIconRenderer = NonNullable<GeospatialPanelHostProps['renderTypeIcon']>
 
 const MAPLIBRE_DEFAULT_STYLE_URL = MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
 const GEOSPATIAL_COMMIT_DEBOUNCE_MS = 120
@@ -46,55 +55,107 @@ const persistPreferredGrabMapsStyleUrl = (styleUrl: string): void => {
   writeLsString(LS_KEYS.grabMapsBasemapStyleUrl, styleUrl)
 }
 
-type GeoViewModeChoiceProps = {
-  active: boolean
-  label: string
-  detail: string
-  onClick: () => void
-  disabled: boolean
+type GeoPanelKtvRowProps = {
+  keyNode: React.ReactNode
+  typeNode: React.ReactNode
+  valueNode: React.ReactNode
+  panelTypography: PanelTypography
+  isActive?: boolean
+  header?: boolean
+  align?: 'center' | 'start'
 }
 
-function GeoViewModeChoice(props: GeoViewModeChoiceProps): React.ReactElement {
-  const { active, label, detail, onClick, disabled } = props
+type GeoPanelSectionProps = {
+  title: string
+  panelTypography: PanelTypography
+  children: React.ReactNode
+}
+
+type GeoPanelValueCellProps = {
+  children: React.ReactNode
+  className?: string
+}
+
+const geospatialPanelRootClassName = `h-full w-full ${UI_THEME_TOKENS.text.primary}`
+const geospatialPanelValueCellClassName = 'flex w-full min-w-0 max-w-full flex-wrap items-center gap-1 overflow-hidden justify-start sm:justify-end'
+const GeoPanelTypeIconRenderContext = React.createContext<GeoPanelTypeIconRenderer | null>(null)
+
+function GeoPanelValueCell({ children, className }: GeoPanelValueCellProps): React.ReactElement {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      className={[
-        'relative min-w-0 rounded border px-3 py-3 text-left transition-colors',
-        'flex flex-col items-start justify-start gap-1',
-        active
-          ? [UI_THEME_TOKENS.button.activeBorder, UI_THEME_TOKENS.button.activeBg].join(' ')
-          : UI_THEME_TOKENS.panel.border,
-        UI_THEME_TOKENS.button.hoverBg,
-        disabled ? 'opacity-50 cursor-not-allowed' : '',
-      ].join(' ')}
-      onClick={onClick}
-      aria-pressed={active}
-    >
-      {active ? (
-        <span className="absolute right-2 top-2">
-          <svg viewBox="0 0 16 16" aria-hidden="true" className={['w-3 h-3', UI_THEME_TOKENS.button.activeText].join(' ')}>
-            <path d="M6.4 11.2L3.2 8l1.2-1.2 2 2 5.2-5.2L12.8 4z" fill="currentColor" />
-          </svg>
-        </span>
-      ) : null}
-      <span className={['text-sm font-medium', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.primary].join(' ')}>
-        {label}
-      </span>
-      <span className={['text-[11px]', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary].join(' ')}>
-        {detail}
-      </span>
-    </button>
+    <div className={[geospatialPanelValueCellClassName, className || ''].filter(Boolean).join(' ')}>
+      {children}
+    </div>
   )
 }
 
-const geospatialPanelRootClassName = `h-full w-full p-3 text-sm ${UI_THEME_TOKENS.text.primary}`
-const geospatialPanelSecondaryTextClassName = `text-[12px] ${UI_THEME_TOKENS.text.secondary}`
-const geospatialPanelMetaTextClassName = `text-[11px] ${UI_THEME_TOKENS.text.tertiary}`
-const geospatialPanelCardClassName = `mt-2 rounded border p-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`
-const geospatialPanelControlClassName = `px-2 py-1 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
-const geospatialPanelInputClassName = `px-2 py-1 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
+function GeoPanelKtvRow(props: GeoPanelKtvRowProps): React.ReactElement {
+  const { keyNode, typeNode, valueNode, panelTypography, isActive = false, header = false, align = 'center' } = props
+  const renderTypeIcon = React.useContext(GeoPanelTypeIconRenderContext)
+  const alignClass = align === 'start' ? 'items-start' : 'items-center'
+  const activeClass = header ? '' : isActive ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight
+  const textFlowClass = 'whitespace-nowrap'
+  const renderedTypeNode = React.useMemo(() => {
+    if (header || !renderTypeIcon || typeof typeNode !== 'string') return typeNode
+    const typeLabel = typeNode.trim()
+    if (!typeLabel) return typeNode
+    return renderTypeIcon({ typeLabel }) ?? typeNode
+  }, [header, renderTypeIcon, typeNode])
+  const rootClassName = [
+    `grid w-full ${KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME} gap-x-2 gap-y-0 rounded`,
+    panelTypography.panelTextClass,
+    header ? 'h-9 py-0' : 'py-0.5',
+    alignClass,
+    activeClass,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const labelClassName = [
+    KTV_ROW_LABEL_CELL_CLASS_NAME,
+    'items-center gap-1',
+    textFlowClass,
+    header ? `font-semibold ${UI_THEME_TOKENS.text.secondary}` : UI_THEME_TOKENS.text.primary,
+  ].join(' ')
+  const typeClassName = [
+    KTV_ROW_LABEL_CELL_CLASS_NAME,
+    'items-center justify-start sm:justify-end',
+    textFlowClass,
+    header ? `font-semibold ${UI_THEME_TOKENS.text.secondary}` : UI_THEME_TOKENS.text.secondary,
+  ].join(' ')
+  const valueClassName = [
+    KTV_ROW_VALUE_CELL_CLASS_NAME,
+    'items-center',
+    header ? `font-semibold ${UI_THEME_TOKENS.text.secondary}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  return (
+    <dl className={rootClassName}>
+      <dt className={labelClassName}>{keyNode}</dt>
+      <dd className={typeClassName}>{renderedTypeNode}</dd>
+      <dd className={valueClassName}>{valueNode}</dd>
+    </dl>
+  )
+}
+
+function GeoPanelSection(props: GeoPanelSectionProps): React.ReactElement {
+  const { title, panelTypography, children } = props
+  return (
+    <section className="space-y-0.5" aria-label={`Geo ${title}`}>
+      <div className={['px-1 pt-2 pb-1 font-semibold', panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        {title}
+      </div>
+      <div className="space-y-0.5">{children}</div>
+    </section>
+  )
+}
+
+const buildGeoPanelButtonClassName = (selected = false, disabled = false): string => [
+  'inline-flex min-h-[var(--kg-control-height,28px)] min-w-0 items-center justify-center rounded border px-2 py-0.5 text-xs transition-colors',
+  selected
+    ? `${UI_THEME_TOKENS.button.activeBorder} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+    : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`,
+  disabled ? 'cursor-not-allowed opacity-50' : '',
+].filter(Boolean).join(' ')
 
 const readLsString = (key: string, fallback: string): string => {
   if (typeof window === 'undefined') return fallback
@@ -123,6 +184,10 @@ const writeLsString = (key: string, value: string): void => {
 export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.ReactElement {
   const active = props.active !== false
   const disabled = !active
+  const panelTypography = React.useMemo(
+    () => coercePanelTypography(props.panelTypography as Partial<PanelTypography> | null | undefined),
+    [props.panelTypography],
+  )
   const geospatialViewMode = useGympgrphStore(s => s.geospatialViewMode)
   const geospatialAutoFitEnabled = useGympgrphStore(s => s.geospatialAutoFitEnabled)
   const geospatialDatasetTimeoutMs = useGympgrphStore(s => s.geospatialDatasetTimeoutMs)
@@ -335,250 +400,377 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
     )
   }, [active, disabled])
 
+  const styleStatusLabel =
+    committedStyleUrl === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
+    committedStyleUrl === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
+    committedStyleUrl === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
+      ? 'default'
+      : 'custom'
+  const geospatialPanelInputClassName = `${panelTypography.keyValueInputClass} min-w-0`
+  const geospatialPanelTextInputClassName = `${geospatialPanelInputClassName} text-left`
+  const geospatialPanelCompactInputClassName = `${geospatialPanelInputClassName} max-w-[7rem]`
+  const geospatialPanelColorInputClassName = `h-[var(--kg-control-height,28px)] w-16 rounded border p-0.5 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`
+  const geospatialPanelNoteClassName = `${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const geospatialPanelMessageClassName = currentLocationState === 'error'
+    ? `${panelTypography.microLabelClass} text-red-600 dark:text-red-300`
+    : geospatialPanelNoteClassName
+
   return (
-    <div className={geospatialPanelRootClassName}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="font-medium">Geospatial</div>
-        <div className={geospatialPanelMetaTextClassName}>
-          style: {
-            committedStyleUrl === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-            committedStyleUrl === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
-            committedStyleUrl === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
-              ? 'default'
-              : 'custom'
-          }
-        </div>
-      </div>
-
-      <div className="mt-3 grid gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <label className={geospatialPanelSecondaryTextClassName}>View</label>
-        </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-6" aria-label="Geospatial view mode">
-          <GeoViewModeChoice
-            active={geospatialViewMode === '2d-svg'}
-            label="2D (SVG, fallback)"
-            detail="No runtime"
-            disabled={disabled}
-            onClick={() => selectGeospatialViewMode('2d-svg')}
+    <GeoPanelTypeIconRenderContext.Provider value={props.renderTypeIcon || null}>
+      <article className={`${geospatialPanelRootClassName} flex min-h-full flex-col space-y-0`}>
+        <header className={`sticky top-0 z-20 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
+          <GeoPanelKtvRow
+            keyNode="Key"
+            typeNode="Type"
+            valueNode="Value"
+            panelTypography={panelTypography}
+            header
           />
-          <GeoViewModeChoice
-            active={isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
-            label="GrabMaps"
-            detail="2D modern preset"
-            disabled={disabled}
-            onClick={applyGrabMapsPreset}
-          />
-          <GeoViewModeChoice
-            active={geospatialViewMode === '2d'}
-            label="2D (MapLibre, Classic)"
-            detail="Demo tiles"
-            disabled={disabled}
-            onClick={() => selectGeospatialViewMode('2d')}
-          />
-          <GeoViewModeChoice
-            active={geospatialViewMode === '2d-modern' && !isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
-            label="2D (MapLibre, Modern)"
-            detail="Liberty style"
-            disabled={disabled}
-            onClick={() => selectGeospatialViewMode('2d-modern')}
-          />
-          <GeoViewModeChoice
-            active={geospatialViewMode === '3d'}
-            label="3D (MapLibre, Classic)"
-            detail="Globe style"
-            disabled={disabled}
-            onClick={() => selectGeospatialViewMode('3d')}
-          />
-          <GeoViewModeChoice
-            active={geospatialViewMode === '3d-modern'}
-            label="3D (MapLibre, Modern)"
-            detail="Liberty style"
-            disabled={disabled}
-            onClick={() => selectGeospatialViewMode('3d-modern')}
-          />
-        </div>
+        </header>
 
-        <div className={geospatialPanelCardClassName}>
-          <div className={geospatialPanelSecondaryTextClassName}>Point Style</div>
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-4">
-            <label className={geospatialPanelMetaTextClassName}>
-              Airport
-              <input
-                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
-                type="color"
-                value={pointStyleDraft.colors.airport}
-                disabled={disabled}
-                onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, airport: e.target.value } }))}
-              />
-            </label>
-            <label className={geospatialPanelMetaTextClassName}>
-              Hotel
-              <input
-                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
-                type="color"
-                value={pointStyleDraft.colors.hotel}
-                disabled={disabled}
-                onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, hotel: e.target.value } }))}
-              />
-            </label>
-            <label className={geospatialPanelMetaTextClassName}>
-              POI
-              <input
-                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
-                type="color"
-                value={pointStyleDraft.colors.poi}
-                disabled={disabled}
-                onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, poi: e.target.value } }))}
-              />
-            </label>
-            <label className={geospatialPanelMetaTextClassName}>
-              Radius x
-              <input
-                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
-                type="number"
-                step="0.05"
-                min="0.6"
-                max="2.4"
-                value={String(pointStyleDraft.radiusMultiplier)}
-                disabled={disabled}
-                onChange={e => {
-                  const n = Number(e.target.value)
-                  if (!Number.isFinite(n)) return
-                  setPointStyleDraft(prev => ({ ...prev, radiusMultiplier: n }))
-                }}
-              />
-            </label>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              className={geospatialPanelControlClassName}
-              disabled={disabled}
-              onClick={applyPointStyle}
-            >
-              Apply Point Style
-            </button>
-            <button
-              type="button"
-              className={geospatialPanelControlClassName}
-              disabled={disabled}
-              onClick={resetPointStyle}
-            >
-              Reset Point Style (MainPanel default)
-            </button>
-          </div>
-        </div>
+      <section className="space-y-2 px-1 py-2">
+        <GeoPanelSection title="View" panelTypography={panelTypography}>
+          <GeoPanelKtvRow
+            keyNode="SVG fallback"
+            typeNode="Static"
+            panelTypography={panelTypography}
+            isActive={geospatialViewMode === '2d-svg'}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(geospatialViewMode === '2d-svg', disabled)}
+                  disabled={disabled}
+                  aria-pressed={geospatialViewMode === '2d-svg'}
+                  aria-label="2D (SVG, fallback) No runtime"
+                  onClick={() => selectGeospatialViewMode('2d-svg')}
+                >
+                  {geospatialViewMode === '2d-svg' ? 'Active' : 'Select'}
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="GrabMaps"
+            typeNode="Preset"
+            panelTypography={panelTypography}
+            isActive={isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode), disabled)}
+                  disabled={disabled}
+                  aria-pressed={isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
+                  aria-label="GrabMaps 2D modern preset"
+                  onClick={applyGrabMapsPreset}
+                >
+                  {isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode) ? 'Active' : 'Select'}
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="2D Classic"
+            typeNode="Tiles"
+            panelTypography={panelTypography}
+            isActive={geospatialViewMode === '2d'}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(geospatialViewMode === '2d', disabled)}
+                  disabled={disabled}
+                  aria-pressed={geospatialViewMode === '2d'}
+                  aria-label="2D (MapLibre, Classic) Demo tiles"
+                  onClick={() => selectGeospatialViewMode('2d')}
+                >
+                  {geospatialViewMode === '2d' ? 'Active' : 'Select'}
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="2D Modern"
+            typeNode="Style"
+            panelTypography={panelTypography}
+            isActive={geospatialViewMode === '2d-modern' && !isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(
+                    geospatialViewMode === '2d-modern' && !isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode),
+                    disabled,
+                  )}
+                  disabled={disabled}
+                  aria-pressed={geospatialViewMode === '2d-modern' && !isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
+                  aria-label="2D (MapLibre, Modern) Liberty style"
+                  onClick={() => selectGeospatialViewMode('2d-modern')}
+                >
+                  {geospatialViewMode === '2d-modern' && !isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode) ? 'Active' : 'Select'}
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="3D Classic"
+            typeNode="Globe"
+            panelTypography={panelTypography}
+            isActive={geospatialViewMode === '3d'}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(geospatialViewMode === '3d', disabled)}
+                  disabled={disabled}
+                  aria-pressed={geospatialViewMode === '3d'}
+                  aria-label="3D (MapLibre, Classic) Globe style"
+                  onClick={() => selectGeospatialViewMode('3d')}
+                >
+                  {geospatialViewMode === '3d' ? 'Active' : 'Select'}
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="3D Modern"
+            typeNode="Style"
+            panelTypography={panelTypography}
+            isActive={geospatialViewMode === '3d-modern'}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(geospatialViewMode === '3d-modern', disabled)}
+                  disabled={disabled}
+                  aria-pressed={geospatialViewMode === '3d-modern'}
+                  aria-label="3D (MapLibre, Modern) Liberty style"
+                  onClick={() => selectGeospatialViewMode('3d-modern')}
+                >
+                  {geospatialViewMode === '3d-modern' ? 'Active' : 'Select'}
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+        </GeoPanelSection>
 
-        <div className="flex items-center justify-between gap-2">
-          <label className={geospatialPanelSecondaryTextClassName}>Auto-fit</label>
-          <button
-            type="button"
-            className={geospatialPanelControlClassName}
-            disabled={disabled}
-            onClick={() => setGeospatialAutoFitEnabled(!geospatialAutoFitEnabled)}
-          >
-            {geospatialAutoFitEnabled ? 'On' : 'Off'}
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className={geospatialPanelControlClassName}
-            disabled={disabled}
-            onClick={() => requestGeospatialFitToData()}
-          >
-            Fit to data
-          </button>
-          <button
-            type="button"
-            className={geospatialPanelControlClassName}
-            disabled={disabled}
-            onClick={() => requestGeospatialFitToSelection()}
-          >
-            Fit to selection
-          </button>
-          <button
-            type="button"
-            className={geospatialPanelControlClassName}
-            disabled={disabled || currentLocationState === 'locating'}
-            onClick={useCurrentLocation}
-          >
-            {currentLocationState === 'locating' ? 'Locating...' : 'Use current location'}
-          </button>
-        </div>
-        {currentLocationMessage ? (
-          <div
-            className={[
-              'text-[11px]',
-              currentLocationState === 'error' ? 'text-red-600 dark:text-red-300' : UI_THEME_TOKENS.text.tertiary,
-            ].join(' ')}
-          >
-            {currentLocationMessage}
-          </div>
-        ) : null}
-
-        <div className="mt-2">
-          <div className={geospatialPanelSecondaryTextClassName}>Basemap style URL</div>
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              className={`flex-1 min-w-0 ${geospatialPanelInputClassName}`}
-              value={styleUrlDraft}
-              onChange={e => setStyleUrlDraft(e.target.value)}
-              placeholder="Leave blank for MapLibre default style"
-              spellCheck={false}
-              disabled={disabled}
-            />
-            <button
-              type="button"
-              className={geospatialPanelControlClassName}
-              disabled={disabled}
-              onClick={applyStyleUrl}
-            >
-              Apply
-            </button>
-            <button
-              type="button"
-              className={geospatialPanelControlClassName}
-              disabled={disabled}
-              onClick={resetStyleUrl}
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-2">
-          <div className={geospatialPanelSecondaryTextClassName}>Dataset loading</div>
-          <div className="mt-1 grid gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <label className={geospatialPanelSecondaryTextClassName}>Timeout (ms)</label>
-              <div className="flex items-center gap-2">
+        <GeoPanelSection title="Point Style" panelTypography={panelTypography}>
+          <GeoPanelKtvRow
+            keyNode="Airport"
+            typeNode="Color"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
                 <input
-                  className={`w-28 ${geospatialPanelInputClassName}`}
+                  className={geospatialPanelColorInputClassName}
+                  type="color"
+                  aria-label="Airport"
+                  value={pointStyleDraft.colors.airport}
+                  disabled={disabled}
+                  onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, airport: e.target.value } }))}
+                />
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="Hotel"
+            typeNode="Color"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
+                <input
+                  className={geospatialPanelColorInputClassName}
+                  type="color"
+                  aria-label="Hotel"
+                  value={pointStyleDraft.colors.hotel}
+                  disabled={disabled}
+                  onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, hotel: e.target.value } }))}
+                />
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="POI"
+            typeNode="Color"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
+                <input
+                  className={geospatialPanelColorInputClassName}
+                  type="color"
+                  aria-label="POI"
+                  value={pointStyleDraft.colors.poi}
+                  disabled={disabled}
+                  onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, poi: e.target.value } }))}
+                />
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="Radius x"
+            typeNode="Scale"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
+                <input
+                  className={geospatialPanelCompactInputClassName}
+                  type="number"
+                  step="0.05"
+                  min="0.6"
+                  max="2.4"
+                  aria-label="Radius x"
+                  value={String(pointStyleDraft.radiusMultiplier)}
+                  disabled={disabled}
+                  onChange={e => {
+                    const n = Number(e.target.value)
+                    if (!Number.isFinite(n)) return
+                    setPointStyleDraft(prev => ({ ...prev, radiusMultiplier: n }))
+                  }}
+                />
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="Point Style"
+            typeNode="Action"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button type="button" className={buildGeoPanelButtonClassName(false, disabled)} disabled={disabled} onClick={applyPointStyle}>
+                  Apply Point Style
+                </button>
+                <button type="button" className={buildGeoPanelButtonClassName(false, disabled)} disabled={disabled} onClick={resetPointStyle}>
+                  Reset Point Style
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+        </GeoPanelSection>
+
+        <GeoPanelSection title="Camera" panelTypography={panelTypography}>
+          <GeoPanelKtvRow
+            keyNode="Auto-fit"
+            typeNode="Toggle"
+            panelTypography={panelTypography}
+            isActive={geospatialAutoFitEnabled}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(geospatialAutoFitEnabled, disabled)}
+                  disabled={disabled}
+                  aria-pressed={geospatialAutoFitEnabled}
+                  onClick={() => setGeospatialAutoFitEnabled(!geospatialAutoFitEnabled)}
+                >
+                  {geospatialAutoFitEnabled ? 'On' : 'Off'}
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="Fit"
+            typeNode="Action"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
+                <button type="button" className={buildGeoPanelButtonClassName(false, disabled)} disabled={disabled} onClick={() => requestGeospatialFitToData()}>
+                  Fit to data
+                </button>
+                <button type="button" className={buildGeoPanelButtonClassName(false, disabled)} disabled={disabled} onClick={() => requestGeospatialFitToSelection()}>
+                  Fit to selection
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="Current Location"
+            typeNode="Browser"
+            panelTypography={panelTypography}
+            align={currentLocationMessage ? 'start' : 'center'}
+            valueNode={(
+              <GeoPanelValueCell className="items-start">
+                <button
+                  type="button"
+                  className={buildGeoPanelButtonClassName(false, disabled || currentLocationState === 'locating')}
+                  disabled={disabled || currentLocationState === 'locating'}
+                  onClick={useCurrentLocation}
+                >
+                  {currentLocationState === 'locating' ? 'Locating...' : 'Use current location'}
+                </button>
+                {currentLocationMessage ? (
+                  <span className={geospatialPanelMessageClassName}>{currentLocationMessage}</span>
+                ) : null}
+              </GeoPanelValueCell>
+            )}
+          />
+        </GeoPanelSection>
+
+        <GeoPanelSection title="Basemap" panelTypography={panelTypography}>
+          <GeoPanelKtvRow
+            keyNode="Style URL"
+            typeNode={styleStatusLabel}
+            panelTypography={panelTypography}
+            align="start"
+            valueNode={(
+              <GeoPanelValueCell className="items-start">
+                <input
+                  className={`${geospatialPanelTextInputClassName} min-w-[14rem] flex-1`}
+                  value={styleUrlDraft}
+                  onChange={e => setStyleUrlDraft(e.target.value)}
+                  placeholder="Leave blank for MapLibre default style"
+                  spellCheck={false}
+                  disabled={disabled}
+                />
+                <button type="button" className={buildGeoPanelButtonClassName(false, disabled)} disabled={disabled} onClick={applyStyleUrl}>
+                  Apply
+                </button>
+                <button type="button" className={buildGeoPanelButtonClassName(false, disabled)} disabled={disabled} onClick={resetStyleUrl}>
+                  Reset
+                </button>
+              </GeoPanelValueCell>
+            )}
+          />
+        </GeoPanelSection>
+
+        <GeoPanelSection title="Dataset" panelTypography={panelTypography}>
+          <GeoPanelKtvRow
+            keyNode="Timeout"
+            typeNode="ms"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
+                <input
+                  className={geospatialPanelCompactInputClassName}
+                  aria-label="Timeout (ms)"
                   value={timeoutMsInput}
                   onChange={e => setTimeoutMsInput(e.target.value)}
                   onBlur={commitTimeoutMs}
                   disabled={disabled}
                 />
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <label className={geospatialPanelSecondaryTextClassName}>Max bytes (MB)</label>
-              <div className="flex items-center gap-2">
+              </GeoPanelValueCell>
+            )}
+          />
+          <GeoPanelKtvRow
+            keyNode="Max bytes"
+            typeNode="MB"
+            panelTypography={panelTypography}
+            valueNode={(
+              <GeoPanelValueCell>
                 <input
-                  className={`w-28 ${geospatialPanelInputClassName}`}
+                  className={geospatialPanelCompactInputClassName}
+                  aria-label="Max bytes (MB)"
                   value={maxBytesMbInput}
                   onChange={e => setMaxBytesMbInput(e.target.value)}
                   onBlur={commitMaxBytes}
                   disabled={disabled}
                 />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+              </GeoPanelValueCell>
+            )}
+          />
+        </GeoPanelSection>
+      </section>
+      </article>
+    </GeoPanelTypeIconRenderContext.Provider>
   )
 }

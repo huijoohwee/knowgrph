@@ -14,6 +14,7 @@ export type InlineRenderOpts = {
   uiPanelMonospaceTextClass: string
   markdownPresentationMode: boolean
   markdownLargeDocumentMode?: boolean
+  markdownCardPreviewMode?: boolean
   fragmentOptions?: {
     enabled: boolean
     currentStep: number

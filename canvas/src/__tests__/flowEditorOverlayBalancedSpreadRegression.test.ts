@@ -31,6 +31,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   const surfacePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const renderGraphHelperPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const topologySignaturePath = path.resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'overlayTopologyLayoutSignature.ts')
+  const overlayProxyPath = path.resolve(process.cwd(), 'src', 'lib', 'canvas', 'flow-editor-overlay-proxy.ts')
   const presentationPath = path.resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
   const hookText = readUtf8(hookPath)
   const runtimeText = readUtf8(runtimePath)
@@ -38,6 +39,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   const surfaceText = readUtf8(surfacePath)
   const renderGraphHelperText = readUtf8(renderGraphHelperPath)
   const topologySignatureText = readUtf8(topologySignaturePath)
+  const overlayProxyText = readUtf8(overlayProxyPath)
   const presentationText = readUtf8(presentationPath)
   if (!hookText.includes('const posSig = buildPosSignature(overlayNodeIds, {')) {
     throw new Error('expected overlay collision key to include shared scoped position signatures')
@@ -59,8 +61,8 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   ) {
     throw new Error('expected overlay collision runtime to reuse the shared render-graph helper instead of rebuilding local node maps inside the settle loop')
   }
-  if (!hookText.includes('const panelScaleKey = computeWidgetScaleKey(panelScale)')) {
-    throw new Error('expected overlay collision key to bucket relayouts by stable floating scale')
+  if (hookText.includes('panelScaleKey')) {
+    throw new Error('expected overlay collision settle keys to avoid zoom-scale buckets that relayout instead of resizing the collective')
   }
   if (!hookText.includes('computeCollectiveFollowPinnedScale')) {
     throw new Error('expected overlay collision path to reuse the shared follow-pinned scale helper')
@@ -86,14 +88,16 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes("const overlayNodeIdsKey = hashScopedStringArraySignature('overlay-collision-node-ids', overlayNodeIds)")) {
     throw new Error('expected overlay collision key to derive a semantic overlay-node-set signature through the shared helper')
   }
-  if (!hookText.includes("const pinSig = hashSignatureParts([")) {
-    throw new Error('expected overlay collision key to include a semantic pinned signature instead of raw string concatenation')
+  if (hookText.includes('pinSig')) {
+    throw new Error('expected overlay collision settle keys to avoid pin-state buckets that mutate the collective layout on pin/unpin')
   }
   if (!hookText.includes('queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)')) {
     throw new Error('expected overlay collision runtime to resolve widget roots through the shared active-surface selector')
   }
-  if (!hookText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
-    throw new Error('expected overlay collision runtime to bound overlay queries to the active Flow Editor surface root')
+  if (!overlayProxyText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')
+    || !overlayProxyText.includes('readFlowEditorOverlaySurfaceId(el) === surfaceId')
+    || !hookText.includes('queryFlowEditorOverlayRootsForSurface({')) {
+    throw new Error('expected overlay collision runtime to delegate active Flow Editor surface scoping to the shared overlay proxy helper')
   }
   if (!hookText.includes('const unresolvedRectIdSet = new Set<string>()')) {
     throw new Error('expected overlay collision runtime to track unresolved collective panel measurements during init warmup')
@@ -153,10 +157,16 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
     throw new Error('expected overlay collision path to reschedule on graph-keyed floating position updates too')
   }
   if (!hookText.includes('flowWidgetWorldPosByNodeIdByGraphMetaKey')) {
-    throw new Error('expected overlay collision path to reschedule on graph-keyed world-position updates too')
+    throw new Error('expected overlay collision path to resolve graph-keyed world positions without subscribing them as layout triggers')
   }
   if (!hookText.includes('flowWidgetPinnedByNodeIdByGraphMetaKey')) {
-    throw new Error('expected overlay collision path to reschedule on graph-keyed pinned-state updates too')
+    throw new Error('expected overlay collision path to resolve graph-keyed pinned state without subscribing it as a layout trigger')
+  }
+  if (hookText.includes('const unsubWorld = useGraphStore.subscribe') || hookText.includes('const unsubWorldByKey = useGraphStore.subscribe')) {
+    throw new Error('expected overlay collision path to avoid world-position subscriptions so zoom resizes instead of relayouting')
+  }
+  if (hookText.includes('const unsubPinned = useGraphStore.subscribe') || hookText.includes('const unsubPinnedByKey = useGraphStore.subscribe')) {
+    throw new Error('expected overlay collision path to avoid pin-state subscriptions so pin/unpin does not relayout the collective')
   }
   if (!hookText.includes('const allowNodeObstacleCollision = !overlayOnlyModeEnabled')) {
     throw new Error('expected overlay collision runtime to disable hidden node-obstacle feedback in overlay-only mode')
@@ -178,6 +188,14 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
   if (!hookText.includes('const storedCollectiveViewportState = deriveCollectiveViewportState(storedCollectiveItems)')) {
     throw new Error('expected overlay collision runtime to score stored frontmatter floating collectives before preserving them')
+  }
+  if (!hookText.includes("from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'")) {
+    throw new Error('expected overlay collision runtime to reuse the shared visible-viewport collective scorer')
+  }
+  if (!hookText.includes('buildFlowOverlayBoundsFromRects({ items })')
+    || !hookText.includes('deriveFlowOverlayCollectiveViewportState({')
+    || hookText.includes('return { centered: true, balanced }')) {
+    throw new Error('expected overlay collision stored-collective scoring to use real shared bounds/centroid state instead of a local centered alias')
   }
   if (!hookText.includes('&& !storedCollectiveViewportState?.balanced')) {
     throw new Error('expected overlay collision runtime to reject only unbalanced stored frontmatter collective residue before reuse')
@@ -245,7 +263,9 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!runtimeText.includes('const overlayTopologyLayoutSignature = React.useMemo(() => {')) {
     throw new Error('expected Flow Editor runtime to derive one shared semantic topology/layout signature')
   }
-  if (!runtimeText.includes('overlayTopologyLayoutSignature,\n    zoomViewKeyRef')) {
+  const runtimeSceneCallIndex = runtimeText.indexOf('useFlowEditorRuntimeScene({')
+  const runtimeSceneCall = runtimeSceneCallIndex >= 0 ? runtimeText.slice(runtimeSceneCallIndex, runtimeSceneCallIndex + 420) : ''
+  if (!runtimeSceneCall.includes('overlayTopologyLayoutSignature,') || runtimeSceneCall.includes('graphContentRevision,')) {
     throw new Error('expected Flow Editor runtime scene seeding to receive semantic topology/layout signature instead of raw graph revision')
   }
   if (!surfaceText.includes("'frontmatter-overlay-auto-pins'") || !surfaceText.includes('overlayEditorNodeIdsKey') || !surfaceText.includes("hashScopedStringArraySignature('missing-frontmatter-pins', missingIds)")) {
@@ -418,23 +438,26 @@ export const testFlowEditorNodeOverlayUsesPinnedStateForFloatingMode = () => {
   if (overlayText.includes('const floating = false')) {
     throw new Error('expected node overlay to avoid hardcoded non-floating mode')
   }
-  if (!overlayText.includes("placement.applyOverlayPosition({ persistClamp: false })")) {
+  if (!overlayText.includes("placement.applyOverlayPosition({ persistClamp: false, emitInteractionFrame: false })")) {
     throw new Error('expected node overlay zoom and interaction refreshes to avoid persisting floating clamp churn')
   }
-  if (!overlayText.includes('if (floating && !placement.pinnedDragOverrideRef.current && !placement.worldDragOverrideRef.current) return')) {
-    throw new Error('expected floating overlay interaction-frame refreshes to stay idle when the panel is not actively dragging')
+  if (overlayText.includes('let raf: number | null = null') || overlayText.includes('requestAnimationFrame(() => {\n        raf = null\n        placement.applyOverlayPosition')) {
+    throw new Error('expected interaction-frame overlay refresh to apply in the current event frame instead of adding a trailing RAF')
+  }
+  if (overlayText.includes('if (floating && !placement.pinnedDragOverrideRef.current && !placement.worldDragOverrideRef.current) return')) {
+    throw new Error('expected floating overlays to refresh from live interaction frames instead of lagging behind pinned overlays')
   }
   if (!placementText.includes('const sameScale = lastFloatingScaleKeyRef.current === scaleKey')) {
     throw new Error('expected floating overlay zoom subscription to ignore pan-only zoom-state churn')
   }
-  if (!placementText.includes('const allowPassiveClampPersist =')) {
-    throw new Error('expected floating overlay clamp persistence to be gated so passive viewport/layout updates do not rewrite store positions continuously')
+  if (!overlayText.includes("placement.applyOverlayPosition({ persistClamp: false, emitInteractionFrame: false })")) {
+    throw new Error('expected passive interaction-frame refreshes to avoid persisted clamp/store churn')
   }
   if (!overlayText.includes('const floatingUsesScreenAuthority = shouldUseFlowEditorWidgetFloatingScreenAuthority({')) {
     throw new Error('expected frontmatter floating overlays to reuse the shared screen-authority helper')
   }
-  if (!placementText.includes('const storedWorld = floatingUsesScreenAuthority ? null : (currentStoredWorld || widgetWorldPosRef.current)')) {
-    throw new Error('expected frontmatter floating overlays to ignore stored world positions as a placement authority')
+  if (!placementText.includes('const storedWorld = currentStoredWorld || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
+    throw new Error('expected frontmatter floating overlays to honor current scoped world authority while ignoring stale cached world fallback')
   }
   if (!placementText.includes('persistWorldPos(nextWorld)')) {
     throw new Error('expected floating overlays to keep derived world positions in sync for edge connectivity')
@@ -449,6 +472,78 @@ export const testFlowEditorPinnedContainmentBoundsIgnoreOverlayFeedback = () => 
   }
   if (!text.includes('const aabb = computeFlowGroupAabb({')) {
     throw new Error('expected pinned widget containment path to keep using shared computeFlowGroupAabb helper')
+  }
+}
+
+export const testFlowEditorLayoutRebalanceUsesCenteredBalancedSpreadRuntime = () => {
+  const runtimeScenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const runtimeText = readUtf8(runtimeScenePath)
+  if (!runtimeText.includes("flowEditorLayoutRebalanceRequest?: null | { type: 'balanced-spread'; at: number }")) {
+    throw new Error('expected Flow Editor runtime scene to accept a renderer Layout rebalance request')
+  }
+  if (!runtimeText.includes('const forcedLayoutRebalanceIds = layoutRebalanceRequested ? pinnedOpenIds : []')) {
+    throw new Error('expected Flow Editor renderer Layout rebalance to target the pinned open widget collective')
+  }
+  if (!runtimeText.includes('const activeSurfaceOverlayWidgetIds = (() => {')
+    || !runtimeText.includes('selector: FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,')
+    || !runtimeText.includes('resolveGraphNodeIdByCanonicalId(graphDataForSeeding, id)')
+    || !runtimeText.includes('const placementPinnedById: FlowWidgetPinnedById =')
+    || !runtimeText.includes('const activeSurfaceOverlayWidgetIdSet = new Set(activeSurfaceOverlayWidgetIds)')
+    || !runtimeText.includes('return pinned || activeSurfaceOverlayWidgetIdSet.has(id)')
+    || !runtimeText.includes("if (pinnedAttr === '0') activeSurfaceOverlayPinnedById[id] = false")
+    || !runtimeText.includes('...activeSurfaceOverlayWidgetIds,')) {
+    throw new Error('expected Flow Editor renderer Layout rebalance to include all active surface widget overlays, including unpinned screen-authority widgets')
+  }
+  if (!runtimeText.includes('const forcedInitialCollectiveIds =')) {
+    throw new Error('expected Flow Editor initialization to balance the full collective when seed positions are missing')
+  }
+  if (!runtimeText.includes('domCollectiveRecoveryAttemptByScopeRef')
+    || !runtimeText.includes('buildWorkspaceBlockedFlowWidgetSeedPatch({')
+    || !runtimeText.includes('ids: boundsIds,')
+    || !runtimeText.includes('new MutationObserver(() => {')
+    || !runtimeText.includes('viewportState?.balanced === true')
+    || !runtimeText.includes('needsMeasuredCenterShift')
+    || !runtimeText.includes('measuredCenterShiftY')
+    || !runtimeText.includes('readinessAttempts < 240')
+    || !runtimeText.includes('attempts >= 2')) {
+    throw new Error('expected Flow Editor initialization to recover mounted offscreen/off-center collectives through a guarded active-surface seed write')
+  }
+  if (!runtimeText.includes('collectiveCentroidOffCenter(') || !runtimeText.includes('targetCenterX') || !runtimeText.includes('targetCenterY')) {
+    throw new Error('expected Flow Editor initialization to detect off-center collectives before reseeding')
+  }
+  if (!runtimeText.includes('resolveFlowEditorCollectiveCenterShift({') || !runtimeText.includes('if (min > max) return preferred')) {
+    throw new Error('expected Flow Editor collective centering to preserve centroid balance when the layout is larger than the viewport')
+  }
+  if (!runtimeText.includes('shouldForceBalancedSpreadReseed({ items: bucketItems, gapPx: gapWorld })')) {
+    throw new Error('expected Flow Editor runtime scene to reuse the shared balanced-spread reseed heuristic')
+  }
+  if (!runtimeText.includes('const currentPinnedCollectiveViewportState =')
+    || !runtimeText.includes('currentPinnedCollectiveViewportState?.balanced === true')
+    || !runtimeText.includes('&& !currentPinnedCollectiveAlreadyBalanced')) {
+    throw new Error('expected Flow Editor runtime scene to skip post-init signature reseeds while the projected collective is already balanced')
+  }
+  if (!runtimeText.includes('fitToViewport: false,')) {
+    throw new Error('expected Flow Editor runtime scene seeding to reuse the same follow-pinned scale mode as widget placement')
+  }
+  if (!runtimeText.includes('const liveHasViewportOffset = hasViewportOffset(liveZoom)')
+    || !runtimeText.includes('!layoutRebalanceRequested')
+    || !runtimeText.includes('&& !liveHasViewportOffset')
+    || !runtimeText.includes('&& !persistedHasViewportOffset')
+    || !runtimeText.includes('const allowPersistedViewportOffsetSeed =')
+    || !runtimeText.includes('&& persistedHasViewportOffset')
+    || !runtimeText.includes('&& (!liveZoom || liveLooksDefault)')) {
+    throw new Error('expected Flow Editor runtime scene to preserve active zoom/pan authority during renderer Layout rebalance and workspace-open initialization')
+  }
+  if (!runtimeText.includes('buildFlowOverlayBoundsFromRects({')
+    || !runtimeText.includes('deriveFlowOverlayCollectiveViewportState({')
+    || !runtimeText.includes("from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'")) {
+    throw new Error('expected Flow Editor runtime scene to reuse shared visible-viewport collective scoring for init stability')
+  }
+  if (!runtimeText.includes('placeWidgetsCenteredInGroupBounds({')) {
+    throw new Error('expected Flow Editor runtime scene to reuse the shared centered widget spread planner')
+  }
+  if (!runtimeText.includes('markLayoutRebalanceHandled()')) {
+    throw new Error('expected Flow Editor runtime scene to handle rebalance requests once without feedback loops')
   }
 }
 

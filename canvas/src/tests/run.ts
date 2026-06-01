@@ -405,7 +405,13 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
 
     const modHoverTooltip = await import('../__tests__/hoverTooltipNonBlockingRegression.test')
     await execTest(results, 'ui.hoverTooltip.nonInteractiveDefault', modHoverTooltip.testGraphHoverTooltipIsNonInteractiveByDefault)
-    await execTest(results, 'ui.hoverTooltip.disabledInCanvasRoot', modHoverTooltip.testGraphCanvasRootDisablesHoverTooltipInteractivity)
+    await execTest(results, 'ui.hoverTooltip.canvasRootExplicitInteractivity', modHoverTooltip.testGraphCanvasRootDeclaresHoverTooltipInteractivity)
+    await execTest(results, 'ui.hoverTooltip.sharedPanelFrameSurface', modHoverTooltip.testGraphHoverTooltipReusesSharedPanelFrameSurface)
+    await execTest(results, 'ui.hoverTooltip.sharedDragResizeInteraction', modHoverTooltip.testGraphHoverTooltipReusesSharedDragResizeInteraction)
+    await execTest(results, 'ui.hoverTooltip.sharedSemanticKey', modHoverTooltip.testGraphHoverTooltipUsesSharedSemanticKey)
+    await execTest(results, 'ui.hoverTooltip.rendersSharedPanelFrameSurface', modHoverTooltip.testGraphHoverTooltipRendersSharedPanelFrameSurface)
+    await execTest(results, 'ui.hoverTooltip.pinnedPanelDragResize', modHoverTooltip.testGraphHoverTooltipPinnedPanelCanDragAndResize)
+    await execTest(results, 'ui.hoverTooltip.bridgesPointerGapToPanel', modHoverTooltip.testGraphHoverTooltipBridgesPointerGapToPanel)
 
     const modThreeOverlayUnstick = await import('../__tests__/threeOverlayDragUnstickRegression.test')
     await execTest(results, 'ui.three.overlayDrag.globalFailsafe', modThreeOverlayUnstick.testThreeGraphHasOverlayDragGlobalFailsafe)
@@ -417,6 +423,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     await execTest(results, 'ui.selection.noDuplicateTocFocusOnRepeatedSelect', modSelectionNoDup.testSelectingSameNodeDoesNotDispatchDuplicateTocFocus)
 
     const modWorkspaceAutoOpenGate = await import('../__tests__/canvasSelectionAutoOpenGatedByActiveRegression.test')
+    await execTest(
+      results,
+      'ui.workspace.selection.canonicalizesDocsMirrorAliases',
+      modWorkspaceAutoOpenGate.testCanvasSelectionSyncCanonicalizesDocsMirrorAliases,
+    )
     await execTest(
       results,
       'ui.workspace.selection.doesNotAutoOpenWhenInactive',
@@ -476,6 +487,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.workspacePane.gatesGraphTableSubscriptionsWhenInactive',
       modPaneGate.testGraphTableWorkspaceGatesPersistedCollectionSubscriptionsByActive,
     )
+    await execTest(
+      results,
+      'ui.workspacePane.canvasToolbarStartsAtPaneBoundary',
+      modPaneGate.testWorkspaceOpenCanvasToolbarDoesNotCoverEditorPaneControls,
+    )
 
     const modComposedPosDebounce = await import('../__tests__/sourceFilesComposedPositionDebounceRegression.test')
     await execTest(
@@ -504,6 +520,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       results,
       'ui.markdownDesignOverlay.drag.blockRafThrottled',
       modTableDragChurn.testMarkdownDesignOverlayBlockDragIsRafThrottled,
+    )
+    await execTest(
+      results,
+      'ui.markdownPreview.layout.noSynchronousRootMeasure',
+      modTableDragChurn.testMarkdownPreviewViewerDoesNotMeasureLayoutAfterStyleWrites,
     )
 
     const modComposedPosNoChurn = await import('../__tests__/sourceFilesComposedPositionWritebackAvoidsComposeChurnRegression.test')
@@ -726,6 +747,23 @@ export const runAllTests = async () => {
       results,
       'ui.flowEditor.overlay.offscreenRecovery.frontmatterWidgetsPreferAutoSeedWorldPos',
       modOverlayOffscreenRecovery.testFlowEditorRuntimeScenePrefersAutoSeedWorldPosForWorkspaceBlockedFrontmatterWidgets,
+    )
+
+    const modWorkspaceVisibleViewportRecovery = await import('../__tests__/flowEditorWorkspaceVisibleViewportRecovery.test')
+    await execTest(
+      results,
+      'ui.flowEditor.workspaceRecovery.rejectsHugeCenteredCollective',
+      modWorkspaceVisibleViewportRecovery.testFlowEditorWorkspaceRecoveryRejectsHugeCenteredCollective,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.workspaceRecovery.fitsGenericOverlayBounds',
+      modWorkspaceVisibleViewportRecovery.testFlowEditorWorkspaceRecoveryFitsGenericOverlayBoundsIntoVisibleViewport,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.workspaceRecovery.semanticKeyNoDocumentHardcodes',
+      modWorkspaceVisibleViewportRecovery.testFlowEditorWorkspaceRecoveryUsesSemanticKeyAndForbidsDocumentHardcodes,
     )
 
   const modMinimapBounds = await import('../__tests__/minimapBoundsIgnoreMissingCoordsRegression.test')

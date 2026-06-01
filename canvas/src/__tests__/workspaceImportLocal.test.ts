@@ -28,6 +28,7 @@ import { inspectGlbBytes } from '@/lib/assets/gltfFormat'
 import { resolveModelAssetExportBlob } from '@/lib/assets/modelAssetExport'
 import { buildGlbAssetMarkdown, buildGltfAssetMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import { resolveActiveMarkdownBaseGraph } from '@/hooks/active-graph-data/useActiveGraphData.impl'
 import {
   buildStrybldrStoryboardDocument,
   buildStrybldrVideoHandoffFromGraphData,
@@ -1064,10 +1065,19 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
     if (next.canvas2dRenderer !== 'strybldr') throw new Error(`expected local Strybldr activation to keep Strybldr renderer, got ${String(next.canvas2dRenderer || '')}`)
     if (next.floatingPanelOpen !== true || next.floatingPanelView !== 'strybldr') throw new Error('expected local Strybldr activation to keep the Strybldr Run all consumer mounted')
 
-    const board = buildStoryboardBoardModel({ graphData: next.graphData, graphRevision: 1 })
+    const renderGraph = resolveActiveMarkdownBaseGraph({
+      baseGraphDataRaw: next.graphData,
+      markdownName: next.markdownDocumentName,
+      markdownText: input.text,
+    })
+    if (!renderGraph || (renderGraph.metadata as Record<string, unknown> | null)?.pending === true) {
+      throw new Error('expected local Strybldr import graph to stay active for the rendered Storyboard canvas')
+    }
+    const board = buildStoryboardBoardModel({ graphData: renderGraph, graphRevision: 1 })
     const lanes = new Set(board.lanes.map(lane => lane.id))
     if (!lanes.has('Source') || !lanes.has('Elements')) throw new Error(`expected local Strybldr graph to expose Source and Elements lanes, got ${Array.from(lanes).join(', ')}`)
     if (/"storytree"\s*:/.test(input.text) && !lanes.has('Storytree')) throw new Error(`expected local Strytree graph to expose Storytree lane, got ${Array.from(lanes).join(', ')}`)
+    if (/"candidateRuns"\s*:/.test(input.text) && !lanes.has('ForkCompare')) throw new Error(`expected local Strytree graph to expose ForkCompare lane, got ${Array.from(lanes).join(', ')}`)
     if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text)) {
       const cards = board.lanes.flatMap(lane => lane.cards)
       if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) {

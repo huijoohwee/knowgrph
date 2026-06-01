@@ -27,6 +27,27 @@ const normalizeWidgetLabelText = (raw: unknown): string => {
   return unwrapped
 }
 
+const normalizeExplicitTitleText = (raw: unknown): string => {
+  return normalizeWidgetLabelText(raw).replace(/\s+/g, ' ').trim()
+}
+
+const humanizeKeyLikeText = (raw: unknown): string => {
+  const source = String(raw || '').trim()
+  if (!source) return ''
+  const tail = source
+    .split(/[.\[\]]+/)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .pop() || source
+  const words = tail
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!words) return ''
+  return words.replace(/\b[a-z]/g, c => c.toUpperCase())
+}
+
 const readNodeData = (node: GraphNode): Record<string, unknown> => {
   const properties = (node.properties || null) as Record<string, unknown> | null
   const raw = properties && typeof properties.data === 'object' && properties.data !== null && !Array.isArray(properties.data)
@@ -97,25 +118,12 @@ export function resolveWidgetNodeTitle(args: {
   }
   const data = readNodeData(node)
   const type = String(node.type || '').trim().toLowerCase()
-  if (type === 'input') {
-    const dataLabel = String(data.label || '').trim().toUpperCase()
-    if (dataLabel === 'R') return 'Red'
-    if (dataLabel === 'G') return 'Green'
-    if (dataLabel === 'B') return 'Blue'
-    if (dataLabel) return dataLabel
-    return fallback
-  }
-  if (type === 'default') {
-    if (/colorpreview/i.test(fallback)) return 'RGB'
-    if (/lightness/i.test(fallback)) return 'LightDark'
-    return fallback
-  }
+  const dataTitle = normalizeExplicitTitleText(data.title) || normalizeExplicitTitleText(data.label)
+  if (dataTitle) return dataTitle
+  if (type === 'input' || type === 'default') return fallback
   if (type === 'output') {
-    const reads = String(data.reads || '').trim().toLowerCase()
-    if (reads.includes('.light')) return 'Light'
-    if (reads.includes('.dark')) return 'Dark'
-    if (/\blight\b/i.test(fallback)) return 'Light'
-    if (/\bdark\b/i.test(fallback)) return 'Dark'
+    const readsTitle = humanizeKeyLikeText(data.reads)
+    if (readsTitle) return readsTitle
     return fallback
   }
   return fallback

@@ -49,6 +49,7 @@ import {
   coerceFlowWheelZoomSmoothRange,
 } from '@/lib/canvas/flow-zoom-tuning'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { canSeedZoomStateAcross2dRenderers } from '@/lib/canvas/zoomSeed'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/lib/canvas/layoutPositioning'
@@ -308,6 +309,10 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   requestGraphCanvasArrange: (req: { type: 'center'; scope: 'selection' | 'all' } | { type: 'distribute'; axis: 'x' | 'y' }) =>
     set({ graphCanvasArrangeRequest: { ...req, at: Date.now() } }),
   clearGraphCanvasArrangeRequest: () => set({ graphCanvasArrangeRequest: null }),
+  flowEditorLayoutRebalanceRequest: null as null | { type: 'balanced-spread'; at: number },
+  requestFlowEditorLayoutRebalance: () =>
+    set({ flowEditorLayoutRebalanceRequest: { type: 'balanced-spread', at: Date.now() } }),
+  clearFlowEditorLayoutRebalanceRequest: () => set({ flowEditorLayoutRebalanceRequest: null }),
   zoomState: null as null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number },
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => set({ zoomState: z }),
   zoomStateByKey: {} as Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>,
@@ -556,8 +561,17 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       const prevZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: state.canvas2dRenderer })
       const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: radialRenderer })
       const zoomStateByKey = state.zoomStateByKey || {}
+      const shouldSeedZoomAcrossRenderers =
+        prevZoomKey
+        && nextZoomKey
+        && canSeedZoomStateAcross2dRenderers({
+          sourceRenderer: state.canvas2dRenderer,
+          targetRenderer: radialRenderer,
+        })
+        && zoomStateByKey[prevZoomKey]
+        && !zoomStateByKey[nextZoomKey]
       const seededZoom =
-        prevZoomKey && nextZoomKey && zoomStateByKey[prevZoomKey] && !zoomStateByKey[nextZoomKey]
+        shouldSeedZoomAcrossRenderers
           ? { ...zoomStateByKey, [nextZoomKey]: { ...(zoomStateByKey[prevZoomKey] as any) } }
           : zoomStateByKey
 

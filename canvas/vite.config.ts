@@ -1,7 +1,8 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge'
 import { VitePWA } from 'vite-plugin-pwa'
+import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
@@ -162,6 +163,195 @@ const stripMermaidCoseBilkentLayoutPlugin = { name: 'knowgrph-strip-mermaid-cose
     .replace(/fallback:\s*"cose-bilkent"/g, 'fallback: "dagre"')
   return next === code ? null : next
 } }
+
+const readBundleAssetText = (value: string | Uint8Array): string => {
+  if (typeof value === 'string') return value
+  return Buffer.from(value).toString('utf8')
+}
+
+const escapeInlineStyleText = (value: string): string => value.replace(/<\/style/gi, '<\\/style')
+
+const escapeHtmlAttr = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+const normalizeStylesheetHrefPath = (href: string): string => {
+  const withoutQuery = String(href || '').trim().split(/[?#]/)[0] || ''
+  if (!withoutQuery) return ''
+  try {
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(withoutQuery)) {
+      return new URL(withoutQuery).pathname.replace(/\\/g, '/')
+    }
+  } catch {
+    void 0
+  }
+  return withoutQuery.replace(/\\/g, '/')
+}
+
+const findBundleCssFileName = (href: string, cssByFileName: Map<string, string>): string => {
+  const hrefPath = normalizeStylesheetHrefPath(href)
+  if (!hrefPath) return ''
+  const withoutLeadingSlash = hrefPath.replace(/^\/+/, '')
+  for (const fileName of cssByFileName.keys()) {
+    const normalizedFileName = fileName.replace(/\\/g, '/')
+    if (withoutLeadingSlash === normalizedFileName) return fileName
+    if (hrefPath.endsWith(`/${normalizedFileName}`)) return fileName
+  }
+  return ''
+}
+
+const normalizeModulePreloadDependencyPath = (dep: string): string =>
+  String(dep || '').trim().replace(/\\/g, '/').replace(/^\.\//, '').split(/[?#]/)[0] || ''
+
+const isMermaidModulePreloadDependency = (dep: string): boolean =>
+  /(^|\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(normalizeModulePreloadDependencyPath(dep))
+
+const isInlinedHtmlEntryStylesheetModulePreloadDependency = (dep: string): boolean =>
+  /(^|\/)(?:assets\/)?index-[A-Za-z0-9_-]+\.css$/.test(normalizeModulePreloadDependencyPath(dep))
+
+const filterModulePreloadDependencies = (deps: string[]): string[] =>
+  deps.filter(dep =>
+    !isMermaidModulePreloadDependency(dep) &&
+    !isInlinedHtmlEntryStylesheetModulePreloadDependency(dep),
+  )
+
+const parseViteMapDepsArray = (arrayLiteral: string): string[] | null => {
+  try {
+    const value = JSON.parse(arrayLiteral)
+    if (!Array.isArray(value)) return null
+    return value.every(item => typeof item === 'string') ? value : null
+  } catch {
+    return null
+  }
+}
+
+const rewriteViteMapDepsCalls = (code: string, indexMap: Map<number, number>): string =>
+  code.replace(/__vite__mapDeps\(\[([0-9,\s]*)\]\)/g, (call, indexesRaw) => {
+    const indexes = String(indexesRaw || '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean)
+      .map(value => Number.parseInt(value, 10))
+    if (!indexes.every(index => Number.isInteger(index) && index >= 0)) return call
+    const nextIndexes = indexes
+      .map(index => indexMap.get(index))
+      .filter((index): index is number => typeof index === 'number')
+    return `__vite__mapDeps([${nextIndexes.join(',')}])`
+  })
+
+const removeInlinedStylesheetDepsFromViteMapDeps = (code: string, inlinedCssFileNames: Set<string>): string => {
+  if (!inlinedCssFileNames.size || !code.includes('__vite__mapDeps')) return code
+  const helperPattern = /const __vite__mapDeps=\(i,m=__vite__mapDeps,d=\(m\.f\|\|\(m\.f=(\[[^\]]*\])\)\)\)=>i\.map\(i=>d\[i\]\);/
+  const helperMatch = code.match(helperPattern)
+  if (!helperMatch || typeof helperMatch.index !== 'number') return code
+  const deps = parseViteMapDepsArray(helperMatch[1])
+  if (!deps || deps.length === 0) return code
+
+  const indexMap = new Map<number, number>()
+  const nextDeps: string[] = []
+  let removed = false
+  deps.forEach((dep, index) => {
+    if (inlinedCssFileNames.has(normalizeModulePreloadDependencyPath(dep))) {
+      removed = true
+      return
+    }
+    indexMap.set(index, nextDeps.length)
+    nextDeps.push(dep)
+  })
+  if (!removed) return code
+
+  const nextHelper = helperMatch[0].replace(helperMatch[1], JSON.stringify(nextDeps))
+  const withHelper = `${code.slice(0, helperMatch.index)}${nextHelper}${code.slice(helperMatch.index + helperMatch[0].length)}`
+  return rewriteViteMapDepsCalls(withHelper, indexMap)
+}
+
+const resolveBundleOutputDir = (options: { dir?: string | null; file?: string | null }): string => {
+  const dir = String(options.dir || '').trim()
+  if (dir) return path.isAbsolute(dir) ? dir : path.resolve(__dirname, dir)
+  const file = String(options.file || '').trim()
+  if (file) return path.dirname(path.isAbsolute(file) ? file : path.resolve(__dirname, file))
+  return ''
+}
+
+const inlineHtmlStylesheetAssetsPlugin = (): Plugin => {
+  let inlinedCssFileNames = new Set<string>()
+
+  return {
+    name: 'knowgrph-inline-html-stylesheet-assets',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_options, bundle) {
+      inlinedCssFileNames = new Set<string>()
+      const cssByFileName = new Map<string, string>()
+      for (const output of Object.values(bundle)) {
+        if (!output || output.type !== 'asset') continue
+        const fileName = String(output.fileName || '')
+        if (!fileName.endsWith('.css')) continue
+        cssByFileName.set(fileName, readBundleAssetText(output.source))
+      }
+      if (!cssByFileName.size) return
+
+      const stylesheetLinkPattern = /<link\b(?=[^>]*\brel=(["'])stylesheet\1)(?=[^>]*\bhref=(["'])([^"']+)\2)[^>]*>\s*/gi
+      for (const output of Object.values(bundle)) {
+        if (!output || output.type !== 'asset') continue
+        if (!String(output.fileName || '').endsWith('.html')) continue
+        const html = readBundleAssetText(output.source)
+        const nextHtml = html.replace(stylesheetLinkPattern, (tag, _relQuote, _hrefQuote, href) => {
+          const cssFileName = findBundleCssFileName(String(href || ''), cssByFileName)
+          if (!cssFileName) return tag
+          const css = cssByFileName.get(cssFileName)
+          if (!css) return tag
+          inlinedCssFileNames.add(cssFileName)
+          return `<style data-kg-inlined-stylesheet="${escapeHtmlAttr(String(href || ''))}">${escapeInlineStyleText(css)}</style>\n`
+        })
+        if (nextHtml !== html) output.source = nextHtml
+      }
+
+      if (inlinedCssFileNames.size) {
+        for (const output of Object.values(bundle)) {
+          if (!output || output.type !== 'chunk') continue
+          const nextCode = removeInlinedStylesheetDepsFromViteMapDeps(output.code, inlinedCssFileNames)
+          if (nextCode !== output.code) output.code = nextCode
+        }
+      }
+
+      for (const fileName of inlinedCssFileNames) {
+        const output = bundle[fileName]
+        if (output?.type === 'asset' && String(output.fileName || '').endsWith('.css')) {
+          delete bundle[fileName]
+        }
+      }
+    },
+    async writeBundle(options, bundle) {
+      if (!inlinedCssFileNames.size) return
+      const outDir = resolveBundleOutputDir(options)
+      if (!outDir) return
+      for (const output of Object.values(bundle)) {
+        if (!output || output.type !== 'chunk') continue
+        const fileName = String(output.fileName || '')
+        if (!fileName.endsWith('.js')) continue
+        const filePath = path.resolve(outDir, fileName)
+        try {
+          const code = await fs.readFile(filePath, 'utf8')
+          const nextCode = removeInlinedStylesheetDepsFromViteMapDeps(code, inlinedCssFileNames)
+          if (nextCode !== code) await fs.writeFile(filePath, nextCode)
+        } catch {
+          void 0
+        }
+      }
+      for (const fileName of inlinedCssFileNames) {
+        try {
+          await fs.rm(path.resolve(outDir, fileName), { force: true })
+        } catch {
+          void 0
+        }
+      }
+    },
+  }
+}
 function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const current = String(env.PYTHONPATH || '').trim()
   const next = current ? `${repoRoot}${path.delimiter}${current}` : repoRoot
@@ -5753,7 +5943,7 @@ export default defineConfig(({ command }) => {
     reportCompressedSize: process.env.KG_LOW_MEM_BUILD === '1' ? false : true,
     modulePreload: {
       resolveDependencies: (_filename: string, deps: string[]) =>
-        deps.filter(dep => !/(^|\/|\.\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(String(dep || ''))),
+        filterModulePreloadDependencies(deps),
     },
     // Keep Vite quiet for known lazy vendor chunks; hygiene keeps tighter per-chunk budgets for regressions.
     chunkSizeWarningLimit: 3000,
@@ -5883,6 +6073,7 @@ export default defineConfig(({ command }) => {
     stripMermaidArchitectureDetectorPlugin,
     stripMermaidCoseBilkentLayoutPlugin,
     react(),
+    inlineHtmlStylesheetAssetsPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,

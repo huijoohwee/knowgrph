@@ -6,6 +6,8 @@ import {
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 import { hasWorkspaceEntry, type WorkspaceEntriesIndex } from './workspaceEntriesIndex'
+import { resolveMarkdownWorkspaceDocsMirrorCanonicalPath } from './markdownWorkspaceSelectionCanonicalPath'
+import { normalizeMarkdownWorkspaceSelectionPath } from './markdownWorkspaceSelectionPath'
 
 export type MarkdownWorkspaceActivePathRequest = { path: WorkspacePath; atMs: number } | null
 
@@ -17,6 +19,13 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
   nowMs?: number
 }): WorkspacePath | null {
   if (!args.entriesIndex.byPath.size) return null
+  const canonicalize = (path: WorkspacePath | null | undefined): WorkspacePath | null => {
+    const normalized = normalizeMarkdownWorkspaceSelectionPath(path || null)
+    if (!normalized) return null
+    return resolveMarkdownWorkspaceDocsMirrorCanonicalPath(normalized, args.entriesIndex) || normalized
+  }
+  const activePath = canonicalize(args.activePath)
+  const rawActivePath = normalizeMarkdownWorkspaceSelectionPath(args.activePath)
 
   const preferCustomValidationSeed =
     CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
@@ -29,18 +38,23 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
       preferValidationSeedForDefaultFamily: true,
       forceValidationSeedIfPresent: preferCustomValidationSeed,
     })
-    if (startupPath && startupPath !== args.activePath) return startupPath
+    const canonicalStartupPath = canonicalize(startupPath)
+    if (canonicalStartupPath && canonicalStartupPath !== activePath) return canonicalStartupPath
   }
 
-  if (args.activePath && hasWorkspaceEntry(args.entriesIndex, args.activePath)) return null
+  if (rawActivePath && activePath && rawActivePath !== activePath && hasWorkspaceEntry(args.entriesIndex, activePath)) {
+    return activePath
+  }
+  if (rawActivePath && hasWorkspaceEntry(args.entriesIndex, rawActivePath)) return null
+  if (activePath && hasWorkspaceEntry(args.entriesIndex, activePath)) return null
 
   const nowMs = typeof args.nowMs === 'number' ? args.nowMs : Date.now()
   const isRecentlyRequested = (request: MarkdownWorkspaceActivePathRequest) =>
-    !!(args.activePath && request?.path === args.activePath && nowMs - request.atMs < 2000)
+    !!(activePath && canonicalize(request?.path) === activePath && nowMs - request.atMs < 2000)
 
   if (isRecentlyRequested(args.lastRequestedActivePath) || isRecentlyRequested(args.lastSetActivePath)) {
     return null
   }
 
-  return args.entriesIndex.firstFilePath
+  return canonicalize(args.entriesIndex.firstFilePath) || args.entriesIndex.firstFilePath
 }

@@ -37,6 +37,17 @@ const REFERENCE_INPUT_FORBIDDEN_LITERALS = [
   build([112, 97, 112, 101, 114, 109, 111, 116, 105, 111, 110]),
 ]
 
+const STACK_DRIFT_FORBIDDEN_TERMS = [
+  build([82, 101, 97, 99, 116, 32, 70, 108, 111, 119]),
+  build([114, 101, 97, 99, 116, 102, 108, 111, 119]),
+  build([64, 120, 121, 102, 108, 111, 119, 47, 114, 101, 97, 99, 116]),
+  build([108, 105, 116, 101, 103, 114, 97, 112, 104]),
+  build([83, 117, 112, 97, 98, 97, 115, 101]),
+  build([64, 115, 117, 112, 97, 98, 97, 115, 101]),
+  build([86, 101, 114, 99, 101, 108]),
+  build([64, 118, 101, 114, 99, 101, 108]),
+]
+
 const normalizeInputPath = (raw: string): string => {
   const trimmed = String(raw || '').trim()
   return trimmed ? path.resolve(trimmed) : ''
@@ -102,6 +113,81 @@ const listRepoSourceFiles = (repoRoot: string): string[] => {
   return out
 }
 
+const readJsonFile = (file: string): Record<string, unknown> | null => {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'))
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null
+  } catch {
+    return null
+  }
+}
+
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const readDirectPackageDependencyNames = (repoRoot: string): string[] => {
+  const packageFiles = [
+    path.join(repoRoot, 'package.json'),
+    path.join(repoRoot, 'canvas', 'package.json'),
+    path.join(repoRoot, 'gympgrph', 'package.json'),
+  ]
+  const lockFiles = [
+    path.join(repoRoot, 'package-lock.json'),
+    path.join(repoRoot, 'canvas', 'package-lock.json'),
+    path.join(repoRoot, 'gympgrph', 'package-lock.json'),
+  ]
+  const names = new Set<string>()
+  const addDeps = (value: unknown): void => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return
+    for (const name of Object.keys(value)) names.add(name)
+  }
+  for (const file of packageFiles) {
+    const pkg = readJsonFile(file)
+    if (!pkg) continue
+    addDeps(pkg.dependencies)
+    addDeps(pkg.devDependencies)
+    addDeps(pkg.optionalDependencies)
+  }
+  for (const file of lockFiles) {
+    const lock = readJsonFile(file)
+    const rootPkg = lock?.packages && typeof lock.packages === 'object' && !Array.isArray(lock.packages)
+      ? (lock.packages as Record<string, unknown>)['']
+      : null
+    if (!rootPkg || typeof rootPkg !== 'object' || Array.isArray(rootPkg)) continue
+    const root = rootPkg as Record<string, unknown>
+    addDeps(root.dependencies)
+    addDeps(root.devDependencies)
+    addDeps(root.optionalDependencies)
+  }
+  return [...names].sort()
+}
+
+const listStrytreeRuntimeFiles = (repoRoot: string): string[] => {
+  const candidates = [
+    path.join(repoRoot, 'canvas', 'src', 'features', 'strybldr'),
+    path.join(repoRoot, 'canvas', 'src', 'components', 'StoryboardCanvas.tsx'),
+    path.join(repoRoot, 'canvas', 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataDocumentActions.ts'),
+    path.join(repoRoot, 'cloudflare', 'workers', 'knowgrph-payment', 'index.ts'),
+    path.join(repoRoot, 'cloudflare', 'workers', 'knowgrph-payment', 'strytreeApi.ts'),
+    path.join(repoRoot, 'docs', 'documents', 'knowgrph-strytree-prd-tad.md'),
+  ]
+  const out: string[] = []
+  for (const candidate of candidates) {
+    try {
+      const st = fs.statSync(candidate)
+      if (st.isDirectory()) {
+        out.push(...walkFiles(candidate))
+      } else if (st.isFile() && SOURCE_EXTENSIONS.has(path.extname(candidate))) {
+        out.push(candidate)
+      }
+    } catch {
+      void 0
+    }
+  }
+  return out
+    .filter(file => !file.includes(`${path.sep}__tests__${path.sep}`))
+    .filter(file => !file.includes(`${path.sep}tests${path.sep}`))
+}
+
 const extractJsonFence = (text: string): Record<string, unknown> | null => {
   const match = /```json\s+strybldr-storyboard\s*\n([\s\S]*?)\n```/i.exec(text)
   if (!match?.[1]) return null
@@ -139,6 +225,22 @@ const readDemoForbiddenLiterals = (inputText: string): string[] => {
         addLiteral(out, rec.title)
         addLiteral(out, rec.synopsis)
         addLiteral(out, rec.prompt)
+      }
+      const candidateRuns = Array.isArray(storytree.candidateRuns) ? storytree.candidateRuns : []
+      for (const run of candidateRuns) {
+        if (!run || typeof run !== 'object' || Array.isArray(run)) continue
+        const rec = run as Record<string, unknown>
+        addLiteral(out, rec.candidateRunId)
+        const candidates = Array.isArray(rec.candidates) ? rec.candidates : []
+        for (const candidate of candidates) {
+          if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue
+          const candidateRec = candidate as Record<string, unknown>
+          addLiteral(out, candidateRec.candidateId)
+          addLiteral(out, candidateRec.title)
+          addLiteral(out, candidateRec.synopsis)
+          addLiteral(out, candidateRec.prompt)
+          addLiteral(out, candidateRec.notes)
+        }
       }
     }
     const explainerVideo = parsed.explainerVideo && typeof parsed.explainerVideo === 'object' && !Array.isArray(parsed.explainerVideo)
@@ -224,6 +326,79 @@ export async function testForbidStrytreeDemoCopyHardcodes() {
     throw new Error('Forbidden Strytree prototype URL found in external validation input')
   }
   assertNoRepoCopyHardcodes({ inputPath, inputText, label: 'Strytree demo/prototype' })
+}
+
+export async function testStrytreeDemoInputRendersForkCompareCanvas() {
+  const inputPath = readConfiguredInputPath()
+  if (!inputPath) return
+  const inputText = fs.readFileSync(inputPath, 'utf8')
+  const parsedFence = extractJsonFence(inputText)
+  assertCondition(parsedFence, 'expected Strytree demo to include a parseable strybldr-storyboard JSON fence')
+  const storytree = parsedFence.storytree && typeof parsedFence.storytree === 'object' && !Array.isArray(parsedFence.storytree)
+    ? parsedFence.storytree as Record<string, unknown>
+    : null
+  const storyNodes = Array.isArray(storytree?.nodes) ? storytree.nodes : []
+  const candidateRuns = Array.isArray(storytree?.candidateRuns) ? storytree.candidateRuns : []
+  assertCondition(storyNodes.length >= 6, `expected runnable Strytree story branches, got ${storyNodes.length}`)
+  assertCondition(candidateRuns.length >= 1, 'expected ForkCompare candidate run in validation input')
+  const firstRun = candidateRuns.find(run => run && typeof run === 'object' && !Array.isArray(run)) as Record<string, unknown> | undefined
+  const candidates = Array.isArray(firstRun?.candidates) ? firstRun.candidates : []
+  assertCondition(candidates.length > 0 && candidates.length <= 3, `expected bounded candidate fan-out of 1..3, got ${candidates.length}`)
+  for (const candidate of candidates) {
+    assertCondition(candidate && typeof candidate === 'object' && !Array.isArray(candidate), 'expected candidate scorecard object')
+    const rec = candidate as Record<string, unknown>
+    for (const field of ['provider', 'creditCost', 'elapsedMs', 'fallbackStatus', 'moderationStatus', 'inheritedAssetCount', 'continuityScore', 'publishEligible']) {
+      assertCondition(rec[field] !== undefined && rec[field] !== null, `expected candidate scorecard field ${field}`)
+    }
+  }
+
+  const parsed = await loadGraphDataFromTextViaParser(path.basename(inputPath), inputText, { applyToStore: false })
+  assertCondition(parsed?.parserId === 'strybldr-storyboard', `expected strybldr parser, got ${parsed?.parserId}`)
+  const graph = parsed.graphData
+  assertCondition(graph, 'expected parsed graph data')
+  const graphNodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const graphEdges = Array.isArray(graph.edges) ? graph.edges : []
+  const candidateNodes = graphNodes.filter(node => String(node.type || '') === 'StorytreeCandidate')
+  assertCondition(candidateNodes.length === candidates.length, `expected candidate graph cards, got ${candidateNodes.length}`)
+  assertCondition(graphEdges.filter(edge => edge.label === 'candidateOption').length === candidates.length, 'expected visible candidate option edges')
+  assertCondition(candidateNodes.every(node => node.properties?.privateCandidate === true), 'expected candidates to stay private until published')
+
+  const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
+  const forkCompareLane = board.lanes.find(lane => lane.id === 'ForkCompare')
+  assertCondition(forkCompareLane && forkCompareLane.cards.length >= candidates.length, 'expected ForkCompare lane cards on the Strybldr canvas')
+  const handoff = buildStrybldrVideoHandoffFromGraphData(graph)
+  assertCondition(handoff.cards.some(card => card.lane === 'ForkCompare'), 'expected Run all handoff to include ForkCompare cards')
+}
+
+export function testStrytreeForkCompareCloudflareNativeStackGuard() {
+  const self = fileURLToPath(import.meta.url)
+  const repoRoot = path.resolve(path.dirname(self), '../../..')
+  const forbiddenDependencyMatches = readDirectPackageDependencyNames(repoRoot)
+    .filter(name => STACK_DRIFT_FORBIDDEN_TERMS.some(term => name.toLowerCase().includes(term.toLowerCase())))
+  assertCondition(
+    forbiddenDependencyMatches.length === 0,
+    `Strytree ForkCompare stack guard found forbidden direct dependency names: ${forbiddenDependencyMatches.join(', ')}`,
+  )
+
+  const runtimeMatches: string[] = []
+  const terms = STACK_DRIFT_FORBIDDEN_TERMS.map(term => ({ term, re: new RegExp(escapeRegex(term), 'i') }))
+  for (const file of listStrytreeRuntimeFiles(repoRoot)) {
+    let text = ''
+    try {
+      const stat = fs.statSync(file)
+      if (stat.size > 2_000_000) continue
+      text = fs.readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    const match = terms.find(term => term.re.test(text))
+    if (match) runtimeMatches.push(`${path.relative(repoRoot, file)} -> ${match.term}`)
+    if (runtimeMatches.length >= 20) break
+  }
+  assertCondition(
+    runtimeMatches.length === 0,
+    `Strytree ForkCompare stack guard found forbidden runtime/docs references: ${runtimeMatches.join(', ')}`,
+  )
 }
 
 export async function testForbidVdeoxplnDemoCopyHardcodes() {

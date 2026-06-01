@@ -144,6 +144,7 @@ export function buildRichMediaPanelOverlayState(args: {
   const props = (nodeForState.properties || {}) as Record<string, unknown>
   const output = typeof props.output === 'string' ? props.output : ''
   const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
+  const text = outputSrcDoc.trim() ? '' : output
   const imageUrl = typeof props.imageUrl === 'string' ? props.imageUrl : ''
   const videoUrl = typeof props.videoUrl === 'string' ? props.videoUrl : ''
   const poiLabel = typeof props.richMediaPoiLabel === 'string' ? props.richMediaPoiLabel : ''
@@ -170,7 +171,7 @@ export function buildRichMediaPanelOverlayState(args: {
   return {
     activeTab,
     freezeConnectedOutput,
-    hasText: Boolean(output.trim() || outputSrcDoc.trim() || connectedText.trim()),
+    hasText: Boolean(text.trim() || outputSrcDoc.trim() || connectedText.trim()),
     hasImage: Boolean(imageUrl.trim()),
     hasVideo: Boolean(videoUrl.trim()),
     hasPoi: Boolean(
@@ -180,7 +181,7 @@ export function buildRichMediaPanelOverlayState(args: {
       || poiCoordinates.trim()
       || (activeTab === 'poi' && outputSrcDoc.trim()),
     ),
-    text: output,
+    text,
     connectedText,
     isLoading,
     loadingLabel,

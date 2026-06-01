@@ -37,10 +37,13 @@ export function testFlowEditorFrontmatterWorkspaceBlockedRichMediaLayoutStaysLiv
     throw new Error('expected Rich Media overlay pan/drag interactions to be enabled from the renderer-level Flow Editor/Flow Canvas gate')
   }
   if (!text.includes('const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen')) {
-    throw new Error('expected Rich Media overlay interactions to remain disabled while workspace mutation blocking is open')
+    throw new Error('expected Rich Media overlay pan proxy interactions to remain disabled only while the workspace overlay is visibly open')
   }
   if (!text.includes('if (!mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return')) {
-    throw new Error('expected Rich Media drag/pan runtime writes to stay blocked while workspace mutation blocking is open')
+    throw new Error('expected Rich Media panel pan proxy to use actual workspace overlay state instead of the expiring mutation guard')
+  }
+  if (!text.includes('if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return')) {
+    throw new Error('expected Rich Media header drag/resize writes to stay blocked while workspace mutation blocking is active')
   }
   if (!text.includes("const richMediaInfiniteCanvasMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Flow Editor and Flow Canvas Rich Media panel layout to use the shared renderer-level infinite-canvas gate')

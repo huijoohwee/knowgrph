@@ -35,6 +35,7 @@ import {
 } from '@/features/source-files/sourceFilesWorkspaceState'
 import {
   resolveComposedApplyDeferralReason,
+  shouldDeferComposedGraphRender,
   shouldClearComposedGraphForEmptyState,
 } from '@/features/source-files/composedApplyGuards'
 import {
@@ -571,6 +572,48 @@ export function testComposedApplyEmptyStateHelperCentralizesClearingRule() {
     })
   ) {
     throw new Error('expected composed apply empty-state helper to leave non-composed graphs untouched')
+  }
+}
+
+export function testComposedGraphRenderDeferralWaitsForCanonicalSourceLayerIdentity() {
+  const directGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'local_node', label: 'Local', type: 'Thing', properties: {} }],
+    edges: [],
+    metadata: {},
+  }
+  const composedGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'ws:abc123::local_node', label: 'Local', type: 'Thing', properties: {} }],
+    edges: [],
+    metadata: { sourceLayerComposition: 'compose' },
+  }
+
+  if (
+    !shouldDeferComposedGraphRender({
+      graphData: directGraph,
+      layers: [{ enabled: true, status: 'parsed', parsedGraphData: directGraph }],
+    })
+  ) {
+    throw new Error('expected composed graph render deferral to block source-local overlay ids while parsed source layers are ready to compose')
+  }
+
+  if (
+    shouldDeferComposedGraphRender({
+      graphData: composedGraph,
+      layers: [{ enabled: true, status: 'parsed', parsedGraphData: directGraph }],
+    })
+  ) {
+    throw new Error('expected composed graph render deferral to allow overlays once source-layer composition owns canonical node ids')
+  }
+
+  if (
+    shouldDeferComposedGraphRender({
+      graphData: directGraph,
+      layers: [{ enabled: true, status: 'idle', text: '# pending parse', parsedGraphData: null }],
+    })
+  ) {
+    throw new Error('expected composed graph render deferral to avoid hiding direct graphs before any parsed source-layer graph exists')
   }
 }
 

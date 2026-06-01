@@ -35,17 +35,20 @@ import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasApp
 export default function FlowEditorCanvasRuntime(
   {
     active = true,
+    flowEditorSurfaceId: flowEditorSurfaceIdProp,
     widgetDropCaptureEnabled = false,
     geospatialWidgetPanelMode = false,
   }: {
     active?: boolean
+    flowEditorSurfaceId?: string
     widgetDropCaptureEnabled?: boolean
     geospatialWidgetPanelMode?: boolean
   },
 ) {
   const flowEditorSurfaceIdRef = React.useRef<string>('')
   if (!flowEditorSurfaceIdRef.current) {
-    flowEditorSurfaceIdRef.current = `kgfe-${Math.random().toString(36).slice(2, 10)}`
+    const providedSurfaceId = String(flowEditorSurfaceIdProp || '').trim()
+    flowEditorSurfaceIdRef.current = providedSurfaceId || `kgfe-${Math.random().toString(36).slice(2, 10)}`
   }
   const flowEditorSurfaceId = flowEditorSurfaceIdRef.current
   const editorRuntimeActive = active
@@ -63,7 +66,7 @@ export default function FlowEditorCanvasRuntime(
     addEdge, addNode, addNodesToUserSubgraph, baseGraphData, baseGraphDataRevision,
     baseWidgetRegistry, canvasRenderMode, canvas2dRenderer, collapsedGroupIds, createUserSubgraph,
     documentSemanticMode, documentStructureBaselineLock, documentWidgetRegistry, effectiveWidgetRegistry,
-    flowWidgetPinnedByNodeId, frontmatterModeEnabled, graphContentRevision, markdownDocumentName,
+    flowEditorLayoutRebalanceRequest, flowWidgetPinnedByNodeId, frontmatterModeEnabled, graphContentRevision, markdownDocumentName,
     markdownDocumentApplyViewPreset, markdownDocumentSourceUrl, mediaPanelDensity, openWidgetNodeIds, removeNodesFromUserSubgraph,
     removeUserSubgraph, renderMediaAsNodes, resolvedThemeMode, schema, selectEdge, selectGroup,
     selectNode, selectedEdgeId, selectedNodeId, selectedNodeIds, setGraphDataPreservingLayout,
@@ -229,6 +232,7 @@ export default function FlowEditorCanvasRuntime(
     viewportH,
     schema,
     overlayTopologyLayoutSignature,
+    flowEditorLayoutRebalanceRequest,
     zoomViewKeyRef,
   })
 

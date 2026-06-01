@@ -11,6 +11,11 @@ import {
   resolveGrabMapsPoiRichMediaPanelNodeId,
   type GrabMapsPoiRichMediaDetail,
 } from '@/features/geospatial/grabMapsPoiRichMedia'
+import {
+  normalizeGeoPoiRichMediaProperties,
+  resolveGeoPoiAddressFromProperties,
+  resolveGeoPoiCategoryFromProperties,
+} from 'grph-shared/geospatial/poiRichMedia'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 import { createId } from '@/lib/id'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
@@ -187,7 +192,11 @@ export const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewpor
   )
 
   const renderPoiInRichMediaPanel = React.useCallback((detail: GrabMapsPoiRichMediaDetail): boolean => {
-    const srcDoc = buildGrabMapsPoiRichMediaSrcDoc(detail)
+    const poiProperties = normalizeGeoPoiRichMediaProperties(detail.properties)
+    const poiAddress = String(detail.address || '').trim() || resolveGeoPoiAddressFromProperties(poiProperties)
+    const poiCategory = String(detail.category || '').trim() || resolveGeoPoiCategoryFromProperties(poiProperties)
+    const normalizedDetail = { ...detail, address: poiAddress, category: poiCategory, properties: poiProperties }
+    const srcDoc = buildGrabMapsPoiRichMediaSrcDoc(normalizedDetail)
     const flowEditorOpenWidgetNodeIds = Array.isArray(gympgrphBridge.openWidgetNodeIdsByRenderer?.flowEditor)
       ? gympgrphBridge.openWidgetNodeIdsByRenderer.flowEditor
       : []
@@ -228,8 +237,9 @@ export const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewpor
         richMediaActiveTab: 'poi',
         freezeConnectedOutput: true,
         richMediaPoiLabel: String(detail.label || '').trim() || 'POI',
-        richMediaPoiAddress: String(detail.address || '').trim(),
-        richMediaPoiCategory: String(detail.category || '').trim(),
+        richMediaPoiAddress: poiAddress,
+        richMediaPoiCategory: poiCategory,
+        richMediaPoiProperties: poiProperties,
         richMediaPoiLat: Number.isFinite(Number(detail.lat)) ? Number(detail.lat) : null,
         richMediaPoiLng: Number.isFinite(Number(detail.lng)) ? Number(detail.lng) : null,
         richMediaPoiCoordinates:

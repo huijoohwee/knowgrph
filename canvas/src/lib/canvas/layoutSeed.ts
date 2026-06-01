@@ -1,3 +1,5 @@
+import { canSeedCanvasStateAcross2dRenderers, read2dRendererFromLayoutCacheSeedKey } from '@/lib/canvas/rendererStateSeed'
+
 export function coverageOfPositions(
   nodes: ReadonlyArray<{ id: unknown }>,
   positions: Record<string, { x: number; y: number }> | null,
@@ -23,20 +25,28 @@ export function pickSeedFromOtherRendererCache(args: {
   expectedKey?: string
   expectedLayoutVariant?: string
   allowVariantFallback?: boolean
+  targetRenderer?: string | null
 }): Record<string, { x: number; y: number }> | null {
   const cache = args.cache
   if (!cache) return null
   const baseKey = String(args.baseKey || '').trim()
   if (!baseKey) return null
+  const targetRenderer = String(args.targetRenderer || '').trim()
+  const canUseSeedKey = (cacheKey: string): boolean => {
+    if (!targetRenderer) return true
+    const sourceRenderer = read2dRendererFromLayoutCacheSeedKey({ baseKey, cacheKey })
+    if (!sourceRenderer) return false
+    return canSeedCanvasStateAcross2dRenderers({ targetRenderer, sourceRenderer })
+  }
 
   const expectedKey = String(args.expectedKey || '').trim()
   if (expectedKey) {
     const expected = cache[expectedKey]
-    if (expected && typeof expected === 'object') return expected
+    if (expected && typeof expected === 'object' && canUseSeedKey(expectedKey)) return expected
   }
 
   const exact = cache[baseKey]
-  if (exact && typeof exact === 'object') return exact
+  if (exact && typeof exact === 'object' && canUseSeedKey(baseKey)) return exact
 
   if (args.allowVariantFallback === false) return null
 
@@ -48,6 +58,7 @@ export function pickSeedFromOtherRendererCache(args: {
   for (let i = 0; i < keys.length; i += 1) {
     const k = keys[i]
     if (!k.startsWith(prefix)) continue
+    if (!canUseSeedKey(k)) continue
     const entry = cache[k]
     if (!entry || typeof entry !== 'object') continue
     const coverage = coverageOfPositions(args.nodes, entry)

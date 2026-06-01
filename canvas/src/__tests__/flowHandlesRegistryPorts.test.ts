@@ -36,18 +36,18 @@ export const testFlowHandlesPreferRegistryOrderingWhenPortsOverlapEdges = () => 
     {
       id: 'q1',
       isEnabled: true,
-      nodeTypeId: 'ColorPreview',
+      nodeTypeId: 'MetricPreview',
       widgetTypeId: 'default',
-      formId: 'color',
+      formId: 'metrics',
       fields: [
-        { fieldKey: 'r', fieldType: 'number' },
-        { fieldKey: 'g', fieldType: 'number' },
-        { fieldKey: 'b', fieldType: 'number' },
+        { fieldKey: 'alpha', fieldType: 'number' },
+        { fieldKey: 'beta', fieldType: 'number' },
+        { fieldKey: 'gamma', fieldType: 'number' },
       ],
       ports: [
-        { portKey: 'r', direction: 'input' as const },
-        { portKey: 'g', direction: 'input' as const },
-        { portKey: 'b', direction: 'input' as const },
+        { portKey: 'alpha', direction: 'input' as const },
+        { portKey: 'beta', direction: 'input' as const },
+        { portKey: 'gamma', direction: 'input' as const },
       ],
       updatedAt: '2026-02-01T00:00:00.000Z',
     },
@@ -55,15 +55,15 @@ export const testFlowHandlesPreferRegistryOrderingWhenPortsOverlapEdges = () => 
 
   const byNode = computeFlowHandlesByNode({
     nodes: [
-      { id: 'red' },
-      { id: 'green' },
-      { id: 'blue' },
-      { id: 'preview', type: 'ColorPreview', properties: {} },
+      { id: 'alpha-source' },
+      { id: 'beta-source' },
+      { id: 'gamma-source' },
+      { id: 'preview', type: 'MetricPreview', properties: {} },
     ],
     edges: [
-      { id: 'e-r', source: 'red', target: 'preview', properties: { 'flow:targetPortKey': 'r' } },
-      { id: 'e-g', source: 'green', target: 'preview', properties: { 'flow:targetPortKey': 'g' } },
-      { id: 'e-b', source: 'blue', target: 'preview', properties: { 'flow:targetPortKey': 'b' } },
+      { id: 'e-alpha', source: 'alpha-source', target: 'preview', properties: { 'flow:targetPortKey': 'alpha' } },
+      { id: 'e-beta', source: 'beta-source', target: 'preview', properties: { 'flow:targetPortKey': 'beta' } },
+      { id: 'e-gamma', source: 'gamma-source', target: 'preview', properties: { 'flow:targetPortKey': 'gamma' } },
     ],
     widgetRegistry: registry,
   })
@@ -71,11 +71,11 @@ export const testFlowHandlesPreferRegistryOrderingWhenPortsOverlapEdges = () => 
   const handles = byNode.preview
   if (!handles) throw new Error('expected handles for node preview')
   const ids = handles.in.map(h => h.id)
-  const idxR = ids.indexOf('in:r')
-  const idxG = ids.indexOf('in:g')
-  const idxB = ids.indexOf('in:b')
-  if (idxR < 0 || idxG < 0 || idxB < 0) throw new Error('expected in:r, in:g, in:b handles')
-  if (!(idxR < idxG && idxG < idxB)) throw new Error('expected registry input ports ordered r, g, b')
+  const idxAlpha = ids.indexOf('in:alpha')
+  const idxBeta = ids.indexOf('in:beta')
+  const idxGamma = ids.indexOf('in:gamma')
+  if (idxAlpha < 0 || idxBeta < 0 || idxGamma < 0) throw new Error('expected in:alpha, in:beta, in:gamma handles')
+  if (!(idxAlpha < idxBeta && idxBeta < idxGamma)) throw new Error('expected registry input ports ordered alpha, beta, gamma')
 }
 
 export const testFlowHandlesRebalanceRichMediaPanelPortsByActiveTab = () => {

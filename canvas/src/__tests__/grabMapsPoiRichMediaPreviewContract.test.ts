@@ -89,6 +89,13 @@ export const testGrabMapsPoiSrcDocIncludesRichGeoMetadataAndNeutralActions = () 
     lng: 103.8607,
     address: '10 Bayfront Ave, Singapore',
     category: 'landmark',
+    properties: {
+      Rank: 1,
+      'C*': 0.82,
+      'Decisive signal': 'zero competition near transit',
+      'Residential POI Count': 22,
+      kgSourceDocumentPath: '/reports/site-selection.md',
+    },
   })
   if (!srcDoc.includes('Coordinates</strong><span>1.283400, 103.860700</span>')) {
     throw new Error('expected GrabMaps POI srcdoc to include normalized six-decimal coordinates')
@@ -101,6 +108,18 @@ export const testGrabMapsPoiSrcDocIncludesRichGeoMetadataAndNeutralActions = () 
   }
   if (!srcDoc.includes('&quot;coordinates&quot;: {')) {
     throw new Error('expected GrabMaps POI srcdoc to include a structured payload preview')
+  }
+  if (!srcDoc.includes('<strong>C*</strong><span>0.82</span>')) {
+    throw new Error('expected GrabMaps POI srcdoc to preserve generic score metadata from source properties')
+  }
+  if (!srcDoc.includes('<strong>Decisive Signal</strong><span>zero competition near transit</span>')) {
+    throw new Error('expected GrabMaps POI srcdoc to render qualitative geo metadata from source properties')
+  }
+  if (!srcDoc.includes('<strong>Residential POI Count</strong><span>22</span>')) {
+    throw new Error('expected GrabMaps POI srcdoc to render source count metrics without report-specific hardcoding')
+  }
+  if (!srcDoc.includes('<strong>Source document</strong><span>/reports/site-selection.md</span>')) {
+    throw new Error('expected GrabMaps POI srcdoc to include source provenance when available')
   }
   if (!srcDoc.includes('aria-label="POI mini-map snapshot"') || !srcDoc.includes('<svg viewBox="0 0 320 170"')) {
     throw new Error('expected GrabMaps POI srcdoc to include an inline mini-map SVG snapshot block')

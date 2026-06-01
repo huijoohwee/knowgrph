@@ -17,6 +17,7 @@ import { buildStrybldrVideoHandoffFromGraphData, buildStrybldrVideoHandoffMarkdo
 import type { StrybldrElement } from './strybldrTypes'
 import { runStrybldrDetrObjectDetection } from './strybldrLocalVision'
 import {
+  createStrytreeCandidateRunAction,
   createStrytreeContinuationDraftAction,
   toggleStrytreeLikeAction,
   unlockStrytreeNodeAction,
@@ -309,6 +310,14 @@ export function StrybldrFloatingPanelView() {
     )
   }, [commitStrytreeResult, graphData, selectedStorytreeCard])
 
+  const compareSelectedStorytreeCandidates = React.useCallback(() => {
+    if (!graphData || !selectedStorytreeCard) return
+    commitStrytreeResult(
+      createStrytreeCandidateRunAction(graphData, selectedStorytreeCard.id),
+      'Strybldr ForkCompare candidates',
+    )
+  }, [commitStrytreeResult, graphData, selectedStorytreeCard])
+
   const runVideoHandoff = React.useCallback(async () => {
     if (running || videoRunning) return
     const handoff = buildStrybldrVideoHandoffFromGraphData(graphData)
@@ -515,7 +524,7 @@ export function StrybldrFloatingPanelView() {
                         </option>
                       ))}
                     </select>
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="grid grid-cols-4 gap-1">
                       <button
                         type="button"
                         className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
@@ -524,6 +533,16 @@ export function StrybldrFloatingPanelView() {
                       >
                         <Heart className="h-3.5 w-3.5" aria-hidden={true} fill={readBoolean(selectedStorytreeCard.tags.includes('liked')) ? 'currentColor' : 'none'} />
                         Like
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        aria-label="Strybldr compare storytree candidates"
+                        disabled={selectedStorytreeCard.tags.includes('dropped')}
+                        onClick={compareSelectedStorytreeCandidates}
+                      >
+                        <Wand2 className="h-3.5 w-3.5" aria-hidden={true} />
+                        Compare
                       </button>
                       <button
                         type="button"

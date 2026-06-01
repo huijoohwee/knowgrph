@@ -12,6 +12,8 @@ import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { findMarkdownTextHighlightLineRange } from '@/lib/markdown/markdownTextHighlights'
 import type { StatusHelpers } from './useWorkspaceFileActions/types'
+import { resolveMarkdownWorkspaceDocsMirrorCanonicalPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionCanonicalPath'
+import { buildWorkspaceEntriesIndex, type WorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
 const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
@@ -56,6 +58,17 @@ const findWorkspacePathForDocumentKey = (entries: WorkspaceEntry[], docKey: stri
   return exact || suffix
 }
 
+export const resolveCanvasMarkdownSyncTargetPath = (args: {
+  entries: WorkspaceEntry[]
+  entriesIndex?: WorkspaceEntriesIndex
+  docKey: string
+}): WorkspacePath | null => {
+  const targetPath = findWorkspacePathForDocumentKey(args.entries, args.docKey)
+  if (!targetPath) return null
+  const entriesIndex = args.entriesIndex || buildWorkspaceEntriesIndex(args.entries)
+  return resolveMarkdownWorkspaceDocsMirrorCanonicalPath(targetPath, entriesIndex) || targetPath
+}
+
 export function useCanvasMarkdownSync(args: {
   active: boolean
   entries: WorkspaceEntry[]
@@ -84,6 +97,7 @@ export function useCanvasMarkdownSync(args: {
   const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || '')
   const renderGraphData = useActiveGraphRenderData(active)
+  const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(entries), [entries])
   const syncGraphNodes = (Array.isArray(renderGraphData?.nodes) && renderGraphData.nodes.length > 0)
     ? (renderGraphData.nodes as GraphNode[])
     : graphNodes
@@ -155,7 +169,11 @@ export function useCanvasMarkdownSync(args: {
     const fallbackDocKey = activePath ? workspaceDocumentKey(activePath) : ''
     const docKey = location ? normalizeDocumentPathKey(location.documentPath) : normalizeDocumentPathKey(fallbackDocKey)
     if (docKey) {
-      const targetPath = findWorkspacePathForDocumentKey(entries, docKey)
+      const targetPath = resolveCanvasMarkdownSyncTargetPath({
+        entries,
+        entriesIndex,
+        docKey,
+      })
       if (!targetPath) {
         lastCanvasSyncSigRef.current = sig
         setStatusError(`Missing file: ${docKey}`, { ttlMs: 3500, dismissible: true })
@@ -180,6 +198,7 @@ export function useCanvasMarkdownSync(args: {
     active,
     activePath,
     entries,
+    entriesIndex,
     graphLookupSemanticKey,
     revealLineInEditor,
     selectedEdgeId,

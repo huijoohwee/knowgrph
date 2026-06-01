@@ -146,6 +146,34 @@ export function testWorkspaceCloseTransitionBlocksLayoutCacheMutation() {
   }
 }
 
+export async function testWorkspaceGraphMutationTransitionExpiresStoreState() {
+  const previous = useGraphStore.getState()
+  const previousPatch = {
+    workspaceViewMode: previous.workspaceViewMode,
+    workspaceCanvasPaneOpen: previous.workspaceCanvasPaneOpen,
+    markdownWorkspaceIndexingInFlight: previous.markdownWorkspaceIndexingInFlight,
+    workspaceGraphMutationBlockUntilMs: previous.workspaceGraphMutationBlockUntilMs,
+    workspaceGraphMutationBlockKey: previous.workspaceGraphMutationBlockKey,
+  }
+
+  try {
+    useGraphStore.setState({
+      workspaceViewMode: 'canvas',
+      workspaceCanvasPaneOpen: false,
+      markdownWorkspaceIndexingInFlight: false,
+      workspaceGraphMutationBlockUntilMs: Date.now() + 24,
+      workspaceGraphMutationBlockKey: 'workspace-transition-expiry-test',
+    } as never)
+    await new Promise(resolve => setTimeout(resolve, 80))
+    const after = useGraphStore.getState()
+    if (after.workspaceGraphMutationBlockUntilMs !== 0 || after.workspaceGraphMutationBlockKey !== '') {
+      throw new Error('expected expired workspace graph mutation transition state to clear itself so selectors and refs release interaction passthrough')
+    }
+  } finally {
+    useGraphStore.setState(previousPatch as never)
+  }
+}
+
 export async function testActiveMarkdownDocumentSwitchStampsMutationGuardWithoutPresetReplay() {
   const previous = useGraphStore.getState()
   const previousPatch = {

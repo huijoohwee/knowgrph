@@ -29,7 +29,7 @@ export function testMarkdownResolveHrefCoercesAbsoluteSandboxDocumentPath() {
 }
 
 export function testMarkdownResolveHrefAvoidsDuplicatedDocsPrefixesInWorkspaceDocs() {
-  const active = 'huijoohwee/docs/knowgrph-maps-readme.md'
+  const active = 'huijoohwee/docs/workspace-readme.md'
   const expected = '/__codebase_asset?path=huijoohwee%2Fdocs%2Fknowgrph-maps-places.md'
   const fromDocsRelative = resolveHref('docs/knowgrph-maps-places.md', active)
   if (fromDocsRelative !== expected) {

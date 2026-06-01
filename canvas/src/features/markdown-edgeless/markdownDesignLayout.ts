@@ -120,7 +120,7 @@ export function deriveMarkdownDesignLayoutFromGraphBlocks(args: {
     if (nodeType === 'CodeBlock') {
       const lang = propsObj && typeof propsObj.language === 'string' ? String(propsObj.language || '') : ''
       const code = propsObj && typeof propsObj.code === 'string' ? String(propsObj.code || '') : ''
-      const lines = code ? code.split(/\r?\n/).slice(0, 6) : []
+      const lines = code ? code.split(/\r?\n/) : []
       outBlocks.push({
         id,
         type: 'code',
@@ -328,7 +328,7 @@ const buildPreview = (t: TokenWithLines): MarkdownDesignBlock['preview'] => {
     const anyTok = t as unknown as { lang?: unknown; text?: unknown }
     const lang = typeof anyTok.lang === 'string' ? anyTok.lang.trim() : ''
     const text = typeof anyTok.text === 'string' ? anyTok.text : ''
-    const lines = text.split(/\r?\n/g).slice(0, 10)
+    const lines = text.split(/\r?\n/g)
     return { kind: 'code', code: { lang, lines } }
   }
   if (type === 'callout') {
@@ -449,13 +449,26 @@ export const patchMarkdownDesignLayoutPositions = (args: {
   layoutKey: string
   updates: Array<{ id: string; x: number; y: number }>
 }): void => {
+  patchMarkdownDesignLayoutRects(args)
+}
+
+export const patchMarkdownDesignLayoutRects = (args: {
+  layoutKey: string
+  updates: Array<{ id: string; x?: number; y?: number; w?: number; h?: number }>
+}): void => {
   const cached = layoutCache.get(args.layoutKey)
   if (!cached) return
   const updatesById = new Map(args.updates.map(u => [u.id, u]))
   const blocks = cached.blocks.map(b => {
     const u = updatesById.get(b.id)
     if (!u) return b
-    return { ...b, x: u.x, y: u.y }
+    return {
+      ...b,
+      x: Number.isFinite(u.x) ? Number(u.x) : b.x,
+      y: Number.isFinite(u.y) ? Number(u.y) : b.y,
+      w: Number.isFinite(u.w) ? Math.max(24, Number(u.w)) : b.w,
+      h: Number.isFinite(u.h) ? Math.max(24, Number(u.h)) : b.h,
+    }
   })
   layoutCache.set(args.layoutKey, { ...cached, blocks })
 }

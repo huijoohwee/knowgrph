@@ -21,6 +21,8 @@ import type {
   StrybldrVideoHandoffCard,
   StrybldrSource,
   StrybldrStoryboardDocument,
+  StrytreeBranchCandidate,
+  StrytreeCandidateRun,
   StrytreeStoryNode,
   StrytreeStorySnapshot,
 } from './strybldrTypes'
@@ -590,6 +592,107 @@ const appendStrytreeGraphData = (args: {
     const parentId = node.parentNodeId ? graphIdByNodeId.get(node.parentNodeId) : overviewId
     if (parentId) args.edges.push(createEdge(parentId, childId, node.parentNodeId ? 'parent_node_id' : 'rootBranch'))
   }
+
+  const candidateRuns = Array.isArray(storytree.candidateRuns) ? storytree.candidateRuns : []
+  candidateRuns.forEach((run, runIndex) => {
+    const parentGraphId = graphIdByNodeId.get(run.parentNodeId)
+    if (!parentGraphId) return
+    const parentNode = runtime.nodeById.get(run.parentNodeId)
+    const runGraphId = `strytree:candidate-run:${shortHash(run.candidateRunId)}`
+    args.nodes.push({
+      id: runGraphId,
+      label: `ForkCompare ${runIndex + 1}`,
+      type: 'StorytreeCandidateRun',
+      properties: {
+        title: asJson(`ForkCompare run for ${parentNode?.title || run.parentNodeId}`),
+        lane: asJson('ForkCompare'),
+        order: asJson(1000 + runIndex * 100),
+        summary: asJson(`${run.candidates.length} continuation candidates, ${run.quotedCostCredits} quoted credits, ${run.status} status.`),
+        action: asJson('Compare candidate scorecards, then publish one selected continuation into the durable storytree.'),
+        prompt: asJson('Select the highest-value branch candidate without adding hidden provider calls.'),
+        tags: asJson(uniqueCleanTexts([
+          'forkcompare',
+          'candidate-run',
+          run.status,
+          `max:${Math.min(3, Math.max(0, run.maxCandidates || run.candidates.length))}`,
+          `quote:${run.quotedCostCredits}`,
+        ])),
+        strytreeStoryId: asJson(storyId),
+        candidateRunId: asJson(run.candidateRunId),
+        parentNodeId: asJson(run.parentNodeId),
+        parentGraphNodeId: asJson(parentGraphId),
+        status: asJson(run.status),
+        maxCandidates: asJson(run.maxCandidates),
+        quotedCostCredits: asJson(run.quotedCostCredits),
+        scorecardMode: asJson(run.scorecardMode || 'cost_continuity'),
+        candidateCount: asJson(run.candidates.length),
+      },
+    })
+    args.edges.push(createEdge(parentGraphId, runGraphId, 'candidateRun'))
+
+    run.candidates.slice(0, 3).forEach((candidate, candidateIndex) => {
+      const candidateGraphId = `strytree:candidate:${shortHash(`${run.candidateRunId}:${candidate.candidateId}`)}`
+      const mediaUrl = cleanText(candidate.videoUrl)
+      const thumbnailUrl = cleanText(candidate.thumbnailUrl) || (mediaUrl ? buildRenderableMediaThumbnailUrl(mediaUrl) : '')
+      const publishEligible = candidate.publishEligible === true && cleanText(candidate.moderationStatus || 'approved') !== 'rejected'
+      const continuityScore = Math.max(0, Math.min(1, readNumber(candidate.continuityScore, 0)))
+      args.nodes.push({
+        id: candidateGraphId,
+        label: candidate.title,
+        type: 'StorytreeCandidate',
+        properties: {
+          title: asJson(candidate.title),
+          lane: asJson('ForkCompare'),
+          order: asJson(1000 + runIndex * 100 + candidateIndex + 1),
+          index: asJson(`${runIndex + 1}.${candidateIndex + 1}`),
+          slugline: asJson(`${Math.max(0, Math.round(continuityScore * 100))}% continuity / ${candidate.creditCost || 0} credits / ${candidate.moderationStatus || 'pending'}`),
+          summary: asJson(candidate.synopsis),
+          action: asJson(publishEligible
+            ? 'Publish this candidate only if its scorecard beats the alternatives.'
+            : 'Keep this candidate private for audit; it is not publish eligible.'),
+          prompt: asJson(candidate.prompt || parentNode?.prompt || `Continue from ${parentNode?.title || run.parentNodeId}.`),
+          tags: asJson(uniqueCleanTexts([
+            'forkcompare',
+            'branch-candidate',
+            candidate.status || run.status,
+            publishEligible ? 'publish-ready' : 'private-audit',
+            candidate.selected ? 'selected' : '',
+            candidate.fallbackStatus ? `fallback:${candidate.fallbackStatus}` : '',
+          ])),
+          strytreeStoryId: asJson(storyId),
+          candidateRunId: asJson(run.candidateRunId),
+          strytreeCandidateId: asJson(candidate.candidateId),
+          parentNodeId: asJson(run.parentNodeId),
+          parentGraphNodeId: asJson(parentGraphId),
+          provider: asJson(candidate.provider || 'local-harness'),
+          candidateStatus: asJson(candidate.status || run.status),
+          creditCost: asJson(candidate.creditCost || 0),
+          elapsedMs: asJson(candidate.elapsedMs || 0),
+          fallbackStatus: asJson(candidate.fallbackStatus || 'none'),
+          moderationStatus: asJson(candidate.moderationStatus || 'pending'),
+          inheritedAssetCount: asJson(candidate.inheritedAssetCount || runtime.nodeRuntimeById.get(run.parentNodeId)?.allAssetIds.length || 0),
+          continuityScore: asJson(continuityScore),
+          publishEligible: asJson(publishEligible),
+          selectedCandidate: asJson(candidate.selected === true),
+          privateCandidate: asJson(true),
+          notes: asJson(candidate.notes || null),
+          mediaUrl: asJson(mediaUrl || null),
+          sourceUrl: asJson(mediaUrl || null),
+          renderUrl: asJson(mediaUrl ? buildRenderableIframeUrl(mediaUrl) || mediaUrl : null),
+          thumbnailUrl: asJson(thumbnailUrl || null),
+          mediaKind: asJson(mediaUrl ? inferMediaKindFromResourceUrl(mediaUrl) || 'video' : 'unknown'),
+          references: asJson(uniqueCleanTexts([
+            mediaUrl,
+            thumbnailUrl,
+            candidate.notes,
+            ...(runtime.nodeRuntimeById.get(run.parentNodeId)?.allAssetIds || []),
+          ])),
+        },
+      })
+      args.edges.push(createEdge(runGraphId, candidateGraphId, 'candidateScorecard'))
+      args.edges.push(createEdge(parentGraphId, candidateGraphId, 'candidateOption'))
+    })
+  })
 }
 
 const appendExplainerVideoGraphData = (args: {
@@ -797,11 +900,65 @@ const readStrytreeNode = (value: unknown, index: number): StrytreeStoryNode | nu
   }
 }
 
+const readStrytreeBranchCandidate = (value: unknown, index: number): StrytreeBranchCandidate | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const rec = value as Record<string, unknown>
+  const candidateId = cleanText(rec.candidateId || rec.candidate_id || rec.id)
+  const title = cleanText(rec.title || rec.label) || `Candidate ${index + 1}`
+  return {
+    candidateId: candidateId || `candidate-${shortHash(`${title}:${index}`)}`,
+    title,
+    synopsis: cleanText(rec.synopsis || rec.summary || rec.description),
+    prompt: cleanText(rec.prompt) || null,
+    provider: cleanText(rec.provider) || null,
+    status: cleanText(rec.status) || 'succeeded',
+    creditCost: Math.max(0, readNumber(rec.creditCost || rec.credit_cost || rec.costCredits || rec.cost_credits, 0)),
+    elapsedMs: Math.max(0, readNumber(rec.elapsedMs || rec.elapsed_ms, 0)),
+    fallbackStatus: cleanText(rec.fallbackStatus || rec.fallback_status) || null,
+    moderationStatus: cleanText(rec.moderationStatus || rec.moderation_status) || null,
+    inheritedAssetCount: Math.max(0, readNumber(rec.inheritedAssetCount || rec.inherited_asset_count, 0)),
+    continuityScore: Math.max(0, Math.min(1, readNumber(rec.continuityScore || rec.continuity_score, 0))),
+    publishEligible: readBoolean(rec.publishEligible || rec.publish_eligible),
+    selected: readBoolean(rec.selected || rec.selectedCandidate || rec.selected_candidate),
+    videoUrl: cleanText(rec.videoUrl || rec.video_url) || null,
+    thumbnailUrl: cleanText(rec.thumbnailUrl || rec.thumbnail_url) || null,
+    notes: cleanText(rec.notes) || null,
+  }
+}
+
+const readStrytreeCandidateRun = (value: unknown, index: number): StrytreeCandidateRun | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const rec = value as Record<string, unknown>
+  const parentNodeId = cleanText(rec.parentNodeId || rec.parent_node_id || rec.parentId)
+  if (!parentNodeId) return null
+  const candidates = Array.isArray(rec.candidates)
+    ? rec.candidates.map(readStrytreeBranchCandidate).filter((item): item is StrytreeBranchCandidate => !!item).slice(0, 3)
+    : []
+  if (candidates.length === 0) return null
+  const candidateRunId = cleanText(rec.candidateRunId || rec.candidate_run_id || rec.id) || `candrun-${shortHash(`${parentNodeId}:${index}:${candidates.map(candidate => candidate.candidateId).join('|')}`)}`
+  const quotedCostCredits = Number.isFinite(Number(rec.quotedCostCredits || rec.quoted_cost_credits))
+    ? Math.max(0, Number(rec.quotedCostCredits || rec.quoted_cost_credits))
+    : candidates.reduce((sum, candidate) => sum + Math.max(0, candidate.creditCost || 0), 0)
+  return {
+    candidateRunId,
+    parentNodeId,
+    status: cleanText(rec.status) || 'completed',
+    maxCandidates: Math.min(3, Math.max(0, readNumber(rec.maxCandidates || rec.max_candidates, candidates.length))),
+    quotedCostCredits,
+    scorecardMode: cleanText(rec.scorecardMode || rec.scorecard_mode) || 'cost_continuity',
+    candidates,
+  }
+}
+
 const readStrytreeSnapshot = (value: unknown): StrytreeStorySnapshot | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const rec = value as Record<string, unknown>
   const nodes = Array.isArray(rec.nodes)
     ? rec.nodes.map(readStrytreeNode).filter((item): item is StrytreeStoryNode => !!item)
+    : []
+  const candidateRunsRaw = rec.candidateRuns || rec.candidate_runs
+  const candidateRuns = Array.isArray(candidateRunsRaw)
+    ? candidateRunsRaw.map(readStrytreeCandidateRun).filter((item): item is StrytreeCandidateRun => !!item)
     : []
   if (nodes.length === 0) return null
   const activeBranchCount = nodes.filter(node => node.status !== 'dropped').length
@@ -816,6 +973,7 @@ const readStrytreeSnapshot = (value: unknown): StrytreeStorySnapshot | null => {
     generationCostCredits: Number.isFinite(Number(rec.generationCostCredits || rec.generation_cost_credits)) ? Number(rec.generationCostCredits || rec.generation_cost_credits) : 5,
     unlockCurrency: cleanText(rec.unlockCurrency || rec.unlock_currency) || 'credits',
     nodes,
+    candidateRuns,
   }
 }
 
@@ -1019,6 +1177,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
       elementsCount: doc.elements.length,
       strytreeStoryId: doc.storytree?.storyId || null,
       strytreeNodesCount: doc.storytree?.nodes.length || 0,
+      strytreeCandidateRunsCount: doc.storytree?.candidateRuns?.length || 0,
       explainerVideoPanelsCount: doc.explainerVideo?.panels.length || 0,
       textArtifactToExplainerVideo: doc.explainerVideo ? true : false,
       kgCanvasSurfaceMode: isXr ? 'xr' : '2d',
@@ -1104,7 +1263,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
   const cards: StrybldrVideoHandoffCard[] = nodes
     .filter(node => {
       const type = cleanText(node.type)
-      return type === 'StrybldrImageSource' || type === 'StoryboardFrame' || type === 'StoryboardElement' || type === 'StorytreeSnapshot' || type === 'StorytreeNode' || type === 'ExplainerVideoSnapshot' || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      return type === 'StrybldrImageSource' || type === 'StoryboardFrame' || type === 'StoryboardElement' || type === 'StorytreeSnapshot' || type === 'StorytreeNode' || type === 'StorytreeCandidateRun' || type === 'StorytreeCandidate' || type === 'ExplainerVideoSnapshot' || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     })
     .map((node, index): StrybldrVideoHandoffCard => {
       const props = node.properties || {}

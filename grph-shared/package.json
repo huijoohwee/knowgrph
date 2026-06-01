@@ -194,6 +194,11 @@
       "import": "./dist/geospatial/sgpAdministrativeAreas.js",
       "default": "./dist/geospatial/sgpAdministrativeAreas.js"
     },
+    "./geospatial/poiRichMedia": {
+      "types": "./dist/geospatial/poiRichMedia.d.ts",
+      "import": "./dist/geospatial/poiRichMedia.js",
+      "default": "./dist/geospatial/poiRichMedia.js"
+    },
     "./browser/apiNativeBrowserMcpSsot": {
       "types": "./dist/browser/apiNativeBrowserMcpSsot.d.ts",
       "import": "./dist/browser/apiNativeBrowserMcpSsot.js",
@@ -253,6 +258,11 @@
       "types": "./dist/ui/panelTypography.d.ts",
       "import": "./dist/ui/panelTypography.js",
       "default": "./dist/ui/panelTypography.js"
+    },
+    "./ui/keyTypeValueRows": {
+      "types": "./dist/ui/keyTypeValueRows.d.ts",
+      "import": "./dist/ui/keyTypeValueRows.js",
+      "default": "./dist/ui/keyTypeValueRows.js"
     },
     "./ui/kgTokens": {
       "types": "./dist/ui/kgTokens.d.ts",

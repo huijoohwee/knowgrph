@@ -97,18 +97,132 @@ export function computeContentBoxFromPanelFrame16x9(args: {
   }
 }
 
-export function computePanelFrameSizeFromWidth16x9(args: {
+function coerceMediaPanelContentAspect(raw: unknown, fallback = 16 / 9): number {
+  const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : Number(raw)
+  const f = Number.isFinite(fallback) && fallback > 0 ? fallback : 16 / 9
+  return Math.max(0.05, Math.min(20, Number.isFinite(n) && n > 0 ? n : f))
+}
+
+export function resolvePanelFrameContentAspect(args: {
+  panelW: number
+  panelH: number
+  metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+  fallbackAspect?: number
+}): number {
+  const content = computeContentBoxFromPanelFrame16x9({
+    panelW: args.panelW,
+    panelH: args.panelH,
+    metrics: args.metrics,
+  })
+  return coerceMediaPanelContentAspect(content.aspect, args.fallbackAspect)
+}
+
+export function computePanelFrameSizeFromWidthAspect(args: {
   panelW: number
   metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+  aspect?: number
 }): { panelW: number; panelH: number; contentW: number; contentH: number } {
   const panelW = Math.max(2, Number(args.panelW) || 2)
   const padding = Math.max(0, Number(args.metrics.padding) || 0)
   const headerH = Math.max(0, Number(args.metrics.headerH) || 0)
   const borderW = Math.max(0, Number(args.metrics.borderW) || 0)
+  const aspect = coerceMediaPanelContentAspect(args.aspect)
   const contentW = Math.max(2, panelW - padding * 2 - borderW * 2)
-  const contentH = Math.max(2, (contentW * 9) / 16)
+  const contentH = Math.max(2, contentW / aspect)
   const panelH = Math.max(2, contentH + headerH + padding * 2 + borderW * 2)
   return { panelW, panelH, contentW, contentH }
+}
+
+export function computePanelFrameSizeFromWidth16x9(args: {
+  panelW: number
+  metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+}): { panelW: number; panelH: number; contentW: number; contentH: number } {
+  return computePanelFrameSizeFromWidthAspect({
+    panelW: args.panelW,
+    metrics: args.metrics,
+    aspect: 16 / 9,
+  })
+}
+
+export function computePanelFrameSizeFromDensityWidth16x9(args: {
+  density: MediaPanelDensity
+  panelW: number
+  sizeScale?: number
+}): { panelW: number; panelH: number; contentW: number; contentH: number; metrics: MediaPanelCssMetrics } {
+  const density: MediaPanelDensity = args.density === 'compact' ? 'compact' : 'default'
+  const sizeScale = Number.isFinite(args.sizeScale) && Number(args.sizeScale) > 0 ? Number(args.sizeScale) : 1
+  const computed = computeMediaPanelCssVars3d({ density, sizeScale })
+  const frame = computePanelFrameSizeFromWidth16x9({
+    panelW: args.panelW,
+    metrics: computed.metrics,
+  })
+  return { ...frame, metrics: computed.metrics }
+}
+
+export function readPanelCssMetricPx(el: HTMLElement | null | undefined, name: string, fallback: number): number {
+  if (!el || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return fallback
+  try {
+    const raw = window.getComputedStyle(el).getPropertyValue(name).trim()
+    const n = Number.parseFloat(raw)
+    return Number.isFinite(n) && n >= 0 ? n : fallback
+  } catch {
+    return fallback
+  }
+}
+
+export function readRichMediaPanelFrameMetrics(el: HTMLElement | null | undefined): Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'> {
+  return {
+    headerH: readPanelCssMetricPx(el, '--kg-media-panel-header-h', 28),
+    padding: readPanelCssMetricPx(el, '--kg-media-panel-padding', 8),
+    borderW: readPanelCssMetricPx(el, '--kg-media-panel-border-w', 1),
+  }
+}
+
+export function computePanelFrameResizeFromDrag16x9(args: {
+  startW: number
+  startH: number
+  dxClientPx: number
+  dyClientPx: number
+  scale?: number
+  metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+  minPanelW?: number
+  minPanelH?: number
+}): { panelW: number; panelH: number; contentW: number; contentH: number } {
+  const scale = Number.isFinite(args.scale) && Number(args.scale) > 0 ? Math.max(0.001, Number(args.scale)) : 1
+  const startW = Math.max(2, Number(args.startW) || 2)
+  const startH = Math.max(2, Number(args.startH) || 2)
+  const dx = Number.isFinite(args.dxClientPx) ? Number(args.dxClientPx) : 0
+  const dy = Number.isFinite(args.dyClientPx) ? Number(args.dyClientPx) : 0
+  const padding = Math.max(0, Number(args.metrics.padding) || 0)
+  const borderW = Math.max(0, Number(args.metrics.borderW) || 0)
+  const headerH = Math.max(0, Number(args.metrics.headerH) || 0)
+  const chromeX = padding * 2 + borderW * 2
+  const chromeY = headerH + padding * 2 + borderW * 2
+  const minPanelW = Math.max(2, Number(args.minPanelW) || 2)
+  const minPanelH = Math.max(2, Number(args.minPanelH) || 2)
+  const aspect = resolvePanelFrameContentAspect({
+    panelW: startW,
+    panelH: startH,
+    metrics: args.metrics,
+    fallbackAspect: 16 / 9,
+  })
+  const minWidthFromHeight = Math.max(2, Math.max(2, minPanelH - chromeY) * aspect + chromeX)
+  const chosenW = Math.abs(dy) > Math.abs(dx)
+    ? Math.max(2, Math.max(2, startH + dy / scale - chromeY) * aspect + chromeX)
+    : startW + dx / scale
+  const panelW = Math.max(minPanelW, minWidthFromHeight, Math.round(chosenW))
+  return computePanelFrameSizeFromWidthAspect({ panelW, metrics: args.metrics, aspect })
+}
+
+export function readStableRichMediaPanelSize(props: Record<string, unknown> | null | undefined): { w: number; h: number } | null {
+  if (!props) return null
+  const width = Number(props['visual:width'])
+  const height = Number(props['visual:height'])
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
+  return {
+    w: Math.max(24, Math.round(width)),
+    h: Math.max(24, Math.round(height)),
+  }
 }
 
 export function computeMediaPanelPixelSize2d(args: { zoomK: number; dimsWorld: { panelWidth: number; panelHeight: number } }): {

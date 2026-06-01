@@ -6,6 +6,7 @@ import { inferWidgetAutoRenderKind } from '@/lib/flowEditor/widgetAutoRender'
 import { setObjectPath } from '@/lib/data/objectPath'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { resolveNodeWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
 export type WidgetCompactPreviewKind = 'text' | 'image' | 'video'
 
@@ -210,6 +211,8 @@ export function resolveWidgetCompactPreview(args: {
   registryEntry?: WidgetRegistryEntry | null
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): WidgetCompactPreviewSpec | null {
+  const widgetIdentity = resolveNodeWidgetIdentity({ node: args.node, registryEntry: args.registryEntry })
+  const widgetIdentityHint = `${widgetIdentity.widgetTypeId} ${widgetIdentity.formId}`.trim()
   const fieldSpecs = readWidgetPreviewFieldSpecs(args)
   const fieldSpecByKey = new Map<string, WidgetPreviewFieldSpec>()
   const fieldSpecBySchemaPath = new Map<string, WidgetPreviewFieldSpec>()
@@ -259,7 +262,7 @@ export function resolveWidgetCompactPreview(args: {
     const item = knownDefaults[i]!
     pushWidgetPreviewCandidateDescriptor(descriptors, descriptorKeys, {
       ...item,
-      fieldTypeHint: fieldSpecBySchemaPath.get(item.schemaPath)?.fieldType || '',
+      fieldTypeHint: [fieldSpecBySchemaPath.get(item.schemaPath)?.fieldType || '', widgetIdentityHint].filter(Boolean).join(' '),
     })
   }
 

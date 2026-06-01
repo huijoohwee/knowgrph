@@ -64,6 +64,8 @@ type ViewDrag = null | PanDrag | PinchDrag
 
 type RafApi = { request: (cb: (now: number) => void) => number; cancel: (id: number) => void; now: () => number }
 
+const INTERACTION_DEFERRED_COMMIT_IDLE_MS = 180
+
 type LocalPointReader = (e: { clientX?: unknown; clientY?: unknown; offsetX?: unknown; offsetY?: unknown; target?: unknown; currentTarget?: unknown }) =>
   | null
   | {
@@ -135,6 +137,7 @@ export function createInfiniteCanvasViewportController(args: {
   let wheelZoomAnimScaleExtent: { minK: number; maxK: number } = { minK: 0.05, maxK: 8 }
   let wheelZoomAnimLastCommitMs = 0
   let deferredCommitTimer: ReturnType<typeof setTimeout> | null = null
+  let lastDeferredCommitRequestMs = 0
 
   const clearDeferredCommit = (): boolean => {
     if (deferredCommitTimer == null) return false
@@ -149,13 +152,28 @@ export function createInfiniteCanvasViewportController(args: {
     args.onCommit?.()
   }
 
-  const scheduleDeferredCommit = () => {
+  const hasActiveViewportInteraction = (): boolean => {
+    return drag != null || pendingWheelZoomRaf != null || wheelZoomAnimRaf != null
+  }
+
+  const armDeferredCommitTimer = (delayMs: number) => {
     if (typeof args.onCommit !== 'function') return
     clearDeferredCommit()
     deferredCommitTimer = setTimeout(() => {
       deferredCommitTimer = null
+      const elapsedMs = Date.now() - lastDeferredCommitRequestMs
+      const remainingIdleMs = INTERACTION_DEFERRED_COMMIT_IDLE_MS - elapsedMs
+      if (remainingIdleMs > 0 || hasActiveViewportInteraction()) {
+        armDeferredCommitTimer(Math.max(16, remainingIdleMs > 0 ? remainingIdleMs : INTERACTION_DEFERRED_COMMIT_IDLE_MS))
+        return
+      }
       args.onCommit?.()
-    }, 120)
+    }, Math.max(0, delayMs))
+  }
+
+  const scheduleDeferredCommit = () => {
+    lastDeferredCommitRequestMs = Date.now()
+    armDeferredCommitTimer(INTERACTION_DEFERRED_COMMIT_IDLE_MS)
   }
 
   const clearUserSelectLock = () => {

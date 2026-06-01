@@ -223,25 +223,35 @@ export const testCanvasGeospatialRuntimeDeduplicatesRepeatedModeEvents = () => {
 
 export const testWorkspaceInitializationDocsRenderableThroughYamlFrontmatterPipeline = async () => {
   const docsRoot = path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs')
-  const readmePath = path.resolve(docsRoot, 'knowgrph-maps-readme.md')
+  const readmeCandidate = fs
+    .readdirSync(docsRoot)
+    .filter(name => name.endsWith('.md'))
+    .map(name => {
+      const filePath = path.resolve(docsRoot, name)
+      return { filePath, name, text: readUtf8(filePath) }
+    })
+    .find(candidate => candidate.text.includes('kgFrontmatterModeEnabled: true') && candidate.text.includes('index:'))
+  if (!readmeCandidate) {
+    throw new Error('Expected docs mirror to include a YAML-frontmatter canvas seed')
+  }
   const placesPath = path.resolve(docsRoot, 'knowgrph-maps-places.md')
-  const readmeText = readUtf8(readmePath)
+  const readmeText = readmeCandidate.text
   const placesText = readUtf8(placesPath)
 
   if (!readmeText.includes('kgFrontmatterModeEnabled: true') || !readmeText.includes('index:')) {
-    throw new Error('Expected knowgrph-maps-readme.md to declare a YAML-frontmatter canvas seed')
+    throw new Error('Expected discovered docs markdown to declare a YAML-frontmatter canvas seed')
   }
   if (!placesText.includes('kgCanvasSurfaceMode: "geospatial"') || !placesText.includes('Coordinates (`lat, lng`)')) {
     throw new Error('Expected knowgrph-maps-places.md to declare a geospatial YAML-frontmatter seed with coordinates data')
   }
 
-  const readmeResult = await loadGraphDataFromTextViaParser('knowgrph-maps-readme.md', readmeText, { applyToStore: false })
+  const readmeResult = await loadGraphDataFromTextViaParser(readmeCandidate.name, readmeText, { applyToStore: false })
   const placesResult = await loadGraphDataFromTextViaParser('knowgrph-maps-places.md', placesText, { applyToStore: false })
   const readmeGraph = readmeResult?.graphData
   const placesGraph = placesResult?.graphData
 
   if (!readmeGraph || readmeGraph.context !== 'frontmatter-flow' || (readmeGraph.nodes?.length || 0) === 0) {
-    throw new Error('Expected knowgrph-maps-readme.md to materialize into a non-empty frontmatter-flow graph')
+    throw new Error('Expected discovered docs markdown to materialize into a non-empty frontmatter-flow graph')
   }
   if (!placesGraph || (placesGraph.nodes?.length || 0) === 0) {
     throw new Error('Expected knowgrph-maps-places.md to materialize into a non-empty document graph')

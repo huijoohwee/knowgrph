@@ -254,10 +254,7 @@ export function CardMediaEmptyPlaceholder({
           flexDirection: 'column',
           gap: 12,
           padding: 14,
-          borderRadius: 14,
-          border: '1px solid rgba(148, 163, 184, 0.24)',
-          background: 'rgba(15, 23, 42, 0.035)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+          background: 'transparent',
         }}
       >
         {blocks.map((block, index) => (

@@ -47,8 +47,8 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!overlayText.includes('shouldUseFlowEditorWidgetFloatingScreenAuthority')) {
     throw new Error('expected node overlay runtime to reuse the shared frontmatter floating screen-authority helper')
   }
-  if (!overlayPlacementRuntimeText.includes('const storedWorld = floatingUsesScreenAuthority ? null : (currentStoredWorld || widgetWorldPosRef.current)')) {
-    throw new Error('expected frontmatter floating screen-authority mode to ignore stored world positions as a placement authority')
+  if (!overlayPlacementRuntimeText.includes('const storedWorld = currentStoredWorld || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
+    throw new Error('expected frontmatter floating screen-authority mode to honor current scoped world authority while ignoring stale cached world fallback')
   }
   if (!overlayPlacementRuntimeText.includes('persistWorldPos(nextWorld)')) {
     throw new Error('expected node overlay runtime to keep derived world positions synchronized for edge anchors and fit logic')

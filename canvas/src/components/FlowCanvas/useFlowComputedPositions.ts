@@ -192,6 +192,7 @@ export function useFlowComputedPositions(args: {
           cache,
           baseKey,
           allowVariantFallback: false,
+          targetRenderer: flowEditorMode === true ? 'flowEditor' : 'flow',
         })
         const normalized = centerToTopLeft(best)
         seededFromOtherRendererPositionsRef.current = normalized

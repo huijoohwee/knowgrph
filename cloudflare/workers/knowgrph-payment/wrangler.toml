@@ -6,6 +6,12 @@ compatibility_flags = [ "nodejs_compat" ]
 [observability]
 enabled = true
 
+[vars]
+STRYTREE_PIXVERSE_BASE_URL = "https://app-api.pixverse.ai"
+STRYTREE_PIXVERSE_MAX_POLLS = "60"
+STRYTREE_PIXVERSE_POLL_INTERVAL_MS = "1500"
+STRYTREE_DAILY_PROVIDER_BUDGET_CENTS = "0"
+
 [[routes]]
 pattern = "airvio.co/api/payments/*"
 zone_name = "airvio.co"
@@ -16,6 +22,10 @@ zone_name = "airvio.co"
 
 [[routes]]
 pattern = "airvio.co/api/v1"
+zone_name = "airvio.co"
+
+[[routes]]
+pattern = "airvio.co/api/strytree*"
 zone_name = "airvio.co"
 
 [[routes]]
@@ -31,3 +41,24 @@ binding = "DB"
 database_name = "knowgrph-storage"
 database_id = "633355bf-1a52-4085-bd3c-eba4220ff152"
 migrations_dir = "../../d1/migrations"
+
+[[queues.producers]]
+binding = "STRYTREE_GENERATION_QUEUE"
+queue = "knowgrph-strytree-generation"
+
+[[queues.consumers]]
+queue = "knowgrph-strytree-generation"
+max_batch_size = 3
+max_batch_timeout = 5
+
+[[r2_buckets]]
+binding = "STRYTREE_MEDIA_BUCKET"
+bucket_name = "knowgrph-strytree-media"
+
+[[durable_objects.bindings]]
+name = "STRYTREE_CREDIT_LEDGER"
+class_name = "StrytreeCreditLedgerActor"
+
+[[migrations]]
+tag = "v1_strytree_credit_ledger_actor"
+new_sqlite_classes = [ "StrytreeCreditLedgerActor" ]

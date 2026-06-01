@@ -1,8 +1,10 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
+  Check,
   ExternalLink,
   FileText,
+  GitBranch,
   Heart,
   Hash,
   Image as ImageIcon,
@@ -42,7 +44,9 @@ import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
 import {
+  createStrytreeCandidateRunAction,
   createStrytreeContinuationDraftAction,
+  publishStrytreeCandidateAction,
   toggleStrytreeLikeAction,
   unlockStrytreeNodeAction,
 } from '@/features/strybldr/strytreeWorkflow'
@@ -51,6 +55,22 @@ type StoryboardDisplayMedia = {
   kind: 'image' | 'svg' | 'video' | 'iframe'
   url: string
 }
+
+type StoryboardRenderedEdge = {
+  id: string
+  sourceId: string
+  targetId: string
+  label: string
+  d: string
+}
+
+type StoryboardEdgeLayer = {
+  width: number
+  height: number
+  edges: StoryboardRenderedEdge[]
+}
+
+const STORYBOARD_RENDERED_EDGE_LABELS = new Set(['parent_node_id', 'rootBranch', 'candidateOption', 'candidateScorecard', 'publishedCandidate'])
 
 const STORYTREE_FILTERS = [
   { id: 'all', label: 'All' },
@@ -275,6 +295,8 @@ export default function StoryboardCanvas({
   )
   const boardScrollRef = React.useRef<HTMLElement>(null)
   const laneScrollElementsRef = React.useRef(new Map<string, HTMLOListElement>())
+  const cardElementsRef = React.useRef(new Map<string, HTMLElement>())
+  const [storyboardEdgeLayer, setStoryboardEdgeLayer] = React.useState<StoryboardEdgeLayer>({ width: 0, height: 0, edges: [] })
   const [storytreeFilter, setStorytreeFilter] = React.useState<string>('all')
   const board = React.useMemo(() => {
     return buildStoryboardBoardModel({
@@ -349,6 +371,93 @@ export default function StoryboardCanvas({
       }
     })
   }, [board.lanes, currentPropertiesByCardId, storytreeFilter])
+  const visibleCardIds = React.useMemo(() => visibleLanes.flatMap(lane => lane.cards.map(card => card.id)), [visibleLanes])
+  const visibleCardKey = visibleCardIds.join('\u0000')
+  const registerCardElement = React.useCallback((cardId: string, element: HTMLElement | null) => {
+    if (element) {
+      cardElementsRef.current.set(cardId, element)
+      return
+    }
+    cardElementsRef.current.delete(cardId)
+  }, [])
+
+  React.useLayoutEffect(() => {
+    const root = boardScrollRef.current
+    if (!root) {
+      setStoryboardEdgeLayer({ width: 0, height: 0, edges: [] })
+      return
+    }
+    const visible = new Set(visibleCardIds)
+    const graphEdges = Array.isArray(graphData?.edges) ? graphData.edges : []
+    let frame = 0
+    const buildLayer = () => {
+      const rootRect = root.getBoundingClientRect()
+      const width = Math.max(root.scrollWidth, root.clientWidth)
+      const height = Math.max(root.scrollHeight, root.clientHeight)
+      const edges: StoryboardRenderedEdge[] = []
+      for (const edge of graphEdges) {
+        const label = readStoryboardScalar(edge?.label)
+        if (!STORYBOARD_RENDERED_EDGE_LABELS.has(label)) continue
+        const sourceId = readStoryboardScalar(edge?.source)
+        const targetId = readStoryboardScalar(edge?.target)
+        if (!sourceId || !targetId || !visible.has(sourceId) || !visible.has(targetId)) continue
+        const sourceEl = cardElementsRef.current.get(sourceId)
+        const targetEl = cardElementsRef.current.get(targetId)
+        if (!sourceEl || !targetEl) continue
+        const sourceRect = sourceEl.getBoundingClientRect()
+        const targetRect = targetEl.getBoundingClientRect()
+        const sourceCenterX = sourceRect.left - rootRect.left + root.scrollLeft + sourceRect.width / 2
+        const sourceCenterY = sourceRect.top - rootRect.top + root.scrollTop + sourceRect.height / 2
+        const targetCenterX = targetRect.left - rootRect.left + root.scrollLeft + targetRect.width / 2
+        const targetCenterY = targetRect.top - rootRect.top + root.scrollTop + targetRect.height / 2
+        const crossLane = Math.abs(targetCenterX - sourceCenterX) > sourceRect.width * 0.45
+        const sx = crossLane && targetCenterX >= sourceCenterX
+          ? sourceRect.right - rootRect.left + root.scrollLeft - 10
+          : sourceCenterX
+        const sy = crossLane ? sourceCenterY : sourceRect.bottom - rootRect.top + root.scrollTop - 8
+        const tx = crossLane && targetCenterX >= sourceCenterX
+          ? targetRect.left - rootRect.left + root.scrollLeft + 10
+          : targetCenterX
+        const ty = crossLane ? targetCenterY : targetRect.top - rootRect.top + root.scrollTop + 8
+        const dx = Math.max(40, Math.abs(tx - sx) * 0.5)
+        const dy = Math.max(28, Math.abs(ty - sy) * 0.5)
+        const d = crossLane
+          ? `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${(sx + dx).toFixed(1)} ${sy.toFixed(1)} ${(tx - dx).toFixed(1)} ${ty.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`
+          : `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${sx.toFixed(1)} ${(sy + dy).toFixed(1)} ${tx.toFixed(1)} ${(ty - dy).toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`
+        edges.push({
+          id: `${sourceId}:${label}:${targetId}`,
+          sourceId,
+          targetId,
+          label,
+          d,
+        })
+      }
+      setStoryboardEdgeLayer({ width, height, edges })
+    }
+    const schedule = () => {
+      if (frame) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(buildLayer)
+    }
+    schedule()
+    root.addEventListener('scroll', schedule, { passive: true })
+    const laneScrollElements = Array.from(laneScrollElementsRef.current.values())
+    for (const element of laneScrollElements) element.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
+    const Observer = typeof ResizeObserver !== 'undefined' ? ResizeObserver : null
+    const observer = Observer ? new Observer(schedule) : null
+    observer?.observe(root)
+    for (const cardId of visibleCardIds) {
+      const element = cardElementsRef.current.get(cardId)
+      if (element) observer?.observe(element)
+    }
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      root.removeEventListener('scroll', schedule)
+      for (const element of laneScrollElements) element.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      observer?.disconnect()
+    }
+  }, [graphData?.edges, visibleCardIds, visibleCardKey])
   const commitStrytreeWorkflowResult = React.useCallback((args: {
     result: ReturnType<typeof toggleStrytreeLikeAction>
     history: string
@@ -386,6 +495,20 @@ export default function StoryboardCanvas({
     commitStrytreeWorkflowResult({
       result: createStrytreeContinuationDraftAction(graphData, cardId, { prompt }),
       history: 'Storytree continuation',
+    })
+  }, [commitStrytreeWorkflowResult, graphData])
+  const compareStorytreeCandidates = React.useCallback((cardId: string) => {
+    if (!graphData) return
+    commitStrytreeWorkflowResult({
+      result: createStrytreeCandidateRunAction(graphData, cardId),
+      history: 'ForkCompare candidates',
+    })
+  }, [commitStrytreeWorkflowResult, graphData])
+  const publishForkCompareCandidate = React.useCallback((cardId: string) => {
+    if (!graphData) return
+    commitStrytreeWorkflowResult({
+      result: publishStrytreeCandidateAction(graphData, cardId),
+      history: 'ForkCompare publish',
     })
   }, [commitStrytreeWorkflowResult, graphData])
   const updateStoryboardCanonicalProperty = React.useCallback((args: {
@@ -554,8 +677,38 @@ export default function StoryboardCanvas({
       </header>
 
       {board.totalCards > 0 ? (
-        <section ref={boardScrollRef} className="flex-1 overflow-x-auto overflow-y-hidden p-4" aria-label="Storyboard lanes">
-          <div className="flex h-full min-w-fit items-start gap-4">
+        <section ref={boardScrollRef} className="relative flex-1 overflow-x-auto overflow-y-hidden p-4" aria-label="Storyboard lanes">
+          {storyboardEdgeLayer.edges.length > 0 ? (
+            <svg
+              className="pointer-events-none absolute left-0 top-0 z-20 overflow-visible"
+              width={storyboardEdgeLayer.width}
+              height={storyboardEdgeLayer.height}
+              viewBox={`0 0 ${storyboardEdgeLayer.width} ${storyboardEdgeLayer.height}`}
+              aria-hidden="true"
+              data-kg-storyboard-canvas-edge-layer="1"
+            >
+              <defs>
+                <marker id="kg-storyboard-edge-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="rgba(17, 24, 39, 0.32)" />
+                </marker>
+              </defs>
+              {storyboardEdgeLayer.edges.map(edge => (
+                <path
+                  key={edge.id}
+                  d={edge.d}
+                  fill="none"
+                  stroke={edge.label === 'candidateOption' || edge.label === 'candidateScorecard' ? 'rgba(20, 83, 45, 0.34)' : 'rgba(17, 24, 39, 0.28)'}
+                  strokeWidth={edge.label === 'publishedCandidate' ? 2.5 : 1.75}
+                  strokeDasharray={edge.label === 'candidateOption' || edge.label === 'candidateScorecard' ? '6 5' : undefined}
+                  markerEnd="url(#kg-storyboard-edge-arrow)"
+                  data-kg-storyboard-canvas-edge={edge.label}
+                  data-kg-storyboard-canvas-edge-source={edge.sourceId}
+                  data-kg-storyboard-canvas-edge-target={edge.targetId}
+                />
+              ))}
+            </svg>
+          ) : null}
+          <div className="relative z-10 flex h-full min-w-fit items-start gap-4">
             {visibleLanes.map(lane => (
               (() => {
                 const laneDropProps = storyboardDrag.createLaneDropProps(lane.id)
@@ -651,6 +804,7 @@ export default function StoryboardCanvas({
                     })
                     const currentCardProperties = currentPropertiesByCardId.get(card.id) || {}
                     const isStorytreeBranch = card.lane === 'Storytree' && !!readStoryboardScalar(currentCardProperties.strytreeNodeId)
+                    const isForkCompareCandidate = card.lane === 'ForkCompare' && !!readStoryboardScalar(currentCardProperties.strytreeCandidateId)
                     const storytreeDepth = Math.max(0, Number(currentCardProperties.depth || 0))
                     const storytreeIncomingEdge = isStorytreeBranch ? storytreeIncomingEdgeByCardId.get(card.id) || null : null
                     const likedByCurrentUser = readStoryboardBool(currentCardProperties.likedByCurrentUser)
@@ -659,6 +813,14 @@ export default function StoryboardCanvas({
                     const accessState = readStoryboardScalar(currentCardProperties.accessState) || 'open'
                     const unlockPriceCredits = Number(currentCardProperties.unlockPriceCredits || 0)
                     const storytreeStatus = readStoryboardScalar(currentCardProperties.strytreeStatus || currentCardProperties.branchStatus)
+                    const candidateStatus = readStoryboardScalar(currentCardProperties.candidateStatus || currentCardProperties.status)
+                    const candidateProvider = readStoryboardScalar(currentCardProperties.provider) || 'local-harness'
+                    const candidateModeration = readStoryboardScalar(currentCardProperties.moderationStatus) || 'pending'
+                    const candidateFallback = readStoryboardScalar(currentCardProperties.fallbackStatus) || 'none'
+                    const candidateContinuity = Number(currentCardProperties.continuityScore || 0)
+                    const candidateCreditCost = Number(currentCardProperties.creditCost || 0)
+                    const candidateElapsedMs = Number(currentCardProperties.elapsedMs || 0)
+                    const candidatePublishEligible = readStoryboardBool(currentCardProperties.publishEligible)
                     return (
                       <li
                         key={card.id}
@@ -681,6 +843,7 @@ export default function StoryboardCanvas({
                             UI_THEME_TOKENS.kanban.cardHoverBg,
                             selected ? 'border-black/30 ring-1 ring-black/10' : UI_THEME_TOKENS.panel.border,
                             isStorytreeBranch ? 'border-l-4 border-l-black/20' : '',
+                            isForkCompareCandidate ? 'border-l-4 border-l-emerald-700/35' : '',
                             cardDragVisualState.className,
                             'hover:-translate-y-[1px]',
                           ].join(' ')}
@@ -690,6 +853,7 @@ export default function StoryboardCanvas({
                               rowId: card.id,
                               element,
                             })
+                            registerCardElement(card.id, element)
                           }}
                           tabIndex={0}
                           role="button"
@@ -835,7 +999,7 @@ export default function StoryboardCanvas({
                                     <DataViewTagChip value={accessState} />
                                     {Number.isFinite(unlockPriceCredits) && unlockPriceCredits > 0 ? <DataViewTagChip value={`${unlockPriceCredits} credits`} /> : null}
                                   </div>
-                                  <div className="grid grid-cols-3 gap-1.5">
+                                  <div className="grid grid-cols-4 gap-1.5">
                                     <button
                                       type="button"
                                       className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
@@ -847,6 +1011,19 @@ export default function StoryboardCanvas({
                                     >
                                       <Heart className="h-3.5 w-3.5" aria-hidden="true" fill={likedByCurrentUser ? 'currentColor' : 'none'} />
                                       {likedByCurrentUser ? 'Liked' : 'Like'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      aria-label={`Compare storytree candidates from ${displayTitle}`}
+                                      disabled={storytreeStatus === 'dropped'}
+                                      onClick={event => {
+                                        event.stopPropagation()
+                                        compareStorytreeCandidates(card.id)
+                                      }}
+                                    >
+                                      <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
+                                      Compare
                                     </button>
                                     <button
                                       type="button"
@@ -875,6 +1052,46 @@ export default function StoryboardCanvas({
                                       Draft
                                     </button>
                                   </div>
+                                </section>
+                              ) : null}
+
+                              {isForkCompareCandidate ? (
+                                <section className="rounded-xl border border-emerald-900/10 bg-emerald-50/40 p-2.5" aria-label="ForkCompare scorecard">
+                                  <div className="mb-2 flex flex-wrap items-center gap-1">
+                                    <DataViewTagChip value={candidateStatus || 'candidate'} />
+                                    <DataViewTagChip value={candidateModeration} />
+                                    <DataViewTagChip value={`${Math.round(Math.max(0, Math.min(1, candidateContinuity)) * 100)}% continuity`} />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                                    <span className={['rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
+                                      {candidateCreditCost} credits
+                                    </span>
+                                    <span className={['rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
+                                      {Math.max(0, Math.round(candidateElapsedMs / 1000))}s
+                                    </span>
+                                    <span className={['rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
+                                      {candidateProvider}
+                                    </span>
+                                    <span className={['rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
+                                      {candidateFallback}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={[
+                                      'mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded border px-2 text-[11px]',
+                                      candidatePublishEligible ? 'border-emerald-900/20 bg-emerald-700/10 text-emerald-950 hover:bg-emerald-700/15' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.tertiary].join(' '),
+                                    ].join(' ')}
+                                    aria-label={`Publish ForkCompare candidate ${displayTitle}`}
+                                    disabled={!candidatePublishEligible}
+                                    onClick={event => {
+                                      event.stopPropagation()
+                                      publishForkCompareCandidate(card.id)
+                                    }}
+                                  >
+                                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                                    Publish selected
+                                  </button>
                                 </section>
                               ) : null}
 

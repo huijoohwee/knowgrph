@@ -42,6 +42,10 @@ import { renderInlineHtmlElement, renderInlineHtmlToken } from './markdownInline
 import { renderInlineMediaWithDownload } from './MarkdownInlineMediaDownload'
 import { YouTubeTimestampPreviewLink } from './MarkdownYouTubeTimestampPreviewLink'
 import { normalizeSvgDataUriForImg } from './markdownSvgDataUri'
+import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
 
@@ -265,6 +269,7 @@ const renderInlineCodeSemanticToken = (
 
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
   const { activeDocumentPath, uiPanelTextFontClass, uiPanelMonospaceTextClass, markdownPresentationMode } = opts
+  const cardPreviewMode = opts.markdownCardPreviewMode === true
   const fragmentOpts = opts.fragmentOptions || null
   const fragmentIndexRef = { current: 0 }
   const inlineCodeClassName = MARKDOWN_INLINE_CODE_VIEW_CLASS
@@ -518,6 +523,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               src={resolved}
               title={alt || 'Embedded content'}
               presentationMode={opts.markdownPresentationMode}
+              cardPreviewMode={cardPreviewMode}
             />
           ) : (
             <MediaWebpageSnapshot
@@ -525,22 +531,32 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               url={resolved}
               title={alt || 'Embedded content'}
               presentationMode={opts.markdownPresentationMode}
+              cardPreviewMode={cardPreviewMode}
             />
           )
         )
       }
       if (isVideo && src && isSafeMediaSrc(src)) {
-        return renderInlineMediaWithDownload({ children: <MediaVideo src={src} controls />, insideLink, kind: 'video', nodeKey: key, src: resolved || src })
+        return renderInlineMediaWithDownload({
+          children: <MediaVideo src={src} controls cardPreviewMode={cardPreviewMode} />,
+          insideLink,
+          kind: 'video',
+          nodeKey: key,
+          src: resolved || src,
+          cardPreviewMode,
+        })
       }
       if (isAudio && src && isSafeMediaSrc(src)) {
         return (
           <audio
             key={key}
             controls
-            src={src || undefined}
-            className={[
-              'w-full max-w-xl rounded border',
-              UI_THEME_TOKENS.panel.border,
+          src={src || undefined}
+          className={[
+              cardPreviewMode
+                ? `w-full max-w-xl ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
+                : 'w-full max-w-xl rounded border',
+              cardPreviewMode ? '' : UI_THEME_TOKENS.panel.border,
             ]
               .filter(Boolean)
               .join(' ')}
@@ -559,16 +575,16 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           fit="contain"
           mediaThumbnailDataAttr
           mediaClassName={[
-            'max-w-full h-auto rounded border object-contain',
+            cardPreviewMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME : 'max-w-full h-auto rounded border object-contain',
             isPdfAsset ? 'max-h-[80vh]' : '',
-            isSvgImage ? 'bg-black/5 dark:bg-white/5' : '',
-            UI_THEME_TOKENS.panel.border,
+            isSvgImage && !cardPreviewMode ? 'bg-black/5 dark:bg-white/5' : '',
+            cardPreviewMode ? '' : UI_THEME_TOKENS.panel.border,
           ]
             .filter(Boolean)
             .join(' ')}
         />
       )
-      return renderInlineMediaWithDownload({ children: imageNode, insideLink, kind: 'image', nodeKey: key, src: resolved || src })
+      return renderInlineMediaWithDownload({ children: imageNode, insideLink, kind: 'image', nodeKey: key, src: resolved || src, cardPreviewMode })
     }
     if (tt.type === 'code') {
       const semanticToken = renderInlineCodeSemanticToken((t as unknown as TokensCode).text, key, activeDocumentPath)

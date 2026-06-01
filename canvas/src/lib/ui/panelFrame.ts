@@ -75,3 +75,14 @@ export const PANEL_FRAME_BODY_STYLE: CssStyle = {
   minHeight: 0,
   position: 'relative',
 }
+
+export const PANEL_FRAME_FLOATING_ROOT_STYLE: CssStyle = {
+  ...PANEL_FRAME_ROOT_STYLE,
+  padding: 0,
+  color: 'var(--kg-text-primary, var(--kg-text))',
+}
+
+export const PANEL_FRAME_FLOATING_BODY_STYLE: CssStyle = {
+  ...PANEL_FRAME_BODY_STYLE,
+  width: '100%',
+}

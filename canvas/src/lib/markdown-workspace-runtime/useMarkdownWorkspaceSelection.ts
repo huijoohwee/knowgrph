@@ -173,10 +173,11 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     (path: WorkspacePath) => {
       const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
       if (!normalized) return
+      if (normalizeMarkdownWorkspaceSelectionPath(args.activePath) === normalized) return
       args.lastRequestedActivePathRef.current = { path: normalized, atMs: Date.now() }
       args.setActivePath(normalized)
     },
-    [args.lastRequestedActivePathRef, args.setActivePath],
+    [args.activePath, args.lastRequestedActivePathRef, args.setActivePath],
   )
 
   const [selectionPath, setSelectionPath] = React.useState<WorkspacePath | null>(null)
@@ -187,8 +188,9 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   }
   selectionPathRef.current = pendingSelectionPathRef.current || selectionPath
 
-  const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
+  const setSelectionPathSafe = React.useCallback((path: WorkspacePath | null) => {
     const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
+    if (selectionPathRef.current === normalized) return
     pendingSelectionPathRef.current = normalized
     selectionPathRef.current = normalized
     setSelectionPath(normalized)
@@ -200,21 +202,22 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     const nextSelectionPath = resolveInitialMarkdownWorkspaceSelectionPath({
       selectionPath: selectionPathRef.current,
       activePath: args.activePath,
+      entriesIndex,
     })
     if (!nextSelectionPath) return
-    setSelectionPath(nextSelectionPath)
-  }, [args.activePath])
+    setSelectionPathSafe(nextSelectionPath)
+  }, [args.activePath, entriesIndex, setSelectionPathSafe])
 
   React.useEffect(() => {
     const nextSelectionPath = resolveInvalidatedMarkdownWorkspaceSelectionPath({
-      selectionPath,
+      selectionPath: selectionPathRef.current,
       activePath: args.activePath,
       entriesIndex,
       loading: args.loading,
     })
     if (typeof nextSelectionPath === 'undefined') return
-    setSelectionPath(nextSelectionPath)
-  }, [args.activePath, args.loading, entriesIndex, selectionPath])
+    setSelectionPathSafe(nextSelectionPath)
+  }, [args.activePath, args.loading, entriesIndex, selectionPath, setSelectionPathSafe])
 
   const {
     activeEntry,
@@ -239,6 +242,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     const nextActivePath = resolveActivePathFromWorkspaceFileSelection({
       selectionPath,
       activePath: args.activePath,
+      entriesIndex,
       selectionEntryKind: selectionEntry?.kind ?? null,
     })
     if (!nextActivePath) return

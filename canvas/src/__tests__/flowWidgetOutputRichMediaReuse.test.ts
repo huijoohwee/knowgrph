@@ -329,11 +329,13 @@ export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
 export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() {
   const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const markdownPreviewPath = resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownPreview.tsx')
+  const cardMarkdownPreviewPath = resolve(process.cwd(), 'src', 'lib', 'cards', 'CardMarkdownPreview.tsx')
   const panelText = readFileSync(richMediaPanelPath, 'utf8')
   const previewText = readFileSync(markdownPreviewPath, 'utf8')
+  const cardMarkdownPreviewText = readFileSync(cardMarkdownPreviewPath, 'utf8')
 
-  if (!panelText.includes('markdownTokenStoreSync={false}')) {
-    throw new Error('expected RichMediaPanel markdown view to disable global markdown token store sync to avoid cross-surface token churn')
+  if (!panelText.includes('<CardMarkdownPreview') || !cardMarkdownPreviewText.includes('markdownTokenStoreSync={false}')) {
+    throw new Error('expected RichMediaPanel markdown view to reuse CardMarkdownPreview with global markdown token store sync disabled')
   }
   if (!previewText.includes('markdownTokenStoreSync?: boolean')) {
     throw new Error('expected MarkdownPreview to expose an explicit markdown token store sync gate')
@@ -374,8 +376,8 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (panelText.includes('const selectedNodeId = useGraphStore(s => s.selectedNodeId)')) {
     throw new Error('expected RichMediaPanel selection state to come from the shared shallow selector instead of a separate subscription')
   }
-  if (!panelText.includes('selectedNodeIds: s.selectedNodeIds ?? EMPTY_STRING_ARRAY')) {
-    throw new Error('expected RichMediaPanel shared shallow selector to preserve the stable selected-node fallback constant')
+  if (panelText.includes('selectedNodeIds: s.selectedNodeIds ?? EMPTY_STRING_ARRAY')) {
+    throw new Error('expected RichMediaPanel shared shallow selector to avoid stale selected-node fallback subscriptions')
   }
 }
 
@@ -409,8 +411,11 @@ export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
   if (overlayText.includes('isFlowEditorFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas rich-media overlay runtime to remove stale frontmatter-only interaction gate references')
   }
-  if (!overlayText.includes('resizable={resizeInteractionActive && isSelected}')) {
-    throw new Error('expected RichMediaPanel resize affordance to remain gated by canonicalized selection under the resize interaction mode')
+  if (!overlayText.includes("const resizeHandleVisible = resizeInteractionActive && (isSelected || canvas2dRenderer === 'flowCanvas')")) {
+    throw new Error('expected RichMediaPanel resize affordance to use canonicalized selection while allowing Flow Canvas rich-media panels to expose the shared handle')
+  }
+  if (!overlayText.includes('resizable={resizeHandleVisible}')) {
+    throw new Error('expected RichMediaPanel resize affordance to be wired through the shared resizeHandleVisible gate')
   }
 }
 
@@ -533,8 +538,34 @@ export function testFlowCanvasWheelProxyHonorsWheelIgnoreTargets() {
   if (!text.includes('if (ignoreWheelTarget) return')) {
     throw new Error('expected FlowCanvas overlay wheel proxy to always honor canvas wheel-ignore targets and never zoom canvas from RichMediaPanel scroll surfaces')
   }
-  if (!text.includes('if (event.ctrlKey === true || event.metaKey === true) return true')) {
-    throw new Error('expected explicit ctrl/cmd wheel zoom intent over rich media overlays to proxy to canvas zoom before scroll handling')
+  if (!text.includes('shouldKeepWidgetInnerPanelWheel(event, overlayRoot)')) {
+    throw new Error('expected FlowCanvas overlay wheel proxy to reuse the shared widget inner-panel scroll guard before canvas zoom')
+  }
+  const iScrollGuard = text.indexOf('shouldKeepWidgetInnerPanelWheel(event, overlayRoot)')
+  const iExplicitZoomIntent = text.indexOf('if (event.ctrlKey === true || event.metaKey === true) return true')
+  if (iScrollGuard < 0 || iExplicitZoomIntent < 0 || !(iScrollGuard < iExplicitZoomIntent)) {
+    throw new Error('expected RichMediaPanel/widget scroll surfaces to win before explicit ctrl/cmd wheel canvas zoom')
+  }
+  const iNativeHandler = text.indexOf('const handleWheel =')
+  const iNativeScrollGuard = text.indexOf('shouldKeepWidgetInnerPanelWheel(e)', iNativeHandler)
+  const iNativeWheel = text.indexOf('ctx.viewportWheelController.handleWheel(e)', iNativeHandler)
+  if (iNativeHandler < 0 || iNativeScrollGuard < 0 || iNativeWheel < 0 || !(iNativeScrollGuard < iNativeWheel)) {
+    throw new Error('expected native canvas wheel handling to reuse the shared widget inner-panel scroll guard before canvas zoom')
+  }
+
+  const widgetInnerPanelScrollPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts')
+  const widgetInnerPanelScrollText = readFileSync(widgetInnerPanelScrollPath, 'utf8')
+  if (
+    !widgetInnerPanelScrollText.includes('WIDGET_INNER_PANEL_SCROLL_SURFACE_SELECTOR')
+    || !widgetInnerPanelScrollText.includes('isWidgetInnerPanelWheelTarget')
+    || !widgetInnerPanelScrollText.includes('shouldKeepWidgetInnerPanelWheel')
+    || !widgetInnerPanelScrollText.includes('findWidgetInnerPanelSurfaceAtWheelPoint')
+    || !widgetInnerPanelScrollText.includes('document.elementFromPoint')
+    || !widgetInnerPanelScrollText.includes('document.querySelectorAll(WIDGET_INNER_PANEL_SCROLL_SURFACE_SELECTOR)')
+    || !widgetInnerPanelScrollText.includes("return true")
+    || !widgetInnerPanelScrollText.includes('allowModifierZoom: false')
+  ) {
+    throw new Error('expected shared widget inner-panel scrolling utility to consume wheel over RichMediaPanel scroll chrome before canvas zoom')
   }
 }
 
@@ -641,7 +672,7 @@ export function testRichMediaOverlayPoolTreatsConnectedOutputAsTextPresence() {
   if (!text.includes("const connectedText = normalizeConnectedTextValue(connectedValuesBySchemaPath?.['properties.output']?.value)")) {
     throw new Error('expected shared rich media panel state helper to normalize connected output values into text for Rich Media panel state')
   }
-  if (!text.includes('hasText: Boolean(output.trim() || outputSrcDoc.trim() || connectedText.trim())')) {
+  if (!text.includes('hasText: Boolean(text.trim() || outputSrcDoc.trim() || connectedText.trim())')) {
     throw new Error('expected Rich Media panel hasText state to include connected output text presence')
   }
 }

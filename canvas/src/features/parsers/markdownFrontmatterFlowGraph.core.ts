@@ -49,7 +49,7 @@ import {
   mergeSubgraphs,
   readSocketTypes,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.compose'
-import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
 import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/flowEditor/frontmatterCollectiveLayout'

@@ -76,7 +76,7 @@ export async function testMarkdownFileTreeContextMenuItemsHideMutationsForInitia
       path: WORKSPACE_README_SEED_PATH,
       parentPath: '/',
       kind: 'file',
-      name: 'knowgrph-maps-readme.md',
+      name: 'workspace-readme.md',
       updatedAtMs: 0,
     },
     copyToClipboard: async () => true,

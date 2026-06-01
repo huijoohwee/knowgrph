@@ -248,21 +248,14 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
 
   React.useEffect(() => {
     if (!active || typeof window === 'undefined') return
-    let raf: number | null = null
     const onFrame = () => {
-      if (floating && !placement.pinnedDragOverrideRef.current && !placement.worldDragOverrideRef.current) return
-      if (raf != null) return
-      raf = requestAnimationFrame(() => {
-        raf = null
-        placement.applyOverlayPosition({ persistClamp: false })
-      })
+      placement.applyOverlayPosition({ persistClamp: false, emitInteractionFrame: false })
     }
     window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onFrame as EventListener)
     return () => {
       window.removeEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onFrame as EventListener)
-      if (raf != null) cancelAnimationFrame(raf)
     }
-  }, [active, floating, placement])
+  }, [active, placement])
 
   React.useEffect(() => {
     return () => {

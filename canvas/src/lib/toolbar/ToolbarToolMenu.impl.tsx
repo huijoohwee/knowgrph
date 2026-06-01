@@ -18,7 +18,12 @@ import { cn } from '@/lib/utils'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import { LS_KEYS, UI_LABELS, UI_SELECTORS } from '@/lib/config'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
-import { FLOATING_PANEL_TYPE_ICON_BY_VIEW } from '@/features/panels/ui/mainPanelTypeIcons'
+import {
+  FLOATING_PANEL_TYPE_ICON_BY_VIEW,
+  MainPanelTypeIcon,
+  getMainPanelTypeIconMeta,
+  resolveMainPanelKtvTypeIconKey,
+} from '@/features/panels/ui/mainPanelTypeIcons'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { DesignFloatingPanelView } from '@/features/design/DesignFloatingPanelView'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
@@ -70,6 +75,7 @@ type GeospatialPanelHostProps = {
   active?: boolean
   showDatasetsManager?: boolean
   panelTypography?: unknown
+  renderTypeIcon?: (args: { typeLabel: string }) => React.ReactNode
   snapshot?: unknown
   handlers?: unknown
 }
@@ -147,6 +153,9 @@ const GeoView = React.memo(function GeoView(props: {
   } = props
   const activeGraphData = useActiveGraphRenderData()
   const panelTypography = usePanelTypography()
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
+  const iconSizeClass = getIconSizeClass(uiIconScale)
   const gympgrphBridge = useGraphStore(
     useShallow(s => ({
       zoomState: s.zoomState,
@@ -164,6 +173,26 @@ const GeoView = React.memo(function GeoView(props: {
       dismissUiToast: s.dismissUiToast,
     })),
   )
+  const renderGeospatialTypeIcon = React.useCallback(({ typeLabel }: { typeLabel: string }) => {
+    const iconKey = resolveMainPanelKtvTypeIconKey(typeLabel)
+    const meta = getMainPanelTypeIconMeta(iconKey)
+    const label = String(typeLabel || meta.label).trim() || meta.label
+    return (
+      <span
+        className="inline-flex min-h-5 min-w-5 items-center justify-center"
+        title={`${label}: ${meta.label}`}
+        role="img"
+        aria-label={label}
+      >
+        <MainPanelTypeIcon
+          iconKey={iconKey}
+          className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
+          strokeWidth={uiIconStrokeWidth}
+          ariaHidden
+        />
+      </span>
+    )
+  }, [iconSizeClass, uiIconStrokeWidth])
 
   return (
     <section className="h-full flex flex-col" aria-label="Geospatial panel">
@@ -181,6 +210,7 @@ const GeoView = React.memo(function GeoView(props: {
                 active
                 showDatasetsManager={false}
                 panelTypography={panelTypography}
+                renderTypeIcon={renderGeospatialTypeIcon}
                 snapshot={{
                   graphData: activeGraphData,
                   zoomState: gympgrphBridge.zoomState,

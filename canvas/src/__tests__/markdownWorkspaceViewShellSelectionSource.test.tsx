@@ -20,7 +20,7 @@ export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSel
 
     const entries: WorkspaceEntry[] = [
       { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
-      { path: '/knowgrph-maps-readme.md', parentPath: '/', kind: 'file', name: 'knowgrph-maps-readme.md', text: '# readme', updatedAtMs: 2 },
+      { path: '/workspace-readme.md', parentPath: '/', kind: 'file', name: 'workspace-readme.md', text: '# readme', updatedAtMs: 2 },
       { path: '/knowgrph-maps-places.md', parentPath: '/', kind: 'file', name: 'knowgrph-maps-places.md', text: '# places', updatedAtMs: 3 },
     ]
 
@@ -61,7 +61,7 @@ export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSel
           data-active-path={activePath || ''}
           data-selection-path={selectionPath || ''}
           data-selection-source={String(useGraphStore.getState().selectionSource || '')}
-          onClick={() => viewShell.onSelectFile('/knowgrph-maps-readme.md')}
+          onClick={() => viewShell.onSelectFile('/workspace-readme.md')}
         >
           Select readme
         </button>
@@ -85,10 +85,10 @@ export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSel
       await tick()
     })
 
-    if (button.dataset.activePath !== '/knowgrph-maps-readme.md') {
+    if (button.dataset.activePath !== '/workspace-readme.md') {
       throw new Error(`expected workspace file selection to activate readme, got ${String(button.dataset.activePath || '')}`)
     }
-    if (button.dataset.selectionPath !== '/knowgrph-maps-readme.md') {
+    if (button.dataset.selectionPath !== '/workspace-readme.md') {
       throw new Error(`expected workspace file selection to update selection path, got ${String(button.dataset.selectionPath || '')}`)
     }
     const nextSelectionSource = String(button.dataset.selectionSource || '')

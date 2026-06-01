@@ -650,14 +650,14 @@ export function testWorkspaceRefreshSnapshotHelpersCentralizeFallbackState() {
 }
 
 export function testWorkspaceStartupCanonicalPathPromotesRootDocsAliasToDocsMirrorPath() {
-  const docsReadmePath = '/docs/knowgrph-maps-readme.md' as never
+  const docsReadmePath = '/docs/workspace-readme.md' as never
   const canonical = resolveWorkspaceStartupCanonicalPath({
     activePath: WORKSPACE_README_SEED_PATH,
     workspaceEntries: [{
       path: docsReadmePath,
       parentPath: '/docs',
       kind: 'file',
-      name: 'knowgrph-maps-readme.md',
+      name: 'workspace-readme.md',
       text: '# Maps Readme',
       updatedAtMs: 1,
     }],
@@ -1334,8 +1334,8 @@ export async function testWorkspaceSeedProviderPrefersSourceFilesDocViewOverLarg
         {
           id: 'sf:maps',
           workspaceId: 'kgws:test',
-          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-maps-readme.md`,
-          title: 'knowgrph-maps-readme.md',
+          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/workspace-readme.md`,
+          title: 'workspace-readme.md',
           docType: 'markdown',
           lang: null,
           graphId: null,
@@ -1455,8 +1455,8 @@ export async function testWorkspaceSeedProviderPrefersCompleteStorageExportDatas
         {
           id: 'sf:maps',
           workspaceId: 'kgws:test',
-          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-maps-readme.md`,
-          title: 'knowgrph-maps-readme.md',
+          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/workspace-readme.md`,
+          title: 'workspace-readme.md',
           docType: 'markdown',
           lang: null,
           graphId: null,
@@ -1527,7 +1527,7 @@ export async function testWorkspaceSeedProviderPrefersCompleteStorageExportDatas
       throw new Error(`expected sync mirror to prefer fuller storage export dataset, got ${JSON.stringify(mirrored)}`)
     }
     const relPaths = mirrored.map(entry => entry.relPath)
-    if (!relPaths.includes('knowgrph-video-demo.md') || !relPaths.includes('knowgrph-maps-readme.md')) {
+    if (!relPaths.includes('knowgrph-video-demo.md') || !relPaths.includes('workspace-readme.md')) {
       throw new Error(`expected sync mirror to keep exported docs set, got ${JSON.stringify(mirrored)}`)
     }
     const video = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
@@ -1789,44 +1789,44 @@ export async function testMaterializeActiveWorkspaceEntryHydratesBlankExistingSo
   const { restore } = initJsdomHarness()
   try {
     useGraphStore.getState().resetAll()
-    useMarkdownExplorerStore.getState().setActivePath('/docs/knowgrph-maps-readme.md')
+    useMarkdownExplorerStore.getState().setActivePath('/docs/workspace-readme.md')
     useGraphStore.getState().setSourceFiles([
       {
         id: 'ws:maps-readme',
-        name: 'knowgrph-maps-readme.md',
+        name: 'workspace-readme.md',
         text: '',
         enabled: true,
         status: 'idle',
-        source: { kind: 'local', path: 'workspace:/docs/knowgrph-maps-readme.md' },
+        source: { kind: 'local', path: 'workspace:/docs/workspace-readme.md' },
       },
     ])
     const fs: WorkspaceFs = {
       ensureSeed: async () => false,
       listEntries: async () => [
         {
-          path: '/docs/knowgrph-maps-readme.md',
+          path: '/docs/workspace-readme.md',
           parentPath: '/docs',
           kind: 'file',
-          name: 'knowgrph-maps-readme.md',
+          name: 'workspace-readme.md',
           updatedAtMs: 1,
         },
       ],
       readFileText: async (path: string) =>
-        String(path || '').trim() === '/docs/knowgrph-maps-readme.md' ? '# Maps Readme' : null,
+        String(path || '').trim() === '/docs/workspace-readme.md' ? '# Maps Readme' : null,
       writeFileText: async () => void 0,
       createFile: async () => '/docs/tmp.md',
       createFolder: async () => '/docs',
       deleteEntry: async () => void 0,
     }
     await materializeActiveWorkspaceEntryIntoSourceFiles({
-      activePathOverride: '/docs/knowgrph-maps-readme.md',
+      activePathOverride: '/docs/workspace-readme.md',
       fs,
       applyToGraph: false,
     })
     const active = useGraphStore
       .getState()
       .sourceFiles
-      .find(file => String(file.source?.path || '') === 'workspace:/docs/knowgrph-maps-readme.md') || null
+      .find(file => String(file.source?.path || '') === 'workspace:/docs/workspace-readme.md') || null
     if (!active) throw new Error('expected active workspace source file to stay present after materialization')
     if (String(active.text || '').trim() !== '# Maps Readme') {
       throw new Error(`expected blank active workspace source file text to hydrate from workspace fs, got "${String(active.text || '')}"`)
@@ -1919,8 +1919,8 @@ export async function testHydrateWorkspaceEntriesInlineTextFallsBackToKnowgrphSt
 export function testWorkspaceSelectionCacheDoesNotTrustBlankForInitializationDocs() {
   const trusted = shouldTrustEmptyWorkspaceSelectionCache({
     cachedText: '',
-    path: '/docs/knowgrph-maps-readme.md',
-    lastLoaded: { path: '/docs/knowgrph-maps-readme.md', text: '' },
+    path: '/docs/workspace-readme.md',
+    lastLoaded: { path: '/docs/workspace-readme.md', text: '' },
   })
   if (trusted) {
     throw new Error('expected initialization docs to bypass blank cache trust and rehydrate from source')
@@ -1989,8 +1989,8 @@ export async function testMaterializeActiveWorkspaceEntryHydratesBlankTextWhenPa
   const { restore } = initJsdomHarness()
   try {
     useGraphStore.getState().resetAll()
-    const activePath = '/docs/knowgrph-maps-readme.md'
-    const activeSourcePath = 'workspace:/docs/knowgrph-maps-readme.md'
+    const activePath = '/docs/workspace-readme.md'
+    const activeSourcePath = 'workspace:/docs/workspace-readme.md'
     const fileText = '# Maps Readme'
     const textHash = buildSourceFileParseIdentityHash({
       cacheNamespace: `workspace-import:${activePath}`,
@@ -2001,7 +2001,7 @@ export async function testMaterializeActiveWorkspaceEntryHydratesBlankTextWhenPa
     useGraphStore.getState().setSourceFiles([
       {
         id: 'ws:maps-readme',
-        name: 'knowgrph-maps-readme.md',
+        name: 'workspace-readme.md',
         text: '',
         enabled: true,
         status: 'parsed',
@@ -2024,7 +2024,7 @@ export async function testMaterializeActiveWorkspaceEntryHydratesBlankTextWhenPa
           path: activePath,
           parentPath: '/docs',
           kind: 'file',
-          name: 'knowgrph-maps-readme.md',
+          name: 'workspace-readme.md',
           updatedAtMs: 1,
         },
       ],
@@ -2043,12 +2043,12 @@ export async function testMaterializeActiveWorkspaceEntryHydratesBlankTextWhenPa
           path: activePath,
           parentPath: '/docs',
           kind: 'file',
-          name: 'knowgrph-maps-readme.md',
+          name: 'workspace-readme.md',
           updatedAtMs: 1,
         },
       ],
       sourcesByPath: {
-        [activePath]: { kind: 'local', originalName: 'knowgrph-maps-readme.md' },
+        [activePath]: { kind: 'local', originalName: 'workspace-readme.md' },
       },
     })
     const active = useGraphStore

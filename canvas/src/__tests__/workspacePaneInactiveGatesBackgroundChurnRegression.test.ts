@@ -19,3 +19,14 @@ export function testGraphTableWorkspaceGatesPersistedCollectionSubscriptionsByAc
     throw new Error('expected GraphTableWorkspace subscription effect to depend on active')
   }
 }
+
+export function testWorkspaceOpenCanvasToolbarDoesNotCoverEditorPaneControls() {
+  const p = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('className="kg-workspace-overlay-canvas-toolbar')) {
+    throw new Error('expected workspace-open canvas toolbar to remain identifiable at its shared owner')
+  }
+  if (!text.includes('style={{ left: workspacePaneBoundaryCss }}')) {
+    throw new Error('expected workspace-open canvas toolbar to start at the workspace pane boundary instead of covering editor controls')
+  }
+}

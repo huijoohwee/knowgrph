@@ -1,4 +1,4 @@
-import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
 import {
   clampBalancedCollectiveScaleToViewport,
   computeBalancedSpreadBaseGapPx,

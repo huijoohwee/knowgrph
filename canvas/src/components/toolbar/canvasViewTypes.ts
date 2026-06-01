@@ -8,6 +8,7 @@ export type CanvasViewOptionId =
   | 'layout:menu'
   | 'layout:block'
   | 'layout:radial'
+  | 'layout:flowEditorRebalance'
   | 'document:menu'
   | 'document:documentStructure'
   | 'document:keyword'

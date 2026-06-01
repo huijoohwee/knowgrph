@@ -11,14 +11,15 @@
 ## Demo Entry Point (User Journey)
 
 - **Toolbar → Editor workspace button**
-- Import local file (fixture, relative to repo root): `sandbox/demo/computing-data-flow-pipeline.json`
+- Import a local Markdown or JSON graph bundle selected by the user.
 - Switch: **Canvas → 2D Renderer → Flow Editor**
 
 Expected result:
 
-- The imported file is a `kg:flow:nodeQuickEditorBundle` (kind/version guarded) that carries:
+- A JSON bundle may be a `kg:flow:nodeQuickEditorBundle` (kind/version guarded) that carries:
   - a Node Quick Editor registry snapshot (`registry[]`)
   - a workflow graph payload (`graph`)
+- A Markdown document may carry a frontmatter or body `flow:` graph with the same port-bound edge semantics.
 - Flow Editor renders the workflow graph using the native Flow renderer.
 - Node Quick Editors can be opened concurrently; pinned header drag updates anchor offsets collectively, while detached overlays are draggable and must not overlap by default.
 
@@ -82,6 +83,17 @@ Key implementation:
   - `edge.properties['flow:sourcePortKey']`
   - `edge.properties['flow:targetPortKey']`
 
+### Computing Dataflow
+
+- Computing-flow behavior is source-driven by GraphData plus widget registry entries:
+  - input/output ports use `portKey`, `direction`, and `schemaPath`
+  - registry `schemaMappings[]` can reduce/transform connected input groups into derived node properties
+  - node `properties['flow:compute']` may emit output values when `frontmatterFlowSettings.computed=true`
+- `computeFlowConnectedValuesBySchemaPath()` is the shared runtime owner for propagation. Flow Editor panels receive connected values from that helper and must not recompute graph data locally.
+- Branching is value-driven: `null` / `undefined` output values are stop signals and must not be forwarded into downstream connected values.
+- Long directed acyclic graphs should evaluate in topological order. Cyclic or partially cyclic graphs may iterate to a stable value key, bounded by graph size, without fixed demo-specific caps.
+- Cache keys must use shared graph semantic keys/signatures and registry shape, not filenames, source URLs, or example ids.
+
 ### Node Quick Editors
 
 - Multiple Node Quick Editors may be visible at once.
@@ -105,3 +117,4 @@ Flow Editor + overlay wiring:
   - GraphData
   - registry entries (bundle or GraphData metadata)
   - schema-config toggles
+- Validation inputs may be supplied from outside the repo to prove the same pipeline on published/mirrored documents, but tests must not hardcode those paths or backfill empty external files.

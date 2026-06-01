@@ -92,10 +92,10 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   React.useEffect(() => {
     if (!open) {
       optionButtonRefs.current = []
-      setExpandedOptionId(null)
+      if (expandedOptionId !== null) setExpandedOptionId(null)
       return
     }
-    setExpandedOptionId(prev => prev || activeParentOptionId)
+    if (activeParentOptionId && expandedOptionId == null) setExpandedOptionId(activeParentOptionId)
     const preferredIndex = Math.max(0, enabledOptions.findIndex(option => option.id === value || option.id === activeParentOptionId))
     const rafId = requestAnimationFrame(() => {
       focusOptionAtIndex(preferredIndex)
@@ -103,7 +103,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
     return () => {
       cancelAnimationFrame(rafId)
     }
-  }, [activeParentOptionId, enabledOptions, focusOptionAtIndex, open, value])
+  }, [activeParentOptionId, enabledOptions, expandedOptionId, focusOptionAtIndex, open, value])
   if (!activeOption) return null
 
   return (

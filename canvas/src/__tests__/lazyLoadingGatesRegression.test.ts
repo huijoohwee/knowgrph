@@ -340,7 +340,7 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!canvasViewportGeospatialOverlayText.includes("import { buildGeospatialOverlayGraphData } from '@/features/geospatial/geospatialOverlayGraphData'")) {
     throw new Error('expected CanvasViewportGeospatialOverlay to own geospatial overlay graph derivation after the split')
   }
-  if (!canvasViewportGeospatialOverlayText.includes('buildGrabMapsPoiRichMediaSrcDoc(detail)')) {
+  if (!canvasViewportGeospatialOverlayText.includes('buildGrabMapsPoiRichMediaSrcDoc(normalizedDetail)')) {
     throw new Error('expected CanvasViewportGeospatialOverlay to own POI rich-media srcdoc construction after the split')
   }
   if (!canvasViewportGeospatialOverlayText.includes('requestGeospatialFitToSelection')) {

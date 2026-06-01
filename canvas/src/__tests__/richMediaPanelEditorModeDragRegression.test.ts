@@ -1,5 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  installWheelForwardingAndBrowserZoomGuards,
+  shouldKeepWheelOnScrollableTarget,
+} from 'grph-shared/dom/wheelGuards'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+
 export function testRichMediaPanelEditorModeDisablesInteractiveContentForDragging() {
   const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const text = readFileSync(p, 'utf8')
@@ -14,7 +20,7 @@ export function testRichMediaPanelEditorModeDisablesInteractiveContentForDraggin
   }
 }
 
-export function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll() {
+export async function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll() {
   const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const panelText = readFileSync(panelPath, 'utf8')
   if (!panelText.includes('const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true')) {
@@ -31,6 +37,100 @@ export function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScr
   }
   if (!wheelGuardsText.includes('if (forwardTo && forwardAllowed)')) {
     throw new Error('expected shared wheel guards to gate forwarding through the shared predicate result')
+  }
+  if (!wheelGuardsText.includes('export function shouldKeepWheelOnScrollableTarget(') || !wheelGuardsText.includes('opts?: WheelScrollableTargetOptions')) {
+    throw new Error('expected shared wheel guards to expose a reusable scrollable-target wheel predicate')
+  }
+  if (!wheelGuardsText.includes('if (shouldKeepWheelOnScrollableTarget(e, el)) return')) {
+    throw new Error('expected shared wheel forwarding to preserve wheel events that start inside scrollable embedded media surfaces')
+  }
+  if (!wheelGuardsText.includes('export function consumeScrollablePanelWheelEvent')) {
+    throw new Error('expected shared wheel guards to expose a reusable widget inner-panel wheel consumer')
+  }
+
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const g = globalThis as typeof globalThis & {
+    getComputedStyle?: typeof getComputedStyle
+    WheelEvent?: typeof WheelEvent
+  }
+  const originalGetComputedStyle = g.getComputedStyle
+  const originalWheelEvent = g.WheelEvent
+  let cleanup: (() => void) | null = null
+  try {
+    g.getComputedStyle = dom.window.getComputedStyle.bind(dom.window) as typeof getComputedStyle
+    g.WheelEvent = dom.window.WheelEvent as unknown as typeof WheelEvent
+
+    const doc = dom.window.document
+    const root = doc.createElement('section')
+    const scrollSurface = doc.createElement('div')
+    const child = doc.createElement('p')
+    const forwardedTarget = doc.createElement('div')
+    const forwarded: WheelEvent[] = []
+    const readForwardedCount = () => forwarded.length
+    scrollSurface.style.overflowY = 'auto'
+    scrollSurface.style.overflowX = 'hidden'
+    Object.defineProperty(scrollSurface, 'scrollHeight', { configurable: true, value: 420 })
+    Object.defineProperty(scrollSurface, 'clientHeight', { configurable: true, value: 120 })
+    child.textContent = 'Scrollable rich media text'
+    scrollSurface.appendChild(child)
+    root.appendChild(scrollSurface)
+    doc.body.appendChild(root)
+    doc.body.appendChild(forwardedTarget)
+    forwardedTarget.addEventListener('wheel', event => forwarded.push(event as WheelEvent))
+
+    cleanup = installWheelForwardingAndBrowserZoomGuards(root, {
+      forwardWheelTo: () => forwardedTarget,
+      stopPropagationOnForward: true,
+      stopPropagationOnPreventZoom: false,
+      forwardedFlagKey: '__kgForwarded',
+    })
+
+    const scrollWheel = new dom.window.WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 48,
+    }) as unknown as WheelEvent
+    child.dispatchEvent(scrollWheel)
+
+    if (!shouldKeepWheelOnScrollableTarget(scrollWheel, root)) {
+      throw new Error('expected shared wheel guard to classify scrollable rich-media descendants as local scroll targets')
+    }
+    if (scrollWheel.defaultPrevented) {
+      throw new Error('expected non-modifier wheel inside a scrollable media surface to remain available for native scrolling')
+    }
+    const forwardedBeforeZoom = readForwardedCount()
+    if (forwardedBeforeZoom !== 0) {
+      throw new Error(`expected scrollable media wheel to avoid canvas forwarding, forwarded=${forwardedBeforeZoom}`)
+    }
+
+    const zoomWheel = new dom.window.WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      deltaY: 48,
+    }) as unknown as WheelEvent
+    child.dispatchEvent(zoomWheel)
+
+    if (!shouldKeepWheelOnScrollableTarget(zoomWheel, root, { allowModifierZoom: false })) {
+      throw new Error('expected shared wheel guard to let widget inner panel scrolling win over modifier-wheel canvas zoom when requested')
+    }
+    if (!zoomWheel.defaultPrevented) {
+      throw new Error('expected modifier-wheel zoom to keep using the shared forwarding/browser zoom guard')
+    }
+    const forwardedAfterZoom = readForwardedCount()
+    if (forwardedAfterZoom !== 1) {
+      throw new Error(`expected only explicit modifier wheel to forward from the scrollable surface, forwarded=${forwardedAfterZoom}`)
+    }
+
+  } finally {
+    try {
+      cleanup?.()
+    } catch {
+      void 0
+    }
+    g.getComputedStyle = originalGetComputedStyle
+    g.WheelEvent = originalWheelEvent
+    restoreDom()
   }
 }
 

@@ -10,7 +10,9 @@ import {
   serializeStrybldrStoryboardMarkdown,
 } from '@/features/strybldr/strybldrStoryboard'
 import {
+  createStrytreeCandidateRunAction,
   createStrytreeContinuationDraftAction,
+  publishStrytreeCandidateAction,
   toggleStrytreeLikeAction,
   unlockStrytreeNodeAction,
 } from '@/features/strybldr/strytreeWorkflow'
@@ -130,6 +132,48 @@ export async function testStrybldrStoryboardParsesStrytreeStorytreeSnapshot() {
             ownAssetIds: ['child-asset'],
           },
         ],
+        candidateRuns: [
+          {
+            candidateRunId: 'candrun-root',
+            parentNodeId: 'root',
+            status: 'completed',
+            maxCandidates: 2,
+            quotedCostCredits: 10,
+            scorecardMode: 'cost_continuity',
+            candidates: [
+              {
+                candidateId: 'cand-a',
+                title: 'Candidate A',
+                synopsis: 'A private candidate that can be compared before publishing.',
+                prompt: 'Continue with inherited visual continuity.',
+                provider: 'local-harness',
+                status: 'succeeded',
+                creditCost: 5,
+                elapsedMs: 42000,
+                fallbackStatus: 'none',
+                moderationStatus: 'approved',
+                inheritedAssetCount: 1,
+                continuityScore: 0.84,
+                publishEligible: true,
+              },
+              {
+                candidateId: 'cand-b',
+                title: 'Candidate B',
+                synopsis: 'A second candidate kept private until selected.',
+                prompt: 'Continue with a sharper conflict.',
+                provider: 'local-harness',
+                status: 'succeeded',
+                creditCost: 5,
+                elapsedMs: 51000,
+                fallbackStatus: 'fallback-preview',
+                moderationStatus: 'approved',
+                inheritedAssetCount: 1,
+                continuityScore: 0.72,
+                publishEligible: true,
+              },
+            ],
+          },
+        ],
       },
     }, null, 2),
     '```',
@@ -153,12 +197,21 @@ export async function testStrybldrStoryboardParsesStrytreeStorytreeSnapshot() {
   assert(Number(child.properties?.projectedBalanceAfterUnlock || 0) === 114, `expected unlock balance projection, got ${String(child.properties?.projectedBalanceAfterUnlock || '')}`)
   assert(Array.isArray(child.properties?.inheritedAssetIds) && child.properties?.inheritedAssetIds.includes('root-asset'), 'expected child branch to inherit parent assets')
   assert((graph.edges || []).some(edge => edge.source === root.id && edge.target === child.id && edge.label === 'parent_node_id'), 'expected parent-derived storytree edge to connect root and child cards')
+  const candidate = (graph.nodes || []).find(node => String(node.type || '') === 'StorytreeCandidate' && String(node.properties?.strytreeCandidateId || '') === 'cand-a')
+  assert(candidate, 'expected ForkCompare candidate scorecard node')
+  assert(Number(candidate.properties?.continuityScore || 0) === 0.84, `expected candidate continuity score, got ${String(candidate.properties?.continuityScore || '')}`)
+  assert(candidate.properties?.publishEligible === true, 'expected candidate publish eligibility')
+  assert((graph.edges || []).some(edge => edge.source === root.id && edge.target === candidate.id && edge.label === 'candidateOption'), 'expected candidate option edge from parent branch')
   assert(String((graph.metadata as Record<string, unknown>)?.strytreeStoryId || '') === 'story-test', 'expected storytree metadata')
+  assert(Number((graph.metadata as Record<string, unknown>)?.strytreeCandidateRunsCount || 0) === 1, 'expected candidate run metadata')
   const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
   const storytreeLane = board.lanes.find(lane => lane.id === 'Storytree')
   assert(storytreeLane && storytreeLane.cards.some(card => card.title === 'Child branch'), `expected Strybldr board to expose Storytree lane cards, got ${JSON.stringify(board.lanes.map(lane => ({ id: lane.id, titles: lane.cards.map(card => card.title) })))}`)
+  const forkCompareLane = board.lanes.find(lane => lane.id === 'ForkCompare')
+  assert(forkCompareLane && forkCompareLane.cards.some(card => card.title === 'Candidate A'), 'expected Strybldr board to expose ForkCompare candidate cards')
   const handoff = buildStrybldrVideoHandoffFromGraphData(graph)
   assert(handoff.cards.some(card => card.lane === 'Storytree' && card.title === 'Child branch'), 'expected Run All handoff to include Storytree branch cards')
+  assert(handoff.cards.some(card => card.lane === 'ForkCompare' && card.title === 'Candidate A'), 'expected Run All handoff to include ForkCompare candidate cards')
   assert(handoff.prompt.includes('approved Strybldr storyboard cards'), 'expected shared Strybldr handoff prompt')
 }
 
@@ -255,6 +308,79 @@ export async function testStrybldrStorytreeWorkflowActionsMutateGraphState() {
   assert(handoff.cards.some(card => card.id === drafted.createdNodeId && card.lane === 'Storytree'), 'expected draft branch to feed Strybldr Run All')
 }
 
+export async function testStrybldrForkCompareCandidateWorkflowActions() {
+  const text = [
+    '---',
+    'kgStrybldrStoryboard: true',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "strybldr"',
+    '---',
+    '',
+    '```json strybldr-storyboard',
+    JSON.stringify({
+      version: 1,
+      runId: 'forkcompare-workflow-test',
+      createdAtMs: 1,
+      sources: [
+        {
+          sourceUnitId: 'forkcompare-source',
+          workspacePath: 'docs/documents/knowgrph-strytree-prd-tad.md',
+          relativePath: 'knowgrph-strytree-prd-tad.md',
+          originalName: 'Strytree ForkCompare source',
+          mediaKind: 'doc',
+          mimeHint: 'text/markdown',
+          byteSize: 0,
+          textHash: 'forkcompare',
+          mediaUrl: 'docs/documents/knowgrph-strytree-prd-tad.md',
+        },
+      ],
+      elements: [],
+      storytree: {
+        storyId: 'forkcompare-story',
+        title: 'ForkCompare story',
+        tokenBalance: 40,
+        generationCostCredits: 5,
+        nodes: [
+          {
+            nodeId: 'root',
+            title: 'Root branch',
+            synopsis: 'Root branch.',
+            prompt: 'Continue with a bounded candidate comparison.',
+            status: 'active',
+            isFreeWindow: true,
+            likes: 1,
+            impressions: 10,
+            ownAssetIds: ['root-asset'],
+          },
+        ],
+      },
+    }, null, 2),
+    '```',
+  ].join('\n')
+  const parsed = await loadGraphDataFromTextViaParser('forkcompare.strybldr.md', text, { applyToStore: false })
+  assert(parsed?.graphData, 'expected ForkCompare graph')
+  const root = (parsed.graphData.nodes || []).find(node => String(node.type || '') === 'StorytreeNode' && String(node.properties?.strytreeNodeId || '') === 'root')
+  assert(root?.id, 'expected root branch')
+
+  const compared = createStrytreeCandidateRunAction(parsed.graphData, root.id, { nowMs: 3000 })
+  assert(compared.changed, 'expected candidate run action to mutate graph')
+  const candidates = (compared.graphData.nodes || []).filter(node => String(node.type || '') === 'StorytreeCandidate')
+  assert(candidates.length === 3, `expected bounded fan-out of 3 candidates, got ${candidates.length}`)
+  assert(candidates.every(node => node.properties?.publishEligible === true), 'expected all deterministic candidates to be publish eligible')
+  assert((compared.graphData.edges || []).filter(edge => edge.label === 'candidateOption').length === 3, 'expected candidate option edges from parent branch')
+  const debitedSnapshot = (compared.graphData.nodes || []).find(node => String(node.type || '') === 'StorytreeSnapshot')
+  assert(Number(debitedSnapshot?.properties?.tokenBalance || 0) === 25, `expected candidate run debit to update token balance, got ${String(debitedSnapshot?.properties?.tokenBalance || '')}`)
+
+  const published = publishStrytreeCandidateAction(compared.graphData, String(candidates[0]?.id || ''), 4000)
+  assert(published.changed, 'expected candidate publish action to mutate graph')
+  const publishedChild = (published.graphData.nodes || []).find(node => String(node.type || '') === 'StorytreeNode' && String(node.properties?.selectedCandidateId || '') === String(candidates[0]?.properties?.strytreeCandidateId || ''))
+  assert(publishedChild, 'expected selected candidate to become one durable Storytree child')
+  assert((published.graphData.edges || []).some(edge => edge.source === root.id && edge.target === publishedChild.id && edge.label === 'parent_node_id'), 'expected published candidate edge to derive from parent_node_id')
+  const nextCandidates = (published.graphData.nodes || []).filter(node => String(node.type || '') === 'StorytreeCandidate')
+  assert(nextCandidates.filter(node => String(node.properties?.candidateStatus || '') === 'published').length === 1, 'expected exactly one candidate to publish')
+  assert(nextCandidates.filter(node => String(node.properties?.candidateStatus || '') === 'rejected').length === 2, 'expected rejected candidates to remain private audit artifacts')
+}
+
 export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   const renderConfigText = readSource('lib', 'config.render.ts')
   const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
@@ -300,9 +426,15 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(storyboardCanvasText.includes('StorytreeEdgeConnector'), 'expected Storytree parent-child edge rendering to stay in the existing Storyboard surface')
   assert(storyboardCanvasText.includes('storytreeIncomingEdgeByCardId'), 'expected Storytree edge rendering to use active graph edges, not card hardcodes')
   assert(storyboardCanvasText.includes('data-kg-storytree-edge'), 'expected Storytree edge rendering to expose a validation marker')
+  assert(storyboardCanvasText.includes('data-kg-storyboard-canvas-edge-layer'), 'expected Storyboard canvas to render visible graph edge layer between cards')
+  assert(storyboardCanvasText.includes('candidateOption'), 'expected ForkCompare candidate option edges to use graph edges, not card hardcodes')
+  assert(storyboardCanvasText.includes('ForkCompare scorecard'), 'expected ForkCompare scorecards to render in the existing Storyboard surface')
+  assert(storyboardCanvasText.includes('createStrytreeCandidateRunAction'), 'expected ForkCompare fan-out action to stay in the Storyboard surface')
+  assert(storyboardCanvasText.includes('publishStrytreeCandidateAction'), 'expected ForkCompare publish action to stay in the Storyboard surface')
   const strybldrPanelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
   assert(strybldrPanelText.includes('Strybldr storytree workflow'), 'expected Strytree workflow actions to be reachable from the active Strybldr panel')
   assert(strybldrPanelText.includes('Strybldr storytree filter'), 'expected Strytree filters to be reachable from the active Strybldr panel')
+  assert(strybldrPanelText.includes('Strybldr ForkCompare candidates'), 'expected ForkCompare candidate run to be reachable from the active Strybldr panel')
 }
 
 export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {

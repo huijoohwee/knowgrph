@@ -587,7 +587,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           if (typeLower === 'codeblock') {
             const lang = propsObj && typeof propsObj.language === 'string' ? String(propsObj.language || '') : ''
             const code = propsObj && typeof propsObj.code === 'string' ? String(propsObj.code || '') : ''
-            const lines = code ? code.split(/\r?\n/).slice(0, 6) : []
+            const lines = code ? code.split(/\r?\n/) : []
             blocks.push({
               id,
               type: 'code',
@@ -1108,6 +1108,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           overlayInteractions.endHeaderDrag()
           setOverlayInteractionActive(false)
         }}
+        requestMediaOverlaySchedule={richMedia.requestMediaOverlaySchedule}
       />
       <MarqueeBoxOverlay marqueeBox={marquee.marqueeBox} />
       <GraphHoverTooltip

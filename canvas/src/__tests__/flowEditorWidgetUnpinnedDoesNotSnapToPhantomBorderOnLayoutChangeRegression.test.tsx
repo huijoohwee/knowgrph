@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
-import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'

@@ -2,13 +2,16 @@ import React from 'react'
 import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { CARD_MARKDOWN_PREVIEW_MERMAID_SURFACE_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
 
 export function PlainMermaidDiagram({
   code,
   rootThemeMode,
+  cardPreviewMode = false,
 }: {
   code: string
   rootThemeMode: 'light' | 'dark'
+  cardPreviewMode?: boolean
 }) {
   const [svg, setSvg] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
@@ -56,7 +59,10 @@ export function PlainMermaidDiagram({
 
   return (
     <div
-      className={`overflow-auto rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+      className={cardPreviewMode
+        ? CARD_MARKDOWN_PREVIEW_MERMAID_SURFACE_CLASS_NAME
+        : `overflow-auto rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+      style={cardPreviewMode ? { touchAction: 'pan-y' } : undefined}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   )

@@ -66,6 +66,10 @@ const readPlainObject = (value: unknown): Record<string, unknown> | null => {
   return isPlainObject(value) ? (value as Record<string, unknown>) : null
 }
 
+function isStoppedFlowValue(value: unknown): boolean {
+  return value == null
+}
+
 function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): string {
   if (!targetNodeIds || targetNodeIds.size === 0) return '*'
   return Array.from(targetNodeIds.values())
@@ -223,6 +227,17 @@ type EdgeConnection = {
   targetPortKey: string
 }
 
+type InboundValuesByPortKey = Map<string, Array<{ edgeId: string; sourceId: string; sourcePortKey: string; value: unknown }>>
+
+type PortPathsByNodeId = Map<
+  string,
+  {
+    input: Map<string, string>
+    output: Map<string, string>
+    schemaMappings: ReadonlyArray<{ fromPath: string; toPath: string; transformId?: string; reduceId?: string }>
+  }
+>
+
 function collectConnections(edges: ReadonlyArray<GraphEdge>): EdgeConnection[] {
   const out: EdgeConnection[] = []
   for (const e of edges) {
@@ -237,6 +252,77 @@ function collectConnections(edges: ReadonlyArray<GraphEdge>): EdgeConnection[] {
   return out
 }
 
+function buildTopologicalNodeOrder(args: {
+  nodes: ReadonlyArray<GraphNode>
+  connections: ReadonlyArray<EdgeConnection>
+}): string[] | null {
+  const nodeIds: string[] = []
+  const orderByNodeId = new Map<string, number>()
+  const indegree = new Map<string, number>()
+  const outgoing = new Map<string, string[]>()
+  for (let i = 0; i < args.nodes.length; i += 1) {
+    const id = cleanString(args.nodes[i]?.id)
+    if (!id || indegree.has(id)) continue
+    orderByNodeId.set(id, nodeIds.length)
+    nodeIds.push(id)
+    indegree.set(id, 0)
+    outgoing.set(id, [])
+  }
+  if (nodeIds.length === 0) return []
+  for (const c of args.connections) {
+    if (!indegree.has(c.sourceId) || !indegree.has(c.targetId)) continue
+    outgoing.get(c.sourceId)!.push(c.targetId)
+    indegree.set(c.targetId, (indegree.get(c.targetId) || 0) + 1)
+  }
+
+  const queue = nodeIds.filter(id => (indegree.get(id) || 0) === 0)
+  const out: string[] = []
+  while (queue.length > 0) {
+    queue.sort((a, b) => (orderByNodeId.get(a) || 0) - (orderByNodeId.get(b) || 0))
+    const id = queue.shift()!
+    out.push(id)
+    const targets = outgoing.get(id) || []
+    for (const targetId of targets) {
+      const next = (indegree.get(targetId) || 0) - 1
+      indegree.set(targetId, next)
+      if (next === 0) queue.push(targetId)
+    }
+  }
+  return out.length === nodeIds.length ? out : null
+}
+
+function buildInboundValuesByNodeId(args: {
+  connections: ReadonlyArray<EdgeConnection>
+  byNodeId: Map<string, GraphNode>
+  portPathsByNodeId: PortPathsByNodeId
+  computedByNodeId: Map<string, FlowConnectedValuesBySchemaPath>
+  targetNodeId?: string
+}): Map<string, InboundValuesByPortKey> {
+  const inboundByNodeId = new Map<string, InboundValuesByPortKey>()
+  const targetNodeId = cleanString(args.targetNodeId)
+  for (const c of args.connections) {
+    if (targetNodeId && c.targetId !== targetNodeId) continue
+    const sourceNode = args.byNodeId.get(c.sourceId)
+    const targetNode = args.byNodeId.get(c.targetId)
+    if (!sourceNode || !targetNode) continue
+    const sourcePortPaths = args.portPathsByNodeId.get(c.sourceId)?.output || new Map()
+    const value = computeOutputPortValue({
+      nodeId: c.sourceId,
+      node: sourceNode,
+      outputPortPaths: sourcePortPaths,
+      computedByNodeId: args.computedByNodeId,
+      portKey: c.sourcePortKey,
+    })
+    if (isStoppedFlowValue(value)) continue
+
+    if (!inboundByNodeId.has(c.targetId)) inboundByNodeId.set(c.targetId, new Map())
+    const inbound = inboundByNodeId.get(c.targetId)!
+    if (!inbound.has(c.targetPortKey)) inbound.set(c.targetPortKey, [])
+    inbound.get(c.targetPortKey)!.push({ edgeId: c.edgeId, sourceId: c.sourceId, sourcePortKey: c.sourcePortKey, value })
+  }
+  return inboundByNodeId
+}
+
 function computeOutputPortValue(args: {
   nodeId: string
   node: GraphNode
@@ -245,13 +331,13 @@ function computeOutputPortValue(args: {
   portKey: string
 }): unknown {
   const path = args.outputPortPaths.get(args.portKey) || `properties.${args.portKey}`
+  const computedDataPath = `properties.data.${args.portKey}`
+  if (!args.outputPortPaths.has(args.portKey)) {
+    const computedData = args.computedByNodeId.get(args.nodeId)?.[computedDataPath]
+    if (computedData) return computedData.value
+  }
   const computed = args.computedByNodeId.get(args.nodeId)?.[path]
   if (computed) return computed.value
-  const computedDataPath = `properties.data.${args.portKey}`
-  const computedData = args.outputPortPaths.has(args.portKey)
-    ? null
-    : args.computedByNodeId.get(args.nodeId)?.[computedDataPath]
-  if (computedData) return computedData.value
   const direct = getObjectPath(args.node, path)
   if (typeof direct !== 'undefined') return direct
   if (!args.outputPortPaths.has(args.portKey)) {
@@ -272,7 +358,7 @@ function computeOutputPortValue(args: {
 
 function buildConnectedValuesForNode(args: {
   node: GraphNode
-  inbound: Map<string, Array<{ edgeId: string; sourceId: string; sourcePortKey: string; value: unknown }>>
+  inbound: InboundValuesByPortKey
   inputPortPaths: Map<string, string>
   outputPortPaths: Map<string, string>
   schemaMappings: ReadonlyArray<{ fromPath: string; toPath: string; transformId?: string; reduceId?: string }>
@@ -320,7 +406,18 @@ function buildConnectedValuesForNode(args: {
 
   const computeSource = args.computeEnabled ? readFlowComputeSource(args.node) : ''
   if (computeSource) {
-    const computed = runFlowComputeSource(computeSource, inByPortKey)
+    const computed = runFlowComputeSource(computeSource, inByPortKey, {
+      node: {
+        id: args.node.id,
+        type: args.node.type,
+        label: args.node.label,
+        properties: { ...readNodeProperties(args.node) },
+        metadata: args.node.metadata && typeof args.node.metadata === 'object' && !Array.isArray(args.node.metadata)
+          ? { ...(args.node.metadata as Record<string, unknown>) }
+          : {},
+      },
+      connectedValuesBySchemaPath: { ...byPath },
+    })
     if (computed) {
       const allSources = Array.from(args.inbound.values())
         .flat()
@@ -395,14 +492,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
     return out
   })()
 
-  const portPathsByNodeId = new Map<
-    string,
-    {
-      input: Map<string, string>
-      output: Map<string, string>
-      schemaMappings: ReadonlyArray<{ fromPath: string; toPath: string }>
-    }
-  >()
+  const portPathsByNodeId: PortPathsByNodeId = new Map()
   for (const [nodeId, entry] of Array.from(registryByNodeId.entries())) {
     if (!includedNodeIds.has(nodeId)) continue
     portPathsByNodeId.set(nodeId, buildPortSchemaPathIndex(entry))
@@ -413,9 +503,42 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
     .filter((n): n is GraphNode => !!n)
 
   const computedByNodeId = new Map<string, FlowConnectedValuesBySchemaPath>()
-  const maxIterations = Math.max(2, Math.min(12, includedNodes.length + 1))
   const connections = allConnections.filter(c => includedNodeIds.has(c.sourceId) && includedNodeIds.has(c.targetId))
   const objectValueKeyCache = new WeakMap<object, string>()
+
+  const topologicalNodeOrder = buildTopologicalNodeOrder({ nodes: includedNodes, connections })
+  if (topologicalNodeOrder) {
+    for (const id of topologicalNodeOrder) {
+      const n = byNodeId.get(id)
+      if (!n) continue
+      const inbound = buildInboundValuesByNodeId({
+        connections,
+        byNodeId,
+        portPathsByNodeId,
+        computedByNodeId,
+        targetNodeId: id,
+      }).get(id) || new Map()
+      const portPaths = portPathsByNodeId.get(id)
+      const connected = buildConnectedValuesForNode({
+        node: n,
+        inbound,
+        inputPortPaths: portPaths?.input || new Map(),
+        outputPortPaths: portPaths?.output || new Map(),
+        schemaMappings: portPaths?.schemaMappings || [],
+        computeEnabled,
+      })
+      computedByNodeId.set(id, connected)
+    }
+    const out = new Map<string, FlowConnectedValuesBySchemaPath>()
+    for (const id of Array.from(includedNodeIds.values())) {
+      if (requestedTargets && !requestedTargets.has(id)) continue
+      out.set(id, computedByNodeId.get(id) || {})
+    }
+    writeConnectedValuesResultCache({ graphKey, registryKey, targetKey, result: out })
+    return out
+  }
+
+  const maxIterations = Math.max(2, Math.min(128, includedNodes.length + 1))
 
   const valueKey = (v: unknown): string => {
     if (typeof v === 'string') return `s:${v.length}:${v}`
@@ -453,29 +576,12 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
 
   let prevKeysByNodeId = new Map<string, string>()
   for (let iter = 0; iter < maxIterations; iter += 1) {
-    const inboundByNodeId = new Map<
-      string,
-      Map<string, Array<{ edgeId: string; sourceId: string; sourcePortKey: string; value: unknown }>>
-    >()
-
-    for (const c of connections) {
-      const sourceNode = byNodeId.get(c.sourceId)
-      const targetNode = byNodeId.get(c.targetId)
-      if (!sourceNode || !targetNode) continue
-      const sourcePortPaths = portPathsByNodeId.get(c.sourceId)?.output || new Map()
-      const value = computeOutputPortValue({
-        nodeId: c.sourceId,
-        node: sourceNode,
-        outputPortPaths: sourcePortPaths,
-        computedByNodeId,
-        portKey: c.sourcePortKey,
-      })
-
-      if (!inboundByNodeId.has(c.targetId)) inboundByNodeId.set(c.targetId, new Map())
-      const inbound = inboundByNodeId.get(c.targetId)!
-      if (!inbound.has(c.targetPortKey)) inbound.set(c.targetPortKey, [])
-      inbound.get(c.targetPortKey)!.push({ edgeId: c.edgeId, sourceId: c.sourceId, sourcePortKey: c.sourcePortKey, value })
-    }
+    const inboundByNodeId = buildInboundValuesByNodeId({
+      connections,
+      byNodeId,
+      portPathsByNodeId,
+      computedByNodeId,
+    })
 
     const nextComputedByNodeId = new Map<string, FlowConnectedValuesBySchemaPath>()
     const nextKeysByNodeId = new Map<string, string>()

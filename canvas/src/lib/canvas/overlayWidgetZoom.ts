@@ -73,26 +73,18 @@ export function computeCollectiveFollowPinnedScale(args: {
   hardMinScale?: number
   hardMaxScale?: number
   viewportPreset?: BalancedSpreadViewportPreset
+  fitToViewport?: boolean
 }): number {
   const viewportPreset = args.viewportPreset || 'widgetCanvas'
+  const baseWidth = Math.max(1, Number(args.baseWidth) || 1)
+  const baseHeight = Math.max(1, Number(args.baseHeight) || 1)
   const baseScale = computeWidgetScale(args.zoomK, args.extent, { mode: 'pinnedInCanvas' })
   const requestedHardMin =
     Number.isFinite(args.hardMinScale) ? Math.max(0.001, Number(args.hardMinScale)) : COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min
   const requestedHardMax =
     Number.isFinite(args.hardMaxScale) ? Math.max(0.001, Number(args.hardMaxScale)) : COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max
-  let nextScale = clampBalancedCollectiveScaleToViewport({
-    scale: baseScale,
-    viewportW: args.viewportW,
-    viewportH: args.viewportH,
-    count: Math.max(1, Math.floor(Number(args.count) || 1)),
-    baseWidth: Math.max(1, Number(args.baseWidth) || 1),
-    baseHeight: Math.max(1, Number(args.baseHeight) || 1),
-    quantizeStep: Number.isFinite(args.quantizeStep) ? Math.max(0.001, Number(args.quantizeStep)) : 0.02,
-    hardMinScale: Math.min(requestedHardMin, baseScale),
-    hardMaxScale: Math.max(requestedHardMax, baseScale),
-    viewportPreset,
-  })
-  if (Math.max(1, Math.floor(Number(args.count) || 1)) <= 1) return nextScale
+  const quantizeStep = Number.isFinite(args.quantizeStep) ? Math.max(0.001, Number(args.quantizeStep)) : 0.02
+  const quantize = (value: number) => Math.round(value / quantizeStep) * quantizeStep
   const viewportW = Math.max(1, Number(args.viewportW) || 1)
   const viewportH = Math.max(1, Number(args.viewportH) || 1)
   const margins = computeBalancedSpreadViewportMargins({
@@ -109,36 +101,64 @@ export function computeCollectiveFollowPinnedScale(args: {
     margins,
   })
   const count = Math.max(1, Math.floor(Number(args.count) || 1))
-  const quantizeStep = Number.isFinite(args.quantizeStep) ? Math.max(0.001, Number(args.quantizeStep)) : 0.02
-  const quantize = (value: number) => Math.round(value / quantizeStep) * quantizeStep
-  let candidate = Math.max(0.05, nextScale)
-  for (let i = 0; i < 24; i += 1) {
-    const panel = computeWidgetScaledSize(candidate)
-    const gapPx = computeBalancedSpreadSpacingPx({
-      baseGapPx,
-      zoomK: Number.isFinite(args.zoomK) ? Math.max(0.1, Number(args.zoomK)) : 1,
+  const fitScaleToViewport = (scale: number, spacingZoomK: number): number => {
+    let nextScale = clampBalancedCollectiveScaleToViewport({
+      scale,
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
       count,
-      preset: viewportPreset,
+      baseWidth,
+      baseHeight,
+      quantizeStep,
+      hardMinScale: Math.min(requestedHardMin, scale),
+      hardMaxScale: Math.max(requestedHardMax, scale),
+      viewportPreset,
     })
-    const layout = computeBalancedSpreadLayout({
-      count,
-      viewportW,
-      viewportH,
-      cellW: panel.width + gapPx,
-      cellH: panel.height + gapPx,
-      gapPx,
-      zoomK: Number.isFinite(args.zoomK) ? Math.max(0.1, Number(args.zoomK)) : 1,
-      marginLeftPx: margins.left,
-      marginRightPx: margins.right,
-      marginTopPx: margins.top,
-      marginBottomPx: margins.bottom,
-      snapPx: 1,
-    })
-    if (layout.gridW <= usableW + 1 && layout.gridH <= usableH + 1) {
-      nextScale = Math.max(0.05, quantize(candidate))
-      return nextScale
+    if (count <= 1) return nextScale
+    let candidate = Math.max(0.05, nextScale)
+    const safeSpacingZoomK = Number.isFinite(spacingZoomK) ? Math.max(0.1, Number(spacingZoomK)) : 1
+    for (let i = 0; i < 24; i += 1) {
+      const panel = {
+        width: baseWidth * candidate,
+        height: baseHeight * candidate,
+      }
+      const gapPx = computeBalancedSpreadSpacingPx({
+        baseGapPx,
+        zoomK: safeSpacingZoomK,
+        count,
+        preset: viewportPreset,
+      })
+      const layout = computeBalancedSpreadLayout({
+        count,
+        viewportW,
+        viewportH,
+        cellW: panel.width + gapPx,
+        cellH: panel.height + gapPx,
+        gapPx,
+        zoomK: safeSpacingZoomK,
+        marginLeftPx: margins.left,
+        marginRightPx: margins.right,
+        marginTopPx: margins.top,
+        marginBottomPx: margins.bottom,
+        snapPx: 1,
+      })
+      if (layout.gridW <= usableW + 1 && layout.gridH <= usableH + 1) {
+        nextScale = Math.max(0.05, quantize(candidate))
+        return nextScale
+      }
+      candidate = Math.max(0.05, quantize(candidate - quantizeStep))
     }
-    candidate = Math.max(0.05, quantize(candidate - quantizeStep))
+    return Math.max(0.05, quantize(candidate))
   }
-  return Math.max(0.05, quantize(candidate))
+  if (args.fitToViewport === false) {
+    const neutralFitScale = fitScaleToViewport(1, 1)
+    const zoomFactor = Number.isFinite(args.zoomK) ? Math.max(0.05, Number(args.zoomK)) : 1
+    const scaled = neutralFitScale * zoomFactor
+    return clamp(
+      quantize(scaled),
+      Math.min(requestedHardMin, scaled),
+      Math.max(requestedHardMax, neutralFitScale),
+    )
+  }
+  return fitScaleToViewport(baseScale, args.zoomK)
 }

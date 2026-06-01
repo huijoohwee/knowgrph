@@ -23,48 +23,42 @@ const makeNode = (args: {
     properties: { ...(args.data ? { data: args.data } : {}), ...(args.properties || {}) },
   } as unknown as GraphNode)
 
-export function testWidgetTitleAlignsWithComputingFlowRfSample() {
-  const red = resolveWidgetNodeTitle({
+export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes() {
+  const alpha = resolveWidgetNodeTitle({
     graphMetaKind: 'frontmatter-flow',
-    node: makeNode({ id: '1', type: 'input', label: '`bg#7F1D1D:R — NumberInput`', data: { label: 'R' } }),
+    node: makeNode({ id: '1', type: 'input', label: '`bg#7F1D1D:Raw input`', data: { label: 'Alpha' } }),
   })
-  if (red !== 'Red') throw new Error(`expected Red, got ${red}`)
+  if (alpha !== 'Alpha') throw new Error(`expected Alpha, got ${alpha}`)
 
-  const green = resolveWidgetNodeTitle({
+  const beta = resolveWidgetNodeTitle({
     graphMetaKind: 'frontmatter-flow',
-    node: makeNode({ id: '2', type: 'input', label: '`bg#14532D:G — NumberInput`', data: { label: 'G' } }),
+    node: makeNode({ id: '2', type: 'input', label: '`bg#14532D:Raw input`', data: { title: 'Beta Driver' } }),
   })
-  if (green !== 'Green') throw new Error(`expected Green, got ${green}`)
+  if (beta !== 'Beta Driver') throw new Error(`expected Beta Driver, got ${beta}`)
 
-  const blue = resolveWidgetNodeTitle({
+  const fallbackInput = resolveWidgetNodeTitle({
     graphMetaKind: 'frontmatter-flow',
-    node: makeNode({ id: '3', type: 'input', label: '`bg#1E3A5F:B — NumberInput`', data: { label: 'B' } }),
+    node: makeNode({ id: '3', type: 'input', label: '`bg#1E3A5F:Fallback Input`' }),
   })
-  if (blue !== 'Blue') throw new Error(`expected Blue, got ${blue}`)
+  if (fallbackInput !== 'Fallback Input') throw new Error(`expected Fallback Input, got ${fallbackInput}`)
 
-  const rgb = resolveWidgetNodeTitle({
+  const compute = resolveWidgetNodeTitle({
     graphMetaKind: 'frontmatter-flow',
-    node: makeNode({ id: '4', type: 'default', label: 'ColorPreview' }),
+    node: makeNode({ id: '4', type: 'default', label: 'Weighted Score' }),
   })
-  if (rgb !== 'RGB') throw new Error(`expected RGB, got ${rgb}`)
+  if (compute !== 'Weighted Score') throw new Error(`expected Weighted Score, got ${compute}`)
 
-  const lightDark = resolveWidgetNodeTitle({
+  const outputFromPath = resolveWidgetNodeTitle({
     graphMetaKind: 'frontmatter-flow',
-    node: makeNode({ id: '5', type: 'default', label: 'Lightness' }),
+    node: makeNode({ id: '5', type: 'output', label: '`bg#78350F:Log`', data: { reads: 'data.values.margin_score' } }),
   })
-  if (lightDark !== 'LightDark') throw new Error(`expected LightDark, got ${lightDark}`)
+  if (outputFromPath !== 'Margin Score') throw new Error(`expected Margin Score, got ${outputFromPath}`)
 
-  const light = resolveWidgetNodeTitle({
+  const outputFallback = resolveWidgetNodeTitle({
     graphMetaKind: 'frontmatter-flow',
-    node: makeNode({ id: '6', type: 'output', label: '`bg#78350F:Log — light`', data: { reads: 'data.values.light' } }),
+    node: makeNode({ id: '6', type: 'output', label: '`bg#0F172A:Logged Result`' }),
   })
-  if (light !== 'Light') throw new Error(`expected Light, got ${light}`)
-
-  const dark = resolveWidgetNodeTitle({
-    graphMetaKind: 'frontmatter-flow',
-    node: makeNode({ id: '7', type: 'output', label: '`bg#0F172A:Log — dark`', data: { reads: 'data.values.dark' } }),
-  })
-  if (dark !== 'Dark') throw new Error(`expected Dark, got ${dark}`)
+  if (outputFallback !== 'Logged Result') throw new Error(`expected Logged Result, got ${outputFallback}`)
 
   const bytePlusText = resolveWidgetNodeTitle({
     node: makeNode({ id: 'text-1', type: 'TextGeneration', label: 'Text Widget' }),

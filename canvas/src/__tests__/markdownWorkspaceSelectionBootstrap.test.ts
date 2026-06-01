@@ -45,6 +45,34 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     throw new Error(`expected valid active path to suppress bootstrap fallback, got ${String(preserveValidActivePath)}`)
   }
 
+  const canonicalDocsMirrorActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
+    entriesIndex: buildWorkspaceEntriesIndex([
+      buildFileEntry('/a.md'),
+      buildFileEntry('/docs/a.md'),
+    ]),
+    activePath: '/a.md' as never,
+    lastSetActivePath: null,
+    lastRequestedActivePath: null,
+    nowMs: 10_000,
+  })
+  if (canonicalDocsMirrorActivePath !== '/docs/a.md') {
+    throw new Error(`expected bootstrap helper to canonicalize root docs aliases to docs mirror entries, got ${String(canonicalDocsMirrorActivePath)}`)
+  }
+
+  const preserveCanonicalDocsMirrorActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
+    entriesIndex: buildWorkspaceEntriesIndex([
+      buildFileEntry('/a.md'),
+      buildFileEntry('/docs/a.md'),
+    ]),
+    activePath: '/docs/a.md' as never,
+    lastSetActivePath: null,
+    lastRequestedActivePath: null,
+    nowMs: 10_000,
+  })
+  if (preserveCanonicalDocsMirrorActivePath !== null) {
+    throw new Error(`expected bootstrap helper not to reselect root docs aliases over canonical docs mirror paths, got ${String(preserveCanonicalDocsMirrorActivePath)}`)
+  }
+
   const preserveRecentMissingRequest = resolveMarkdownWorkspaceBootstrapActivePath({
     entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/a.md')]),
     activePath: '/docs/missing.md' as never,

@@ -19,10 +19,24 @@ import {
 } from '@/lib/graph/layoutDefaults'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
-import { computeCollectiveFollowPinnedScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
 import { isFrontmatterManagedOverlayNode } from '@/components/FlowEditor/nodeOverlayFrontmatterPlacement'
 import type { GraphSchema } from '@/lib/graph/schema'
+
+type AppliedOverlayPlacement = {
+  left: number
+  top: number
+  scale: number
+  zoomK: number
+  offsetLeft: number
+  offsetTop: number
+}
+
+export type ApplyOverlayPositionOptions = {
+  persistClamp?: boolean
+  emitInteractionFrame?: boolean
+}
 
 export function useNodeOverlayPlacementRuntime(args: {
   node: { x?: unknown; y?: unknown; properties?: unknown }
@@ -88,7 +102,7 @@ export function useNodeOverlayPlacementRuntime(args: {
       zoomState: useGraphStore.getState().zoomState,
     }),
   )
-  const lastAppliedRef = React.useRef<{ left: number; top: number; scale: number; offsetLeft: number; offsetTop: number } | null>(null)
+  const lastAppliedRef = React.useRef<AppliedOverlayPlacement | null>(null)
   const initialFrontmatterManagedNode = isFrontmatterManagedOverlayNode(graphMetaKind, node)
   const lastFloatingScaleKeyRef = React.useRef<string>(
     computeWidgetScaleKey(computeCollectiveFollowPinnedScale({
@@ -99,6 +113,7 @@ export function useNodeOverlayPlacementRuntime(args: {
       baseWidth: WIDGET_BASE_SIZE.width,
       baseHeight: WIDGET_BASE_SIZE.height,
       viewportPreset: initialFrontmatterManagedNode ? 'widgetFrontmatter' : 'widgetCanvas',
+      fitToViewport: false,
     })),
   )
   const cssInitRef = React.useRef(false)
@@ -331,39 +346,11 @@ export function useNodeOverlayPlacementRuntime(args: {
       hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min,
       hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max,
       viewportPreset: frontmatterManagedNode ? 'widgetFrontmatter' : 'widgetCanvas',
+      fitToViewport: false,
     })
   }, [openWidgetNodeCount, viewportH, viewportW])
 
-  const stabilizePinnedWorldPosForZoom = React.useCallback((nextZoom: { k: number; x: number; y: number } | null) => {
-    if (floatingRef.current) return
-    if (pinnedDragOverrideRef.current || worldDragOverrideRef.current) return
-    const previous = zoomStateRef.current
-    const prevK = Number.isFinite(previous?.k) ? Number(previous?.k) : 1
-    const nextK = Number.isFinite(nextZoom?.k) ? Number(nextZoom?.k) : 1
-    if (Math.abs(prevK - nextK) <= 1e-6) return
-    const lastApplied = lastAppliedRef.current
-    if (!lastApplied) return
-    const prevSize = computeWidgetScaledSize(lastApplied.scale)
-    const nextScale = readPanelScaleForZoom(nextK, isFrontmatterManagedOverlayNode(graphMetaKind, nodeRef.current))
-    const nextSize = computeWidgetScaledSize(nextScale)
-    const centerLeft = lastApplied.left + prevSize.width / 2
-    const centerTop = lastApplied.top + prevSize.height / 2
-    if (!Number.isFinite(centerLeft) || !Number.isFinite(centerTop)) return
-    const targetLeft = centerLeft - nextSize.width / 2
-    const targetTop = centerTop - nextSize.height / 2
-    const nextTransform = nextZoom || { k: 1, x: 0, y: 0 }
-    const nextWorld = screenToWorld({
-      transform: nextTransform,
-      sx: targetLeft,
-      sy: targetTop,
-    })
-    if (!Number.isFinite(nextWorld.x) || !Number.isFinite(nextWorld.y)) return
-    widgetWorldPosRef.current = nextWorld
-    lastGoodWorldPosRef.current = nextWorld
-    persistWorldPos(nextWorld)
-  }, [graphMetaKind, persistWorldPos, readPanelScaleForZoom])
-
-  const applyOverlayPosition = React.useCallback((_opts?: { persistClamp?: boolean }) => {
+  const applyOverlayPosition = React.useCallback((opts?: ApplyOverlayPositionOptions) => {
     const el = asideRef.current
     if (!el) return
     if (!cssInitRef.current) {
@@ -386,7 +373,8 @@ export function useNodeOverlayPlacementRuntime(args: {
       z = storeZoom
       zoomStateRef.current = storeZoom
     }
-    const zoomK = Number.isFinite(z?.k) ? (z?.k as number) : 1
+    const placementTransform = z || { k: 1, x: 0, y: 0 }
+    const zoomK = Number.isFinite(placementTransform.k) ? placementTransform.k : 1
     const n = nodeRef.current
     const frontmatterManagedNode = isFrontmatterManagedOverlayNode(graphMetaKind, n)
     const panelScale = readPanelScaleForZoom(zoomK, frontmatterManagedNode)
@@ -400,7 +388,7 @@ export function useNodeOverlayPlacementRuntime(args: {
     if (liveX != null && liveY != null) lastGoodWorldPosRef.current = { x: liveX, y: liveY }
     else if (nx != null && ny != null) lastGoodWorldPosRef.current = { x: nx, y: ny }
     const world = lastGoodWorldPosRef.current || { x: 0, y: 0 }
-    const { sx: screenX, sy: screenY } = worldToScreen({ transform: z, x: world.x, y: world.y })
+    const { sx: screenX, sy: screenY } = worldToScreen({ transform: placementTransform, x: world.x, y: world.y })
     const port = schemaRef.current?.behavior?.portHandles || null
     const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled) || frontmatterManagedNode
     const portMetrics = readPortHandleUiMetrics(schemaRef.current || null, { zoomK }); const portExtraPadScreenPx = portEnabled ? Math.max(0, portMetrics.railWidthPx + 8) : 0
@@ -414,15 +402,15 @@ export function useNodeOverlayPlacementRuntime(args: {
     if (currentStoredWorld) widgetWorldPosRef.current = currentStoredWorld
     const storedWorld = currentStoredWorld || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)
     const defaultWorld = screenToWorld({
-      transform: z,
+      transform: placementTransform,
       sx: anchoredPosRef.current.left + autoStackOffset.left,
       sy: anchoredPosRef.current.top + autoStackOffset.top,
     })
     const effectiveStoredWorld = storedWorld
     const worldPinned = worldDragOverride || effectiveStoredWorld || defaultWorld
-    const worldPinnedScreen = worldToScreen({ transform: z, x: worldPinned.x, y: worldPinned.y })
+    const worldPinnedScreen = worldToScreen({ transform: placementTransform, x: worldPinned.x, y: worldPinned.y })
     const floatingWorld = worldDragOverride || effectiveStoredWorld
-    const floatingWorldScreen = floatingWorld ? worldToScreen({ transform: z, x: floatingWorld.x, y: floatingWorld.y }) : null
+    const floatingWorldScreen = floatingWorld ? worldToScreen({ transform: placementTransform, x: floatingWorld.x, y: floatingWorld.y }) : null
     const basePos = dragOverride
       ? { top: dragOverride.top, left: dragOverride.left }
       : floatingRef.current
@@ -438,8 +426,8 @@ export function useNodeOverlayPlacementRuntime(args: {
       if (floatingRef.current) return posBase
       const aabb = getLiveContainmentGroupAabbForNode?.(nodeId)
       if (!aabb) return posBase
-      const a = worldToScreen({ transform: z, x: aabb.minX, y: aabb.minY })
-      const b = worldToScreen({ transform: z, x: aabb.maxX, y: aabb.maxY })
+      const a = worldToScreen({ transform: placementTransform, x: aabb.minX, y: aabb.minY })
+      const b = worldToScreen({ transform: placementTransform, x: aabb.maxX, y: aabb.maxY })
       const left0 = Math.min(a.sx, b.sx)
       const right0 = Math.max(a.sx, b.sx)
       const top0 = Math.min(a.sy, b.sy)
@@ -461,15 +449,15 @@ export function useNodeOverlayPlacementRuntime(args: {
     const offsetLeft = Number.isFinite(offset.left) ? offset.left : 0; const offsetTop = Number.isFinite(offset.top) ? offset.top : 0
     const tx = pos.left + offsetLeft; const ty = pos.top + offsetTop
     const last = lastAppliedRef.current
-    if (last && last.left === pos.left && last.top === pos.top && last.offsetLeft === offsetLeft && last.offsetTop === offsetTop && Math.abs(last.scale - panelScale) < 1e-6) return
-    lastAppliedRef.current = { left: pos.left, top: pos.top, scale: panelScale, offsetLeft, offsetTop }
+    if (last && last.left === pos.left && last.top === pos.top && last.offsetLeft === offsetLeft && last.offsetTop === offsetTop && Math.abs(last.scale - panelScale) < 1e-6 && Math.abs(last.zoomK - zoomK) < 1e-6) return
+    lastAppliedRef.current = { left: pos.left, top: pos.top, scale: panelScale, zoomK, offsetLeft, offsetTop }
     el.style.transform = `matrix(${panelScale}, 0, 0, ${panelScale}, ${tx}, ${ty})`
     if (floatingRef.current && !floatingUsesScreenAuthority && !currentStoredWorld && !widgetWorldPosRef.current && !worldDragOverride && !dragOverride) {
       widgetWorldPosRef.current = worldPinned
       lastGoodWorldPosRef.current = worldPinned
       persistWorldPos(worldPinned)
     }
-    emitFlowEditorInteractionFrame()
+    if (opts?.emitInteractionFrame !== false) emitFlowEditorInteractionFrame()
   }, [
     autoStackOffset.left,
     autoStackOffset.top,
@@ -609,7 +597,6 @@ export function useNodeOverlayPlacementRuntime(args: {
           applyOverlayPosition({ persistClamp: false })
           return
         }
-        stabilizePinnedWorldPosForZoom(nextZoom)
         zoomStateRef.current = nextZoom
         applyOverlayPosition({ persistClamp: false })
       },
@@ -621,7 +608,7 @@ export function useNodeOverlayPlacementRuntime(args: {
         void 0
       }
     }
-  }, [applyOverlayPosition, graphMetaKind, readPanelScaleForZoom, stabilizePinnedWorldPosForZoom, zoomViewKey])
+  }, [applyOverlayPosition, graphMetaKind, readPanelScaleForZoom, zoomViewKey])
 
   return {
     asideRef,

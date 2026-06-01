@@ -39,6 +39,11 @@ import {
   MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS,
   MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
 } from './markdownEditSurfaceLayout'
+import {
+  CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_CODE_SURFACE_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
@@ -177,8 +182,11 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     return splitMermaidBlockFrontmatter(codeText)
   }, [codeText, isMermaidLang])
 
+  const cardPreviewMode = opts.markdownCardPreviewMode === true
   const defaultMode: AnnotateDisplayMode = annotateDisplayMode ?? 'inline'
-  const baseMode: AnnotateDisplayMode = isGeoJsonRenderable || isMermaidLang ? 'render' : defaultMode
+  const baseMode: AnnotateDisplayMode = cardPreviewMode
+    ? (isMermaidLang ? 'render' : defaultMode)
+    : isGeoJsonRenderable || isMermaidLang ? 'render' : defaultMode
   const [localMode, setLocalMode] = React.useState<AnnotateDisplayMode>(() => baseMode)
   const [localOverride, setLocalOverride] = React.useState(false)
   const baseWordWrapEnabled = /\bwhitespace-pre-wrap\b/.test(String(wrapClass || ''))
@@ -252,7 +260,12 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
 
-  const figureClassName = `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm highlight highlight-source-${lang} transition-shadow duration-200`
+  const documentCodeFrameClassName = `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm`
+  const figureFrameClassName = cardPreviewMode ? CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME : documentCodeFrameClassName
+  const figureClassName = `${figureFrameClassName} highlight highlight-source-${lang} transition-shadow duration-200`
+  const codeBlockSpacingClassName = cardPreviewMode
+    ? CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME
+    : MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS
   const editorCodeClassName = [
     MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
     MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS,
@@ -333,7 +346,10 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
       replacementLines: [replacementOpenLine],
     })
   }, [c.info, meta.lang, opts, t.startLine])
-  const codeFenceContentClassName = `${MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`
+  const codeFenceContentSurfaceClassName = cardPreviewMode
+    ? CARD_MARKDOWN_PREVIEW_CODE_SURFACE_CLASS_NAME
+    : MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS
+  const codeFenceContentClassName = `${codeFenceContentSurfaceClassName} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`
   const codeFencePreClassName = `${MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS} ${MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS} ${effectiveWrapClass} ${monospaceCodeClass}`
 
   const asciiNode = (
@@ -344,7 +360,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     </section>
   )
 
-  const headerNode = opts.markdownCardPreviewMode === true ? null : (
+  const headerNode = cardPreviewMode ? null : (
     <header
       className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}
     >
@@ -432,7 +448,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
       {isAsciiDiagram ? (
         asciiNode
       ) : isRender ? (
-        <section className={`relative ${isMermaidLang ? 'overflow-hidden' : 'overflow-auto'} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}>
+        <section className={`relative ${cardPreviewMode ? 'overflow-y-auto overflow-x-hidden' : (isMermaidLang ? 'overflow-hidden' : 'overflow-auto')} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}>
           {isMermaidLang ? (
             <section className="flex flex-col gap-3 p-3">
               {(() => {
@@ -452,14 +468,15 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
                           overlayScope={opts.previewOverlayScope}
                           overlayPortalTarget={opts.previewOverlayPortalTarget}
                           variant="codeblock"
-                          enablePanZoom
-                          wheelZoomRequiresModifier={false}
-                          wheelZoomBehavior="active"
+                          enablePanZoom={!cardPreviewMode}
+                          wheelZoomRequiresModifier={cardPreviewMode ? true : false}
+                          wheelZoomBehavior={cardPreviewMode ? 'modifier' : 'active'}
                         />
                       ) : (
                         <PlainMermaidDiagramLazy
                           code={diagramCode}
                           rootThemeMode={opts.rootThemeMode}
+                          cardPreviewMode={cardPreviewMode}
                         />
                       )}
                     </MermaidVisibilityGate>
@@ -571,8 +588,10 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
                 <section className={codeFenceContentClassName}>
                   <img
                     src={src}
-                    alt={alt}
-                    className={`inline-block max-w-full h-auto rounded border ${UI_THEME_TOKENS.code.border}`}
+                  alt={alt}
+                    className={cardPreviewMode
+                      ? 'inline-block max-w-full h-auto'
+                      : `inline-block max-w-full h-auto rounded border ${UI_THEME_TOKENS.code.border}`}
                   />
                 </section>
               )
@@ -610,9 +629,9 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
 
   const editStaticHeaderNode = headerNode
 
-  const codeOuterClassName = [MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS, figureClassName].filter(Boolean).join(' ')
+  const codeOuterClassName = [codeBlockSpacingClassName, figureClassName].filter(Boolean).join(' ')
   const codeGutterWrapperClassName = [
-    MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS,
+    codeBlockSpacingClassName,
     'relative group',
     MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
     MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,

@@ -39,3 +39,11 @@ export const testFlowComputeInlineReadsAndRunsSafeCompute = () => {
   if (!computed) throw new Error('expected safe flow compute source to run')
   if (computed.result !== 'HELLO') throw new Error(`expected computed.result to be HELLO, got ${String(computed.result)}`)
 }
+
+export const testFlowComputeInlineSupportsNeutralComputeContext = () => {
+  invalidateFlowComputeSourceCache()
+  const source = '(inputs, context) => ({ result: `${context.node.label}:${inputs.value}` })'
+  const computed = runFlowComputeSource(source, { value: 42 }, { node: { label: 'Metric' } })
+  if (!computed) throw new Error('expected safe flow compute source with context to run')
+  if (computed.result !== 'Metric:42') throw new Error(`expected computed.result to include context label, got ${String(computed.result)}`)
+}

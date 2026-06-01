@@ -526,7 +526,7 @@ export function MermaidDiagram({
         ref={figureRef}
         className={[
           variant === 'codeblock'
-            ? 'm-0 p-0 rounded-none border-0 bg-transparent overflow-hidden w-full shrink-0'
+            ? 'm-0 p-0 rounded-none border-0 bg-transparent overflow-y-auto overflow-x-hidden w-full shrink-0'
             : `mt-3 mb-3 p-3 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-auto`,
           highlightClass,
         ].filter(Boolean).join(' ')}

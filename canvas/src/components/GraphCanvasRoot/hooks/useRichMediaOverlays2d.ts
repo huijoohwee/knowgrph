@@ -10,7 +10,7 @@ import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
-import { applyPanelBox } from '@/lib/render/mediaPanelLayout'
+import { applyPanelBox, readStableRichMediaPanelSize } from '@/lib/render/mediaPanelLayout'
 import { computeRichMediaOverlayConnectedValuesByNodeId, listDisplayRichMediaOverlayNodes, normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
@@ -390,6 +390,21 @@ export function useRichMediaOverlays2d(args: {
         return d3.zoomTransform(svgEl as unknown as SVGSVGElement)
       },
       getElementForId: id => iframeOverlayElsRef.current.get(id) || null,
+      getPanelSizeForId: id => {
+        const graph = sceneGraphDataRef.current
+        const sim = simulationRef.current
+        const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? graphDataRevision : 0
+        const nodeById = readMergedGraphNodeLookup({
+          cacheRef: iframeNodeByIdRef,
+          cacheScope: 'graph-canvas-root-rich-media-overlays-layout-graph',
+          graphData: graph,
+          graphRevision: rev,
+          simulation: sim,
+        })
+        const n = nodeById.get(id) || null
+        const props = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? n.properties as Record<string, unknown> : null
+        return readStableRichMediaPanelSize(props)
+      },
       getNodeWorldCenterForId: id => {
         const graph = sceneGraphDataRef.current
         const sim = simulationRef.current

@@ -3,6 +3,12 @@ import {
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import {
+  KNOWGRPH_MCP_APP_RESOURCE_URI,
+  buildKnowgrphMcpAppsCapabilities,
+  buildKnowgrphMcpAppsResourceDescriptor,
+  buildKnowgrphMcpAppsResourceReadResult,
+} from "../../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
+import {
   buildAgentSurfaceInspectionPayload,
   createAgentSurfaceInspectionExecutor,
 } from "../../canvas/src/features/agent-ready/agentSurfaceInspection.mjs";
@@ -257,9 +263,17 @@ const mcpServerCard = {
   capabilities: {
     tools: AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
       name: tool.name,
+      title: tool.title,
       description: tool.description,
       inputSchema: tool.inputSchema,
+      outputSchema: tool.outputSchema,
+      annotations: tool.annotations,
+      _meta: tool._meta,
     })),
+    resources: {
+      listChanged: false,
+    },
+    ...buildKnowgrphMcpAppsCapabilities(),
   },
   links: {
     apiCatalog: `${APP_URL}.well-known/api-catalog`,
@@ -268,6 +282,10 @@ const mcpServerCard = {
     agentCard: A2A_AGENT_CARD_URL,
   },
 };
+const mcpAppResource = buildKnowgrphMcpAppsResourceDescriptor({
+  appUrl: APP_URL,
+  updatedAt: UPDATED_AT,
+});
 
 const webMcpTools = AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
   name: tool.webName,
@@ -876,15 +894,14 @@ const mcpInitializeResult = {
   protocolVersion: "2025-06-18",
   capabilities: {
     tools: {},
+    resources: {},
+    ...buildKnowgrphMcpAppsCapabilities(),
   },
   serverInfo: mcpServerCard.serverInfo,
 };
 
-const mcpTools = mcpServerCard.capabilities.tools.map(tool => ({
-  name: tool.name,
-  description: tool.description,
-  inputSchema: tool.inputSchema,
-}));
+const mcpTools = mcpServerCard.capabilities.tools;
+const mcpResources = [mcpAppResource];
 
 const buildHealthStatusBody = () => ({
   status: "pass",
@@ -897,6 +914,7 @@ const buildHealthStatusBody = () => ({
     markdownNegotiation: true,
     httpMcp: true,
     webMcp: true,
+    mcpApps: true,
     commerce: { acp: true, ucp: true, mpp: true, x402: true },
     defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
   },
@@ -1003,6 +1021,17 @@ const executeMcpTool = async (name, args) => {
   return execute(args);
 };
 
+const readMcpResource = (uri) => {
+  if (normalizeToolString(uri) !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
+    throw new Error(`unknown resource: ${uri}`);
+  }
+  return buildKnowgrphMcpAppsResourceReadResult({
+    appUrl: APP_URL,
+    updatedAt: UPDATED_AT,
+    toolNames: mcpTools.map((tool) => tool.name),
+  });
+};
+
 const handleMcpTransport = async (request) => {
   const method = String(request.method || "GET").toUpperCase();
   if (method === "GET" || method === "HEAD") {
@@ -1021,6 +1050,17 @@ const handleMcpTransport = async (request) => {
       return jsonRpcResult(rpc.id, mcpInitializeResult);
     case "tools/list":
       return jsonRpcResult(rpc.id, { tools: mcpTools });
+    case "resources/list":
+      return jsonRpcResult(rpc.id, { resources: mcpResources });
+    case "resources/read": {
+      const uri = normalizeToolString(rpc.params?.uri);
+      if (!uri) return jsonRpcError(rpc.id, -32602, "Resource URI is required");
+      try {
+        return jsonRpcResult(rpc.id, readMcpResource(uri));
+      } catch (error) {
+        return jsonRpcError(rpc.id, -32602, error instanceof Error ? error.message : String(error));
+      }
+    }
     case "tools/call": {
       const toolName = normalizeToolString(rpc.params?.name);
       const toolArgs = rpc.params?.arguments && typeof rpc.params.arguments === "object" ? rpc.params.arguments : {};
@@ -1102,6 +1142,14 @@ export const buildAgentReadyStaticFiles = async () => ({
   ".well-known/agent-skills/index.json": {
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(await agentSkillsIndex(), null, 2),
+  },
+  ".well-known/mcp/apps/knowgrph-agent-ready.html": {
+    contentType: "text/html;profile=mcp-app; charset=utf-8",
+    body: buildKnowgrphMcpAppsResourceReadResult({
+      appUrl: APP_URL,
+      updatedAt: UPDATED_AT,
+      toolNames: mcpTools.map((tool) => tool.name),
+    }).contents[0].text,
   },
   ...agentSkillStaticFiles(),
   ".well-known/http-message-signatures-directory": {
@@ -1201,7 +1249,7 @@ export async function onRequest(context) {
       status: 204,
       headers: {
         "access-control-allow-origin": "*",
-        "access-control-allow-methods": "GET, HEAD, OPTIONS",
+        "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
         "access-control-allow-headers": "*",
         "access-control-max-age": "86400",
       },

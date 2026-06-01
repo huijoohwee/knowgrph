@@ -1,4 +1,10 @@
 import { buildKnowgrphAgentReadyToolContracts } from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
+import {
+  KNOWGRPH_MCP_APPS_EXTENSION_ID,
+  KNOWGRPH_MCP_APPS_PROTOCOL_VERSION,
+  KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE,
+  KNOWGRPH_MCP_APP_RESOURCE_URI,
+} from '../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs'
 import { encodePublishedDocShareToken, PUBLISHED_DOC_SHARE_TOKEN_PARAM } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
 import { buildAgentReadyDiscoveryExpectations } from '../cloudflare/pages/knowgrph-agent-ready-discovery.mjs'
 import { buildAgentReadyCommerceChecks } from './agent-ready-commerce-checks.mjs'
@@ -338,6 +344,9 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
+      const inspectTool = Array.isArray(payload.capabilities?.tools)
+        ? payload.capabilities.tools.find((tool) => tool?.name === 'inspect_agent_surface')
+        : null
       const tools = Array.isArray(payload.capabilities?.tools)
         ? payload.capabilities.tools.map((tool) => ({
             name: tool?.name,
@@ -353,6 +362,10 @@ const checks = [
         && Array.isArray(tools)
         && tools.length === expectedMcpToolEntries.length
         && JSON.stringify(tools) === JSON.stringify(expectedMcpToolEntries)
+        && payload.capabilities?.resources
+        && payload.capabilities?.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]?.mimeTypes?.includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)
+        && inspectTool?._meta?.ui?.resourceUri === KNOWGRPH_MCP_APP_RESOURCE_URI
+        && inspectTool?.outputSchema?.type === 'object'
     },
   },
   {
@@ -383,7 +396,12 @@ const checks = [
     }),
     assert: async (response, body) => {
       const payload = JSON.parse(body)
-      return response.ok && payload.jsonrpc === '2.0' && payload.result?.serverInfo?.name && payload.result?.capabilities?.tools
+      return response.ok
+        && payload.jsonrpc === '2.0'
+        && payload.result?.serverInfo?.name
+        && payload.result?.capabilities?.tools
+        && payload.result?.capabilities?.resources
+        && payload.result?.capabilities?.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]?.mimeTypes?.includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)
     },
   },
   {
@@ -398,6 +416,9 @@ const checks = [
     }),
     assert: async (response, body) => {
       const payload = JSON.parse(body)
+      const inspectTool = Array.isArray(payload.result?.tools)
+        ? payload.result.tools.find((tool) => tool?.name === 'inspect_agent_surface')
+        : null
       const tools = Array.isArray(payload.result?.tools)
         ? payload.result.tools.map((tool) => ({
             name: tool?.name,
@@ -409,6 +430,60 @@ const checks = [
         && Array.isArray(tools)
         && tools.length === expectedMcpToolEntries.length
         && JSON.stringify(tools) === JSON.stringify(expectedMcpToolEntries)
+        && inspectTool?._meta?.ui?.resourceUri === KNOWGRPH_MCP_APP_RESOURCE_URI
+        && inspectTool?.outputSchema?.type === 'object'
+    },
+  },
+  {
+    name: 'mcp-apps-resources-list',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 23,
+      method: 'resources/list',
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const resource = Array.isArray(payload.result?.resources)
+        ? payload.result.resources.find((entry) => entry?.uri === KNOWGRPH_MCP_APP_RESOURCE_URI)
+        : null
+      return response.ok
+        && resource?.mimeType === KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE
+        && resource?._meta?.ui?.prefersBorder === true
+    },
+  },
+  {
+    name: 'mcp-apps-resources-read',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 24,
+      method: 'resources/read',
+      params: { uri: KNOWGRPH_MCP_APP_RESOURCE_URI },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const content = payload.result?.contents?.[0]
+      return response.ok
+        && content?.uri === KNOWGRPH_MCP_APP_RESOURCE_URI
+        && content?.mimeType === KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE
+        && content?._meta?.ui?.prefersBorder === true
+        && String(content?.text || '').includes(KNOWGRPH_MCP_APPS_PROTOCOL_VERSION)
+        && String(content?.text || '').includes("request('ui/initialize'")
+        && String(content?.text || '').includes('appCapabilities')
+        && String(content?.text || '').includes('ui/notifications/initialized')
+        && String(content?.text || '').includes('ui/notifications/tool-result')
+        && String(content?.text || '').includes('ui/notifications/tool-input-partial')
+        && String(content?.text || '').includes('ui/notifications/tool-cancelled')
+        && String(content?.text || '').includes('ui/notifications/host-context-changed')
+        && String(content?.text || '').includes('ui/notifications/size-changed')
+        && String(content?.text || '').includes('mcpAppsServerReadiness')
+        && String(content?.text || '').includes('MCP Apps server-ready')
+        && String(content?.text || '').includes('tools/call')
     },
   },
   {
@@ -543,6 +618,14 @@ const checks = [
         && result?.healthUrl === `${canonicalBaseUrl}/health`
         && result?.mcpUrl === `${canonicalBaseUrl}/mcp`
         && result?.mcpServerCard?.transport?.url === `${canonicalBaseUrl}/mcp`
+        && result?.mcpAppsServerReadiness?.ready === true
+        && result.mcpAppsServerReadiness.tool?.name === 'inspect_agent_surface'
+        && result.mcpAppsServerReadiness.resource?.mimeType === KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE
+        && Array.isArray(result.mcpAppsServerReadiness.transports)
+        && result.mcpAppsServerReadiness.transports.some((transport) => transport?.id === 'pages-http-jsonrpc')
+        && result.mcpAppsServerReadiness.transports.some((transport) => transport?.id === 'local-stdio-jsonrpc')
+        && Array.isArray(result.mcpAppsServerReadiness.checklist)
+        && result.mcpAppsServerReadiness.checklist.every((check) => check?.ok === true)
         && Array.isArray(result?.agentSkills?.skills)
         && result.agentSkills.skills.length > 0
     },

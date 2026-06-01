@@ -29,6 +29,7 @@ type CanvasViewActionParams = {
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
+  requestFlowEditorLayoutRebalance?: () => void
 }
 
 export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
@@ -55,6 +56,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
     setMultiDimTableModeEnabled,
+    requestFlowEditorLayoutRebalance,
   } = params
 
   if (!ensureBaselineUnlocked()) return
@@ -83,6 +85,11 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
         mode: nextMode,
       },
     })
+    return
+  }
+  if (id === 'layout:flowEditorRebalance') {
+    if (canvasRenderMode !== '2d' || canvas2dRenderer !== 'flowEditor') return
+    requestFlowEditorLayoutRebalance?.()
     return
   }
   if (id === 'document:menu') {

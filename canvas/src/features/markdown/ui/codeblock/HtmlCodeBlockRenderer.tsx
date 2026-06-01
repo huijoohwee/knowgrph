@@ -29,6 +29,7 @@ export function HtmlCodeBlockRenderer({
       uiPanelTextFontClass: opts.uiPanelTextFontClass,
       uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
       markdownPresentationMode: opts.markdownPresentationMode,
+      markdownCardPreviewMode: opts.markdownCardPreviewMode,
       renderNodeText: (text, key) => <React.Fragment key={key}>{text}</React.Fragment>,
       fragmentOptions:
         opts.markdownPresentationMode && fragmentsEnabled
@@ -47,6 +48,7 @@ export function HtmlCodeBlockRenderer({
     fragmentsEnabled,
     html,
     opts.activeDocumentPath,
+    opts.markdownCardPreviewMode,
     opts.markdownPresentationMode,
     opts.uiPanelMonospaceTextClass,
     opts.uiPanelTextFontClass,

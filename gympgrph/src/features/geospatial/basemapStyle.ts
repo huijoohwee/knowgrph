@@ -18,9 +18,11 @@ export const normalizeGeospatialViewMode = (mode: unknown): GeospatialViewMode =
       ? '3d'
       : mode === '2d-modern'
         ? '2d-modern'
-        : mode === '2d-svg'
-          ? '2d-svg'
-          : DEFAULT_GEOSPATIAL_VIEW_MODE
+        : mode === '2d'
+          ? '2d'
+          : mode === '2d-svg'
+            ? '2d-svg'
+            : DEFAULT_GEOSPATIAL_VIEW_MODE
 }
 
 export const getBuiltInDefaultStyleUrl = (mode: GeospatialViewMode): string => {

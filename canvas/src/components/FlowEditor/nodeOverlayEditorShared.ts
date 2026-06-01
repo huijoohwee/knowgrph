@@ -2,6 +2,15 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { Z_INDEX_GRAPH_OVERLAY_BASE, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
+export {
+  RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX as RICH_MEDIA_ASPECT_DEFAULT_HEIGHT,
+  RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
+  RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX as RICH_MEDIA_ASPECT_DEFAULT_WIDTH,
+} from '@/lib/render/richMediaPanelDefaults'
+export {
+  handleWidgetInnerPanelScrollCapture,
+  handleWidgetInnerPanelWheelCapture,
+} from '@/lib/canvas/widgetInnerPanelScrolling'
 
 export type NodeOverlayEditorProps = {
   visible?: boolean
@@ -53,5 +62,3 @@ export const WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX = 8
 export const WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX = 220
 export const RICH_MEDIA_ASPECT_MIN_WIDTH = 220
 export const RICH_MEDIA_ASPECT_MIN_HEIGHT = 160
-export const RICH_MEDIA_ASPECT_DEFAULT_WIDTH = 280
-export const RICH_MEDIA_ASPECT_DEFAULT_HEIGHT = 180

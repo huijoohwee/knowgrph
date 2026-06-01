@@ -1,4 +1,10 @@
 import { buildKnowgrphAgentReadyToolContracts } from '@/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
+import {
+  KNOWGRPH_MCP_APPS_EXTENSION_ID,
+  KNOWGRPH_MCP_APPS_PROTOCOL_VERSION,
+  KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE,
+  KNOWGRPH_MCP_APP_RESOURCE_URI,
+} from '@/features/agent-ready/mcpAppsReadyContract.mjs'
 import { buildAgentSurfaceInspectionPayload } from '@/features/agent-ready/agentSurfaceInspection.mjs'
 import { createPublishedAgentReadyToolExecutors } from '@/features/agent-ready/publishedToolExecutors.mjs'
 import { onRequest, buildAgentReadyStaticFiles } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
@@ -105,6 +111,7 @@ export async function testPublishedToolExecutorsSharePublishedBehavior(): Promis
 export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly(): Promise<void> {
   const staticArtifacts = await buildAgentReadyStaticFiles()
   const serverCard = JSON.parse(staticArtifacts['.well-known/mcp/server-card.json'].body)
+  const staticMcpAppHtml = staticArtifacts['.well-known/mcp/apps/knowgrph-agent-ready.html']
   const acpDiscovery = JSON.parse(staticArtifacts['.well-known/acp.json'].body)
   const ucpProfile = JSON.parse(staticArtifacts['.well-known/ucp'].body)
   const mppOpenApi = JSON.parse(staticArtifacts['openapi.json'].body)
@@ -121,6 +128,27 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   if (!Array.isArray(paymentRequired.accepts) || paymentRequired.accepts.length <= 0) {
     throw new Error(`expected x402 payment-required response body, got ${JSON.stringify(paymentRequired)}`)
   }
+  if (
+    !staticMcpAppHtml
+    || !String(staticMcpAppHtml.contentType || '').includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)
+    || !String(staticMcpAppHtml.body || '').includes(KNOWGRPH_MCP_APP_RESOURCE_URI)
+    || !String(staticMcpAppHtml.body || '').includes(KNOWGRPH_MCP_APPS_PROTOCOL_VERSION)
+    || !String(staticMcpAppHtml.body || '').includes("request('ui/initialize'")
+    || !String(staticMcpAppHtml.body || '').includes('appCapabilities')
+    || !String(staticMcpAppHtml.body || '').includes('ui/notifications/initialized')
+    || !String(staticMcpAppHtml.body || '').includes('ui/notifications/size-changed')
+    || !String(staticMcpAppHtml.body || '').includes('ui/notifications/host-context-changed')
+    || !String(staticMcpAppHtml.body || '').includes('mcpAppsServerReadiness')
+    || !String(staticMcpAppHtml.body || '').includes('MCP Apps server-ready')
+  ) {
+    throw new Error(`expected static MCP Apps HTML artifact to be generated from the shared app resource contract, got ${JSON.stringify(staticMcpAppHtml)}`)
+  }
+  if (!serverCard.capabilities?.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]?.mimeTypes?.includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)) {
+    throw new Error(`expected mcp server-card to advertise MCP Apps extension capability, got ${JSON.stringify(serverCard.capabilities)}`)
+  }
+  if (!serverCard.capabilities?.resources) {
+    throw new Error(`expected mcp server-card to advertise resources capability, got ${JSON.stringify(serverCard.capabilities)}`)
+  }
   const serverCardTools = Array.isArray(serverCard.capabilities?.tools)
     ? serverCard.capabilities.tools.map((tool: Record<string, unknown>) => ({
         name: tool?.name,
@@ -130,6 +158,47 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     : null
   if (!Array.isArray(serverCardTools) || JSON.stringify(serverCardTools) !== JSON.stringify(EXPECTED_MCP_TOOL_ENTRIES)) {
     throw new Error(`expected mcp server-card tools to match the shared contract exactly, got ${JSON.stringify(serverCardTools)}`)
+  }
+  const serverCardInspectTool = serverCard.capabilities.tools.find((tool: Record<string, unknown>) => tool?.name === 'inspect_agent_surface')
+  if (serverCardInspectTool?._meta?.ui?.resourceUri !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
+    throw new Error(`expected inspect_agent_surface server-card tool to link the MCP Apps UI resource, got ${JSON.stringify(serverCardInspectTool)}`)
+  }
+  if (serverCardInspectTool?.outputSchema?.type !== 'object') {
+    throw new Error(`expected inspect_agent_surface server-card tool to expose a structured outputSchema, got ${JSON.stringify(serverCardInspectTool)}`)
+  }
+
+  const initializeResponse = await onRequest({
+    request: new Request('https://airvio.co/knowgrph/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 10,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-06-18',
+          capabilities: {
+            extensions: {
+              [KNOWGRPH_MCP_APPS_EXTENSION_ID]: {
+                mimeTypes: [KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE],
+              },
+            },
+          },
+          clientInfo: { name: 'knowgrph-test-host', version: '1.0.0' },
+        },
+      }),
+    }),
+    env: {},
+    next: async () => new Response('unexpected next()'),
+  } as never)
+
+  const initializePayload = await initializeResponse.json() as { result?: { capabilities?: Record<string, unknown> } }
+  if (!initializeResponse.ok || !(initializePayload.result?.capabilities as Record<string, unknown>)?.resources) {
+    throw new Error(`expected MCP initialize to advertise resources, got ${JSON.stringify(initializePayload)}`)
+  }
+  const initializeExtensions = (initializePayload.result?.capabilities as { extensions?: Record<string, { mimeTypes?: string[] }> } | undefined)?.extensions
+  if (!initializeExtensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]?.mimeTypes?.includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)) {
+    throw new Error(`expected MCP initialize to advertise MCP Apps mime type, got ${JSON.stringify(initializePayload)}`)
   }
 
   const response = await onRequest({
@@ -149,7 +218,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   if (!response.ok) {
     throw new Error(`expected MCP tools/list to succeed, received ${response.status}`)
   }
-  const payload = await response.json() as { result?: { tools?: Array<Record<string, unknown>> } }
+  const payload = await response.json() as { result?: { tools?: Array<any> } }
   const tools = Array.isArray(payload.result?.tools)
     ? payload.result.tools.map((tool) => ({
         name: tool?.name,
@@ -159,6 +228,62 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     : null
   if (!Array.isArray(tools) || JSON.stringify(tools) !== JSON.stringify(EXPECTED_MCP_TOOL_ENTRIES)) {
     throw new Error(`expected MCP tools/list payload to match the shared contract exactly, got ${JSON.stringify(tools)}`)
+  }
+  const inspectTool = payload.result?.tools?.find((tool) => tool?.name === 'inspect_agent_surface')
+  if (inspectTool?._meta?.ui?.resourceUri !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
+    throw new Error(`expected MCP tools/list inspect_agent_surface tool to link the MCP Apps UI resource, got ${JSON.stringify(inspectTool)}`)
+  }
+  if (inspectTool?.outputSchema?.type !== 'object') {
+    throw new Error(`expected MCP tools/list inspect_agent_surface tool to expose outputSchema, got ${JSON.stringify(inspectTool)}`)
+  }
+
+  const resourcesListResponse = await onRequest({
+    request: new Request('https://airvio.co/knowgrph/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 11,
+        method: 'resources/list',
+      }),
+    }),
+    env: {},
+    next: async () => new Response('unexpected next()'),
+  } as never)
+  const resourcesListPayload = await resourcesListResponse.json() as { result?: { resources?: Array<any> } }
+  const appResource = resourcesListPayload.result?.resources?.find((resource) => resource?.uri === KNOWGRPH_MCP_APP_RESOURCE_URI)
+  if (!resourcesListResponse.ok || appResource?.mimeType !== KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE || appResource?._meta?.ui?.prefersBorder !== true) {
+    throw new Error(`expected MCP resources/list to expose the MCP Apps HTML resource, got ${JSON.stringify(resourcesListPayload)}`)
+  }
+
+  const resourcesReadResponse = await onRequest({
+    request: new Request('https://airvio.co/knowgrph/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 12,
+        method: 'resources/read',
+        params: { uri: KNOWGRPH_MCP_APP_RESOURCE_URI },
+      }),
+    }),
+    env: {},
+    next: async () => new Response('unexpected next()'),
+  } as never)
+  const resourcesReadPayload = await resourcesReadResponse.json() as { result?: { contents?: Array<any> } }
+  const appResourceContent = resourcesReadPayload.result?.contents?.[0]
+  if (
+    !resourcesReadResponse.ok
+    || appResourceContent?.mimeType !== KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE
+    || !String(appResourceContent?.text || '').includes("request('ui/initialize'")
+    || !String(appResourceContent?.text || '').includes('ui/notifications/tool-result')
+    || !String(appResourceContent?.text || '').includes('ui/notifications/tool-input-partial')
+    || !String(appResourceContent?.text || '').includes('ui/notifications/tool-cancelled')
+    || !String(appResourceContent?.text || '').includes('ui/notifications/size-changed')
+    || !String(appResourceContent?.text || '').includes('mcpAppsServerReadiness')
+    || appResourceContent?._meta?.ui?.prefersBorder !== true
+  ) {
+    throw new Error(`expected MCP resources/read to return native MCP Apps HTML content, got ${JSON.stringify(resourcesReadPayload)}`)
   }
 
   const inspectResponse = await onRequest({
@@ -195,5 +320,9 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   })
   if (JSON.stringify(inspectPayload.result?.structuredContent) !== JSON.stringify(expectedInspection)) {
     throw new Error(`expected MCP inspect_agent_surface payload to match the shared inspection payload exactly, got ${JSON.stringify(inspectPayload.result?.structuredContent)}`)
+  }
+  const readiness = (inspectPayload.result?.structuredContent as { mcpAppsServerReadiness?: { ready?: boolean, checklist?: Array<{ ok?: boolean }> } } | undefined)?.mcpAppsServerReadiness
+  if (readiness?.ready !== true || !Array.isArray(readiness.checklist) || !readiness.checklist.every((check) => check.ok === true)) {
+    throw new Error(`expected inspect_agent_surface to expose complete MCP Apps server-readiness, got ${JSON.stringify(readiness)}`)
   }
 }

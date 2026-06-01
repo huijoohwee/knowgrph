@@ -221,6 +221,7 @@ export default function FlowCanvas({
   const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
   const plannedOverlayNodeIdsKeyRef = React.useRef('')
   const selectionBoxRafRef = React.useRef<number | null>(null)
+  const mediaOverlayInteractionFrameSchedulerRef = React.useRef<null | (() => void)>(null)
   const requestSetSelectionBox = React.useCallback((next: null | { left: number; top: number; width: number; height: number }) => {
     if (selectionBoxRafRef.current != null) cancelAnimationFrame(selectionBoxRafRef.current)
     selectionBoxRafRef.current = requestAnimationFrame(() => {
@@ -249,8 +250,12 @@ export default function FlowCanvas({
 
   const handleInteractionFrame = React.useCallback(() => {
     lastUserInteractionAtMsRef.current = Date.now()
+    if (canvas2dRenderer === 'flowEditor') mediaOverlayInteractionFrameSchedulerRef.current?.()
     onInteractionFrame?.()
-  }, [onInteractionFrame])
+  }, [canvas2dRenderer, onInteractionFrame])
+  const registerMediaOverlayInteractionFrameScheduler = React.useCallback((scheduler: null | (() => void)) => {
+    mediaOverlayInteractionFrameSchedulerRef.current = scheduler
+  }, [])
   const buildDrawArgs = React.useCallback(() => drawArgsRef.current, [])
 
   const drawRafRef = React.useRef<number | null>(null)
@@ -512,6 +517,7 @@ export default function FlowCanvas({
         overlaySizing={overlaySizing}
         flowEditorSurfaceId={flowEditorSurfaceId}
         onPlannedOverlayNodeIdsChange={handlePlannedOverlayNodeIdsChange}
+        registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}
       />
       {selectionBox ? (
         <section

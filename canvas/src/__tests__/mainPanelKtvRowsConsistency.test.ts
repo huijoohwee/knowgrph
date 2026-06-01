@@ -8,15 +8,26 @@ const readUtf8 = (absPath: string): string => {
 export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const root = process.cwd()
   const keyTypeValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'KeyTypeValueRow.tsx'))
+  const sharedKtvRows = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'ui', 'keyTypeValueRows.ts'))
   const settingsEntryRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsEntryRow.tsx'))
   const settingsEntryInput = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'settingsEntryRow.input.tsx'))
   const settingsView = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsView.tsx'))
   const settingsUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'ui.tsx'))
 
-  if (!keyTypeValueRow.includes('rowValueCellClassName')) {
-    throw new Error('Expected KeyTypeValueRow to own one shared value-cell layout class')
+  if (!keyTypeValueRow.includes("from 'grph-shared/ui/keyTypeValueRows'")) {
+    throw new Error('Expected KeyTypeValueRow to import the shared KTV row class contract')
   }
-  const valueCellUses = keyTypeValueRow.match(/rowValueCellClassName/g)?.length ?? 0
+  for (const exportedClassName of [
+    'KTV_ROW_TEXT_CELL_CLASS_NAME',
+    'KTV_ROW_LABEL_CELL_CLASS_NAME',
+    'KTV_ROW_VALUE_CELL_CLASS_NAME',
+    'KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME',
+  ]) {
+    if (!sharedKtvRows.includes(`export const ${exportedClassName}`)) {
+      throw new Error(`Expected shared KTV rows module to export ${exportedClassName}`)
+    }
+  }
+  const valueCellUses = keyTypeValueRow.match(/KTV_ROW_VALUE_CELL_CLASS_NAME/g)?.length ?? 0
   if (valueCellUses < 5) {
     throw new Error('Expected all KeyTypeValueRow layouts to reuse the shared value-cell class')
   }

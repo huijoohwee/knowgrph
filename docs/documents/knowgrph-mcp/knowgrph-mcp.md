@@ -15,8 +15,9 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 
 | Surface | Status | Canonical owner | Notes |
 |---|---|---|---|
-| Local stdio MCP | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` | local UI launch, local pipelines, local browser bridge |
-| Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP on `/knowgrph/mcp` |
+| Local stdio MCP | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` | local UI launch, local pipelines, local browser bridge, and local MCP Apps resource support |
+| Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP on `/knowgrph/mcp`, including tool and resource discovery |
+| MCP Apps resource/server-readiness | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` + `cloudflare/pages/knowgrph-agent-ready.mjs` + `mcp/server.js` | native `io.modelcontextprotocol/ui` capability, `ui://knowgrph/agent-ready`, `text/html;profile=mcp-app`, `resources/list`, `resources/read`, and `mcpAppsServerReadiness` |
 | Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | shared five-tool WebMCP injection on `/knowgrph` HTML routes |
 | Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, and browser-local E2E readiness inspectors |
 | MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
@@ -41,10 +42,30 @@ The current shipped MCP-aware path is:
 Guardrails:
 
 - WebMCP is already implemented in repo and must not be described as future-only work.
+- MCP Apps-ready means the shipped MCP servers expose a native UI resource and tool linkage; the repo does not copy the upstream `modelcontextprotocol/ext-apps` examples or add an ext-apps runtime dependency for the current resource.
+- The canonical MCP Apps resource URI is `ui://knowgrph/agent-ready` and its MIME type is `text/html;profile=mcp-app`.
+- `inspect_agent_surface.structuredContent.mcpAppsServerReadiness` is the canonical server-readiness model for app tool/resource binding, output schema, text fallback, structured content, sandbox metadata, HTTP JSON-RPC transport, and local stdio transport.
+- Local stdio and Pages HTTP MCP both expose resource discovery and resource read handling from the shared MCP Apps-ready contract.
 - Browser WebMCP inspection now reaches Settings chat readiness plus chat validation/finalize/apply diagnostics while remaining read-only.
 - `flow.subgraphs` is the sole upstream grouping authoring surface.
 - Rendered groups and clusters are downstream projections, not a second authoring SSOT.
 - Public/browser storage URLs stay canonical on `https://airvio.co/api/storage/*`; server-side reads use `https://knowgrph-storage.huijoohwee.workers.dev`.
+
+---
+
+## MCP Apps Reference Boundary
+
+As of 2026-05-31, the upstream MCP Apps reference points Knowgrph cares about are:
+
+- MCP Apps is an optional MCP extension identified by `io.modelcontextprotocol/ui`.
+- UI resources use the `ui://` scheme and HTML resources use `text/html;profile=mcp-app`.
+- Tools link to UI resources through `_meta.ui.resourceUri`.
+- App resources are listed and read through MCP resource handlers, then sandboxed by the host.
+- Tool results must remain useful without UI through text fallback and structured output.
+
+Knowgrph implements those primitives natively through the owners above. The upstream `modelcontextprotocol/ext-apps` repository and docs are references only; they are not copied into this repo.
+
+References: [MCP Apps overview](https://modelcontextprotocol.io/extensions/apps/overview), [MCP Apps specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), [MCP Apps API docs](https://apps.extensions.modelcontextprotocol.io/api/).
 
 ---
 

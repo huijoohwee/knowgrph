@@ -1,8 +1,24 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
+import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
+import { computeTransformScaleAboutScreenPoint, screenToWorld } from '@/lib/zoom/viewport'
+
+function readSourceFilesUnder(dir: string): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  const files: string[] = []
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...readSourceFilesUnder(full))
+      continue
+    }
+    if (/\.[cm]?[tj]sx?$/.test(entry.name)) files.push(full)
+  }
+  return files
+}
 
 export function testFlowEditorWidgetCollectiveScaleDoesNotReverseZoomDirection() {
   const zoomOut = computeCollectiveFollowPinnedScale({
@@ -104,6 +120,198 @@ export function testFlowEditorRichMediaCollectiveSizingDoesNotReverseZoomDirecti
   }
 }
 
+export function testFlowEditorCollectiveScaleUsesRequestedLayoutAspect() {
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const neutralZoomPath = path.join(srcRoot, 'lib', 'canvas', 'overlayWidgetZoom.ts')
+  const neutralText = fs.readFileSync(neutralZoomPath, 'utf8')
+  const collectiveStart = neutralText.indexOf('export function computeCollectiveFollowPinnedScale')
+  if (collectiveStart < 0) {
+    throw new Error('expected neutral overlay zoom owner to expose collective scale helper')
+  }
+  const collectiveBody = neutralText.slice(collectiveStart)
+  if (!collectiveBody.includes('width: baseWidth * candidate') || !collectiveBody.includes('height: baseHeight * candidate')) {
+    throw new Error('expected collective zoom fit loop to measure the requested base layout size instead of widget-only dimensions')
+  }
+  if (collectiveBody.includes('const panel = computeWidgetScaledSize(candidate)')) {
+    throw new Error('expected collective zoom fit loop to avoid widget-only sizing for rich-media panel collectives')
+  }
+
+  const landscapeScale = computeCollectiveFollowPinnedScale({
+    zoomK: 1,
+    viewportW: 1280,
+    viewportH: 720,
+    count: 12,
+    baseWidth: 320,
+    baseHeight: 180,
+    hardMinScale: 0.05,
+    hardMaxScale: 1,
+  })
+  const portraitScale = computeCollectiveFollowPinnedScale({
+    zoomK: 1,
+    viewportW: 1280,
+    viewportH: 720,
+    count: 12,
+    baseWidth: 180,
+    baseHeight: 320,
+    hardMinScale: 0.05,
+    hardMaxScale: 1,
+  })
+  if (Math.abs(landscapeScale - portraitScale) <= 0.01) {
+    throw new Error(`expected collective zoom scale to react to caller-provided layout aspect, got landscape=${landscapeScale} portrait=${portraitScale}`)
+  }
+}
+
+export function testFlowEditorLiveCollectiveScaleFollowsZoomWithoutViewportFitClamp() {
+  const viewport = { viewportW: 909, viewportH: 801, count: 19, baseWidth: 360, baseHeight: 520 }
+  const followNeutral = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: 1,
+    fitToViewport: false,
+  })
+  const followZoomIn = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: 1.25,
+    fitToViewport: false,
+  })
+  const fittedZoomIn = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: 1.25,
+  })
+  if (!(followZoomIn > followNeutral)) {
+    throw new Error(`expected Flow Editor live collective scale to grow with zoom, neutral=${followNeutral} zoomIn=${followZoomIn}`)
+  }
+  if (!(fittedZoomIn <= followZoomIn)) {
+    throw new Error(`expected viewport-fit collective scale to remain the fit/reset path, fitted=${fittedZoomIn} follow=${followZoomIn}`)
+  }
+
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const placementText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts'), 'utf8')
+  if (!placementText.includes('fitToViewport: false')) {
+    throw new Error('expected Flow Editor widget placement to follow zoom instead of fitting every zoom step back into the viewport')
+  }
+  const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
+  if (!mediaText.includes("fitToViewport: canvas2dRenderer === 'flowEditor' ? false : undefined")) {
+    throw new Error('expected rich-media zoom follow mode to stay scoped to Flow Editor and avoid Flow Canvas seepage')
+  }
+}
+
+export function testFlowEditorRichMediaZoomCoercionMaintainsIndividualAspectRatio() {
+  const samples = [
+    { width: 96, height: 54, viewportW: 640, viewportH: 360 },
+    { width: 960, height: 540, viewportW: 640, viewportH: 360 },
+    { width: 54, height: 96, viewportW: 640, viewportH: 900 },
+  ]
+  for (const sample of samples) {
+    const targetAspect = sample.width / sample.height
+    const coerced = coerceRichMediaPanelSizePx({
+      width: sample.width,
+      height: sample.height,
+      viewportW: sample.viewportW,
+      viewportH: sample.viewportH,
+      minWidthPx: 220,
+      minHeightPx: 160,
+    })
+    const actualAspect = coerced.width / coerced.height
+    if (Math.abs(actualAspect - targetAspect) > 0.01) {
+      throw new Error(`expected zoom-bound rich-media panel size to preserve individual aspect, target=${targetAspect} actual=${actualAspect}`)
+    }
+    if (coerced.width < 220 || coerced.height < 160) {
+      throw new Error(`expected rich-media zoom coercion to preserve minimum usable panel size, got ${coerced.width}x${coerced.height}`)
+    }
+  }
+}
+
+export function testFlowEditorZoomInOutUsesVisibleCanvasCenterAsContextualAnchor() {
+  const applyZoomPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts')
+  const applyZoomText = fs.readFileSync(applyZoomPath, 'utf8')
+  for (const snippet of [
+    'computeTransformScaleAboutScreenPoint',
+    'const isFlowEditorContextualZoomRequest =',
+    'focalX: visibleViewport.centerX',
+    'focalY: visibleViewport.centerY',
+    'const shouldRecenterFlowEditorCollectiveAfterZoom =',
+    'const resolved = isFlowEditorFitLikeRequest && flowEditorOverlayFitResolved',
+  ]) {
+    if (!applyZoomText.includes(snippet)) {
+      throw new Error(`expected Flow Editor zoom in/out to use visible canvas center contextual zoom behavior: ${snippet}`)
+    }
+  }
+
+  const current = { k: 0.8, x: -120, y: 36 }
+  const focal = { x: 612, y: 360 }
+  const beforeWorld = screenToWorld({ transform: current, sx: focal.x, sy: focal.y })
+  const next = computeTransformScaleAboutScreenPoint({
+    transform: current,
+    focalX: focal.x,
+    focalY: focal.y,
+    nextK: 1.25,
+  })
+  const afterWorld = screenToWorld({ transform: next, sx: focal.x, sy: focal.y })
+  if (Math.abs(afterWorld.x - beforeWorld.x) > 1e-9 || Math.abs(afterWorld.y - beforeWorld.y) > 1e-9) {
+    throw new Error(`expected contextual zoom focal world point to remain stable, before=${JSON.stringify(beforeWorld)} after=${JSON.stringify(afterWorld)}`)
+  }
+}
+
+export function testRuntimeZoomDispatchDoesNotGate2dZoomOnGeospatialBridge() {
+  const dispatchPath = path.resolve(process.cwd(), 'src', 'lib', 'canvas', 'runtimeZoomDispatch.ts')
+  const text = fs.readFileSync(dispatchPath, 'utf8')
+  const zoomBranch = text.indexOf("if (store.canvasRenderMode === '2d') {\n    store.requestZoom(type)")
+  const geospatialRead = text.indexOf('const geospatialEnabled = await readGeospatialModeEnabled()')
+  if (zoomBranch < 0 || geospatialRead < 0 || zoomBranch > geospatialRead) {
+    throw new Error('expected 2D runtime zoom dispatch to request zoom before awaiting the geospatial bridge')
+  }
+  const fitBranch = text.indexOf("if (store.canvasRenderMode === '2d') {\n    store.requestZoom('fit', { intent })")
+  const fitGeospatialRead = text.indexOf('const geospatialEnabled = await readGeospatialModeEnabled().catch(() => false)', geospatialRead + 1)
+  if (fitBranch < 0 || fitGeospatialRead < 0 || fitBranch > fitGeospatialRead) {
+    throw new Error('expected 2D runtime fit dispatch to request zoom before awaiting the geospatial bridge')
+  }
+}
+
+export function testFlowCanvasZoomHelpersStayRendererNeutral() {
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const neutralZoomPath = path.join(srcRoot, 'lib', 'canvas', 'overlayWidgetZoom.ts')
+  const legacyFlowEditorZoomPath = path.join(srcRoot, 'components', 'FlowEditor', 'widgetZoom.ts')
+  const flowCanvasFiles = readSourceFilesUnder(path.join(srcRoot, 'components', 'FlowCanvas'))
+  const forbiddenFlowEditorOwners = [
+    '@/components/FlowEditor/widgetZoom',
+    '@/components/FlowEditor/useNodeOverlayPlacementRuntime',
+    'components/FlowEditor/widgetZoom',
+    'components/FlowEditor/useNodeOverlayPlacementRuntime',
+  ]
+
+  if (!fs.existsSync(neutralZoomPath)) {
+    throw new Error('expected overlay zoom sizing to live in the neutral canvas helper owner')
+  }
+  if (fs.existsSync(legacyFlowEditorZoomPath)) {
+    throw new Error('expected legacy Flow Editor widget zoom owner to be removed instead of kept as a renderer alias')
+  }
+
+  const neutralText = fs.readFileSync(neutralZoomPath, 'utf8')
+  if (!neutralText.includes('export function computeCollectiveFollowPinnedScale') || !neutralText.includes('export function computeWidgetScaledSize')) {
+    throw new Error('expected neutral overlay zoom owner to export collective scale and widget size helpers')
+  }
+
+  for (const file of flowCanvasFiles) {
+    const text = fs.readFileSync(file, 'utf8')
+    for (const owner of forbiddenFlowEditorOwners) {
+      if (text.includes(owner)) {
+        throw new Error(`expected Flow Canvas to avoid Flow Editor overlay owner seepage in ${path.relative(srcRoot, file)}`)
+      }
+    }
+  }
+
+  const flowCanvasZoomUsers = flowCanvasFiles.filter(file => {
+    const text = fs.readFileSync(file, 'utf8')
+    return text.includes('computeCollectiveFollowPinnedScale') || text.includes('computeWidgetScale') || text.includes('WIDGET_BASE_SIZE')
+  })
+  if (flowCanvasZoomUsers.length > 0) {
+    const nonNeutralUsers = flowCanvasZoomUsers.filter(file => !fs.readFileSync(file, 'utf8').includes('@/lib/canvas/overlayWidgetZoom'))
+    if (nonNeutralUsers.length > 0) {
+      throw new Error(`expected Flow Canvas zoom helper users to import the neutral canvas owner: ${nonNeutralUsers.map(file => path.relative(srcRoot, file)).join(', ')}`)
+    }
+  }
+}
+
 export function testFlowEditorOverlayZoomKeepsWidgetAndRichMediaCentersStable() {
   const placementPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const runtimeScenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
@@ -112,14 +320,13 @@ export function testFlowEditorOverlayZoomKeepsWidgetAndRichMediaCentersStable() 
   const runtimeSceneText = fs.readFileSync(runtimeScenePath, 'utf8')
   const mediaLoopText = fs.readFileSync(mediaLoopPath, 'utf8')
 
-  if (!placementText.includes('const stabilizePinnedWorldPosForZoom = React.useCallback((nextZoom: { k: number; x: number; y: number } | null) => {')) {
-    throw new Error('expected pinned widget placement runtime to compensate world positions when zoom scale changes')
+  if (placementText.includes('stabilizePinnedWorldPosForZoom')
+    || placementText.includes('resolvePinnedZoomCenterPreservingPlacement')
+    || placementText.includes('liveZoomCenterPreservingPlacement')) {
+    throw new Error('expected pinned widget zoom to resize from stable world positions without mutating layout to preserve individual screen centers')
   }
-  if (!placementText.includes('const centerLeft = lastApplied.left + prevSize.width / 2')) {
-    throw new Error('expected pinned widget zoom compensation to preserve overlay centers rather than top-left drift')
-  }
-  if (!placementText.includes('stabilizePinnedWorldPosForZoom(nextZoom)')) {
-    throw new Error('expected widget placement runtime to apply pinned zoom compensation during zoom updates')
+  if (!placementText.includes(': { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }')) {
+    throw new Error('expected pinned widget placement to render directly from stable world positions during zoom')
   }
   if (!runtimeSceneText.includes("if (bucketId === viewportBucketId) return `${bucketId}:visible-viewport`")) {
     throw new Error('expected flow editor runtime scene to keep viewport auto-seed signatures stable across zoom changes')

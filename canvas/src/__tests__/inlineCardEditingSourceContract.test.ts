@@ -19,6 +19,9 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   for (const snippet of [
     'PlainTextInputEditor',
     'onDoubleClick',
+    'editActivation',
+    "editActivation = 'doubleClick'",
+    "editActivation !== 'click'",
     'event.key === \'Escape\'',
     'event.key === \'Enter\' && (event.metaKey || event.ctrlKey)',
     'editRequestKey',
@@ -68,6 +71,9 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
 
   if (!flowEditorInspector.includes('onPatchSelectedNodeProperties')) {
     throw new Error('expected Flow Editor inspector to commit shared card edits through the selected-node property owner callback')
+  }
+  if (!flowEditorInspector.includes('editActivation="click"')) {
+    throw new Error('expected Flow Editor Card inspector to allow inline editing through the shared CardInlineTextEditor activation contract')
   }
   for (const snippet of ['beatEditSession', 'handleCommitBeatFieldEdit', 'commitTimelineFrontmatterMeta', 'updateGraphMetadata({', "updateNode(resolvedNodeId, {"]) {
     if (!animatic.includes(snippet)) {

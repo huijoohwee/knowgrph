@@ -5,7 +5,7 @@ import {
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
-import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)

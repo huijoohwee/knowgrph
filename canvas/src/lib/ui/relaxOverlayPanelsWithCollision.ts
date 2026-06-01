@@ -123,7 +123,7 @@ export function relaxOverlayPanelsWithCollision(args: {
     })
   }
 
-  if (proxyNodes.length < 2 || args.items.length < 2) {
+  if (proxyNodes.length < 2 || (args.items.length < 2 && obstacles.length === 0)) {
     return args.items.map(it => ({ id: it.id, left: it.left, top: it.top }))
   }
 
@@ -314,6 +314,44 @@ export function relaxOverlayPanelsWithCollision(args: {
         if (moved) continue
       }
     }
+
+    for (let pass = 0; pass < 4; pass += 1) {
+      let movedAny = false
+      for (let i = 0; i < ordered.length; i += 1) {
+        const id = ordered[i]!
+        const a = anchorsById.get(id)
+        const sz = rectsById.get(id)
+        if (!a || !sz) continue
+        const cur = getNodeCenter(id)
+        const curRect = getRect(id, cur.x, cur.y)
+        const obstacle = obstacleRects.find(o => overlaps(curRect, o)) || null
+        if (!obstacle) continue
+        const clampToAnchorShift = (candidate: { x: number; y: number }) => ({
+          x: a.x + Math.max(-maxAnchorShiftPx, Math.min(maxAnchorShiftPx, candidate.x - a.x)),
+          y: a.y + Math.max(-maxAnchorShiftPx, Math.min(maxAnchorShiftPx, candidate.y - a.y)),
+        })
+        const candidates = [
+          { x: obstacle.left - sz.w * 0.5 - gapPx, y: cur.y },
+          { x: obstacle.right + sz.w * 0.5 + gapPx, y: cur.y },
+          { x: cur.x, y: obstacle.top - sz.h * 0.5 - gapPx },
+          { x: cur.x, y: obstacle.bottom + sz.h * 0.5 + gapPx },
+        ]
+          .map(clampToAnchorShift)
+          .filter(c => !wouldCollide(id, c.x, c.y))
+          .sort((left, right) => {
+            const da = Math.hypot(left.x - a.x, left.y - a.y)
+            const db = Math.hypot(right.x - a.x, right.y - a.y)
+            if (da !== db) return da - db
+            return (left.y - right.y) || (left.x - right.x)
+          })
+        const best = candidates[0] || null
+        if (!best) continue
+        if (Math.abs(best.x - cur.x) <= 0.5 && Math.abs(best.y - cur.y) <= 0.5) continue
+        setNodeCenter(id, best.x, best.y)
+        movedAny = true
+      }
+      if (!movedAny) break
+    }
   }
 
   tryCompactTowardsAnchors()
@@ -330,4 +368,3 @@ export function relaxOverlayPanelsWithCollision(args: {
   }
   return out
 }
-

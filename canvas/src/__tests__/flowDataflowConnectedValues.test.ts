@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 
 export const testFlowDataflowConnectedValuesReusesSharedReaders = () => {
   const filePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
@@ -470,9 +471,9 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
     version: 1,
     registry: [
       {
-        id: 'qer-NumberInput-default-value',
+        id: 'qer-MetricInput-default-value',
         isEnabled: true,
-        nodeTypeId: 'NumberInput',
+        nodeTypeId: 'MetricInput',
         widgetTypeId: 'default',
         formId: 'value',
         fields: [{ fieldKey: 'value', fieldType: 'number', label: 'Value', schemaPath: 'properties.value' }],
@@ -481,29 +482,35 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
         updatedAt: '2026-02-08T00:00:00.000Z',
       },
       {
-        id: 'qer-ColorPreview-default-color',
+        id: 'qer-MetricMixer-default-score',
         isEnabled: true,
-        nodeTypeId: 'ColorPreview',
+        nodeTypeId: 'MetricMixer',
         widgetTypeId: 'default',
-        formId: 'color',
+        formId: 'score',
         fields: [
-          { fieldKey: 'r', fieldType: 'number', label: 'Red', schemaPath: 'properties.r' },
-          { fieldKey: 'g', fieldType: 'number', label: 'Green', schemaPath: 'properties.g' },
-          { fieldKey: 'b', fieldType: 'number', label: 'Blue', schemaPath: 'properties.b' },
-          { fieldKey: 'color', fieldType: 'text', label: 'Background', schemaPath: 'properties.color' },
-          { fieldKey: 'textColor', fieldType: 'text', label: 'Text', schemaPath: 'properties.textColor' },
+          { fieldKey: 'alpha', fieldType: 'number', label: 'Alpha', schemaPath: 'properties.alpha' },
+          { fieldKey: 'beta', fieldType: 'number', label: 'Beta', schemaPath: 'properties.beta' },
+          { fieldKey: 'gamma', fieldType: 'number', label: 'Gamma', schemaPath: 'properties.gamma' },
+          { fieldKey: 'score', fieldType: 'number', label: 'Score', schemaPath: 'properties.score' },
         ],
         ports: [
-          { portKey: 'r', direction: 'input', schemaPath: 'properties.r' },
-          { portKey: 'g', direction: 'input', schemaPath: 'properties.g' },
-          { portKey: 'b', direction: 'input', schemaPath: 'properties.b' },
-          { portKey: 'color', direction: 'output', schemaPath: 'properties.color' },
-          { portKey: 'textColor', direction: 'output', schemaPath: 'properties.textColor' },
+          { portKey: 'alpha', direction: 'input', schemaPath: 'properties.alpha' },
+          { portKey: 'beta', direction: 'input', schemaPath: 'properties.beta' },
+          { portKey: 'gamma', direction: 'input', schemaPath: 'properties.gamma' },
+          { portKey: 'score', direction: 'output', schemaPath: 'properties.score' },
         ],
-        schemaMappings: [
-          { fromPath: 'in', toPath: 'properties.color', transformId: 'rgb_css' },
-          { fromPath: 'in', toPath: 'properties.textColor', transformId: 'contrast_text' },
-        ],
+        schemaMappings: [],
+        updatedAt: '2026-02-08T00:00:00.000Z',
+      },
+      {
+        id: 'qer-MetricSink-default-score',
+        isEnabled: true,
+        nodeTypeId: 'MetricSink',
+        widgetTypeId: 'default',
+        formId: 'score',
+        fields: [{ fieldKey: 'score', fieldType: 'number', label: 'Score', schemaPath: 'properties.score' }],
+        ports: [{ portKey: 'score', direction: 'input', schemaPath: 'properties.score' }],
+        schemaMappings: [],
         updatedAt: '2026-02-08T00:00:00.000Z',
       },
     ],
@@ -511,34 +518,45 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
       type: 'Graph',
       nodes: [
         {
-          id: 'red',
-          type: 'NumberInput',
-          label: 'R',
-          properties: { value: 255, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
+          id: 'alpha',
+          type: 'MetricInput',
+          label: 'Alpha',
+          properties: { value: 1, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
         },
         {
-          id: 'green',
-          type: 'NumberInput',
-          label: 'G',
-          properties: { value: 0, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
+          id: 'beta',
+          type: 'MetricInput',
+          label: 'Beta',
+          properties: { value: 2, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
         },
         {
-          id: 'blue',
-          type: 'NumberInput',
-          label: 'B',
-          properties: { value: 128, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
+          id: 'gamma',
+          type: 'MetricInput',
+          label: 'Gamma',
+          properties: { value: 3, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
         },
         {
-          id: 'preview',
-          type: 'ColorPreview',
-          label: 'ColorPreview',
-          properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'color' },
+          id: 'mixer',
+          type: 'MetricMixer',
+          label: 'Weighted Score',
+          properties: {
+            'flow:compute': '(inputs) => ({ score: Number(inputs.alpha || 0) + Number(inputs.beta || 0) * 2 + Number(inputs.gamma || 0) * 3 })',
+            [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+            [FLOW_WIDGET_FORM_ID_KEY]: 'score',
+          },
+        },
+        {
+          id: 'sink',
+          type: 'MetricSink',
+          label: 'Score Sink',
+          properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'score' },
         },
       ],
       edges: [
-        { id: 'e-r', source: 'red', target: 'preview', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'r' } },
-        { id: 'e-g', source: 'green', target: 'preview', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'g' } },
-        { id: 'e-b', source: 'blue', target: 'preview', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'b' } },
+        { id: 'e-alpha', source: 'alpha', target: 'mixer', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'alpha' } },
+        { id: 'e-beta', source: 'beta', target: 'mixer', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'beta' } },
+        { id: 'e-gamma', source: 'gamma', target: 'mixer', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'gamma' } },
+        { id: 'e-score', source: 'mixer', target: 'sink', label: 'linksTo', properties: { 'flow:sourcePortKey': 'score', 'flow:targetPortKey': 'score' } },
       ],
     },
   }
@@ -554,14 +572,14 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
   const byNodeId = computeFlowConnectedValuesBySchemaPath({
     graphData: graphData as never,
     registry: registry as never,
-    targetNodeIds: new Set(['preview']),
+    targetNodeIds: new Set(['sink']),
   })
-  const preview = byNodeId.get('preview')
-  if (!preview) throw new Error('expected connected values for node preview')
+  const sink = byNodeId.get('sink')
+  if (!sink) throw new Error('expected connected values for sink')
 
-  const css = preview['properties.color']
-  if (!css) throw new Error('expected derived mapping at properties.color')
-  if (css.value !== 'rgb(255, 0, 128)') throw new Error(`expected properties.color to be rgb(255, 0, 128), got ${String(css.value)}`)
+  const score = sink['properties.score']
+  if (!score) throw new Error('expected computed score at properties.score')
+  if (score.value !== 14) throw new Error(`expected properties.score to be 14, got ${String(score.value)}`)
 }
 
 export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
@@ -705,6 +723,52 @@ export const testFlowDataflowConnectedValuesFlowComputeFunctionPropagatesUnregis
   if (total.value !== 12) throw new Error(`expected computed total to be 12, got ${String(total.value)}`)
 }
 
+export const testFlowDataflowConnectedValuesStopsNullBranchOutputs = () => {
+  const graphData = {
+    type: 'GraphData',
+    context: 'frontmatter-flow',
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: { computed: true },
+    },
+    nodes: [
+      { id: 'source', type: 'metric', label: 'Source', properties: { value: 140 } },
+      {
+        id: 'branch',
+        type: 'metric',
+        label: 'Branch',
+        properties: {
+          'flow:compute': '(inputs) => ({ pass: Number(inputs.value || 0) >= 100 ? inputs.value : null, fail: Number(inputs.value || 0) < 100 ? inputs.value : null })',
+        },
+      },
+      { id: 'pass-sink', type: 'metric', label: 'Pass Sink', properties: {} },
+      { id: 'fail-sink', type: 'metric', label: 'Fail Sink', properties: {} },
+    ],
+    edges: [
+      { id: 'e-source', source: 'source', target: 'branch', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'value' } },
+      { id: 'e-pass', source: 'branch', target: 'pass-sink', properties: { 'flow:sourcePortKey': 'pass', 'flow:targetPortKey': 'pass' } },
+      { id: 'e-fail', source: 'branch', target: 'fail-sink', properties: { 'flow:sourcePortKey': 'fail', 'flow:targetPortKey': 'fail' } },
+    ],
+  }
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry: [],
+    targetNodeIds: new Set(['pass-sink', 'fail-sink']),
+  })
+  const passSink = byNodeId.get('pass-sink')
+  if (!passSink) throw new Error('expected connected values for active branch sink')
+  const pass = passSink['properties.pass']
+  if (!pass) throw new Error('expected active branch output to propagate')
+  if (pass.value !== 140) throw new Error(`expected active branch value 140, got ${String(pass.value)}`)
+
+  const failSink = byNodeId.get('fail-sink')
+  if (!failSink) throw new Error('expected connected-value map for inactive branch sink')
+  if (failSink['properties.fail']) {
+    throw new Error('expected null branch output to stop before downstream connected values')
+  }
+}
+
 export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRuntimeCompute = () => {
   const graphData = {
     type: 'GraphData',
@@ -800,5 +864,178 @@ export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRunt
   const demos = sink['properties.data.demos']
   if (typeof demos?.value !== 'undefined') {
     throw new Error('expected runtime compute outputs to stay disabled when frontmatter flow computed=false')
+  }
+}
+
+export const testFlowDataflowConnectedValuesComputesLongDirectedDagWithoutIterationCap = () => {
+  const computeCount = 16
+  const nodes: Array<Record<string, unknown>> = [
+    { id: 'source', type: 'metric', label: 'Source', properties: { value: 1 } },
+  ]
+  const edges: Array<Record<string, unknown>> = []
+  let prev = 'source'
+  for (let i = 1; i <= computeCount; i += 1) {
+    const id = `compute-${i}`
+    nodes.push({
+      id,
+      type: 'metric',
+      label: `Compute ${i}`,
+      properties: {
+        'flow:compute': '(inputs) => ({ value: Number(inputs.value || 0) + 1 })',
+      },
+    })
+    edges.push({
+      id: `e-${i}`,
+      source: prev,
+      target: id,
+      properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'value' },
+    })
+    prev = id
+  }
+  nodes.push({ id: 'sink', type: 'metric', label: 'Sink', properties: {} })
+  edges.push({
+    id: 'e-sink',
+    source: prev,
+    target: 'sink',
+    properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'value' },
+  })
+
+  const graphData = {
+    type: 'GraphData',
+    context: 'frontmatter-flow',
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: { computed: true },
+    },
+    nodes,
+    edges,
+  }
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry: [],
+    targetNodeIds: new Set(['sink']),
+  })
+  const sink = byNodeId.get('sink')
+  if (!sink) throw new Error('expected connected values for sink')
+  const value = sink['properties.value']
+  if (!value) throw new Error('expected long DAG computed value at properties.value')
+  const expected = 1 + computeCount
+  if (value.value !== expected) throw new Error(`expected long DAG computed value ${expected}, got ${String(value.value)}`)
+}
+
+export const testFlowDataflowConnectedValuesPassesNeutralComputeContext = () => {
+  const graphData = {
+    type: 'GraphData',
+    context: 'frontmatter-flow',
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: { computed: true },
+    },
+    nodes: [
+      { id: 'source', type: 'metric', label: 'Source', properties: { value: 'ready' } },
+      {
+        id: 'compute',
+        type: 'metric',
+        label: 'Contextual Compute',
+        properties: {
+          'flow:compute': '(inputs, context) => ({ summary: `${context.node.label}:${inputs.value}` })',
+        },
+      },
+      { id: 'sink', type: 'metric', label: 'Sink', properties: {} },
+    ],
+    edges: [
+      { id: 'e1', source: 'source', target: 'compute', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'value' } },
+      { id: 'e2', source: 'compute', target: 'sink', properties: { 'flow:sourcePortKey': 'summary', 'flow:targetPortKey': 'summary' } },
+    ],
+  }
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry: [],
+    targetNodeIds: new Set(['sink']),
+  })
+  const sink = byNodeId.get('sink')
+  if (!sink) throw new Error('expected connected values for sink')
+  const summary = sink['properties.summary']
+  if (!summary) throw new Error('expected computed context summary at properties.summary')
+  if (summary.value !== 'Contextual Compute:ready') {
+    throw new Error(`expected context summary to propagate, got ${String(summary.value)}`)
+  }
+}
+
+type RuntimeValidationComputingFlowInputMode = 'explicit' | 'hardcodeGuard'
+
+function readRuntimeValidationComputingFlowPath(): { filePath: string; mode: RuntimeValidationComputingFlowInputMode } | null {
+  const explicit = String(process.env.KG_TEST_VALIDATION_COMPUTING_FLOW_INPUT_PATH || '').trim()
+  if (explicit) return { filePath: explicit, mode: 'explicit' }
+  const hardcodeGuard = String(process.env.KG_TEST_VALIDATION_FORBID_HARDCODE_IN_REPO || '').trim()
+  if (hardcodeGuard) return { filePath: hardcodeGuard, mode: 'hardcodeGuard' }
+  return null
+}
+
+function readRuntimeValidationComputingFlowText(): { filePath: string; text: string } | null {
+  const input = readRuntimeValidationComputingFlowPath()
+  if (!input) return null
+  const { filePath, mode } = input
+  if (!existsSync(filePath)) {
+    if (mode === 'explicit') throw new Error(`expected explicit runtime computing-flow validation input to exist: ${filePath}`)
+    return null
+  }
+  const stat = statSync(filePath)
+  if (!stat.isFile() || stat.size <= 0) {
+    if (mode === 'explicit') throw new Error(`expected explicit runtime computing-flow validation input to be a non-empty file: ${filePath}`)
+    return null
+  }
+  return { filePath, text: readFileSync(filePath, 'utf8') }
+}
+
+export const testRuntimeValidationComputingFlowInputHasNoCopiedFlowExampleHardcodes = () => {
+  const runtimeInput = readRuntimeValidationComputingFlowText()
+  if (!runtimeInput) return
+  const text = runtimeInput.text
+  const forbidden: RegExp[] = [
+    /example-apps\.xyflow\.com/i,
+    /reactflow\.dev\/learn\/advanced-use\/computing-flows/i,
+    /@xyflow\/react/i,
+    /\bNumberInput\b/,
+    /\bColorPreview\b/,
+    /\bcomputing-6\b/i,
+  ]
+  const found = forbidden.map(re => text.match(re)?.[0] || '').filter(Boolean)
+  if (found.length > 0) {
+    throw new Error(`runtime computing-flow validation input contains copied example hardcodes: ${found.join(', ')}`)
+  }
+}
+
+export const testRuntimeValidationComputingFlowInputParsesAndPropagatesCompute = () => {
+  const runtimeInput = readRuntimeValidationComputingFlowText()
+  if (!runtimeInput) return
+  const { filePath, text } = runtimeInput
+  const parsed = tryParseMarkdownFrontmatterFlowGraph(filePath.split(/[/\\]/).pop() || 'computing-flow.md', text)
+  if (!parsed) throw new Error('expected runtime computing-flow validation input to parse as frontmatter flow')
+  const graphData = parsed.graphData
+  const meta = (graphData.metadata || {}) as Record<string, unknown>
+  const registryRaw = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  const registry = Array.isArray(registryRaw) ? registryRaw : []
+  const computeNodeIds = new Set(
+    (Array.isArray(graphData.nodes) ? graphData.nodes : [])
+      .filter(node => typeof ((node.properties || {}) as Record<string, unknown>)['flow:compute'] === 'string')
+      .map(node => String(node.id || '').trim())
+      .filter(Boolean),
+  )
+  if (computeNodeIds.size === 0) throw new Error('expected runtime computing-flow validation input to declare at least one compute node')
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData,
+    registry: registry as never,
+  })
+  let propagated = 0
+  for (const connected of Array.from(byNodeId.values())) {
+    for (const value of Object.values(connected)) {
+      const sources = Array.isArray(value?.sources) ? value.sources : []
+      if (sources.some(source => computeNodeIds.has(String(source.nodeId || '').trim()))) propagated += 1
+    }
+  }
+  if (propagated === 0) {
+    throw new Error('expected runtime computing-flow validation input to propagate at least one compute-node output')
   }
 }

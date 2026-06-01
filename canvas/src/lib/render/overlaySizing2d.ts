@@ -1,10 +1,11 @@
 import { computeMediaOverlaySizing, type MediaOverlaySizingConfig } from '@/lib/render/mediaOverlaySizing'
+import { RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
 export const DEFAULT_OVERLAY_SIZING_CONFIG: Readonly<MediaOverlaySizingConfig> = {
   widthRatio: 0.2,
   widthMinPx: 210,
-  widthMaxPx: 360,
+  widthMaxPx: RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX,
 }
 
 export type OverlayDensitySizingConfigInput = {

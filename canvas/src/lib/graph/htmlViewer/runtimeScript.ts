@@ -63,43 +63,6 @@ export function buildHtmlViewerRuntimeScript(args: {
 
   out = replaceAllExact(
     out,
-    "var KG_PROXY_ORIGIN_RUNTIME = (typeof KG_PROXY_ORIGIN === 'string' ? String(KG_PROXY_ORIGIN || '').trim() : '');",
-    "var KG_PROXY_ORIGIN_RUNTIME = (typeof KG_PROXY_ORIGIN === 'string' ? String(KG_PROXY_ORIGIN || '').trim() : '');\n    var KG_ALLOW_RUNTIME_NETWORK = __KG_ALLOW_RUNTIME_NETWORK__;",
-  )
-
-  out = replaceAllExact(
-    out,
-    "var kgShouldUseProxy = function(){\n      try {\n        if (kgGetProxyOrigin()) return true;",
-    "var kgShouldUseProxy = function(){\n      try {\n        if (!KG_ALLOW_RUNTIME_NETWORK) return false;\n        if (kgGetProxyOrigin()) return true;",
-  )
-
-  out = replaceAllExact(
-    out,
-    "var kgFetchWebpageMeta = function(absUrl, onDone){\n      try {\n        var url = String(absUrl || '').trim();\n        if (!url) return;",
-    "var kgFetchWebpageMeta = function(absUrl, onDone){\n      try {\n        if (!KG_ALLOW_RUNTIME_NETWORK) { try { onDone && onDone(null); } catch (e00) {} return; }\n        var url = String(absUrl || '').trim();\n        if (!url) return;",
-  )
-
-  out = replaceAllExact(
-    out,
-    "var kgResolveMediaSrc = function(url, kind){\n      var u = String(url || '').trim();\n      if (!u) return '';\n      if (/^\\s*(data:|blob:|mailto:|tel:)/i.test(u)) return u;",
-    "var kgResolveMediaSrc = function(url, kind){\n      var u = String(url || '').trim();\n      if (!u) return '';\n      if (/^\\s*(data:|blob:|mailto:|tel:)/i.test(u)) return u;\n      if (!KG_ALLOW_RUNTIME_NETWORK && (u.startsWith('/__') || u.startsWith('/@') || /^https?:\\/\\//i.test(u))) return '';",
-  )
-  out = replaceAllExact(
-    out,
-    "var kgResolveMediaSrc = function(url, kind){\n      var u = String(url || '').trim();\n      if (!u) return '';\n      if (/^s*(data:|blob:|mailto:|tel:)/i.test(u)) return u;",
-    "var kgResolveMediaSrc = function(url, kind){\n      var u = String(url || '').trim();\n      if (!u) return '';\n      if (/^s*(data:|blob:|mailto:|tel:)/i.test(u)) return u;\n      if (!KG_ALLOW_RUNTIME_NETWORK && (u.startsWith('/__') || u.startsWith('/@') || /^https?:\\/\\//i.test(u))) return '';",
-  )
-
-  out = replaceAllExact(
-    out,
-    "var kgMaybeProbeProxyOrigin = function(){\n      try {\n        if (KG_PROXY_PROBE_STARTED) return;",
-    "var kgMaybeProbeProxyOrigin = function(){\n      try {\n        if (!KG_ALLOW_RUNTIME_NETWORK) return;\n        if (KG_PROXY_PROBE_STARTED) return;",
-  )
-  out = replaceAllExact(out, "if (raw && cur !== raw) imgEl.src = raw;", "if (KG_ALLOW_RUNTIME_NETWORK && raw && cur !== raw) imgEl.src = raw;")
-  out = replaceAllExact(out, "if (raw && cur !== raw) vid.src = raw;", "if (KG_ALLOW_RUNTIME_NETWORK && raw && cur !== raw) vid.src = raw;")
-
-  out = replaceAllExact(
-    out,
     "var UI_IGNORE_SELECTOR = '[data-kg-canvas-wheel-ignore=\"true\"], [data-kg-canvas-pointer-ignore=\"true\"]';",
     "var UI_IGNORE_SELECTOR = '#kg-hud, #kg-hud *';",
   )

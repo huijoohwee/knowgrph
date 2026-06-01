@@ -22,6 +22,8 @@ export type SharedWebpageSurfaceProps = {
   iframeLoading?: 'eager' | 'lazy'
   iframeAllowFullScreen?: boolean
   iframeReferrerPolicy?: React.HTMLAttributeReferrerPolicy
+  iframeRef?: React.Ref<HTMLIFrameElement>
+  iframeScrolling?: 'auto' | 'yes' | 'no'
   onLoad?: React.ReactEventHandler<HTMLIFrameElement>
   iframeRenderer?: (props: SharedWebpageSurfaceFrameProps) => React.ReactNode
 }
@@ -65,6 +67,8 @@ export function SharedWebpageSurface(props: SharedWebpageSurfaceProps) {
       allow={props.iframeAllow || DEFAULT_IFRAME_ALLOW}
       allowFullScreen={props.iframeAllowFullScreen === true}
       referrerPolicy={props.iframeReferrerPolicy || 'no-referrer'}
+      ref={props.iframeRef}
+      scrolling={props.iframeScrolling}
       style={props.style}
       onLoad={props.onLoad}
     />

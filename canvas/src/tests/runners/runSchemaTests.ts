@@ -97,6 +97,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewRendererSelectionActivates2dSurface()
   })
+  await execTest(results, 'canvas.viewSelection.flowEditorLayoutRebalance', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testFlowEditorLayoutMenuRequestsBalancedRebalance()
+  })
   await execTest(results, 'canvas.3dMode.persistedGeospatialGuard', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted()

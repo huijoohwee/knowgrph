@@ -24,7 +24,7 @@ import type { GraphState, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
 import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_FIT_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 
 const positionsMatch = (
   a: Record<string, NodePosition2d> | null | undefined,
@@ -257,3 +257,53 @@ export const useGraphStore = create<GraphState>()(
   ...createSchemaSlice(set, get),
 })),
 )
+
+let workspaceGraphMutationExpiryTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearWorkspaceGraphMutationExpiryTimer(): void {
+  if (workspaceGraphMutationExpiryTimer == null) return
+  clearTimeout(workspaceGraphMutationExpiryTimer)
+  workspaceGraphMutationExpiryTimer = null
+}
+
+function scheduleWorkspaceGraphMutationExpiryFromStore(): void {
+  clearWorkspaceGraphMutationExpiryTimer()
+  const state = useGraphStore.getState()
+  const untilMs = Number(state.workspaceGraphMutationBlockUntilMs || 0)
+  const hasTransitionState = Boolean(String(state.workspaceGraphMutationBlockKey || '').trim()) || untilMs > 0
+  if (!hasTransitionState) return
+  if (isWorkspaceEditorOverlayOpen(state) || state.markdownWorkspaceIndexingInFlight === true) return
+
+  const nowMs = Date.now()
+  if (untilMs > nowMs) {
+    workspaceGraphMutationExpiryTimer = setTimeout(() => {
+      workspaceGraphMutationExpiryTimer = null
+      scheduleWorkspaceGraphMutationExpiryFromStore()
+    }, Math.max(1, Math.ceil(untilMs - nowMs + 16)))
+    const nodeTimer = workspaceGraphMutationExpiryTimer as unknown as { unref?: () => void }
+    try {
+      nodeTimer.unref?.()
+    } catch {
+      void 0
+    }
+    return
+  }
+
+  if (isWorkspaceGraphMutationBlocked(state)) return
+  useGraphStore.setState({
+    workspaceGraphMutationBlockUntilMs: 0,
+    workspaceGraphMutationBlockKey: '',
+  } as Partial<GraphState>)
+}
+
+useGraphStore.subscribe(
+  s => [
+    s.workspaceGraphMutationBlockUntilMs,
+    s.workspaceGraphMutationBlockKey,
+    s.workspaceViewMode,
+    s.workspaceCanvasPaneOpen,
+    s.markdownWorkspaceIndexingInFlight,
+  ] as const,
+  scheduleWorkspaceGraphMutationExpiryFromStore,
+)
+scheduleWorkspaceGraphMutationExpiryFromStore()

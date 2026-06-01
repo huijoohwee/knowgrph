@@ -86,8 +86,8 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   if (runtimeText.includes("?? state.flowWidgetWorldPosByNodeId?.[nodeId]")) {
     throw new Error('expected Flow Editor widget placement runtime to forbid global world-position fallback when an active render-graph key is available')
   }
-  if (!runtimeText.includes("const storedWorld = floatingUsesScreenAuthority ? null : (currentStoredWorld || widgetWorldPosRef.current)")) {
-    throw new Error('expected Flow Editor widget placement loop to prefer live graph-keyed world SSOT before falling back to the cached widget world ref')
+  if (!runtimeText.includes("const storedWorld = currentStoredWorld || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)")) {
+    throw new Error('expected Flow Editor widget placement loop to prefer current graph-keyed world SSOT and only suppress stale cached world fallback for screen-authority floating overlays')
   }
   if (!runtimeSceneText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)')) {
     throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to write graph-keyed world positions under the active render graph key before falling back to store graph state')

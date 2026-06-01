@@ -153,6 +153,7 @@ export default function FlowEditorInspector({
               ariaLabel={selectedNode ? `Card title for ${selectedNode.id}` : 'Card title'}
               placeholder="Add title"
               canEdit={canEditSelectedNodeCard}
+              editActivation="click"
               onCommit={onSetNodeLabel}
               displayClassName={cn('mt-2 text-sm font-semibold leading-5', UI_THEME_TOKENS.text.primary)}
               editorClassName="mt-2 min-h-[1.5rem] px-0 py-0 text-sm font-semibold leading-5"
@@ -168,6 +169,7 @@ export default function FlowEditorInspector({
                     ariaLabel={selectedNode ? `${field.label} for ${selectedNode.id}` : field.label}
                     placeholder={field.placeholder}
                     canEdit={canEditSelectedNodeCard}
+                    editActivation="click"
                     multiline
                     rows={3}
                     onCommit={nextValue => {

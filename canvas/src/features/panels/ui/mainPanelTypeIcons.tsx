@@ -9,6 +9,7 @@ import {
   Eraser,
   Film,
   GitBranch,
+  Globe2,
   Hand,
   Hash,
   HelpCircle,
@@ -59,6 +60,18 @@ export type MainPanelTypeIconKey =
   | 'setting.dateTime'
   | 'setting.url'
   | 'action.clear'
+  | 'ktv.type.static'
+  | 'ktv.type.preset'
+  | 'ktv.type.tiles'
+  | 'ktv.type.style'
+  | 'ktv.type.globe'
+  | 'ktv.type.color'
+  | 'ktv.type.scale'
+  | 'ktv.type.action'
+  | 'ktv.type.toggle'
+  | 'ktv.type.browser'
+  | 'ktv.type.duration'
+  | 'ktv.type.size'
   | 'mainPanel.collaboration'
   | 'mainPanel.integrations'
   | 'mainPanel.mcp'
@@ -208,6 +221,90 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     agentic: 'Non-destructive erase',
     usage: 'Marks reset and clear actions that do not remove underlying graph data.',
     Icon: Eraser,
+  },
+  'ktv.type.static': {
+    category: 'KTV row type',
+    label: 'Static',
+    agentic: 'Local static value',
+    usage: 'Marks rows whose value is built in and does not require a live provider.',
+    Icon: LayoutGrid,
+  },
+  'ktv.type.preset': {
+    category: 'KTV row type',
+    label: 'Preset',
+    agentic: 'Reusable preset',
+    usage: 'Marks rows that apply a named preset or reusable configuration.',
+    Icon: ListChecks,
+  },
+  'ktv.type.tiles': {
+    category: 'KTV row type',
+    label: 'Tiles',
+    agentic: 'Map tile source',
+    usage: 'Marks rows backed by tiled map or spatial data sources.',
+    Icon: MapIcon,
+  },
+  'ktv.type.style': {
+    category: 'KTV row type',
+    label: 'Style',
+    agentic: 'Visual style source',
+    usage: 'Marks rows that choose or edit visual styling, style URLs, and renderer appearance.',
+    Icon: Palette,
+  },
+  'ktv.type.globe': {
+    category: 'KTV row type',
+    label: 'Globe',
+    agentic: 'Globe projection',
+    usage: 'Marks rows that switch projection, globe, or geospatial rendering modes.',
+    Icon: Globe2,
+  },
+  'ktv.type.color': {
+    category: 'KTV row type',
+    label: 'Color',
+    agentic: 'Visual token',
+    usage: 'Marks color and palette controls.',
+    Icon: Palette,
+  },
+  'ktv.type.scale': {
+    category: 'KTV row type',
+    label: 'Scale',
+    agentic: 'Numeric visual tuning',
+    usage: 'Marks scale, radius, multiplier, and sizing controls.',
+    Icon: SlidersHorizontal,
+  },
+  'ktv.type.action': {
+    category: 'KTV row type',
+    label: 'Action',
+    agentic: 'Operator command',
+    usage: 'Marks rows that trigger an immediate command or request.',
+    Icon: Hand,
+  },
+  'ktv.type.toggle': {
+    category: 'KTV row type',
+    label: 'Toggle',
+    agentic: 'Binary control',
+    usage: 'Marks on/off row controls.',
+    Icon: SquareCheckBig,
+  },
+  'ktv.type.browser': {
+    category: 'KTV row type',
+    label: 'Browser',
+    agentic: 'Browser capability',
+    usage: 'Marks rows that use browser APIs, location, navigation, or external references.',
+    Icon: Link2,
+  },
+  'ktv.type.duration': {
+    category: 'KTV row type',
+    label: 'Duration',
+    agentic: 'Time-bound value',
+    usage: 'Marks timeout, duration, TTL, and millisecond values.',
+    Icon: CalendarClock,
+  },
+  'ktv.type.size': {
+    category: 'KTV row type',
+    label: 'Size',
+    agentic: 'Capacity limit',
+    usage: 'Marks byte, memory, and payload-size limits.',
+    Icon: Hash,
   },
   'mainPanel.collaboration': {
     category: 'MainPanel surface',
@@ -453,6 +550,18 @@ export const MAIN_PANEL_HELP_TYPE_ICON_KEYS = [
   'setting.url',
   'setting.dateTime',
   'action.clear',
+  'ktv.type.static',
+  'ktv.type.preset',
+  'ktv.type.tiles',
+  'ktv.type.style',
+  'ktv.type.globe',
+  'ktv.type.color',
+  'ktv.type.scale',
+  'ktv.type.action',
+  'ktv.type.toggle',
+  'ktv.type.browser',
+  'ktv.type.duration',
+  'ktv.type.size',
 ] as const satisfies readonly MainPanelTypeIconKey[]
 
 export function getMainPanelTypeIconMeta(iconKey: MainPanelTypeIconKey): MainPanelTypeIconMeta {
@@ -519,6 +628,24 @@ export function resolveMainPanelSettingTypeIconKey(typeLabel: string): MainPanel
     return 'setting.number'
   }
   return 'setting.text'
+}
+
+export function resolveMainPanelKtvTypeIconKey(typeLabel: string): MainPanelTypeIconKey {
+  const normalized = String(typeLabel || '').trim().toLowerCase()
+  if (!normalized) return 'setting.text'
+  if (normalized === 'static') return 'ktv.type.static'
+  if (normalized === 'preset') return 'ktv.type.preset'
+  if (normalized === 'tiles' || normalized === 'tile') return 'ktv.type.tiles'
+  if (normalized === 'style' || normalized === 'default' || normalized === 'custom') return 'ktv.type.style'
+  if (normalized === 'globe') return 'ktv.type.globe'
+  if (normalized === 'color' || normalized === 'colour') return 'ktv.type.color'
+  if (normalized === 'scale' || normalized.includes('radius') || normalized.includes('multiplier')) return 'ktv.type.scale'
+  if (normalized === 'action' || normalized === 'command') return 'ktv.type.action'
+  if (normalized === 'toggle' || normalized === 'switch') return 'ktv.type.toggle'
+  if (normalized === 'browser' || normalized.includes('location')) return 'ktv.type.browser'
+  if (normalized === 'ms' || normalized.includes('timeout') || normalized.includes('duration')) return 'ktv.type.duration'
+  if (normalized === 'mb' || normalized.includes('byte') || normalized.includes('size')) return 'ktv.type.size'
+  return resolveMainPanelSettingTypeIconKey(normalized)
 }
 
 export function MainPanelTypeIcon({

@@ -178,6 +178,7 @@ function MarkdownListRow(props: {
               uiPanelTextFontClass: opts.uiPanelTextFontClass,
               uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
               markdownPresentationMode: opts.markdownPresentationMode,
+              markdownCardPreviewMode: opts.markdownCardPreviewMode,
             })}
           </span>
         ) : (
@@ -190,6 +191,7 @@ function MarkdownListRow(props: {
             markdownPresentationMode={opts.markdownPresentationMode}
             uiPanelTextFontClass={opts.uiPanelTextFontClass}
             uiPanelMonospaceTextClass={opts.uiPanelMonospaceTextClass}
+            markdownCardPreviewMode={opts.markdownCardPreviewMode}
             mermaidFrontmatterConfig={opts.mermaidFrontmatterConfig}
             rootThemeMode={opts.rootThemeMode}
             previewOverlayScope={opts.previewOverlayScope}

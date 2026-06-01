@@ -111,6 +111,23 @@ function isMarkdownApplyRequestActiveDocumentCurrent(get: GetGraph, request: Pen
   return state.markdownDocumentName === request.name && state.markdownDocumentText === request.text
 }
 
+function withMarkdownDocumentSourceMetadata(graphData: GraphData, name: string): GraphData {
+  const source = `markdown:${String(name || '').trim()}`
+  if (!source || source === 'markdown:') return graphData
+  const metadata = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+    ? (graphData.metadata as Record<string, JSONValue>)
+    : {}
+  if (metadata.source === source) return graphData
+  return {
+    ...graphData,
+    metadata: {
+      ...metadata,
+      source,
+      markdownDocumentName: String(name || '').trim(),
+    } as unknown as GraphData['metadata'],
+  }
+}
+
 function buildPendingMarkdownDocumentGraph(args: {
   name: string
   currentGraph: GraphData | null
@@ -418,7 +435,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         ? parseCanvasWorkspaceFrontmatterPreset(nextText)
         : request.preset
       if (canReuseParsedSourceGraph) {
-        const reusedGraph = exactSourceFile.parsedGraphData as GraphData
+        const reusedGraph = withMarkdownDocumentSourceMetadata(exactSourceFile.parsedGraphData as GraphData, nextName)
         if (!isMarkdownApplyRequestActiveDocumentCurrent(get, request)) return false
         if (request.applyViewPreset !== false) {
           const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
@@ -443,7 +460,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
 
       const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
       const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: false, syncMarkdownDocument: false })
-      const parsedGraph = res?.graphData || null
+      const parsedGraph = res?.graphData ? withMarkdownDocumentSourceMetadata(res.graphData, nextName) : null
       if (!isMarkdownApplyRequestActiveDocumentCurrent(get, request)) return false
       if (request.applyViewPreset !== false) {
         const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')

@@ -3,16 +3,17 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
+import {
+  KTV_KEY_ICON_SLIDER_INPUT_GRID_CLASS_NAME,
+  KTV_KEY_ICON_VALUE_GRID_CLASS_NAME,
+  KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME,
+  KTV_KEY_VALUE_GRID_CLASS_NAME,
+  KTV_ROW_LABEL_CELL_CLASS_NAME,
+  KTV_ROW_TEXT_CELL_CLASS_NAME,
+  KTV_ROW_VALUE_CELL_CLASS_NAME,
+} from 'grph-shared/ui/keyTypeValueRows'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
-
-const rowTextCellClassName = 'flex min-w-0 max-w-full overflow-hidden'
-const rowLabelCellClassName = `${rowTextCellClassName} text-ellipsis whitespace-nowrap`
-const rowValueCellClassName = `${rowTextCellClassName} gap-2 justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`
-const keyIconSliderInputGridClassName = 'grid-cols-[minmax(0,0.9fr)_minmax(1rem,1rem)_minmax(0,0.55fr)_minmax(0,1.15fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.05fr)_minmax(0,0.55fr)_minmax(0,1.4fr)]'
-const keyIconValueGridClassName = 'grid-cols-[minmax(0,1fr)_minmax(1.25rem,1.75rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1.1fr)_minmax(1.25rem,1.75rem)_minmax(0,1.2fr)]'
-const keyValueGridClassName = 'grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]'
-const keyTypeValueGridClassName = 'grid-cols-[minmax(0,0.92fr)_minmax(3.75rem,0.62fr)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1.05fr)_minmax(5rem,6.75rem)_minmax(0,1.25fr)]'
 
 const renderPanelTextNode = (node: React.ReactNode): React.ReactNode => {
   return typeof node === 'string' ? renderMarkdownSigilInlineText(node) : node
@@ -88,7 +89,7 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyIconSliderInput') {
     const rootClassName = [
-      `grid w-full ${keyIconSliderInputGridClassName}`,
+      `grid w-full ${KTV_KEY_ICON_SLIDER_INPUT_GRID_CLASS_NAME}`,
       'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
@@ -102,14 +103,14 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <dl className={rootClassName} onClick={onClick}>
-        <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
+        <dt className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {renderedKeyNode}
         </dt>
         <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`} />
-        <dd className={`${rowLabelCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
+        <dd className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
           {renderedTypeNode}
         </dd>
-        <dd className={`${rowValueCellClassName} items-stretch`}>
+        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-stretch`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -118,7 +119,7 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyIconValue') {
     const rootClassName = [
-      `grid w-full ${keyIconValueGridClassName}`,
+      `grid w-full ${KTV_KEY_ICON_VALUE_GRID_CLASS_NAME}`,
       'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
@@ -132,13 +133,13 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <dl className={rootClassName} onClick={onClick}>
-        <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
+        <dt className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {renderedKeyNode}
         </dt>
         <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
           {renderedTypeNode}
         </dd>
-        <dd className={`${rowValueCellClassName} items-center`}>
+        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -147,7 +148,7 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyValue') {
     const rootClassName = [
-      `grid w-full ${keyValueGridClassName}`,
+      `grid w-full ${KTV_KEY_VALUE_GRID_CLASS_NAME}`,
       'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
@@ -161,10 +162,10 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <dl className={rootClassName} onClick={onClick}>
-        <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
+        <dt className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {renderedKeyNode}
         </dt>
-        <dd className={`${rowValueCellClassName} items-center`}>
+        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -172,7 +173,7 @@ export function KeyTypeValueRow({
   }
 
   const rootClassName = [
-    `grid w-full ${keyTypeValueGridClassName} gap-x-2 gap-y-0 rounded`,
+    `grid w-full ${KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME} gap-x-2 gap-y-0 rounded`,
     activeClass,
     uiPanelKeyValueTextSizeClass,
     uiPanelTextFontClass,
@@ -190,13 +191,13 @@ export function KeyTypeValueRow({
       className={rootClassName}
       onClick={onClick}
     >
-      <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
+      <dt className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
         {renderedKeyNode}
       </dt>
-      <dd className={`${rowLabelCellClassName} items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
+      <dd className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
         {renderedTypeNode}
       </dd>
-      <dd className={`${rowValueCellClassName} items-center`}>
+      <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center`}>
         {renderedValueNode}
       </dd>
     </dl>

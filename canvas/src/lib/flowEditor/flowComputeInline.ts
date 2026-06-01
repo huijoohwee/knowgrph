@@ -10,10 +10,23 @@ const readPlainObject = (value: unknown): Record<string, unknown> | null => {
   return isPlainObject(value) ? (value as Record<string, unknown>) : null
 }
 
-const FLOW_COMPUTE_FUNCTION_CACHE_MAX_SIZE = 120
-const FLOW_COMPUTE_FUNCTION_CACHE = new Map<string, ((inputs: Record<string, unknown>) => unknown) | null>()
+export type FlowComputeContext = {
+  node?: {
+    id?: unknown
+    type?: unknown
+    label?: unknown
+    properties?: unknown
+    metadata?: unknown
+  }
+  connectedValuesBySchemaPath?: Record<string, unknown>
+}
 
-function getCachedFlowComputeFunction(key: string): ((inputs: Record<string, unknown>) => unknown) | null | undefined {
+type FlowComputeFunction = (inputs: Record<string, unknown>, context: FlowComputeContext) => unknown
+
+const FLOW_COMPUTE_FUNCTION_CACHE_MAX_SIZE = 120
+const FLOW_COMPUTE_FUNCTION_CACHE = new Map<string, FlowComputeFunction | null>()
+
+function getCachedFlowComputeFunction(key: string): FlowComputeFunction | null | undefined {
   const cached = FLOW_COMPUTE_FUNCTION_CACHE.get(key)
   if (typeof cached === 'undefined') return undefined
   FLOW_COMPUTE_FUNCTION_CACHE.delete(key)
@@ -21,7 +34,7 @@ function getCachedFlowComputeFunction(key: string): ((inputs: Record<string, unk
   return cached
 }
 
-function setCachedFlowComputeFunction(key: string, fn: ((inputs: Record<string, unknown>) => unknown) | null): void {
+function setCachedFlowComputeFunction(key: string, fn: FlowComputeFunction | null): void {
   if (!key) return
   if (FLOW_COMPUTE_FUNCTION_CACHE.has(key)) {
     FLOW_COMPUTE_FUNCTION_CACHE.delete(key)
@@ -40,11 +53,11 @@ export function isUnsafeFlowComputeSource(source: string): boolean {
   const deny = /\b(window|document|globalThis|process|require|import|fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|Function|eval|setTimeout|setInterval)\b/
   if (deny.test(source)) return true
   const normalized = source.replace(/\s+/g, ' ')
-  const isArrow = /^\(?\s*inputs\s*\)?\s*=>/.test(normalized)
+  const isArrow = /^(?:inputs|\(\s*inputs\s*(?:,\s*(?:context|ctx))?\s*\))\s*=>/.test(normalized)
   return !isArrow
 }
 
-function compileFlowComputeSource(source: string): ((inputs: Record<string, unknown>) => unknown) | null {
+function compileFlowComputeSource(source: string): FlowComputeFunction | null {
   const key = cleanString(source)
   if (!key) return null
   const cached = getCachedFlowComputeFunction(key)
@@ -59,7 +72,7 @@ function compileFlowComputeSource(source: string): ((inputs: Record<string, unkn
       setCachedFlowComputeFunction(key, null)
       return null
     }
-    const wrapped = (inputs: Record<string, unknown>) => (fn as (arg: Record<string, unknown>) => unknown)(inputs)
+    const wrapped = (inputs: Record<string, unknown>, context: FlowComputeContext) => (fn as FlowComputeFunction)(inputs, context)
     setCachedFlowComputeFunction(key, wrapped)
     return wrapped
   } catch {
@@ -73,12 +86,18 @@ export function readFlowComputeSource(node: GraphNode): string {
   return cleanString(props?.['flow:compute'])
 }
 
-export function runFlowComputeSource(source: string, inputs: Record<string, unknown>): Record<string, unknown> | null {
+export function runFlowComputeSource(
+  source: string,
+  inputs: Record<string, unknown>,
+  context: FlowComputeContext = {},
+): Record<string, unknown> | null {
   const computeFn = compileFlowComputeSource(source)
   if (!computeFn) return null
   try {
     const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
-    const computed = anyImportMeta?.env?.DEV ? computeFn(Object.freeze({ ...inputs })) : computeFn(inputs)
+    const computed = anyImportMeta?.env?.DEV
+      ? computeFn(Object.freeze({ ...inputs }), Object.freeze({ ...context }))
+      : computeFn(inputs, context)
     return readPlainObject(computed)
   } catch {
     return null

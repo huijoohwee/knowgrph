@@ -7,7 +7,7 @@ import {
   type FrontmatterOverlayFitProxyScales,
 } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
-import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'

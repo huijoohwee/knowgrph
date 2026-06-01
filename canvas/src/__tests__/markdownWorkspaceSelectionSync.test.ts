@@ -1,5 +1,6 @@
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import {
+  resolveActivePathFromWorkspaceFileSelection,
   resolveInitialMarkdownWorkspaceSelectionPath,
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionSync'
@@ -15,9 +16,11 @@ const buildFileEntry = (path: string): WorkspaceEntry => ({
 })
 
 export function testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalidation() {
+  const entriesIndex = buildWorkspaceEntriesIndex([buildFileEntry('/docs/a.md')])
   const initial = resolveInitialMarkdownWorkspaceSelectionPath({
     selectionPath: null,
     activePath: '/docs/a.md' as never,
+    entriesIndex,
   })
   if (initial !== '/docs/a.md') {
     throw new Error(`expected empty selection state to hydrate from active path, got ${String(initial)}`)
@@ -26,6 +29,7 @@ export function testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalid
   const preserveMatching = resolveInitialMarkdownWorkspaceSelectionPath({
     selectionPath: '/docs/a.md' as never,
     activePath: '/docs/a.md' as never,
+    entriesIndex,
   })
   if (preserveMatching !== null) {
     throw new Error(`expected matching selection state to avoid redundant hydration, got ${String(preserveMatching)}`)
@@ -34,9 +38,29 @@ export function testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalid
   const syncExternalActiveChange = resolveInitialMarkdownWorkspaceSelectionPath({
     selectionPath: '/docs/b.md' as never,
     activePath: '/docs/a.md' as never,
+    entriesIndex,
   })
   if (syncExternalActiveChange !== '/docs/a.md') {
     throw new Error(`expected external active path changes to update selection, got ${String(syncExternalActiveChange)}`)
+  }
+
+  const preserveDocsMirrorAlias = resolveInitialMarkdownWorkspaceSelectionPath({
+    selectionPath: '/docs/a.md' as never,
+    activePath: '/a.md' as never,
+    entriesIndex,
+  })
+  if (preserveDocsMirrorAlias !== null) {
+    throw new Error(`expected docs mirror aliases to avoid redundant hydration, got ${String(preserveDocsMirrorAlias)}`)
+  }
+
+  const preserveActiveWhenSelectionIsRootDocsAlias = resolveActivePathFromWorkspaceFileSelection({
+    selectionPath: '/a.md' as never,
+    activePath: '/docs/a.md' as never,
+    entriesIndex,
+    selectionEntryKind: 'file',
+  })
+  if (preserveActiveWhenSelectionIsRootDocsAlias !== null) {
+    throw new Error(`expected root docs alias selection not to reactivate stale active path, got ${String(preserveActiveWhenSelectionIsRootDocsAlias)}`)
   }
 
   const loadingNoop = resolveInvalidatedMarkdownWorkspaceSelectionPath({

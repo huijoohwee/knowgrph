@@ -1,5 +1,11 @@
 import React from 'react'
 import { hashStringToHex } from 'grph-shared/hash/stringHash'
+import {
+  normalizeGeoPoiRichMediaProperties,
+  resolveGeoPoiAddressFromProperties,
+  resolveGeoPoiCategoryFromProperties,
+  type GeoPoiRichMediaProperties,
+} from 'grph-shared/geospatial/poiRichMedia'
 import { UI_THEME_TOKENS } from 'grph-shared/ui/themeTokens'
 import { useGympgrphStore } from './store.js'
 import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap.js'
@@ -25,11 +31,25 @@ import {
 } from './features/geospatial/pointStyleConfig.js'
 import type { FeatureCollection } from 'geojson'
 import { geoEquirectangular, geoGraticule, geoPath } from 'd3'
+import {
+  HIGH_FIDELITY_WORLD_SVG_HEIGHT,
+  HIGH_FIDELITY_WORLD_SVG_INNER,
+  HIGH_FIDELITY_WORLD_SVG_WIDTH,
+} from './features/geospatial/worldSvgBasemap.js'
 
 type GeospatialOverlayHostProps = {
   active?: boolean
   snapshot?: unknown
   handlers?: unknown
+}
+
+type RichMediaPoiDetail = {
+  label: string
+  lng: number
+  lat: number
+  address?: string
+  category?: string
+  properties?: GeoPoiRichMediaProperties
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -151,9 +171,6 @@ function GeospatialPointLegend(props: {
   )
 }
 
-const HIGH_FIDELITY_WORLD_SVG_URL = new URL('./features/geospatial/assets/simple-world-map-edit.svg', import.meta.url).href
-const HIGH_FIDELITY_WORLD_SVG_WIDTH = 494.7
-const HIGH_FIDELITY_WORLD_SVG_HEIGHT = 265.7
 const SVG_FALLBACK_VIEWBOX_WIDTH = 1000
 const SVG_FALLBACK_VIEWBOX_HEIGHT = 560
 const SVG_FALLBACK_STYLE = {
@@ -273,6 +290,12 @@ function SvgGeospatialFallback(args: {
     () => selectedPointPathBuilder(args.selectedFeatureCollection as never) || '',
     [selectedPointPathBuilder, args.selectedFeatureCollection],
   )
+  const terrainTransform = React.useMemo(() => {
+    if (!safeImageBounds.valid) return ''
+    const sx = safeImageBounds.width / HIGH_FIDELITY_WORLD_SVG_WIDTH
+    const sy = safeImageBounds.height / HIGH_FIDELITY_WORLD_SVG_HEIGHT
+    return `translate(${safeImageBounds.x} ${safeImageBounds.y}) scale(${sx} ${sy})`
+  }, [safeImageBounds.height, safeImageBounds.valid, safeImageBounds.width, safeImageBounds.x, safeImageBounds.y])
 
   return (
     <div className={args.className} style={args.style}>
@@ -316,20 +339,32 @@ function SvgGeospatialFallback(args: {
           <filter id="kg-geo-fallback-point-shadow" x="-100%" y="-100%" width="300%" height="300%">
             <feDropShadow dx="0" dy="1.2" stdDeviation="1.6" floodColor={SVG_FALLBACK_STYLE.pointShadow} />
           </filter>
+          <style>{`
+            .kg-geo-fallback-terrain .st0 {
+              fill: #91a77d;
+              stroke: rgba(15, 23, 42, 0.44);
+              stroke-width: 1.2px;
+              stroke-linejoin: bevel;
+            }
+            .kg-geo-fallback-terrain .st1 {
+              fill: #a7b78e;
+              stroke: rgba(15, 23, 42, 0.28);
+              stroke-width: 0.42px;
+              stroke-linejoin: bevel;
+            }
+          `}</style>
         </defs>
         <rect x="0" y="0" width={width} height={height} fill="url(#kg-geo-fallback-bg)" />
-        <g clipPath="url(#kg-geo-fallback-sphere-clip)" opacity="0.96">
+        <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.32)" strokeWidth="3.4" filter="url(#kg-geo-fallback-sphere-shadow)" />
+        <g clipPath="url(#kg-geo-fallback-sphere-clip)" opacity="0.98">
           {safeImageBounds.valid ? (
             <>
-              <image
-                href={HIGH_FIDELITY_WORLD_SVG_URL}
-                x={safeImageBounds.x}
-                y={safeImageBounds.y}
-                width={safeImageBounds.width}
-                height={safeImageBounds.height}
-                preserveAspectRatio="none"
+              <g
+                className="kg-geo-fallback-terrain"
+                transform={terrainTransform}
                 filter="url(#kg-geo-fallback-map-filter)"
-                opacity="0.92"
+                opacity="0.98"
+                dangerouslySetInnerHTML={{ __html: HIGH_FIDELITY_WORLD_SVG_INNER }}
               />
               <rect
                 x={safeImageBounds.x}
@@ -337,11 +372,11 @@ function SvgGeospatialFallback(args: {
                 width={safeImageBounds.width}
                 height={safeImageBounds.height}
                 fill="url(#kg-geo-fallback-land-wash)"
+                opacity="0.36"
               />
             </>
           ) : null}
         </g>
-        <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.32)" strokeWidth="3.4" filter="url(#kg-geo-fallback-sphere-shadow)" />
         <path d={spherePath} fill="none" stroke="url(#kg-geo-fallback-frame-stroke)" strokeWidth="1.2" />
         <path d={spherePath} fill="none" stroke="rgba(15,23,42,0.28)" strokeWidth="1.75" />
         <path d={minorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.minorGridLight} strokeWidth="0.55" />
@@ -465,11 +500,13 @@ function buildFeatureCollectionFromGraphData(
     if (graphRevision <= 0 && signatureParts.length < 500) {
       signatureParts.push(`${nodeId}:${category}:${lng.toFixed(6)}:${lat.toFixed(6)}`)
     }
+    const properties = normalizeGeoPoiRichMediaProperties(propsRaw)
     const feature = {
       type: 'Feature',
       id: nodeId,
       geometry: { type: 'Point', coordinates: [lng, lat] },
       properties: {
+        ...properties,
         id: nodeId,
         label,
         type: nodeType,
@@ -634,10 +671,10 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     })
   }, [props.handlers, props.snapshot])
 
-  const handlePoiClick = React.useCallback((detail: { label: string; lng: number; lat: number; address?: string; category?: string }) => {
+  const handlePoiClick = React.useCallback((detail: RichMediaPoiDetail) => {
     const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
     const renderPoiInRichMediaPanel = overlayHandlers && typeof overlayHandlers.renderPoiInRichMediaPanel === 'function'
-      ? overlayHandlers.renderPoiInRichMediaPanel as ((detail: { label: string; lng: number; lat: number; address?: string; category?: string }) => boolean)
+      ? overlayHandlers.renderPoiInRichMediaPanel as ((detail: RichMediaPoiDetail) => boolean)
       : null
     const upsert = overlayHandlers && typeof overlayHandlers.upsertUiToast === 'function'
       ? overlayHandlers.upsertUiToast as ((toast: { id: string; kind?: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => void)
@@ -702,16 +739,15 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       })
     }
   }, [props.handlers, props.snapshot])
-  const hoveredGraphNodeIdRef = React.useRef<string>('')
   const clickedGraphNodeCycleRef = React.useRef<{
     pointKey: string
     nodeIds: string[]
     nextIndex: number
   } | null>(null)
-  const renderGraphNodeHoverInRichMediaPanel = React.useCallback((feature: unknown) => {
+  const renderGraphNodeClickInRichMediaPanel = React.useCallback((feature: unknown) => {
     const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
     const renderPoiInRichMediaPanel = overlayHandlers && typeof overlayHandlers.renderPoiInRichMediaPanel === 'function'
-      ? overlayHandlers.renderPoiInRichMediaPanel as ((detail: { label: string; lng: number; lat: number; address?: string; category?: string }) => boolean)
+      ? overlayHandlers.renderPoiInRichMediaPanel as ((detail: RichMediaPoiDetail) => boolean)
       : null
     if (!renderPoiInRichMediaPanel) return
     const record = isRecord(feature) ? (feature as Record<string, unknown>) : null
@@ -724,12 +760,18 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     const idRaw = record?.id ?? propsRaw.id
     const nodeId = String(idRaw || '').trim()
     if (!nodeId) return
-    if (hoveredGraphNodeIdRef.current === nodeId) return
-    hoveredGraphNodeIdRef.current = nodeId
     const label = String(propsRaw.label || nodeId).trim() || nodeId
-    const address = String(propsRaw.address || propsRaw.street || '').trim()
-    const category = String(propsRaw.kgCategory || propsRaw.category || propsRaw.type || '').trim()
-    renderPoiInRichMediaPanel({ label, lng, lat, ...(address ? { address } : {}), ...(category ? { category } : {}) })
+    const properties = normalizeGeoPoiRichMediaProperties(propsRaw)
+    const address = resolveGeoPoiAddressFromProperties(properties)
+    const category = resolveGeoPoiCategoryFromProperties(properties)
+    renderPoiInRichMediaPanel({
+      label,
+      lng,
+      lat,
+      ...(address ? { address } : {}),
+      ...(category ? { category } : {}),
+      properties,
+    })
   }, [props.handlers, props.snapshot])
 
   const basemap2d = useMapLibreBasemap({
@@ -888,42 +930,24 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       }
       return nodeFeatures[index]?.feature ?? null
     }
-    const onMove = (ev: any) => {
-      try {
-        const point = ev && typeof ev === 'object' ? (ev as { point?: unknown }).point : null
-        const features = point ? map.queryRenderedFeatures(point, { layers: [pointsLayerId] }) : []
-        const first = Array.isArray(features) ? features[0] : null
-        if (!first) {
-          hoveredGraphNodeIdRef.current = ''
-          return
-        }
-        renderGraphNodeHoverInRichMediaPanel(first)
-      } catch {
-        void 0
-      }
-    }
     const onClick = (ev: any) => {
       try {
         const point = ev && typeof ev === 'object' ? (ev as { point?: unknown }).point : null
         const features = point ? map.queryRenderedFeatures(point, { layers: [pointsLayerId] }) : []
         const first = Array.isArray(features) ? pickFeatureForClick(features, point) : null
         if (!first) return
-        renderGraphNodeHoverInRichMediaPanel(first)
+        renderGraphNodeClickInRichMediaPanel(first)
       } catch {
         void 0
       }
     }
     const onLeave = () => {
-      hoveredGraphNodeIdRef.current = ''
       clickedGraphNodeCycleRef.current = null
     }
-    map.on('mousemove', onMove)
     map.on('click', onClick)
     map.on('mouseout', onLeave)
     return () => {
-      hoveredGraphNodeIdRef.current = ''
       try {
-        map.off('mousemove', onMove)
         map.off('click', onClick)
         map.off('mouseout', onLeave)
       } catch {
@@ -938,7 +962,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     graphSourceIdUnclustered,
     props.handlers,
     props.snapshot,
-    renderGraphNodeHoverInRichMediaPanel,
+    renderGraphNodeClickInRichMediaPanel,
     show3d,
   ])
 
@@ -1002,11 +1026,21 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     if (!show2dMapLibre) return false
     // Only overlay the SVG basemap when MapLibre itself is unavailable/failed.
     // Avoid masking a healthy basemap during transient layer sync windows.
-    const hasHardMapUnavailable = !activeBasemap.map || !!String(activeBasemap.mapError || '').trim()
+    const hasRenderableMapLibreBasemap = !!activeBasemap.map && !activeBasemap.basemapUnavailable && activeBasemap.probe.tilesLoaded
+    const hasHardMapUnavailable =
+      !activeBasemap.map
+      || activeBasemap.basemapUnavailable
+      || (!hasRenderableMapLibreBasemap && !!String(activeBasemap.mapError || '').trim())
     if (!hasHardMapUnavailable) return false
     if (!basemapGraphDebug?.styleReady) return true
     return !basemapGraphDebug.pointsLayer && !basemapGraphDebug.routesLayer && !basemapGraphDebug.clusterLayer
-  }, [active, activeBasemap.map, activeBasemap.mapError, basemapGraphDebug, graphFeatureCollection.features, show2dMapLibre])
+  }, [active, activeBasemap.basemapUnavailable, activeBasemap.map, activeBasemap.mapError, activeBasemap.probe.tilesLoaded, basemapGraphDebug, show2dMapLibre])
+
+  const shouldShowMapLibreErrorOverlay = React.useMemo(() => {
+    if (!activeBasemap.mapError) return false
+    if (!show2dMapLibre && !show3d) return true
+    return !activeBasemap.map || activeBasemap.basemapUnavailable || !activeBasemap.probe.tilesLoaded
+  }, [activeBasemap.basemapUnavailable, activeBasemap.map, activeBasemap.mapError, activeBasemap.probe.tilesLoaded, show2dMapLibre, show3d])
 
   const [svgOverlayInsetRight, setSvgOverlayInsetRight] = React.useState(12)
   React.useEffect(() => {
@@ -1298,6 +1332,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
           <div>
             canvas: {activeBasemap.probe.canvasW}×{activeBasemap.probe.canvasH} tilesLoaded: {activeBasemap.probe.tilesLoaded ? 'yes' : 'no'}
           </div>
+          <div>basemapUnavailable: {activeBasemap.basemapUnavailable ? 'yes' : 'no'}</div>
           <div>
             zoom: {activeBasemap.probe.zoom.toFixed(2)} center: {activeBasemap.probe.lng.toFixed(4)},{activeBasemap.probe.lat.toFixed(4)}
           </div>
@@ -1312,7 +1347,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
           {activeBasemap.mapError ? <div className="text-red-700 dark:text-red-300">err: {activeBasemap.mapError}</div> : null}
         </div>
       ) : null}
-      {!debug && activeBasemap.mapError ? (
+      {!debug && shouldShowMapLibreErrorOverlay ? (
         <div className={`absolute inset-0 flex items-center justify-center text-xs ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`}>
           {activeBasemap.mapError}
         </div>

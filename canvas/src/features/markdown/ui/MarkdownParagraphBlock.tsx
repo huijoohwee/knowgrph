@@ -33,6 +33,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 import { readStandaloneParagraphUrlToken } from './standaloneMediaBudget'
+import { CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { normalizeMarkdownLocalProxyUrl } from '@/lib/markdown-core/ui/mediaProxyUrl'
 const extractLinkText = (token: Token): string => {
   const p = token as unknown as TokensParagraph
@@ -361,7 +362,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         highlightStyle={highlightStyle}
         opts={opts}
       >
-        <MediaImage src={resolvedImageHref} alt={standaloneLinkedImage.imageAlt} />
+        <MediaImage src={resolvedImageHref} alt={standaloneLinkedImage.imageAlt} cardPreviewMode={opts.markdownCardPreviewMode} />
       </MediaWrapper>
     )
   }
@@ -391,6 +392,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           title="YouTube"
           presentationMode={opts.markdownPresentationMode}
           deferLoad={opts.markdownLargeDocumentMode}
+          cardPreviewMode={opts.markdownCardPreviewMode}
         />,
       )
     }
@@ -405,13 +407,14 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           src={src}
           title="X"
           presentationMode={opts.markdownPresentationMode}
+          cardPreviewMode={opts.markdownCardPreviewMode}
         />,
       )
     }
 
     if (looksLikeImageHref(standaloneHref)) {
       const resolved = resolveHref(standaloneHref, opts.activeDocumentPath)
-      return renderStandaloneMedia('image', <MediaImage src={resolved} alt={standaloneHref} />)
+      return renderStandaloneMedia('image', <MediaImage src={resolved} alt={standaloneHref} cardPreviewMode={opts.markdownCardPreviewMode} />)
     }
 
     const vimeo = buildVimeoEmbedUrl(standaloneHref)
@@ -422,6 +425,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           src={vimeo}
           title="Vimeo"
           presentationMode={opts.markdownPresentationMode}
+          cardPreviewMode={opts.markdownCardPreviewMode}
         />,
       )
     }
@@ -434,6 +438,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           src={bilibili}
           title="Bilibili"
           presentationMode={opts.markdownPresentationMode}
+          cardPreviewMode={opts.markdownCardPreviewMode}
         />,
       )
     }
@@ -441,7 +446,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     if (isVideoUrl(standaloneHref)) {
       const resolved = resolveHref(standaloneHref, opts.activeDocumentPath)
       const src = applyMediaProxySrc(resolved)
-      return renderStandaloneMedia('video', <MediaVideo src={src} />)
+      return renderStandaloneMedia('video', <MediaVideo src={src} cardPreviewMode={opts.markdownCardPreviewMode} />)
     }
 
     const normalizedHref = normalizeWebpageLikeUrl(standaloneHref)
@@ -457,7 +462,12 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
 
     return renderStandaloneMedia(
       'webpage',
-      <MediaWebpageSnapshot url={normalizedHref} title="Webpage" presentationMode={opts.markdownPresentationMode} />,
+      <MediaWebpageSnapshot
+        url={normalizedHref}
+        title="Webpage"
+        presentationMode={opts.markdownPresentationMode}
+        cardPreviewMode={opts.markdownCardPreviewMode}
+      />,
     )
   }
 
@@ -480,6 +490,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
             src={youtube}
             title="YouTube"
             presentationMode={opts.markdownPresentationMode}
+            cardPreviewMode={opts.markdownCardPreviewMode}
           />
         </MediaWrapper>
       )
@@ -502,6 +513,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
             src={src}
             title="X"
             presentationMode={opts.markdownPresentationMode}
+            cardPreviewMode={opts.markdownCardPreviewMode}
           />
         </MediaWrapper>
       )
@@ -523,6 +535,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
             src={bilibili}
             title="Bilibili"
             presentationMode={opts.markdownPresentationMode}
+            cardPreviewMode={opts.markdownCardPreviewMode}
           />
         </MediaWrapper>
       )
@@ -537,7 +550,12 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         highlightStyle={highlightStyle}
         opts={opts}
       >
-        <MediaWebpageSnapshot url={normalizedHref} title="Webpage" presentationMode={opts.markdownPresentationMode} />
+        <MediaWebpageSnapshot
+          url={normalizedHref}
+          title="Webpage"
+          presentationMode={opts.markdownPresentationMode}
+          cardPreviewMode={opts.markdownCardPreviewMode}
+        />
       </MediaWrapper>
     )
   }
@@ -562,18 +580,28 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       return renderStandaloneMedia(
         'iframe',
         embed.direct ? (
-          <MediaIframe src={resolved} title="Embedded content" presentationMode={opts.markdownPresentationMode} />
+          <MediaIframe
+            src={resolved}
+            title="Embedded content"
+            presentationMode={opts.markdownPresentationMode}
+            cardPreviewMode={opts.markdownCardPreviewMode}
+          />
         ) : (
-          <MediaWebpageSnapshot url={resolved} title="Embedded content" presentationMode={opts.markdownPresentationMode} />
+          <MediaWebpageSnapshot
+            url={resolved}
+            title="Embedded content"
+            presentationMode={opts.markdownPresentationMode}
+            cardPreviewMode={opts.markdownCardPreviewMode}
+          />
         ),
       )
     }
     if (standaloneMedia.kind === 'image') {
-      return renderStandaloneMedia('image', <MediaImage src={resolved} alt={standaloneMedia.alt || standaloneMedia.href} />)
+      return renderStandaloneMedia('image', <MediaImage src={resolved} alt={standaloneMedia.alt || standaloneMedia.href} cardPreviewMode={opts.markdownCardPreviewMode} />)
     }
     if (standaloneMedia.kind === 'video') {
       const src = applyMediaProxySrc(resolved)
-      return renderStandaloneMedia('video', <MediaVideo src={src} />)
+      return renderStandaloneMedia('video', <MediaVideo src={src} cardPreviewMode={opts.markdownCardPreviewMode} />)
     }
     if (standaloneMedia.kind === 'audio') {
       const src = applyMediaProxySrc(resolved)
@@ -582,7 +610,9 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         <audio
           controls
           src={src || undefined}
-          className={`w-full max-w-xl rounded border ${UI_THEME_TOKENS.panel.border}`}
+          className={opts.markdownCardPreviewMode === true
+            ? `w-full max-w-xl ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
+            : `w-full max-w-xl rounded border ${UI_THEME_TOKENS.panel.border}`}
         />,
       )
     }
@@ -633,6 +663,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         uiPanelTextFontClass: opts.uiPanelTextFontClass,
         uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
         markdownPresentationMode: opts.markdownPresentationMode,
+        markdownCardPreviewMode: opts.markdownCardPreviewMode,
         fragmentOptions:
           opts.markdownPresentationMode && fragmentsEnabled
             ? {

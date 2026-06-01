@@ -2,7 +2,7 @@ import { getVoxelModeInapplicableReason, isVoxelModeApplicable, normalizeCanvas3
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
-import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
+import type { CanvasViewModelState, CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { getLocalStorage } from '@/lib/persistence'
@@ -97,6 +97,108 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   }
   if (calls.join('|') !== '3d:xr|render:3d') {
     throw new Error(`Expected XR Mode selection to preserve XR before activating the 3D render surface, got ${calls.join('|')}`)
+  }
+}
+
+export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
+  const flowEditorState = {
+    canvas2dRenderer: 'flowEditor',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    timelineEnabled: false,
+    geospatialEnabled: false,
+    layoutMode: 'block',
+    schema: BLOCK_SCHEMA,
+    frontmatterOnlyAllowed: false,
+    isD3Like2dLayoutToggle: false,
+    voxelApplicable: false,
+    voxelDisabledReason: null,
+  } satisfies CanvasViewModelState
+  const flowEditorOptions = buildCanvasViewOptions(flowEditorState, getCanvasViewRendererOptions())
+  const flowEditorLayout = flowEditorOptions.find(option => option.id === 'layout:menu')
+  const flowEditorLayoutIds = (flowEditorLayout?.children || []).map(option => option.id)
+  if (!flowEditorLayoutIds.includes('layout:flowEditorRebalance')) {
+    throw new Error(`Expected Flow Editor Layout menu to expose a rebalance action, got ${flowEditorLayoutIds.join(',')}`)
+  }
+  if (flowEditorLayoutIds.includes('layout:block') || flowEditorLayoutIds.includes('layout:radial')) {
+    throw new Error('Expected Flow Editor Layout menu to avoid D3/Flowchart layout mode mutations')
+  }
+
+  const d3Options = buildCanvasViewOptions(
+    {
+      ...flowEditorState,
+      canvas2dRenderer: 'd3',
+      isD3Like2dLayoutToggle: true,
+    },
+    getCanvasViewRendererOptions(),
+  )
+  const d3LayoutIds = (d3Options.find(option => option.id === 'layout:menu')?.children || []).map(option => option.id)
+  if (d3LayoutIds.includes('layout:flowEditorRebalance')) {
+    throw new Error('Expected the Flow Editor rebalance action to stay out of non-Flow-Editor renderer menus')
+  }
+
+  let rebalanceRequests = 0
+  let schemaWrites = 0
+  applyCanvasViewSelection({
+    id: 'layout:flowEditorRebalance',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {},
+    canvas2dRenderer: 'flowEditor',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    timelineEnabled: false,
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: () => {},
+    setCanvasRenderMode: () => {},
+    setCanvas3dMode: () => {},
+    setSchema: () => { schemaWrites += 1 },
+    setRenderMediaAsNodes: () => {},
+    setTimelineEnabled: () => {},
+    setDocumentSemanticMode: () => {},
+    setFrontmatterModeEnabled: () => {},
+    setMultiDimTableModeEnabled: () => {},
+    requestFlowEditorLayoutRebalance: () => { rebalanceRequests += 1 },
+  })
+  if (rebalanceRequests !== 1 || schemaWrites !== 0) {
+    throw new Error(`Expected Flow Editor layout action to request one rebalance and avoid schema writes, got ${JSON.stringify({ rebalanceRequests, schemaWrites })}`)
+  }
+
+  applyCanvasViewSelection({
+    id: 'layout:flowEditorRebalance',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {},
+    canvas2dRenderer: 'flow',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    timelineEnabled: false,
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: () => {},
+    setCanvasRenderMode: () => {},
+    setCanvas3dMode: () => {},
+    setSchema: () => { schemaWrites += 1 },
+    setRenderMediaAsNodes: () => {},
+    setTimelineEnabled: () => {},
+    setDocumentSemanticMode: () => {},
+    setFrontmatterModeEnabled: () => {},
+    setMultiDimTableModeEnabled: () => {},
+    requestFlowEditorLayoutRebalance: () => { rebalanceRequests += 1 },
+  })
+  if (rebalanceRequests !== 1) {
+    throw new Error('Expected Flow Editor rebalance action to be ignored outside the Flow Editor renderer')
   }
 }
 

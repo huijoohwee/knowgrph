@@ -4,7 +4,7 @@ import {
   FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MAX,
   FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN,
 } from '@/components/FlowCanvas/frontmatterLayoutConfig'
-import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 export function testFlowEditorFitIncludesPinnedWidgets() {

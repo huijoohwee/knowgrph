@@ -1,3 +1,8 @@
+import {
+  KNOWGRPH_AGENT_SURFACE_OUTPUT_SCHEMA,
+  buildKnowgrphMcpAppsToolMeta,
+} from './mcpAppsReadyContract.mjs'
+
 export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   listSourceFiles: 'list_source_files',
   readSourceFile: 'read_source_file',
@@ -180,7 +185,9 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       title: 'Inspect Agent Surface',
       description: 'Inspect the deployed Knowgrph agent-ready discovery surface, including health, OpenAPI, MCP, and skill metadata.',
       inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+      outputSchema: KNOWGRPH_AGENT_SURFACE_OUTPUT_SCHEMA,
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      _meta: buildKnowgrphMcpAppsToolMeta(),
     },
   ]
   return contracts

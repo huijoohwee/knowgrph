@@ -17,6 +17,10 @@ import {
   useMarkdownLineBlockDnD,
 } from './MarkdownBlockGutter'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
+import {
+  CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 
 type MarkdownTableBlockProps = {
   token: TokenWithLines
@@ -67,10 +71,9 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
   const cardPreviewMode = opts.markdownCardPreviewMode === true
-  const cardPreviewTableFrameClassName = 'overflow-auto max-h-full'
   const documentTableFrameClassName = `overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`
-  const figureClassName = cardPreviewMode ? cardPreviewTableFrameClassName : documentTableFrameClassName
-  const blockSpacingClassName = cardPreviewMode ? 'm-0' : 'mt-4 mb-4'
+  const figureClassName = cardPreviewMode ? CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME : documentTableFrameClassName
+  const blockSpacingClassName = cardPreviewMode ? CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME : 'mt-4 mb-4'
   const tableEditorClassName = [
     MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
     isDataView ? '' : figureClassName,
@@ -147,6 +150,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                       uiPanelTextFontClass: opts.uiPanelTextFontClass,
                       uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                       markdownPresentationMode: opts.markdownPresentationMode,
+                      markdownCardPreviewMode: opts.markdownCardPreviewMode,
                       fragmentOptions:
                         opts.markdownPresentationMode && fragmentsEnabled
                           ? {
@@ -174,6 +178,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                         uiPanelTextFontClass: opts.uiPanelTextFontClass,
                         uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                         markdownPresentationMode: opts.markdownPresentationMode,
+                        markdownCardPreviewMode: opts.markdownCardPreviewMode,
                         fragmentOptions:
                           opts.markdownPresentationMode && fragmentsEnabled
                             ? {
@@ -260,6 +265,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                       uiPanelTextFontClass: opts.uiPanelTextFontClass,
                       uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                       markdownPresentationMode: opts.markdownPresentationMode,
+                      markdownCardPreviewMode: opts.markdownCardPreviewMode,
                       fragmentOptions:
                         opts.markdownPresentationMode && fragmentsEnabled
                           ? {
@@ -287,6 +293,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                         uiPanelTextFontClass: opts.uiPanelTextFontClass,
                         uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                         markdownPresentationMode: opts.markdownPresentationMode,
+                        markdownCardPreviewMode: opts.markdownCardPreviewMode,
                         fragmentOptions:
                           opts.markdownPresentationMode && fragmentsEnabled
                             ? {

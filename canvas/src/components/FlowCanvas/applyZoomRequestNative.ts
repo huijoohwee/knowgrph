@@ -19,6 +19,7 @@ import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
+import { computeTransformScaleAboutScreenPoint } from '@/lib/zoom/viewport'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanvas/flowEditorOverlayRecenter'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
@@ -52,7 +53,9 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   const surfaceOffsetTop = Number.isFinite(surfaceRect?.top) ? Number(surfaceRect?.top) : 0
   const merged = new Map<string, { left: number; right: number; top: number; bottom: number; area: number }>()
   const pushEntries = (selector: string) => {
-    const queryRoot: ParentNode = surfaceRoot || document
+    // Flow Editor overlays are portal-mounted fixed elements, so surfaceRoot is
+    // only the coordinate origin. Scope membership by surface id instead.
+    const queryRoot: ParentNode = document
     const els = Array.from(queryRoot.querySelectorAll(selector))
       .filter((el): el is HTMLElement => el instanceof HTMLElement)
       .filter(el => !hasSurfaceId || readFlowEditorOverlaySurfaceId(el) === normalizedSurfaceId)
@@ -318,6 +321,13 @@ export const applyZoomRequestNative = (args: {
     state.canvasRenderMode === '2d'
     && state.canvas2dRenderer === 'flowEditor'
     && args.zoomRequest.type === 'out'
+  const isFlowEditorContextualZoomRequest =
+    state.canvasRenderMode === '2d'
+    && state.canvas2dRenderer === 'flowEditor'
+    && (
+      args.zoomRequest.type === 'in'
+      || args.zoomRequest.type === 'out'
+    )
   const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isFlowEditorFitLikeRequest
   const hasFlowEditorGraphFitData =
     state.canvasRenderMode === '2d'
@@ -497,10 +507,43 @@ export const applyZoomRequestNative = (args: {
         }
       })()
     : null
-  const resolved = flowEditorOverlayFitResolved
+  const flowEditorOutUsesCollectiveFloor =
+    isFlowEditorCollectiveOutRequest
+    && !!flowEditorCollectiveOutResolved
+    && !!defaultResolved
+    && typeof defaultResolved.nextMinScale === 'number'
+    && Number.isFinite(defaultResolved.nextMinScale)
+    && defaultResolved.nextTransform.k <= defaultResolved.nextMinScale + 1e-9
+  const flowEditorContextualZoomBase =
+    isFlowEditorContextualZoomRequest && !flowEditorOutUsesCollectiveFloor
+      ? (flowEditorCollectiveOutResolved || defaultResolved)
+      : null
+  const flowEditorContextualZoomResolved =
+    flowEditorContextualZoomBase
+      ? (() => {
+          const nextK = flowEditorContextualZoomBase.nextTransform.k
+          if (!Number.isFinite(nextK) || nextK <= 0) return null
+          const scaled = computeTransformScaleAboutScreenPoint({
+            transform: t0,
+            focalX: visibleViewport.centerX,
+            focalY: visibleViewport.centerY,
+            nextK,
+          })
+          return {
+            ...flowEditorContextualZoomBase,
+            nextTransform: d3.zoomIdentity.translate(scaled.x, scaled.y).scale(scaled.k),
+          }
+        })()
+      : null
+  const shouldRecenterFlowEditorCollectiveAfterZoom =
+    isFlowEditorContextualZoomRequest
+    && fitHasCollectiveOverlayFit
+  const resolved = isFlowEditorFitLikeRequest && flowEditorOverlayFitResolved
     ? flowEditorOverlayFitResolved
     : isFlowEditorGraphFitRequest
     ? flowEditorCollectiveGraphFitReference
+    : flowEditorContextualZoomResolved
+    ? flowEditorContextualZoomResolved
     : flowEditorCollectiveOutResolved
     ? flowEditorCollectiveOutResolved
     : defaultResolved
@@ -523,7 +566,7 @@ export const applyZoomRequestNative = (args: {
     setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
     args.onCommit?.()
-    if (shouldRecenterFlowEditorCollectiveAfterFit) {
+    if (shouldRecenterFlowEditorCollectiveAfterFit || shouldRecenterFlowEditorCollectiveAfterZoom) {
       recenterVisibleFlowEditorOverlayCentroid({
         runtime: args.runtime,
         viewportW,
@@ -555,7 +598,7 @@ export const applyZoomRequestNative = (args: {
     args.onFrame?.()
     if (!(raw01 < 1)) {
       FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
-      if (shouldRecenterFlowEditorCollectiveAfterFit) {
+      if (shouldRecenterFlowEditorCollectiveAfterFit || shouldRecenterFlowEditorCollectiveAfterZoom) {
         recenterVisibleFlowEditorOverlayCentroid({
           runtime: args.runtime,
           viewportW,

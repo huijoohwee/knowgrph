@@ -18,6 +18,35 @@ export const FLOW_EDITOR_INTERACTION_FRAME_EVENT = 'kg-flow-editor-interaction-f
 
 let flowEditorInteractionFrameRaf: number | null = null
 
+export function escapeFlowEditorOverlaySelectorAttrValue(value: string): string {
+  const text = String(value || '')
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(text)
+  return text.replace(/["\\\]]/g, '\\$&')
+}
+
+export function findFlowEditorOverlaySurfaceRoot(surfaceId: string | null | undefined): HTMLElement | null {
+  if (typeof document === 'undefined') return null
+  const normalizedSurfaceId = String(surfaceId || '').trim()
+  if (!normalizedSurfaceId) return null
+  return document.querySelector<HTMLElement>(
+    `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeFlowEditorOverlaySelectorAttrValue(normalizedSurfaceId)}"]`,
+  )
+}
+
+export function queryFlowEditorOverlayRootsForSurface(args: {
+  surfaceId: string | null | undefined
+  selector: string
+  root?: ParentNode | null
+}): HTMLElement[] {
+  if (typeof document === 'undefined') return []
+  const surfaceId = String(args.surfaceId || '').trim()
+  if (!surfaceId) return []
+  const queryRoot = args.root || document
+  return Array.from(queryRoot.querySelectorAll(args.selector))
+    .filter((el): el is HTMLElement => el instanceof HTMLElement)
+    .filter(el => readFlowEditorOverlaySurfaceId(el) === surfaceId)
+}
+
 export function emitFlowEditorInteractionFrame(): void {
   if (typeof window === 'undefined') return
   if (flowEditorInteractionFrameRaf != null) return
@@ -53,7 +82,17 @@ export function readCanvasOverlayNodeId(overlayRoot: HTMLElement | null | undefi
 
 export function readFlowEditorOverlaySurfaceId(overlayRoot: HTMLElement | null | undefined): string {
   if (!overlayRoot) return ''
-  return String(overlayRoot.dataset.kgFlowEditorSurface || '').trim()
+  const ownSurfaceId = String(overlayRoot.dataset.kgFlowEditorSurface || '').trim()
+  if (ownSurfaceId) return ownSurfaceId
+  try {
+    const closestSurface = overlayRoot.closest(`[${FLOW_EDITOR_OVERLAY_SURFACE_ATTR}]`)
+    if (closestSurface instanceof HTMLElement) {
+      return String(closestSurface.dataset.kgFlowEditorSurface || '').trim()
+    }
+  } catch {
+    void 0
+  }
+  return ''
 }
 
 export function isTransientOffscreenRichMediaOverlayRoot(overlayRoot: HTMLElement | null | undefined, rect: DOMRect | null | undefined): boolean {

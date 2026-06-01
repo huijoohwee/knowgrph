@@ -23,6 +23,14 @@ type RichMediaPanelToolbarProps = Pick<
   'richMediaViewToggle' | 'richMediaMediaSelector' | 'richMediaAspectToggle' | 'richMediaTextModeToggle' | 'openExternalAction'
 >
 
+function readRichMediaPanelFrameWidthPx(richMediaWidgetPreview: unknown): number | null {
+  if (!richMediaWidgetPreview || typeof richMediaWidgetPreview !== 'object') return null
+  const viewSize = (richMediaWidgetPreview as { richMediaPanelViewSize?: unknown }).richMediaPanelViewSize
+  if (!viewSize || typeof viewSize !== 'object') return null
+  const width = Number((viewSize as { width?: unknown }).width)
+  return Number.isFinite(width) && width > 0 ? Math.max(1, Math.round(width)) : null
+}
+
 export function NodeOverlayEditorView(args: {
   asideRef: React.RefObject<HTMLElement | null>
   flowEditorSurfaceId?: string
@@ -146,6 +154,9 @@ export function NodeOverlayEditorView(args: {
     spacePanUserSelectUnlockRef,
   } = args
   const passthroughPointerEventsClass = interactionPassthrough ? 'pointer-events-none' : 'pointer-events-auto'
+  const richMediaPanelFrameWidthPx = isRichMediaPanelWidget
+    ? readRichMediaPanelFrameWidthPx(richMediaWidgetPreview)
+    : null
   return (
     <aside
       ref={asideRef}
@@ -156,7 +167,10 @@ export function NodeOverlayEditorView(args: {
       data-kg-widget-pinned={pinnedInCanvas ? '1' : '0'}
       data-kg-canvas-wheel-ignore={interactionPassthrough ? 'false' : 'true'}
       className={interactionPassthrough ? 'fixed pointer-events-none' : 'fixed'}
-      style={{ zIndex: overlayZIndex }}
+      style={{
+        zIndex: overlayZIndex,
+        ...(richMediaPanelFrameWidthPx != null ? { width: `${richMediaPanelFrameWidthPx}px` } : null),
+      }}
       onPointerDownCapture={(ev) => {
         if (interactionPassthrough) return
         const t = ev.target

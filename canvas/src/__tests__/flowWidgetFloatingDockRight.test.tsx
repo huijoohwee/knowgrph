@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 
 import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -218,6 +219,97 @@ export async function testFlowWidgetUnpinnedReusesCanvasPanMovement() {
     if (tx1 == null) throw new Error('expected next matrix() transform')
     if (!(tx1 > tx0 + 120)) {
       throw new Error(`expected unpinned overlay to follow pan movement (tx0=${tx0}, tx1=${tx1})`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testFlowWidgetUnpinnedInteractionFrameRefreshesLiveTransform() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+    api.setZoomState({ k: 1, x: 0, y: 0 })
+    api.setFlowWidgetPinnedByNodeId({ n1: false })
+
+    let liveTransform = { k: 1, x: 0, y: 0 }
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (typeof raf === 'function') raf(() => resolve())
+        else setTimeout(() => resolve(), 0)
+      })
+    const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
+
+    root.render(
+      React.createElement(NodeOverlayEditor, {
+        active: true,
+        node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
+        edges: [],
+        viewportW: 900,
+        viewportH: 600,
+        canvasWindowOffset: { left: 0, top: 0 },
+        getLiveZoomTransform: () => liveTransform,
+        onSetLabel: () => void 0,
+        onSetType: () => void 0,
+        onPatchProperties: () => void 0,
+        onSetProperties: () => void 0,
+        onValidate: () => void 0,
+        onDuplicate: () => void 0,
+        onRemove: () => void 0,
+        onClearOutput: () => void 0,
+        onHelp: () => void 0,
+        onConvertToLoopNode: () => void 0,
+        onEnableHandlesForAllInputs: () => void 0,
+      } as never),
+    )
+
+    await sleep(0)
+    await tick()
+    await sleep(0)
+    await tick()
+
+    const panel = document.body.querySelector('aside[data-kg-canvas-wheel-ignore="true"]') as HTMLElement | null
+    if (!panel) throw new Error('expected widget overlay aside')
+    const tx0 = readTranslateX(panel.style.transform)
+    if (tx0 == null) throw new Error(`expected matrix() transform, got ${String(panel.style.transform || '')}`)
+
+    liveTransform = { k: 1, x: 180, y: 0 }
+    dom.window.dispatchEvent(new dom.window.Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+
+    await sleep(0)
+    await tick()
+    await sleep(0)
+    await tick()
+
+    const tx1 = readTranslateX(panel.style.transform)
+    if (tx1 == null) throw new Error('expected next matrix() transform')
+    if (!(tx1 > tx0 + 120)) {
+      throw new Error(`expected unpinned overlay to refresh from live interaction frame (tx0=${tx0}, tx1=${tx1})`)
     }
   } finally {
     try {

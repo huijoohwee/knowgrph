@@ -181,6 +181,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   useInitialWorkspacePaneVisibility({
     activeDocumentKey,
     modelAssetFormat,
+    splitPaneVisibility,
     webpageUrl: webpageMeta?.url || null,
     webpageView: webpageMeta?.view || null,
     workspaceEditorOverlayOpen,
@@ -288,20 +289,20 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const jsonDerivedMarkdownSeedRef = React.useRef<string>('')
   const editableMarkdownText = viewerInlineMarkdownDraftText ?? (isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : activeText)
   React.useEffect(() => {
-    setViewerInlineMarkdownDraftText(null)
-    setViewerInlineViewerText(null)
-  }, [activeDocumentKey])
+    if (viewerInlineMarkdownDraftText !== null) setViewerInlineMarkdownDraftText(null)
+    if (viewerInlineViewerText !== null) setViewerInlineViewerText(null)
+  }, [activeDocumentKey, viewerInlineMarkdownDraftText, viewerInlineViewerText])
   React.useEffect(() => {
     if (!isJsonMarkdownEditing || !jsonDerivedMarkdownBase) {
-      jsonDerivedMarkdownSeedRef.current = ''
-      setJsonDerivedMarkdownDraft(null)
+      if (jsonDerivedMarkdownSeedRef.current) jsonDerivedMarkdownSeedRef.current = ''
+      if (jsonDerivedMarkdownDraft !== null) setJsonDerivedMarkdownDraft(null)
       return
     }
     const seed = `${activeDocumentKey}::${jsonDerivedMarkdownBase}`
     if (jsonDerivedMarkdownSeedRef.current === seed) return
     jsonDerivedMarkdownSeedRef.current = seed
-    setJsonDerivedMarkdownDraft(jsonDerivedMarkdownBase)
-  }, [activeDocumentKey, isJsonMarkdownEditing, jsonDerivedMarkdownBase])
+    if (jsonDerivedMarkdownDraft !== jsonDerivedMarkdownBase) setJsonDerivedMarkdownDraft(jsonDerivedMarkdownBase)
+  }, [activeDocumentKey, isJsonMarkdownEditing, jsonDerivedMarkdownBase, jsonDerivedMarkdownDraft])
   const persistedEditableMarkdownText = isJsonMarkdownEditing
     ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '')
     : activeText

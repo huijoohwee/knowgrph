@@ -15,6 +15,7 @@ import {
   resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaPanelState'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
+import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import {
   getRichMediaPanelNodeLabel,
   isRichMediaPanelNode,
@@ -176,6 +177,10 @@ export function buildRichMediaPanelPreviewSpec(args: {
   const rawMediaUrl = typeof props.media_url === 'string' ? props.media_url.trim() : ''
   const rawOpenUrl = rawImageUrl || rawVideoUrl || rawMediaUrl
   const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
+  const outputSrcDoc = normalizeRichMediaPanelInlineSrcDoc({
+    srcDoc: rawOutputSrcDoc,
+    title: String(args.node.label || args.node.id || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+  })
   const renderSpec = getNodeMediaSpec(renderNode)
   const selectedTab = resolveRichMediaPanelSelectedTab({
     activeTab: panel.activeTab,
@@ -207,7 +212,7 @@ export function buildRichMediaPanelPreviewSpec(args: {
     kind: 'iframe',
     url: rawOpenUrl || String(renderSpec?.url || ''),
     openUrl: rawOpenUrl || String(renderSpec?.url || ''),
-    srcDoc: rawOutputSrcDoc || String(renderSpec?.srcDoc || '') || undefined,
+    srcDoc: String(renderSpec?.srcDoc || outputSrcDoc || '') || undefined,
     interactive: renderSpec?.interactive !== false,
   }
 }
@@ -314,10 +319,107 @@ export function coerceRichMediaPanelSizePx(args: {
   if (vw != null) maxW = Math.max(minWidthPx, Math.floor(vw * maxViewportWidthRatio))
   if (vh != null) maxH = Math.max(minHeightPx, Math.floor(vh * maxViewportHeightRatio))
 
-  const downscale = Math.min(1, maxW / w0, maxH / h0)
-  const w1 = Math.max(minWidthPx, Math.floor(w0 * downscale))
-  const h1 = Math.max(minHeightPx, Math.floor(h0 * downscale))
-  return { width: w1, height: h1 }
+  const aspect = Math.max(0.05, Math.min(20, w0 / Math.max(1, h0)))
+  const minScale = Math.max(minWidthPx / w0, minHeightPx / h0)
+  const maxScale = Math.min(maxW / w0, maxH / h0)
+  const scale = minScale > maxScale
+    ? minScale
+    : Math.max(minScale, Math.min(1, maxScale))
+
+  let width = Math.max(1, Math.round(w0 * scale))
+  let height = Math.max(1, Math.round(h0 * scale))
+  if (width < minWidthPx) {
+    width = minWidthPx
+    height = Math.max(1, Math.round(width / aspect))
+  }
+  if (height < minHeightPx) {
+    height = minHeightPx
+    width = Math.max(1, Math.round(height * aspect))
+  }
+  if (width > maxW) {
+    width = Math.max(1, Math.floor(maxW))
+    height = Math.max(1, Math.round(width / aspect))
+  }
+  if (height > maxH) {
+    height = Math.max(1, Math.floor(maxH))
+    width = Math.max(1, Math.round(height * aspect))
+  }
+  if (width < minWidthPx) {
+    width = minWidthPx
+    height = Math.max(1, Math.round(width / aspect))
+  }
+  if (height < minHeightPx) {
+    height = minHeightPx
+    width = Math.max(1, Math.round(height * aspect))
+  }
+  return { width, height }
+}
+
+export function computeRichMediaPanelAspectResizeSizePx(args: {
+  startWidth: unknown
+  startHeight: unknown
+  dx: unknown
+  dy: unknown
+}): { width: number; height: number } {
+  const rawW = typeof args.startWidth === 'number' && Number.isFinite(args.startWidth) ? args.startWidth : Number(args.startWidth)
+  const rawH = typeof args.startHeight === 'number' && Number.isFinite(args.startHeight) ? args.startHeight : Number(args.startHeight)
+  const startWidth = Number.isFinite(rawW) && rawW > 0 ? rawW : 1
+  const startHeight = Number.isFinite(rawH) && rawH > 0 ? rawH : 1
+  const dx = typeof args.dx === 'number' && Number.isFinite(args.dx) ? args.dx : Number(args.dx)
+  const dy = typeof args.dy === 'number' && Number.isFinite(args.dy) ? args.dy : Number(args.dy)
+  const deltaX = Number.isFinite(dx) ? dx : 0
+  const deltaY = Number.isFinite(dy) ? dy : 0
+  const aspect = Math.max(0.05, Math.min(20, startWidth / Math.max(1, startHeight)))
+  if (Math.abs(deltaY) > Math.abs(deltaX)) {
+    const height = Math.max(1, Math.round(startHeight + deltaY))
+    return {
+      width: Math.max(1, Math.round(height * aspect)),
+      height,
+    }
+  }
+  const width = Math.max(1, Math.round(startWidth + deltaX))
+  return {
+    width,
+    height: Math.max(1, Math.round(width / aspect)),
+  }
+}
+
+export function coerceRichMediaPanelChromeSizePx(args: {
+  width: unknown
+  height: unknown
+  viewportW?: unknown
+  viewportH?: unknown
+  minWidthPx?: number
+  minHeightPx?: number
+  maxViewportWidthRatio?: number
+  maxViewportHeightRatio?: number
+}): { width: number; height: number } {
+  const minWidthPx =
+    typeof args.minWidthPx === 'number' && Number.isFinite(args.minWidthPx) ? Math.max(1, Math.floor(args.minWidthPx)) : 220
+  const minHeightPx =
+    typeof args.minHeightPx === 'number' && Number.isFinite(args.minHeightPx) ? Math.max(1, Math.floor(args.minHeightPx)) : 160
+  const rawW = typeof args.width === 'number' && Number.isFinite(args.width) ? args.width : Number(args.width)
+  const rawH = typeof args.height === 'number' && Number.isFinite(args.height) ? args.height : Number(args.height)
+  const w0 = Number.isFinite(rawW) && rawW > 0 ? rawW : minWidthPx
+  const h0 = Number.isFinite(rawH) && rawH > 0 ? rawH : minHeightPx
+  const vwRaw = typeof args.viewportW === 'number' && Number.isFinite(args.viewportW) ? args.viewportW : Number(args.viewportW)
+  const vhRaw = typeof args.viewportH === 'number' && Number.isFinite(args.viewportH) ? args.viewportH : Number(args.viewportH)
+  const vw = Number.isFinite(vwRaw) && vwRaw > 0 ? vwRaw : null
+  const vh = Number.isFinite(vhRaw) && vhRaw > 0 ? vhRaw : null
+  const maxViewportWidthRatio =
+    typeof args.maxViewportWidthRatio === 'number' && Number.isFinite(args.maxViewportWidthRatio)
+      ? Math.max(0.2, Math.min(0.98, args.maxViewportWidthRatio))
+      : 0.92
+  const maxViewportHeightRatio =
+    typeof args.maxViewportHeightRatio === 'number' && Number.isFinite(args.maxViewportHeightRatio)
+      ? Math.max(0.2, Math.min(0.98, args.maxViewportHeightRatio))
+      : 0.92
+  const maxW = vw != null ? Math.max(minWidthPx, Math.floor(vw * maxViewportWidthRatio)) : Infinity
+  const maxH = vh != null ? Math.max(minHeightPx, Math.floor(vh * maxViewportHeightRatio)) : Infinity
+  return {
+    width: Math.max(minWidthPx, Math.min(maxW, Math.round(w0))),
+    height: Math.max(minHeightPx, Math.min(maxH, Math.round(h0))),
+  }
 }
 
 export function resolveRichMediaPanelInteractive(args: {

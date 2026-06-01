@@ -8,11 +8,19 @@ import {
 type UseInitialWorkspacePaneVisibilityArgs = {
   activeDocumentKey?: string
   modelAssetFormat?: 'glb' | 'gltf' | null
+  splitPaneVisibility: MarkdownWorkspacePaneVisibility
   webpageUrl?: string | null
   webpageView?: WebpageViewMode | null
   workspaceEditorOverlayOpen: boolean
   workspaceEditorSurfaceActive?: boolean
   setSplitPaneVisibility: React.Dispatch<React.SetStateAction<MarkdownWorkspacePaneVisibility>>
+}
+
+export function areMarkdownWorkspacePaneVisibilitiesEqual(
+  a: MarkdownWorkspacePaneVisibility,
+  b: MarkdownWorkspacePaneVisibility,
+): boolean {
+  return a.json === b.json && a.markdown === b.markdown && a.viewer === b.viewer && a.html === b.html
 }
 
 export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneVisibilityArgs) {
@@ -37,11 +45,9 @@ export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneV
         modelAssetFormat: args.modelAssetFormat,
         webpageView: args.webpageView || null,
       })
+      if (areMarkdownWorkspacePaneVisibilitiesEqual(args.splitPaneVisibility, nextVisibility)) return
       args.setSplitPaneVisibility(prev => (
-        prev.json === nextVisibility.json &&
-        prev.markdown === nextVisibility.markdown &&
-        prev.viewer === nextVisibility.viewer &&
-        prev.html === nextVisibility.html
+        areMarkdownWorkspacePaneVisibilitiesEqual(prev, nextVisibility)
           ? prev
           : nextVisibility
       ))
@@ -50,14 +56,20 @@ export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneV
     if (previousWebpageViewRef.current === webpageView) return
     previousWebpageViewRef.current = webpageView
     if (webpageView !== 'html') {
+      if (!args.splitPaneVisibility.html) return
       args.setSplitPaneVisibility(prev => (prev.html ? { ...prev, html: false } : prev))
       return
     }
+    if (args.splitPaneVisibility.viewer && args.splitPaneVisibility.html) return
     args.setSplitPaneVisibility(prev => (prev.viewer && prev.html ? prev : { ...prev, viewer: true, html: true }))
   }, [
     args.activeDocumentKey,
     args.modelAssetFormat,
     args.setSplitPaneVisibility,
+    args.splitPaneVisibility.html,
+    args.splitPaneVisibility.json,
+    args.splitPaneVisibility.markdown,
+    args.splitPaneVisibility.viewer,
     args.webpageUrl,
     args.webpageView,
     args.workspaceEditorOverlayOpen,

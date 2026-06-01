@@ -1,7 +1,23 @@
 import { BROWSER_API_TOOL } from "./browser-api-runtime.js";
 import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES as SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
+import { buildKnowgrphMcpAppsToolMeta } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
+
+const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: true,
+  required: ["contractVersion", "validation", "vdeoxplnEntries", "routingPlan"],
+  properties: {
+    contractVersion: { type: "string" },
+    validation: { type: "object", additionalProperties: true },
+    vdeoxplnEntries: {
+      type: "array",
+      items: { type: "object", additionalProperties: true },
+    },
+    routingPlan: { type: "object", additionalProperties: true },
+  },
+});
 
 export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
   const defaultUiHost = String(args.defaultUiHost || "127.0.0.1").trim() || "127.0.0.1";
@@ -147,6 +163,8 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
       description:
         "List the canonical Knowgrph vdeoxpln registry with semantic keys, source owners, tool projections, and optional generated skill markdown.",
+      _meta: buildKnowgrphMcpAppsToolMeta(),
+      outputSchema: VDEOXPLN_LIST_OUTPUT_SCHEMA,
       inputSchema: {
         type: "object",
         additionalProperties: false,

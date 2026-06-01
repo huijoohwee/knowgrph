@@ -67,6 +67,36 @@ export type StrytreeStoryNode = {
   ownAssetIds?: string[]
 }
 
+export type StrytreeBranchCandidate = {
+  candidateId: string
+  title: string
+  synopsis: string
+  prompt?: string | null
+  provider?: string | null
+  status?: string | null
+  creditCost?: number
+  elapsedMs?: number
+  fallbackStatus?: string | null
+  moderationStatus?: string | null
+  inheritedAssetCount?: number
+  continuityScore?: number
+  publishEligible?: boolean
+  selected?: boolean
+  videoUrl?: string | null
+  thumbnailUrl?: string | null
+  notes?: string | null
+}
+
+export type StrytreeCandidateRun = {
+  candidateRunId: string
+  parentNodeId: string
+  status: string
+  maxCandidates: number
+  quotedCostCredits: number
+  scorecardMode?: string | null
+  candidates: StrytreeBranchCandidate[]
+}
+
 export type StrytreeStorySnapshot = {
   storyId: string
   title: string
@@ -77,6 +107,7 @@ export type StrytreeStorySnapshot = {
   generationCostCredits?: number
   unlockCurrency?: string | null
   nodes: StrytreeStoryNode[]
+  candidateRuns?: StrytreeCandidateRun[]
 }
 
 export type StrybldrExplainerVideoPanelTab = 'text' | 'image' | 'video'

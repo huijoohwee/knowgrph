@@ -28,6 +28,10 @@ export const testMainPanelTypeIconsReuseSharedSsot = () => {
     'mainPanel.settings',
     'floatingPanel.chat',
     'floatingPanel.graphTraversal',
+    'ktv.type.static',
+    'ktv.type.style',
+    'ktv.type.action',
+    'ktv.type.duration',
   ].forEach(token => {
     if (!ssotText.includes(token)) {
       throw new Error(`Expected MainPanel type icon SSOT to include ${token}`)
@@ -59,5 +63,14 @@ export const testMainPanelTypeIconsReuseSharedSsot = () => {
   })
   if (!helpIconsText.includes('MAIN_PANEL_HELP_TYPE_ICON_KEYS') || !helpIconsText.includes('getMainPanelTypeIconMeta')) {
     throw new Error('Expected Help Icon Library to render MainPanel Type icons from the shared SSOT')
+  }
+  if (!ssotText.includes('resolveMainPanelKtvTypeIconKey')) {
+    throw new Error('Expected MainPanel icon SSOT to own KTV Type label to icon resolution')
+  }
+  if (!floatingPanelText.includes('resolveMainPanelKtvTypeIconKey') || !floatingPanelText.includes('renderTypeIcon={renderGeospatialTypeIcon}')) {
+    throw new Error('Expected FloatingPanel Geo KTV Type icons to be rendered through the MainPanel icon SSOT')
+  }
+  if (!floatingPanelText.includes('<MainPanelTypeIcon')) {
+    throw new Error('Expected FloatingPanel Geo KTV Type cells to use MainPanelTypeIcon')
   }
 }

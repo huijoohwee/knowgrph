@@ -40,6 +40,25 @@ const escapeFallbackHtmlText = (raw: string): string =>
 
 const escapeHtmlAttr = escapeFallbackHtmlText
 
+const buildEditorWorkspaceSourceContextHtml = (markdownText?: string | null): string => {
+  const text = String(markdownText ?? '')
+  if (!text.trim()) return ''
+  return [
+    '<details data-kg-editor-workspace-source="1">',
+    '  <summary>Source</summary>',
+    `  <pre>${escapeFallbackHtmlText(text)}</pre>`,
+    '</details>',
+  ].join('\n')
+}
+
+const appendEditorWorkspaceSourceContext = (bodyHtml: string, markdownText?: string | null): string => {
+  const html = String(bodyHtml || '')
+  if (html.includes('data-kg-editor-workspace-source="1"')) return html
+  const sourceHtml = buildEditorWorkspaceSourceContextHtml(markdownText)
+  if (!sourceHtml) return html
+  return [html, sourceHtml].join('\n')
+}
+
 export function buildFallbackMarkdownViewerDocument(args: {
   exportBaseName: string
   markdownText?: string | null
@@ -47,17 +66,13 @@ export function buildFallbackMarkdownViewerDocument(args: {
   const text = String(args.markdownText ?? '')
   if (!text.trim()) return null
   const markdownHtml = getMarkdownIt().render(text)
-  const sourceHtml = escapeFallbackHtmlText(text)
   return buildMarkdownHtmlViewerDocument({
     title: String(args.exportBaseName || '').trim() || 'document',
     bodyHtml: [
       '<section data-kg-editor-workspace-fallback="markdown">',
       markdownHtml,
       '</section>',
-      '<details data-kg-editor-workspace-source="1">',
-      '  <summary>Source</summary>',
-      `  <pre>${sourceHtml}</pre>`,
-      '</details>',
+      buildEditorWorkspaceSourceContextHtml(text),
     ].join('\n'),
   })
 }
@@ -519,7 +534,10 @@ export async function buildHtmlViewerSnapshotDocument(args: BuildHtmlViewerSnaps
       }
     }
 
-    const buildHtmlFromViewerRoot = async (root: HTMLElement): Promise<string | null> => {
+    const buildHtmlFromViewerRoot = async (
+      root: HTMLElement,
+      options?: { includeSourceContext?: boolean },
+    ): Promise<string | null> => {
       const previewRoot = (root.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null) || root
       const article = (previewRoot.querySelector('article') as HTMLElement | null) || previewRoot
       const cloned = article.cloneNode(true) as HTMLElement
@@ -527,7 +545,9 @@ export async function buildHtmlViewerSnapshotDocument(args: BuildHtmlViewerSnaps
       await inlineMediaInElement(cloned, window.location.href)
       await inlineCssInElement(cloned, window.location.href)
       await inlineScriptsInElement(cloned, window.location.href)
-      const bodyHtml = cloned.outerHTML
+      const bodyHtml = options?.includeSourceContext
+        ? appendEditorWorkspaceSourceContext(cloned.outerHTML, args.fallbackMarkdownText)
+        : cloned.outerHTML
 
       const htmlClass = String(document.documentElement.className || '').trim()
       const { inlineCssChunks, externalLinks } = collectDocumentCss()
@@ -597,7 +617,7 @@ export async function buildHtmlViewerSnapshotDocument(args: BuildHtmlViewerSnaps
 
     const buildFallbackViewerHtml = async (): Promise<string | null> => {
       const root = await renderFallbackMarkdownViewerRoot()
-      const html = root ? await buildHtmlFromViewerRoot(root) : null
+      const html = root ? await buildHtmlFromViewerRoot(root, { includeSourceContext: true }) : null
       if (html) return html
       return buildFallbackMarkdownViewerDocument({
         exportBaseName: args.exportBaseName,

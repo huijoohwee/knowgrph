@@ -31,7 +31,7 @@ import {
 } from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
-import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'

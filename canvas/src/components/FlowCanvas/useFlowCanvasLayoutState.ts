@@ -21,7 +21,7 @@ import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWid
 import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
 import { placeFlowFallbackSeedPositions } from '@/components/FlowCanvas/seedFallbackPositions'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
-import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'

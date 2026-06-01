@@ -46,6 +46,7 @@ export function Canvas2dRendererSelect({
       setDocumentSemanticMode: s.setDocumentSemanticMode,
       setFrontmatterModeEnabled: s.setFrontmatterModeEnabled,
       setMultiDimTableModeEnabled: s.setMultiDimTableModeEnabled,
+      requestFlowEditorLayoutRebalance: s.requestFlowEditorLayoutRebalance,
       layoutMode: s.schema?.layout?.mode,
       schema: s.schema,
     })),
@@ -173,6 +174,7 @@ export function Canvas2dRendererSelect({
           setDocumentSemanticMode: state.setDocumentSemanticMode,
           setFrontmatterModeEnabled: state.setFrontmatterModeEnabled,
           setMultiDimTableModeEnabled: state.setMultiDimTableModeEnabled,
+          requestFlowEditorLayoutRebalance: state.requestFlowEditorLayoutRebalance,
         })
       }
       renderButtonContent={() => <Eye className={iconSizeClass} strokeWidth={iconStrokeWidth} />}

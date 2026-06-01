@@ -181,7 +181,7 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
     workspaceEntries: [
-      { kind: 'file', path: WORKSPACE_README_SEED_PATH, parentPath: '/', name: 'knowgrph-maps-readme.md', text: '# Readme', updatedAtMs: 1 },
+      { kind: 'file', path: WORKSPACE_README_SEED_PATH, parentPath: '/', name: 'workspace-readme.md', text: '# Readme', updatedAtMs: 1 },
       {
         kind: 'file',
         path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
@@ -217,13 +217,13 @@ export async function testWorkspaceSourceFilesSyncSuppressesLegacyRootSeedAliase
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
     workspaceEntries: [
-      { kind: 'file', path: WORKSPACE_README_SEED_PATH, parentPath: '/', name: 'knowgrph-maps-readme.md', text: '# Readme root', updatedAtMs: 1 },
+      { kind: 'file', path: WORKSPACE_README_SEED_PATH, parentPath: '/', name: 'workspace-readme.md', text: '# Readme root', updatedAtMs: 1 },
       { kind: 'file', path: GEOSPATIAL_WORKSPACE_SEED_PATH, parentPath: '/', name: 'knowgrph-maps-places.md', text: '# Places root', updatedAtMs: 1 },
-      { kind: 'file', path: '/docs/knowgrph-maps-readme.md', parentPath: '/docs', name: 'knowgrph-maps-readme.md', text: '# Readme docs', updatedAtMs: 1 },
+      { kind: 'file', path: '/docs/workspace-readme.md', parentPath: '/docs', name: 'workspace-readme.md', text: '# Readme docs', updatedAtMs: 1 },
       { kind: 'file', path: '/docs/knowgrph-maps-places.md', parentPath: '/docs', name: 'knowgrph-maps-places.md', text: '# Places docs', updatedAtMs: 1 },
     ],
     sourcesByPath: {
-      '/docs/knowgrph-maps-readme.md': { kind: 'local', originalName: 'knowgrph-maps-readme.md' },
+      '/docs/workspace-readme.md': { kind: 'local', originalName: 'workspace-readme.md' },
       '/docs/knowgrph-maps-places.md': { kind: 'local', originalName: 'knowgrph-maps-places.md' },
     },
   })
@@ -232,7 +232,7 @@ export async function testWorkspaceSourceFilesSyncSuppressesLegacyRootSeedAliase
   if (rootReadme) throw new Error('expected root README seed alias to be suppressed when docs mirror provides canonical file with same basename')
   const rootGeospatial = next.find(f => f.source?.path === GEOSPATIAL_WORKSPACE_SOURCE_PATH)
   if (rootGeospatial) throw new Error('expected root geospatial seed alias to be suppressed when docs mirror provides canonical file with same basename')
-  const docsReadme = next.find(f => f.source?.path === 'workspace:/docs/knowgrph-maps-readme.md')
+  const docsReadme = next.find(f => f.source?.path === 'workspace:/docs/workspace-readme.md')
   if (!docsReadme) throw new Error('expected docs mirrored README to stay present as canonical Source Files entry')
   const docsPlaces = next.find(f => f.source?.path === 'workspace:/docs/knowgrph-maps-places.md')
   if (!docsPlaces) throw new Error('expected docs mirrored places markdown to stay present as canonical Source Files entry')
@@ -446,11 +446,11 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWo
     existing: [
       {
         id: 'external-root-readme',
-        name: 'knowgrph-maps-readme.md',
+        name: 'workspace-readme.md',
         text: '# external root',
         enabled: true,
         status: 'idle',
-        source: { kind: 'url', url: 'https://example.com/knowgrph-maps-readme.md', path: 'external:root:knowgrph-maps-readme.md' },
+        source: { kind: 'url', url: 'https://example.com/workspace-readme.md', path: 'external:root:workspace-readme.md' },
       },
     ],
     workspaceEntries: [
@@ -526,7 +526,7 @@ export async function testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamil
   const next = reconcileDefaultWorkspaceSeedSourceFiles([
     {
       id: 'readme',
-      name: 'knowgrph-maps-readme.md',
+      name: 'workspace-readme.md',
       text: '# Readme',
       enabled: true,
       status: 'idle',

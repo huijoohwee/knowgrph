@@ -3,10 +3,24 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import { useCanvasMarkdownSync } from '@/features/markdown-workspace/useCanvasMarkdownSync'
+import { resolveCanvasMarkdownSyncTargetPath, useCanvasMarkdownSync } from '@/features/markdown-workspace/useCanvasMarkdownSync'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
+}
+
+export function testCanvasSelectionSyncCanonicalizesDocsMirrorAliases() {
+  const entries: WorkspaceEntry[] = [
+    { kind: 'file', path: '/report.md', parentPath: '/', name: 'report.md', updatedAtMs: 1, text: 'root alias' },
+    { kind: 'file', path: '/docs/report.md', parentPath: '/docs', name: 'report.md', updatedAtMs: 1, text: 'canonical docs mirror' },
+  ]
+  const target = resolveCanvasMarkdownSyncTargetPath({
+    entries,
+    docKey: 'report.md',
+  })
+  if (target !== '/docs/report.md') {
+    throw new Error(`expected canvas markdown sync to select canonical docs mirror path, got ${String(target)}`)
+  }
 }
 
 export async function testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive() {

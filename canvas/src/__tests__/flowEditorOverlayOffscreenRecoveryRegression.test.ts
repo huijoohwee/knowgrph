@@ -4,9 +4,15 @@ import path from 'node:path'
 export function testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecovery() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
   const runtimeText = fs.readFileSync(runtimePath, 'utf8')
+  const recoveryPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'workspaceVisibleViewportRecovery.ts')
+  const recoveryText = fs.readFileSync(recoveryPath, 'utf8')
 
-  if (!runtimeText.includes('const deriveFlowOverlayCollectiveViewportState = React.useCallback((args: {')) {
-    throw new Error('expected Flow runtime to derive viewport visibility from actual overlay collective bounds')
+  if (!runtimeText.includes("import {\n  buildWorkspaceVisibleViewportFitRecoveryKey,")
+    || !runtimeText.includes("} from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'")) {
+    throw new Error('expected Flow runtime to reuse the shared visible-viewport recovery helper')
+  }
+  if (!recoveryText.includes('export function deriveFlowOverlayCollectiveViewportState(args: {')) {
+    throw new Error('expected shared Flow recovery helper to derive viewport visibility from actual overlay collective bounds')
   }
   if (!runtimeText.includes('const overlayCollectiveState = deriveFlowOverlayCollectiveViewportState({')) {
     throw new Error('expected Flow runtime recovery to measure overlay collective viewport state before preservation decisions')
@@ -20,8 +26,13 @@ export function testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecove
   if (!runtimeText.includes('const collectiveCentered = overlayCollectiveState?.centered ?? graphCentered')) {
     throw new Error('expected Flow runtime recovery to prefer overlay collective centering over raw scene-node centering when overlays exist')
   }
-  if (!runtimeText.includes('offscreen: boolean') || !runtimeText.includes('workspace-open-offscreen-infinite-canvas-preserve-current')) {
-    throw new Error('expected Flow runtime to keep measuring offscreen overlay state as infinite-canvas preservation telemetry')
+  if (!recoveryText.includes('const fitsVisibleViewport =')
+    || !recoveryText.includes('spanW <= visibleViewport.width * 1.4')
+    || !recoveryText.includes('spanH <= visibleViewport.height * 1.4')) {
+    throw new Error('expected Flow runtime recovery to reject huge centered-looking collectives that do not fit the visible workspace viewport')
+  }
+  if (!recoveryText.includes('offscreen: boolean') || !runtimeText.includes('workspace-open-offscreen-visible-viewport-refit')) {
+    throw new Error('expected Flow runtime to keep measuring offscreen overlay state before bounded visible-viewport refit')
   }
   if (runtimeText.includes('allowAutomaticOverlayCentroidRecovery')
     || runtimeText.includes('allowOverlayCentroidRecovery')
@@ -32,8 +43,24 @@ export function testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecove
   if (!runtimeText.includes('workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current')) {
     throw new Error('expected workspace-open stabilized preservation to revalidate balanced or centered overlay collective state')
   }
-  if (!runtimeText.includes('workspace-open-offscreen-infinite-canvas-preserve-current')) {
-    throw new Error('expected workspace-open offscreen collectives to preserve current transform instead of debounce-refitting to viewport')
+  if (runtimeText.includes('const workspaceOpenCurrentTransformUsable =')
+    || runtimeText.includes('const initOverlayCollectiveState = isFlowEditor')) {
+    throw new Error('expected workspace-open init-fit to stop rejecting user pans because the overlay collective moved offscreen')
+  }
+  if (!runtimeText.includes("workspace-open-offscreen-visible-viewport-refit-pending")
+    || !runtimeText.includes("workspace-open-initialized-init-preserve-current")
+    || !runtimeText.includes("workspace-open-user-controlled-init-preserve-current")) {
+    throw new Error('expected workspace-open init-fit to preserve initialized/user-controlled transforms while bounded recovery handles pre-interaction offscreen fits')
+  }
+  if (!runtimeText.includes('const workspaceVisibleViewportFitRecoveryKeyRef = React.useRef<string | null>(null)')
+    || !runtimeText.includes('workspace-open-visible-viewport-bounds-fit')
+    || !runtimeText.includes('visible-viewport:overlay-bounds-fit')
+    || !runtimeText.includes('buildWorkspaceVisibleViewportFitRecoveryKey({')
+    || !recoveryText.includes("buildScopedGraphSemanticKey('flow-editor-workspace-visible-viewport-fit'")) {
+    throw new Error('expected workspace-open recovery to use one bounded overlay-bounds fit without recurring viewport churn')
+  }
+  if (!runtimeText.includes('lastInitTransformZoomViewKeyRef.current !== zoomViewKey && !overlayBounds')) {
+    throw new Error('expected workspace-open recovery to allow live overlay-bounds fitting even before init key catches up')
   }
   if (!runtimeText.includes('if (workspaceEditorOverlayOpen && workspaceOverlayUserControlledRef.current) {')
     || !runtimeText.includes('workspace-open-user-controlled-infinite-canvas-preserve-current')) {
@@ -162,6 +189,11 @@ export function testFlowEditorRuntimeSceneReusesLastUsableTransformWhileWorkspac
   if (!text.includes('const getVisibleViewport = React.useCallback(() => {')) {
     throw new Error('expected Flow Editor runtime scene to centralize visible viewport resolution for workspace-open layout decisions')
   }
+  if (!text.includes('const visibleViewport = getVisibleViewport()')
+    || !text.includes('const offscreen =')
+    || !text.includes('if (offscreen) return false')) {
+    throw new Error('expected Flow Editor runtime scene to reject stale reopen authorities that project the widget collective outside the visible workspace viewport')
+  }
   if (text.includes('normalizeTransformToVisibleViewport') || text.includes("reason: 'workspace-blocked-unsettled-transform-reusing-last-usable'")) {
     throw new Error('expected Flow Editor runtime scene to avoid viewport-normalized transform reuse that can bounce the infinite canvas')
   }
@@ -170,6 +202,9 @@ export function testFlowEditorRuntimeSceneReusesLastUsableTransformWhileWorkspac
   }
   if (!text.includes("reason: 'scene-empty-using-last-usable-transform'")) {
     throw new Error('expected Flow Editor runtime scene to reuse the last live transform only for empty-scene recomposition')
+  }
+  if (!text.includes("reason: 'scene-empty-using-live-runtime-transform'")) {
+    throw new Error('expected Flow Editor runtime scene to keep overlay-only widget pan/zoom frames on the live transform authority')
   }
 }
 

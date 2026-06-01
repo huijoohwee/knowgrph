@@ -1,6 +1,6 @@
 import React from 'react'
 
-import RichMediaPanel from '@/components/RichMediaPanel'
+import RichMediaPanel, { beginRichMediaPanelResizeDrag, RichMediaPanelResizeHandle } from '@/components/RichMediaPanel'
 import { FloatingPanel } from '@/components/ui/FloatingPanel'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
 import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorPanelChrome'
@@ -12,7 +12,12 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import {
+  handleWidgetInnerPanelScrollCapture,
+  handleWidgetInnerPanelWheelCapture,
+  RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
+} from '@/components/FlowEditor/nodeOverlayEditorShared'
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
@@ -151,33 +156,37 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   const showRichMediaPanelBody = isRichMediaPanelWidget && !hideFields && !minimized
   const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || null
   const richMediaPreview = richMediaWidgetPreview?.richMediaPreview || null
-  const richMediaPanelViewSize = richMediaWidgetPreview?.richMediaPanelViewSize || { width: 280, height: 180 }
+  const richMediaPanelViewSize = richMediaWidgetPreview?.richMediaPanelViewSize || RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE
   const handleRichMediaResizeStart = richMediaWidgetPreview?.handleRichMediaResizeStart
   const handleRichMediaResize = richMediaWidgetPreview?.handleRichMediaResize
   const handleRichMediaResizeEnd = richMediaWidgetPreview?.handleRichMediaResizeEnd
+  const handleRichMediaContentSize = richMediaWidgetPreview?.handleRichMediaContentSize
+  const handleRichMediaPanelChange = richMediaWidgetPreview?.handleRichMediaPanelChange
+  const hasRichMediaResizeHandlers = Boolean(handleRichMediaResizeStart || handleRichMediaResize || handleRichMediaResizeEnd)
+  const handleRichMediaOuterResizePointerDown = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!hasRichMediaResizeHandlers) return
+    beginRichMediaPanelResizeDrag({
+      event,
+      onBeforeStart: () => {
+        try {
+          emitFlowEditorInteractionFrame()
+        } catch {
+          void 0
+        }
+      },
+      onResizeStart: handleRichMediaResizeStart,
+      onResize: handleRichMediaResize,
+      onResizeEnd: handleRichMediaResizeEnd,
+    })
+  }, [handleRichMediaResize, handleRichMediaResizeEnd, handleRichMediaResizeStart, hasRichMediaResizeHandlers])
 
   return (
     <FloatingPanel
       as="section"
       ariaLabel={UI_LABELS.flowWidget}
       className={getFlowEditorPanelChromeClassName(panelTextClass)}
-      onWheelCapture={e => {
-        try {
-          if (e.ctrlKey === true || e.metaKey === true) {
-            e.preventDefault()
-          }
-          emitFlowEditorInteractionFrame()
-        } catch {
-          void 0
-        }
-      }}
-      onScrollCapture={() => {
-        try {
-          emitFlowEditorInteractionFrame()
-        } catch {
-          void 0
-        }
-      }}
+      onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitFlowEditorInteractionFrame)}
+      onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitFlowEditorInteractionFrame)}
       style={{
         opacity: Number.isFinite(uiPanelOpacity) ? uiPanelOpacity : 1,
         height: minimized ? undefined : (showRichMediaPanelBody ? undefined : WIDGET_BASE_SIZE.height),
@@ -206,14 +215,19 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         <section
           data-kg-widget-body="1"
           data-kg-rich-media-render-surface="1"
-          className="relative min-h-0 overflow-hidden"
+          data-kg-rich-media-scroll-owner="panel"
+          data-kg-media-scroll-surface="1"
+          className="relative min-h-0 overflow-y-auto overflow-x-hidden"
           style={{
             width: `${richMediaPanelViewSize.width}px`,
             maxWidth: '100%',
             height: `${richMediaPanelViewSize.height}px`,
+            overscrollBehaviorX: 'none',
+            overscrollBehaviorY: 'contain',
+            pointerEvents: 'auto',
+            scrollbarGutter: 'stable',
           }}
         >
-          {/* Shared RichMediaPanel body owns the canonical resize handle: data-kg-resize-handle="se". */}
           <RichMediaPanel
             overlayId={String(node.id || '')}
             title={String(node.label || getRichMediaPanelNodeLabel())}
@@ -228,6 +242,11 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             onResizeEnd={handleRichMediaResizeEnd}
             panel={richMediaPanelState || undefined}
             widgetToolbarActive={false}
+            onPanelChange={handleRichMediaPanelChange}
+            frameMode="surface"
+            resizeHandlePlacement="external"
+            scrollOwner="panel"
+            onInlineContentSize={handleRichMediaContentSize}
             style={{ width: '100%', height: '100%', boxShadow: 'none' }}
           />
         </section>
@@ -270,6 +289,10 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
         onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
       />
+
+      {showRichMediaPanelBody && hasRichMediaResizeHandlers ? (
+        <RichMediaPanelResizeHandle placement="panel" onPointerDown={handleRichMediaOuterResizePointerDown} />
+      ) : null}
     </FloatingPanel>
   )
 })

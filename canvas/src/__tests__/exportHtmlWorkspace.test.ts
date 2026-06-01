@@ -132,6 +132,8 @@ export async function testWorkspaceHtmlViewerFallbackAvoidsOpenViewerWarning() {
   if (!new RegExp('<h1\\b[^>]*>Editor Workspace</h1>').test(html)) throw new Error(`expected markdown fallback to render heading, got ${html}`)
   if (!html.includes('Fallback body from active text')) throw new Error('expected markdown fallback to preserve active text body')
   if (!html.includes('footnote')) throw new Error('expected markdown fallback to use full viewer markdown plugin support')
+  if (!html.includes('data-kg-editor-workspace-source="1"')) throw new Error('expected markdown fallback to preserve Editor Workspace source context')
+  if (!html.includes('[^1]: Footnote body')) throw new Error('expected markdown fallback source context to preserve raw active text')
   if (toasts.some(toast => String(toast.message || '').includes('Open the Viewer to export HTML'))) {
     throw new Error('expected Workspace HTML fallback to avoid Open the Viewer warning')
   }
@@ -240,6 +242,8 @@ export function testWorkspaceHtmlViewerFallbackUsesMarkdownPreviewOwner() {
     'withForcedIntersectingObserver',
     'React.createElement(MarkdownPreview',
     'buildHtmlFromViewerRoot',
+    'appendEditorWorkspaceSourceContext',
+    'includeSourceContext: true',
     'data-kg-export-hidden-viewer-render',
   ]
   for (const snippet of requiredSnippets) {

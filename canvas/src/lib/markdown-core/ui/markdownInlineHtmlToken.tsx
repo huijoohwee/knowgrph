@@ -128,6 +128,7 @@ export const renderInlineHtmlElement = (args: RenderInlineHtmlElementArgs): Reac
                   url={src}
                   title={el.getAttribute('title') || 'Embedded content'}
                   presentationMode={args.opts.markdownPresentationMode}
+                  cardPreviewMode={args.opts.markdownCardPreviewMode}
                 />
               )
             }
@@ -137,6 +138,7 @@ export const renderInlineHtmlElement = (args: RenderInlineHtmlElementArgs): Reac
                 src={src}
                 title={el.getAttribute('title') || 'Embedded content'}
                 presentationMode={args.opts.markdownPresentationMode}
+                cardPreviewMode={args.opts.markdownCardPreviewMode}
               />
             )
           }
@@ -146,6 +148,7 @@ export const renderInlineHtmlElement = (args: RenderInlineHtmlElementArgs): Reac
           uiPanelTextFontClass: args.uiPanelTextFontClass,
           uiPanelMonospaceTextClass: args.uiPanelMonospaceTextClass,
           markdownPresentationMode: args.opts.markdownPresentationMode,
+          markdownCardPreviewMode: args.opts.markdownCardPreviewMode,
           renderNodeText: (text, key) => <React.Fragment key={key}>{text}</React.Fragment>,
           fragmentOptions: args.opts.fragmentOptions || null,
         })

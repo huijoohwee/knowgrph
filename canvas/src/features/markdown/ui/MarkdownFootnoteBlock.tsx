@@ -114,6 +114,7 @@ export const MarkdownFootnoteBlock = React.memo(function MarkdownFootnoteBlock({
                 uiPanelTextFontClass: opts.uiPanelTextFontClass,
                 uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                 markdownPresentationMode: opts.markdownPresentationMode,
+                markdownCardPreviewMode: opts.markdownCardPreviewMode,
               })}
               <a
                 href={`#fnref${item.label}`}

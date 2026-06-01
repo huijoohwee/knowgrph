@@ -1,17 +1,145 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { ensureDefaultWidgetRegistryEntries } from '@/hooks/store/flowEditorManagerSlice'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { defaultSchema } from '@/lib/graph/schema'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { buildRichMediaPanelOverlayState, buildRichMediaPanelPreviewSpec } from '@/lib/render/richMediaSsot'
+import {
+  normalizeRichMediaPanelInlineSrcDoc,
+  RICH_MEDIA_PANEL_SRCDOC_ATTR,
+  RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID,
+  RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
+  RICH_MEDIA_PANEL_SRCDOC_STYLE_ID,
+} from '@/lib/render/richMediaPanelSrcDoc'
+
+type ParsedGraphData = Parameters<typeof computeFlowConnectedValuesBySchemaPath>[0]['graphData']
+
+function buildWidgetRegistryForGraphData(graphData: ParsedGraphData) {
+  const documentRegistryRaw = ((graphData?.metadata || {}) as Record<string, unknown>)[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  const documentWidgetRegistry = Array.isArray(documentRegistryRaw) ? documentRegistryRaw : []
+  return buildDataflowWidgetRegistry({
+    documentWidgetRegistry: documentWidgetRegistry as never,
+    effectiveWidgetRegistry: [],
+    widgetRegistry: ensureDefaultWidgetRegistryEntries([], '2026-04-22T00:00:00.000Z').entries,
+  })
+}
+
+async function assertOutputSrcDocPanelsReuseSharedPreview(args: {
+  fileName: string
+  markdown: string
+  expectedSrcDocMarker?: string
+}) {
+  const parsed = await loadGraphDataFromTextViaParser(args.fileName, args.markdown, {
+    applyToStore: false,
+    syncMarkdownDocument: false,
+  })
+  const graphData = parsed?.graphData as ParsedGraphData
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const panelNodes = nodes.filter(node => String(node?.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  const panelNodeIds = new Set(panelNodes.map(node => String(node?.id || '')).filter(Boolean))
+  const widgetRegistry = buildWidgetRegistryForGraphData(graphData)
+  const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData,
+    registry: widgetRegistry,
+    targetNodeIds: panelNodeIds,
+  })
+
+  let validatedCount = 0
+  let markerMatched = !args.expectedSrcDocMarker
+  for (const panelNode of panelNodes) {
+    const panelId = String(panelNode.id || '')
+    const connectedValuesBySchemaPath = connectedValuesByNodeId.get(panelId)
+    const connectedSrcDoc = connectedValuesBySchemaPath?.['properties.outputSrcDoc']
+    const connectedSrcDocText = typeof connectedSrcDoc?.value === 'string' ? connectedSrcDoc.value : ''
+    const localSrcDoc = typeof ((panelNode.properties || {}) as Record<string, unknown>).outputSrcDoc === 'string'
+      ? String(((panelNode.properties || {}) as Record<string, unknown>).outputSrcDoc || '')
+      : ''
+    if (!localSrcDoc.trim() && !connectedSrcDocText.trim()) continue
+
+    if (localSrcDoc.trim()) {
+      const localPanel = buildRichMediaPanelOverlayState({ node: panelNode })
+      if (!localPanel) throw new Error(`expected local outputSrcDoc panel ${panelId} to use shared Rich Media Panel state`)
+      if (localPanel.text.trim()) {
+        throw new Error(`expected local output helper text not to cover outputSrcDoc for panel ${panelId}`)
+      }
+      const localPreview = buildRichMediaPanelPreviewSpec({ node: panelNode, panel: localPanel })
+      if (!localPreview || localPreview.kind !== 'iframe' || !String(localPreview.srcDoc || '').trim()) {
+        throw new Error(`expected local outputSrcDoc panel ${panelId} to render through shared iframe preview spec`)
+      }
+      const localSrcDoc = String(localPreview.srcDoc || '')
+      if (!localSrcDoc.includes(`${RICH_MEDIA_PANEL_SRCDOC_ATTR}="1"`)) {
+        throw new Error(`expected local outputSrcDoc panel ${panelId} to be normalized by the shared Rich Media Panel srcdoc helper`)
+      }
+      if (!localSrcDoc.includes(`id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}"`)) {
+        throw new Error(`expected local outputSrcDoc panel ${panelId} to include the shared Rich Media Panel srcdoc reset style`)
+      }
+    }
+
+    const panel = buildRichMediaPanelOverlayState({ node: panelNode, connectedValuesBySchemaPath })
+    if (!panel) throw new Error(`expected outputSrcDoc panel ${panelId} to use shared Rich Media Panel state`)
+    if (panel.text.trim()) {
+      throw new Error(`expected output helper text not to cover outputSrcDoc for panel ${panelId}`)
+    }
+    const preview = buildRichMediaPanelPreviewSpec({ node: panelNode, connectedValuesBySchemaPath, panel })
+    if (!preview || preview.kind !== 'iframe' || !String(preview.srcDoc || '').trim()) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to render through shared iframe preview spec`)
+    }
+    const previewSrcDoc = String(preview.srcDoc || '')
+    if (!previewSrcDoc.includes(`${RICH_MEDIA_PANEL_SRCDOC_ATTR}="1"`)) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to be normalized by the shared Rich Media Panel srcdoc helper`)
+    }
+    if (!previewSrcDoc.includes(`id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}"`)) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to include the shared Rich Media Panel srcdoc reset style`)
+    }
+    if (!previewSrcDoc.includes('background:transparent!important')) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to clear nested iframe body backgrounds through the shared reset style`)
+    }
+    if (!previewSrcDoc.includes('padding:0!important')) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to remove duplicate generated frame padding through the shared reset style`)
+    }
+    if (!previewSrcDoc.includes('body>:is(main,section,article,div):first-child')) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to flatten top-level frame wrappers through the shared reset style`)
+    }
+    if (!previewSrcDoc.includes('body>:is(main,section,article,div):first-child>:is(main,section,article,div):first-child')) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to flatten nested root frame wrappers through the shared reset style`)
+    }
+
+    const renderNode = applyConnectedValuesToNodeForRender({ node: panelNode, connectedValuesBySchemaPath })
+    const spec = getNodeMediaSpec(renderNode)
+    if (!spec || spec.kind !== 'iframe' || !String(spec.srcDoc || '').trim()) {
+      throw new Error(`expected outputSrcDoc panel ${panelId} to resolve through shared graph media spec`)
+    }
+
+    validatedCount += 1
+    const renderedSrcDoc = `${String(preview.srcDoc || '')}\n${String(spec.srcDoc || '')}`
+    if (args.expectedSrcDocMarker && renderedSrcDoc.includes(args.expectedSrcDocMarker)) markerMatched = true
+  }
+
+  if (validatedCount < 1) {
+    throw new Error('expected at least one Rich Media Panel with local or connected outputSrcDoc')
+  }
+  if (!markerMatched) {
+    throw new Error('expected outputSrcDoc validation marker to render through shared Rich Media Panel preview/media spec')
+  }
+}
+
+function readRuntimeRichMediaValidationPath(): string {
+  const raw =
+    String(process.env.KG_RICH_MEDIA_PANEL_VALIDATION_INPUT || '').trim()
+    || String(process.env.KG_TEST_VALIDATION_FORBID_HARDCODE_IN_REPO || '').trim()
+  return raw ? resolve(raw) : ''
+}
 
 export function testRichMediaPanelRendersConnectedTextWidgetOutput() {
   const node = {
@@ -197,6 +325,297 @@ export function testRichMediaPanelReusesMarkdownLinkIframeRenderingFromOutputTex
   if (String(spec.url || '') !== 'https://example.com/embed') {
     throw new Error('expected markdown link output text to resolve to the iframe url')
   }
+}
+
+export async function testRichMediaPanelChartOutputSrcDocReusesSharedPreviewSpec() {
+  const marker = 'data-inline-output="1"'
+  const nestedFrameStyle = 'body{margin:0;background:#f8fafc;color:#111827}.wrap{border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 16px rgba(15,23,42,.12);padding:18px}'
+  const markdown = [
+    '---',
+    'flow:',
+    '  computed: true',
+    '  nodes:',
+    '    - id: inline_output_producer',
+    '      type: CalculatorWidget',
+    '      label: "Inline Output Producer"',
+    '      handles:',
+    '        source: [outputSrcDoc]',
+    '      "flow:widgetFormId": "fm:inline_output_producer"',
+    '      "flow:portTypes":',
+    '        out:',
+    '          outputSrcDoc: rich_media_inline_html',
+    '      compute: |',
+    '        inputs => ({',
+    `          outputSrcDoc: '<!doctype html><html><head><style>${nestedFrameStyle}</style></head><body><main class="wrap" ${marker}><svg viewBox="0 0 120 60"><rect width="100" height="40"></rect></svg></main></body></html>'`,
+    '        })',
+    '    - id: inline_output_panel',
+    '      type: RichMediaPanel',
+    '      label: "Reusable Inline Output Surface"',
+    '      handles:',
+    '        target: [outputSrcDoc]',
+    '        source: [outputSrcDoc]',
+    '      "flow:widgetFormId": "fm:inline_output_panel"',
+    '      "flow:portTypes":',
+    '        in:',
+    '          outputSrcDoc: rich_media_inline_html',
+    '        out:',
+    '          outputSrcDoc: rich_media_inline_html',
+    '      richMediaActiveTab: "text"',
+    '      output: "Helper copy should not cover inline HTML."',
+    `      outputSrcDoc: "<!doctype html><html><head><style>${nestedFrameStyle}</style></head><body><main class='wrap'><p>Inline output is pending.</p></main></body></html>"`,
+    '  edges:',
+    '    - id: e-inline-output',
+    '      source: inline_output_producer',
+    '      sourceHandle: outputSrcDoc',
+    '      target: inline_output_panel',
+    '      targetHandle: outputSrcDoc',
+    '      label: "outputSrcDoc"',
+    '      type: rich_media_inline_html',
+    '---',
+    '',
+    '# Generic Rich Media Output Fixture',
+  ].join('\n')
+
+  await assertOutputSrcDocPanelsReuseSharedPreview({
+    fileName: 'generic-rich-media-output-flow.md',
+    markdown,
+    expectedSrcDocMarker: marker,
+  })
+}
+
+export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
+  const root = process.cwd()
+  const componentText = readFileSync(resolve(root, 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
+  const ssotText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaSsot.ts'), 'utf8')
+  const mediaSpecText = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'graph-elements', 'mediaSpec.ts'), 'utf8')
+  const srcDocText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaPanelSrcDoc.ts'), 'utf8')
+  const richMediaPreviewHookText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'useRichMediaWidgetPreview.ts'), 'utf8')
+  const nodeOverlaySharedText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts'), 'utf8')
+  const nodeOverlayPanelText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx'), 'utf8')
+  const nodeOverlayFormText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx'), 'utf8')
+  const widgetInnerPanelScrollText = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts'), 'utf8')
+  const richMediaPanelDefaultsText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaPanelDefaults.ts'), 'utf8')
+  const flowCanvasMediaOverlaysText = readFileSync(resolve(root, 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
+  const overlaySizingText = readFileSync(resolve(root, 'src', 'lib', 'render', 'overlaySizing2d.ts'), 'utf8')
+
+  for (const [label, text] of [['component', componentText], ['ssot', ssotText], ['mediaSpec', mediaSpecText]] as const) {
+    if (!text.includes('normalizeRichMediaPanelInlineSrcDoc')) {
+      throw new Error(`expected ${label} to reuse the shared Rich Media Panel inline srcdoc normalizer`)
+    }
+  }
+  if (!componentText.includes('const inlineSrcDocSurfaceStyle = React.useMemo')) {
+    throw new Error('expected RichMediaPanel inline srcdoc iframe surface style to be centralized')
+  }
+  if (
+    !componentText.includes('const inlineSrcDocEmbeddedSurfaceStyle = React.useMemo')
+    || !componentText.includes('const inlineSrcDocEmbeddedSurfaceHeight = inlineSrcDocPanelContentHeight > 0')
+    || !componentText.includes('data-kg-rich-media-embedded-preview="1"')
+    || !componentText.includes('CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME')
+    || !componentText.includes('CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE')
+    || !componentText.includes("boxSizing: 'border-box'")
+  ) {
+    throw new Error('expected RichMediaPanel inline srcdoc/chart surfaces to reuse the shared code-like Card media chrome')
+  }
+  if (!componentText.includes('borderRadius: 0')) {
+    throw new Error('expected inline srcdoc Rich Media Panel iframe to avoid a nested rounded frame')
+  }
+  if (!componentText.includes('iframeSrcDoc={normalizedInlineSrcDoc}')) {
+    throw new Error('expected RichMediaPanel iframe srcdoc rendering to consume normalized shared srcdoc')
+  }
+  if (!componentText.includes("frameMode?: 'panel' | 'surface'")) {
+    throw new Error('expected RichMediaPanel to expose a shared unframed surface mode')
+  }
+  if (!componentText.includes("resizeHandlePlacement?: 'root' | 'external'")) {
+    throw new Error('expected RichMediaPanel to expose shared resize-handle placement for embedded panel surfaces')
+  }
+  if (!componentText.includes("scrollOwner?: 'media' | 'panel'")) {
+    throw new Error('expected RichMediaPanel to expose shared scroll-owner placement for embedded panel surfaces')
+  }
+  if (!componentText.includes('RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE') || !componentText.includes('event.source !== frame.contentWindow')) {
+    throw new Error('expected RichMediaPanel to consume shared srcdoc size messages without enabling same-origin iframe access')
+  }
+  if (!componentText.includes('onInlineContentSize?: (size: { width: number; height: number }) => void')) {
+    throw new Error('expected RichMediaPanel to expose shared inline srcdoc content-size reporting')
+  }
+  if (!componentText.includes('onInlineContentSize?.(nextSize)')) {
+    throw new Error('expected RichMediaPanel srcdoc size messages to report content size back to the shared panel sizing hook')
+  }
+  if (!componentText.includes("pointerEvents: 'none'") || !componentText.includes("touchAction: 'pan-y'")) {
+    throw new Error('expected panel-owned inline srcdoc surfaces to let the outer panel chrome own vertical scrolling')
+  }
+  if (!componentText.includes('export function RichMediaPanelResizeHandle') || !componentText.includes('export function beginRichMediaPanelResizeDrag')) {
+    throw new Error('expected RichMediaPanel resize handle UI and drag behavior to stay in the shared panel owner')
+  }
+  if (!componentText.includes('data-kg-rich-media-resize-handle-shape="corner"')) {
+    throw new Error('expected shared Rich Media Panel resize handle to render as a bottom-right corner bracket')
+  }
+  if (!componentText.includes("borderRight: '1px solid var(--kg-text-tertiary") || !componentText.includes("borderBottom: '1px solid var(--kg-text-tertiary")) {
+    throw new Error('expected shared Rich Media Panel resize handle to use a subtle inverse L-like corner shape')
+  }
+  if (
+    componentText.includes('borderRadius: 999')
+    || componentText.includes("border: '2px solid var(--kg-canvas-accent)'")
+    || componentText.includes("borderRight: '2px solid var(--kg-text-secondary")
+  ) {
+    throw new Error('expected shared Rich Media Panel resize handle not to render as a heavy blue or high-contrast marker')
+  }
+  if (!ssotText.includes('export function coerceRichMediaPanelChromeSizePx')) {
+    throw new Error('expected panel-owned rich media scroll sizing to reuse a shared chrome-size coercion helper')
+  }
+  if (!richMediaPreviewHookText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE') || !richMediaPreviewHookText.includes('coerceRichMediaPanelChromeSizePx')) {
+    throw new Error('expected Rich Media Panel widget preview sizing to reuse shared defaults and panel chrome sizing')
+  }
+  if (!richMediaPreviewHookText.includes('handleRichMediaContentSize')) {
+    throw new Error('expected Rich Media Panel widget preview sizing to auto-fit measured inline rich media content')
+  }
+  if (
+    !richMediaPanelDefaultsText.includes("import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'")
+    || !richMediaPanelDefaultsText.includes('RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX = WIDGET_BASE_SIZE.width')
+    || !nodeOverlaySharedText.includes("from '@/lib/render/richMediaPanelDefaults'")
+  ) {
+    throw new Error('expected Rich Media Panel default width to be owned by the shared default widget width helper')
+  }
+  if (
+    !flowCanvasMediaOverlaysText.includes("from '@/lib/render/richMediaPanelDefaults'")
+    || !flowCanvasMediaOverlaysText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width')
+    || !flowCanvasMediaOverlaysText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height')
+    || flowCanvasMediaOverlaysText.includes('stableMediaLayoutItems.length, 360, 240')
+    || !overlaySizingText.includes('RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX')
+    || overlaySizingText.includes('widthMaxPx: 360')
+  ) {
+    throw new Error('expected 2D Rich Media Panel default sizing to reuse the shared widget-width default instead of local literals')
+  }
+  if (
+    !nodeOverlaySharedText.includes('handleWidgetInnerPanelWheelCapture')
+    || !widgetInnerPanelScrollText.includes('consumeScrollablePanelWheelEvent')
+    || !widgetInnerPanelScrollText.includes('shouldKeepWidgetInnerPanelWheel')
+    || !widgetInnerPanelScrollText.includes('WIDGET_INNER_PANEL_SCROLL_SURFACE_SELECTOR')
+    || !nodeOverlayPanelText.includes('handleWidgetInnerPanelWheelCapture')
+    || !nodeOverlayFormText.includes('handleWidgetInnerPanelWheelCapture')
+  ) {
+    throw new Error('expected FloatingEditor Rich Media Panel scrolling to reuse the shared widget inner-panel wheel consumer')
+  }
+  if (!componentText.includes("pointerEvents: 'auto'") || componentText.includes("pointerEvents: allowPanelContentPointerEvents ? 'auto' : 'none'")) {
+    throw new Error('expected RichMediaPanel embedded markdown scroll surfaces to stay pointer-targetable instead of falling through to canvas zoom')
+  }
+  if (!componentText.includes("data-kg-rich-media-frame-mode={useSurfaceFrame ? 'surface' : undefined}")) {
+    throw new Error('expected RichMediaPanel unframed surface mode to be observable on the shared root')
+  }
+  if (!nodeOverlayPanelText.includes('frameMode="surface"') || !nodeOverlayFormText.includes('frameMode="surface"')) {
+    throw new Error('expected FloatingEditor Rich Media Panel bodies to reuse the shared unframed surface mode')
+  }
+  if (!nodeOverlayPanelText.includes('resizeHandlePlacement="external"') || !nodeOverlayPanelText.includes('<RichMediaPanelResizeHandle placement="panel"')) {
+    throw new Error('expected FloatingEditor Chart Panel to place the shared resize handle on the outer panel bottom-right')
+  }
+  if (!nodeOverlayPanelText.includes('data-kg-rich-media-scroll-owner="panel"') || !nodeOverlayPanelText.includes('scrollOwner="panel"')) {
+    throw new Error('expected FloatingEditor Chart Panel to place scrolling on the panel chrome instead of the embedded media surface')
+  }
+  if (!nodeOverlayPanelText.includes('data-kg-media-scroll-surface="1"') || !nodeOverlayPanelText.includes('overflow-y-auto overflow-x-hidden')) {
+    throw new Error('expected FloatingEditor Chart Panel scroll chrome to allow vertical scrolling only')
+  }
+  if (!nodeOverlayPanelText.includes("pointerEvents: 'auto'")) {
+    throw new Error('expected FloatingEditor Chart Panel scroll chrome to stay pointer-targetable while the widget shell passes canvas input through')
+  }
+  if (!nodeOverlayPanelText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE') || nodeOverlayPanelText.includes('{ width: 280, height: 180 }')) {
+    throw new Error('expected FloatingEditor Chart Panel fallback sizing to reuse the shared Rich Media Panel default size')
+  }
+  if (!nodeOverlayPanelText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
+    throw new Error('expected FloatingEditor Chart Panel to auto-fit measured inline rich media content at the panel chrome')
+  }
+  if (!nodeOverlayFormText.includes('data-kg-rich-media-scroll-owner="panel"') || !nodeOverlayFormText.includes('scrollOwner="panel"')) {
+    throw new Error('expected Rich Media Panel form preview to reuse the shared panel-owned scroll surface')
+  }
+  if (!nodeOverlayFormText.includes('data-kg-media-scroll-surface="1"') || !nodeOverlayFormText.includes('overflow-y-auto overflow-x-hidden')) {
+    throw new Error('expected Rich Media Panel form preview scroll chrome to allow vertical scrolling only')
+  }
+  if (!nodeOverlayFormText.includes("pointerEvents: 'auto'")) {
+    throw new Error('expected Rich Media Panel form preview scroll chrome to stay pointer-targetable while the widget shell passes canvas input through')
+  }
+  if (!nodeOverlayFormText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE') || nodeOverlayFormText.includes('{ width: 280, height: 180 }')) {
+    throw new Error('expected Rich Media Panel form preview fallback sizing to reuse the shared default size')
+  }
+  if (!nodeOverlayFormText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
+    throw new Error('expected Rich Media Panel form preview to auto-fit measured inline rich media content at the panel chrome')
+  }
+  if (!srcDocText.includes('body>:is(main,section,article,div):first-child')) {
+    throw new Error('expected shared Rich Media Panel srcdoc reset to flatten top-level generated frame wrappers')
+  }
+  if (!srcDocText.includes(RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE) || !srcDocText.includes(RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID)) {
+    throw new Error('expected shared Rich Media Panel srcdoc reset to include a sandbox-safe content-size bridge')
+  }
+  if (!srcDocText.includes('existingResetStylePattern')) {
+    throw new Error('expected shared Rich Media Panel srcdoc normalizer to replace its own stale reset style')
+  }
+}
+
+export function testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle() {
+  const staleNormalizedSrcDoc = [
+    '<!doctype html>',
+    `<html ${RICH_MEDIA_PANEL_SRCDOC_ATTR}="1">`,
+    '<head>',
+    `<style id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}">body>.wrap:first-child{border:0!important}</style>`,
+    '<style>.chart-card{border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 16px rgba(15,23,42,.12);padding:18px}</style>',
+    '</head>',
+    '<body><div><main class="chart-card"><h1>Generated output</h1></main></div></body>',
+    '</html>',
+  ].join('')
+
+  const normalized = normalizeRichMediaPanelInlineSrcDoc({
+    srcDoc: staleNormalizedSrcDoc,
+    title: 'Generated Rich Media Output',
+  })
+  if (!normalized.includes(`${RICH_MEDIA_PANEL_SRCDOC_ATTR}="1"`)) {
+    throw new Error('expected stale normalized Rich Media Panel srcdoc to keep the shared marker')
+  }
+  const resetStyleCount = normalized.split(`id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}"`).length - 1
+  if (resetStyleCount !== 1) {
+    throw new Error(`expected Rich Media Panel srcdoc normalization to keep exactly one shared reset style, got ${resetStyleCount}`)
+  }
+  const resizeScriptCount = normalized.split(`id="${RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID}"`).length - 1
+  if (resizeScriptCount !== 1) {
+    throw new Error(`expected Rich Media Panel srcdoc normalization to keep exactly one shared resize script, got ${resizeScriptCount}`)
+  }
+  if (!normalized.includes(RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE)) {
+    throw new Error('expected Rich Media Panel srcdoc resize script to publish the shared size message type')
+  }
+  const chartStyleIndex = normalized.indexOf('.chart-card{')
+  const resetStyleIndex = normalized.indexOf(`id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}"`)
+  if (!(chartStyleIndex >= 0 && resetStyleIndex > chartStyleIndex)) {
+    throw new Error('expected Rich Media Panel srcdoc reset to be injected after chart-authored styles so the shared panel frame wins')
+  }
+  if (!normalized.includes('body>:is(main,section,article,div):first-child')) {
+    throw new Error('expected refreshed Rich Media Panel srcdoc reset to flatten top-level frame wrappers')
+  }
+  if (!normalized.includes('body>:is(main,section,article,div):first-child>:is(main,section,article,div):first-child')) {
+    throw new Error('expected refreshed Rich Media Panel srcdoc reset to flatten nested generated frame wrappers')
+  }
+  for (const resetRule of [
+    'border:0!important',
+    'border-radius:0!important',
+    'box-shadow:none!important',
+    'background:transparent!important',
+    'padding:0!important',
+  ]) {
+    if (!normalized.includes(resetRule)) {
+      throw new Error(`expected Rich Media Panel srcdoc reset to remove nested chart frame styling: ${resetRule}`)
+    }
+  }
+  if (normalized.includes('body>.wrap:first-child{border:0!important}')) {
+    throw new Error('expected Rich Media Panel srcdoc normalization to replace stale shared reset content')
+  }
+}
+
+export async function testRichMediaPanelRuntimeInputOutputSrcDocReusesSharedPreviewSpec() {
+  const inputPath = readRuntimeRichMediaValidationPath()
+  if (!inputPath) return
+  const markdown = readFileSync(inputPath, 'utf8')
+  if (!markdown.trim()) {
+    return
+  }
+  await assertOutputSrcDocPanelsReuseSharedPreview({
+    fileName: basename(inputPath),
+    markdown,
+  })
 }
 
 function runWidgetToRichMediaPanelPipeline(args: {
@@ -538,13 +957,15 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
     'flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}',
     "const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'",
     'const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen',
+    'const headerDragInteractionActive = mediaOverlayDragInteractionMode && !workspaceMutationBlocked',
+    'const resizeInteractionActive = mediaOverlayDragInteractionMode && !workspaceMutationBlocked',
     'onOverlayPanStart={overlayInteractionEnabled ?',
     'onOverlayPan={overlayInteractionEnabled ?',
     'onOverlayPanEnd={overlayInteractionEnabled ?',
-    'onHeaderDragStart={overlayInteractionEnabled ?',
-    'onHeaderDrag={overlayInteractionEnabled ?',
-    'onHeaderDragEnd={overlayInteractionEnabled ?',
-    'flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested && !workspaceOverlayOpen',
+    'onHeaderDragStart={headerDragInteractionActive ?',
+    'onHeaderDrag={headerDragInteractionActive ?',
+    'onHeaderDragEnd={headerDragInteractionActive ?',
+    'const resizeHandleVisible = resizeInteractionActive && (isSelected || canvas2dRenderer === \'flowCanvas\')',
     'onResizeStart={resizeInteractionActive ?',
     'onResize={resizeInteractionActive ?',
     'onResizeEnd={resizeInteractionActive ?',

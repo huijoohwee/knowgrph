@@ -13,6 +13,7 @@ import {
 import { createSafariGestureZoomController } from '@/lib/canvas/safari-gesture-zoom'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
+import { shouldKeepWidgetInnerPanelWheel } from '@/lib/canvas/widgetInnerPanelScrolling'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
 
@@ -27,7 +28,6 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   ): boolean => {
     if (resolved.kind !== 'overlay') return false
     const overlayRoot = resolved.overlayRoot
-    const el = resolved.targetEl
     const overlayPinnedToNode = readCanvasOverlayPinnedState(overlayRoot)
     const isFlowEditor = opts?.isFlowEditor === true
 
@@ -35,47 +35,10 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     const dy = typeof (event as unknown as { deltaY?: unknown }).deltaY === 'number' ? (event as unknown as { deltaY: number }).deltaY : 0
     if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return false
 
-    // Explicit zoom intent should always reach the canvas, even from scrollable overlay content.
+    if (shouldKeepWidgetInnerPanelWheel(event, overlayRoot)) return false
+
+    // Explicit zoom intent still reaches the canvas when it does not originate from an inner scroll surface.
     if (event.ctrlKey === true || event.metaKey === true) return true
-
-    const isScrollable = (node: HTMLElement, axis: 'x' | 'y'): boolean => {
-      let overflowX = ''
-      let overflowY = ''
-      try {
-        const styles = getComputedStyle(node)
-        overflowX = styles.overflowX
-        overflowY = styles.overflowY
-      } catch {
-        void 0
-      }
-
-      if (axis === 'y' && (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')) {
-        const h = node.scrollHeight
-        const ch = node.clientHeight
-        if (h > ch + 1) return true
-      }
-
-      if (axis === 'x' && (overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'overlay')) {
-        const w = node.scrollWidth
-        const cw = node.clientWidth
-        if (w > cw + 1) return true
-      }
-
-      return false
-    }
-
-    const boundary = overlayRoot
-    let cur: Element | null = el
-    const maxHops = 30
-    for (let hops = 0; cur && hops < maxHops; hops += 1) {
-      const node = cur instanceof HTMLElement ? cur : null
-      if (node) {
-        if (dy !== 0 && isScrollable(node, 'y')) return false
-        if (dx !== 0 && isScrollable(node, 'x')) return false
-      }
-      if (boundary && cur === boundary) break
-      cur = cur.parentElement
-    }
 
     if (isFlowEditor && overlayPinnedToNode && event.altKey !== true) return true
     if (overlayPinnedToNode && resolved.isInteractive !== true && event.altKey !== true) return true
@@ -85,6 +48,8 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   }
 
   const handleWheel = (e: WheelEvent, opts?: { skipIgnoreGuard?: boolean }) => {
+    if (shouldKeepWidgetInnerPanelWheel(e)) return
+
     cancelFlowZoomRequestAnim(runtime)
     const drag = ctx.args.dragRef.current
     if (drag && drag.type !== 'pan') {

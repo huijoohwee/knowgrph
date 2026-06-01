@@ -51,8 +51,10 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
   const readInteractionFrameCount = () => counts.interactionFrames
   const timers = new Map<number, () => void>()
   let nextTimerId = 1
+  let fakeDateNow = 1000
   const originalSetTimeout = globalThis.setTimeout
   const originalClearTimeout = globalThis.clearTimeout
+  const originalDateNow = Date.now
   ;(globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout = ((cb: () => void) => {
     const id = nextTimerId++
     timers.set(id, cb)
@@ -61,6 +63,7 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
   ;(globalThis as unknown as { clearTimeout: typeof clearTimeout }).clearTimeout = ((id: ReturnType<typeof setTimeout>) => {
     timers.delete(id as unknown as number)
   }) as typeof clearTimeout
+  ;(Date as unknown as { now: () => number }).now = () => fakeDateNow
   try {
     const createPanController = () => createInfiniteCanvasViewportController({
       active: () => true,
@@ -129,6 +132,7 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
 
     const queued = Array.from(timers.values())
     if (queued.length !== 1) throw new Error(`expected one trailing deferred commit, got ${queued.length}`)
+    fakeDateNow += 181
     queued[0]?.()
     if (readCommitCount() !== 1) throw new Error(`expected trailing commit after viewport interaction settles, got ${readCommitCount()}`)
     controller.destroy()
@@ -137,6 +141,7 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
     counts.commits = 0
     counts.interactionFrames = 0
     timers.clear()
+    fakeDateNow += 181
     const destroyingController = createPanController()
     destroyingController.handleWheel({
       deltaX: 48,
@@ -160,6 +165,7 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
     counts.commits = 0
     counts.interactionFrames = 0
     let nowMs = 1000
+    fakeDateNow = nowMs
     const rafQueue: Array<(now: number) => void> = []
     const zoomController = createInfiniteCanvasViewportController({
       active: () => true,
@@ -221,16 +227,19 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
 
     rafQueue.shift()?.(nowMs)
     nowMs += 24
+    fakeDateNow = nowMs
     rafQueue.shift()?.(nowMs)
     if (readInteractionFrameCount() < 1) throw new Error('expected wheel zoom animation to update the live transform before final commit')
     if (readCommitCount() !== 0) throw new Error(`expected wheel zoom animation frame to defer commit, got ${readCommitCount()}`)
     nowMs += 160
+    fakeDateNow = nowMs
     rafQueue.shift()?.(nowMs)
     if (readCommitCount() !== 1) throw new Error(`expected wheel zoom to commit once at animation end, got ${readCommitCount()}`)
     zoomController.destroy()
   } finally {
     globalThis.setTimeout = originalSetTimeout
     globalThis.clearTimeout = originalClearTimeout
+    ;(Date as unknown as { now: () => number }).now = originalDateNow
   }
 }
 
@@ -238,6 +247,9 @@ export function testInfiniteCanvasPointerMoveReusesDragSessionTuning() {
   const controllerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'canvas', 'infinite-canvas-engine', 'controller.ts'), 'utf8')
 
   const requiredSnippets = [
+    'const INTERACTION_DEFERRED_COMMIT_IDLE_MS = 180',
+    'const hasActiveViewportInteraction = (): boolean => {',
+    'if (remainingIdleMs > 0 || hasActiveViewportInteraction())',
     'interactionSpeed: number',
     'scaleExtent: { minK: number; maxK: number }',
     'zoomExponentMultiplier: number',

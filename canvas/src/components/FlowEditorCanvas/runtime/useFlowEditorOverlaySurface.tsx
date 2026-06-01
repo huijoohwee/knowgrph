@@ -11,6 +11,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { shouldDeferComposedGraphRender } from '@/features/source-files/composedApplyGuards'
 import {
   hashScopedStringArraySignature,
   hashSignatureParts,
@@ -130,7 +131,8 @@ export function useFlowEditorOverlaySurface(args: {
   } = args
   const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
   const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
-  const workspaceInteractionPassthrough = workspaceMutationBlocked
+  const sourceFiles = useGraphStore(s => s.sourceFiles)
+  const workspaceInteractionPassthrough = workspaceEditorOverlayOpen
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>('')
@@ -193,8 +195,16 @@ export function useFlowEditorOverlaySurface(args: {
     () => buildGraphMetaKeyIgnoringPending(renderGraphDataOverride),
     [renderGraphDataOverride],
   )
+  const deferComposedGraphOverlayRender = React.useMemo(
+    () => shouldDeferComposedGraphRender({
+      graphData: renderGraphDataOverride,
+      layers: sourceFiles,
+    }),
+    [renderGraphDataOverride, sourceFiles],
+  )
 
   const overlayEditorNodeIds = React.useMemo(() => {
+    if (deferComposedGraphOverlayRender) return []
     if (!flowEditorViewActive) {
       const isFrontmatterFlow = renderGraphPlacementContext?.isFrontmatterFlow === true
       if (workspaceInteractionPassthrough && isFrontmatterFlow) {
@@ -250,6 +260,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphNodes,
     renderGraphSemanticKey,
     workspaceInteractionPassthrough,
+    deferComposedGraphOverlayRender,
   ])
 
   React.useEffect(() => {
@@ -291,8 +302,10 @@ export function useFlowEditorOverlaySurface(args: {
   React.useEffect(() => {
     renderGraphDataOverrideRef.current = renderGraphDataOverride
     const nodeCount = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0
-    if (renderGraphDataOverride && nodeCount > 0) lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride
-  }, [renderGraphDataOverride])
+    if (renderGraphDataOverride && nodeCount > 0 && !deferComposedGraphOverlayRender) {
+      lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride
+    }
+  }, [deferComposedGraphOverlayRender, renderGraphDataOverride])
 
   const overlayEditorNodeIdsKey = React.useMemo(
     () => hashScopedStringArraySignature('overlay', overlayEditorNodeIds),
@@ -300,6 +313,7 @@ export function useFlowEditorOverlaySurface(args: {
   )
   const seededFrontmatterAutoWidgetsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
+    if (deferComposedGraphOverlayRender) return
     const graphData = renderGraphDataOverrideRef.current
     if (!graphData) return
     if (renderGraphPlacementContext?.isFrontmatterFlow !== true) return
@@ -337,7 +351,7 @@ export function useFlowEditorOverlaySurface(args: {
     if (!changed) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) scheduleOverlayCollisionResolve()
-  }, [overlayTopologyLayoutSignature, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, renderGraphPlacementContext, scheduleOverlayCollisionResolve])
+  }, [deferComposedGraphOverlayRender, overlayTopologyLayoutSignature, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, renderGraphPlacementContext, scheduleOverlayCollisionResolve])
 
   const seededGeospatialOverlayWidgetPinsKeyRef = React.useRef<string>('')
   const overlayEditorNodeIdsSnapshotRef = React.useRef<{ key: string; value: string[] } | null>(null)
@@ -356,6 +370,7 @@ export function useFlowEditorOverlaySurface(args: {
   }, [overlayVisibilityActive, renderGraphPlacementContext])
 
   React.useEffect(() => {
+    if (deferComposedGraphOverlayRender) return
     if (!geospatialWidgetPanelMode) return
     if (overlayEditorNodeIds.length === 0) return
     const st = useGraphStore.getState()
@@ -381,7 +396,7 @@ export function useFlowEditorOverlaySurface(args: {
     for (let i = 0; i < missingIds.length; i += 1) nextPinned[missingIds[i]!] = defaultPinned
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) scheduleOverlayCollisionResolve()
-  }, [geospatialWidgetPanelMode, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, scheduleOverlayCollisionResolve])
+  }, [deferComposedGraphOverlayRender, geospatialWidgetPanelMode, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, scheduleOverlayCollisionResolve])
   const frontmatterVisibleSceneDisplayRef = React.useRef<{
     key: string
     value: ReturnType<typeof deriveSceneDisplayGraph> | null
@@ -460,8 +475,9 @@ export function useFlowEditorOverlaySurface(args: {
   const frontmatterRichMediaOverlayNodeIdsSnapshot = frontmatterRichMediaOverlayNodeIdsSnapshotRef.current.value
 
   const handlePinnedInCanvasChange = React.useCallback(() => {
-    scheduleOverlayCollisionResolve()
-  }, [scheduleOverlayCollisionResolve])
+    // Pin state switches placement authority; collision layout stays owned by topology,
+    // viewport changes, and explicit floating-position updates.
+  }, [])
 
   const overlayEditorElements = React.useMemo(() => {
     return buildOverlayEditorElements({

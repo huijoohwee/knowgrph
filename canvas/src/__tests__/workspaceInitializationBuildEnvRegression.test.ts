@@ -14,3 +14,38 @@ export function testWorkspaceInitializationDocsAbsRootDefaultStaysOutOfProductio
     throw new Error('expected vite config to apply workspace docs defaults through the command-aware owner')
   }
 }
+
+export function testProductionHtmlInlinesGeneratedStylesheetAssets() {
+  const viteConfigPath = path.resolve(process.cwd(), 'vite.config.ts')
+  const text = fs.readFileSync(viteConfigPath, 'utf8')
+  if (!text.includes('inlineHtmlStylesheetAssetsPlugin()')) {
+    throw new Error('expected production build to install the shared HTML stylesheet inliner')
+  }
+  if (!text.includes("name: 'knowgrph-inline-html-stylesheet-assets'")) {
+    throw new Error('expected HTML stylesheet inlining to live in a named Vite build plugin')
+  }
+  if (!text.includes('generateBundle(_options, bundle)')) {
+    throw new Error('expected stylesheet inlining to use generated bundle metadata')
+  }
+  if (!text.includes('findBundleCssFileName') || !text.includes('cssByFileName')) {
+    throw new Error('expected stylesheet inlining to resolve emitted CSS assets without hashed filename fixtures')
+  }
+  if (!text.includes('data-kg-inlined-stylesheet')) {
+    throw new Error('expected inlined styles to carry a stable generated-source marker')
+  }
+  if (!text.includes('filterModulePreloadDependencies') || !text.includes('isInlinedHtmlEntryStylesheetModulePreloadDependency')) {
+    throw new Error('expected inlined stylesheet assets to be removed from generated modulepreload dependency lists')
+  }
+  if (!text.includes('removeInlinedStylesheetDepsFromViteMapDeps') || !text.includes('rewriteViteMapDepsCalls')) {
+    throw new Error('expected generated Vite dependency index maps to drop inlined stylesheet assets before deletion')
+  }
+  if (!text.includes('modulePreload') || !text.includes('resolveDependencies')) {
+    throw new Error('expected generated modulepreload dependencies to stay under Vite build ownership')
+  }
+  if (!text.includes('delete bundle[fileName]')) {
+    throw new Error('expected inlined CSS assets to be removed from the emitted bundle')
+  }
+  if (text.includes('index-DriPJwWn.css') || text.includes('index-C0aM1YPz.css')) {
+    throw new Error('expected stylesheet inlining to avoid hardcoded production asset names')
+  }
+}

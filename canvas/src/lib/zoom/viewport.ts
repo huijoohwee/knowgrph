@@ -54,14 +54,28 @@ export const computeTransformScaleAboutViewportCenter = (args: {
   viewportH: number
   nextK: number
 }): { k: number; x: number; y: number } => {
-  const nextK = Number.isFinite(args.nextK) ? Math.max(0.001, args.nextK) : 1
   const viewportW = Number.isFinite(args.viewportW) ? Math.max(1, Math.floor(args.viewportW)) : 1
   const viewportH = Number.isFinite(args.viewportH) ? Math.max(1, Math.floor(args.viewportH)) : 1
-  const worldC = viewportCenterToWorld({ transform: args.transform, viewportW, viewportH })
-  const nextCx = viewportW / 2
-  const nextCy = viewportH / 2
-  const nextX = nextCx - worldC.x * nextK
-  const nextY = nextCy - worldC.y * nextK
+  return computeTransformScaleAboutScreenPoint({
+    transform: args.transform,
+    focalX: viewportW / 2,
+    focalY: viewportH / 2,
+    nextK: args.nextK,
+  })
+}
+
+export const computeTransformScaleAboutScreenPoint = (args: {
+  transform: Pick<ViewportTransform, 'k' | 'x' | 'y'> | null
+  focalX: number
+  focalY: number
+  nextK: number
+}): { k: number; x: number; y: number } => {
+  const nextK = Number.isFinite(args.nextK) ? Math.max(0.001, args.nextK) : 1
+  const focalX = Number.isFinite(args.focalX) ? Number(args.focalX) : 0
+  const focalY = Number.isFinite(args.focalY) ? Number(args.focalY) : 0
+  const worldC = screenToWorld({ transform: args.transform, sx: focalX, sy: focalY })
+  const nextX = focalX - worldC.x * nextK
+  const nextY = focalY - worldC.y * nextK
   return { k: nextK, x: nextX, y: nextY }
 }
 

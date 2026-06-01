@@ -34,15 +34,15 @@ export function useMarkdownWorkspaceWidgetMode(args: {
   const userForcedDocumentRef = React.useRef(false)
   const setContentMode = React.useCallback((mode: 'document' | 'widget') => {
     userForcedDocumentRef.current = mode === 'document'
-    setContentModeState(mode)
+    setContentModeState(prev => (prev === mode ? prev : mode))
   }, [])
   const setContentModeAuto = React.useCallback((mode: 'document' | 'widget') => {
     if (mode === 'document') {
-      setContentModeState('document')
+      setContentModeState(prev => (prev === 'document' ? prev : 'document'))
       return
     }
     userForcedDocumentRef.current = false
-    setContentModeState('widget')
+    setContentModeState(prev => (prev === 'widget' ? prev : 'widget'))
   }, [])
   const [widgetFormat, setWidgetFormat] = React.useState<'json' | 'markdown'>('json')
 

@@ -1,5 +1,6 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import { getNodeImagePreviewUrls } from '@/components/GraphCanvas/helpers'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 const NODE_PROP_PRIORITY = [
   'name',
@@ -70,6 +71,13 @@ export function buildHoverDescription(node: GraphNode): string {
 export function buildHoverImageInfo(node: GraphNode): { imageSrc: string | null; imageCount: number } {
   const urls = getNodeImagePreviewUrls(node)
   return { imageSrc: urls.length > 0 ? urls[0] : null, imageCount: urls.length }
+}
+
+export function buildGraphHoverSemanticKey(args: { kind?: unknown; id?: unknown } | null | undefined): string | null {
+  const kind = String(args?.kind || '').trim()
+  const id = String(args?.id || '').trim()
+  if (!kind || !id) return null
+  return buildScopedGraphSemanticKey('graph-hover-panel', { graphSemanticKey: `${kind}:${id}` }) || null
 }
 
 export function formatPropValue(v: unknown): string {

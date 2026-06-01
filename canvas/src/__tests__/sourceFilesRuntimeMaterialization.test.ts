@@ -22,7 +22,7 @@ const createMinimalFs = (textByPath: Record<string, string>): WorkspaceFs => ({
 
 export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentWhenCanvasOwnsClosedPane() {
   const shouldReapply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
-    activePath: '/docs/knowgrph-maps-readme.md' as never,
+    activePath: '/docs/workspace-readme.md' as never,
     markdownDocumentName: null,
     markdownDocumentText: '',
   })
@@ -33,7 +33,7 @@ export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentWhen
 
 export function testShouldProactivelyReapplyActiveWorkspaceMarkdownDocumentWhenEditorWorkspaceOpen() {
   const shouldReapply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
-    activePath: '/docs/knowgrph-maps-readme.md' as never,
+    activePath: '/docs/workspace-readme.md' as never,
     markdownDocumentName: null,
     markdownDocumentText: '',
   })
@@ -44,8 +44,8 @@ export function testShouldProactivelyReapplyActiveWorkspaceMarkdownDocumentWhenE
 
 export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentDefersMatchingDocumentSuppressionUntilResolvedText() {
   const shouldReapply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
-    activePath: '/docs/knowgrph-maps-readme.md' as never,
-    markdownDocumentName: '/docs/knowgrph-maps-readme.md',
+    activePath: '/docs/workspace-readme.md' as never,
+    markdownDocumentName: '/docs/workspace-readme.md',
     markdownDocumentText: '# Maps Readme',
   })
   if (shouldReapply !== true) {

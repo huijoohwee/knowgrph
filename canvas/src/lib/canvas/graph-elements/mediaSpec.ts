@@ -10,6 +10,7 @@ import { coerceMarkdownParenUrl, extractMarkdownInlineRefs } from '@/features/pa
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY } from '@/lib/render/effectiveMediaNode'
+import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
 import type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 
@@ -206,7 +207,15 @@ function buildRichMediaPanelTextualIframeSpec(args: {
   outputSrcDoc: string
 }): NodeMediaSpec {
   if (args.outputSrcDoc) {
-    return { kind: 'iframe', url: '', srcDoc: args.outputSrcDoc, interactive: false }
+    return {
+      kind: 'iframe',
+      url: '',
+      srcDoc: normalizeRichMediaPanelInlineSrcDoc({
+        srcDoc: args.outputSrcDoc,
+        title: String(args.node.label || args.node.id || '').trim() || RICH_MEDIA_PANEL_TEXT_FALLBACK_TITLE,
+      }),
+      interactive: false,
+    }
   }
   const trimmed = args.outputText.trim()
   if (trimmed) {

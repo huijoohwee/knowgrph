@@ -1,5 +1,180 @@
-const CARD_MARKDOWN_STRUCTURAL_PATTERN = /(^|\n)\s*(?:>+|```)|!\[[^\]]*]\([^)]+?\)|(?<!!)\[[^\]]+]\([^)]+?\)|(^|[^\\])\$[^$\n]+\$|<\s*(?:iframe|img|video)\b/i
+const CARD_MARKDOWN_STRUCTURAL_PATTERN = /(^|\n)\s*(?:>+|```|\|[^\n]*\|)|!\[[^\]]*]\([^)]+?\)|(?<!!)\[[^\]]+]\([^)]+?\)|(^|[^\\])\$[^$\n]+\$|<\s*(?:iframe|img|video)\b/i
+
+export const CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME = 'overflow-y-auto overflow-x-hidden max-h-full'
+export const CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME = 'm-0'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME = 'max-w-full h-auto object-contain'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME = 'bg-transparent'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME = `w-full h-full overflow-hidden relative ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
+export const CARD_MARKDOWN_PREVIEW_CODE_CHROME_CLASS_NAME =
+  'bg-[color:var(--kg-code-bg)] text-[color:var(--kg-code-text)]'
+export const CARD_MARKDOWN_PREVIEW_CODE_SURFACE_PADDING_CLASS_NAME = 'p-4'
+export const CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE = '1rem'
+export const CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME =
+  `min-w-0 max-w-full overflow-y-auto overflow-x-hidden overscroll-contain ${CARD_MARKDOWN_PREVIEW_CODE_CHROME_CLASS_NAME}`
+export const CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME =
+  `min-w-0 max-w-full overflow-hidden ${CARD_MARKDOWN_PREVIEW_CODE_SURFACE_PADDING_CLASS_NAME} ${CARD_MARKDOWN_PREVIEW_CODE_CHROME_CLASS_NAME}`
+export const CARD_MARKDOWN_PREVIEW_CODE_SURFACE_CLASS_NAME =
+  `relative overflow-y-auto overflow-x-hidden ${CARD_MARKDOWN_PREVIEW_CODE_SURFACE_PADDING_CLASS_NAME}`
+export const CARD_MARKDOWN_PREVIEW_MERMAID_SURFACE_CLASS_NAME =
+  `${CARD_MARKDOWN_PREVIEW_CODE_SURFACE_CLASS_NAME} ${CARD_MARKDOWN_PREVIEW_CODE_CHROME_CLASS_NAME}`
 
 export function hasCardMarkdownPreviewSyntax(raw: string): boolean {
   return CARD_MARKDOWN_STRUCTURAL_PATTERN.test(String(raw || ''))
+}
+
+type CardMarkdownPreviewTextBlock = {
+  startLine?: unknown
+  endLine?: unknown
+  title?: unknown
+  summary?: unknown
+  preview?: {
+    kind?: unknown
+    ordered?: unknown
+    listItems?: unknown
+    table?: unknown
+    code?: unknown
+    callout?: unknown
+    blockquote?: unknown
+    html?: unknown
+  }
+}
+
+const splitMarkdownPreviewLines = (raw: unknown): string[] => String(raw || '').split(/\r?\n/g)
+
+const trimBlankMarkdownPreviewLines = (raw: string): string => {
+  const lines = splitMarkdownPreviewLines(raw)
+  while (lines.length > 0 && !String(lines[0] || '').trim()) lines.shift()
+  while (lines.length > 0 && !String(lines[lines.length - 1] || '').trim()) lines.pop()
+  return lines.join('\n')
+}
+
+const readPositiveLine = (raw: unknown): number | null => {
+  const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.floor(n)
+}
+
+const isCardMarkdownPreviewSourceCompatible = (kind: string, raw: string): boolean => {
+  const source = String(raw || '').trim()
+  if (!source) return false
+  if (kind === 'code') return /^\s*(?:```|~~~)/.test(raw) || /^(?: {4}|\t)/.test(raw)
+  if (kind === 'table') return /^\s*\|[^\n]*\|/m.test(raw)
+  if (kind === 'blockquote' || kind === 'callout') return /^\s*>/m.test(raw)
+  if (kind === 'html') return /^\s*</.test(source)
+  if (kind === 'list') return /^\s*(?:[-+*]|\d+[.)])\s+/m.test(raw)
+  if (kind === 'hr') return /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(source)
+  return true
+}
+
+export function readCardMarkdownPreviewSourceLineRange(args: {
+  markdownText?: unknown
+  startLine?: unknown
+  endLine?: unknown
+}): string {
+  const markdownText = String(args.markdownText || '')
+  if (!markdownText) return ''
+  const startLine = readPositiveLine(args.startLine)
+  if (startLine == null) return ''
+  const endLine = Math.max(startLine, readPositiveLine(args.endLine) ?? startLine)
+  const lines = splitMarkdownPreviewLines(markdownText)
+  if (startLine > lines.length) return ''
+  return trimBlankMarkdownPreviewLines(lines.slice(startLine - 1, endLine).join('\n'))
+}
+
+const escapeMarkdownTableCell = (raw: unknown): string => String(raw ?? '').replace(/\r?\n/g, ' ').replace(/\|/g, '\\|')
+
+const buildTableMarkdownPreviewText = (table: unknown): string => {
+  if (!table || typeof table !== 'object') return ''
+  const rec = table as { columns?: unknown; rows?: unknown }
+  const columns = Array.isArray(rec.columns) ? rec.columns.map(escapeMarkdownTableCell) : []
+  const rows = Array.isArray(rec.rows)
+    ? rec.rows
+      .filter((row): row is unknown[] => Array.isArray(row))
+      .map(row => row.map(escapeMarkdownTableCell))
+    : []
+  const width = Math.max(columns.length, ...rows.map(row => row.length), 0)
+  if (width <= 0) return ''
+  const paddedColumns = Array.from({ length: width }, (_, index) => columns[index] ?? '')
+  const padRow = (row: string[]) => Array.from({ length: width }, (_, index) => row[index] ?? '')
+  const head = `| ${paddedColumns.join(' | ')} |`
+  const sep = `| ${paddedColumns.map(() => '---').join(' | ')} |`
+  const body = rows.map(row => `| ${padRow(row).join(' | ')} |`)
+  return [head, sep, ...body].join('\n')
+}
+
+const buildCodeMarkdownPreviewText = (code: unknown): string => {
+  if (!code || typeof code !== 'object') return ''
+  const rec = code as { lang?: unknown; lines?: unknown }
+  const lang = String(rec.lang || '').replace(/[` \t\r\n]+/g, '').trim()
+  const lines: string[] = Array.isArray(rec.lines) ? rec.lines.map(line => String(line ?? '')) : []
+  let maxFenceRun = 0
+  for (const line of lines) {
+    const runs = String(line).match(/`+/g)
+    if (!runs) continue
+    for (const run of runs) maxFenceRun = Math.max(maxFenceRun, run.length)
+  }
+  const fence = '`'.repeat(Math.max(3, maxFenceRun + 1))
+  return [fence + lang, ...lines, fence].join('\n')
+}
+
+const buildBlockquoteMarkdownPreviewText = (blockquote: unknown): string => {
+  if (!blockquote || typeof blockquote !== 'object') return ''
+  const lines = Array.isArray((blockquote as { lines?: unknown }).lines)
+    ? ((blockquote as { lines: unknown[] }).lines).map(line => String(line ?? ''))
+    : []
+  return lines.map(line => (line ? `> ${line}` : '>')).join('\n')
+}
+
+const buildCalloutMarkdownPreviewText = (callout: unknown): string => {
+  if (!callout || typeof callout !== 'object') return ''
+  const rec = callout as { calloutType?: unknown; title?: unknown }
+  const calloutType = String(rec.calloutType || '').trim() || 'note'
+  const title = String(rec.title || '').trim()
+  return `> [!${calloutType.toUpperCase()}]${title ? ` ${title}` : ''}`
+}
+
+const buildListMarkdownPreviewText = (args: { ordered?: unknown; listItems?: unknown }): string => {
+  const items = Array.isArray(args.listItems)
+    ? args.listItems as Array<{ text?: unknown; task?: unknown; checked?: unknown }>
+    : []
+  const ordered = args.ordered === true
+  return items
+    .map((item, index) => {
+      const base = ordered ? `${index + 1}.` : '-'
+      const text = String(item?.text || '').trim()
+      if (item?.task === true) return `${base} ${item.checked === true ? '[x]' : '[ ]'} ${text}`.trim()
+      return `${base} ${text}`.trim()
+    })
+    .join('\n')
+}
+
+export function buildCardMarkdownPreviewText(args: {
+  block?: CardMarkdownPreviewTextBlock | null
+  markdownText?: unknown
+}): string {
+  const block = args.block || null
+  if (!block) return ''
+  const preview = block.preview || null
+  const kind = String(preview?.kind || '').trim()
+  const sourceText = readCardMarkdownPreviewSourceLineRange({
+    markdownText: args.markdownText,
+    startLine: block.startLine,
+    endLine: block.endLine,
+  })
+  if (sourceText.trim() && isCardMarkdownPreviewSourceCompatible(kind, sourceText)) return sourceText
+
+  const fallback = (() => {
+    if (kind === 'table') return buildTableMarkdownPreviewText(preview?.table)
+    if (kind === 'code') return buildCodeMarkdownPreviewText(preview?.code)
+    if (kind === 'blockquote') return buildBlockquoteMarkdownPreviewText(preview?.blockquote)
+    if (kind === 'callout') return buildCalloutMarkdownPreviewText(preview?.callout)
+    if (kind === 'list') return buildListMarkdownPreviewText({ ordered: preview?.ordered, listItems: preview?.listItems })
+    if (kind === 'hr') return '---'
+    if (kind === 'html') {
+      const html = preview?.html && typeof preview.html === 'object' ? (preview.html as { raw?: unknown }) : null
+      return String(html?.raw || '').trim()
+    }
+    return ''
+  })()
+  return fallback.trim() || String(block.summary || '').trim() || String(block.title || '').trim()
 }

@@ -17,13 +17,19 @@ interface TooltipProps {
   maxWidthFromPrevSibling?: boolean
   maxWidthPx?: number
   contentClassName?: string
+  contentStyle?: React.CSSProperties
+  contentRef?: React.Ref<HTMLDivElement>
+  contentOffset?: { x: number; y: number } | null
+  contentSize?: { width: number; height?: number } | null
+  contentDataAttrs?: Record<string, string | undefined>
   open?: boolean
   anchorStyle?: React.CSSProperties
+  onContentMouseEnter?: () => void
   onContentMouseLeave?: () => void
   interactive?: boolean
 }
 
-export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, open: controlledOpen, anchorStyle, onContentMouseLeave, interactive = true }: TooltipProps) {
+export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, contentStyle, contentRef, contentOffset, contentSize, contentDataAttrs, open: controlledOpen, anchorStyle, onContentMouseEnter, onContentMouseLeave, interactive = true }: TooltipProps) {
   const anchorRef = React.useRef<HTMLSpanElement | null>(null)
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
   const open = typeof controlledOpen === 'boolean' ? controlledOpen : uncontrolledOpen
@@ -35,6 +41,19 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
   const scrollAllowedRef = React.useRef<boolean>(false)
   const delayElapsedRef = React.useRef<boolean>(false)
   const constrainedRef = React.useRef<boolean>(false)
+  const setContentElement = React.useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node
+    if (!contentRef) return
+    if (typeof contentRef === 'function') {
+      contentRef(node)
+      return
+    }
+    try {
+      ;(contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+    } catch {
+      void 0
+    }
+  }, [contentRef])
 
   const updatePosition = React.useCallback(() => {
     const el = anchorRef.current
@@ -165,12 +184,25 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
       </span>
       {open && pos && createPortal(
         <div
-          ref={scrollRef}
+          ref={setContentElement}
+          {...contentDataAttrs}
           data-kg-tooltip-root="1"
           className={cn(`px-2 py-1 text-xs rounded ${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} whitespace-normal break-words overflow-hidden ${interactive ? 'pointer-events-auto' : 'pointer-events-none'} z-[10000]`, contentClassName)}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, transform: 'translateX(-50%)', maxWidth: maxW ? `${maxW}px` : '250px' }}
+          style={{
+            ...contentStyle,
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            transform: contentOffset
+              ? `translate(calc(-50% + ${contentOffset.x}px), ${contentOffset.y}px)`
+              : 'translateX(-50%)',
+            width: contentSize?.width ? `${contentSize.width}px` : undefined,
+            height: contentSize?.height ? `${contentSize.height}px` : undefined,
+            maxWidth: contentSize?.width ? `${contentSize.width}px` : (maxW ? `${maxW}px` : '250px'),
+          }}
           onMouseEnter={() => {
             if (!interactive) return
+            onContentMouseEnter?.()
             if (scrollDelayRef.current !== null) return
             delayElapsedRef.current = false
             scrollDelayRef.current = window.setTimeout(() => {

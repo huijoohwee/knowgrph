@@ -1,9 +1,8 @@
 import React from 'react'
 
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
-import { hasCardMarkdownPreviewSyntax } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -49,6 +48,11 @@ import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/Node
 import type { GraphEdge } from '@/lib/graph/types'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
+import {
+  handleWidgetInnerPanelScrollCapture,
+  handleWidgetInnerPanelWheelCapture,
+  RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
+} from '@/components/FlowEditor/nodeOverlayEditorShared'
 import type { RichMediaWidgetPreviewState } from '@/components/FlowEditor/useRichMediaWidgetPreview'
 import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import {
@@ -313,11 +317,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
   const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || null
   const richMediaPreview = richMediaWidgetPreview?.richMediaPreview || null
-  const richMediaPanelViewSize = richMediaWidgetPreview?.richMediaPanelViewSize || { width: 280, height: 180 }
+  const richMediaPanelViewSize = richMediaWidgetPreview?.richMediaPanelViewSize || RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE
   const handleRichMediaPanelChange = richMediaWidgetPreview?.handleRichMediaPanelChange
   const handleRichMediaResizeStart = richMediaWidgetPreview?.handleRichMediaResizeStart
   const handleRichMediaResize = richMediaWidgetPreview?.handleRichMediaResize
   const handleRichMediaResizeEnd = richMediaWidgetPreview?.handleRichMediaResizeEnd
+  const handleRichMediaContentSize = richMediaWidgetPreview?.handleRichMediaContentSize
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
@@ -488,7 +493,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   const compactPreviewEditorClass = React.useMemo(() => {
     return cn(
-      'w-full h-40 rounded-md border px-2 py-2',
+      'w-full h-40 rounded-md border px-2 py-2 overflow-y-auto overflow-x-hidden',
       monospaceTextClass,
       UI_THEME_TOKENS.input.bg,
       UI_THEME_TOKENS.input.border,
@@ -713,8 +718,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       )}
       aria-label={UI_LABELS.flowWidgetForm}
       onSubmit={e => e.preventDefault()}
-      onScrollCapture={() => emitInteractionFrame()}
-      onWheelCapture={() => emitInteractionFrame()}
+      onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitInteractionFrame)}
+      onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitInteractionFrame)}
     >
       <section className="min-w-0" aria-label={UI_LABELS.flowWidgetNodeLegend}>
         <NodeOverlayEditorKvTable
@@ -755,11 +760,17 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         <section
           data-kg-widget-body="1"
           data-kg-rich-media-render-surface="1"
-          className="relative min-h-0 mt-4 overflow-hidden"
+          data-kg-rich-media-scroll-owner="panel"
+          data-kg-media-scroll-surface="1"
+          className="relative min-h-0 mt-4 overflow-y-auto overflow-x-hidden"
           style={{
             width: `${richMediaPanelViewSize.width}px`,
             maxWidth: '100%',
             height: `${richMediaPanelViewSize.height}px`,
+            overscrollBehaviorX: 'none',
+            overscrollBehaviorY: 'contain',
+            pointerEvents: 'auto',
+            scrollbarGutter: 'stable',
           }}
         >
           <RichMediaPanel
@@ -777,6 +788,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             panel={richMediaPanelState || undefined}
             widgetToolbarActive={false}
             onPanelChange={handleRichMediaPanelChange}
+            frameMode="surface"
+            scrollOwner="panel"
+            onInlineContentSize={handleRichMediaContentSize}
             style={{ width: '100%', height: '100%', boxShadow: 'none' }}
           />
         </section>
@@ -793,23 +807,19 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             data-kg-widget-preview-kind={compactPreviewView.kind}
           >
             {compactPreviewView.kind === 'text' ? (
-              compactPreviewView.readOnly && hasCardMarkdownPreviewSyntax(compactPreviewView.textValue) ? (
-                <CardMarkdownPreview
-                  markdownText={compactPreviewView.textValue}
-                  activeDocumentPath="/__flow_editor_compact_preview/output.md"
-                  className={compactPreviewEditorClass}
-                />
-              ) : (
-                <PlainTextInputEditor
-                  id={`${idBase}-compact-preview`}
-                  ariaLabel={compactPreviewView.textAriaLabel}
-                  value={compactPreviewView.textValue}
-                  onChange={setCompactPreviewText}
-                  multiline
-                  readOnly={compactPreviewView.readOnly}
-                  className={compactPreviewEditorClass}
-                />
-              )
+              <CardInlineTextEditor
+                value={compactPreviewView.textValue}
+                ariaLabel={compactPreviewView.textAriaLabel}
+                placeholder="Add preview text"
+                canEdit={active && !compactPreviewView.readOnly}
+                editActivation="click"
+                multiline
+                rows={6}
+                markdownPreview="auto"
+                onCommit={setCompactPreviewText}
+                displayClassName={compactPreviewEditorClass}
+                editorClassName={compactPreviewEditorClass}
+              />
             ) : (
               <CardMediaPreview
                 kind={compactPreviewView.kind}

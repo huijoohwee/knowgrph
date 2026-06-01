@@ -37,7 +37,7 @@ import { readEdgeEndpointId, readGraphEdgeEndpoints } from '@/lib/graph/edgeEndp
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import {
   type FlowEditorQeTraceWindow,
   isFlowEditorQeTraceEnabled,
@@ -355,6 +355,7 @@ export function useFlowEditorOverlayEdges(args: {
       })
       return
     }
+    args.overlayEdgesEnabledRef.current = true
     overlayEdgeReadinessRetryRef.current = null
     overlayEdgeLayoutSigRef.current = ''
     if (workspaceOverlayOpenRef.current) {
@@ -1116,7 +1117,7 @@ export function useFlowEditorOverlayEdges(args: {
   }, [args.flowEditorSurfaceId, pushOverlayEdgeTrace, readOverlayEdgeHarnessSnapshot, scheduleOverlayEdgeUpdate])
 
   React.useEffect(() => {
-    const readWorkspaceOverlayOpen = () => isWorkspaceGraphMutationBlocked(useGraphStore.getState())
+    const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
     workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
     if (workspaceOverlayOpenRef.current) scheduleOverlayEdgeUpdate()
     const unsub = useGraphStore.subscribe(

@@ -277,79 +277,13 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
 
   const scrollRootRef = React.useRef<HTMLDivElement | null>(null)
-  const articleRef = React.useRef<HTMLElement | null>(null)
   const handleScrollRootRef = React.useCallback(
     (el: HTMLDivElement | null) => {
       scrollRootRef.current = el
-      if (el) {
-        try {
-          el.style.setProperty('--kg-viewer-article-width', '80%')
-          el.style.setProperty('--kg-scrollbar-width', '0px')
-        } catch {
-          void 0
-        }
-      }
       rootRef(el)
     },
     [rootRef],
   )
-
-  const handleArticleRef = React.useCallback((el: HTMLElement | null) => {
-    articleRef.current = el
-    if (!el) return
-    if (contentClassName) return
-  }, [contentClassName])
-
-  React.useEffect(() => {
-    const root = scrollRootRef.current
-    if (!root) return
-    let raf = 0
-    const update = () => {
-      try {
-        const w = root.offsetWidth - root.clientWidth
-        const safe = Number.isFinite(w) ? Math.max(0, Math.floor(w)) : 0
-        root.style.setProperty('--kg-scrollbar-width', `${safe}px`)
-        const rect = root.getBoundingClientRect()
-        const widthPx = Number.isFinite(rect.width) ? Math.max(0, Math.floor(rect.width * 0.8)) : 0
-        root.style.setProperty('--kg-viewer-article-width', widthPx ? `${widthPx}px` : '80%')
-        try {
-          ;(window as unknown as { __kgMarkdownViewerWidthPx?: number }).__kgMarkdownViewerWidthPx = widthPx || Math.max(0, Math.floor(rect.width || 0))
-        } catch {
-          void 0
-        }
-      } catch {
-        void 0
-      }
-    }
-    update()
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
-      if (raf) return
-      raf = window.requestAnimationFrame(() => {
-        raf = 0
-        update()
-      })
-    }) : null
-    try {
-      ro?.observe(root)
-    } catch {
-      void 0
-    }
-    return () => {
-      if (raf) {
-        try {
-          window.cancelAnimationFrame(raf)
-        } catch {
-          void 0
-        }
-        raf = 0
-      }
-      try {
-        ro?.disconnect()
-      } catch {
-        void 0
-      }
-    }
-  }, [])
 
   React.useEffect(() => {
     const tryScrollToHash = () => {
@@ -721,7 +655,6 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         />
       ) : null}
       <article
-        ref={handleArticleRef}
         className={
           contentClassName ||
           getMarkdownViewerWidthWrapperClassName(markdownViewerWidthMode || 'standard')

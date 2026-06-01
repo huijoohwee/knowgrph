@@ -1,5 +1,13 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { resolvePreferredRichMediaPanelNodeId } from '@/lib/render/richMediaPanelNode'
+import {
+  buildGeoPoiRichMediaRows,
+  buildGeoPoiRichMediaSemanticKey,
+  normalizeGeoPoiRichMediaProperties,
+  resolveGeoPoiAddressFromProperties,
+  resolveGeoPoiCategoryFromProperties,
+  type GeoPoiRichMediaProperties,
+} from 'grph-shared/geospatial/poiRichMedia'
 
 export type GrabMapsPoiRichMediaDetail = {
   label: string
@@ -7,6 +15,7 @@ export type GrabMapsPoiRichMediaDetail = {
   lat: number
   address?: string
   category?: string
+  properties?: GeoPoiRichMediaProperties | Record<string, unknown> | null
 }
 
 export type GrabMapsPoiRichMediaPreviewPayload = {
@@ -59,11 +68,14 @@ function escapeHtml(text: string): string {
 }
 
 export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDetail): string {
+  const properties = normalizeGeoPoiRichMediaProperties(detail.properties)
   const label = escapeHtml(String(detail.label || '').trim() || 'POI')
   const lat = Number(detail.lat)
   const lng = Number(detail.lng)
-  const address = escapeHtml(String(detail.address || '').trim())
-  const category = escapeHtml(String(detail.category || '').trim())
+  const resolvedAddress = String(detail.address || '').trim() || resolveGeoPoiAddressFromProperties(properties)
+  const resolvedCategory = String(detail.category || '').trim() || resolveGeoPoiCategoryFromProperties(properties)
+  const address = escapeHtml(resolvedAddress)
+  const category = escapeHtml(resolvedCategory)
   const coordText =
     Number.isFinite(lat) && Number.isFinite(lng)
       ? `${lat.toFixed(6)}, ${lng.toFixed(6)}`
@@ -87,11 +99,28 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     `<div><strong>Category</strong><span>${category || 'Uncategorized'}</span></div>`,
     `<div><strong>Coordinates</strong><span>${coordText || 'Not provided'}</span></div>`,
   ].filter(Boolean).join('')
-  const payload = escapeHtml(JSON.stringify({
+  const semanticKey = buildGeoPoiRichMediaSemanticKey({
     label: rawLabel,
-    address: String(detail.address || '').trim(),
-    category: String(detail.category || '').trim(),
+    lat,
+    lng,
+    properties,
+  })
+  const geoRows = buildGeoPoiRichMediaRows({
+    properties,
+    address: resolvedAddress,
+    category: resolvedCategory,
+    maxRows: 18,
+  })
+  const geoRowsHtml = geoRows.map(row => (
+    `<div><strong>${escapeHtml(row.label)}</strong><span>${escapeHtml(row.value)}</span></div>`
+  )).join('')
+  const payload = escapeHtml(JSON.stringify({
+    semanticKey,
+    label: rawLabel,
+    address: resolvedAddress,
+    category: resolvedCategory,
     coordinates: hasFiniteCoordinates ? { lat, lng } : null,
+    properties,
   }, null, 2))
   const miniMap = (() => {
     if (!hasFiniteCoordinates) return ''
@@ -140,6 +169,7 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     'p{margin:8px 0 0;color:#475569;}',
     'section{margin-top:16px;display:grid;gap:10px;}',
     'section div{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;}',
+    '.geo-details{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}',
     '.actions{display:grid;gap:8px;margin-top:16px;}',
     '.actions a{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;text-decoration:none;font-weight:600;}',
     '.actions a:hover{background:#f1f5f9;}',
@@ -152,6 +182,7 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     '</style></head><body>',
     `<main><article><h1>${label}</h1><p>GrabMaps POI selection rendered on the Rich Media Panel surface.</p>`,
     metaRows ? `<section>${metaRows}</section>` : '',
+    geoRowsHtml ? `<section class="geo-details" aria-label="Geo metadata">${geoRowsHtml}</section>` : '',
     miniMap,
     actions ? `<div class="actions">${actions}</div>` : '',
     `<pre aria-label="POI payload">${payload}</pre>`,

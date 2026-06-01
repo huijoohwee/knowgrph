@@ -86,6 +86,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
       uiPanelTextFontClass: opts.uiPanelTextFontClass,
       uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
       markdownPresentationMode: opts.markdownPresentationMode,
+      markdownCardPreviewMode: opts.markdownCardPreviewMode,
       renderNodeText: (text, key) => <React.Fragment key={key}>{text}</React.Fragment>,
       fragmentOptions:
         opts.markdownPresentationMode && fragmentsEnabled
@@ -104,6 +105,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     fragmentTags,
     html,
     opts.activeDocumentPath,
+    opts.markdownCardPreviewMode,
     opts.markdownPresentationMode,
     opts.uiPanelMonospaceTextClass,
     opts.uiPanelTextFontClass,
@@ -159,6 +161,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
               containerStyle={containerStyle}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           ) : (
             <MediaWebpageSnapshot
@@ -167,6 +170,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
               containerStyle={containerStyle}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           )}
         </MediaWrapper>
@@ -209,6 +213,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
               containerStyle={containerStyle}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           ) : (
             <MediaWebpageSnapshot
@@ -217,6 +222,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
               containerStyle={containerStyle}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           )}
         </MediaWrapper>
@@ -259,6 +265,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
               containerStyle={containerStyle}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           ) : (
             <MediaWebpageSnapshot
@@ -267,6 +274,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
               containerStyle={containerStyle}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           )}
         </MediaWrapper>
@@ -338,6 +346,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               playsInline={parsed?.playsInline}
               controls={parsed?.controls}
               style={style}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           ) : (
             <MediaVideoSnapshot
@@ -345,6 +354,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
               title="Video"
               presentationMode={opts.markdownPresentationMode}
               style={style}
+              cardPreviewMode={opts.markdownCardPreviewMode}
             />
           )}
         </MediaWrapper>
@@ -382,7 +392,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           highlightStyle={highlightStyle}
           opts={opts}
         >
-          <MediaImage src={src} alt={alt} width={width} height={height} style={style} />
+          <MediaImage src={src} alt={alt} width={width} height={height} style={style} cardPreviewMode={opts.markdownCardPreviewMode} />
         </MediaWrapper>
       )
     }
@@ -418,6 +428,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           url={resolveHref(scriptEmbedHref, opts.activeDocumentPath)}
           title="Embedded content"
           presentationMode={opts.markdownPresentationMode}
+          cardPreviewMode={opts.markdownCardPreviewMode}
         />
       </MediaWrapper>
     )
@@ -443,6 +454,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
             url={resolveHref(href, opts.activeDocumentPath)}
             title="Embedded content"
             presentationMode={opts.markdownPresentationMode}
+            cardPreviewMode={opts.markdownCardPreviewMode}
           />
         </MediaWrapper>
       )

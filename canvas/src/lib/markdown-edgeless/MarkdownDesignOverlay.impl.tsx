@@ -10,15 +10,24 @@ import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/inter
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
+import { buildCardMarkdownPreviewText } from '@/lib/cards/cardMarkdownPreviewUtils'
 import {
   deriveMarkdownDesignLayout,
   patchMarkdownDesignLayoutPositions,
+  patchMarkdownDesignLayoutRects,
   MARKDOWN_DESIGN_LAYOUT,
   type MarkdownDesignBlock,
   type MarkdownDesignLayout,
 } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { startMarkdownPanelOverlayLoop2d } from '@/features/markdown-edgeless/markdownPanelOverlayLoop2d'
 import { readOverlaySizingConfigForDensity, readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
+import {
+  computePanelFrameResizeFromDrag16x9,
+  computePanelFrameSizeFromDensityWidth16x9,
+  readRichMediaPanelFrameMetrics,
+  type MediaPanelCssMetrics,
+} from '@/lib/render/mediaPanelLayout'
+import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
 type MarkdownDesignOverlayProps = {
   enabled: boolean
@@ -39,6 +48,27 @@ type MarkdownDesignOverlayProps = {
   onHeaderDrag?: (args: { dx: number; dy: number }) => void
   onHeaderDragEnd?: () => void
   onVisibleNodeIdsChange?: (nodeIds: string[]) => void
+}
+
+type MarkdownPanelResizeState = {
+  pointerId: number
+  blockId: string
+  index: number
+  startW: number
+  startH: number
+  startK: number
+  frameMetrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+  lastW: number
+  lastH: number
+}
+
+function resolveMarkdownPanelBlockAspectSize(block: MarkdownDesignBlock, density: MediaPanelDensity): { w: number; h: number } {
+  const panelW = Math.max(24, Math.round(Number(block.w) || 24))
+  const frame = computePanelFrameSizeFromDensityWidth16x9({ density, panelW })
+  return {
+    w: Math.max(24, Math.round(frame.panelW)),
+    h: Math.max(24, Math.round(frame.panelH)),
+  }
 }
 
 export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(props: MarkdownDesignOverlayProps) {
@@ -161,59 +191,13 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
 
   const markdownSnippetByBlockId = React.useMemo(() => {
     const out = new Map<string, string>()
-    const blocks0 = Array.isArray(blocksRef.current) ? blocksRef.current : []
+    const blocks0 = Array.isArray(blocks) ? blocks : []
     for (const b of blocks0) {
-      const kind = b.preview?.kind
-      const snippet = (() => {
-        if (kind === 'table' && b.preview.table) {
-          const cols = b.preview.table.columns || []
-          const rows = b.preview.table.rows || []
-          const head = `| ${cols.map(c => String(c || '').replace(/\|/g, '\\|')).join(' | ')} |`
-          const sep = `| ${cols.map(() => '---').join(' | ')} |`
-          const body = rows.slice(0, 6).map(r => `| ${(r || []).map(c => String(c || '').replace(/\|/g, '\\|')).join(' | ')} |`)
-          return [head, sep, ...body].join('\n')
-        }
-        if (kind === 'code' && b.preview.code) {
-          const lang = String(b.preview.code.lang || '').trim()
-          const lines = Array.isArray(b.preview.code.lines) ? b.preview.code.lines : []
-          return ['```' + lang, ...lines, '```'].join('\n')
-        }
-        if (kind === 'blockquote' && b.preview.blockquote) {
-          const lines = Array.isArray(b.preview.blockquote.lines) ? b.preview.blockquote.lines : []
-          return lines.map(l => `> ${String(l || '')}`).join('\n')
-        }
-        if (kind === 'callout' && b.preview.callout) {
-          const t = String(b.preview.callout.title || '').trim()
-          const calloutType = String(b.preview.callout.calloutType || '').trim() || 'note'
-          const header = `> [!${calloutType.toUpperCase()}]${t ? ` ${t}` : ''}`
-          return header
-        }
-        if (kind === 'list' && Array.isArray(b.preview.listItems)) {
-          const ordered = b.preview.ordered === true
-          return b.preview.listItems
-            .slice(0, 10)
-            .map((it, idx) => {
-              const base = ordered ? `${idx + 1}.` : '-'
-              const text = String(it.text || '').trim()
-              if (it.task === true) {
-                const mark = it.checked === true ? '[x]' : '[ ]'
-                return `${base} ${mark} ${text}`.trim()
-              }
-              return `${base} ${text}`.trim()
-            })
-            .join('\n')
-        }
-        if (kind === 'hr') return '---'
-        if (kind === 'html' && b.preview.html) {
-          const raw = String(b.preview.html.raw || '').trim()
-          return ['```html', raw, '```'].join('\n')
-        }
-        return String(b.summary || '').trim() || String(b.title || '').trim()
-      })()
+      const snippet = buildCardMarkdownPreviewText({ block: b, markdownText: deferredMarkdownText })
       out.set(b.id, snippet)
     }
     return out
-  }, [blocks])
+  }, [blocks, deferredMarkdownText])
 
   const overlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
 
@@ -271,6 +255,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   const overlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
   const blockDragLatestRef = React.useRef<null | { blockId: string; index: number; x: number; y: number }>(null)
   const blockDragStartRef = React.useRef<null | { blockId: string; index: number; x: number; y: number }>(null)
+  const blockResizeRef = React.useRef<MarkdownPanelResizeState | null>(null)
   const blockDragSchedulerRef = React.useRef(
     createRafValueScheduler((latest: { blockId: string; index: number; x: number; y: number }) => {
       const next = patchById(
@@ -289,6 +274,86 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       }
     }),
   )
+  const blockResizeSchedulerRef = React.useRef(
+    createRafValueScheduler((latest: { blockId: string; index: number; w: number; h: number }) => {
+      const next = patchById(
+        blocksRef.current,
+        latest.blockId,
+        b => String(b?.id || ''),
+        cur => (cur.w === latest.w && cur.h === latest.h ? cur : { ...cur, w: latest.w, h: latest.h }),
+        latest.index,
+      )
+      blocksRef.current = next
+      setBlocks(next)
+      try {
+        overlayLayoutScheduleRef.current?.()
+      } catch {
+        void 0
+      }
+    }),
+  )
+
+  const beginBlockResize = React.useCallback((blockId: string, pointerId: number) => {
+    const index = blocksRef.current.findIndex(x => String(x?.id || '') === blockId)
+    const b0 = index >= 0 ? blocksRef.current[index] : null
+    if (!b0) return
+    const svgNow = svgRef.current
+    const t = svgNow ? d3.zoomTransform(svgNow) : null
+    const startK = t && typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const el = overlayElsRef.current.get(blockId) || null
+    const frameMetrics = readRichMediaPanelFrameMetrics(el)
+    const startW = Math.max(24, Math.round(Number(b0.w) || 24))
+    const density = useGraphStore.getState().mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const startAspectSize = resolveMarkdownPanelBlockAspectSize({ ...b0, w: startW }, density)
+    const startH = Math.max(24, Math.round(startAspectSize.h))
+    blockResizeRef.current = { pointerId, blockId, index, startW, startH, startK, frameMetrics, lastW: startW, lastH: startH }
+    if (el) {
+      el.style.width = `${startW}px`
+      el.style.height = `${startH}px`
+    }
+  }, [svgRef])
+
+  const moveBlockResize = React.useCallback((blockId: string, args0: { pointerId: number; dx: number; dy: number }) => {
+    const state = blockResizeRef.current
+    if (!state || state.blockId !== blockId || state.pointerId !== args0.pointerId) return
+    const nextFrame = computePanelFrameResizeFromDrag16x9({
+      startW: state.startW,
+      startH: state.startH,
+      dxClientPx: args0.dx,
+      dyClientPx: args0.dy,
+      scale: state.startK,
+      metrics: state.frameMetrics,
+      minPanelW: 24,
+      minPanelH: 24,
+    })
+    const w = Math.max(24, Math.round(nextFrame.panelW))
+    const h = Math.max(24, Math.round(nextFrame.panelH))
+    state.lastW = w
+    state.lastH = h
+    const el = overlayElsRef.current.get(blockId) || null
+    if (el) {
+      el.style.width = `${w}px`
+      el.style.height = `${h}px`
+    }
+    blockResizeSchedulerRef.current.schedule({ blockId, index: state.index, w, h })
+  }, [])
+
+  const endBlockResize = React.useCallback((blockId: string, pointerId: number) => {
+    const state = blockResizeRef.current
+    if (!state || state.blockId !== blockId || state.pointerId !== pointerId) return
+    try {
+      blockResizeSchedulerRef.current.flush()
+    } catch {
+      void 0
+    }
+    blockResizeRef.current = null
+    if (layoutForRender && !props.layoutOverride) {
+      patchMarkdownDesignLayoutRects({
+        layoutKey: layoutForRender.key,
+        updates: [{ id: blockId, w: state.lastW, h: state.lastH }],
+      })
+    }
+  }, [layoutForRender, props.layoutOverride])
 
   React.useEffect(() => {
     if (!dragging) return
@@ -365,10 +430,11 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
           const blockId = String(b.id || '').trim()
           const explicitAnchorId = String(anchor?.[b.id] || '').trim()
           const anchorId = explicitAnchorId || blockId
+          const panelSize = resolveMarkdownPanelBlockAspectSize(b, getDensity())
           const c = explicitAnchorId && explicitAnchorId !== blockId && getCenter ? getCenter(anchorId) : null
-          const x = c ? c.x : b.x + b.w / 2
-          const y = c ? c.y : b.y + b.h / 2
-          return { id: b.id, cx: x, cy: y, w: b.w, h: b.h }
+          const x = c ? c.x : b.x + panelSize.w / 2
+          const y = c ? c.y : b.y + panelSize.h / 2
+          return { id: b.id, cx: x, cy: y, w: panelSize.w, h: panelSize.h }
         }
         if (!allow) return src.map(pick)
         return src.filter(b => allow.has(b.type as never)).map(pick)
@@ -507,7 +573,10 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               kind="iframe"
               panelChrome="flowEditor"
               interactive={allowEmbeddedContentInteraction}
-              resizable={false}
+              resizable={true}
+              onResizeStart={({ pointerId }) => beginBlockResize(b.id, pointerId)}
+              onResize={({ pointerId, dx, dy }) => moveBlockResize(b.id, { pointerId, dx, dy })}
+              onResizeEnd={({ pointerId }) => endBlockResize(b.id, pointerId)}
               forwardWheelTo={() => svgRef.current}
               forwardPointerTo={() => svgRef.current}
               shouldForwardPointerDown={() => allowEmbeddedContentInteraction !== true}

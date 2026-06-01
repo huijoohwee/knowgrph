@@ -190,6 +190,7 @@ export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerT
       })
       useInitialWorkspacePaneVisibility({
         activeDocumentKey,
+        splitPaneVisibility: visibility,
         workspaceEditorOverlayOpen: overlayOpen,
         setSplitPaneVisibility: setVisibility,
       })

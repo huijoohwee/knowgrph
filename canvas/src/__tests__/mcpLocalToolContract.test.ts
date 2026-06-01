@@ -9,6 +9,15 @@ type LocalToolContractModule = {
   }) => Array<{
     name: string
     description: string
+    _meta?: {
+      ui?: {
+        resourceUri?: string
+      }
+    }
+    outputSchema?: {
+      type?: string
+      required?: string[]
+    }
     inputSchema: {
       additionalProperties?: boolean
       properties?: Record<string, { description?: string }>
@@ -71,6 +80,12 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   }
   if (!String(vdeoxplnTool.description || '').includes('canonical Knowgrph vdeoxpln registry')) {
     throw new Error(`expected vdeoxpln tool to describe the canonical registry, got ${JSON.stringify(vdeoxplnTool.description)}`)
+  }
+  if (vdeoxplnTool._meta?.ui?.resourceUri !== 'ui://knowgrph/agent-ready') {
+    throw new Error(`expected vdeoxpln tool to link the shared MCP Apps resource, got ${JSON.stringify(vdeoxplnTool._meta)}`)
+  }
+  if (vdeoxplnTool.outputSchema?.type !== 'object' || !vdeoxplnTool.outputSchema.required?.includes('vdeoxplnEntries')) {
+    throw new Error(`expected vdeoxpln app tool to expose a structured outputSchema, got ${JSON.stringify(vdeoxplnTool.outputSchema)}`)
   }
   const vdeoxplnProperties = vdeoxplnTool.inputSchema.properties || {}
   for (const required of ['intentText', 'requestedOutputs', 'stateSignals', 'chatStorageTarget']) {

@@ -2,7 +2,7 @@ import { isMarkdownWorkspaceDocumentSwitchPending } from '@/lib/markdown-workspa
 
 export function testMarkdownWorkspaceDocumentSwitchPendingSuppressesInactiveOwner() {
   const pending = isMarkdownWorkspaceDocumentSwitchPending({
-    activePath: '/docs/knowgrph-maps-readme.md' as never,
+    activePath: '/docs/workspace-readme.md' as never,
     markdownDocumentName: null,
     ownerActive: false,
   })
@@ -13,7 +13,7 @@ export function testMarkdownWorkspaceDocumentSwitchPendingSuppressesInactiveOwne
 
 export function testMarkdownWorkspaceDocumentSwitchPendingPreservesActiveMismatchCheck() {
   const pending = isMarkdownWorkspaceDocumentSwitchPending({
-    activePath: '/docs/knowgrph-maps-readme.md' as never,
+    activePath: '/docs/workspace-readme.md' as never,
     markdownDocumentName: '/docs/knowgrph-video-demo.md',
     ownerActive: true,
   })

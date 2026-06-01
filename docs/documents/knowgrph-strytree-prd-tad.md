@@ -2,8 +2,8 @@
 title: "Knowgrph Strytree Storytree - PRD and TAD"
 doc_type: "Combined PRD/TAD"
 id: "knowgrph-strytree-prd-tad"
-version: "0.1.1"
-status: "Draft"
+version: "0.2.1"
+status: "implementation-contract"
 created: "2026-05-30"
 updated: "2026-05-31"
 author: "airvio / joohwee"
@@ -30,6 +30,9 @@ constraints:
   - "story edges derive from parent_node_id unless a later graph index is justified"
   - "static prototype behavior must be documented separately from target implementation"
   - "no new paid dependency without ADR-level TCO comparison"
+  - "no new external graph-rendering dependency for the Strytree workbench"
+  - "no hosted database dependency outside the Cloudflare topology"
+  - "no alternate app hosting path outside Dev -> Prod -> Cloudflare"
 tags:
   - "strytree"
   - "storytree"
@@ -40,6 +43,8 @@ tags:
   - "cloudflare-d1"
   - "cloudflare-r2"
   - "storyboard"
+  - "forkcompare"
+  - "branch-candidate-workbench"
 related:
   - "huijoohwee.github.io/guidelines/prd-tad-guidelines.md"
   - "docs/documents/knowgrph-pixverse-mcp-prd-tad.md"
@@ -59,7 +64,7 @@ The document has two jobs:
 1. Record what the observed Strytree prototype actually does without retaining the prototype URL in this repo.
 2. Define the production Knowgrph contract for a Strytree-style interactive storytree with real access control, persistence, wallet/credit-token accounting, payment settlement, graph rendering, and PixVerse generation harnessing.
 
-The observed page is a static Vercel-hosted HTML/CSS/vanilla-JS app. It has convincing UI behavior but no real auth, no database, no durable wallet, no real payment settlement, and no active PixVerse generation in the live configuration. This PRD/TAD preserves the useful product pattern while replacing mock client state with server-owned ledgers and auditable data flows.
+The observed page is a static edge-hosted HTML/CSS/vanilla-JS app. It has convincing UI behavior but no real auth, no database, no durable wallet, no real payment settlement, and no active PixVerse generation in the live configuration. This PRD/TAD preserves the useful product pattern while replacing mock client state with server-owned ledgers and auditable data flows.
 
 ---
 
@@ -71,7 +76,7 @@ The observed page is a static Vercel-hosted HTML/CSS/vanilla-JS app. It has conv
 
 | Area | Observed Implementation |
 |---|---|
-| Hosting | Vercel static hosting |
+| Hosting | Third-party static edge hosting |
 | App shell | One standalone static HTML artifact |
 | Framework | None detected; plain HTML, CSS, and vanilla JavaScript |
 | Graph rendering | SVG story tree with HTML cards embedded through `foreignObject` |
@@ -414,6 +419,32 @@ Given public content is published, when moderation status is unresolved, then th
 
 > **`/goal` translation**: `moderation-gate tests pass: a node with moderation_status pending or rejected is absent from the public snapshot response and absent from active_branch_count`
 
+### PRD-STR-E08 - ForkCompare Branch Candidate Workbench
+
+As a solo creator, I want to generate, compare, score, and merge multiple continuation candidates from one parent branch, so that I can choose the highest-value story path without wasting provider credits or losing visual continuity.
+
+As a Knowgrph operator, I want every candidate to carry a cost, latency, moderation, and continuity scorecard, so that Strytree can optimize for token performance, TCO, and publishing quality rather than raw model output volume.
+
+**PRD-STR-E08-AC-01** — Bounded candidate fan-out
+Given a creator selects a parent story node, when they request continuation candidates, then the server creates a bounded candidate run with `max_candidates <= 3`, `max_provider_calls <= 3`, a declared credit quote, and a hard timeout before any provider call is made.
+
+> **`/goal` translation**: `candidate-run tests pass: POST /api/strytree/candidate-runs inserts one bounded run row, rejects max_candidates > 3, writes no provider job before schema validation and quote acceptance, and returns 202 with candidate_run_id`
+
+**PRD-STR-E08-AC-02** — Cost-aware candidate scorecard
+Given candidates complete or fail, when the workbench reads the run, then each candidate displays provider, credit cost, elapsed time, fallback status, moderation state, inherited asset coverage, continuity score, and publish eligibility.
+
+> **`/goal` translation**: `candidate-scorecard tests pass: GET /api/strytree/candidate-runs/:id returns scorecards for every candidate with non-null provider, credit_cost, elapsed_ms, moderation_status, inherited_asset_count, continuity_score, and publish_eligible fields`
+
+**PRD-STR-E08-AC-03** — Merge selected candidate into one durable branch
+Given the creator selects a candidate, when they publish or merge it, then the server inserts exactly one child node with `parent_node_id`, stores rejected candidates as private audit artifacts, and invalidates the story snapshot cache.
+
+> **`/goal` translation**: `candidate-merge tests pass: POST /api/strytree/candidates/:candidateId/publish creates one strytree_nodes child row, links it to selected_candidate_id, preserves rejected candidates as non-public rows, and the next snapshot includes exactly one new child edge`
+
+**PRD-STR-E08-AC-04** — Existing-surface, Cloudflare-native UI
+Given the candidate workbench is enabled, when it renders in Knowgrph, then it uses the existing Strybldr/Storyboard/Strytree SVG/HTML card surface and Cloudflare bindings already in the topology; no external graph UI package, hosted database service, or alternate hosting path is introduced.
+
+> **`/goal` translation**: `candidate-workbench stack guard passes: source scan and dependency lockfile scan show no new graph-rendering package, no new hosted database SDK, and no non-Cloudflare deployment target for Strytree candidate workbench code`
+
 ## B6. MoSCoW Prioritization
 
 **ROI formula**: `ROI = (User Impact × Reach) / (Build Hours + Monthly TCO + Token Cost / Month)`
@@ -426,6 +457,7 @@ User Impact: 1–5 (pain severity × frequency). Reach: estimated sessions/month
 | **Must** | Payment webhook-to-ledger crediting | 5 | 30 | 10 | 0 | 0 | 15.0 | Prevents client-side balance fraud. |
 | **Must** | Unlock transaction with entitlement and split | 5 | 30 | 10 | 0 | 0 | 15.0 | Required for monetization claims. |
 | **Must** | PixVerse server-side harness boundary | 5 | 30 | 12 | 0 | 5 | 8.8 | Prevents browser key exposure; bounds provider spend. |
+| **Should** | ForkCompare branch candidate workbench | 4 | 40 | 8 | 0 | 3 | 14.5 | Reuses existing card/SVG surfaces to improve branch quality per credit spent. |
 | **Should** | Async job queue for generation polling | 4 | 30 | 6 | 0 | 0 | 20.0 | Decouples HTTP from provider poll; required for > 30 s generation. |
 | **Should** | Atomic credit debit via Durable Object or Postgres lock | 4 | 30 | 5 | 0 | 0 | 24.0 | Prevents double-spend under concurrent requests. |
 | **Should** | Anonymous-to-authenticated account linking | 4 | 20 | 8 | 0 | 0 | 10.0 | Improves conversion without blocking MVP. |
@@ -447,6 +479,18 @@ The smallest production-grade slice is:
 7. Stripe or existing Knowgrph commerce checkout with webhook-confirmed wallet credit.
 8. Transactional branch unlock entitlement.
 9. PixVerse generation behind a server-side harness with debit/refund.
+
+### Recommended Add-On Scope
+
+The highest-ROI enhancement after the secure Strytree MVP is the **ForkCompare Branch Candidate Workbench**:
+
+1. Creator selects a parent story node and requests up to three continuation candidates.
+2. The server validates the fan-out plan, quotes total credit cost, and enqueues bounded candidate jobs through the same Cloudflare Queue path.
+3. The consumer writes candidate artifacts to R2, candidate rows to D1, and scorecards with cost, continuity, moderation, and fallback fields.
+4. The UI renders candidate cards inside the existing Strybldr/Storyboard/Strytree SVG/HTML surface.
+5. Creator publishes exactly one selected candidate as a durable child node; rejected candidates remain private audit artifacts.
+
+This add-on is recommended because it converts AI spend into better editorial choice without adding a new graph library, database service, or hosting surface. It is min-viable-max-value: small schema/API/UI extension, high creator value, bounded provider calls, clear token/cost accounting.
 
 ### Out Of Scope
 
@@ -470,6 +514,9 @@ The smallest production-grade slice is:
 | Credit-token cost per generation | 5 mock credits | Configurable server quote, default 5 credits | MVP |
 | Monthly TCO | Static hosting only | Cloudflare free/low tier plus payment/provider variable cost | MVP |
 | LLM/model token budget | None | Cost log per AI/provider call | MVP |
+| Candidate compare cost transparency | None | 100% candidate cards show credit cost, elapsed time, fallback status, and publish eligibility | Add-on |
+| Candidate merge correctness | None | Exactly one selected candidate becomes a public child node per publish action | Add-on |
+| Candidate provider waste | Unknown | Rejected candidate artifacts stay private and auditable; no public graph mutation | Add-on |
 
 ---
 
@@ -482,6 +529,7 @@ From prototype to production:
 ```mermaid
 flowchart TB
   Browser["Strytree UI in Knowgrph"]
+  ForkCompare["ForkCompare Workbench (existing card/SVG surface)"]
   Auth["Auth Middleware (JWT validate)"]
   Worker["Strytree Worker API"]
   D1["Cloudflare D1 relational store"]
@@ -489,6 +537,7 @@ flowchart TB
   KV["Workers KV cache / flags / budget counters"]
   Queue["Cloudflare Queue (async generation jobs)"]
   Consumer["Queue Consumer Worker (PixVerse poll + R2 write)"]
+  CandidateScorer["Candidate scorecard harness"]
   Commerce["Commerce adapter and Stripe Checkout"]
   Webhook["Payment webhook handler"]
   Ledger["Credit-token ledger service"]
@@ -496,6 +545,8 @@ flowchart TB
   Audit["Audit and cost events"]
 
   Browser --> Auth
+  Browser --> ForkCompare
+  ForkCompare --> Auth
   Auth --> Worker
   Worker --> D1
   Worker --> R2
@@ -507,6 +558,8 @@ flowchart TB
   Worker --> Queue
   Queue --> Consumer
   Consumer --> Pixverse
+  Consumer --> CandidateScorer
+  CandidateScorer --> D1
   Consumer --> R2
   Consumer --> D1
   Worker --> Audit
@@ -524,32 +577,36 @@ The client remains responsible for local interaction, SVG layout, preview UI, an
 | Preview | Open node panel | Entitlement hint and media URL | Access Policy Service |
 | Commit | Quote spend | Cost quote read | Credit Ledger Service |
 | Generate | Submit generation | Debit/hold -> PixVerse job -> artifact | Generation Harness |
+| Compare | Request candidate alternatives | Bounded fan-out -> candidate scorecards -> selected merge | ForkCompare Workbench |
 | Publish | Attach result | Generation result -> node insert -> graph snapshot | Story Graph Service |
 | Purchase | Buy credits | Checkout session -> webhook -> ledger credit | Commerce Adapter |
 | Unlock | Unlock branch | Debit -> entitlement -> creator/platform split | Unlock Transaction Service |
 
 ## C3. Target Components
 
-| Layer | Component | Responsibility | Proposed Owner |
+| Layer | Component | Responsibility | Implemented Owner |
 |---|---|---|---|
-| UI | Strytree Entry Surface | Shows story universes and opens storytree mode. | `canvas/src/features/strytree` |
-| UI | Storytree SVG Renderer | Renders nodes, parent-derived edges, pan, zoom, and node panel. | `canvas/src/features/strytree/StorytreeView.tsx` |
-| UI | Generation Modal | Collects prompt, inherited assets, model, duration, and camera. | `canvas/src/features/strytree/BranchGenerationModal.tsx` |
-| UI | Wallet/Unlock Controls | Displays server wallet quote and sends confirmed spend actions. | `canvas/src/features/strytree/WalletControls.tsx` |
-| API | Auth Middleware | Validates PocketBase-issued JWT at Worker edge; attaches session context to every request. | Cloudflare Worker middleware module |
-| API | Storytree Snapshot API | Serves public graph snapshot plus entitlement hints. | Cloudflare Worker route |
-| API | Story Graph Service | Persists stories, nodes, assets, stats, and status. | Cloudflare Worker module |
-| API | Access Policy Service | Resolves free-window, ownership, and unlock entitlement. | Cloudflare Worker module |
-| API | Credit Ledger Service | Owns all credit-token balance mutations; atomic debit via Durable Object or D1 row lock. | Existing commerce owner or Strytree Worker |
-| API | Commerce Adapter | Creates checkout sessions and receives webhooks. | Existing Knowgrph commerce Worker |
-| API | Unlock Transaction Service | Debits wallet and grants entitlement atomically. | Cloudflare Worker module |
-| API | Generation Harness | Validates PixVerse payload, debits/refunds, enqueues job, handles fallback. | Shared PixVerse harness owner |
-| Async | Async Job Queue | Decouples generation submission from provider polling; consumer Worker polls PixVerse and writes R2. | Cloudflare Queue + consumer Worker |
-| API | Audit Event Service | Records all value-changing actions with idempotency key, actor, and cost fields. | Cloudflare Worker module |
+| UI | Strytree Entry Surface | Opens Strybldr/Storytree mode from existing renderer controls and floating panel. | `canvas/src/features/strybldr/StrybldrFloatingPanelView.tsx`; `canvas/src/components/StoryboardCanvas.tsx` |
+| UI | Storytree SVG Renderer | Renders nodes, parent-derived edges, pan, zoom, and node panel on the existing Storyboard/Strybldr canvas. | `canvas/src/components/StoryboardCanvas.tsx`; `canvas/src/features/strybldr/strybldrStoryboard.ts` |
+| UI | Generation Action Surface | Collects or drafts continuation prompts through existing storytree card actions and Run all handoff. | `canvas/src/components/StoryboardCanvas.tsx`; `canvas/src/features/strybldr/strytreeWorkflow.ts` |
+| UI | Wallet/Unlock Controls | Displays quote/unlock controls and local proof states while server-owned wallet APIs own mutation. | `canvas/src/components/StoryboardCanvas.tsx`; `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| UI | ForkCompare Workbench | Renders up to three private candidate cards, scorecards, merge controls, and publish eligibility inside the existing card/SVG surface. | `canvas/src/components/StoryboardCanvas.tsx`; `canvas/src/features/strybldr/strytreeWorkflow.ts` |
+| API | Auth Middleware | Validates Strytree session bearer tokens at Worker edge; attaches session context to every request. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Storytree Snapshot API | Serves public graph snapshot plus entitlement hints. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Story Graph Service | Persists stories, nodes, assets, stats, and status. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts`; `cloudflare/d1/migrations/0004_strytree_storytree.sql` |
+| API | Access Policy Service | Resolves free-window, ownership, and unlock entitlement. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Credit Ledger Service | Owns all credit-token balance mutations; atomic debit via Durable Object with D1 audit persistence. | `StrytreeCreditLedgerActor`; `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Commerce Adapter | Creates checkout sessions and receives signed webhooks. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts`; `cloudflare/workers/knowgrph-payment/index.ts` |
+| API | Unlock Transaction Service | Debits wallet and grants entitlement atomically. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Generation Harness | Validates PixVerse payload, debits/refunds, enqueues job, handles fallback. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Candidate Run Service | Validates candidate fan-out, quotes cost, creates candidate run rows, and coordinates publish of one selected candidate. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Candidate Scorecard Harness | Scores completed candidates for continuity, inherited asset coverage, moderation state, latency, and credit cost without adding hidden model calls. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts`; `canvas/src/features/strybldr/strybldrStoryboard.ts` |
+| Async | Async Job Queue | Decouples generation submission from provider polling; consumer Worker polls PixVerse and writes R2. | `cloudflare/workers/knowgrph-payment/index.ts`; `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Audit Event Service | Records all value-changing actions with idempotency key, actor, and cost fields where Strytree routes mutate state. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
 | Data | D1 | Relational graph, wallet ledger, entitlements, audit events. | Cloudflare D1 |
 | Data | R2 | Videos, posters, thumbnails, prompt artifacts, provider outputs. | Cloudflare R2 |
 | Data | KV | Read-heavy graph cache, feature flags, idempotency short cache, budget counters. | Workers KV |
-| Optional | Durable Object | Atomic in-flight token counter; future live branch editing room. | Deferred — see ADR-006 |
+| Runtime | Durable Object | Per-user atomic credit-ledger mutation actor for debit, credit, refund, and idempotent replay; future live branch editing room. | `StrytreeCreditLedgerActor` |
 
 ## C4. Data Model
 
@@ -685,6 +742,74 @@ CREATE TABLE strytree_generation_jobs (
   error_message TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
+);
+
+CREATE TABLE strytree_candidate_runs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  story_id TEXT NOT NULL,
+  parent_node_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  max_candidates INTEGER NOT NULL,
+  quoted_cost_credits INTEGER NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  request_json TEXT NOT NULL,
+  scorecard_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES strytree_users(id),
+  FOREIGN KEY (story_id) REFERENCES strytree_stories(id),
+  FOREIGN KEY (parent_node_id) REFERENCES strytree_nodes(id)
+);
+
+CREATE TABLE strytree_branch_candidates (
+  id TEXT PRIMARY KEY,
+  candidate_run_id TEXT NOT NULL,
+  generation_job_id TEXT,
+  user_id TEXT NOT NULL,
+  story_id TEXT NOT NULL,
+  parent_node_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  status TEXT NOT NULL,
+  title TEXT,
+  synopsis TEXT,
+  prompt TEXT,
+  video_object_key TEXT,
+  thumbnail_object_key TEXT,
+  credit_cost INTEGER NOT NULL DEFAULT 0,
+  elapsed_ms INTEGER NOT NULL DEFAULT 0,
+  inherited_asset_count INTEGER NOT NULL DEFAULT 0,
+  continuity_score REAL NOT NULL DEFAULT 0,
+  moderation_status TEXT NOT NULL DEFAULT 'pending',
+  publish_eligible INTEGER NOT NULL DEFAULT 0,
+  result_json TEXT,
+  token_cost_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (candidate_run_id) REFERENCES strytree_candidate_runs(id),
+  FOREIGN KEY (generation_job_id) REFERENCES strytree_generation_jobs(id),
+  FOREIGN KEY (user_id) REFERENCES strytree_users(id),
+  FOREIGN KEY (story_id) REFERENCES strytree_stories(id),
+  FOREIGN KEY (parent_node_id) REFERENCES strytree_nodes(id)
+);
+
+CREATE TABLE strytree_candidate_merge_plans (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  story_id TEXT NOT NULL,
+  parent_node_id TEXT NOT NULL,
+  selected_candidate_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  merge_json TEXT NOT NULL,
+  published_node_id TEXT,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES strytree_users(id),
+  FOREIGN KEY (story_id) REFERENCES strytree_stories(id),
+  FOREIGN KEY (parent_node_id) REFERENCES strytree_nodes(id),
+  FOREIGN KEY (selected_candidate_id) REFERENCES strytree_branch_candidates(id),
+  FOREIGN KEY (published_node_id) REFERENCES strytree_nodes(id)
 );
 
 CREATE TABLE strytree_audit_events (
@@ -852,6 +977,61 @@ sequenceDiagram
   W->>D: Insert child node with parent_node_id
 ```
 
+### Workflow: Compare And Merge Candidate Branches
+
+**Trigger**: Creator selects a parent node and requests `Compare candidates`.
+
+**Actors**: Browser, Strytree Worker, Candidate Run Service, Credit Ledger Service, Cloudflare Queue, Queue Consumer Worker, Candidate Scorecard Harness, R2, D1.
+
+**Happy path**:
+1. Browser posts parent node id, prompt, candidate count, options, and idempotency key.
+2. Worker validates session, parent node, candidate count, asset inheritance, budget state, and quoted cost.
+3. Ledger Service records one bounded candidate-run debit or hold.
+4. Candidate Run Service inserts `strytree_candidate_runs` and enqueues up to three candidate messages.
+5. Queue Consumer Worker executes each candidate through the existing generation harness.
+6. Candidate Scorecard Harness writes cost, elapsed time, inherited asset count, continuity score, moderation state, and publish eligibility.
+7. Browser reads the candidate run and renders scorecards as private cards.
+8. Creator publishes one selected candidate.
+9. Worker inserts one child node with `parent_node_id`, links it to the selected candidate, and invalidates the story snapshot cache.
+
+**Alternate paths**:
+- One candidate fails: scorecard marks fallback/failed while successful candidates remain publishable.
+- Creator rejects all candidates: candidate run stays private; no public node is inserted.
+
+**Error paths**:
+- Candidate count exceeds bound: reject before debit.
+- Budget counter is exhausted: reject before debit and enqueue.
+- Selected candidate is not publish eligible: reject and audit.
+
+**Postconditions**:
+- Candidate generation is bounded by `max_candidates <= 3`.
+- Rejected candidates are private audit artifacts.
+- Exactly one selected candidate may become a public child node per merge action.
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant W as Strytree Worker
+  participant L as Ledger Service
+  participant Q as Cloudflare Queue
+  participant C as Consumer Worker
+  participant S as Scorecard Harness
+  participant D as D1
+
+  B->>W: POST candidate run
+  W->>L: Debit or hold quoted credits
+  W->>D: Insert candidate_run
+  W->>Q: Enqueue candidate messages
+  W-->>B: 202 Accepted { candidate_run_id }
+  Q->>C: Dequeue each candidate
+  C->>S: Generate scorecard
+  S->>D: Insert candidate rows and scorecards
+  B->>W: GET candidate run
+  W-->>B: Candidate scorecards
+  B->>W: POST selected candidate publish
+  W->>D: Insert one child node and merge plan
+```
+
 ### Workflow: Unlock Protected Branch
 
 **Trigger**: User confirms unlock.
@@ -937,6 +1117,13 @@ Request:
   "idempotency_key": "uuid",
   "prompt": "The next scene...",
   "selected_asset_ids": ["asset_lx", "asset_scene_meeting"],
+  "image_references": [
+    {
+      "type": "subject",
+      "img_id": 123,
+      "ref_name": "lead_character"
+    }
+  ],
   "options": {
     "duration_seconds": 5,
     "model": "v6",
@@ -978,7 +1165,8 @@ Response (succeeded):
   "status": "succeeded",
   "video_object_key": "strytree/gen_123/video.mp4",
   "thumbnail_object_key": "strytree/gen_123/thumb.jpg",
-  "preview_url": "https://..."
+  "preview_url": "https://...",
+  "provider_url": "https://provider-result.example/video.mp4"
 }
 ```
 
@@ -999,6 +1187,98 @@ Errors:
 |---|---|---|
 | `job_not_found` | Job id missing or not owned by requester. | Return 404. |
 | `unauthorized` | No valid session. | Return 401. |
+
+### POST `/api/strytree/candidate-runs`
+
+Request:
+
+```json
+{
+  "story_id": "story_001",
+  "parent_node_id": "node_a",
+  "idempotency_key": "uuid",
+  "max_candidates": 3,
+  "prompt": "Explore three high-contrast continuation options.",
+  "selected_asset_ids": ["asset_lx", "asset_scene_meeting"],
+  "options": {
+    "duration_seconds": 5,
+    "quality": "720p",
+    "aspect_ratio": "9:16",
+    "scorecard_mode": "cost_continuity"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "candidate_run_id": "candrun_123",
+  "status": "queued",
+  "max_candidates": 3,
+  "quoted_cost_credits": 15
+}
+```
+
+### GET `/api/strytree/candidate-runs/:candidateRunId`
+
+Response:
+
+```json
+{
+  "candidate_run_id": "candrun_123",
+  "status": "completed",
+  "parent_node_id": "node_a",
+  "scorecards": [
+    {
+      "candidate_id": "cand_001",
+      "provider": "pixverse",
+      "status": "succeeded",
+      "credit_cost": 5,
+      "elapsed_ms": 64000,
+      "inherited_asset_count": 4,
+      "continuity_score": 0.82,
+      "moderation_status": "approved",
+      "publish_eligible": true,
+      "preview_url": "https://..."
+    }
+  ]
+}
+```
+
+### POST `/api/strytree/candidates/:candidateId/publish`
+
+Request:
+
+```json
+{
+  "idempotency_key": "uuid",
+  "title": "The Ice Relay",
+  "synopsis": "A selected continuation synopsis.",
+  "merge_notes": "Use candidate motion, keep parent character refs."
+}
+```
+
+Response:
+
+```json
+{
+  "published_node_id": "node_child_123",
+  "parent_node_id": "node_a",
+  "selected_candidate_id": "cand_001",
+  "snapshot_version": 4
+}
+```
+
+Errors:
+
+| Code | Meaning | Handling |
+|---|---|---|
+| `candidate_bound_exceeded` | Requested candidate count exceeds configured cap. | Return 400 before debit. |
+| `candidate_not_publishable` | Candidate failed, is moderated, or is already published. | Return 409 and preserve private candidate. |
+| `candidate_run_not_found` | Run is missing or not owned by requester. | Return 404. |
+
+### POST `/api/strytree/nodes/:nodeId/unlock`
 
 Request:
 
@@ -1037,7 +1317,105 @@ Response:
 ```json
 {
   "checkout_session_id": "provider_session_id",
+  "payment_session_id": "strypay_123",
+  "status": "open",
+  "package_id": "credits_100",
+  "credit_amount": 100,
+  "amount_total": 1800,
+  "currency": "usd",
   "redirect_url": "https://checkout.example/..."
+}
+```
+
+### POST `/api/strytree/checkout/sessions/:sessionId/complete`
+
+Purpose: local/testable settlement path that exercises the same D1 token-ledger owner the production signed provider webhook must call.
+
+Request:
+
+```json
+{
+  "idempotency_key": "uuid"
+}
+```
+
+Response:
+
+```json
+{
+  "payment_session_id": "strypay_123",
+  "status": "completed",
+  "package_id": "credits_100",
+  "credit_amount": 100,
+  "ledger_event_id": "ledger_purchase_123",
+  "balance_after_credits": 140,
+  "idempotent_replay": false
+}
+```
+
+### POST `/api/strytree/checkout/webhook`
+
+Purpose: signed provider settlement path. The route verifies the raw webhook payload with a timestamped HMAC signature, locates the Strytree payment session by provider session id or metadata, and invokes the same `settlePaymentSession` owner used by the local completion route. Wallet credit is never issued before this route or the local fixture route settles the session.
+
+Headers:
+
+```http
+strytree-signature: t=unix_seconds,v1=hmac_sha256
+```
+
+Request:
+
+```json
+{
+  "id": "evt_provider_123",
+  "type": "checkout.session.completed",
+  "data": {
+    "object": {
+      "id": "provider_session_id",
+      "payment_status": "paid",
+      "metadata": {
+        "strytree_payment_session_id": "strypay_123"
+      }
+    }
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "received": true,
+  "provider_event_id": "evt_provider_123",
+  "payment_session_id": "strypay_123",
+  "status": "completed",
+  "ledger_event_id": "ledger_purchase_123",
+  "balance_after_credits": 140,
+  "idempotent_replay": false
+}
+```
+
+### GET `/api/strytree/wallet`
+
+Purpose: server-owned wallet read model. The route returns committed ledger balance plus pending checkout sessions that have not yet been settled by the signed webhook or local completion fixture.
+
+Response:
+
+```json
+{
+  "wallet_status": "pending_payment",
+  "balance_credits": 40,
+  "pending_payment": true,
+  "pending_credit_amount": 100,
+  "pending_payment_sessions": [
+    {
+      "payment_session_id": "strypay_123",
+      "checkout_session_id": "provider_session_id",
+      "status": "open",
+      "package_id": "credits_100",
+      "credit_amount": 100
+    }
+  ]
 }
 ```
 
@@ -1045,7 +1423,7 @@ Response:
 
 ### Component: PixVerse Generation Harness
 
-**Responsibility**: The harness validates a typed Strytree generation request, constructs the provider payload, executes a bounded PixVerse job, stores artifacts, and emits cost/audit logs.
+**Responsibility**: The harness validates a typed Strytree generation request, constructs the provider payload, executes a bounded PixVerse job when server-side credentials and media refs exist, stores R2 result manifests, and emits cost/audit logs. If credentials are absent in local/demo mode, the same Queue consumer writes a provider-safe local manifest without exposing any provider key to the browser.
 
 **Input schema**:
 
@@ -1131,8 +1509,8 @@ flowchart LR
 
   subgraph ConsumerWorker["Queue Consumer Worker (async)"]
     Submit["Submit provider job"]
-    Poll["Poll result, max 60 attempts"]
-    Store["Store media in R2"]
+  Poll["Poll result, max 60 attempts"]
+  Store["Store R2 result manifest"]
     Complete["Finalize job or trigger refund"]
     Submit --> Poll --> Store --> Complete
   end
@@ -1146,7 +1524,7 @@ flowchart LR
 
 - Stop polling after configured timeout.
 - Stop before provider call when user balance is insufficient.
-- Stop before provider call when daily provider budget is exhausted.
+- Stop before provider call when daily provider budget is exhausted. `STRYTREE_DAILY_PROVIDER_BUDGET_CENTS=0` disables the breaker for local/demo mode; when the limit is positive, the Worker reads `STRYTREE_PROVIDER_BUDGET_KV` and returns `provider_budget_exceeded` before debit/enqueue if spend is at or above the limit.
 - Stop after moderation failure and do not publish public branch.
 
 **Fallback path**:
@@ -1162,6 +1540,113 @@ Return structured fallback artifact:
   "error_code": "provider_unavailable"
 }
 ```
+
+### Component: ForkCompare Candidate Harness
+
+**Responsibility**: The harness coordinates a bounded candidate fan-out, reuses the existing generation harness for each candidate, normalizes scorecards, and exposes one publishable selected candidate without mutating the public story graph until the creator confirms merge.
+
+**Input schema**:
+
+```json
+{
+  "candidate_run_id": "string",
+  "user_id": "string",
+  "story_id": "string",
+  "parent_node_id": "string",
+  "max_candidates": 3,
+  "prompt": "string",
+  "selected_asset_ids": ["string"],
+  "options": {
+    "duration_seconds": "number",
+    "quality": "string",
+    "aspect_ratio": "string",
+    "scorecard_mode": "cost_continuity"
+  }
+}
+```
+
+**Output schema**:
+
+```json
+{
+  "candidate_run_id": "string",
+  "status": "queued | processing | completed | failed",
+  "scorecards": [
+    {
+      "candidate_id": "string",
+      "provider": "string",
+      "status": "succeeded | failed | fallback",
+      "credit_cost": "number",
+      "elapsed_ms": "number",
+      "inherited_asset_count": "number",
+      "continuity_score": "number",
+      "moderation_status": "approved | pending | rejected",
+      "publish_eligible": "boolean"
+    }
+  ]
+}
+```
+
+**Cost log fields**:
+
+```json
+{
+  "provider": "forkcompare",
+  "candidate_count": 3,
+  "credit_cost_total": 15,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "cache_hits": 0,
+  "elapsed_ms": 0
+}
+```
+
+**Token budget**:
+
+The MVP scorecard uses deterministic heuristics over available metadata: inherited asset count, prompt length, provider outcome, moderation state, elapsed time, and credit cost. It must not add hidden LLM calls. If a future scorer uses Workers AI or another model, it must be feature-flagged and capped to one scorer pass per candidate run with explicit `{ model, prompt_tokens, completion_tokens, cache_hits, estimated_cost_usd }`.
+
+**Orchestration topology**:
+
+Fan-out / fan-in. The HTTP Worker validates and enqueues a bounded run. The consumer fan-outs candidate messages through the generation harness. The scorecard harness fan-ins completed candidate metadata and writes one normalized scorecard set.
+
+```mermaid
+flowchart LR
+  Plan["Validate candidate plan"]
+  Quote["Quote total credit cost"]
+  EnqueueCandidates["Enqueue <= 3 candidates"]
+  CandidateA["Candidate A generation"]
+  CandidateB["Candidate B generation"]
+  CandidateC["Candidate C generation"]
+  Score["Scorecard fan-in"]
+  Merge["Publish selected candidate"]
+
+  Plan --> Quote --> EnqueueCandidates
+  EnqueueCandidates --> CandidateA
+  EnqueueCandidates --> CandidateB
+  EnqueueCandidates --> CandidateC
+  CandidateA --> Score
+  CandidateB --> Score
+  CandidateC --> Score
+  Score --> Merge
+```
+
+**Max-iteration bound**:
+
+- `max_candidates <= 3`
+- `max_provider_calls <= 3`
+- `max_scorecard_passes = 1`
+- provider polling inherits the 60-poll bound from the PixVerse harness
+
+**Circuit breaker**:
+
+- Stop before debit when requested candidate count exceeds bound.
+- Stop before enqueue when total quoted credit cost exceeds user balance.
+- Stop before provider calls when daily provider budget is exhausted.
+- Stop public publish when moderation or scorecard marks candidate ineligible.
+
+**Fallback path**:
+
+If every candidate fails, the run remains private and returns scorecards with failure reasons plus a single optional prompt artifact. No story node is inserted and no public graph cache is invalidated.
 
 ## C9. Client Graph And Calculation Engine
 
@@ -1194,6 +1679,16 @@ The Strytree prototype uses `<canvas>` only for the starfield background. The st
 - Canvas: optional decorative or preview-only effects.
 - SVG/HTML: story graph, nodes, edges, hit targets, accessibility labels, video cards.
 - Server: authoritative graph, wallet, access, and provider state.
+
+### ForkCompare Workbench Boundary
+
+The candidate workbench must remain a projection of server candidate-run state, not a second graph runtime:
+
+- Candidate cards reuse existing Strybldr/Storyboard/Strytree card surfaces.
+- Candidate edges are preview-only until one candidate is published as a child node.
+- Candidate scorecards come from `strytree_branch_candidates`, not browser-only scoring.
+- Candidate publish writes one server child node and then refreshes the normal story snapshot.
+- Client state may track selection and panel open/close, but it must not own candidate cost, entitlement, moderation, or publish eligibility.
 
 ## C10. Data Flows
 
@@ -1234,6 +1729,17 @@ The Strytree prototype uses `<canvas>` only for the starfield background. The st
 | Store | Artifact writer (consumer) | Provider video URL/blob | R2 object key | R2 | Object write retry; fallback if R2 unavailable |
 | Serve | Generation status endpoint | Job id + JWT | Status/result JSON | D1 | 404 on missing job; 401 on wrong owner |
 
+### Data Flow: Candidate Compare
+
+| Stage | Component | Input Format | Output Format | Persistence | Error Handling |
+|---|---|---|---|---|---|
+| Ingest | Candidate run endpoint | Parent node, prompt, max candidates, options | Candidate run row + quote | D1 | Reject count > 3; reject insufficient balance |
+| Enqueue | Cloudflare Queue | Candidate messages | Candidate delivery to consumer | CF Queue | Retry failed candidates; cap retries |
+| Transform | Generation Harness + Scorecard Harness | Candidate payloads and provider results | Candidate rows + scorecards | D1/R2 | Mark candidate failed; keep run private if all fail |
+| Store | Candidate artifact writer | Result media and metadata | R2 object keys + D1 candidate rows | R2/D1 | Preserve fallback artifact when media write fails |
+| Serve | Candidate run endpoint | Candidate run id + JWT | Scorecard JSON | D1 | 404 on missing run; 401 on wrong owner |
+| Merge | Candidate publish endpoint | Selected candidate id | Child node + merge plan | D1/KV invalidation | Reject non-publishable candidate |
+
 ## C11. Quality Attributes
 
 | Attribute | Scenario | Pattern | Validation |
@@ -1247,6 +1753,8 @@ The Strytree prototype uses `<canvas>` only for the starfield background. The st
 | Observability | Provider generation fails. | Audit event, job error, refund ledger link. | Failure fixture proves refund and audit. |
 | Token Cost | Generation costs exceed budget. | Quote, debit/hold, circuit breaker, cost log. | Budget-exceeded test. |
 | TCO | MVP must avoid fixed monthly infra where possible. | Cloudflare D1/R2/KV free/low tier and provider variable cost. | Monthly cost review and ADR update. |
+| Token Performance | Candidate fan-out hides extra model calls. | Bounded `max_candidates <= 3`; deterministic scorecard by default; model scorer behind feature flag only. | Candidate-run test asserts provider call count and scorecard token log. |
+| TCO | Candidate workbench adds a new external graph/database/hosting dependency. | Reuse existing UI surface and Cloudflare bindings; dependency guard in CI. | Stack guard test scans lockfile and route config. |
 
 ## C12. Deployment Strategy
 
@@ -1265,8 +1773,10 @@ MVP deployment path:
 5. Use D1 migrations for schema.
 6. Use R2 for generated media and reference assets.
 7. Use environment-backed secrets for payment and PixVerse credentials.
-8. Sync to prod mirror with the canonical pages sync path.
-9. Validate with local smoke, D1 migration dry run, webhook fixture, ledger tests, Queue consumer integration test, and Cloudflare preview URL.
+8. Add ForkCompare candidate tables and routes only after the secure generation/ledger path is green.
+9. Keep ForkCompare UI inside existing Strybldr/Storyboard/Strytree surfaces; no new frontend graph dependency.
+10. Sync to prod mirror with the canonical pages sync path.
+11. Validate with local smoke, D1 migration dry run, webhook fixture, ledger tests, Queue consumer integration test, candidate-run stack guard, and Cloudflare preview URL.
 
 Rollback:
 
@@ -1291,7 +1801,7 @@ Rollback:
 | PRD-STR-E03-AC-03 | Credit Ledger Service + Queue Consumer | Refund path | Ledger-refund tests pass: refund event linked to debit after provider failure. |
 | PRD-STR-E03-AC-04 | Credit Ledger Service | Idempotency key constraint | Idempotency tests pass: duplicate submission produces one ledger event. |
 | PRD-STR-E04-AC-01 | Commerce Adapter | POST /api/strytree/checkout/sessions | Checkout tests pass: session returned; no ledger event at creation. |
-| PRD-STR-E04-AC-02 | Commerce Adapter + Ledger Service | Webhook handler | Webhook-credit tests pass: one purchase_credit event per webhook. |
+| PRD-STR-E04-AC-02 | Commerce Adapter + Ledger Service | `POST /api/strytree/checkout/sessions/:id/complete` and production webhook handler | Settlement tests pass: one `purchase_credit` event per completed payment session; signed webhook fixture remains the production-provider proof. |
 | PRD-STR-E04-AC-03 | Credit Ledger Service | GET /api/strytree/wallet | Wallet-pending tests pass: pending status before webhook credit. |
 | PRD-STR-E04-AC-04 | Commerce Adapter | Webhook idempotency | Replay tests pass: second webhook produces no duplicate event. |
 | PRD-STR-E05-AC-01 | Unlock Transaction Service | POST /api/strytree/nodes/:nodeId/unlock | Unlock tests pass: one entitlement, one debit, creator credit, platform fee per unlock. |
@@ -1304,6 +1814,10 @@ Rollback:
 | PRD-STR-E07-AC-01 | Audit Event Service | Audit insert on all value-changing paths | Audit-coverage tests pass: one event per fixture action. |
 | PRD-STR-E07-AC-02 | Generation Harness + KV budget counter | Circuit breaker | Circuit-breaker tests pass: 429 when budget counter at limit. |
 | PRD-STR-E07-AC-03 | Story Graph Service | Moderation gate in snapshot | Moderation-gate tests pass: pending/rejected nodes absent from public snapshot. |
+| PRD-STR-E08-AC-01 | Candidate Run Service | POST /api/strytree/candidate-runs | Candidate-run tests pass: bounded run inserted; count > 3 rejected before debit. |
+| PRD-STR-E08-AC-02 | Candidate Scorecard Harness | GET /api/strytree/candidate-runs/:id | Candidate-scorecard tests pass: scorecard fields present for every candidate. |
+| PRD-STR-E08-AC-03 | Candidate Run Service + Story Graph Service | POST /api/strytree/candidates/:candidateId/publish | Candidate-merge tests pass: exactly one selected candidate becomes a public child node. |
+| PRD-STR-E08-AC-04 | ForkCompare Workbench | Existing Strybldr/Storyboard/Strytree UI | Stack guard passes: no new graph UI package, hosted database SDK, or non-Cloudflare deploy target. |
 
 ---
 
@@ -1311,7 +1825,7 @@ Rollback:
 
 ## ADR-001: Use Cloudflare D1, R2, and KV for MVP persistence
 
-**Status**: Proposed
+**Status**: Accepted / implemented for Strytree ledger mutations
 
 **Date**: 2026-05-30
 
@@ -1327,7 +1841,7 @@ Use D1 for relational persistence, R2 for media objects, and KV for read-heavy c
 
 1. Browser-only storage: zero backend but cannot enforce wallet, unlock, payment, or cross-device persistence.
 2. **FOSS self-hosted stack** (explicit FOSS alternative): PocketBase on Oracle Always Free ARM (PostgreSQL backend) + MinIO or Cloudflare R2-compatible object store + pg-boss job queue. Full FOSS, zero vendor lock-in, $0 egress on Oracle Always Free. Cons: higher ops burden; requires self-managed migrations, backups, and uptime monitoring outside Cloudflare topology.
-3. External Postgres/Supabase: familiar SQL but adds external vendor dependency and likely monthly cost above free tier.
+3. External hosted Postgres: familiar SQL but adds an external vendor dependency and likely monthly cost above free tier.
 
 ### TCO Impact
 
@@ -1347,7 +1861,7 @@ Use D1 for relational persistence, R2 for media objects, and KV for read-heavy c
 
 ## ADR-002: Make credit tokens an append-only server ledger
 
-**Status**: Proposed
+**Status**: Accepted / implementation contract
 
 **Date**: 2026-05-30
 
@@ -1382,7 +1896,7 @@ Represent app credit tokens as an append-only ledger with idempotency keys, even
 
 ## ADR-003: Derive story edges from `parent_node_id`
 
-**Status**: Proposed
+**Status**: Accepted / implementation contract
 
 **Date**: 2026-05-30
 
@@ -1418,7 +1932,7 @@ Store `parent_node_id` on `strytree_nodes` as the edge SSOT. Add a separate edge
 
 ## ADR-004: Keep PixVerse behind a harness, never in browser code
 
-**Status**: Proposed
+**Status**: Accepted / implementation contract
 
 **Date**: 2026-05-30
 
@@ -1453,7 +1967,7 @@ Put all PixVerse calls behind a Worker or local harness boundary with typed payl
 
 ## ADR-005: Credit purchases settle through payment webhooks before wallet credit
 
-**Status**: Proposed
+**Status**: Accepted / implementation contract
 
 **Date**: 2026-05-30
 
@@ -1488,7 +2002,7 @@ Create payment sessions server-side, redirect or present provider UI client-side
 
 ## ADR-006: Atomic Credit Debit — Durable Object vs D1 Row Lock
 
-**Status**: Proposed
+**Status**: Accepted / implementation contract
 
 **Date**: 2026-05-31
 
@@ -1498,7 +2012,7 @@ The credit ledger requires atomic debit operations: read balance, check sufficie
 
 ### Decision
 
-Use a Cloudflare Durable Object as the per-user atomic balance actor for in-flight debit operations. The DO serializes all balance mutations for a single user. D1 remains the durable audit ledger. On each debit: call the user's DO stub → DO checks balance → inserts ledger row into D1 → returns balance-after to caller.
+Use a Cloudflare Durable Object as the per-user atomic balance actor for in-flight debit operations. The DO serializes all balance mutations for a single user. D1 remains the durable audit ledger. On each debit or credit: call the user's DO stub → DO checks balance and idempotency → inserts the ledger row into D1 → returns balance-after to caller.
 
 ### Alternatives Considered
 
@@ -1525,12 +2039,13 @@ At MVP load (solo dev + early users), the DO free tier (100k req/day) is suffici
 - **Positive**: Eliminates double-spend race condition; positions for live collaboration without architectural change.
 - **Negative**: CF-proprietary; requires DO binding and stub pattern; testing locally requires `wrangler dev`.
 - **Neutral**: FOSS Postgres lock is a documented migration path if DO costs increase or CF topology changes.
+- **Implementation**: `StrytreeCreditLedgerActor` now exposes a D1-backed mutation endpoint. Strytree ledger writes call the actor when `STRYTREE_CREDIT_LEDGER` is bound and fall back to direct D1 only for local harnesses without a DO namespace.
 
 ---
 
 ## ADR-007: Generation Job Dispatch — Cloudflare Queue vs Synchronous Worker Polling
 
-**Status**: Proposed
+**Status**: Accepted / implementation contract
 
 **Date**: 2026-05-31
 
@@ -1571,6 +2086,51 @@ CF Queue fits the existing CF-native topology at $0 additional cost within free 
 
 ---
 
+## ADR-008: Add ForkCompare Workbench Through Existing UI And Cloudflare Bindings
+
+**Status**: Accepted / implementation contract
+
+**Date**: 2026-05-31
+
+### Context
+
+The Strytree product can gain high ROI from a spatial candidate comparison workflow: creators should see multiple continuation options, compare cost and continuity, and publish one selected branch. The risk is recreating the product around a new graph library, a hosted database service, or a separate deployment path, which would raise TCO and split ownership away from Knowgrph's existing Dev -> Prod -> Cloudflare chain.
+
+### Decision
+
+Build ForkCompare as a Strytree add-on that reuses:
+
+1. Existing Strybldr/Storyboard/Strytree card and SVG/HTML rendering surfaces.
+2. Existing Cloudflare Worker routes, D1 tables, R2 artifact storage, KV cache invalidation, Queue consumers, and Durable Object debit actor.
+3. Existing harness-first generation path and cost log fields.
+
+The add-on must not introduce a new graph-rendering runtime, hosted database SDK, or deployment provider. Candidate runs are private D1/R2 artifacts until one selected candidate is published as a normal `strytree_nodes` child row.
+
+### Alternatives Considered
+
+1. **Existing surface + Cloudflare bindings** (chosen): Lowest TCO; preserves current repo owners; reuses queue, ledger, and snapshot contracts.
+2. New graph rendering dependency: visually convenient, but duplicates existing SVG/card ownership and increases bundle, test, and interaction surface.
+3. External hosted graph/document backend: convenient persistence, but adds vendor dependency, egress risk, auth duplication, and a second data authority.
+4. Separate hosted micro-app: fast prototype, but violates Dev -> Prod -> Cloudflare topology and creates a stale parallel product path.
+
+### TCO Impact
+
+| Dimension | Chosen Option (existing UI + Cloudflare bindings) | Best FOSS Alternative (self-hosted Postgres + pg-boss + native SVG UI) | Delta / 12 months |
+|---|---|---|---|
+| Infra cost | $0/mo within existing Cloudflare free/low tier until traffic grows | $0/mo on Oracle Always Free ARM if already operated | $0 |
+| Egress cost | $0/mo for Worker/D1/R2 internal paths; public media follows R2 policy | $0/mo if self-host egress remains under free limits | Comparable |
+| Token cost | Explicit provider credit quote; deterministic scorecard adds $0 LLM tokens | Same | $0 |
+| Build hours | 8-12 h because existing UI/harness surfaces are reused | 16-24 h due to self-host ops and Worker-to-Postgres integration | Chosen saves 8-12 h |
+| Vendor risk | Medium (Cloudflare APIs) | Low (portable FOSS stack) | Accepted for topology fit and lower ops burden |
+
+### Consequences
+
+- **Positive**: High creator value per build hour; direct reuse of existing Knowgrph surfaces; bounded provider spend; clear scorecard accounting.
+- **Negative**: Cloudflare-native bindings keep some platform lock-in; candidate state must be carefully separated from public graph state.
+- **Neutral**: The D1 schema can be exported to a FOSS Postgres/pg-boss stack if future TCO or platform requirements change.
+
+---
+
 # Part E - Validation Plan
 
 ## Pre-Implementation Checklist
@@ -1585,6 +2145,7 @@ CF Queue fits the existing CF-native topology at $0 additional cost within free 
 - [x] Every acceptance criterion has a `/goal` translation: one measurable end state + stated check + scope constraint
 - [x] Features prioritized via MoSCoW with ROI score formula and per-feature calculation
 - [x] Min-viable scope explicitly stated (9-point list)
+- [x] Recommended add-on documented: ForkCompare Branch Candidate Workbench with bounded fan-out, scorecards, merge semantics, and stack guard
 - [x] Token budget: PixVerse video calls do not expose LLM tokens; cost log records credit_cost, elapsed_ms, estimated_cost_usd per call; $0 LLM token cost for MVP
 - [x] Monthly TCO estimated at $0 (CF D1/R2/KV/Queue free tier + Oracle Always Free ARM)
 - [x] FOSS-first decisions recorded: FOSS alternatives named in every ADR
@@ -1595,15 +2156,27 @@ CF Queue fits the existing CF-native topology at $0 additional cost within free 
 - [x] Async Job Queue component specified: CF Queue + Consumer Worker (ADR-007)
 - [x] Atomic debit component specified: Durable Object per user (ADR-006)
 - [x] AI harness contract: typed input schema, typed output schema, cost log fields, fallback path, max-iteration bound (60 polls), circuit-breaker conditions (4 stated)
+- [x] ForkCompare candidate harness specified: typed candidate-run input/output, deterministic scorecard default, max candidate bound, stack guard, and merge/publish API
 - [x] Orchestration topology: fan-out/sequential (HTTP Worker enqueue + Consumer Worker sequential); no unbounded loops
-- [x] ADR-001 through ADR-007 documented with FOSS alternatives and TCO comparisons
+- [x] ADR-001 through ADR-008 documented with FOSS alternatives and TCO comparisons
 - [x] Architecture diagrams use Mermaid (component topology, sequence × 3, data flow × 4, harness flow)
 - [x] Component inventory table accompanies architecture diagram (C3)
 - [x] PRD-to-TAD traceability established at AC level (C13: 23 rows)
 - [x] No implementation detail in PRD; no business logic in TAD
-- [ ] D1 schema migration files created and dry-run validated
-- [ ] CF Queue consumer binding defined in `wrangler.toml`
-- [ ] DO namespace binding defined for per-user balance actor
+- [x] D1 schema migration files created and dry-run validated
+- [x] CF Queue consumer binding defined in `wrangler.toml`
+- [x] DO namespace binding defined for per-user balance actor
+- [x] Durable Object credit-ledger actor implements D1-backed mutation, balance check, and idempotent replay
+- [x] D1-backed story snapshot route implemented in the existing payment Worker and validated with fake-D1 route tests
+- [x] Server-owned unlock route implemented with ledger debit, entitlement persistence, idempotent replay, and protected media gating
+- [x] ForkCompare candidate-run and publish routes implemented with max-three guard, ledger debit, private scorecards, merge plan, and child-node persistence
+- [x] Credit purchase package route maps checkout settlement into `strytree_token_ledger` with idempotent replay guard
+- [x] Wallet route returns committed balance plus pending checkout state before webhook credit
+- [x] Generation-job route debits before enqueue; Queue consumer writes R2 artifacts on success and refund/fallback ledger state on provider failure
+- [x] Provider budget circuit breaker blocks generation before ledger debit or queue enqueue when KV spend reaches configured daily limit
+- [x] ForkCompare candidate-run dependency guard added to prevent new graph/database/hosting stack drift
+- [x] Live PixVerse API credentialed polling is wired behind the same Queue consumer contract
+- [x] Signed provider webhook fixture invokes the same Strytree checkout settlement owner after signature verification
 
 ## Suggested Implementation Goals
 
@@ -1617,6 +2190,8 @@ CF Queue fits the existing CF-native topology at $0 additional cost within free 
 /goal Strytree auth-gate tests pass: all write endpoints return 401 without a valid session token and no ledger event or D1 write occurs — verified by test/strytree/auth, or stop after 10 turns
 
 /goal Strytree circuit-breaker test passes: POST /api/strytree/generation-jobs returns 429 with error_code provider_budget_exceeded when KV budget counter is at the configured daily limit — verified by test/strytree/circuit-breaker
+
+/goal Strytree ForkCompare tests pass: candidate runs reject max_candidates > 3, write candidate scorecards with cost and continuity fields, publish exactly one selected child node, and dependency guard confirms no new graph UI package, hosted database SDK, or non-Cloudflare deploy target — verified by test/strytree/forkcompare and stack guard
 ```
 
 ## References

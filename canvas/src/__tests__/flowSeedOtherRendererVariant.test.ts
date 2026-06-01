@@ -1,4 +1,5 @@
 import { pickPreferredLayoutSeed, pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
+import { buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
 
 export function testFlowSeedFromOtherRendererPrefersExpectedVariant() {
   const nodes = [{ id: 'a' }, { id: 'b' }]
@@ -43,5 +44,95 @@ export function testFlowEditorPrefersSourceSeedOverOtherRendererCache() {
   })
   if (picked !== sourcePositions) {
     throw new Error('expected Flow Editor frontmatter-document seed selection to prefer imported source positions over other-renderer cache positions')
+  }
+}
+
+export function testFlowSeedIsolatesFlowEditorFromFlowCanvasLayoutCache() {
+  const nodes = [{ id: 'a' }, { id: 'b' }]
+  const baseArgs = {
+    datasetKey: 'graphId:flow-seed-isolation',
+    mode: 'block',
+    frontmatterMode: true,
+    semanticMode: 'document',
+    renderMode: '2d' as const,
+    viewKey: 'same-semantic-view',
+  }
+  const baseKey = buildLayoutPositionCacheKey(baseArgs)
+  const flowKey = buildLayoutPositionCacheKey({ ...baseArgs, renderVariant: 'flow' })
+  const flowEditorKey = buildLayoutPositionCacheKey({ ...baseArgs, renderVariant: 'flowEditor' })
+  const flowPositions = {
+    a: { x: 10, y: 10 },
+    b: { x: 180, y: 10 },
+  }
+  const flowEditorPositions = {
+    a: { x: 1000, y: 1000 },
+    b: { x: 1240, y: 1000 },
+  }
+
+  const pickedForFlowEditor = pickSeedFromOtherRendererCache({
+    nodes,
+    cache: { [flowKey]: flowPositions },
+    baseKey,
+    targetRenderer: 'flowEditor',
+  })
+  if (pickedForFlowEditor) {
+    throw new Error('expected Flow Editor layout seed to reject Flow Canvas cache')
+  }
+
+  const pickedForFlowCanvas = pickSeedFromOtherRendererCache({
+    nodes,
+    cache: { [flowEditorKey]: flowEditorPositions },
+    baseKey,
+    targetRenderer: 'flow',
+  })
+  if (pickedForFlowCanvas) {
+    throw new Error('expected Flow Canvas layout seed to reject Flow Editor cache')
+  }
+
+  const pickedSameRenderer = pickSeedFromOtherRendererCache({
+    nodes,
+    cache: { [flowEditorKey]: flowEditorPositions },
+    baseKey,
+    targetRenderer: 'flowEditor',
+  })
+  if (pickedSameRenderer !== flowEditorPositions) {
+    throw new Error('expected Flow Editor layout seed to keep same-renderer cache available')
+  }
+}
+
+export function testFlowSeedRejectsUnscopedLayoutCacheWhenTargetRendererIsKnown() {
+  const nodes = [{ id: 'a' }, { id: 'b' }]
+  const baseKey = buildLayoutPositionCacheKey({
+    datasetKey: 'graphId:flow-seed-unscoped',
+    mode: 'block',
+    frontmatterMode: true,
+    semanticMode: 'document',
+    renderMode: '2d',
+    viewKey: 'same-semantic-view',
+  })
+  const unscopedPositions = {
+    a: { x: 20, y: 20 },
+    b: { x: 220, y: 20 },
+  }
+
+  const pickedWithTarget = pickSeedFromOtherRendererCache({
+    nodes,
+    cache: { [baseKey]: unscopedPositions },
+    baseKey,
+    allowVariantFallback: false,
+    targetRenderer: 'flowEditor',
+  })
+  if (pickedWithTarget) {
+    throw new Error('expected known Flow Editor target to reject renderer-unscoped layout cache')
+  }
+
+  const pickedWithoutTarget = pickSeedFromOtherRendererCache({
+    nodes,
+    cache: { [baseKey]: unscopedPositions },
+    baseKey,
+    allowVariantFallback: false,
+  })
+  if (pickedWithoutTarget !== unscopedPositions) {
+    throw new Error('expected callers without renderer ownership to preserve exact cache behavior')
   }
 }

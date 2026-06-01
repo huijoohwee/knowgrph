@@ -6,12 +6,12 @@ type RuntimeFitIntent = 'fitToView' | 'fitToScreen'
 
 export async function dispatchRuntimeZoomAction(type: RuntimeZoomAction): Promise<void> {
   const store = useGraphStore.getState()
-  const geospatialEnabled = await readGeospatialModeEnabled().catch(() => false)
-  if (geospatialEnabled) {
+  if (store.canvasRenderMode === '2d') {
     store.requestZoom(type)
     return
   }
-  if (store.canvasRenderMode === '2d') {
+  const geospatialEnabled = await readGeospatialModeEnabled().catch(() => false)
+  if (geospatialEnabled) {
     store.requestZoom(type)
     return
   }
@@ -24,6 +24,10 @@ export async function dispatchRuntimeFitToView(): Promise<void> {
 
 export async function dispatchRuntimeFitIntent(intent: RuntimeFitIntent): Promise<void> {
   const store = useGraphStore.getState()
+  if (store.canvasRenderMode === '2d') {
+    store.requestZoom('fit', { intent })
+    return
+  }
   const geospatialEnabled = await readGeospatialModeEnabled().catch(() => false)
   if (geospatialEnabled) {
     store.requestZoom('fit', { intent })
