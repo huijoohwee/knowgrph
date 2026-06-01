@@ -14,6 +14,9 @@ import {
   buildKnowgrphCollaborationSavePath,
   type KnowgrphCollaborationSaveRequest,
 } from '@/lib/storage/knowgrphStorageSyncContract'
+import {
+  shouldSavePocketBaseYjsSnapshotForWorkspacePath,
+} from '@/features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime'
 
 const readStorageWorker = (): { fetch: (request: Request, env: Record<string, unknown>) => Promise<Response> } => {
   const candidate = storageWorker as unknown as {
@@ -93,6 +96,32 @@ export function testPocketBaseYjsJsonUsesSharedMapAndBlocksRawConcurrentJson() {
   }
   if (canEditRawJsonForKnowgrphCollaboration({ documentKind: 'json', activePeerCount: 2 })) {
     throw new Error('expected raw JSON editing to be blocked when a second collaborator is active')
+  }
+}
+
+export function testPocketBaseYjsSaveSnapshotRequiresPathDocumentKeyMatch() {
+  const videoPath = '/docs/knowgrph-video-demo.md'
+  const tokenEconomicsPath = '/docs/knowgrph-token-economics-model-demo.md'
+  if (shouldSavePocketBaseYjsSnapshotForWorkspacePath({
+    activeDocumentKey: 'docs/knowgrph-token-economics-model-demo.md',
+    roomDocumentKey: 'docs/knowgrph-video-demo.md',
+    savePath: tokenEconomicsPath,
+  })) {
+    throw new Error('expected stale video collaboration room not to save token economics text')
+  }
+  if (!shouldSavePocketBaseYjsSnapshotForWorkspacePath({
+    activeDocumentKey: 'docs/knowgrph-video-demo.md',
+    roomDocumentKey: 'docs/knowgrph-video-demo.md',
+    savePath: videoPath,
+  })) {
+    throw new Error('expected matching video collaboration room to save video text')
+  }
+  if (!shouldSavePocketBaseYjsSnapshotForWorkspacePath({
+    activeDocumentKey: 'docs/knowgrph-video-demo.md',
+    roomDocumentKey: 'docs/knowgrph-video-demo.md',
+    savePath: null,
+  })) {
+    throw new Error('expected active document key fallback to allow matching saves')
   }
 }
 

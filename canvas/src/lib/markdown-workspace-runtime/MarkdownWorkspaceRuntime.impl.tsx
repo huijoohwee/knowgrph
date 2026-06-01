@@ -311,7 +311,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     }),
   )
   const pocketBaseYjsCollaborationRuntime = useSourceFilesPocketBaseYjsCollaborationRuntime({
-    active, activeEntryKind: selectionState.activeEntryKind, activeDocumentKey: selectionState.activeDocumentKey, activeText,
+    active, activeEntryKind: selectionState.activeEntryKind, activePath, activeDocumentKey: selectionState.activeDocumentKey, activeText,
     setActiveTextProgrammatic, setStatusInfo, setStatusError,
   })
   useMarkdownWorkspaceIndexing(
@@ -366,8 +366,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setActivePathSafe: selectionState.setActivePathSafe,
       setSelectionPathSafe: selectionState.setSelectionPathSafe,
       userEditedActiveTextRef,
-      saveCollaborationSnapshot: ({ text, saveBoundary }) =>
-        pocketBaseYjsCollaborationRuntime.saveSnapshot({ text, saveBoundary }),
+      saveCollaborationSnapshot: ({ path, text, saveBoundary }) =>
+        pocketBaseYjsCollaborationRuntime.saveSnapshot({ path, text, saveBoundary }),
     }),
   )
   const interactionState = useMarkdownWorkspaceInteractions({
