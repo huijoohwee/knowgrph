@@ -33,6 +33,7 @@ import {
   stripWebpageScriptTags,
 } from './src/lib/websites/webpageSandboxDoc'
 import { WEBPAGE_SHELL_PATTERN_REGEX_SOURCES } from './src/lib/websites/webpageShellHeuristics'
+import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from './src/features/workspace-fs/workspaceSourceMirrorFormats'
 import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -5078,7 +5079,6 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
   const MAX_BODY_BYTES = 64 * 1024
   const MAX_FILE_COUNT_DEFAULT = 500
   const MAX_FILE_BYTES = 500 * 1024
-  const sourceMirrorExtSet = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])
   const workspaceMirrorRoot = path.resolve(repoRoot, '..')
   const allowedRoots = [
     workspaceMirrorRoot,
@@ -5105,10 +5105,8 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
       .replace(/^\/+/, '')
       .replace(/\/+$/, '')
   }
-  const shouldEncodeSourceMirrorFileAsBase64 = (name: string): boolean =>
-    String(name || '').trim().toLowerCase().endsWith('.glb')
   const readSourceMirrorFileText = async (absPath: string, name: string): Promise<string> => {
-    if (shouldEncodeSourceMirrorFileAsBase64(name)) {
+    if (shouldEncodeWorkspaceSourceMirrorAsBase64(name)) {
       return (await fs.readFile(absPath)).toString('base64')
     }
     return String(await fs.readFile(absPath, 'utf8'))
@@ -5135,8 +5133,7 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
           continue
         }
         if (!entry.isFile()) continue
-        const ext = String(path.extname(entry.name) || '').toLowerCase()
-        if (!sourceMirrorExtSet.has(ext)) continue
+        if (!isWorkspaceSourceMirrorFileName(entry.name)) continue
         const relPath = normalizeRelPath(path.relative(rootAbsPath, absPath))
         if (!relPath) continue
         out.push({ absPath, relPath, name: entry.name })

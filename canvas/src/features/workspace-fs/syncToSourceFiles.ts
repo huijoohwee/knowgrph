@@ -123,9 +123,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
         ? { kind: 'url', url: String(src.url || ''), path: srcPath }
         : { kind: 'local', path: srcPath }
 
-    const text = inlineText && inlineText.trim().length > 0
-      ? inlineText
-      : (prev?.text ?? '')
+    const text = inlineText !== null ? inlineText : (prev?.text ?? '')
 
     const enabled = forceInclude.has(path)
       ? true

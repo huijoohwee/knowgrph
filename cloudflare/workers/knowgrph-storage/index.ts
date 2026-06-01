@@ -40,6 +40,7 @@ import {
   KNOWGRPH_STORAGE_DOC_VIEW_HEADERS,
   readPublishedMarkdown,
 } from '../shared/publishedDoc'
+import { handleCollaborationSave } from './collaborationBridge'
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
@@ -124,7 +125,6 @@ const isPullRequest = (value: unknown): value is KnowgrphStoragePullRequest => {
     && (typeof record.since === 'string' || record.since == null)
   )
 }
-
 
 const validateMutationWorkspace = (workspaceId: string, mutation: KnowgrphStorageMutation): string | null => {
   if (normalizeString(mutation.workspaceId) !== workspaceId) return 'mutation workspaceId does not match request workspaceId'
@@ -494,10 +494,13 @@ export const createKnowgrphStorageWorker = () => ({
     if (request.method === 'OPTIONS') {
       return noContent()
     }
-    const db = readDb(env)
-    if (!db) return errorResponse(500, 'server_error', 'missing Cloudflare D1 binding DB')
     const url = new URL(request.url)
     try {
+      if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.collabSave) {
+        return await handleCollaborationSave(request, env)
+      }
+      const db = readDb(env)
+      if (!db) return errorResponse(500, 'server_error', 'missing Cloudflare D1 binding DB')
       if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.push) {
         return await handlePush(request, env, db)
       }

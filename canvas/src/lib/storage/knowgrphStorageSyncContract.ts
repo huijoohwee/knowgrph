@@ -3,6 +3,7 @@ export const KNOWGRPH_STORAGE_API_VERSION = '2026-05-04'
 export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   push: '/api/storage/push',
   pull: '/api/storage/pull',
+  collabSave: '/api/storage/collab/save',
   exportPrefix: '/api/storage/export/',
   docPrefix: '/api/storage/doc/',
   defaultDocPrefix: '/api/storage/doc-default/',
@@ -219,10 +220,44 @@ export type KnowgrphStorageExportResponse = {
   graphSnapshots: KgGraphSnapshotRecord[]
 }
 
+export type KnowgrphCollaborationDocumentKind = 'markdown' | 'json'
+
+export type KnowgrphCollaborationSaveRequest = {
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  documentKey: string
+  documentKind: KnowgrphCollaborationDocumentKind
+  serializedText: string
+  yjsStateBase64: string
+  activePeerCount: number
+  pocketBaseRoomId: string | null
+  savedByPeerId: string | null
+  saveBoundary: 'explicit' | 'autosave'
+}
+
+export type KnowgrphCollaborationSaveResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  documentKey: string
+  githubPath: string
+  commitSha: string | null
+  contentSha: string | null
+  committedAtMs: number
+}
+
 export type KnowgrphStorageWorkerEnv = {
   DB: unknown
   KNOWGRPH_STORAGE_SIGNING_SECRET?: string
   KNOWGRPH_STORAGE_BLOB_BUCKET?: unknown
+  KNOWGRPH_STORAGE_GITHUB_TOKEN?: string
+  KNOWGRPH_STORAGE_GITHUB_OWNER?: string
+  KNOWGRPH_STORAGE_GITHUB_REPO?: string
+  KNOWGRPH_STORAGE_GITHUB_BRANCH?: string
+  KNOWGRPH_STORAGE_GITHUB_COMMITTER_NAME?: string
+  KNOWGRPH_STORAGE_GITHUB_COMMITTER_EMAIL?: string
+  KNOWGRPH_STORAGE_POCKETBASE_URL?: string
+  KNOWGRPH_STORAGE_POCKETBASE_TOKEN?: string
 }
 
 export const isKnowgrphStorageEntityKind = (value: unknown): value is KnowgrphStorageEntityKind =>
@@ -238,6 +273,9 @@ export const buildKnowgrphStoragePullRequest = (args: {
   deviceId: String(args.deviceId || '').trim(),
   since: typeof args.since === 'string' && args.since.trim() ? args.since.trim() : null,
 })
+
+export const buildKnowgrphCollaborationSavePath = (): string =>
+  KNOWGRPH_STORAGE_ROUTE_PATHS.collabSave
 
 export const buildKnowgrphStorageExportPath = (workspaceId: string): string =>
   `/api/storage/export/${encodeURIComponent(String(workspaceId || '').trim())}`

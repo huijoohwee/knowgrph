@@ -3,10 +3,15 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { SourceFile } from '@/hooks/store/types'
 import { normalizeWorkspacePath, workspaceBasename, workspaceExtLower } from '@/features/workspace-fs/path'
+import { buildLocalFsFetchPath } from '@/lib/url'
 import { readEnvString } from '@/lib/config.env'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
 import { loadPersistedSourceFilesWorkspace } from '@/features/source-files/sourceFilesDb'
 import { readFirstKnowgrphStorageDocText } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
+import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
+import { isWorkspaceSourceMirrorFileName } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
+import { readWorkspaceDocsMirrorRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { readStorageCanonicalPathCandidatesForWorkspacePath } from '@/features/source-files/sourceFilesStoragePaths'
 import { buildModelAssetWorkspaceFallbackMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
 import {
@@ -37,6 +42,122 @@ const buildWorkspaceModelAssetFallbackText = (activePath: WorkspacePath, format:
     format,
     sourceKind: 'workspace',
   })
+
+const normalizeDocsMirrorRelPath = (value: string): string => {
+  let next = String(value || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+  const lowered = next.toLowerCase()
+  if (lowered.startsWith('docs/huijoohwee/docs/')) {
+    next = next.slice('docs/huijoohwee/docs/'.length)
+  } else if (lowered.startsWith('huijoohwee/docs/')) {
+    next = next.slice('huijoohwee/docs/'.length)
+  } else if (lowered.startsWith('docs/')) {
+    next = next.slice('docs/'.length)
+  }
+  return next
+}
+
+const buildWorkspaceDocsMirrorRelPathCandidates = (activePathRaw: WorkspacePath): string[] => {
+  const activePath = normalizeWorkspacePath(activePathRaw)
+  if (!activePath || activePath === '/') return []
+  const out = new Set<string>()
+  const push = (value: string) => {
+    const next = normalizeDocsMirrorRelPath(value)
+    if (!next || !isWorkspaceSourceMirrorFileName(next)) return
+    out.add(next)
+  }
+  push(activePath)
+  const sourceRoots = resolveWorkspaceSourceRootPaths({
+    chatLocalStorageRootPath: useGraphStore.getState().chatLocalStorageRootPath,
+  })
+  for (let i = 0; i < sourceRoots.length; i += 1) {
+    const root = normalizeWorkspacePath(sourceRoots[i] || '')
+    if (!root || root === '/') continue
+    if (activePath === root) continue
+    if (activePath.startsWith(`${root}/`)) push(activePath.slice(root.length + 1))
+  }
+  return [...out]
+}
+
+const readWorkspaceDocsRootFileFallbackText = async (
+  candidates: ReadonlyArray<string>,
+): Promise<string> => {
+  if (typeof fetch !== 'function') return ''
+  const docsRoot = String(readWorkspaceDocsMirrorRootPathSetting() || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '')
+  if (!docsRoot) return ''
+  for (let i = 0; i < candidates.length; i += 1) {
+    const relPath = normalizeDocsMirrorRelPath(candidates[i] || '')
+    if (!relPath || !isWorkspaceSourceMirrorFileName(relPath)) continue
+    const localFsUrl = buildLocalFsFetchPath(`${docsRoot}/${relPath}`)
+    if (!localFsUrl) continue
+    try {
+      const response = await fetch(localFsUrl)
+      if (!response.ok) continue
+      const text = await response.text()
+      if (text.trim()) return text
+    } catch {
+      void 0
+    }
+  }
+  return ''
+}
+
+const readWorkspaceDocsMirrorFallbackText = async (
+  activePath: WorkspacePath,
+  fallbackByActivePath?: Map<string, string>,
+): Promise<string> => {
+  const normalizedPath = normalizeWorkspacePath(String(activePath || '').trim())
+  if (!normalizedPath) return ''
+  const cacheKey = `docs-mirror:${normalizedPath}`
+  const cached = fallbackByActivePath?.get(cacheKey)
+  if (typeof cached === 'string') return cached
+  const candidates = buildWorkspaceDocsMirrorRelPathCandidates(normalizedPath)
+  if (candidates.length === 0) {
+    fallbackByActivePath?.set(cacheKey, '')
+    return ''
+  }
+  try {
+    const entries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    const byRelPath = new Map<string, string>()
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i]
+      if (!entry) continue
+      const relPath = normalizeDocsMirrorRelPath(String(entry.relPath || ''))
+      if (!relPath || byRelPath.has(relPath)) continue
+      byRelPath.set(relPath, String(entry.text || ''))
+    }
+    let blankMirrorMatch: string | null = null
+    for (let i = 0; i < candidates.length; i += 1) {
+      const text = byRelPath.get(candidates[i] || '')
+      if (typeof text === 'string') {
+        if (text.trim()) {
+          fallbackByActivePath?.set(cacheKey, text)
+          return text
+        }
+        if (blankMirrorMatch === null) blankMirrorMatch = text
+      }
+    }
+    const directRootText = await readWorkspaceDocsRootFileFallbackText(candidates)
+    if (directRootText.trim()) {
+      fallbackByActivePath?.set(cacheKey, directRootText)
+      return directRootText
+    }
+    if (blankMirrorMatch !== null) {
+      fallbackByActivePath?.set(cacheKey, blankMirrorMatch)
+      return blankMirrorMatch
+    }
+  } catch {
+    void 0
+  }
+  fallbackByActivePath?.set(cacheKey, '')
+  return ''
+}
 
 const readWorkspaceStorageDocFallbackText = async (
   activePath: WorkspacePath,
@@ -123,6 +244,11 @@ export async function readWorkspaceActiveDocumentResolvedText(args: {
   }
   if (fsText.trim()) {
     if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(fsText)) return fsText
+    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+  }
+  const docsMirrorText = await readWorkspaceDocsMirrorFallbackText(activePath, args.storageFallbackByPath)
+  if (docsMirrorText.trim()) {
+    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(docsMirrorText)) return docsMirrorText
     return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
   }
   const storageText = await readWorkspaceStorageDocFallbackText(activePath, args.storageFallbackByPath)

@@ -95,17 +95,23 @@ export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
 
   const workspaceSeedProviderPath = path.resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceSeedProvider.ts')
   const workspaceSeedProviderText = fs.readFileSync(workspaceSeedProviderPath, 'utf8')
-  if (!workspaceSeedProviderText.includes("WORKSPACE_SOURCE_MIRROR_EXT_SET = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])")
+  const workspaceSourceMirrorFormatsPath = path.resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceSourceMirrorFormats.ts')
+  const workspaceSourceMirrorFormatsText = fs.readFileSync(workspaceSourceMirrorFormatsPath, 'utf8')
+  if (!workspaceSeedProviderText.includes("from '@/features/workspace-fs/workspaceSourceMirrorFormats'")
+    || !workspaceSourceMirrorFormatsText.includes('SOURCE_FILES_FORMATS.importLocalText')
+    || !workspaceSourceMirrorFormatsText.includes("'.gltf'")
+    || !workspaceSourceMirrorFormatsText.includes("WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS = ['.glb']")
+    || !workspaceSourceMirrorFormatsText.includes('shouldEncodeWorkspaceSourceMirrorAsBase64')
     || workspaceSeedProviderText.includes('MARKDOWN_MIRROR_EXT_SET')
     || workspaceSeedProviderText.includes('isMarkdownMirrorFileName')) {
-    throw new Error('Expected D1 docs mirror materialization to include GLTF/GLB without stale Markdown-only filters')
+    throw new Error('Expected D1 docs mirror materialization to reuse the shared Source Files mirror format owner without stale Markdown-only filters')
   }
   const viteConfigPath = path.resolve(process.cwd(), 'vite.config.ts')
   const viteConfigText = fs.readFileSync(viteConfigPath, 'utf8')
-  if (!viteConfigText.includes("sourceMirrorExtSet = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])")
-    || !viteConfigText.includes('shouldEncodeSourceMirrorFileAsBase64')
+  if (!viteConfigText.includes('isWorkspaceSourceMirrorFileName')
+    || !viteConfigText.includes('shouldEncodeWorkspaceSourceMirrorAsBase64')
     || !viteConfigText.includes('walkSourceMirrorFiles')) {
-    throw new Error('Expected dev docs mirror proxy to list Markdown, GLTF, and GLB files instead of using a stale markdown-only walker')
+    throw new Error('Expected dev docs mirror proxy to reuse the shared Source Files mirror format owner instead of a stale markdown-only walker')
   }
 
   const geospatialBridgePath = path.resolve(

@@ -8,11 +8,7 @@ import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/w
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { MarkdownWorkspaceExplorer } from '@/features/markdown-workspace/MarkdownWorkspaceExplorer'
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
-import {
-  isMarkdownPath,
-  SIDEBAR_MAX_PX,
-  SIDEBAR_MIN_PX,
-} from '@/features/markdown-workspace/markdownWorkspaceUtils'
+import { isMarkdownPath, SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/features/markdown-workspace/markdownWorkspaceUtils'
 import { useWorkspaceFileActions } from '@/features/markdown-workspace/useWorkspaceFileActions'
 import { useWorkspaceStatusHelpers } from '@/features/markdown-workspace/useWorkspaceFileActions'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -31,16 +27,11 @@ import { useMarkdownWorkspaceShell } from './useMarkdownWorkspaceShell'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { useMarkdownWorkspaceBootstrapState } from './useMarkdownWorkspaceBootstrapState'
-import {
-  buildMarkdownWorkspaceDerivedViewsArgs,
-  buildMarkdownWorkspaceFileActionsArgs,
-  buildMarkdownWorkspaceIndexingArgs,
-  buildMarkdownWorkspaceSaveArgs,
-  buildMarkdownWorkspaceSelectionArgs,
-} from './markdownWorkspaceRuntime.composition'
+import { buildMarkdownWorkspaceDerivedViewsArgs, buildMarkdownWorkspaceFileActionsArgs, buildMarkdownWorkspaceIndexingArgs, buildMarkdownWorkspaceSaveArgs, buildMarkdownWorkspaceSelectionArgs } from './markdownWorkspaceRuntime.composition'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { useP2PCollaborationRuntime } from '@/features/collaboration/useP2PCollaborationRuntime'
+import { useSourceFilesPocketBaseYjsCollaborationRuntime } from '@/features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime'
 const EMPTY_STRING_ARRAY: string[] = []
 
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
@@ -319,6 +310,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       ...runtimeProgressStatusBindings,
     }),
   )
+  const pocketBaseYjsCollaborationRuntime = useSourceFilesPocketBaseYjsCollaborationRuntime({
+    active, activeEntryKind: selectionState.activeEntryKind, activeDocumentKey: selectionState.activeDocumentKey, activeText,
+    setActiveTextProgrammatic, setStatusInfo, setStatusError,
+  })
   useMarkdownWorkspaceIndexing(
     buildMarkdownWorkspaceIndexingArgs({
       active,
@@ -371,6 +366,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setActivePathSafe: selectionState.setActivePathSafe,
       setSelectionPathSafe: selectionState.setSelectionPathSafe,
       userEditedActiveTextRef,
+      saveCollaborationSnapshot: ({ text, saveBoundary }) =>
+        pocketBaseYjsCollaborationRuntime.saveSnapshot({ text, saveBoundary }),
     }),
   )
   const interactionState = useMarkdownWorkspaceInteractions({
@@ -611,9 +608,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         activeText={effectiveContent.effectiveActiveText}
         setActiveText={effectiveContent.effectiveSetActiveText}
         editorTextOverride={effectiveContent.effectiveEditorTextOverride}
-        disableEditorMutations={
-          effectiveContent.disableEditorMutations
-        }
+        disableEditorMutations={effectiveContent.disableEditorMutations || pocketBaseYjsCollaborationRuntime.rawJsonReadOnly}
         webpageHtmlOverride={null}
         viewerTextOverride={effectiveContent.combinedViewerTextOverride}
         disableViewerMutations={effectiveContent.disableViewerMutations}
@@ -630,6 +625,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         onEditorCaretLine={line => {
           interactionState.onEditorCaretLine(line)
           collaborationRuntime.onEditorCaretLine(line)
+          pocketBaseYjsCollaborationRuntime.onEditorCaretLine(line)
         }}
         widgetModeActive={widgetState.contentMode === 'widget'}
         onViewerInlineEditStateChange={activeState =>

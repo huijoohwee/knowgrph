@@ -258,7 +258,16 @@ async function resolveNonGraphActiveWorkspaceSourceFiles(args: {
   let nextSourceFiles = materializedSourceFiles
   const activeFile = materializedSourceFiles[activeIndex] || null
   const activeText = String(activeFile?.text || '')
-  if (args.refreshActiveText || !activeText.trim()) {
+  const activeSnapshotEntry = (Array.isArray(args.activeWorkspaceEntriesSnapshot) ? args.activeWorkspaceEntriesSnapshot : [])
+    .find(entry => entry?.kind === 'file' && normalizeWorkspacePath(entry.path) === args.activePath) || null
+  const activeSnapshotText = typeof activeSnapshotEntry?.text === 'string' ? activeSnapshotEntry.text : null
+  if (activeSnapshotText !== null && activeSnapshotText !== activeText) {
+    nextSourceFiles = materializedSourceFiles.slice()
+    nextSourceFiles[activeIndex] = {
+      ...activeFile,
+      text: activeSnapshotText,
+    }
+  } else if (args.refreshActiveText || !activeText.trim()) {
     const fallbackText = await readActiveWorkspaceSourceFileFallbackText({
       activePath: args.activePath,
       activeFile,

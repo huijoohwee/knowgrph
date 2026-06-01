@@ -15,6 +15,19 @@ const WORKSPACE_GITHUB_IMPORT_TEXT_EXTS = (() => {
   return exts
 })()
 
+const normalizeAllowedGitHubTreeExtensions = (
+  allowedExtensions?: ReadonlyArray<string>,
+): ReadonlySet<string> => {
+  if (!allowedExtensions) return WORKSPACE_GITHUB_IMPORT_TEXT_EXTS
+  const exts = new Set<string>()
+  for (const ext of allowedExtensions) {
+    const raw = String(ext || '').trim().toLowerCase()
+    if (!raw) continue
+    exts.add(raw.startsWith('.') ? raw : `.${raw}`)
+  }
+  return exts.size > 0 ? exts : WORKSPACE_GITHUB_IMPORT_TEXT_EXTS
+}
+
 const normalizeRepoRelPathPrefix = (raw: string): string => {
   const s = String(raw || '')
     .replace(/^\/+/, '')
@@ -22,12 +35,13 @@ const normalizeRepoRelPathPrefix = (raw: string): string => {
   return s
 }
 
-const isProbablyTextFile = (path: string) => {
+const isProbablyTextFile = (path: string, allowedExts: ReadonlySet<string>) => {
   const lower = String(path || '').toLowerCase().trim()
-  const dot = lower.lastIndexOf('.')
-  const ext = dot > 0 ? lower.slice(dot) : ''
+  const basename = lower.split('/').filter(Boolean).pop() || lower
+  const dot = basename.lastIndexOf('.')
+  const ext = dot > 0 ? basename.slice(dot) : basename ? `.${basename}` : ''
   if (!ext) return false
-  return WORKSPACE_GITHUB_IMPORT_TEXT_EXTS.has(ext)
+  return allowedExts.has(ext)
 }
 
 export const parseGitHubRepoUrl = (urlRaw: string): GitHubRepoRef | null => {
@@ -107,12 +121,14 @@ export const listGitHubRepoTreeFiles = async (args: {
   ref: string
   subdirPath: string
   maxFiles: number
+  allowedExtensions?: ReadonlyArray<string>
 }): Promise<{ files: Array<{ relPath: string; rawUrl: string }>; totalEligible: number; allPaths: string[]; treeTruncated: boolean }> => {
   const base = `https://api.github.com/repos/${encodeURIComponent(args.owner)}/${encodeURIComponent(args.repo)}`
   const treeSha = await resolveGitHubTreeSha({ owner: args.owner, repo: args.repo, ref: args.ref })
   const treeJson = await fetchJson<GitHubTreeResponse>(`${base}/git/trees/${encodeURIComponent(treeSha)}?recursive=1`)
   const entries = Array.isArray(treeJson.tree) ? (treeJson.tree as GitHubTreeEntry[]) : []
   const treeTruncated = treeJson.truncated === true
+  const allowedExts = normalizeAllowedGitHubTreeExtensions(args.allowedExtensions)
 
   const prefix = normalizeRepoRelPathPrefix(args.subdirPath)
   const prefixWithSlash = prefix ? `${prefix}/` : ''
@@ -134,7 +150,7 @@ export const listGitHubRepoTreeFiles = async (args: {
     const relPath = typeof e.path === 'string' ? String(e.path) : ''
     if (!relPath) continue
     if (prefix && relPath !== prefix && !relPath.startsWith(prefixWithSlash)) continue
-    if (!isProbablyTextFile(relPath)) continue
+    if (!isProbablyTextFile(relPath, allowedExts)) continue
     totalEligible += 1
     const rawUrl = buildGitHubRawFileUrl({ owner: args.owner, repo: args.repo, ref: args.ref, relPath })
     if (files.length < args.maxFiles) files.push({ relPath, rawUrl })
@@ -142,4 +158,3 @@ export const listGitHubRepoTreeFiles = async (args: {
 
   return { files, totalEligible, allPaths, treeTruncated }
 }
-

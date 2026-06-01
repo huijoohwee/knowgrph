@@ -33,6 +33,11 @@ export type MarkdownWorkspaceSaveArgs = MarkdownWorkspaceRuntimeProgressStatusBi
   setActivePathSafe: (path: WorkspacePath) => void
   setSelectionPathSafe: (path: WorkspacePath) => void
   userEditedActiveTextRef: React.MutableRefObject<boolean>
+  saveCollaborationSnapshot?: (args: {
+    path: WorkspacePath
+    text: string
+    saveBoundary: 'explicit' | 'autosave'
+  }) => Promise<void>
 }
 
 export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
@@ -87,6 +92,11 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
         setActiveMarkdownDocument: args.setActiveMarkdownDocument,
         setGraphRagWorkflowJsonText: args.setGraphRagWorkflowJsonText,
         resetParsedState: true,
+      })
+      await args.saveCollaborationSnapshot?.({
+        path,
+        text: args.activeText,
+        saveBoundary: 'explicit',
       })
       applySaveSuccessStatus('Saved')
     } catch (e) {
@@ -187,6 +197,11 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
                 setActiveMarkdownDocument: args.setActiveMarkdownDocument,
                 setGraphRagWorkflowJsonText: args.setGraphRagWorkflowJsonText,
                 resetParsedState: false,
+              })
+              await args.saveCollaborationSnapshot?.({
+                path,
+                text: nextTextToSave,
+                saveBoundary: 'autosave',
               })
               if (savingShown) applySaveSuccessStatus('Saved')
             } finally {

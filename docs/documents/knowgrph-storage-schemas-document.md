@@ -32,7 +32,10 @@ export const KNOWGRPH_STORAGE_API_VERSION = '2026-05-04'
 export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   push: '/api/storage/push',
   pull: '/api/storage/pull',
+  collabSave: '/api/storage/collab/save',
   exportPrefix: '/api/storage/export/',
+  docPrefix: '/api/storage/doc/',
+  defaultDocPrefix: '/api/storage/doc-default/',
 } as const
 ```
 
@@ -401,6 +404,47 @@ Response:
 ```
 
 Error handling: 400 on malformed request; 500 on worker/database failures.
+
+### Collaboration Save Bridge Route
+
+- **Method**: `POST`
+- **Path**: `/api/storage/collab/save`
+- **Purpose**: Commit a saved PocketBase/Yjs document snapshot back to GitHub `docs/**`
+- **Behavior**: Validate the saved snapshot, read PocketBase room state when `KNOWGRPH_STORAGE_POCKETBASE_URL` is configured, canonicalize JSON with two-space formatting, reject concurrent JSON saves without Yjs state, and write through GitHub Contents API using a server-owned token. D1 is not touched.
+
+Request:
+
+```json
+{
+  "apiVersion": "2026-05-04",
+  "workspaceId": "kgws:abc123",
+  "documentKey": "/docs/shared.json",
+  "documentKind": "json",
+  "serializedText": "{\n  \"name\": \"Shared\"\n}\n",
+  "yjsStateBase64": "AQID",
+  "activePeerCount": 2,
+  "pocketBaseRoomId": "pb_room_id",
+  "savedByPeerId": "peer_abc",
+  "saveBoundary": "explicit"
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "apiVersion": "2026-05-04",
+  "workspaceId": "kgws:abc123",
+  "documentKey": "/docs/shared.json",
+  "githubPath": "docs/shared.json",
+  "commitSha": "commit_sha",
+  "contentSha": "content_sha",
+  "committedAtMs": 1778151375000
+}
+```
+
+Error handling: 400 on malformed request or unsupported path; 409 when concurrent JSON lacks Yjs CRDT state; 403 when the Worker has no GitHub bridge token; 500 on missing repository config or GitHub API failures.
 
 ### Export Route
 

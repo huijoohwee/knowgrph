@@ -8,6 +8,8 @@ import {
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import { readCachedWorkspaceDocsMirrorEntries, readFirstKnowgrphStorageDocText, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
+import { isWorkspaceDocsMirrorGitHubSourceUrl, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
 const normalizeRelPath = (value: string): string => {
@@ -69,22 +71,9 @@ const readWorkspaceDocsMirrorStorageFallbackEnabled = (): boolean => {
   const raw = String(readEnvString('VITE_WORKSPACE_DOCS_MIRROR_STORAGE_FALLBACK_ENABLED', '') || '')
     .trim()
     .toLowerCase()
-  if (!raw) return false
+  if (!raw) return !!readWorkspaceInitializationKnowgrphStorageBaseUrl()
   return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
 }
-
-const WORKSPACE_SOURCE_MIRROR_EXT_SET = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])
-
-const isWorkspaceSourceMirrorFileName = (name: string): boolean => {
-  const normalized = String(name || '').trim().toLowerCase()
-  if (!normalized) return false
-  const dot = normalized.lastIndexOf('.')
-  if (dot <= 0) return false
-  return WORKSPACE_SOURCE_MIRROR_EXT_SET.has(normalized.slice(dot))
-}
-
-const shouldEncodeWorkspaceSourceMirrorAsBase64 = (name: string): boolean =>
-  String(name || '').trim().toLowerCase().endsWith('.glb')
 
 const encodeArrayBufferToBase64 = (buffer: ArrayBuffer): string => {
   const bytes = new Uint8Array(buffer)
@@ -1022,7 +1011,6 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
 const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
   docsAbsRoot: string,
 ): Promise<WorkspaceDocsMirrorEntry[]> => {
-  if (typeof window !== 'undefined') return []
   try {
     const fs = await importNodeFsPromises()
     const path = await importNodePath()
@@ -1050,8 +1038,7 @@ const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
           continue
         }
         if (!entry.isFile()) continue
-        const ext = String(path.extname(entry.name) || '').toLowerCase()
-        if (!WORKSPACE_SOURCE_MIRROR_EXT_SET.has(ext)) continue
+        if (!isWorkspaceSourceMirrorFileName(entry.name)) continue
         try {
           const stat = await fs.stat(absPath)
           if (!stat.isFile() || stat.size > WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES) continue
@@ -1099,24 +1086,22 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
 }): Promise<WorkspaceDocsMirrorEntry[]> {
   const preferCompleteDataset = args?.preferCompleteDataset === true
   const completeDatasetCandidates: WorkspaceDocsMirrorEntry[][] = []
+  const defaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
+  const defaultSourceUrlIsGitHub = isWorkspaceDocsMirrorGitHubSourceUrl(defaultSourceUrl)
+  if (defaultSourceUrlIsGitHub) {
+    const viaGitHubDefaultSource = await readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
+      url: defaultSourceUrl,
+      maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES,
+      maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES,
+    })
+    if (viaGitHubDefaultSource.length > 0) return viaGitHubDefaultSource
+  }
   const sourceFilesSelection = await resolveWorkspaceDocsRootFromSourceFilesSelection()
   const knowgrphStorageBaseUrl = readWorkspaceDocsMirrorStorageFallbackEnabled()
     ? readWorkspaceInitializationKnowgrphStorageBaseUrl()
     : ''
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
   const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
-  if (docsAbsRoot) {
-    const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
-    if (viaProxy.length > 0) {
-      if (!preferCompleteDataset) return viaProxy
-      completeDatasetCandidates.push(viaProxy)
-    }
-    const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
-    if (viaNodeFs.length > 0) {
-      if (!preferCompleteDataset) return viaNodeFs
-      completeDatasetCandidates.push(viaNodeFs)
-    }
-  }
   if (knowgrphStorageBaseUrl && sourceFilesSelection) {
     if (knowgrphStorageWorkspaceId) {
       const storageDatasets: WorkspaceDocsMirrorEntry[][] = []
@@ -1147,6 +1132,21 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
       if (bestStorageDataset.length > 0) {
         if (!preferCompleteDataset) return bestStorageDataset
         completeDatasetCandidates.push(bestStorageDataset)
+      }
+    }
+  }
+  if (!knowgrphStorageBaseUrl && docsAbsRoot) {
+    const browserLikeRuntime = typeof window !== 'undefined'
+    const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
+    if (viaProxy.length > 0) {
+      if (!preferCompleteDataset || browserLikeRuntime) return viaProxy
+      completeDatasetCandidates.push(viaProxy)
+    }
+    if (!browserLikeRuntime || viaProxy.length === 0) {
+      const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
+      if (viaNodeFs.length > 0) {
+        if (!preferCompleteDataset) return viaNodeFs
+        completeDatasetCandidates.push(viaNodeFs)
       }
     }
   }
@@ -1197,8 +1197,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
     }
   }
   if (!knowgrphStorageBaseUrl) {
-    const defaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
-    if (defaultSourceUrl) {
+    if (defaultSourceUrl && !defaultSourceUrlIsGitHub) {
       const viaUrl = await readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl(defaultSourceUrl)
       if (viaUrl.length > 0) {
         if (!preferCompleteDataset) return viaUrl

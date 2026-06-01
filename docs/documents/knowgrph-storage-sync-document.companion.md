@@ -102,7 +102,7 @@ Local field names differ from remote to preserve the existing browser-local cont
 
 - source-file edits enqueue storage mutations
 - sync loop starts per active workspace
-- Toolbar → Workspace View → `Storage Sync` gates the configured docs mirror refresh loop and planned PocketBase/Yjs collaboration rooms
+- Toolbar → Workspace View → `Storage Sync` gates the configured docs mirror refresh loop and PocketBase/Yjs collaboration rooms
 - pulled remote records applied back into visible `sourceFiles`
 - graph recomposition follows pulled updates
 - conflict notifications reuse shared toasts and logs
@@ -114,7 +114,7 @@ PocketBase owns auth/session state, collaboration room metadata, membership, and
 - Markdown uses `Y.Text`.
 - JSON uses `Y.Map` / nested shared JSON types and serializes to stable formatted JSON only on save.
 - Yjs document updates are exchanged through the PocketBase collaboration relay; Yjs update events are applied with `Y.applyUpdate()`.
-- The GitHub save bridge is server-side only. It serializes the current Yjs state at explicit save/autosave boundaries, writes `docs/{path}` through GitHub Contents API or a GitHub App, and owns all commits.
+- The GitHub save bridge is server-side only. It accepts saved Yjs snapshots at explicit save/autosave boundaries, reads PocketBase room state when the Worker PocketBase URL is configured, writes `docs/{path}` through GitHub Contents API or a GitHub App, and owns all commits.
 - D1 is not a concurrent edit store. It remains a runtime read/export cache.
 
 ---
@@ -208,7 +208,7 @@ flowchart TB
 
 ### ADR-008: Default Workspace Initialization Source URL
 
-**Status**: Accepted. `workspace.import.defaultSourceUrl` setting added to workspace settings registry (localStorage-backed, string, default empty). When set and the workspace is empty, `readWorkspaceInitializationDocsMirrorEntries()` fetches content from the URL using `fetchWorkspaceUrlContent()` and seeds the workspace. Priority chain: sourceFiles → folderHandle → folderCache → defaultSourceUrl → Vite proxy → Node fs.
+**Status**: Accepted. `workspace.import.defaultSourceUrl` setting added to workspace settings registry (localStorage-backed, string, default empty). When set and the workspace is empty, `readWorkspaceInitializationDocsMirrorEntries()` fetches content from the URL using the Source Files mirror path and seeds the workspace. GitHub repo/folder URLs are expanded through the GitHub tree reader and win over the local docs projection because GitHub `docs/**` remains SSOT; generic URLs continue through `fetchWorkspaceUrlContent()`. Priority chain for explicit GitHub docs URLs: GitHub tree → sourceFiles/storage/local projections. Priority chain for generic URLs: sourceFiles → folderHandle → folderCache → defaultSourceUrl → Vite proxy → Node fs.
 
 **Alternatives considered**: (1) Hardcode D1 export URL — not configurable, breaks for users without D1. (2) Add a new seed provider type — unnecessary complexity when `importUrlFallback()` already handles all URL types. (3) Use Vite env var only — not user-configurable at runtime.
 
@@ -281,13 +281,13 @@ flowchart TB
 5. Keep D1 export/import as an explicit Worker/runtime path, not the default toolbar Storage Sync path
 6. Update workspace creation flow to detect multi-member workspaces and keep GitHub SSOT while enabling PocketBase/Yjs collaboration rooms
 
-### Phase 3 — PocketBase + Yjs Concurrent Editing (Planned Extension)
+### Phase 3 — PocketBase + Yjs Concurrent Editing (DEV BUILT)
 
-1. Add PocketBase collections for collaboration rooms, update envelopes, awareness state, and membership
-2. Add client Yjs room owner for Source Files (`Y.Text` for Markdown, `Y.Map` for JSON)
-3. Add JSON raw-editor guard so multiple active collaborators can only edit JSON through CRDT-backed structured controls
-4. Add GitHub save bridge with server-owned token/App identity, per-file save queue, and commit audit metadata
-5. Extend conflict UX with user identity display and bridge save status
+1. Add PocketBase collections for collaboration rooms, update envelopes, awareness state, and membership — collection deployment required outside the repo
+2. ~~Add client Yjs room owner for Source Files (`Y.Text` for Markdown, `Y.Map` for JSON)~~ ✅
+3. ~~Add JSON raw-editor guard so multiple active collaborators can only edit JSON through CRDT-backed structured controls~~ ✅
+4. ~~Add GitHub save bridge with server-owned token/App identity, per-file save queue, and commit audit metadata~~ ✅ — `POST /api/storage/collab/save`, requires Worker GitHub token, owner, and repo config; reads PocketBase room state with `KNOWGRPH_STORAGE_POCKETBASE_URL`
+5. Extend conflict UX with richer user identity display and bridge save status beyond status/toast messages
 6. See `knowgrph-multi-user-collaboration-prd.tad.md` for full specification
 
 ### Phase 4 — Realtime Transport Scale-Up (Future)

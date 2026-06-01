@@ -8,7 +8,7 @@
 
 **Version**: 2.9.0
 **Date**: 2026-06-01
-**Status**: Deployed storage baseline; concurrent editing contract added (PocketBase + Yjs + GitHub save bridge)
+**Status**: Deployed storage baseline; concurrent editing implemented in Dev (PocketBase + Yjs + GitHub save bridge); Prod/Cloudflare deploy remains manual
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -17,7 +17,7 @@
 | File | Scope |
 |---|---|
 | `knowgrph-storage-sync-document.companion.md` | PRD summary, TAD runtime layers, conflict resolution, ADRs, deployment phases, quality attributes, token economics, validation |
-| `knowgrph-storage-schemas.md` | D1 SQL, browser cache shapes, contract types, route contracts |
+| `knowgrph-storage-schemas-document.md` | D1 SQL, browser cache shapes, contract types, route contracts |
 | `knowgrph-local-storage.md` | Browser LocalStorage keys (UI state, not sync) |
 | `knowgrph-source-files-import.md` | Import workflows, format routing, geo layer registration |
 | `knowgrph-multi-user-collaboration-prd.tad.md` | Multi-user auth, authorization, role-based access, SSOT transition |
@@ -203,7 +203,7 @@ flowchart TB
 | Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
 | No public document view URL | Cannot share a readable link to a specific D1 document | **Resolved** — `GET /api/storage/doc/:workspaceId/:canonicalPath` + deep link canvas rendering |
 | D1 write amplification on every request | Pull/export write rows even when idle; sync_events grows unboundedly | **Resolved** — read-first ensure*, pull skips writes on no-change, sync_events removed from pull/export, 24h TTL prune on push, poll interval 30s→120s |
-| No concurrent doc editing | Two users editing same `*.md`/`*.json` simultaneously causes destructive Git merge on minified JSON | **Specified** — PocketBase + Yjs (Y.Text/Y.Map) + GitHub save bridge (Path F) |
+| No concurrent doc editing | Two users editing same `*.md`/`*.json` simultaneously causes destructive Git merge on minified JSON | **Built in Dev** — PocketBase + Yjs (`Y.Text`/`Y.Map`) + GitHub save bridge (Path F); deploy requires PocketBase collections and Worker GitHub secret |
 
 ---
 
@@ -239,8 +239,8 @@ flowchart TB
 1. User sets workspace.import.defaultSourceUrl in Settings
    → https://github.com/user/repo/tree/main/docs
 2. ensureSeed() calls importWorkspaceUrl() via existing pipeline
-3. importGitHubFolder() fetches all .md files from the repo
-4. Workspace populated with imported docs
+3. Source Files mirror hydration treats the GitHub `docs` tree URL as the authoritative seed and fetches Source Files-supported text/model files from the repo
+4. Workspace populated with imported docs and supported source assets
 5. Edits stay local unless an explicit Worker/D1 runtime path is enabled
 ```
 
@@ -404,10 +404,11 @@ flowchart TB
 | Conflict UX | Toast surface | `components/ui/ToastHost.tsx` | Built |
 | Conflict UX | History log surface | `features/panels/views/HistoryView.tsx` | Built |
 | Conflict UX | Action buttons | `components/ui/UiActionButtons.tsx` | Built |
-| Collaboration | Yjs document rooms (`Y.Doc`, `Y.Text`, `Y.Map`) | `features/source-files/` collaboration owner | Planned |
-| Collaboration | PocketBase auth, room metadata, realtime update relay | PocketBase collections: `collab_rooms`, `collab_updates`, `collab_awareness` | Planned |
-| Collaboration | GitHub save bridge with server-owned token/App identity | bridge service endpoint for save snapshots | Planned |
-| Collaboration | JSON CRDT guardrail | raw JSON editor gate + structured Y.Map editor | Planned |
+| Collaboration | Yjs document rooms (`Y.Doc`, `Y.Text`, `Y.Map`) | `features/source-files/sourceFilesCollaborationYjs.ts` | Built |
+| Collaboration | PocketBase auth, room metadata, realtime update relay | `features/source-files/sourceFilesPocketBaseYjsRoom.ts` + PocketBase collections: `collab_rooms`, `collab_updates`, `collab_awareness` | Built in Dev; requires PocketBase collection deployment |
+| Collaboration | Markdown Workspace collaboration runtime | `features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime.ts` + `lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` | Built; gated by Storage Sync and `VITE_KNOWGRPH_COLLAB_POCKETBASE_URL` |
+| Collaboration | GitHub save bridge with server-owned token/App identity | `POST /api/storage/collab/save` in `workers/knowgrph-storage/index.ts` | Built; requires Worker `KNOWGRPH_STORAGE_GITHUB_TOKEN`, owner, and repo config; reads PocketBase room state when `KNOWGRPH_STORAGE_POCKETBASE_URL` is set |
+| Collaboration | JSON CRDT guardrail | raw JSON editor gate + structured `Y.Map` owner | Built; bridge rejects concurrent JSON saves without Yjs state |
 
 `SourceFilesPersistenceBootstrap.tsx` is the client-side SSOT orchestrator: seed-sync and rematerialize scheduling accept prepared requests when available, fall back to one resolver otherwise, and reuse caller-owned `sourceFiles` snapshots to keep Storage ↔ Source Files ↔ Workspace parity without redundant store reads.
 
@@ -417,6 +418,7 @@ flowchart TB
 |---|---|---|---|
 | Worker | Request handlers | `workers/knowgrph-storage/index.ts` | Built |
 | Worker | Public doc view route | `workers/knowgrph-storage/index.ts` (`/api/storage/doc/`) | **Built** — see ADR-009 |
+| Worker | Collaboration save bridge | `workers/knowgrph-storage/index.ts` (`/api/storage/collab/save`) | **Built in Dev** — reads PocketBase room state when configured, formats JSON, requires Yjs state for concurrent JSON, commits through GitHub Contents API |
 | Canvas | Deep link runtime | `features/canvas/CanvasDocDeepLinkRuntime.tsx` | **Built** — renders `/doc/{workspaceId}/{path}` in canvas |
 | Worker | D1 query helpers | `workers/knowgrph-storage/db.ts` | Built |
 | Worker | Contract re-export | `workers/knowgrph-storage/contract.ts` | Built |
@@ -434,6 +436,7 @@ flowchart TB
 | Deploy | Static build + sync | `npm run pages:build-sync` | Built |
 | Deploy | Static + Workers deploy | `npm run pages:build-sync-cloudflare` -> `npm run workers:deploy` -> `npm run storage:deploy` | Built; storage deploy applies migrations, deploys the Worker, and re-seeds D1 docs |
 | Test | D1 fake | `__tests__/helpers/fakeKnowgrphStorageD1.ts` | Built |
+| Test | PocketBase/Yjs collaboration + bridge guard | `__tests__/sourceFilesPocketBaseYjsCollaboration.test.ts` | Built |
 | Future | PostgreSQL backend | — | Deferred |
 
 ---
@@ -442,6 +445,6 @@ flowchart TB
 
 PRD summary, TAD runtime layers, conflict resolution, architectural decisions (ADRs), deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract continue in [knowgrph-storage-sync-document.companion.md](knowgrph-storage-sync-document.companion.md).
 
-See `knowgrph-storage-schemas.md` for D1 SQL, minimal cache shapes, contract type definitions, and route contracts.
+See `knowgrph-storage-schemas-document.md` for D1 SQL, minimal cache shapes, contract type definitions, and route contracts.
 See `knowgrph-local-storage.md` for browser LocalStorage key reference (UI state, not sync).
 See `knowgrph-source-files-import.md` for import workflows, format routing, and geo layer registration.
