@@ -19,6 +19,7 @@ import { useFlowEditorNodeDraftActions } from '@/components/FlowEditorCanvas/run
 import { useFlowEditorGraphActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorGraphActions'
 import { useFlowEditorWorkflowActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions'
 import { useFlowEditorRuntimeStoreState } from '@/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeStoreState'
+import { shouldSuppressFlowCanvasNativeSurface } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceVisibility'
 import FlowEditorCanvasSurface from '@/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -558,6 +559,14 @@ export default function FlowEditorCanvasRuntime(
     if (!overlayOnlyActive) return
     scheduleOverlayEdgeUpdate()
   }, [overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
+  const suppressNativeFlowCanvasSurface = React.useMemo(
+    () => shouldSuppressFlowCanvasNativeSurface({
+      renderGraphDataOverride,
+      overlayOnlyActive,
+      flowEditorFrontmatterGraphAvailable,
+    }),
+    [flowEditorFrontmatterGraphAvailable, overlayOnlyActive, renderGraphDataOverride],
+  )
 
   if (widgetDropBridgeOnly) {
     return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />
@@ -579,6 +588,7 @@ export default function FlowEditorCanvasRuntime(
       hasOverlayEditors={hasOverlayEditors}
       emitFlowEditorInteractionFrame={emitFlowEditorInteractionFrame}
       overlayOnlyActive={overlayOnlyActive}
+      suppressNativeFlowCanvasSurface={suppressNativeFlowCanvasSurface}
       overlayEdgesSvgRef={overlayEdgesSvgRef}
       overlayEditorElements={overlayEditorElements as unknown as React.ReactNode}
       noGraphLoaded={noGraphLoaded}

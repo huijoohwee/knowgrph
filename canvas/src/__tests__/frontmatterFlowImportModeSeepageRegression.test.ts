@@ -12,16 +12,62 @@ import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildDocumentKey, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { lsBool } from '@/lib/persistence'
-import {
-  KNOWGRPH_VIDEO_DEMO_BASENAME,
-  KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
-  readDocsSsotFixtureText,
-} from '@/tests/lib/docsSsotFixture'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import fs from 'node:fs'
 import path from 'node:path'
+
+const FLOW_EDITOR_VALIDATION_BASENAME = 'flow-editor-validation.md'
+const FLOW_EDITOR_VALIDATION_WORKSPACE_PATH = `/${FLOW_EDITOR_VALIDATION_BASENAME}`
+const GEOSPATIAL_VALIDATION_BASENAME = 'geospatial-validation.md'
+const GEOSPATIAL_VALIDATION_WORKSPACE_PATH = `/${GEOSPATIAL_VALIDATION_BASENAME}`
+
+const createFlowEditorPresetMarkdown = (args: { title?: string; includeFlowGraph?: boolean } = {}): string => {
+  const title = args.title || 'Flow Editor Validation'
+  const lines = [
+    '---',
+    `title: ${JSON.stringify(title)}`,
+    'kgCanvasSurfaceMode: "2d"',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "flowEditor"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgDocumentStructureBaselineLock: false',
+  ]
+  if (args.includeFlowGraph === true) {
+    lines.push(
+      'flow:',
+      '  nodes:',
+      '    - id: validation_node',
+      '      type: TextGeneration',
+      '      label: Validation Node',
+      '  edges: []',
+    )
+  }
+  lines.push('---', '', `# ${title}`)
+  return lines.join('\n')
+}
+
+const createGeospatialPresetMarkdown = (): string => [
+  '---',
+  'title: "Geospatial Validation"',
+  'kgCanvasSurfaceMode: "geospatial"',
+  'kgCanvasRenderMode: "2d"',
+  'kgCanvas2dRenderer: "flowEditor"',
+  'kgDocumentSemanticMode: "document"',
+  'kgFrontmatterModeEnabled: true',
+  'kgDocumentStructureBaselineLock: false',
+  'flow:',
+  '  nodes:',
+  '    - id: geospatial_node',
+  '      type: Location',
+  '      label: Geospatial Node',
+  '  edges: []',
+  '---',
+  '',
+  '# Geospatial Validation',
+].join('\n')
 
 export function testFrontmatterFlowImportModeDoesNotForceFlowEditorRenderer() {
   useGraphStore.getState().resetAll()
@@ -452,21 +498,10 @@ export async function testActiveMarkdownDocumentSwitchReappliesExplicitFrontmatt
   useGraphStore.getState().setFrontmatterModeEnabled(false)
   useGraphStore.getState().setMultiDimTableModeEnabled(true)
 
-  const text = [
-    '---',
-    'title: "Video Demo"',
-    'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
-    'kgDocumentSemanticMode: "document"',
-    'kgFrontmatterModeEnabled: true',
-    'kgDocumentStructureBaselineLock: false',
-    '---',
-    '',
-    '# Video Demo',
-  ].join('\n')
+  const text = createFlowEditorPresetMarkdown()
 
   const ok = await useGraphStore.getState().setActiveMarkdownDocument({
-    name: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
+    name: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
     text,
     normalizeMermaidMmd: false,
     autoEnableFrontmatter: false,
@@ -598,21 +633,10 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
     if (before.frontmatterModeEnabled !== true) throw new Error('expected README setup to enable frontmatter mode')
   }
 
-  const text = [
-    '---',
-    'title: "Video Demo"',
-    'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
-    'kgDocumentSemanticMode: "document"',
-    'kgFrontmatterModeEnabled: true',
-    'kgDocumentStructureBaselineLock: false',
-    '---',
-    '',
-    '# Video Demo',
-  ].join('\n')
+  const text = createFlowEditorPresetMarkdown()
 
   const ok = await useGraphStore.getState().setActiveMarkdownDocument({
-    name: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
+    name: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
     text,
     normalizeMermaidMmd: false,
     autoEnableFrontmatter: false,
@@ -621,7 +645,7 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
   if (ok !== true) throw new Error('expected passive active markdown document switch to complete')
 
   const st = useGraphStore.getState()
-  if (st.markdownDocumentName !== KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH) {
+  if (st.markdownDocumentName !== FLOW_EDITOR_VALIDATION_WORKSPACE_PATH) {
     throw new Error(`expected passive active doc switch to update markdown document name, got ${String(st.markdownDocumentName)}`)
   }
   if (st.markdownDocumentText !== text) {
@@ -1088,28 +1112,37 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
       }) as typeof window.requestAnimationFrame
     }
 
-    const readmeText = fs.readFileSync(path.resolve(process.cwd(), '..', 'README.md'), 'utf8')
-    const videoText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
-    const geospatialText = fs.readFileSync(
-      path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-maps-grabmap-multim-demo.md'),
-      'utf8',
-    )
+    const readmeText = [
+      '---',
+      'title: "Document Validation"',
+      'kgCanvasSurfaceMode: "2d"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "d3"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      'kgDocumentStructureBaselineLock: false',
+      '---',
+      '',
+      '# Document Validation',
+    ].join('\n')
+    const flowEditorText = createFlowEditorPresetMarkdown({ includeFlowGraph: true })
+    const geospatialText = createGeospatialPresetMarkdown()
     const workspaceFs = createMemoryWorkspaceFs({
       initialEntries: [
         { path: '/README.md', parentPath: '/', kind: 'file', name: 'README.md', text: readmeText, updatedAtMs: 1 },
         {
-          path: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
+          path: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
           parentPath: '/',
           kind: 'file',
-          name: KNOWGRPH_VIDEO_DEMO_BASENAME,
-          text: videoText,
+          name: FLOW_EDITOR_VALIDATION_BASENAME,
+          text: flowEditorText,
           updatedAtMs: 2,
         },
         {
-          path: '/knowgrph-maps-grabmap-multim-demo.md',
+          path: GEOSPATIAL_VALIDATION_WORKSPACE_PATH,
           parentPath: '/',
           kind: 'file',
-          name: 'knowgrph-maps-grabmap-multim-demo.md',
+          name: GEOSPATIAL_VALIDATION_BASENAME,
           text: geospatialText,
           updatedAtMs: 3,
         },
@@ -1118,19 +1151,19 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
     const workspaceEntries = await workspaceFs.listEntries()
 
     await materializeActiveWorkspaceEntryIntoSourceFiles({
-      activePathOverride: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
+      activePathOverride: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
       fs: workspaceFs,
       workspaceEntries,
       sourcesByPath: {},
       applyToGraph: true,
     })
 
-    const afterVideo = useGraphStore.getState()
-    if (afterVideo.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected video-demo initialization materialization to preserve flowEditor landing, got ${String(afterVideo.canvas2dRenderer)}`)
+    const afterFlowEditor = useGraphStore.getState()
+    if (afterFlowEditor.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected Flow Editor initialization materialization to preserve flowEditor landing, got ${String(afterFlowEditor.canvas2dRenderer)}`)
     }
-    if ((afterVideo.graphData?.nodes || []).some(node => String(node?.id || '').includes('::'))) {
-      throw new Error('expected video-demo initialization materialization to preserve canonical parsed graph ids instead of composed source-layer ids')
+    if ((afterFlowEditor.graphData?.nodes || []).some(node => String(node?.id || '').includes('::'))) {
+      throw new Error('expected Flow Editor initialization materialization to preserve canonical parsed graph ids instead of composed source-layer ids')
     }
 
     await materializeActiveWorkspaceEntryIntoSourceFiles({
@@ -1150,7 +1183,7 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
     }
 
     await materializeActiveWorkspaceEntryIntoSourceFiles({
-      activePathOverride: '/knowgrph-maps-grabmap-multim-demo.md',
+      activePathOverride: GEOSPATIAL_VALIDATION_WORKSPACE_PATH,
       fs: workspaceFs,
       workspaceEntries,
       sourcesByPath: {},

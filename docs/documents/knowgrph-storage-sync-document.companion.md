@@ -2,8 +2,8 @@
 
 Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, architectural decisions (ADRs), deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
-**Version**: 2.5.0
-**Date**: 2026-05-19
+**Version**: 2.6.0
+**Date**: 2026-06-01
 
 ---
 
@@ -26,6 +26,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | Developer editing source files | document edits to persist to a remote store automatically | I can resume work from any device |
 | Developer running Dev server | seed file changes in `huijoohwee/docs/` to appear immediately | I can iterate on canonical docs without manual refresh |
 | Developer editing a seed document | edits to write back to `huijoohwee/docs/` | canonical seed files stay in sync |
+| Collaborator editing a shared doc | same-file edits to merge without destructive Git conflicts | concurrent Markdown/JSON edits resolve through CRDTs and save back to GitHub |
 | Operator deploying to production | build-sync pipeline to remain the single static-artifact path | production SPA continues to serve from Prod SSOT |
 | User on a mobile device | workspace state to sync via the same push/pull mechanism | seamless cross-device continuity |
 
@@ -36,6 +37,11 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | Developer edits a source file | autosave debounce fires | document upsert queued in the local outbox and pushed to `/api/storage/push` |
 | Push endpoint receives a mutation | D1 `documents` table upserted | response confirms stored revision, client clears outbox entry |
 | Second device opens same workspace | client polls `/api/storage/pull` with last cursor | receives all mutations newer than cursor, applies to the local persisted cache |
+| `Storage Sync` is off in Toolbar → Workspace View | Source Files change or workspace selection changes | the configured docs mirror refresh loop stays paused |
+| `Storage Sync` is on in Toolbar → Workspace View | Source Files change or workspace selection changes | Source Files rematerialize from the configured `/docs` workspace mirror |
+| `Storage Sync` is on and two users edit the same `*.md` | both type at the same time | Yjs `Y.Text` merges character-level edits through PocketBase realtime, then the save bridge commits the saved snapshot to GitHub |
+| `Storage Sync` is on and two users edit the same `*.json` | both edit at the same time | raw JSON editing is blocked; Yjs shared JSON types own the edit and the save bridge commits canonical formatted JSON to GitHub |
+| A collaborator saves a concurrent document | the bridge persists the save | the bridge owns the GitHub commit; collaborators never touch Git credentials or Git commands |
 | File changes in `huijoohwee/docs/` | Dev server seed polling cycle runs | workspace re-reads file and updates source file state |
 | `npm run pages:build-sync` executed | build completes and sync runs | Prod SSOT reflects latest static artifacts |
 | `npm run pages:build-sync-cloudflare` executed | static build/sync completes, remote D1 migrations apply, and Worker deploy runs | Prod mirror and Cloudflare storage routes reflect the same Dev source |
@@ -47,6 +53,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | Push success rate | 0% (no endpoint) | 99.9% |
 | Pull-to-apply latency | N/A | <2s p95 |
 | Cross-device state parity | 0% (no sync) | 100% document parity |
+| Concurrent same-file merge safety | destructive Git merge risk | 0 raw JSON simultaneous edits without CRDT |
 | D1 free-tier utilization | $0/mo | <$5/mo at projected scale |
 
 ---
@@ -95,9 +102,20 @@ Local field names differ from remote to preserve the existing browser-local cont
 
 - source-file edits enqueue storage mutations
 - sync loop starts per active workspace
+- Toolbar → Workspace View → `Storage Sync` gates the configured docs mirror refresh loop and planned PocketBase/Yjs collaboration rooms
 - pulled remote records applied back into visible `sourceFiles`
 - graph recomposition follows pulled updates
 - conflict notifications reuse shared toasts and logs
+
+### Concurrent Editing Layer
+
+PocketBase owns auth/session state, collaboration room metadata, membership, and realtime fanout. The browser keeps a Yjs `Y.Doc` per open collaborative source file:
+
+- Markdown uses `Y.Text`.
+- JSON uses `Y.Map` / nested shared JSON types and serializes to stable formatted JSON only on save.
+- Yjs document updates are exchanged through the PocketBase collaboration relay; Yjs update events are applied with `Y.applyUpdate()`.
+- The GitHub save bridge is server-side only. It serializes the current Yjs state at explicit save/autosave boundaries, writes `docs/{path}` through GitHub Contents API or a GitHub App, and owns all commits.
+- D1 is not a concurrent edit store. It remains a runtime read/export cache.
 
 ---
 
@@ -166,7 +184,7 @@ flowchart TB
 
 **Status**: Accepted. Scale path is documented; MVP path remains lean; sync contract stays stable while backend changes later.
 
-**Adoption gates**: multiple concurrent editors; server-side retrieval outgrows D1; vector search becomes runtime requirement; tenancy/analytics/audit justify managed DB overhead.
+**Adoption gates**: server-side retrieval outgrows D1; vector search becomes runtime requirement; tenancy/analytics/audit justify managed DB overhead. Concurrent same-file editing is handled first by PocketBase + Yjs while GitHub remains SSOT.
 
 ### ADR-004: Deploy Storage API As A Standalone Cloudflare Worker On The Same Zone
 
@@ -222,6 +240,20 @@ flowchart TB
 
 **Alternatives considered**: (1) `/knowgrph/docs/{path}` — rejected because SPA catch-all (`/knowgrph/*` → `index.html`) intercepts all paths under `/knowgrph/`; would require `_redirects` exception or Worker route priority override. (2) Extend `/export/` with query params — rejected because export returns full JSON workspace snapshot, not a single readable document. (3) Separate Cloudflare Pages function — rejected because the existing Worker already has D1 binding and route pattern; adding a route is zero operational overhead.
 
+### ADR-010: Use PocketBase + Yjs For Same-File Collaboration, Not Git Merge
+
+**Status**: Accepted as the Storage Sync collaboration contract. GitHub remains the source of truth, but it is not used as the live merge engine. Yjs owns concurrent edits and PocketBase relays authenticated room updates. The save bridge commits CRDT snapshots to GitHub on save.
+
+**Rules**:
+
+- `*.md` concurrent editing uses `Y.Text`.
+- `*.json` concurrent editing uses `Y.Map` / nested shared JSON types; raw JSON text editing is blocked whenever multiple active collaborators are present.
+- Git merge is never used to reconcile simultaneous minified JSON edits.
+- Collaborators never receive GitHub credentials and never run Git. The bridge owns commit identity, queuing, and save serialization.
+- D1 remains a runtime read/export cache and must not be promoted to collaboration SSOT.
+
+**Alternatives considered**: (1) Git merge on saved files — rejected for minified JSON and high-frequency same-file edits. (2) D1 optimistic concurrency only — acceptable for coarse document updates, not character/field-level concurrent authoring. (3) Last-write-wins PocketBase records — loses edits and violates the Source Files contract.
+
 ---
 
 ## Deployment Phases
@@ -246,23 +278,23 @@ flowchart TB
 2. ~~Extend `readWorkspaceInitializationDocsMirrorEntries()` priority chain with URL fetch step~~ ✅
 3. ~~Add `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route for public single-document view~~ ✅
 4. ~~Add `CanvasDocDeepLinkRuntime` for deep link canvas rendering (`/knowgrph/doc/{workspaceId}/{canonicalPath}`)~~ ✅
-5. Implement D1→filesystem export script for git-backed backup
-6. Update workspace creation flow to detect multi-member workspaces and flip SSOT to D1
+5. Keep D1 export/import as an explicit Worker/runtime path, not the default toolbar Storage Sync path
+6. Update workspace creation flow to detect multi-member workspaces and keep GitHub SSOT while enabling PocketBase/Yjs collaboration rooms
 
-### Phase 3 — Multi-User Auth + Authorization (Planned Extension)
+### Phase 3 — PocketBase + Yjs Concurrent Editing (Planned Extension)
 
-1. Add D1 migration for `users`, `workspace_members`, `invitations` tables
-2. Implement JWT auth middleware in Worker
-3. Add role-based push/pull permission enforcement (owner, editor, viewer)
-4. Extend conflict UX with user identity display
-5. See `knowgrph-multi-user-collaboration-prd.tad.md` for full specification
+1. Add PocketBase collections for collaboration rooms, update envelopes, awareness state, and membership
+2. Add client Yjs room owner for Source Files (`Y.Text` for Markdown, `Y.Map` for JSON)
+3. Add JSON raw-editor guard so multiple active collaborators can only edit JSON through CRDT-backed structured controls
+4. Add GitHub save bridge with server-owned token/App identity, per-file save queue, and commit audit metadata
+5. Extend conflict UX with user identity display and bridge save status
+6. See `knowgrph-multi-user-collaboration-prd.tad.md` for full specification
 
-### Phase 4 — Real-Time Collaboration (FUTURE)
+### Phase 4 — Realtime Transport Scale-Up (Future)
 
-1. Introduce Cloudflare Durable Objects for per-workspace WebSocket channels
-2. Replace 120s polling with push-based mutation broadcast
-3. Add device presence tracking via `sync_devices` table
-4. Implement conflict resolution UI for concurrent edits
+1. Keep PocketBase/Yjs as the default collaboration path while usage is small-team scale
+2. Introduce Cloudflare Durable Objects only if room fanout, persistence, or deployment topology outgrows PocketBase
+3. Keep GitHub save bridge unchanged so GitHub remains SSOT across transport changes
 
 ---
 
@@ -272,10 +304,10 @@ flowchart TB
 |---|---|
 | Performance | Push/pull round-trip <500ms p95; D1 queries <50ms p95 |
 | Scalability | D1 free tier: 5M reads/day, 100K writes/day; pagination for >500 documents |
-| Security | Optimistic concurrency via base revision; workspace-scoped isolation; no auth in Phase 1; JWT auth + RBAC in Phase 3 |
+| Security | Optimistic concurrency via base revision; workspace-scoped isolation; PocketBase auth for collaboration rooms; GitHub credentials are bridge-only |
 | Observability | Worker logs via `wrangler tail`; D1 metrics via Cloudflare dashboard; client telemetry via `pipelinePerf.ts` |
-| Resilience | Local outbox survives crashes; retry with exponential backoff (max 3); cursor-based pull ensures no missed mutations; auto-clear stale conflicts after pull; persisted-cache conflict retry before FS degradation |
-| Maintainability | Worker is thin validation + D1 proxy; business logic stays client-side; numbered SQL migrations; settings-driven default source URL |
+| Resilience | Local outbox survives crashes; retry with exponential backoff (max 3); cursor-based pull ensures no missed mutations; auto-clear stale conflicts after pull; persisted-cache conflict retry before FS degradation; Yjs update replay preserves concurrent edits until bridge save succeeds |
+| Maintainability | Worker is thin validation + D1 proxy; Yjs owns merge semantics; PocketBase owns collab relay/auth; GitHub save bridge owns commits; settings-driven default source URL |
 
 ---
 

@@ -219,8 +219,8 @@ export function testSourceFilesBootstrapResyncsOnWorkspaceFsSeedChanges() {
   if (!text.includes('await fs.ensureSeed()')) {
     throw new Error('expected source files bootstrap to periodically call ensureSeed for dynamic external docs seed reflection')
   }
-  if (text.includes('const workspaceEntries = await fs.listEntries()')) throw new Error('expected source files bootstrap workspace-fs event handler to avoid full listEntries scans on the source-files rematerialization hot path')
-  if (!text.includes('const workspaceEntries = await readWorkspaceActiveEntrySnapshot({')) throw new Error('expected source files bootstrap workspace-fs event handler to refresh only the active workspace entry snapshot')
+  if (text.includes('const workspaceEntries = await fs.listEntries()')) throw new Error('expected source files bootstrap workspace-fs event handler to keep listEntries behind the shared source-root snapshot helper')
+  if (!text.includes('const workspaceEntries = await readWorkspaceSourceRootEntriesSnapshot({')) throw new Error('expected source files bootstrap workspace-fs event handler to refresh the source-root workspace entry snapshot for Source Files sync')
   if (!text.includes('buildActiveWorkspaceRuntimeSourceFilesSnapshot({')) {
     throw new Error('expected source files bootstrap workspace-fs event handler to centralize active runtime source-files shaping through the shared helper before rematerialization')
   }
@@ -614,7 +614,7 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
     throw new Error('expected workspace runtime shared module to become a pure facade over dedicated active-resolution, materialization, and startup helper modules')
   }
   if (
-    !runtimeSharedText.includes("hydrateWorkspaceEntriesInlineText,\n  readReusableWorkspaceEntriesSnapshot,\n  readWorkspaceActiveEntrySnapshot,\n} from '@/features/source-files/sourceFilesRuntimeActive'") ||
+    !runtimeSharedText.includes("hydrateWorkspaceEntriesInlineText,\n  readReusableWorkspaceEntriesSnapshot,\n  readWorkspaceActiveEntrySnapshot,\n  readWorkspaceSourceRootEntriesSnapshot,\n} from '@/features/source-files/sourceFilesRuntimeActive'") ||
     !runtimeSharedText.includes("buildActiveWorkspaceRuntimeSourceFilesSnapshot,\n  buildMaterializedWorkspaceActivePathKey,\n  buildMaterializedWorkspaceForceIncludePaths,\n  materializeActiveWorkspaceEntryIntoSourceFiles,\n  resolveMaterializedWorkspaceActivePath,\n} from '@/features/source-files/sourceFilesRuntimeMaterialization'")
   ) {
     throw new Error('expected workspace runtime shared facade to re-export active-resolution helpers from the active module and path/materialization helpers from the materialization module')
@@ -1637,7 +1637,7 @@ export function testWorkspaceActiveMaterializationSkipsImportWhenGraphApplyDisab
     throw new Error('expected runtime shared module to re-export startup APIs from the dedicated startup runtime module')
   }
   if (
-    !runtimeSharedText.includes("hydrateWorkspaceEntriesInlineText,\n  readReusableWorkspaceEntriesSnapshot,\n  readWorkspaceActiveEntrySnapshot,\n} from '@/features/source-files/sourceFilesRuntimeActive'") ||
+    !runtimeSharedText.includes("hydrateWorkspaceEntriesInlineText,\n  readReusableWorkspaceEntriesSnapshot,\n  readWorkspaceActiveEntrySnapshot,\n  readWorkspaceSourceRootEntriesSnapshot,\n} from '@/features/source-files/sourceFilesRuntimeActive'") ||
     !runtimeSharedText.includes("buildActiveWorkspaceRuntimeSourceFilesSnapshot,\n  buildMaterializedWorkspaceActivePathKey,\n  buildMaterializedWorkspaceForceIncludePaths,\n  materializeActiveWorkspaceEntryIntoSourceFiles,\n  resolveMaterializedWorkspaceActivePath,\n} from '@/features/source-files/sourceFilesRuntimeMaterialization'")
   ) {
     throw new Error('expected runtime shared facade to keep active-resolution exports separate from path/materialization exports')

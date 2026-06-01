@@ -5078,7 +5078,7 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
   const MAX_BODY_BYTES = 64 * 1024
   const MAX_FILE_COUNT_DEFAULT = 500
   const MAX_FILE_BYTES = 500 * 1024
-  const markdownExtSet = new Set(['.md', '.markdown', '.mdx', '.mmd'])
+  const sourceMirrorExtSet = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])
   const workspaceMirrorRoot = path.resolve(repoRoot, '..')
   const allowedRoots = [
     workspaceMirrorRoot,
@@ -5105,8 +5105,16 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
       .replace(/^\/+/, '')
       .replace(/\/+$/, '')
   }
-  const walkMarkdownFiles = async (rootAbsPath: string, maxFiles: number): Promise<Array<{ absPath: string; relPath: string }>> => {
-    const out: Array<{ absPath: string; relPath: string }> = []
+  const shouldEncodeSourceMirrorFileAsBase64 = (name: string): boolean =>
+    String(name || '').trim().toLowerCase().endsWith('.glb')
+  const readSourceMirrorFileText = async (absPath: string, name: string): Promise<string> => {
+    if (shouldEncodeSourceMirrorFileAsBase64(name)) {
+      return (await fs.readFile(absPath)).toString('base64')
+    }
+    return String(await fs.readFile(absPath, 'utf8'))
+  }
+  const walkSourceMirrorFiles = async (rootAbsPath: string, maxFiles: number): Promise<Array<{ absPath: string; relPath: string; name: string }>> => {
+    const out: Array<{ absPath: string; relPath: string; name: string }> = []
     const queue = [rootAbsPath]
     while (queue.length > 0 && out.length < maxFiles) {
       const dir = queue.shift()
@@ -5128,10 +5136,10 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
         }
         if (!entry.isFile()) continue
         const ext = String(path.extname(entry.name) || '').toLowerCase()
-        if (!markdownExtSet.has(ext)) continue
+        if (!sourceMirrorExtSet.has(ext)) continue
         const relPath = normalizeRelPath(path.relative(rootAbsPath, absPath))
         if (!relPath) continue
-        out.push({ absPath, relPath })
+        out.push({ absPath, relPath, name: entry.name })
       }
     }
     return out
@@ -5207,13 +5215,13 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
         res.end(JSON.stringify({ ok: false, error: 'Path is not a directory' }))
         return
       }
-      const files = await walkMarkdownFiles(rootAbsPath, maxFiles)
+      const files = await walkSourceMirrorFiles(rootAbsPath, maxFiles)
       const payload: Array<{ relPath: string; text: string; updatedAtMs: number }> = []
       for (const file of files) {
         try {
           const fileStat = await fs.stat(file.absPath)
           if (!fileStat.isFile() || fileStat.size > MAX_FILE_BYTES) continue
-          const text = String(await fs.readFile(file.absPath, 'utf8'))
+          const text = await readSourceMirrorFileText(file.absPath, file.name)
           payload.push({
             relPath: file.relPath,
             text,

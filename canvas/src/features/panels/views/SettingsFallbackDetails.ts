@@ -64,6 +64,11 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Workspace Storage Sync',
     responsibility: 'Enable periodic workspace seed/docs sync into local workspace FS',
   },
+  'workspace.sync.docsMirror.rootPath': {
+    area: 'Workspace Storage Sync',
+    responsibility: 'Absolute filesystem root for the Source Files docs mirror',
+    notes: 'Defaults to VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT when no MainPanel override is saved.',
+  },
   'workspace.sync.seed.pollMs': {
     area: 'Workspace Storage Sync',
     responsibility: 'Polling interval for workspace seed/docs sync',
@@ -81,12 +86,12 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   'workspace.sync.sourceFiles.docsOnly': {
     area: 'Source File Management',
     responsibility: 'Constrain automated Source Files hydration to canonical workspace mirror roots such as /docs and the configured chat storage root',
-    notes: 'Default automated paths are D1/docs plus the configured chat workspace root; Import local files remains manual-only.',
+    notes: 'Default automated paths are the configured docs mirror plus the configured chat workspace root; Import local files remains manual-only.',
   },
   'workspace.sync.sourceFiles.debounceMs': {
     area: 'Source File Management',
     responsibility: 'Debounce interval before Source Files rematerialization after workspace FS updates',
-    notes: 'Unit: ms, clamped to [100, 10000]; applies to automated D1/docs and workspace-FS refreshes.',
+    notes: 'Unit: ms, clamped to [100, 10000]; applies to automated docs mirror and workspace-FS refreshes.',
   },
   'workspace.import.defaultSourceUrl': {
     area: 'Source File Management',

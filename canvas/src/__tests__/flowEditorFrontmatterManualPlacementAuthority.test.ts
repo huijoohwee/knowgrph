@@ -47,6 +47,12 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!overlayText.includes('shouldUseFlowEditorWidgetFloatingScreenAuthority')) {
     throw new Error('expected node overlay runtime to reuse the shared frontmatter floating screen-authority helper')
   }
+  if (overlayText.includes("from '@/components/FlowEditorCanvas/flowEditorCanvasShared'")) {
+    throw new Error('expected node overlay runtime to avoid importing through Flow Editor canvas shared module')
+  }
+  if (!overlayText.includes("from '@/lib/flowEditor/widgetPlacementAuthority'")) {
+    throw new Error('expected node overlay runtime to import placement authority directly from the shared lib owner')
+  }
   if (!overlayPlacementRuntimeText.includes('const storedWorld = currentStoredWorld || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
     throw new Error('expected frontmatter floating screen-authority mode to honor current scoped world authority while ignoring stale cached world fallback')
   }

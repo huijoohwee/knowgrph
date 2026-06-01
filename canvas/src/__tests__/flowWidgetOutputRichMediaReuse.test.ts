@@ -272,20 +272,22 @@ export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenE
 }
 
 export function testNodeOverlayEditorUsesMergedDataflowRegistry() {
-  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
-  const text = readFileSync(nodeOverlayEditorPath, 'utf8')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const runtimeStoreStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeStoreState.ts')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
+  const runtimeStoreStateText = readFileSync(runtimeStoreStatePath, 'utf8')
 
-  if (!text.includes('buildDataflowWidgetRegistry')) {
-    throw new Error('expected NodeOverlayEditor to resolve widget forms from shared merged dataflow registry')
+  if (!runtimeText.includes('buildDataflowWidgetRegistry')) {
+    throw new Error('expected Flow Editor runtime to resolve widget forms from shared merged dataflow registry')
   }
-  if (!text.includes('documentWidgetRegistry: (s.documentWidgetRegistry')) {
-    throw new Error('expected NodeOverlayEditor to include document widget registry in merged form resolution')
+  if (!runtimeStoreStateText.includes('documentWidgetRegistry: Array.isArray(s.documentWidgetRegistry)')) {
+    throw new Error('expected Flow Editor runtime state to include document widget registry in merged form resolution')
   }
-  if (!text.includes('effectiveWidgetRegistry: (s.effectiveWidgetRegistry')) {
-    throw new Error('expected NodeOverlayEditor to include effective widget registry in merged form resolution')
+  if (!runtimeStoreStateText.includes('effectiveWidgetRegistry: Array.isArray(s.effectiveWidgetRegistry)')) {
+    throw new Error('expected Flow Editor runtime state to include effective widget registry in merged form resolution')
   }
-  if (!text.includes('widgetRegistry: baseWidgetRegistry')) {
-    throw new Error('expected NodeOverlayEditor to include base widget registry in merged form resolution')
+  if (!runtimeText.includes('widgetRegistry: baseWidgetRegistry')) {
+    throw new Error('expected Flow Editor runtime to include base widget registry in merged form resolution')
   }
 }
 
@@ -293,9 +295,11 @@ export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
   const floatingPropsPanelPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'FloatingPropsPanel.tsx')
   const floatingPropsModelPath = resolve(process.cwd(), 'src', 'lib', 'toolbar', 'useFloatingPropsPanelModel.impl.ts')
   const mediaSpecPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'graph-elements', 'mediaSpec.ts')
+  const mediaPropertiesPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'graph-elements', 'mediaProperties.ts')
   const text = readFileSync(floatingPropsPanelPath, 'utf8')
   const modelText = readFileSync(floatingPropsModelPath, 'utf8')
   const mediaSpecText = readFileSync(mediaSpecPath, 'utf8')
+  const mediaPropertiesText = readFileSync(mediaPropertiesPath, 'utf8')
 
   if (!text.includes('effectiveWidgetRegistry')) {
     throw new Error('expected FloatingPropsPanel widget palette to reuse the store effective widget registry SSOT')
@@ -318,8 +322,11 @@ export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
   if (!modelText.includes('preferCurrentGraphDataRefs: true')) {
     throw new Error('expected FloatingPropsPanel model to preserve current graph references when the semantic lookup cache refreshes')
   }
-  if (!mediaSpecText.includes('export function patchNodeMediaProperties')) {
+  if (!mediaSpecText.includes('patchNodeMediaProperties') || !mediaPropertiesText.includes('export function patchNodeMediaProperties')) {
     throw new Error('expected mediaSpec SSOT to expose a shared node-media property patch helper')
+  }
+  if (!modelText.includes("from '@/lib/canvas/graph-elements/mediaSpec'")) {
+    throw new Error('expected FloatingPropsPanel model to import node-media helpers from the mediaSpec SSOT')
   }
   if (!modelText.includes('patchNodeMediaProperties({')) {
     throw new Error('expected FloatingPropsPanel model to reuse the shared node-media property patch helper for update and add-media flows')

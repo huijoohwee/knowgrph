@@ -622,8 +622,8 @@ export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
   if (sourceFileRowsText.includes('rounded-xl') || sourceFileRowsText.includes('grid grid-cols-2')) {
     throw new Error('Expected Source File Management settings to avoid the legacy standalone card/stat-grid layout')
   }
-  if (!sourceFileRowsText.includes('Restore D1/docs defaults') || !sourceFileRowsText.includes('Open Source Files')) {
-    throw new Error('Expected Source File Management settings rows to expose D1/docs restore and Source Files open actions')
+  if (!sourceFileRowsText.includes('Restore docs mirror defaults') || !sourceFileRowsText.includes('Open Source Files')) {
+    throw new Error('Expected Source File Management settings rows to expose docs mirror restore and Source Files open actions')
   }
   if (!sourceFileRowsText.includes('scheduleApplyComposedGraphFromSourceFiles()')) {
     throw new Error('Expected Source File Management settings rows to reuse the canonical passive Source Files recomposition scheduler')

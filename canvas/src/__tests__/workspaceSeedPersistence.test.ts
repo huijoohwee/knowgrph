@@ -1,6 +1,8 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import path from 'node:path'
+import os from 'node:os'
+import fsPromises from 'node:fs/promises'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
@@ -17,6 +19,7 @@ import {
   materializeActiveWorkspaceEntryIntoSourceFiles,
   readReusableWorkspaceEntriesSnapshot,
   readWorkspaceActiveEntrySnapshot,
+  readWorkspaceSourceRootEntriesSnapshot,
   resolveMaterializedWorkspaceActivePath,
 } from '@/features/source-files/sourceFilesRuntimeShared'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
@@ -1072,6 +1075,62 @@ export async function testWorkspaceSeedProviderReadsDocsMirrorFromSelectedLocalF
   }
 }
 
+export async function testWorkspaceSeedProviderKeepsEmptyAndModelAssetDocsMirrorFiles() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-docs-mirror-'))
+  const glbBytes = Buffer.from([0x67, 0x6c, 0x54, 0x46])
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tmpRoot
+    await fsPromises.writeFile(path.join(tmpRoot, 'empty-placeholder.md'), '')
+    await fsPromises.writeFile(path.join(tmpRoot, 'model.gltf'), '{"asset":{"version":"2.0"}}')
+    await fsPromises.writeFile(path.join(tmpRoot, 'model.glb'), glbBytes)
+
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    const byRelPath = new Map(mirrored.map(entry => [entry.relPath, entry]))
+    if (!byRelPath.has('empty-placeholder.md')) {
+      throw new Error(`expected docs mirror to preserve empty GitHub placeholder files, got ${JSON.stringify(mirrored)}`)
+    }
+    if (byRelPath.get('empty-placeholder.md')?.text !== '') {
+      throw new Error('expected empty docs mirror file to stay empty instead of being replaced or dropped')
+    }
+    if (String(byRelPath.get('model.gltf')?.text || '').trim() !== '{"asset":{"version":"2.0"}}') {
+      throw new Error(`expected docs mirror to include GLTF source asset text, got ${JSON.stringify(mirrored)}`)
+    }
+    if (String(byRelPath.get('model.glb')?.text || '') !== glbBytes.toString('base64')) {
+      throw new Error('expected docs mirror to include GLB source assets as base64 text')
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tmpRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testWorkspaceSourceRootSnapshotKeepsFullDocsTreeForSourceFilesSync() {
+  const fs = createMemoryWorkspaceFs({
+    initialEntries: [
+      { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+      { path: '/docs', parentPath: '/', kind: 'folder', name: 'docs', updatedAtMs: 1 },
+      { path: '/docs/active.md', parentPath: '/docs', kind: 'file', name: 'active.md', text: '# Active', updatedAtMs: 2 },
+      { path: '/docs/empty-placeholder.md', parentPath: '/docs', kind: 'file', name: 'empty-placeholder.md', text: '', updatedAtMs: 3 },
+      { path: '/docs/model.gltf', parentPath: '/docs', kind: 'file', name: 'model.gltf', text: '{"asset":{"version":"2.0"}}', updatedAtMs: 4 },
+    ],
+  })
+  const snapshot = await readWorkspaceSourceRootEntriesSnapshot({
+    fs,
+    activePath: '/docs/active.md',
+  })
+  const paths = snapshot
+    .filter(entry => entry.kind === 'file')
+    .map(entry => entry.path)
+    .sort()
+  for (const expectedPath of ['/docs/active.md', '/docs/empty-placeholder.md', '/docs/model.gltf']) {
+    if (!paths.includes(expectedPath)) {
+      throw new Error(`expected Source Files sync snapshot to keep full docs tree path ${expectedPath}, got ${JSON.stringify(paths)}`)
+    }
+  }
+}
+
 export async function testWorkspaceSeedProviderReadsDocsMirrorFromSourceFilesState() {
   const { restore } = initJsdomHarness()
   const store = useGraphStore.getState()
@@ -1763,6 +1822,82 @@ export async function testRuntimeSourceFilesReflectWorkspaceSeedFileContentChang
         return sourcePath.startsWith('workspace:') && (name === 'knowgrph-video-demo.md' || sourcePath.includes('knowgrph-video-demo.md'))
       })
       return Boolean(file && String(file.text || '').includes('seed v2'))
+    })
+  } finally {
+    try {
+      await act(async () => {
+        root?.unmount()
+        await new Promise<void>(resolve => setTimeout(resolve, 0))
+      })
+    } catch {
+      void 0
+    }
+    restore()
+    resetWorkspaceFsForTests()
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+  }
+}
+
+export async function testRuntimeSourceFilesSyncsFullDocsMirrorTree() {
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  let root: ReturnType<typeof createRoot> | null = null
+  const { restore } = initJsdomHarness()
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    if (url.endsWith('/__kg_fs_list')) {
+      return new Response(JSON.stringify({
+        ok: true,
+        files: [
+          { relPath: 'active.md', text: '# Active', updatedAtMs: 10 },
+          { relPath: 'empty-placeholder.md', text: '', updatedAtMs: 11 },
+          { relPath: 'model.glb', text: Buffer.from([0x67, 0x6c, 0x54, 0x46]).toString('base64'), updatedAtMs: 12 },
+        ],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    return new Response('', { status: 404 })
+  }) as typeof fetch
+
+  const waitFor = async (predicate: () => boolean, timeoutMs = 5000) => {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      if (predicate()) return
+      await new Promise<void>(resolve => setTimeout(resolve, 10))
+    }
+    const debugPaths = useGraphStore
+      .getState()
+      .sourceFiles
+      .map(file => `${String(file.name || '')}::${String(file.source?.path || '')}`)
+    throw new Error(`timed out waiting for full docs mirror Source Files sync; sourceFiles=${JSON.stringify(debugPaths)}`)
+  }
+
+  try {
+    resetWorkspaceFsForTests()
+    useGraphStore.getState().resetAll()
+    useGraphStore.getState().setSourceFiles([])
+    useMarkdownExplorerStore.getState().setActivePath('/docs/active.md')
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    await act(async () => {
+      root = createRoot(container)
+      root.render(React.createElement(SourceFilesPersistenceBootstrap))
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+    })
+    await waitFor(() => {
+      const sourcePaths = new Set(useGraphStore.getState().sourceFiles.map(file => String(file.source?.path || '')))
+      return sourcePaths.has('workspace:/docs/active.md')
+        && sourcePaths.has('workspace:/docs/empty-placeholder.md')
+        && sourcePaths.has('workspace:/docs/model.glb')
     })
   } finally {
     try {

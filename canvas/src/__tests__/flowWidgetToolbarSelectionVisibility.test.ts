@@ -1,15 +1,20 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+function readNodeOverlayEditorImplementationText(): string {
+  return [
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts'),
+  ].map(path => readFileSync(path, 'utf8')).join('\n')
+}
+
 export function testFlowWidgetToolbarAutoShowsOnFirstSelectionTransition() {
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
-  const text = readFileSync(overlayPath, 'utf8')
+  const text = readNodeOverlayEditorImplementationText()
 
   const requiredSnippets = [
     'const wasSelectedRef = React.useRef(false)',
     'const selected = !!id && selectedNodeId === id',
-    'if (selected && !wasSelectedRef.current) {',
-    'setToolbarVisible(true)',
     'wasSelectedRef.current = selected',
   ]
   for (const snippet of requiredSnippets) {
@@ -17,12 +22,14 @@ export function testFlowWidgetToolbarAutoShowsOnFirstSelectionTransition() {
       throw new Error(`expected NodeOverlayEditor to auto-show floating toolbar when widget selection transitions to active: ${snippet}`)
     }
   }
+  if (!text.includes('if (selected && !wasSelectedRef.current) setToolbarVisible(true)')) {
+    throw new Error('expected NodeOverlayEditor to auto-show floating toolbar when widget selection transitions to active')
+  }
 }
 
 export function testFlowWidgetToolbarVisibleWhenViewLockOn() {
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
-  const overlayText = readFileSync(overlayPath, 'utf8')
+  const overlayText = readNodeOverlayEditorImplementationText()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
 
   if (!overlayText.includes('onPointerDownCapture={(ev) => {')) {
@@ -43,10 +50,9 @@ export function testFlowWidgetToolbarVisibleWhenViewLockOn() {
 }
 
 export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
   const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const overlayText = readFileSync(overlayPath, 'utf8')
+  const overlayText = readNodeOverlayEditorImplementationText()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const panelText = readFileSync(panelPath, 'utf8')
 

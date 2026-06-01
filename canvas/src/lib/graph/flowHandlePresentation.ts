@@ -15,6 +15,23 @@ export function formatFlowHandleKeyValue(args: { dir: FlowHandleDir; portKey: st
   return `${path}: "${portKey}"`
 }
 
+export function formatFlowHandleAccessibleName(args: {
+  dir: FlowHandleDir
+  portKey: string
+  schemaPath?: unknown
+  occurrenceIndex?: number
+  occurrenceCount?: number
+}): string {
+  const base = formatFlowHandleKeyValue({ dir: args.dir, portKey: args.portKey })
+  if (!base) return ''
+  const count = Number.isFinite(args.occurrenceCount) ? Math.max(0, Math.floor(Number(args.occurrenceCount))) : 0
+  if (count <= 1) return base
+  const schemaPath = String(args.schemaPath || '').trim()
+  const index = Number.isFinite(args.occurrenceIndex) ? Math.max(0, Math.floor(Number(args.occurrenceIndex))) : 0
+  if (schemaPath) return `${base} (${schemaPath} ${index + 1}/${count})`
+  return `${base} (${index + 1}/${count})`
+}
+
 export function formatFlowHandleValueList(handles: ReadonlyArray<string>): string {
   const vals = handles
     .map(v => String(v || '').trim())

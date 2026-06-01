@@ -13,7 +13,7 @@ import {
 } from '@/components/FlowEditor/nodeOverlayEditorShared'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { resolveDefaultFlowWidgetPinnedInCanvas, shouldUseFlowEditorWidgetFloatingScreenAuthority } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { resolveDefaultFlowWidgetPinnedInCanvas, shouldUseFlowEditorWidgetFloatingScreenAuthority } from '@/lib/flowEditor/widgetPlacementAuthority'
 import { computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
 import { lsBool, lsSetBool } from '@/lib/persistence'
@@ -249,7 +249,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
   React.useEffect(() => {
     if (!active || typeof window === 'undefined') return
     const onFrame = () => {
-      placement.applyOverlayPosition({ persistClamp: false, emitInteractionFrame: false })
+      placement.applyOverlayPosition({ emitInteractionFrame: false })
     }
     window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onFrame as EventListener)
     return () => {

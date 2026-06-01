@@ -9,7 +9,7 @@ import {
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
-import { readWorkspaceActiveEntrySnapshot } from '@/features/source-files/sourceFilesRuntimeActive'
+import { readWorkspaceSourceRootEntriesSnapshot } from '@/features/source-files/sourceFilesRuntimeActive'
 import { resolveMaterializedWorkspaceActivePath } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { resolveMarkdownWorkspaceCanonicalSelection } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionCanonicalPath'
 import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
@@ -81,17 +81,17 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     workspaceEntries: startupWorkspaceEntries,
   })
   let workspaceEntries = desiredActivePath
-    ? await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
-    : []
-  const hasDesiredActiveText = workspaceEntries.some(entry => entry?.kind === 'file' && String(entry.text || '').trim())
+    ? await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
+    : startupWorkspaceEntries
+  const hasDesiredActiveText = workspaceEntries.some(entry => entry?.kind === 'file' && entry.path === desiredActivePath && String(entry.text || '').trim())
   if (!hasDesiredActiveText && !preferCustomValidationSeed) {
     desiredActivePath = resolveWorkspaceStartupCanonicalPath({
       activePath: WORKSPACE_README_SEED_PATH,
       workspaceEntries: startupWorkspaceEntries,
     })
     workspaceEntries = desiredActivePath
-      ? await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
-      : []
+      ? await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
+      : startupWorkspaceEntries
   }
   const snapshot = buildInitialWorkspaceStartupSnapshot({
     currentActivePath,

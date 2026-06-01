@@ -134,7 +134,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const runtimeSeedText = readFileSync(runtimeSeedPath, 'utf8')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) return')
+  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) {')
   const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
   const worldSeedWriteIndex = runtimeText.indexOf('buildWorkspaceBlockedFlowWidgetSeedPatch', worldSeedGuardIndex)
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
@@ -146,7 +146,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('const hasMissingWorldSeeds = pendingRaw.length > 0')) {
     throw new Error('expected pinned widget auto-seed guard to treat missing world seeds as a first-frame recovery exception')
   }
-  if (!runtimeText.includes('const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed')) {
+  if (!runtimeText.includes('const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed || layoutRebalanceRequested')) {
     throw new Error('expected pinned widget auto-seed guard to classify overlap/scene-empty recovery as drift reseed candidates without viewport offscreen recovery')
   }
   if (!runtimeText.includes('if (workspaceMutationBlockedForSeed) {')) {
@@ -167,10 +167,12 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (runtimeText.includes('const reseedEligible = effectiveOpenIds')) {
     throw new Error('expected pinned widget auto-seed to avoid reseeding already-placed world positions on layout-signature churn')
   }
-  if (!runtimeText.includes('let pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))')) {
-    throw new Error('expected pinned widget auto-seed to only seed missing or overlapping world positions')
+  if (!runtimeText.includes('...pendingRaw,\n      ...overlapEligible,\n      ...forcedInitialCollectiveIds,\n      ...forcedLayoutRebalanceIds,')) {
+    throw new Error('expected pinned widget auto-seed to only seed missing, overlapping, initial collective, or explicit layout-rebalance world positions')
   }
-  if (!runtimeText.includes("graphMetaKind === 'frontmatter-flow'\n            ? Object.keys(worldById)")) {
+  if (!runtimeText.includes('const effectiveOrFallbackOpenIds = effectiveOpenIds.length > 0')
+    || !runtimeText.includes("graphMetaKind === 'frontmatter-flow'")
+    || !runtimeText.includes('...Object.keys(worldById),')) {
     throw new Error('expected pinned widget auto-seed to fallback to world-key ids when frontmatter effective-open ids are empty')
   }
   if (!runtimeText.includes('const shouldReseedWholeFrontmatterCollective =') || !runtimeText.includes('if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds')) {
@@ -179,8 +181,10 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (runtimeText.includes('shouldReseedFrontmatterScreenAuthorityCollective({') || runtimeText.includes('resolveOffscreenPinnedFlowWidgetIds({')) {
     throw new Error('expected pinned widget auto-seed to forbid viewport/offscreen reseed triggers in infinite-canvas mode')
   }
-  if (!runtimeText.includes('const allowPersistedViewportOffsetSeed = !workspaceMutationBlockedForSeed')) {
-    throw new Error('expected pinned widget auto-seed to disable persisted zoom-offset fallback while Workspace overlay/indexing mutation guard is active')
+  if (!runtimeText.includes('const allowPersistedViewportOffsetSeed =')
+    || !runtimeText.includes('!workspaceMutationBlockedForSeed')
+    || !runtimeText.includes('isFrontmatterFlow\n        && persistedHasViewportOffset')) {
+    throw new Error('expected pinned widget auto-seed to gate persisted zoom-offset fallback while Workspace overlay/indexing mutation guard is active')
   }
   if (!runtimeText.includes('(allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)')) {
     throw new Error('expected pinned widget auto-seed zoom source to gate persisted viewport-offset seed by workspace mutation guard')
@@ -213,7 +217,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('if (forceSceneEmptyReseed) return true')) {
     throw new Error('expected pinned widget auto-seed pending selection to include all pinned widgets during empty-scene reseed')
   }
-  if (!runtimeText.includes('if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !forceSceneEmptyReseed) return')) {
+  if (!runtimeText.includes('if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !forceSceneEmptyReseed) {')) {
     throw new Error('expected pinned widget auto-seed key guard to allow forced scene-empty reseed despite matching seed key')
   }
   if (!runtimeText.includes("const FLOW_EDITOR_RUNTIME_SCENE_TRACE_KEY = '__flowEditorRuntimeSceneDebug'")) {
@@ -283,7 +287,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes("graphMetaKind === 'frontmatter-flow'")) {
     throw new Error('expected pinned widget auto-seed overlap detection to include frontmatter-flow pinned widgets with stale world positions')
   }
-  if (!runtimeText.includes('&& !frontmatterPinnedWidget) continue')) {
+  if (!runtimeText.includes('|| frontmatterPinnedWidget')) {
     throw new Error('expected pinned widget auto-seed overlap detection to avoid skipping frontmatter pinned widgets when world positions exist')
   }
 
@@ -326,19 +330,25 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (graphStateText.includes('allowNodeDragOverride !== false && documentStructureBaselineLock !== true')) {
     throw new Error('expected FlowCanvas interaction mutation gate to avoid baseline-lock coupling that freezes workspace-open drag/pan/zoom')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('if (workspaceMutationBlocked) {')) {
-    throw new Error('expected Flow Editor overlay-only mode to keep base FlowCanvas visible while workspace mutation/view is active')
+  if (!flowEditorSurfaceVisibilityText.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
+    throw new Error('expected Flow Editor overlay-only mode to branch on frontmatter-flow before workspace mutation fallback')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('return false')) {
-    throw new Error('expected workspace-mutation overlay-only guard to explicitly preserve base canvas interaction and edge visibility')
+  if (!flowEditorSurfaceVisibilityText.includes('FlowCanvas') || !flowEditorSurfaceVisibilityText.includes('must not become a visual fallback')) {
+    throw new Error('expected frontmatter-flow overlay-only guard to keep FlowCanvas as a non-visual runtime substrate')
   }
   if (overlaySurfaceText.includes('preferCanvasCollectiveInteraction')) {
     throw new Error('expected Flow Editor overlay surface to avoid base FlowCanvas collective fallback authority that can cause renderer seepage/interference')
   }
   const overlayCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
   const overlayCanvasSurfaceText = readFileSync(overlayCanvasSurfacePath, 'utf8')
-  if (!overlayCanvasSurfaceText.includes('renderNodes={true}')) {
-    throw new Error('expected Flow Editor canvas surface to keep runtime scene nodes active for collective drag/pan/zoom while overlay-only mode is enabled')
+  if (!overlayCanvasSurfaceText.includes('suppressNativeFlowCanvasSurface: boolean')) {
+    throw new Error('expected Flow Editor canvas surface to derive native FlowCanvas suppression from the shared visibility owner')
+  }
+  if (!overlayCanvasSurfaceText.includes('renderNodes={!props.suppressNativeFlowCanvasSurface}')) {
+    throw new Error('expected Flow Editor canvas surface to suppress FlowCanvas nodes while overlay/frontmatter ownership owns the scene')
+  }
+  if (!overlayCanvasSurfaceText.includes('renderGroups={!props.suppressNativeFlowCanvasSurface && !props.geospatialWidgetPanelMode}')) {
+    throw new Error('expected Flow Editor canvas surface to suppress FlowCanvas groups while overlay/frontmatter ownership owns the scene')
   }
   if (overlayCanvasSurfaceText.includes('hideNodeIds=')) {
     throw new Error('expected Flow Editor canvas surface to forbid hideNodeIds masking and keep FlowCanvas visibility neutral')
@@ -346,7 +356,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (overlayCanvasSurfaceText.includes('hidePortHandleNodeIds=')) {
     throw new Error('expected Flow Editor canvas surface to forbid hidePortHandleNodeIds masking and keep FlowCanvas interaction contracts upstream')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('excludedNodeIds: overlayOnlyActive ? overlayEditorNodeIdsSnapshot : []')) {
+  if (!flowEditorSurfaceVisibilityText.includes('excludedNodeIds: useVisibleCoverageExclusion')) {
     throw new Error('expected Flow Editor overlay surface to neutralize seepage via upstream filtered graph exclusions instead of FlowCanvas hide props')
   }
   if (!flowEditorSurfaceVisibilityText.includes('return filterGraphByExcludedNodeIds({')) {
@@ -354,6 +364,13 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const flowEditorCanvasRuntimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
+  if (
+    !flowEditorCanvasRuntimeText.includes('const suppressNativeFlowCanvasSurface = React.useMemo(')
+    || !flowEditorCanvasRuntimeText.includes('flowEditorFrontmatterGraphAvailable,')
+    || !flowEditorCanvasRuntimeText.includes('suppressNativeFlowCanvasSurface={suppressNativeFlowCanvasSurface}')
+  ) {
+    throw new Error('expected Flow Editor runtime to resolve native FlowCanvas suppression before passing the filtered substrate graph into the surface')
+  }
   if (!flowEditorCanvasRuntimeText.includes('renderGraphDataOverride={flowCanvasGraphDataOverride}')) {
     throw new Error('expected Flow Editor runtime to pass the upstream-filtered graph override into FlowCanvas')
   }

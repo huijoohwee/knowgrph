@@ -302,10 +302,8 @@ export function useFlowEditorOverlaySurface(args: {
   React.useEffect(() => {
     renderGraphDataOverrideRef.current = renderGraphDataOverride
     const nodeCount = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0
-    if (renderGraphDataOverride && nodeCount > 0 && !deferComposedGraphOverlayRender) {
-      lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride
-    }
-  }, [deferComposedGraphOverlayRender, renderGraphDataOverride])
+    if (renderGraphDataOverride && nodeCount > 0) lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride
+  }, [renderGraphDataOverride])
 
   const overlayEditorNodeIdsKey = React.useMemo(
     () => hashScopedStringArraySignature('overlay', overlayEditorNodeIds),
@@ -595,7 +593,6 @@ export function useFlowEditorOverlaySurface(args: {
     geospatialWidgetPanelMode,
     frontmatterOverlayHideSafety,
     workspaceMutationBlocked,
-    workspaceEditorOverlayOpen,
   })
 
   const flowCanvasGraphDataOverride = React.useMemo(() => {

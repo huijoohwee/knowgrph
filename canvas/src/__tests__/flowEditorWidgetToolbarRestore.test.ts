@@ -3,12 +3,18 @@ import { resolve } from 'node:path'
 
 export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() {
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayImplementationPaths = [
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts'),
+  ]
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
   const copyPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
-  const overlayText = readFileSync(overlayPath, 'utf8')
-  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const overlayText = overlayImplementationPaths.map(path => readFileSync(path, 'utf8')).join('\n')
+  const overlaySurfaceText = [overlaySurfacePath, overlaySurfaceElementsPath].map(path => readFileSync(path, 'utf8')).join('\n')
   const copyText = readFileSync(copyPath, 'utf8')
 
   const requiredToolbarSnippets = [
@@ -35,16 +41,16 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   if (!overlayText.includes('const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? \'above\' : \'below\'')) {
     throw new Error('expected widget tiny floating toolbar docking to derive from viewport-safe overlay position')
   }
-  if (!overlayText.includes('absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto')) {
+  if (!overlayText.includes('absolute left-1/2 z-10 -translate-x-1/2 ${passthroughPointerEventsClass}')) {
     throw new Error('expected widget tiny floating toolbar anchor to keep explicit stacking and pointer-event visibility')
   }
   if (!overlayText.includes('const [toolbarSideClamp, setToolbarSideClamp] = React.useState(false)')) {
     throw new Error('expected Rich Media widget toolbar to track side clamping state')
   }
-  if (!overlayText.includes('const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportWidth')) {
+  if (!overlayText.includes('const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportW')) {
     throw new Error('expected Rich Media widget toolbar to clamp inside the widget when right-side placement would clip')
   }
-  if (!overlayText.includes("className={isRichMediaPanelWidget ? 'absolute z-10 pointer-events-auto' : 'absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto'}")) {
+  if (!overlayText.includes('isRichMediaPanelWidget\n              ? `absolute z-10 ${passthroughPointerEventsClass}`')) {
     throw new Error('expected Rich Media widget toolbar anchor to branch into side-docked placement while preserving default center toolbar behavior for other widgets')
   }
   if (!overlayText.includes('visible={toolbarVisible}')) {

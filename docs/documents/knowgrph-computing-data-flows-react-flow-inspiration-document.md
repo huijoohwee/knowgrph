@@ -39,6 +39,7 @@ This maps to Knowgrph as:
 4. Node Quick Editor fields may display connected values, but field display must not recompute the graph or mutate upstream nodes.
 5. Runtime compute is enabled only through frontmatter flow settings and must remain bounded, cached, and deterministic.
 6. Branch-stop semantics must apply by value, not by node id, label, filename, or demo route.
+7. Repeated visible labels such as `Value` must not become repeated control identities: Field rows and port rows must derive DOM ids and accessible names from the row role, schema path, occurrence, and semantic port key while preserving the authored `portKey` used by edges.
 
 ---
 
@@ -52,6 +53,8 @@ A computing-flow demo should be authored as a neutral graph:
 - a branch node that writes to one of several output ports and leaves inactive ports empty,
 - sink/debug nodes that show propagated results.
 
+When several nodes expose a visible `Value` row, each row must still carry a distinct schema path and each handle must carry a distinct semantic port key for its role. The demo should prove that changing a source `Value` row through the Node Quick Editor updates downstream connected values without renderer-local state or filename-specific branching.
+
 The demo must avoid copied external component names, exact external sample URLs, vendor package imports, and route ids. It should prove the pattern by changing generic node values and observing downstream connected values through the existing Flow Editor panels.
 
 ---
@@ -62,7 +65,8 @@ Validation should prove:
 
 - the document parses as `frontmatter-flow` when supplied as a runtime validation input,
 - at least one compute node output propagates to a downstream node,
+- duplicate visible `Value` labels remain editable because control identity is schema-path scoped,
+- multi-handle rows have unique accessible names without changing the structural port keys used by edges,
 - copied external tutorial names/routes/packages are absent from validation inputs,
 - empty runtime validation files are treated as absent inputs rather than backfilled fixtures,
 - repo code stays native and does not import external flow-rendering packages.
-

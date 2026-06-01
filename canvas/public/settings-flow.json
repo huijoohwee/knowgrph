@@ -4660,6 +4660,20 @@
     ],
     "lineRange": ""
   },
+  "workspace.sync.docsMirror.rootPath": {
+    "area": "Workspace Storage Sync",
+    "responsibility": "Absolute filesystem root for the Source Files docs mirror",
+    "notes": "Defaults to VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT when no MainPanel override is saved.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L61"
+  },
   "workspace.sync.seed.enabled": {
     "area": "Workspace Storage Sync",
     "responsibility": "Enable periodic workspace seed/docs sync into local workspace FS",
@@ -4672,7 +4686,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L59"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L71"
   },
   "workspace.sync.seed.pollMs": {
     "area": "Workspace Storage Sync",
@@ -4686,7 +4700,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L69"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L81"
   },
   "workspace.sync.seed.idleMaxMs": {
     "area": "Workspace Storage Sync",
@@ -4700,7 +4714,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L79"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L91"
   },
   "workspace.sync.autoRefresh.enabled": {
     "area": "Workspace Storage Sync",
@@ -4714,7 +4728,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L89"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L101"
   },
   "workspace.sync.sourceFiles.docsOnly": {
     "area": "Source File Management",
@@ -4728,7 +4742,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L99"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L111"
   },
   "workspace.sync.sourceFiles.debounceMs": {
     "area": "Source File Management",
@@ -4742,7 +4756,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L121"
   },
   "workspace.import.defaultSourceUrl": {
     "area": "Source File Management",
@@ -4762,7 +4776,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L119; canvas/src/hooks/store/canvasSlice.ts:L641; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L194"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L131; canvas/src/hooks/store/canvasSlice.ts:L641; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L194"
   },
   "workspace.import.shareExportRootPath": {
     "area": "Import / Export",
@@ -4776,7 +4790,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L133"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L145"
   },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",

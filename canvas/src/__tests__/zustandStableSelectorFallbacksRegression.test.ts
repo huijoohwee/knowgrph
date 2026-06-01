@@ -31,7 +31,7 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/components/FlowEditor/NodeOverlayEditor.tsx',
+    path: 'src/components/FlowEditor/NodeOverlayEditorInner.tsx',
     forbiddenSnippets: [
       'openWidgetNodeIds: s.openWidgetNodeIds || []',
     ],

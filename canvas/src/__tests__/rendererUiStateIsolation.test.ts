@@ -132,7 +132,6 @@ export function testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendere
 }
 
 export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitRendererMode() {
-  const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const editorViewPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
@@ -141,7 +140,6 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
   const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const editorText = readFileSync(editorPath, 'utf8')
   const editorViewText = readFileSync(editorViewPath, 'utf8')
   const panelText = readFileSync(panelPath, 'utf8')
   const collisionText = readFileSync(collisionPath, 'utf8')
@@ -177,11 +175,11 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   if (!flowCanvasRuntimeText.includes('flowEditorSurfaceId: args.flowEditorSurfaceId')) {
     throw new Error('expected FlowCanvas runtime to forward the active Flow Editor surface identity into interaction binding')
   }
-  if (!collisionText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
+  if (!collisionText.includes('queryFlowEditorOverlayRootsForSurface')) {
     throw new Error('expected Flow Editor collision queries to be bounded by the active surface root')
   }
-  if (!collisionText.includes('const queryRoot: ParentNode = surfaceRoot || document')) {
-    throw new Error('expected Flow Editor collision queries to avoid document-wide overlay seepage')
+  if (!collisionText.includes('surfaceId: flowEditorSurfaceId')) {
+    throw new Error('expected Flow Editor collision queries to pass active surface identity into the shared overlay query helper')
   }
   if (!collisionText.includes('queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)')) {
     throw new Error('expected Flow Editor collision queries to stay scoped to the active surface identity')

@@ -1,9 +1,14 @@
 import { JSDOM } from 'jsdom'
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Simulate } from 'react-dom/test-utils'
 
 import { defaultSchema } from '@/lib/graph/schema'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
+import {
+  FRONTMATTER_FLOW_HANDLES_VALUE_KEY,
+  FRONTMATTER_FLOW_WIDGET_FIELDS_KEY,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import {
   buildCanonicalWidgetRegistryDraft,
   buildTextGenerationRegistryDraft,
@@ -17,6 +22,39 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+
+type DomGlobalSnapshot = Partial<Pick<
+  typeof globalThis,
+  'window' | 'document' | 'Event' | 'InputEvent' | 'HTMLElement' | 'HTMLInputElement' | 'HTMLTextAreaElement'
+>> & { IS_REACT_ACT_ENVIRONMENT?: unknown }
+
+function installDomGlobals(dom: JSDOM): () => void {
+  const g = globalThis as typeof globalThis & DomGlobalSnapshot
+  const prev: DomGlobalSnapshot = {
+    window: g.window,
+    document: g.document,
+    Event: g.Event,
+    InputEvent: g.InputEvent,
+    HTMLElement: g.HTMLElement,
+    HTMLInputElement: g.HTMLInputElement,
+    HTMLTextAreaElement: g.HTMLTextAreaElement,
+    IS_REACT_ACT_ENVIRONMENT: g.IS_REACT_ACT_ENVIRONMENT,
+  }
+  g.window = dom.window as unknown as Window & typeof globalThis
+  g.document = dom.window.document
+  g.Event = dom.window.Event as typeof Event
+  g.InputEvent = dom.window.InputEvent as typeof InputEvent
+  g.HTMLElement = dom.window.HTMLElement as typeof HTMLElement
+  g.HTMLInputElement = dom.window.HTMLInputElement as typeof HTMLInputElement
+  g.HTMLTextAreaElement = dom.window.HTMLTextAreaElement as typeof HTMLTextAreaElement
+  g.IS_REACT_ACT_ENVIRONMENT = true
+  return () => {
+    Object.entries(prev).forEach(([key, value]) => {
+      if (typeof value === 'undefined') delete (g as Record<string, unknown>)[key]
+      else (g as Record<string, unknown>)[key] = value
+    })
+  }
+}
 
 async function renderFrontmatterBuiltInWidget(args: {
   nodeId: string
@@ -176,6 +214,117 @@ export const testFlowWidgetSchemaFieldPortsRenderRowHandles = async () => {
   if (outButtons.length !== 2) throw new Error(`expected 2 output port buttons, got ${outButtons.length}`)
 
   root.unmount()
+}
+
+export const testFrontmatterEnvelopeHandlesUsePerPortNamesAndEditableTypedValues = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const restoreGlobals = installDomGlobals(dom)
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  const patched: Array<Record<string, unknown>> = []
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(NodeOverlayEditorForm, {
+          active: true,
+          node: {
+            id: 'p-text-script',
+            label: 'Rich Media Panel - Text',
+            type: 'RichMediaPanel',
+            properties: {
+              [FRONTMATTER_FLOW_HANDLES_VALUE_KEY]: {
+                target: ['output', 'outputSrcDoc'],
+                source: ['output', 'outputSrcDoc'],
+              },
+              [FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]: [
+                { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'prompt' },
+                { fieldKey: 'actor', fieldType: 'array', schemaPath: 'actor' },
+                { fieldKey: 'media_interactive', fieldType: 'boolean', schemaPath: 'media_interactive' },
+              ],
+              prompt: 'before',
+              actor: ['user', 'AI'],
+              media_interactive: true,
+            },
+          },
+          graphMetaKind: 'frontmatter-flow',
+          schema: defaultSchema,
+          hideFields: false,
+          labelInputRef: { current: null },
+          onSetLabel: () => void 0,
+          onSetType: () => void 0,
+          onPatchProperties: () => void 0,
+          onSetProperties: next => patched.push(next),
+          onValidate: () => void 0,
+        }),
+      )
+    })
+
+    const envelope = host.querySelector('section[aria-label="Flow Envelope"]')
+    if (!envelope) throw new Error('expected generic frontmatter-flow node to render Flow Envelope rows')
+    const labels = (Array.from(envelope.querySelectorAll('label')) as HTMLLabelElement[])
+      .map(label => String(label.textContent || '').trim())
+      .filter(Boolean)
+    const expectedHandleLabels = [
+      'handles.target: "output"',
+      'handles.target: "outputSrcDoc"',
+      'handles.source: "output"',
+      'handles.source: "outputSrcDoc"',
+    ]
+    expectedHandleLabels.forEach(label => {
+      if (!labels.includes(label)) {
+        throw new Error(`expected per-port handle label ${JSON.stringify(label)}, got ${JSON.stringify(labels)}`)
+      }
+    })
+    const bareHandleLabels = labels.filter(label => label === 'handles.target' || label === 'handles.source')
+    if (bareHandleLabels.length > 0) {
+      throw new Error(`expected frontmatter handle rows to avoid shared bare names, got ${JSON.stringify(bareHandleLabels)}`)
+    }
+    const handleLabels = labels.filter(label => label.startsWith('handles.'))
+    if (new Set(handleLabels).size !== handleLabels.length) {
+      throw new Error(`expected visible frontmatter handle row names to be unique, got ${JSON.stringify(handleLabels)}`)
+    }
+
+    const readControlForLabel = (labelText: string): HTMLTextAreaElement => {
+      const label = (Array.from(envelope.querySelectorAll('label')) as HTMLLabelElement[]).find(entry => (
+        String(entry.textContent || '').trim() === labelText
+      ))
+      if (!label) throw new Error(`expected label ${JSON.stringify(labelText)} to render`)
+      const controlId = String(label.getAttribute('for') || '').trim()
+      const control = controlId ? dom.window.document.getElementById(controlId) : null
+      if (!(control instanceof dom.window.HTMLTextAreaElement)) {
+        throw new Error(`expected label ${JSON.stringify(labelText)} to bind to editable textarea`)
+      }
+      return control
+    }
+
+    const textareaSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')?.set
+    if (!textareaSetter) throw new Error('expected DOM textarea value setter')
+    const editText = async (labelText: string, value: string) => {
+      const control = readControlForLabel(labelText)
+      await act(async () => {
+        textareaSetter.call(control, value)
+        Simulate.change(control)
+      })
+    }
+
+    await editText('prompt', 'after')
+    await editText('actor', '["producer","AI"]')
+    await editText('media_interactive', 'false')
+
+    if (!patched.some(entry => entry.prompt === 'after')) {
+      throw new Error(`expected string KTV Value edit to patch prompt, got ${JSON.stringify(patched)}`)
+    }
+    if (!patched.some(entry => Array.isArray(entry.actor) && entry.actor.join('|') === 'producer|AI')) {
+      throw new Error(`expected array KTV Value edit to patch typed actor array, got ${JSON.stringify(patched)}`)
+    }
+    if (!patched.some(entry => entry.media_interactive === false)) {
+      throw new Error(`expected boolean KTV Value edit to patch typed false value, got ${JSON.stringify(patched)}`)
+    }
+  } finally {
+    root.unmount()
+    restoreGlobals()
+  }
 }
 
 export const testTextGenerationWidgetDoesNotRenderLegacySmartMediaRows = async () => {

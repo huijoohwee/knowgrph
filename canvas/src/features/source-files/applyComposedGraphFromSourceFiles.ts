@@ -7,6 +7,7 @@ import {
 } from '@/lib/graph/sourceLayers'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   resolveComposedApplyDeferralReason,
@@ -270,6 +271,10 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
   const composeScopeOptions = includeWorkspaceBacked ? buildExplicitGraphOwnerComposeOptions() : undefined
   const composeSignature = pendingComposedGraphSignature || readCurrentComposedGraphSignature(composeScopeOptions)
   const store = useGraphStore.getState()
+  if (isFrontmatterOnlyPolicyActive({ canvasRenderMode: store.canvasRenderMode, canvas2dRenderer: store.canvas2dRenderer })) {
+    resetPendingComposedGraphApplyState()
+    return
+  }
   if (!includeWorkspaceBacked && !hasEnabledNonWorkspaceComposedSources(store.sourceFiles)) {
     clearComposedGraphIfEmpty(store, false)
     return

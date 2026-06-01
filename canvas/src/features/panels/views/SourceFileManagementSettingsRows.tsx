@@ -3,8 +3,8 @@ import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { requestMarkdownExplorerSourceFilesOpen } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { LS_KEYS } from '@/lib/config'
-import { readEnvString } from '@/lib/config.env'
 import { lsRemove } from '@/lib/persistence'
+import { readWorkspaceDocsMirrorRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName, uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
@@ -14,11 +14,11 @@ import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/work
 const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
   'source file management',
   'source files',
-  'd1 docs hydration',
-  'cloudflare d1',
-  'kgws canonical docs',
+  'docs mirror hydration',
+  'local docs mirror',
+  'configured docs root',
   'manual import local files',
-  'd1 docs contract',
+  'docs mirror contract',
   'storage defaults',
   'source mix',
   'workspace sync source files docs only',
@@ -104,8 +104,7 @@ export function SourceFileManagementSettingsRows({
   const [isRestoringDefaults, setIsRestoringDefaults] = React.useState(false)
 
   const shouldShow = matchesSourceFileManagementQuery(normalizedQuery)
-  const storageWorkspaceId = String(readEnvString('VITE_KNOWGRPH_STORAGE_WORKSPACE_ID', 'kgws:canonical-docs') || 'kgws:canonical-docs').trim()
-  const storageBaseUrl = String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim() || 'same-origin storage route'
+  const docsMirrorRootPath = String(values['workspace.sync.docsMirror.rootPath'] || readWorkspaceDocsMirrorRootPathSetting() || '').trim()
   const docsOnly = readBooleanValue(values, 'workspace.sync.sourceFiles.docsOnly', true)
   const seedSync = readBooleanValue(values, 'workspace.sync.seed.enabled', true)
   const autoRefresh = readBooleanValue(values, 'workspace.sync.autoRefresh.enabled', true)
@@ -184,7 +183,7 @@ export function SourceFileManagementSettingsRows({
       pushUiToast({
         id: 'source-files-defaults-restored',
         kind: 'success',
-        message: 'Default D1/docs Source Files restored.',
+        message: 'Default docs mirror Source Files restored.',
         ttlMs: 3000,
         dismissible: true,
       })
@@ -221,7 +220,7 @@ export function SourceFileManagementSettingsRows({
                 Recompose now
               </SourceFileSettingsActionButton>
               <SourceFileSettingsActionButton disabled={isRestoringDefaults} onClick={() => { void restoreDefaultSourceFiles() }}>
-                {isRestoringDefaults ? 'Restoring...' : 'Restore D1/docs defaults'}
+                {isRestoringDefaults ? 'Restoring...' : 'Restore docs mirror defaults'}
               </SourceFileSettingsActionButton>
             </div>
           )}
@@ -232,11 +231,11 @@ export function SourceFileManagementSettingsRows({
         <KeyTypeValueRow
           id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.contract}
           dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.contract}
-          keyNode="D1/docs contract"
+          keyNode="Docs mirror contract"
           typeNode={<span className={UI_THEME_TOKENS.text.secondary}>policy</span>}
           valueNode={(
             <div className={SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME}>
-              Automated defaults hydrate Source Files from the D1/docs storage path. Import local files remains an explicit manual action, not a hidden bootstrap path.
+              Automated defaults hydrate Source Files from the configured docs mirror. Import local files remains an explicit manual action, not a hidden bootstrap path.
             </div>
           )}
           align="start"
@@ -264,11 +263,11 @@ export function SourceFileManagementSettingsRows({
           id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.storage}
           dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.storage}
           keyNode="Storage defaults"
-          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>D1</span>}
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>local</span>}
           valueNode={(
             <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
-              <SourceFileValuePill>Workspace: {storageWorkspaceId}</SourceFileValuePill>
-              <SourceFileValuePill>Base: {storageBaseUrl}</SourceFileValuePill>
+              <SourceFileValuePill>Docs root: {docsMirrorRootPath || 'not configured'}</SourceFileValuePill>
+              <SourceFileValuePill>Workspace root: /docs</SourceFileValuePill>
               <SourceFileValuePill>Docs only: {docsOnly ? 'on' : 'off'}</SourceFileValuePill>
               <SourceFileValuePill>Seed sync: {seedSync ? 'on' : 'off'}</SourceFileValuePill>
               <SourceFileValuePill>Auto refresh: {autoRefresh ? 'on' : 'off'}</SourceFileValuePill>

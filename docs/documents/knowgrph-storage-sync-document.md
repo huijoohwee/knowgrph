@@ -1,14 +1,14 @@
 # Knowgrph Storage & Sync
 
-**Context**: Canonical markdown documents, remote-first D1 persistence, minimal browser cache, and Cloudflare deployment.
+**Context**: Canonical markdown documents, configurable local docs mirror sync, optional D1-backed Worker storage, PocketBase + Yjs collaborative editing, minimal browser cache, and Cloudflare deployment.
 **Intent**: Keep one canonical storage decision, one shared sync contract, and one conflict-resolution UX path.
-**Directive**: Keep Git markdown canonical, make Cloudflare Worker + D1 the canonical shared store, own the Worker D1 contract through Drizzle, keep browser storage as a minimal non-canonical cache only, and defer PostgreSQL until collaboration or server retrieval materially requires it.
+**Directive**: Keep GitHub `docs/**` canonical for Storage Sync. Use the local docs mirror as a working projection, use PocketBase + Yjs as the concurrent-editing layer, and use Cloudflare Worker + D1 only for explicit runtime/read-cache endpoints. Collaborators never touch Git; a server-side bridge commits saved CRDT snapshots back to GitHub. Never let two users edit raw JSON simultaneously without CRDT wrapping.
 
 ---
 
-**Version**: 2.7.0
-**Date**: 2026-05-24
-**Status**: Deployed (Worker + D1 + Drizzle schema owner + seeded docs + minimal browser cache + public doc view)
+**Version**: 2.9.0
+**Date**: 2026-06-01
+**Status**: Deployed storage baseline; concurrent editing contract added (PocketBase + Yjs + GitHub save bridge)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -26,35 +26,85 @@
 
 ## Storage Ladder
 
-1. **Canonical authoring source**: Git markdown in `huijoohwee/docs/**` (single-author) or Cloudflare D1 (multi-user)
+1. **Canonical authoring source**: GitHub `docs/**` is SSOT; the configured local docs mirror (`huijoohwee/docs/**` by default for Dev) is a working projection
 2. **Per-device cache**: minimal browser cache only; it is not canonical persistence
-3. **Canonical shared store**: Cloudflare D1 through a Cloudflare Worker sync API owned by Drizzle schema/contracts
-4. **Optional large-asset spillover**: Cloudflare R2 when assets stop fitting cleanly in document rows
-5. **Future scale-up path**: PostgreSQL only when multi-user collaboration or server-side retrieval clearly outgrows D1
+3. **Concurrent edit layer**: PocketBase + Yjs when ≥2 users edit the same file at the same time
+4. **Save bridge**: server-side bridge serializes saved Yjs state and commits to GitHub; collaborators never touch Git directly
+5. **Explicit shared/runtime store**: Cloudflare D1 through a Cloudflare Worker sync API owned by Drizzle schema/contracts for read/export/runtime metadata only
+6. **Optional large-asset spillover**: Cloudflare R2 when assets stop fitting cleanly in document rows
+7. **Future scale-up path**: PostgreSQL only when server-side retrieval clearly outgrows D1/PocketBase responsibilities
 
 ### SSOT Transition
 
-The canonical authoring source depends on workspace membership:
+The canonical authoring source does not change with workspace membership: GitHub `docs/**` remains SSOT.
 
-- **Single-user workspace**: Filesystem (`huijoohwee/docs/`) remains SSOT. Seed script populates D1 from filesystem.
-- **Multi-user workspace** (≥2 members): D1 becomes operational SSOT. Filesystem becomes bootstrap-only seed source. Optional D1→filesystem export script available for git-backed backup.
+- **Single-user workspace**: Toolbar Storage Sync reads from and writes to the configured local docs mirror, which is expected to be a checkout/projection of the GitHub docs source.
+- **Multi-user workspace**: PocketBase + Yjs becomes the live collaboration layer only while concurrent same-file editing is active. On save, the bridge serializes Yjs state and commits to GitHub. D1 remains a runtime read/export cache and never becomes the collaboration SSOT.
+
+### Multi-User Concurrent Editing
+
+When ≥2 users edit the same `*.md` or `*.json` file simultaneously, Git merge is insufficient — minified JSON merges are destructive, and polling-based D1 sync introduces unacceptable conflict rates at character-level edit frequency.
+
+**Stack: PocketBase + Yjs**
+
+PocketBase owns authentication/session state, room metadata, membership, and realtime fanout using its JavaScript SDK authentication store and collection `subscribe()` realtime API. Yjs owns merge state through `Y.Doc` update events and shared types; clients exchange encoded Yjs updates through the PocketBase collaboration collections/relay and apply them with `Y.applyUpdate()`.
+
+| Doc type | Yjs primitive | Merge semantics |
+|---|---|---|
+| `*.md` | `Y.Text` | Character-level CRDT, zero conflicts |
+| `*.json` | `Y.Map` / nested `Y.Map` + `Y.Array` | Field-level merge, prevents destructive overwrites on minified JSON |
+
+**Constraint**: Never allow two users to edit raw minified JSON simultaneously without CRDT wrapping. Git merge on minified JSON produces non-deterministic field loss. All concurrent `*.json` edits must route through Yjs shared JSON types and serialize back to canonical formatted JSON only at save time.
+
+**JSON guardrail**:
+
+- Single-user raw JSON editing is allowed only when no active collaborator is present for the same file.
+- When a second collaborator joins a `*.json` document, the raw JSON textarea/editor becomes read-only and the structured Yjs JSON editor becomes authoritative.
+- Minified JSON is never committed directly from two clients. The bridge writes stable, formatted JSON generated from the Yjs shared model.
+
+**Git sync bridge auto-commit contract**
+
+```
+User save / autosave boundary
+  → bridge reads current PocketBase room membership and Y.Doc state
+  → serialize Y.Text / Y.Map snapshot to *.md / canonical formatted *.json
+  → GitHub Contents API (or GitHub App): PUT /repos/{owner}/{repo}/contents/docs/{path}
+  → commit: "chore(sync): save {path} from collaboration bridge"
+  → collaborators never touch Git — bridge owns all commits
+  → GitHub docs branch/main stays SSOT
+```
+
+PocketBase realtime broadcasts Yjs update envelopes and awareness state (cursor, selection, active user) between clients. D1 remains the runtime export/read cache; it does not serve as the concurrent edit store.
+
+---
 
 ### Default Workspace Initialization Source
 
 Users can configure a default import source URL via Settings → Workspace → `workspace.import.defaultSourceUrl`. When the workspace is empty and this URL is set, `ensureSeed()` fetches content from the URL and seeds the workspace, reusing the existing `importUrlFallback()` pipeline.
 
-Supported URL types: Cloudflare D1 export endpoint, GitHub repo/folder/blob, any webpage, raw markdown URL, local dev path (via Vite proxy).
+Supported URL types: GitHub repo/folder/blob, any webpage, raw markdown URL, local dev path (via Vite proxy), and explicit Cloudflare D1 export endpoints for Worker/runtime validation.
+
+### Toolbar Storage Sync
+
+Toolbar → Workspace View → `Storage Sync` is the runtime gate for two storage paths that share GitHub as SSOT:
+
+1. **Solo/local path**: Editor Workspace `/docs/**` ⇄ Source Files ⇄ configured local docs mirror.
+2. **Concurrent path**: Editor Workspace `/docs/**` ⇄ Yjs document room ⇄ PocketBase realtime relay ⇄ GitHub save bridge.
+
+When on, the app keeps the workspace seed refresh loop active and allows same-file collaborative rooms to sync through PocketBase + Yjs. When off, seed refresh and collaboration room sync are paused; local Source Files persistence and graph composition remain local.
 
 ### Why This Remains The Default
 
-- Git markdown stays the authoring source of truth for single-user; docs do not drift into a database-first workflow.
-- D1 becomes SSOT only when multi-user collaboration requires a shared authoritative store.
+- GitHub `docs/**` stays the authoring source of truth; docs do not drift into a database-first workflow.
+- GitHub stays SSOT for both solo and collaborative authoring; D1 is a runtime read/export cache, not an authoring SSOT.
 - D1 + Drizzle keep the shared-store step operationally lean while moving schema ownership to typed Worker code.
 - Browser cache remains bounded and non-canonical, so storage drift is neutralized at the source.
 - Token savings come from chunk reuse, graph snapshot reuse, and bounded pull/push contracts.
 - D1 write cost stays lean: read-first ensure* guards, pull skips writes on no-change, sync_events capped at 24h TTL, 120s poll interval.
 - Conflict handling stays inside the existing toast/log/runtime path; no second UX system.
 - Auto-clear of stale outbox conflicts after pull eliminates manual resolution after re-seeds.
+- Yjs CRDT (Y.Text/Y.Map) eliminates destructive Git merge conflicts for concurrent sessions; raw minified JSON must never be Git-merged across simultaneous edits.
+- GitHub save bridge auto-commits saved Yjs snapshots — GitHub SSOT is maintained without any manual Git workflow for collaborators.
 
 ---
 
@@ -123,11 +173,21 @@ flowchart TB
         bcache["Minimal browser cache"]
         bsync["Client sync engine (120s poll)"]
         bbridge["SF ↔ Storage bridge"]
+        byjs["Yjs doc room<br/>Y.Text / Y.Map"]
         bconflict["Conflict UX (toast + log)"]
         bautoClear["Auto-clear stale conflicts"]
     end
 
+    subgraph Collab["Concurrent editing layer"]
+        pb["PocketBase auth + realtime relay"]
+        gitBridge["GitHub save bridge<br/>server-owned token"]
+        githubDocs["GitHub docs/** SSOT"]
+    end
+
     Browser -->|"push/pull"| Edge
+    Browser -->|"Yjs updates + awareness"| pb
+    pb -->|"save snapshot"| gitBridge
+    gitBridge -->|"auto-commit on save"| githubDocs
 ```
 
 ### As-Is Gaps
@@ -137,12 +197,13 @@ flowchart TB
 | Cloudflare Worker not deployed to Edge | Client push/pull has no server endpoint | **Resolved** — Worker deployed at `airvio.co/api/storage/*` |
 | D1 database not provisioned | No shared remote store exists | **Resolved** — D1 provisioned (`633355bf-…152`) |
 | No cross-device sync | Workspace state is siloed per-browser | **Resolved** — push/pull + 120s polling loop |
-| No seed write-back | Dev edits to seed docs don't flow back to `huijoohwee/docs/` | Deferred — filesystem export script planned |
+| No seed write-back | Dev edits to workspace docs don't flow back to `huijoohwee/docs/` | **Resolved** — `/docs/**` workspace writes flow through `upsertWorkspaceDocsMirrorText()` into the configured docs mirror root |
 | No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
 | No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
 | Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
 | No public document view URL | Cannot share a readable link to a specific D1 document | **Resolved** — `GET /api/storage/doc/:workspaceId/:canonicalPath` + deep link canvas rendering |
 | D1 write amplification on every request | Pull/export write rows even when idle; sync_events grows unboundedly | **Resolved** — read-first ensure*, pull skips writes on no-change, sync_events removed from pull/export, 24h TTL prune on push, poll interval 30s→120s |
+| No concurrent doc editing | Two users editing same `*.md`/`*.json` simultaneously causes destructive Git merge on minified JSON | **Specified** — PocketBase + Yjs (Y.Text/Y.Map) + GitHub save bridge (Path F) |
 
 ---
 
@@ -152,14 +213,14 @@ flowchart TB
 
 ```
 1. Author edits .md files in huijoohwee/docs/
-2. npm run storage:d1:seed:docs
-3. D1 upserts documents with fresh revisions
-4. Browser pulls from D1 on next 120s poll cycle
-5. autoClearStaleOutboxConflicts removes any stale conflicts
+2. Toolbar → Workspace View → Storage Sync is on
+3. Workspace seed polling reads the configured docs mirror root
+4. Source Files materialize from the `/docs/**` workspace entries
+5. Editor Workspace edits to `/docs/**` write through to the configured docs mirror root
 6. Workspace renders updated docs
 ```
 
-### Path B — Cloudflare D1 Export URL (Multi-User, Production)
+### Path B — Cloudflare D1 Export URL (Runtime Read Cache)
 
 ```
 1. Owner sets workspace.import.defaultSourceUrl in Settings
@@ -168,8 +229,8 @@ flowchart TB
 3. ensureSeed() finds empty workspace + URL set
 4. Fetches export JSON from D1 endpoint
 5. Extracts documents[].contentMd → seeds workspace
-6. User edits in browser → push to D1
-7. Other users pull on next poll cycle → state parity
+6. User edits stay local unless Storage Sync joins a PocketBase/Yjs collaboration room
+7. D1 remains a runtime read/export cache, not the authoring SSOT
 ```
 
 ### Path C — GitHub Repo Docs Folder (Import from External Source)
@@ -180,7 +241,7 @@ flowchart TB
 2. ensureSeed() calls importWorkspaceUrl() via existing pipeline
 3. importGitHubFolder() fetches all .md files from the repo
 4. Workspace populated with imported docs
-5. Edits stay local (push to D1 if sync enabled)
+5. Edits stay local unless an explicit Worker/D1 runtime path is enabled
 ```
 
 ### Path D — Recover Deleted Workspace Files
@@ -202,6 +263,23 @@ flowchart TB
 3. autoClearStaleOutboxConflicts compares server revisions vs outbox
 4. All stale conflicts auto-removed (serverRevision >= localRevision)
 5. Toast auto-dismisses — zero user intervention
+```
+
+### Path F — Concurrent Multi-User Edit (PocketBase + Yjs + GitHub Save Bridge)
+
+```
+1. User A and User B open same *.md or *.json in workspace
+2. Storage Sync is on, so the editor joins a PocketBase-backed Yjs room for that file
+3. PocketBase realtime relay broadcasts Yjs update envelopes and awareness (cursor, selection)
+4. Y.Text (*.md) / Y.Map (*.json) CRDTs merge edits character/field-level — zero conflict
+   ⚠ Raw minified JSON must never be Git-merged across simultaneous sessions — route through Y.Map
+5. On explicit save or autosave boundary:
+   → GitHub save bridge serializes Y.Doc snapshot
+   → Markdown writes from Y.Text; JSON writes from canonical formatted Y.Map/Y.Array projection
+   → GitHub Contents API or GitHub App writes docs/{path}
+   → commit: "chore(sync): save {path} from collaboration bridge"
+6. Neither User A nor User B touches Git — bridge owns all commits
+7. GitHub docs branch/main stays SSOT; D1 stays runtime export/read cache
 ```
 
 ---
@@ -277,11 +355,23 @@ flowchart TB
         bcache["Minimal persisted cache"]
         bsync["Client sync engine (120s poll)"]
         bbridge["SF ↔ Storage bridge"]
+        byjs["Yjs room client"]
         bconflict["Conflict UX"]
+    end
+
+    subgraph Collab["Concurrent editing layer"]
+        pb["PocketBase auth + realtime"]
+        pbRooms["collab_rooms / collab_updates / awareness"]
+        gitBridge["GitHub save bridge"]
+        githubDocs["GitHub docs/** SSOT"]
     end
 
     Browser -->|"push/pull"| LocalWorker
     Browser -->|"push/pull"| Edge
+    Browser -->|"Yjs update envelopes"| pb
+    pb --> pbRooms
+    pb -->|"save snapshot request"| gitBridge
+    gitBridge -->|"auto-commit on save"| githubDocs
 ```
 
 ---
@@ -314,6 +404,10 @@ flowchart TB
 | Conflict UX | Toast surface | `components/ui/ToastHost.tsx` | Built |
 | Conflict UX | History log surface | `features/panels/views/HistoryView.tsx` | Built |
 | Conflict UX | Action buttons | `components/ui/UiActionButtons.tsx` | Built |
+| Collaboration | Yjs document rooms (`Y.Doc`, `Y.Text`, `Y.Map`) | `features/source-files/` collaboration owner | Planned |
+| Collaboration | PocketBase auth, room metadata, realtime update relay | PocketBase collections: `collab_rooms`, `collab_updates`, `collab_awareness` | Planned |
+| Collaboration | GitHub save bridge with server-owned token/App identity | bridge service endpoint for save snapshots | Planned |
+| Collaboration | JSON CRDT guardrail | raw JSON editor gate + structured Y.Map editor | Planned |
 
 `SourceFilesPersistenceBootstrap.tsx` is the client-side SSOT orchestrator: seed-sync and rematerialize scheduling accept prepared requests when available, fall back to one resolver otherwise, and reuse caller-owned `sourceFiles` snapshots to keep Storage ↔ Source Files ↔ Workspace parity without redundant store reads.
 

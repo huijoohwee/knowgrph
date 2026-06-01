@@ -1,6 +1,7 @@
 import { JSDOM } from 'jsdom'
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Simulate } from 'react-dom/test-utils'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import {
@@ -15,7 +16,15 @@ import {
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
 } from '@/lib/config.flow-editor'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
-type DomGlobalState = { window?: unknown; document?: unknown }
+type DomGlobalState = {
+  window?: unknown
+  document?: unknown
+  Event?: unknown
+  InputEvent?: unknown
+  HTMLElement?: unknown
+  HTMLInputElement?: unknown
+  HTMLTextAreaElement?: unknown
+}
 const restoreDomGlobal = (target: DomGlobalState, key: keyof DomGlobalState, value: unknown) => {
   if (typeof value === 'undefined') {
     delete target[key]
@@ -27,11 +36,26 @@ const installDomGlobals = (dom: JSDOM): (() => void) => {
   const g = globalThis as unknown as DomGlobalState
   const previousWindow = g.window
   const previousDocument = g.document
+  const previousEvent = g.Event
+  const previousInputEvent = g.InputEvent
+  const previousHTMLElement = g.HTMLElement
+  const previousHTMLInputElement = g.HTMLInputElement
+  const previousHTMLTextAreaElement = g.HTMLTextAreaElement
   g.window = dom.window
   g.document = dom.window.document
+  g.Event = dom.window.Event
+  g.InputEvent = dom.window.InputEvent
+  g.HTMLElement = dom.window.HTMLElement
+  g.HTMLInputElement = dom.window.HTMLInputElement
+  g.HTMLTextAreaElement = dom.window.HTMLTextAreaElement
   return () => {
     restoreDomGlobal(g, 'window', previousWindow)
     restoreDomGlobal(g, 'document', previousDocument)
+    restoreDomGlobal(g, 'Event', previousEvent)
+    restoreDomGlobal(g, 'InputEvent', previousInputEvent)
+    restoreDomGlobal(g, 'HTMLElement', previousHTMLElement)
+    restoreDomGlobal(g, 'HTMLInputElement', previousHTMLInputElement)
+    restoreDomGlobal(g, 'HTMLTextAreaElement', previousHTMLTextAreaElement)
     dom.window.close()
   }
 }
@@ -92,6 +116,79 @@ export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
     }
     const regOutValueInput = regOutRow.querySelector('input[readonly][disabled]')
     if (!regOutValueInput) throw new Error('expected registry port value column to reuse shared read-only input typography')
+  } finally {
+    root.unmount()
+    restoreGlobals()
+  }
+}
+
+export const testWidgetRegistryDuplicateValueAndPortRowsUseUniqueControlNames = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const restoreGlobals = installDomGlobals(dom)
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  const patched: Array<Record<string, unknown>> = []
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(NodeOverlayEditorRegistrySection, {
+          active: true,
+          properties: { value: 1, nested: { value: 2 } },
+          registryEntry: {
+            id: 'duplicate-value-widget',
+            nodeTypeId: 'MetricNode',
+            widgetTypeId: 'default',
+            formId: 'values',
+            fields: [
+              { fieldKey: 'value', fieldType: 'number', schemaPath: 'properties.value', label: 'Value' },
+              { fieldKey: 'value', fieldType: 'number', schemaPath: 'properties.nested.value', label: 'Value' },
+            ],
+            ports: [
+              { portKey: 'value', direction: 'output', schemaPath: 'properties.value' },
+              { portKey: 'value', direction: 'output', schemaPath: 'properties.nested.value' },
+            ],
+          } as any,
+          microLabelClass: 'text-xs',
+          monospaceTextClass: 'font-mono',
+          textSizeClass: 'text-sm',
+          keyValueInputClass: 'border',
+          keyLabelClass: 'text-xs',
+          ids: { registryField: (k: string) => k },
+          dotSizePx: 10,
+          dotHitPx: 18,
+          portHandlesEnabled: true,
+          onSetProperties: next => patched.push(next),
+        }),
+      )
+    })
+    const inputNodes = host.querySelectorAll('input[id]') as NodeListOf<HTMLInputElement>
+    const ids = Array.from(inputNodes).map(input => input.id).filter(Boolean)
+    if (ids.length < 4) throw new Error(`expected duplicate field and port value rows to render, got ${ids.length}`)
+    if (new Set(ids).size !== ids.length) {
+      throw new Error(`expected duplicate Value KTV rows to use unique input ids, got ${ids.join(',')}`)
+    }
+    const portButtonNodes = host.querySelectorAll('button[data-kg-port-key="value"][data-kg-port-dir="out"]') as NodeListOf<HTMLButtonElement>
+    const portButtons = Array.from(portButtonNodes)
+    if (portButtons.length !== 2) throw new Error(`expected both duplicate semantic port rows to remain visible, got ${portButtons.length}`)
+    const aria = portButtons.map(button => String(button.getAttribute('aria-label') || '').trim()).filter(Boolean)
+    if (new Set(aria).size !== aria.length) {
+      throw new Error(`expected duplicate port handle rows to use unique accessible names, got ${aria.join(',')}`)
+    }
+    if (!aria.every(label => label.includes('properties.'))) {
+      throw new Error(`expected duplicate port names to include schema-path identity, got ${aria.join(',')}`)
+    }
+    const nestedValueInput = Array.from(inputNodes).find(input => input.id.includes('properties.nested.value')) || null
+    if (!nestedValueInput) throw new Error(`expected nested Value input to expose schema-scoped id, got ${ids.join(',')}`)
+    const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set
+    if (!valueSetter) throw new Error('expected DOM input value setter')
+    await act(async () => {
+      valueSetter.call(nestedValueInput, '9')
+      Simulate.change(nestedValueInput)
+    })
+    if (!patched.some(entry => ((entry.nested || {}) as Record<string, unknown>).value === 9)) {
+      throw new Error(`expected duplicate Value KTV row edit to update nested value, got ${JSON.stringify(patched)}`)
+    }
   } finally {
     root.unmount()
     restoreGlobals()

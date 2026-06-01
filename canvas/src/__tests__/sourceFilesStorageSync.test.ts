@@ -388,6 +388,18 @@ export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQue
   if (!text.includes("deps.startKnowgrphStorageSyncLoop")) {
     throw new Error('expected source-files bootstrap to keep ownership of the knowgrph storage sync loop for the active workspace through the deferred runtime loader')
   }
+  if (!text.includes("readKnowgrphStorageRuntimeSyncEnabled") || !text.includes("VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED")) {
+    throw new Error('expected knowgrph storage runtime sync to stay explicitly opt-in instead of running from the toolbar Storage Sync path by default')
+  }
+  if (!text.includes('if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceSeedSyncEnabled) return null')) {
+    throw new Error('expected outbound Source Files storage queue requests to require explicit knowgrph runtime sync opt-in')
+  }
+  if (!text.includes('if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceSeedSyncEnabled) {') || !text.includes('stopKnowgrphStorageWorkspaceRuntime()')) {
+    throw new Error('expected knowgrph storage push/pull runtime to stop unless explicit runtime sync opt-in and Storage Sync are both active')
+  }
+  if (!text.includes('if (!readKnowgrphStorageRuntimeSyncEnabled() || !readWorkspaceSeedSyncEnabledSetting()) return')) {
+    throw new Error('expected delayed storage sync callbacks to re-check runtime opt-in and the shared Storage Sync setting before running')
+  }
   if (!text.includes("notifyKnowgrphStorageConflictUx")) {
     throw new Error('expected source-files bootstrap to route storage conflicts through the shared conflict UX notifier')
   }

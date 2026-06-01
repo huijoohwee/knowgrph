@@ -87,6 +87,7 @@ export type FrontmatterWidgetContractRowSpec =
       kind: 'field'
       rowKey: string
       fieldKey: string
+      schemaPath: string
       typeLabel: string
       valueText: string
     }
@@ -313,6 +314,7 @@ export function buildFrontmatterWidgetContractRowSpecs(
       kind: 'field',
       rowKey: `flow-envelope-field-${field.fieldKey}-${i}`,
       fieldKey: field.fieldKey,
+      schemaPath: field.schemaPath,
       typeLabel: field.fieldType,
       valueText: field.valueText,
     })

@@ -178,6 +178,37 @@ export const readWorkspaceActiveEntrySnapshot = async (args: {
   return rememberWorkspaceActiveEntrySnapshot({ activePath, entries: snapshot }) || snapshot
 }
 
+export const readWorkspaceSourceRootEntriesSnapshot = async (args: {
+  fs: WorkspaceFs
+  activePath: WorkspacePath
+  workspaceEntries?: WorkspaceEntry[]
+}): Promise<WorkspaceEntry[]> => {
+  const activePath = normalizeWorkspacePath(args.activePath)
+  const provided = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
+  const allEntries = provided.length > 1 ? provided : await args.fs.listEntries()
+  if (!activePath) return allEntries
+  const activeEntries = await readWorkspaceActiveEntrySnapshot({
+    fs: args.fs,
+    activePath,
+    workspaceEntries: allEntries,
+  })
+  const activeEntry = activeEntries.find(entry => entry?.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath) || null
+  if (!activeEntry) return allEntries
+  let foundActive = false
+  let changed = false
+  const next = allEntries.map(entry => {
+    if (!entry || entry.kind !== 'file' || normalizeWorkspacePath(entry.path) !== activePath) return entry
+    foundActive = true
+    if (entry === activeEntry) return entry
+    changed = true
+    return activeEntry
+  })
+  if (!foundActive) {
+    return [...allEntries, activeEntry].sort((a, b) => String(a.path || '').localeCompare(String(b.path || '')))
+  }
+  return changed ? next : allEntries
+}
+
 export function readProvidedActiveWorkspaceEntriesSnapshot(args: {
   activePath: WorkspacePath
   activeWorkspaceEntriesSnapshot?: WorkspaceEntry[]

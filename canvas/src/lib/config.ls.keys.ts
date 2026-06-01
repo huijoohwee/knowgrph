@@ -163,6 +163,7 @@ export const LS_KEYS = {
   markdownWorkspaceUserClearedAllFiles: 'kg:ui:markdown:workspace:userClearedAllFiles',
   workspaceImportDefaultSourceUrl: 'kg:workspace:import:defaultSourceUrl',
   workspaceImportShareExportRootPath: 'kg:workspace:import:shareExportRootPath',
+  workspaceDocsMirrorRootPath: 'kg:workspace:docsMirror:rootPath',
   workspaceSeedSyncEnabled: 'kg:sync:workspace:seedSyncEnabled',
   workspaceSeedSyncPollMs: 'kg:sync:workspace:seedSyncPollMs',
   workspaceSeedSyncIdleMaxMs: 'kg:sync:workspace:seedSyncIdleMaxMs',

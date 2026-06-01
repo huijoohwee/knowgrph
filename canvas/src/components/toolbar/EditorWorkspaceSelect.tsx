@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, Link2, Table } from 'lucide-react'
+import { Database, FileCode, Link2, Table } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
@@ -13,6 +13,11 @@ import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspace
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  readWorkspaceSeedSyncEnabledSetting,
+  subscribeWorkspaceStoreSyncSettingsChanged,
+  writeWorkspaceSeedSyncEnabledSetting,
+} from '@/lib/workspace/workspaceStoreSyncSettings'
 
 type EditorWorkspaceSelectProps = {
   iconSizeClass: string
@@ -30,6 +35,7 @@ type Option = {
 }
 
 export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBaselineUnlocked }: EditorWorkspaceSelectProps) {
+  const [storageSyncEnabled, setStorageSyncEnabled] = React.useState(() => readWorkspaceSeedSyncEnabledSetting())
   const {
     workspaceViewMode,
     editorWorkspacePane,
@@ -161,10 +167,23 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
     setCanvasWorkspaceSyncMode(canvasWorkspaceSyncMode === 'realtime' ? 'manual' : 'realtime')
   }, [canvasWorkspaceSyncMode, ensureBaselineUnlocked, setCanvasWorkspaceSyncMode])
 
+  React.useEffect(() => {
+    const syncStorageSyncEnabled = () => setStorageSyncEnabled(readWorkspaceSeedSyncEnabledSetting())
+    syncStorageSyncEnabled()
+    return subscribeWorkspaceStoreSyncSettingsChanged(syncStorageSyncEnabled)
+  }, [])
+
+  const toggleStorageSync = React.useCallback(() => {
+    const next = !readWorkspaceSeedSyncEnabledSetting()
+    writeWorkspaceSeedSyncEnabledSetting(next)
+    setStorageSyncEnabled(next)
+  }, [])
+
   const syncLabel =
     canvasWorkspaceSyncMode === 'realtime'
       ? UI_COPY.canvasWorkspaceSyncRealtimeLabel
       : UI_COPY.canvasWorkspaceSyncManualLabel
+  const storageSyncLabel = storageSyncEnabled ? UI_COPY.storageSyncOnLabel : UI_COPY.storageSyncOffLabel
 
   return (
     <ToolbarDropdownSelect
@@ -211,6 +230,21 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
             >
               <Link2 className={`${iconSizeClass} shrink-0`} strokeWidth={iconStrokeWidth} />
               <span className="truncate">{`${UI_LABELS.workspaceSyncMode}: ${syncLabel}`}</span>
+            </button>
+          </li>
+          <li className="list-none">
+            <button
+              type="button"
+              className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
+              onClick={toggleStorageSync}
+              title={
+                storageSyncEnabled
+                  ? UI_COPY.storageSyncOnTooltip
+                  : UI_COPY.storageSyncOffTooltip
+              }
+            >
+              <Database className={`${iconSizeClass} shrink-0`} strokeWidth={iconStrokeWidth} />
+              <span className="truncate">{`${UI_LABELS.storageSync}: ${storageSyncLabel}`}</span>
             </button>
           </li>
         </>

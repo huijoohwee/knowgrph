@@ -100,6 +100,13 @@ export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
     || workspaceSeedProviderText.includes('isMarkdownMirrorFileName')) {
     throw new Error('Expected D1 docs mirror materialization to include GLTF/GLB without stale Markdown-only filters')
   }
+  const viteConfigPath = path.resolve(process.cwd(), 'vite.config.ts')
+  const viteConfigText = fs.readFileSync(viteConfigPath, 'utf8')
+  if (!viteConfigText.includes("sourceMirrorExtSet = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])")
+    || !viteConfigText.includes('shouldEncodeSourceMirrorFileAsBase64')
+    || !viteConfigText.includes('walkSourceMirrorFiles')) {
+    throw new Error('Expected dev docs mirror proxy to list Markdown, GLTF, and GLB files instead of using a stale markdown-only walker')
+  }
 
   const geospatialBridgePath = path.resolve(
     process.cwd(),

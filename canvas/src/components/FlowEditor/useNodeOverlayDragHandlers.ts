@@ -19,7 +19,7 @@ export function useNodeOverlayDragHandlers(args: {
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   pinnedTopPx: number
   pinnedLeftPx: number
-  applyOverlayPosition: (opts?: { persistClamp?: boolean; emitInteractionFrame?: boolean }) => void
+  applyOverlayPosition: (opts?: { emitInteractionFrame?: boolean }) => void
   persistFloatingPlacement: (pos: { top: number; left: number }) => void
   persistWorldPos: (pos: { x: number; y: number }) => void
   setSelectionSource: (source: 'canvas' | 'editor' | 'none') => void

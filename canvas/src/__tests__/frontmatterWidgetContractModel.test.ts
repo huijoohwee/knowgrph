@@ -76,6 +76,9 @@ export const testBuildFrontmatterWidgetContractModelFiltersReservedAndRegistryBa
   if (model.declaredFieldValues.length !== 1 || model.declaredFieldValues[0]?.fieldKey !== 'extra') {
     throw new Error(`expected only non-reserved non-registry declared fields to remain, got [${model.declaredFieldValues.map(field => field.fieldKey).join(', ')}]`)
   }
+  if (model.declaredFieldValues[0]?.schemaPath !== 'extra') {
+    throw new Error(`expected declared field schemaPath to stay available for editable value rows, got ${String(model.declaredFieldValues[0]?.schemaPath || '')}`)
+  }
   if (!model.declaredFieldValues[0]?.valueText.includes('"ok": true')) {
     throw new Error(`expected declared field values to preserve serialized object payloads, got ${String(model.declaredFieldValues[0]?.valueText || '')}`)
   }
@@ -86,12 +89,16 @@ export const testBuildFrontmatterWidgetContractRowSpecsBuildsHandleAndEnvelopeDe
     node: {
       id: 'node-c',
       properties: {
+        ratio: 0.7,
         data: { ok: true },
         'flow:compute': '(inputs) => inputs',
         [FRONTMATTER_FLOW_HANDLES_VALUE_KEY]: {
           target: ['declaredIn'],
           source: ['declaredOut'],
         },
+        [FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]: [
+          { fieldKey: 'ratio', fieldType: 'number', schemaPath: 'ratio' },
+        ],
       },
     },
     edges: [],
@@ -114,7 +121,7 @@ export const testBuildFrontmatterWidgetContractRowSpecsBuildsHandleAndEnvelopeDe
   if (rows.handleRows[0]?.valueText !== '"registryIn"') {
     throw new Error(`expected handle row spec to carry formatted normalized handle values, got ${String(rows.handleRows[0]?.valueText || '')}`)
   }
-  if (rows.envelopeRows.length !== 4) {
+  if (rows.envelopeRows.length !== 5) {
     throw new Error(`expected handle+data+compute envelope row specs, got ${rows.envelopeRows.length}`)
   }
   if (!rows.envelopeRows.some(row => row.kind === 'data' && row.rowKey === 'flow-data')) {
@@ -122,5 +129,8 @@ export const testBuildFrontmatterWidgetContractRowSpecsBuildsHandleAndEnvelopeDe
   }
   if (!rows.envelopeRows.some(row => row.kind === 'compute' && row.rowKey === 'flow-compute')) {
     throw new Error('expected envelope row specs to include explicit compute row descriptor when flow compute is present')
+  }
+  if (!rows.envelopeRows.some(row => row.kind === 'field' && row.schemaPath)) {
+    throw new Error('expected field envelope row specs to preserve schema paths for editable Value rows')
   }
 }

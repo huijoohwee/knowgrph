@@ -557,16 +557,20 @@ export const applyZoomRequestNative = (args: {
     const combined = prev == null ? nextMinScale : Math.min(prev, nextMinScale)
     setFlowAutoMinScale(args.runtime, combined)
   }
-  clear()
-  const durationMs = forceImmediateWorkspaceOverlayFit
-    ? 0
-    : Math.max(0, Math.floor(resolved.durationMs))
-  if (durationMs === 0) {
-    cancelFlowZoomRequestAnim(args.runtime)
-    setFlowNativeTransform(args.runtime, resolved.nextTransform)
-    args.onFrame?.()
-    args.onCommit?.()
-    if (shouldRecenterFlowEditorCollectiveAfterFit || shouldRecenterFlowEditorCollectiveAfterZoom) {
+  const recenterFlowEditorCollectiveAfterTransform = () => {
+    if (shouldRecenterFlowEditorCollectiveAfterFit) {
+      recenterVisibleFlowEditorOverlayCentroid({
+        runtime: args.runtime,
+        viewportW,
+        viewportH,
+        flowEditorSurfaceId: args.flowEditorSurfaceId,
+        graphData: args.graphData,
+        onFrame: args.onFrame,
+        onCommit: args.onCommit,
+      })
+      return
+    }
+    if (shouldRecenterFlowEditorCollectiveAfterZoom) {
       recenterVisibleFlowEditorOverlayCentroid({
         runtime: args.runtime,
         viewportW,
@@ -577,6 +581,17 @@ export const applyZoomRequestNative = (args: {
         onCommit: args.onCommit,
       })
     }
+  }
+  clear()
+  const durationMs = forceImmediateWorkspaceOverlayFit
+    ? 0
+    : Math.max(0, Math.floor(resolved.durationMs))
+  if (durationMs === 0) {
+    cancelFlowZoomRequestAnim(args.runtime)
+    setFlowNativeTransform(args.runtime, resolved.nextTransform)
+    args.onFrame?.()
+    args.onCommit?.()
+    recenterFlowEditorCollectiveAfterTransform()
     return
   }
   cancelFlowZoomRequestAnim(args.runtime)
@@ -598,17 +613,7 @@ export const applyZoomRequestNative = (args: {
     args.onFrame?.()
     if (!(raw01 < 1)) {
       FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
-      if (shouldRecenterFlowEditorCollectiveAfterFit || shouldRecenterFlowEditorCollectiveAfterZoom) {
-        recenterVisibleFlowEditorOverlayCentroid({
-          runtime: args.runtime,
-          viewportW,
-          viewportH,
-          flowEditorSurfaceId: args.flowEditorSurfaceId,
-          graphData: args.graphData,
-          onFrame: args.onFrame,
-          onCommit: args.onCommit,
-        })
-      }
+      recenterFlowEditorCollectiveAfterTransform()
       args.onCommit?.()
       return
     }

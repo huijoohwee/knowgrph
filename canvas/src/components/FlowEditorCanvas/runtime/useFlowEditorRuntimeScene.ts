@@ -756,6 +756,10 @@ export function useFlowEditorRuntimeScene(args: {
       ...pinnedById,
       ...activeSurfaceOverlayPinnedById,
     }
+    const resolvePlacementPinnedInCanvas = (id: string): boolean => {
+      const v = placementPinnedById[id]
+      return typeof v === 'boolean' ? v : defaultPinnedInCanvas
+    }
     const effectiveOrFallbackOpenIds = effectiveOpenIds.length > 0
       ? Array.from(new Set([
           ...effectiveOpenIds.map(id => String(id || '').trim()).filter(Boolean),
@@ -785,8 +789,7 @@ export function useFlowEditorRuntimeScene(args: {
       .map(id => String(id || '').trim())
       .filter(Boolean)
       .filter(id => {
-        const v = placementPinnedById[id]
-        const pinned = typeof v === 'boolean' ? v : defaultPinnedInCanvas
+        const pinned = resolvePlacementPinnedInCanvas(id)
         if (!pinned) return false
         if (forceSceneEmptyReseed) return true
         if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: pinned, worldPos: worldById[id] })) return false
@@ -875,8 +878,7 @@ export function useFlowEditorRuntimeScene(args: {
             .map(id => String(id || '').trim())
             .filter(Boolean)
             .filter(id => {
-              const v = placementPinnedById[id]
-              const pinned = typeof v === 'boolean' ? v : defaultPinnedInCanvas
+              const pinned = resolvePlacementPinnedInCanvas(id)
               return pinned || activeSurfaceOverlayWidgetIdSet.has(id)
             })
     )

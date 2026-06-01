@@ -90,6 +90,7 @@ Key implementation:
   - registry `schemaMappings[]` can reduce/transform connected input groups into derived node properties
   - node `properties['flow:compute']` may emit output values when `frontmatterFlowSettings.computed=true`
 - `computeFlowConnectedValuesBySchemaPath()` is the shared runtime owner for propagation. Flow Editor panels receive connected values from that helper and must not recompute graph data locally.
+- Multi-handle rows must preserve one structural edge key per semantic port while deriving DOM/control identity from row role + schema path + occurrence. Repeated visible labels or repeated displayed port values must not collapse focus, labels, or click targets.
 - Branching is value-driven: `null` / `undefined` output values are stop signals and must not be forwarded into downstream connected values.
 - Long directed acyclic graphs should evaluate in topological order. Cyclic or partially cyclic graphs may iterate to a stable value key, bounded by graph size, without fixed demo-specific caps.
 - Cache keys must use shared graph semantic keys/signatures and registry shape, not filenames, source URLs, or example ids.
@@ -102,6 +103,8 @@ Key implementation:
   - persist detached positions per node id
   - avoid DOM id collisions by scoping form control ids per node
 - Pinned overlays must remain node-anchored while header drag applies a shared anchor offset across all pinned overlays.
+- Frontmatter envelope field rows that represent authored `{key,type,value}` payloads must stay editable through the same widget-field mutation helper used by registry fields. The Flow Editor must not treat generic `Value` rows as read-only simply because their display label repeats across nodes.
+- Port handle buttons and read-only port-value rows must expose unique accessible names when multiple rows share the same visible port key; the uniqueness suffix belongs to the UI identity only and must not rewrite edge `flow:sourcePortKey` / `flow:targetPortKey` values.
 
 Flow Editor + overlay wiring:
 

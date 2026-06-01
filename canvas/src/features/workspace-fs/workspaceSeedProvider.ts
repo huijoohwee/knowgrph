@@ -1,6 +1,6 @@
 import { readEnvString } from '@/lib/config.env'
 import { buildCodebaseFilePath, buildLocalFsFetchPath } from '@/lib/url'
-import { readWorkspaceImportDefaultSourceUrlSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
+import { readWorkspaceDocsMirrorRootPathSetting, readWorkspaceImportDefaultSourceUrlSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
 import {
   buildKnowgrphStorageExportPath,
@@ -43,7 +43,7 @@ const splitSafeMirrorSegments = (value: string): string[] => {
 }
 
 const readWorkspaceInitializationDocsAbsRoot = (): string => {
-  return normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT', ''))
+  return normalizeAbsRoot(readWorkspaceDocsMirrorRootPathSetting())
 }
 
 const readWorkspaceInitializationChatLogAbsRoot = (): string => {
@@ -63,6 +63,14 @@ const readWorkspaceMirrorBaseAbsRoot = (): string => {
 
 const readWorkspaceInitializationKnowgrphStorageBaseUrl = (): string => {
   return String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
+}
+
+const readWorkspaceDocsMirrorStorageFallbackEnabled = (): boolean => {
+  const raw = String(readEnvString('VITE_WORKSPACE_DOCS_MIRROR_STORAGE_FALLBACK_ENABLED', '') || '')
+    .trim()
+    .toLowerCase()
+  if (!raw) return false
+  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
 }
 
 const WORKSPACE_SOURCE_MIRROR_EXT_SET = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])
@@ -188,7 +196,6 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExportUncached = async (a
           text = chunks.map(chunk => chunk.markdown).join('\n\n')
         }
       }
-      if (!text.trim()) continue
       const canonicalPathRaw = String(document.canonicalPath || document.title || document.id || '').trim()
       const canonicalPath = normalizeSourceFileMirrorPath(
         docsAbsRoot && canonicalPathRaw.startsWith(`${docsAbsRoot}/`)
@@ -313,7 +320,7 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDocsBySourceFiles = async
         workspaceId,
         canonicalPathCandidates: canonicalCandidates,
       })
-      return text.trim() ? { relPath, text, updatedAtMs } : null
+      return { relPath, text, updatedAtMs }
     })())
   }
   const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
@@ -379,7 +386,6 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDbCache = async (args: {
           text = docChunks.map(chunk => chunk.markdown).join('\n\n')
         }
       }
-      if (!text.trim()) continue
       const updatedAtMsRaw = Number(row.get('updatedAtMs'))
       const updatedAtMs = Number.isFinite(updatedAtMsRaw) ? Math.floor(updatedAtMsRaw) : Date.now()
       const next: WorkspaceDocsMirrorEntry = { relPath, text, updatedAtMs }
@@ -503,8 +509,7 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecords = (args: {
     const sourceKind = String(sourceFile.source?.kind || '').trim().toLowerCase()
     if (sourceKind && sourceKind !== 'local') continue
     if (isWorkspaceBackedSourcePath(sourceFile.source?.path || sourceFile.name || '')) continue
-    const text = String(sourceFile.text || '')
-    if (!text.trim()) continue
+    const text = String(sourceFile.text ?? '')
     const pathCandidate = normalizeSourceFileMirrorPath(sourceFile.source?.path || sourceFile.name || '')
     if (!pathCandidate) continue
     if (!isWorkspaceSourceMirrorFileName(pathCandidate)) continue
@@ -626,15 +631,16 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
     const updatedAtMs = Number.isFinite(updatedAtMsRaw) ? Math.floor(updatedAtMsRaw) : Date.now()
     candidates.push((async () => {
       if (!text.trim()) {
-        text = storageFallbackConfigured
-          ? await readFirstKnowgrphStorageDocText({
-              baseUrl: fallbackBaseUrl,
-              workspaceId: fallbackWorkspaceId,
-              canonicalPathCandidates: readCanonicalPathCandidatesForSourcePath(sourcePathRaw),
-            })
-          : await readFirstLocalFsMirrorText(sourcePathRaw)
+        text = await readFirstLocalFsMirrorText(sourcePathRaw)
+        if (!text.trim() && storageFallbackConfigured) {
+          text = await readFirstKnowgrphStorageDocText({
+            baseUrl: fallbackBaseUrl,
+            workspaceId: fallbackWorkspaceId,
+            canonicalPathCandidates: readCanonicalPathCandidatesForSourcePath(sourcePathRaw),
+          })
+        }
       }
-      return text.trim() ? { relPath, text, updatedAtMs } : null
+      return { relPath, text, updatedAtMs }
     })())
   }
   const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
@@ -707,7 +713,6 @@ const readWorkspaceDocsMirrorEntriesFromLocalFolderHandle = async (args: {
         const file = await (entry as FileSystemFileHandle).getFile()
         if (!file || !Number.isFinite(file.size) || file.size > WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES) continue
         const text = await readWorkspaceSourceMirrorFileText(file, name)
-        if (!text.trim()) continue
         const relPath = normalizeMirrorRelPath(relBase ? `${relBase}/${name}` : name)
         if (!relPath) continue
         out.push({
@@ -744,7 +749,7 @@ const readWorkspaceDocsMirrorEntriesFromLocalFolderCache = async (args: {
     for (let i = 0; i < candidates.length; i += 1) {
       const fullPath = candidates[i]!
       const text = await cache.readCachedMarkdownText(folderCacheId, fullPath)
-      if (typeof text !== 'string' || !text.trim()) continue
+      if (typeof text !== 'string') continue
       const relPath = selectedFolderPath
         ? normalizeMirrorRelPath(fullPath.slice(selectedFolderPath.length).replace(/^\/+/, ''))
         : fullPath
@@ -1002,7 +1007,6 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
       const relPath = normalizeMirrorRelPath(String(item?.relPath || ''))
       if (!relPath) continue
       const text = typeof item?.text === 'string' ? item.text : ''
-      if (!text.trim()) continue
       out.push({
         relPath,
         text,
@@ -1054,7 +1058,6 @@ const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
           const text = shouldEncodeWorkspaceSourceMirrorAsBase64(entry.name)
             ? (await fs.readFile(absPath)).toString('base64')
             : String(await fs.readFile(absPath, 'utf8'))
-          if (!text.trim()) continue
           const relPath = normalizeMirrorRelPath(path.relative(root, absPath))
           if (!relPath) continue
           out.push({
@@ -1097,8 +1100,23 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   const preferCompleteDataset = args?.preferCompleteDataset === true
   const completeDatasetCandidates: WorkspaceDocsMirrorEntry[][] = []
   const sourceFilesSelection = await resolveWorkspaceDocsRootFromSourceFilesSelection()
-  const knowgrphStorageBaseUrl = readWorkspaceInitializationKnowgrphStorageBaseUrl()
+  const knowgrphStorageBaseUrl = readWorkspaceDocsMirrorStorageFallbackEnabled()
+    ? readWorkspaceInitializationKnowgrphStorageBaseUrl()
+    : ''
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
+  const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
+  if (docsAbsRoot) {
+    const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
+    if (viaProxy.length > 0) {
+      if (!preferCompleteDataset) return viaProxy
+      completeDatasetCandidates.push(viaProxy)
+    }
+    const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
+    if (viaNodeFs.length > 0) {
+      if (!preferCompleteDataset) return viaNodeFs
+      completeDatasetCandidates.push(viaNodeFs)
+    }
+  }
   if (knowgrphStorageBaseUrl && sourceFilesSelection) {
     if (knowgrphStorageWorkspaceId) {
       const storageDatasets: WorkspaceDocsMirrorEntry[][] = []
@@ -1158,7 +1176,6 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
       }
     }
   }
-  if (!preferCompleteDataset && knowgrphStorageBaseUrl && sourceFilesSelection && knowgrphStorageWorkspaceId) return []
   if (sourceFilesSelection?.localMarkdownFolderHandle) {
     const viaHandle = await readWorkspaceDocsMirrorEntriesFromLocalFolderHandle({
       rootHandle: sourceFilesSelection.localMarkdownFolderHandle,
@@ -1189,21 +1206,10 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
       }
     }
   }
-  const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
   if (!docsAbsRoot) {
     return preferCompleteDataset
       ? chooseBestWorkspaceDocsMirrorDataset(completeDatasetCandidates)
       : []
-  }
-  const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
-  if (viaProxy.length > 0) {
-    if (!preferCompleteDataset) return viaProxy
-    completeDatasetCandidates.push(viaProxy)
-  }
-  const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
-  if (viaNodeFs.length > 0) {
-    if (!preferCompleteDataset) return viaNodeFs
-    completeDatasetCandidates.push(viaNodeFs)
   }
   return preferCompleteDataset
     ? chooseBestWorkspaceDocsMirrorDataset(completeDatasetCandidates)

@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   const flowEditorRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const flowEditorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
@@ -86,8 +85,10 @@ export function testFrontmatterFlowTypedNodesForcePortHandleDefaultsInFlowScene(
 }
 export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCoverage() {
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlayVisibilityPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceVisibility.ts')
   const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const text = readFileSync(overlaySurfacePath, 'utf8')
+  const visibilityText = readFileSync(overlayVisibilityPath, 'utf8')
   const sharedText = readFileSync(sharedPath, 'utf8')
   if (!text.includes('frontmatterOverlayHideSafety')) {
     throw new Error('expected FlowEditor overlay mode to compute frontmatter visibility safety state')
@@ -99,8 +100,8 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
     throw new Error('expected FlowEditor overlay safety to include rich media overlay coverage in frontmatter-flow mode')
   }
   if (
-    !text.includes('const overlayCoverageIdSet = new Set([...overlayEditorNodeIds, ...frontmatterRichMediaOverlayNodeIds])')
-    && !text.includes('const overlayCoverageIdSet = new Set([')
+    !visibilityText.includes('const overlayCoverageIdSet = new Set([...overlayEditorNodeIds, ...frontmatterRichMediaOverlayNodeIds])')
+    && !visibilityText.includes('const overlayCoverageIdSet = new Set([')
   ) {
     throw new Error('expected FlowEditor overlay safety to combine widget and rich media overlay coverage before hiding the base canvas layer')
   }
@@ -110,13 +111,16 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
   ) {
     throw new Error('expected frontmatter overlay safety to derive visible flow coverage from the shared scene display graph')
   }
-  if (!text.includes('const visibleFlowNodeIds = visibleNodeIds.filter')) {
+  if (!visibilityText.includes('const visibleFlowNodeIds = visibleNodeIds.filter')) {
     throw new Error('expected frontmatter overlay safety to limit coverage checks to visible flow-widget nodes')
   }
-  if (text.includes('const frontmatterExcludedNodeIds = normalizeStringArrayForSignature([')) {
+  if ((text + visibilityText).includes('const frontmatterExcludedNodeIds = normalizeStringArrayForSignature([')) {
     throw new Error('expected frontmatter FlowCanvas graph exclusion to avoid folding rich-media overlay source nodes into the widget-only graph filter')
   }
-  if (!text.includes('excludedNodeIds,\n      })')) {
+  if (
+    !visibilityText.includes('excludedNodeIds: useVisibleCoverageExclusion')
+    || !visibilityText.includes(': overlayEditorNodeIdsSnapshot,')
+  ) {
     throw new Error('expected frontmatter FlowCanvas graph exclusion to hide only the Flow Editor widget-owned nodes while leaving rich-media overlay source nodes available')
   }
   if (!sharedText.includes('normalizeGraphFilterNodeIdSet')) {
@@ -125,17 +129,17 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
   if (!sharedText.includes('resolveGraphNodeIdByCanonicalId(graphData, id)')) {
     throw new Error('expected shared FlowCanvas graph filtering to resolve canonical overlay ids to concrete graph ids before exclusion')
   }
-  if (!text.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
+  if (!visibilityText.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
     throw new Error('expected frontmatter-flow overlay guard to branch explicitly before overlay-only canvas suppression')
   }
-  if (!text.includes('const frontmatterOverlayCoverageReady =')) {
-    throw new Error('expected frontmatter-flow overlay guard to centralize visible overlay coverage readiness before workspace/view gating')
+  if (!visibilityText.includes('FlowCanvas') || !visibilityText.includes('runtime may still provide layout, pan, zoom, and edge geometry')) {
+    throw new Error('expected frontmatter-flow overlay guard to document that FlowCanvas remains a non-visual layout/runtime substrate')
   }
-  if (!text.includes('if (frontmatterOverlayCoverageReady) return true')) {
-    throw new Error('expected frontmatter-flow overlay guard to keep overlay-only authority when visible nodes are already fully covered by widget and rich-media overlays')
+  if (!visibilityText.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {\n    // Frontmatter-flow Flow Editor scenes are overlay-owned.")) {
+    throw new Error('expected frontmatter-flow overlay guard to force overlay-owned scenes before workspace/view fallback gating')
   }
-  if (!text.includes('disabling overlay-only mode here strands edges')) {
-    throw new Error('expected frontmatter-flow overlay guard to document why workspace-open frontmatter scenes must keep overlay-edge authority')
+  if (!visibilityText.includes('return true')) {
+    throw new Error('expected frontmatter-flow overlay guard to keep Flow Editor visual authority while overlays hydrate')
   }
 }
 export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartMediaWhenConfigured() {
@@ -649,15 +653,25 @@ export function testFrontmatterFlowOverlayEditorsIncludeCanonicalBuiltInWidgets(
 
 export function testFlowEditorWidgetFormEmitsInteractionFrameOnScrollAndWheel() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const widgetInnerPanelScrollingPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  const scrollingText = readFileSync(widgetInnerPanelScrollingPath, 'utf8')
 
   if (!text.includes('emitFlowEditorInteractionFrame')) {
     throw new Error('expected widget form to reuse the shared flow editor interaction frame emitter')
   }
-  if (!text.includes('onScrollCapture={() => emitInteractionFrame()}')) {
+  if (
+    !text.includes('onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitInteractionFrame)}')
+    || !scrollingText.includes('export function handleWidgetInnerPanelScrollCapture')
+    || !scrollingText.includes('emitInteractionFrame()')
+  ) {
     throw new Error('expected widget form scroll to emit interaction frame for edge-anchor resync')
   }
-  if (!text.includes('onWheelCapture={() => emitInteractionFrame()}')) {
+  if (
+    !text.includes('onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitInteractionFrame)}')
+    || !scrollingText.includes('export function handleWidgetInnerPanelWheelCapture')
+    || !scrollingText.includes('emitInteractionFrame()')
+  ) {
     throw new Error('expected widget form wheel to emit interaction frame for edge-anchor resync')
   }
 }
@@ -681,17 +695,17 @@ export function testFrontmatterFlowContractSuppressesPortDotsForComputeAndDataRo
 }
 
 export function testWidgetWheelCaptureDoesNotBlockInternalScroll() {
-  const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const text = readFileSync(panelPath, 'utf8')
-  const wheelCaptureStart = text.indexOf('onWheelCapture={e => {')
-  if (wheelCaptureStart < 0) {
-    throw new Error('expected widget panel wheel capture handler')
+  const formPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const scrollingPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts')
+  const formText = readFileSync(formPath, 'utf8')
+  const scrollingText = readFileSync(scrollingPath, 'utf8')
+  if (!formText.includes('onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitInteractionFrame)}')) {
+    throw new Error('expected widget form wheel capture to route through the shared internal-scroll handler')
   }
-  const wheelCaptureBlock = text.slice(wheelCaptureStart, Math.min(text.length, wheelCaptureStart + 420))
-  if (!wheelCaptureBlock.includes('emitFlowEditorInteractionFrame()')) {
+  if (!scrollingText.includes('consumeScrollablePanelWheelEvent(event)') || !scrollingText.includes('emitInteractionFrame()')) {
     throw new Error('expected widget panel wheel capture to keep interaction-frame sync through the shared emitter')
   }
-  if (wheelCaptureBlock.includes('e.stopPropagation()')) {
+  if (scrollingText.includes('stopPropagation')) {
     throw new Error('expected widget panel wheel capture to avoid stopPropagation so internal panel scroll remains usable')
   }
 }
@@ -778,14 +792,17 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? \'in\' : \'out\', portKey })')) {
     throw new Error('expected widget registry port rows to format key:value metadata via shared helper')
   }
-  if (!text.includes('const portValueId = ids.registryField(`port-${p.direction}-${portKey}`)')) {
-    throw new Error('expected widget registry port rows to derive a shared SSOT value id for label/input typography')
+  if (!text.includes('const portValueId = ids.registryField(') || !text.includes('`port-${idx}-${p.direction}-${portKey}-${schemaPath}`')) {
+    throw new Error('expected widget registry port rows to derive unique shared SSOT value ids for label/input typography')
   }
-  if (!text.includes('<span>{handlePath}</span>')) {
-    throw new Error('expected widget registry port key column to show the shared semantic handle path')
+  if (!text.includes('formatFlowHandleAccessibleName({')) {
+    throw new Error('expected widget registry port rows to use shared accessible names when repeated port keys exist')
   }
-  if (!text.includes('<span className={cn(\'block\', UI_THEME_TOKENS.text.tertiary)}>{portKey}</span>')) {
-    throw new Error('expected widget registry port key column to keep the concrete port key as secondary text')
+  if (!text.includes('<span>{aria}</span>')) {
+    throw new Error('expected widget registry port key column to show unique shared handle names')
+  }
+  if (!text.includes("<span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{schemaPath || portKey}</span>")) {
+    throw new Error('expected widget registry port key column to keep schema path or concrete port key as secondary text')
   }
   if (!text.includes('typeNode: <NodeOverlayEditorTypePill text={handleType} />')) {
     throw new Error('expected widget registry port type column to render in/out direction')
@@ -1020,8 +1037,7 @@ export function testFlowEditorInactiveWarmMountDoesNotMutateWidgetsAcrossRendere
   }
 }
 
-export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgainstFlowCanvasInterference() {
-  const videoDemoPath = resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
+export function testFrontmatterFlowLandingKeepsWidgetsVisibleAgainstSiblingRendererInterference() {
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
@@ -1029,7 +1045,11 @@ export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgains
   const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
 
-  const videoDemoText = readFileSync(videoDemoPath, 'utf8')
+  const frontmatterFlowLandingText = [
+    'kgCanvas2dRenderer: "flowEditor"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+  ].join('\n')
   const runtimeText = readFileSync(runtimePath, 'utf8')
   const renderStateText = readFileSync(renderStatePath, 'utf8')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
@@ -1037,26 +1057,26 @@ export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgains
   const selectionBookkeepingText = readFileSync(selectionBookkeepingPath, 'utf8')
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
 
-  if (!videoDemoText.includes('kgCanvas2dRenderer: "flowEditor"')) {
-    throw new Error(`expected ${KNOWGRPH_VIDEO_DEMO_BASENAME} to keep Flow Editor as the canonical frontmatter-selected 2D renderer`)
+  if (!frontmatterFlowLandingText.includes('kgCanvas2dRenderer: "flowEditor"')) {
+    throw new Error('expected generic frontmatter-flow landing fixture to keep Flow Editor as the canonical frontmatter-selected 2D renderer')
   }
-  if (!videoDemoText.includes('kgDocumentSemanticMode: "document"') || !videoDemoText.includes('kgFrontmatterModeEnabled: true')) {
-    throw new Error(`expected ${KNOWGRPH_VIDEO_DEMO_BASENAME} to keep document frontmatter mode enabled for widget-visible landing`)
+  if (!frontmatterFlowLandingText.includes('kgDocumentSemanticMode: "document"') || !frontmatterFlowLandingText.includes('kgFrontmatterModeEnabled: true')) {
+    throw new Error('expected generic frontmatter-flow landing fixture to keep document frontmatter mode enabled for widget-visible landing')
   }
   if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
-    throw new Error('expected knowgrph-video-demo Flow Editor view visibility to stay bound to the active Flow Editor renderer, not sibling renderer mounts')
+    throw new Error('expected frontmatter-flow Flow Editor view visibility to stay bound to the active Flow Editor renderer, not sibling renderer mounts')
   }
   if (!renderStateText.includes('const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData')) {
-    throw new Error('expected knowgrph-video-demo Flow Editor render state to keep draft graph visibility scoped to active Flow Editor view')
+    throw new Error('expected frontmatter-flow Flow Editor render state to keep draft graph visibility scoped to active Flow Editor view')
   }
   if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {') || !overlaySurfaceText.includes('return []')) {
-    throw new Error('expected knowgrph-video-demo widget overlays to stay view-scoped so inactive Flow Canvas/Flowchart mounts cannot keep or blank widget overlays')
+    throw new Error('expected frontmatter-flow widget overlays to stay view-scoped so inactive Flow Canvas/Flowchart mounts cannot keep or blank widget overlays')
   }
   if (!overlaySurfaceElementsText.includes('visible={args.overlayVisibilityActive}') || !overlaySurfaceElementsText.includes('active={args.canEdit}')) {
-    throw new Error('expected knowgrph-video-demo widget overlays to remain visible in Flow Editor view while decoupling visibility from editability')
+    throw new Error('expected frontmatter-flow widget overlays to remain visible in Flow Editor view while decoupling visibility from editability')
   }
   if (!selectionBookkeepingText.includes('if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return')) {
-    throw new Error('expected knowgrph-video-demo widget bookkeeping to avoid pruning or mutating visible widget ids from inactive renderer paths')
+    throw new Error('expected frontmatter-flow widget bookkeeping to avoid pruning or mutating visible widget ids from inactive renderer paths')
   }
   if (!flowCanvasText.includes("if (canvas2dRenderer === 'flowEditor') {")) {
     throw new Error('expected Flow Canvas draw args to expose widget overlay state only for the active Flow Editor renderer')
@@ -1077,11 +1097,11 @@ export function testWidgetInitUsesLayoutHydrationAndRafClampCommit() {
   if (!text.includes('useIsomorphicLayoutEffect(() => {') || !text.includes('resolveFloatingPos(widgetPos, defaultFloatingPos)')) {
     throw new Error('expected widget floating position hydration to run in layout effect to avoid first-frame snap')
   }
-  if (!text.includes('pendingClampCommitRef.current = requestAnimationFrame(() => {')) {
-    throw new Error('expected widget clamp commit to use raf scheduling for immediate stable alignment')
+  if (text.includes('pendingClampCommitRef') || text.includes('persistClamp')) {
+    throw new Error('expected widget placement runtime to remove stale clamp commit scheduling and no-op clamp persistence')
   }
-  if (!text.includes('cancelAnimationFrame(pendingClampCommitRef.current)')) {
-    throw new Error('expected widget clamp scheduler to cancel stale raf commits')
+  if (!text.includes('applyOverlayPosition()')) {
+    throw new Error('expected widget placement runtime to use immediate layout-position application for stable alignment')
   }
 }
 
@@ -1092,8 +1112,11 @@ export function testFlowEditorWidgetGridFollowsToolbarAndAvoidsRightDocking() {
   const collisionText = readFileSync(collisionPath, 'utf8')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
-  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
-  const nodeText = readFileSync(nodeOverlayEditorPath, 'utf8')
+  const nodeText = [
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts'),
+  ].map(path => readFileSync(path, 'utf8')).join('\n')
 
   if (!sharedText.includes('export function readWidgetGridLayoutSettings(schema: unknown): {')) {
     throw new Error('expected FlowEditor widget layout to derive settings from toolbar grid behavior')
@@ -1124,13 +1147,15 @@ export function testFlowEditorWidgetGridFollowsToolbarAndAvoidsRightDocking() {
 
 export function testFlowEditorWidgetPinDescriptionsAreActionClear() {
   const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
+  const panelChromePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
   const panelText = readFileSync(panelPath, 'utf8')
+  const panelChromeText = readFileSync(panelChromePath, 'utf8')
   const copyPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts')
   const copyText = readFileSync(copyPath, 'utf8')
   const labelsPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiMeta.ts')
   const labelsText = readFileSync(labelsPath, 'utf8')
 
-  if (!panelText.includes('title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}')) {
+  if (!(panelText + panelChromeText).includes('title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}')) {
     throw new Error('expected widget pin button title to reflect explicit action for current state')
   }
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayDragHandlers.ts')
@@ -1254,11 +1279,13 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const placementAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
+  const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
   const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   const placementAuthorityText = readFileSync(placementAuthorityPath, 'utf8')
   const overlayText = readFileSync(overlayPath, 'utf8')
+  const overlaySurfaceElementsText = readFileSync(overlaySurfaceElementsPath, 'utf8')
   const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
   if (overlaySurfaceText.includes('forcePinnedToCanvas')) {
     throw new Error('expected FlowEditor overlay widgets to avoid legacy force-pinned canvas mode')
@@ -1284,7 +1311,7 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
   if (!renderGraphHelperText.includes('const defaultPinnedInCanvas = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })')) {
     throw new Error('expected widget placement context helper to own shared default pinning rules')
   }
-  if (!overlaySurfaceText.includes("const portHandleEdges = incidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES")) {
+  if (!overlaySurfaceElementsText.includes("const portHandleEdges = args.renderGraphIncidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES")) {
     throw new Error('expected overlay surface to pass only node-local cached edges into each widget overlay')
   }
   if (!overlaySurfaceText.includes('const renderGraphPlacementContext = React.useMemo(() => {')) {
@@ -1300,8 +1327,8 @@ export function testFlowEditorPinnedWidgetForbidsAccidentalDuplicateCopy() {
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const overlayText = readFileSync(overlayPath, 'utf8')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
+  const overlaySurfaceElementsText = readFileSync(overlaySurfaceElementsPath, 'utf8')
   if (!toolbarText.includes('duplicateDisabled: boolean')) {
     throw new Error('expected widget actions toolbar to accept duplicateDisabled guard for accidental copy prevention')
   }
@@ -1311,10 +1338,10 @@ export function testFlowEditorPinnedWidgetForbidsAccidentalDuplicateCopy() {
   if (!overlayText.includes('duplicateDisabled={pinnedInCanvas}')) {
     throw new Error('expected duplicate guard to activate only for explicitly pinned widgets')
   }
-  if (!overlaySurfaceText.includes('const pinned = pinnedMap[id] === true')) {
+  if (!overlaySurfaceElementsText.includes('const pinned = pinnedMap[id] === true')) {
     throw new Error('expected widget duplicate callback to guard only explicit pinned state before copying')
   }
-  if (!overlaySurfaceText.includes('Pinned widget blocks duplicate copy.')) {
+  if (!overlaySurfaceElementsText.includes('Pinned widget blocks duplicate copy.')) {
     throw new Error('expected widget duplicate guard to notify user when copy is blocked in pinned mode')
   }
 }

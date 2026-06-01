@@ -61,8 +61,11 @@ export function testFlowEditorOverlayModeSuppressesCanvasGroupsWhenOverlayOwnsTh
   } catch {
     throw new Error(`Expected to read ${filePath}`)
   }
-  if (!text.includes('renderGroups={!props.overlayOnlyActive && !props.geospatialWidgetPanelMode}')) {
-    throw new Error('Expected Flow Editor overlay-only mode to suppress FlowCanvas group shells so clusters/subgraphs cannot seep under overlay-owned scenes')
+  if (!text.includes('suppressNativeFlowCanvasSurface: boolean')) {
+    throw new Error('Expected Flow Editor to derive native FlowCanvas suppression from shared overlay/frontmatter scene semantics')
+  }
+  if (!text.includes('renderGroups={!props.suppressNativeFlowCanvasSurface && !props.geospatialWidgetPanelMode}')) {
+    throw new Error('Expected Flow Editor to suppress FlowCanvas group shells so clusters/subgraphs cannot seep under overlay-owned scenes')
   }
 }
 
@@ -84,11 +87,20 @@ export function testFlowEditorOverlayOnlyModeDoesNotBlankCanvasWhenNoOverlaysOpe
   if (!overlaySurfaceText.includes('hasOverlayEditors || Boolean(geospatialWidgetPanelMode)')) {
     throw new Error('Expected Flow Editor overlay-only mode to require visible overlays or geospatial panel mode')
   }
-  if (!surfaceText.includes('renderEdges={!props.overlayOnlyActive}')) {
-    throw new Error('Expected Flow Editor to keep canvas edges visible when no overlays are open')
+  if (!surfaceText.includes('renderEdges={!props.suppressNativeFlowCanvasSurface}')) {
+    throw new Error('Expected Flow Editor to gate canvas edges through the shared native FlowCanvas suppression helper')
   }
-  if (!surfaceText.includes('renderNodes={!props.overlayOnlyActive}')) {
-    throw new Error('Expected Flow Editor to keep canvas nodes visible when no overlays are open')
+  if (!surfaceText.includes('renderNodes={!props.suppressNativeFlowCanvasSurface}')) {
+    throw new Error('Expected Flow Editor to gate canvas nodes through the shared native FlowCanvas suppression helper')
+  }
+  if (!overlaySurfaceText.includes('export function shouldSuppressFlowCanvasNativeSurface')) {
+    throw new Error('Expected native FlowCanvas suppression to live in the shared overlay visibility owner')
+  }
+  if (!overlaySurfaceText.includes('flowEditorFrontmatterGraphAvailable?: boolean')) {
+    throw new Error('Expected native FlowCanvas suppression to be resolved before FlowCanvas substrate graph filtering can drop frontmatter ownership')
+  }
+  if (!overlaySurfaceText.includes('return isFrontmatterFlowGraph(args.renderGraphDataOverride)')) {
+    throw new Error('Expected frontmatter-flow Flow Editor scenes to suppress native FlowCanvas drawing even when overlay widgets are deferred')
   }
   if (!surfaceText.includes('{props.overlayOnlyActive && (')) {
     throw new Error('Expected overlay-only SVG edges layer to be gated by overlayOnlyActive')

@@ -15,8 +15,9 @@ const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).
 const originUrl = new URL(baseUrl).origin
 const rootA2aAgentCardUrl = `${originUrl}/.well-known/agent-card.json`
 const appBasePath = new URL(baseUrl).pathname.replace(/\/+$/, '') || '/'
+const defaultWorkspaceId = 'kgws:canonical-docs'
 const expectedTools = buildKnowgrphAgentReadyToolContracts({
-  defaultWorkspaceId: 'kgws:canonical-docs',
+  defaultWorkspaceId,
 })
 const expectedMcpToolEntries = expectedTools.map((tool) => ({
   name: tool.name,
@@ -24,7 +25,7 @@ const expectedMcpToolEntries = expectedTools.map((tool) => ({
   inputSchema: tool.inputSchema,
 })).sort((left, right) => left.name.localeCompare(right.name))
 const expectedBrowserOnlyTools = buildKnowgrphAgentReadyToolContracts({
-  defaultWorkspaceId: 'kgws:canonical-docs',
+  defaultWorkspaceId,
   includeBrowserOnlyTools: true,
 }).filter((tool) => !expectedTools.some((sharedTool) => sharedTool.webName === tool.webName))
 const expectedWebToolNames = expectedTools.map((tool) => tool.webName)
@@ -44,10 +45,10 @@ const hasExpectedAuthResourceReference = (payload) => payload.resource === `${ba
 const hasExpectedProtectedResource = (payload) => hasExpectedAuthResourceReference(payload) && includesAll(payload.bearer_methods_supported, ['header'])
 const hasExpectedAgentAuth = (agentAuth) => agentAuth?.skill === `${originUrl}/auth.md` && agentAuth?.register_uri === `${baseUrl}/agent/auth` && agentAuth?.claim_uri === `${baseUrl}/agent/auth/claim` && agentAuth?.revocation_uri === `${baseUrl}/agent/auth/revoke` && includesAll(agentAuth?.identity_types_supported, ['anonymous', 'identity_assertion']) && includesAll(agentAuth?.anonymous?.credential_types_supported, ['api_key']) && includesAll(agentAuth?.identity_assertion?.assertion_types_supported, ['urn:ietf:params:oauth:token-type:id-jag', 'verified_email']) && includesAll(agentAuth?.identity_assertion?.credential_types_supported, ['access_token', 'api_key']) && includesAll(agentAuth?.events_supported, ['https://schemas.workos.com/events/agent/auth/identity/assertion/revoked'])
 const preferredSharedDocSample = {
-  workspaceId: 'kgws:canonical-docs',
+  workspaceId: defaultWorkspaceId,
   canonicalPath: 'huijoohwee/docs/knowgrph-design-demo.md',
 }
-const buildSharedDocSample = async ({ workspaceId, canonicalPath }) => {
+const buildSharedDocSample = async ({ workspaceId, canonicalPath, requireNonEmpty = false }) => {
   const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : ''
   const encodedCanonicalPath = encodeURIComponent(canonicalPath)
   const shareToken = encodePublishedDocShareToken({ workspaceId, canonicalPath })
@@ -58,37 +59,53 @@ const buildSharedDocSample = async ({ workspaceId, canonicalPath }) => {
     headers: { accept: 'text/markdown' },
   })
   if (!markdownResponse.ok) return null
+  const markdown = await markdownResponse.text()
+  if (requireNonEmpty && markdown.trim().length === 0) return null
   return {
     workspaceId,
     canonicalPath,
-    markdown: await markdownResponse.text(),
+    markdown,
     shareUrl: `${baseUrl}/share/${encodeURIComponent(shareToken)}`,
   }
 }
 
-const resolveSharedDocSampleFromIndex = async () => {
+const extractStorageDocEntries = (body) => {
+  const entries = []
+  const storageDocPathPattern = /\/api\/storage\/doc(?:-default)?\/([^/\s)]+)(?:\/([^\s)]+))?/g
+  for (const match of String(body || '').matchAll(storageDocPathPattern)) {
+    if (!match?.[1]) continue
+    const hasWorkspaceId = typeof match[2] === 'string'
+    const encodedWorkspaceId = hasWorkspaceId ? match[1] : ''
+    const encodedCanonicalPath = hasWorkspaceId ? String(match[2] || '') : match[1]
+    entries.push({
+      workspaceId: encodedWorkspaceId ? decodeURIComponent(encodedWorkspaceId) : '',
+      canonicalPath: decodeURIComponent(encodedCanonicalPath),
+    })
+  }
+  return entries
+}
+
+const resolveSharedDocSampleFromIndex = async ({ requireNonEmpty = false } = {}) => {
   const response = await fetch(`${canonicalOriginUrl}/api/storage/source-files`, {
     headers: { accept: 'text/markdown' },
   })
   if (!response.ok) return null
   const body = await response.text()
-  const match = body.match(/\/api\/storage\/doc(?:-default)?\/([A-Za-z0-9._~!$&'()*+,;=:@%-]+)(?:\/([A-Za-z0-9._~!$&'()*+,;=:@%-]+))?/)
-  if (!match?.[1]) return null
-  const hasWorkspaceId = typeof match[2] === 'string'
-  const encodedWorkspaceId = hasWorkspaceId ? match[1] : ''
-  const encodedCanonicalPath = hasWorkspaceId ? String(match[2] || '') : match[1]
-  const workspaceId = encodedWorkspaceId ? decodeURIComponent(encodedWorkspaceId) : ''
-  const canonicalPath = decodeURIComponent(encodedCanonicalPath)
-  const storagePath = workspaceId
-    ? `/api/storage/doc/${encodedWorkspaceId}/${encodedCanonicalPath}`
-    : `/api/storage/doc-default/${encodedCanonicalPath}`
-  return buildSharedDocSample({
-    workspaceId,
-    canonicalPath,
-  })
+  for (const entry of extractStorageDocEntries(body)) {
+    const sample = await buildSharedDocSample({
+      ...entry,
+      workspaceId: entry.workspaceId || defaultWorkspaceId,
+      requireNonEmpty,
+    })
+    if (sample) return sample
+  }
+  return null
 }
 
-const sharedDocSample = await buildSharedDocSample(preferredSharedDocSample) || await resolveSharedDocSampleFromIndex()
+const sharedDocSample = await buildSharedDocSample({ ...preferredSharedDocSample, requireNonEmpty: true })
+  || await resolveSharedDocSampleFromIndex({ requireNonEmpty: true })
+  || await buildSharedDocSample(preferredSharedDocSample)
+  || await resolveSharedDocSampleFromIndex()
 
 const sharedDocAliasUrls = sharedDocSample
   ? {
@@ -97,7 +114,9 @@ const sharedDocAliasUrls = sharedDocSample
         canonicalPath: sharedDocSample.canonicalPath,
       }))}`,
       kgWorkspaceCanonical: `${baseUrl}/?kgWorkspaceId=${encodeURIComponent(sharedDocSample.workspaceId)}&kgCanonicalPath=${encodeURIComponent(sharedDocSample.canonicalPath)}`,
-      kgPath: `${baseUrl}/?kgPath=${encodeURIComponent(`/doc/${sharedDocSample.workspaceId}/${sharedDocSample.canonicalPath}`)}`,
+      kgPath: `${baseUrl}/?kgPath=${encodeURIComponent(sharedDocSample.workspaceId
+        ? `/doc/${sharedDocSample.workspaceId}/${sharedDocSample.canonicalPath}`
+        : `/doc-default/${sharedDocSample.canonicalPath}`)}`,
     }
   : null
 
@@ -505,7 +524,7 @@ const checks = [
       const result = payload.result?.structuredContent
       return response.ok
         && payload.result?.isError === false
-        && result?.workspaceId === 'kgws:canonical-docs'
+        && result?.workspaceId === defaultWorkspaceId
         && typeof result?.markdownIndex === 'string'
         && result.markdownIndex.includes('/api/storage/doc-default/')
         && result.markdownIndex.length > 0
@@ -523,7 +542,7 @@ const checks = [
       params: {
         name: 'read_source_file',
         arguments: {
-          canonicalPath: preferredSharedDocSample.canonicalPath,
+          canonicalPath: sharedDocSample?.canonicalPath || preferredSharedDocSample.canonicalPath,
         },
       },
     }),
@@ -532,8 +551,8 @@ const checks = [
       const result = payload.result?.structuredContent
       return response.ok
         && payload.result?.isError === false
-        && result?.workspaceId === 'kgws:canonical-docs'
-        && result?.canonicalPath === preferredSharedDocSample.canonicalPath
+        && result?.workspaceId === defaultWorkspaceId
+        && result?.canonicalPath === (sharedDocSample?.canonicalPath || preferredSharedDocSample.canonicalPath)
         && typeof result?.markdown === 'string'
         && result.markdown.trim().length > 0
     },

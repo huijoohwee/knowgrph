@@ -25,6 +25,7 @@ export default function FlowEditorCanvasSurface(props: {
   hasOverlayEditors: boolean
   emitFlowEditorInteractionFrame: () => void
   overlayOnlyActive: boolean
+  suppressNativeFlowCanvasSurface: boolean
   overlayEdgesSvgRef: React.Ref<SVGSVGElement>
   overlayEditorElements: React.ReactNode
   noGraphLoaded: boolean
@@ -109,9 +110,9 @@ export default function FlowEditorCanvasSurface(props: {
             props.flowRuntimeRefRef.current = ref
           }}
           onInteractionFrame={props.hasOverlayEditors ? props.emitFlowEditorInteractionFrame : undefined}
-          renderEdges={!props.overlayOnlyActive}
-          renderGroups={!props.geospatialWidgetPanelMode}
-          renderNodes={true}
+          renderEdges={!props.suppressNativeFlowCanvasSurface}
+          renderGroups={!props.suppressNativeFlowCanvasSurface && !props.geospatialWidgetPanelMode}
+          renderNodes={!props.suppressNativeFlowCanvasSurface}
         />
       )}
 

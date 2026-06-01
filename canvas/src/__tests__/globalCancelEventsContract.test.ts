@@ -59,7 +59,7 @@ export const testGlobalCancelEventsHelperCentralizesPointerBlurAndVisibilityFall
 
 export const testGlobalCancelEventsCallsitesUseSharedHelperBoundary = () => {
   const helperText = readUtf8('src/lib/browser/globalCancelEvents.ts')
-  const editorText = readUtf8('src/components/FlowEditor/NodeOverlayEditor.tsx')
+  const editorText = readUtf8('src/components/FlowEditor/NodeOverlayEditorView.tsx')
 
   if (!helperText.includes('export function subscribeGlobalCancelEvents')) {
     throw new Error('expected global cancel helper module to expose shared pointer/blur/visibility subscription')

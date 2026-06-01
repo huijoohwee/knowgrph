@@ -128,6 +128,41 @@ export const readWorkspaceImportDefaultSourceUrlSetting = (): string => {
   }
 }
 
+const normalizeFilesystemRootPath = (value: string): string => {
+  return String(value || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '')
+}
+
+const readWorkspaceDocsMirrorRootPathFallback = (): string => {
+  return normalizeFilesystemRootPath(readEnvString('VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT', ''))
+}
+
+export const readWorkspaceDocsMirrorRootPathSetting = (): string => {
+  const storage = getLocalStorage()
+  if (!storage) return readWorkspaceDocsMirrorRootPathFallback()
+  try {
+    const stored = normalizeFilesystemRootPath(String(storage.getItem(LS_KEYS.workspaceDocsMirrorRootPath) || ''))
+    return stored || readWorkspaceDocsMirrorRootPathFallback()
+  } catch {
+    return readWorkspaceDocsMirrorRootPathFallback()
+  }
+}
+
+export const writeWorkspaceDocsMirrorRootPathSetting = (next: string): void => {
+  const storage = getLocalStorage()
+  if (!storage) return
+  try {
+    const value = normalizeFilesystemRootPath(next)
+    if (value) storage.setItem(LS_KEYS.workspaceDocsMirrorRootPath, value)
+    else storage.removeItem(LS_KEYS.workspaceDocsMirrorRootPath)
+    notifyWorkspaceStoreSyncSettingsChanged()
+  } catch {
+    void 0
+  }
+}
+
 const readKnowgrphStorageBaseUrlSetting = (): string =>
   String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
 
@@ -138,10 +173,7 @@ const normalizeWorkspaceLikeRootPath = (value: string, fallback: string): string
 }
 
 const readWorkspaceMirrorBaseAbsRoot = (): string => {
-  const docsRoot = String(readEnvString('VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT', '') || '')
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/\/+$/, '')
+  const docsRoot = readWorkspaceDocsMirrorRootPathSetting()
   if (!docsRoot) return ''
   const parts = docsRoot.split('/').filter(Boolean)
   if (parts.length <= 1) return ''

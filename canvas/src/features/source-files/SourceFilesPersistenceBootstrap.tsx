@@ -2,6 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { readEnvString } from '@/lib/config.env'
 import {
   loadPersistedSourceFiles,
   loadPersistedSourceFilesWorkspace,
@@ -24,7 +25,7 @@ import {
   hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
   readReusableWorkspaceEntriesSnapshot,
-  readWorkspaceActiveEntrySnapshot,
+  readWorkspaceSourceRootEntriesSnapshot,
   resolveMaterializedWorkspaceActivePath,
 } from '@/features/source-files/sourceFilesRuntimeShared'
 import {
@@ -73,6 +74,13 @@ import {
 } from '@/features/source-files/sourceFilesKnowgrphStorageRuntime'
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
 const ACTIVE_PATH_SWITCH_COMPOSE_SUPPRESS_MS = 800
+const readKnowgrphStorageRuntimeSyncEnabled = (): boolean => {
+  const raw = String(readEnvString('VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED', '') || '')
+    .trim()
+    .toLowerCase()
+  if (!raw) return false
+  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
+}
 const markWorkspaceSeedSyncDebug = (source: string): void => {
   __canvasStartupDebug.workspaceSeedLastSyncAtMs = Date.now()
   __canvasStartupDebug.workspaceSeedLastSyncSource = String(source || '').trim()
@@ -441,7 +449,7 @@ export function SourceFilesPersistenceBootstrap() {
     const activePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: useMarkdownExplorerStore.getState().activePath })
     if (!activePath) return sourceFilesSnapshot
     const forceIncludePaths = buildMaterializedWorkspaceForceIncludePaths({ activePathOverride: activePath })
-    const workspaceEntries = await readWorkspaceActiveEntrySnapshot({
+    const workspaceEntries = await readWorkspaceSourceRootEntriesSnapshot({
       fs,
       activePath,
       workspaceEntries: reusableWorkspaceEntriesRef.current,
@@ -963,6 +971,7 @@ export function SourceFilesPersistenceBootstrap() {
     sourceFilesSnapshot?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
     storageSyncSignature?: string
   }): KnowgrphStorageQueueRequest | null => {
+    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceSeedSyncEnabled) return null
     const workspaceId = readKnowgrphStorageWorkspaceId({
       workspaceId: args?.workspaceId,
       workspaceState: args?.workspaceState,
@@ -979,7 +988,7 @@ export function SourceFilesPersistenceBootstrap() {
       sourceFilesSnapshot,
       signature: `${workspaceId}:${storageSyncSignature}`,
     }
-  }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, readKnowgrphStorageWorkspaceId])
+  }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, readKnowgrphStorageWorkspaceId, workspaceSeedSyncEnabled])
 
   const rememberKnowgrphStorageQueuedSnapshot = React.useCallback((request: KnowgrphStorageQueueRequest) => {
     lastQueuedKnowgrphStorageSignatureRef.current = request.signature
@@ -1070,6 +1079,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   const runKnowgrphStorageQueueRequest = React.useCallback((request: KnowgrphStorageQueueRequest) => {
+    if (!readKnowgrphStorageRuntimeSyncEnabled() || !readWorkspaceSeedSyncEnabledSetting()) return
     if (!request.workspaceId) return
     if (activeKnowgrphWorkspaceIdRef.current && activeKnowgrphWorkspaceIdRef.current !== request.workspaceId) return
     if (lastQueuedKnowgrphStorageSignatureRef.current === request.signature) return
@@ -1135,9 +1145,10 @@ export function SourceFilesPersistenceBootstrap() {
   }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, resolveKnowgrphStorageQueueRequest, resolveSourceFilesComposeRequest])
 
   const applySourceFilesPersistenceStorageRequest = React.useCallback((request: SourceFilesPersistenceEffectRequest) => {
+    if (!workspaceSeedSyncEnabled) return
     if (knowgrphInboundApplyInFlightRef.current) return
     scheduleKnowgrphStorageQueueRequest(request.knowgrphStorageQueueRequest)
-  }, [scheduleKnowgrphStorageQueueRequest])
+  }, [scheduleKnowgrphStorageQueueRequest, workspaceSeedSyncEnabled])
 
   const applySuppressedSourceFilesPersistenceComposeRequest = React.useCallback((compositionSignature: string): boolean => {
     if (Date.now() >= suppressComposeUntilMsRef.current) return false
@@ -1264,6 +1275,7 @@ export function SourceFilesPersistenceBootstrap() {
     changes: unknown
   }) => {
     if (activeKnowgrphWorkspaceIdRef.current !== args.workspaceId) return
+    if (!readKnowgrphStorageRuntimeSyncEnabled() || !readWorkspaceSeedSyncEnabledSetting()) return
     const deps = knowgrphStorageRuntimeDepsRef.current
     if (!deps) return
     knowgrphInboundApplyInFlightRef.current = true
@@ -1286,6 +1298,7 @@ export function SourceFilesPersistenceBootstrap() {
     const epoch = knowgrphStorageRuntimeEpochRef.current
     void ensureKnowgrphStorageRuntimeDependencies().then(deps => {
       if (epoch !== knowgrphStorageRuntimeEpochRef.current) return
+      if (!readKnowgrphStorageRuntimeSyncEnabled() || !readWorkspaceSeedSyncEnabledSetting()) return
       knowgrphStorageLoopCleanupRef.current = deps.startKnowgrphStorageSyncLoop({
         workspaceId: request.workspaceId,
         baseUrl: deps.baseUrl,
@@ -1376,6 +1389,10 @@ export function SourceFilesPersistenceBootstrap() {
   ])
 
   React.useEffect(() => {
+    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceSeedSyncEnabled) {
+      stopKnowgrphStorageWorkspaceRuntime()
+      return
+    }
     const startForWorkspaceSelection = (selection: KnowgrphStorageWorkspaceSelection) => {
       const request = resolveKnowgrphStorageWorkspaceRequest({
         workspaceState: selection.workspaceState,
@@ -1398,7 +1415,13 @@ export function SourceFilesPersistenceBootstrap() {
       unsubscribe()
       stopKnowgrphStorageWorkspaceRuntime()
     }
-  }, [applyKnowgrphStorageWorkspaceRequest, readKnowgrphStorageWorkspaceSelection, resolveKnowgrphStorageWorkspaceRequest, stopKnowgrphStorageWorkspaceRuntime])
+  }, [
+    applyKnowgrphStorageWorkspaceRequest,
+    readKnowgrphStorageWorkspaceSelection,
+    resolveKnowgrphStorageWorkspaceRequest,
+    stopKnowgrphStorageWorkspaceRuntime,
+    workspaceSeedSyncEnabled,
+  ])
 
   React.useEffect(() => {
     let cancelled = false

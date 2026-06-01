@@ -2,6 +2,7 @@ export {
   hydrateWorkspaceEntriesInlineText,
   readReusableWorkspaceEntriesSnapshot,
   readWorkspaceActiveEntrySnapshot,
+  readWorkspaceSourceRootEntriesSnapshot,
 } from '@/features/source-files/sourceFilesRuntimeActive'
 
 export {

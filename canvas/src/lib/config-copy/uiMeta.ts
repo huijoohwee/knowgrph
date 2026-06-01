@@ -117,6 +117,7 @@ export const UI_LABELS = {
   view: 'View',
   canvasInteractionMode: 'Canvas Interaction Mode',
   workspaceSyncMode: 'Workspace Sync Mode',
+  storageSync: 'Storage Sync',
   menu: 'Menu',
   documentStructureMode: 'Document Structure Mode',
   keywordMode: 'Keyword Mode',

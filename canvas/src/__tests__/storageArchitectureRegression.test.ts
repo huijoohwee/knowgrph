@@ -15,6 +15,48 @@ export function testRootPackageDeclaresDrizzleForKnowgrphStorageWorker() {
   }
 }
 
+export function testStorageSyncDocumentDeclaresPocketBaseYjsGitHubSsotContract() {
+  const storageDocPath = resolve(process.cwd(), '..', 'docs', 'documents', 'knowgrph-storage-sync-document.md')
+  const companionPath = resolve(process.cwd(), '..', 'docs', 'documents', 'knowgrph-storage-sync-document.companion.md')
+  const storageDocText = readFileSync(storageDocPath, 'utf8')
+  const companionText = readFileSync(companionPath, 'utf8')
+  const requiredStorageDocFragments = [
+    'Keep GitHub `docs/**` canonical for Storage Sync',
+    'PocketBase + Yjs as the concurrent-editing layer',
+    'collaborators never touch Git',
+    'Never let two users edit raw JSON simultaneously without CRDT wrapping',
+    '**Solo/local path**: Editor Workspace `/docs/**` ⇄ Source Files ⇄ configured local docs mirror.',
+    '**Concurrent path**: Editor Workspace `/docs/**` ⇄ Yjs document room ⇄ PocketBase realtime relay ⇄ GitHub save bridge.',
+    '| `*.md` | `Y.Text` | Character-level CRDT, zero conflicts |',
+    '| `*.json` | `Y.Map` / nested `Y.Map` + `Y.Array` | Field-level merge, prevents destructive overwrites on minified JSON |',
+    'User save / autosave boundary',
+    'GitHub Contents API (or GitHub App): PUT /repos/{owner}/{repo}/contents/docs/{path}',
+    'GitHub docs branch/main stays SSOT',
+    'D1 remains the runtime export/read cache; it does not serve as the concurrent edit store.',
+  ]
+  for (const fragment of requiredStorageDocFragments) {
+    if (!storageDocText.includes(fragment)) {
+      throw new Error(`expected storage sync document to declare PocketBase/Yjs/GitHub SSOT fragment: ${fragment}`)
+    }
+  }
+  if (storageDocText.includes('D1 becomes SSOT') || storageDocText.includes('flip SSOT to D1') || storageDocText.includes('Yjs doc update event (debounced 5s)')) {
+    throw new Error('expected storage sync document to avoid D1-as-SSOT and update-event commit wording for concurrent editing')
+  }
+  const requiredCompanionFragments = [
+    '`Storage Sync` is on and two users edit the same `*.md`',
+    '`Storage Sync` is on and two users edit the same `*.json`',
+    'raw JSON editing is blocked; Yjs shared JSON types own the edit',
+    'collaborators never touch Git credentials or Git commands',
+    '### ADR-010: Use PocketBase + Yjs For Same-File Collaboration, Not Git Merge',
+    'D1 remains a runtime read/export cache and must not be promoted to collaboration SSOT.',
+  ]
+  for (const fragment of requiredCompanionFragments) {
+    if (!companionText.includes(fragment)) {
+      throw new Error(`expected storage sync companion to declare concurrent editing acceptance/ADR fragment: ${fragment}`)
+    }
+  }
+}
+
 export function testBrowserCacheLegacyShimFilesAreRemoved() {
   const storagePath = resolve(process.cwd(), 'src', 'lib', 'storage', 'rxdbStorage.ts')
   const recoveryPath = resolve(process.cwd(), 'src', 'lib', 'storage', 'rxdbRecovery.ts')

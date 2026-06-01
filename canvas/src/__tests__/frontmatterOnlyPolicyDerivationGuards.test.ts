@@ -24,7 +24,10 @@ export function testFrontmatterOnlyPolicySkipsKeywordTableAndComposedSourceDeriv
   if (!composedSourceText.includes('isFrontmatterOnlyPolicyActive')) {
     throw new Error('expected composed source graph application to use frontmatter-only policy helper')
   }
-  if (!composedSourceText.includes('if (isFrontmatterOnlyPolicyActive({ canvasRenderMode: store.canvasRenderMode, canvas2dRenderer: store.canvas2dRenderer })) return')) {
+  if (!composedSourceText.includes('if (isFrontmatterOnlyPolicyActive({ canvasRenderMode: store.canvasRenderMode, canvas2dRenderer: store.canvas2dRenderer })) {')) {
     throw new Error('expected composed source graph derivation to be skipped under frontmatter-only policy')
+  }
+  if (!composedSourceText.includes('resetPendingComposedGraphApplyState()')) {
+    throw new Error('expected skipped composed source graph derivation to reset pending apply state')
   }
 }

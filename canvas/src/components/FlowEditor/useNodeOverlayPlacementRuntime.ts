@@ -18,6 +18,10 @@ import {
   readZoomScaleExtent,
 } from '@/lib/graph/layoutDefaults'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
+import {
+  WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX,
+  WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX,
+} from '@/components/FlowEditor/nodeOverlayEditorShared'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
@@ -34,7 +38,6 @@ type AppliedOverlayPlacement = {
 }
 
 export type ApplyOverlayPositionOptions = {
-  persistClamp?: boolean
   emitInteractionFrame?: boolean
 }
 
@@ -440,10 +443,11 @@ export function useNodeOverlayPlacementRuntime(args: {
       const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
       return { left: clamp(posBase.left, minLeft, maxLeft), top: clamp(posBase.top, minTop, maxTop) }
     })()
-    setToolbarDock(prev => (prev === (pos.top >= 48 ? 'above' : 'below') ? prev : (pos.top >= 48 ? 'above' : 'below')))
+    const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
+    setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
     setToolbarSideClamp(prev => {
-      const next = pos.left + scaled.width + 220 > viewportW
-      return prev === next ? prev : next
+      const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportW
+      return prev === nextToolbarSideClamp ? prev : nextToolbarSideClamp
     })
     const offset = canvasWindowOffsetRef.current
     const offsetLeft = Number.isFinite(offset.left) ? offset.left : 0; const offsetTop = Number.isFinite(offset.top) ? offset.top : 0
@@ -594,11 +598,11 @@ export function useNodeOverlayPlacementRuntime(args: {
           lastFloatingScaleKeyRef.current = scaleKey
           zoomStateRef.current = nextZoom
           if (sameScale && !widgetWorldPosRef.current && !pinnedDragOverrideRef.current) return
-          applyOverlayPosition({ persistClamp: false })
+          applyOverlayPosition()
           return
         }
         zoomStateRef.current = nextZoom
-        applyOverlayPosition({ persistClamp: false })
+        applyOverlayPosition()
       },
     )
     return () => {

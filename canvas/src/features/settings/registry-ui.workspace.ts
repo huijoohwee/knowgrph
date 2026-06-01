@@ -9,6 +9,7 @@ import {
 } from '@/lib/workspace/workspaceLayoutSettings'
 import {
   normalizeWorkspaceImportDefaultSourceUrlForSourceFiles,
+  readWorkspaceDocsMirrorRootPathSetting,
   readWorkspaceAutoRefreshEnabledSetting,
   readWorkspaceImportDefaultSourceUrlSetting,
   readWorkspaceImportShareExportRootPathSetting,
@@ -18,6 +19,7 @@ import {
   readWorkspaceSourceFilesDocsOnlySetting,
   readWorkspaceSourceFilesSyncDebounceMsSetting,
   writeWorkspaceAutoRefreshEnabledSetting,
+  writeWorkspaceDocsMirrorRootPathSetting,
   writeWorkspaceImportDefaultSourceUrlSetting,
   writeWorkspaceImportShareExportRootPathSetting,
   writeWorkspaceSeedSyncEnabledSetting,
@@ -55,6 +57,16 @@ const printSettings: SettingMeta[] = PRINT_LAYOUT_TOKENS.map(token => ({
 export const uiWorkspaceSettingsRegistry: SettingMeta[] = [
   ...workspaceSettings,
   ...printSettings,
+  {
+    key: 'workspace.sync.docsMirror.rootPath',
+    type: 'string',
+    source: 'localStorage',
+    read: () => readWorkspaceDocsMirrorRootPathSetting(),
+    write: value => {
+      writeWorkspaceDocsMirrorRootPathSetting(String(value ?? ''))
+    },
+    default: () => readWorkspaceDocsMirrorRootPathSetting(),
+  },
   {
     key: 'workspace.sync.seed.enabled',
     type: 'boolean',

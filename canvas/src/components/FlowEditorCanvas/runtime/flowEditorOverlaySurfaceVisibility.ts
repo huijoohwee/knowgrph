@@ -1,4 +1,5 @@
 import { filterGraphByExcludedNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData } from '@/lib/graph/types'
 
 type FrontmatterVisibleSceneDisplay = {
@@ -58,7 +59,6 @@ export function resolveOverlayOnlyActive(args: {
   geospatialWidgetPanelMode?: boolean
   frontmatterOverlayHideSafety: FrontmatterOverlayHideSafety
   workspaceMutationBlocked: boolean
-  workspaceEditorOverlayOpen: boolean
 }): boolean {
   const {
     overlayVisibilityActive,
@@ -66,26 +66,32 @@ export function resolveOverlayOnlyActive(args: {
     geospatialWidgetPanelMode,
     frontmatterOverlayHideSafety,
     workspaceMutationBlocked,
-    workspaceEditorOverlayOpen,
   } = args
   const baseActive = overlayVisibilityActive && (hasOverlayEditors || Boolean(geospatialWidgetPanelMode))
   if (!baseActive) return false
   if (geospatialWidgetPanelMode) return true
 
-  const frontmatterOverlayCoverageReady =
-    frontmatterOverlayHideSafety.kind === 'frontmatter-flow'
-    && frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
-
+  if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {
+    // Frontmatter-flow Flow Editor scenes are overlay-owned. The FlowCanvas
+    // runtime may still provide layout, pan, zoom, and edge geometry, but its
+    // native nodes/edges must not become a visual fallback while overlays are
+    // hydrating or workspace mutation is temporarily blocked.
+    return true
+  }
   if (workspaceMutationBlocked) {
-    // Frontmatter scenes already route visible nodes through overlays when coverage is complete.
-    return frontmatterOverlayCoverageReady
+    return false
   }
-  if (workspaceEditorOverlayOpen) {
-    // Keep overlays authoritative so widget/rich-media anchors and overlay-edge routing stay live.
-    return frontmatterOverlayCoverageReady
-  }
-  if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') return frontmatterOverlayCoverageReady
   return true
+}
+
+export function shouldSuppressFlowCanvasNativeSurface(args: {
+  renderGraphDataOverride: GraphData | null
+  overlayOnlyActive: boolean
+  flowEditorFrontmatterGraphAvailable?: boolean
+}): boolean {
+  if (args.overlayOnlyActive) return true
+  if (args.flowEditorFrontmatterGraphAvailable === true) return true
+  return isFrontmatterFlowGraph(args.renderGraphDataOverride)
 }
 
 export function buildFlowCanvasGraphDataOverride(args: {

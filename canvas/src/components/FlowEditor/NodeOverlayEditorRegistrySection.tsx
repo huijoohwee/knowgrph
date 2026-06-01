@@ -6,7 +6,7 @@ import { getObjectPath } from '@/lib/data/objectPath'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { formatFlowHandleKeyValue, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleAccessibleName, formatFlowHandleKeyValue, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
@@ -118,6 +118,15 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
   const [autoApplyConnected, setAutoApplyConnected] = React.useState(false)
 
+  const fieldKeyCounts = React.useMemo(() => {
+    const counts = new Map<string, number>()
+    for (let i = 0; i < registryFields.length; i += 1) {
+      const key = String(registryFields[i]?.fieldKey || i).trim() || 'field'
+      counts.set(key, (counts.get(key) || 0) + 1)
+    }
+    return counts
+  }, [registryFields])
+
   const applyConnectedToEmptyFields = React.useCallback(() => {
     if (!active) return
     const nextProperties = applyConnectedWidgetFieldsToEmptyValues({
@@ -170,8 +179,13 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     const fieldOptions = Array.isArray((f as { options?: WidgetRegistryFieldOption[] }).options)
       ? ((f as { options?: WidgetRegistryFieldOption[] }).options || [])
       : []
-    const id = ids.registryField(String(f.fieldKey || idx))
-    const labelId = `registry-field-${String(f.fieldKey || idx)}-${idx}`
+    const rawFieldKey = String(f.fieldKey || idx).trim() || String(idx)
+    const id = ids.registryField(
+      (fieldKeyCounts.get(rawFieldKey) || 0) > 1
+        ? `field-${idx}-${rawFieldKey}-${path}`
+        : rawFieldKey,
+    )
+    const labelId = `${id}-label`
     const apiDocRef = resolveWidgetRegistryApiDocRef({
       registryEntry,
       properties,
@@ -434,16 +448,38 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
   const portRows: NodeOverlayEditorKvRow[] = React.useMemo(() => {
     const out: NodeOverlayEditorKvRow[] = []
+    const counts = new Map<string, number>()
+    for (let idx = 0; idx < registryPorts.length; idx += 1) {
+      const p = registryPorts[idx]
+      const portKey = String(p?.portKey || '').trim()
+      if (!portKey) continue
+      counts.set(`${p.direction}:${portKey}`, (counts.get(`${p.direction}:${portKey}`) || 0) + 1)
+    }
+    const seen = new Map<string, number>()
     for (let idx = 0; idx < registryPorts.length; idx += 1) {
       const p = registryPorts[idx]
       const portKey = String(p.portKey || '').trim()
       if (!portKey) continue
       const isIn = p.direction === 'input'
-      const portValueId = ids.registryField(`port-${p.direction}-${portKey}`)
+      const occurrenceKey = `${p.direction}:${portKey}`
+      const occurrenceIndex = seen.get(occurrenceKey) || 0
+      seen.set(occurrenceKey, occurrenceIndex + 1)
+      const schemaPath = String(p.schemaPath || '').trim()
+      const portValueId = ids.registryField(
+        (counts.get(occurrenceKey) || 0) > 1
+          ? `port-${idx}-${p.direction}-${portKey}-${schemaPath}`
+          : `port-${p.direction}-${portKey}`,
+      )
       const handlePath = readFlowHandlePath(isIn ? 'in' : 'out')
       const handleType = readFlowHandleTypeLabel(isIn ? 'in' : 'out')
       const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? 'in' : 'out', portKey })
-      const aria = handlePathValue
+      const aria = formatFlowHandleAccessibleName({
+        dir: isIn ? 'in' : 'out',
+        portKey,
+        schemaPath,
+        occurrenceIndex,
+        occurrenceCount: counts.get(occurrenceKey) || 0,
+      }) || handlePathValue
       const mainPanelLink = resolveWidgetRegistryMainPanelLink({
         registryEntry,
         properties,
@@ -459,6 +495,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           data-kg-port-handle-kind="dot"
           data-kg-port-dir={isIn ? 'in' : 'out'}
           data-kg-port-key={portKey}
+          data-kg-port-schema-path={schemaPath || undefined}
           data-kg-port-path={handlePath}
           className={cn('relative', UI_THEME_TOKENS.button.text)}
           style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
@@ -499,13 +536,13 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
       out.push({
         rowKey: `port:${p.direction}:${portKey}:${idx}`,
-        labelId: `registry-port-${p.direction}-${portKey}-${idx}`,
+        labelId: `${portValueId}-label`,
         inPortNode: isIn ? portButton : null,
         outPortNode: !isIn ? portButton : null,
         keyNode: (
           <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={portValueId}>
-            <span>{handlePath}</span>
-            <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{portKey}</span>
+            <span>{aria}</span>
+            <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{schemaPath || portKey}</span>
           </label>
         ),
         typeNode: <NodeOverlayEditorTypePill text={handleType} />,

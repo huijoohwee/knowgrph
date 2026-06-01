@@ -6,12 +6,12 @@ const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encodin
 export const testFlowEditorOverlayScalingUsesVisibleCollectiveCount = () => {
   const sharedPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
   const overlayInnerPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
-  const overlaySurfacePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlaySurfaceElementsPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
   const canvasSharedPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
 
   const sharedText = readUtf8(sharedPath)
   const overlayInnerText = readUtf8(overlayInnerPath)
-  const overlaySurfaceText = readUtf8(overlaySurfacePath)
+  const overlaySurfaceElementsText = readUtf8(overlaySurfaceElementsPath)
   const canvasSharedText = readUtf8(canvasSharedPath)
 
   if (!sharedText.includes('overlayCollectiveCount?: number')) {
@@ -23,7 +23,7 @@ export const testFlowEditorOverlayScalingUsesVisibleCollectiveCount = () => {
   if (!overlayInnerText.includes('openWidgetNodeCount: effectiveOverlayCollectiveCount')) {
     throw new Error('expected node overlay placement runtime to scale against the visible overlay collective count instead of openWidgetNodeIds only')
   }
-  if (!overlaySurfaceText.includes('overlayCollectiveCount={overlayEditorNodeIds.length}')) {
+  if (!overlaySurfaceElementsText.includes('overlayCollectiveCount={args.overlayEditorNodeIds.length}')) {
     throw new Error('expected Flow Editor overlay surface to pass the visible overlay collective count into each widget overlay')
   }
   if (!canvasSharedText.includes('overlayCollectiveCount?: number')) {

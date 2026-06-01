@@ -57,3 +57,27 @@ export function testApplyConnectedWidgetFieldsToEmptyValuesCoercesAndSkipsFilled
     throw new Error('expected widget field coercion helper to parse numeric strings')
   }
 }
+
+export function testCoerceWidgetFieldValuePreservesTypedFrontmatterEnvelopeValues() {
+  if (coerceWidgetFieldValue({ fieldType: 'boolean', value: 'false' }) !== false) {
+    throw new Error('expected boolean string false to remain false')
+  }
+  if (coerceWidgetFieldValue({ fieldType: 'boolean', value: 'true' }) !== true) {
+    throw new Error('expected boolean string true to remain true')
+  }
+  const arrayValue = coerceWidgetFieldValue({ fieldType: 'array', value: '["producer","AI"]' })
+  if (!Array.isArray(arrayValue) || arrayValue.join('|') !== 'producer|AI') {
+    throw new Error(`expected typed array field to parse JSON array, got ${JSON.stringify(arrayValue)}`)
+  }
+  const objectValue = coerceWidgetFieldValue({ fieldType: 'object', value: '{"target":["output"],"source":["outputSrcDoc"]}' })
+  if (!objectValue || typeof objectValue !== 'object' || Array.isArray(objectValue)) {
+    throw new Error(`expected typed object field to parse JSON object, got ${JSON.stringify(objectValue)}`)
+  }
+  const handles = objectValue as { target?: unknown; source?: unknown }
+  if (!Array.isArray(handles.target) || handles.target[0] !== 'output') {
+    throw new Error(`expected parsed object field to preserve target handle array, got ${JSON.stringify(objectValue)}`)
+  }
+  if (typeof coerceWidgetFieldValue({ fieldType: 'object', value: 'not-json' }) !== 'undefined') {
+    throw new Error('expected invalid object text to be rejected instead of replacing a typed frontmatter object')
+  }
+}
