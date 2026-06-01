@@ -267,7 +267,9 @@ flowchart LR
   Pages --> Agent["HTTP agent-ready routes"]
   Dev --> StorageDeploy["npm run storage:deploy"]
   StorageDeploy --> StorageWorker["knowgrph-storage Worker"]
+  StorageDeploy --> D1Seed["seed huijoohwee/docs"]
   StorageWorker --> D1["Cloudflare D1 knowgrph-storage"]
+  D1Seed --> D1
   StorageWorker --> StorageRoutes["airvio.co/api/storage/*"]
   Dev --> PaymentDeploy["npm run payment:worker:deploy"]
   PaymentDeploy --> PaymentWorker["knowgrph-payment Worker"]
@@ -284,7 +286,7 @@ flowchart LR
 |---|---|---|---|
 | Build | `pages:build-sync` | source -> Vite build -> publish mirror | `scripts/sync-pages-knowgrph.mjs` |
 | Deploy static app | Wrangler Pages deploy | publish mirror -> Cloudflare Pages | `pages:deploy-cloudflare` |
-| Deploy storage | D1 migrations then Worker deploy | migrations -> D1, Worker bundle -> route | `storage:deploy` |
+| Deploy storage | D1 migrations, Worker deploy, docs seed | migrations -> D1, Worker bundle -> route, `huijoohwee/docs` -> D1 | `storage:deploy` |
 | Deploy payment | Worker deploy | payment Worker bundle -> route | `payment:worker:deploy` |
 | Publish DNS-AID | REST API upsert | record contract -> Cloudflare DNS -> public DoH | `dns-aid:publish` |
 | Validate discovery | HTTP and DNS checks | public routes -> validators -> pass/fail | `agent-ready:check`, `dns-aid:check` |
@@ -523,9 +525,9 @@ testable.
 | DNS-AID local contract | `npm run dns-aid:contract` | exits 0 |
 | DNS-AID publish | `npm run dns-aid:publish` | SVCB records created/updated; DNSSEC active |
 | DNS-AID public check | `npm run dns-aid:check` | `passed: 3/3` |
-| Storage Worker deploy | `npm run storage:deploy` | D1 migrations and Worker deploy succeed |
+| Storage Worker deploy | `npm run storage:deploy` | D1 migrations, Worker deploy, and docs seed succeed |
 | Payment Worker deploy | `npm run payment:worker:deploy` | Worker deploy succeeds |
-| Full Worker deploy | `npm run workers:deploy` | storage and payment routes deploy |
+| Full Worker deploy | `npm run workers:deploy` | storage deploy, D1 docs seed, and payment route deploy succeed |
 
 ### Current Evidence
 

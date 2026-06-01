@@ -432,7 +432,7 @@ flowchart TB
 |---|---|---|---|
 | Deploy | Pages sync script | `scripts/sync-pages-knowgrph.mjs` | Built |
 | Deploy | Static build + sync | `npm run pages:build-sync` | Built |
-| Deploy | Static + Workers deploy | `npm run pages:build-sync-cloudflare` -> `npm run workers:deploy` | Built |
+| Deploy | Static + Workers deploy | `npm run pages:build-sync-cloudflare` -> `npm run workers:deploy` -> `npm run storage:deploy` | Built; storage deploy applies migrations, deploys the Worker, and re-seeds D1 docs |
 | Test | D1 fake | `__tests__/helpers/fakeKnowgrphStorageD1.ts` | Built |
 | Future | PostgreSQL backend | — | Deferred |
 

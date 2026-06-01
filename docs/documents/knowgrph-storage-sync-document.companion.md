@@ -44,7 +44,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | A collaborator saves a concurrent document | the bridge persists the save | the bridge owns the GitHub commit; collaborators never touch Git credentials or Git commands |
 | File changes in `huijoohwee/docs/` | Dev server seed polling cycle runs | workspace re-reads file and updates source file state |
 | `npm run pages:build-sync` executed | build completes and sync runs | Prod SSOT reflects latest static artifacts |
-| `npm run pages:build-sync-cloudflare` executed | static build/sync completes, remote D1 migrations apply, and Worker deploy runs | Prod mirror and Cloudflare storage routes reflect the same Dev source |
+| `npm run pages:build-sync-cloudflare` executed | static build/sync completes, remote D1 migrations apply, Worker deploy runs, and D1 docs are re-seeded | Prod mirror and Cloudflare storage routes reflect the same Dev source |
 
 ### Success Metrics
 
@@ -188,7 +188,7 @@ flowchart TB
 
 ### ADR-004: Deploy Storage API As A Standalone Cloudflare Worker On The Same Zone
 
-**Status**: Accepted. `cloudflare/workers/knowgrph-storage/wrangler.toml` deploys the `knowgrph-storage` Worker to `airvio.co/api/storage/*` with the D1 binding `knowgrph-storage` (`633355bf-1a52-4085-bd3c-eba4220ff152`). `cloudflare/workers/knowgrph-payment/wrangler.toml` deploys the separate `knowgrph-payment` Worker to `airvio.co/api/payments/*` with the same D1 binding for checkout-session state. The static SPA remains a Cloudflare Pages artifact served at `airvio.co/knowgrph`. `pages:build-sync-cloudflare` now builds and syncs the static app, then runs `workers:deploy` so storage and payment Workers deploy together when the source changes.
+**Status**: Accepted. `cloudflare/workers/knowgrph-storage/wrangler.toml` deploys the `knowgrph-storage` Worker to `airvio.co/api/storage/*` with the D1 binding `knowgrph-storage` (`633355bf-1a52-4085-bd3c-eba4220ff152`). `cloudflare/workers/knowgrph-payment/wrangler.toml` deploys the separate `knowgrph-payment` Worker to `airvio.co/api/payments/*` with the same D1 binding for checkout-session state. The static SPA remains a Cloudflare Pages artifact served at `airvio.co/knowgrph`. `pages:build-sync-cloudflare` now builds and syncs the static app, then runs `workers:deploy` so storage and payment Workers deploy together when the source changes; `storage:deploy` also re-seeds D1 from `huijoohwee/docs` so the runtime read cache cannot stay stale after deploy.
 
 **Trade-offs**: Standalone Workers require a separate `workers:deploy` step from the Pages Git push, but keep D1 route ownership explicit, avoid Pages Function coupling, and isolate payment secrets and webhook handling from storage sync routes.
 
@@ -263,7 +263,7 @@ flowchart TB
 1. ~~Create `wrangler.toml` with D1 binding and standalone Worker route patterns~~ ✅
 2. ~~Apply D1 migration for 6 tables~~ ✅
 3. ~~Deploy Worker handlers for push, pull, export~~ ✅
-4. ~~Wire `pages:build-sync-cloudflare` to run static build/sync and then deploy storage through `storage:deploy`~~ ✅
+4. ~~Wire `pages:build-sync-cloudflare` to run static build/sync and then deploy storage through `storage:deploy`, including D1 docs re-seeding~~ ✅
 5. ~~Verify end-to-end: Dev browser push → D1 → second browser pull → state parity~~ ✅
 
 ### Phase 1.5 — Conflict Resilience (DONE)

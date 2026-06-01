@@ -15,6 +15,26 @@ export function testRootPackageDeclaresDrizzleForKnowgrphStorageWorker() {
   }
 }
 
+export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
+  const packagePath = resolve(process.cwd(), '..', 'package.json')
+  const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+    scripts?: Record<string, string>
+  }
+  const scripts = packageJson.scripts || {}
+  if (!scripts['storage:d1:seed:docs']?.includes('seed-storage-docs-to-cloudflare.mjs')) {
+    throw new Error('expected storage:d1:seed:docs to own docs mirror seeding into D1')
+  }
+  if (!scripts['pages:deploy-cloudflare']?.includes('npm run storage:d1:seed:docs')) {
+    throw new Error('expected pages:deploy-cloudflare to seed D1 after the static Pages upload')
+  }
+  if (!scripts['storage:deploy']?.includes('npm run storage:d1:seed:docs')) {
+    throw new Error('expected storage:deploy to seed D1 after migrations and storage Worker deploy')
+  }
+  if (scripts['workers:deploy'] !== 'npm run storage:deploy && npm run payment:worker:deploy') {
+    throw new Error('expected workers:deploy to reuse storage:deploy so D1 migrations, Worker deploy, and docs seeding stay together')
+  }
+}
+
 export function testStorageSyncDocumentDeclaresPocketBaseYjsGitHubSsotContract() {
   const storageDocPath = resolve(process.cwd(), '..', 'docs', 'documents', 'knowgrph-storage-sync-document.md')
   const companionPath = resolve(process.cwd(), '..', 'docs', 'documents', 'knowgrph-storage-sync-document.companion.md')

@@ -4,6 +4,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["policy.pagesHeaders.knowgrphAppShellHtml.addsNoTransformForCloudflareJsd","@/__tests__/knowgrphPagesHeadersRegression.test","testKnowgrphAppShellHtmlAddsNoTransformForCloudflareJsd"],
   ["policy.publishSync.knowgrphIndexHtml.keepsCanonicalEntryScriptUrl","@/__tests__/pagesSyncPublishHtmlRegression.test","testPagesSyncPublishHtmlKeepsCanonicalEntryScriptUrl"],
   ["policy.storage.rootPackage.declaresDrizzleForKnowgrphStorageWorker","@/__tests__/storageArchitectureRegression.test","testRootPackageDeclaresDrizzleForKnowgrphStorageWorker"],
+  ["policy.storage.deployScripts.seedDocsMirrorIntoD1","@/__tests__/storageArchitectureRegression.test","testCloudflareDeployScriptsSeedDocsMirrorIntoD1"],
   ["policy.storage.doc.declaresPocketBaseYjsGitHubSsotContract","@/__tests__/storageArchitectureRegression.test","testStorageSyncDocumentDeclaresPocketBaseYjsGitHubSsotContract"],
   ["policy.storage.browserCache.legacyShimRemoved","@/__tests__/storageArchitectureRegression.test","testBrowserCacheLegacyShimFilesAreRemoved"],
   ["policy.storage.canonicalClientOwner.usesPersistedCollectionStore","@/__tests__/storageArchitectureRegression.test","testKnowgrphCanonicalStorageOwnerUsesPersistedCollectionStore"],
