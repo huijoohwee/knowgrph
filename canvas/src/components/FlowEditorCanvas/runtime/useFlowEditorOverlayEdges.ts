@@ -349,6 +349,7 @@ export function useFlowEditorOverlayEdges(args: {
   const setOverlayEdgesSvgRef = React.useCallback((node: SVGSVGElement | null) => {
     overlayEdgesSvgRef.current = node
     if (!node) {
+      cacheFrozenOverlayEdgePaths()
       args.overlayEdgesEnabledRef.current = false
       pushOverlayEdgeTrace('svg-detached', {
         overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
@@ -358,10 +359,7 @@ export function useFlowEditorOverlayEdges(args: {
     args.overlayEdgesEnabledRef.current = true
     overlayEdgeReadinessRetryRef.current = null
     overlayEdgeLayoutSigRef.current = ''
-    if (workspaceOverlayOpenRef.current) {
-      removeAllPaths(overlayEdgePathByIdRef)
-    }
-    const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? 0 : restoreFrozenOverlayEdgePaths(node)
+    const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(node)
     pushOverlayEdgeTrace('svg-attached', {
       overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
       svgWidthAttr: node.getAttribute('width') || '',
@@ -370,7 +368,7 @@ export function useFlowEditorOverlayEdges(args: {
       restoredFrozenPathCount,
     })
     scheduleOverlayEdgeUpdateRef.current()
-  }, [args.overlayEdgesEnabledRef, pushOverlayEdgeTrace, restoreFrozenOverlayEdgePaths])
+  }, [args.overlayEdgesEnabledRef, cacheFrozenOverlayEdgePaths, pushOverlayEdgeTrace, restoreFrozenOverlayEdgePaths])
 
   const scheduleOverlayEdgeUpdate = React.useCallback(() => {
     if (!args.active) {
@@ -411,6 +409,7 @@ export function useFlowEditorOverlayEdges(args: {
       const now = Date.now()
       const liveGraphNodeCount = Array.isArray(liveGraph?.nodes) ? liveGraph.nodes.length : 0
       const liveGraphEdgeCount = Array.isArray(liveGraph?.edges) ? liveGraph.edges.length : 0
+      const liveGraphMetaKind = String(((liveGraph?.metadata || {}) as Record<string, unknown>).kind || '').trim()
       const stableGraph = lastStableOverlayEdgeGraphRef.current
       const stableGraphNodeCount = Array.isArray(stableGraph?.nodes) ? stableGraph.nodes.length : 0
       const stableGraphEdgeCount = Array.isArray(stableGraph?.edges) ? stableGraph.edges.length : 0
@@ -422,6 +421,13 @@ export function useFlowEditorOverlayEdges(args: {
         && (
           workspaceOverlayOpen
           || withinWorkspaceCloseRecoveryWindow
+          || (
+            !!liveGraph
+            && liveGraphNodeCount > 0
+            && liveGraphEdgeCount > 0
+            && !liveGraphMetaKind
+            && lastStableOverlayEdgeNodeIdsRef.current.length > 0
+          )
         )
         && (
           workspaceOverlayOpen
@@ -429,6 +435,7 @@ export function useFlowEditorOverlayEdges(args: {
           || liveGraph === stableGraph
           || liveGraphNodeCount === 0
           || liveGraphEdgeCount === 0
+          || !liveGraphMetaKind
         )
       const graph = shouldReuseStableGraph ? stableGraph : liveGraph
       if (workspaceOverlayOpen && shouldReuseStableGraph) {
@@ -488,9 +495,6 @@ export function useFlowEditorOverlayEdges(args: {
       const rawEdges = Array.isArray(graph.edges)
         ? (graph.edges as Array<{ id?: unknown; source?: unknown; target?: unknown; type?: unknown; properties?: unknown }>)
         : []
-      if (!workspaceOverlayOpen && rawNodes.length > 0 && rawEdges.length > 0) {
-        lastStableOverlayEdgeGraphRef.current = graph
-      }
 
       const socketStyleByType = (() => {
         const meta = (graph.metadata || {}) as Record<string, unknown>
@@ -663,6 +667,9 @@ export function useFlowEditorOverlayEdges(args: {
         overlayEdgeLayoutSigRef.current = ''
         overlayEdgeAnchorCacheRef.current.clear()
         return
+      }
+      if (rawNodes.length > 0 && rawEdges.length > 0) {
+        lastStableOverlayEdgeGraphRef.current = graph
       }
 
       const transientOffscreenOverlayIds: string[] = []

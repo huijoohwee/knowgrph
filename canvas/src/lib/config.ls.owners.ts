@@ -461,6 +461,5 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   chatHistoryCloudUrl: 'ui.chat',
   workspaceViewMode: 'ui.workspace',
   documentStructureBaselineLock: 'ui.baseline',
-  workspacePreviewWidthPx: 'ui.workspace',
   workspaceCanvasPaneOpen: 'ui.workspace',
 };

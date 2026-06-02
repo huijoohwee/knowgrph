@@ -7,6 +7,7 @@ import {
   resolveWorkspaceCanvasMinVisibleStripPx,
   resolveWorkspaceEditorPaneDefaultWidthPx,
   resolveWorkspaceEditorPaneMinWidthPx,
+  resolveWorkspaceExplorerDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
@@ -257,6 +258,43 @@ export function testWorkspaceEditorOverlayMaxWidthPreservesUsableCanvasStrip() {
     }
     if (remainingCanvasStrip < 420) {
       throw new Error(`expected workspace max width to preserve a readable canvas strip, got ${remainingCanvasStrip}px`)
+    }
+  } finally {
+    if (hadWindow) {
+      ;(window as unknown as { innerWidth: number }).innerWidth = originalInnerWidth as number
+    } else if (originalWindowDescriptor) {
+      Object.defineProperty(globalThis, 'window', originalWindowDescriptor)
+    } else {
+      delete (globalThis as { window?: unknown }).window
+    }
+  }
+}
+
+export function testWorkspaceEditorOverlayDefaultSplitKeepsCanvasAuthoritative() {
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const hadWindow = typeof window !== 'undefined'
+  const originalInnerWidth = hadWindow ? window.innerWidth : undefined
+  try {
+    if (!hadWindow) {
+      Object.defineProperty(globalThis, 'window', {
+        value: { innerWidth: 1510 },
+        configurable: true,
+      })
+    }
+
+    for (const viewportWidth of [1510, 1066]) {
+      ;(window as unknown as { innerWidth: number }).innerWidth = viewportWidth
+      const minWidth = resolveWorkspaceEditorPaneMinWidthPx()
+      const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: minWidth, rightGutterPx: WORKSPACE_EDITOR_CANVAS_GUTTER_PX })
+      const defaultWidth = resolveWorkspaceEditorPaneDefaultWidthPx({ minPx: minWidth, maxPx: maxWidth })
+      const explorerWidth = resolveWorkspaceExplorerDefaultWidthPx({ minPx: 160, maxPx: 560 })
+      const canvasWidth = window.innerWidth - defaultWidth
+      if (canvasWidth <= defaultWidth) {
+        throw new Error(`expected workspace editor/canvas default split to keep canvas authoritative at ${viewportWidth}px, got editor=${defaultWidth} canvas=${canvasWidth}`)
+      }
+      if (explorerWidth < 160) {
+        throw new Error(`expected workspace explorer default split to keep Source Files readable at ${viewportWidth}px, got ${explorerWidth}`)
+      }
     }
   } finally {
     if (hadWindow) {

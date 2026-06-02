@@ -172,7 +172,6 @@ export function buildMaterializedWorkspaceActivePathKey(args?: {
   markdownDocumentName?: string | null
   markdownDocumentText?: string | null
   markdownDocumentApplyViewPreset?: boolean | null
-  graphDataSource?: string | null
 }): string {
   const activePath = String(resolveMaterializedWorkspaceActivePath(args) || '')
   if (!activePath) return ''
@@ -189,7 +188,6 @@ export function buildMaterializedWorkspaceActivePathKey(args?: {
     markdownText.length,
     markdownText ? hashStringToHexSharedContentCached(markdownText, 'materialized-workspace-markdown-document') : '',
     args?.markdownDocumentApplyViewPreset === false ? 'preset:false' : 'preset:true',
-    String(args?.graphDataSource || '').trim(),
   ].join('|')
   return buildScopedGraphSemanticKey('materialized-workspace-active-path', { graphSemanticKey })
 }

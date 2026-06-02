@@ -65,7 +65,7 @@ export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentWhen
   }
 }
 
-export function testMaterializedWorkspaceActivePathKeyTracksCanvasDocumentAndGraphOwnership() {
+export function testMaterializedWorkspaceActivePathKeyTracksSelectedContentAndActiveDocumentOnly() {
   const activePath = '/docs/knowgrph-design-demo.md' as never
   const text = [
     '---',
@@ -86,7 +86,6 @@ export function testMaterializedWorkspaceActivePathKeyTracksCanvasDocumentAndGra
     markdownDocumentName: 'docs/knowgrph-video-demo.md',
     markdownDocumentText: '# Video',
     markdownDocumentApplyViewPreset: true,
-    graphDataSource: 'markdown:docs/knowgrph-video-demo.md',
   })
   const applied = buildMaterializedWorkspaceActivePathKey({
     activePathOverride: activePath,
@@ -101,10 +100,26 @@ export function testMaterializedWorkspaceActivePathKeyTracksCanvasDocumentAndGra
     markdownDocumentName: 'docs/knowgrph-design-demo.md',
     markdownDocumentText: text,
     markdownDocumentApplyViewPreset: true,
-    graphDataSource: 'markdown:docs/knowgrph-design-demo.md',
+  })
+  const graphSourceOnlyChanged = buildMaterializedWorkspaceActivePathKey({
+    activePathOverride: activePath,
+    workspaceEntriesSnapshot: [{
+      path: activePath,
+      parentPath: '/docs' as never,
+      kind: 'file',
+      name: 'knowgrph-design-demo.md',
+      text,
+      updatedAtMs: 1,
+    }],
+    markdownDocumentName: 'docs/knowgrph-design-demo.md',
+    markdownDocumentText: text,
+    markdownDocumentApplyViewPreset: true,
   })
   if (!base || !applied || base === applied) {
-    throw new Error('expected active-path materialization key to include selected content, active markdown document, and Canvas graph source ownership')
+    throw new Error('expected active-path materialization key to include selected content and active markdown document ownership')
+  }
+  if (graphSourceOnlyChanged !== applied) {
+    throw new Error('expected active-path materialization key to ignore graph-source churn caused by applying the selected document')
   }
 }
 

@@ -130,7 +130,6 @@ export async function materializeBootstrapWorkspaceSourceFiles(
       markdownDocumentName: store.markdownDocumentName,
       markdownDocumentText: store.markdownDocumentText,
       markdownDocumentApplyViewPreset: store.markdownDocumentApplyViewPreset,
-      graphDataSource: typeof store.graphData?.metadata?.source === 'string' ? store.graphData.metadata.source : '',
     }),
     sourceFiles: context.mergedSourceFiles,
     sourcesByPath: context.startupSourcesByPath,

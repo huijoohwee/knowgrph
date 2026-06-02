@@ -13,9 +13,6 @@ const DEFAULT_DOCS_SSOT_WORKSPACE_ID = 'kgws:canonical-docs'
 const DEFAULT_DOCS_SSOT_CANONICAL_PREFIX = 'huijoohwee/docs'
 const DOCS_SSOT_REQUEST_TIMEOUT_SECONDS = '20'
 
-export const KNOWGRPH_VIDEO_DEMO_BASENAME = TEST_VALIDATION_WORKSPACE_SEED_BASENAME
-export const KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH = TEST_VALIDATION_WORKSPACE_SEED_PATH
-
 const fetchedFixtureTextByBasename = new Map<string, string>()
 const fetchedFixturePathByBasename = new Map<string, string>()
 
@@ -32,6 +29,11 @@ const normalizeDocsFixtureBasename = (basename: string): string => {
   }
   return name
 }
+
+export const DOCS_SSOT_VALIDATION_FIXTURE_BASENAME = normalizeDocsFixtureBasename(
+  readEnvString('KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_BASENAME', TEST_VALIDATION_WORKSPACE_SEED_BASENAME),
+)
+export const DOCS_SSOT_VALIDATION_WORKSPACE_PATH = TEST_VALIDATION_WORKSPACE_SEED_PATH
 
 const resolveDocsSsotCacheDir = (): string =>
   readEnvString('KG_TEST_DOCS_SSOT_CACHE_DIR', DEFAULT_DOCS_SSOT_CACHE_DIR)
@@ -94,8 +96,8 @@ const ensureDocsSsotFixtureCache = (basename: string): string => {
   return cachePath
 }
 
-export function resolveKnowgrphVideoDemoFixturePath(): string {
-  return resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
+export function resolveDocsSsotValidationFixturePath(): string {
+  return resolveDocsSsotFixturePath(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
 }
 
 export function resolveDocsSsotRootPath(): string {

@@ -15,11 +15,23 @@ export function testFlowEditorFrontmatterRichMediaOverlayPoolDisablesStickyCarry
   }
 }
 
-export function testFlowEditorFrontmatterWidgetFallbackClearsWhenGraphIsEmpty() {
+export function testFlowEditorFrontmatterWidgetFallbackIsScopedToActiveSource() {
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const text = readFileSync(overlaySurfacePath, 'utf8')
-  if (!text.includes('return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []')) {
-    throw new Error('expected Flow Editor/frontmatter widget overlay fallback ids to clear when the transient graph is empty')
+  if (!text.includes('const lastStableOverlayEditorNodeIdsSourceKeyRef = React.useRef<string>(\'\')')) {
+    throw new Error('expected Flow Editor/frontmatter widget overlay fallback ids to be scoped by active source selection')
+  }
+  if (!text.includes('activeSourceSelectionKey && activeSourceSelectionKey !== lastSourceKey')) {
+    throw new Error('expected Flow Editor/frontmatter widget overlay fallback to reject stale ids after active source changes')
+  }
+  if (!text.includes('flowEditorFrontmatterGraphAvailable || activeSourceFrontmatterFlowAvailable')) {
+    throw new Error('expected same-source frontmatter handoff frames to keep stable overlay ids while render graph data is transiently replaced')
+  }
+  if (!text.includes('if (activeSourceParsedGraphKnown) return false')) {
+    throw new Error('expected same-source frontmatter handoff fallback to stop once the active source is known to be non-frontmatter')
+  }
+  if (!text.includes('const preserveStableFrontmatterGraph =')) {
+    throw new Error('expected same-source frontmatter handoff graphs not to replace the stable widget node resolver graph')
   }
 }
 
@@ -34,6 +46,36 @@ export function testFlowEditorOverlayCollisionResetsTransientKeysWhenOverlaySetD
   }
   if (!text.includes('if (items.length === 0) {\n        resetOverlayCollisionTransientState(true)\n        return\n      }')) {
     throw new Error('expected Flow Editor overlay collision runtime to drop stale rect cache when no movable overlay items remain')
+  }
+}
+
+export function testFlowEditorOverlayEdgesReuseStableGraphForMetadataLessHandoff() {
+  const edgePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
+  const text = readFileSync(edgePath, 'utf8')
+  const surfaceText = readFileSync(surfacePath, 'utf8')
+  if (!surfaceText.includes('{(props.overlayOnlyActive || props.hasOverlayEditors) && (')) {
+    throw new Error('expected Flow Editor overlay edge host to stay mounted whenever overlay editors are visible')
+  }
+  if (!text.includes('const liveGraphMetaKind = String(((liveGraph?.metadata || {}) as Record<string, unknown>).kind || \'\').trim()')) {
+    throw new Error('expected Flow Editor overlay edges to inspect live graph metadata before accepting handoff graphs')
+  }
+  if (!text.includes('&& !liveGraphMetaKind\n            && lastStableOverlayEdgeNodeIdsRef.current.length > 0')) {
+    throw new Error('expected metadata-less handoff graphs to reuse the stable overlay edge graph while overlay ids are stable')
+  }
+  const stableWriteIndex = text.indexOf('lastStableOverlayEdgeGraphRef.current = graph')
+  const emptyFilteredIndex = text.indexOf("pushOverlayEdgeTrace('empty-filtered-edge-set'")
+  if (stableWriteIndex < 0 || emptyFilteredIndex < 0 || stableWriteIndex < emptyFilteredIndex) {
+    throw new Error('expected stable overlay edge graph to advance only after the live graph resolves overlay edges')
+  }
+  if (!text.includes('if (rawNodes.length > 0 && rawEdges.length > 0)')) {
+    throw new Error('expected successful overlay edge graphs to seed stable edge fallback in Editor Workspace too')
+  }
+  if (!text.includes('if (!node) {\n      cacheFrozenOverlayEdgePaths()')) {
+    throw new Error('expected Flow Editor overlay edges to freeze paths before SVG detach during workspace handoff')
+  }
+  if (!text.includes('const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(node)')) {
+    throw new Error('expected Flow Editor overlay edges to restore frozen paths in Editor Workspace handoffs')
   }
 }
 

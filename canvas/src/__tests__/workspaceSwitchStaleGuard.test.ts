@@ -347,8 +347,8 @@ export const testMarkdownWorkspaceSelectionUsesEntryIndexForSwitchHotPath = () =
     throw new Error('Expected selection helpers to avoid repeated linear scans when only the active Source Files path changes')
   }
   if (!bootstrapText.includes('workspaceFilePaths: args.entriesIndex.filePaths')
-    || !bootstrapText.includes('hasWorkspaceEntry(args.entriesIndex, args.activePath)')
-    || !bootstrapText.includes('return args.entriesIndex.firstFilePath')) {
+    || !bootstrapText.includes('hasWorkspaceEntry(args.entriesIndex, activePath)')
+    || !bootstrapText.includes('return canonicalize(args.entriesIndex.firstFilePath) || args.entriesIndex.firstFilePath')) {
     throw new Error('Expected active-path bootstrap fallback to reuse indexed file paths and first-file metadata')
   }
   if (!viewShellText.includes('const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(entries), [entries])')

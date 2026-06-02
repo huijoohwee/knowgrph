@@ -30,7 +30,6 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
   active,
   flowEditorSurfaceId,
   overlayCollectiveCount,
-  interactionPassthrough = false,
   node,
   viewportW,
   viewportH,
@@ -351,7 +350,6 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     nodeId,
     active,
     floating,
-    pinnedInCanvas,
     zoomViewKey,
     getLiveZoomTransform,
     pinnedTopPx: placement.pinnedTopPx,
@@ -402,7 +400,6 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
       asideRef={placement.asideRef}
       flowEditorSurfaceId={flowEditorSurfaceId}
       node={node}
-      interactionPassthrough={interactionPassthrough}
       pinnedInCanvas={pinnedInCanvas}
       overlayZIndex={overlayZIndex}
       active={active}

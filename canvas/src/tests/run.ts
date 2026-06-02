@@ -302,6 +302,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.workspaceEditor.overlay.resizeHandle.dragDirection',
       modWorkspaceOverlayContract.testWorkspaceEditorOverlayResizeHandleDragDirection,
     )
+    await execTest(
+      results,
+      'ui.workspaceEditor.overlay.defaultSplit.canvasAuthoritative',
+      modWorkspaceOverlayContract.testWorkspaceEditorOverlayDefaultSplitKeepsCanvasAuthoritative,
+    )
 
     const modLaunchImportContract = await import('../__tests__/launchImportFallbackFileListSnapshotContract.test')
     await execTest(

@@ -20,6 +20,7 @@ import {
 } from '@/features/markdown-workspace/workspaceImport'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState, buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
+import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
@@ -158,8 +159,16 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
           }
 
           const text = await (async () => {
-            if (canUseCachedText) return cachedText as string
             const fs = await args.getFs()
+            if (canUseCachedText) {
+              const resolved = await readWorkspaceActiveDocumentResolvedText({
+                activePath: path,
+                currentText: cachedText as string,
+                fs,
+                preferCanonicalPathText: true,
+              })
+              return String(resolved || '').trim() ? resolved : cachedText as string
+            }
             const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs, path })
             const loaded = hydrated ? hydrated.text : await fs.readFileText(path)
             if (loaded != null) return loaded
@@ -232,7 +241,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
           } else {
             args.lastLoadedRef.current = { path, text: nextText }
             args.setActiveTextProgrammatic(nextText)
-            if (!canUseCachedText) {
+            if (!canUseCachedText || nextText !== cachedText) {
               args.setEntries(prev =>
                 upsertWorkspaceEntryInlineText({
                   entries: prev,

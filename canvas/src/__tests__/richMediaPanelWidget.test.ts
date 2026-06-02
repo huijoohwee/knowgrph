@@ -956,9 +956,10 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
   const requiredSnippets = [
     'flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}',
     "const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'",
-    'const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen',
-    'const headerDragInteractionActive = mediaOverlayDragInteractionMode && !workspaceMutationBlocked',
-    'const resizeInteractionActive = mediaOverlayDragInteractionMode && !workspaceMutationBlocked',
+    'resolveFlowCanvasMediaOverlayInteractionPolicy',
+    'const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive',
+    'const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive',
+    'const resizeInteractionActive = mediaOverlayInteractionPolicy.resizeActive',
     'onOverlayPanStart={overlayInteractionEnabled ?',
     'onOverlayPan={overlayInteractionEnabled ?',
     'onOverlayPanEnd={overlayInteractionEnabled ?',

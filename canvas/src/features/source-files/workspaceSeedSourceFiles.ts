@@ -152,7 +152,7 @@ export const TEST_VALIDATION_SOURCE_FILE: SourceFile = buildSeedSourceFile({
   id: TEST_VALIDATION_SOURCE_ID,
   path: TEST_VALIDATION_SOURCE_PATH,
   enabled: CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
-  name: workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-demo-video.md',
+  name: workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'workspace-validation-seed.md',
 })
 
 export const GEOSPATIAL_WORKSPACE_SOURCE_FILE: SourceFile = buildSeedSourceFile({

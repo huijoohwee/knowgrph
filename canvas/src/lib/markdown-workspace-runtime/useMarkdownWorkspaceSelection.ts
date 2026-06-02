@@ -1,7 +1,7 @@
 import React from 'react'
 import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMarkdownEditorSsotSync'
 import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
-import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
@@ -167,6 +167,50 @@ export function shouldApplyStableWorkspaceSelectionToCanvas(args: {
   )
 }
 
+export function readWorkspaceSelectionEntryTextForActivePath(args: {
+  activePath: WorkspacePath | null
+  activeEntry?: WorkspaceEntry | null
+}): string {
+  const activePath = normalizeMarkdownWorkspaceSelectionPath(args.activePath)
+  if (!activePath) return ''
+  const entry = args.activeEntry || null
+  if (!entry || entry.kind !== 'file') return ''
+  if (normalizeMarkdownWorkspaceSelectionPath(entry.path) !== activePath) return ''
+  return typeof entry.text === 'string' ? entry.text : ''
+}
+
+export async function readWorkspaceSelectionResolvedTextForActivePath(args: {
+  activePath: WorkspacePath | null
+  activeEntry?: WorkspaceEntry | null
+  fs?: WorkspaceFs | Awaited<ReturnType<MarkdownWorkspaceRuntimeGetFs>>
+  storageFallbackByPath?: Map<string, string>
+  preferPathResolvedText?: boolean
+}): Promise<string> {
+  const activePath = normalizeMarkdownWorkspaceSelectionPath(args.activePath)
+  if (!activePath) return ''
+  const entryText = readWorkspaceSelectionEntryTextForActivePath({
+    activePath,
+    activeEntry: args.activeEntry,
+  })
+  if (args.preferPathResolvedText === true) {
+    const resolvedText = await readWorkspaceActiveDocumentResolvedText({
+      activePath,
+      currentText: '',
+      fs: args.fs,
+      storageFallbackByPath: args.storageFallbackByPath,
+      preferCanonicalPathText: true,
+    })
+    return String(resolvedText || '').trim() ? resolvedText : entryText
+  }
+  if (entryText.trim()) return entryText
+  return readWorkspaceActiveDocumentResolvedText({
+    activePath,
+    currentText: entryText,
+    fs: args.fs,
+    storageFallbackByPath: args.storageFallbackByPath,
+  })
+}
+
 export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionArgs) {
   const storageFallbackByPathRef = React.useRef<Map<string, string>>(new Map())
   const setActivePathSafe = React.useCallback(
@@ -285,17 +329,15 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     if (activeEntryKind === 'folder') return
     let cancelled = false
     const run = async () => {
-      let nextText = typeof activeEntryText === 'string' ? String(activeEntryText) : ''
-      if (!nextText.trim()) {
-        const fs = await args.getFs()
-        if (cancelled || switchedActivePathRef.current?.next !== nextPath || args.activePath !== nextPath) return
-        nextText = await readWorkspaceActiveDocumentResolvedText({
-          activePath: nextPath,
-          currentText: nextText,
-          fs,
-          storageFallbackByPath: storageFallbackByPathRef.current,
-        })
-      }
+      const fs = await args.getFs()
+      if (cancelled || switchedActivePathRef.current?.next !== nextPath || args.activePath !== nextPath) return
+      const nextText = await readWorkspaceSelectionResolvedTextForActivePath({
+        activePath: nextPath,
+        activeEntry,
+        fs,
+        storageFallbackByPath: storageFallbackByPathRef.current,
+        preferPathResolvedText: true,
+      })
       if (!shouldAcceptWorkspaceDocumentSelectionText({
         activePath: nextPath,
         activeEntryKind,
@@ -317,8 +359,8 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       cancelled = true
     }
   }, [
+    activeEntry,
     activeEntryKind,
-    activeEntryText,
     activeDocumentKey,
     args.activePath,
     args.activeTextRef,
@@ -420,25 +462,17 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     if (switched.next !== args.activePath) return
     if (activeEntryKind === 'folder') return
     if (!activeDocumentKey) return
-    const inlineText = typeof activeEntryText === 'string' ? activeEntryText : ''
-    const loaded = args.lastLoadedRef.current
     let cancelled = false
     void (async () => {
-      let nextText = inlineText.trim()
-        ? inlineText
-        : loaded?.path === switched.next
-          ? String(loaded.text || '')
-          : ''
-      if (!nextText.trim()) {
-        const fs = await args.getFs()
-        if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
-        nextText = await readWorkspaceActiveDocumentResolvedText({
-          activePath: switched.next,
-          currentText: nextText,
-          fs,
-          storageFallbackByPath: storageFallbackByPathRef.current,
-        })
-      }
+      const fs = await args.getFs()
+      if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
+      const nextText = await readWorkspaceSelectionResolvedTextForActivePath({
+        activePath: switched.next,
+        activeEntry,
+        fs,
+        storageFallbackByPath: storageFallbackByPathRef.current,
+        preferPathResolvedText: true,
+      })
       if (!shouldAcceptWorkspaceDocumentSelectionText({
         activePath: switched.next,
         activeEntryKind,
@@ -451,6 +485,9 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
 
       args.lastLoadedRef.current = { path: switched.next, text: nextText }
       args.patchWorkspaceEntryInlineText(switched.next, nextText)
+      if (String(args.activeTextRef.current || '') !== nextText) {
+        args.setActiveTextProgrammatic(nextText)
+      }
       const applied = await applySelectedWorkspaceDocumentToCanvas({
         activeDocumentKey,
         text: nextText,
@@ -473,11 +510,11 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeDocumentSourceUrl,
     activeEntry,
     activeEntryKind,
-    activeEntryText,
     args.graphDataSource,
     args.getFs,
     args.lastLoadedRef,
     args.patchWorkspaceEntryInlineText,
+    args.setActiveTextProgrammatic,
     documentSwitchApplyRetryTick,
     applySelectedWorkspaceDocumentToCanvas,
     scheduleDocumentSwitchApplyRetry,
@@ -486,15 +523,19 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   React.useEffect(() => {
     const path = args.activePath
     if (!path || activeEntryKind === 'folder') return
+    if (switchedActivePathRef.current?.next === path) return
     let cancelled = false
     const run = async () => {
-      let nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
+      let nextText = readWorkspaceSelectionEntryTextForActivePath({
+        activePath: path,
+        activeEntry,
+      })
       if (!nextText.trim()) {
         const fs = await args.getFs()
         if (cancelled || args.activePath !== path) return
-        nextText = await readWorkspaceActiveDocumentResolvedText({
+        nextText = await readWorkspaceSelectionResolvedTextForActivePath({
           activePath: path,
-          currentText: nextText,
+          activeEntry,
           fs,
           storageFallbackByPath: storageFallbackByPathRef.current,
         })
@@ -540,7 +581,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     }
   }, [
     activeEntryKind,
-    activeEntryText,
     activeDocumentKey,
     activeDocumentSourceUrl,
     activeEntry,

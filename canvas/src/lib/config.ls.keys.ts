@@ -485,7 +485,6 @@ export const LS_KEYS = {
   editorWorkspacePane: 'kg:ui:workspace:editor:pane',
   workspaceCellSelectPanelPlacement: 'kg:ui:workspace:cellSelectPanelPlacement',
   documentStructureBaselineLock: 'kg:ui:baseline:documentStructureLock',
-  workspacePreviewWidthPx: 'kg:ui:workspace:previewWidthPx',
   workspaceCanvasPaneOpen: 'kg:ui:workspace:canvasPaneOpen',
   graphTablePreviewCollapsed: 'kg:ui:graphTable:preview:collapsed',
   graphTablePreviewWidthPx: 'kg:ui:graphTable:preview:widthPx',

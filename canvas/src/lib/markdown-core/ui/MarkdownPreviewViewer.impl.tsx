@@ -19,7 +19,11 @@ import {
 import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 import { useMarkdownExplorerControls } from '@/features/markdown/ui/useMarkdownExplorerControls'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
-import { subscribeHashChange } from '@/lib/browser/hashChangeEvents'
+import {
+  readBrowserLocationHash,
+  subscribeHashChange,
+  writeBrowserLocationHash,
+} from '@/lib/browser/hashChangeEvents'
 import {
   buildMarkdownVariableSsotAnchorId,
   collectMarkdownVariableSsotEntries,
@@ -287,9 +291,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
 
   React.useEffect(() => {
     const tryScrollToHash = () => {
-      const hash = typeof window !== 'undefined' && (window as unknown as { location?: Location }).location
-        ? String(((window as unknown as { location?: Location }).location as Location).hash || '')
-        : ''
+      const hash = readBrowserLocationHash()
       if (!hash || !hash.startsWith('#')) return
       const id = (() => {
         const raw = hash.slice(1)
@@ -325,9 +327,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   React.useEffect(() => {
     const root = scrollRootRef.current
     if (!root) return
-    const hash = typeof window !== 'undefined' && (window as unknown as { location?: Location }).location
-      ? String(((window as unknown as { location?: Location }).location as Location).hash || '')
-      : ''
+    const hash = readBrowserLocationHash()
     if (hash && hash.startsWith('#')) return
     try {
       root.scrollTop = 0
@@ -397,12 +397,8 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       }
 
       const anchorId = parsed.anchorId
-      if (anchorId && typeof window !== 'undefined') {
-        try {
-          window.location.hash = `#${encodeURIComponent(anchorId)}`
-        } catch {
-          void 0
-        }
+      if (anchorId) {
+        writeBrowserLocationHash(`#${encodeURIComponent(anchorId)}`)
       }
 
       return true

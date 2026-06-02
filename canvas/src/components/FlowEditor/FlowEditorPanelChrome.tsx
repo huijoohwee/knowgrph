@@ -89,6 +89,7 @@ export function FlowEditorPanelChromeHeader(props: {
   return (
     <header
       className={cn(
+        'relative z-10 flex-none',
         'border-b',
         UI_THEME_TOKENS.panel.border,
         dragHandle ? 'cursor-move' : 'cursor-default',

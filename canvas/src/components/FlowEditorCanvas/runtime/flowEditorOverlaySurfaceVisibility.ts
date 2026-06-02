@@ -1,5 +1,4 @@
 import { filterGraphByExcludedNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData } from '@/lib/graph/types'
 
 type FrontmatterVisibleSceneDisplay = {
@@ -82,16 +81,6 @@ export function resolveOverlayOnlyActive(args: {
     return false
   }
   return true
-}
-
-export function shouldSuppressFlowCanvasNativeSurface(args: {
-  renderGraphDataOverride: GraphData | null
-  overlayOnlyActive: boolean
-  flowEditorFrontmatterGraphAvailable?: boolean
-}): boolean {
-  if (args.overlayOnlyActive) return true
-  if (args.flowEditorFrontmatterGraphAvailable === true) return true
-  return isFrontmatterFlowGraph(args.renderGraphDataOverride)
 }
 
 export function buildFlowCanvasGraphDataOverride(args: {

@@ -39,6 +39,13 @@ export function readComposedSourceFilePath(file: GraphState['sourceFiles'][numbe
   return normalizeComposedSourcePath(file?.source?.path || file?.name || '')
 }
 
+export function buildComposedSourceFileSelectionKey(file: GraphState['sourceFiles'][number] | null | undefined): string {
+  const path = readComposedSourceFilePath(file)
+  const id = String(file?.id || '').trim()
+  const name = normalizeComposedSourcePath(file?.name || '')
+  return [path || name || id, id].filter(Boolean).join('|')
+}
+
 export function findComposedSourceFileByPath(args: {
   sourceFiles: GraphState['sourceFiles']
   targetPath?: unknown
@@ -98,6 +105,25 @@ export function resolvePreferredComposedSourceFileFromState(args: {
     fallbackName: args.fallbackName,
     enabledOnly: args.enabledOnly,
   })
+}
+
+export function resolvePreferredComposedSourceSelectionKey(args: {
+  sourceFiles: GraphState['sourceFiles']
+  markdownDocumentName?: unknown
+  explorerActivePath?: unknown
+  fallbackName?: unknown
+  enabledOnly?: boolean
+}): string {
+  return buildComposedSourceFileSelectionKey(resolvePreferredComposedSourceFile(args))
+}
+
+export function resolvePreferredComposedSourceSelectionKeyFromState(args: {
+  state: ComposedSourceSelectionState
+  explorerActivePath?: unknown
+  fallbackName?: unknown
+  enabledOnly?: boolean
+}): string {
+  return buildComposedSourceFileSelectionKey(resolvePreferredComposedSourceFileFromState(args))
 }
 
 export function resolvePreferredEnabledComposedSourceFile(args: {

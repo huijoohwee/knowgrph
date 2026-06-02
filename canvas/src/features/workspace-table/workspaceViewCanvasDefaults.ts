@@ -1,9 +1,9 @@
 export const WORKSPACE_EDITOR_CANVAS_DEFAULT_SPLIT = {
-  explorerPercent: 5,
-  jsonPercent: 20,
-  markdownPercent: 20,
-  viewerPercent: 20,
-  canvasPercent: 35,
+  explorerPercent: 16,
+  jsonPercent: 3,
+  markdownPercent: 6,
+  viewerPercent: 3,
+  canvasPercent: 72,
 } as const
 
 export const WORKSPACE_MULTI_DIMENSIONAL_TABLE_DEFAULT_SPLIT = {

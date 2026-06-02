@@ -9,7 +9,7 @@ import {
   scheduleMarkdownWorkspaceAutosaveSync,
 } from './markdownWorkspaceRuntime.stateSync'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
-import { syncWorkspaceTextState, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
+import { resolveAuthoritativeWorkspaceText, syncWorkspaceTextState, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
 import { clearRuntimeTimeout, scheduleRuntimeTimeout, type RuntimeTimeoutHandle } from './markdownWorkspaceRuntime.shared'
 import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
@@ -72,6 +72,13 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
     const path = args.activePath
     if (!path || args.activeEntryKind === 'folder') return
     try {
+      const textToSave = await resolveAuthoritativeWorkspaceText({
+        path,
+        getFs: args.getFs,
+        lastLoadedRef: args.lastLoadedRef,
+        activeTextRef: { current: args.activeText },
+        userEditedActiveTextRef: args.userEditedActiveTextRef,
+      })
       args.setStatusProgress('Saving', undefined, undefined, undefined, undefined, {
         ttlMs: UI_TOAST_TTL_MS.progressExtended,
       })
@@ -83,7 +90,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
       }
       await writeWorkspaceFileAndSync({
         path,
-        text: args.activeText,
+        text: textToSave,
         getFs: args.getFs,
         lastLoadedRef: args.lastLoadedRef,
         patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
@@ -95,7 +102,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
       })
       await args.saveCollaborationSnapshot?.({
         path,
-        text: args.activeText,
+        text: textToSave,
         saveBoundary: 'explicit',
       })
       applySaveSuccessStatus('Saved')
@@ -132,6 +139,13 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
     const finalName = safeName.includes('.') ? safeName : `${safeName}.${ext}`
 
     try {
+      const textToSave = await resolveAuthoritativeWorkspaceText({
+        path: currentPath,
+        getFs: args.getFs,
+        lastLoadedRef: args.lastLoadedRef,
+        activeTextRef: { current: args.activeText },
+        userEditedActiveTextRef: args.userEditedActiveTextRef,
+      })
       args.setStatusProgress('Saving', undefined, undefined, undefined, undefined, {
         ttlMs: UI_TOAST_TTL_MS.progressExtended,
       })
@@ -142,12 +156,12 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
         void 0
       }
       const fs = await args.getFs()
-      const createdPath = await fs.createFile({ parentPath, name: finalName, text: args.activeText })
+      const createdPath = await fs.createFile({ parentPath, name: finalName, text: textToSave })
       setWorkspaceEntrySource(createdPath, { kind: 'local', originalName: null })
       await args.refresh()
       syncWorkspaceTextState({
         path: createdPath,
-        text: args.activeText,
+        text: textToSave,
         lastLoadedRef: args.lastLoadedRef,
         setActiveText: args.setActiveTextProgrammatic,
       })

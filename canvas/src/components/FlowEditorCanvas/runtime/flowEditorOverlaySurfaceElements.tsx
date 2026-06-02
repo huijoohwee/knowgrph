@@ -29,7 +29,6 @@ export function buildOverlayEditorElements(args: {
   flowEditorSurfaceId: string
   renderGraphSemanticKey: string
   canEdit: boolean
-  workspaceInteractionPassthrough: boolean
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
   toolMode: ToolMode
   pendingEdgeSourceId: string | null
@@ -99,7 +98,6 @@ export function buildOverlayEditorElements(args: {
         key={overlayInstanceKey}
         visible={args.overlayVisibilityActive}
         active={args.canEdit}
-        interactionPassthrough={args.workspaceInteractionPassthrough}
         flowEditorSurfaceId={args.flowEditorSurfaceId}
         overlayCollectiveCount={args.overlayEditorNodeIds.length}
         node={node}

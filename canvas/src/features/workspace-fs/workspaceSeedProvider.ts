@@ -818,6 +818,26 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
   }
 }
 
+const readExistingMirrorText = async (absolutePath: string): Promise<string | null> => {
+  const absoluteViaFetch = buildLocalFsFetchPath(absolutePath)
+  if (absoluteViaFetch) {
+    const text = await readTextViaFetch(absoluteViaFetch)
+    if (text) return text
+  }
+  return readTextViaNodeFs(absolutePath)
+}
+
+const shouldBlockBlankMirrorOverwrite = async (args: {
+  absolutePath: string
+  text: string
+  allowBlankText?: boolean
+}): Promise<boolean> => {
+  if (args.allowBlankText === true) return false
+  if (String(args.text || '').trim()) return false
+  const existing = await readExistingMirrorText(args.absolutePath)
+  return !!String(existing || '').trim()
+}
+
 const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
   try {
@@ -1275,17 +1295,26 @@ export async function ensureWorkspaceChatMirrorFolder(args: {
 export async function upsertWorkspaceDocsMirrorText(args: {
   workspacePath: string
   text: string
+  allowBlankText?: boolean
 }): Promise<boolean> {
   const absolutePath = resolveWorkspaceDocsMirrorAbsolutePath(args.workspacePath)
   if (!absolutePath) return false
+  const nextText = String(args.text ?? '')
+  if (await shouldBlockBlankMirrorOverwrite({
+    absolutePath,
+    text: nextText,
+    allowBlankText: args.allowBlankText,
+  })) {
+    return false
+  }
   if (typeof window !== 'undefined') {
-    return writeTextViaLocalFsProxy(absolutePath, args.text)
+    return writeTextViaLocalFsProxy(absolutePath, nextText)
   }
   try {
     const fs = await importNodeFsPromises()
     const path = await importNodePath()
     await fs.mkdir(path.dirname(absolutePath), { recursive: true })
-    await fs.writeFile(absolutePath, String(args.text ?? ''), 'utf8')
+    await fs.writeFile(absolutePath, nextText, 'utf8')
     return true
   } catch {
     return false

@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  resolveFlowCanvasNativeRenderPolicy,
+  resolveFlowCanvasNativeSurfaceMode,
+} from '@/components/FlowCanvas/shared'
 export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRefresh() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts'); const text = readFileSync(p, 'utf8')
   const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'); const surfaceText = readFileSync(surfacePath, 'utf8')
@@ -54,31 +58,28 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!editorText.includes('if (isWorkspaceGraphMutationBlocked(state)) {')) {
     throw new Error('expected direct Flow Editor widget persistence to branch workspace-blocked updates through an explicit in-memory path')
   }
-  if (!editorText.includes('interactionPassthrough?: boolean')) {
-    throw new Error('expected NodeOverlayEditor to expose explicit interaction passthrough mode for workspace-open Flow Editor gesture routing')
+  if (!editorText.includes('resolveFlowEditorWidgetSurfacePointerPolicy')) {
+    throw new Error('expected NodeOverlayEditor to reuse the shared widget surface pointer policy')
   }
-  if (!editorText.includes("data-kg-canvas-wheel-ignore={interactionPassthrough ? 'false' : 'true'}")) {
-    throw new Error('expected NodeOverlayEditor workspace passthrough mode to stop marking overlay panels as canvas wheel-ignore surfaces')
+  if (!editorText.includes('data-kg-canvas-wheel-ignore={pointerPolicy.canvasWheelIgnore}')) {
+    throw new Error('expected NodeOverlayEditor widget panel wheel routing to come from the shared pointer policy')
   }
-  if (!editorText.includes("className={interactionPassthrough ? 'fixed pointer-events-none' : 'fixed'}")) {
-    throw new Error('expected NodeOverlayEditor workspace passthrough mode to forward pointer gestures to Flow canvas for collective drag/pan/zoom')
+  if (!editorText.includes('className={pointerPolicy.rootClassName}')) {
+    throw new Error('expected NodeOverlayEditor root pointer routing to come from the shared pointer policy')
   }
-  if (!editorText.includes("const passthroughPointerEventsClass = interactionPassthrough ? 'pointer-events-none' : 'pointer-events-auto'")) {
-    throw new Error('expected NodeOverlayEditor workspace passthrough mode to centralize overlay panel/toolbar pointer-event routing')
+  if (!editorText.includes('pointerPolicy.toolbarPointerEventsClassName')) {
+    throw new Error('expected NodeOverlayEditor toolbar pointer routing to come from the shared pointer policy')
   }
-  if (!editorText.includes('className={passthroughPointerEventsClass}')) {
-    throw new Error('expected NodeOverlayEditor workspace passthrough mode to disable panel pointer interactions so collective canvas gestures remain available')
+  if (!editorText.includes('className={pointerPolicy.panelPointerEventsClassName}')) {
+    throw new Error('expected NodeOverlayEditor panel pointer routing to come from the shared pointer policy')
   }
-  if (!editorText.includes('if (interactionPassthrough) return')) {
-    throw new Error('expected NodeOverlayEditor pointer capture handler to no-op in workspace passthrough mode')
+  if (editorText.includes('interactionPassthrough')) {
+    throw new Error('expected NodeOverlayEditor to remove stale workspace passthrough pointer disabling')
   }
   const overlaySharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const overlaySharedText = readFileSync(overlaySharedPath, 'utf8')
-  if (!overlaySharedText.includes('interactionPassthrough?: boolean')) {
-    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to thread interaction passthrough contract into NodeOverlayEditor')
-  }
-  if (!overlaySharedText.includes('interactionPassthrough={args.interactionPassthrough}')) {
-    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to pass interaction passthrough into NodeOverlayEditor')
+  if (overlaySharedText.includes('interactionPassthrough')) {
+    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to stop threading stale interaction passthrough into NodeOverlayEditor')
   }
   if (!editorText.includes('useGraphStore.setState(prev => {')) {
     throw new Error('expected direct Flow Editor widget persistence to update in-memory widget positions while workspace mutation is blocked')
@@ -339,16 +340,58 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (overlaySurfaceText.includes('preferCanvasCollectiveInteraction')) {
     throw new Error('expected Flow Editor overlay surface to avoid base FlowCanvas collective fallback authority that can cause renderer seepage/interference')
   }
+  const nativeSurfaceMode = resolveFlowCanvasNativeSurfaceMode({
+    canvas2dRenderer: 'flowEditor',
+    graphData: { type: 'application/json', metadata: { kind: 'frontmatter-flow' }, nodes: [], edges: [] },
+  })
+  const nativeRenderPolicy = resolveFlowCanvasNativeRenderPolicy({
+    nativeSurfaceMode,
+    renderEdges: true,
+    renderGroups: true,
+    renderNodes: true,
+  })
+  if (
+    nativeSurfaceMode !== 'runtime-only'
+    || nativeRenderPolicy.renderEdges !== false
+    || nativeRenderPolicy.renderGroups !== false
+    || nativeRenderPolicy.renderNodes !== false
+  ) {
+    throw new Error('expected FlowCanvas shared native surface policy to make frontmatter Flow Editor scenes runtime-only')
+  }
+  const nativePolicyFlowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const nativePolicyFlowCanvasText = readFileSync(nativePolicyFlowCanvasPath, 'utf8')
+  if (!nativePolicyFlowCanvasText.includes('resolveFlowCanvasNativeRenderPolicy')) {
+    throw new Error('expected FlowCanvas to own native primitive rendering policy through the shared helper')
+  }
+  if (
+    !nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderNodes = nativeRenderPolicy.renderNodes')
+    || !nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderGroups = nativeRenderPolicy.renderGroups')
+    || !nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderEdges = nativeRenderPolicy.renderEdges')
+  ) {
+    throw new Error('expected FlowCanvas draw args to consume the resolved native render policy')
+  }
+  if (
+    !nativePolicyFlowCanvasText.includes('ctx.clearRect(0, 0, canvas.width, canvas.height)')
+    || !nativePolicyFlowCanvasText.includes('nativeRenderPolicy.renderNodes !== false')
+  ) {
+    throw new Error('expected runtime-only FlowCanvas policy to clear stale native canvas pixels at the shared renderer boundary')
+  }
+  const nativeRuntimeText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'nativeRuntime.ts'), 'utf8')
+  const runtimeOnlyReturnIndex = nativeRuntimeText.indexOf('if (!renderEdges && !renderGroups && !renderNodes) return')
+  const nativeFillIndex = nativeRuntimeText.indexOf('ctx.fillRect(0, 0, rt.canvas.width, rt.canvas.height)')
+  if (runtimeOnlyReturnIndex < 0 || nativeFillIndex < 0 || runtimeOnlyReturnIndex > nativeFillIndex) {
+    throw new Error('expected runtime-only native FlowCanvas draws to return before painting background/grid pixels')
+  }
   const overlayCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
   const overlayCanvasSurfaceText = readFileSync(overlayCanvasSurfacePath, 'utf8')
-  if (!overlayCanvasSurfaceText.includes('suppressNativeFlowCanvasSurface: boolean')) {
-    throw new Error('expected Flow Editor canvas surface to derive native FlowCanvas suppression from the shared visibility owner')
+  if (!overlayCanvasSurfaceText.includes('nativeSurfaceMode: FlowCanvasNativeSurfaceMode')) {
+    throw new Error('expected Flow Editor canvas surface to accept the shared native surface mode')
   }
-  if (!overlayCanvasSurfaceText.includes('renderNodes={!props.suppressNativeFlowCanvasSurface}')) {
-    throw new Error('expected Flow Editor canvas surface to suppress FlowCanvas nodes while overlay/frontmatter ownership owns the scene')
+  if (!overlayCanvasSurfaceText.includes('nativeSurfaceMode={props.nativeSurfaceMode}')) {
+    throw new Error('expected Flow Editor canvas surface to pass native surface mode through to FlowCanvas')
   }
-  if (!overlayCanvasSurfaceText.includes('renderGroups={!props.suppressNativeFlowCanvasSurface && !props.geospatialWidgetPanelMode}')) {
-    throw new Error('expected Flow Editor canvas surface to suppress FlowCanvas groups while overlay/frontmatter ownership owns the scene')
+  if (overlayCanvasSurfaceText.includes('renderNodes=') || overlayCanvasSurfaceText.includes('renderEdges=')) {
+    throw new Error('expected Flow Editor canvas surface to avoid owning FlowCanvas native node/edge visibility')
   }
   if (overlayCanvasSurfaceText.includes('hideNodeIds=')) {
     throw new Error('expected Flow Editor canvas surface to forbid hideNodeIds masking and keep FlowCanvas visibility neutral')
@@ -365,11 +408,14 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const flowEditorCanvasRuntimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
   if (
-    !flowEditorCanvasRuntimeText.includes('const suppressNativeFlowCanvasSurface = React.useMemo(')
+    !flowEditorCanvasRuntimeText.includes('const flowCanvasNativeSurfaceMode = React.useMemo(')
+    || !flowEditorCanvasRuntimeText.includes('resolveFlowCanvasNativeSurfaceMode({')
     || !flowEditorCanvasRuntimeText.includes('flowEditorFrontmatterGraphAvailable,')
-    || !flowEditorCanvasRuntimeText.includes('suppressNativeFlowCanvasSurface={suppressNativeFlowCanvasSurface}')
+    || !flowEditorCanvasRuntimeText.includes('hasOverlayEditors && workspaceMutationBlocked')
+    || !flowEditorCanvasRuntimeText.includes('overlayOwnsScene: flowEditorOverlayOwnsNativeScene')
+    || !flowEditorCanvasRuntimeText.includes('nativeSurfaceMode={flowCanvasNativeSurfaceMode}')
   ) {
-    throw new Error('expected Flow Editor runtime to resolve native FlowCanvas suppression before passing the filtered substrate graph into the surface')
+    throw new Error('expected Flow Editor runtime to resolve native FlowCanvas surface mode before passing the filtered substrate graph into the surface')
   }
   if (!flowEditorCanvasRuntimeText.includes('renderGraphDataOverride={flowCanvasGraphDataOverride}')) {
     throw new Error('expected Flow Editor runtime to pass the upstream-filtered graph override into FlowCanvas')
@@ -879,17 +925,26 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes("const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Rich Media overlay drag/pan interactions to use the renderer-level Flow Editor/Flow Canvas gate')
   }
-  if (!text.includes('const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen')) {
-    throw new Error('expected Rich Media overlay interactions to disable while workspace overlay is open so collective canvas gestures stay available')
+  if (!text.includes('resolveFlowCanvasMediaOverlayInteractionPolicy')) {
+    throw new Error('expected Rich Media overlay interactions to reuse the shared FlowCanvas interaction policy')
   }
-  if (!text.includes("const overlayPanelPointerEventsClass = workspaceOverlayOpen ? 'pointer-events-none' : 'pointer-events-auto'")) {
-    throw new Error('expected Rich Media overlays to centralize pointer-event passthrough under workspace-open state')
+  if (!text.includes('const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive')) {
+    throw new Error('expected Rich Media overlay pan to stay controlled by the shared renderer interaction policy')
+  }
+  if (!text.includes('const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive')) {
+    throw new Error('expected Rich Media header drag to stay controlled by the shared renderer interaction policy')
+  }
+  if (!text.includes('const resizeInteractionActive = mediaOverlayInteractionPolicy.resizeActive')) {
+    throw new Error('expected Rich Media resize to stay controlled by the shared renderer interaction policy')
+  }
+  if (!text.includes('const overlayPanelPointerEventsClass = mediaOverlayInteractionPolicy.panelPointerEventsClassName')) {
+    throw new Error('expected Rich Media overlays to centralize pointer-event policy without workspace-open pointer suppression')
   }
   if (!text.includes('className={`absolute left-0 top-0 ${overlayPanelPointerEventsClass}`}')) {
-    throw new Error('expected Rich Media overlays to forward pointer gestures to FlowCanvas when workspace overlay is open')
+    throw new Error('expected Rich Media overlays to keep the shared pointer policy at the panel root')
   }
-  if (!text.includes('onWheelCapture={workspaceOverlayOpen ? undefined : stopEvent}')) {
-    throw new Error('expected Rich Media overlay wheel capture to disable while workspace overlay is open')
+  if (!text.includes('onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')) {
+    throw new Error('expected Rich Media overlay wheel capture to follow the shared interaction policy')
   }
   if (!text.includes('const cancelMediaOverlayInteractionState = React.useCallback(() => {')) {
     throw new Error('expected FlowCanvas media overlays to centralize cancellation of delayed interaction writes')
@@ -899,10 +954,11 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (workspaceOpenCancelIndex < 0 || schedulerCancelIndex < 0) {
     throw new Error('expected workspace overlay open transition to cancel queued Rich Media overlay writes before they can flush after close')
   }
-  const richMediaRuntimeGuardIndex = text.indexOf('if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return')
-  const richMediaDirtyWriteIndex = text.indexOf('positionsDirtySinceCommitRef.current = true')
-  if (richMediaRuntimeGuardIndex < 0 || richMediaDirtyWriteIndex < 0 || richMediaRuntimeGuardIndex > richMediaDirtyWriteIndex) {
-    throw new Error('expected Rich Media overlay runtime position writes to be blocked while workspace overlay is open')
+  const richMediaResizeMoveIndex = text.indexOf('const applyMediaOverlayResizeMove = React.useCallback')
+  const richMediaRuntimeGuardIndex = text.indexOf('if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return', richMediaResizeMoveIndex)
+  const richMediaResizeWriteIndex = text.indexOf('mediaOverlayPanelSizeOverrideRef.current.set(id', richMediaRuntimeGuardIndex)
+  if (richMediaResizeMoveIndex < 0 || richMediaRuntimeGuardIndex < 0 || richMediaResizeWriteIndex < 0 || richMediaRuntimeGuardIndex > richMediaResizeWriteIndex) {
+    throw new Error('expected Rich Media resize runtime writes to remain blocked while workspace mutation blocking is active')
   }
   const resizeGuardIndex = text.indexOf('if (!workspaceMutationBlockedRef.current) {')
   const resizeWriteIndex = text.indexOf("store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })")
@@ -961,27 +1017,27 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   if (!flowEditorSurfaceText.includes('const overlayVisibilityActive = React.useMemo(() => {')) {
     throw new Error('expected Flow Editor overlay surface to derive one shared overlay visibility authority for active and workspace-passthrough frames')
   }
-  if (!flowEditorSurfaceText.includes('return flowEditorViewActive || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)')) {
-    throw new Error('expected Flow Editor overlay visibility authority to keep overlays active during workspace-mutation passthrough frames')
+  if (!flowEditorSurfaceText.includes('return flowEditorViewActive || (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)')) {
+    throw new Error('expected Flow Editor overlay visibility authority to keep overlays active during workspace-open frames')
   }
   if (!flowEditorSurfaceText.includes('return buildOverlayEditorElements({') || !flowEditorSurfaceText.includes('overlayVisibilityActive,')) {
-    throw new Error('expected Flow Editor widget overlays to render from the shared overlay visibility authority during workspace passthrough')
+    throw new Error('expected Flow Editor widget overlays to render from the shared overlay visibility authority during workspace-open frames')
   }
-  if (!flowEditorSurfaceText.includes('const workspaceInteractionPassthrough = workspaceEditorOverlayOpen')) {
-    throw new Error('expected Flow Editor overlay surface to derive interaction passthrough from the actual workspace overlay so expired transition guards cannot strand widget controls')
+  if (!flowEditorSurfaceText.includes('const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))')) {
+    throw new Error('expected Flow Editor overlay surface to derive overlay visibility from the actual workspace overlay state')
   }
-  if (!flowEditorSurfaceText.includes('workspaceInteractionPassthrough,')) {
-    throw new Error('expected Flow Editor overlay surface to wire interaction passthrough into overlay editors')
+  if (flowEditorSurfaceText.includes('workspaceInteractionPassthrough')) {
+    throw new Error('expected Flow Editor overlay surface to remove stale interaction passthrough wiring')
   }
-  if (!flowEditorSurfaceText.includes('|| (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)')) {
-    throw new Error('expected Flow Editor overlay surface hasOverlayEditors guard to keep overlay layers mounted during transient workspace mutation frames')
+  if (!flowEditorSurfaceText.includes('|| (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)')) {
+    throw new Error('expected Flow Editor overlay surface hasOverlayEditors guard to keep overlay layers mounted during workspace-open frames')
   }
   const flowEditorSurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx'); const flowEditorSurfaceElementsText = readFileSync(flowEditorSurfaceElementsPath, 'utf8')
   if (!flowEditorSurfaceElementsText.includes('if (!args.overlayVisibilityActive) return []')) {
-    throw new Error('expected Flow Editor overlay surface to keep widget overlay elements mounted from the shared passthrough visibility authority')
+    throw new Error('expected Flow Editor overlay surface to keep widget overlay elements mounted from the shared visibility authority')
   }
   if (!flowEditorSurfaceText.includes('return overlayVisibilityActive && renderGraphPlacementContext?.isFrontmatterFlow === true')) {
-    throw new Error('expected frontmatter rich-media coverage to stay active while workspace passthrough keeps overlays visible')
+    throw new Error('expected frontmatter rich-media coverage to stay active while workspace visibility keeps overlays visible')
   }
   const flowEditorSurfaceVisibilityPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceVisibility.ts'); const flowEditorSurfaceVisibilityText = readFileSync(flowEditorSurfaceVisibilityPath, 'utf8')
   if (!flowEditorSurfaceVisibilityText.includes('const baseActive = overlayVisibilityActive && (hasOverlayEditors || Boolean(geospatialWidgetPanelMode))')) {

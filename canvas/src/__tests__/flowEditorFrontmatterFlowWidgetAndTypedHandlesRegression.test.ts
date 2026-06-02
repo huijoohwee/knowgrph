@@ -130,7 +130,7 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
     throw new Error('expected shared FlowCanvas graph filtering to resolve canonical overlay ids to concrete graph ids before exclusion')
   }
   if (!visibilityText.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
-    throw new Error('expected frontmatter-flow overlay guard to branch explicitly before overlay-only canvas suppression')
+    throw new Error('expected frontmatter-flow overlay guard to branch explicitly before overlay-only canvas runtime policy')
   }
   if (!visibilityText.includes('FlowCanvas') || !visibilityText.includes('runtime may still provide layout, pan, zoom, and edge geometry')) {
     throw new Error('expected frontmatter-flow overlay guard to document that FlowCanvas remains a non-visual layout/runtime substrate')
@@ -1158,22 +1158,28 @@ export function testFlowEditorWidgetPinDescriptionsAreActionClear() {
   if (!(panelText + panelChromeText).includes('title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}')) {
     throw new Error('expected widget pin button title to reflect explicit action for current state')
   }
+  if (!panelChromeText.includes("'relative z-10 flex-none'")) {
+    throw new Error('expected widget panel header to stay above rich-media body content so drag handles remain hittable at Flow Editor scale')
+  }
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayDragHandlers.ts')
   const overlayText = readFileSync(overlayPath, 'utf8')
-  if (!overlayText.includes('if (pinnedInCanvas) return')) {
-    throw new Error('expected widget header drag to be disabled only when pinned and enabled when unpinned')
+  if (overlayText.includes('if (pinnedInCanvas) return')) {
+    throw new Error('expected widget header drag to allow the shared pinned world-position branch')
   }
-  if (!labelsText.includes("pinPanel: 'Pin to canvas (no drag)'")) {
-    throw new Error('expected widget pin label to clearly describe drag-disabled pinned behavior')
+  if (!overlayText.includes('if (!floating) {') || !overlayText.includes('persistWorldPos(out)')) {
+    throw new Error('expected widget header drag to keep the pinned world-position drag branch active')
   }
-  if (!labelsText.includes("unpinPanel: 'Unpin (drag enabled)'")) {
-    throw new Error('expected widget unpin label to clearly describe drag-enabled behavior')
+  if (!labelsText.includes("pinPanel: 'Pin to canvas'")) {
+    throw new Error('expected widget pin label to describe the pin action without stale drag-disabled copy')
   }
-  if (!copyText.includes("flowWidgetPin: 'Pin to canvas (follows canvas zoom/pan; drag disabled).'")) {
-    throw new Error('expected widget pin tooltip copy to state zoom-follow with drag disabled')
+  if (!labelsText.includes("unpinPanel: 'Unpin from canvas'")) {
+    throw new Error('expected widget unpin label to describe the unpin action without stale drag-enabled copy')
   }
-  if (!copyText.includes("flowWidgetUnpin: 'Unpin (follows canvas zoom/pan; drag enabled).'")) {
-    throw new Error('expected widget unpin tooltip copy to state zoom-follow with drag enabled')
+  if (!copyText.includes("flowWidgetPin: 'Pin to canvas (follows canvas zoom/pan).'")) {
+    throw new Error('expected widget pin tooltip copy to state zoom-follow without stale drag-disabled copy')
+  }
+  if (!copyText.includes("flowWidgetUnpin: 'Unpin from canvas (screen-positioned).'")) {
+    throw new Error('expected widget unpin tooltip copy to state screen-positioned behavior without stale drag-enabled copy')
   }
 }
 

@@ -59,6 +59,25 @@ const installDomGlobals = (dom: JSDOM): (() => void) => {
     dom.window.close()
   }
 }
+
+type EditableControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+
+const changeControlValue = async (control: EditableControlElement, value: string): Promise<void> => {
+  const win = control.ownerDocument.defaultView
+  if (!win) throw new Error('expected DOM control owner window')
+  const proto = control instanceof win.HTMLTextAreaElement
+    ? win.HTMLTextAreaElement.prototype
+    : control instanceof win.HTMLSelectElement
+      ? win.HTMLSelectElement.prototype
+      : win.HTMLInputElement.prototype
+  const valueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
+  if (!valueSetter) throw new Error('expected DOM control value setter')
+  await act(async () => {
+    valueSetter.call(control, value)
+    Simulate.change(control)
+  })
+}
+
 export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
   const restoreGlobals = installDomGlobals(dom)
@@ -246,13 +265,9 @@ export const testTextWidgetCellsStayLocallyEditable = async () => {
   }
   const promptPort = host.querySelector('button[data-kg-port-key="prompt_in"]')
   if (promptPort) throw new Error('expected BytePlus text widget to omit non-API registry port rows')
-  promptInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-  promptInput.value = 'updated prompt'
-  promptInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-  modelInput.value = 'seed-2-0-lite-custom'
-  modelInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-  topPInput.value = '0.4'
-  topPInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  await changeControlValue(promptInput, 'updated prompt')
+  await changeControlValue(modelInput, 'seed-2-0-lite-custom')
+  await changeControlValue(topPInput, '0.4')
   await new Promise<void>(resolve => setTimeout(resolve, 20))
   if (patched.length === 0) {
     throw new Error('expected local BytePlus text widget field edits to patch widget properties')
@@ -311,8 +326,7 @@ export const testWidgetRegistrySelectFieldsStayEditable = async () => {
   }
   const aspectSelect = host.querySelector<HTMLSelectElement>('#aspect_ratio')
   if (!aspectSelect) throw new Error('expected aspect ratio select to render')
-  aspectSelect.value = 'portrait'
-  aspectSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  await changeControlValue(aspectSelect, 'portrait')
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
@@ -379,12 +393,9 @@ export const testOpenAiTextWidgetCellsStayLocallyEditable = async () => {
     throw new Error('expected OpenAI text widget inputs to render')
   }
 
-  promptInput.value = 'updated openai prompt'
-  promptInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-  modelInput.value = 'gpt-5.4-mini'
-  modelInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-  topPInput.value = '0.4'
-  topPInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  await changeControlValue(promptInput, 'updated openai prompt')
+  await changeControlValue(modelInput, 'gpt-5.4-mini')
+  await changeControlValue(topPInput, '0.4')
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
@@ -445,10 +456,8 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
   const sizeSelect = host.querySelector<HTMLSelectElement>('#size')
   const refInput = host.querySelector<HTMLInputElement>('#reference_image')
   if (!sizeSelect || !refInput) throw new Error('expected Seedream image widget fields to render')
-  sizeSelect.value = '4K'
-  sizeSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-  refInput.value = 'https://example.invalid/seedream-ref-updated.png'
-  refInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  await changeControlValue(sizeSelect, '4K')
+  await changeControlValue(refInput, 'https://example.invalid/seedream-ref-updated.png')
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
@@ -512,10 +521,8 @@ export const testBytePlusVideoWidgetKvRowsStayEditable = async () => {
   const durationSelect = host.querySelector<HTMLSelectElement>('#duration')
   const promptInput = host.querySelector<HTMLTextAreaElement>('#prompt')
   if (!durationSelect || !promptInput) throw new Error('expected BytePlus video widget fields to render')
-  durationSelect.value = '6'
-  durationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-  promptInput.value = 'Imagination run wild, 6s; Singapore'
-  promptInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  await changeControlValue(durationSelect, '6')
+  await changeControlValue(promptInput, 'Imagination run wild, 6s; Singapore')
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 

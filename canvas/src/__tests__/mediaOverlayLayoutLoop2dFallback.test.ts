@@ -107,6 +107,197 @@ export async function testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscre
   }
 }
 
+export async function testMediaOverlayLayoutLoop2dReseedsManualFrontmatterOverlapsInsideVisibleMargins() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const root = dom.window.document.getElementById('root')
+    if (!root) throw new Error('expected root container')
+    const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
+    const els = new Map<string, HTMLDivElement>()
+    for (const id of ids) {
+      const el = dom.window.document.createElement('div')
+      root.appendChild(el)
+      els.set(id, el)
+    }
+
+    const viewportW = 943
+    const viewportH = 998
+    const visibleLeft = 320
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'onDemand',
+      items: ids.map(id => ({ id })),
+      manualPlacement: true,
+      density: 'default',
+      viewportW,
+      viewportH,
+      schema: defaultSchema,
+      collision: { enabled: true, gapPx: 12 },
+      readTransform: () => ({
+        k: 1,
+        x: 0,
+        y: 0,
+        applyX: (v: number) => v,
+        applyY: (v: number) => v,
+      }) as any,
+      getElementForId: (id: string) => els.get(id) || null,
+      getNodeWorldCenterForId: (id: string) => ids.includes(id) ? { x: 1005, y: 757 } : null,
+      sizingConfig: { widthRatio: 0.12, widthMinPx: 90, widthMaxPx: 140 },
+      clampToViewport: {
+        margin: 24,
+        marginLeft: visibleLeft,
+        marginRight: 24,
+        marginTop: 24,
+        marginBottom: 24,
+      },
+    })
+
+    loop.schedule()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    const uniquePositions = new Set(boxes.map(box => `${Math.round(box.left)}:${Math.round(box.top)}`))
+    if (uniquePositions.size < 2) {
+      throw new Error(`expected manual frontmatter overlays to reseed away from a single stacked position, got ${JSON.stringify(boxes)}`)
+    }
+    for (const box of boxes) {
+      if (box.left < visibleLeft || box.left + box.width > viewportW || box.top < 24 || box.top + box.height > viewportH) {
+        throw new Error(`expected frontmatter overlay inside pane-aware visible viewport, got ${JSON.stringify(box)}`)
+      }
+    }
+    loop.stop()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMediaOverlayLayoutLoop2dFallbackPositionsManualFrontmatterMissingCenters() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const root = dom.window.document.getElementById('root')
+    if (!root) throw new Error('expected root container')
+    const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
+    const els = new Map<string, HTMLDivElement>()
+    for (const id of ids) {
+      const el = dom.window.document.createElement('div')
+      root.appendChild(el)
+      els.set(id, el)
+    }
+
+    const viewportW = 943
+    const viewportH = 998
+    const visibleLeft = 320
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'onDemand',
+      items: ids.map(id => ({ id })),
+      manualPlacement: true,
+      density: 'default',
+      viewportW,
+      viewportH,
+      schema: defaultSchema,
+      collision: { enabled: true, gapPx: 12 },
+      readTransform: () => ({
+        k: 1,
+        x: 0,
+        y: 0,
+        applyX: (v: number) => v,
+        applyY: (v: number) => v,
+      }) as any,
+      getElementForId: (id: string) => els.get(id) || null,
+      getNodeWorldCenterForId: () => null,
+      sizingConfig: { widthRatio: 0.12, widthMinPx: 90, widthMaxPx: 140 },
+      clampToViewport: {
+        margin: 24,
+        marginLeft: visibleLeft,
+        marginRight: 24,
+        marginTop: 24,
+        marginBottom: 24,
+      },
+    })
+
+    loop.schedule()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    const uniquePositions = new Set(boxes.map(box => `${Math.round(box.left)}:${Math.round(box.top)}`))
+    if (uniquePositions.size < 2) {
+      throw new Error(`expected missing-center manual frontmatter overlays to receive balanced fallback positions, got ${JSON.stringify(boxes)}`)
+    }
+    for (const box of boxes) {
+      if (box.left < visibleLeft || box.left + box.width > viewportW || box.top < 24 || box.top + box.height > viewportH) {
+        throw new Error(`expected missing-center frontmatter overlay inside pane-aware visible viewport, got ${JSON.stringify(box)}`)
+      }
+    }
+    loop.stop()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMediaOverlayLayoutLoop2dFallbackDoesNotDeferMixedManualFrontmatterCenters() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const root = dom.window.document.getElementById('root')
+    if (!root) throw new Error('expected root container')
+    const ids = ['m1', 'm2', 'm3', 'm4']
+    const els = new Map<string, HTMLDivElement>()
+    for (const id of ids) {
+      const el = dom.window.document.createElement('div')
+      root.appendChild(el)
+      els.set(id, el)
+    }
+
+    const viewportW = 943
+    const viewportH = 998
+    const visibleLeft = 320
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'onDemand',
+      items: ids.map(id => ({ id })),
+      manualPlacement: true,
+      density: 'default',
+      viewportW,
+      viewportH,
+      schema: defaultSchema,
+      collision: { enabled: true, gapPx: 12 },
+      readTransform: () => ({
+        k: 1,
+        x: 0,
+        y: 0,
+        applyX: (v: number) => v,
+        applyY: (v: number) => v,
+      }) as any,
+      getElementForId: (id: string) => els.get(id) || null,
+      getNodeWorldCenterForId: (id: string) => id === 'm1' || id === 'm2' ? { x: 1005, y: 757 } : null,
+      sizingConfig: { widthRatio: 0.12, widthMinPx: 90, widthMaxPx: 140 },
+      clampToViewport: {
+        margin: 24,
+        marginLeft: visibleLeft,
+        marginRight: 24,
+        marginTop: 24,
+        marginBottom: 24,
+      },
+    })
+
+    loop.schedule()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    for (const box of boxes) {
+      if (box.left < visibleLeft || box.left + box.width > viewportW || box.top < 24 || box.top + box.height > viewportH) {
+        throw new Error(`expected mixed-center frontmatter overlay inside pane-aware visible viewport without warmup deferral, got ${JSON.stringify(boxes)}`)
+      }
+    }
+    loop.stop()
+  } finally {
+    restore()
+  }
+}
+
 export function testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy() {
   const d3HookPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts')
   const flowOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
@@ -124,7 +315,9 @@ export function testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy() {
   for (const snippet of [
     'manualPlacement: richMediaInfiniteCanvasMode',
     'collision: richMediaInfiniteCanvasMode',
-    'clampToViewport: richMediaInfiniteCanvasMode',
+    'const flowEditorFrontmatterVisibleViewport = React.useMemo',
+    'const richMediaViewportClamp = React.useMemo',
+    'clampToViewport: richMediaViewportClamp',
   ]) {
     if (!flowOverlayText.includes(snippet)) {
       throw new Error(`expected Flow Rich Media overlays to route ${snippet} through the shared infinite-canvas gate`)
@@ -133,8 +326,11 @@ export function testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy() {
   if (!loopText.includes('if (!viewportClampEnabled) return pos')) {
     throw new Error('expected shared media overlay layout loop to skip viewport clamp when infinite-canvas callers pass clampToViewport=null')
   }
-  if (!loopText.includes('const shouldReseedBalancedCluster = viewportClampEnabled && (hasVerticalCluster || hasHorizontalStrip)')) {
-    throw new Error('expected shared media overlay layout loop to avoid viewport-centered balanced reseeds in infinite-canvas mode')
+  if (!loopText.includes('marginLeft?: number') || !loopText.includes('marginRight?: number')) {
+    throw new Error('expected shared media overlay layout loop to support pane-aware side-specific viewport margins')
+  }
+  if (!loopText.includes('manualPlacement && hasOverlappingBoxes')) {
+    throw new Error('expected shared media overlay layout loop to reseed stacked manual frontmatter overlays only when viewport clamp is enabled')
   }
 }
 

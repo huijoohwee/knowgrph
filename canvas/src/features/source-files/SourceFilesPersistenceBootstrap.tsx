@@ -24,8 +24,8 @@ import {
   buildMaterializedWorkspaceForceIncludePaths,
   hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
+  readWorkspaceActiveEntrySnapshot,
   readReusableWorkspaceEntriesSnapshot,
-  readWorkspaceSourceRootEntriesSnapshot,
   resolveMaterializedWorkspaceActivePath,
 } from '@/features/source-files/sourceFilesRuntimeShared'
 import {
@@ -56,7 +56,6 @@ import {
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
-import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
 import { invalidateCachedWorkspaceActiveEntrySnapshot } from '@/features/source-files/workspaceActiveEntryCache'
 import {
@@ -173,20 +172,6 @@ const hasWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.get
     if (!file) return false
     const sourcePath = String(file.source?.path || '')
     return sourcePath.startsWith('workspace:')
-  })
-}
-
-const pruneWorkspaceSourceFilesToActive = (args: {
-  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
-  activePath: string | null
-}): ReturnType<typeof useGraphStore.getState>['sourceFiles'] => {
-  const list = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
-  const activeSourcePath = args.activePath ? resolveWorkspaceSourcePathKey(args.activePath) : ''
-  return list.filter(file => {
-    if (!file) return false
-    const sourcePath = String(file.source?.path || '')
-    if (!sourcePath.startsWith('workspace:')) return true
-    return !!activeSourcePath && sourcePath === activeSourcePath
   })
 }
 
@@ -449,7 +434,7 @@ export function SourceFilesPersistenceBootstrap() {
     const activePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: useMarkdownExplorerStore.getState().activePath })
     if (!activePath) return sourceFilesSnapshot
     const forceIncludePaths = buildMaterializedWorkspaceForceIncludePaths({ activePathOverride: activePath })
-    const workspaceEntries = await readWorkspaceSourceRootEntriesSnapshot({
+    const workspaceEntries = await readWorkspaceActiveEntrySnapshot({
       fs,
       activePath,
       workspaceEntries: reusableWorkspaceEntriesRef.current,
@@ -588,7 +573,6 @@ export function SourceFilesPersistenceBootstrap() {
       markdownDocumentName: store.markdownDocumentName,
       markdownDocumentText: store.markdownDocumentText,
       markdownDocumentApplyViewPreset: store.markdownDocumentApplyViewPreset,
-      graphDataSource: typeof store.graphData?.metadata?.source === 'string' ? store.graphData.metadata.source : '',
     })
     return {
       activePath,

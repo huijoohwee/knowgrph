@@ -1,4 +1,5 @@
 import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
+import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import {
   clampBalancedCollectiveScaleToViewport,
   computeBalancedSpreadBaseGapPx,
@@ -241,6 +242,29 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     throw new Error(
       `expected dense 36-up balanced collective footprint to fit usable 16:9 viewport, grid=${denseLayout.gridW}x${denseLayout.gridH}, usable=${usableW}x${usableH}`,
     )
+  }
+}
+
+export function testFrontmatterLiveCollectiveScaleHonorsConfiguredMinimum() {
+  const scale = computeCollectiveFollowPinnedScale({
+    zoomK: 0.08,
+    viewportW: 943,
+    viewportH: 998,
+    count: 36,
+    baseWidth: 360,
+    baseHeight: 520,
+    hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min,
+    hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max,
+    viewportPreset: 'widgetFrontmatter',
+    fitToViewport: false,
+  })
+  const scaled = computeWidgetScaledSize(scale)
+
+  if (scale < COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min) {
+    throw new Error(`expected frontmatter live collective scale to honor configured minimum, got ${scale}`)
+  }
+  if (scaled.width < 96) {
+    throw new Error(`expected Source Files frontmatter widgets to remain readable instead of collapsing to tiny cards, got width=${scaled.width}`)
   }
 }
 

@@ -1266,6 +1266,10 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   if (!rt.dirty) return
   rt.dirty = false
   clearCanvas(rt)
+  const renderEdges = args.renderEdges !== false
+  const renderGroups = args.renderGroups !== false
+  const renderNodes = args.renderNodes !== false
+  if (!renderEdges && !renderGroups && !renderNodes) return
 
   const ctx = rt.ctx
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -1353,9 +1357,6 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     }
     return idCache.hidePortHandleNodeIds
   })()
-  const renderEdges = args.renderEdges !== false
-  const renderGroups = args.renderGroups !== false
-  const renderNodes = args.renderNodes !== false
   const selectedGroupId = String(args.selectedGroupId || '').trim()
   const showGroupResizeHandle = args.showGroupResizeHandle === true
   const widgetOverlayAabbByNodeId = (() => {

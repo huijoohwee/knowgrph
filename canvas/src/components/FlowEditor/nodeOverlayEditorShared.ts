@@ -15,7 +15,6 @@ export {
 export type NodeOverlayEditorProps = {
   visible?: boolean
   active: boolean
-  interactionPassthrough?: boolean
   flowEditorSurfaceId?: string
   overlayCollectiveCount?: number
   node: GraphNode
@@ -62,3 +61,19 @@ export const WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX = 8
 export const WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX = 220
 export const RICH_MEDIA_ASPECT_MIN_WIDTH = 220
 export const RICH_MEDIA_ASPECT_MIN_HEIGHT = 160
+
+export type FlowEditorWidgetSurfacePointerPolicy = {
+  rootClassName: string
+  panelPointerEventsClassName: string
+  toolbarPointerEventsClassName: string
+  canvasWheelIgnore: 'true' | 'false'
+}
+
+export function resolveFlowEditorWidgetSurfacePointerPolicy(): FlowEditorWidgetSurfacePointerPolicy {
+  return {
+    rootClassName: 'fixed',
+    panelPointerEventsClassName: 'pointer-events-auto',
+    toolbarPointerEventsClassName: 'pointer-events-auto',
+    canvasWheelIgnore: 'true',
+  }
+}

@@ -7,8 +7,8 @@ export function testFlowEditorFrontmatterDocumentUsesManualMediaPlacement() {
   const overlaysText = readFileSync(flowCanvasMediaOverlaysPath, 'utf8')
   const loopText = readFileSync(layoutLoopPath, 'utf8')
 
-  if (!overlaysText.includes('manualPlacement: flowEditorFrontmatterDocumentModeRequested')) {
-    throw new Error('expected FlowCanvas media overlays to enable manual placement in Flow Editor frontmatter document mode')
+  if (!overlaysText.includes('manualPlacement: richMediaInfiniteCanvasMode')) {
+    throw new Error('expected FlowCanvas media overlays to enable manual placement from the shared Flow renderer infinite-canvas gate')
   }
   if (!overlaysText.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !flowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlays to keep passive layout active for frontmatter document mode while workspace mutation blocking is open')

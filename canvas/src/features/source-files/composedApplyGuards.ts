@@ -1,4 +1,6 @@
 import type { GraphData } from '@/lib/graph/types'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
 export type ComposedApplyGuardLayer = {
   enabled?: boolean
@@ -41,6 +43,28 @@ function countGraphContent(graphData: GraphData | null | undefined): { nodeCount
   }
 }
 
+function isGraphDataLike(value: unknown): value is GraphData {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const candidate = value as { nodes?: unknown; edges?: unknown }
+  return Array.isArray(candidate.nodes) || Array.isArray(candidate.edges)
+}
+
+function buildCompositionGuardGraphKey(graphData: GraphData | null | undefined): string {
+  return buildScopedGraphSemanticKey('source-files-composed-render-guard', { graphData: graphData || null })
+}
+
+function hasEnabledParsedLayerMatchingGraph(
+  graphData: GraphData | null | undefined,
+  layers: ReadonlyArray<ComposedApplyGuardLayer>,
+): boolean {
+  const activeKey = buildCompositionGuardGraphKey(graphData)
+  if (!activeKey) return false
+  return layers.some(layer => {
+    if (!layer.enabled || !isGraphDataLike(layer.parsedGraphData)) return false
+    return buildCompositionGuardGraphKey(layer.parsedGraphData) === activeKey
+  })
+}
+
 export function shouldClearComposedGraphForEmptyState(args: {
   previousGraphData: GraphData | null | undefined
   hasEnabledSourceFiles: boolean
@@ -64,6 +88,8 @@ export function shouldDeferComposedGraphRender(args: {
       ? (args.graphData.metadata as Record<string, unknown>)
       : {}
   if (String(metadata.sourceLayerComposition || '') === 'compose') return false
+  if (isFrontmatterFlowGraph(args.graphData)) return false
+  if (hasEnabledParsedLayerMatchingGraph(args.graphData, args.layers)) return false
   return args.layers.some(layer => layer.enabled && !!layer.parsedGraphData)
 }
 

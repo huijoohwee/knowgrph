@@ -5,7 +5,7 @@ export function bindCanvasWorkspacePaneResizeHandleRuntime(args: {
   resizeHandleEl: HTMLHRElement
   readCurrentWidthPx: () => number
   setWorkspacePreviewWidthPx: (next: number) => void
-  persistWorkspacePreviewWidthPx: (next: number) => void
+  commitWorkspacePreviewWidthPx: (next: number) => void
   resolveWorkspacePreviewWidthFromPointerDrag: (input: {
     startWidthPx: number
     startClientX: number
@@ -16,7 +16,7 @@ export function bindCanvasWorkspacePaneResizeHandleRuntime(args: {
     resizeHandleEl,
     readCurrentWidthPx,
     setWorkspacePreviewWidthPx,
-    persistWorkspacePreviewWidthPx,
+    commitWorkspacePreviewWidthPx,
     resolveWorkspacePreviewWidthFromPointerDrag,
   } = args
 
@@ -46,12 +46,12 @@ export function bindCanvasWorkspacePaneResizeHandleRuntime(args: {
       onEnd: () => {
         rafSetPreviewWidth.flush()
         setWorkspacePreviewWidthPx(pending)
-        persistWorkspacePreviewWidthPx(pending)
+        commitWorkspacePreviewWidthPx(pending)
       },
       onCancel: () => {
         rafSetPreviewWidth.flush()
         setWorkspacePreviewWidthPx(pending)
-        persistWorkspacePreviewWidthPx(pending)
+        commitWorkspacePreviewWidthPx(pending)
       },
     })
   }

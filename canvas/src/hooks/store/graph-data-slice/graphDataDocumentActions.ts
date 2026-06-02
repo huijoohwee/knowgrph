@@ -20,6 +20,7 @@ import {
   readGraphRagWorkflowJsonTextFromGraphData,
   withGraphDataRevision,
 } from '@/hooks/store/graphDataSliceUtils'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 
 type PendingMarkdownApplyRequest = {
   name: string
@@ -111,19 +112,41 @@ function isMarkdownApplyRequestActiveDocumentCurrent(get: GetGraph, request: Pen
   return state.markdownDocumentName === request.name && state.markdownDocumentText === request.text
 }
 
-function withMarkdownDocumentSourceMetadata(graphData: GraphData, name: string): GraphData {
+function buildCanvasWorkspacePresetMetadata(
+  preset: CanvasWorkspaceFrontmatterPreset | null | undefined,
+): Record<string, JSONValue> | null {
+  if (!preset) return null
+  return {
+    canvasSurfaceMode: preset.canvasSurfaceMode || null,
+    canvasRenderMode: preset.canvasRenderMode || null,
+    canvas2dRenderer: preset.canvas2dRenderer || null,
+    canvas3dMode: preset.canvas3dMode || null,
+    documentSemanticMode: preset.documentSemanticMode || null,
+    frontmatterModeEnabled: preset.frontmatterModeEnabled ?? null,
+    multiDimTableModeEnabled: preset.multiDimTableModeEnabled ?? null,
+    documentStructureBaselineLock: preset.documentStructureBaselineLock ?? null,
+  }
+}
+
+function withMarkdownDocumentSourceMetadata(
+  graphData: GraphData,
+  name: string,
+  preset?: CanvasWorkspaceFrontmatterPreset | null,
+): GraphData {
   const source = `markdown:${String(name || '').trim()}`
   if (!source || source === 'markdown:') return graphData
   const metadata = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
     ? (graphData.metadata as Record<string, JSONValue>)
     : {}
-  if (metadata.source === source) return graphData
+  const canvasWorkspacePreset = buildCanvasWorkspacePresetMetadata(preset)
+  if (metadata.source === source && !canvasWorkspacePreset) return graphData
   return {
     ...graphData,
     metadata: {
       ...metadata,
       source,
       markdownDocumentName: String(name || '').trim(),
+      ...(canvasWorkspacePreset ? { canvasWorkspacePreset } : {}),
     } as unknown as GraphData['metadata'],
   }
 }
@@ -161,18 +184,7 @@ function buildPendingMarkdownDocumentGraph(args: {
       kind,
       source,
       baselineGraphMetaKey,
-      canvasWorkspacePreset: preset
-        ? ({
-            canvasSurfaceMode: preset.canvasSurfaceMode || null,
-            canvasRenderMode: preset.canvasRenderMode || null,
-            canvas2dRenderer: preset.canvas2dRenderer || null,
-            canvas3dMode: preset.canvas3dMode || null,
-            documentSemanticMode: preset.documentSemanticMode || null,
-            frontmatterModeEnabled: preset.frontmatterModeEnabled ?? null,
-            multiDimTableModeEnabled: preset.multiDimTableModeEnabled ?? null,
-            documentStructureBaselineLock: preset.documentStructureBaselineLock ?? null,
-          } as Record<string, JSONValue>)
-        : null,
+      canvasWorkspacePreset: buildCanvasWorkspacePresetMetadata(preset),
       pending: true,
     },
     nodes: [],
@@ -308,7 +320,6 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
 
     if ((args?.applyViewPreset !== false || shouldApplyExplicitCanvasPreset) && text.trim()) {
       try {
-        const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
         applyCanvasFrontmatterPreset({
           graphData: get().graphData,
           rawText: text,
@@ -355,6 +366,20 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           preset: parsedTextPreset,
         }))
       }
+      const replayActiveDocumentCanvasPreset = async (): Promise<void> => {
+        if (!applyViewPresetForSwitch && !shouldApplyExplicitCanvasPreset) return
+        const active = get()
+        if (active.markdownDocumentName !== name || active.markdownDocumentText !== text) return
+        try {
+          applyCanvasFrontmatterPreset({
+            graphData: active.graphData,
+            rawText: text,
+            preset: parsedTextPreset || undefined,
+          })
+        } catch {
+          void 0
+        }
+      }
       try {
         const graphApplied = await get().applyMarkdownDocumentToGraph(name, text, {
           force: args?.forceApplyToGraph !== false,
@@ -362,6 +387,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           applyViewPreset: applyViewPresetForSwitch,
           requireActiveMarkdownDocument: true,
         })
+        await replayActiveDocumentCanvasPreset()
         if (graphApplied) return true
         const active = get()
         return !!(
@@ -370,6 +396,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           active.markdownDocumentText === text
         )
       } catch {
+        await replayActiveDocumentCanvasPreset()
         const active = get()
         return !!(
           applyViewPresetForSwitch &&
@@ -434,52 +461,48 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       const parsedTextPreset = request.preset === undefined
         ? parseCanvasWorkspaceFrontmatterPreset(nextText)
         : request.preset
+      const applyMarkdownDocumentCanvasPreset = async (graphData: GraphData | null): Promise<void> => {
+        if (request.applyViewPreset === false) return
+        applyCanvasFrontmatterPreset({
+          graphData,
+          rawText: nextText,
+          preset: parsedTextPreset || undefined,
+        })
+      }
       if (canReuseParsedSourceGraph) {
-        const reusedGraph = withMarkdownDocumentSourceMetadata(exactSourceFile.parsedGraphData as GraphData, nextName)
+        const reusedGraph = withMarkdownDocumentSourceMetadata(exactSourceFile.parsedGraphData as GraphData, nextName, parsedTextPreset)
         if (!isMarkdownApplyRequestActiveDocumentCurrent(get, request)) return false
-        if (request.applyViewPreset !== false) {
-          const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
-          applyCanvasFrontmatterPreset({
-            graphData: reusedGraph,
-            rawText: nextText,
-            preset: parsedTextPreset || undefined,
-          })
-        }
+        await applyMarkdownDocumentCanvasPreset(reusedGraph)
         if (!isMarkdownApplyRequestActiveDocumentCurrent(get, request)) return false
         get().setGraphData(reusedGraph)
-        const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
+        const { applyFrontmatterFlowImportModes } = (await import('../../../features/parsers/frontmatterFlowImportMode')) as typeof import('../../../features/parsers/frontmatterFlowImportMode')
         applyFrontmatterFlowImportModes(reusedGraph, {
           applyViewPreset: request.applyViewPreset,
           resetWidgetLayout: request.applyViewPreset,
           preset: parsedTextPreset,
           rawText: nextText,
         })
+        await applyMarkdownDocumentCanvasPreset(reusedGraph)
         resetFrontmatterFlowWidgetRuntimeState(get, reusedGraph)
         return !!(((reusedGraph.nodes || []).length > 0) || ((reusedGraph.edges || []).length > 0))
       }
 
-      const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
+      const { loadGraphDataFromTextViaParser } = (await import('../../../features/parsers/loader')) as typeof import('../../../features/parsers/loader')
       const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: false, syncMarkdownDocument: false })
-      const parsedGraph = res?.graphData ? withMarkdownDocumentSourceMetadata(res.graphData, nextName) : null
+      const parsedGraph = res?.graphData ? withMarkdownDocumentSourceMetadata(res.graphData, nextName, parsedTextPreset) : null
       if (!isMarkdownApplyRequestActiveDocumentCurrent(get, request)) return false
-      if (request.applyViewPreset !== false) {
-        const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
-        applyCanvasFrontmatterPreset({
-          graphData: parsedGraph,
-          rawText: nextText,
-          preset: parsedTextPreset || undefined,
-        })
-      }
+      await applyMarkdownDocumentCanvasPreset(parsedGraph)
       if (parsedGraph) {
         if (!isMarkdownApplyRequestActiveDocumentCurrent(get, request)) return false
         get().setGraphData(parsedGraph)
-        const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
+        const { applyFrontmatterFlowImportModes } = (await import('../../../features/parsers/frontmatterFlowImportMode')) as typeof import('../../../features/parsers/frontmatterFlowImportMode')
         applyFrontmatterFlowImportModes(parsedGraph, {
           applyViewPreset: request.applyViewPreset,
           resetWidgetLayout: request.applyViewPreset,
           preset: parsedTextPreset,
           rawText: nextText,
         })
+        await applyMarkdownDocumentCanvasPreset(parsedGraph)
         resetFrontmatterFlowWidgetRuntimeState(get, parsedGraph)
       }
       return !!(parsedGraph && ((parsedGraph.nodes || []).length > 0 || (parsedGraph.edges || []).length > 0))

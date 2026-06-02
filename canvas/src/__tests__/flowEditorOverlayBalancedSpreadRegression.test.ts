@@ -505,7 +505,9 @@ export const testFlowEditorLayoutRebalanceUsesCenteredBalancedSpreadRuntime = ()
     || !runtimeText.includes('needsMeasuredCenterShift')
     || !runtimeText.includes('measuredCenterShiftY')
     || !runtimeText.includes('readinessAttempts < 240')
-    || !runtimeText.includes('attempts >= 2')) {
+    || !runtimeText.includes('attempts >= 6')
+    || !runtimeText.includes('emitFlowEditorInteractionFrameEvent()')
+    || !runtimeText.includes('return false')) {
     throw new Error('expected Flow Editor initialization to recover mounted offscreen/off-center collectives through a guarded active-surface seed write')
   }
   if (!runtimeText.includes('collectiveCentroidOffCenter(') || !runtimeText.includes('targetCenterX') || !runtimeText.includes('targetCenterY')) {

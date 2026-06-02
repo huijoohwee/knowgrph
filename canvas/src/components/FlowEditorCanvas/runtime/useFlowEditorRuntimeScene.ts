@@ -508,9 +508,10 @@ export function useFlowEditorRuntimeScene(args: {
         String(args.flowEditorSurfaceId || '').trim(),
         idsKey,
         `${Math.round(visibleViewport.left)}:${Math.round(visibleViewport.top)}:${Math.round(visibleViewport.width)}x${Math.round(visibleViewport.height)}`,
+        `${Math.round(bounds.minX)}:${Math.round(bounds.minY)}:${Math.round(bounds.maxX)}:${Math.round(bounds.maxY)}`,
       ].join('|')
       const attempts = domCollectiveRecoveryAttemptByScopeRef.current[scopeKey] || 0
-      if (attempts >= 2) return true
+      if (attempts >= 6) return true
       domCollectiveRecoveryAttemptByScopeRef.current = {
         ...domCollectiveRecoveryAttemptByScopeRef.current,
         [scopeKey]: attempts + 1,
@@ -631,7 +632,8 @@ export function useFlowEditorRuntimeScene(args: {
         if (changedScreen) st.setFlowWidgetPosByNodeId(nextScreen)
         if (changedWorld) st.setFlowWidgetWorldPosByNodeId(nextWorld)
       }
-      return true
+      emitFlowEditorInteractionFrameEvent()
+      return false
     }
     const scheduleReadinessRetry = () => {
       rafId = window.requestAnimationFrame(() => {

@@ -156,7 +156,7 @@ export function computeCollectiveFollowPinnedScale(args: {
     const scaled = neutralFitScale * zoomFactor
     return clamp(
       quantize(scaled),
-      Math.min(requestedHardMin, scaled),
+      requestedHardMin,
       Math.max(requestedHardMax, neutralFitScale),
     )
   }

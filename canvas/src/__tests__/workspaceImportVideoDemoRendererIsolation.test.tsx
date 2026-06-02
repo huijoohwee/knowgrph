@@ -14,7 +14,7 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { LS_KEYS } from '@/lib/config'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
-import { KNOWGRPH_VIDEO_DEMO_BASENAME, readDocsSsotFixtureText } from '@/tests/lib/docsSsotFixture'
+import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, readDocsSsotFixtureText } from '@/tests/lib/docsSsotFixture'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -166,10 +166,10 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
 
     assertRendererScopedSeeds(seedRenderers)
 
-    const videoText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const videoText = readDocsSsotFixtureText(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
     const videoImport = await importWorkspaceLocalFiles({
       fs,
-      files: [createFile(KNOWGRPH_VIDEO_DEMO_BASENAME, videoText)],
+      files: [createFile(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, videoText)],
       parentPath: '/',
     })
     const importedVideoPath = String(videoImport.createdPaths[0] || '').trim()
@@ -316,10 +316,10 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
 
     dom.window.localStorage.setItem(LS_KEYS.flowWidgetHideFields, '1')
 
-    const videoText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const videoText = readDocsSsotFixtureText(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
     const videoImport = await importWorkspaceLocalFiles({
       fs,
-      files: [createFile(KNOWGRPH_VIDEO_DEMO_BASENAME, videoText)],
+      files: [createFile(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, videoText)],
       parentPath: '/',
     })
     const importedVideoPath = String(videoImport.createdPaths[0] || '').trim()
@@ -477,10 +477,10 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
     store.setDocumentSemanticMode('document')
     store.setFrontmatterModeEnabled(true)
 
-    const videoText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const videoText = readDocsSsotFixtureText(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
     const videoImport = await importWorkspaceLocalFiles({
       fs,
-      files: [createFile(KNOWGRPH_VIDEO_DEMO_BASENAME, videoText)],
+      files: [createFile(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, videoText)],
       parentPath: '/',
     })
     explorer.setActivePath('/README.md')
@@ -673,8 +673,8 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
     store.setDocumentSemanticMode('keyword')
     store.setFrontmatterModeEnabled(false)
 
-    const sourcePath = '/docs/knowgrph-video-demo.md'
-    const sourceText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const sourcePath = `/docs/${DOCS_SSOT_VALIDATION_FIXTURE_BASENAME}`
+    const sourceText = readDocsSsotFixtureText(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
     const parsed = await loadGraphDataFromTextViaParser(sourcePath, sourceText, { applyToStore: false, syncMarkdownDocument: false })
     const parsedGraphData = parsed?.graphData
     if (!parsedGraphData) {
@@ -683,7 +683,7 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
 
     store.setSourceFiles([{
       id: 'sf-video',
-      name: KNOWGRPH_VIDEO_DEMO_BASENAME,
+      name: DOCS_SSOT_VALIDATION_FIXTURE_BASENAME,
       text: sourceText,
       enabled: true,
       status: 'parsed',
@@ -872,8 +872,8 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     store.setDocumentSemanticMode('keyword')
     store.setFrontmatterModeEnabled(false)
 
-    const sourcePath = '/docs/knowgrph-video-demo.md'
-    const sourceText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const sourcePath = `/docs/${DOCS_SSOT_VALIDATION_FIXTURE_BASENAME}`
+    const sourceText = readDocsSsotFixtureText(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
     const parsed = await loadGraphDataFromTextViaParser(sourcePath, sourceText, { applyToStore: false, syncMarkdownDocument: false })
     const parsedGraphData = parsed?.graphData
     if (!parsedGraphData) {
@@ -882,7 +882,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
 
     store.setSourceFiles([{
       id: 'sf-video-open-close-reopen',
-      name: KNOWGRPH_VIDEO_DEMO_BASENAME,
+      name: DOCS_SSOT_VALIDATION_FIXTURE_BASENAME,
       text: sourceText,
       enabled: true,
       status: 'parsed',
@@ -1095,8 +1095,8 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
 
-    const sourcePath = '/docs/knowgrph-video-demo.md'
-    const sourceText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const sourcePath = `/docs/${DOCS_SSOT_VALIDATION_FIXTURE_BASENAME}`
+    const sourceText = readDocsSsotFixtureText(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
     const parsed = await loadGraphDataFromTextViaParser(sourcePath, sourceText, { applyToStore: false, syncMarkdownDocument: false })
     const parsedGraphData = parsed?.graphData
     if (!parsedGraphData) {
@@ -1104,7 +1104,7 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
     }
     store.setSourceFiles([{
       id: 'sf-video-initial-open',
-      name: KNOWGRPH_VIDEO_DEMO_BASENAME,
+      name: DOCS_SSOT_VALIDATION_FIXTURE_BASENAME,
       text: sourceText,
       enabled: true,
       status: 'parsed',

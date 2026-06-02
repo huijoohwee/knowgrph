@@ -14,7 +14,6 @@ export function useNodeOverlayDragHandlers(args: {
   nodeId: string
   active: boolean
   floating: boolean
-  pinnedInCanvas: boolean
   zoomViewKey?: string | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   pinnedTopPx: number
@@ -40,7 +39,6 @@ export function useNodeOverlayDragHandlers(args: {
     nodeId,
     active,
     floating,
-    pinnedInCanvas,
     zoomViewKey,
     getLiveZoomTransform,
     pinnedTopPx,
@@ -73,7 +71,6 @@ export function useNodeOverlayDragHandlers(args: {
         selectNode(nodeId)
         setToolbarVisible(true)
       }
-      if (pinnedInCanvas) return
 
       try {
         event.preventDefault()
@@ -239,7 +236,6 @@ export function useNodeOverlayDragHandlers(args: {
       floating,
       getLiveZoomTransform,
       nodeId,
-      pinnedInCanvas,
       pinnedLeftPx,
       pinnedTopPx,
       pinnedDragOverrideRef,

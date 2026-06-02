@@ -228,12 +228,6 @@ const executeD1SqlFile = async (sqlText) => {
 }
 
 const seedDocumentsDirectlyToD1 = async (args) => {
-  if (!normalizeString(process.env.CLOUDFLARE_API_TOKEN)) {
-    throw new Error(
-      'CLOUDFLARE_API_TOKEN is required for direct D1 seeding fallback. ' +
-      'Set token, then rerun: npm run storage:d1:seed:docs',
-    )
-  }
   const nowIso = new Date().toISOString()
   await executeD1SqlFile(
     [

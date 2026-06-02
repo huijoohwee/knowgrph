@@ -1,6 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import {
+  resolveFlowCanvasNativeRenderPolicy,
+  resolveFlowCanvasNativeSurfaceMode,
+} from '@/components/FlowCanvas/shared'
+
 export function testFlowEditorOverlaysDoNotUseFloatingPanelZIndex() {
   const filePath = path.resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditorInner.tsx')
   let text = ''
@@ -53,19 +58,63 @@ export function testFlowEditorOverlaySvgIsBoundedBelowToolbar() {
   }
 }
 
-export function testFlowEditorOverlayModeSuppressesCanvasGroupsWhenOverlayOwnsTheScene() {
-  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx')
-  let text = ''
+export function testFlowEditorOverlayModeUsesSharedNativeSurfacePolicy() {
+  const frontmatterMode = resolveFlowCanvasNativeSurfaceMode({
+    canvas2dRenderer: 'flowEditor',
+    graphData: { type: 'application/json', metadata: { kind: 'frontmatter-flow' }, nodes: [], edges: [] },
+  })
+  if (frontmatterMode !== 'runtime-only') {
+    throw new Error('Expected frontmatter Flow Editor scenes to run FlowCanvas as a runtime-only substrate')
+  }
+  const overlayMode = resolveFlowCanvasNativeSurfaceMode({
+    canvas2dRenderer: 'flowEditor',
+    graphData: { type: 'application/json', nodes: [], edges: [] },
+    overlayOwnsScene: true,
+  })
+  if (overlayMode !== 'runtime-only') {
+    throw new Error('Expected overlay-owned Flow Editor scenes to run FlowCanvas as a runtime-only substrate')
+  }
+  const policy = resolveFlowCanvasNativeRenderPolicy({
+    nativeSurfaceMode: overlayMode,
+    renderEdges: true,
+    renderGroups: true,
+    renderNodes: true,
+  })
+  if (policy.renderEdges !== false || policy.renderGroups !== false || policy.renderNodes !== false) {
+    throw new Error('Expected runtime-only FlowCanvas policy to disable native edges, groups, and nodes')
+  }
+
+  const flowCanvasPath = path.resolve(process.cwd(), 'src/components/FlowCanvas.tsx')
+  const surfacePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx')
+  let flowCanvasText = ''
+  let surfaceText = ''
   try {
-    text = fs.readFileSync(filePath, { encoding: 'utf8' })
+    flowCanvasText = fs.readFileSync(flowCanvasPath, { encoding: 'utf8' })
+    surfaceText = fs.readFileSync(surfacePath, { encoding: 'utf8' })
   } catch {
-    throw new Error(`Expected to read ${filePath}`)
+    throw new Error(`Expected to read ${flowCanvasPath} and ${surfacePath}`)
   }
-  if (!text.includes('suppressNativeFlowCanvasSurface: boolean')) {
-    throw new Error('Expected Flow Editor to derive native FlowCanvas suppression from shared overlay/frontmatter scene semantics')
+  if (!surfaceText.includes('nativeSurfaceMode={props.nativeSurfaceMode}')) {
+    throw new Error('Expected Flow Editor to pass the shared native surface mode into FlowCanvas')
   }
-  if (!text.includes('renderGroups={!props.suppressNativeFlowCanvasSurface && !props.geospatialWidgetPanelMode}')) {
-    throw new Error('Expected Flow Editor to suppress FlowCanvas group shells so clusters/subgraphs cannot seep under overlay-owned scenes')
+  if (!flowCanvasText.includes('resolveFlowCanvasNativeRenderPolicy')) {
+    throw new Error('Expected FlowCanvas to own the native primitive render policy')
+  }
+  if (
+    !flowCanvasText.includes('drawArgsRef.current.renderEdges = nativeRenderPolicy.renderEdges')
+    || !flowCanvasText.includes('drawArgsRef.current.renderGroups = nativeRenderPolicy.renderGroups')
+    || !flowCanvasText.includes('drawArgsRef.current.renderNodes = nativeRenderPolicy.renderNodes')
+  ) {
+    throw new Error('Expected FlowCanvas draw args to use the resolved native render policy')
+  }
+  const runtimePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas.runtime.tsx')
+  const runtimeText = fs.readFileSync(runtimePath, { encoding: 'utf8' })
+  if (
+    !runtimeText.includes('const flowEditorOverlayOwnsNativeScene = overlayOnlyActive')
+    || !runtimeText.includes('hasOverlayEditors && workspaceMutationBlocked')
+    || !runtimeText.includes('overlayOwnsScene: flowEditorOverlayOwnsNativeScene')
+  ) {
+    throw new Error('Expected visible Flow Editor overlays to keep FlowCanvas runtime-only while workspace mutation is blocked')
   }
 }
 
@@ -87,23 +136,19 @@ export function testFlowEditorOverlayOnlyModeDoesNotBlankCanvasWhenNoOverlaysOpe
   if (!overlaySurfaceText.includes('hasOverlayEditors || Boolean(geospatialWidgetPanelMode)')) {
     throw new Error('Expected Flow Editor overlay-only mode to require visible overlays or geospatial panel mode')
   }
-  if (!surfaceText.includes('renderEdges={!props.suppressNativeFlowCanvasSurface}')) {
-    throw new Error('Expected Flow Editor to gate canvas edges through the shared native FlowCanvas suppression helper')
+  if (surfaceText.includes('renderEdges=') || surfaceText.includes('renderNodes=')) {
+    throw new Error('Expected Flow Editor surface to avoid owning native FlowCanvas edge/node visibility')
   }
-  if (!surfaceText.includes('renderNodes={!props.suppressNativeFlowCanvasSurface}')) {
-    throw new Error('Expected Flow Editor to gate canvas nodes through the shared native FlowCanvas suppression helper')
+  const defaultMode = resolveFlowCanvasNativeSurfaceMode({
+    canvas2dRenderer: 'flowEditor',
+    graphData: { type: 'application/json', nodes: [], edges: [] },
+    overlayOwnsScene: false,
+  })
+  if (defaultMode !== 'visual') {
+    throw new Error('Expected FlowCanvas auto mode to stay visual when no overlay/frontmatter owner exists')
   }
-  if (!overlaySurfaceText.includes('export function shouldSuppressFlowCanvasNativeSurface')) {
-    throw new Error('Expected native FlowCanvas suppression to live in the shared overlay visibility owner')
-  }
-  if (!overlaySurfaceText.includes('flowEditorFrontmatterGraphAvailable?: boolean')) {
-    throw new Error('Expected native FlowCanvas suppression to be resolved before FlowCanvas substrate graph filtering can drop frontmatter ownership')
-  }
-  if (!overlaySurfaceText.includes('return isFrontmatterFlowGraph(args.renderGraphDataOverride)')) {
-    throw new Error('Expected frontmatter-flow Flow Editor scenes to suppress native FlowCanvas drawing even when overlay widgets are deferred')
-  }
-  if (!surfaceText.includes('{props.overlayOnlyActive && (')) {
-    throw new Error('Expected overlay-only SVG edges layer to be gated by overlayOnlyActive')
+  if (!surfaceText.includes('{(props.overlayOnlyActive || props.hasOverlayEditors) && (')) {
+    throw new Error('Expected overlay edge host to stay mounted while Flow Editor overlay editors are visible')
   }
 }
 

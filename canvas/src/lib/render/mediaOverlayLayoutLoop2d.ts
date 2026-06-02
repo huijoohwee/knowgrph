@@ -46,7 +46,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   getNodeWorldCenterForId: (id: string) => { x: number; y: number } | null
   getCollisionObstacles?: () => Array<{ id: string; left: number; top: number; width: number; height: number }>
   sizingConfig: MediaOverlaySizingConfig
-  clampToViewport?: { margin: number } | null
+  clampToViewport?: { margin: number; marginLeft?: number; marginRight?: number; marginTop?: number; marginBottom?: number } | null
 }): MediaOverlayLayoutLoop {
   if (!args.enabled || args.items.length === 0) {
     return { schedule: () => void 0, stop: () => void 0 }
@@ -94,14 +94,26 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const useSizing = lastSizing || sizing
     const viewportClampEnabled = !!args.clampToViewport
     const clampMargin = args.clampToViewport ? Math.max(0, Number(args.clampToViewport.margin) || 0) : 0
+    const clampMarginLeft = args.clampToViewport && Number.isFinite(args.clampToViewport.marginLeft)
+      ? Math.max(0, Number(args.clampToViewport.marginLeft))
+      : clampMargin
+    const clampMarginRight = args.clampToViewport && Number.isFinite(args.clampToViewport.marginRight)
+      ? Math.max(0, Number(args.clampToViewport.marginRight))
+      : clampMargin
+    const clampMarginTop = args.clampToViewport && Number.isFinite(args.clampToViewport.marginTop)
+      ? Math.max(0, Number(args.clampToViewport.marginTop))
+      : clampMargin
+    const clampMarginBottom = args.clampToViewport && Number.isFinite(args.clampToViewport.marginBottom)
+      ? Math.max(0, Number(args.clampToViewport.marginBottom))
+      : clampMargin
     const spreadMargins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
       preset: 'richMedia',
-      minLeftPx: clampMargin,
-      minRightPx: clampMargin,
-      minTopPx: clampMargin,
-      minBottomPx: clampMargin,
+      minLeftPx: clampMarginLeft,
+      minRightPx: clampMarginRight,
+      minTopPx: clampMarginTop,
+      minBottomPx: clampMarginBottom,
     })
     const clamp = args.clampToViewport
       ? {
@@ -119,6 +131,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const missingCenterIds: string[] = []
 
     const preferred: Array<{ id: string; left: number; top: number; w: number; h: number; el: HTMLElement }> = []
+    const manualPlacement = args.manualPlacement === true
+    let fallbackPreferredCount = 0
 
     for (let i = 0; i < args.items.length; i += 1) {
       const id = String(args.items[i]?.id || '').trim()
@@ -126,6 +140,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
       keepIds.add(id)
       const el = args.getElementForId(id)
       if (!el) continue
+      const overrideSize = typeof args.getPanelSizeForId === 'function' ? args.getPanelSizeForId(id) : null
+      const w = overrideSize && Number.isFinite(overrideSize.w) ? Math.max(1, overrideSize.w) : useSizing.panelW
+      const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
 
       const centerNow = args.getNodeWorldCenterForId(id)
       if (centerNow && Number.isFinite(centerNow.x) && Number.isFinite(centerNow.y)) {
@@ -134,15 +151,16 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const center = centerNow || lastWorldCenterById.get(id) || null
       if (!center) {
         missingCenterIds.push(id)
+        if (manualPlacement && viewportClampEnabled && args.items.length > 1) {
+          preferred.push({ id, left: 0, top: 0, w, h, el })
+          fallbackPreferredCount += 1
+        }
         continue
       }
       const cx = t.applyX(center.x)
       const cy = t.applyY(center.y)
       if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
 
-      const overrideSize = typeof args.getPanelSizeForId === 'function' ? args.getPanelSizeForId(id) : null
-      const w = overrideSize && Number.isFinite(overrideSize.w) ? Math.max(1, overrideSize.w) : useSizing.panelW
-      const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
       const previousBox = lastAppliedBoxById.get(id) || null
       const preferredCenter = scaleChanged && previousBox
         ? {
@@ -158,6 +176,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
       args.items.length > 1
       && missingCenterIds.length > 0
       && preferred.length > 0
+      && fallbackPreferredCount < preferred.length
+      && !(manualPlacement && viewportClampEnabled && fallbackPreferredCount > 0)
     if (canDeferUntilCollectiveCentersStabilize) {
       collectiveCenterWarmupAttempts += 1
       if (collectiveCenterWarmupStartedAtMs == null) collectiveCenterWarmupStartedAtMs = Date.now()
@@ -204,7 +224,6 @@ export function startMediaOverlayLayoutLoop2d(args: {
       return { left, top }
     }
 
-    const manualPlacement = args.manualPlacement === true
     const collisionEnabled = args.collision?.enabled !== false
     const schema = args.schema || null
     const preferredById = new Map<string, { id: string; left: number; top: number; w: number; h: number; el: HTMLElement }>()
@@ -238,8 +257,13 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const clusterItems = preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
       const hasVerticalCluster = isVerticalOverlayCluster({ items: clusterItems, gapPx })
       const hasHorizontalStrip = isHorizontalOverlayStrip({ items: clusterItems, gapPx })
-      const shouldReseedBalancedCluster = viewportClampEnabled && (hasVerticalCluster || hasHorizontalStrip)
-      const needsBalancedReseed = hasOverlaps(boxes, gapPx) || shouldReseedBalancedCluster
+      const hasOverlappingBoxes = hasOverlaps(boxes, gapPx)
+      const shouldReseedBalancedCluster = viewportClampEnabled && (
+        hasVerticalCluster
+        || hasHorizontalStrip
+        || (manualPlacement && hasOverlappingBoxes)
+      )
+      const needsBalancedReseed = hasOverlappingBoxes || shouldReseedBalancedCluster
       if (needsBalancedReseed) {
         const verticalSeed = (() => {
           if (!shouldReseedBalancedCluster) {

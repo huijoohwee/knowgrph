@@ -86,7 +86,7 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
     throw new Error('expected Source Files switching apply signature to include graphData source so stale Canvas graphs replay selected-file frontmatter')
   }
   if (
-    !selectionText.includes('activeEntryText,\n    args.graphDataSource,\n    args.getFs') ||
+    !selectionText.includes('activeEntry,\n    activeEntryKind,\n    args.graphDataSource,\n    args.getFs') ||
     !selectionText.includes('args.activeTextRef,\n    args.graphDataSource,\n    args.getFs')
   ) {
     throw new Error('expected Source Files switching effects to subscribe to graphDataSource so stale Canvas graph ownership replays selected-file content/frontmatter')

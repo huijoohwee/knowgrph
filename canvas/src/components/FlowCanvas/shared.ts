@@ -51,7 +51,75 @@ export type FlowCanvasProps = {
   renderEdges?: boolean
   renderGroups?: boolean
   renderNodes?: boolean
+  nativeSurfaceMode?: FlowCanvasNativeSurfaceMode
   forbidCircleNodes?: boolean
+}
+
+export type FlowCanvasNativeSurfaceMode = 'auto' | 'visual' | 'runtime-only'
+
+export type FlowCanvasNativeRenderPolicy = {
+  renderEdges?: boolean
+  renderGroups?: boolean
+  renderNodes?: boolean
+}
+
+export type FlowCanvasMediaOverlayInteractionPolicy = {
+  overlayPanActive: boolean
+  headerDragActive: boolean
+  resizeActive: boolean
+  panelPointerEventsClassName: string
+  capturePanelEvents: boolean
+}
+
+export function resolveFlowCanvasMediaOverlayInteractionPolicy(args: {
+  rendererInteractionMode: boolean
+  workspaceMutationBlocked: boolean
+}): FlowCanvasMediaOverlayInteractionPolicy {
+  const rendererInteractionMode = args.rendererInteractionMode === true
+  return {
+    overlayPanActive: rendererInteractionMode,
+    headerDragActive: rendererInteractionMode,
+    resizeActive: rendererInteractionMode && args.workspaceMutationBlocked !== true,
+    panelPointerEventsClassName: 'pointer-events-auto',
+    capturePanelEvents: true,
+  }
+}
+
+export function resolveFlowCanvasNativeSurfaceMode(args: {
+  canvas2dRenderer?: string
+  graphData: GraphData | null | undefined
+  requestedMode?: FlowCanvasNativeSurfaceMode
+  overlayOwnsScene?: boolean
+}): FlowCanvasNativeSurfaceMode {
+  const requestedMode = args.requestedMode === 'visual' || args.requestedMode === 'runtime-only'
+    ? args.requestedMode
+    : 'auto'
+  if (requestedMode !== 'auto') return requestedMode
+
+  const renderer = String(args.canvas2dRenderer || '').trim()
+  if (args.overlayOwnsScene === true) return 'runtime-only'
+  if (renderer === 'flowEditor' && isFrontmatterFlowGraph(args.graphData)) return 'runtime-only'
+  return 'visual'
+}
+
+export function resolveFlowCanvasNativeRenderPolicy(args: {
+  nativeSurfaceMode: FlowCanvasNativeSurfaceMode
+  renderEdges?: boolean
+  renderGroups?: boolean
+  renderNodes?: boolean
+}): FlowCanvasNativeRenderPolicy {
+  if (args.nativeSurfaceMode === 'runtime-only') {
+    return {
+      renderEdges: false,
+      renderGroups: false,
+      renderNodes: false,
+    }
+  }
+  return {
+    renderEdges: args.renderEdges,
+    renderGroups: args.renderGroups,
+    renderNodes: args.renderNodes,
+  }
 }
 
 export type FlowCanvasInteractionRuntimeProps = {

@@ -42,6 +42,51 @@ function recordsShallowEqual(a: Record<string, unknown>, b: Record<string, unkno
   return true
 }
 
+function readMetadataString(record: Record<string, unknown> | null, key: string): string {
+  return String(record?.[key] || '').trim()
+}
+
+function hasNon2dCanvasWorkspacePreset(metadata: Record<string, unknown>): boolean {
+  const frontmatterMeta = isRecord(metadata.frontmatterMeta)
+    ? (metadata.frontmatterMeta as Record<string, unknown>)
+    : null
+  const explicitFrontmatterPreset = readCanvasWorkspaceFrontmatterPresetFromMeta(frontmatterMeta)
+  const canvasWorkspacePreset = isRecord(metadata.canvasWorkspacePreset)
+    ? (metadata.canvasWorkspacePreset as Record<string, unknown>)
+    : null
+  const canvasSurfaceMode = String(
+    explicitFrontmatterPreset?.canvasSurfaceMode
+    || readMetadataString(canvasWorkspacePreset, 'canvasSurfaceMode'),
+  ).trim()
+  if (canvasSurfaceMode === '3d' || canvasSurfaceMode === 'xr') return true
+  if (canvasSurfaceMode === '2d' || canvasSurfaceMode === 'geospatial') return false
+  const canvasRenderMode = String(
+    explicitFrontmatterPreset?.canvasRenderMode
+    || readMetadataString(canvasWorkspacePreset, 'canvasRenderMode'),
+  ).trim()
+  return canvasRenderMode === '3d'
+}
+
+function hasExplicitCanvasWorkspaceSurfacePreset(metadata: Record<string, unknown>): boolean {
+  const frontmatterMeta = isRecord(metadata.frontmatterMeta)
+    ? (metadata.frontmatterMeta as Record<string, unknown>)
+    : null
+  const explicitFrontmatterPreset = readCanvasWorkspaceFrontmatterPresetFromMeta(frontmatterMeta)
+  const canvasWorkspacePreset = isRecord(metadata.canvasWorkspacePreset)
+    ? (metadata.canvasWorkspacePreset as Record<string, unknown>)
+    : null
+  return !!(
+    explicitFrontmatterPreset?.canvas2dRenderer
+    || explicitFrontmatterPreset?.canvasSurfaceMode
+    || explicitFrontmatterPreset?.canvasRenderMode
+    || explicitFrontmatterPreset?.canvas3dMode
+    || readMetadataString(canvasWorkspacePreset, 'canvas2dRenderer')
+    || readMetadataString(canvasWorkspacePreset, 'canvasSurfaceMode')
+    || readMetadataString(canvasWorkspacePreset, 'canvasRenderMode')
+    || readMetadataString(canvasWorkspacePreset, 'canvas3dMode')
+  )
+}
+
 function computeRegistrySignature(entries: Array<{ id: string; updatedAt: string }>): string {
   const pairs = entries
     .map(e => `${String(e.id || '').trim()}@${String(e.updatedAt || '').trim()}`)
@@ -164,8 +209,10 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
   const nextLayout: NonNullable<typeof schema.layout> = { ...curLayout, mode: modeSuggestion }
   get().setSchema({ ...schema, layout: nextLayout })
   if ((nextLayout.mode || schema.layout?.mode) === 'block') {
-    const setCanvasRenderMode = get().setCanvasRenderMode
-    if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
+    if (!hasNon2dCanvasWorkspacePreset(metadata)) {
+      const setCanvasRenderMode = get().setCanvasRenderMode
+      if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
+    }
 
     const setCanvas2dRenderer = get().setCanvas2dRenderer
     const currentRenderer = get().canvas2dRenderer
@@ -176,6 +223,7 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
     const shouldPreserveExplicitRenderer =
       !!explicitFrontmatterPreset?.canvas2dRenderer
       || !!explicitFrontmatterPreset?.canvasSurfaceMode
+      || hasExplicitCanvasWorkspaceSurfacePreset(metadata)
       || isFrontmatterFlowGraph(get().graphData)
     if (
       typeof setCanvas2dRenderer === 'function'

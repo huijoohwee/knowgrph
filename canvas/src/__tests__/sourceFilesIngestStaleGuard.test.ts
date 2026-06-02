@@ -177,10 +177,12 @@ export function testSourceFilesBootstrapResyncsOnlyOnActivePathChanges() {
     !text.includes('const activePathKey = buildMaterializedWorkspaceActivePathKey({') ||
     !text.includes('workspaceEntriesSnapshot,') ||
     !text.includes('markdownDocumentName: store.markdownDocumentName') ||
-    !text.includes('graphDataSource: typeof store.graphData?.metadata?.source ===') ||
     !text.includes('if (lastMaterializedActivePathRef.current === activePathKey) return')
   ) {
-    throw new Error('expected source files bootstrap to skip repeated workspace-view materialization only when selected content, active document, and Canvas graph ownership are unchanged')
+    throw new Error('expected source files bootstrap to skip repeated workspace-view materialization when selected content and active document ownership are unchanged')
+  }
+  if (text.includes('graphDataSource: typeof store.graphData?.metadata?.source ===')) {
+    throw new Error('expected source files bootstrap active-path materialization key to avoid graph-source churn after selected document apply')
   }
   if (text.includes('}\n    syncNow()\n    const unsubscribeActivePath')) {
     throw new Error('expected source files bootstrap to avoid an eager duplicate mount resync before startup bootstrap completes')
@@ -219,8 +221,8 @@ export function testSourceFilesBootstrapResyncsOnWorkspaceFsSeedChanges() {
   if (!text.includes('await fs.ensureSeed()')) {
     throw new Error('expected source files bootstrap to periodically call ensureSeed for dynamic external docs seed reflection')
   }
-  if (text.includes('const workspaceEntries = await fs.listEntries()')) throw new Error('expected source files bootstrap workspace-fs event handler to keep listEntries behind the shared source-root snapshot helper')
-  if (!text.includes('const workspaceEntries = await readWorkspaceSourceRootEntriesSnapshot({')) throw new Error('expected source files bootstrap workspace-fs event handler to refresh the source-root workspace entry snapshot for Source Files sync')
+  if (text.includes('const workspaceEntries = await fs.listEntries()')) throw new Error('expected source files bootstrap workspace-fs event handler to avoid direct listEntries calls during Source Files sync')
+  if (!text.includes('const workspaceEntries = await readWorkspaceActiveEntrySnapshot({')) throw new Error('expected source files bootstrap workspace-fs event handler to refresh only the active workspace entry snapshot for Source Files sync')
   if (!text.includes('buildActiveWorkspaceRuntimeSourceFilesSnapshot({')) {
     throw new Error('expected source files bootstrap workspace-fs event handler to centralize active runtime source-files shaping through the shared helper before rematerialization')
   }

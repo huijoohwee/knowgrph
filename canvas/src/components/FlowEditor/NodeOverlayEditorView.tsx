@@ -14,6 +14,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 
 import {
+  resolveFlowEditorWidgetSurfacePointerPolicy,
   WIDGET_ACTIONS_TOOLBAR_OFFSET_PX,
   WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX,
 } from '@/components/FlowEditor/nodeOverlayEditorShared'
@@ -35,7 +36,6 @@ export function NodeOverlayEditorView(args: {
   asideRef: React.RefObject<HTMLElement | null>
   flowEditorSurfaceId?: string
   node: GraphNode
-  interactionPassthrough: boolean
   pinnedInCanvas: boolean
   overlayZIndex: number
   active: boolean
@@ -96,7 +96,6 @@ export function NodeOverlayEditorView(args: {
     asideRef,
     flowEditorSurfaceId,
     node,
-    interactionPassthrough,
     pinnedInCanvas,
     overlayZIndex,
     active,
@@ -153,7 +152,7 @@ export function NodeOverlayEditorView(args: {
     setToolbarVisible,
     spacePanUserSelectUnlockRef,
   } = args
-  const passthroughPointerEventsClass = interactionPassthrough ? 'pointer-events-none' : 'pointer-events-auto'
+  const pointerPolicy = resolveFlowEditorWidgetSurfacePointerPolicy()
   const richMediaPanelFrameWidthPx = isRichMediaPanelWidget
     ? readRichMediaPanelFrameWidthPx(richMediaWidgetPreview)
     : null
@@ -165,14 +164,13 @@ export function NodeOverlayEditorView(args: {
       data-kg-flow-editor-mode="1"
       data-kg-flow-editor-surface={flowEditorSurfaceId || undefined}
       data-kg-widget-pinned={pinnedInCanvas ? '1' : '0'}
-      data-kg-canvas-wheel-ignore={interactionPassthrough ? 'false' : 'true'}
-      className={interactionPassthrough ? 'fixed pointer-events-none' : 'fixed'}
+      data-kg-canvas-wheel-ignore={pointerPolicy.canvasWheelIgnore}
+      className={pointerPolicy.rootClassName}
       style={{
         zIndex: overlayZIndex,
         ...(richMediaPanelFrameWidthPx != null ? { width: `${richMediaPanelFrameWidthPx}px` } : null),
       }}
       onPointerDownCapture={(ev) => {
-        if (interactionPassthrough) return
         const t = ev.target
         const el = t instanceof Element ? t : null
         const isInteractiveControl = !!el?.closest('input,textarea,select,button,[contenteditable="true"]')
@@ -219,8 +217,8 @@ export function NodeOverlayEditorView(args: {
         <div
           className={
             isRichMediaPanelWidget
-              ? `absolute z-10 ${passthroughPointerEventsClass}`
-              : `absolute left-1/2 z-10 -translate-x-1/2 ${passthroughPointerEventsClass}`
+              ? `absolute z-10 ${pointerPolicy.toolbarPointerEventsClassName}`
+              : `absolute left-1/2 z-10 -translate-x-1/2 ${pointerPolicy.toolbarPointerEventsClassName}`
           }
           style={isRichMediaPanelWidget
             ? {
@@ -263,7 +261,7 @@ export function NodeOverlayEditorView(args: {
           />
         </div>
 
-        <div className={passthroughPointerEventsClass}>
+        <div className={pointerPolicy.panelPointerEventsClassName}>
           <NodeOverlayEditorPanel
             active={active}
             node={node}

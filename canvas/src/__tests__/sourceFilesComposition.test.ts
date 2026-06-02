@@ -39,7 +39,9 @@ import {
   shouldClearComposedGraphForEmptyState,
 } from '@/features/source-files/composedApplyGuards'
 import {
+  buildComposedSourceFileSelectionKey,
   readComposedSourceFilePath,
+  resolvePreferredComposedSourceSelectionKey,
   resolvePreferredComposedDocumentPathFromState,
   resolvePreferredComposedSourceFile,
   resolvePreferredComposedSourceFileFromState,
@@ -582,6 +584,12 @@ export function testComposedGraphRenderDeferralWaitsForCanonicalSourceLayerIdent
     edges: [],
     metadata: {},
   }
+  const otherParsedGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'other_node', label: 'Other', type: 'Thing', properties: {} }],
+    edges: [],
+    metadata: {},
+  }
   const composedGraph: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'ws:abc123::local_node', label: 'Local', type: 'Thing', properties: {} }],
@@ -590,12 +598,21 @@ export function testComposedGraphRenderDeferralWaitsForCanonicalSourceLayerIdent
   }
 
   if (
-    !shouldDeferComposedGraphRender({
+    shouldDeferComposedGraphRender({
       graphData: directGraph,
       layers: [{ enabled: true, status: 'parsed', parsedGraphData: directGraph }],
     })
   ) {
-    throw new Error('expected composed graph render deferral to block source-local overlay ids while parsed source layers are ready to compose')
+    throw new Error('expected composed graph render deferral to allow the active source-local parsed graph to render its own overlays')
+  }
+
+  if (
+    !shouldDeferComposedGraphRender({
+      graphData: directGraph,
+      layers: [{ enabled: true, status: 'parsed', parsedGraphData: otherParsedGraph }],
+    })
+  ) {
+    throw new Error('expected composed graph render deferral to block stale source-local overlays while different parsed source layers are ready to compose')
   }
 
   if (
@@ -614,6 +631,31 @@ export function testComposedGraphRenderDeferralWaitsForCanonicalSourceLayerIdent
     })
   ) {
     throw new Error('expected composed graph render deferral to avoid hiding direct graphs before any parsed source-layer graph exists')
+  }
+}
+
+export function testComposedGraphRenderDeferralAllowsActiveFrontmatterFlowGraph() {
+  const activeFrontmatterGraph: GraphData = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'frontmatter_widget', label: 'Frontmatter Widget', type: 'TextGeneration', properties: {} }],
+    edges: [],
+    metadata: { kind: 'frontmatter-flow' },
+  }
+  const otherParsedGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'other_node', label: 'Other', type: 'Thing', properties: {} }],
+    edges: [],
+    metadata: {},
+  }
+
+  if (
+    shouldDeferComposedGraphRender({
+      graphData: activeFrontmatterGraph,
+      layers: [{ enabled: true, status: 'parsed', parsedGraphData: otherParsedGraph }],
+    })
+  ) {
+    throw new Error('expected active frontmatter-flow graphs to render Flow Editor overlays while Source Files composition catches up')
   }
 }
 
@@ -736,12 +778,26 @@ export function testComposedSourceSelectionHelperCentralizesActiveFileAndRawText
     throw new Error('expected composed source selection helper to normalize source-file paths through a shared reader')
   }
 
+  const selectionKey = buildComposedSourceFileSelectionKey(sourceFiles[1])
+  if (!selectionKey.includes('/notes/demo.md') || !selectionKey.includes('sf-doc')) {
+    throw new Error(`expected composed source selection key to include canonical path and stable source id, got ${selectionKey}`)
+  }
+
   const exact = resolvePreferredComposedSourceFile({
     sourceFiles,
     markdownDocumentName: 'workspace:/notes/demo.md',
   })
   if (exact?.id !== 'sf-doc') {
     throw new Error('expected composed source selection helper to prefer the active markdown path match')
+  }
+
+  const exactSelectionKey = resolvePreferredComposedSourceSelectionKey({
+    sourceFiles,
+    markdownDocumentName: 'workspace:/notes/demo.md',
+    enabledOnly: true,
+  })
+  if (exactSelectionKey !== selectionKey) {
+    throw new Error(`expected active composed source selection key to reuse the preferred source-file resolver, got ${exactSelectionKey}`)
   }
 
   const fallbackByName = resolvePreferredComposedSourceFile({

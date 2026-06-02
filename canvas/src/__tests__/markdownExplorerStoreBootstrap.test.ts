@@ -1,5 +1,5 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH } from '@/tests/lib/docsSsotFixture'
+import { DOCS_SSOT_VALIDATION_WORKSPACE_PATH } from '@/tests/lib/docsSsotFixture'
 import { resolveInitialMarkdownExplorerActivePath } from '@/features/markdown-explorer/store'
 
 export async function testMarkdownExplorerStoreBootstrapSuppressesPersistedInitializationPaths() {
@@ -10,7 +10,7 @@ export async function testMarkdownExplorerStoreBootstrapSuppressesPersistedIniti
       throw new Error(`expected persisted README initialization path to be ignored on cold boot, got ${String(readme)}`)
     }
 
-    const videoDemo = resolveInitialMarkdownExplorerActivePath(KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH)
+    const videoDemo = resolveInitialMarkdownExplorerActivePath(DOCS_SSOT_VALIDATION_WORKSPACE_PATH)
     if (videoDemo !== null) {
       throw new Error(`expected persisted video-demo initialization path to be ignored on cold boot, got ${String(videoDemo)}`)
     }

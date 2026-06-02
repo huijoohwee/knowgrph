@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { LS_KEYS } from '@/lib/config'
 import { createMemoryStorage } from '@/tests/lib/memoryStorage'
-import { KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH } from '@/tests/lib/docsSsotFixture'
+import { DOCS_SSOT_VALIDATION_WORKSPACE_PATH } from '@/tests/lib/docsSsotFixture'
 import {
   buildDocumentKey,
   readPerDocumentUiState,
@@ -74,7 +74,7 @@ export function testPerDocumentUiStateSkipsInitializationWorkspaceDocs() {
   if (shouldPersistPerDocumentUiStateDocumentRef('/README.md') !== false) {
     throw new Error('Expected README seed doc UI state persistence to be disabled')
   }
-  if (shouldPersistPerDocumentUiStateDocumentRef(KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH) !== false) {
+  if (shouldPersistPerDocumentUiStateDocumentRef(DOCS_SSOT_VALIDATION_WORKSPACE_PATH) !== false) {
     throw new Error('Expected video-demo seed doc UI state persistence to be disabled')
   }
   if (shouldPersistPerDocumentUiStateDocumentRef('/notes/custom.md') !== true) {

@@ -13,7 +13,7 @@ import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manage
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
-import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
+import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   const md = [
@@ -2017,16 +2017,16 @@ function readKnowgrphRichMediaGenerationDemoPath(): string {
 }
 
 function readKnowgrphVideoDemoPath(): string {
-  const envPath = typeof process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH === 'string'
-    ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH.trim()
+  const envPath = typeof process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_PATH === 'string'
+    ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_PATH.trim()
     : ''
   if (envPath) return envPath
-  return resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
+  return resolveDocsSsotFixturePath(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
 }
 
 function readKnowgrphVideoDemoSeededPath(): string {
-  const envPath = typeof process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_SEEDED_PATH === 'string'
-    ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_SEEDED_PATH.trim()
+  const envPath = typeof process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH === 'string'
+    ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH.trim()
     : ''
   if (envPath) return envPath
   const cwd = process.cwd()

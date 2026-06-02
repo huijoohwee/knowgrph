@@ -42,8 +42,8 @@ export const UI_COPY = {
   floatingPanelPin: 'Pin floating panel',
   floatingPanelUnpin: 'Unpin floating panel',
 
-  flowWidgetPin: 'Pin to canvas (follows canvas zoom/pan; drag disabled).',
-  flowWidgetUnpin: 'Unpin (follows canvas zoom/pan; drag enabled).',
+  flowWidgetPin: 'Pin to canvas (follows canvas zoom/pan).',
+  flowWidgetUnpin: 'Unpin from canvas (screen-positioned).',
   flowWidgetMinimize: 'Minimize widget',
   flowWidgetRestore: 'Restore widget',
   flowWidgetHideFields: 'Hide fields in widget',

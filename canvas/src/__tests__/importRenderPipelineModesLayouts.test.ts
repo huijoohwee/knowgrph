@@ -25,7 +25,7 @@ import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 import { listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 import type { GraphNode } from '@/lib/graph/types'
-import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
+import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 const readSlideDemoOrFallback = (): { nameForParse: string; text: string; documentPath: string } => {
   const docPath = resolveMarkdownSlideDemoDocumentPath() || 'sandbox/demo/markdown-slide-demo.md'
@@ -62,16 +62,16 @@ const readKgcPipelinePrdTadPath = (): string => {
 }
 
 const readKnowgrphVideoDemoPath = (): string => {
-  const envPath = typeof process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH === 'string'
-    ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH.trim()
+  const envPath = typeof process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_PATH === 'string'
+    ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_PATH.trim()
     : ''
   if (envPath) return envPath
-  return resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
+  return resolveDocsSsotFixturePath(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
 }
 
 const readKnowgrphVideoDemoSeededPath = (): string => {
-  const envPath = typeof process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_SEEDED_PATH === 'string'
-    ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_SEEDED_PATH.trim()
+  const envPath = typeof process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH === 'string'
+    ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH.trim()
     : ''
   if (envPath) return envPath
   return path.resolve(process.cwd(), '..', 'knowgrph-video-demo-seeded.md')

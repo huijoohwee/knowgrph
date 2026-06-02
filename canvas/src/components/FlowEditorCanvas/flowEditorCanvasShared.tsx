@@ -223,7 +223,6 @@ export function deriveOpenWidgetOverlayNodeIds(args: {
 type FlowEditorWidgetOverlayProps = {
   visible?: boolean
   active: boolean
-  interactionPassthrough?: boolean
   flowEditorSurfaceId?: string
   overlayCollectiveCount?: number
   node: GraphNode
@@ -267,7 +266,6 @@ export const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverl
     <NodeOverlayEditor
       visible={args.visible}
       active={args.active}
-      interactionPassthrough={args.interactionPassthrough}
       flowEditorSurfaceId={args.flowEditorSurfaceId}
       overlayCollectiveCount={args.overlayCollectiveCount}
       node={args.node}

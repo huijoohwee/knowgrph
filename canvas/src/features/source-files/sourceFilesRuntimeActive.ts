@@ -43,6 +43,17 @@ const buildWorkspaceModelAssetFallbackText = (activePath: WorkspacePath, format:
     sourceKind: 'workspace',
   })
 
+const resolveWorkspaceActiveDocumentText = (
+  activePath: WorkspacePath,
+  modelAssetFormat: 'glb' | 'gltf' | null,
+  textRaw: string,
+): string => {
+  const text = String(textRaw || '')
+  if (!text.trim()) return ''
+  if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(text)) return text
+  return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+}
+
 const normalizeDocsMirrorRelPath = (value: string): string => {
   let next = String(value || '')
     .trim()
@@ -110,16 +121,12 @@ const readWorkspaceDocsRootFileFallbackText = async (
 
 const readWorkspaceDocsMirrorFallbackText = async (
   activePath: WorkspacePath,
-  fallbackByActivePath?: Map<string, string>,
+  _fallbackByActivePath?: Map<string, string>,
 ): Promise<string> => {
   const normalizedPath = normalizeWorkspacePath(String(activePath || '').trim())
   if (!normalizedPath) return ''
-  const cacheKey = `docs-mirror:${normalizedPath}`
-  const cached = fallbackByActivePath?.get(cacheKey)
-  if (typeof cached === 'string') return cached
   const candidates = buildWorkspaceDocsMirrorRelPathCandidates(normalizedPath)
   if (candidates.length === 0) {
-    fallbackByActivePath?.set(cacheKey, '')
     return ''
   }
   try {
@@ -137,7 +144,6 @@ const readWorkspaceDocsMirrorFallbackText = async (
       const text = byRelPath.get(candidates[i] || '')
       if (typeof text === 'string') {
         if (text.trim()) {
-          fallbackByActivePath?.set(cacheKey, text)
           return text
         }
         if (blankMirrorMatch === null) blankMirrorMatch = text
@@ -145,17 +151,14 @@ const readWorkspaceDocsMirrorFallbackText = async (
     }
     const directRootText = await readWorkspaceDocsRootFileFallbackText(candidates)
     if (directRootText.trim()) {
-      fallbackByActivePath?.set(cacheKey, directRootText)
       return directRootText
     }
     if (blankMirrorMatch !== null) {
-      fallbackByActivePath?.set(cacheKey, blankMirrorMatch)
       return blankMirrorMatch
     }
   } catch {
     void 0
   }
-  fallbackByActivePath?.set(cacheKey, '')
   return ''
 }
 
@@ -227,14 +230,21 @@ export async function readWorkspaceActiveDocumentResolvedText(args: {
   currentText?: string
   fs?: WorkspaceFs | Awaited<ReturnType<typeof getWorkspaceFs>>
   storageFallbackByPath?: Map<string, string>
+  preferCanonicalPathText?: boolean
 }): Promise<string> {
   const activePath = normalizeWorkspacePath(args.activePath)
   const modelAssetFormat = isWorkspaceModelAssetPath(activePath)
-  const currentText = String(args.currentText || '')
-  if (currentText.trim()) {
-    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(currentText)) return currentText
-    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+  if (args.preferCanonicalPathText === true) {
+    const canonicalText = resolveWorkspaceActiveDocumentText(
+      activePath,
+      modelAssetFormat,
+      await readWorkspaceDocsMirrorFallbackText(activePath, args.storageFallbackByPath),
+    )
+    if (canonicalText.trim()) return canonicalText
   }
+  const currentText = String(args.currentText || '')
+  const resolvedCurrentText = resolveWorkspaceActiveDocumentText(activePath, modelAssetFormat, currentText)
+  if (resolvedCurrentText.trim()) return resolvedCurrentText
   let fsText = ''
   try {
     const fs = args.fs || (await getWorkspaceFs())
@@ -242,20 +252,22 @@ export async function readWorkspaceActiveDocumentResolvedText(args: {
   } catch {
     fsText = ''
   }
-  if (fsText.trim()) {
-    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(fsText)) return fsText
-    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+  const resolvedFsText = resolveWorkspaceActiveDocumentText(activePath, modelAssetFormat, fsText)
+  if (resolvedFsText.trim()) return resolvedFsText
+  if (args.preferCanonicalPathText !== true) {
+    const docsMirrorText = resolveWorkspaceActiveDocumentText(
+      activePath,
+      modelAssetFormat,
+      await readWorkspaceDocsMirrorFallbackText(activePath, args.storageFallbackByPath),
+    )
+    if (docsMirrorText.trim()) return docsMirrorText
   }
-  const docsMirrorText = await readWorkspaceDocsMirrorFallbackText(activePath, args.storageFallbackByPath)
-  if (docsMirrorText.trim()) {
-    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(docsMirrorText)) return docsMirrorText
-    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
-  }
-  const storageText = await readWorkspaceStorageDocFallbackText(activePath, args.storageFallbackByPath)
-  if (storageText.trim()) {
-    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(storageText)) return storageText
-    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
-  }
+  const storageText = resolveWorkspaceActiveDocumentText(
+    activePath,
+    modelAssetFormat,
+    await readWorkspaceStorageDocFallbackText(activePath, args.storageFallbackByPath),
+  )
+  if (storageText.trim()) return storageText
   if (modelAssetFormat) {
     return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
   }
