@@ -4,7 +4,7 @@ import type { GraphEdge } from '@/lib/graph/types'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
+import { FLOW_HANDLE_DEFAULT_EDGE_ID, computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { PORT_HANDLE_LINE_CLASS, PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
-import { formatFlowHandleKeyValue, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
@@ -240,8 +240,9 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     const isIn = p.dir === 'in'
     const portKey = parseFlowHandleKey(p.handleId as never)
     const handlePath = readFlowHandlePath(p.dir)
-    const keyValue = formatFlowHandleKeyValue({ dir: p.dir, portKey })
-    const aria = keyValue || (isIn ? `Input handle ${p.idx + 1}` : `Output handle ${p.idx + 1}`)
+    const semanticKey = formatFlowHandleSemanticKey({ dir: p.dir, portKey })
+    const defaultAria = isIn ? `Input handle ${p.idx + 1}` : `Output handle ${p.idx + 1}`
+    const aria = semanticKey && portKey !== FLOW_HANDLE_DEFAULT_EDGE_ID ? semanticKey : defaultAria
     const ringClass = isSource ? `ring-2 ring-inset ${UI_THEME_TOKENS.button.ring}` : ''
     const clickable = canClickHandle(p.dir)
     const hoverClass = clickable ? 'hover:opacity-100' : 'opacity-90'

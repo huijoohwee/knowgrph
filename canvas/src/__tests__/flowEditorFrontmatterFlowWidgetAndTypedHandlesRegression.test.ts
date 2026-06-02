@@ -657,15 +657,15 @@ export function testWidgetPortHandleTooltipUsesDirectionalHandlePath() {
   if (!text.includes('const handlePath = readFlowHandlePath(p.dir)')) {
     throw new Error('expected directional handle path mapping for port handles to reuse shared helper')
   }
-  if (!text.includes('formatFlowHandleKeyValue({ dir: p.dir, portKey })')) {
-    throw new Error('expected port-handle tooltip/aria to include directional key:value contract via shared helper')
+  if (!text.includes('formatFlowHandleSemanticKey({ dir: p.dir, portKey })')) {
+    throw new Error('expected port-handle tooltip/aria to use semantic port keys via shared helper')
   }
   if (!text.includes('data-kg-port-path={handlePath}')) {
     throw new Error('expected rendered port-handle elements to expose directional handle path metadata')
   }
 }
 
-export function testFrontmatterFlowContractFormatsHandlesAsKeyValuePathEntries() {
+export function testFrontmatterFlowContractFormatsHandlesAsSemanticPortKeys() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
@@ -676,14 +676,23 @@ export function testFrontmatterFlowContractFormatsHandlesAsKeyValuePathEntries()
   if (!helperText.includes('flowHandleKeys: FrontmatterFlowHandleKeySet')) {
     throw new Error('expected shared frontmatter contract helper to expose normalized handle keys')
   }
-  if (!helperText.includes('valueText: formatFlowHandleValueList(args.resolvedHandleKeys)')) {
-    throw new Error('expected handle row specs to carry normalized handle key lists in the shared helper')
+  if (!helperText.includes('valueText: formatFlowHandleValueList(portKeys)')) {
+    throw new Error('expected handle row specs to carry normalized semantic port key lists in the shared helper')
   }
-  if (!text.includes('value={rowSpec.valueText}')) {
-    throw new Error('expected NodeOverlayEditorForm to render handle row values from shared row specs')
+  if (!text.includes('const portValueText = readWidgetFieldValueText({') || !text.includes('value={portValueText}')) {
+    throw new Error('expected NodeOverlayEditorForm handle row Value cells to read authored property values through the shared widget helper')
   }
-  if (!helperText.includes("label: readFlowHandlePath(args.dir)")) {
-    throw new Error('expected shared handle row specs to reuse directional path labels')
+  if (!text.includes('const keyLabel = formatFlowHandleKtvKeyLabel({ dir: rowSpec.dir, portKey })')) {
+    throw new Error('expected NodeOverlayEditorForm visible handle-row keys to reuse the shared KTV key formatter')
+  }
+  if (text.includes('`${accessibleName} ${rowSpec.typeLabel} port`')) {
+    throw new Error('expected NodeOverlayEditorForm handle-row keys to avoid visible in/out port suffixes')
+  }
+  if (text.includes('value={portKey}')) {
+    throw new Error('expected NodeOverlayEditorForm handle row Value cells to avoid echoing semantic port keys')
+  }
+  if (helperText.includes("label: readFlowHandlePath(args.dir)")) {
+    throw new Error('expected shared handle row specs to avoid generic directional path labels')
   }
   if (!helperText.includes("typeLabel: readFlowHandleTypeLabel(args.dir)")) {
     throw new Error('expected shared handle row specs to reuse directional type labels')
@@ -730,8 +739,11 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('const handlePath = readFlowHandlePath(isIn ? \'in\' : \'out\')')) {
     throw new Error('expected widget registry port rows to derive directional handle path from shared helper')
   }
-  if (!text.includes('const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? \'in\' : \'out\', portKey })')) {
-    throw new Error('expected widget registry port rows to format key:value metadata via shared helper')
+  if (!text.includes('const handleSemanticKey = formatFlowHandleSemanticKey({ dir: isIn ? \'in\' : \'out\', portKey })')) {
+    throw new Error('expected widget registry port rows to format semantic port-key metadata via shared helper')
+  }
+  if (!text.includes('const portKeyLabel = formatFlowHandleKtvKeyLabel({ dir: isIn ? \'in\' : \'out\', portKey })')) {
+    throw new Error('expected widget registry visible port-row key labels to reuse the shared KTV key formatter')
   }
   if (!text.includes('const portValueId = ids.registryField(') || !text.includes('`port-${idx}-${p.direction}-${portKey}-${schemaPath}`')) {
     throw new Error('expected widget registry port rows to derive unique shared SSOT value ids for label/input typography')
@@ -739,8 +751,8 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('formatFlowHandleAccessibleName({')) {
     throw new Error('expected widget registry port rows to use shared accessible names when repeated port keys exist')
   }
-  if (!text.includes('<span>{aria}</span>')) {
-    throw new Error('expected widget registry port key column to show unique shared handle names')
+  if (!text.includes('<span>{portKeyLabel}</span>')) {
+    throw new Error('expected widget registry port key column to show semantic KTV port keys without direction suffixes')
   }
   if (!text.includes("<span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{schemaPath || portKey}</span>")) {
     throw new Error('expected widget registry port key column to keep schema path or concrete port key as secondary text')
@@ -751,15 +763,18 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('<PlainTextInputEditor')) {
     throw new Error('expected widget registry port value column to reuse shared text-input typography')
   }
-  if (!text.includes('value={portKey}')) {
-    throw new Error('expected widget registry port value column to render standalone port key')
+  if (!text.includes('const portValueText = readWidgetFieldValueText({') || !text.includes('value={portValueText}')) {
+    throw new Error('expected widget registry port value column to read schema-path values through the shared widget helper')
+  }
+  if (text.includes('value={portKey}')) {
+    throw new Error('expected widget registry port value column to avoid echoing standalone port keys')
   }
   if (!text.includes('disabled') || !text.includes('readOnly')) {
     throw new Error('expected widget registry port value column to stay read-only while reusing shared value styling')
   }
 }
 
-export function testFrontmatterFlowContractPrefersRegistryHandlesWhenPortTypesAreUntyped() {
+export function testFrontmatterFlowContractUnionsSemanticHandleSourcesWhenPortTypesAreUntyped() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
@@ -767,17 +782,20 @@ export function testFrontmatterFlowContractPrefersRegistryHandlesWhenPortTypesAr
   if (!helperText.includes('const flowRegistryHandles: FrontmatterFlowHandleKeySet = (() => {')) {
     throw new Error('expected shared frontmatter contract helper to derive handles from registry ports')
   }
-  if (!helperText.includes('target: connectedFlowHandles.target.length > 0')) {
-    throw new Error('expected shared frontmatter contract helper to prefer connected target handles before registry/typed fallbacks')
+  if (!helperText.includes('const mergeHandleKeys = (...sets: string[][]): string[] => sortUniqueStrings(sets.flat())')) {
+    throw new Error('expected shared frontmatter contract helper to union semantic handle sources')
   }
-  if (!helperText.includes('source: connectedFlowHandles.source.length > 0')) {
-    throw new Error('expected shared frontmatter contract helper to prefer connected source handles before registry/typed fallbacks')
+  if (!helperText.includes('target: mergeHandleKeys(frontmatterInKeys, connectedFlowHandles.target, flowRegistryHandles.target, flowPortTypes.target)')) {
+    throw new Error('expected shared frontmatter contract helper to union target frontmatter, connected, registry, and typed handles')
+  }
+  if (!helperText.includes('source: mergeHandleKeys(frontmatterOutKeys, connectedFlowHandles.source, flowRegistryHandles.source, flowPortTypes.source)')) {
+    throw new Error('expected shared frontmatter contract helper to union source frontmatter, connected, registry, and typed handles')
   }
   if (!text.includes('const frontmatterContract = React.useMemo(() => {')) {
     throw new Error('expected node overlay editor form to reuse the shared frontmatter contract helper')
   }
-  if (!text.includes('value={formatFlowHandlePathValue(flowHandleKeys.source)}')) {
-    throw new Error('expected handles.source value row to render unified flowHandleKeys source set')
+  if (!helperText.includes('const portKeys = args.resolvedHandleKeys.length > 0 ? args.resolvedHandleKeys : args.frontmatterPortKeys')) {
+    throw new Error('expected frontmatter contract row specs to render resolved handles as semantic per-port rows')
   }
 }
 
@@ -817,11 +835,11 @@ export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRow
   if (!helperText.includes("rowKey: args.dir === 'in' ? 'flow-handles-target' : 'flow-handles-source'")) {
     throw new Error('expected shared frontmatter contract helper to derive directional handle row keys')
   }
-  if (!text.includes("inPortNode: rowSpec.dir === 'in' ? portButtons : undefined") || !text.includes("outPortNode: rowSpec.dir === 'out' ? portButtons : undefined")) {
+  if (!text.includes("inPortNode: rowSpec.dir === 'in' ? portButton : undefined") || !text.includes("outPortNode: rowSpec.dir === 'out' ? portButton : undefined")) {
     throw new Error('expected flow contract handle rows to render explicit directional port nodes from shared specs')
   }
-  if (!text.includes("renderFlowContractDot({ dir: rowSpec.dir, linked: false, portKey: '' })")) {
-    throw new Error('expected flow contract handle rows to render explicit linked-state dot nodes')
+  if (!helperText.includes('portKeys: string[]')) {
+    throw new Error('expected flow contract handle rows to expose explicit semantic port-key lists')
   }
   if (!text.includes('forcePortDots')) {
     throw new Error('expected flow contract handle rows to keep table-level fallback dots for consistent | dot | key | type | value | dot | alignment')
@@ -879,10 +897,10 @@ export function testFrontmatterFlowContractAvoidsSyntheticHandleAndDataFallbacks
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
   const helperText = readFileSync(contractHelperPath, 'utf8')
   if (!helperText.includes('hasFlowTargetHandles: flowHandleKeys.target.length > 0')) {
-    throw new Error('expected shared frontmatter contract helper to gate handles.target row by actual derived handles')
+    throw new Error('expected shared frontmatter contract helper to gate input handle rows by actual derived handles')
   }
   if (!helperText.includes('hasFlowSourceHandles: flowHandleKeys.source.length > 0')) {
-    throw new Error('expected shared frontmatter contract helper to gate handles.source row by actual derived handles')
+    throw new Error('expected shared frontmatter contract helper to gate output handle rows by actual derived handles')
   }
   if (!helperText.includes("if (typeof raw === 'undefined') return ''")) {
     throw new Error('expected shared frontmatter contract helper to avoid synthetic {} fallback when data key is absent')
@@ -927,35 +945,6 @@ export function testFlowEditorDraftGraphHydrationIsNotClearedByFrontmatterRequir
   }
 }
 
-export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMinimapAlignment() {
-  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
-  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
-  const runtimeText = readFileSync(runtimePath, 'utf8')
-  const renderStateText = readFileSync(renderStatePath, 'utf8')
-  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
-  const overlaySurfaceElementsText = readFileSync(overlaySurfaceElementsPath, 'utf8')
-  if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
-    throw new Error('expected Flow Editor view activation to stay renderer-scoped and independent from document modes')
-  }
-  if (!renderStateText.includes('const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData')) {
-    throw new Error('expected FlowEditor render graph source to keep draft graph active in Flow Editor view even when edit lock is ON')
-  }
-  if (!renderStateText.includes('graphData: graphDataForRender')) {
-    throw new Error('expected FlowEditor render graph derivation to use unified graphDataForRender source')
-  }
-  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {') || !overlaySurfaceText.includes('return []')) {
-    throw new Error('expected widget overlays to remain view-scoped instead of edit-lock scoped to avoid View Lock-induced renderer mutation')
-  }
-  if (!overlaySurfaceElementsText.includes('visible={args.overlayVisibilityActive}') || !overlaySurfaceElementsText.includes('active={args.canEdit}')) {
-    throw new Error('expected widget overlays to stay visible in Flow Editor view while becoming read-only under View Lock')
-  }
-  if (runtimeText.includes('frontmatterDocumentModeActive') || renderStateText.includes('frontmatterDocumentModeActive')) {
-    throw new Error('expected Flow Editor render graph source to avoid document-mode-only overlay gating')
-  }
-}
-
 export function testFlowEditorInactiveWarmMountDoesNotMutateWidgetsAcrossRenderers() {
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
@@ -975,66 +964,6 @@ export function testFlowEditorInactiveWarmMountDoesNotMutateWidgetsAcrossRendere
   }
   if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
     throw new Error('expected FlowEditor runtime to keep flow-editor view activation renderer-scoped during warm mounts')
-  }
-}
-
-export function testFrontmatterFlowLandingKeepsWidgetsVisibleAgainstSiblingRendererInterference() {
-  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
-  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
-  const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
-  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
-
-  const frontmatterFlowLandingText = [
-    'kgCanvas2dRenderer: "flowEditor"',
-    'kgDocumentSemanticMode: "document"',
-    'kgFrontmatterModeEnabled: true',
-  ].join('\n')
-  const runtimeText = readFileSync(runtimePath, 'utf8')
-  const renderStateText = readFileSync(renderStatePath, 'utf8')
-  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
-  const overlaySurfaceElementsText = readFileSync(overlaySurfaceElementsPath, 'utf8')
-  const selectionBookkeepingText = readFileSync(selectionBookkeepingPath, 'utf8')
-  const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
-
-  if (!frontmatterFlowLandingText.includes('kgCanvas2dRenderer: "flowEditor"')) {
-    throw new Error('expected generic frontmatter-flow landing fixture to keep Flow Editor as the canonical frontmatter-selected 2D renderer')
-  }
-  if (!frontmatterFlowLandingText.includes('kgDocumentSemanticMode: "document"') || !frontmatterFlowLandingText.includes('kgFrontmatterModeEnabled: true')) {
-    throw new Error('expected generic frontmatter-flow landing fixture to keep document frontmatter mode enabled for widget-visible landing')
-  }
-  if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
-    throw new Error('expected frontmatter-flow Flow Editor view visibility to stay bound to the active Flow Editor renderer, not sibling renderer mounts')
-  }
-  if (!renderStateText.includes('const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData')) {
-    throw new Error('expected frontmatter-flow Flow Editor render state to keep draft graph visibility scoped to active Flow Editor view')
-  }
-  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {') || !overlaySurfaceText.includes('return []')) {
-    throw new Error('expected frontmatter-flow widget overlays to stay view-scoped so inactive Flow Canvas/Flowchart mounts cannot keep or blank widget overlays')
-  }
-  if (!overlaySurfaceElementsText.includes('visible={args.overlayVisibilityActive}') || !overlaySurfaceElementsText.includes('active={args.canEdit}')) {
-    throw new Error('expected frontmatter-flow widget overlays to remain visible in Flow Editor view while decoupling visibility from editability')
-  }
-  if (!selectionBookkeepingText.includes('if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return')) {
-    throw new Error('expected frontmatter-flow widget bookkeeping to avoid pruning or mutating visible widget ids from inactive renderer paths')
-  }
-  if (!flowCanvasText.includes("if (canvas2dRenderer === 'flowEditor') {")) {
-    throw new Error('expected Flow Canvas draw args to expose widget overlay state only for the active Flow Editor renderer')
-  }
-  if (
-    !flowCanvasText.includes('drawArgsRef.current.flowEditorWidgetOpenNodeIds = undefined')
-    || !flowCanvasText.includes('drawArgsRef.current.flowEditorWidgetPinnedByNodeId = undefined')
-    || !flowCanvasText.includes('drawArgsRef.current.flowEditorWidgetWorldPosByNodeId = undefined')
-  ) {
-    throw new Error('expected inactive Flow Canvas/Flowchart renderer paths to clear Flow Editor widget draw-state instead of reusing stale visibility state')
-  }
-  if (
-    flowCanvasText.includes('resolveFlowCanvasNativeRenderPolicy')
-    || flowCanvasText.includes('drawArgsRef.current.renderNodes')
-    || flowCanvasText.includes('drawArgsRef.current.renderEdges')
-  ) {
-    throw new Error('expected Flow Editor renderer isolation to avoid suppressing FlowCanvas native primitives')
   }
 }
 

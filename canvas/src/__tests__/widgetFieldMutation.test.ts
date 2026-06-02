@@ -21,6 +21,15 @@ export function testNormalizeWidgetFieldSchemaPathAndApplyWidgetFieldValueUpdate
   if (nextProperties.prompt !== 'after') {
     throw new Error(`expected widget field update helper to patch root properties, got ${JSON.stringify(nextProperties)}`)
   }
+
+  const nextUnscopedProperties = applyWidgetFieldValueUpdate({
+    properties: { monthly_active_users: 2500 },
+    schemaPath: 'monthly_active_users',
+    nextValue: 9999,
+  })
+  if (nextUnscopedProperties.monthly_active_users !== 9999 || Object.prototype.hasOwnProperty.call(nextUnscopedProperties, 'properties')) {
+    throw new Error(`expected unscoped widget field update to patch root properties, got ${JSON.stringify(nextUnscopedProperties)}`)
+  }
 }
 
 export function testApplyConnectedWidgetFieldsToEmptyValuesCoercesAndSkipsFilledFields() {

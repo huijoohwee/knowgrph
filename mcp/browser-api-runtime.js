@@ -203,6 +203,24 @@ function normalizeHttpUrl(rawUrl, fallback, { allowRemoteRuntime = false } = {})
   return parsed.toString().replace(/\/+$/, "");
 }
 
+function normalizeBrowserTargetUrl(rawUrl, label = "targetUrl") {
+  const candidate = typeof rawUrl === "string" ? rawUrl.trim() : "";
+  if (!candidate) return "";
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new Error(`Invalid browser target URL ${label}: ${candidate}`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Browser target URL must use http or https.");
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error("Browser target URL must not include embedded credentials.");
+  }
+  return parsed.toString();
+}
+
 function joinRuntimePath(runtimeUrl, apiPath) {
   const base = new URL(runtimeUrl);
   const basePath = base.pathname.replace(/\/+$/, "");
@@ -251,11 +269,13 @@ function buildBrowserApiRequest(args) {
   });
   const runtimePath = readStringArg(inputArgs.runtimePath);
   const payload = isPlainObject(inputArgs.payload) ? inputArgs.payload : {};
-  const targetUrl = readStringArg(
+  const rawTargetUrl = readStringArg(
     inputArgs.targetUrl,
     BROWSER_API_NATIVE_BROWSER_OPERATIONS.includes(operation) ? "" : DEFAULT_BROWSER_API_TARGET_URL
   );
-  const payloadUrl = readPayloadUrl(payload);
+  const targetUrl = normalizeBrowserTargetUrl(rawTargetUrl, "targetUrl");
+  const payloadUrl = normalizeBrowserTargetUrl(readPayloadUrl(payload), "payload.url");
+  const normalizedPayload = payloadUrl ? { ...payload, url: payloadUrl } : payload;
   const effectiveTargetUrl = targetUrl || payloadUrl;
   const intent = readStringArg(inputArgs.intent, DEFAULT_BROWSER_API_INTENT);
   const dryRun = readBooleanArg(inputArgs.dryRun, API_NATIVE_BROWSER_DEFAULT_DRY_RUN);
@@ -317,7 +337,7 @@ function buildBrowserApiRequest(args) {
       operation,
       method: "POST",
       url: joinRuntimePath(runtimeUrl, "/v1/search"),
-      body: withOptionalTargetUrl({ ...payload, intent, ...(domain ? { domain } : {}) }),
+      body: withOptionalTargetUrl({ ...normalizedPayload, intent, ...(domain ? { domain } : {}) }),
       dryRun,
       confirmUnsafe,
       confirmThirdPartyTerms,
@@ -329,7 +349,7 @@ function buildBrowserApiRequest(args) {
       operation,
       method: "POST",
       url: joinRuntimePath(runtimeUrl, "/v1/search/domain"),
-      body: withOptionalTargetUrl({ ...payload, intent, domain }),
+      body: withOptionalTargetUrl({ ...normalizedPayload, intent, domain }),
       dryRun,
       confirmUnsafe,
       confirmThirdPartyTerms,
@@ -341,7 +361,7 @@ function buildBrowserApiRequest(args) {
       operation,
       method: "POST",
       url: joinRuntimePath(runtimeUrl, "/v1/intent/resolve"),
-      body: withSafety(withOptionalTargetUrl({ ...payload, intent, ...(domain ? { domain } : {}) })),
+      body: withSafety(withOptionalTargetUrl({ ...normalizedPayload, intent, ...(domain ? { domain } : {}) })),
       dryRun,
       confirmUnsafe,
       confirmThirdPartyTerms,
@@ -353,7 +373,7 @@ function buildBrowserApiRequest(args) {
       operation,
       method: "POST",
       url: joinRuntimePath(runtimeUrl, "/v1/auth/login"),
-      body: withOptionalTargetUrl({ ...payload, ...(sessionId ? { session_id: sessionId } : {}) }),
+      body: withOptionalTargetUrl({ ...normalizedPayload, ...(sessionId ? { session_id: sessionId } : {}) }),
       dryRun,
       confirmUnsafe,
       confirmThirdPartyTerms,
@@ -373,7 +393,7 @@ function buildBrowserApiRequest(args) {
       method: "POST",
       url: joinRuntimePath(runtimeUrl, "/v1/auth/steal"),
       body: withOptionalTargetUrl({
-        ...payload,
+        ...normalizedPayload,
         ...(domain ? { domain } : {}),
         dry_run: false,
         confirm_cookie_import: true,
@@ -393,7 +413,7 @@ function buildBrowserApiRequest(args) {
       operation,
       method: "POST",
       url: joinRuntimePath(runtimeUrl, `/v1/skills/${encodeURIComponent(requiredSkillId)}/execute`),
-      body: withSafety({ ...payload, ...(sessionId ? { session_id: sessionId } : {}) }),
+      body: withSafety({ ...normalizedPayload, ...(sessionId ? { session_id: sessionId } : {}) }),
       dryRun,
       confirmUnsafe,
       confirmCookieImport,
@@ -406,7 +426,7 @@ function buildBrowserApiRequest(args) {
       method: "POST",
       url: joinRuntimePath(runtimeUrl, "/v1/feedback"),
       body: withOptionalTargetUrl({
-        ...payload,
+        ...normalizedPayload,
         intent,
         ...(domain ? { domain } : {}),
         ...(skillId ? { skill_id: skillId } : {}),
@@ -424,7 +444,7 @@ function buildBrowserApiRequest(args) {
       operation,
       method: "POST",
       url: joinRuntimePath(runtimeUrl, `/v1/skills/${encodeURIComponent(requiredSkillId)}/verify`),
-      body: payload,
+      body: normalizedPayload,
       dryRun,
       confirmUnsafe,
       confirmCookieImport,
@@ -437,7 +457,7 @@ function buildBrowserApiRequest(args) {
       operation,
       method: "POST",
       url: joinRuntimePath(runtimeUrl, `/v1/skills/${encodeURIComponent(requiredSkillId)}/issues`),
-      body: payload,
+      body: normalizedPayload,
       dryRun,
       confirmUnsafe,
       confirmCookieImport,
@@ -449,7 +469,7 @@ function buildBrowserApiRequest(args) {
       operation,
       runtimeUrl,
       runtimePath,
-      payload,
+      payload: normalizedPayload,
       targetUrl,
       sessionId,
       skillId,

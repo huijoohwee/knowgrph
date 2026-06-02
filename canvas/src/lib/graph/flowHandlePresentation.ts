@@ -8,11 +8,14 @@ export function readFlowHandleTypeLabel(dir: FlowHandleDir): 'in' | 'out' {
   return dir === 'in' || dir === 'input' ? 'in' : 'out'
 }
 
-export function formatFlowHandleKeyValue(args: { dir: FlowHandleDir; portKey: string }): string {
+export function formatFlowHandleSemanticKey(args: { dir: FlowHandleDir; portKey: string }): string {
+  void args.dir
   const portKey = String(args.portKey || '').trim()
-  if (!portKey) return ''
-  const path = readFlowHandlePath(args.dir)
-  return `${path}: "${portKey}"`
+  return portKey
+}
+
+export function formatFlowHandleKtvKeyLabel(args: { dir: FlowHandleDir; portKey: string }): string {
+  return formatFlowHandleSemanticKey(args)
 }
 
 export function formatFlowHandleAccessibleName(args: {
@@ -22,7 +25,7 @@ export function formatFlowHandleAccessibleName(args: {
   occurrenceIndex?: number
   occurrenceCount?: number
 }): string {
-  const base = formatFlowHandleKeyValue({ dir: args.dir, portKey: args.portKey })
+  const base = formatFlowHandleSemanticKey({ dir: args.dir, portKey: args.portKey })
   if (!base) return ''
   const count = Number.isFinite(args.occurrenceCount) ? Math.max(0, Math.floor(Number(args.occurrenceCount))) : 0
   if (count <= 1) return base

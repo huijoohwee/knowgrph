@@ -28,7 +28,6 @@ const INTEGRATION_THINKING_TYPE_OPTIONS = ['disabled', 'enabled'] as const
 const INTEGRATION_BYTEPLUS_IMAGE_MODEL_OPTIONS = ['seedream-4-0-250828', 'seedream-4-5-251128', 'seedream-5-0-260128'] as const
 const INTEGRATION_BYTEPLUS_IMAGE_OPTIMIZE_OPTIONS = ['fast', 'standard'] as const
 const INTEGRATION_BYTEPLUS_VIDEO_IMAGE_URL_KIND_OPTIONS = ['base64', 'url'] as const
-const INTEGRATION_RESPONSE_FORMAT_TYPE_OPTIONS = ['text', 'json_object', 'json_schema'] as const
 const INTEGRATION_BYTEPLUS_IMAGE_OUTPUT_FORMAT_OPTIONS = ['jpeg', 'png'] as const
 const INTEGRATION_BYTEPLUS_IMAGE_RESPONSE_FORMAT_OPTIONS = ['b64_json', 'url'] as const
 const INTEGRATION_BYTEPLUS_VIDEO_RATIO_OPTIONS = ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'] as const
@@ -285,12 +284,6 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       return {
         ...mappedMeta,
         options: [...INTEGRATION_BYTEPLUS_VIDEO_IMAGE_URL_KIND_OPTIONS],
-      }
-    }
-    if (rowKey === 'byteplusApi.response_format.type') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_RESPONSE_FORMAT_TYPE_OPTIONS],
       }
     }
     if (rowKey === 'byteplusImageApi.output_format') {
@@ -1052,6 +1045,8 @@ export function useSettingsView({
           [
             entry.details.area,
             entry.meta.key,
+            entry.valueKey,
+            displayKey,
             entry.typeLabel,
             typeof displayValue !== 'undefined' ? String(displayValue) : entry.value,
             entry.details.responsibility,

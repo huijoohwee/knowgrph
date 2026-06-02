@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
 
 export function formatConnectedValue(value: unknown): string {
   if (value == null) return ''
@@ -46,16 +46,17 @@ export const JsonLikeValueEditor = React.memo(function JsonLikeValueEditor(props
   }, [normalize, props.value, text])
 
   return (
-    <PlainTextInputEditor
+    <FlowEditorInlineValueEditor
       id={props.id}
       className={props.className}
       multiline
       value={text}
       placeholder={props.placeholder}
-      onChange={next => setText(next)}
-      onBlur={() => {
+      active={props.active}
+      onCommit={next => {
+        setText(next)
         if (!props.active) return
-        const raw = String(text || '')
+        const raw = String(next || '')
         if (!raw.trim()) {
           props.onCommit(undefined)
           return
@@ -75,7 +76,6 @@ export const JsonLikeValueEditor = React.memo(function JsonLikeValueEditor(props
           setText(lastNormalizedRef.current)
         }
       }}
-      disabled={!props.active}
     />
   )
 })

@@ -18,14 +18,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceGraphMutationBlocked, type WorkspaceGraphMutationState } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import {
-  collectCanonicalFlowEditorOverlayRectEntries,
   emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent,
   findFlowEditorOverlaySurfaceRoot,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   FLOW_EDITOR_INTERACTION_FRAME_EVENT,
-  isTransientOffscreenRichMediaOverlayRoot,
   queryFlowEditorOverlayRootsForSurface,
-  RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   computeBalancedSpreadBaseGapPx,
@@ -45,9 +42,12 @@ import {
 import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import {
+  hasUnplacedFlowEditorFloatingScreenAuthorityWidget,
   resolveEffectiveFlowWidgetPinnedInCanvas,
   shouldUseFlowEditorWidgetFloatingScreenAuthority,
 } from '@/lib/flowEditor/widgetPlacementAuthority'
+import { resolveFlowEditorGraphDataForNodeAuthority } from '@/lib/flowEditor/flowEditorGraphAuthority'
+import { collectActiveRichMediaWorldObstacles } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeRichMediaObstacles'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
@@ -469,7 +469,11 @@ export function useFlowEditorRuntimeScene(args: {
       const boundsIds = bounds?.ids || []
       if (!bounds || boundsIds.length <= 1) return true
       const st = useGraphStore.getState()
-      const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
+      const graphDataForSeeding = resolveFlowEditorGraphDataForNodeAuthority({
+        preferredGraphData: renderGraphDataOverrideRef.current,
+        authorityGraphData: (st.graphData || null) as GraphData | null,
+        nodeIds: args.openWidgetNodeIds,
+      })
       const graphRevisionForSeeding = readGraphDataRevision(graphDataForSeeding)
       const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
       const widgetPlacementContext = getCachedFlowEditorWidgetPlacementContext({
@@ -711,7 +715,11 @@ export function useFlowEditorRuntimeScene(args: {
   useIsomorphicLayoutEffect(() => {
     if (!args.active) return
     const st = useGraphStore.getState()
-    const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
+    const graphDataForSeeding = resolveFlowEditorGraphDataForNodeAuthority({
+      preferredGraphData: renderGraphDataOverrideRef.current,
+      authorityGraphData: (st.graphData || null) as GraphData | null,
+      nodeIds: args.openWidgetNodeIds,
+    })
     const nodeTypeById = new Map<string, string>()
     const graphNodes = Array.isArray(graphDataForSeeding?.nodes) ? graphDataForSeeding.nodes : []
     for (let i = 0; i < graphNodes.length; i += 1) {
@@ -727,6 +735,7 @@ export function useFlowEditorRuntimeScene(args: {
       preferCurrentGraphDataRefs: true,
     })
     const graphMetaKind = widgetPlacementContext?.graphMetaKind || null
+    const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
     const defaultPinnedInCanvas = widgetPlacementContext?.defaultPinnedInCanvas ?? true
     const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
     const pinnedById = resolveScopedFlowWidgetNodeMap({
@@ -792,7 +801,7 @@ export function useFlowEditorRuntimeScene(args: {
           ...activeSurfaceOverlayWidgetIds,
         ]))
       : (
-          graphMetaKind === 'frontmatter-flow'
+          isFrontmatterFlow
             ? Array.from(new Set([
                 ...Object.keys(worldById),
                 ...Object.keys(posById),
@@ -804,12 +813,14 @@ export function useFlowEditorRuntimeScene(args: {
         )
     if (effectiveOrFallbackOpenIds.length === 0) return
     const activeSurfaceOverlayWidgetIdSet = new Set(activeSurfaceOverlayWidgetIds)
+    const effectiveOrFallbackOpenIdSet = new Set(effectiveOrFallbackOpenIds)
     const runtimeSceneNodeCount = (() => {
       const nodes = flowRuntimeRefRef.current?.current?.scene?.nodes
       return Array.isArray(nodes) ? nodes.length : 0
     })()
-    const partitionedFrontmatterRuntimeScene = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow' && graphNodes.length > 0
-    const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow' && !partitionedFrontmatterRuntimeScene
+    const renderGraphNodeCount = Array.isArray(renderGraphDataOverrideRef.current?.nodes) ? renderGraphDataOverrideRef.current.nodes.length : graphNodes.length
+    const partitionedFrontmatterRuntimeScene = runtimeSceneNodeCount <= 0 && isFrontmatterFlow && renderGraphNodeCount > 0
+    const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && isFrontmatterFlow && !partitionedFrontmatterRuntimeScene
 
     const pendingRaw = effectiveOrFallbackOpenIds
       .map(id => String(id || '').trim())
@@ -844,7 +855,6 @@ export function useFlowEditorRuntimeScene(args: {
         || Math.abs(Number.isFinite(persistedZoom.x) ? persistedZoom.x : 0) > 0.5
         || Math.abs(Number.isFinite(persistedZoom.y) ? persistedZoom.y : 0) > 0.5
       )
-    const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
     const workspaceMutationBlockedForSeed = isWorkspaceGraphMutationBlocked(st)
     const layoutRebalanceRequestAt =
       args.flowEditorLayoutRebalanceRequest?.type === 'balanced-spread'
@@ -910,6 +920,14 @@ export function useFlowEditorRuntimeScene(args: {
     )
       .filter((id, index, arr) => arr.indexOf(id) === index)
       .sort((a, b) => a.localeCompare(b))
+    const frontmatterHasUnplacedScreenAuthorityWidget = hasUnplacedFlowEditorFloatingScreenAuthorityWidget({
+      graphMetaKind,
+      nodeIds: pinnedOpenIds,
+      nodeTypeById,
+      pinnedByNodeId: placementPinnedById,
+      worldPosByNodeId: worldById,
+      screenPosByNodeId: posById,
+    })
     const useViewportOnlyBucket = isFrontmatterFlow || pinnedOpenIds.length >= 12
     const panelScale = computeCollectiveFollowPinnedScale({
       zoomK,
@@ -953,38 +971,16 @@ export function useFlowEditorRuntimeScene(args: {
           maxX: (visibleViewport.right - horizontalMargin - zoomX) / safeZoomK,
           maxY: (visibleViewport.bottom - verticalMargin - zoomY) / safeZoomK,
         }
-    const activeRichMediaWorldObstacles = (() => {
-      if (typeof document === 'undefined') return []
-      const surfaceRoot = findFlowEditorOverlaySurfaceRoot(args.flowEditorSurfaceId)
-      const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
-      const surfaceOffsetLeft = surfaceRect && Number.isFinite(surfaceRect.left) ? Number(surfaceRect.left) : 0
-      const surfaceOffsetTop = surfaceRect && Number.isFinite(surfaceRect.top) ? Number(surfaceRect.top) : 0
-      const richMediaEls = queryFlowEditorOverlayRootsForSurface({
-        surfaceId: args.flowEditorSurfaceId,
-        selector: RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
-      })
-      const entries = collectCanonicalFlowEditorOverlayRectEntries(richMediaEls)
-      const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
-      for (let i = 0; i < entries.length; i += 1) {
-        const entry = entries[i]!
-        const rect = entry.rect
-        if (!rect || isTransientOffscreenRichMediaOverlayRoot(entry.el, rect)) continue
-        const screenLeft = Number(rect.left) - surfaceOffsetLeft
-        const screenTop = Number(rect.top) - surfaceOffsetTop
-        const screenRight = Number(rect.right) - surfaceOffsetLeft
-        const screenBottom = Number(rect.bottom) - surfaceOffsetTop
-        if (!Number.isFinite(screenLeft) || !Number.isFinite(screenTop) || !Number.isFinite(screenRight) || !Number.isFinite(screenBottom)) continue
-        const left = (screenLeft - zoomX) / safeZoomK
-        const top = (screenTop - zoomY) / safeZoomK
-        const right = (screenRight - zoomX) / safeZoomK
-        const bottom = (screenBottom - zoomY) / safeZoomK
-        const width = right - left
-        const height = bottom - top
-        if (!(width > 0) || !(height > 0)) continue
-        obstacles.push({ id: `rich-media:${entry.id}`, left, top, width, height })
-      }
-      return obstacles
-    })()
+    const activeRichMediaWorldObstacles = collectActiveRichMediaWorldObstacles({
+      flowEditorSurfaceId: args.flowEditorSurfaceId,
+      skipAll: frontmatterHasUnplacedScreenAuthorityWidget,
+      isFrontmatterFlow,
+      effectiveOrFallbackOpenIdSet,
+      resolveActiveSurfaceOverlayWidgetId,
+      zoomX,
+      zoomY,
+      zoomK,
+    })
     const seedCollisionSchema = (args.schema || defaultSchema) as GraphSchema
     const overlapsSeedRect = (
       a: { left: number; top: number; width: number; height: number },
@@ -1273,7 +1269,11 @@ export function useFlowEditorRuntimeScene(args: {
     })()
     const forcedLayoutRebalanceIds = layoutRebalanceRequested ? pinnedOpenIds : []
     const forcedInitialCollectiveIds =
-      initialCollectiveCenteringPass && pendingRaw.length > 0 && pinnedOpenIds.length > 1
+      initialCollectiveCenteringPass
+      && (
+        (pendingRaw.length > 0 && pinnedOpenIds.length > 1)
+        || frontmatterHasUnplacedScreenAuthorityWidget
+      )
         ? pinnedOpenIds
         : []
     let pending = Array.from(new Set([
@@ -1442,7 +1442,7 @@ export function useFlowEditorRuntimeScene(args: {
       markLayoutRebalanceHandled()
       return
     }
-    const hasMissingWorldSeeds = pendingRaw.length > 0
+    const hasMissingWorldSeeds = pendingRaw.length > 0 || frontmatterHasUnplacedScreenAuthorityWidget
     const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed || layoutRebalanceRequested
     if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) {
       markLayoutRebalanceHandled()

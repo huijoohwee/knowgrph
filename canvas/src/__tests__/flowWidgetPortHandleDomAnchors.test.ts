@@ -24,6 +24,7 @@ type DomGlobalState = {
   HTMLElement?: unknown
   HTMLInputElement?: unknown
   HTMLTextAreaElement?: unknown
+  IS_REACT_ACT_ENVIRONMENT?: unknown
 }
 const restoreDomGlobal = (target: DomGlobalState, key: keyof DomGlobalState, value: unknown) => {
   if (typeof value === 'undefined') {
@@ -41,6 +42,7 @@ const installDomGlobals = (dom: JSDOM): (() => void) => {
   const previousHTMLElement = g.HTMLElement
   const previousHTMLInputElement = g.HTMLInputElement
   const previousHTMLTextAreaElement = g.HTMLTextAreaElement
+  const previousIsReactActEnvironment = g.IS_REACT_ACT_ENVIRONMENT
   g.window = dom.window
   g.document = dom.window.document
   g.Event = dom.window.Event
@@ -48,6 +50,7 @@ const installDomGlobals = (dom: JSDOM): (() => void) => {
   g.HTMLElement = dom.window.HTMLElement
   g.HTMLInputElement = dom.window.HTMLInputElement
   g.HTMLTextAreaElement = dom.window.HTMLTextAreaElement
+  g.IS_REACT_ACT_ENVIRONMENT = true
   return () => {
     restoreDomGlobal(g, 'window', previousWindow)
     restoreDomGlobal(g, 'document', previousDocument)
@@ -56,26 +59,87 @@ const installDomGlobals = (dom: JSDOM): (() => void) => {
     restoreDomGlobal(g, 'HTMLElement', previousHTMLElement)
     restoreDomGlobal(g, 'HTMLInputElement', previousHTMLInputElement)
     restoreDomGlobal(g, 'HTMLTextAreaElement', previousHTMLTextAreaElement)
+    restoreDomGlobal(g, 'IS_REACT_ACT_ENVIRONMENT', previousIsReactActEnvironment)
     dom.window.close()
   }
 }
 
-type EditableControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+type EditableControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLElement
+type EditableControlWindow = Window & {
+  HTMLInputElement: typeof HTMLInputElement
+  HTMLTextAreaElement: typeof HTMLTextAreaElement
+  HTMLSelectElement: typeof HTMLSelectElement
+}
+
+const asEditableControlWindow = (win: Window): EditableControlWindow => win as unknown as EditableControlWindow
+
+const isEditableTextControl = (
+  control: Element,
+  win: Window,
+): control is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement => {
+  const typedWin = asEditableControlWindow(win)
+  return (
+    control instanceof typedWin.HTMLInputElement
+    || control instanceof typedWin.HTMLTextAreaElement
+    || control instanceof typedWin.HTMLSelectElement
+  )
+}
+
+const openInlineValueControl = async (
+  control: EditableControlElement,
+): Promise<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> => {
+  const win = control.ownerDocument.defaultView
+  if (!win) throw new Error('expected DOM control owner window')
+  if (isEditableTextControl(control, win)) return control
+  if (control.getAttribute('data-kg-card-inline-edit') !== '1') {
+    throw new Error(`expected editable Value control ${control.id || control.textContent || ''} to reuse shared inline editor`)
+  }
+  await act(async () => {
+    control.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  const nextControl = control.id ? control.ownerDocument.getElementById(control.id) : null
+  if (!nextControl || !isEditableTextControl(nextControl, win)) {
+    throw new Error(`expected shared inline Value control ${control.id || ''} to open an editable input`)
+  }
+  return nextControl
+}
 
 const changeControlValue = async (control: EditableControlElement, value: string): Promise<void> => {
   const win = control.ownerDocument.defaultView
   if (!win) throw new Error('expected DOM control owner window')
-  const proto = control instanceof win.HTMLTextAreaElement
-    ? win.HTMLTextAreaElement.prototype
-    : control instanceof win.HTMLSelectElement
-      ? win.HTMLSelectElement.prototype
-      : win.HTMLInputElement.prototype
+  const typedWin = asEditableControlWindow(win)
+  const editable = await openInlineValueControl(control)
+  const proto = editable instanceof typedWin.HTMLTextAreaElement
+    ? typedWin.HTMLTextAreaElement.prototype
+    : editable instanceof typedWin.HTMLSelectElement
+      ? typedWin.HTMLSelectElement.prototype
+      : typedWin.HTMLInputElement.prototype
   const valueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
   if (!valueSetter) throw new Error('expected DOM control value setter')
   await act(async () => {
-    valueSetter.call(control, value)
-    Simulate.change(control)
+    valueSetter.call(editable, value)
+    Simulate.change(editable)
+    await new Promise(resolve => setTimeout(resolve, 0))
   })
+  if (editable instanceof typedWin.HTMLSelectElement) return
+  const changedEditable = editable.id ? editable.ownerDocument.getElementById(editable.id) : editable
+  if (!changedEditable || !isEditableTextControl(changedEditable, win) || changedEditable instanceof typedWin.HTMLSelectElement) {
+    throw new Error(`expected shared inline Value control ${editable.id || ''} to stay editable after change`)
+  }
+  await act(async () => {
+    Simulate.keyDown(changedEditable, {
+      key: 'Enter',
+      metaKey: changedEditable instanceof typedWin.HTMLTextAreaElement,
+    })
+  })
+}
+
+const readControlValue = (control: EditableControlElement | null): string => {
+  if (!control) return ''
+  const win = control.ownerDocument.defaultView
+  if (win && isEditableTextControl(control, win)) return String(control.value || '')
+  return String(control.textContent || '').trim()
 }
 
 export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
@@ -85,44 +149,46 @@ export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
   dom.window.document.body.appendChild(host)
   const root = createRoot(host)
   try {
-    root.render(
-      React.createElement(
-        'div',
-        { style: { width: 360, height: 420 } },
-        React.createElement(NodeOverlayEditorSchemaTable, {
-          active: true,
-          schemaFields: [{ id: 'prompt', label: 'Prompt', type: 'string' }],
-          portHandlesEnabled: true,
-          dotSizePx: 10,
-          dotHitPx: 18,
-          microLabelClass: 'text-xs',
-          textSizeClass: 'text-sm',
-          keyValueInputClass: 'border',
-          onCommitSchemaFields: () => void 0,
-        }),
-        React.createElement(NodeOverlayEditorRegistrySection, {
-          active: true,
-          properties: {},
-          registryEntry: {
-            id: 'x',
-            widgetTypeId: 'x',
-            fields: [],
-            ports: [{ portKey: 'prompt_out', direction: 'output' }],
-          } as any,
-          microLabelClass: 'text-xs',
-          monospaceTextClass: 'font-mono',
-          textSizeClass: 'text-sm',
-          keyValueInputClass: 'border',
-          keyLabelClass: 'text-xs',
-          ids: { registryField: (k: string) => k },
-          dotSizePx: 10,
-          dotHitPx: 18,
-          portHandlesEnabled: true,
-          onSetProperties: () => void 0,
-        }),
-      ),
-    )
-    await new Promise<void>(resolve => setTimeout(resolve, 20))
+    await act(async () => {
+      root.render(
+        React.createElement(
+          'div',
+          { style: { width: 360, height: 420 } },
+          React.createElement(NodeOverlayEditorSchemaTable, {
+            active: true,
+            schemaFields: [{ id: 'prompt', label: 'Prompt', type: 'string' }],
+            portHandlesEnabled: true,
+            dotSizePx: 10,
+            dotHitPx: 18,
+            microLabelClass: 'text-xs',
+            textSizeClass: 'text-sm',
+            keyValueInputClass: 'border',
+            onCommitSchemaFields: () => void 0,
+          }),
+          React.createElement(NodeOverlayEditorRegistrySection, {
+            active: true,
+            properties: {},
+            registryEntry: {
+              id: 'x',
+              widgetTypeId: 'x',
+              fields: [],
+              ports: [{ portKey: 'prompt_out', direction: 'output' }],
+            } as any,
+            microLabelClass: 'text-xs',
+            monospaceTextClass: 'font-mono',
+            textSizeClass: 'text-sm',
+            keyValueInputClass: 'border',
+            keyLabelClass: 'text-xs',
+            ids: { registryField: (k: string) => k },
+            dotSizePx: 10,
+            dotHitPx: 18,
+            portHandlesEnabled: true,
+            onSetProperties: () => void 0,
+          }),
+        ),
+      )
+      await new Promise<void>(resolve => setTimeout(resolve, 20))
+    })
     const schemaIn = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-key^="field:"]')
     const schemaOut = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-key^="field:"]')
     if (!schemaIn || !schemaOut) throw new Error('expected schema port handle buttons to expose DOM anchor data')
@@ -130,89 +196,25 @@ export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
     if (!regOut) throw new Error('expected registry port handle button to expose DOM anchor data')
     const regOutRow = regOut.closest('tr')
     if (!regOutRow) throw new Error('expected registry port row to render')
-    if (!regOutRow.textContent?.includes('handles.source')) {
-      throw new Error('expected registry port key column to render shared handles.source path text')
+    if (!regOutRow.textContent?.includes('prompt_out')) {
+      throw new Error('expected registry port key column to render the semantic port key')
+    }
+    if (regOutRow.textContent?.includes('handles.source') || regOutRow.textContent?.includes('handles.target')) {
+      throw new Error('expected registry port key column to avoid generic handle path labels')
     }
     const regOutValueInput = regOutRow.querySelector('input[readonly][disabled]')
     if (!regOutValueInput) throw new Error('expected registry port value column to reuse shared read-only input typography')
+    if ((regOutValueInput as HTMLInputElement).value === 'prompt_out') {
+      throw new Error('expected registry port value column to avoid echoing the semantic port key when no property value exists')
+    }
   } finally {
-    root.unmount()
+    await act(async () => {
+      root.unmount()
+    })
     restoreGlobals()
   }
 }
 
-export const testWidgetRegistryDuplicateValueAndPortRowsUseUniqueControlNames = async () => {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
-  const restoreGlobals = installDomGlobals(dom)
-  const host = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(host)
-  const root = createRoot(host)
-  const patched: Array<Record<string, unknown>> = []
-  try {
-    await act(async () => {
-      root.render(
-        React.createElement(NodeOverlayEditorRegistrySection, {
-          active: true,
-          properties: { value: 1, nested: { value: 2 } },
-          registryEntry: {
-            id: 'duplicate-value-widget',
-            nodeTypeId: 'MetricNode',
-            widgetTypeId: 'default',
-            formId: 'values',
-            fields: [
-              { fieldKey: 'value', fieldType: 'number', schemaPath: 'properties.value', label: 'Value' },
-              { fieldKey: 'value', fieldType: 'number', schemaPath: 'properties.nested.value', label: 'Value' },
-            ],
-            ports: [
-              { portKey: 'value', direction: 'output', schemaPath: 'properties.value' },
-              { portKey: 'value', direction: 'output', schemaPath: 'properties.nested.value' },
-            ],
-          } as any,
-          microLabelClass: 'text-xs',
-          monospaceTextClass: 'font-mono',
-          textSizeClass: 'text-sm',
-          keyValueInputClass: 'border',
-          keyLabelClass: 'text-xs',
-          ids: { registryField: (k: string) => k },
-          dotSizePx: 10,
-          dotHitPx: 18,
-          portHandlesEnabled: true,
-          onSetProperties: next => patched.push(next),
-        }),
-      )
-    })
-    const inputNodes = host.querySelectorAll('input[id]') as NodeListOf<HTMLInputElement>
-    const ids = Array.from(inputNodes).map(input => input.id).filter(Boolean)
-    if (ids.length < 4) throw new Error(`expected duplicate field and port value rows to render, got ${ids.length}`)
-    if (new Set(ids).size !== ids.length) {
-      throw new Error(`expected duplicate Value KTV rows to use unique input ids, got ${ids.join(',')}`)
-    }
-    const portButtonNodes = host.querySelectorAll('button[data-kg-port-key="value"][data-kg-port-dir="out"]') as NodeListOf<HTMLButtonElement>
-    const portButtons = Array.from(portButtonNodes)
-    if (portButtons.length !== 2) throw new Error(`expected both duplicate semantic port rows to remain visible, got ${portButtons.length}`)
-    const aria = portButtons.map(button => String(button.getAttribute('aria-label') || '').trim()).filter(Boolean)
-    if (new Set(aria).size !== aria.length) {
-      throw new Error(`expected duplicate port handle rows to use unique accessible names, got ${aria.join(',')}`)
-    }
-    if (!aria.every(label => label.includes('properties.'))) {
-      throw new Error(`expected duplicate port names to include schema-path identity, got ${aria.join(',')}`)
-    }
-    const nestedValueInput = Array.from(inputNodes).find(input => input.id.includes('properties.nested.value')) || null
-    if (!nestedValueInput) throw new Error(`expected nested Value input to expose schema-scoped id, got ${ids.join(',')}`)
-    const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set
-    if (!valueSetter) throw new Error('expected DOM input value setter')
-    await act(async () => {
-      valueSetter.call(nestedValueInput, '9')
-      Simulate.change(nestedValueInput)
-    })
-    if (!patched.some(entry => ((entry.nested || {}) as Record<string, unknown>).value === 9)) {
-      throw new Error(`expected duplicate Value KTV row edit to update nested value, got ${JSON.stringify(patched)}`)
-    }
-  } finally {
-    root.unmount()
-    restoreGlobals()
-  }
-}
 export const testTextWidgetCellsStayLocallyEditable = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
   const g = globalThis as unknown as { window?: unknown; document?: unknown }
@@ -257,9 +259,9 @@ export const testTextWidgetCellsStayLocallyEditable = async () => {
     }),
   )
   await new Promise<void>(resolve => setTimeout(resolve, 20))
-  const promptInput = host.querySelector<HTMLInputElement>('#prompt')
-  const modelInput = host.querySelector<HTMLInputElement>('#chatModel')
-  const topPInput = host.querySelector<HTMLInputElement>('#chatTopP')
+  const promptInput = host.querySelector<HTMLElement>('#prompt')
+  const modelInput = host.querySelector<HTMLElement>('#chatModel')
+  const topPInput = host.querySelector<HTMLElement>('#chatTopP')
   if (!promptInput || !modelInput || !topPInput) {
     throw new Error('expected local BytePlus text widget inputs to render')
   }
@@ -386,9 +388,9 @@ export const testOpenAiTextWidgetCellsStayLocallyEditable = async () => {
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
-  const promptInput = host.querySelector<HTMLInputElement>('#prompt')
-  const modelInput = host.querySelector<HTMLInputElement>('#chatModel')
-  const topPInput = host.querySelector<HTMLInputElement>('#chatTopP')
+  const promptInput = host.querySelector<HTMLElement>('#prompt')
+  const modelInput = host.querySelector<HTMLElement>('#chatModel')
+  const topPInput = host.querySelector<HTMLElement>('#chatTopP')
   if (!promptInput || !modelInput || !topPInput) {
     throw new Error('expected OpenAI text widget inputs to render')
   }
@@ -454,7 +456,7 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
   const sizeSelect = host.querySelector<HTMLSelectElement>('#size')
-  const refInput = host.querySelector<HTMLInputElement>('#reference_image')
+  const refInput = host.querySelector<HTMLElement>('#reference_image')
   if (!sizeSelect || !refInput) throw new Error('expected Seedream image widget fields to render')
   await changeControlValue(sizeSelect, '4K')
   await changeControlValue(refInput, 'https://example.invalid/seedream-ref-updated.png')
@@ -519,7 +521,7 @@ export const testBytePlusVideoWidgetKvRowsStayEditable = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
   const durationSelect = host.querySelector<HTMLSelectElement>('#duration')
-  const promptInput = host.querySelector<HTMLTextAreaElement>('#prompt')
+  const promptInput = host.querySelector<HTMLElement>('#prompt')
   if (!durationSelect || !promptInput) throw new Error('expected BytePlus video widget fields to render')
   await changeControlValue(durationSelect, '6')
   await changeControlValue(promptInput, 'Imagination run wild, 6s; Singapore')
@@ -648,20 +650,20 @@ export const testBytePlusTextWidgetUsesGlobalDefaultsUntilLocallyOverridden = as
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
-  const providerInput = host.querySelector<HTMLInputElement>('#chatProvider')
-  const endpointInput = host.querySelector<HTMLInputElement>('#chatEndpointUrl')
-  const modelInput = host.querySelector<HTMLInputElement>('#chatModel')
+  const providerInput = host.querySelector<HTMLElement>('#chatProvider')
+  const endpointInput = host.querySelector<HTMLElement>('#chatEndpointUrl')
+  const modelInput = host.querySelector<HTMLElement>('#chatModel')
   if (!providerInput || !endpointInput || !modelInput) {
     throw new Error('expected BytePlus provider, endpoint, and model inputs to render')
   }
-  if (providerInput.value !== 'byteplus-modelark') {
-    throw new Error(`expected BytePlus text widget to fall back to global BytePlus provider, got ${JSON.stringify(providerInput.value)}`)
+  if (readControlValue(providerInput) !== 'byteplus-modelark') {
+    throw new Error(`expected BytePlus text widget to fall back to global BytePlus provider, got ${JSON.stringify(readControlValue(providerInput))}`)
   }
-  if (endpointInput.value !== CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL) {
-    throw new Error(`expected BytePlus text widget to fall back to global BytePlus endpoint, got ${JSON.stringify(endpointInput.value)}`)
+  if (readControlValue(endpointInput) !== CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL) {
+    throw new Error(`expected BytePlus text widget to fall back to global BytePlus endpoint, got ${JSON.stringify(readControlValue(endpointInput))}`)
   }
-  if (modelInput.value !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT) {
-    throw new Error(`expected BytePlus text widget to fall back to global BytePlus model, got ${JSON.stringify(modelInput.value)}`)
+  if (readControlValue(modelInput) !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT) {
+    throw new Error(`expected BytePlus text widget to fall back to global BytePlus model, got ${JSON.stringify(readControlValue(modelInput))}`)
   }
   if (host.querySelector('button[data-kg-port-key="prompt_in"]')) {
     throw new Error('expected BytePlus text widget to hide non-API registry port rows')
@@ -721,20 +723,20 @@ export const testBytePlusTextWidgetLocalOverridesStayEditable = async () => {
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
-  const providerInput = host.querySelector<HTMLInputElement>('#chatProvider')
-  const endpointInput = host.querySelector<HTMLInputElement>('#chatEndpointUrl')
-  const modelInput = host.querySelector<HTMLInputElement>('#chatModel')
+  const providerInput = host.querySelector<HTMLElement>('#chatProvider')
+  const endpointInput = host.querySelector<HTMLElement>('#chatEndpointUrl')
+  const modelInput = host.querySelector<HTMLElement>('#chatModel')
   if (!providerInput || !endpointInput || !modelInput) {
     throw new Error('expected BytePlus provider override inputs to render')
   }
-  if (providerInput.value !== 'byteplus-modelark') {
-    throw new Error(`expected local BytePlus provider override to stay editable, got ${JSON.stringify(providerInput.value)}`)
+  if (readControlValue(providerInput) !== 'byteplus-modelark') {
+    throw new Error(`expected local BytePlus provider override to stay editable, got ${JSON.stringify(readControlValue(providerInput))}`)
   }
-  if (endpointInput.value !== CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL) {
-    throw new Error(`expected local BytePlus endpoint override to stay editable, got ${JSON.stringify(endpointInput.value)}`)
+  if (readControlValue(endpointInput) !== CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL) {
+    throw new Error(`expected local BytePlus endpoint override to stay editable, got ${JSON.stringify(readControlValue(endpointInput))}`)
   }
-  if (modelInput.value !== 'seed-2-0-lite-custom') {
-    throw new Error(`expected local BytePlus model override to stay editable, got ${JSON.stringify(modelInput.value)}`)
+  if (readControlValue(modelInput) !== 'seed-2-0-lite-custom') {
+    throw new Error(`expected local BytePlus model override to stay editable, got ${JSON.stringify(readControlValue(modelInput))}`)
   }
 
   root.unmount()

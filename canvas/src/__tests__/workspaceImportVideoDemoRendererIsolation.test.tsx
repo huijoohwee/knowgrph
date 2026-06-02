@@ -15,10 +15,10 @@ import { LS_KEYS } from '@/lib/config'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, readDocsSsotFixtureText } from '@/tests/lib/docsSsotFixture'
+import { assertFlowWidgetStateScopedToEligibleIds } from '@/tests/lib/flowWidgetStateScopeAssert'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
-
 type NonFlowEditorRenderer = 'd3' | 'flowchart' | 'flow' | 'design'
 
 const ALL_NON_FLOW_EDITOR_RENDERERS: NonFlowEditorRenderer[] = ['d3', 'flowchart', 'flow', 'design']
@@ -811,7 +811,7 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
       )
     }
 
-    await waitForBalancedFit()
+    await waitForBalancedFit(); assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: 'expected source-files Flow Editor widget state to stay on graph-owned node ids' })
   } finally {
     try {
       restoreElementRect?.()

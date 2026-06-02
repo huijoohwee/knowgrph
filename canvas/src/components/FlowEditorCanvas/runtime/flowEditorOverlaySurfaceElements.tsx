@@ -13,7 +13,6 @@ import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
-import { readCanonicalFlowEditorOverlayIdentity } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { orderFlowEditorOverlayNodeIdsByRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayNodeOrder'
 
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
@@ -38,8 +37,7 @@ export function resolveFlowEditorOverlayElementIdentity(args: {
       renderNodeId: concreteNodeId || id,
     }
   }
-  const canonicalId = readCanonicalFlowEditorOverlayIdentity(overlayNodeId || concreteNodeId)
-  const renderNodeId = canonicalId || overlayNodeId || concreteNodeId
+  const renderNodeId = concreteNodeId || overlayNodeId
   return {
     overlayIdentityId: renderNodeId,
     actionNodeId: concreteNodeId || overlayNodeId || renderNodeId,

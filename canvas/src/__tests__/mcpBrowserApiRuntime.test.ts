@@ -57,6 +57,56 @@ export async function testKnowgrphMcpBrowserBridgeBlocksRemoteRuntimeByDefault()
   }
 }
 
+export async function testKnowgrphMcpBrowserBridgeRejectsUnsafeBrowserTargetUrlsBeforeFetch() {
+  let fetchCalled = false
+  await withMockedFetch((async () => {
+    fetchCalled = true
+    throw new Error('fetch should not run for rejected browser target URLs')
+  }) as typeof fetch, async () => {
+    const runtime = await importBrowserApiRuntime()
+    const cases: Array<{ args: Record<string, unknown>; expected: string }> = [
+      {
+        args: {
+          operation: 'go',
+          targetUrl: 'javascript:alert(1)',
+          dryRun: false,
+          confirmUnsafe: true,
+        },
+        expected: 'http or https',
+      },
+      {
+        args: {
+          operation: 'markdown',
+          payload: { url: 'file:///etc/passwd' },
+        },
+        expected: 'http or https',
+      },
+      {
+        args: {
+          operation: 'resolve',
+          targetUrl: 'https://user:pass@example.com/account',
+        },
+        expected: 'embedded credentials',
+      },
+    ]
+
+    for (const testCase of cases) {
+      let message = ''
+      try {
+        await runtime.callBrowserApiRuntime(testCase.args)
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error)
+      }
+      if (!message.includes(testCase.expected)) {
+        throw new Error(`expected browser target URL policy message to include ${JSON.stringify(testCase.expected)}, got ${JSON.stringify(message)}`)
+      }
+    }
+  })
+  if (fetchCalled) {
+    throw new Error('expected rejected browser target URLs to fail before fetch')
+  }
+}
+
 export async function testKnowgrphMcpBrowserBridgeRequiresCookieImportConfirmation() {
   const runtime = await importBrowserApiRuntime()
   if (!runtime.BROWSER_API_TOOL.inputSchema.properties.operation.enum.includes('cookieImport')) {
@@ -114,6 +164,45 @@ export async function testKnowgrphMcpBrowserBridgeRequiresCookieImportConfirmati
   })
   if (fetchCalls !== 1) {
     throw new Error(`expected exactly one confirmed cookieImport fetch, got ${fetchCalls}`)
+  }
+}
+
+export async function testKnowgrphMcpBrowserBridgeAllowsLoopbackBrowserTargetUrls() {
+  const runtime = await importBrowserApiRuntime()
+  let fetchCalls = 0
+  await withMockedFetch((async (input: RequestInfo | URL, init?: RequestInit) => {
+    fetchCalls += 1
+    const endpoint = String(input)
+    const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+    if (!endpoint.endsWith('/v1/browser/go')) {
+      throw new Error(`expected go endpoint, got ${endpoint}`)
+    }
+    if (body.url !== 'http://127.0.0.1:5174/?openEditorWorkspace=1#flow') {
+      throw new Error(`expected loopback browser target URL to pass through normalized, got ${JSON.stringify(body)}`)
+    }
+    if (body.dry_run !== false || body.confirm_unsafe !== true) {
+      throw new Error(`expected live go body to carry safety flags, got ${JSON.stringify(body)}`)
+    }
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => JSON.stringify({ ok: true }),
+    } as Response
+  }) as typeof fetch, async () => {
+    const result = await runtime.callBrowserApiRuntime({
+      operation: 'go',
+      targetUrl: 'http://127.0.0.1:5174/?openEditorWorkspace=1#flow',
+      dryRun: false,
+      confirmUnsafe: true,
+    })
+    const output = result.content.map(item => item.text).join('\n')
+    if (!output.includes('Operation: go') || !output.includes('/v1/browser/go')) {
+      throw new Error(`expected loopback go output to include operation and endpoint, got ${JSON.stringify(output)}`)
+    }
+  })
+  if (fetchCalls !== 1) {
+    throw new Error(`expected exactly one loopback go fetch, got ${fetchCalls}`)
   }
 }
 

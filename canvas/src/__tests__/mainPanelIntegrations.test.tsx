@@ -11,7 +11,7 @@ import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
-import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames as waitForFramesShared } from '@/tests/lib/reactRootHarness'
+import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames as waitForFramesShared, waitForTasks as waitForTasksShared } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { PROPS_PANEL_OPEN_EVENT, FLOATING_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
@@ -710,11 +710,11 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
 
     useGraphStore.getState().resetAll()
 
-    const doc = dom.window.document
-    const container = doc.createElement('div')
-    doc.body.appendChild(container)
+    const container = dom.window.document.createElement('div')
+    dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 4)
+    await act(async () => { await waitForTasksShared(4); await waitForFrames(anyWindow.requestAnimationFrame, 2) })
 
     const text = container.textContent || ''
     ;[
@@ -870,9 +870,9 @@ export function testKnowgrphMcpServerExposesApiNativeBrowserBridge() {
     }
   })
   ;[
-    'knowgrph.browser_api.run',
     'BROWSER_API_TOOL',
-    'KNOWGRPH_LOCAL_MCP_TOOL_NAMES',
+    'SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES',
+    'export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES',
   ].forEach(token => {
     if (!localToolContractText.includes(token)) {
       throw new Error(`expected Knowgrph local MCP tool contract to expose browser bridge token ${JSON.stringify(token)}`)

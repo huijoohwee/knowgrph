@@ -9,6 +9,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 type CardInlineTextEditActivation = 'doubleClick' | 'click'
 
 type CardInlineTextEditorProps = {
+  id?: string
   value: string
   ariaLabel: string
   placeholder: string
@@ -27,8 +28,17 @@ type CardInlineTextEditorProps = {
 
 const normalizeEditorValue = (value: string): string => String(value ?? '').replace(/\r/g, '')
 
+const isElementEventTarget = (target: EventTarget | null): target is Element => {
+  const elementCtor = target && 'ownerDocument' in target
+    ? (target as { ownerDocument?: Document | null }).ownerDocument?.defaultView?.Element
+    : typeof Element !== 'undefined'
+      ? Element
+      : null
+  return !!elementCtor && target instanceof elementCtor
+}
+
 const shouldIgnoreInlineEditTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof Element)) return false
+  if (!isElementEventTarget(target)) return false
   return !!target.closest([
     'button',
     'select',
@@ -44,6 +54,7 @@ const shouldIgnoreInlineEditTarget = (target: EventTarget | null): boolean => {
 
 export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(props: CardInlineTextEditorProps) {
   const {
+    id,
     value,
     ariaLabel,
     placeholder,
@@ -74,6 +85,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     if (!editing) return
     const input = inputRef.current
     if (!input) return
+    const legacyFocusTarget = input as unknown as { attachEvent?: unknown; detachEvent?: unknown }
+    if (typeof legacyFocusTarget.attachEvent !== 'function') legacyFocusTarget.attachEvent = () => void 0
+    if (typeof legacyFocusTarget.detachEvent !== 'function') legacyFocusTarget.detachEvent = () => void 0
     input.focus()
     if ('selectionStart' in input && typeof input.value === 'string') {
       const end = input.value.length
@@ -100,7 +114,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   }, [editing, onEditingChange])
 
   const commit = React.useCallback(() => {
-    const next = normalizeEditorValue(draft)
+    const next = normalizeEditorValue(inputRef.current?.value ?? draft)
     setEditing(false)
     if (next === normalizeEditorValue(value)) return
     onCommit?.(next)
@@ -130,6 +144,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   if (editing && canEdit) {
     return (
       <PlainTextInputEditor
+        id={id}
         ref={inputRef}
         value={draft}
         onChange={setDraft}
@@ -168,12 +183,14 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
 
   return (
     <div
+      id={id}
       className={[
         displayClassName || '',
         canEdit ? 'cursor-text' : '',
         showPlaceholder ? emptyClassName || `${UI_THEME_TOKENS.text.tertiary} italic` : '',
       ].join(' ').trim()}
       title={showPlaceholder ? placeholder : displayValue}
+      aria-label={ariaLabel}
       data-kg-card-inline-edit="1"
       data-kg-card-inline-edit-activation={editActivation}
       onDoubleClick={event => {

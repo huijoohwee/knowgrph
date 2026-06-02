@@ -44,7 +44,10 @@ import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/ru
 import { orderFlowEditorOverlayNodeIdsByRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayNodeOrder'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
-import { resolveEffectiveFlowWidgetPinnedInCanvas } from '@/lib/flowEditor/widgetPlacementAuthority'
+import {
+  areFlowEditorWidgetOverlaysOwnedByFloatingScreenAuthority,
+  resolveEffectiveFlowWidgetPinnedInCanvas,
+} from '@/lib/flowEditor/widgetPlacementAuthority'
 
 function hasOverlap(
   a: { left: number; top: number; width?: number; height?: number },
@@ -258,13 +261,14 @@ export function useFlowEditorOverlayCollision(args: {
         resetOverlayCollisionTransientState(true)
         return
       }
-      const frontmatterScreenAuthorityOwnedByPlacementRuntime = isFrontmatterFlow && overlayOnlyModeEnabled
+      const st = useGraphStore.getState()
+      const pinnedById = resolveScopedFlowWidgetNodeMap({ graphMetaKey: graphKey, keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey, globalByNodeId: st.flowWidgetPinnedByNodeId })
+      const frontmatterScreenAuthorityOwnedByPlacementRuntime = areFlowEditorWidgetOverlaysOwnedByFloatingScreenAuthority({ graphMetaKind: graphKind, nodeIds: overlayNodeIds, nodeById, pinnedByNodeId: pinnedById })
       if (frontmatterScreenAuthorityOwnedByPlacementRuntime) {
         resetOverlayCollisionTransientState(true)
         return
       }
 
-      const st = useGraphStore.getState()
       if (st.flowWidgetDraggingNodeId) return
       const liveZoom = getLiveZoomTransform()
       const zoomKRaw =
@@ -346,11 +350,6 @@ export function useFlowEditorOverlayCollision(args: {
       const offT = Number.isFinite(canvasOffset.top) ? Math.round(canvasOffset.top * 10) / 10 : 0
       const widgetGrid = readWidgetGridLayoutSettings(schema)
       const overlayNodeIdsKey = hashScopedStringArraySignature('overlay-collision-node-ids', overlayNodeIds)
-      const pinnedById = resolveScopedFlowWidgetNodeMap({
-        graphMetaKey: graphKey,
-        keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
-        globalByNodeId: st.flowWidgetPinnedByNodeId,
-      })
       const posById = resolveScopedFlowWidgetNodeMap({
         graphMetaKey: graphKey,
         keyedByGraphMetaKey: (st as unknown as { flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>> }).flowWidgetPosByNodeIdByGraphMetaKey,

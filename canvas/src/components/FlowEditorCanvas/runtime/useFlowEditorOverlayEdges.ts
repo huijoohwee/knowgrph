@@ -359,7 +359,7 @@ export function useFlowEditorOverlayEdges(args: {
     args.overlayEdgesEnabledRef.current = true
     overlayEdgeReadinessRetryRef.current = null
     overlayEdgeLayoutSigRef.current = ''
-    const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(node)
+    const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? (removeAllPaths(overlayEdgePathByIdRef), 0) : restoreFrozenOverlayEdgePaths(node)
     pushOverlayEdgeTrace('svg-attached', {
       overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
       svgWidthAttr: node.getAttribute('width') || '',

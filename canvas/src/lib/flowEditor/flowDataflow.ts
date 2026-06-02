@@ -61,7 +61,9 @@ function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): st
   return parts.join('\n')
 }
 
-const readPlainObject = (value: unknown): Record<string, unknown> | null => isPlainObject(value) ? (value as Record<string, unknown>) : null
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
 
 function isStoppedFlowValue(value: unknown): boolean { return value == null }
 

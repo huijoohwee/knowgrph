@@ -2,6 +2,7 @@ import { JSDOM } from 'jsdom'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 import { defaultSchema } from '@/lib/graph/schema'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
@@ -14,6 +15,7 @@ import {
   buildTextGenerationRegistryDraft,
   buildWidgetDraftFromSmartFields,
   getWidgetRegistryEntryLabel,
+  listVisibleWidgetRegistryPortsForPropsEditor,
 } from '@/features/flow-editor-manager/registryTemplates'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -113,13 +115,7 @@ async function renderFrontmatterBuiltInWidget(args: {
 
 function assertFrontmatterBuiltInWidgetIdentityPattern(args: {
   host: HTMLElement
-  registryEntry: {
-    nodeTypeId: string
-    widgetTypeId?: string
-    formId?: string
-    fields: Array<{ label?: string | null }>
-    ports: Array<{ direction: string }>
-  }
+  registryEntry: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId' | 'fields' | 'ports'>
   expectedIdentityLabel?: string
 }) {
   const widgetIdentityInput = args.host.querySelector('input[id$="frontmatter-widget-identity"]') as HTMLInputElement | null
@@ -153,7 +149,9 @@ function assertFrontmatterBuiltInWidgetIdentityPattern(args: {
   const expectedOrderedLabels = [
     'Widget',
     ...args.registryEntry.fields.map(field => String(field.label || '').trim()).filter(Boolean),
-    ...args.registryEntry.ports.map(port => port.direction === 'input' ? 'handles.target' : 'handles.source'),
+    ...listVisibleWidgetRegistryPortsForPropsEditor({ registryEntry: args.registryEntry })
+      .map(port => String(port.portKey || '').trim())
+      .filter(Boolean),
   ]
   if (renderedLabels.length !== expectedOrderedLabels.length) {
     throw new Error(`expected ${expectedOrderedLabels.length} Widget/Registry labels, got ${renderedLabels.length}: ${JSON.stringify(renderedLabels)}`)
@@ -265,46 +263,68 @@ export const testFrontmatterEnvelopeHandlesUsePerPortNamesAndEditableTypedValues
     const labels = (Array.from(envelope.querySelectorAll('label')) as HTMLLabelElement[])
       .map(label => String(label.textContent || '').trim())
       .filter(Boolean)
-    const expectedHandleLabels = [
-      'handles.target: "output"',
-      'handles.target: "outputSrcDoc"',
-      'handles.source: "output"',
-      'handles.source: "outputSrcDoc"',
-    ]
-    expectedHandleLabels.forEach(label => {
-      if (!labels.includes(label)) {
-        throw new Error(`expected per-port handle label ${JSON.stringify(label)}, got ${JSON.stringify(labels)}`)
+    const genericHandleLabels = labels.filter(label => label.includes('handles.target') || label.includes('handles.source'))
+    if (genericHandleLabels.length > 0) {
+      throw new Error(`expected frontmatter handle rows to avoid generic handle path labels, got ${JSON.stringify(genericHandleLabels)}`)
+    }
+    ;(['output', 'outputSrcDoc'] as const).forEach(portKey => {
+      const inButton = envelope.querySelector(`button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-key="${portKey}"]`)
+      const outButton = envelope.querySelector(`button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-key="${portKey}"]`)
+      if (!inButton || !outButton) {
+        throw new Error(`expected ${portKey} to map to both input and output port handles`)
       }
     })
-    const bareHandleLabels = labels.filter(label => label === 'handles.target' || label === 'handles.source')
-    if (bareHandleLabels.length > 0) {
-      throw new Error(`expected frontmatter handle rows to avoid shared bare names, got ${JSON.stringify(bareHandleLabels)}`)
-    }
-    const handleLabels = labels.filter(label => label.startsWith('handles.'))
-    if (new Set(handleLabels).size !== handleLabels.length) {
-      throw new Error(`expected visible frontmatter handle row names to be unique, got ${JSON.stringify(handleLabels)}`)
-    }
 
-    const readControlForLabel = (labelText: string): HTMLTextAreaElement => {
+    const readControlForLabel = (labelText: string): HTMLElement => {
       const label = (Array.from(envelope.querySelectorAll('label')) as HTMLLabelElement[]).find(entry => (
         String(entry.textContent || '').trim() === labelText
       ))
       if (!label) throw new Error(`expected label ${JSON.stringify(labelText)} to render`)
       const controlId = String(label.getAttribute('for') || '').trim()
       const control = controlId ? dom.window.document.getElementById(controlId) : null
-      if (!(control instanceof dom.window.HTMLTextAreaElement)) {
-        throw new Error(`expected label ${JSON.stringify(labelText)} to bind to editable textarea`)
+      if (!(control instanceof dom.window.HTMLElement)) {
+        throw new Error(`expected label ${JSON.stringify(labelText)} to bind to editable Value control`)
       }
       return control
     }
 
-    const textareaSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')?.set
-    if (!textareaSetter) throw new Error('expected DOM textarea value setter')
     const editText = async (labelText: string, value: string) => {
       const control = readControlForLabel(labelText)
+      if (control.getAttribute('data-kg-card-inline-edit') !== '1') {
+        throw new Error(`expected label ${JSON.stringify(labelText)} to reuse shared inline Value editor`)
+      }
       await act(async () => {
-        textareaSetter.call(control, value)
-        Simulate.change(control)
+        control.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+        await new Promise(resolve => setTimeout(resolve, 0))
+      })
+      const editable = dom.window.document.getElementById(control.id)
+      if (
+        !(editable instanceof dom.window.HTMLTextAreaElement)
+        && !(editable instanceof dom.window.HTMLInputElement)
+      ) {
+        throw new Error(`expected label ${JSON.stringify(labelText)} to open shared editable Value input`)
+      }
+      const setter = Object.getOwnPropertyDescriptor(
+        editable instanceof dom.window.HTMLTextAreaElement
+          ? dom.window.HTMLTextAreaElement.prototype
+          : dom.window.HTMLInputElement.prototype,
+        'value',
+      )?.set
+      if (!setter) throw new Error('expected DOM Value control setter')
+      await act(async () => {
+        setter.call(editable, value)
+        Simulate.change(editable)
+        await new Promise(resolve => setTimeout(resolve, 0))
+      })
+      const changedEditable = dom.window.document.getElementById(control.id)
+      if (
+        !(changedEditable instanceof dom.window.HTMLTextAreaElement)
+        && !(changedEditable instanceof dom.window.HTMLInputElement)
+      ) {
+        throw new Error(`expected label ${JSON.stringify(labelText)} to keep shared editable Value input after change`)
+      }
+      await act(async () => {
+        Simulate.keyDown(changedEditable, { key: 'Enter', metaKey: true })
       })
     }
 
@@ -322,7 +342,9 @@ export const testFrontmatterEnvelopeHandlesUsePerPortNamesAndEditableTypedValues
       throw new Error(`expected boolean KTV Value edit to patch typed false value, got ${JSON.stringify(patched)}`)
     }
   } finally {
-    root.unmount()
+    await act(async () => {
+      root.unmount()
+    })
     restoreGlobals()
   }
 }
@@ -422,10 +444,13 @@ export const testFrontmatterImageWidgetReusesCanonicalRegistryRowsAndSingleHandl
   })
 
   const text = host.textContent || ''
-  const targetCount = (text.match(/handles\.target/g) || []).length
-  const sourceCount = (text.match(/handles\.source/g) || []).length
-  if (targetCount !== 1 || sourceCount !== 1) {
-    throw new Error(`expected single canonical handle rows, got handles.target=${targetCount} handles.source=${sourceCount}`)
+  if (text.includes('handles.target') || text.includes('handles.source')) {
+    throw new Error('expected canonical handle rows to avoid generic handle path labels')
+  }
+  const referencePort = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-key="reference_image"]')
+  const imagePort = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-key="imageUrl"]')
+  if (!referencePort || !imagePort) {
+    throw new Error('expected canonical image widget port handles to map semantic keys to port buttons')
   }
 
   root.unmount()
@@ -549,9 +574,9 @@ export const testFlowWidgetHideFieldsRendersTextOutputPreviewAndKeepsPortRows = 
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
-  const preview = host.querySelector('textarea[aria-label="Widget text output preview"]') as HTMLTextAreaElement | null
-  if (!preview) throw new Error('expected compact text output preview textarea')
-  if (!preview.value.includes('Compact text preview')) {
+  const preview = host.querySelector('[aria-label="Widget text output preview"]') as HTMLElement | null
+  if (!preview) throw new Error('expected compact text output preview')
+  if (!String(preview.textContent || '').includes('Compact text preview')) {
     throw new Error('expected compact text preview to render widget output text')
   }
   if (host.textContent?.includes('Response format')) {

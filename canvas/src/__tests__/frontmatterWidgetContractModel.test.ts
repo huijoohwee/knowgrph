@@ -4,7 +4,7 @@ import {
 } from '@/features/flow-editor-manager/frontmatterWidgetContract'
 import { FRONTMATTER_FLOW_HANDLES_VALUE_KEY, FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 
-export const testBuildFrontmatterWidgetContractModelPrefersConnectedThenRegistryThenTypedHandles = () => {
+export const testBuildFrontmatterWidgetContractModelUnionsFrontmatterConnectedRegistryAndTypedHandles = () => {
   const model = buildFrontmatterWidgetContractModel({
     node: {
       id: 'node-a',
@@ -35,11 +35,21 @@ export const testBuildFrontmatterWidgetContractModelPrefersConnectedThenRegistry
     },
   })
 
-  if (model.flowHandleKeys.target.length !== 1 || model.flowHandleKeys.target[0] !== 'registryIn') {
-    throw new Error(`expected target handles to fall back to registry ports, got [${model.flowHandleKeys.target.join(', ')}]`)
+  ;['declaredIn', 'registryIn', 'typedIn'].forEach(portKey => {
+    if (!model.flowHandleKeys.target.includes(portKey)) {
+      throw new Error(`expected target handles to include ${portKey}, got [${model.flowHandleKeys.target.join(', ')}]`)
+    }
+  })
+  ;['connectedOut', 'declaredOut', 'registryOut', 'typedOut'].forEach(portKey => {
+    if (!model.flowHandleKeys.source.includes(portKey)) {
+      throw new Error(`expected source handles to include ${portKey}, got [${model.flowHandleKeys.source.join(', ')}]`)
+    }
+  })
+  if (model.flowHandleKeys.target.length !== 3) {
+    throw new Error(`expected target handles to union frontmatter, registry, and typed ports, got [${model.flowHandleKeys.target.join(', ')}]`)
   }
-  if (model.flowHandleKeys.source.length !== 1 || model.flowHandleKeys.source[0] !== 'connectedOut') {
-    throw new Error(`expected source handles to prefer connected edge ports, got [${model.flowHandleKeys.source.join(', ')}]`)
+  if (model.flowHandleKeys.source.length !== 4) {
+    throw new Error(`expected source handles to union frontmatter, connected, registry, and typed ports, got [${model.flowHandleKeys.source.join(', ')}]`)
   }
   if (model.frontmatterInKeys[0] !== 'declaredIn' || model.frontmatterOutKeys[0] !== 'declaredOut') {
     throw new Error('expected frontmatter handle snapshots to stay available for interactive dot rendering')
@@ -84,6 +94,33 @@ export const testBuildFrontmatterWidgetContractModelFiltersReservedAndRegistryBa
   }
 }
 
+export const testBuildFrontmatterWidgetContractModelKeepsRegistryBackedDeclaredFieldsWhenRegistrySectionHidden = () => {
+  const model = buildFrontmatterWidgetContractModel({
+    node: {
+      id: 'node-b',
+      properties: {
+        title: 'Hello',
+        extra: { ok: true },
+        [FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]: [
+          { fieldKey: 'title', fieldType: 'string', schemaPath: 'title' },
+          { fieldKey: 'extra', fieldType: 'object', schemaPath: 'extra' },
+        ],
+      },
+    },
+    edges: [],
+    registryEntry: {
+      fields: [{ fieldKey: 'title', fieldType: 'text', schemaPath: 'title' }],
+      ports: [],
+    },
+    suppressRegistryBackedDeclaredFields: false,
+  })
+
+  const fieldKeys = model.declaredFieldValues.map(field => field.fieldKey)
+  if (!fieldKeys.includes('title') || !fieldKeys.includes('extra')) {
+    throw new Error(`expected hidden-registry frontmatter contract to keep registry-backed editable fields, got [${fieldKeys.join(', ')}]`)
+  }
+}
+
 export const testBuildFrontmatterWidgetContractRowSpecsBuildsHandleAndEnvelopeDescriptors = () => {
   const model = buildFrontmatterWidgetContractModel({
     node: {
@@ -116,10 +153,17 @@ export const testBuildFrontmatterWidgetContractRowSpecsBuildsHandleAndEnvelopeDe
     throw new Error(`expected two handle row specs, got ${rows.handleRows.length}`)
   }
   if (rows.handleRows[0]?.kind !== 'handle' || rows.handleRows[0]?.rowKey !== 'flow-handles-target') {
-    throw new Error(`expected first handle row spec to target handles.target, got ${String(rows.handleRows[0]?.rowKey || '<none>')}`)
+    throw new Error(`expected first handle row spec to target input handles, got ${String(rows.handleRows[0]?.rowKey || '<none>')}`)
   }
-  if (rows.handleRows[0]?.valueText !== '"registryIn"') {
+  if (rows.handleRows[0]?.valueText !== '["declaredIn", "registryIn"]') {
     throw new Error(`expected handle row spec to carry formatted normalized handle values, got ${String(rows.handleRows[0]?.valueText || '')}`)
+  }
+  if (
+    rows.handleRows[0]?.portKeys.length !== 2
+    || rows.handleRows[0]?.portKeys[0] !== 'declaredIn'
+    || rows.handleRows[0]?.portKeys[1] !== 'registryIn'
+  ) {
+    throw new Error(`expected handle row spec to expand the semantic port key, got ${JSON.stringify(rows.handleRows[0]?.portKeys || [])}`)
   }
   if (rows.envelopeRows.length !== 5) {
     throw new Error(`expected handle+data+compute envelope row specs, got ${rows.envelopeRows.length}`)

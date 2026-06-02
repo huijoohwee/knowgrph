@@ -2,10 +2,14 @@ import { buildFrontmatterOverlayVisualIsolation } from '@/components/FlowEditorC
 import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { resolveFlowEditorOverlayElementIdentity } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import {
+  resolveFlowEditorGraphDataForNodeAuthority,
+  shouldPreferScopedGraphDataAuthority,
+} from '@/lib/flowEditor/flowEditorGraphAuthority'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { GraphData } from '@/lib/graph/types'
 
-export function testFlowEditorFrontmatterOverlayIdentityCanonicalizesComposedWidgetIds() {
+export function testFlowEditorFrontmatterOverlayIdentityPreservesComposedWidgetIds() {
   const graph: GraphData = {
     type: 'Graph',
     metadata: {
@@ -35,8 +39,8 @@ export function testFlowEditorFrontmatterOverlayIdentityCanonicalizesComposedWid
     openWidgetNodeIds: [],
   })
   if (!placement) throw new Error('expected placement context')
-  if (placement.frontmatterOverlayNodeIds.length !== 1 || placement.frontmatterOverlayNodeIds[0] !== 'target-node') {
-    throw new Error('expected frontmatter overlay ids to be canonicalized before overlay rendering')
+  if (placement.frontmatterOverlayNodeIds.length !== 1 || placement.frontmatterOverlayNodeIds[0] !== 'ws:source::target-node') {
+    throw new Error('expected frontmatter overlay ids to preserve the graph-owned composed node id before overlay rendering')
   }
 
   const identity = resolveFlowEditorOverlayElementIdentity({
@@ -44,8 +48,8 @@ export function testFlowEditorFrontmatterOverlayIdentityCanonicalizesComposedWid
     overlayNodeId: placement.frontmatterOverlayNodeIds[0],
     node: graph.nodes[0],
   })
-  if (identity.overlayIdentityId !== 'target-node' || identity.renderNodeId !== 'target-node') {
-    throw new Error('expected frontmatter overlay render identity to stay canonical across composed handoff')
+  if (identity.overlayIdentityId !== 'ws:source::target-node' || identity.renderNodeId !== 'ws:source::target-node') {
+    throw new Error('expected frontmatter overlay render identity to stay on the graph-owned composed node id')
   }
   if (identity.actionNodeId !== 'ws:source::target-node') {
     throw new Error('expected frontmatter overlay mutations to keep targeting the concrete graph node')
@@ -184,5 +188,84 @@ export function testFlowEditorConnectedValuesResolveCanonicalTargetNodeIds() {
   const value = connected['properties.input']?.value
   if (value !== 'ready') {
     throw new Error(`expected connected value to resolve through composed graph target, received ${String(value)}`)
+  }
+}
+
+export function testFlowEditorGraphAuthorityPrefersScopedSourceGraphAfterSourceFileSwitch() {
+  const staleFlowCanvasGraph: GraphData = {
+    type: 'Graph',
+    metadata: {
+      kind: 'frontmatter-flow',
+      canvas2dRenderer: 'flow',
+    },
+    nodes: [
+      { id: 'image-widget', type: 'ImageWidget', label: 'Image', properties: {} },
+      { id: 'script-widget', type: 'ScriptWidget', label: 'Script', properties: {} },
+      { id: 'artifact-widget', type: 'ArtifactWidget', label: 'Artifact', properties: {} },
+      { id: 'cluster-widget', type: 'Group', label: 'Cluster', properties: {} },
+    ],
+    edges: [
+      {
+        id: 'edge:image-script',
+        source: 'image-widget',
+        target: 'script-widget',
+        label: 'image to script',
+        properties: {},
+      },
+    ],
+  }
+  const activeSourceGraph: GraphData = {
+    type: 'Graph',
+    metadata: {
+      kind: 'frontmatter-flow',
+      sourceLayerComposition: 'compose',
+      canvas2dRenderer: 'flowEditor',
+    },
+    nodes: [
+      { id: 'source:active::image-widget', type: 'ImageWidget', label: 'Image', properties: {} },
+      { id: 'source:active::script-widget', type: 'ScriptWidget', label: 'Script', properties: {} },
+      { id: 'source:active::artifact-widget', type: 'ArtifactWidget', label: 'Artifact', properties: {} },
+      { id: 'source:active::cluster-widget', type: 'Group', label: 'Cluster', properties: {} },
+    ],
+    edges: [
+      {
+        id: 'source:active::edge:image-script',
+        source: 'source:active::image-widget',
+        target: 'source:active::script-widget',
+        label: 'image to script',
+        properties: {},
+      },
+    ],
+  }
+  const activeOpenWidgetIds = [
+    'source:active::image-widget',
+    'source:active::script-widget',
+    'source:active::artifact-widget',
+  ]
+
+  if (!shouldPreferScopedGraphDataAuthority({
+    candidateGraphData: staleFlowCanvasGraph,
+    authorityGraphData: activeSourceGraph,
+    nodeIds: activeOpenWidgetIds,
+  })) {
+    throw new Error('expected Flow Editor graph authority to prefer the active scoped Source Files graph over stale Flow Canvas ids after a file switch')
+  }
+
+  const resolved = resolveFlowEditorGraphDataForNodeAuthority({
+    preferredGraphData: staleFlowCanvasGraph,
+    authorityGraphData: activeSourceGraph,
+    nodeIds: activeOpenWidgetIds,
+  })
+  if (resolved !== activeSourceGraph) {
+    throw new Error('expected stale Flow Canvas nodes, groups/clusters, and edges to be unable to override the active Flow Editor source graph')
+  }
+
+  const retained = resolveFlowEditorGraphDataForNodeAuthority({
+    preferredGraphData: activeSourceGraph,
+    authorityGraphData: staleFlowCanvasGraph,
+    nodeIds: activeOpenWidgetIds,
+  })
+  if (retained !== activeSourceGraph) {
+    throw new Error('expected an already scoped Flow Editor graph to remain authoritative after renderer switching')
   }
 }

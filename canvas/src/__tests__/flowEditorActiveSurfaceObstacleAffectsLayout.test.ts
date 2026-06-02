@@ -8,6 +8,68 @@ import {
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 
+function setFixedRect(el: HTMLElement, args: {
+  left: number
+  top: number
+  width: number
+  height: number
+}) {
+  ;(el as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () => ({
+    left: args.left,
+    top: args.top,
+    width: args.width,
+    height: args.height,
+    right: args.left + args.width,
+    bottom: args.top + args.height,
+    x: args.left,
+    y: args.top,
+    toJSON: () => ({}),
+  }) as DOMRect
+}
+
+export function testFlowEditorCanonicalOverlayRectEntriesSkipTransientOffscreenRichMediaBeforeRank() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const doc = dom.window.document
+    const transient = doc.createElement('article')
+    transient.setAttribute('data-kg-flow-editor-mode', '1')
+    transient.setAttribute('data-kg-flow-editor-surface', 'surface-a')
+    transient.setAttribute('data-kg-rich-media-overlay', '1')
+    transient.setAttribute('data-node-id', 'media-a')
+    setFixedRect(transient, { left: -20000, top: -20000, width: 1, height: 1 })
+
+    const visiblePinnedProxy = doc.createElement('article')
+    visiblePinnedProxy.setAttribute('data-kg-flow-editor-mode', '1')
+    visiblePinnedProxy.setAttribute('data-kg-flow-editor-surface', 'surface-a')
+    visiblePinnedProxy.setAttribute('data-kg-rich-media-overlay', '1')
+    visiblePinnedProxy.setAttribute('data-kg-canvas-overlay-pinned', '1')
+    visiblePinnedProxy.setAttribute('data-node-id', 'media-a')
+    setFixedRect(visiblePinnedProxy, { left: 120, top: 80, width: 320, height: 180 })
+
+    const entries = collectCanonicalFlowEditorOverlayRectEntries([
+      transient,
+      visiblePinnedProxy,
+    ])
+    if (entries.length !== 1) {
+      throw new Error(`expected one canonical rich-media overlay entry, got ${entries.length}`)
+    }
+    const entry = entries[0]!
+    if (entry.el !== visiblePinnedProxy) {
+      throw new Error('expected transient offscreen rich-media bootstrap root to be skipped before rank comparison')
+    }
+    if (entry.rect.left !== 120 || entry.rect.top !== 80 || entry.rect.width !== 320 || entry.rect.height !== 180) {
+      throw new Error(`expected visible rich-media proxy rect to own canonical geometry, got ${JSON.stringify({
+        left: entry.rect.left,
+        top: entry.rect.top,
+        width: entry.rect.width,
+        height: entry.rect.height,
+      })}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
 export async function testFlowEditorActiveSurfaceObstaclesAffectFinalRichMediaLayoutPlacement() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
@@ -41,17 +103,7 @@ export async function testFlowEditorActiveSurfaceObstaclesAffectFinalRichMediaLa
       else el.setAttribute('data-node-id', args.nodeId)
       if (args.richMedia) el.setAttribute('data-kg-rich-media-overlay', '1')
       ;(el as unknown as { dataset: DOMStringMap }).dataset.nodeId = args.nodeId
-      ;(el as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () => ({
-        left: args.left,
-        top: args.top,
-        width: args.width,
-        height: args.height,
-        right: args.left + args.width,
-        bottom: args.top + args.height,
-        x: args.left,
-        y: args.top,
-        toJSON: () => ({}),
-      }) as DOMRect
+      setFixedRect(el, args)
       args.parent.appendChild(el)
       return el
     }

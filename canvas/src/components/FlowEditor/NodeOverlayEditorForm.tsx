@@ -35,6 +35,7 @@ import {
   applyWidgetFieldValueUpdate,
   coerceWidgetFieldValue,
   normalizeWidgetFieldSchemaPath,
+  readWidgetFieldValueText,
 } from '@/features/flow-editor-manager/widgetFieldMutation'
 import {
   applyWidgetCompactPreviewTextUpdate,
@@ -44,8 +45,8 @@ import {
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import {
   formatFlowHandleAccessibleName,
-  formatFlowHandleKeyValue,
-  formatFlowHandleValueList,
+  formatFlowHandleKtvKeyLabel,
+  formatFlowHandleSemanticKey,
   readFlowHandlePath,
   readFlowHandleTypeLabel,
 } from '@/lib/graph/flowHandlePresentation'
@@ -53,6 +54,7 @@ import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverla
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
+import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/NodeOverlayEditorBeatByBeatSection'
@@ -67,10 +69,19 @@ import {
 import type { RichMediaWidgetPreviewState } from '@/components/FlowEditor/useRichMediaWidgetPreview'
 import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import {
+  buildRichMediaPanelOverlayState,
+  buildRichMediaPanelPreviewSpec,
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
 
 const EMPTY_GRAPH_EDGES: ReadonlyArray<GraphEdge> = []
+
+type FrontmatterPortKvRow = NodeOverlayEditorKvRow & {
+  dir: 'in' | 'out'
+  portKey: string
+  schemaPath: string
+  normalizedSchemaPath: string
+}
 
 function buildWidgetRegistryEntrySemanticSignature(entry: WidgetRegistryEntry | null | undefined): string {
   if (!entry) return hashSignatureParts(['widget-registry-entry', 0])
@@ -326,14 +337,32 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const showRichMediaPanelViewer = isRichMediaPanelWidget && !hideFields
   const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields && !isFrontmatterFlow
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
-  const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || null
-  const richMediaPreview = richMediaWidgetPreview?.richMediaPreview || null
+  const fallbackRichMediaPanelState = React.useMemo(() => {
+    if (!showRichMediaPanelViewer || richMediaWidgetPreview?.richMediaPanelState) return null
+    return buildRichMediaPanelOverlayState({
+      node: nodeHelperSnapshot as GraphNode,
+      connectedValuesBySchemaPath: connectedValuesSnapshot,
+    }) || null
+  }, [connectedValuesSnapshot, nodeHelperSnapshot, richMediaWidgetPreview?.richMediaPanelState, showRichMediaPanelViewer])
+  const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || fallbackRichMediaPanelState
+  const fallbackRichMediaPreview = React.useMemo(() => {
+    if (!showRichMediaPanelViewer || richMediaWidgetPreview?.richMediaPreview || !richMediaPanelState) return null
+    return buildRichMediaPanelPreviewSpec({
+      node: nodeHelperSnapshot as GraphNode,
+      connectedValuesBySchemaPath: connectedValuesSnapshot,
+      panel: richMediaPanelState,
+    })
+  }, [connectedValuesSnapshot, nodeHelperSnapshot, richMediaPanelState, richMediaWidgetPreview?.richMediaPreview, showRichMediaPanelViewer])
+  const richMediaPreview = richMediaWidgetPreview?.richMediaPreview || fallbackRichMediaPreview
   const richMediaPanelViewSize = richMediaWidgetPreview?.richMediaPanelViewSize || RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE
   const handleRichMediaPanelChange = richMediaWidgetPreview?.handleRichMediaPanelChange
   const handleRichMediaResizeStart = richMediaWidgetPreview?.handleRichMediaResizeStart
   const handleRichMediaResize = richMediaWidgetPreview?.handleRichMediaResize
   const handleRichMediaResizeEnd = richMediaWidgetPreview?.handleRichMediaResizeEnd
   const handleRichMediaContentSize = richMediaWidgetPreview?.handleRichMediaContentSize
+  const handleFallbackRichMediaResize = React.useCallback(() => {
+    emitFlowEditorInteractionFrame()
+  }, [])
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
@@ -352,14 +381,25 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     if (!text) return null
     return <NodeOverlayEditorTypePill text={text} />
   }, [])
+  const frontmatterWidgetRegistrySection = React.useMemo(
+    () => resolveFrontmatterWidgetRegistrySectionState({
+      node: nodeHelperSnapshot,
+      registryEntry: registryEntrySnapshot,
+      graphMetaKind,
+    }),
+    [graphMetaKind, nodeHelperSnapshot, registryEntrySnapshot],
+  )
+  const showFrontmatterWidgetRegistrySection = frontmatterWidgetRegistrySection.visible
+  const hideFrontmatterFlowContractRows = frontmatterWidgetRegistrySection.hideFlowContractRows
+  const frontmatterWidgetIdentityLabel = frontmatterWidgetRegistrySection.identityLabel
   const frontmatterContract = React.useMemo(() => {
     return buildFrontmatterWidgetContractModel({
       node: nodeHelperSnapshot,
       edges: edgesSnapshot,
       registryEntry: registryEntrySnapshot,
+      suppressRegistryBackedDeclaredFields: showFrontmatterWidgetRegistrySection,
     })
-  }, [edgesSnapshot, nodeHelperSnapshot, registryEntrySnapshot])
-  const flowHandleKeys = frontmatterContract.flowHandleKeys
+  }, [edgesSnapshot, nodeHelperSnapshot, registryEntrySnapshot, showFrontmatterWidgetRegistrySection])
   const flowCompute = frontmatterContract.flowCompute
   const frontmatterContractRowSpecs = React.useMemo(() => {
     return buildFrontmatterWidgetContractRowSpecs(frontmatterContract)
@@ -376,59 +416,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const m = readPortHandleUiMetrics(schema)
     return { sizePx: Math.max(10, m.sizePx), hitSizePx: Math.max(18, m.hitSizePx + 2) }
   }, [schema])
-  const renderFlowContractDot = React.useCallback((args: { dir: 'in' | 'out'; linked: boolean; portKey: string }) => {
-    const safeDotSize = Math.max(6, Math.floor(dotSizePx))
-    const safeHit = Math.max(safeDotSize, Math.floor(dotHitPx))
-    const aria = args.linked
-      ? `${args.dir === 'in' ? 'Input' : 'Output'} edge-linked handle`
-      : `${args.dir === 'in' ? 'Input' : 'Output'} handle`
-    return (
-      <button
-        type="button"
-        aria-label={aria}
-        title={aria}
-        disabled
-        tabIndex={-1}
-        data-kg-port-handle="1"
-        data-kg-port-handle-kind="dot"
-        data-kg-port-dir={args.dir}
-        data-kg-port-key={args.portKey}
-        className={cn('relative block', UI_THEME_TOKENS.button.text, args.linked ? 'opacity-100' : 'opacity-50')}
-        style={{ width: `${safeHit}px`, height: `${safeHit}px` }}
-      >
-        <span
-          aria-hidden={true}
-          className={cn(
-            'absolute top-1/2 left-1/2 rounded-full',
-            PORT_HANDLE_STROKE_CLASS,
-            args.linked ? 'border-2' : 'border',
-          )}
-          style={{
-            width: `${safeDotSize}px`,
-            height: `${safeDotSize}px`,
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: args.linked ? 'var(--kg-canvas-accent)' : 'transparent',
-          }}
-        />
-      </button>
-    )
-  }, [dotHitPx, dotSizePx])
-  const formatFlowHandlePathValue = React.useCallback((keys: string[]) => {
-    return formatFlowHandleValueList(keys)
-  }, [])
-
-  const frontmatterWidgetRegistrySection = React.useMemo(
-    () => resolveFrontmatterWidgetRegistrySectionState({
-      node: nodeHelperSnapshot,
-      registryEntry: registryEntrySnapshot,
-      graphMetaKind,
-    }),
-    [graphMetaKind, nodeHelperSnapshot, registryEntrySnapshot],
-  )
-  const showFrontmatterWidgetRegistrySection = frontmatterWidgetRegistrySection.visible
-  const hideFrontmatterFlowContractRows = frontmatterWidgetRegistrySection.hideFlowContractRows
-  const frontmatterWidgetIdentityLabel = frontmatterWidgetRegistrySection.identityLabel
-
   const registryOptions = React.useMemo(
     () => {
       return listScopedWidgetRegistryEntries({
@@ -528,7 +515,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     accessibleName?: string,
     schemaPath?: string,
   ) => {
-    const aria = String(accessibleName || '').trim() || formatFlowHandleKeyValue({ dir, portKey })
+    const aria = String(accessibleName || '').trim() || formatFlowHandleSemanticKey({ dir, portKey })
     return (
       <button
         key={`${dir}:${portKey}`}
@@ -569,120 +556,111 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       </button>
     )
   }, [active, dotHitPx, dotSizePx, onSchemaPortHandleClick, portHandlesEnabled])
-  const frontmatterPortRows = React.useMemo(() => {
+  const frontmatterEnvelopeFieldSchemaPathSet = React.useMemo(() => {
+    const out = new Set<string>()
+    frontmatterContractRowSpecs.envelopeRows.forEach(rowSpec => {
+      if (rowSpec.kind !== 'field') return
+      const schemaPath = normalizeWidgetFieldSchemaPath(rowSpec.schemaPath, rowSpec.fieldKey)
+      if (schemaPath) out.add(schemaPath)
+    })
+    return out
+  }, [frontmatterContractRowSpecs.envelopeRows])
+  const frontmatterPortRows = React.useMemo<FrontmatterPortKvRow[]>(() => {
     return frontmatterContractRowSpecs.handleRows.flatMap(rowSpec => {
-      const declaredPortKeys = rowSpec.declaredPortKeys
+      const portKeys = rowSpec.portKeys
         .map(portKey => String(portKey || '').trim())
         .filter(Boolean)
-      if (declaredPortKeys.length > 0) {
-        const occurrenceCounts = new Map<string, number>()
-        declaredPortKeys.forEach(portKey => {
-          occurrenceCounts.set(portKey, (occurrenceCounts.get(portKey) || 0) + 1)
+      if (portKeys.length === 0) return []
+      const occurrenceCounts = new Map<string, number>()
+      portKeys.forEach(portKey => {
+        occurrenceCounts.set(portKey, (occurrenceCounts.get(portKey) || 0) + 1)
+      })
+      const occurrenceIndexes = new Map<string, number>()
+      return portKeys.map((portKey, index) => {
+        const occurrenceCount = occurrenceCounts.get(portKey) || 1
+        const occurrenceIndex = occurrenceIndexes.get(portKey) || 0
+        occurrenceIndexes.set(portKey, occurrenceIndex + 1)
+        const schemaPath = portKey
+        const normalizedSchemaPath = normalizeWidgetFieldSchemaPath(schemaPath, portKey)
+        const accessibleName = formatFlowHandleAccessibleName({
+          dir: rowSpec.dir,
+          portKey,
+          schemaPath,
+          occurrenceIndex,
+          occurrenceCount,
         })
-        const occurrenceIndexes = new Map<string, number>()
-        return declaredPortKeys.map((portKey, index) => {
-          const occurrenceCount = occurrenceCounts.get(portKey) || 1
-          const occurrenceIndex = occurrenceIndexes.get(portKey) || 0
-          occurrenceIndexes.set(portKey, occurrenceIndex + 1)
-          const schemaPath = `${readFlowHandlePath(rowSpec.dir)}.${portKey}`
-          const accessibleName = formatFlowHandleAccessibleName({
-            dir: rowSpec.dir,
-            portKey,
-            schemaPath,
-            occurrenceIndex,
-            occurrenceCount,
-          })
-          const rowKey = `${rowSpec.rowKey}-${index}-${cleanDomIdPart(portKey) || 'port'}`
-          const inputId = `${idBase}-${rowKey}`
-          const portButton = renderFrontmatterPortButton(rowSpec.dir, portKey, accessibleName, schemaPath)
-          return {
-            rowKey,
-            labelId: `${idBase}-kv-${rowKey}`,
-            inPortNode: rowSpec.dir === 'in' ? portButton : undefined,
-            outPortNode: rowSpec.dir === 'out' ? portButton : undefined,
-            keyNode: (
-              <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
-                {accessibleName}
-              </label>
-            ),
-            typeNode: renderKvTypeBox(rowSpec.typeLabel),
-            valueNode: (
-              <PlainTextInputEditor
-                id={inputId}
-                value={portKey}
-                disabled
-                className={cn(
-                  keyValueInputClass,
-                  textSizeClass,
-                  'text-left',
-                  monospaceTextClass,
-                  UI_THEME_TOKENS.input.bg,
-                  UI_THEME_TOKENS.input.border,
-                  UI_THEME_TOKENS.input.text,
-                )}
-              />
-            ),
-          }
+        const rowKey = `${rowSpec.rowKey}-${index}-${cleanDomIdPart(portKey) || 'port'}`
+        const inputId = `${idBase}-${rowKey}`
+        const portButton = renderFrontmatterPortButton(rowSpec.dir, portKey, accessibleName, schemaPath)
+        const keyLabel = formatFlowHandleKtvKeyLabel({ dir: rowSpec.dir, portKey }) || accessibleName
+        const portValueText = readWidgetFieldValueText({
+          properties: propertiesSnapshot,
+          schemaPath,
+          fallbackKey: portKey,
         })
-      }
-      const inputId = `${idBase}-${rowSpec.rowKey}`
-      const portButtons = rowSpec.declaredPortKeys.length > 0
-        ? (
-            <section className="flex flex-col items-center gap-1">
-              {rowSpec.declaredPortKeys.map(portKey => renderFrontmatterPortButton(rowSpec.dir, portKey))}
-            </section>
-          )
-        : renderFlowContractDot({ dir: rowSpec.dir, linked: false, portKey: '' })
-      return {
-        rowKey: rowSpec.rowKey,
-        labelId: `${idBase}-kv-${rowSpec.rowKey}`,
-        inPortNode: rowSpec.dir === 'in' ? portButtons : undefined,
-        outPortNode: rowSpec.dir === 'out' ? portButtons : undefined,
-        keyNode: (
-          <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
-            {rowSpec.label}
-          </label>
-        ),
-        typeNode: renderKvTypeBox(rowSpec.typeLabel),
-        valueNode: (
-          <PlainTextInputEditor
-            id={inputId}
-            // source-row contract reference: value={formatFlowHandlePathValue(flowHandleKeys.source)}
-            value={rowSpec.dir === 'out' ? formatFlowHandlePathValue(flowHandleKeys.source) : formatFlowHandlePathValue(flowHandleKeys.target)}
-            disabled
-            className={cn(
-              keyValueInputClass,
-              textSizeClass,
-              'text-left',
-              monospaceTextClass,
-              UI_THEME_TOKENS.input.bg,
-              UI_THEME_TOKENS.input.border,
-              UI_THEME_TOKENS.input.text,
-            )}
-          />
-        ),
-      }
+        return {
+          rowKey,
+          dir: rowSpec.dir,
+          portKey,
+          schemaPath,
+          normalizedSchemaPath,
+          labelId: `${idBase}-kv-${rowKey}`,
+          inPortNode: rowSpec.dir === 'in' ? portButton : undefined,
+          outPortNode: rowSpec.dir === 'out' ? portButton : undefined,
+          keyNode: (
+            <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId} title={accessibleName || keyLabel}>
+              {keyLabel}
+            </label>
+          ),
+          typeNode: renderKvTypeBox(rowSpec.typeLabel),
+          valueNode: (
+            <PlainTextInputEditor
+              id={inputId}
+              value={portValueText}
+              disabled
+              className={cn(
+                keyValueInputClass,
+                textSizeClass,
+                'text-left',
+                monospaceTextClass,
+                UI_THEME_TOKENS.input.bg,
+                UI_THEME_TOKENS.input.border,
+                UI_THEME_TOKENS.input.text,
+              )}
+            />
+          ),
+        }
+      })
     })
   }, [
     frontmatterContractRowSpecs.handleRows,
-    flowHandleKeys.source,
-    flowHandleKeys.target,
-    formatFlowHandlePathValue,
     idBase,
     keyLabelClass,
     keyValueInputClass,
     monospaceTextClass,
-    renderFlowContractDot,
+    propertiesSnapshot,
     renderFrontmatterPortButton,
     renderKvTypeBox,
     textSizeClass,
   ])
-  const frontmatterEnvelopeRows = React.useMemo(() => {
-    return frontmatterContractRowSpecs.envelopeRows.flatMap((rowSpec, fieldIndex) => {
+  const frontmatterFieldPortNodesBySchemaPath = React.useMemo(() => {
+    const out = new Map<string, Pick<NodeOverlayEditorKvRow, 'inPortNode' | 'outPortNode'>>()
+    frontmatterPortRows.forEach(row => {
+      if (!row.normalizedSchemaPath || !frontmatterEnvelopeFieldSchemaPathSet.has(row.normalizedSchemaPath)) return
+      const current = out.get(row.normalizedSchemaPath) || {}
+      out.set(row.normalizedSchemaPath, {
+        ...current,
+        ...(row.dir === 'in' ? { inPortNode: row.inPortNode } : { outPortNode: row.outPortNode }),
+      })
+    })
+    return out
+  }, [frontmatterEnvelopeFieldSchemaPathSet, frontmatterPortRows])
+  const frontmatterEnvelopeRows = React.useMemo<NodeOverlayEditorKvRow[]>(() => {
+    return frontmatterContractRowSpecs.envelopeRows.flatMap<NodeOverlayEditorKvRow>((rowSpec, fieldIndex) => {
       if (rowSpec.kind === 'handle') {
         return frontmatterPortRows.filter(row => (
-          row.rowKey === rowSpec.rowKey
-          || row.rowKey.startsWith(`${rowSpec.rowKey}-`)
+          (row.rowKey === rowSpec.rowKey || row.rowKey.startsWith(`${rowSpec.rowKey}-`))
+          && !frontmatterEnvelopeFieldSchemaPathSet.has(row.normalizedSchemaPath)
         ))
       }
       const inputId = `${idBase}-${rowSpec.rowKey}`
@@ -700,10 +678,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ),
           typeNode: renderKvTypeBox(rowSpec.typeLabel),
           valueNode: (
-            <PlainTextInputEditor
+            <FlowEditorInlineValueEditor
               id={inputId}
               value={flowDataDraft}
-              onChange={next => {
+              active={active}
+              multiline
+              className={flowEnvelopeValueBoxClass}
+              onCommit={next => {
                 const raw = String(next ?? '')
                 setFlowDataDraft(raw)
                 if (!active) return
@@ -718,9 +699,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                   void 0
                 }
               }}
-              disabled={!active}
-              multiline
-              className={flowEnvelopeValueBoxClass}
             />
           ),
         }]
@@ -739,13 +717,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ),
           typeNode: renderKvTypeBox(rowSpec.typeLabel),
           valueNode: (
-            <PlainTextInputEditor
+            <FlowEditorInlineValueEditor
               id={inputId}
               value={flowCompute}
-              onChange={next => onPatchProperties({ 'flow:compute': next || undefined })}
-              disabled={!active}
+              active={active}
               multiline
               className={flowEnvelopeValueBoxClass}
+              onCommit={next => onPatchProperties({ 'flow:compute': next || undefined })}
             />
           ),
         }]
@@ -754,9 +732,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         rowSpec.kind === 'field' ? rowSpec.schemaPath : '',
         rowSpec.fieldKey,
       )
+      const mergedPortNodes = frontmatterFieldPortNodesBySchemaPath.get(fieldSchemaPath)
       return [{
         rowKey: rowSpec.rowKey,
         labelId: `${idBase}-kv-flow-envelope-field-${fieldIndex}`,
+        inPortNode: mergedPortNodes?.inPortNode,
+        outPortNode: mergedPortNodes?.outPortNode,
         keyNode: (
           <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
             {rowSpec.fieldKey}
@@ -764,10 +745,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         ),
         typeNode: renderKvTypeBox(rowSpec.typeLabel),
         valueNode: (
-          <PlainTextInputEditor
+          <FlowEditorInlineValueEditor
             id={inputId}
             value={rowSpec.valueText}
-            onChange={next => {
+            active={active}
+            multiline
+            className={flowEnvelopeValueBoxClass}
+            onCommit={next => {
               if (!active || !fieldSchemaPath) return
               const raw = String(next ?? '')
               const nextValue = raw.trim()
@@ -779,9 +763,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                 nextValue,
               }))
             }}
-            disabled={!active}
-            multiline
-            className={flowEnvelopeValueBoxClass}
           />
         ),
       }]
@@ -792,6 +773,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     flowDataDraft,
     flowEnvelopeValueBoxClass,
     frontmatterContractRowSpecs.envelopeRows,
+    frontmatterEnvelopeFieldSchemaPathSet,
+    frontmatterFieldPortNodesBySchemaPath,
     frontmatterPortRows,
     idBase,
     keyLabelClass,
@@ -874,9 +857,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             kind={richMediaPreview?.kind || 'iframe'}
             interactive={richMediaPreview?.interactive !== false}
             resizable={true}
-            onResizeStart={handleRichMediaResizeStart}
-            onResize={handleRichMediaResize}
-            onResizeEnd={handleRichMediaResizeEnd}
+            onResizeStart={handleRichMediaResizeStart || handleFallbackRichMediaResize}
+            onResize={handleRichMediaResize || handleFallbackRichMediaResize}
+            onResizeEnd={handleRichMediaResizeEnd || handleFallbackRichMediaResize}
             panel={richMediaPanelState || undefined}
             widgetToolbarActive={false}
             onPanelChange={handleRichMediaPanelChange}
@@ -1003,7 +986,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       </section>
       )}
 
-      {!isFrontmatterFlow && !isRichMediaPanelWidget && (
+      {!isRichMediaPanelWidget && (
         <NodeOverlayEditorBeatByBeatSection
           node={node}
           graphMetaKind={graphMetaKind}

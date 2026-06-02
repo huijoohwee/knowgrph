@@ -144,27 +144,22 @@ export function resolveFlowEditorVisibleViewport(args: {
   const paneEls = Array.from(document.querySelectorAll(WORKSPACE_LEFT_PANE_SELECTOR))
     .filter((el): el is HTMLElement => el instanceof HTMLElement)
   let maxPaneRight = Number.NEGATIVE_INFINITY
-  let maxPaneWidth = 0
   for (let i = 0; i < paneEls.length; i += 1) {
     const paneRect = paneEls[i]!.getBoundingClientRect()
     if (!Number.isFinite(paneRect.left) || !Number.isFinite(paneRect.right) || !Number.isFinite(paneRect.top) || !Number.isFinite(paneRect.bottom)) continue
-    const paneLeft = Math.max(0, Math.min(args.viewportW, paneRect.left - surfaceOffsetLeft))
-    const paneRight = Math.max(0, Math.min(args.viewportW, paneRect.right - surfaceOffsetLeft))
-    const paneTop = Math.max(0, Math.min(args.viewportH, paneRect.top - surfaceOffsetTop))
-    const paneBottom = Math.max(0, Math.min(args.viewportH, paneRect.bottom - surfaceOffsetTop))
+    const paneLeft = Math.max(left, Math.min(right, paneRect.left - surfaceOffsetLeft))
+    const paneRight = Math.max(left, Math.min(right, paneRect.right - surfaceOffsetLeft))
+    const paneTop = Math.max(top, Math.min(bottom, paneRect.top - surfaceOffsetTop))
+    const paneBottom = Math.max(top, Math.min(bottom, paneRect.bottom - surfaceOffsetTop))
     if (paneRight <= left || paneLeft >= right) continue
     if (paneBottom <= top || paneTop >= bottom) continue
     maxPaneRight = Math.max(maxPaneRight, paneRight)
-    maxPaneWidth = Math.max(maxPaneWidth, Math.max(0, paneRight - paneLeft))
   }
   let visibleLeft = left
-  const visibleViewportWidth = Math.max(1, right - visibleLeft)
-  const paneCoverageRatio = maxPaneWidth / visibleViewportWidth
-  const hasUsableRightCanvasStrip = right - maxPaneRight >= 160
+  const rightCanvasStrip = Number.isFinite(maxPaneRight) ? right - maxPaneRight : right
   const shouldSubtractPaneOverlap =
     Number.isFinite(maxPaneRight)
-    && paneCoverageRatio < 0.86
-    && hasUsableRightCanvasStrip
+    && rightCanvasStrip > 0
   if (shouldSubtractPaneOverlap) {
     visibleLeft = Math.max(visibleLeft, maxPaneRight)
   }

@@ -1,10 +1,28 @@
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import MainPanel from '@/features/panels/MainPanel'
 import { inspectLocalMainPanelChatCanvasPipeline } from '@/features/agent-ready/localMainPanelChatCanvasPipelineInspection'
-import type {
-  LocalChatPipelineSurfaceSnapshot,
-  LocalEditorWorkspaceSurfaceSnapshot,
-  LocalMainPanelSurfaceSnapshot,
-  LocalSettingsChatReadinessSurfaceSnapshot,
+import {
+  readLocalMainPanelSurfaceSnapshot,
+  readLocalSettingsChatReadinessSurfaceSnapshot,
+  resetBrowserLocalSurfaceSnapshotsForTests,
+  type LocalChatPipelineSurfaceSnapshot,
+  type LocalEditorWorkspaceSurfaceSnapshot,
+  type LocalMainPanelSurfaceSnapshot,
+  type LocalSettingsChatReadinessSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import { DEFAULT_INTEGRATION_CONFIGS, stringifyIntegrationConfigs } from '@/features/integrations/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import {
+  installDeterministicRaf,
+  mountReactRoot,
+  unmountReactRoot,
+  waitForFrames,
+  waitForTasks,
+} from '@/tests/lib/reactRootHarness'
 import { AGENTIC_COMMERCE_MAIN_PANEL_READINESS } from 'grph-shared/payments/agenticCommerceSsot'
 
 const READY_MARKDOWN = `---
@@ -178,6 +196,131 @@ export function testLocalMainPanelChatCanvasPipelineAcceptsMcpIntegrationsCommer
     if (Array.isArray(inspection.issues) && inspection.issues.length > 0) {
       throw new Error(`expected ${activeTab} entry tab to report no issues, got ${JSON.stringify(inspection.issues)}`)
     }
+  }
+}
+
+export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegrationsEntrySnapshots() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    resetBrowserLocalSurfaceSnapshotsForTests()
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+    api.setChatProvider('openai')
+    api.setChatEndpointUrl('/api/chat')
+    api.setChatModel('gpt-4.1')
+    api.setChatContextScope('workspace')
+    api.setChatStorageTarget('chatKnowgrph')
+    api.setIntegrationConfigsJson(stringifyIntegrationConfigs({
+      ...DEFAULT_INTEGRATION_CONFIGS,
+      aiChat: {
+        ...DEFAULT_INTEGRATION_CONFIGS.aiChat,
+        enabled: true,
+      },
+      pixverseVideo: {
+        ...DEFAULT_INTEGRATION_CONFIGS.pixverseVideo,
+        enabled: true,
+        strategy: 'transition-video',
+      },
+    }))
+
+    const container = dom.window.document.createElement('div')
+    dom.window.document.body.appendChild(container)
+    root = createRoot(container)
+    await mountReactRoot(root, React.createElement(MainPanel, {
+      requestedTab: 'integrations',
+      requestedSearchQuery: 'chat',
+    }), {
+      window: dom.window as unknown as Window,
+      frames: 8,
+    })
+    await waitForTasks(4)
+    await waitForFrames(dom.window as unknown as Window, 2)
+
+    const mainPanelSnapshot = readLocalMainPanelSurfaceSnapshot()
+    const settingsChatReadinessSnapshot = readLocalSettingsChatReadinessSurfaceSnapshot()
+    if (mainPanelSnapshot?.activeTab !== 'integrations') {
+      throw new Error(`expected rendered MainPanel snapshot to stay on Integrations, got ${JSON.stringify(mainPanelSnapshot)}`)
+    }
+    if (mainPanelSnapshot.sharedActions?.hasApply !== true || mainPanelSnapshot.sharedActions.hasReset !== true) {
+      throw new Error(`expected rendered Integrations entry to register shared Settings actions, got ${JSON.stringify(mainPanelSnapshot.sharedActions)}`)
+    }
+    if (
+      settingsChatReadinessSnapshot?.integrationEnabled !== true ||
+      settingsChatReadinessSnapshot.integrationOpenTab !== 'chat' ||
+      settingsChatReadinessSnapshot.pixverseVideoEnabled !== true ||
+      settingsChatReadinessSnapshot.pixverseVideoStrategy !== 'transition-video' ||
+      settingsChatReadinessSnapshot.pixverseVideoTransport !== 'mcp-stdio'
+    ) {
+      throw new Error(`expected rendered Integrations settings snapshot to expose normalized chat and PixVerse routing, got ${JSON.stringify(settingsChatReadinessSnapshot)}`)
+    }
+
+    const inspection = inspectLocalMainPanelChatCanvasPipeline({
+      mainPanelSnapshot,
+      commerceReadinessSnapshot: AGENTIC_COMMERCE_MAIN_PANEL_READINESS,
+      settingsChatReadinessSnapshot,
+      editorWorkspaceSnapshot: READY_EDITOR_WORKSPACE,
+      chatPipelineSnapshot: READY_CHAT_PIPELINE,
+      markdownDocumentName: 'workspace:/docs/agent-ready.md',
+      markdownDocumentText: READY_MARKDOWN,
+      markdownDocumentSourceUrl: '/knowgrph/share/agent-ready',
+      graphData: READY_GRAPH,
+      graphDataRevision: 1,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'd3',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: true,
+      multiDimTableModeEnabled: false,
+      documentStructureBaselineLock: false,
+      collapsedGroupIds: [],
+      selectedNodeId: 'start',
+      selectedEdgeId: 'edge-1',
+    }) as {
+      pipelineReady?: unknown
+      readiness?: { routeReady?: unknown; settingsReady?: unknown; chatReady?: unknown; markdownFlowReady?: unknown; canvasReady?: unknown }
+      entrySurfaces?: { integrations?: { active?: unknown; ready?: unknown } }
+      route?: { activeMainPanelTab?: unknown; integrationOpenTab?: unknown; chatContextScope?: unknown }
+      counts?: { flowNodeCount?: unknown; canvasNodeCount?: unknown }
+      issues?: unknown
+    }
+
+    if (
+      inspection.pipelineReady !== true ||
+      inspection.entrySurfaces?.integrations?.active !== true ||
+      inspection.entrySurfaces.integrations.ready !== true ||
+      inspection.readiness?.routeReady !== true ||
+      inspection.readiness.settingsReady !== true ||
+      inspection.readiness.chatReady !== true ||
+      inspection.readiness.markdownFlowReady !== true ||
+      inspection.readiness.canvasReady !== true ||
+      inspection.route?.activeMainPanelTab !== 'integrations' ||
+      inspection.route.integrationOpenTab !== 'chat' ||
+      inspection.route.chatContextScope !== 'workspace' ||
+      inspection.counts?.flowNodeCount !== 2 ||
+      inspection.counts.canvasNodeCount !== 2 ||
+      (Array.isArray(inspection.issues) && inspection.issues.length > 0)
+    ) {
+      throw new Error(`expected rendered Integrations entry to prove the local chat/frontmatter/canvas E2E pipeline, got ${JSON.stringify(inspection)}`)
+    }
+
+    const text = container.textContent || ''
+    if (!text.includes('integrationConfigsJson') || !text.includes('Open FloatingPanel Chat UI')) {
+      throw new Error(`expected rendered Integrations UI to expose integration routing rows and Chat entry action, got ${JSON.stringify(text)}`)
+    }
+  } finally {
+    if (root) {
+      await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    }
+    resetBrowserLocalSurfaceSnapshotsForTests()
+    useGraphStore.getState().resetAll()
+    restoreDom()
+    restoreWindow()
   }
 }
 

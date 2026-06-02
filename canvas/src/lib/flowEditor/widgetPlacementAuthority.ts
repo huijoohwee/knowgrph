@@ -97,6 +97,53 @@ export function shouldUseFlowEditorWidgetFloatingScreenAuthority(args: {
   return kind === 'frontmatter-flow' && args.pinnedInCanvas !== true
 }
 
+export function areFlowEditorWidgetOverlaysOwnedByFloatingScreenAuthority(args: {
+  graphMetaKind?: string | null
+  nodeIds: ReadonlyArray<string>
+  nodeById?: ReadonlyMap<string, Pick<GraphNode, 'id' | 'type'>> | null
+  pinnedByNodeId?: Record<string, boolean> | null
+}): boolean {
+  const kind = String(args.graphMetaKind || '').trim()
+  if (kind !== 'frontmatter-flow' || args.nodeIds.length === 0) return false
+  return args.nodeIds.every(rawId => {
+    const id = String(rawId || '').trim()
+    if (!id) return false
+    const pinnedInCanvas = resolveEffectiveFlowWidgetPinnedInCanvas({
+      graphMetaKind: kind,
+      node: args.nodeById?.get(id) || null,
+      pinnedValue: args.pinnedByNodeId?.[id],
+    })
+    return shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind: kind, pinnedInCanvas })
+  })
+}
+
+export function hasUnplacedFlowEditorFloatingScreenAuthorityWidget(args: {
+  graphMetaKind?: string | null
+  nodeIds: ReadonlyArray<string>
+  nodeTypeById?: ReadonlyMap<string, string> | null
+  pinnedByNodeId?: Record<string, boolean> | null
+  worldPosByNodeId?: Record<string, { x: number; y: number }> | null
+  screenPosByNodeId?: Record<string, { left: number; top: number }> | null
+}): boolean {
+  const kind = String(args.graphMetaKind || '').trim()
+  if (kind !== 'frontmatter-flow') return false
+  return args.nodeIds.some(rawId => {
+    const id = String(rawId || '').trim()
+    if (!id) return false
+    const pinnedInCanvas = resolveEffectiveFlowWidgetPinnedInCanvas({
+      graphMetaKind: kind,
+      node: { id, type: args.nodeTypeById?.get(id) || '' },
+      pinnedValue: args.pinnedByNodeId?.[id],
+    })
+    if (!shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind: kind, pinnedInCanvas })) return false
+    const world = args.worldPosByNodeId?.[id]
+    const screen = args.screenPosByNodeId?.[id]
+    const hasWorld = !!world && Number.isFinite(world.x) && Number.isFinite(world.y)
+    const hasScreen = !!screen && Number.isFinite(screen.left) && Number.isFinite(screen.top)
+    return !hasWorld && !hasScreen
+  })
+}
+
 export function shouldPreserveFrontmatterAutoManagedBalancedCollective(args: {
   graphData: GraphData | null | undefined
   posByNodeId: Record<string, { top: number; left: number }>

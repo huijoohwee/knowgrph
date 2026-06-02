@@ -4,7 +4,7 @@ import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import { UI_LABELS } from '@/lib/config'
 import type { SchemaFieldSpec } from '@/lib/graph/flowPorts'
 import { buildSchemaFieldPortKey } from '@/lib/graph/flowPorts'
-import { formatFlowHandleKeyValue, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { Trash2 } from 'lucide-react'
@@ -143,8 +143,8 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
             const fieldId = String(row.id || '').trim()
             const portKey = buildSchemaFieldPortKey(fieldId)
             const title = String(row.title || fieldId)
-            const inAria = formatFlowHandleKeyValue({ dir: 'in', portKey }) || `Input port: ${title}`
-            const outAria = formatFlowHandleKeyValue({ dir: 'out', portKey }) || `Output port: ${title}`
+            const inAria = formatFlowHandleSemanticKey({ dir: 'in', portKey }) || `Input port: ${title}`
+            const outAria = formatFlowHandleSemanticKey({ dir: 'out', portKey }) || `Output port: ${title}`
             const dotR = Math.max(1, dotSizePx / 2)
 
             return (

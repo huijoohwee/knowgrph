@@ -4,6 +4,7 @@ import { parseMarkdownBlocks } from '@/lib/markdown'
 import {
   FLOW_WIDGET_FORM_ID_KEY,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 import { FLOW_EDGE_DISPLAY_LABEL_KEY, FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
@@ -378,14 +379,16 @@ export function ensureAugmentedPortsFromDeclaredConnections(args: {
     const existing = registryByFormId.get(formId)
     if (existing) return existing
     const type = nodeTypeByNodeId.get(nodeId) || 'Node'
+    const canonicalDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId: type })
     const created: RegistryEntry = {
       id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(nodeId) || hashText(nodeId)}`,
       isEnabled: true,
       nodeTypeId: type,
-      widgetTypeId: 'default',
+      widgetTypeId: asString(canonicalDraft?.widgetTypeId) || 'default',
       formId,
-      fields: [],
-      ports: [],
+      fields: Array.isArray(canonicalDraft?.fields) ? [...canonicalDraft.fields] : [],
+      ports: Array.isArray(canonicalDraft?.ports) ? [...canonicalDraft.ports] : [],
+      ...(Array.isArray(canonicalDraft?.schemaMappings) ? { schemaMappings: [...canonicalDraft.schemaMappings] } : {}),
       updatedAt: FRONTMATTER_REGISTRY_UPDATED_AT,
     }
     args.registry.push(created)

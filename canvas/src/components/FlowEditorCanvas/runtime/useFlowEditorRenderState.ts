@@ -4,6 +4,7 @@ import { deriveFlowEditorViewGraph } from '@/components/FlowEditorCanvas/flowEdi
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import type { GraphData } from '@/lib/graph/types'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
+import { shouldPreferScopedGraphDataAuthority } from '@/lib/flowEditor/flowEditorGraphAuthority'
 
 export function useFlowEditorRenderState(args: {
   active: boolean
@@ -32,15 +33,27 @@ export function useFlowEditorRenderState(args: {
 
   React.useLayoutEffect(() => {
     if (!args.editorRuntimeActive) {
+      draftGraphDataRef.current = null
       setDraftGraphData(null)
       return
     }
     const base = args.flowEditorBaseGraphData as GraphData | null
+    draftGraphDataRef.current = base
     setDraftGraphData(prev => (prev === base ? prev : base))
   }, [args.baseGraphDataRevision, args.editorRuntimeActive, args.flowEditorBaseGraphData])
 
   const rawRenderGraphDataOverride = React.useMemo((): GraphData | null => {
-    const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData
+    const baseForRender = args.flowEditorBaseGraphData || args.baseGraphData
+    const graphDataForRender = args.flowEditorViewActive
+      ? (
+          shouldPreferScopedGraphDataAuthority({
+            candidateGraphData: draftGraphData,
+            authorityGraphData: baseForRender,
+          })
+            ? baseForRender
+            : (draftGraphData || baseForRender)
+        )
+      : args.baseGraphData
     return deriveFlowEditorViewGraph({
       graphData: graphDataForRender,
       collapsedGroupIds: args.collapsedGroupIdsForView,
@@ -50,6 +63,7 @@ export function useFlowEditorRenderState(args: {
     args.baseGraphData,
     args.collapsedGroupIdsForView,
     args.flowEditorViewActive,
+    args.flowEditorBaseGraphData,
     args.frontmatterOnlyPolicyActive,
     draftGraphData,
   ])

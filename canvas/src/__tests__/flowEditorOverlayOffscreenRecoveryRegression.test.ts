@@ -148,7 +148,7 @@ export function testFlowEditorOverlayPlacementRuntimeIgnoresProjectedOffscreenFr
   const frontmatterPlacementPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayFrontmatterPlacement.ts')
   const frontmatterPlacementText = fs.readFileSync(frontmatterPlacementPath, 'utf8')
 
-  if (!text.includes('const storedWorldScreen = storedWorld ? worldToScreen({ transform: z, x: storedWorld.x, y: storedWorld.y }) : null')) {
+  if (!text.includes('const storedWorldScreen = storedWorld ? worldToScreen({ transform: placementTransform, x: storedWorld.x, y: storedWorld.y }) : null')) {
     throw new Error('expected Flow Editor placement runtime to project stored widget world positions through the active transform')
   }
   if (!text.includes("import { isFrontmatterManagedOverlayNode, resolveFrontmatterBalancedFallbackPos } from '@/components/FlowEditor/nodeOverlayFrontmatterPlacement'")
@@ -160,10 +160,11 @@ export function testFlowEditorOverlayPlacementRuntimeIgnoresProjectedOffscreenFr
   if (!text.includes('const effectiveStoredWorld = storedWorldFarOffscreen ? null : storedWorld')) {
     throw new Error('expected Flow Editor placement runtime to ignore frontmatter stored widget positions that project far offscreen')
   }
-  if (!frontmatterPlacementText.includes("computeBalancedSpreadLayout({")
+  if (!frontmatterPlacementText.includes("import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'")
+    || !frontmatterPlacementText.includes("placeWidgetsCenteredInGroupBounds({")
     || !frontmatterPlacementText.includes("preset: 'widgetFrontmatter'")
     || !text.includes('const frontmatterBaseFarOffscreen = frontmatterManagedNode')) {
-    throw new Error('expected Flow Editor placement runtime to recover frontmatter overlays through the shared balanced spread fallback when anchored geometry is far offscreen')
+    throw new Error('expected Flow Editor placement runtime to recover frontmatter overlays through the shared centered spread fallback when anchored geometry is far offscreen')
   }
   if (!frontmatterPlacementText.includes("computeBalancedSpreadBaseGapPx({ viewportW: args.viewportW, viewportH: args.viewportH, preset: 'widgetFrontmatter', margins })")
     || text.includes('baseGapPx: 24')

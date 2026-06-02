@@ -1,15 +1,16 @@
 import React from 'react'
 
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
-import type { WidgetRegistryEntry, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryFieldOption, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getObjectPath } from '@/lib/data/objectPath'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { formatFlowHandleAccessibleName, formatFlowHandleKeyValue, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleAccessibleName, formatFlowHandleKtvKeyLabel, formatFlowHandleSemanticKey, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
 import {
   inferTextGenerationProviderFamily,
   listVisibleWidgetRegistryPortsForPropsEditor,
@@ -23,17 +24,28 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
-import {
-  applyConnectedWidgetFieldsToEmptyValues,
-  applyWidgetFieldValueUpdate,
-  coerceWidgetFieldValue,
-  normalizeWidgetFieldSchemaPath,
-} from '@/features/flow-editor-manager/widgetFieldMutation'
+import { applyConnectedWidgetFieldsToEmptyValues, applyWidgetFieldValueUpdate, coerceWidgetFieldValue, normalizeWidgetFieldSchemaPath, readWidgetFieldValueText } from '@/features/flow-editor-manager/widgetFieldMutation'
 import {
   formatConnectedValue,
   JsonLikeValueEditor,
   normalizeJsonLikeValueText,
 } from '@/components/FlowEditor/NodeOverlayEditorJsonLikeValueEditor'
+
+type RegistryPortRowModel = {
+  port: WidgetRegistryPort
+  rowIndex: number
+  portKey: string
+  isIn: boolean
+  schemaPath: string
+  normalizedSchemaPath: string
+  portValueId: string
+  handlePath: ReturnType<typeof readFlowHandlePath>
+  handleType: ReturnType<typeof readFlowHandleTypeLabel>
+  portKeyLabel: string
+  aria: string
+  mainPanelLink: ReturnType<typeof resolveWidgetRegistryMainPanelLink>
+  portValueText: string
+}
 
 export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayEditorRegistrySection(props: {
   active: boolean
@@ -167,6 +179,137 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     applyConnectedToEmptyFields()
   }, [applyConnectedToEmptyFields, autoApplyConnected, connectedValuesBySchemaPath])
 
+  const registryFieldSchemaPathSet = React.useMemo(() => {
+    const out = new Set<string>()
+    registryFields.forEach(field => {
+      const schemaPath = normalizeWidgetFieldSchemaPath(field.schemaPath, field.fieldKey)
+      if (schemaPath) out.add(schemaPath)
+    })
+    return out
+  }, [registryFields])
+
+  const registryPortModels = React.useMemo<RegistryPortRowModel[]>(() => {
+    const counts = new Map<string, number>()
+    for (let idx = 0; idx < registryPorts.length; idx += 1) {
+      const p = registryPorts[idx]
+      const portKey = String(p?.portKey || '').trim()
+      if (!portKey) continue
+      counts.set(`${p.direction}:${portKey}`, (counts.get(`${p.direction}:${portKey}`) || 0) + 1)
+    }
+    const seen = new Map<string, number>()
+    const out: RegistryPortRowModel[] = []
+    for (let idx = 0; idx < registryPorts.length; idx += 1) {
+      const p = registryPorts[idx]
+      const portKey = String(p.portKey || '').trim()
+      if (!portKey) continue
+      const isIn = p.direction === 'input'
+      const occurrenceKey = `${p.direction}:${portKey}`
+      const occurrenceIndex = seen.get(occurrenceKey) || 0
+      seen.set(occurrenceKey, occurrenceIndex + 1)
+      const schemaPath = String(p.schemaPath || '').trim()
+      const normalizedSchemaPath = normalizeWidgetFieldSchemaPath(schemaPath, portKey)
+      const portValueId = ids.registryField(
+        (counts.get(occurrenceKey) || 0) > 1
+          ? `port-${idx}-${p.direction}-${portKey}-${schemaPath}`
+          : `port-${p.direction}-${portKey}`,
+      )
+      const handlePath = readFlowHandlePath(isIn ? 'in' : 'out')
+      const handleType = readFlowHandleTypeLabel(isIn ? 'in' : 'out')
+      const handleSemanticKey = formatFlowHandleSemanticKey({ dir: isIn ? 'in' : 'out', portKey })
+      const portKeyLabel = formatFlowHandleKtvKeyLabel({ dir: isIn ? 'in' : 'out', portKey }) || handleSemanticKey || portKey
+      const aria = formatFlowHandleAccessibleName({
+        dir: isIn ? 'in' : 'out',
+        portKey,
+        schemaPath,
+        occurrenceIndex,
+        occurrenceCount: counts.get(occurrenceKey) || 0,
+      }) || handleSemanticKey
+      out.push({
+        port: p,
+        rowIndex: idx,
+        portKey,
+        isIn,
+        schemaPath,
+        normalizedSchemaPath,
+        portValueId,
+        handlePath,
+        handleType,
+        portKeyLabel,
+        aria,
+        mainPanelLink: resolveWidgetRegistryMainPanelLink({
+          registryEntry,
+          properties,
+          portKey,
+        }),
+        portValueText: readWidgetFieldValueText({ properties: effectiveProperties, schemaPath, fallbackKey: portKey }),
+      })
+    }
+    return out
+  }, [effectiveProperties, ids, properties, registryEntry, registryPorts])
+
+  const renderRegistryPortButton = React.useCallback((model: RegistryPortRowModel) => (
+    <button
+      type="button"
+      aria-label={model.aria}
+      title={model.aria}
+      data-kg-port-handle="1"
+      data-kg-port-handle-kind="dot"
+      data-kg-port-dir={model.isIn ? 'in' : 'out'}
+      data-kg-port-key={model.portKey}
+      data-kg-port-schema-path={model.schemaPath || undefined}
+      data-kg-port-path={model.handlePath}
+      className={cn('relative', UI_THEME_TOKENS.button.text)}
+      style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
+      onPointerDown={e => {
+        try {
+          e.stopPropagation()
+        } catch {
+          void 0
+        }
+      }}
+      onClick={e => {
+        try {
+          e.stopPropagation()
+        } catch {
+          void 0
+        }
+        if (!active || !portHandlesEnabled) return
+        if (onSchemaPortHandleClick) {
+          onSchemaPortHandleClick({ dir: model.isIn ? 'in' : 'out', portKey: model.portKey })
+          return
+        }
+        if (!model.mainPanelLink) return
+        emitMainPanelOpen(model.mainPanelLink)
+      }}
+      disabled={!active || !portHandlesEnabled}
+    >
+      <span
+        aria-hidden={true}
+        className={cn(
+          'absolute top-1/2 left-1/2 rounded-full border',
+          UI_THEME_TOKENS.panel.bg,
+          PORT_HANDLE_STROKE_CLASS,
+        )}
+        style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
+      />
+    </button>
+  ), [active, dotHitPx, dotSizePx, onSchemaPortHandleClick, portHandlesEnabled])
+
+  const mergedRegistryPortNodesBySchemaPath = React.useMemo(() => {
+    const out = new Map<string, Pick<NodeOverlayEditorKvRow, 'inPortNode' | 'outPortNode'>>()
+    registryPortModels.forEach(model => {
+      if (!model.normalizedSchemaPath || !registryFieldSchemaPathSet.has(model.normalizedSchemaPath)) return
+      const current = out.get(model.normalizedSchemaPath) || {}
+      out.set(model.normalizedSchemaPath, {
+        ...current,
+        ...(model.isIn
+          ? { inPortNode: renderRegistryPortButton(model) }
+          : { outPortNode: renderRegistryPortButton(model) }),
+      })
+    })
+    return out
+  }, [registryFieldSchemaPathSet, registryPortModels, renderRegistryPortButton])
+
   for (let idx = 0; idx < registryFields.length; idx += 1) {
     const f = registryFields[idx]
     const rowKey = `${String(f.fieldKey || '')}:${idx}`
@@ -216,10 +359,16 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     )
 
     const typeNode = <NodeOverlayEditorTypePill text={fieldType || 'text'} />
+    const mergedPortNodes = path ? mergedRegistryPortNodesBySchemaPath.get(path) : undefined
+    const mergedPortRowProps: Pick<NodeOverlayEditorKvRow, 'inPortNode' | 'outPortNode'> = {
+      inPortNode: mergedPortNodes?.inPortNode,
+      outPortNode: mergedPortNodes?.outPortNode,
+    }
 
     if (fieldType === 'readonly') {
       const v = typeof effectiveCur === 'string' ? effectiveCur : typeof effectiveCur === 'number' ? String(effectiveCur) : String(effectiveCur ?? '').trim()
       rows.push({
+        ...mergedPortRowProps,
         rowKey,
         labelId,
         keyNode,
@@ -273,6 +422,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       const checked = typeof cur === 'boolean' ? cur : false
       const effectiveChecked = typeof effectiveCur === 'boolean' ? effectiveCur : checked
       rows.push({
+        ...mergedPortRowProps,
         rowKey,
         labelId,
         keyNode,
@@ -294,6 +444,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         ? String(effectiveCur)
         : String(effectiveCur ?? '').trim()
       rows.push({
+        ...mergedPortRowProps,
         rowKey,
         labelId,
         keyNode,
@@ -343,27 +494,26 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     if (fieldType === 'number' || fieldType === 'int' || fieldType === 'integer' || fieldType === 'float') {
       const v = typeof effectiveCur === 'number' && Number.isFinite(effectiveCur) ? String(effectiveCur) : ''
       rows.push({
+        ...mergedPortRowProps,
         rowKey,
         labelId,
         keyNode,
         typeNode,
         valueNode: (
           <section className="w-full">
-            <input
+            <FlowEditorInlineValueEditor
               id={id}
-              type="number"
               className={cn(
                 keyValueInputClass,
                 textSizeClass,
                 'text-left',
-                UI_THEME_TOKENS.input.bg,
-                UI_THEME_TOKENS.input.border,
-                UI_THEME_TOKENS.input.text,
               )}
               value={v}
               placeholder={!v && connectedValueText ? connectedValueText : undefined}
-              onChange={e => {
-                const raw = e.target.value
+              active={active}
+              ariaLabel={label}
+              onCommit={next => {
+                const raw = String(next ?? '')
                 if (!raw.trim()) {
                   setValue(undefined)
                   return
@@ -371,7 +521,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
                 const num = Number.parseFloat(raw)
                 setValue(Number.isFinite(num) ? num : undefined)
               }}
-              disabled={!active}
             />
             {connectedMeta}
           </section>
@@ -384,6 +533,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       const mode = fieldType === 'object' ? 'object' : 'json'
       const v = normalizeJsonLikeValueText(effectiveCur)
       rows.push({
+        ...mergedPortRowProps,
         rowKey,
         labelId,
         keyNode,
@@ -414,31 +564,30 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
     const v = typeof effectiveCur === 'string' ? effectiveCur : typeof effectiveCur === 'number' ? String(effectiveCur) : ''
     rows.push({
+      ...mergedPortRowProps,
       rowKey,
       labelId,
       keyNode,
       typeNode,
       valueNode: (
         <section className="w-full">
-          <PlainTextInputEditor
+          <FlowEditorInlineValueEditor
             id={id}
             className={cn(
               keyValueInputClass,
               textSizeClass,
               'text-left',
               fieldType === 'textarea' ? 'h-24 px-2 py-1' : '',
-              UI_THEME_TOKENS.input.bg,
-              UI_THEME_TOKENS.input.border,
-              UI_THEME_TOKENS.input.text,
             )}
             multiline={fieldType === 'textarea'}
             rows={fieldType === 'textarea' ? 4 : undefined}
             value={v}
             placeholder={!v && connectedValueText ? connectedValueText : undefined}
-            onChange={raw => {
+            active={active}
+            ariaLabel={label}
+            onCommit={raw => {
               setValue(raw.trim() ? raw : undefined)
             }}
-            disabled={!active}
           />
           {connectedMeta}
         </section>
@@ -448,109 +597,27 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
   const portRows: NodeOverlayEditorKvRow[] = React.useMemo(() => {
     const out: NodeOverlayEditorKvRow[] = []
-    const counts = new Map<string, number>()
-    for (let idx = 0; idx < registryPorts.length; idx += 1) {
-      const p = registryPorts[idx]
-      const portKey = String(p?.portKey || '').trim()
-      if (!portKey) continue
-      counts.set(`${p.direction}:${portKey}`, (counts.get(`${p.direction}:${portKey}`) || 0) + 1)
-    }
-    const seen = new Map<string, number>()
-    for (let idx = 0; idx < registryPorts.length; idx += 1) {
-      const p = registryPorts[idx]
-      const portKey = String(p.portKey || '').trim()
-      if (!portKey) continue
-      const isIn = p.direction === 'input'
-      const occurrenceKey = `${p.direction}:${portKey}`
-      const occurrenceIndex = seen.get(occurrenceKey) || 0
-      seen.set(occurrenceKey, occurrenceIndex + 1)
-      const schemaPath = String(p.schemaPath || '').trim()
-      const portValueId = ids.registryField(
-        (counts.get(occurrenceKey) || 0) > 1
-          ? `port-${idx}-${p.direction}-${portKey}-${schemaPath}`
-          : `port-${p.direction}-${portKey}`,
-      )
-      const handlePath = readFlowHandlePath(isIn ? 'in' : 'out')
-      const handleType = readFlowHandleTypeLabel(isIn ? 'in' : 'out')
-      const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? 'in' : 'out', portKey })
-      const aria = formatFlowHandleAccessibleName({
-        dir: isIn ? 'in' : 'out',
-        portKey,
-        schemaPath,
-        occurrenceIndex,
-        occurrenceCount: counts.get(occurrenceKey) || 0,
-      }) || handlePathValue
-      const mainPanelLink = resolveWidgetRegistryMainPanelLink({
-        registryEntry,
-        properties,
-        portKey,
-      })
-
-      const portButton = (
-        <button
-          type="button"
-          aria-label={aria}
-          title={aria}
-          data-kg-port-handle="1"
-          data-kg-port-handle-kind="dot"
-          data-kg-port-dir={isIn ? 'in' : 'out'}
-          data-kg-port-key={portKey}
-          data-kg-port-schema-path={schemaPath || undefined}
-          data-kg-port-path={handlePath}
-          className={cn('relative', UI_THEME_TOKENS.button.text)}
-          style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
-          onPointerDown={e => {
-            try {
-              e.stopPropagation()
-            } catch {
-              void 0
-            }
-          }}
-          onClick={e => {
-            try {
-              e.stopPropagation()
-            } catch {
-              void 0
-            }
-            if (!active || !portHandlesEnabled) return
-            if (onSchemaPortHandleClick) {
-              onSchemaPortHandleClick({ dir: isIn ? 'in' : 'out', portKey })
-              return
-            }
-            if (!mainPanelLink) return
-            emitMainPanelOpen(mainPanelLink)
-          }}
-          disabled={!active || !portHandlesEnabled}
-        >
-          <span
-            aria-hidden={true}
-            className={cn(
-              'absolute top-1/2 left-1/2 rounded-full border',
-              UI_THEME_TOKENS.panel.bg,
-              PORT_HANDLE_STROKE_CLASS,
-            )}
-            style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
-          />
-        </button>
-      )
-
+    for (let idx = 0; idx < registryPortModels.length; idx += 1) {
+      const model = registryPortModels[idx]
+      if (showFieldRows && registryFieldSchemaPathSet.has(model.normalizedSchemaPath)) continue
+      const portButton = renderRegistryPortButton(model)
       out.push({
-        rowKey: `port:${p.direction}:${portKey}:${idx}`,
-        labelId: `${portValueId}-label`,
-        inPortNode: isIn ? portButton : null,
-        outPortNode: !isIn ? portButton : null,
+        rowKey: `port:${model.port.direction}:${model.portKey}:${model.rowIndex}`,
+        labelId: `${model.portValueId}-label`,
+        inPortNode: model.isIn ? portButton : null,
+        outPortNode: !model.isIn ? portButton : null,
         keyNode: (
-          <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={portValueId}>
-            <span>{aria}</span>
-            <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{schemaPath || portKey}</span>
+          <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={model.portValueId} title={model.aria || model.portKeyLabel}>
+            <span>{model.portKeyLabel}</span>
+            <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{model.schemaPath || model.portKey}</span>
           </label>
         ),
-        typeNode: <NodeOverlayEditorTypePill text={handleType} />,
+        typeNode: <NodeOverlayEditorTypePill text={model.handleType} />,
         valueNode: (
           <PlainTextInputEditor
-            id={portValueId}
-            ariaLabel={aria}
-            value={portKey}
+            id={model.portValueId}
+            ariaLabel={model.aria}
+            value={model.portValueText}
             disabled
             readOnly
             className={cn(
@@ -567,7 +634,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       })
     }
     return out
-  }, [active, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, portHandlesEnabled, properties, registryEntry, registryPorts, textSizeClass])
+  }, [keyLabelClass, keyValueInputClass, monospaceTextClass, registryFieldSchemaPathSet, registryPortModels, renderRegistryPortButton, showFieldRows, textSizeClass])
 
   if (!registryEntry) return null
   const visibleFieldRows = showFieldRows ? rows : []

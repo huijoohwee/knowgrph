@@ -1,6 +1,7 @@
 import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { readRecordPathValue } from '@/lib/graph/nodeProperties'
 
 function pickString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -36,6 +37,31 @@ export function normalizeWidgetFieldSchemaPath(schemaPath: unknown, fallbackKey:
   if (!raw) return ''
   if (raw.startsWith('properties.') || raw.startsWith('metadata.') || raw === 'label' || raw === 'type') return raw
   return `properties.${raw}`
+}
+
+export function formatWidgetFieldValueText(value: unknown): string {
+  if (typeof value === 'undefined' || value === null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  try {
+    return JSON.stringify(value, null, 2) || ''
+  } catch {
+    return String(value)
+  }
+}
+
+export function readWidgetFieldValueText(args: {
+  properties: Record<string, unknown>
+  schemaPath?: unknown
+  fallbackKey?: unknown
+}): string {
+  const path = normalizeWidgetFieldSchemaPath(args.schemaPath, args.fallbackKey)
+  if (!path) return ''
+  const value = path.startsWith('properties.')
+    ? readRecordPathValue(args.properties, path)
+    : getObjectPath({ properties: args.properties }, path)
+  return formatWidgetFieldValueText(value)
 }
 
 export function coerceWidgetFieldValue(args: { fieldType: unknown; value: unknown }): unknown {
@@ -103,7 +129,7 @@ export function applyWidgetFieldValueUpdate(args: {
   schemaPath: string
   nextValue: unknown
 }): Record<string, unknown> {
-  const path = pickString(args.schemaPath)
+  const path = normalizeWidgetFieldSchemaPath(args.schemaPath, '')
   if (!path) return args.properties
   const nextRoot = setObjectPath({ properties: args.properties }, path, args.nextValue) as {
     properties?: Record<string, unknown>

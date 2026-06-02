@@ -107,7 +107,7 @@ function normalizeFrontmatterOverlayNodeIds(rawIds: ReadonlyArray<string>): stri
   const out: string[] = []
   const seen = new Set<string>()
   for (let i = 0; i < rawIds.length; i += 1) {
-    const id = readCanonicalFlowEditorOverlayIdentity(rawIds[i])
+    const id = String(rawIds[i] || '').trim()
     if (!id || seen.has(id)) continue
     seen.add(id)
     out.push(id)

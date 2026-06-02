@@ -1,4 +1,5 @@
-import { computeBalancedSpreadBaseGapPx, computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
+import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
+import { computeBalancedSpreadBaseGapPx, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 import { isFrontmatterCollectiveNode } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 
 export function isFrontmatterManagedOverlayNode(graphMetaKind: string | null | undefined, node: unknown): boolean {
@@ -24,20 +25,14 @@ export function resolveFrontmatterBalancedFallbackPos(args: {
     count,
     preset: 'widgetFrontmatter',
   })
-  const layout = computeBalancedSpreadLayout({
-    count,
-    viewportW: args.viewportW,
-    viewportH: args.viewportH,
+  const placed = placeWidgetsCenteredInGroupBounds({
+    ids: Array.from({ length: count }, (_, index) => String(index)),
+    bounds: { minX: 0, minY: 0, maxX: args.viewportW, maxY: args.viewportH },
     cellW: args.scaled.width + gapPx,
     cellH: args.scaled.height + gapPx,
-    gapPx,
-    zoomK: args.zoomK,
-    marginLeftPx: margins.left,
-    marginRightPx: margins.right,
-    marginTopPx: margins.top,
-    marginBottomPx: margins.bottom,
-    snapPx: 1,
+    gapWorld: gapPx,
+    snapWorld: value => value,
   })
-  const cell = layout.cells[Math.min(idx, layout.cells.length - 1)] || null
-  return cell ? { left: cell.left, top: cell.top } : null
+  const cell = placed[Math.min(idx, placed.length - 1)] || null
+  return cell ? { left: cell.x, top: cell.y } : null
 }

@@ -146,6 +146,7 @@ export function collectCanonicalFlowEditorOverlayRectEntries(
     const id = readCanvasOverlayNodeId(el)
     if (!id) continue
     const rect = el.getBoundingClientRect()
+    if (!isUsableFlowEditorOverlayRectCandidate(el, rect)) continue
     const next = { el, rect }
     const current = selectedById.get(id)
     const nextRank = readOverlayRectCandidateRank(el)

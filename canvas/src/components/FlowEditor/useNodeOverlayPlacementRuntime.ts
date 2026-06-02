@@ -190,34 +190,20 @@ export function useNodeOverlayPlacementRuntime(args: {
 
   const resolveFloatingPos = React.useCallback(
     (pos: { top: number; left: number } | undefined, fallback: { top: number; left: number }): { top: number; left: number } => {
-      const v = pos
-      if (v && Number.isFinite(v.top) && Number.isFinite(v.left)) {
-        const offset = canvasWindowOffsetRef.current
-        const viewportWidth = viewportW
-        const viewportHeight = viewportH
-        const leftRaw = v.left
-        const topRaw = v.top
-        const looksLikeWindowCoords =
-          (offset.left !== 0 || offset.top !== 0) &&
-          leftRaw >= offset.left - 2 &&
-          leftRaw <= offset.left + viewportWidth + 2 &&
-          topRaw >= offset.top - 2 &&
-          topRaw <= offset.top + viewportHeight + 2
-        const coerce = looksLikeWindowCoords ? { left: leftRaw - offset.left, top: topRaw - offset.top } : v
+      if (pos && Number.isFinite(pos.top) && Number.isFinite(pos.left)) {
         if (shouldUseFrontmatterBalancedFallbackForScreenAuthority({
           frontmatterManagedNode: initialFrontmatterManagedNode,
           floatingUsesScreenAuthority,
           hasAppliedPlacement: Boolean(lastAppliedRef.current),
           openWidgetNodeCount,
-          pos: coerce,
+          pos,
           fallback,
         })) return fallback
-        if (floatingUsesScreenAuthority) return coerce
-        return coerce
+        return pos
       }
       return fallback
     },
-    [floatingUsesScreenAuthority, initialFrontmatterManagedNode, openWidgetNodeCount, viewportH, viewportW],
+    [floatingUsesScreenAuthority, initialFrontmatterManagedNode, openWidgetNodeCount],
   )
 
   const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(widgetPos, defaultFloatingPos).top)
@@ -247,7 +233,7 @@ export function useNodeOverlayPlacementRuntime(args: {
     viewportRef.current = { width: viewportW, height: viewportH }
   }, [viewportH, viewportW])
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const next = canvasWindowOffset && Number.isFinite(canvasWindowOffset.left) && Number.isFinite(canvasWindowOffset.top)
       ? { left: canvasWindowOffset.left, top: canvasWindowOffset.top }
       : { left: 0, top: 0 }
@@ -468,6 +454,15 @@ export function useNodeOverlayPlacementRuntime(args: {
       : currentStoredWorld
     const storedWorld = currentStoredWorldForPlacement || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)
     const storedWorldScreen = storedWorld ? worldToScreen({ transform: placementTransform, x: storedWorld.x, y: storedWorld.y }) : null
+    const usableFloatingScreenPos = (() => {
+      if (floatingUsesScreenAuthority || currentStoredWorld || widgetWorldPosRef.current || worldDragOverride || dragOverride) return null
+      const top = typeof widgetPos?.top === 'number' && Number.isFinite(widgetPos.top) ? widgetPos.top : null
+      const left = typeof widgetPos?.left === 'number' && Number.isFinite(widgetPos.left) ? widgetPos.left : null
+      if (top == null || left == null) return null
+      if (left < -scaled.width * 0.5 || left > viewportW - 8) return null
+      if (top < -scaled.height * 0.5 || top > viewportH - 8) return null
+      return { top, left }
+    })()
     const frontmatterBaseFarOffscreen = frontmatterManagedNode
       && storedWorldScreen
       && (
@@ -499,6 +494,8 @@ export function useNodeOverlayPlacementRuntime(args: {
               ? (useFrontmatterInitialBalancedBase && frontmatterBalancedFallbackPos
                   ? frontmatterBalancedFallbackPos
                   : { top: pinnedTopPx, left: pinnedLeftPx })
+              : usableFloatingScreenPos
+                ? usableFloatingScreenPos
               : { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx })
         : { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }
     const safeBasePos = { top: Number.isFinite(basePos.top) ? basePos.top : 8, left: Number.isFinite(basePos.left) ? basePos.left : 8 }
@@ -571,9 +568,12 @@ export function useNodeOverlayPlacementRuntime(args: {
     lastAppliedRef.current = { left: pos.left, top: pos.top, scale: viewportPanelScale, zoomK, offsetLeft, offsetTop }
     el.style.transform = `matrix(${viewportPanelScale}, 0, 0, ${viewportPanelScale}, ${tx}, ${ty})`
     if (floatingRef.current && !floatingUsesScreenAuthority && !currentStoredWorld && !widgetWorldPosRef.current && !worldDragOverride && !dragOverride) {
-      widgetWorldPosRef.current = worldPinned
-      lastGoodWorldPosRef.current = worldPinned
-      persistWorldPos(worldPinned)
+      const seedWorld = usableFloatingScreenPos
+        ? screenToWorld({ transform: placementTransform, sx: usableFloatingScreenPos.left, sy: usableFloatingScreenPos.top })
+        : worldPinned
+      widgetWorldPosRef.current = seedWorld
+      lastGoodWorldPosRef.current = seedWorld
+      persistWorldPos(seedWorld)
     }
     if (opts?.emitInteractionFrame !== false) emitFlowEditorInteractionFrame()
   }, [

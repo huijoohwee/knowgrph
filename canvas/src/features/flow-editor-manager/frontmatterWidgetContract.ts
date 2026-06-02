@@ -3,10 +3,13 @@ import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
 } from '@/lib/graph/flowPorts'
-import { formatFlowHandleValueList, readFlowHandlePath, readFlowHandleTypeLabel, type FlowHandleDir } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleValueList, readFlowHandleTypeLabel, type FlowHandleDir } from '@/lib/graph/flowHandlePresentation'
 import { readNodeProperties, readRecordPathValue } from '@/lib/graph/nodeProperties'
 import { FRONTMATTER_FLOW_HANDLES_VALUE_KEY, FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
-import { normalizeWidgetFieldSchemaPath } from '@/features/flow-editor-manager/widgetFieldMutation'
+import {
+  formatWidgetFieldValueText,
+  normalizeWidgetFieldSchemaPath,
+} from '@/features/flow-editor-manager/widgetFieldMutation'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 function pickString(v: unknown): string {
@@ -23,15 +26,6 @@ function sortUniqueStrings(values: Iterable<string>): string[] {
 
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map(entry => pickString(entry)).filter(Boolean) : []
-}
-
-function stringifyContractValue(value: unknown): string {
-  if (typeof value === 'string') return value
-  try {
-    return JSON.stringify(value, null, 2) || ''
-  } catch {
-    return String(value)
-  }
 }
 
 export type FrontmatterFlowHandleKeySet = {
@@ -64,10 +58,9 @@ export type FrontmatterWidgetContractRowSpec =
       kind: 'handle'
       rowKey: 'flow-handles-target' | 'flow-handles-source'
       dir: Extract<FlowHandleDir, 'in' | 'out'>
-      label: 'handles.target' | 'handles.source'
       typeLabel: 'in' | 'out'
       valueText: string
-      declaredPortKeys: string[]
+      portKeys: string[]
     }
   | {
       kind: 'data'
@@ -98,10 +91,12 @@ export function buildFrontmatterWidgetContractModel(args: {
   node: Pick<GraphNode, 'id' | 'properties'> | null | undefined
   edges: ReadonlyArray<Pick<GraphEdge, 'source' | 'target' | 'properties'> | null | undefined> | null | undefined
   registryEntry?: Pick<WidgetRegistryEntry, 'fields' | 'ports'> | null | undefined
+  suppressRegistryBackedDeclaredFields?: boolean
 }): FrontmatterWidgetContractModel {
   const properties = readNodeProperties(args.node)
   const nodeId = pickString(args.node?.id)
   const edgeList = Array.isArray(args.edges) ? args.edges : []
+  const suppressRegistryBackedDeclaredFields = args.suppressRegistryBackedDeclaredFields !== false
 
   const flowPortTypes: FrontmatterFlowHandleKeySet = (() => {
     const raw = properties['flow:portTypes']
@@ -153,21 +148,17 @@ export function buildFrontmatterWidgetContractModel(args: {
     }
   })()
 
-  const flowHandleKeys: FrontmatterFlowHandleKeySet = {
-    target: connectedFlowHandles.target.length > 0
-      ? connectedFlowHandles.target
-      : (flowRegistryHandles.target.length > 0 ? flowRegistryHandles.target : flowPortTypes.target),
-    source: connectedFlowHandles.source.length > 0
-      ? connectedFlowHandles.source
-      : (flowRegistryHandles.source.length > 0 ? flowRegistryHandles.source : flowPortTypes.source),
-  }
-
   const handlesRecord = (() => {
     const handlesValue = properties[FRONTMATTER_FLOW_HANDLES_VALUE_KEY]
     return isRecord(handlesValue) ? handlesValue : null
   })()
   const frontmatterInKeys = sortUniqueStrings(readStringArray(handlesRecord?.target))
   const frontmatterOutKeys = sortUniqueStrings(readStringArray(handlesRecord?.source))
+  const mergeHandleKeys = (...sets: string[][]): string[] => sortUniqueStrings(sets.flat())
+  const flowHandleKeys: FrontmatterFlowHandleKeySet = {
+    target: mergeHandleKeys(frontmatterInKeys, connectedFlowHandles.target, flowRegistryHandles.target, flowPortTypes.target),
+    source: mergeHandleKeys(frontmatterOutKeys, connectedFlowHandles.source, flowRegistryHandles.source, flowPortTypes.source),
+  }
 
   const flowCompute = pickString(properties['flow:compute'])
   const hasFlowCompute = Object.prototype.hasOwnProperty.call(properties, 'flow:compute')
@@ -214,7 +205,7 @@ export function buildFrontmatterWidgetContractModel(args: {
     const schemaPath = pickString(field.schemaPath) || fieldKey
     if (!fieldKey || !schemaPath) continue
     const normalizedSchemaPath = normalizeWidgetFieldSchemaPath(schemaPath, fieldKey)
-    if (registrySchemaPaths.has(normalizedSchemaPath)) continue
+    if (suppressRegistryBackedDeclaredFields && registrySchemaPaths.has(normalizedSchemaPath)) continue
     if (
       schemaPath === FRONTMATTER_FLOW_HANDLES_VALUE_KEY
       || schemaPath === 'flow:compute'
@@ -231,7 +222,7 @@ export function buildFrontmatterWidgetContractModel(args: {
       fieldKey,
       fieldType,
       schemaPath,
-      valueText: stringifyContractValue(rawValue),
+      valueText: formatWidgetFieldValueText(rawValue),
     })
   }
 
@@ -260,31 +251,31 @@ export function buildFrontmatterWidgetContractRowSpecs(
   const pushHandleRow = (args: {
     dir: 'in' | 'out'
     hasHandles: boolean
-    declaredPortKeys: string[]
+    frontmatterPortKeys: string[]
     resolvedHandleKeys: string[]
   }) => {
-    if (!args.hasHandles && args.declaredPortKeys.length <= 0) return
+    const portKeys = args.resolvedHandleKeys.length > 0 ? args.resolvedHandleKeys : args.frontmatterPortKeys
+    if (!args.hasHandles && portKeys.length <= 0) return
     handleRows.push({
       kind: 'handle',
       rowKey: args.dir === 'in' ? 'flow-handles-target' : 'flow-handles-source',
       dir: args.dir,
-      label: readFlowHandlePath(args.dir),
       typeLabel: readFlowHandleTypeLabel(args.dir),
-      valueText: formatFlowHandleValueList(args.resolvedHandleKeys),
-      declaredPortKeys: args.declaredPortKeys,
+      valueText: formatFlowHandleValueList(portKeys),
+      portKeys,
     })
   }
 
   pushHandleRow({
     dir: 'in',
     hasHandles: model.hasFlowTargetHandles,
-    declaredPortKeys: model.frontmatterInKeys,
+    frontmatterPortKeys: model.frontmatterInKeys,
     resolvedHandleKeys: model.flowHandleKeys.target,
   })
   pushHandleRow({
     dir: 'out',
     hasHandles: model.hasFlowSourceHandles,
-    declaredPortKeys: model.frontmatterOutKeys,
+    frontmatterPortKeys: model.frontmatterOutKeys,
     resolvedHandleKeys: model.flowHandleKeys.source,
   })
 

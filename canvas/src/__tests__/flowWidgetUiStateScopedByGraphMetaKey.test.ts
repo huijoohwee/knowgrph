@@ -53,7 +53,7 @@ export function testFlowWidgetUiStateCarriesAcrossSameSourceRecomposeHashChanges
   useGraphStore.getState().setGraphData({
     type: 'Graph',
     context: 'frontmatter-flow',
-    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', properties: {} }],
+    nodes: [{ id: 'NODE_TEXT', type: 'CustomWidget', label: 'Text Widget', properties: {} }],
     edges: [{ id: 'EDGE_A', source: 'NODE_TEXT', target: 'NODE_TEXT' }],
     metadata: {
       kind: 'frontmatter-flow',
@@ -69,7 +69,7 @@ export function testFlowWidgetUiStateCarriesAcrossSameSourceRecomposeHashChanges
   useGraphStore.getState().setGraphData({
     type: 'Graph',
     context: 'frontmatter-flow',
-    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', properties: { prompt: 'updated' } }],
+    nodes: [{ id: 'NODE_TEXT', type: 'CustomWidget', label: 'Text Widget', properties: { prompt: 'updated' } }],
     edges: [{ id: 'EDGE_A', source: 'NODE_TEXT', target: 'NODE_TEXT' }],
     metadata: {
       kind: 'frontmatter-flow',
@@ -379,7 +379,7 @@ export function testFlowWidgetOverlayStateDoesNotCarryAcrossSameSourceLayoutChan
   useGraphStore.getState().setGraphData({
     type: 'Graph',
     context: 'frontmatter-flow',
-    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', x: 0, y: 0, properties: {} }],
+    nodes: [{ id: 'NODE_TEXT', type: 'CustomWidget', label: 'Text Widget', x: 0, y: 0, properties: {} }],
     edges: [],
     metadata: {
       kind: 'frontmatter-flow',
@@ -395,7 +395,7 @@ export function testFlowWidgetOverlayStateDoesNotCarryAcrossSameSourceLayoutChan
   useGraphStore.getState().setGraphData({
     type: 'Graph',
     context: 'frontmatter-flow',
-    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', x: 640, y: 320, properties: {} }],
+    nodes: [{ id: 'NODE_TEXT', type: 'CustomWidget', label: 'Text Widget', x: 640, y: 320, properties: {} }],
     edges: [],
     metadata: {
       kind: 'frontmatter-flow',

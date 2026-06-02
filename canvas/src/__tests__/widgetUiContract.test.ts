@@ -8,28 +8,31 @@ const readUtf8 = (absPath: string): string => {
 export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const root = process.cwd()
   const panelPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
+  const chromePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
   const formPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const registryPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorRegistrySection.tsx')
+  const inlineValuePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'FlowEditorInlineValueEditor.tsx')
   const fieldMutationPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'widgetFieldMutation.ts')
   const registryTemplatesPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'registryTemplates.ts')
 
   const panel = readUtf8(panelPath)
+  const chrome = readUtf8(chromePath)
   if (panel.includes('<p')) {
     throw new Error('Widget panel header must not render <p> elements')
   }
   if (panel.includes('mt-0.5')) {
     throw new Error('Widget header must not render a subtitle line under the title')
   }
-  if (!panel.includes('flowWidgetValidate')) {
+  if (!chrome.includes('flowWidgetValidate')) {
     throw new Error('Expected Validate action to live in Widget toolbar')
   }
-  if (!panel.includes('Minimize2') || !panel.includes('Maximize2')) {
+  if (!chrome.includes('Minimize2') || !chrome.includes('Maximize2')) {
     throw new Error('Expected Minimize/Restore icon buttons in Widget toolbar')
   }
-  if (panel.includes('{active &&')) {
+  if (chrome.includes('{active &&')) {
     throw new Error('Expected Widget header icons to remain visible even when View Lock is ON')
   }
-  if (!panel.includes('disabled={!active}')) {
+  if (!chrome.includes('disabled={!active}')) {
     throw new Error('Expected Widget header icons to disable actions (not hide) when View Lock is ON')
   }
 
@@ -55,6 +58,16 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   }
 
   const registry = readUtf8(registryPath)
+  const inlineValue = readUtf8(inlineValuePath)
+  if (!inlineValue.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")) {
+    throw new Error('Expected Flow Editor editable Value cells to reuse the shared CardInlineTextEditor owner')
+  }
+  if (!form.includes("import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'")) {
+    throw new Error('Expected frontmatter Flow Envelope Value cells to route through the shared inline Value adapter')
+  }
+  if (!registry.includes("import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'")) {
+    throw new Error('Expected widget registry Value cells to route through the shared inline Value adapter')
+  }
   if (registry.includes('MAIN_PANEL_OPEN_EVENT')) {
     throw new Error('Expected Widget props panel to forbid opening MainPanel Integrations')
   }

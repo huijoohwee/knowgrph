@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { resolveWorkspacePreviewWidthFromPointerDrag } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
 import {
   WORKSPACE_EDITOR_CANVAS_GUTTER_CSS,
@@ -10,6 +11,30 @@ import {
   resolveWorkspaceExplorerDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
+import { FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+
+const setFixedElementRect = (
+  el: HTMLElement,
+  rect: { left: number; top: number; right: number; bottom: number },
+) => {
+  const width = Math.max(0, rect.right - rect.left)
+  const height = Math.max(0, rect.bottom - rect.top)
+  Object.defineProperty(el, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({
+      x: rect.left,
+      y: rect.top,
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width,
+      height,
+      toJSON: () => ({ left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width, height }),
+    } as DOMRect),
+  })
+}
 
 function readMarkdownDesignOverlaySourceText(): string {
   const base = resolve(process.cwd(), 'src')
@@ -267,6 +292,33 @@ export function testWorkspaceEditorOverlayMaxWidthPreservesUsableCanvasStrip() {
     } else {
       delete (globalThis as { window?: unknown }).window
     }
+  }
+}
+
+export function testFlowEditorVisibleViewportUsesNarrowActualCanvasStrip() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const surface = dom.window.document.createElement('section')
+    surface.setAttribute(FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR, 'surface-a')
+    setFixedElementRect(surface, { left: 0, top: 0, right: 1000, bottom: 800 })
+
+    const workspacePane = dom.window.document.createElement('aside')
+    workspacePane.setAttribute('data-kg-workspace-left-pane', '1')
+    setFixedElementRect(workspacePane, { left: 0, top: 0, right: 920, bottom: 800 })
+
+    dom.window.document.body.append(surface, workspacePane)
+
+    const visibleViewport = resolveFlowEditorVisibleViewport({
+      flowEditorSurfaceId: 'surface-a',
+      viewportW: 1000,
+      viewportH: 800,
+    })
+
+    if (visibleViewport.left !== 920 || visibleViewport.width !== 80 || visibleViewport.centerX !== 960) {
+      throw new Error(`expected Flow Editor visible viewport to use the actual exposed strip, got ${JSON.stringify(visibleViewport)}`)
+    }
+  } finally {
+    restoreDom()
   }
 }
 

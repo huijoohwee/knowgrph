@@ -38,6 +38,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   const runtimeText = readUtf8(runtimePath)
   const sceneText = readUtf8(scenePath)
   const surfaceText = readUtf8(surfacePath)
+  const surfaceElementsText = readUtf8(path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx'))
   const renderGraphHelperText = readUtf8(renderGraphHelperPath)
   const overlayNodeOrderText = readUtf8(overlayNodeOrderPath)
   const topologySignatureText = readUtf8(topologySignaturePath)
@@ -67,7 +68,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
     || !overlayNodeOrderText.includes("import { splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")
     || !overlayNodeOrderText.includes('function buildOverlayOrderKey(id: string): string')
     || !hookText.includes('orderFlowEditorOverlayNodeIdsByRenderGraph({')
-    || !surfaceText.includes('orderFlowEditorOverlayNodeIdsByRenderGraph({')) {
+    || !surfaceElementsText.includes('orderFlowEditorOverlayNodeIdsByRenderGraph({')) {
     throw new Error('expected Flow Editor overlay surface and collision runtime to share one canonical semantic ordering helper')
   }
   if (overlayNodeOrderText.includes('buildNodeZKeyById') || overlayNodeOrderText.includes('compareNodeZKey')) {
@@ -235,8 +236,8 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('if (wasOpen) scheduleOverlayCollisionResolve()')) {
     throw new Error('expected overlay collision runtime to recover once Workspace/Indexing overlays close')
   }
-  if (!hookText.includes('compareNodeZKey')) {
-    throw new Error('expected overlay collision runtime to reuse shared node z-order comparison helper')
+  if (!hookText.includes('orderFlowEditorOverlayNodeIdsByRenderGraph({')) {
+    throw new Error('expected overlay collision runtime to reuse shared graph-owned overlay ordering helper')
   }
   if (!hookText.includes('const graphDataForOverlayRuntime =') || !hookText.includes('draftGraphDataRef.current || renderGraphDataOverride || null')) {
     throw new Error('expected overlay collision runtime to resolve a single upstream graph source before deriving node types and obstacles')
@@ -291,8 +292,8 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!sceneText.includes('args.overlayTopologyLayoutSignature') || sceneText.includes('args.baseGraphDataRevision')) {
     throw new Error('expected Flow Editor world-position seeding to ignore output-only graph revisions')
   }
-  if (!sceneText.includes('const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null')) {
-    throw new Error('expected Flow Editor world-position seeding to read latest graph from ref without raw graph-object dependency churn')
+  if (!sceneText.includes('const graphDataForSeeding = resolveFlowEditorGraphDataForNodeAuthority({') || !sceneText.includes('preferredGraphData: renderGraphDataOverrideRef.current') || !sceneText.includes('authorityGraphData: (st.graphData || null) as GraphData | null')) {
+    throw new Error('expected Flow Editor world-position seeding to resolve latest graph authority from refs without raw graph-object dependency churn')
   }
   if (sceneText.includes('args.overlayTopologyLayoutSignature, args.renderGraphDataOverride')) {
     throw new Error('expected Flow Editor world-position seeding deps to avoid raw graph-object identity churn')
@@ -567,9 +568,8 @@ export const testFlowEditorLayoutRebalanceUsesCenteredBalancedSpreadRuntime = ()
   if (!runtimeText.includes('markLayoutRebalanceHandled()')) {
     throw new Error('expected Flow Editor runtime scene to handle rebalance requests once without feedback loops')
   }
-  if (!overlayCollisionText.includes('const frontmatterScreenAuthorityOwnedByPlacementRuntime = isFrontmatterFlow && overlayOnlyModeEnabled')
-    || !overlayCollisionText.includes('if (frontmatterScreenAuthorityOwnedByPlacementRuntime)')) {
-    throw new Error('expected frontmatter overlay-only collision to exit at the placement-runtime ownership boundary')
+  if (!overlayCollisionText.includes('const frontmatterScreenAuthorityOwnedByPlacementRuntime = areFlowEditorWidgetOverlaysOwnedByFloatingScreenAuthority({') || !overlayCollisionText.includes('if (frontmatterScreenAuthorityOwnedByPlacementRuntime)')) {
+    throw new Error('expected frontmatter screen-authority collision to exit at the placement-runtime ownership boundary')
   }
   if (overlayCollisionText.includes('useFrontmatterSemanticBalancedCollision')
     || overlayCollisionText.includes('applyFrontmatterSemanticBalancedWorld')) {
