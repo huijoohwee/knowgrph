@@ -1222,7 +1222,17 @@ export function useFlowCanvasRuntime(args: {
     const runtime = runtimeRef.current
     if (!runtime) return
     const graphKey = buildFlowCanvasNativeSceneKey({ sceneGraphData, layoutVariant, rankdir, flowConfig: flowConfigEffective, forbidCircleNodes, sceneGroups })
-    if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) return
+    const inputHasNativeSceneContent =
+      (Array.isArray(sceneGraphData?.nodes) && sceneGraphData.nodes.length > 0)
+      || (Array.isArray(sceneGraphData?.edges) && sceneGraphData.edges.length > 0)
+      || (Array.isArray(sceneGroups) && sceneGroups.length > 0)
+    const runtimeScene = runtime.scene
+    const runtimeHasNativeSceneContent =
+      (Array.isArray(runtimeScene?.nodes) && runtimeScene.nodes.length > 0)
+      || (Array.isArray(runtimeScene?.edges) && runtimeScene.edges.length > 0)
+      || (Array.isArray(runtimeScene?.groups) && runtimeScene.groups.length > 0)
+    if (graphKey === lastBuiltGraphKeyRef.current && inputHasNativeSceneContent === runtimeHasNativeSceneContent) return
+    const nativeSceneContentRemoved = !inputHasNativeSceneContent && runtimeHasNativeSceneContent
     lastBuiltGraphKeyRef.current = graphKey
     __flowCanvasDebug.lastBuiltSceneKey = graphKey
     runtime.positionsReady = computedPositions != null
@@ -1238,11 +1248,16 @@ export function useFlowCanvasRuntime(args: {
       widgetRegistry,
     })
     __flowCanvasDebug.lastBuiltSceneNodeCount = result.nodeCount
+    if (nativeSceneContentRemoved) {
+      requestFlowNativeDraw(runtime, buildDrawArgs())
+      return
+    }
     if (shouldSuppressWorkspacePreInitDraw()) return
     if (shouldDeferWorkspaceOpenDraw()) return
     scheduleFlowDraw()
   }, [
     active,
+    buildDrawArgs,
     computedPositions,
     flowConfigEffective,
     forbidCircleNodes,

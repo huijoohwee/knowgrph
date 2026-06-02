@@ -8,10 +8,10 @@ import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesStorageSync'
 import {
-  canEditRawJsonForKnowgrphCollaboration,
-  resolveKnowgrphCollaborationDocumentKind,
-  type KnowgrphCollaborationDocumentKind,
-} from '@/features/source-files/sourceFilesCollaborationYjs'
+  canEditRawJsonForCollaboration,
+  resolveCollaborationDocumentKind,
+  type CollaborationDocumentKind,
+} from 'grph-shared/collaboration/yjsSnapshot'
 import {
   createPocketBaseYjsSourceFileRoom,
   readKnowgrphCollaborationConfig,
@@ -110,8 +110,8 @@ export function useSourceFilesPocketBaseYjsCollaborationRuntime(args: {
     return subscribeWorkspaceStoreSyncSettingsChanged(() => setSettingsRev(prev => prev + 1))
   }, [])
 
-  const documentKind = React.useMemo<KnowgrphCollaborationDocumentKind | null>(
-    () => resolveKnowgrphCollaborationDocumentKind(liveDocumentKey),
+  const documentKind = React.useMemo<CollaborationDocumentKind | null>(
+    () => resolveCollaborationDocumentKind(liveDocumentKey),
     [liveDocumentKey],
   )
 
@@ -161,7 +161,7 @@ export function useSourceFilesPocketBaseYjsCollaborationRuntime(args: {
         if (cancelled) return
         const count = Math.max(1, peers.length)
         setActivePeerCount(count)
-        setRawJsonReadOnly(!canEditRawJsonForKnowgrphCollaboration({ documentKind, activePeerCount: count }))
+        setRawJsonReadOnly(!canEditRawJsonForCollaboration({ documentKind, activePeerCount: count }))
       },
     }).then(room => {
       if (cancelled) {

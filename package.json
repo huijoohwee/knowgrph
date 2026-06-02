@@ -74,7 +74,8 @@
     "@x402/evm": "^2.13.0",
     "@x402/hono": "^2.13.0",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.23"
+    "hono": "^4.12.23",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10"

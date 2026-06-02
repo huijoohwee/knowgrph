@@ -1,5 +1,6 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/store/types'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { extractYamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
@@ -385,12 +386,7 @@ export function writeWorkspaceSourceTextIfPresent(file: GraphState['sourceFiles'
 }
 
 function isFrontmatterFlowGraphData(graphData: GraphData | null | undefined): boolean {
-  if (!graphData || typeof graphData !== 'object') return false
-  if (String(graphData.context || '').trim() === 'frontmatter-flow') return true
-  const meta = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-    ? (graphData.metadata as Record<string, unknown>)
-    : null
-  return String(meta?.kind || '').trim() === 'frontmatter-flow'
+  return isFrontmatterFlowGraph(graphData)
 }
 
 function findActiveMarkdownDocumentSourceFile(args: {

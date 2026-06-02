@@ -11,10 +11,10 @@ import { STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY } from 'grph-shared/payments/s
 type SettingsSpecialValueNodeProps = {
   area: string
   inputNode: React.ReactNode
-  pillButtonClassName: string
   resolvedValueKey: string
+  sectionActionClassName: string
+  sectionStatusClassName: string
   sKey: string
-  statusPillClassName: string
   actions: Pick<
     SettingsRowActions,
     | 'applyActiveWorkspaceFileAsChatHistory'
@@ -74,12 +74,12 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
     actions,
     area,
     inputNode,
-    pillButtonClassName,
     refs,
     resolvedValueKey,
+    sectionActionClassName,
+    sectionStatusClassName,
     sKey,
     status,
-    statusPillClassName,
     ui,
     values,
   } = props
@@ -132,7 +132,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             actions.checkBytePlusVideoModelPreview()
           }}
           disabled={status.isCheckingHealth || status.isCheckingBytePlusHealth || status.isCheckingDeerFlowHealth || status.isCheckingBytePlusVideoModelPreview}
-          className={pillButtonClassName}
+          className={sectionActionClassName}
         >
           {status.isCheckingHealth || status.isCheckingBytePlusHealth || status.isCheckingDeerFlowHealth || status.isCheckingBytePlusVideoModelPreview ? 'Checking...' : 'Check Health'}
         </button>
@@ -159,7 +159,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             actions.checkDeerFlowHealth()
           }}
           disabled={status.isCheckingDeerFlowHealth}
-          className={pillButtonClassName}
+          className={sectionActionClassName}
         >
           {status.isCheckingDeerFlowHealth ? 'Checking...' : 'Check Health'}
         </button>
@@ -186,7 +186,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             void actions.checkGrabMapsHealth()
           }}
           disabled={status.isCheckingGrabMapsHealth}
-          className={pillButtonClassName}
+          className={sectionActionClassName}
         >
           {status.isCheckingGrabMapsHealth ? 'Checking...' : 'Check Health'}
         </button>
@@ -211,7 +211,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             {secretLabel} are not stored in the browser. Use `{envLabel}` on the server.
           </div>
         </div>
-        <span className={statusPillClassName} title="Secret stays server-side.">
+        <span className={sectionStatusClassName} title="Secret stays server-side.">
           server-managed
         </span>
       </div>
@@ -270,12 +270,12 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             }
           }}
           disabled={status.isGeneratingStripeCheckout}
-          className={pillButtonClassName}
+          className={sectionActionClassName}
           title="Create a server-managed Checkout Session and fill the returned Session url."
         >
           {status.isGeneratingStripeCheckout ? 'Generating...' : 'Generate (secure)'}
         </button>
-        <span className={statusPillClassName} title="Secret key stays server-side; browser only receives the returned Session url.">
+        <span className={sectionStatusClassName} title="Secret key stays server-side; browser only receives the returned Session url.">
           server-managed
         </span>
       </div>
@@ -292,10 +292,10 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.chatHistoryPathStatus}</div>
           )}
         </div>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localImportInputRef.current) }} className={pillButtonClassName}>Import Files</button>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localFolderImportInputRef.current) }} className={pillButtonClassName}>Import Folder</button>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsChatHistory() }} className={pillButtonClassName}>Use Active</button>
-        <button type="button" onClick={e => { e.stopPropagation(); void actions.createAndSelectChatHistoryFile() }} disabled={status.isUpdatingChatHistoryPath} className={pillButtonClassName}>{status.isUpdatingChatHistoryPath ? 'Creating...' : 'New File'}</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localImportInputRef.current) }} className={sectionActionClassName}>Import Files</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localFolderImportInputRef.current) }} className={sectionActionClassName}>Import Folder</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsChatHistory() }} className={sectionActionClassName}>Use Active</button>
+        <button type="button" onClick={e => { e.stopPropagation(); void actions.createAndSelectChatHistoryFile() }} disabled={status.isUpdatingChatHistoryPath} className={sectionActionClassName}>{status.isUpdatingChatHistoryPath ? 'Creating...' : 'New File'}</button>
         <button
           type="button"
           onClick={e => {
@@ -307,7 +307,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             actions.openWorkspaceFile(currentPath)
           }}
           disabled={!currentPath}
-          className={pillButtonClassName}
+          className={sectionActionClassName}
         >
           Open
         </button>
@@ -325,10 +325,10 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.knowgrphPathStatus}</div>
           )}
         </div>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalImportInputRef.current) }} className={pillButtonClassName}>Import Files</button>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalFolderImportInputRef.current) }} className={pillButtonClassName}>Import Folder</button>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsKnowgrph() }} className={pillButtonClassName}>Use Active</button>
-        <button type="button" onClick={e => { e.stopPropagation(); void actions.createAndSelectKnowgrphFile() }} disabled={status.isUpdatingKnowgrphPath} className={pillButtonClassName}>{status.isUpdatingKnowgrphPath ? 'Creating...' : 'New File'}</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalImportInputRef.current) }} className={sectionActionClassName}>Import Files</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalFolderImportInputRef.current) }} className={sectionActionClassName}>Import Folder</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsKnowgrph() }} className={sectionActionClassName}>Use Active</button>
+        <button type="button" onClick={e => { e.stopPropagation(); void actions.createAndSelectKnowgrphFile() }} disabled={status.isUpdatingKnowgrphPath} className={sectionActionClassName}>{status.isUpdatingKnowgrphPath ? 'Creating...' : 'New File'}</button>
         <button
           type="button"
           onClick={e => {
@@ -340,7 +340,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             actions.openWorkspaceFile(currentPath)
           }}
           disabled={!currentPath}
-          className={pillButtonClassName}
+          className={sectionActionClassName}
         >
           Open
         </button>
@@ -352,7 +352,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
     return (
       <div className={specialValueRowClassName}>
         <div className={specialValueInputShellClassName}>{inputNode}</div>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForChatHistory() }} className={pillButtonClassName}>Import URL</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForChatHistory() }} className={sectionActionClassName}>Import URL</button>
       </div>
     )
   }
@@ -361,7 +361,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
     return (
       <div className={specialValueRowClassName}>
         <div className={specialValueInputShellClassName}>{inputNode}</div>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForKnowgrph() }} className={pillButtonClassName}>Import URL</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForKnowgrph() }} className={sectionActionClassName}>Import URL</button>
       </div>
     )
   }

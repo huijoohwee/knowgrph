@@ -156,7 +156,7 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
   {
     key: 'stripeApi.errors.http_status_codes',
     typeLabel: 'map',
-    value: '200 OK; 400 Bad Request; 401 Unauthorized; 402 Request Failed; 403 Forbidden; 404 Not Found; 409 Conflict; 429 Too Many Requests; 5xx Server Error.',
+    value: 'HTTP status categories',
     responsibility: 'HTTP status code categories commonly returned by the Stripe API.',
     searchHints: ['stripe http status codes', '402 request failed', '409 conflict', '429 too many requests'],
   },
@@ -198,7 +198,7 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
   {
     key: 'stripeApi.endpoints.checkout.sessions.create',
     typeLabel: 'endpoint',
-    value: `POST ${STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession} -> Stripe POST /v1/checkout/sessions`,
+    value: `POST ${STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession}`,
     responsibility: 'Creates a hosted Checkout Session through the server-owned route so the browser never sends Stripe secrets or price authority.',
     searchHints: ['checkout sessions create', STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession, 'server-owned checkout'],
   },

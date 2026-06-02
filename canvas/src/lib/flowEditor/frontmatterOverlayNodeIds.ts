@@ -36,7 +36,6 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
 
   const eligibleIds = buildFlowWidgetEligibleNodeIdSet(nodes)
   const nodeById = new Map<string, GraphNode>()
-  const canonicalBuiltInNodeIds = new Set<string>()
   const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
   const compareNodeIdsByVisualIndex = (aId: string, bId: string): number => {
     if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
@@ -79,8 +78,8 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
       const node = nodes[i]
       const id = String(node?.id || '').trim()
       if (!id) continue
-      if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
-      mergedOverlayIds.add(id)
+      if (String(node?.type || '') === 'Section') continue
+      if (eligibleIds.has(id) || isCanonicalFrontmatterBuiltInWidgetNode(node)) mergedOverlayIds.add(id)
     }
     return Array.from(mergedOverlayIds).sort(compareNodeIdsByVisualIndex)
   }
@@ -92,7 +91,6 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
     const id = String(n?.id || '').trim()
     if (!id) continue
     if (!isCanonicalFrontmatterBuiltInWidgetNode(n)) continue
-    canonicalBuiltInNodeIds.add(id)
     allowedFlowNodeIds.add(id)
   }
   for (let i = 0; i < registry.length; i += 1) {
@@ -106,9 +104,7 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
     if (!isNodeOwnedFrontmatterWidgetRegistryEntry({ node, registryEntry: { formId } })) continue
     allowedFlowNodeIds.add(nodeId)
   }
-  if (allowedFlowNodeIds.size === 0 && canonicalBuiltInNodeIds.size === 0) {
-    for (const id of eligibleIds) allowedFlowNodeIds.add(id)
-  }
+  for (const id of eligibleIds) allowedFlowNodeIds.add(id)
   if (allowedFlowNodeIds.size === 0) return []
 
   const next: string[] = []

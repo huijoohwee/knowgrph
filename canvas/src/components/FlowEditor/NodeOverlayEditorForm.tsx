@@ -882,6 +882,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             onPanelChange={handleRichMediaPanelChange}
             frameMode="surface"
             scrollOwner="panel"
+            flowEditorInteractionMode={true}
+            flowEditorFrontmatterDocumentMode={isFrontmatterFlow}
             onInlineContentSize={handleRichMediaContentSize}
             style={{ width: '100%', height: '100%', boxShadow: 'none' }}
           />

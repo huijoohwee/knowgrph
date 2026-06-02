@@ -6,6 +6,10 @@ import {
   type KnowgrphStorageWorkerEnv,
 } from './contract'
 import { normalizeString } from './db'
+import {
+  formatCollaborationJson,
+  serializeCollaborationYDocStateBase64,
+} from '../../../grph-shared/src/collaboration/yjsSnapshot'
 
 const KNOWGRPH_COLLABORATION_AWARENESS_STALE_MS = 2 * 60_000
 
@@ -96,6 +100,7 @@ const normalizeGitHubDocsPathForCollaborationSave = (documentKey: string, docume
 }
 
 const readCanonicalCollaborationSaveTextWithState = (args: {
+  documentKey: string
   documentKind: 'markdown' | 'json'
   serializedText: string
   activePeerCount: number
@@ -105,6 +110,21 @@ const readCanonicalCollaborationSaveTextWithState = (args: {
   error: string | null
 } => {
   const activePeerCount = Math.max(0, Math.floor(Number(args.activePeerCount || 0)))
+  const yjsStateBase64 = normalizeString(args.yjsStateBase64)
+  if (yjsStateBase64) {
+    try {
+      return {
+        text: serializeCollaborationYDocStateBase64({
+          documentKey: args.documentKey,
+          documentKind: args.documentKind,
+          yjsStateBase64,
+        }),
+        error: null,
+      }
+    } catch {
+      return { text: '', error: 'collaboration Yjs snapshot could not be serialized' }
+    }
+  }
   if (args.documentKind !== 'json') return { text: args.serializedText, error: null }
   let parsed: unknown
   try {
@@ -112,10 +132,10 @@ const readCanonicalCollaborationSaveTextWithState = (args: {
   } catch {
     return { text: '', error: 'collaboration JSON save payload is not valid JSON' }
   }
-  if (activePeerCount >= 2 && !normalizeString(args.yjsStateBase64)) {
+  if (activePeerCount >= 2) {
     return { text: '', error: 'concurrent JSON save requires Yjs CRDT state' }
   }
-  return { text: `${JSON.stringify(parsed, null, 2)}\n`, error: null }
+  return { text: formatCollaborationJson(parsed), error: null }
 }
 
 const readGitHubBridgeConfig = (env: KnowgrphStorageWorkerEnv): {
@@ -261,6 +281,7 @@ export const handleCollaborationSave = async (request: Request, env: KnowgrphSto
       roomId: body.pocketBaseRoomId,
     })
     const canonical = readCanonicalCollaborationSaveTextWithState({
+      documentKey,
       documentKind: body.documentKind,
       serializedText: body.serializedText,
       activePeerCount: pocketBaseSnapshot?.activePeerCount ?? body.activePeerCount,

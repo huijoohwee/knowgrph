@@ -3,8 +3,14 @@ import {
   CANVAS_SHORTCUT_COPY_LINES,
   CANVAS_SHORTCUTS,
 } from '@/lib/canvas/interaction-ssot'
+import fs from 'node:fs'
+import path from 'node:path'
 
 import { HELP_SHORTCUT_ITEMS } from '@/features/panels/config'
+import {
+  MAIN_PANEL_HELP_SHORTCUTS_DOC_PATH,
+  parseMainPanelHelpShortcutTexts,
+} from '@/features/panels/mainPanelHelpShortcuts'
 
 export function testCanvasHelpShortcutsSsotHasUniqueIdsAndLines() {
   const ids = new Set<string>()
@@ -26,10 +32,15 @@ export function testCanvasHelpShortcutsSsotHasUniqueIdsAndLines() {
   if (CANVAS_PRECEDENCE_RULES.length < 2) {
     throw new Error('expected at least two precedence rules')
   }
+  const shortcutDocPath = path.resolve(process.cwd(), '..', MAIN_PANEL_HELP_SHORTCUTS_DOC_PATH)
+  const shortcutTextByKey = new Map(
+    parseMainPanelHelpShortcutTexts(fs.readFileSync(shortcutDocPath, { encoding: 'utf8' }))
+      .map(row => [row.key, row.value]),
+  )
   for (const r of CANVAS_PRECEDENCE_RULES) {
     const rule = String(r.rule || '').trim()
-    const detail = String(r.detail || '').trim()
-    if (!rule || !detail) throw new Error('expected precedence rules to have rule and detail')
+    const detail = String(shortcutTextByKey.get(`precedence.${r.id}`) || '').trim()
+    if (!rule || !detail) throw new Error('expected precedence rules to have rule and docs-backed detail')
   }
 }
 
@@ -41,4 +52,3 @@ export function testHelpTabSearchAndCopyIncludesCanvasShortcutLines() {
     }
   }
 }
-

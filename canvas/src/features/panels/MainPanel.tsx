@@ -18,7 +18,7 @@ import {
   isMainPanelTabKey,
   type MainPanelTabKey,
 } from '@/features/panels/mainPanelTabs'
-import { MAIN_PANEL_TAB_TYPE_ICON_BY_KEY } from '@/features/panels/ui/mainPanelTypeIcons'
+import { MAIN_PANEL_TAB_TYPE_ICON_BY_KEY } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 import {
   clearLocalMainPanelSurfaceSnapshot,
   publishLocalMainPanelSurfaceSnapshot,

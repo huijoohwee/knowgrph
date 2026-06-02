@@ -15,6 +15,7 @@ import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { isPlainObject } from '@/lib/graph/value'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -32,9 +33,7 @@ export type FlowConnectedValuesBySchemaPath = Record<string, FlowConnectedValue>
 const CONNECTED_VALUES_RESULT_CACHE_LIMIT = 64
 const connectedValuesResultCache = new Map<string, Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
 
-function cleanString(v: unknown): string {
-  return typeof v === 'string' ? v.trim() : ''
-}
+function cleanString(v: unknown): string { return typeof v === 'string' ? v.trim() : '' }
 
 function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): string {
   if (!Array.isArray(registry) || registry.length === 0) return ''
@@ -62,21 +61,21 @@ function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): st
   return parts.join('\n')
 }
 
-const readPlainObject = (value: unknown): Record<string, unknown> | null => {
-  return isPlainObject(value) ? (value as Record<string, unknown>) : null
-}
+const readPlainObject = (value: unknown): Record<string, unknown> | null => isPlainObject(value) ? (value as Record<string, unknown>) : null
 
-function isStoppedFlowValue(value: unknown): boolean {
-  return value == null
-}
+function isStoppedFlowValue(value: unknown): boolean { return value == null }
 
 function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): string {
   if (!targetNodeIds || targetNodeIds.size === 0) return '*'
-  return Array.from(targetNodeIds.values())
-    .map(v => cleanString(v))
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b))
-    .join('\n')
+  return Array.from(targetNodeIds.values()).map(v => cleanString(v)).filter(Boolean).sort((a, b) => a.localeCompare(b)).join('\n')
+}
+
+function normalizeConnectedValuesTargetNodeIds(graph: GraphData, targetNodeIds?: ReadonlySet<string>): ReadonlySet<string> | undefined {
+  if (!targetNodeIds || targetNodeIds.size === 0) return undefined
+  return new Set(Array.from(targetNodeIds.values()).map(rawId => {
+    const id = cleanString(rawId)
+    return id ? cleanString(resolveGraphNodeByCanonicalId(graph, id)?.id) || id : ''
+  }).filter(Boolean))
 }
 
 function buildConnectedValuesGraphKey(args: {
@@ -447,7 +446,8 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   if (!graph) return new Map()
   const registry = Array.isArray(args.registry) ? args.registry : []
   const registryKey = registryCollectionKey(registry)
-  const targetKey = buildConnectedValuesTargetKey(args.targetNodeIds)
+  const requestedTargets = normalizeConnectedValuesTargetNodeIds(graph, args.targetNodeIds)
+  const targetKey = buildConnectedValuesTargetKey(requestedTargets)
   const graphKey = buildConnectedValuesGraphKey({
     graph,
     graphRevision: args.graphRevision,
@@ -462,7 +462,6 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   const byNodeId = nodeIndex(nodes)
   const registryByNodeId = resolveRegistryEntryByNodeId({ nodes, registry })
 
-  const requestedTargets = args.targetNodeIds
   const allConnections = collectConnections(edges)
   const includedNodeIds = (() => {
     if (!requestedTargets || requestedTargets.size === 0) return new Set<string>(Array.from(byNodeId.keys()))

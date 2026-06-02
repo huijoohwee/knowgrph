@@ -504,6 +504,12 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!nodeOverlayPanelText.includes('frameMode="surface"') || !nodeOverlayFormText.includes('frameMode="surface"')) {
     throw new Error('expected FloatingEditor Rich Media Panel bodies to reuse the shared unframed surface mode')
   }
+  if (!nodeOverlayPanelText.includes('flowEditorInteractionMode={true}') || !nodeOverlayFormText.includes('flowEditorInteractionMode={true}')) {
+    throw new Error('expected FloatingEditor Rich Media Panel bodies to enter Flow Editor layout mode from the first render')
+  }
+  if (!nodeOverlayPanelText.includes('flowEditorFrontmatterDocumentMode={isFrontmatterFlow}') || !nodeOverlayFormText.includes('flowEditorFrontmatterDocumentMode={isFrontmatterFlow}')) {
+    throw new Error('expected FloatingEditor Rich Media Panel bodies to receive frontmatter document mode from the Flow Editor owner instead of store hydration')
+  }
   if (!nodeOverlayPanelText.includes('resizeHandlePlacement="external"') || !nodeOverlayPanelText.includes('<RichMediaPanelResizeHandle placement="panel"')) {
     throw new Error('expected FloatingEditor Chart Panel to place the shared resize handle on the outer panel bottom-right')
   }

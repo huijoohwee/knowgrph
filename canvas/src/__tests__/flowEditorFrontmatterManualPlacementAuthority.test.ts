@@ -53,14 +53,53 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!overlayText.includes("from '@/lib/flowEditor/widgetPlacementAuthority'")) {
     throw new Error('expected node overlay runtime to import placement authority directly from the shared lib owner')
   }
-  if (!overlayPlacementRuntimeText.includes('const storedWorld = currentStoredWorld || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
-    throw new Error('expected frontmatter floating screen-authority mode to honor current scoped world authority while ignoring stale cached world fallback')
+  if (!overlayPlacementRuntimeText.includes('const currentStoredWorldForPlacement = frontmatterManagedNode && floatingUsesScreenAuthority')
+    || !overlayPlacementRuntimeText.includes('const storedWorld = currentStoredWorldForPlacement || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
+    throw new Error('expected frontmatter floating screen-authority mode to ignore stored world placement authority while preserving derived world sync')
   }
   if (!overlayPlacementRuntimeText.includes('persistWorldPos(nextWorld)')) {
     throw new Error('expected node overlay runtime to keep derived world positions synchronized for edge anchors and fit logic')
   }
+  if (!overlayPlacementRuntimeText.includes('hasAppliedPlacement: boolean')
+    || !overlayPlacementRuntimeText.includes('if (args.hasAppliedPlacement) return false')
+    || !overlayPlacementRuntimeText.includes('hasAppliedPlacement: Boolean(lastAppliedRef.current)')) {
+    throw new Error('expected frontmatter balanced fallback to act only before the first applied screen-authority placement')
+  }
+  if (!overlayPlacementRuntimeText.includes('const useFrontmatterInitialBalancedBase = frontmatterManagedNode')
+    || !overlayPlacementRuntimeText.includes('&& !lastAppliedRef.current')
+    || !overlayPlacementRuntimeText.includes('useFrontmatterInitialBalancedBase && frontmatterBalancedFallbackPos')) {
+    throw new Error('expected screen-authority base placement to stop reapplying initial balanced fallback after measured placement owns the frame')
+  }
+  if (!overlayPlacementRuntimeText.includes('const zoomK = initialFrontmatterManagedNode && floatingUsesScreenAuthority')
+    || !overlayPlacementRuntimeText.includes('const frontmatterPanelScaleZoomK = frontmatterManagedNode && floatingUsesScreenAuthority ? 1 : zoomK')
+    || !overlayPlacementRuntimeText.includes('zoomK: frontmatterPanelScaleZoomK')) {
+    throw new Error('expected frontmatter screen-authority placement to use neutral viewport layout zoom so graph zoom churn cannot relayout widgets')
+  }
+  if (!overlayPlacementRuntimeText.includes('const frontmatterScreenAuthorityViewportAnchorRef = React.useRef')
+    || !overlayPlacementRuntimeText.includes('const useFrontmatterViewportProjection = frontmatterManagedNode && floatingUsesScreenAuthority && !dragOverride')
+    || !overlayPlacementRuntimeText.includes('const frontmatterViewportAdjustedPos = (() => {')
+    || !overlayPlacementRuntimeText.includes('const viewportPanelScale = panelScale * frontmatterViewportScale')) {
+    throw new Error('expected frontmatter screen-authority placement to project the stable neutral layout through viewport pan/zoom')
+  }
+  if (!overlayPlacementRuntimeText.includes('const frontmatterScreenAuthority = isFrontmatterManagedOverlayNode(graphMetaKind, nodeRef.current) && floatingUsesScreenAuthority')
+    || !overlayPlacementRuntimeText.includes('if (!frontmatterScreenAuthority && sameScale && !widgetWorldPosRef.current && !pinnedDragOverrideRef.current) return')) {
+    throw new Error('expected frontmatter screen-authority zoom subscriptions to reapply viewport transforms without relayouting the grid')
+  }
+  if (!overlayPlacementRuntimeText.includes('initialFrontmatterManagedNode')
+    || !overlayPlacementRuntimeText.includes('&& lastAppliedRef.current')
+    || !overlayPlacementRuntimeText.includes('&& !pinnedDragOverrideRef.current')) {
+    throw new Error('expected frontmatter screen-authority placement to ignore later store-position writes after the first applied placement')
+  }
   if (!runtimeText.includes('shouldAutoPlaceFlowEditorWidget')) {
     throw new Error('expected pinned widget runtime seeding to reuse the shared auto-placement authority helper')
+  }
+  if (!runtimeText.includes('shouldUseFlowEditorWidgetFloatingScreenAuthority')) {
+    throw new Error('expected runtime scene DOM recovery to reuse the shared frontmatter screen-authority helper')
+  }
+  if (!runtimeText.includes('const skipDomCollectiveRecoveryForFrontmatterScreenAuthority =')
+    || !runtimeText.includes("graphMetaKind === 'frontmatter-flow'")
+    || !runtimeText.includes('if (skipDomCollectiveRecoveryForFrontmatterScreenAuthority) return true')) {
+    throw new Error('expected runtime scene DOM recovery to avoid rewriting frontmatter floating screen-authority collectives')
   }
   if (!collisionText.includes('shouldAutoPlaceFlowEditorWidget')) {
     throw new Error('expected floating widget collision auto-placement to reuse the shared auto-placement authority helper')

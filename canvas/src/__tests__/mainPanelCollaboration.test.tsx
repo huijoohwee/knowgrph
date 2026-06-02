@@ -512,6 +512,19 @@ export async function testMainPanelCollaborationViewRendersPeerOwnershipRoster()
     assertIncludes(text, 'remote 2')
     assertIncludes(text, 'Target guest-re')
     assertIncludes(text, 'Follow')
+    for (const label of ['Owner', 'You', 'Guest', 'connected', 'total 3', 'remote 2']) {
+      const matches = (Array.from(container.querySelectorAll('span')) as HTMLSpanElement[])
+        .filter(element => (element.textContent || '').trim() === label)
+      if (matches.length === 0) {
+        throw new Error(`expected Collaboration chip "${label}" to render`)
+      }
+      for (const element of matches) {
+        const className = String(element.getAttribute('class') || '')
+        if (!className.includes('App-toolbar__btn') || className.includes('rounded-full')) {
+          throw new Error(`expected Collaboration chip "${label}" to reuse toolbar-button chrome, got ${className}`)
+        }
+      }
+    }
   } finally {
     await unmountReactRoot(root, { window: dom.window })
     resetCollaborationStore()

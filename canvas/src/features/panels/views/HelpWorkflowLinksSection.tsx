@@ -1,22 +1,31 @@
 import React from 'react';
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import { HELP_STEP_COPY, PIPELINE_STAGE_COPY, RENDER_PANEL_SECTION_COPY } from '@/features/panels/config';
 import {
+  loadMainPanelWorkflowLinkTexts,
+  type MainPanelWorkflowLinkText,
+} from '@/features/panels/mainPanelWorkflowLinks';
+import {
   UI_ANCHORS,
-  UI_LABELS,
   WORKFLOW_LINKS_TOOLTIP,
   GRAPHRAG_PATH_METADATA_TOOLTIP,
-  RUN_CODEBASE_INDEX_PIPELINE_LABEL,
   AGENTIC_REASONING_LABELS_TOOLTIP,
   HELP_CODEBASE_INDEX_ENTRY_POINTS_TOOLTIP,
-  HELP_PIPELINE_COMMAND_TEXT,
-  CODEBASE_INDEX_PIPELINE_GRAPH_REL_PATH,
 } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { getPillClass } from '@/lib/ui';
 import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
+import {
+  HelpKtvActionGroup,
+  HelpKtvInlineGroup,
+  HelpKtvMutedText,
+  HelpKtvPill,
+  HelpKtvRow,
+  HelpKtvRows,
+  HelpKtvValueStack,
+} from './HelpKtvLayout';
 
 interface HelpWorkflowLinksSectionProps {
   collapsed: boolean;
@@ -24,20 +33,102 @@ interface HelpWorkflowLinksSectionProps {
   onOpenFlowEditorManagerTab: () => void;
 }
 
+const PIPELINE_STAGE_HELP_ROWS = [
+  {
+    key: 'Ingest / Validate',
+    textKey: 'pipeline.ingestValidate',
+    badge: PIPELINE_STAGE_COPY.ingestValidate.badge,
+    step: PIPELINE_STAGE_COPY.ingestValidate.workflowStepId,
+  },
+  {
+    key: 'Render / Inspect',
+    textKey: 'pipeline.renderInspect',
+    badge: RENDER_PANEL_SECTION_COPY.presetsAndTuning.badge,
+    step: PIPELINE_STAGE_COPY.renderInspect.workflowStepId,
+  },
+  {
+    key: 'Agentic Reasoning',
+    textKey: 'pipeline.agenticReasoning',
+    badge: PIPELINE_STAGE_COPY.agenticReasoning.badge,
+    step: PIPELINE_STAGE_COPY.agenticReasoning.workflowStepId,
+  },
+] as const
+
+const WORKFLOW_ENTRY_ROWS = [
+  {
+    key: 'Main panel',
+    textKey: 'workflow.entry.mainPanel',
+    iconKey: 'mainPanel.workflowManager',
+  },
+  {
+    key: 'Bottom panel',
+    textKey: 'workflow.entry.bottomPanel',
+    iconKey: 'floatingPanel.renderer',
+  },
+  {
+    key: 'Workspace',
+    textKey: 'workflow.entry.workspace',
+    iconKey: 'mainPanel.dashboard',
+  },
+] as const
+
+const GRAPHRAG_METADATA_ROWS = [
+  {
+    key: 'Canvas entry',
+    textKey: 'graphrag.canvasEntry',
+    iconKey: 'ktv.type.browser',
+  },
+  {
+    key: 'Markdown pipeline',
+    textKey: 'graphrag.markdownPipeline',
+    iconKey: 'ktv.type.action',
+  },
+  {
+    key: 'Stores / workflow',
+    textKey: 'graphrag.storesWorkflow',
+    iconKey: 'ktv.type.static',
+  },
+] as const
+
+const EMPTY_WORKFLOW_LINK_TEXT: MainPanelWorkflowLinkText = {
+  key: '',
+  value: '',
+  details: [],
+}
+
 export function HelpWorkflowLinksSection({
   collapsed,
   onToggle,
   onOpenFlowEditorManagerTab,
 }: HelpWorkflowLinksSectionProps) {
-  const uiIconPillBadgeTextSizeClass = useGraphStore.getState().uiIconPillBadgeTextSizeClass;
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   );
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   );
-  const helpPanelClassName = `mt-1 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1 ${UI_THEME_TOKENS.button.neutralSubtle} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`;
-  const helpBadgeBaseClassName = `inline-flex items-center px-1 py-[1px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`;
+  const [workflowLinkTextByKey, setWorkflowLinkTextByKey] = React.useState<Record<string, MainPanelWorkflowLinkText>>({})
+
+  React.useEffect(() => {
+    let alive = true
+    loadMainPanelWorkflowLinkTexts().then(rows => {
+      if (!alive) return
+      setWorkflowLinkTextByKey(rows)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const getWorkflowLinkText = React.useCallback(
+    (key: string): MainPanelWorkflowLinkText => workflowLinkTextByKey[key] || EMPTY_WORKFLOW_LINK_TEXT,
+    [workflowLinkTextByKey],
+  )
+  const workflowOpenText = getWorkflowLinkText('workflow.open')
+  const clusterLayersText = getWorkflowLinkText('cluster.layers')
+  const agenticLabelsText = getWorkflowLinkText('agentic.labels')
+  const markdownEntryPointsText = getWorkflowLinkText('markdown.entryPoints')
+  const graphRagMetadataText = getWorkflowLinkText('graphrag.metadata')
 
   return (
     <CollapsibleSection
@@ -58,195 +149,130 @@ export function HelpWorkflowLinksSection({
           {HELP_STEP_COPY.workflowLinks.descriptionShort}
         </div>
       )}
-      <div className="flex flex-wrap gap-2 mb-2">
-        <button
-          type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${uiToolbarButtonMutedClassName}`}
-          onClick={onOpenFlowEditorManagerTab}
-          data-kg-anchor={UI_ANCHORS.graphFields}
-        >
-          Open Workflow Manager (includes {UI_LABELS.graphFields})
-        </button>
-      </div>
-      <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} space-y-1`}>
-        <div className={helpPanelClassName}>
-          <div className="font-semibold mb-0.5">
-            Pipeline stage legend
-          </div>
-          <div className="space-y-0.5">
-            <div className="flex items-baseline gap-2">
-              <span
-                className={getPillClass('badge', {
-                  baseClass: helpBadgeBaseClassName,
-                  badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: UI_THEME_TOKENS.text.secondary,
-                })}
-              >
-                {PIPELINE_STAGE_COPY.ingestValidate.badge}
-              </span>
-              <span>
-                Step
-                {' '}
-                {PIPELINE_STAGE_COPY.ingestValidate.workflowStepId}
-                {' – '}
-                {PIPELINE_STAGE_COPY.ingestValidate.descriptionShort}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span
-                className={getPillClass('badge', {
-                  baseClass: helpBadgeBaseClassName,
-                  badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: UI_THEME_TOKENS.text.secondary,
-                })}
-              >
-                {RENDER_PANEL_SECTION_COPY.presetsAndTuning.badge}
-              </span>
-              <span>
-                Step
-                {' '}
-                {PIPELINE_STAGE_COPY.renderInspect.workflowStepId}
-                {' – '}
-                {PIPELINE_STAGE_COPY.renderInspect.descriptionShort}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span
-                className={getPillClass('badge', {
-                  baseClass: helpBadgeBaseClassName,
-                  badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: UI_THEME_TOKENS.text.secondary,
-                })}
-              >
-                {PIPELINE_STAGE_COPY.agenticReasoning.badge}
-              </span>
-              <span>
-                Step
-                {' '}
-                {PIPELINE_STAGE_COPY.agenticReasoning.workflowStepId}
-                {' – '}
-                {PIPELINE_STAGE_COPY.agenticReasoning.descriptionShort}
-              </span>
-            </div>
-          </div>
-          <div className="mt-0.5">
-            <div>
-              Phases are rendered on the canvas as soft grouped outlines that wrap the steps they own.
-            </div>
-            <div>
-              Any JSON-LD node with an array property of node ids (or compact IRIs) creates a cluster layer surface around its members; values like
-              {' '}
-              <span className={uiPanelKeyValueTextSizeClass}>
-                steps
-              </span>
-              {' '}
-              or
-              {' '}
-              <span className={uiPanelKeyValueTextSizeClass}>
-                contains
-              </span>
-              {' '}
-              work as long as they point at other nodes in the graph. Cluster layer appearance comes from `schema.metadata["canvas:graphLayers"]`, which the Main Panel Workflow Manager exposes as editable Graph Fields presets so teams can tune cluster colors and opacity without changing renderer code.
-            </div>
-          </div>
-          <div className={`mt-0.5 flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`}>
+      <HelpKtvRows>
+        <HelpKtvRow
+          keyNode="Workflow Manager"
+          iconKey="mainPanel.workflowManager"
+          valueNode={(
+            <HelpKtvValueStack>
+              <HelpKtvActionGroup>
+                <button
+                  type="button"
+                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${uiToolbarButtonMutedClassName}`}
+                  onClick={onOpenFlowEditorManagerTab}
+                  data-kg-anchor={UI_ANCHORS.graphFields}
+                >
+                  Open Workflow Manager
+                </button>
+              </HelpKtvActionGroup>
+              {workflowOpenText.value ? <HelpKtvMutedText>{workflowOpenText.value}</HelpKtvMutedText> : null}
+            </HelpKtvValueStack>
+          )}
+        />
+        {PIPELINE_STAGE_HELP_ROWS.map(row => {
+          const text = getWorkflowLinkText(row.textKey)
+          return (
+            <HelpKtvRow
+              key={row.key}
+              keyNode={row.key}
+              iconKey="ktv.type.preset"
+              valueNode={(
+                <HelpKtvValueStack>
+                  <HelpKtvInlineGroup>
+                    <HelpKtvPill>{row.badge}</HelpKtvPill>
+                    <HelpKtvMutedText>Step {row.step}</HelpKtvMutedText>
+                  </HelpKtvInlineGroup>
+                  {text.value ? <HelpKtvMutedText>{text.value}</HelpKtvMutedText> : null}
+                </HelpKtvValueStack>
+              )}
+            />
+          )
+        })}
+        <HelpKtvRow
+          keyNode="Cluster Layers"
+          iconKey="ktv.type.style"
+          valueNode={(
+            <HelpKtvValueStack>
+              {clusterLayersText.value ? <HelpKtvMutedText>{clusterLayersText.value}</HelpKtvMutedText> : null}
+            </HelpKtvValueStack>
+          )}
+        />
+        <HelpKtvRow
+          keyNode={(
             <Tooltip
               content={AGENTIC_REASONING_LABELS_TOOLTIP}
               maxWidthPx={260}
-
             >
-              <div>
-                Agentic reasoning labels
-              </div>
+              <span>Agentic Labels</span>
             </Tooltip>
-          </div>
-        </div>
-        <div className={helpPanelClassName}>
-          <div className="flex items-center gap-1 mb-0.5">
+          )}
+          iconKey="ktv.type.static"
+          valueNode={(
+            <HelpKtvValueStack>
+              {agenticLabelsText.value ? <HelpKtvMutedText>{agenticLabelsText.value}</HelpKtvMutedText> : null}
+            </HelpKtvValueStack>
+          )}
+        />
+        <HelpKtvRow
+          keyNode={(
             <Tooltip
               content={HELP_CODEBASE_INDEX_ENTRY_POINTS_TOOLTIP}
               maxWidthPx={260}
-
             >
-              <div className="font-semibold">
-                Markdown pipeline entry points
-              </div>
+              <span>Markdown Entry Points</span>
             </Tooltip>
-          </div>
-          <div className="space-y-0.5">
-            <div className="flex items-baseline gap-2">
-              <span
-                className={getPillClass('badge', {
-                  baseClass: helpBadgeBaseClassName,
-                  badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: UI_THEME_TOKENS.text.secondary,
-                })}
-              >
-                Main panel
-              </span>
-              <span>
-                Workflow Manager tab → Step 6 (Agentic reasoning) → {RUN_CODEBASE_INDEX_PIPELINE_LABEL}.
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span
-                className={getPillClass('badge', {
-                  baseClass: helpBadgeBaseClassName,
-                  badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: UI_THEME_TOKENS.text.secondary,
-                })}
-              >
-                Bottom panel
-              </span>
-              <span>
-                Render tab → Markdown pipeline helper section → {RUN_CODEBASE_INDEX_PIPELINE_LABEL}.
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span
-                className={getPillClass('badge', {
-                  baseClass: helpBadgeBaseClassName,
-                  badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: UI_THEME_TOKENS.text.secondary,
-                })}
-              >
-                Workspace
-              </span>
-              <span>
-                Toolbar → {UI_LABELS.floatingPanel} → Run pipeline.
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Tooltip content={GRAPHRAG_PATH_METADATA_TOOLTIP} maxWidthPx={260}>
-            <div>
-              graphRAGPath metadata
-            </div>
-          </Tooltip>
-        </div>
-        <ul className="list-disc pl-4 space-y-0.5">
-          <li>
-            Canvas entry: canvas/src/pages/Canvas.tsx → canvas/src/components/GraphCanvas.tsx → canvas/src/workers/graphParser.worker.ts →
-            rendered graph.
-          </li>
-          <li>
-            Markdown pipeline:
-            {' '}
-            {HELP_PIPELINE_COMMAND_TEXT}
-            {' '}
-            →
-            {' '}
-            {CODEBASE_INDEX_PIPELINE_GRAPH_REL_PATH}
-            {' '}
-            (plus schema and orchestrator config).
-          </li>
-          <li>
-            Stores and workflow: canvas/src/hooks/store/schemaSlice.ts and canvas/src/hooks/store/historySlice.ts → Main Panel Workflow Manager tab →
-            python -m knowgrph_parser markdown → Agentic GraphRAG-ready markdown graph snapshot.
-          </li>
-        </ul>
-      </div>
+          )}
+          iconKey="ktv.type.browser"
+          valueNode={(
+            <HelpKtvValueStack>
+              {markdownEntryPointsText.value ? <HelpKtvMutedText>{markdownEntryPointsText.value}</HelpKtvMutedText> : null}
+            </HelpKtvValueStack>
+          )}
+        />
+        {WORKFLOW_ENTRY_ROWS.map(row => {
+          const text = getWorkflowLinkText(row.textKey)
+          return (
+            <HelpKtvRow
+              key={row.key}
+              keyNode={row.key}
+              iconKey={row.iconKey}
+              valueNode={(
+                <HelpKtvValueStack>
+                  {text.value ? <HelpKtvMutedText>{text.value}</HelpKtvMutedText> : null}
+                </HelpKtvValueStack>
+              )}
+            />
+          )
+        })}
+        <HelpKtvRow
+          keyNode={(
+            <Tooltip content={GRAPHRAG_PATH_METADATA_TOOLTIP} maxWidthPx={260}>
+              <span>graphRAGPath Metadata</span>
+            </Tooltip>
+          )}
+          iconKey="ktv.type.browser"
+          valueNode={(
+            <HelpKtvValueStack>
+              {graphRagMetadataText.value ? <HelpKtvMutedText>{graphRagMetadataText.value}</HelpKtvMutedText> : null}
+            </HelpKtvValueStack>
+          )}
+        />
+        {GRAPHRAG_METADATA_ROWS.map(row => {
+          const text = getWorkflowLinkText(row.textKey)
+          return (
+            <HelpKtvRow
+              key={row.key}
+              keyNode={row.key}
+              iconKey={row.iconKey}
+              valueNode={(
+                <HelpKtvValueStack>
+                  {text.value ? <HelpKtvMutedText>{text.value}</HelpKtvMutedText> : null}
+                </HelpKtvValueStack>
+              )}
+            />
+          )
+        })}
+      </HelpKtvRows>
     </CollapsibleSection>
   );
 }

@@ -20,7 +20,6 @@ import { useFlowEditorGraphActions } from '@/components/FlowEditorCanvas/runtime
 import { useFlowEditorWorkflowActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions'
 import { useFlowEditorRuntimeStoreState } from '@/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeStoreState'
 import FlowEditorCanvasSurface from '@/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface'
-import { resolveFlowCanvasNativeSurfaceMode } from '@/components/FlowCanvas/shared'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
@@ -82,6 +81,7 @@ export default function FlowEditorCanvasRuntime(
   )
 
   const baseGraphKind = React.useMemo(() => {
+    if (baseGraphData && isFrontmatterFlowGraph(baseGraphData as unknown as GraphData)) return 'frontmatter-flow'
     const meta = (baseGraphData?.metadata || {}) as Record<string, unknown>
     const byKind = String(meta.kind || '').trim()
     if (byKind) return byKind
@@ -554,19 +554,12 @@ export default function FlowEditorCanvasRuntime(
   React.useEffect(() => {
     overlayEditorNodeIdsRef.current = overlayEditorNodeIds
   }, [overlayEditorNodeIds])
+  const overlayEdgeHostActive = overlayOnlyActive || hasOverlayEditors
   React.useEffect(() => {
-    overlayEdgesEnabledRef.current = overlayOnlyActive
-    if (!overlayOnlyActive) return
+    overlayEdgesEnabledRef.current = overlayEdgeHostActive
+    if (!overlayEdgeHostActive) return
     scheduleOverlayEdgeUpdate()
-  }, [overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
-  const flowEditorOverlayOwnsNativeScene = overlayOnlyActive
-    || flowEditorFrontmatterGraphAvailable
-    || (hasOverlayEditors && workspaceMutationBlocked)
-  const flowCanvasNativeSurfaceMode = React.useMemo(() => resolveFlowCanvasNativeSurfaceMode({
-    canvas2dRenderer,
-    graphData: renderGraphDataOverride || baseGraphData || null,
-    overlayOwnsScene: flowEditorOverlayOwnsNativeScene,
-  }), [baseGraphData, canvas2dRenderer, flowEditorOverlayOwnsNativeScene, renderGraphDataOverride])
+  }, [overlayEdgeHostActive, overlayEditorNodeIdsKey, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
 
   if (widgetDropBridgeOnly) {
     return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />
@@ -588,7 +581,6 @@ export default function FlowEditorCanvasRuntime(
       hasOverlayEditors={hasOverlayEditors}
       emitFlowEditorInteractionFrame={emitFlowEditorInteractionFrame}
       overlayOnlyActive={overlayOnlyActive}
-      nativeSurfaceMode={flowCanvasNativeSurfaceMode}
       overlayEdgesSvgRef={overlayEdgesSvgRef}
       overlayEditorElements={overlayEditorElements as unknown as React.ReactNode}
       noGraphLoaded={noGraphLoaded}

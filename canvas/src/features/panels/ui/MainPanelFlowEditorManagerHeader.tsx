@@ -6,6 +6,7 @@ import { parseIntegrationConfigsJson } from '@/features/integrations/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getChatProviderLabel, getChatProviderRegionLabel } from '@/lib/chatEndpoint'
+import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
@@ -97,7 +98,7 @@ export default function MainPanelFlowEditorManagerHeader(props: {
         {!workflowMode ? (
           <button
             type="button"
-            className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}
+            className={getUiSectionActionClassName('secondary', uiPanelMicroLabelTextSizeClass)}
             onClick={openChatSettings}
           >
             {aiChatEnabled ? 'AI on' : 'AI off'}
@@ -109,7 +110,7 @@ export default function MainPanelFlowEditorManagerHeader(props: {
           </button>
         ) : null}
         {workflowMode ? (
-          <section className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
+          <section className={getUiSectionChipClassName('secondary', uiPanelMicroLabelTextSizeClass)}>
             {tabLabel}
           </section>
         ) : (

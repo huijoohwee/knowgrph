@@ -91,6 +91,31 @@ export const writeSubgraphs = (data: GraphData, subgraphs: UserSubgraph[]): Grap
   }
 }
 
+export const filterSubgraphsByRetainedNodeIds = (data: GraphData, retainedNodeIds: ReadonlySet<string>): GraphData => {
+  const subgraphs = readSubgraphs(data)
+  if (subgraphs.length === 0) return data
+  const retained = new Set<string>()
+  retainedNodeIds.forEach(rawId => {
+    const id = String(rawId || '').trim()
+    if (id) retained.add(id)
+  })
+  const nextBase: UserSubgraph[] = []
+  for (let i = 0; i < subgraphs.length; i += 1) {
+    const sg = subgraphs[i]
+    const memberNodeIds = normalizeIds(sg.memberNodeIds).filter(id => retained.has(id))
+    if (memberNodeIds.length === 0) continue
+    nextBase.push({ ...sg, memberNodeIds })
+  }
+  if (nextBase.length === 0) return writeSubgraphs(data, [])
+
+  const nextIdSet = new Set(nextBase.map(sg => sg.id))
+  const next = nextBase.map(sg => {
+    const parentId = sg.parentId && sg.parentId !== sg.id && nextIdSet.has(sg.parentId) ? sg.parentId : null
+    return { ...sg, parentId }
+  })
+  return writeSubgraphs(data, next)
+}
+
 export const createSubgraph = (
   data: GraphData,
   args: { nodeIds: string[]; label?: string; parentId?: string | null; kind?: UserSubgraphKind },

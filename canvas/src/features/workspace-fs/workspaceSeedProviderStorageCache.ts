@@ -87,7 +87,7 @@ export const readCachedWorkspaceDocsMirrorEntries = async (args: {
     const entries = await promise
     rememberBoundedMapEntry(storageExportMirrorCache, cacheKey, {
       entries: cloneWorkspaceDocsMirrorEntries(entries),
-      expiresAtMs: Date.now(),
+      expiresAtMs: Date.now() + STORAGE_CACHE_TTL_MS,
     })
     return cloneWorkspaceDocsMirrorEntries(entries)
   } finally {
@@ -147,4 +147,11 @@ export const readWorkspaceDocsMirrorTextViaFetch = async (url: string): Promise<
   } finally {
     storageTextInFlight.delete(safeUrl)
   }
+}
+
+export const resetWorkspaceSeedProviderStorageCacheForTests = (): void => {
+  storageTextCache.clear()
+  storageTextInFlight.clear()
+  storageExportMirrorCache.clear()
+  storageExportMirrorInFlight.clear()
 }

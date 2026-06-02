@@ -1,4 +1,5 @@
 import type { GraphNode } from '@/lib/graph/types'
+import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { coerceMarkdownParenUrl } from '@/features/parsers/markdownJsonLdUtils'
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
@@ -279,7 +280,7 @@ export function listMediaOverlayNodes(args: {
     const n0 = nodes[i]
     const id = String(n0?.id || '').trim()
     if (!id) continue
-    if (exclude?.has(id)) continue
+    if (canonicalNodeIdSetHas(exclude, id)) continue
 
     const connectedValuesBySchemaPath = connectedValuesByNodeId?.get(id)
     const isRichMediaPanel = String(n0.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID

@@ -33,6 +33,19 @@ export interface KeyTypeValueRowProps {
   isActive?: boolean
 }
 
+export interface KeyTypeValueHeaderProps {
+  keyLabel?: React.ReactNode
+  typeLabel?: React.ReactNode
+  valueLabel?: React.ReactNode
+  actions?: React.ReactNode
+  stickyOffsetClassName?: string
+  className?: string
+}
+
+export interface KeyTypeValueSectionStackProps extends React.HTMLAttributes<HTMLElement> {
+  children: React.ReactNode
+}
+
 export interface SimpleKeyValueRowProps {
   label: React.ReactNode
   children: React.ReactNode
@@ -56,6 +69,18 @@ export interface RightAlignedTooltipInputProps
   type?: string
 }
 
+export const KTV_SECTION_STACK_CLASS_NAME = 'space-y-0 py-0'
+export const KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME = PANEL_TYPOGRAPHY_DEFAULTS.textSizeClass
+export const KTV_HEADER_LABEL_TEXT_SIZE_CLASS_NAME = 'text-xs'
+export const KTV_STATUS_TEXT_SIZE_CLASS_NAME = 'text-xs'
+export const KTV_HEADER_LABEL_CLASS_NAME = `${KTV_HEADER_LABEL_TEXT_SIZE_CLASS_NAME} font-semibold ${UI_THEME_TOKENS.text.secondary}`
+export const KTV_SECTION_TITLE_CLASS_NAME = `${KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME} font-semibold ${UI_THEME_TOKENS.text.primary}`
+export const KTV_STATUS_TEXT_CLASS_NAME = `${KTV_STATUS_TEXT_SIZE_CLASS_NAME} font-normal ${UI_THEME_TOKENS.text.secondary}`
+
+export function shouldFlushKeyTypeValueSectionTop(index: number): boolean {
+  return index === 0
+}
+
 export function KeyTypeValueRow({
   keyNode,
   typeNode,
@@ -69,7 +94,7 @@ export function KeyTypeValueRow({
   dataKgAnchor,
   isActive,
 }: KeyTypeValueRowProps) {
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelRowDensityDefaultClass = useGraphStore(
     s => s.uiPanelRowDensityDefaultClass || 'py-1',
@@ -201,6 +226,61 @@ export function KeyTypeValueRow({
         {renderedValueNode}
       </dd>
     </dl>
+  )
+}
+
+export function KeyTypeValueHeader({
+  keyLabel = 'Key',
+  typeLabel = 'Type',
+  valueLabel = 'Value',
+  actions,
+  stickyOffsetClassName = 'top-0',
+  className,
+}: KeyTypeValueHeaderProps) {
+  const renderedKeyLabel = renderPanelTextNode(keyLabel)
+  const renderedTypeLabel = renderPanelTextNode(typeLabel)
+  const renderedValueLabel = renderPanelTextNode(valueLabel)
+  const rootClassName = [
+    `sticky ${stickyOffsetClassName} z-20 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} backdrop-blur-[4px]`,
+    className || '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <header className={rootClassName}>
+      <div className={`grid min-h-8 w-full ${KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME} items-center gap-x-2 gap-y-0 py-0`}>
+        <div className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${KTV_HEADER_LABEL_CLASS_NAME}`}>
+          {renderedKeyLabel}
+        </div>
+        <div className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center justify-start gap-1 sm:justify-end ${KTV_HEADER_LABEL_CLASS_NAME}`}>
+          {renderedTypeLabel}
+        </div>
+        <div className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center ${KTV_HEADER_LABEL_CLASS_NAME}`}>
+          <div className="flex w-full min-w-0 items-center justify-start gap-1 overflow-hidden sm:justify-end">
+            <span className="min-w-0 truncate">{renderedValueLabel}</span>
+            {actions ? <span className="flex shrink-0 items-center">{actions}</span> : null}
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+export function KeyTypeValueSectionStack({
+  children,
+  className,
+  ...sectionProps
+}: KeyTypeValueSectionStackProps) {
+  return (
+    <section
+      {...sectionProps}
+      className={[KTV_SECTION_STACK_CLASS_NAME, className || '']
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {children}
+    </section>
   )
 }
 

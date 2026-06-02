@@ -1,6 +1,7 @@
 import type { FlowDetails } from '@/features/settings/types'
 import { settingsRegistry } from '@/features/settings/registry'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
+import { buildMainPanelVirtualSettingMeta } from '@/features/panels/mainPanelVirtualSettings'
 import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusSharedTextApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
 import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
@@ -196,31 +197,32 @@ export function buildDocMappedEntry(
   values: Record<string, string | number | boolean>,
   anchorId: string | undefined,
 ): SettingsEntry {
-  const mappedMeta = entry.valueKey
-    ? SETTINGS_REGISTRY_BY_VALUE_KEY.get(entry.valueKey)
-    : undefined
+  const resolvedMeta = resolveDocMappedEntryMeta(entry)
+  const stateKey = entry.valueKey && SETTINGS_REGISTRY_BY_VALUE_KEY.has(entry.valueKey)
+    ? entry.valueKey
+    : resolvedMeta.key
   return {
     meta: entry.meta,
     details: entry.details,
-    writable: Boolean(mappedMeta?.write),
+    writable: Boolean(resolvedMeta.write),
     index: normalizeText(
       [
         entry.details.area,
         entry.meta.key,
         entry.typeLabel,
-        entry.valueKey ? String(values[entry.valueKey] ?? '') : entry.value,
+        String(values[stateKey] ?? ''),
         entry.details.responsibility,
         ...(entry.searchHints || []),
       ].join(' '),
     ),
     typeLabel: entry.typeLabel,
-    valueKey: entry.valueKey,
+    valueKey: stateKey,
     valueDisplayOverride:
-      entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
-        ? (values[entry.valueKey] as string | number | boolean | undefined)
+      Object.prototype.hasOwnProperty.call(values, stateKey)
+        ? (values[stateKey] as string | number | boolean | undefined)
         : entry.value,
-    valueType: mappedMeta?.type,
-    valueOptions: mappedMeta?.options,
+    valueType: resolvedMeta.type,
+    valueOptions: resolvedMeta.options,
     tooltipRole: entry.tooltipRole,
     tooltipActions: entry.tooltipActions,
     tooltipDefaultValue: entry.tooltipDefaultValue,
@@ -232,4 +234,27 @@ export function buildDocMappedEntry(
     tooltipImpact: entry.tooltipImpact,
     anchorId,
   }
+}
+
+export function resolveDocMappedEntryMeta(entry: {
+  meta: SettingsEntry['meta']
+  value?: string | number | boolean
+  valueKey?: string
+  tooltipDefaultValue?: string | number | boolean | null
+}): SettingsEntry['meta'] {
+  const mappedMeta = entry.valueKey
+    ? SETTINGS_REGISTRY_BY_VALUE_KEY.get(entry.valueKey)
+    : undefined
+  if (mappedMeta) return mappedMeta
+  return buildMainPanelVirtualSettingMeta({
+    key: entry.meta.key,
+    type: entry.meta.type,
+    fallbackValue: entry.value,
+    defaultValue:
+      typeof entry.tooltipDefaultValue !== 'undefined'
+        ? entry.tooltipDefaultValue
+        : entry.value,
+    options: 'options' in entry.meta ? entry.meta.options : undefined,
+    kind: entry.valueKey ? 'request' : 'reference',
+  })
 }

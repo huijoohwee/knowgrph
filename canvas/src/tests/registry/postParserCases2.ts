@@ -157,6 +157,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["workspaceImport.urlImport.recoversLongLoadingShellDomFallback","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlImportRecoversLongLoadingShellViaDomExportFallback"],
   ["workspaceImport.urlImport.prefersStructuredDomMarkdownRecovery","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlImportPrefersStructuredDomMarkdownWhenItPreservesRenderedContent"],
   ["workspaceImport.urlContentCache.evictsStaleInflightImport","@/__tests__/workspaceUrlContentCache.test","testWorkspaceUrlContentCacheEvictsStaleInflightImportRequest"],
+  ["workspace.seedProvider.storageCache.reusesFreshDocsMirrorExport","@/__tests__/workspaceSeedProviderStorageCache.test","testWorkspaceDocsMirrorExportCacheReusesFreshEntriesAndExpires"],
   ["workspaceImport.urlGlb.binaryManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGlbFetchesBinaryManifest"],
   ["workspaceImport.urlGltf.jsonManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGltfFetchesJsonManifest"],
   ["workspaceImport.urlImport.rendererSelectionDocumentMode","@/__tests__/workspaceImportUrlHtmlRendererPresets.test","testImportUrlRendererSelectionCarriesDocumentMode"],

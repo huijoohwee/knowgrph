@@ -115,8 +115,9 @@ import { buildMcpDocEntries, buildMcpVirtualEntry } from './settingsMcpDocEntrie
 import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
-import { buildIntegrationVirtualSettingMeta } from '@/features/integrations/integrationVirtualSettings'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { buildMainPanelVirtualSettingMeta } from '@/features/panels/mainPanelVirtualSettings'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { buildGrabMapsProxyRequestHeadersFromAuth, normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 import {
@@ -126,6 +127,7 @@ import {
   isMcpOwnedSetting,
   isPaymentsOwnedSetting,
   normalizeSettingsAreaLabel,
+  resolveDocMappedEntryMeta,
   settingsAreaSortWeight,
   SETTINGS_REGISTRY_BY_KEY,
   type SettingsEntry,
@@ -414,7 +416,7 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
     normalizedEntryKey.endsWith('.docs_url')
     || normalizedEntryKey.endsWith('.endpoint')
     || normalizedEntryKey.endsWith('.polling_endpoint')
-  return buildIntegrationVirtualSettingMeta({
+  return buildMainPanelVirtualSettingMeta({
     key: entry.meta.key,
     type: entry.meta.type,
     fallbackValue:
@@ -444,6 +446,34 @@ function resolveIntegrationEntryStateKey(entry: typeof INTEGRATION_API_DOC_ENTRI
 const PAYMENTS_API_DOC_ENTRIES = [
   ...STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
 ] as const
+
+type SettingsViewDocMappedEntry = {
+  meta: SettingsEntry['meta']
+  value?: string | number | boolean
+  valueKey?: string
+  tooltipDefaultValue?: string | number | boolean | null
+}
+
+function buildSettingsViewDocMappedEntries(): SettingsViewDocMappedEntry[] {
+  const mapsAndMcpDocEntries = [...MAPS_API_DOC_ENTRIES, ...GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES]
+  return [
+    ...PAYMENTS_API_DOC_ENTRIES,
+    ...mapsAndMcpDocEntries,
+    ...buildMcpDocEntries(mapsAndMcpDocEntries),
+  ]
+}
+
+function resolveDocMappedEntryStateKey(entry: SettingsViewDocMappedEntry) {
+  const resolvedMeta = resolveDocMappedEntryMeta(entry)
+  const usesMappedDisplayValue = Boolean(
+    entry.valueKey
+    && SETTINGS_REGISTRY_BY_KEY.get(entry.valueKey)?.key === resolvedMeta.key,
+  )
+  return {
+    resolvedMeta,
+    stateKey: usesMappedDisplayValue && entry.valueKey ? entry.valueKey : resolvedMeta.key,
+  }
+}
 
 export function useSettingsView({
   searchQuery,
@@ -501,13 +531,11 @@ export function useSettingsView({
       const current = resolvedMeta.read()
       if (current !== null) v[stateKey] = current
     })
-    PAYMENTS_API_DOC_ENTRIES.forEach(entry => {
-      if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
-      v[entry.meta.key] = entry.value
-    })
-    MAPS_API_DOC_ENTRIES.forEach(entry => {
-      if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
-      v[entry.meta.key] = entry.value
+    buildSettingsViewDocMappedEntries().forEach(entry => {
+      const { resolvedMeta, stateKey } = resolveDocMappedEntryStateKey(entry)
+      if (typeof v[stateKey] !== 'undefined') return
+      const current = resolvedMeta.read()
+      if (current !== null) v[stateKey] = current
     })
     return v
   })
@@ -517,10 +545,10 @@ export function useSettingsView({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME)
 
   React.useEffect(() => {
     let alive = true
@@ -540,8 +568,13 @@ export function useSettingsView({
           })
           return integrationEntry ? resolveIntegrationEntryMeta(integrationEntry) : undefined
         })()
-        || PAYMENTS_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
-        || MAPS_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
+        || (() => {
+          const docEntry = buildSettingsViewDocMappedEntries().find(entry => {
+            const { resolvedMeta, stateKey } = resolveDocMappedEntryStateKey(entry)
+            return resolvedMeta.key === key || stateKey === key
+          })
+          return docEntry ? resolveDocMappedEntryMeta(docEntry) : undefined
+        })()
       const writeTarget = meta || virtualMeta
       if (!writeTarget || !writeTarget.write) return
       const desired = values[key]
@@ -561,6 +594,12 @@ export function useSettingsView({
       const current = resolvedMeta.read()
       if (current !== null) next[resolvedMeta.key] = current
     })
+    buildSettingsViewDocMappedEntries().forEach(entry => {
+      const { resolvedMeta, stateKey } = resolveDocMappedEntryStateKey(entry)
+      if (!dirtyRef.current.has(resolvedMeta.key) && !dirtyRef.current.has(stateKey)) return
+      const current = resolvedMeta.read()
+      if (current !== null) next[stateKey] = current
+    })
     setValues(next)
     dirtyRef.current.clear()
   }, [values])
@@ -578,6 +617,13 @@ export function useSettingsView({
       const def = resolvedMeta.default()
       if (def !== null) resolvedMeta.write(def)
     })
+    buildSettingsViewDocMappedEntries().forEach(entry => {
+      const resolvedMeta = resolveDocMappedEntryMeta(entry)
+      if (SETTINGS_REGISTRY_BY_KEY.has(resolvedMeta.key)) return
+      if (!resolvedMeta.write || !resolvedMeta.default) return
+      const def = resolvedMeta.default()
+      if (def !== null) resolvedMeta.write(def)
+    })
     const next: Record<string, string | number | boolean> = {}
     settingsRegistry.forEach(s => {
       const r = s.read()
@@ -585,6 +631,12 @@ export function useSettingsView({
     })
     INTEGRATION_API_DOC_ENTRIES.forEach(entry => {
       const { resolvedMeta, stateKey } = resolveIntegrationEntryStateKey(entry)
+      if (typeof next[stateKey] !== 'undefined') return
+      const current = resolvedMeta.read()
+      if (current !== null) next[stateKey] = current
+    })
+    buildSettingsViewDocMappedEntries().forEach(entry => {
+      const { resolvedMeta, stateKey } = resolveDocMappedEntryStateKey(entry)
       if (typeof next[stateKey] !== 'undefined') return
       const current = resolvedMeta.read()
       if (current !== null) next[stateKey] = current

@@ -22,7 +22,7 @@ import {
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
 } from '@/lib/chatEndpoint'
 import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
-import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/integrationVirtualSettings'
+import { getMainPanelVirtualSettingStorageKey } from '@/features/panels/mainPanelVirtualSettings'
 import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
 import {
   assertMapsHubOmitsGrabMapsMcpConfig,
@@ -439,7 +439,6 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
     const text = container.textContent || ''
     ;[
       'BytePlus Image Generation API',
-      'Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.',
       'byteplusImageApi.size',
       'byteplusImageApi.output_format',
       'byteplusImageApi.response_format',
@@ -460,6 +459,9 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
     })
     if (text.includes('seedream-5-0-lite-250817')) {
       throw new Error('expected stale Seedream 5.0 Lite image model id to be removed from integrations image API rows')
+    }
+    if (text.includes('Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.')) {
+      throw new Error('expected BytePlus image row values to avoid section description prose in the KTV value slot')
     }
     if (text.includes('byteplusImageApi.auth_mode') || text.includes('byteplusImageApi.api_key')) {
       throw new Error('expected BytePlus image integrations search to reuse shared BytePlus auth rows instead of image-owned auth/api-key rows')
@@ -566,6 +568,62 @@ export async function testMainPanelRequestedIntegrationsSearchBytePlusImageField
     }
     if (editors[0]?.value !== '') {
       throw new Error(`expected BytePlus image request field input to default to an empty configurable slot, got ${JSON.stringify(editors[0]?.value)}`)
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchBytePlusVideoCameraFixedUsesEditableValueSlot() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusVideoApi.camera_fixed',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const rows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
+    const cameraFixedRow = rows.find(row => row.children[0]?.textContent?.includes('byteplusVideoApi.camera_fixed'))
+    if (!cameraFixedRow) {
+      throw new Error(`expected BytePlus camera_fixed row in integrations search, got ${JSON.stringify(container.textContent || '')}`)
+    }
+    const valueCell = cameraFixedRow.children[2] as HTMLElement | undefined
+    if (!valueCell) {
+      throw new Error('expected BytePlus camera_fixed row to have a Value cell')
+    }
+    if (valueCell.textContent?.includes('Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.')) {
+      throw new Error('expected BytePlus camera_fixed Value cell to avoid section description prose')
+    }
+    const editors = Array.from(valueCell.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[]
+    if (editors.length !== 1) {
+      throw new Error(`expected BytePlus camera_fixed row to render one editable checkbox, got ${editors.length}`)
+    }
+    if (editors[0]?.checked !== false) {
+      throw new Error(`expected BytePlus camera_fixed editable checkbox to default false, got ${String(editors[0]?.checked)}`)
     }
   } finally {
     try {
@@ -1283,7 +1341,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersWritableVir
     useGraphStore.getState().resetAll()
     const persistedEndpoint = 'GET /api/v3/contents/generations/tasks/custom'
     dom.window.localStorage.setItem(
-      getIntegrationVirtualSettingStorageKey('byteplusVideoApi.polling_endpoint'),
+      getMainPanelVirtualSettingStorageKey('byteplusVideoApi.polling_endpoint'),
       JSON.stringify(persistedEndpoint),
     )
 
@@ -1310,6 +1368,85 @@ export async function testMainPanelRequestedIntegrationsSearchRendersWritableVir
     )
     if (editors.length !== 1) {
       throw new Error(`expected BytePlus polling_endpoint row to render one writable text editor seeded from persisted config, got ${editors.length}`)
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelDocMappedReferenceRowsUseEditableVirtualValueSlots() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  const cases: Array<{
+    tab: 'commerce' | 'maps' | 'mcp'
+    query: string
+    expectedKey: string
+    expectedControl: 'input' | 'textarea'
+  }> = [
+    {
+      tab: 'commerce',
+      query: 'stripeApi.docs_url',
+      expectedKey: 'stripeApi.docs_url',
+      expectedControl: 'input',
+    },
+    {
+      tab: 'maps',
+      query: 'maps.grabmaps.docs_url',
+      expectedKey: 'maps.grabmaps.docs_url',
+      expectedControl: 'input',
+    },
+    {
+      tab: 'mcp',
+      query: 'browserMcp.agent_config',
+      expectedKey: 'browserMcp.agent_config',
+      expectedControl: 'textarea',
+    },
+  ]
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    for (const testCase of cases) {
+      useGraphStore.getState().resetAll()
+      const doc = dom.window.document
+      const container = doc.createElement('div')
+      doc.body.appendChild(container)
+      root = createRoot(container as unknown as HTMLElement)
+      await renderAndFlush(
+        root,
+        React.createElement(MainPanel, {
+          requestedTab: testCase.tab,
+          requestedSearchQuery: testCase.query,
+        } as never),
+        anyWindow.requestAnimationFrame,
+        6,
+      )
+
+      const rows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
+      const row = rows.find(item => item.children[0]?.textContent?.includes(testCase.expectedKey))
+      if (!row) {
+        throw new Error(`expected ${testCase.tab} row ${testCase.expectedKey}, got ${JSON.stringify(container.textContent || '')}`)
+      }
+      const valueCell = row.children[2] as HTMLElement | undefined
+      if (!valueCell) {
+        throw new Error(`expected ${testCase.expectedKey} row to have a Value cell`)
+      }
+      const controls = Array.from(valueCell.querySelectorAll(testCase.expectedControl))
+      if (controls.length !== 1) {
+        throw new Error(`expected ${testCase.expectedKey} Value cell to render one editable ${testCase.expectedControl}, got ${controls.length}`)
+      }
+      await unmountAndFlush(root)
+      root = null
     }
   } finally {
     try {
@@ -1447,7 +1584,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiApiRows
     )
 
     const text = container.textContent || ''
-    ;['OpenAI Chat API', 'openaiApi.input', 'string | object[]'].forEach(token => {
+    ;['OpenAI Chat API', 'openaiApi.input'].forEach(token => {
       if (!text.includes(token)) {
         throw new Error(`expected OpenAI integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }

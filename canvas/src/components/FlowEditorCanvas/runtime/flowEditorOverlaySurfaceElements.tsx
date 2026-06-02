@@ -12,8 +12,40 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { readCanonicalFlowEditorOverlayIdentity } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import { orderFlowEditorOverlayNodeIdsByRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayNodeOrder'
 
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
+
+export function resolveFlowEditorOverlayElementIdentity(args: {
+  graphMetaKind?: string | null
+  overlayNodeId: unknown
+  node: Pick<GraphNode, 'id'> | null | undefined
+}): {
+  overlayIdentityId: string
+  actionNodeId: string
+  renderNodeId: string
+} {
+  const overlayNodeId = String(args.overlayNodeId || '').trim()
+  const concreteNodeId = String(args.node?.id || '').trim() || overlayNodeId
+  const graphMetaKind = String(args.graphMetaKind || '').trim()
+  if (graphMetaKind !== 'frontmatter-flow') {
+    const id = overlayNodeId || concreteNodeId
+    return {
+      overlayIdentityId: id,
+      actionNodeId: concreteNodeId || id,
+      renderNodeId: concreteNodeId || id,
+    }
+  }
+  const canonicalId = readCanonicalFlowEditorOverlayIdentity(overlayNodeId || concreteNodeId)
+  const renderNodeId = canonicalId || overlayNodeId || concreteNodeId
+  return {
+    overlayIdentityId: renderNodeId,
+    actionNodeId: concreteNodeId || overlayNodeId || renderNodeId,
+    renderNodeId,
+  }
+}
 
 export function buildOverlayEditorElements(args: {
   overlayVisibilityActive: boolean
@@ -62,8 +94,28 @@ export function buildOverlayEditorElements(args: {
 }): React.ReactElement[] {
   if (!args.overlayVisibilityActive) return []
 
+  const currentGraphIsFrontmatterFlow = isFrontmatterFlowGraph(args.renderGraphDataOverride)
+  const stableGraphIsFrontmatterFlow = isFrontmatterFlowGraph(args.lastStableRenderGraphDataOverride)
+  const useStableFrontmatterGraphAuthority =
+    !args.renderGraphMetaKind
+    && !currentGraphIsFrontmatterFlow
+    && stableGraphIsFrontmatterFlow
   const graphMetaKind = args.renderGraphMetaKind
-  const graphMetaKey = buildGraphMetaKeyIgnoringPending(args.renderGraphDataOverride)
+    || (currentGraphIsFrontmatterFlow || useStableFrontmatterGraphAuthority ? 'frontmatter-flow' : null)
+  const graphMetaKey = buildGraphMetaKeyIgnoringPending(
+    useStableFrontmatterGraphAuthority
+      ? args.lastStableRenderGraphDataOverride
+      : args.renderGraphDataOverride,
+  )
+  const orderedOverlayEditorNodeIds = orderFlowEditorOverlayNodeIdsByRenderGraph({
+    ids: args.overlayEditorNodeIds,
+    nodes: (
+      useStableFrontmatterGraphAuthority
+        ? args.lastStableRenderGraphDataOverride?.nodes
+        : args.renderGraphDataOverride?.nodes
+    ) || [],
+    graphMetaKind,
+  })
   const resolveNode = (id: string) => {
     const found = args.renderGraphNodeById.get(id) || null
     if (found) return found
@@ -77,20 +129,36 @@ export function buildOverlayEditorElements(args: {
   }
   const elements: React.ReactElement[] = []
 
-  for (let stackIndex = 0; stackIndex < args.overlayEditorNodeIds.length; stackIndex += 1) {
-    const id = args.overlayEditorNodeIds[stackIndex]
+  for (let stackIndex = 0; stackIndex < orderedOverlayEditorNodeIds.length; stackIndex += 1) {
+    const id = orderedOverlayEditorNodeIds[stackIndex]
     const node = resolveNode(id)
     if (!node) continue
     if (String(node.type || '') === 'Section') continue
 
+    const identity = resolveFlowEditorOverlayElementIdentity({ graphMetaKind, overlayNodeId: id, node })
+    const actionNodeId = identity.actionNodeId || id
+    const renderNode = identity.renderNodeId && identity.renderNodeId !== String(node.id || '').trim()
+      ? { ...node, id: identity.renderNodeId }
+      : node
     const autoRevealKey = id === String(args.lastDroppedWidgetNodeIdRef.current || '') ? args.lastDroppedWidgetToken : 0
-    const connectedValuesBySchemaPath = args.connectedValuesByNodeId.get(id) || undefined
-    const portHandleEdges = args.renderGraphIncidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES
+    const connectedValuesBySchemaPath =
+      args.connectedValuesByNodeId.get(id)
+      || args.connectedValuesByNodeId.get(identity.renderNodeId)
+      || args.connectedValuesByNodeId.get(identity.actionNodeId)
+      || undefined
+    const portHandleEdges =
+      args.renderGraphIncidentEdgesByNodeId?.get(id)
+      || args.renderGraphIncidentEdgesByNodeId?.get(identity.actionNodeId)
+      || args.renderGraphIncidentEdgesByNodeId?.get(identity.renderNodeId)
+      || EMPTY_GRAPH_EDGES
+    const overlayGraphInstanceKey = graphMetaKind === 'frontmatter-flow'
+      ? String(graphMetaKey || '').trim() || String(args.renderGraphSemanticKey || '').trim() || 'graph'
+      : String(args.renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph'
     const overlayInstanceKey = [
       'qe',
       String(args.flowEditorSurfaceId || '').trim() || 'surface',
-      String(args.renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph',
-      id,
+      overlayGraphInstanceKey,
+      identity.overlayIdentityId || id,
     ].join(':')
 
     elements.push(
@@ -99,8 +167,8 @@ export function buildOverlayEditorElements(args: {
         visible={args.overlayVisibilityActive}
         active={args.canEdit}
         flowEditorSurfaceId={args.flowEditorSurfaceId}
-        overlayCollectiveCount={args.overlayEditorNodeIds.length}
-        node={node}
+        overlayCollectiveCount={orderedOverlayEditorNodeIds.length}
+        node={renderNode}
         graphMetaKind={graphMetaKind}
         graphMetaKey={graphMetaKey}
         portHandleEdges={portHandleEdges}
@@ -119,44 +187,44 @@ export function buildOverlayEditorElements(args: {
         getLiveNodeWorldPos={args.getLiveNodeWorldPos}
         getLiveZoomTransform={args.getLiveZoomTransform}
         getLiveContainmentGroupAabbForNode={args.getLiveContainmentGroupAabbForNode}
-        onSetLabel={(label) => args.setNodeLabelById(id, label)}
-        onSetType={(type) => args.setNodeTypeById(id, type)}
-        onPatchProperties={(patch) => args.patchNodePropertiesById(id, patch)}
-        onSetProperties={(props) => args.setNodePropertiesById(id, props)}
-        onValidate={() => args.validateNodeById(id)}
+        onSetLabel={(label) => args.setNodeLabelById(actionNodeId, label)}
+        onSetType={(type) => args.setNodeTypeById(actionNodeId, type)}
+        onPatchProperties={(patch) => args.patchNodePropertiesById(actionNodeId, patch)}
+        onSetProperties={(props) => args.setNodePropertiesById(actionNodeId, props)}
+        onValidate={() => args.validateNodeById(actionNodeId)}
         onRun={() => {
-          void args.runWorkflowNode(id)
+          void args.runWorkflowNode(actionNodeId)
         }}
         onDuplicate={() => {
           const pinnedMap = args.flowWidgetPinnedByNodeId || {}
-          const pinned = pinnedMap[id] === true
+          const pinned = pinnedMap[actionNodeId] === true || pinnedMap[identity.renderNodeId] === true
           if (pinned) {
             args.upsertUiToast({
-              id: `flow-editor-node-duplicate-disabled-${id}`,
+              id: `flow-editor-node-duplicate-disabled-${identity.overlayIdentityId || actionNodeId}`,
               kind: 'warning',
               message: 'Pinned widget blocks duplicate copy.',
               ttlMs: 2200,
             })
             return
           }
-          args.duplicateNodeById(id)
+          args.duplicateNodeById(actionNodeId)
         }}
-        onRemove={() => args.removeNodeById(id)}
-        onClearOutput={() => args.clearNodeOutputById(id)}
+        onRemove={() => args.removeNodeById(actionNodeId)}
+        onClearOutput={() => args.clearNodeOutputById(actionNodeId)}
         onHelp={args.showNodeEditorHelp}
-        onConvertToLoopNode={() => args.convertNodeToLoopById(id)}
+        onConvertToLoopNode={() => args.convertNodeToLoopById(actionNodeId)}
         onEnableHandlesForAllInputs={args.enableHandlesForAllInputs}
         onUpdateKvEntry={() => {
           if (typeof window === 'undefined') return
           const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({
-            node,
+            node: renderNode,
             registry: args.widgetRegistry,
             graphMetaKind,
           })
-          const widgetIdentity = resolveNodeWidgetIdentity({ node, registryEntry: resolvedWidgetRegistryEntry })
+          const widgetIdentity = resolveNodeWidgetIdentity({ node: renderNode, registryEntry: resolvedWidgetRegistryEntry })
           const searchQuery = [
             String(resolvedWidgetRegistryEntry?.id || '').trim(),
-            String(node.type || '').trim(),
+            String(renderNode.type || '').trim(),
             widgetIdentity.widgetTypeId,
             widgetIdentity.formId,
           ].filter(Boolean).join(' ')
@@ -167,7 +235,7 @@ export function buildOverlayEditorElements(args: {
           })
         }}
         onPinnedInCanvasChange={args.handlePinnedInCanvasChange}
-        onRenameSchemaFieldId={({ prevId, nextId }) => args.renameSchemaFieldIdByNodeId(id, prevId, nextId)}
+        onRenameSchemaFieldId={({ prevId, nextId }) => args.renameSchemaFieldIdByNodeId(actionNodeId, prevId, nextId)}
       />,
     )
   }

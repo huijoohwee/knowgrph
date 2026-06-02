@@ -170,53 +170,51 @@ export default function GraphStatsPanel() {
   }, [data, effectiveGraph, keywordNodes.length, semanticMode])
 
   return (
-    <section className="h-full min-h-0 flex flex-col overflow-auto px-3" aria-label="Dashboard">
-      <CollapsibleSection title="Dashboard" className="mt-0 border-t-0 pt-0">
-        <nav className="flex flex-wrap items-center justify-between gap-2" aria-label="Dashboard controls">
-          <div
-            className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
-            role="group"
-            aria-label="Stats scope"
-          >
-            {(['auto', 'dataset', 'selection'] as const).map(key => (
-              <button
-                key={key}
-                type="button"
-                className={[
-                  uiPanelMicroLabelTextSizeClass,
-                  uiPanelTextFontClass,
-                  'px-2 py-[2px]',
-                  statsScope === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
-                ].join(' ')}
-                onClick={() => setStatsScope(key)}
-              >
-                {key === 'auto' ? 'Auto' : key === 'dataset' ? 'Dataset' : 'Selection'}
-              </button>
-            ))}
-          </div>
-          <div
-            className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
-            role="group"
-            aria-label="Stats level of detail"
-          >
-            {(['auto', 'low', 'medium', 'high'] as const).map(key => (
-              <button
-                key={key}
-                type="button"
-                className={[
-                  uiPanelMicroLabelTextSizeClass,
-                  uiPanelTextFontClass,
-                  'px-2 py-[2px]',
-                  statsLod === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
-                ].join(' ')}
-                onClick={() => setStatsLod(key)}
-              >
-                {key === 'auto' ? 'Auto' : key === 'low' ? 'Low' : key === 'medium' ? 'Med' : 'High'}
-              </button>
-            ))}
-          </div>
-        </nav>
-      </CollapsibleSection>
+    <section className="h-full min-h-0 flex flex-col overflow-auto px-3 py-2" aria-label="Dashboard">
+      <nav className="mb-2 flex flex-wrap items-center justify-between gap-2" aria-label="Dashboard controls">
+        <div
+          className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
+          role="group"
+          aria-label="Stats scope"
+        >
+          {(['auto', 'dataset', 'selection'] as const).map(key => (
+            <button
+              key={key}
+              type="button"
+              className={[
+                uiPanelMicroLabelTextSizeClass,
+                uiPanelTextFontClass,
+                'px-2 py-[2px]',
+                statsScope === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
+              ].join(' ')}
+              onClick={() => setStatsScope(key)}
+            >
+              {key === 'auto' ? 'Auto' : key === 'dataset' ? 'Dataset' : 'Selection'}
+            </button>
+          ))}
+        </div>
+        <div
+          className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
+          role="group"
+          aria-label="Stats level of detail"
+        >
+          {(['auto', 'low', 'medium', 'high'] as const).map(key => (
+            <button
+              key={key}
+              type="button"
+              className={[
+                uiPanelMicroLabelTextSizeClass,
+                uiPanelTextFontClass,
+                'px-2 py-[2px]',
+                statsLod === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
+              ].join(' ')}
+              onClick={() => setStatsLod(key)}
+            >
+              {key === 'auto' ? 'Auto' : key === 'low' ? 'Low' : key === 'medium' ? 'Med' : 'High'}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {semanticMode === 'keyword' && keywordPending ? (
         <section className="mt-2" aria-label="Keyword status">

@@ -5,6 +5,7 @@ import { toSchemaImportFileName } from '@/features/schema-editor/utils'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { emitHelpScrollToAnchor } from '@/features/panels/utils/helpPanelEvents'
 import { UI_ANCHORS } from '@/lib/config'
+import { getUiSectionActionClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { uiPrimaryLinkButtonClassName } from '@/features/toolbar/ui/toolbarStyles'
 
@@ -225,7 +226,7 @@ export default function SchemaSummary({
       >
         <button
           type="button"
-          className={`inline-flex items-center px-1.5 py-0.5 rounded-full border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} cursor-pointer`}
+          className={getUiSectionActionClassName('primary', 'cursor-pointer')}
           onClick={() => {
             try {
               emitMainPanelOpen({ tab: 'help' as const })

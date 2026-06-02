@@ -363,3 +363,58 @@ export async function testWorkspaceDocsMirrorWriteRejectsBlankOverwriteOfNonEmpt
     await fsPromises.rm(tempRoot, { recursive: true, force: true })
   }
 }
+
+export async function testWorkspaceDocsMirrorWriteSkipsTerminalNewlineChurn() {
+  const tempRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'workspace-docs-mirror-noop-guard-'))
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempRoot
+  try {
+    const videoText = '# Knowgrph Video Demo'
+    const videoFile = path.join(tempRoot, 'knowgrph-video-demo.md')
+    await fsPromises.writeFile(videoFile, videoText)
+    const wrote = await upsertWorkspaceDocsMirrorText({
+      workspacePath: '/docs/knowgrph-video-demo.md',
+      text: `${videoText}\n`,
+    })
+    const current = await fsPromises.readFile(videoFile, 'utf8')
+    if (wrote !== false) {
+      throw new Error(`expected equivalent terminal-newline write to be skipped, got ${String(wrote)}`)
+    }
+    if (current !== videoText) {
+      throw new Error(`expected terminal-newline churn to leave mirror file unchanged, got ${JSON.stringify(current)}`)
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testWorkspaceDocsMirrorWriteRejectsDuplicateOtherDocumentText() {
+  const tempRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'workspace-docs-mirror-duplicate-guard-'))
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempRoot
+  try {
+    const tokenText = '# Knowgrph Token Economics Model Demo'
+    const videoText = '# Knowgrph Video Demo'
+    const tokenFile = path.join(tempRoot, 'knowgrph-token-economics-model-demo.md')
+    const videoFile = path.join(tempRoot, 'knowgrph-video-demo.md')
+    await fsPromises.writeFile(tokenFile, tokenText)
+    await fsPromises.writeFile(videoFile, videoText)
+    const wrote = await upsertWorkspaceDocsMirrorText({
+      workspacePath: '/docs/knowgrph-video-demo.md',
+      text: tokenText,
+    })
+    const current = await fsPromises.readFile(videoFile, 'utf8')
+    if (wrote !== false) {
+      throw new Error(`expected duplicate-document overwrite guard to reject the mirror write, got ${String(wrote)}`)
+    }
+    if (current !== videoText) {
+      throw new Error(`expected video mirror file to remain unchanged, got ${JSON.stringify(current)}`)
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempRoot, { recursive: true, force: true })
+  }
+}

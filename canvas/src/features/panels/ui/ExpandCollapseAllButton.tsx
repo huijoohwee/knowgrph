@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronsDown, ChevronsUp } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
@@ -23,10 +23,11 @@ export default function ExpandCollapseAllButton({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const Icon = allCollapsed ? ChevronsDown : ChevronsUp
 
   return (
     <IconButton
-      className="App-toolbar__btn flex items-center justify-center"
+      className="App-toolbar__btn flex h-7 w-7 items-center justify-center"
       title={allCollapsed ? titleExpand : titleCollapse}
       onClick={() => {
         if (allCollapsed) {
@@ -37,10 +38,8 @@ export default function ExpandCollapseAllButton({
       }}
       showTooltip
     >
-      <ChevronDown
-        className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary} transition-transform ${
-          allCollapsed ? '' : 'rotate-180'
-        }`}
+      <Icon
+        className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
         strokeWidth={uiIconStrokeWidth}
         aria-hidden="true"
       />

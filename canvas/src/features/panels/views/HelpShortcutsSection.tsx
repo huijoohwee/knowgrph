@@ -1,6 +1,11 @@
 import React from 'react';
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import { HELP_STEP_COPY } from '@/features/panels/config';
+import {
+  loadMainPanelHelpShortcutTexts,
+  type MainPanelHelpShortcutText,
+} from '@/features/panels/mainPanelHelpShortcuts'
 import { UI_COPY } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import {
@@ -17,6 +22,16 @@ import {
 } from '@/lib/canvas/interaction-ssot'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  HelpKtvActionGroup,
+  HelpKtvCode,
+  HelpKtvInlineGroup,
+  HelpKtvMutedText,
+  HelpKtvPill,
+  HelpKtvRow,
+  HelpKtvRows,
+  HelpKtvValueStack,
+} from './HelpKtvLayout'
 
 interface HelpShortcutsSectionProps {
   collapsed: boolean;
@@ -25,6 +40,12 @@ interface HelpShortcutsSectionProps {
   shortcuts: string[];
   onCopyAllShortcuts: () => void;
   onLaunchSpotlight: () => void;
+  flushTop?: boolean;
+}
+
+const EMPTY_SHORTCUT_TEXT: MainPanelHelpShortcutText = {
+  key: '',
+  value: '',
 }
 
 export function HelpShortcutsSection({
@@ -34,9 +55,10 @@ export function HelpShortcutsSection({
   shortcuts,
   onCopyAllShortcuts,
   onLaunchSpotlight,
+  flushTop = false,
 }: HelpShortcutsSectionProps) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   );
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
@@ -45,11 +67,27 @@ export function HelpShortcutsSection({
   const shortcutsText = React.useMemo(() => shortcuts.join('\n'), [shortcuts]);
   const normalizedQuery = React.useMemo(() => normalizeText(searchQuery).trim(), [searchQuery])
   const [category, setCategory] = React.useState<CanvasShortcutCategory | 'All'>('All')
-  const shortcutsTableClassName = `overflow-auto rounded border ${UI_THEME_TOKENS.table.cellBorder}`
+  const [shortcutTextByKey, setShortcutTextByKey] = React.useState<Record<string, MainPanelHelpShortcutText>>({})
 
   React.useEffect(() => {
     setCategory('All')
   }, [searchQuery])
+
+  React.useEffect(() => {
+    let alive = true
+    loadMainPanelHelpShortcutTexts().then(rows => {
+      if (!alive) return
+      setShortcutTextByKey(rows)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const getShortcutText = React.useCallback(
+    (key: string): MainPanelHelpShortcutText => shortcutTextByKey[key] || EMPTY_SHORTCUT_TEXT,
+    [shortcutTextByKey],
+  )
 
   const filteredCanvasShortcuts = React.useMemo(() => {
     const base = category === 'All' ? CANVAS_SHORTCUTS : CANVAS_SHORTCUTS.filter(s => s.category === category)
@@ -67,6 +105,7 @@ export function HelpShortcutsSection({
       title={HELP_STEP_COPY.shortcuts.title}
       collapsed={collapsed}
       onToggle={onToggle}
+      flushTop={flushTop}
     >
       {HELP_STEP_COPY.shortcuts.descriptionShort && (
         <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
@@ -78,14 +117,22 @@ export function HelpShortcutsSection({
         <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           Precedence rules
         </p>
-        <ul className={`list-disc pl-5 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary} space-y-1`}>
+        <HelpKtvRows>
           {CANVAS_PRECEDENCE_RULES.map(r => (
-            <li key={r.id}>
-              <span className="font-semibold">{r.rule}</span>{' '}
-              <span className={UI_THEME_TOKENS.text.secondary}>{r.detail}</span>
-            </li>
+            <HelpKtvRow
+              key={r.id}
+              keyNode={r.rule}
+              iconKey="ktv.type.static"
+              valueNode={(
+                <HelpKtvValueStack>
+                  {getShortcutText(`precedence.${r.id}`).value ? (
+                    <HelpKtvMutedText>{getShortcutText(`precedence.${r.id}`).value}</HelpKtvMutedText>
+                  ) : null}
+                </HelpKtvValueStack>
+              )}
+            />
           ))}
-        </ul>
+        </HelpKtvRows>
       </section>
 
       <section aria-label="Canvas shortcuts" className="mb-3">
@@ -122,35 +169,35 @@ export function HelpShortcutsSection({
           </nav>
         </header>
 
-        <section className={shortcutsTableClassName} aria-label="Canvas shortcut table">
-          <table className={`w-full border-collapse ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
-            <thead>
-              <tr className={UI_THEME_TOKENS.table.headerBg}>
-                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Action</th>
-                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Input</th>
-                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Mode(s)</th>
-                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCanvasShortcuts.map(s => (
-                <tr key={s.id} className={`border-t ${UI_THEME_TOKENS.table.cellBorder}`}>
-                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.primary}`}>{s.action}</td>
-                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.primary} font-mono`}>{s.input}</td>
-                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.primary}`}>{s.modes.join(', ')}</td>
-                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.secondary}`}>{s.notes || ''}</td>
-                </tr>
-              ))}
-              {filteredCanvasShortcuts.length === 0 && (
-                <tr className={`border-t ${UI_THEME_TOKENS.table.cellBorder}`}>
-                  <td className={`px-3 py-3 ${UI_THEME_TOKENS.text.secondary}`} colSpan={4}>
-                    {UI_COPY.helpNoShortcutsMatched}
-                  </td>
-                </tr>
+        <HelpKtvRows aria-label="Canvas shortcut rows">
+          {filteredCanvasShortcuts.map(s => (
+            <HelpKtvRow
+              key={s.id}
+              keyNode={s.action}
+              iconKey="ktv.type.action"
+              valueNode={(
+                <HelpKtvValueStack>
+                  <HelpKtvInlineGroup>
+                    <HelpKtvCode className="font-mono">{s.input}</HelpKtvCode>
+                    <HelpKtvPill>{s.category}</HelpKtvPill>
+                  </HelpKtvInlineGroup>
+                  <HelpKtvMutedText>{s.modes.join(', ')}</HelpKtvMutedText>
+                </HelpKtvValueStack>
               )}
-            </tbody>
-          </table>
-        </section>
+            />
+          ))}
+          {filteredCanvasShortcuts.length === 0 && (
+            <HelpKtvRow
+              keyNode="No shortcuts matched"
+              iconKey="mainPanel.help"
+              valueNode={(
+                <HelpKtvValueStack>
+                  <HelpKtvMutedText>{UI_COPY.helpNoShortcutsMatched}</HelpKtvMutedText>
+                </HelpKtvValueStack>
+              )}
+            />
+          )}
+        </HelpKtvRows>
       </section>
 
       {otherShortcuts.length > 0 && (
@@ -158,33 +205,54 @@ export function HelpShortcutsSection({
           <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
             Other shortcuts
           </p>
-          <ul className={`list-disc pl-5 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary} space-y-1`}>
+          <HelpKtvRows>
             {otherShortcuts.map(shortcut => (
-              <li key={shortcut}>{shortcut}</li>
+              <HelpKtvRow
+                key={shortcut}
+                keyNode={shortcut}
+                iconKey="ktv.type.action"
+                valueNode={(
+                  <HelpKtvValueStack>
+                    {getShortcutText('other.included').value ? (
+                      <HelpKtvMutedText>{getShortcutText('other.included').value}</HelpKtvMutedText>
+                    ) : null}
+                  </HelpKtvValueStack>
+                )}
+              />
             ))}
-          </ul>
+          </HelpKtvRows>
         </section>
       )}
 
-      <section className="mb-2 flex items-center gap-2" aria-label="Help shortcut actions">
-        <button
-          type="button"
-          onClick={onCopyAllShortcuts}
-          className={`App-toolbar__btn text-xs ${uiToolbarButtonMutedClassName}`}
-        >
-          Copy All
-        </button>
-        <button
-          type="button"
-          onClick={onLaunchSpotlight}
-          className={`App-toolbar__btn text-xs ${uiPrimaryPillActiveClassName}`}
-        >
-          Launch
-        </button>
-        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
-          {shortcutsText.length > 0 ? UI_COPY.helpShortcutsCountStatus(shortcuts.length) : UI_COPY.helpNoShortcutsMatched}
-        </p>
-      </section>
+      <HelpKtvRows className="mb-2" aria-label="Help shortcut actions">
+        <HelpKtvRow
+          keyNode="Shortcut Actions"
+          iconKey="ktv.type.action"
+          valueNode={(
+            <HelpKtvValueStack>
+              <HelpKtvActionGroup>
+                <button
+                  type="button"
+                  onClick={onCopyAllShortcuts}
+                  className={`App-toolbar__btn text-xs ${uiToolbarButtonMutedClassName}`}
+                >
+                  Copy All
+                </button>
+                <button
+                  type="button"
+                  onClick={onLaunchSpotlight}
+                  className={`App-toolbar__btn text-xs ${uiPrimaryPillActiveClassName}`}
+                >
+                  Launch
+                </button>
+              </HelpKtvActionGroup>
+              <HelpKtvMutedText className={UI_THEME_TOKENS.text.tertiary}>
+                {shortcutsText.length > 0 ? UI_COPY.helpShortcutsCountStatus(shortcuts.length) : UI_COPY.helpNoShortcutsMatched}
+              </HelpKtvMutedText>
+            </HelpKtvValueStack>
+          )}
+        />
+      </HelpKtvRows>
     </CollapsibleSection>
   );
 }

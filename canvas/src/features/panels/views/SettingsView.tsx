@@ -1,6 +1,9 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import {
+  KeyTypeValueHeader,
+  KeyTypeValueSectionStack,
+} from '@/features/panels/ui/KeyTypeValueRow'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import {
   uiDangerButtonClassName,
@@ -116,7 +119,7 @@ export default function SettingsView({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const headerStickyTopClass = mode === 'integrations' || mode === 'mcp' ? 'top-0' : '-top-[2px]'
-  const headerDividerWidthClass = mode === 'integrations' || mode === 'mcp' ? 'border-b-[0.5px]' : 'border-b'
+  const headerHasToolbarStrip = mode === 'all' || mode === 'payments'
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
   const normalizedChatProvider = React.useMemo(
     () => String(values.chatProvider || '').trim() || CHAT_DEFAULT_PROVIDER,
@@ -220,57 +223,6 @@ export default function SettingsView({
 
   useSettingsSync({ dirtyRef, setValues, values })
 
-  const buildSectionMetaAssistNodes = React.useCallback((sectionMeta: SectionMeta | undefined, isFirstRowInArea: boolean, rowKey: string): React.ReactNode[] => {
-    if (!sectionMeta || !isFirstRowInArea) return []
-    const nodes: React.ReactNode[] = [
-      <button
-        key={`${rowKey}-open-panel`}
-        type="button"
-        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
-        onClick={e => {
-          e.stopPropagation()
-          sectionMeta.openPanel()
-        }}
-      >
-        {sectionMeta.panelLabel}
-      </button>,
-    ]
-    if (sectionMeta.docsUrl && sectionMeta.docsLabel) {
-      nodes.push(
-        <a
-          key={`${rowKey}-docs-link`}
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-          href={sectionMeta.docsUrl}
-          target="_blank"
-          rel="noreferrer"
-          onClick={e => e.stopPropagation()}
-        >
-          {sectionMeta.docsLabel}
-        </a>,
-      )
-    }
-    if (sectionMeta.note) {
-      nodes.push(
-        <span
-          key={`${rowKey}-section-note`}
-          className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
-        >
-          {sectionMeta.note}
-        </span>,
-      )
-    }
-    sectionMeta.highlights?.forEach(highlight => {
-      nodes.push(
-        <span
-          key={`${rowKey}-highlight-${highlight}`}
-          className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
-        >
-          {highlight}
-        </span>,
-      )
-    })
-    return nodes
-  }, [])
   const {
     actions: settingsRowActions,
     refs: settingsRowRefs,
@@ -280,7 +232,6 @@ export default function SettingsView({
     applyActiveWorkspaceFileAsChatHistory,
     applyActiveWorkspaceFileAsKnowgrph,
     buildChatAssistNodes,
-    buildSectionMetaAssistNodes,
     bytePlusHealthDetails,
     bytePlusHealthOk,
     chatHealthDetails,
@@ -414,119 +365,110 @@ export default function SettingsView({
         }}
       />
       <section className="space-y-0">
-        <header className={`sticky ${headerStickyTopClass} z-20 ${headerDividerWidthClass} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
-          <div className="relative">
-            <KeyTypeValueRow
-              keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
-              typeNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</span>}
-              valueNode={(
-                <RightAlignedValueCell>
-                  <span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</span>
-                </RightAlignedValueCell>
-              )}
-              density="compact"
-              className="h-9 py-0"
+        <KeyTypeValueHeader
+          stickyOffsetClassName={headerStickyTopClass}
+          actions={(
+            <ExpandCollapseAllButton
+              allCollapsed={allCollapsed}
+              onExpandAll={expandAll}
+              onCollapseAll={collapseAll}
+              titleExpand="Expand all sections"
+              titleCollapse="Collapse all sections"
             />
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center">
-              <ExpandCollapseAllButton
-                allCollapsed={allCollapsed}
-                onExpandAll={expandAll}
-                onCollapseAll={collapseAll}
-                titleExpand="Expand"
-                titleCollapse="Collapse (Default)"
-              />
-            </div>
-          </div>
-        </header>
-        {mode === 'payments' && (
-          <section className={`p-2 border-b border-white/10 ${UI_THEME_TOKENS.text.secondary}`}>
-            <div className="flex flex-wrap items-center gap-1">
-              <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Providers</span>
-              {paymentsProviders.map(provider => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  data-main-panel-no-drag="true"
-                  className={
-                    provider.id === activePaymentsProvider.id
-                      ? `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
-                      : `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                  }
-                  onClick={() => {
-                    setPaymentsProviderId(provider.id)
-                  }}
-                >
-                  {provider.label}
-                </button>
-              ))}
-              {activePaymentsProvider.docsUrl && (
-                <a
-                  className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-                  href={activePaymentsProvider.docsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open docs
-                </a>
-              )}
-            </div>
-          </section>
-        )}
-        {mode === 'all' && (
-          <section className="p-2 border-b border-white/10">
-            <WorkspaceTableModeControl />
-          </section>
-        )}
-        <SettingsSections
-          applyUiPanelDensityPreset={applyUiPanelDensityPreset}
-          descriptors={sectionDescriptors}
-          expanded={expanded}
-          normalizedQuery={normalizedQuery}
-          rowActions={settingsRowActions}
-          rowRefs={settingsRowRefs}
-          rowStatus={settingsRowStatus}
-          rowUi={settingsRowUi}
-          getAreaIntroItemCount={getSettingsAreaIntroItemCount}
-          renderAreaIntro={renderSettingsAreaIntro}
-          setExpanded={setExpanded}
-          stickyOffsetClassName={SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS}
-          toggleArea={toggleArea}
-          values={values}
+          )}
         />
-        {mode === 'all' && (
-          <CollapsibleSection
-            title="Resets and data"
-            collapsed={false}
-            onToggle={() => void 0}
-            className={`mt-2 pt-2 border-t ${UI_COLOR_DANGER_RED_BORDER}`}
-          >
-            <div className={`space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
-              <div>
-                Reset all settings to defaults and clear canvas data. This action cannot be undone.
+        <KeyTypeValueSectionStack>
+          {mode === 'payments' && (
+            <section className={`p-2 border-b border-white/10 ${UI_THEME_TOKENS.text.secondary}`}>
+              <div className="flex flex-wrap items-center gap-1">
+                <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Providers</span>
+                {paymentsProviders.map(provider => (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    data-main-panel-no-drag="true"
+                    className={
+                      provider.id === activePaymentsProvider.id
+                        ? `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
+                        : `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+                    }
+                    onClick={() => {
+                      setPaymentsProviderId(provider.id)
+                    }}
+                  >
+                    {provider.label}
+                  </button>
+                ))}
+                {activePaymentsProvider.docsUrl && (
+                  <a
+                    className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+                    href={activePaymentsProvider.docsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open docs
+                  </a>
+                )}
               </div>
-              <button
-                type="button"
-                className={uiDangerButtonClassName}
-                onClick={onGlobalReset}
-              >
-                Global Reset
-              </button>
-            </div>
-            <div className={`mt-3 space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
-              <div>
-                Restore default workspace seed files after clearing all workspace files in Source Files.
+            </section>
+          )}
+          {mode === 'all' && (
+            <section className="p-2 border-b border-white/10">
+              <WorkspaceTableModeControl />
+            </section>
+          )}
+          <SettingsSections
+            applyUiPanelDensityPreset={applyUiPanelDensityPreset}
+            descriptors={sectionDescriptors}
+            expanded={expanded}
+            normalizedQuery={normalizedQuery}
+            rowActions={settingsRowActions}
+            rowRefs={settingsRowRefs}
+            rowStatus={settingsRowStatus}
+            rowUi={settingsRowUi}
+            getAreaIntroItemCount={getSettingsAreaIntroItemCount}
+            renderAreaIntro={renderSettingsAreaIntro}
+            setExpanded={setExpanded}
+            flushFirstSectionTop={!headerHasToolbarStrip}
+            stickyOffsetClassName={SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS}
+            toggleArea={toggleArea}
+            values={values}
+          />
+          {mode === 'all' && (
+            <CollapsibleSection
+              title="Resets and data"
+              collapsed={false}
+              onToggle={() => void 0}
+              className={`mt-2 pt-2 border-t ${UI_COLOR_DANGER_RED_BORDER}`}
+            >
+              <div className={`space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
+                <div>
+                  Reset all settings to defaults and clear canvas data. This action cannot be undone.
+                </div>
+                <button
+                  type="button"
+                  className={uiDangerButtonClassName}
+                  onClick={onGlobalReset}
+                >
+                  Global Reset
+                </button>
               </div>
-              <button
-                type="button"
-                className={uiDangerButtonClassName}
-                disabled={isRestoringWorkspace}
-                onClick={onRestoreWorkspace}
-              >
-                {isRestoringWorkspace ? 'Restoring…' : 'Restore Workspace'}
-              </button>
-            </div>
-          </CollapsibleSection>
-        )}
+              <div className={`mt-3 space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
+                <div>
+                  Restore default workspace seed files after clearing all workspace files in Source Files.
+                </div>
+                <button
+                  type="button"
+                  className={uiDangerButtonClassName}
+                  disabled={isRestoringWorkspace}
+                  onClick={onRestoreWorkspace}
+                >
+                  {isRestoringWorkspace ? 'Restoring…' : 'Restore Workspace'}
+                </button>
+              </div>
+            </CollapsibleSection>
+          )}
+        </KeyTypeValueSectionStack>
       </section>
     </article>
   )

@@ -6,6 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { KTV_SECTION_TITLE_CLASS_NAME } from './KeyTypeValueRow'
 
 interface CollapsibleSectionProps {
   title: React.ReactNode
@@ -102,7 +103,7 @@ export default function CollapsibleSection({
         onClick={() => setCollapsed(!isCollapsed)}
         onKeyDown={handleKeyDown}
       >
-        <div className={`min-w-0 flex-1 overflow-hidden text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>{title}</div>
+        <div className={`min-w-0 flex-1 overflow-hidden ${KTV_SECTION_TITLE_CLASS_NAME}`}>{title}</div>
         {toolbarAligned ? (
           <div className="flex max-w-[45%] shrink-0 flex-wrap items-center justify-end gap-1">
             {actions}

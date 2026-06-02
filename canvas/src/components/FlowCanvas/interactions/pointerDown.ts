@@ -59,10 +59,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
     const sx = local.sx
     const sy = local.sy
 
-    const drawArgs = ctx.args.buildDrawArgs()
-    const allowNodeHit = drawArgs.renderNodes !== false
-    const allowGroupHit = drawArgs.renderGroups !== false
-    const hit = allowNodeHit ? hitTestNode(runtime, { sx, sy }) : null
+    const hit = hitTestNode(runtime, { sx, sy })
     const pointerId = e.pointerId
 
     const spacePanHeld = isSpacePanHeld()
@@ -232,7 +229,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       return
     }
 
-    const groupHit = allowGroupHit ? hitTestGroup(runtime, { sx, sy }) : null
+    const groupHit = hitTestGroup(runtime, { sx, sy })
     if (groupHit) {
       const state = storeStateAtDown
       const selectedGroupId = String(state.selectedGroupId || '').trim()

@@ -110,8 +110,8 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
-      'ui.flowEditor.frontmatter.overlayIds.compactCanonicalCollective',
-      modFlowCanvasFilter.testFrontmatterFlowOverlayIdsStayCompactToCanonicalBuiltIns,
+      'ui.flowEditor.frontmatter.overlayIds.sharedEligibleNodes',
+      modFlowCanvasFilter.testFrontmatterFlowOverlayIdsIncludeSharedEligibleNodes,
     )
     await execTest(
       results,

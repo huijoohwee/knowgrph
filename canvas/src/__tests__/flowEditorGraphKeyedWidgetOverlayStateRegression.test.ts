@@ -17,8 +17,11 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   const runtimeWidgetStateText = readFileSync(runtimeWidgetStatePath, 'utf8')
   const widgetScopeText = readFileSync(widgetScopePath, 'utf8')
 
-  if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphMetaKeyIgnoringPending(args.renderGraphDataOverride)')) {
-    throw new Error('expected Flow Editor overlay surface to pass the active rendered graph key into widget overlays')
+  if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphMetaKeyIgnoringPending(')
+    || !overlaySurfaceText.includes('useStableFrontmatterGraphAuthority')
+    || !overlaySurfaceText.includes('args.lastStableRenderGraphDataOverride')
+    || !overlaySurfaceText.includes(': args.renderGraphDataOverride')) {
+    throw new Error('expected Flow Editor overlay surface to pass the active frontmatter graph authority key into widget overlays')
   }
   if (!overlaySurfaceRuntimeText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'")) {
     throw new Error('expected Flow Editor overlay surface to reuse the shared scoped widget-state helper for auto-pin seeding')
@@ -35,8 +38,10 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   if (!overlaySurfaceText.includes("String(args.flowEditorSurfaceId || '').trim() || 'surface'")) {
     throw new Error('expected Flow Editor overlay remount key to include surface identity so stale portal instances cannot survive across surfaces')
   }
-  if (!overlaySurfaceText.includes("String(args.renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph'")) {
-    throw new Error('expected Flow Editor overlay remount key to prefer the semantic render-graph identity before falling back to graph meta kind')
+  if (!overlaySurfaceText.includes("const overlayGraphInstanceKey = graphMetaKind === 'frontmatter-flow'")
+    || !overlaySurfaceText.includes("String(graphMetaKey || '').trim() || String(args.renderGraphSemanticKey || '').trim() || 'graph'")
+    || !overlaySurfaceText.includes("String(args.renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph'")) {
+    throw new Error('expected Flow Editor overlay remount key to prefer stable graph meta authority for frontmatter handoff before falling back to semantic render identity')
   }
   if (!overlaySurfaceText.includes('key={overlayInstanceKey}')) {
     throw new Error('expected Flow Editor widget overlays to remount when surface or graph identity changes')
@@ -86,8 +91,9 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   if (runtimeText.includes("?? state.flowWidgetWorldPosByNodeId?.[nodeId]")) {
     throw new Error('expected Flow Editor widget placement runtime to forbid global world-position fallback when an active render-graph key is available')
   }
-  if (!runtimeText.includes("const storedWorld = currentStoredWorld || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)")) {
-    throw new Error('expected Flow Editor widget placement loop to prefer current graph-keyed world SSOT and only suppress stale cached world fallback for screen-authority floating overlays')
+  if (!runtimeText.includes('const currentStoredWorldForPlacement = frontmatterManagedNode && floatingUsesScreenAuthority')
+    || !runtimeText.includes('const storedWorld = currentStoredWorldForPlacement || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
+    throw new Error('expected Flow Editor widget placement loop to keep graph-keyed world SSOT out of frontmatter screen-authority placement reads')
   }
   if (!runtimeSceneText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)')) {
     throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to write graph-keyed world positions under the active render graph key before falling back to store graph state')

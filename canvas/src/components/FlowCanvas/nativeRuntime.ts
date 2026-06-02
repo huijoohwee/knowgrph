@@ -1215,9 +1215,6 @@ export type FlowNativeDrawArgs = {
   showGroupResizeHandle?: boolean
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
-  renderEdges?: boolean
-  renderGroups?: boolean
-  renderNodes?: boolean
   grid?: { enabled: boolean; size: number; variant?: 'lines' | 'dots'; majorEvery?: number; dotRadiusPx?: number } | null
   flowEditorWidgetOpenNodeIds?: string[]
   flowEditorWidgetPinnedByNodeId?: Record<string, boolean>
@@ -1266,10 +1263,6 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   if (!rt.dirty) return
   rt.dirty = false
   clearCanvas(rt)
-  const renderEdges = args.renderEdges !== false
-  const renderGroups = args.renderGroups !== false
-  const renderNodes = args.renderNodes !== false
-  if (!renderEdges && !renderGroups && !renderNodes) return
 
   const ctx = rt.ctx
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -1406,62 +1399,53 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     return m
   })()
 
-  if (renderGroups) drawGroups(rt, groupAabbById)
+  drawGroups(rt, groupAabbById)
 
   const normalEdges: FlowNativeEdge[] = []
   const overlayEdges: FlowNativeEdge[] = []
-  if (renderEdges) {
-    for (let i = 0; i < scene.edges.length; i += 1) {
-      const e = scene.edges[i]
-      if ((e as unknown as { drawAboveNodes?: unknown }).drawAboveNodes === true) overlayEdges.push(e)
-      else normalEdges.push(e)
-    }
+  for (let i = 0; i < scene.edges.length; i += 1) {
+    const e = scene.edges[i]
+    if ((e as unknown as { drawAboveNodes?: unknown }).drawAboveNodes === true) overlayEdges.push(e)
+    else normalEdges.push(e)
   }
 
   const routingObstacles = (() => {
-    if (!renderEdges) return null
     const routingCfg = rt.presentation.edges.routing
     const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
     const useObstacles = useOrtho && routingCfg.obstacleAvoidance
     return useObstacles ? buildRoutingObstacles(rt, scene, groupAabbById) : null
   })()
 
-  if (renderEdges) {
-    for (let i = 0; i < normalEdges.length; i += 1) {
-      const e = normalEdges[i]
-      const s = scene.nodeById.get(e.source)
-      const t = scene.nodeById.get(e.target)
-      if (!s || !t) continue
-      if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
-      drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
-    }
-
-    fadeEdgesUnderGeometry(rt, groupAabbById)
+  for (let i = 0; i < normalEdges.length; i += 1) {
+    const e = normalEdges[i]
+    const s = scene.nodeById.get(e.source)
+    const t = scene.nodeById.get(e.target)
+    if (!s || !t) continue
+    if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
+    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
   }
 
-  if (renderNodes) {
-    for (let i = 0; i < scene.nodes.length; i += 1) {
-      const n = scene.nodes[i]
-      if (hiddenNodeIds.has(n.id)) {
-        if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
-        continue
-      }
-      drawNode(rt, n, { selected: selectedNodeIds.has(n.id) })
+  fadeEdgesUnderGeometry(rt, groupAabbById)
+
+  for (let i = 0; i < scene.nodes.length; i += 1) {
+    const n = scene.nodes[i]
+    if (hiddenNodeIds.has(n.id)) {
       if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
+      continue
     }
+    drawNode(rt, n, { selected: selectedNodeIds.has(n.id) })
+    if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
   }
 
-  if (renderEdges) {
-    for (let i = 0; i < overlayEdges.length; i += 1) {
-      const e = overlayEdges[i]
-      const s = scene.nodeById.get(e.source)
-      const t = scene.nodeById.get(e.target)
-      if (!s || !t) continue
-      if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
-      drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
-    }
-    drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById, hiddenNodeIds })
+  for (let i = 0; i < overlayEdges.length; i += 1) {
+    const e = overlayEdges[i]
+    const s = scene.nodeById.get(e.source)
+    const t = scene.nodeById.get(e.target)
+    if (!s || !t) continue
+    if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
+    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
   }
+  drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById, hiddenNodeIds })
 
   if (selectedGroupId) drawGroupResizeHandleOverlay(rt, { groupAabbById, selectedGroupId, enabled: showGroupResizeHandle })
 }

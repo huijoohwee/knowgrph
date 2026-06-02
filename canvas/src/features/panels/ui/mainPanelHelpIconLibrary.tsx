@@ -1,38 +1,8 @@
 import React from 'react'
 import {
-  ArrowRightLeft,
-  BarChart3,
-  Braces,
-  CalendarClock,
-  Copy,
-  CreditCard,
-  Eraser,
-  Film,
-  GitBranch,
-  Globe2,
-  Hand,
-  Hash,
-  HelpCircle,
-  History as HistoryIcon,
-  LayoutGrid,
-  Link2,
-  ListChecks,
-  LocateFixed,
-  Map as MapIcon,
-  MessageCircle,
-  MonitorPlay,
-  Palette,
-  Plug,
-  PlugZap,
-  Radio,
-  Server,
-  Settings,
-  SlidersHorizontal,
-  SquareCheckBig,
-  Table,
-  Type as TextTypeIcon,
-  UserX,
-  Users,
+  ArrowRightLeft, BarChart3, Braces, CalendarClock, Copy, CreditCard, Eraser, Film, GitBranch, Globe2, Hand, Hash,
+  HelpCircle, History as HistoryIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
+  Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
 } from 'lucide-react'
 import type { MainPanelTabKey } from '@/features/panels/mainPanelTabs'
 
@@ -42,63 +12,81 @@ export type MainPanelTypeIconComponent = React.ComponentType<{
   'aria-hidden'?: boolean | 'true' | 'false'
 }>
 
-export type MainPanelTypeIconKey =
-  | 'collaboration.peer'
-  | 'collaboration.session'
-  | 'collaboration.runtime'
-  | 'collaboration.transport'
-  | 'collaboration.follow'
-  | 'collaboration.connection'
-  | 'collaboration.link'
-  | 'collaboration.copy'
-  | 'collaboration.removePeer'
-  | 'setting.text'
-  | 'setting.number'
-  | 'setting.boolean'
-  | 'setting.object'
-  | 'setting.list'
-  | 'setting.dateTime'
-  | 'setting.url'
-  | 'action.clear'
-  | 'ktv.type.static'
-  | 'ktv.type.preset'
-  | 'ktv.type.tiles'
-  | 'ktv.type.style'
-  | 'ktv.type.globe'
-  | 'ktv.type.color'
-  | 'ktv.type.scale'
-  | 'ktv.type.action'
-  | 'ktv.type.toggle'
-  | 'ktv.type.browser'
-  | 'ktv.type.duration'
-  | 'ktv.type.size'
-  | 'mainPanel.collaboration'
-  | 'mainPanel.integrations'
-  | 'mainPanel.mcp'
-  | 'mainPanel.maps'
-  | 'mainPanel.commerce'
-  | 'mainPanel.design'
-  | 'mainPanel.workflowManager'
-  | 'mainPanel.dashboard'
-  | 'mainPanel.preview'
-  | 'mainPanel.settings'
-  | 'mainPanel.history'
-  | 'mainPanel.help'
-  | 'floatingPanel.propsPanel'
-  | 'floatingPanel.view'
-  | 'floatingPanel.interaction'
-  | 'floatingPanel.design'
-  | 'floatingPanel.chat'
-  | 'floatingPanel.geo'
-  | 'floatingPanel.renderer'
-  | 'floatingPanel.strybldr'
-  | 'floatingPanel.graphTraversal'
+export const MAIN_PANEL_TYPE_ICON_KEYS = [
+  'collaboration.peer',
+  'collaboration.session',
+  'collaboration.runtime',
+  'collaboration.transport',
+  'collaboration.follow',
+  'collaboration.connection',
+  'collaboration.link',
+  'collaboration.copy',
+  'collaboration.removePeer',
+  'setting.text',
+  'setting.number',
+  'setting.boolean',
+  'setting.object',
+  'setting.list',
+  'setting.dateTime',
+  'setting.url',
+  'action.clear',
+  'ktv.type.static',
+  'ktv.type.preset',
+  'ktv.type.tiles',
+  'ktv.type.style',
+  'ktv.type.globe',
+  'ktv.type.color',
+  'ktv.type.scale',
+  'ktv.type.action',
+  'ktv.type.toggle',
+  'ktv.type.browser',
+  'ktv.type.duration',
+  'ktv.type.size',
+  'mainPanel.collaboration',
+  'mainPanel.integrations',
+  'mainPanel.mcp',
+  'mainPanel.maps',
+  'mainPanel.commerce',
+  'mainPanel.design',
+  'mainPanel.workflowManager',
+  'mainPanel.dashboard',
+  'mainPanel.preview',
+  'mainPanel.settings',
+  'mainPanel.history',
+  'mainPanel.help',
+  'floatingPanel.propsPanel',
+  'floatingPanel.view',
+  'floatingPanel.interaction',
+  'floatingPanel.design',
+  'floatingPanel.chat',
+  'floatingPanel.geo',
+  'floatingPanel.renderer',
+  'floatingPanel.strybldr',
+  'floatingPanel.graphTraversal',
+  'field.scope.node',
+  'field.scope.edge',
+  'field.origin.custom',
+  'field.origin.derived',
+  'field.visibility.show',
+  'field.visibility.hide',
+  'field.type.singleLineText',
+  'field.type.longText',
+  'field.type.number',
+  'field.type.decimal',
+  'field.type.checkbox',
+  'field.type.multiSelect',
+  'field.type.singleSelect',
+  'field.type.dateTime',
+  'field.type.url',
+  'field.type.currency',
+  'field.type.json',
+] as const
+
+export type MainPanelTypeIconKey = (typeof MAIN_PANEL_TYPE_ICON_KEYS)[number]
 
 export type MainPanelTypeIconMeta = Readonly<{
   category: string
   label: string
-  agentic: string
-  usage: string
   Icon: MainPanelTypeIconComponent
 }>
 
@@ -106,352 +94,337 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
   'collaboration.peer': {
     category: 'Collaboration type',
     label: 'Peer / roster',
-    agentic: 'Remote actor',
-    usage: 'Identifies participants, peer count, ownership rows, and local/remote presence.',
     Icon: Users,
   },
   'collaboration.session': {
     category: 'Collaboration type',
     label: 'Session state',
-    agentic: 'Shared runtime state',
-    usage: 'Marks the active host/guest session, role, phase, and session identifiers.',
     Icon: Radio,
   },
   'collaboration.runtime': {
     category: 'Collaboration type',
     label: 'Runtime ready',
-    agentic: 'Connected operation',
-    usage: 'Marks live runtime status, successful handshakes, and connected transport paths.',
     Icon: PlugZap,
   },
   'collaboration.transport': {
     category: 'Collaboration type',
     label: 'Transport pending',
-    agentic: 'Disconnected operation',
-    usage: 'Marks transport rows before the peer channel is connected.',
     Icon: Plug,
   },
   'collaboration.follow': {
     category: 'Collaboration type',
     label: 'Follow target',
-    agentic: 'Attention routing',
-    usage: 'Marks cursor-follow and peer-target selection rows.',
     Icon: LocateFixed,
   },
   'collaboration.connection': {
     category: 'Collaboration type',
     label: 'Handshake / exchange',
-    agentic: 'Bidirectional transfer',
-    usage: 'Marks host, join, answer, and peer connection actions.',
     Icon: ArrowRightLeft,
   },
   'collaboration.link': {
     category: 'Collaboration type',
     label: 'Invite link',
-    agentic: 'Shareable reference',
-    usage: 'Marks invite URLs, endpoints, and external reference values.',
     Icon: Link2,
   },
   'collaboration.copy': {
     category: 'Collaboration type',
     label: 'Copy artifact',
-    agentic: 'Portable payload',
-    usage: 'Marks copyable invite and answer tokens.',
     Icon: Copy,
   },
   'collaboration.removePeer': {
     category: 'Collaboration type',
     label: 'Remove peer',
-    agentic: 'Roster mutation',
-    usage: 'Marks owner-only peer removal actions.',
     Icon: UserX,
   },
   'setting.text': {
     category: 'Setting value type',
     label: 'Text',
-    agentic: 'String scalar',
-    usage: 'Marks plain text, provider names, model names, prompts, and enum-like values.',
     Icon: TextTypeIcon,
   },
   'setting.number': {
     category: 'Setting value type',
     label: 'Number',
-    agentic: 'Numeric scalar',
-    usage: 'Marks integer, decimal, duration, limit, and ratio settings.',
     Icon: Hash,
   },
   'setting.boolean': {
     category: 'Setting value type',
     label: 'Boolean',
-    agentic: 'Binary flag',
-    usage: 'Marks on/off controls, readiness flags, and confirmation toggles.',
     Icon: SquareCheckBig,
   },
   'setting.object': {
     category: 'Setting value type',
     label: 'Object / JSON',
-    agentic: 'Structured payload',
-    usage: 'Marks JSON, object, request body, response format, and config-map settings.',
     Icon: Braces,
   },
   'setting.list': {
     category: 'Setting value type',
     label: 'List',
-    agentic: 'Ordered values',
-    usage: 'Marks arrays, multi-select options, and route/tool collections.',
     Icon: ListChecks,
   },
   'setting.dateTime': {
     category: 'Setting value type',
     label: 'Date / time',
-    agentic: 'Temporal scalar',
-    usage: 'Marks timestamp, schedule, and expiry values.',
     Icon: CalendarClock,
   },
   'setting.url': {
     category: 'Setting value type',
     label: 'URL / endpoint',
-    agentic: 'External reference',
-    usage: 'Marks endpoint URLs, docs URLs, routes, and hosted asset references.',
     Icon: Link2,
   },
   'action.clear': {
     category: 'Action type',
     label: 'Clear / reset',
-    agentic: 'Non-destructive erase',
-    usage: 'Marks reset and clear actions that do not remove underlying graph data.',
     Icon: Eraser,
   },
   'ktv.type.static': {
     category: 'KTV row type',
     label: 'Static',
-    agentic: 'Local static value',
-    usage: 'Marks rows whose value is built in and does not require a live provider.',
     Icon: LayoutGrid,
   },
   'ktv.type.preset': {
     category: 'KTV row type',
     label: 'Preset',
-    agentic: 'Reusable preset',
-    usage: 'Marks rows that apply a named preset or reusable configuration.',
     Icon: ListChecks,
   },
   'ktv.type.tiles': {
     category: 'KTV row type',
     label: 'Tiles',
-    agentic: 'Map tile source',
-    usage: 'Marks rows backed by tiled map or spatial data sources.',
     Icon: MapIcon,
   },
   'ktv.type.style': {
     category: 'KTV row type',
     label: 'Style',
-    agentic: 'Visual style source',
-    usage: 'Marks rows that choose or edit visual styling, style URLs, and renderer appearance.',
     Icon: Palette,
   },
   'ktv.type.globe': {
     category: 'KTV row type',
     label: 'Globe',
-    agentic: 'Globe projection',
-    usage: 'Marks rows that switch projection, globe, or geospatial rendering modes.',
     Icon: Globe2,
   },
   'ktv.type.color': {
     category: 'KTV row type',
     label: 'Color',
-    agentic: 'Visual token',
-    usage: 'Marks color and palette controls.',
     Icon: Palette,
   },
   'ktv.type.scale': {
     category: 'KTV row type',
     label: 'Scale',
-    agentic: 'Numeric visual tuning',
-    usage: 'Marks scale, radius, multiplier, and sizing controls.',
     Icon: SlidersHorizontal,
   },
   'ktv.type.action': {
     category: 'KTV row type',
     label: 'Action',
-    agentic: 'Operator command',
-    usage: 'Marks rows that trigger an immediate command or request.',
     Icon: Hand,
   },
   'ktv.type.toggle': {
     category: 'KTV row type',
     label: 'Toggle',
-    agentic: 'Binary control',
-    usage: 'Marks on/off row controls.',
     Icon: SquareCheckBig,
   },
   'ktv.type.browser': {
     category: 'KTV row type',
     label: 'Browser',
-    agentic: 'Browser capability',
-    usage: 'Marks rows that use browser APIs, location, navigation, or external references.',
     Icon: Link2,
   },
   'ktv.type.duration': {
     category: 'KTV row type',
     label: 'Duration',
-    agentic: 'Time-bound value',
-    usage: 'Marks timeout, duration, TTL, and millisecond values.',
     Icon: CalendarClock,
   },
   'ktv.type.size': {
     category: 'KTV row type',
     label: 'Size',
-    agentic: 'Capacity limit',
-    usage: 'Marks byte, memory, and payload-size limits.',
     Icon: Hash,
   },
   'mainPanel.collaboration': {
     category: 'MainPanel surface',
     label: 'Collaboration',
-    agentic: 'Peer session surface',
-    usage: 'MainPanel tab for owner/guest peer sessions, invites, and roster state.',
     Icon: Users,
   },
   'mainPanel.integrations': {
     category: 'MainPanel surface',
     label: 'Integrations',
-    agentic: 'Provider configuration',
-    usage: 'MainPanel tab for chat, model, image, video, and provider API settings.',
     Icon: Plug,
   },
   'mainPanel.mcp': {
     category: 'MainPanel surface',
     label: 'MCP',
-    agentic: 'Tool configuration',
-    usage: 'MainPanel tab for browser, crawler, provider, and payment MCP readiness.',
     Icon: Server,
   },
   'mainPanel.maps': {
     category: 'MainPanel surface',
     label: 'Maps',
-    agentic: 'Geospatial configuration',
-    usage: 'MainPanel tab for map providers, directions, and GeoJSON settings.',
     Icon: MapIcon,
   },
   'mainPanel.commerce': {
     category: 'MainPanel surface',
     label: 'Commerce',
-    agentic: 'Commerce operations',
-    usage: 'MainPanel tab for ACP, Stripe, Web3, OpenBOX, proof, and trace readiness.',
     Icon: CreditCard,
   },
   'mainPanel.design': {
     category: 'MainPanel surface',
     label: 'Design',
-    agentic: 'Design surface',
-    usage: 'MainPanel tab for design renderer and page/component inspection.',
     Icon: Palette,
   },
   'mainPanel.workflowManager': {
     category: 'MainPanel surface',
     label: 'Workflow Manager',
-    agentic: 'Workflow curation',
-    usage: 'MainPanel tab for graph fields, mappings, and workflow registry management.',
     Icon: Table,
   },
   'mainPanel.dashboard': {
     category: 'MainPanel surface',
     label: 'Dashboard',
-    agentic: 'Surface summary',
-    usage: 'MainPanel tab for runtime status and dashboard metrics.',
     Icon: BarChart3,
   },
   'mainPanel.preview': {
     category: 'MainPanel surface',
     label: 'Preview Panel',
-    agentic: 'Rendered preview',
-    usage: 'MainPanel tab for previewing rendered output.',
     Icon: MonitorPlay,
   },
   'mainPanel.settings': {
     category: 'MainPanel surface',
     label: 'Settings',
-    agentic: 'Shared settings',
-    usage: 'MainPanel tab for all settings rows and settings-derived hub views.',
     Icon: Settings,
   },
   'mainPanel.history': {
     category: 'MainPanel surface',
     label: 'History',
-    agentic: 'Event review',
-    usage: 'MainPanel tab for history and log review.',
     Icon: HistoryIcon,
   },
   'mainPanel.help': {
     category: 'MainPanel surface',
     label: 'Help',
-    agentic: 'Operator reference',
-    usage: 'MainPanel tab for shortcuts, workflow links, panel tour, and icon library.',
     Icon: HelpCircle,
   },
   'floatingPanel.propsPanel': {
     category: 'FloatingPanel surface',
     label: 'Props Panel',
-    agentic: 'Selection properties',
-    usage: 'FloatingPanel view for node, edge, widget, and media properties.',
     Icon: SlidersHorizontal,
   },
   'floatingPanel.view': {
     category: 'FloatingPanel surface',
     label: 'View',
-    agentic: 'Data view controls',
-    usage: 'FloatingPanel view for workspace data-view settings.',
     Icon: LayoutGrid,
   },
   'floatingPanel.interaction': {
     category: 'FloatingPanel surface',
     label: 'Interaction',
-    agentic: 'Canvas controls',
-    usage: 'FloatingPanel view for pointer, pan, zoom, and interaction settings.',
     Icon: Hand,
   },
   'floatingPanel.design': {
     category: 'FloatingPanel surface',
     label: 'Design',
-    agentic: 'Design controls',
-    usage: 'FloatingPanel view for design layers, inspector, tokens, and DOM views.',
     Icon: Palette,
   },
   'floatingPanel.chat': {
     category: 'FloatingPanel surface',
     label: 'Chat',
-    agentic: 'Assistant interface',
-    usage: 'FloatingPanel view for chat runs and KGC output creation.',
     Icon: MessageCircle,
   },
   'floatingPanel.geo': {
     category: 'FloatingPanel surface',
     label: 'Geo',
-    agentic: 'Map interaction',
-    usage: 'FloatingPanel view for geospatial inspection and map interaction.',
     Icon: MapIcon,
   },
   'floatingPanel.renderer': {
     category: 'FloatingPanel surface',
     label: 'Renderer',
-    agentic: 'Rendering controls',
-    usage: 'FloatingPanel view for renderer presets and visualization controls.',
     Icon: MonitorPlay,
   },
   'floatingPanel.strybldr': {
     category: 'FloatingPanel surface',
     label: 'Strybldr',
-    agentic: 'Image storyboard orchestration',
-    usage: 'FloatingPanel view for image reverse engineering, element cards, and video handoff.',
     Icon: Film,
   },
   'floatingPanel.graphTraversal': {
     category: 'FloatingPanel surface',
     label: 'Graph Traversal',
-    agentic: 'Path reasoning',
-    usage: 'FloatingPanel view for graph traversal and orchestrator workflow controls.',
     Icon: GitBranch,
+  },
+  'field.scope.node': {
+    category: 'Graph field type',
+    label: 'Node field',
+    Icon: Users,
+  },
+  'field.scope.edge': {
+    category: 'Graph field type',
+    label: 'Edge field',
+    Icon: GitBranch,
+  },
+  'field.origin.custom': {
+    category: 'Graph field type',
+    label: 'Custom field',
+    Icon: SlidersHorizontal,
+  },
+  'field.origin.derived': {
+    category: 'Graph field type',
+    label: 'Derived field',
+    Icon: ArrowRightLeft,
+  },
+  'field.visibility.show': {
+    category: 'Graph field type',
+    label: 'Show in Graph Data Table',
+    Icon: Table,
+  },
+  'field.visibility.hide': {
+    category: 'Graph field type',
+    label: 'Hide in Graph Data Table',
+    Icon: Eraser,
+  },
+  'field.type.singleLineText': {
+    category: 'Graph field type',
+    label: 'Single line text',
+    Icon: TextTypeIcon,
+  },
+  'field.type.longText': {
+    category: 'Graph field type',
+    label: 'Long text',
+    Icon: TextTypeIcon,
+  },
+  'field.type.number': {
+    category: 'Graph field type',
+    label: 'Number',
+    Icon: Hash,
+  },
+  'field.type.decimal': {
+    category: 'Graph field type',
+    label: 'Decimal',
+    Icon: Hash,
+  },
+  'field.type.checkbox': {
+    category: 'Graph field type',
+    label: 'Checkbox',
+    Icon: SquareCheckBig,
+  },
+  'field.type.multiSelect': {
+    category: 'Graph field type',
+    label: 'Multi-select',
+    Icon: ListChecks,
+  },
+  'field.type.singleSelect': {
+    category: 'Graph field type',
+    label: 'Single-select',
+    Icon: SquareCheckBig,
+  },
+  'field.type.dateTime': {
+    category: 'Graph field type',
+    label: 'Date Time',
+    Icon: CalendarClock,
+  },
+  'field.type.url': {
+    category: 'Graph field type',
+    label: 'URL',
+    Icon: Link2,
+  },
+  'field.type.currency': {
+    category: 'Graph field type',
+    label: 'Currency',
+    Icon: CreditCard,
+  },
+  'field.type.json': {
+    category: 'Graph field type',
+    label: 'JSON',
+    Icon: Braces,
   },
 } satisfies Record<MainPanelTypeIconKey, MainPanelTypeIconMeta>
 
@@ -470,20 +443,16 @@ export const MAIN_PANEL_TAB_TYPE_ICON_KEY_BY_TAB = {
   help: 'mainPanel.help',
 } satisfies Record<MainPanelTabKey, MainPanelTypeIconKey>
 
-export const MAIN_PANEL_TAB_TYPE_ICON_BY_KEY: Record<MainPanelTabKey, MainPanelTypeIconComponent> = {
-  collaboration: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.collaboration'].Icon,
-  integrations: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.integrations'].Icon,
-  mcp: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.mcp'].Icon,
-  maps: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.maps'].Icon,
-  commerce: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.commerce'].Icon,
-  design: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.design'].Icon,
-  workflowManager: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.workflowManager'].Icon,
-  dashboard: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.dashboard'].Icon,
-  preview: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.preview'].Icon,
-  settings: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.settings'].Icon,
-  history: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.history'].Icon,
-  help: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.help'].Icon,
-}
+export const getMainPanelTypeIconComponent = (iconKey: MainPanelTypeIconKey): MainPanelTypeIconComponent => (
+  MAIN_PANEL_TYPE_ICON_META_BY_KEY[iconKey].Icon
+)
+
+export const MAIN_PANEL_TAB_TYPE_ICON_BY_KEY = Object.fromEntries(
+  Object.entries(MAIN_PANEL_TAB_TYPE_ICON_KEY_BY_TAB).map(([tabKey, iconKey]) => [
+    tabKey,
+    getMainPanelTypeIconComponent(iconKey),
+  ]),
+) as Record<MainPanelTabKey, MainPanelTypeIconComponent>
 
 export type FloatingPanelTypeIconView =
   | 'propsPanel'
@@ -508,61 +477,12 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   graphTraversal: 'floatingPanel.graphTraversal',
 } satisfies Record<FloatingPanelTypeIconView, MainPanelTypeIconKey>
 
-export const FLOATING_PANEL_TYPE_ICON_BY_VIEW: Record<FloatingPanelTypeIconView, MainPanelTypeIconComponent> = {
-  propsPanel: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.propsPanel'].Icon,
-  view: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.view'].Icon,
-  interaction: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.interaction'].Icon,
-  design: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.design'].Icon,
-  chat: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.chat'].Icon,
-  geo: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.geo'].Icon,
-  renderer: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.renderer'].Icon,
-  strybldr: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.strybldr'].Icon,
-  graphTraversal: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.graphTraversal'].Icon,
-}
-
-export const MAIN_PANEL_HELP_TYPE_ICON_KEYS = [
-  'mainPanel.collaboration',
-  'mainPanel.integrations',
-  'mainPanel.mcp',
-  'mainPanel.maps',
-  'mainPanel.commerce',
-  'mainPanel.settings',
-  'floatingPanel.propsPanel',
-  'floatingPanel.view',
-  'floatingPanel.chat',
-  'floatingPanel.geo',
-  'floatingPanel.renderer',
-  'floatingPanel.strybldr',
-  'floatingPanel.graphTraversal',
-  'collaboration.peer',
-  'collaboration.session',
-  'collaboration.runtime',
-  'collaboration.transport',
-  'collaboration.connection',
-  'collaboration.link',
-  'collaboration.copy',
-  'collaboration.follow',
-  'setting.text',
-  'setting.number',
-  'setting.boolean',
-  'setting.object',
-  'setting.list',
-  'setting.url',
-  'setting.dateTime',
-  'action.clear',
-  'ktv.type.static',
-  'ktv.type.preset',
-  'ktv.type.tiles',
-  'ktv.type.style',
-  'ktv.type.globe',
-  'ktv.type.color',
-  'ktv.type.scale',
-  'ktv.type.action',
-  'ktv.type.toggle',
-  'ktv.type.browser',
-  'ktv.type.duration',
-  'ktv.type.size',
-] as const satisfies readonly MainPanelTypeIconKey[]
+export const FLOATING_PANEL_TYPE_ICON_BY_VIEW = Object.fromEntries(
+  Object.entries(FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW).map(([view, iconKey]) => [
+    view,
+    getMainPanelTypeIconComponent(iconKey),
+  ]),
+) as Record<FloatingPanelTypeIconView, MainPanelTypeIconComponent>
 
 export function getMainPanelTypeIconMeta(iconKey: MainPanelTypeIconKey): MainPanelTypeIconMeta {
   return MAIN_PANEL_TYPE_ICON_META_BY_KEY[iconKey]
@@ -591,6 +511,7 @@ export function resolveMainPanelSettingTypeIconKey(typeLabel: string): MainPanel
   }
   if (
     normalized.includes('array')
+    || normalized.includes('[]')
     || normalized.includes('list')
     || normalized.includes('multi-select')
     || normalized.includes('collection')

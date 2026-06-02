@@ -1,10 +1,13 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
+import { shouldFlushKeyTypeValueSectionTop } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { buildSettingsAreaTooltip } from '@/lib/config'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { loadMainPanelSectionDescriptions, type MainPanelSectionDescription } from '@/features/panels/mainPanelSectionDescriptions'
 import { SettingsEntryRow } from './SettingsEntryRow'
 import type { SectionMeta } from './settingsView.constants'
 import type { SettingsEntry } from './useSettingsView.helpers'
@@ -30,9 +33,67 @@ type SettingsSectionsProps = {
   getAreaIntroItemCount?: (area: string) => number
   renderAreaIntro?: (area: string) => React.ReactNode
   setExpanded: React.Dispatch<React.SetStateAction<string | null>>
+  flushFirstSectionTop?: boolean
   stickyOffsetClassName: string
   toggleArea: (area: string, nextCollapsed?: boolean) => void
   values: Record<string, string | number | boolean>
+}
+
+function SettingsSectionIntro({
+  description,
+  sectionMeta,
+}: {
+  description?: MainPanelSectionDescription
+  sectionMeta?: SectionMeta
+}) {
+  if (!sectionMeta && !description) return null
+  const highlights = description?.highlights || []
+  return (
+    <div className={`mb-2 min-w-0 max-w-full space-y-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+      {sectionMeta ? (
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
+          <button
+            type="button"
+            className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+            onClick={e => {
+              e.stopPropagation()
+              sectionMeta.openPanel()
+            }}
+          >
+            {sectionMeta.panelLabel}
+          </button>
+          {sectionMeta.docsUrl && sectionMeta.docsLabel ? (
+            <a
+              className={getUiSectionActionClassName('primary')}
+              href={sectionMeta.docsUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={e => e.stopPropagation()}
+            >
+              {sectionMeta.docsLabel}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {description?.value ? (
+        <p className="m-0 min-w-0 max-w-full overflow-hidden text-ellipsis">
+          {description.value}
+        </p>
+      ) : null}
+      {highlights.length > 0 ? (
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
+          {highlights.map(highlight => (
+            <span
+              key={highlight}
+              className={getUiSectionChipClassName('secondary')}
+            >
+              <span className={UI_TEXT_TRUNCATE}>{highlight}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export function SettingsSections({
@@ -47,13 +108,28 @@ export function SettingsSections({
   getAreaIntroItemCount,
   renderAreaIntro,
   setExpanded,
+  flushFirstSectionTop = false,
   stickyOffsetClassName,
   toggleArea,
   values,
 }: SettingsSectionsProps) {
-  return descriptors.map(({ area, collapsed, entries, sectionMeta, showDensityPresets }) => {
+  const [sectionDescriptions, setSectionDescriptions] = React.useState<Record<string, MainPanelSectionDescription>>({})
+
+  React.useEffect(() => {
+    let alive = true
+    loadMainPanelSectionDescriptions().then(next => {
+      if (!alive) return
+      setSectionDescriptions(next)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  return descriptors.map(({ area, collapsed, entries, sectionMeta, showDensityPresets }, index) => {
     const areaIntro = renderAreaIntro?.(area)
     const itemCount = entries.length + Math.max(0, getAreaIntroItemCount?.(area) || 0)
+    const sectionDescription = sectionDescriptions[area]
 
     return (
       <CollapsibleSection
@@ -74,12 +150,17 @@ export function SettingsSections({
           </Tooltip>
         }
         collapsed={collapsed}
+        flushTop={flushFirstSectionTop && shouldFlushKeyTypeValueSectionTop(index)}
         stickyOffsetClassName={stickyOffsetClassName}
         onToggle={next => {
           if (normalizedQuery) return
           toggleArea(area, next)
         }}
       >
+        <SettingsSectionIntro
+          description={sectionDescription}
+          sectionMeta={sectionMeta}
+        />
         <ul>
           {areaIntro}
           {showDensityPresets ? (
@@ -87,7 +168,7 @@ export function SettingsSections({
               <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Presets</span>
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+                className={getUiSectionActionClassName('primary')}
                 onClick={() => {
                   applyUiPanelDensityPreset('comfortable')
                 }}
@@ -117,10 +198,8 @@ export function SettingsSections({
                 actions={rowActions}
                 entry={entry}
                 isExpanded={isExpanded}
-                isFirstRowInArea={entries[0]?.meta.key === entry.meta.key}
                 refs={rowRefs}
                 status={rowStatus}
-                sectionMeta={sectionMeta}
                 toggleActions={toggleActions}
                 ui={rowUi}
                 values={values}

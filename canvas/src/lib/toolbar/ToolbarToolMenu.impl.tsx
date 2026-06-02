@@ -23,7 +23,7 @@ import {
   MainPanelTypeIcon,
   getMainPanelTypeIconMeta,
   resolveMainPanelKtvTypeIconKey,
-} from '@/features/panels/ui/mainPanelTypeIcons'
+} from '@/features/panels/ui/mainPanelHelpIconLibrary'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { DesignFloatingPanelView } from '@/features/design/DesignFloatingPanelView'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'

@@ -48,19 +48,7 @@ export type FlowCanvasProps = {
   hidePortHandleNodeIds?: string[]
   excludeRichMediaOverlayNodeIds?: string[]
   flowEditorSurfaceId?: string
-  renderEdges?: boolean
-  renderGroups?: boolean
-  renderNodes?: boolean
-  nativeSurfaceMode?: FlowCanvasNativeSurfaceMode
   forbidCircleNodes?: boolean
-}
-
-export type FlowCanvasNativeSurfaceMode = 'auto' | 'visual' | 'runtime-only'
-
-export type FlowCanvasNativeRenderPolicy = {
-  renderEdges?: boolean
-  renderGroups?: boolean
-  renderNodes?: boolean
 }
 
 export type FlowCanvasMediaOverlayInteractionPolicy = {
@@ -82,43 +70,6 @@ export function resolveFlowCanvasMediaOverlayInteractionPolicy(args: {
     resizeActive: rendererInteractionMode && args.workspaceMutationBlocked !== true,
     panelPointerEventsClassName: 'pointer-events-auto',
     capturePanelEvents: true,
-  }
-}
-
-export function resolveFlowCanvasNativeSurfaceMode(args: {
-  canvas2dRenderer?: string
-  graphData: GraphData | null | undefined
-  requestedMode?: FlowCanvasNativeSurfaceMode
-  overlayOwnsScene?: boolean
-}): FlowCanvasNativeSurfaceMode {
-  const requestedMode = args.requestedMode === 'visual' || args.requestedMode === 'runtime-only'
-    ? args.requestedMode
-    : 'auto'
-  if (requestedMode !== 'auto') return requestedMode
-
-  const renderer = String(args.canvas2dRenderer || '').trim()
-  if (args.overlayOwnsScene === true) return 'runtime-only'
-  if (renderer === 'flowEditor' && isFrontmatterFlowGraph(args.graphData)) return 'runtime-only'
-  return 'visual'
-}
-
-export function resolveFlowCanvasNativeRenderPolicy(args: {
-  nativeSurfaceMode: FlowCanvasNativeSurfaceMode
-  renderEdges?: boolean
-  renderGroups?: boolean
-  renderNodes?: boolean
-}): FlowCanvasNativeRenderPolicy {
-  if (args.nativeSurfaceMode === 'runtime-only') {
-    return {
-      renderEdges: false,
-      renderGroups: false,
-      renderNodes: false,
-    }
-  }
-  return {
-    renderEdges: args.renderEdges,
-    renderGroups: args.renderGroups,
-    renderNodes: args.renderNodes,
   }
 }
 

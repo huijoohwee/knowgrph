@@ -79,7 +79,7 @@ const AGNES_API_DOC_ROWS: ReadonlyArray<AgnesDocRow> = [
   {
     key: 'messages',
     typeLabel: 'array',
-    value: 'Shared prompt contract composes system messages, packed graph/workspace context, optional scoped context, and conversation history.',
+    value: 'messages[]',
     responsibility: 'States that Agnes reuses the canonical Knowgrph chat request message assembly.',
     notes: 'No provider-specific prompt schema fork is allowed.',
     searchHints: ['messages', 'prompt contract', 'context pack'],
@@ -104,7 +104,7 @@ const AGNES_API_DOC_ROWS: ReadonlyArray<AgnesDocRow> = [
   {
     key: 'streaming.json_chunks',
     typeLabel: 'streaming',
-    value: 'Each SSE data frame is expected to carry one JSON object or [DONE]; delta.content text is concatenated by the shared parser before KGC validation/finalize.',
+    value: 'delta.content',
     responsibility: 'Documents the provider contract required by the shared SSE JSON chunk parser.',
     notes: 'Chunk parsing must stay upstream of markdown validation and must not mutate graph state per chunk.',
     searchHints: ['sse', 'json chunks', 'delta.content', 'done'],
@@ -112,7 +112,7 @@ const AGNES_API_DOC_ROWS: ReadonlyArray<AgnesDocRow> = [
   {
     key: 'output_contract',
     typeLabel: 'string',
-    value: 'When chatStorageTarget is chatKnowgrph, Agnes must emit exactly one frontmatter-first KGC markdown document that lands in Workspace Source Files before shared canvas apply.',
+    value: 'frontmatter_kgc_markdown',
     responsibility: 'Pins Agnes to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.',
     notes: 'Do not emit prose wrappers, legacy aliases, duplicate grouping keys, or provider-specific canvas directives.',
     searchHints: ['markdown', 'yaml frontmatter', 'workspace', 'source files', 'flow editor', 'storyboard', 'animatic'],

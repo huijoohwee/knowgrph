@@ -11,6 +11,7 @@ import {
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { stripFrontmatterAutoManagedWidgetPinnedStates } from '@/lib/flowEditor/widgetPlacementAuthority'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
 import { normalizeIds, normalizeOpenWidgetNodeIds } from '@/hooks/store/graphViewIds'
 import {
@@ -323,7 +324,10 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
     if (isWorkspaceGraphMutationBlocked(state)) return
-    const nextPinnedById = normalizePinnedByNodeId(pinnedById)
+    const nextPinnedById = stripFrontmatterAutoManagedWidgetPinnedStates({
+      graphData: state.graphData,
+      pinnedByNodeId: normalizePinnedByNodeId(pinnedById),
+    })
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
     const prevPinnedById = state.flowWidgetPinnedByNodeId || {}

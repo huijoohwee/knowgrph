@@ -1,6 +1,5 @@
 import React from 'react'
 
-import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { applyPreferredSeedLayoutCells } from '@/components/FlowEditor/seedGroupSpread'
 import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import {
@@ -42,8 +41,10 @@ import {
   shouldForceBalancedSpreadReseed,
 } from '@/lib/ui/overlayBalancedSpread'
 import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import { orderFlowEditorOverlayNodeIdsByRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayNodeOrder'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { resolveEffectiveFlowWidgetPinnedInCanvas } from '@/lib/flowEditor/widgetPlacementAuthority'
 
 function hasOverlap(
   a: { left: number; top: number; width?: number; height?: number },
@@ -238,17 +239,6 @@ export function useFlowEditorOverlayCollision(args: {
       const isFrontmatterFlow = graphKind === 'frontmatter-flow'
       const nodes = overlayGraphLookup?.nodes || []
       const nodeById = overlayGraphLookup?.nodeById || null
-      const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
-      const compareByVisualIndex = (aId: string, bId: string): number => {
-        if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
-        if (aId === bId) return 0
-        const aKey = nodeZKeyById.get(aId)
-        const bKey = nodeZKeyById.get(bId)
-        if (aKey && bKey) return compareNodeZKey(aKey, bKey)
-        if (aKey || bKey) return aKey ? -1 : 1
-        return aId.localeCompare(bId)
-      }
-
       const overlayNodeIds = (() => {
         const next: string[] = []
         const seen = new Set<string>()
@@ -258,9 +248,18 @@ export function useFlowEditorOverlayCollision(args: {
           seen.add(id)
           next.push(id)
         }
-        return isFrontmatterFlow ? next.sort(compareByVisualIndex) : next.sort((a, b) => a.localeCompare(b))
+        return orderFlowEditorOverlayNodeIdsByRenderGraph({
+          ids: next,
+          nodes,
+          graphMetaKind: graphKind,
+        })
       })()
       if (overlayNodeIds.length < 2) {
+        resetOverlayCollisionTransientState(true)
+        return
+      }
+      const frontmatterScreenAuthorityOwnedByPlacementRuntime = isFrontmatterFlow && overlayOnlyModeEnabled
+      if (frontmatterScreenAuthorityOwnedByPlacementRuntime) {
         resetOverlayCollisionTransientState(true)
         return
       }
@@ -362,11 +361,8 @@ export function useFlowEditorOverlayCollision(args: {
         keyedByGraphMetaKey: (st as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
         globalByNodeId: (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
       })
-      const posSig = buildPosSignature(overlayNodeIds, {
-        posById,
-        worldById,
-        pinnedById,
-      })
+      const posSig = buildPosSignature(overlayNodeIds, { posById, worldById, pinnedById })
+      const isPinnedInCanvasForNode = (id: string): boolean => resolveEffectiveFlowWidgetPinnedInCanvas({ graphMetaKind: graphKind, node: String(id || '').trim() ? nodeById?.get(String(id || '').trim()) || null : null, pinnedValue: String(id || '').trim() ? pinnedById[String(id || '').trim()] : null })
       const settleBaseKey = hashSignatureParts([
         'overlay-collision-settle',
         overlayNodeIdsKey,
@@ -533,7 +529,7 @@ export function useFlowEditorOverlayCollision(args: {
         .map(rawId => {
           const id = String(rawId || '').trim()
           if (!id) return null
-          if (pinnedById[id] === true) return null
+          if (isPinnedInCanvasForNode(id)) return null
           if (!shouldAutoPlaceFlowEditorWidget({
             graphMetaKind: graphKind,
             pinnedInCanvas: false,
@@ -575,7 +571,7 @@ export function useFlowEditorOverlayCollision(args: {
         const pinnedCandidates = overlayNodeIds
           .map(rawId => {
             const id = String(rawId || '').trim()
-            if (!id || pinnedById[id] !== true) return null
+            if (!id || !isPinnedInCanvasForNode(id)) return null
             const rect = rectByNodeId.get(id) || null
             if (!rect) return null
             return { id, left: rect.left, top: rect.top, width: rect.width, height: rect.height }
@@ -596,7 +592,7 @@ export function useFlowEditorOverlayCollision(args: {
         const id = String(overlayNodeIds[i] || '').trim()
         if (!id) continue
         const rect = rectByNodeId.get(id) || null
-        if (pinnedById[id] === true) {
+        if (isPinnedInCanvasForNode(id)) {
           if (!allowPinnedResolve) {
             if (rect) pinnedObstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
             continue
@@ -692,7 +688,6 @@ export function useFlowEditorOverlayCollision(args: {
         overlayMeasurementWarmupStartedAtMsRef.current = null
         overlayMeasurementWarmupAttemptsRef.current = 0
       }
-
       const fixedId = (() => {
         if (pinnedObstacles.some(obstacle => String(obstacle.id || '').startsWith('rich-media:'))) return ''
         const sel = String(selectedNodeId || '').trim()

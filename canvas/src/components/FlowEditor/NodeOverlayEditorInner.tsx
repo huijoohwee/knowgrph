@@ -13,7 +13,7 @@ import {
 } from '@/components/FlowEditor/nodeOverlayEditorShared'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { resolveDefaultFlowWidgetPinnedInCanvas, shouldUseFlowEditorWidgetFloatingScreenAuthority } from '@/lib/flowEditor/widgetPlacementAuthority'
+import { resolveEffectiveFlowWidgetPinnedInCanvas, shouldUseFlowEditorWidgetFloatingScreenAuthority } from '@/lib/flowEditor/widgetPlacementAuthority'
 import { computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
 import { lsBool, lsSetBool } from '@/lib/persistence'
@@ -23,6 +23,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -113,7 +114,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
 
   const overlayZIndex = React.useMemo(() => {
     const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
-    const selected = String(selectedNodeId || '').trim() === nodeId
+    const selected = isCanonicalNodeIdEqual(selectedNodeId, nodeId)
     return selected ? FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED : FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE - idx
   }, [nodeId, selectedNodeId, stackIndex])
 
@@ -127,8 +128,12 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
       keyedByGraphMetaKey: state.flowWidgetPinnedByNodeIdByGraphMetaKey,
       globalByNodeId: state.flowWidgetPinnedByNodeId,
     })
-    return typeof v === 'boolean' ? v : resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
-  }, [graphMetaKey, graphMetaKind])
+    return resolveEffectiveFlowWidgetPinnedInCanvas({
+      graphMetaKind,
+      node,
+      pinnedValue: typeof v === 'boolean' ? v : null,
+    })
+  }, [graphMetaKey, graphMetaKind, node])
 
   const [pinnedInCanvas, setPinnedInCanvasState] = React.useState<boolean>(() => readPinnedInCanvas(nodeId))
   const pinnedInCanvasRef = React.useRef<boolean>(readPinnedInCanvas(nodeId))
@@ -197,7 +202,11 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
         keyedByGraphMetaKey: state.flowWidgetPinnedByNodeIdByGraphMetaKey,
         globalByNodeId: state.flowWidgetPinnedByNodeId,
       })
-      return typeof v === 'boolean' ? v : readPinnedInCanvas(nodeId)
+      return resolveEffectiveFlowWidgetPinnedInCanvas({
+        graphMetaKind,
+        node,
+        pinnedValue: typeof v === 'boolean' ? v : null,
+      })
     }
     const unsub = useGraphStore.subscribe(readPinned, next => {
       pinnedInCanvasRef.current = next
@@ -225,13 +234,13 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     if (!toolbarVisible) return
     const id = String(node.id || '').trim()
     if (!id) return
-    if (selectedNodeId !== id) setToolbarVisible(false)
+    if (!isCanonicalNodeIdEqual(selectedNodeId, id)) setToolbarVisible(false)
   }, [node.id, selectedNodeId, toolbarVisible])
 
   const wasSelectedRef = React.useRef(false)
   React.useEffect(() => {
     const id = String(node.id || '').trim()
-    const selected = !!id && selectedNodeId === id
+    const selected = !!id && isCanonicalNodeIdEqual(selectedNodeId, id)
     if (selected && !wasSelectedRef.current) setToolbarVisible(true)
     wasSelectedRef.current = selected
   }, [node.id, selectedNodeId])

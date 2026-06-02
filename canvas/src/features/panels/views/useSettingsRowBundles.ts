@@ -1,12 +1,10 @@
 import React from 'react'
-import type { SectionMeta } from './settingsView.constants'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
 
 type UseSettingsRowBundlesArgs = {
   applyActiveWorkspaceFileAsChatHistory: () => void
   applyActiveWorkspaceFileAsKnowgrph: () => void
   buildChatAssistNodes: (rowKey: string) => React.ReactNode[]
-  buildSectionMetaAssistNodes: (sectionMeta: SectionMeta | undefined, isFirstRowInArea: boolean, rowKey: string) => React.ReactNode[]
   bytePlusHealthDetails: string | null
   bytePlusHealthOk: boolean | null
   chatHealthDetails: string | null
@@ -59,7 +57,6 @@ export function useSettingsRowBundles({
   applyActiveWorkspaceFileAsChatHistory,
   applyActiveWorkspaceFileAsKnowgrph,
   buildChatAssistNodes,
-  buildSectionMetaAssistNodes,
   bytePlusHealthDetails,
   bytePlusHealthOk,
   chatHealthDetails,
@@ -169,7 +166,6 @@ export function useSettingsRowBundles({
     applyActiveWorkspaceFileAsChatHistory,
     applyActiveWorkspaceFileAsKnowgrph,
     buildChatAssistNodes,
-    buildSectionMetaAssistNodes,
     checkBytePlusHealth,
     checkBytePlusVideoModelPreview,
     checkChatHealth,
@@ -192,7 +188,6 @@ export function useSettingsRowBundles({
     applyActiveWorkspaceFileAsChatHistory,
     applyActiveWorkspaceFileAsKnowgrph,
     buildChatAssistNodes,
-    buildSectionMetaAssistNodes,
     checkBytePlusHealth,
     checkBytePlusVideoModelPreview,
     checkChatHealth,

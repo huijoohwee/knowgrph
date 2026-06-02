@@ -14,7 +14,7 @@ export function testFlowWidgetToolbarAutoShowsOnFirstSelectionTransition() {
 
   const requiredSnippets = [
     'const wasSelectedRef = React.useRef(false)',
-    'const selected = !!id && selectedNodeId === id',
+    'const selected = !!id && isCanonicalNodeIdEqual(selectedNodeId, id)',
     'wasSelectedRef.current = selected',
   ]
   for (const snippet of requiredSnippets) {

@@ -34,7 +34,7 @@ import {
   getCachedFlowEditorRenderGraph,
   getCachedFlowEditorWidgetPlacementContext,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
-import { type FrontmatterOverlayOnlyCoverageCache, resolveFrontmatterOverlayHideSafetyWithStableCoverage } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayCoverage'
+import { type FrontmatterOverlayOnlyCoverageCache, resolveFrontmatterOverlayVisualIsolationWithStableCoverage } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayCoverage'
 import { buildOverlayEditorElements } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements'
 import {
   buildFlowCanvasGraphDataOverride,
@@ -674,7 +674,7 @@ export function useFlowEditorOverlaySurface(args: {
     overlayEditorElements.length > 0
     || (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)
   const frontmatterOverlayOnlyCoverageRef = React.useRef<FrontmatterOverlayOnlyCoverageCache | null>(null)
-  const frontmatterOverlayHideSafety = React.useMemo(() => resolveFrontmatterOverlayHideSafetyWithStableCoverage({
+  const frontmatterOverlayVisualIsolation = React.useMemo(() => resolveFrontmatterOverlayVisualIsolationWithStableCoverage({
     frontmatterOverlayOnlyCoverageRef,
     renderGraphDataOverride,
     frontmatterVisibleSceneDisplay,
@@ -692,26 +692,23 @@ export function useFlowEditorOverlaySurface(args: {
     overlayVisibilityActive,
     hasOverlayEditors,
     geospatialWidgetPanelMode,
-    frontmatterOverlayHideSafety,
+    frontmatterOverlayVisualIsolation,
     workspaceMutationBlocked,
   })
 
   const flowCanvasGraphDataOverride = React.useMemo(() => {
     return buildFlowCanvasGraphDataOverride({
       renderGraphDataOverride,
-      frontmatterOverlayHideSafety,
-      renderGraphPlacementContext,
+      frontmatterOverlayVisualIsolation,
       overlayEditorNodeIdsSnapshot,
       overlayOnlyActive,
     })
   }, [
-    frontmatterOverlayHideSafety.kind,
-    frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes,
-    frontmatterOverlayHideSafety.visibleNodeIds,
+    frontmatterOverlayVisualIsolation.kind,
+    frontmatterOverlayVisualIsolation.visibleNodeIds,
     overlayEditorNodeIdsSnapshot,
     overlayOnlyActive,
     renderGraphDataOverride,
-    renderGraphPlacementContext,
   ])
 
   return {

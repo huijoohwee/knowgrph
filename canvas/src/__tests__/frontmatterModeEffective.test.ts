@@ -64,6 +64,23 @@ export function testFrontmatterModeEffectiveForFrontmatterFlowGraphWithoutMermai
     graphData,
   })
   if (effective !== true) throw new Error('expected frontmatter mode to be effective for frontmatter-flow graph context')
+
+  const composedGraphData: GraphData = {
+    type: 'graph',
+    context: 'kgc-semantic-markdown',
+    metadata: { kind: 'kgc-semantic', graphKind: 'kgc-semantic', baseGraphKind: 'frontmatter-flow' },
+    nodes: [{ id: 'n-composed-flow', type: 'default', label: 'composed flow node', properties: {} }],
+    edges: [],
+  }
+  const composedEffective = computeEffectiveFrontmatterMode({
+    frontmatterModeEnabled: true,
+    documentSemanticMode: 'document',
+    graphData: composedGraphData,
+  })
+  if (composedEffective !== true) throw new Error('expected frontmatter mode to be effective for a composed graph with frontmatter-flow base kind')
+  if (isFrontmatterFlowGraph(composedGraphData) !== true) {
+    throw new Error('expected frontmatter-flow graph detection to honor the retained composed base graph kind')
+  }
 }
 
 export function testFrontmatterFlowGraphDetectionDoesNotUseWidgetPropertyHeuristics() {
@@ -75,7 +92,7 @@ export function testFrontmatterFlowGraphDetectionDoesNotUseWidgetPropertyHeurist
   }
 
   if (isFrontmatterFlowGraph(graphData) !== false) {
-    throw new Error('expected frontmatter-flow detection to rely on context/metadata.kind only')
+    throw new Error('expected frontmatter-flow detection to rely on graph identity metadata only')
   }
 }
 

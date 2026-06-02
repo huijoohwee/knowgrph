@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { normalizeSelectOptionsAndDefaultValue } from '@/features/graph-fields/graphFields'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { reorderList } from '@/lib/reorder'
@@ -41,7 +42,7 @@ export function SelectOptionsSection({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const [draggingSelectOptionIndex, setDraggingSelectOptionIndex] = React.useState<number | null>(null)
@@ -151,7 +152,7 @@ export function SelectOptionsSection({
                 next[idx] = e.target.value
                 setSelectedSelectOptions(next)
               }}
-              className={`h-8 flex-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text}`}
+              className={`h-8 flex-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text}`}
             />
             <button
               type="button"
@@ -175,7 +176,7 @@ export function SelectOptionsSection({
       </div>
       <button
         type="button"
-        className={`mt-2 w-full App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary} flex items-center justify-center gap-2`}
+        className={`mt-2 w-full App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary} flex items-center justify-center gap-2`}
         onClick={() => {
           const nextLabel = createNextSelectOptionLabel(selectedSettings.selectOptions)
           setPendingFocusSelectOptionIndex(selectedSettings.selectOptions.length)

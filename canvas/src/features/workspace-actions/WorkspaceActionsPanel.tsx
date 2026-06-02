@@ -1,6 +1,10 @@
 import React from 'react'
 import CollapsibleSubsection from '@/features/panels/ui/CollapsibleSubsection'
-import { RightAlignedTooltipInput, SimpleKeyValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import {
+  KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
+  RightAlignedTooltipInput,
+  SimpleKeyValueRow,
+} from '@/features/panels/ui/KeyTypeValueRow'
 import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalog'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -9,7 +13,7 @@ import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/work
 
 export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onApplyExample: (exampleId: ExampleId) => void }) {
   const { examples, onApplyExample } = props
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
 
   const [selectedExampleId, setSelectedExampleId] = React.useState<string>('')

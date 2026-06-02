@@ -1,5 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import {
@@ -72,7 +73,7 @@ export default function GraphFieldsListPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
   const schema = useGraphStore(s => s.schema)
   const iconSizeClass = getIconSizeClass(uiIconScale)

@@ -159,13 +159,13 @@ export const NodeOverlayEditorTypePill = React.memo(function NodeOverlayEditorTy
   text: string
 }) {
   const text = String(props.text || '').trim()
-  if (!text) return null
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const strokeWidth = typeof uiIconStrokeWidth === 'number' && Number.isFinite(uiIconStrokeWidth)
     ? Math.max(0.75, Math.min(3, uiIconStrokeWidth))
     : 1.75
+  if (!text) return null
   const kind = resolveFieldTypeIconKind(text)
   return (
     <span className={cn('w-full h-6 inline-flex items-center justify-center px-1 leading-none', UI_THEME_TOKENS.text.secondary)} aria-label="Type icon">

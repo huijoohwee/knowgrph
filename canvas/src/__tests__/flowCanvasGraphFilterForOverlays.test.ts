@@ -75,7 +75,7 @@ export function testFlowCanvasFrontmatterFlowIsolationDoesNotDependOnFrontmatter
   }
 }
 
-export function testFrontmatterFlowOverlayIdsStayCompactToCanonicalBuiltIns(): void {
+export function testFrontmatterFlowOverlayIdsIncludeSharedEligibleNodes(): void {
   const g = {
     context: 'frontmatter-flow',
     metadata: {
@@ -113,8 +113,8 @@ export function testFrontmatterFlowOverlayIdsStayCompactToCanonicalBuiltIns(): v
   } as any
 
   const overlayIds = deriveFrontmatterFlowOverlayNodeIds(g).sort()
-  if (overlayIds.join('|') !== 'p-video|w-text') {
-    throw new Error(`expected frontmatter overlay ids to stay compact to canonical built-in widget/media nodes, got: ${overlayIds.join('|')}`)
+  if (overlayIds.join('|') !== 'n-flow|p-video|w-text') {
+    throw new Error(`expected frontmatter overlay ids to include shared eligible widget nodes, got: ${overlayIds.join('|')}`)
   }
 }
 

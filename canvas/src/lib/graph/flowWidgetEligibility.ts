@@ -9,6 +9,7 @@ import {
 } from '@/lib/config.flow-editor'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { filterSubgraphsByRetainedNodeIds } from '@/lib/graph/subgraphs'
 import { isPlainObject } from '@/lib/graph/value'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
@@ -69,7 +70,7 @@ export function filterGraphToFlowWidgetEligible(data: GraphData): GraphData {
   const allNodes = Array.isArray(data.nodes) ? (data.nodes as GraphNode[]) : []
   const allEdges = Array.isArray(data.edges) ? (data.edges as GraphEdge[]) : []
   const eligible = buildFlowWidgetEligibleNodeIdSet(allNodes)
-  if (eligible.size === 0) return { ...data, nodes: [], edges: [] }
+  if (eligible.size === 0) return filterSubgraphsByRetainedNodeIds({ ...data, nodes: [], edges: [] }, new Set<string>())
 
   const nodes = allNodes.filter(n => eligible.has(String(n?.id || '').trim()))
   const edges = allEdges.filter(e => {
@@ -78,5 +79,6 @@ export function filterGraphToFlowWidgetEligible(data: GraphData): GraphData {
     return Boolean(src && tgt && eligible.has(src) && eligible.has(tgt))
   })
 
-  return { ...data, nodes, edges }
+  const retainedNodeIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
+  return filterSubgraphsByRetainedNodeIds({ ...data, nodes, edges }, retainedNodeIds)
 }

@@ -44,15 +44,6 @@ export function YouTubeTimestampPreviewLink({
     () => buildYouTubeThumbnailPreviewDescriptor(sourceUrl)?.thumbnailUrl || '',
     [sourceUrl],
   )
-
-  if (!sourceUrl || !timestampLabel) {
-    return (
-      <a href={href} target={anchor.target} rel={anchor.rel} className={anchor.className}>
-        {children}
-      </a>
-    )
-  }
-
   const close = () => {
     touchTapArmedRef.current = false
     pointerTypeRef.current = null
@@ -87,6 +78,14 @@ export function YouTubeTimestampPreviewLink({
       window.removeEventListener('resize', handleViewportChange)
     }
   }, [open, updatePreviewPosition])
+
+  if (!sourceUrl || !timestampLabel) {
+    return (
+      <a href={href} target={anchor.target} rel={anchor.rel} className={anchor.className}>
+        {children}
+      </a>
+    )
+  }
 
   const handlePointerDown = (event: React.PointerEvent<HTMLAnchorElement>) => {
     pointerTypeRef.current = event.pointerType || null

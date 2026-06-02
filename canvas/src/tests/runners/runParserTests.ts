@@ -215,4 +215,8 @@ export const runParserTests = async (results: TestResult[]) => {
     const mod = await modKgcSemanticGraph()
     await mod.testMarkdownParserMergesKgcSemanticGraphIntoNeutralMarkdownGraph()
   })
+  await execTest(results, 'parser.kgcSemantic.preservesTypedFlowBlockEdges', async () => {
+    const mod = await modKgcSemanticGraph()
+    await mod.testMarkdownParserPreservesTypedFlowBlockEdgesWhenKgcSemanticMerges()
+  })
 }

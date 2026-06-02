@@ -59,8 +59,9 @@ export function readGraphActiveDocumentViewMode(graphData: { context?: unknown; 
   }
   const context = String(graphData.context || '').trim()
   const kind = String(meta?.kind || '').trim()
+  const baseGraphKind = String(meta?.baseGraphKind || '').trim()
   if (kind === 'keyword') return 'keyword'
-  if (context === 'frontmatter-flow' || context === 'frontmatter-mermaid' || kind === 'frontmatter-flow') return 'frontmatter'
+  if (context === 'frontmatter-flow' || context === 'frontmatter-mermaid' || kind === 'frontmatter-flow' || baseGraphKind === 'frontmatter-flow') return 'frontmatter'
   return null
 }
 

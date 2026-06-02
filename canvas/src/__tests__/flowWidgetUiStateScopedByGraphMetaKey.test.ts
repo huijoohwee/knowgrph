@@ -277,6 +277,102 @@ export function testFrontmatterBuiltInFloatingPartialCoverageDoesNotCarryAcrossS
   }
 }
 
+export function testFrontmatterBuiltInPinnedCanvasResidueDoesNotCarryAcrossComposedSourceRecompose() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'NODE_TEXT_A', type: 'TextGeneration', label: 'Text A', x: 120, y: 80, properties: {} },
+      { id: 'NODE_TEXT_B', type: 'ImageGeneration', label: 'Image B', x: 180, y: 80, properties: {} },
+      { id: 'NODE_TEXT_C', type: 'VideoGeneration', label: 'Video C', x: 240, y: 80, properties: {} },
+      { id: 'NODE_TEXT_D', type: 'RichMediaPanel', label: 'Panel D', x: 300, y: 80, properties: {} },
+    ],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-pinned-residue-a',
+    },
+  } as never)
+
+  useGraphStore.getState().setFlowWidgetPinnedByNodeId({
+    NODE_TEXT_A: true,
+    NODE_TEXT_B: true,
+    NODE_TEXT_C: true,
+    NODE_TEXT_D: true,
+  })
+  useGraphStore.getState().setFlowWidgetWorldPosByNodeId({
+    NODE_TEXT_A: { x: 16, y: 28 },
+    NODE_TEXT_B: { x: 18, y: 30 },
+    NODE_TEXT_C: { x: 20, y: 32 },
+    NODE_TEXT_D: { x: 22, y: 34 },
+  })
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'ws:semantic::NODE_TEXT_A', type: 'TextGeneration', label: 'Text A', x: 120, y: 80, properties: { prompt: 'updated-a' } },
+      { id: 'ws:semantic::NODE_TEXT_B', type: 'ImageGeneration', label: 'Image B', x: 180, y: 80, properties: { prompt: 'updated-b' } },
+      { id: 'ws:semantic::NODE_TEXT_C', type: 'VideoGeneration', label: 'Video C', x: 240, y: 80, properties: { prompt: 'updated-c' } },
+      { id: 'ws:semantic::NODE_TEXT_D', type: 'RichMediaPanel', label: 'Panel D', x: 300, y: 80, properties: { prompt: 'updated-d' } },
+    ],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-pinned-residue-b',
+    },
+  } as never)
+
+  const after = useGraphStore.getState()
+  if (
+    after.flowWidgetPinnedByNodeId['ws:semantic::NODE_TEXT_A'] === true
+    || after.flowWidgetPinnedByNodeId['ws:semantic::NODE_TEXT_B'] === true
+    || after.flowWidgetPinnedByNodeId['ws:semantic::NODE_TEXT_C'] === true
+    || after.flowWidgetPinnedByNodeId['ws:semantic::NODE_TEXT_D'] === true
+    || after.flowWidgetPinnedByNodeId.NODE_TEXT_A === true
+  ) {
+    throw new Error('expected composed frontmatter source hydration to strip stale pinned-canvas residue for auto-managed widgets')
+  }
+}
+
+export function testFrontmatterBuiltInPinnedCanvasResidueCannotEnterRootSetter() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'NODE_TEXT_A', type: 'TextGeneration', label: 'Text A', x: 120, y: 80, properties: {} },
+      { id: 'NODE_PANEL_A', type: 'RichMediaPanel', label: 'Panel A', x: 180, y: 80, properties: {} },
+      { id: 'NODE_CUSTOM_A', type: 'CustomNode', label: 'Custom A', x: 240, y: 80, properties: {} },
+    ],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-root-setter-pinned-residue',
+    },
+  } as never)
+
+  useGraphStore.getState().setFlowWidgetPinnedByNodeId({
+    NODE_TEXT_A: true,
+    NODE_PANEL_A: true,
+    NODE_CUSTOM_A: true,
+  })
+
+  const after = useGraphStore.getState()
+  if (after.flowWidgetPinnedByNodeId.NODE_TEXT_A === true || after.flowWidgetPinnedByNodeId.NODE_PANEL_A === true) {
+    throw new Error('expected root pinned-state setter to reject frontmatter auto-managed pinned-canvas residue')
+  }
+  if (after.flowWidgetPinnedByNodeId.NODE_CUSTOM_A !== true) {
+    throw new Error('expected root pinned-state setter to preserve non-auto-managed frontmatter widget pin state')
+  }
+}
+
 export function testFlowWidgetOverlayStateDoesNotCarryAcrossSameSourceLayoutChanges() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
 

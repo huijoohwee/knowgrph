@@ -51,6 +51,7 @@ export async function testMarkdownWorkspaceMainPublishesLiveEditorWorkspaceInspe
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
+  let cleanupAssertionError: Error | null = null
   try {
     resetBrowserLocalSurfaceSnapshotsForTests()
     useGraphStore.getState().resetAll()
@@ -133,12 +134,13 @@ export async function testMarkdownWorkspaceMainPublishesLiveEditorWorkspaceInspe
     }
     const clearedInspection = inspectLocalEditorWorkspaceState(readLocalEditorWorkspaceSurfaceSnapshot())
     if (clearedInspection.available !== false) {
-      throw new Error(`expected editor workspace readiness snapshot cleanup on unmount, got ${JSON.stringify(clearedInspection)}`)
+      cleanupAssertionError = new Error(`expected editor workspace readiness snapshot cleanup on unmount, got ${JSON.stringify(clearedInspection)}`)
     }
     resetBrowserLocalSurfaceSnapshotsForTests()
     useGraphStore.getState().resetAll()
     restore()
   }
+  if (cleanupAssertionError) throw cleanupAssertionError
 }
 
 export async function testMarkdownWorkspaceMainShowsFrontmatterWarningsInActiveDocumentSurface() {

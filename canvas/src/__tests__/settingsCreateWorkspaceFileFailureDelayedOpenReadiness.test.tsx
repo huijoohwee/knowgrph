@@ -119,6 +119,7 @@ export async function testSettingsCreateFileFailureSkipsDelayedOpenAndKeepsCommi
   const actionsRef: { current: RegisteredSettingsActions | null } = { current: null }
   const openCalls: string[] = []
 
+  let cleanupAssertionError: Error | null = null
   try {
     resetBrowserLocalSurfaceSnapshotsForTests()
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
@@ -275,7 +276,7 @@ export async function testSettingsCreateFileFailureSkipsDelayedOpenAndKeepsCommi
     }
     const clearedChatInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
     if (clearedChatInspection.available !== false) {
-      throw new Error(`expected FloatingPanel Chat pipeline snapshot cleanup after chat unmount, got ${JSON.stringify(clearedChatInspection)}`)
+      cleanupAssertionError = new Error(`expected FloatingPanel Chat pipeline snapshot cleanup after chat unmount, got ${JSON.stringify(clearedChatInspection)}`)
     }
     if (settingsRoot) {
       await unmountReactRoot(settingsRoot, { window: dom.window as unknown as Window })
@@ -286,4 +287,5 @@ export async function testSettingsCreateFileFailureSkipsDelayedOpenAndKeepsCommi
     restoreDom()
     restoreWindow()
   }
+  if (cleanupAssertionError) throw cleanupAssertionError
 }

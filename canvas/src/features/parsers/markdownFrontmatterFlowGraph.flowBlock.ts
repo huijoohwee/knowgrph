@@ -10,6 +10,10 @@ import {
 import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { normalizeFlowSubgraphs } from '@/features/parsers/markdownFrontmatterFlowGraph.subgraphs'
+import {
+  normalizeFlowEnvelopeRecord,
+  unwrapFlowEnvelopeFieldValue,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope'
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
 export const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
@@ -609,61 +613,6 @@ function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
   return out
 }
 
-function unwrapFlowNodeFieldValue(args: {
-  raw: unknown
-  path: string
-  expectedKey?: string
-  warnings: string[]
-}): unknown {
-  const { raw, path, expectedKey, warnings } = args
-  if (!isRecord(raw)) return raw
-  const record = raw as Record<string, unknown>
-  const hasKey = Object.prototype.hasOwnProperty.call(record, 'key')
-  const hasType = Object.prototype.hasOwnProperty.call(record, 'type')
-  const hasValue = Object.prototype.hasOwnProperty.call(record, 'value')
-  const keys = Object.keys(record)
-  const hasOnlyEnvelopeKeys = keys.every(k => k === 'key' || k === 'type' || k === 'value')
-  const looksLikeEnvelope = hasKey || hasType || (hasValue && hasOnlyEnvelopeKeys)
-  if (!looksLikeEnvelope) return raw
-  if (!hasOnlyEnvelopeKeys || !hasKey || !hasType || !hasValue) {
-    warnings.push(`Flow typed envelope malformed at ${path}: expected exact { key, type, value } wrapper`)
-    return raw
-  }
-  const keyValue = record.key
-  if (typeof keyValue !== 'string' || !keyValue.trim()) {
-    warnings.push(`Flow typed envelope malformed at ${path}: wrapper key must be a non-empty string`)
-    return raw
-  }
-  if (expectedKey && keyValue !== expectedKey) {
-    warnings.push(`Flow typed envelope malformed at ${path}: expected key "${expectedKey}" but found "${keyValue}"`)
-    return raw
-  }
-  const typeValue = record.type
-  if (typeof typeValue !== 'string' || !typeValue.trim()) {
-    warnings.push(`Flow typed envelope malformed at ${path}: wrapper type must be a non-empty string`)
-    return raw
-  }
-  return record.value
-}
-
-function normalizeFlowNodeEnvelope(args: {
-  rawNode: Record<string, unknown>
-  nodePath: string
-  warnings: string[]
-}): Record<string, unknown> {
-  const { rawNode, nodePath, warnings } = args
-  const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(rawNode)) {
-    out[k] = unwrapFlowNodeFieldValue({
-      raw: v,
-      path: `${nodePath}.${k}`,
-      expectedKey: k,
-      warnings,
-    })
-  }
-  return out
-}
-
 function parseFlowEdgeEndpoint(rawNode: unknown, rawHandle: unknown): { nodeId: string; portKey: string } | null {
   const nodeIdRaw = asString(rawNode)
   const handleRaw = asString(rawHandle)
@@ -748,7 +697,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
   const resolvedStringCache = new Map<string, string>()
   const flowWarnings: string[] = []
   const readFlowValue = (path: string, v: unknown, expectedKey?: string): unknown =>
-    unwrapFlowNodeFieldValue({
+    unwrapFlowEnvelopeFieldValue({
       raw: v,
       path,
       expectedKey,
@@ -760,9 +709,9 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
   for (let i = 0; i < rawNodes.length; i += 1) {
     const rawNode = rawNodes[i]
     if (!isRecord(rawNode)) continue
-    const normalizedRawNode = normalizeFlowNodeEnvelope({
-      rawNode: rawNode as Record<string, unknown>,
-      nodePath: `flow.nodes[${i}]`,
+    const normalizedRawNode = normalizeFlowEnvelopeRecord({
+      rawRecord: rawNode as Record<string, unknown>,
+      recordPath: `flow.nodes[${i}]`,
       warnings: flowWarnings,
     })
     const id = asString(normalizedRawNode.id)
@@ -845,20 +794,25 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
   for (let i = 0; i < rawEdges.length; i += 1) {
     const row = rawEdges[i]
     if (!isRecord(row)) continue
-    const sourceEp = parseFlowEdgeEndpoint(row.source, row.sourceHandle)
-    const targetEp = parseFlowEdgeEndpoint(row.target, row.targetHandle)
+    const normalizedRawEdge = normalizeFlowEnvelopeRecord({
+      rawRecord: row as Record<string, unknown>,
+      recordPath: `flow.edges[${i}]`,
+      warnings: flowWarnings,
+    })
+    const sourceEp = parseFlowEdgeEndpoint(normalizedRawEdge.source, normalizedRawEdge.sourceHandle)
+    const targetEp = parseFlowEdgeEndpoint(normalizedRawEdge.target, normalizedRawEdge.targetHandle)
     if (!sourceEp || !targetEp) continue
-    const labelRaw = asString(row.label), layoutRoute = asString(row.layoutRoute), layoutLane = asFiniteNumber(row.layoutLane)
+    const labelRaw = asString(normalizedRawEdge.label), layoutRoute = asString(normalizedRawEdge.layoutRoute), layoutLane = asFiniteNumber(normalizedRawEdge.layoutLane)
     const label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : ''
     const conn: Record<string, unknown> = {
-      id: asString(row.id) || `flow-e${String(i + 1).padStart(2, '0')}`,
+      id: asString(normalizedRawEdge.id) || `flow-e${String(i + 1).padStart(2, '0')}`,
       from_node: sourceEp.nodeId,
       from_port: sourceEp.portKey,
       to_node: targetEp.nodeId,
       to_port: targetEp.portKey,
       ...(label ? { label } : {}),
-      ...(asBoolean(row.animated) === true ? { animated: true } : {}),
-      ...(asString(row.type) ? { type: asString(row.type) } : {}), ...(layoutRoute ? { layoutRoute } : {}), ...(layoutLane != null ? { layoutLane: Math.floor(layoutLane) } : {}),
+      ...(asBoolean(normalizedRawEdge.animated) === true ? { animated: true } : {}),
+      ...(asString(normalizedRawEdge.type) ? { type: asString(normalizedRawEdge.type) } : {}), ...(layoutRoute ? { layoutRoute } : {}), ...(layoutLane != null ? { layoutLane: Math.floor(layoutLane) } : {}),
     }
     normalizedConnections.push(conn)
   }

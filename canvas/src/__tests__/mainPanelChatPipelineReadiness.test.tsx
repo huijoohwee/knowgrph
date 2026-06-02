@@ -30,6 +30,7 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
   let mainPanelRoot: ReturnType<typeof createRoot> | null = null
   let chatRoot: ReturnType<typeof createRoot> | null = null
 
+  let cleanupAssertionError: Error | null = null
   try {
     resetBrowserLocalSurfaceSnapshotsForTests()
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
@@ -130,7 +131,7 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
     }
     const clearedInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
     if (clearedInspection.available !== false) {
-      throw new Error(`expected floating chat pipeline readiness snapshot cleanup after chat unmount, got ${JSON.stringify(clearedInspection)}`)
+      cleanupAssertionError = new Error(`expected floating chat pipeline readiness snapshot cleanup after chat unmount, got ${JSON.stringify(clearedInspection)}`)
     }
     if (mainPanelRoot) {
       await unmountReactRoot(mainPanelRoot, { window: dom.window as unknown as Window })
@@ -140,4 +141,5 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
     restoreDom()
     restoreWindow()
   }
+  if (cleanupAssertionError) throw cleanupAssertionError
 }

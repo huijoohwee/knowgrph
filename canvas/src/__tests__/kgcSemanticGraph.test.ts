@@ -5,6 +5,10 @@ import {
   KGC_SEMANTIC_GRAPH_KIND,
   parseKgcSemanticGraphFromMarkdown,
 } from '@/features/parsers/kgcSemanticGraph'
+import {
+  FLOW_EDGE_SOURCE_PORT_KEY,
+  FLOW_EDGE_TARGET_PORT_KEY,
+} from '@/lib/graph/flowPorts'
 import { parseWorkspaceKgcSemanticGraphDataCached } from '@/hooks/active-graph-data/workspaceStructuredGraph'
 import {
   ancestorsKgcSemanticNodeIds,
@@ -148,4 +152,78 @@ export function testMarkdownParserMergesKgcSemanticGraphIntoNeutralMarkdownGraph
   }
   const meta = (graph.metadata || {}) as Record<string, unknown>
   if (meta.kind !== KGC_SEMANTIC_GRAPH_KIND) throw new Error('expected merged graph kind to be KGC semantic')
+}
+
+export function testMarkdownParserPreservesTypedFlowBlockEdgesWhenKgcSemanticMerges() {
+  const parser = builtInParsers.find(spec => spec.id === toParserId('markdown'))
+  if (!parser) throw new Error('expected built-in markdown parser')
+  const typedFlowEdgeFixture = [
+    '---',
+    'title: Typed Flow Edge Contract',
+    'schema: kgc-computing-flow/v1',
+    'kgCanvas2dRenderer: flowEditor',
+    'kgFrontmatterModeEnabled: true',
+    'node_types:',
+    '  - metric',
+    'edge_predicates:',
+    '  - drives',
+    'socket_types:',
+    '  metric_signal: { color: "#8DB3FF", accepts: [metric_signal] }',
+    'flow:',
+    '  direction: LR',
+    '  edgeType: bezier',
+    '  nodes:',
+    '    - id: source_card',
+    '      type: default',
+    '      label: Source Card',
+    '      Widget: {key: Widget, type: string, value: qer-fm-SourceWidget}',
+    '      handles:',
+    '        source: [out_metric]',
+    '      "flow:portTypes": {key: flow:portTypes, type: object, value: {out: {out_metric: metric_signal}}}',
+    '    - id: target_card',
+    '      type: default',
+    '      label: Target Card',
+    '      Widget: {key: Widget, type: string, value: qer-fm-TargetWidget}',
+    '      handles:',
+    '        target: [in_metric]',
+    '      "flow:portTypes": {key: flow:portTypes, type: object, value: {in: {in_metric: metric_signal}}}',
+    '  edges:',
+    '    - id: {key: id, type: string, value: typed-flow-edge}',
+    '      source: {key: source, type: string, value: source_card}',
+    '      sourceHandle: {key: sourceHandle, type: string, value: out_metric}',
+    '      target: {key: target, type: string, value: target_card}',
+    '      targetHandle: {key: targetHandle, type: string, value: in_metric}',
+    '      label: {key: label, type: string, value: out_metric}',
+    '      type: {key: type, type: string, value: metric_signal}',
+    '      animated: {key: animated, type: boolean, value: true}',
+    '---',
+    '',
+    '# Typed Flow Edge Contract',
+    '',
+    'Declare `@node:metric:semantic_metric` and keep Flow Editor card wiring separate.',
+    `Trace semantic evidence with \`@edge:drives:semantic_metric${arrow}semantic_result\`.`,
+  ].join('\n')
+  const result = parser.parse('typed-flow-edge-contract.md', typedFlowEdgeFixture)
+  if (result.warnings.length !== 0) throw new Error(`expected no parser warnings, got ${result.warnings.join('; ')}`)
+  const graph = result.graphData
+  const meta = (graph.metadata || {}) as Record<string, unknown>
+  if (meta.kind !== KGC_SEMANTIC_GRAPH_KIND) throw new Error('expected merged graph kind to be KGC semantic')
+  if (String(meta.baseGraphKind || '') !== 'frontmatter-flow') {
+    throw new Error(`expected merged graph to retain frontmatter-flow base kind, got ${String(meta.baseGraphKind || '')}`)
+  }
+  const flowEdge = (graph.edges || []).find(edge => String(edge.id || '') === 'typed-flow-edge')
+  if (!flowEdge) throw new Error('expected typed frontmatter flow edge to survive KGC semantic merge')
+  if (String(flowEdge.source || '') !== 'source_card' || String(flowEdge.target || '') !== 'target_card') {
+    throw new Error('expected typed frontmatter flow edge to retain card endpoints')
+  }
+  const props = (flowEdge.properties || {}) as Record<string, unknown>
+  if (String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'out_metric') {
+    throw new Error('expected typed frontmatter flow edge to retain source handle')
+  }
+  if (String(props[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'in_metric') {
+    throw new Error('expected typed frontmatter flow edge to retain target handle')
+  }
+  if (props['flow:animated'] !== true) throw new Error('expected typed frontmatter flow edge to retain animated flag')
+  const semanticEdge = (graph.edges || []).find(edge => String(edge.id || '').startsWith('kgc-edge:drives:'))
+  if (!semanticEdge) throw new Error('expected KGC semantic edge to remain merged alongside Flow Editor edge')
 }

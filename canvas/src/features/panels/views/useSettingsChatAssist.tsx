@@ -23,7 +23,7 @@ import {
   getSharedChatModelSuggestionOptions,
   resolveChatEndpointForModels,
 } from '@/lib/chatEndpoint'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { parseIntegrationConfigsJson, stringifyIntegrationConfigs, DEFAULT_INTEGRATION_CONFIGS } from '@/features/integrations/config'
 import {
@@ -238,18 +238,21 @@ export function useSettingsChatAssist({
   ])
 
   const buildChatAssistNodes = React.useCallback((rowKey: string): React.ReactNode[] => {
+    const sectionActionClassName = getUiSectionActionClassName('primary')
+    const activeSectionActionClassName = `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
+
     if (rowKey === CHAT_KTV_ROW_KEYS.apiKey) {
       return [
         <span
           key="chat-api-key-session"
-          className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+          className={getUiSectionChipClassName('secondary')}
         >
           Session-only; never localStorage
         </span>,
         <button
           key="chat-api-key-open"
           type="button"
-          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          className={activeSectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             openLocalChatApiKeyEntry()
@@ -264,11 +267,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-provider-byteplus-sg"
           type="button"
-          className={`App-toolbar__btn text-xs ${
+          className={
             normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL.replace('https://', ''))
-              ? uiToolbarToggleActiveClassName
-              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-          }`}
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             applyChatPreset('byteplus-sg')
@@ -279,11 +282,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-provider-byteplus-eu"
           type="button"
-          className={`App-toolbar__btn text-xs ${
+          className={
             normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL.replace('https://', ''))
-              ? uiToolbarToggleActiveClassName
-              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-          }`}
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             applyChatPreset('byteplus-eu')
@@ -294,11 +297,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-provider-miromind"
           type="button"
-          className={`App-toolbar__btn text-xs ${
+          className={
             normalizedChatProvider === CHAT_PROVIDER_MIROMIND
-              ? uiToolbarToggleActiveClassName
-              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-          }`}
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             applyChatPreset('miromind')
@@ -309,11 +312,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-provider-agnes"
           type="button"
-          className={`App-toolbar__btn text-xs ${
+          className={
             normalizedChatProvider === CHAT_PROVIDER_AGNES
-              ? uiToolbarToggleActiveClassName
-              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-          }`}
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             applyChatPreset('agnes')
@@ -324,11 +327,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-provider-openai"
           type="button"
-          className={`App-toolbar__btn text-xs ${
+          className={
             normalizedChatProvider === CHAT_PROVIDER_OPENAI
-              ? uiToolbarToggleActiveClassName
-              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-          }`}
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             applyChatPreset('openai')
@@ -339,11 +342,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-provider-local"
           type="button"
-          className={`App-toolbar__btn text-xs ${
+          className={
             normalizedChatProvider === CHAT_PROVIDER_LM_STUDIO
-              ? uiToolbarToggleActiveClassName
-              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-          }`}
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             applyChatPreset('local')
@@ -358,7 +361,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-context-selection"
           type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          className={sectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             applyChatContextScope('selection')
@@ -369,7 +372,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-context-workspace"
           type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          className={sectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             applyChatContextScope('workspace')
@@ -380,7 +383,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-context-hybrid"
           type="button"
-          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          className={activeSectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             applyChatContextScope('hybrid')
@@ -394,14 +397,14 @@ export function useSettingsChatAssist({
       return [
         <span
           key="chat-ai-routing-status"
-          className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+          className={getUiSectionChipClassName('secondary')}
         >
           {chatIntegration.enabled ? 'Enabled' : 'Disabled'}
         </span>,
         <button
           key="chat-ai-routing-enable"
           type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          className={sectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             setChatIntegrationEnabled(true)
@@ -412,7 +415,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-ai-routing-disable"
           type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          className={sectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             setChatIntegrationEnabled(false)
@@ -423,7 +426,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-ai-routing-reset"
           type="button"
-          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          className={activeSectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             resetChatIntegrationRouting()
@@ -434,7 +437,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-ai-routing-format"
           type="button"
-          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          className={activeSectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             formatIntegrationJson()
@@ -444,7 +447,7 @@ export function useSettingsChatAssist({
         </button>,
         <span
           key="chat-pixverse-status"
-          className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+          className={getUiSectionChipClassName('secondary')}
         >
           {pixverseVideoIntegration.enabled
             ? `PixVerse ${String(pixverseVideoIntegration.strategy || 'auto')}`
@@ -453,9 +456,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-pixverse-auto"
           type="button"
-          className={`App-toolbar__btn text-xs ${pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'auto'
-            ? uiToolbarToggleActiveClassName
-            : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}`}
+          className={
+            pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'auto'
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             setPixVerseVideoIntegration(true, 'auto')
@@ -466,9 +471,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-pixverse-i2v"
           type="button"
-          className={`App-toolbar__btn text-xs ${pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'image-to-video'
-            ? uiToolbarToggleActiveClassName
-            : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}`}
+          className={
+            pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'image-to-video'
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             setPixVerseVideoIntegration(true, 'image-to-video')
@@ -479,9 +486,11 @@ export function useSettingsChatAssist({
         <button
           key="chat-pixverse-transition"
           type="button"
-          className={`App-toolbar__btn text-xs ${pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'transition-video'
-            ? uiToolbarToggleActiveClassName
-            : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}`}
+          className={
+            pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'transition-video'
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
           onClick={e => {
             e.stopPropagation()
             setPixVerseVideoIntegration(true, 'transition-video')
@@ -492,7 +501,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-pixverse-disable"
           type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          className={sectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             setPixVerseVideoIntegration(false, 'auto')
@@ -507,7 +516,7 @@ export function useSettingsChatAssist({
         <button
           key="chat-model-refresh"
           type="button"
-          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          className={activeSectionActionClassName}
           onClick={e => {
             e.stopPropagation()
             void refreshChatModels()
@@ -521,7 +530,7 @@ export function useSettingsChatAssist({
         nodes.push(
           <span
             key="chat-model-status"
-            className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+            className={getUiSectionChipClassName('secondary')}
           >
             {chatModelsStatus}
           </span>,

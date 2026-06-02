@@ -2,11 +2,16 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
+import {
+  KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
+  KTV_STATUS_TEXT_SIZE_CLASS_NAME,
+} from '@/features/panels/ui/KeyTypeValueRow'
 import { useFloatingPropsPanelModel } from '@/features/toolbar/useFloatingPropsPanelModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import WidgetPalette from '@/features/toolbar/WidgetPalette'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -29,18 +34,18 @@ function isFloatingMediaKind(value: string): value is NodeMediaKind {
 
 export function FloatingPropsPanel() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
   const uiPanelMicroLabelTextSizeClass = useGraphStore(
-    s => s.uiPanelMicroLabelTextSizeClass || 'text-[10px]',
+    s => s.uiPanelMicroLabelTextSizeClass || KTV_STATUS_TEXT_SIZE_CLASS_NAME,
   )
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass
-      || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
+      || PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
 
   const effectiveWidgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
@@ -263,7 +268,7 @@ export function FloatingPropsPanel() {
         <div className="px-3 py-2">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="flex flex-col gap-1">
-              <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
+              <span className={`${uiPanelMicroLabelTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                 {RICH_MEDIA_DISPLAY_COPY.viewLabel}
               </span>
               <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
@@ -274,7 +279,7 @@ export function FloatingPropsPanel() {
                       key={option.label}
                       type="button"
                       onClick={() => setRenderMediaAsNodes(option.value)}
-                      className={`px-2 py-1 ${index === 0 ? 'text-[11px]' : uiPanelMicroLabelTextSizeClass} ${index > 0 ? `border-l ${UI_THEME_TOKENS.panel.border}` : ''} ${uiPanelTextFontClass} ${selected ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
+                      className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} ${index > 0 ? `border-l ${UI_THEME_TOKENS.panel.border}` : ''} ${uiPanelTextFontClass} ${selected ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                     >
                       {option.label}
                     </button>
@@ -365,14 +370,14 @@ export function FloatingPropsPanel() {
             <div className="w-[70%] flex items-center gap-1">
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${!mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${!mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
                 onClick={() => setMediaInteractive(false)}
               >
                 Off
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
                 onClick={() => setMediaInteractive(true)}
               >
                 On
@@ -485,7 +490,7 @@ export function FloatingPropsPanel() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={`App-toolbar__btn text-[11px] px-2 py-1 rounded ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
+                className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} px-2 py-1 rounded ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
                 onClick={() => {
                   const current = schema
                   const curLayout = current.layout || {}
@@ -511,7 +516,7 @@ export function FloatingPropsPanel() {
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn text-[11px] px-2 py-1 rounded ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
+                className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} px-2 py-1 rounded ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
                 onClick={() => {
                   const current = schema
                   const curLayout = current.layout || {}

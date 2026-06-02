@@ -8,8 +8,6 @@ import { requestFlowNativeDraw, type FlowNativeDrawArgs, type FlowNativeRuntime 
 import {
   clampFinite,
   pickGraphDataForFlowRenderer,
-  resolveFlowCanvasNativeRenderPolicy,
-  resolveFlowCanvasNativeSurfaceMode,
   type FlowCanvasProps,
 } from '@/components/FlowCanvas/shared'
 import { useFlowCanvasGraphState } from '@/components/FlowCanvas/useFlowCanvasGraphState'
@@ -45,10 +43,6 @@ export default function FlowCanvas({
   hidePortHandleNodeIds,
   excludeRichMediaOverlayNodeIds,
   flowEditorSurfaceId,
-  renderEdges,
-  renderGroups,
-  renderNodes,
-  nativeSurfaceMode,
   forbidCircleNodes = false,
 }: FlowCanvasProps) {
   const containerRef = React.useRef<HTMLElement>(null)
@@ -66,9 +60,6 @@ export default function FlowCanvas({
     showGroupResizeHandle: false,
     hideNodeIds: undefined,
     hidePortHandleNodeIds: undefined,
-    renderEdges: undefined,
-    renderGroups: undefined,
-    renderNodes: undefined,
     grid: null,
     flowEditorWidgetOpenNodeIds: undefined,
     flowEditorWidgetPinnedByNodeId: undefined,
@@ -170,29 +161,6 @@ export default function FlowCanvas({
     documentWidgetRegistry,
     threeIframeOverlayPoolMax,
   })
-  const resolvedNativeSurfaceMode = React.useMemo(() => resolveFlowCanvasNativeSurfaceMode({
-    canvas2dRenderer,
-    graphData: sceneGraphData || filteredGraphDataForRenderer || graphDataOverride || null,
-    requestedMode: nativeSurfaceMode,
-  }), [canvas2dRenderer, filteredGraphDataForRenderer, graphDataOverride, nativeSurfaceMode, sceneGraphData])
-  const nativeRenderPolicy = React.useMemo(() => resolveFlowCanvasNativeRenderPolicy({
-    nativeSurfaceMode: resolvedNativeSurfaceMode,
-    renderEdges,
-    renderGroups,
-    renderNodes,
-  }), [renderEdges, renderGroups, renderNodes, resolvedNativeSurfaceMode])
-  React.useEffect(() => {
-    if (nativeRenderPolicy.renderEdges !== false) return
-    if (nativeRenderPolicy.renderGroups !== false) return
-    if (nativeRenderPolicy.renderNodes !== false) return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    const runtime = runtimeRef.current
-    if (runtime) runtime.dirty = true
-  }, [canvasPixelH, canvasPixelW, nativeRenderPolicy])
 
   const {
     zoomViewKey,
@@ -363,9 +331,6 @@ export default function FlowCanvas({
   React.useEffect(() => {
     drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
     drawArgsRef.current.grid = readCanvasGridRenderConfigFromSchema(schema)
-    drawArgsRef.current.renderEdges = nativeRenderPolicy.renderEdges
-    drawArgsRef.current.renderGroups = nativeRenderPolicy.renderGroups
-    drawArgsRef.current.renderNodes = nativeRenderPolicy.renderNodes
     if (canvas2dRenderer === 'flowEditor') {
       drawArgsRef.current.flowEditorWidgetOpenNodeIds = openWidgetNodeIds || []
       drawArgsRef.current.flowEditorWidgetPinnedByNodeId = flowWidgetPinnedByNodeId || {}
@@ -381,7 +346,6 @@ export default function FlowCanvas({
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
     openWidgetNodeIds,
-    nativeRenderPolicy,
     schema,
     updateOverlayHiddenDrawArgs,
   ])

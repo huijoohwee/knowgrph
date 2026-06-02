@@ -13,6 +13,7 @@ import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorC
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { buildFlowRunAllNodeSequence, type FlowRunAllPhaseId } from '@/lib/flowEditor/runAllSequenceSsot'
 import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCurveOptions } from '@/lib/flowEditor/frontmatterCollectiveLayout'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import {
   readCachedFlowEditorOverlayEdgeGraph,
   readCachedFlowEditorRenderGraph,
@@ -102,10 +103,28 @@ export function readCanonicalFlowEditorOverlayIdentity(rawId: unknown): string {
   return splitComposedNodeId(id).inner || id
 }
 
+function normalizeFrontmatterOverlayNodeIds(rawIds: ReadonlyArray<string>): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < rawIds.length; i += 1) {
+    const id = readCanonicalFlowEditorOverlayIdentity(rawIds[i])
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+  return out
+}
+
 function readPropString(props: unknown, key: string): string {
   if (!props || typeof props !== 'object' || Array.isArray(props)) return ''
   const raw = (props as Record<string, unknown>)[key]
   return typeof raw === 'string' ? raw.trim() : ''
+}
+
+function readFlowEditorGraphMetaKind(graph: GraphData | null | undefined): string | null {
+  if (isFrontmatterFlowGraph(graph)) return 'frontmatter-flow'
+  const kind = String(((graph?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+  return kind || null
 }
 
 function buildOverlayNodeHandleSignature(
@@ -189,7 +208,7 @@ export function getCachedFlowEditorRenderGraph(args: {
     nodeById: baseLookup.nodeById,
     incidentEdgesByNodeId: baseLookup.incidentEdgesByNodeId,
     eligibleNodeIds: buildFlowWidgetEligibleNodeIdSet(nodes),
-    graphMetaKind: String(((graph?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null,
+    graphMetaKind: readFlowEditorGraphMetaKind(graph),
     nodeIdsByInnerId,
   })
 }
@@ -201,7 +220,7 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
   preferCurrentGraphDataRefs?: boolean
 }): FlowEditorOverlayEdgeGraphLookup | null {
   const graph = args.graphData
-  const graphMetaKind = String(((graph?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
+  const graphMetaKind = readFlowEditorGraphMetaKind(graph)
   const overlayEdgeGraphData = graphMetaKind === 'frontmatter-flow'
     ? (deriveSceneDisplayGraph({ graphData: graph })?.displayGraphData || graph)
     : graph
@@ -346,7 +365,7 @@ export function getCachedFlowEditorWidgetPlacementContext(args: {
   const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
   const defaultPinnedInCanvas = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
   const frontmatterOverlayNodeIds = isFrontmatterFlow
-    ? deriveFrontmatterFlowOverlayNodeIds(baseGraph.graph)
+    ? normalizeFrontmatterOverlayNodeIds(deriveFrontmatterFlowOverlayNodeIds(baseGraph.graph))
     : []
   const effectiveOpenWidgetNodeIds = isFrontmatterFlow
     ? frontmatterOverlayNodeIds

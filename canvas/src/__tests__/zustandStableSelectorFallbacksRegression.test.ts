@@ -24,6 +24,12 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
+    path: 'src/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeStoreState.ts',
+    forbiddenSnippets: [
+      'flowWidgetPinnedByNodeId: stripFrontmatterAutoManagedWidgetPinnedStates({',
+    ],
+  },
+  {
     path: 'src/components/CanvasViewport.tsx',
     forbiddenSnippets: [
       'openWidgetNodeIds: s.openWidgetNodeIds || []',

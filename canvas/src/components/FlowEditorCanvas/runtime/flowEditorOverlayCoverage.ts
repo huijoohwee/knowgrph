@@ -1,21 +1,21 @@
 import type { MutableRefObject } from 'react'
 
 import {
-  type FrontmatterOverlayHideSafety,
-  buildFrontmatterOverlayHideSafety,
+  type FrontmatterOverlayVisualIsolation,
+  buildFrontmatterOverlayVisualIsolation,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceVisibility'
 import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData } from '@/lib/graph/types'
 
-type FrontmatterVisibleSceneDisplay = Parameters<typeof buildFrontmatterOverlayHideSafety>[0]['frontmatterVisibleSceneDisplay']
+type FrontmatterVisibleSceneDisplay = Parameters<typeof buildFrontmatterOverlayVisualIsolation>[0]['frontmatterVisibleSceneDisplay']
 
 export type FrontmatterOverlayOnlyCoverageCache = {
   graphKey: string
   key: string
-  value: FrontmatterOverlayHideSafety
+  value: FrontmatterOverlayVisualIsolation
 }
 
-export function resolveFrontmatterOverlayHideSafetyWithStableCoverage(args: {
+export function resolveFrontmatterOverlayVisualIsolationWithStableCoverage(args: {
   frontmatterOverlayOnlyCoverageRef: MutableRefObject<FrontmatterOverlayOnlyCoverageCache | null>
   renderGraphDataOverride: GraphData | null
   frontmatterVisibleSceneDisplay: FrontmatterVisibleSceneDisplay
@@ -24,8 +24,8 @@ export function resolveFrontmatterOverlayHideSafetyWithStableCoverage(args: {
   renderGraphEligibleNodeIds: ReadonlySet<string>
   renderGraphSemanticKey: string
   workspaceMutationBlocked: boolean
-}): FrontmatterOverlayHideSafety {
-  const current = buildFrontmatterOverlayHideSafety({
+}): FrontmatterOverlayVisualIsolation {
+  const current = buildFrontmatterOverlayVisualIsolation({
     renderGraphDataOverride: args.renderGraphDataOverride,
     frontmatterVisibleSceneDisplay: args.frontmatterVisibleSceneDisplay,
     frontmatterRichMediaOverlayNodeIdsSnapshot: args.frontmatterRichMediaOverlayNodeIdsSnapshot,

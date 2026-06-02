@@ -5,13 +5,13 @@ import {
   writeJsonToStorage,
 } from '@/lib/persistence'
 
-const INTEGRATION_VIRTUAL_SETTING_STORAGE_PREFIX = 'kg:integrations:virtual:'
+const MAIN_PANEL_VIRTUAL_SETTING_STORAGE_PREFIX = 'kg:main-panel:virtual:'
 
 type VirtualSettingValue = string | number | boolean
 type VirtualSettingKind = 'request' | 'reference'
 
 function normalizeStorageKey(settingKey: string): string {
-  return `${INTEGRATION_VIRTUAL_SETTING_STORAGE_PREFIX}${String(settingKey || '').trim()}`
+  return `${MAIN_PANEL_VIRTUAL_SETTING_STORAGE_PREFIX}${String(settingKey || '').trim()}`
 }
 
 function normalizeInitialValue(args: {
@@ -63,6 +63,7 @@ function normalizeInitialValue(args: {
     const normalizedDefault = defaultValue.trim()
     if (
       normalizedDefault.length > 0
+      && normalizedDefault !== '-'
       && normalizedDefault !== '—'
       && !normalizedDefault.includes('|')
       && !normalizedDefault.includes(' or ')
@@ -118,37 +119,46 @@ function writeStoredValue(args: {
   writeJsonToStorage(storage, storageKey, String(args.value ?? ''))
 }
 
-export function getIntegrationVirtualSettingStorageKey(settingKey: string): string {
+export function getMainPanelVirtualSettingStorageKey(settingKey: string): string {
   return normalizeStorageKey(settingKey)
 }
 
-export function buildIntegrationVirtualSettingMeta(args: {
+export function normalizeMainPanelVirtualSettingType(type: string): SettingType {
+  const normalized = String(type || '').trim().toLowerCase()
+  if (normalized === 'boolean') return 'boolean'
+  if (normalized === 'number') return 'number'
+  if (normalized === 'json') return 'json'
+  return 'string'
+}
+
+export function buildMainPanelVirtualSettingMeta(args: {
   key: string
-  type: SettingType
+  type: string
   fallbackValue: string | number | boolean | null | undefined
   defaultValue?: string | number | boolean | null
   options?: string[]
   kind?: VirtualSettingKind
 }): SettingMeta {
+  const type = normalizeMainPanelVirtualSettingType(args.type)
   const initialValue = normalizeInitialValue({
-    type: args.type,
+    type,
     fallbackValue: args.fallbackValue,
     defaultValue: args.defaultValue,
     kind: args.kind,
   })
   return {
     key: args.key,
-    type: args.type,
+    type,
     source: 'localStorage',
     read: () => readStoredValue({
       key: args.key,
-      type: args.type,
+      type,
       fallbackValue: initialValue,
     }),
     write: value => {
       writeStoredValue({
         key: args.key,
-        type: args.type,
+        type,
         value,
       })
     },

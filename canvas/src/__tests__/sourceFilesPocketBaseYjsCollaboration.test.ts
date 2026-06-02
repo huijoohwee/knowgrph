@@ -1,14 +1,14 @@
-import * as Y from 'yjs'
 import storageWorker from '../../../cloudflare/workers/knowgrph-storage/index.ts'
 import {
-  KNOWGRPH_YJS_MARKDOWN_TEXT_NAME,
-  applyKnowgrphYjsUpdateBase64,
-  createKnowgrphCollaborationYDoc,
-  encodeKnowgrphCollaborationYDocStateBase64,
-  canEditRawJsonForKnowgrphCollaboration,
-  serializeKnowgrphCollaborationYDoc,
-  setKnowgrphCollaborationJsonObjectField,
-} from '@/features/source-files/sourceFilesCollaborationYjs'
+  YJS_MARKDOWN_TEXT_NAME,
+  applyYjsUpdateBase64,
+  canEditRawJsonForCollaboration,
+  createCollaborationYDoc,
+  encodeCollaborationYDocStateBase64,
+  encodeYjsUpdateBase64,
+  serializeCollaborationYDoc,
+  setCollaborationJsonObjectField,
+} from 'grph-shared/collaboration/yjsSnapshot'
 import {
   KNOWGRPH_STORAGE_API_VERSION,
   buildKnowgrphCollaborationSavePath,
@@ -29,19 +29,19 @@ const readStorageWorker = (): { fetch: (request: Request, env: Record<string, un
 }
 
 export function testPocketBaseYjsMarkdownConcurrentUpdatesMergeThroughYText() {
-  const left = createKnowgrphCollaborationYDoc({
+  const left = createCollaborationYDoc({
     documentKey: 'docs/shared.md',
     documentKind: 'markdown',
     initialText: 'Hello',
   })
-  const right = createKnowgrphCollaborationYDoc({
+  const right = createCollaborationYDoc({
     documentKey: 'docs/shared.md',
     documentKind: 'markdown',
     initialText: '',
   })
-  applyKnowgrphYjsUpdateBase64({
+  applyYjsUpdateBase64({
     doc: right,
-    updateBase64: encodeKnowgrphCollaborationYDocStateBase64(left),
+    updateBase64: encodeCollaborationYDocStateBase64(left),
   })
 
   const leftUpdates: Uint8Array[] = []
@@ -49,14 +49,14 @@ export function testPocketBaseYjsMarkdownConcurrentUpdatesMergeThroughYText() {
   left.on('update', update => leftUpdates.push(update))
   right.on('update', update => rightUpdates.push(update))
 
-  left.getText(KNOWGRPH_YJS_MARKDOWN_TEXT_NAME).insert(5, ' from A')
-  right.getText(KNOWGRPH_YJS_MARKDOWN_TEXT_NAME).insert(0, 'B says ')
+  left.getText(YJS_MARKDOWN_TEXT_NAME).insert(5, ' from A')
+  right.getText(YJS_MARKDOWN_TEXT_NAME).insert(0, 'B says ')
 
-  for (const update of leftUpdates) Y.applyUpdate(right, update)
-  for (const update of rightUpdates) Y.applyUpdate(left, update)
+  for (const update of leftUpdates) applyYjsUpdateBase64({ doc: right, updateBase64: encodeYjsUpdateBase64(update) })
+  for (const update of rightUpdates) applyYjsUpdateBase64({ doc: left, updateBase64: encodeYjsUpdateBase64(update) })
 
-  const leftText = serializeKnowgrphCollaborationYDoc({ doc: left, documentKind: 'markdown' })
-  const rightText = serializeKnowgrphCollaborationYDoc({ doc: right, documentKind: 'markdown' })
+  const leftText = serializeCollaborationYDoc({ doc: left, documentKind: 'markdown' })
+  const rightText = serializeCollaborationYDoc({ doc: right, documentKind: 'markdown' })
   if (leftText !== rightText) throw new Error(`expected Y.Text peers to converge, got ${JSON.stringify({ leftText, rightText })}`)
   if (!leftText.includes('B says ') || !leftText.includes('from A')) {
     throw new Error(`expected both concurrent Markdown edits to survive, got ${JSON.stringify(leftText)}`)
@@ -64,19 +64,19 @@ export function testPocketBaseYjsMarkdownConcurrentUpdatesMergeThroughYText() {
 }
 
 export function testPocketBaseYjsJsonUsesSharedMapAndBlocksRawConcurrentJson() {
-  const left = createKnowgrphCollaborationYDoc({
+  const left = createCollaborationYDoc({
     documentKey: 'docs/shared.json',
     documentKind: 'json',
     initialText: '{"base":true}',
   })
-  const right = createKnowgrphCollaborationYDoc({
+  const right = createCollaborationYDoc({
     documentKey: 'docs/shared.json',
     documentKind: 'json',
     initialText: '{}',
   })
-  applyKnowgrphYjsUpdateBase64({
+  applyYjsUpdateBase64({
     doc: right,
-    updateBase64: encodeKnowgrphCollaborationYDocStateBase64(left),
+    updateBase64: encodeCollaborationYDocStateBase64(left),
   })
 
   const leftUpdates: Uint8Array[] = []
@@ -84,17 +84,17 @@ export function testPocketBaseYjsJsonUsesSharedMapAndBlocksRawConcurrentJson() {
   left.on('update', update => leftUpdates.push(update))
   right.on('update', update => rightUpdates.push(update))
 
-  setKnowgrphCollaborationJsonObjectField({ doc: left, key: 'fromA', value: { count: 1 } })
-  setKnowgrphCollaborationJsonObjectField({ doc: right, key: 'fromB', value: ['ok'] })
+  setCollaborationJsonObjectField({ doc: left, key: 'fromA', value: { count: 1 } })
+  setCollaborationJsonObjectField({ doc: right, key: 'fromB', value: ['ok'] })
 
-  for (const update of leftUpdates) Y.applyUpdate(right, update)
-  for (const update of rightUpdates) Y.applyUpdate(left, update)
+  for (const update of leftUpdates) applyYjsUpdateBase64({ doc: right, updateBase64: encodeYjsUpdateBase64(update) })
+  for (const update of rightUpdates) applyYjsUpdateBase64({ doc: left, updateBase64: encodeYjsUpdateBase64(update) })
 
-  const parsed = JSON.parse(serializeKnowgrphCollaborationYDoc({ doc: left, documentKind: 'json' })) as Record<string, unknown>
+  const parsed = JSON.parse(serializeCollaborationYDoc({ doc: left, documentKind: 'json' })) as Record<string, unknown>
   if ((parsed.fromA as { count?: unknown })?.count !== 1 || !Array.isArray(parsed.fromB)) {
     throw new Error(`expected Y.Map JSON peers to merge field-level edits, got ${JSON.stringify(parsed)}`)
   }
-  if (canEditRawJsonForKnowgrphCollaboration({ documentKind: 'json', activePeerCount: 2 })) {
+  if (canEditRawJsonForCollaboration({ documentKind: 'json', activePeerCount: 2 })) {
     throw new Error('expected raw JSON editing to be blocked when a second collaborator is active')
   }
 }
@@ -137,13 +137,18 @@ export async function testCollaborationSaveBridgeCommitsFormattedJsonThroughGitH
     return new Response(JSON.stringify({ content: { sha: 'content-sha' }, commit: { sha: 'commit-sha' } }), { status: 200 })
   }) as typeof fetch
   try {
+    const doc = createCollaborationYDoc({
+      documentKey: '/docs/shared.json',
+      documentKind: 'json',
+      initialText: '{"z":1}',
+    })
     const body: KnowgrphCollaborationSaveRequest = {
       apiVersion: KNOWGRPH_STORAGE_API_VERSION,
       workspaceId: 'kgws:test',
       documentKey: '/docs/shared.json',
       documentKind: 'json',
-      serializedText: '{"z":1}',
-      yjsStateBase64: 'AQID',
+      serializedText: '{"rawEditorTextMustNotWin":true}',
+      yjsStateBase64: encodeCollaborationYDocStateBase64(doc),
       activePeerCount: 2,
       pocketBaseRoomId: 'room_a',
       savedByPeerId: 'peer_a',

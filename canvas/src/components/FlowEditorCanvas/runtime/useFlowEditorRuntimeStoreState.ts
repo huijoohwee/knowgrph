@@ -1,16 +1,18 @@
+import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { EMPTY_WIDGET_REGISTRY } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { stripFrontmatterAutoManagedWidgetPinnedStates } from '@/lib/flowEditor/widgetPlacementAuthority'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
 
 export function useFlowEditorRuntimeStoreState() {
-  return useGraphStore(
+  const state = useGraphStore(
     useShallow(s => ({
       baseGraphData: s.graphData,
       baseGraphDataRevision: s.graphDataRevision || 0,
@@ -66,4 +68,9 @@ export function useFlowEditorRuntimeStoreState() {
       setOpenWidgetNodeIds: s.setOpenWidgetNodeIds,
     })),
   )
+  const flowWidgetPinnedByNodeId = React.useMemo(() => stripFrontmatterAutoManagedWidgetPinnedStates({
+    graphData: state.baseGraphData,
+    pinnedByNodeId: state.flowWidgetPinnedByNodeId || EMPTY_BOOL_RECORD,
+  }), [state.baseGraphData, state.flowWidgetPinnedByNodeId])
+  return React.useMemo(() => ({ ...state, flowWidgetPinnedByNodeId }), [flowWidgetPinnedByNodeId, state])
 }

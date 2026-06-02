@@ -1,5 +1,4 @@
 import React from 'react'
-import type { SectionMeta } from './settingsView.constants'
 
 export type SettingsToastPayload = {
   id: string
@@ -44,7 +43,6 @@ export type SettingsRowActions = {
   applyActiveWorkspaceFileAsChatHistory: () => void
   applyActiveWorkspaceFileAsKnowgrph: () => void
   buildChatAssistNodes: (rowKey: string) => React.ReactNode[]
-  buildSectionMetaAssistNodes: (sectionMeta: SectionMeta | undefined, isFirstRowInArea: boolean, rowKey: string) => React.ReactNode[]
   checkBytePlusHealth: () => void
   checkBytePlusVideoModelPreview: () => void
   checkChatHealth: () => void

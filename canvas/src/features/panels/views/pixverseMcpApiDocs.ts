@@ -144,7 +144,7 @@ const PIXVERSE_MCP_DOC_ROWS: ReadonlyArray<PixVerseMcpDocRow> = [
   {
     key: 'readiness_scope',
     typeLabel: 'readiness',
-    value: 'MainPanel MCP documents PixVerse local stdio setup. Downstream ownership stays MainPanel -> FloatingPanel Chat -> markdown YAML frontmatter -> shared canvas apply, and the local harness supports `provider_mode="pixverse"` with bounded polling plus mock fallback.',
+    value: 'provider_mode_pixverse',
     responsibility: 'States the current scope boundary for PixVerse in Knowgrph.',
     notes: 'Prevents false renderer ownership claims and forbids a second MCP-only markdown-to-canvas path.',
     searchHints: ['readiness', 'chat pipeline', 'provider_mode pixverse'],

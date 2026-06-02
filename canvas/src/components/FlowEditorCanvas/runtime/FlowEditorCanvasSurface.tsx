@@ -1,7 +1,6 @@
 import React from 'react'
 
 import FlowCanvas from '@/components/FlowCanvas'
-import type { FlowCanvasNativeSurfaceMode } from '@/components/FlowCanvas/shared'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
 import { readFlowWidgetDragPayloadFromDataTransfer } from '@/lib/flowEditor/widgetDrag'
@@ -26,7 +25,6 @@ export default function FlowEditorCanvasSurface(props: {
   hasOverlayEditors: boolean
   emitFlowEditorInteractionFrame: () => void
   overlayOnlyActive: boolean
-  nativeSurfaceMode: FlowCanvasNativeSurfaceMode
   overlayEdgesSvgRef: React.Ref<SVGSVGElement>
   overlayEditorElements: React.ReactNode
   noGraphLoaded: boolean
@@ -111,8 +109,6 @@ export default function FlowEditorCanvasSurface(props: {
             props.flowRuntimeRefRef.current = ref
           }}
           onInteractionFrame={props.hasOverlayEditors ? props.emitFlowEditorInteractionFrame : undefined}
-          nativeSurfaceMode={props.nativeSurfaceMode}
-          renderGroups={!props.geospatialWidgetPanelMode}
         />
       )}
 

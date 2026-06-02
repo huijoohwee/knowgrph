@@ -2,6 +2,7 @@ import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import type { GraphNode } from '@/lib/graph/types'
+import { getUiSectionStatusChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
@@ -40,10 +41,7 @@ const renderMessageWithWorkspaceLinks = (
       <button
         key={`workspace-link-${index}-${path}`}
         type="button"
-        className={[
-          'inline-flex items-center rounded px-1.5 py-0.5 border',
-          UI_THEME_TOKENS.status.info,
-        ].join(' ')}
+        className={getUiSectionStatusChipClassName('info', 'cursor-pointer')}
         onClick={() => onOpenWorkspacePath(path)}
       >
         {label}
@@ -120,7 +118,7 @@ export function FloatingPanelChatMessagesSection({
         </div>
         <button
           type="button"
-          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
+          className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
           onClick={() => {
             setMessages([])
             const storage = getLocalStorage()
@@ -241,7 +239,7 @@ export function FloatingPanelChatFooter({
               onModelChanged(next)
             }}
             disabled={isLoading || modelOptions.length <= 1}
-            className={`h-7 px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
+            className={`h-7 px-2 ${uiPanelMicroLabelTextSizeClass} border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
           >
             {modelOptions.map(option => (
               <option key={option} value={option}>
@@ -267,7 +265,7 @@ export function FloatingPanelChatFooter({
         </div>
       ) : null}
       {writingWorkspaceFileLabel && (
-        <div className={[uiPanelTextFontClass, 'text-[10px]', 'inline-flex items-center rounded px-1.5 py-0.5 border', UI_THEME_TOKENS.status.info].join(' ')}>
+        <div className={getUiSectionStatusChipClassName('info', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass].join(' '))}>
           {writingWorkspaceFileLabel}
         </div>
       )}
@@ -293,7 +291,7 @@ export function FloatingPanelChatFooter({
             {showNewChatButton && (
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
+                className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
                 onClick={onNewChat}
                 disabled={isNewChatDisabled}
               >
@@ -303,7 +301,7 @@ export function FloatingPanelChatFooter({
             {isLoading && (
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
+                className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
                 onClick={onStop}
               >
                 {UI_COPY.chatStopButtonLabel}
@@ -311,7 +309,7 @@ export function FloatingPanelChatFooter({
             )}
             <button
               type="submit"
-              className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} disabled:opacity-50`}
+              className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} disabled:opacity-50`}
               disabled={isSubmitDisabled}
             >
               {isLoading ? UI_COPY.chatSendingButtonLabel : UI_COPY.chatSendButtonLabel}

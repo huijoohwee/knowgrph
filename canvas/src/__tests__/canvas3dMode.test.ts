@@ -600,16 +600,17 @@ export function testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted
       throw new Error(`Expected persisted geospatial guard to demote voxel request to 3d, got ${String(next)}`)
     }
   } finally {
-    if (!storage) return
-    if (prev == null) {
-      storage.removeItem(LS_KEYS.geospatialOverlayEnabled)
-    } else {
-      storage.setItem(LS_KEYS.geospatialOverlayEnabled, prev)
-    }
-    if (prevVersion == null) {
-      storage.removeItem(LS_KEYS.geospatialOverlayPreferenceVersion)
-    } else {
-      storage.setItem(LS_KEYS.geospatialOverlayPreferenceVersion, prevVersion)
+    if (storage) {
+      if (prev == null) {
+        storage.removeItem(LS_KEYS.geospatialOverlayEnabled)
+      } else {
+        storage.setItem(LS_KEYS.geospatialOverlayEnabled, prev)
+      }
+      if (prevVersion == null) {
+        storage.removeItem(LS_KEYS.geospatialOverlayPreferenceVersion)
+      } else {
+        storage.setItem(LS_KEYS.geospatialOverlayPreferenceVersion, prevVersion)
+      }
     }
     useGraphStore.getState().resetAll()
   }

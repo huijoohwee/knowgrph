@@ -47,6 +47,9 @@ export function testDocumentViewModeGraphMetadataHelpersStayUpstream() {
   if (!frontmatterModeText.includes('const metadata = readFrontmatterGraphMetadata(graphData)')) {
     throw new Error('expected frontmatterMode frontmatter-flow detection to reuse the shared metadata coercion helper')
   }
+  if (!frontmatterModeText.includes('metadata.baseGraphKind')) {
+    throw new Error('expected frontmatterMode frontmatter-flow detection to honor composed graph base kind metadata upstream')
+  }
   if (!frontmatterModeText.includes('): Record<string, unknown> => toMetadataRecord(graphData?.metadata)')) {
     throw new Error('expected frontmatterMode metadata reader to delegate to the shared document metadata helper')
   }

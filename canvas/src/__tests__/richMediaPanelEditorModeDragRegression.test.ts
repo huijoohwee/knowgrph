@@ -156,7 +156,8 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   if (panelText.includes('data-kg-panel-action="1"')) {
     throw new Error('expected RichMediaPanel to remove the legacy inline header action variant after consolidation')
   }
-  if (!overlayEditorPanelText.includes("import RichMediaPanel from '@/components/RichMediaPanel'")) {
+  if (!overlayEditorPanelText.includes("from '@/components/RichMediaPanel'")
+    || !overlayEditorPanelText.includes('<RichMediaPanel')) {
     throw new Error('expected NodeOverlayEditorPanel to reuse the shared RichMediaPanel render shell instead of a bespoke preview surface')
   }
   if (overlayEditorPanelText.includes('showFloatingToolbar={false}')) {

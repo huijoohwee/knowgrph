@@ -24,11 +24,8 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!frontmatterOverlayNodeIdsText.includes('readWidgetRegistryMetadataEntries')) {
     throw new Error('expected shared frontmatter-flow overlay derivation to reuse the shared widget-registry metadata reader SSOT')
   }
-  if (!frontmatterOverlayNodeIdsText.includes('const canonicalBuiltInNodeIds = new Set<string>()')) {
-    throw new Error('expected frontmatter-flow overlay derivation to track canonical built-in widget/media ids before fallback')
-  }
   if (!frontmatterOverlayNodeIdsText.includes('if (!node || !isCanonicalFrontmatterBuiltInWidgetNode(node)) continue')) {
-    throw new Error('expected registry-backed frontmatter overlay ids to stay constrained to canonical built-in widget/media nodes')
+    throw new Error('expected registry-backed frontmatter overlay ids to keep canonical built-in widget/media nodes')
   }
   if (!frontmatterOverlayNodeIdsText.includes('isNodeOwnedFrontmatterWidgetRegistryEntry({ node, registryEntry: { formId } })')) {
     throw new Error('expected registry-backed frontmatter overlay ids to require exact node-owned form identity')
@@ -37,7 +34,7 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
     throw new Error('expected shared frontmatter-flow overlay derivation to avoid synthetic fallback when registry ids are missing')
   }
   if (!frontmatterOverlayNodeIdsText.includes('for (const id of eligibleIds) allowedFlowNodeIds.add(id)')) {
-    throw new Error('expected shared frontmatter-flow overlay derivation to fall back to eligible node ids')
+    throw new Error('expected shared frontmatter-flow overlay derivation to include shared eligible node ids')
   }
   if (!frontmatterOverlayNodeIdsText.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
     throw new Error('expected shared frontmatter-flow overlay derivation to exclude non-flow ids from overlay editors')
@@ -48,7 +45,7 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!overlaySurfaceText.includes('const sorted = renderGraphPlacementContext?.frontmatterOverlayNodeIds || []')) {
     throw new Error('expected frontmatter-flow overlay surface to reuse the shared overlay-id set from the placement context')
   }
-  if (!overlaySurfaceText.includes('if (flowEditorFrontmatterGraphAvailable) {')) {
+  if (!overlaySurfaceText.includes('flowEditorFrontmatterGraphAvailable || activeSourceFrontmatterFlowAvailable')) {
     throw new Error('expected frontmatter-flow availability to suppress non-frontmatter widget fallback ids through the dedicated branch')
   }
   if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {')) {
@@ -81,65 +78,6 @@ export function testFrontmatterFlowTypedNodesForcePortHandleDefaultsInFlowScene(
   }
   if (!text.includes("nodeTypeLower === 'custom'")) {
     throw new Error('expected typed handle force rule to cover custom nodes')
-  }
-}
-export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCoverage() {
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const overlayVisibilityPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceVisibility.ts')
-  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
-  const text = readFileSync(overlaySurfacePath, 'utf8')
-  const visibilityText = readFileSync(overlayVisibilityPath, 'utf8')
-  const sharedText = readFileSync(sharedPath, 'utf8')
-  if (!text.includes('frontmatterOverlayHideSafety')) {
-    throw new Error('expected FlowEditor overlay mode to compute frontmatter visibility safety state')
-  }
-  if (!text.includes('hasFullOverlayCoverageForVisibleNodes')) {
-    throw new Error('expected FlowEditor overlay safety to require complete overlay coverage for visible frontmatter-flow nodes')
-  }
-  if (!text.includes('listDisplayRichMediaOverlayNodes')) {
-    throw new Error('expected FlowEditor overlay safety to include rich media overlay coverage in frontmatter-flow mode')
-  }
-  if (
-    !visibilityText.includes('const overlayCoverageIdSet = new Set([...overlayEditorNodeIds, ...frontmatterRichMediaOverlayNodeIds])')
-    && !visibilityText.includes('const overlayCoverageIdSet = new Set([')
-  ) {
-    throw new Error('expected FlowEditor overlay safety to combine widget and rich media overlay coverage before hiding the base canvas layer')
-  }
-  if (
-    !text.includes('deriveSceneDisplayGraph({ graphData: args.renderGraphDataOverride })')
-    && !text.includes('deriveSceneDisplayGraph({ graphData: renderGraphDataOverride })')
-  ) {
-    throw new Error('expected frontmatter overlay safety to derive visible flow coverage from the shared scene display graph')
-  }
-  if (!visibilityText.includes('const visibleFlowNodeIds = visibleNodeIds.filter')) {
-    throw new Error('expected frontmatter overlay safety to limit coverage checks to visible flow-widget nodes')
-  }
-  if ((text + visibilityText).includes('const frontmatterExcludedNodeIds = normalizeStringArrayForSignature([')) {
-    throw new Error('expected frontmatter FlowCanvas graph exclusion to avoid folding rich-media overlay source nodes into the widget-only graph filter')
-  }
-  if (
-    !visibilityText.includes('excludedNodeIds: useVisibleCoverageExclusion')
-    || !visibilityText.includes(': overlayEditorNodeIdsSnapshot,')
-  ) {
-    throw new Error('expected frontmatter FlowCanvas graph exclusion to hide only the Flow Editor widget-owned nodes while leaving rich-media overlay source nodes available')
-  }
-  if (!sharedText.includes('normalizeGraphFilterNodeIdSet')) {
-    throw new Error('expected shared FlowCanvas graph filtering to normalize canonical overlay ids before exclusion')
-  }
-  if (!sharedText.includes('resolveGraphNodeIdByCanonicalId(graphData, id)')) {
-    throw new Error('expected shared FlowCanvas graph filtering to resolve canonical overlay ids to concrete graph ids before exclusion')
-  }
-  if (!visibilityText.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
-    throw new Error('expected frontmatter-flow overlay guard to branch explicitly before overlay-only canvas runtime policy')
-  }
-  if (!visibilityText.includes('FlowCanvas') || !visibilityText.includes('runtime may still provide layout, pan, zoom, and edge geometry')) {
-    throw new Error('expected frontmatter-flow overlay guard to document that FlowCanvas remains a non-visual layout/runtime substrate')
-  }
-  if (!visibilityText.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {\n    // Frontmatter-flow Flow Editor scenes are overlay-owned.")) {
-    throw new Error('expected frontmatter-flow overlay guard to force overlay-owned scenes before workspace/view fallback gating')
-  }
-  if (!visibilityText.includes('return true')) {
-    throw new Error('expected frontmatter-flow overlay guard to keep Flow Editor visual authority while overlays hydrate')
   }
 }
 export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartMediaWhenConfigured() {
@@ -371,7 +309,7 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
     throw new Error('expected workspace-open overlay edge churn to clear stale stable-node edge paths instead of reusing them when the live overlay set shrinks or disappears')
   }
   const runtimeText = readFileSync(runtimePath, 'utf8')
-  if (!runtimeText.includes('[overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate]')) {
+  if (!runtimeText.includes('[overlayEdgeHostActive, overlayEditorNodeIdsKey, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate]')) {
     throw new Error('expected Flow Editor overlay edge scheduling to resync on semantic topology/layout signature changes, not only overlay node id churn')
   }
   const overlaySurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'), 'utf8')
@@ -582,10 +520,13 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
   if (!text.includes('const overlayEdgesEnabledRef = React.useRef(false)')) {
     throw new Error('expected FlowEditor overlay edge renderer to keep SVG-mounted overlay edge enablement separate from broad Flow Editor view state')
   }
-  if (!text.includes('overlayEdgesEnabledRef.current = overlayOnlyActive')) {
-    throw new Error('expected FlowEditor overlay edge renderer to align scheduling with the same overlayOnlyActive state that mounts the SVG layer')
+  if (!text.includes('const overlayEdgeHostActive = overlayOnlyActive || hasOverlayEditors')) {
+    throw new Error('expected FlowEditor overlay edge renderer to align scheduling with the mounted overlay edge host')
   }
-  if (!text.includes('}, [overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])')) {
+  if (!text.includes('overlayEdgesEnabledRef.current = overlayEdgeHostActive')) {
+    throw new Error('expected FlowEditor overlay edge renderer to stay enabled whenever visible Flow Editor overlays own the edge host')
+  }
+  if (!text.includes('}, [overlayEdgeHostActive, overlayEditorNodeIdsKey, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])')) {
     throw new Error('expected FlowEditor overlay edge renderer to refresh edges when canonical overlay ids or semantic topology layout change while the SVG layer is active')
   }
   if (!text.includes("pushOverlayEdgeTrace('schedule-skip-disabled'")) {
@@ -1088,6 +1029,13 @@ export function testFrontmatterFlowLandingKeepsWidgetsVisibleAgainstSiblingRende
   ) {
     throw new Error('expected inactive Flow Canvas/Flowchart renderer paths to clear Flow Editor widget draw-state instead of reusing stale visibility state')
   }
+  if (
+    flowCanvasText.includes('resolveFlowCanvasNativeRenderPolicy')
+    || flowCanvasText.includes('drawArgsRef.current.renderNodes')
+    || flowCanvasText.includes('drawArgsRef.current.renderEdges')
+  ) {
+    throw new Error('expected Flow Editor renderer isolation to avoid suppressing FlowCanvas native primitives')
+  }
 }
 
 export function testWidgetInitUsesLayoutHydrationAndRafClampCommit() {
@@ -1317,7 +1265,11 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
   if (!renderGraphHelperText.includes('const defaultPinnedInCanvas = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })')) {
     throw new Error('expected widget placement context helper to own shared default pinning rules')
   }
-  if (!overlaySurfaceElementsText.includes("const portHandleEdges = args.renderGraphIncidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES")) {
+  if (
+    !overlaySurfaceElementsText.includes('const portHandleEdges =')
+    || !overlaySurfaceElementsText.includes('args.renderGraphIncidentEdgesByNodeId?.get(actionNodeId)')
+    || !overlaySurfaceElementsText.includes('|| EMPTY_GRAPH_EDGES')
+  ) {
     throw new Error('expected overlay surface to pass only node-local cached edges into each widget overlay')
   }
   if (!overlaySurfaceText.includes('const renderGraphPlacementContext = React.useMemo(() => {')) {
@@ -1344,7 +1296,7 @@ export function testFlowEditorPinnedWidgetForbidsAccidentalDuplicateCopy() {
   if (!overlayText.includes('duplicateDisabled={pinnedInCanvas}')) {
     throw new Error('expected duplicate guard to activate only for explicitly pinned widgets')
   }
-  if (!overlaySurfaceElementsText.includes('const pinned = pinnedMap[id] === true')) {
+  if (!overlaySurfaceElementsText.includes('const pinned = pinnedMap[actionNodeId] === true')) {
     throw new Error('expected widget duplicate callback to guard only explicit pinned state before copying')
   }
   if (!overlaySurfaceElementsText.includes('Pinned widget blocks duplicate copy.')) {

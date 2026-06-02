@@ -18,6 +18,8 @@ export function isFrontmatterFlowGraph(graphData: GraphData | null | undefined):
   const metadata = readFrontmatterGraphMetadata(graphData)
   const kind = String(metadata.kind || '').trim().toLowerCase()
   if (kind === 'frontmatter-flow') return true
+  const baseGraphKind = String(metadata.baseGraphKind || '').trim().toLowerCase()
+  if (baseGraphKind === 'frontmatter-flow') return true
   return false
 }
 

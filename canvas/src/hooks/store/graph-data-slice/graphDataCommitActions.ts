@@ -9,6 +9,7 @@ import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import {
   shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit,
   shouldPreserveFrontmatterAutoManagedBalancedCollective,
+  stripFrontmatterAutoManagedWidgetPinnedStates,
   stripFrontmatterAutoManagedWidgetWorldPositions,
   stripFrontmatterAutoManagedWidgetScreenPositions,
 } from '@/lib/flowEditor/widgetPlacementAuthority'
@@ -300,10 +301,9 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const pinnedKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(pinnedByKey, collapsedKey) : false
       const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
       const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
-      const nextPinned =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
-          ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPinnedByNodeId || {}) })
-          : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPinnedRaw = collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
+        ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPinnedByNodeId || {}) }) : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPinned = stripFrontmatterAutoManagedWidgetPinnedStates({ graphData: nextGraphData, pinnedByNodeId: nextPinnedRaw || {} })
       const nextPosRaw =
         collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPosByNodeId || {}) })
@@ -549,10 +549,9 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const pinnedKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(pinnedByKey, collapsedKey) : false
       const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
       const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
-      const nextPinned =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
-          ? { ...(s.flowWidgetPinnedByNodeId || {}) }
-          : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPinnedRaw = collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
+        ? { ...(s.flowWidgetPinnedByNodeId || {}) } : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPinned = stripFrontmatterAutoManagedWidgetPinnedStates({ graphData: nextGraphData, pinnedByNodeId: nextPinnedRaw || {} })
       const nextPosRaw =
         collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? { ...(s.flowWidgetPosByNodeId || {}) }

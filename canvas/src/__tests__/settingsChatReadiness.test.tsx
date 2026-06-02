@@ -50,6 +50,7 @@ export async function testUseSettingsChatAssistPublishesLiveWebMcpReadinessState
   const fetchCalls: string[] = []
   let releaseFetch: (() => void) | null = null
 
+  let cleanupAssertionError: Error | null = null
   try {
     resetBrowserLocalSurfaceSnapshotsForTests()
     globalThis.fetch = (async (input: RequestInfo | URL) => {
@@ -179,11 +180,12 @@ export async function testUseSettingsChatAssistPublishesLiveWebMcpReadinessState
     }
     const clearedInspection = inspectLocalSettingsChatReadiness(readLocalSettingsChatReadinessSurfaceSnapshot())
     if (clearedInspection.available !== false) {
-      throw new Error(`expected Settings readiness snapshot cleanup on unmount, got ${JSON.stringify(clearedInspection)}`)
+      cleanupAssertionError = new Error(`expected Settings readiness snapshot cleanup on unmount, got ${JSON.stringify(clearedInspection)}`)
     }
     resetBrowserLocalSurfaceSnapshotsForTests()
     globalThis.fetch = previousFetch
     restoreDom()
     restoreWindow()
   }
+  if (cleanupAssertionError) throw cleanupAssertionError
 }

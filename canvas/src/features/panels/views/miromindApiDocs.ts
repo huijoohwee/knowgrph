@@ -79,7 +79,7 @@ const MIROMIND_API_DOC_ROWS: ReadonlyArray<MiroMindDocRow> = [
   {
     key: 'messages',
     typeLabel: 'array',
-    value: 'Shared prompt contract composes system messages, packed graph/workspace context, optional scoped context, and conversation history.',
+    value: 'messages[]',
     responsibility: 'States that MiroMind reuses the canonical Knowgrph chat request message assembly.',
     notes: 'No provider-specific prompt schema fork is allowed.',
     searchHints: ['messages', 'prompt contract', 'context pack'],
@@ -104,7 +104,7 @@ const MIROMIND_API_DOC_ROWS: ReadonlyArray<MiroMindDocRow> = [
   {
     key: 'mcp_servers',
     typeLabel: 'array',
-    value: 'Optional provider-side array of external MCP server configs. Capability guidance belongs in MainPanel MCP and does not replace Knowgrph MCP runtime ownership.',
+    value: 'mcp_servers[]',
     responsibility: 'Documents the optional provider request field without creating a second MainPanel-to-canvas pipeline.',
     notes: 'Treat as provider capability only; downstream ownership still stays chat -> markdown -> workspace -> canvas.',
     searchHints: ['mcp_servers', 'provider-side mcp', 'optional'],
@@ -112,7 +112,7 @@ const MIROMIND_API_DOC_ROWS: ReadonlyArray<MiroMindDocRow> = [
   {
     key: 'streaming.reasoning_steps',
     typeLabel: 'streaming',
-    value: 'Reasoning chunks arrive in delta.reasoning_steps before delta.content. Final usage may include reasoning_tokens and num_search_queries.',
+    value: 'delta.reasoning_steps',
     responsibility: 'Documents the additive SSE extensions that the shared raw stream parser can surface.',
     notes: 'Reasoning remains observational metadata and must not directly mutate the graph.',
     searchHints: ['reasoning_steps', 'reasoning_tokens', 'num_search_queries', 'usage'],

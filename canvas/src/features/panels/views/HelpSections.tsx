@@ -1,5 +1,10 @@
 import React from 'react';
 import type { HelpStepKey } from '@/features/panels/config';
+import {
+  KeyTypeValueHeader,
+  KeyTypeValueSectionStack,
+  shouldFlushKeyTypeValueSectionTop,
+} from '@/features/panels/ui/KeyTypeValueRow';
 import { HelpCheatsheetSection } from './HelpCheatsheetSection';
 import { HelpIconsSection } from './HelpIconsSection';
 import { HelpPanelTourSection } from './HelpPanelTourSection';
@@ -28,33 +33,37 @@ export function HelpSections({
   onOpenSettingsTab,
 }: HelpSectionsProps) {
   return (
-    <section className="mt-3" aria-label="Help sections">
-      <HelpShortcutsSection
-        collapsed={collapsedBySection.shortcuts}
-        onToggle={next => onToggleSection('shortcuts', next)}
-        searchQuery={searchQuery}
-        shortcuts={shortcuts}
-        onCopyAllShortcuts={onCopyAllShortcuts}
-        onLaunchSpotlight={onLaunchSpotlight}
-      />
-      <HelpCheatsheetSection
-        collapsed={collapsedBySection.cheatsheet}
-        onToggle={next => onToggleSection('cheatsheet', next)}
-      />
-      <HelpPanelTourSection
-        collapsed={collapsedBySection.panelTour}
-        onToggle={next => onToggleSection('panelTour', next)}
-      />
-      <HelpWorkflowLinksSection
-        collapsed={collapsedBySection.workflowLinks}
-        onToggle={next => onToggleSection('workflowLinks', next)}
-        onOpenFlowEditorManagerTab={onOpenFlowEditorManagerTab}
-      />
-      <HelpIconsSection
-        collapsed={collapsedBySection.icons}
-        onToggle={next => onToggleSection('icons', next)}
-        onOpenSettingsTab={onOpenSettingsTab}
-      />
+    <section className="mt-0" aria-label="Help sections">
+      <KeyTypeValueHeader />
+      <KeyTypeValueSectionStack>
+        <HelpShortcutsSection
+          collapsed={collapsedBySection.shortcuts}
+          onToggle={next => onToggleSection('shortcuts', next)}
+          searchQuery={searchQuery}
+          shortcuts={shortcuts}
+          onCopyAllShortcuts={onCopyAllShortcuts}
+          onLaunchSpotlight={onLaunchSpotlight}
+          flushTop={shouldFlushKeyTypeValueSectionTop(0)}
+        />
+        <HelpCheatsheetSection
+          collapsed={collapsedBySection.cheatsheet}
+          onToggle={next => onToggleSection('cheatsheet', next)}
+        />
+        <HelpPanelTourSection
+          collapsed={collapsedBySection.panelTour}
+          onToggle={next => onToggleSection('panelTour', next)}
+        />
+        <HelpWorkflowLinksSection
+          collapsed={collapsedBySection.workflowLinks}
+          onToggle={next => onToggleSection('workflowLinks', next)}
+          onOpenFlowEditorManagerTab={onOpenFlowEditorManagerTab}
+        />
+        <HelpIconsSection
+          collapsed={collapsedBySection.icons}
+          onToggle={next => onToggleSection('icons', next)}
+          onOpenSettingsTab={onOpenSettingsTab}
+        />
+      </KeyTypeValueSectionStack>
     </section>
   );
 }

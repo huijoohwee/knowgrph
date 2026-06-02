@@ -25,21 +25,18 @@ export const CANVAS_INTERACTION_MODE_LABELS: Readonly<Record<CanvasInteractionMo
   layout: 'Layout',
 } as const
 
-export const CANVAS_PRECEDENCE_RULES: readonly { id: string; rule: string; detail: string }[] = [
+export const CANVAS_PRECEDENCE_RULES: readonly { id: string; rule: string }[] = [
   {
     id: 'space-pan',
     rule: 'Space + drag pans regardless of selection mode.',
-    detail: 'When Space is held, pointer drag pans the viewport and selection actions are suppressed.',
   },
   {
     id: 'wheel-zoom',
     rule: 'Wheel / pinch zoom anchors at the pointer when possible.',
-    detail: 'In the default preset, wheel zooms. In the design preset, Cmd/Ctrl + wheel zooms; plain wheel pans.',
   },
   {
     id: 'modifiers-marquee',
     rule: 'Selection modifiers choose add/remove/replace semantics.',
-    detail: 'Shift adds to selection; Alt removes; no modifier replaces.',
   },
 ] as const
 

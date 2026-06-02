@@ -7,6 +7,7 @@ import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibili
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { filterSubgraphsByRetainedNodeIds } from '@/lib/graph/subgraphs'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { isCanonicalFrontmatterBuiltInWidgetNode } from '@/lib/flowEditor/widgetPlacementAuthority'
@@ -153,7 +154,8 @@ export function filterGraphByExcludedNodeIds(args: {
       return Boolean(src && tgt && !excluded.has(src) && !excluded.has(tgt))
     })
     : []
-  return { ...graphData, nodes, edges }
+  const retainedNodeIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
+  return filterSubgraphsByRetainedNodeIds({ ...graphData, nodes, edges }, retainedNodeIds)
 }
 
 export function filterGraphByIncludedNodeIds(args: {
@@ -163,7 +165,7 @@ export function filterGraphByIncludedNodeIds(args: {
   const graphData = args.graphData
   if (!graphData) return null
   const includedNodeIds = Array.from(new Set((args.includedNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
-  if (includedNodeIds.length === 0) return { ...graphData, nodes: [], edges: [] }
+  if (includedNodeIds.length === 0) return filterSubgraphsByRetainedNodeIds({ ...graphData, nodes: [], edges: [] }, new Set<string>())
   const included = normalizeGraphFilterNodeIdSet(graphData, includedNodeIds)
   const nodes = Array.isArray(graphData.nodes)
     ? graphData.nodes.filter(node => included.has(String(node?.id || '').trim()))
@@ -174,7 +176,8 @@ export function filterGraphByIncludedNodeIds(args: {
       return Boolean(src && tgt && included.has(src) && included.has(tgt))
     })
     : []
-  return { ...graphData, nodes, edges }
+  const retainedNodeIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
+  return filterSubgraphsByRetainedNodeIds({ ...graphData, nodes, edges }, retainedNodeIds)
 }
 
 function isFlowEditorOverlayExcludedNode(node: GraphNode | null | undefined): boolean {

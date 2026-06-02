@@ -1,9 +1,16 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { HELP_STEP_COPY, getOrchestratorSectionListLabel } from '@/features/panels/config'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import { HELP_STEP_COPY } from '@/features/panels/config'
+import { buildMainPanelTabKtvRows, loadMainPanelTabKtvRows, type MainPanelTabKtvRow } from '@/features/panels/mainPanelTabDescriptions'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  HelpKtvMutedText,
+  HelpKtvRow,
+  HelpKtvRows,
+  HelpKtvValueStack,
+} from './HelpKtvLayout'
 
 interface HelpPanelTourSectionProps {
   collapsed: boolean
@@ -11,12 +18,24 @@ interface HelpPanelTourSectionProps {
 }
 
 export function HelpPanelTourSection({ collapsed, onToggle }: HelpPanelTourSectionProps) {
+  const [mainPanelTabRows, setMainPanelTabRows] = React.useState<MainPanelTabKtvRow[]>(() => buildMainPanelTabKtvRows([]))
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
+
+  React.useEffect(() => {
+    let alive = true
+    loadMainPanelTabKtvRows().then(rows => {
+      if (!alive) return
+      setMainPanelTabRows(rows)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   return (
     <CollapsibleSection
@@ -29,25 +48,20 @@ export function HelpPanelTourSection({ collapsed, onToggle }: HelpPanelTourSecti
           {HELP_STEP_COPY.panelTour.descriptionShort}
         </div>
       )}
-      <ul
-        className={`list-disc pl-4 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary} space-y-1`}
-      >
-        <li>
-          {UI_COPY.toolbarPrefix} load data, toggle 2D and 3D modes, open Workflow Manager, and launch the guided workflow.
-        </li>
-        <li>
-          {UI_COPY.mainPanelPrefix} use Workflow Manager and Help tabs to guide schema and graph setup; Graph Fields now lives inside Workflow Manager.
-        </li>
-        <li>
-          {UI_COPY.floatingPanelPrefix} use Renderer and Graph Traversal (
-          {getOrchestratorSectionListLabel()}
-          ) while the Graph Data Table workspace and Editor Workspace handle curation and text inspection.
-        </li>
-        <li>
-          {UI_COPY.bottomSurfacePrefix} use Stats and History for quick review while Renderer
-          and Graph Traversal stay in the canonical Floating Panel.
-        </li>
-      </ul>
+      <HelpKtvRows>
+        {mainPanelTabRows.map(row => (
+          <HelpKtvRow
+            key={row.key}
+            keyNode={row.label}
+            iconKey={row.typeIconKey}
+            valueNode={(
+              <HelpKtvValueStack>
+                <HelpKtvMutedText>{row.value}</HelpKtvMutedText>
+              </HelpKtvValueStack>
+            )}
+          />
+        ))}
+      </HelpKtvRows>
     </CollapsibleSection>
   )
 }

@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8'
 export function testDesignEditorMainPanelTabUsesSharedSurface() {
   const tabs = read('src/features/panels/mainPanelTabs.ts')
   const mainPanel = read('src/features/panels/MainPanel.tsx')
-  const icons = read('src/features/panels/ui/mainPanelTypeIcons.tsx')
+  const icons = read('src/features/panels/ui/mainPanelHelpIconLibrary.tsx')
   const view = read('src/features/panels/views/DesignEditorMainPanelView.tsx')
   const toolbarContext = read('src/components/toolbar/useCanvasToolbarContext.ts')
 
@@ -16,7 +16,7 @@ export function testDesignEditorMainPanelTabUsesSharedSurface() {
   if (!mainPanel.includes('DesignEditorMainPanelViewLazy') || !mainPanel.includes('MAIN_PANEL_TAB_TYPE_ICON_BY_KEY')) {
     throw new Error('expected MainPanel Design tab to mount the shared Design editor surface')
   }
-  if (!icons.includes("design: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.design'].Icon") || !icons.includes('Icon: Palette')) {
+  if (!icons.includes("design: 'mainPanel.design'") || !icons.includes('Icon: Palette')) {
     throw new Error('expected shared MainPanel type-icon owner to provide the Design icon')
   }
   if (!view.includes('DesignFloatingPanelView') || !view.includes("canvas2dRenderer === 'design'")) {

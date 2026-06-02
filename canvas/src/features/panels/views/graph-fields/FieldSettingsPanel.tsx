@@ -29,6 +29,7 @@ import {
 import { computeFilteredLists } from '@/features/schema-editor/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import FieldSchemaSection from '@/features/panels/views/graph-fields/FieldSchemaSection'
 import FieldStylesSection from '@/features/panels/views/graph-fields/FieldStylesSection'
 import FieldLayoutSection from '@/features/panels/views/graph-fields/FieldLayoutSection'
@@ -87,7 +88,7 @@ export default function FieldSettingsPanel({
     [graphData, selectedField],
   )
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
   const secondaryActionButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`
   const fieldLabelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`
@@ -354,7 +355,7 @@ export default function FieldSettingsPanel({
                         id="graph-fields-display-name"
                         value={selectedSettings.displayName}
                         onChange={e => updateSelectedSettings({ displayName: e.target.value })}
-                        className={`h-9 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+                        className={`h-9 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
                       />
                     </div>
                   </div>

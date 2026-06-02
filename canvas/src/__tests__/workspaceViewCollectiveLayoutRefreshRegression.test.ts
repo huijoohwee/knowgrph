@@ -1,9 +1,5 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import {
-  resolveFlowCanvasNativeRenderPolicy,
-  resolveFlowCanvasNativeSurfaceMode,
-} from '@/components/FlowCanvas/shared'
 export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRefresh() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts'); const text = readFileSync(p, 'utf8')
   const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'); const surfaceText = readFileSync(surfacePath, 'utf8')
@@ -198,8 +194,9 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   if (!runtimeText.includes('const shouldUseNeutralSeedZoom =')
     || !runtimeText.includes('runtimeSceneNodeCount <= 0')
+    || !runtimeText.includes('!partitionedFrontmatterRuntimeScene')
     || !runtimeText.includes('|| shouldUseNeutralSeedZoomForFrontmatterInit')) {
-    throw new Error('expected pinned widget auto-seed to neutralize stale zoom offset when flow runtime scene is empty')
+    throw new Error('expected pinned widget auto-seed to neutralize stale zoom offset only when flow runtime scene is missing, not intentionally partitioned')
   }
   if (!runtimeText.includes('(shouldUseNeutralSeedZoom ? { k: 1, x: 0, y: 0 } : null)')) {
     throw new Error('expected pinned widget auto-seed zoom source to prioritize neutral zoom for empty-scene overlay recovery')
@@ -212,8 +209,12 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes("reason: 'scene-empty-workspace-blocked-awaiting-live-transform'")) {
     throw new Error('expected pinned widget auto-seed to gate workspace-blocked empty-scene frontmatter placement until post-init layout')
   }
-  if (!runtimeText.includes("const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow'")) {
-    throw new Error('expected pinned widget auto-seed to force full frontmatter pinned reseed when runtime scene is empty')
+  if (
+    !runtimeText.includes('const partitionedFrontmatterRuntimeScene =')
+    || !runtimeText.includes('renderGraphNodeCount > 0')
+    || !runtimeText.includes('&& !partitionedFrontmatterRuntimeScene')
+  ) {
+    throw new Error('expected pinned widget auto-seed to avoid forced reseed when frontmatter native runtime scene is intentionally partitioned')
   }
   if (!runtimeText.includes('if (forceSceneEmptyReseed) return true')) {
     throw new Error('expected pinned widget auto-seed pending selection to include all pinned widgets during empty-scene reseed')
@@ -331,66 +332,37 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (graphStateText.includes('allowNodeDragOverride !== false && documentStructureBaselineLock !== true')) {
     throw new Error('expected FlowCanvas interaction mutation gate to avoid baseline-lock coupling that freezes workspace-open drag/pan/zoom')
   }
-  if (!flowEditorSurfaceVisibilityText.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
+  if (!flowEditorSurfaceVisibilityText.includes("if (frontmatterOverlayVisualIsolation.kind === 'frontmatter-flow') {")) {
     throw new Error('expected Flow Editor overlay-only mode to branch on frontmatter-flow before workspace mutation fallback')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('FlowCanvas') || !flowEditorSurfaceVisibilityText.includes('must not become a visual fallback')) {
-    throw new Error('expected frontmatter-flow overlay-only guard to keep FlowCanvas as a non-visual runtime substrate')
+  if (!flowEditorSurfaceVisibilityText.includes('FlowCanvas') || !flowEditorSurfaceVisibilityText.includes('partitioned before FlowCanvas')) {
+    throw new Error('expected frontmatter-flow overlay-only guard to document upstream renderer partitioning before FlowCanvas receives the graph')
   }
   if (overlaySurfaceText.includes('preferCanvasCollectiveInteraction')) {
     throw new Error('expected Flow Editor overlay surface to avoid base FlowCanvas collective fallback authority that can cause renderer seepage/interference')
   }
-  const nativeSurfaceMode = resolveFlowCanvasNativeSurfaceMode({
-    canvas2dRenderer: 'flowEditor',
-    graphData: { type: 'application/json', metadata: { kind: 'frontmatter-flow' }, nodes: [], edges: [] },
-  })
-  const nativeRenderPolicy = resolveFlowCanvasNativeRenderPolicy({
-    nativeSurfaceMode,
-    renderEdges: true,
-    renderGroups: true,
-    renderNodes: true,
-  })
-  if (
-    nativeSurfaceMode !== 'runtime-only'
-    || nativeRenderPolicy.renderEdges !== false
-    || nativeRenderPolicy.renderGroups !== false
-    || nativeRenderPolicy.renderNodes !== false
-  ) {
-    throw new Error('expected FlowCanvas shared native surface policy to make frontmatter Flow Editor scenes runtime-only')
-  }
   const nativePolicyFlowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const nativePolicyFlowCanvasText = readFileSync(nativePolicyFlowCanvasPath, 'utf8')
-  if (!nativePolicyFlowCanvasText.includes('resolveFlowCanvasNativeRenderPolicy')) {
-    throw new Error('expected FlowCanvas to own native primitive rendering policy through the shared helper')
+  if (nativePolicyFlowCanvasText.includes('resolveFlowCanvasNativeRenderPolicy')) {
+    throw new Error('expected FlowCanvas to avoid native primitive suppression policy helpers')
   }
   if (
-    !nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderNodes = nativeRenderPolicy.renderNodes')
-    || !nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderGroups = nativeRenderPolicy.renderGroups')
-    || !nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderEdges = nativeRenderPolicy.renderEdges')
+    nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderNodes')
+    || nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderGroups')
+    || nativePolicyFlowCanvasText.includes('drawArgsRef.current.renderEdges')
   ) {
-    throw new Error('expected FlowCanvas draw args to consume the resolved native render policy')
-  }
-  if (
-    !nativePolicyFlowCanvasText.includes('ctx.clearRect(0, 0, canvas.width, canvas.height)')
-    || !nativePolicyFlowCanvasText.includes('nativeRenderPolicy.renderNodes !== false')
-  ) {
-    throw new Error('expected runtime-only FlowCanvas policy to clear stale native canvas pixels at the shared renderer boundary')
+    throw new Error('expected FlowCanvas draw args to avoid renderer-visibility kill switches')
   }
   const nativeRuntimeText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'nativeRuntime.ts'), 'utf8')
-  const runtimeOnlyReturnIndex = nativeRuntimeText.indexOf('if (!renderEdges && !renderGroups && !renderNodes) return')
-  const nativeFillIndex = nativeRuntimeText.indexOf('ctx.fillRect(0, 0, rt.canvas.width, rt.canvas.height)')
-  if (runtimeOnlyReturnIndex < 0 || nativeFillIndex < 0 || runtimeOnlyReturnIndex > nativeFillIndex) {
-    throw new Error('expected runtime-only native FlowCanvas draws to return before painting background/grid pixels')
+  if (nativeRuntimeText.includes('if (!renderEdges && !renderGroups && !renderNodes) return')) {
+    throw new Error('expected native FlowCanvas draws to avoid returning through an all-primitives-off suppression branch')
   }
   const overlayCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
   const overlayCanvasSurfaceText = readFileSync(overlayCanvasSurfacePath, 'utf8')
-  if (!overlayCanvasSurfaceText.includes('nativeSurfaceMode: FlowCanvasNativeSurfaceMode')) {
-    throw new Error('expected Flow Editor canvas surface to accept the shared native surface mode')
+  if (overlayCanvasSurfaceText.includes('nativeSurfaceMode')) {
+    throw new Error('expected Flow Editor canvas surface to avoid native surface suppression mode plumbing')
   }
-  if (!overlayCanvasSurfaceText.includes('nativeSurfaceMode={props.nativeSurfaceMode}')) {
-    throw new Error('expected Flow Editor canvas surface to pass native surface mode through to FlowCanvas')
-  }
-  if (overlayCanvasSurfaceText.includes('renderNodes=') || overlayCanvasSurfaceText.includes('renderEdges=')) {
+  if (overlayCanvasSurfaceText.includes('renderNodes=') || overlayCanvasSurfaceText.includes('renderEdges=') || overlayCanvasSurfaceText.includes('renderGroups=')) {
     throw new Error('expected Flow Editor canvas surface to avoid owning FlowCanvas native node/edge visibility')
   }
   if (overlayCanvasSurfaceText.includes('hideNodeIds=')) {
@@ -399,7 +371,10 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (overlayCanvasSurfaceText.includes('hidePortHandleNodeIds=')) {
     throw new Error('expected Flow Editor canvas surface to forbid hidePortHandleNodeIds masking and keep FlowCanvas interaction contracts upstream')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('excludedNodeIds: useVisibleCoverageExclusion')) {
+  if (!flowEditorSurfaceVisibilityText.includes('const frontmatterFlowOwnedNodeIds =')) {
+    throw new Error('expected Flow Editor overlay surface to derive the Flow Editor-owned visual node set upstream')
+  }
+  if (!flowEditorSurfaceVisibilityText.includes('excludedNodeIds: frontmatterFlowOwnedNodeIds')) {
     throw new Error('expected Flow Editor overlay surface to neutralize seepage via upstream filtered graph exclusions instead of FlowCanvas hide props')
   }
   if (!flowEditorSurfaceVisibilityText.includes('return filterGraphByExcludedNodeIds({')) {
@@ -408,14 +383,12 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const flowEditorCanvasRuntimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
   if (
-    !flowEditorCanvasRuntimeText.includes('const flowCanvasNativeSurfaceMode = React.useMemo(')
-    || !flowEditorCanvasRuntimeText.includes('resolveFlowCanvasNativeSurfaceMode({')
-    || !flowEditorCanvasRuntimeText.includes('flowEditorFrontmatterGraphAvailable,')
-    || !flowEditorCanvasRuntimeText.includes('hasOverlayEditors && workspaceMutationBlocked')
-    || !flowEditorCanvasRuntimeText.includes('overlayOwnsScene: flowEditorOverlayOwnsNativeScene')
-    || !flowEditorCanvasRuntimeText.includes('nativeSurfaceMode={flowCanvasNativeSurfaceMode}')
+    flowEditorCanvasRuntimeText.includes('flowCanvasNativeSurfaceMode')
+    || flowEditorCanvasRuntimeText.includes('resolveFlowCanvasNativeSurfaceMode')
+    || flowEditorCanvasRuntimeText.includes('overlayOwnsScene')
+    || flowEditorCanvasRuntimeText.includes('nativeSurfaceMode=')
   ) {
-    throw new Error('expected Flow Editor runtime to resolve native FlowCanvas surface mode before passing the filtered substrate graph into the surface')
+    throw new Error('expected Flow Editor runtime to avoid native FlowCanvas suppression mode plumbing')
   }
   if (!flowEditorCanvasRuntimeText.includes('renderGraphDataOverride={flowCanvasGraphDataOverride}')) {
     throw new Error('expected Flow Editor runtime to pass the upstream-filtered graph override into FlowCanvas')
@@ -1049,7 +1022,10 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   if (!flowEditorSurfaceText.includes('const lastStableRenderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)')) {
     throw new Error('expected Flow Editor overlay surface to cache the last stable non-empty render graph for transient workspace recomposition windows')
   }
-  if (!flowEditorSurfaceText.includes('if (renderGraphDataOverride && nodeCount > 0) lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride')) {
+  if (
+    !flowEditorSurfaceText.includes('if (!renderGraphDataOverride || nodeCount <= 0) return')
+    || !flowEditorSurfaceText.includes('lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride')
+  ) {
     throw new Error('expected Flow Editor overlay surface to refresh last stable render graph cache only from non-empty graph frames')
   }
   if (!flowEditorSurfaceText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
@@ -1085,11 +1061,11 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   if (!flowEditorSurfaceElementsText.includes('const stableCanonicalMatch = resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, id)')) {
     throw new Error('expected Flow Editor overlay node resolver to reuse last stable render graph canonical lookup during transient live-graph gaps')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes')) {
-    throw new Error('expected Flow Editor frontmatter graph exclusion to require full visible-node overlay coverage before hiding base graph nodes')
+  if (!flowEditorSurfaceVisibilityText.includes('const frontmatterFlowOwnedNodeIds =')) {
+    throw new Error('expected Flow Editor frontmatter graph exclusion to derive owned visual nodes before FlowCanvas rendering')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('const useVisibleCoverageExclusion =')) {
-    throw new Error('expected Flow Editor frontmatter graph exclusion to centralize coverage-gated exclusion selection')
+  if (!flowEditorSurfaceVisibilityText.includes('excludedNodeIds: frontmatterFlowOwnedNodeIds')) {
+    throw new Error('expected Flow Editor frontmatter graph exclusion to use upstream graph partitioning instead of coverage-gated suppression')
   }
 
   const flowCanvasMediaPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')

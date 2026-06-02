@@ -4,16 +4,31 @@ import MainPanelBody from '@/features/panels/ui/MainPanelBody';
 import MainPanelHelpHeader from '@/features/panels/ui/MainPanelHelpHeader';
 import { HelpSections } from '@/features/panels/views/HelpSections';
 import {
-  getOrchestratorSectionMarkdownTable,
-  getRenderSectionDiagnostics,
+  loadMainPanelHelpDevTexts,
+  type MainPanelHelpDevText,
+} from '@/features/panels/mainPanelHelpDev';
+import {
   UI_ANCHORS,
   UI_COPY,
 } from '@/lib/config';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
+import {
+  HelpKtvActionGroup,
+  HelpKtvMutedText,
+  HelpKtvRow,
+  HelpKtvRows,
+  HelpKtvValueStack,
+} from './HelpKtvLayout';
 
 interface HelpViewProps {
   searchQuery: string;
 }
+
+const EMPTY_HELP_DEV_TEXT: MainPanelHelpDevText = {
+  key: '',
+  value: '',
+  details: [],
+};
 
 export default function HelpView({ searchQuery }: HelpViewProps) {
   const {
@@ -22,7 +37,6 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
     scrollRef,
     launch,
     uiIconScale,
-    uiPanelMonospaceTextClass,
     uiPanelKeyValueTextSizeClass,
     uiPanelTextFontClass,
     collapsedBySection,
@@ -33,6 +47,26 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
     handleOpenFlowEditorManagerTab,
     handleOpenSettingsTab,
   } = useHelpViewLogic({ searchQuery });
+  const [helpDevTextByKey, setHelpDevTextByKey] = React.useState<Record<string, MainPanelHelpDevText>>({});
+
+  React.useEffect(() => {
+    let alive = true;
+    loadMainPanelHelpDevTexts().then(rows => {
+      if (!alive) return;
+      setHelpDevTextByKey(rows);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const getHelpDevText = React.useCallback(
+    (key: string): MainPanelHelpDevText => helpDevTextByKey[key] || EMPTY_HELP_DEV_TEXT,
+    [helpDevTextByKey],
+  );
+  const devDiagnosticsText = getHelpDevText('dev.lsKeyMappings');
+  const iconScalePreviewText = getHelpDevText('dev.uiIconScalePreview');
+  const semanticLayerText = getHelpDevText('semantic.layerDerivation');
 
   const header = (
     <MainPanelHelpHeader
@@ -65,67 +99,49 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
           onOpenSettingsTab={handleOpenSettingsTab}
         />
         {(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV && (
-          <section className={`mt-4 border-t ${UI_THEME_TOKENS.panel.border} pt-2 space-y-3`}>
-            <div>
-              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
-                Dev: LS key mappings
-              </div>
-              <div className="grid gap-2 md:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>
-                    Orchestrator sections (Markdown)
-                  </div>
-                  <pre className={`text-xs ${UI_THEME_TOKENS.panel.headerBg} border ${UI_THEME_TOKENS.panel.border} rounded p-2 overflow-auto max-h-48 ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary}`}>
-                    {getOrchestratorSectionMarkdownTable()}
-                  </pre>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>
-                    Render sections (diagnostics)
-                  </div>
-                  <pre className={`text-xs ${UI_THEME_TOKENS.panel.headerBg} border ${UI_THEME_TOKENS.panel.border} rounded p-2 overflow-auto max-h-48 ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary}`}>
-                    {JSON.stringify(getRenderSectionDiagnostics(), null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-            <div>
-              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
-                Dev: uiIconScale preview
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <button
-                  type="button"
-                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
-                  onClick={handleOpenSettingsTab}
-                  data-kg-anchor={UI_ANCHORS.settingsUiIconScale}
-                >
-                  {UI_COPY.openSettingsUiDensityIconsButtonCompact}
-                </button>
-                <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
-                  Current: {uiIconScale}
-                </span>
-              </div>
-            </div>
-            <div>
-              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
-                Semantic layer derivation (cosine / PMI, top‑K, clusters)
-              </div>
-              <div className={`text-[11px] ${UI_THEME_TOKENS.text.secondary} leading-snug space-y-1`}>
-                <p>
-                  Semantic layer mode builds a weighted similarity graph from tokenized node text using either cosine similarity or pointwise mutual information (PMI). Tokens are lower‑cased, filtered by length and stopwords, and counted per node; these counts form vectors with Euclidean norms.
-                </p>
-                <p>
-                  The implementation constructs an inverted index from token to (node, count), accumulates dot products and shared token counts for node pairs, and then computes similarity scores: cosine divides the dot product by the product of norms, while PMI applies log₂(pᵢⱼ / (pᵢ · pⱼ)) and clamps negative values.
-                </p>
-                <p>
-                  For each node, neighbor candidates are sorted by similarity; up to top‑K neighbors above the global similarity threshold are kept, and undirected pairs are stored symmetrically. Derived edges receive similarity‑based weights and co‑occurrence‑based widths so renderers can map weight to thickness and count to width.
-                </p>
-                <p>
-                  A NetworkX connected-components pass assigns clusters over this similarity graph. Node importance is derived from token counts or incident similarity weights, mapped into a clamped radius band, and stored as visual:importance and visual:nodeSize alongside visual:community and a deterministic cluster color.
-                </p>
-              </div>
-            </div>
+          <section className="mt-2">
+            <HelpKtvRows aria-label="Help dev rows">
+              <HelpKtvRow
+                keyNode="Dev Diagnostics"
+                iconKey="ktv.type.static"
+                valueNode={(
+                  <HelpKtvValueStack>
+                    {devDiagnosticsText.value ? <HelpKtvMutedText>{devDiagnosticsText.value}</HelpKtvMutedText> : null}
+                  </HelpKtvValueStack>
+                )}
+              />
+              <HelpKtvRow
+                keyNode="Icon Scale"
+                iconKey="mainPanel.settings"
+                valueNode={(
+                  <HelpKtvValueStack>
+                    <HelpKtvActionGroup>
+                      <button
+                        type="button"
+                        className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
+                        onClick={handleOpenSettingsTab}
+                        data-kg-anchor={UI_ANCHORS.settingsUiIconScale}
+                      >
+                        {UI_COPY.openSettingsUiDensityIconsButtonCompact}
+                      </button>
+                    </HelpKtvActionGroup>
+                    <HelpKtvMutedText>
+                      {iconScalePreviewText.value || 'Icon scale preview'}
+                      {`: ${uiIconScale}`}
+                    </HelpKtvMutedText>
+                  </HelpKtvValueStack>
+                )}
+              />
+              <HelpKtvRow
+                keyNode="Semantic Layer"
+                iconKey="ktv.type.static"
+                valueNode={(
+                  <HelpKtvValueStack>
+                    {semanticLayerText.value ? <HelpKtvMutedText>{semanticLayerText.value}</HelpKtvMutedText> : null}
+                  </HelpKtvValueStack>
+                )}
+              />
+            </HelpKtvRows>
           </section>
         )}
       </article>

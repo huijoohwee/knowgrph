@@ -2,16 +2,21 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import {
+  KeyTypeValueHeader,
+  KeyTypeValueSectionStack,
   KeyTypeValueRow,
+  KTV_STATUS_TEXT_CLASS_NAME,
   RightAlignedTooltipInput,
   RightAlignedValueCell,
+  shouldFlushKeyTypeValueSectionTop,
 } from '@/features/panels/ui/KeyTypeValueRow'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_SECTION_CHIP_CHROME_CLASS_NAME, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { getIconSizeClass } from '@/lib/ui'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { useP2PCollaborationStore } from '@/features/collaboration/p2pCollaborationStore'
-import { MainPanelTypeIcon, type MainPanelTypeIconKey } from '@/features/panels/ui/mainPanelTypeIcons'
+import { MainPanelTypeIcon, type MainPanelTypeIconKey } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 
 type SectionId = 'session' | 'invite' | 'answer' | 'peer'
 
@@ -131,34 +136,25 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
     }
   }, [pushUiToast])
 
-  const buttonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+  const buttonClassName = `${UI_SECTION_CHIP_CHROME_CLASS_NAME} ${UI_THEME_TOKENS.text.primary}`
   const activeButtonClassName = `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
   const rowValueClassName = 'flex flex-wrap items-center justify-start gap-1 sm:justify-end'
-  const noteClassName = `text-xs ${UI_THEME_TOKENS.text.secondary}`
-  const statusPillClassName = `inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
-  const secondaryPillClassName = `${statusPillClassName} ${UI_THEME_TOKENS.text.secondary}`
+  const noteClassName = KTV_STATUS_TEXT_CLASS_NAME
+  const statusButtonClassName = getUiSectionChipClassName('primary')
+  const secondaryStatusButtonClassName = getUiSectionChipClassName('secondary')
 
   const renderHeader = (
-    <header className={`sticky top-0 z-20 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
-      <div className="relative">
-        <KeyTypeValueRow
-          keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
-          typeNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</span>}
-          valueNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</span>}
-          density="compact"
-          className="h-9 py-0"
+    <KeyTypeValueHeader
+      actions={(
+        <ExpandCollapseAllButton
+          allCollapsed={allCollapsed}
+          onExpandAll={expandAll}
+          onCollapseAll={collapseAll}
+          titleExpand="Expand all sections"
+          titleCollapse="Collapse all sections"
         />
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center">
-          <ExpandCollapseAllButton
-            allCollapsed={allCollapsed}
-            onExpandAll={expandAll}
-            onCollapseAll={collapseAll}
-            titleExpand="Expand"
-            titleCollapse="Collapse (Default)"
-          />
-        </div>
-      </div>
-    </header>
+      )}
+    />
   )
 
   const sessionRows = [
@@ -185,21 +181,21 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         valueNode={(
           <RightAlignedValueCell>
             <div className={rowValueClassName}>
-              <span className={statusPillClassName}>
+              <span className={statusButtonClassName}>
                 {role === 'idle' ? 'Idle' : `${role} · ${phase}`}
               </span>
               {ownerPeerId ? (
-                <span className={secondaryPillClassName}>
+                <span className={secondaryStatusButtonClassName}>
                   owner {ownerPeerId.slice(0, 8)}
                 </span>
               ) : null}
               {localPeerId ? (
-                <span className={secondaryPillClassName}>
+                <span className={secondaryStatusButtonClassName}>
                   you {localPeerId.slice(0, 8)}
                 </span>
               ) : null}
               {sessionId ? (
-                <span className={secondaryPillClassName}>
+                <span className={secondaryStatusButtonClassName}>
                   {sessionId.slice(0, 12)}
                 </span>
               ) : null}
@@ -216,13 +212,13 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         valueNode={(
           <RightAlignedValueCell>
             <div className={rowValueClassName}>
-              <span className={statusPillClassName}>
+              <span className={statusButtonClassName}>
                 total {peers.length}
               </span>
-              <span className={secondaryPillClassName}>
+              <span className={secondaryStatusButtonClassName}>
                 remote {remotePeers.length}
               </span>
-              <span className={secondaryPillClassName}>
+              <span className={secondaryStatusButtonClassName}>
                 connected {connectedRemotePeers.length}
               </span>
             </div>
@@ -441,14 +437,14 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
           valueNode={(
             <RightAlignedValueCell>
               <div className={rowValueClassName}>
-                <span className={statusPillClassName}>
+                <span className={statusButtonClassName}>
                   {peer.isLocal ? 'You' : peer.ownership === 'owner' ? 'Owner' : 'Guest'}
                 </span>
-                <span className={secondaryPillClassName}>
+                <span className={secondaryStatusButtonClassName}>
                   {peer.connectionState}
                 </span>
                 {peer.documentKey ? (
-                  <span className={secondaryPillClassName}>
+                  <span className={secondaryStatusButtonClassName}>
                     {peer.documentKey}
                   </span>
                 ) : null}
@@ -525,13 +521,14 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
   return (
     <article className="min-h-full flex flex-col space-y-0">
       {renderHeader}
-      <section className="space-y-2 py-2">
-        {sectionDescriptors.map(section => (
+      <KeyTypeValueSectionStack>
+        {sectionDescriptors.map((section, index) => (
           <CollapsibleSection
             key={section.id}
             title={section.title}
             collapsed={normalizedQuery ? false : collapsedBySection[section.id]}
             onToggle={() => toggleSection(section.id)}
+            flushTop={shouldFlushKeyTypeValueSectionTop(index)}
           >
             <div className="space-y-0.5">
               {section.rows}
@@ -543,7 +540,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
             No collaboration rows match the current search query.
           </p>
         ) : null}
-      </section>
+      </KeyTypeValueSectionStack>
     </article>
   )
 }

@@ -6,16 +6,16 @@ import {
   type KnowgrphCollaborationSaveResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import {
-  applyKnowgrphYjsUpdateBase64,
-  applySourceTextToKnowgrphCollaborationYDoc,
-  canEditRawJsonForKnowgrphCollaboration,
-  createKnowgrphCollaborationYDoc,
-  encodeKnowgrphCollaborationYDocStateBase64,
-  encodeKnowgrphYjsUpdateBase64,
-  resolveKnowgrphCollaborationDocumentKind,
-  serializeKnowgrphCollaborationYDoc,
-  type KnowgrphCollaborationDocumentKind,
-} from '@/features/source-files/sourceFilesCollaborationYjs'
+  applySourceTextToCollaborationYDoc,
+  applyYjsUpdateBase64,
+  canEditRawJsonForCollaboration,
+  createCollaborationYDoc,
+  encodeCollaborationYDocStateBase64,
+  encodeYjsUpdateBase64,
+  resolveCollaborationDocumentKind,
+  serializeCollaborationYDoc,
+  type CollaborationDocumentKind,
+} from 'grph-shared/collaboration/yjsSnapshot'
 
 type PocketBaseRecord = Record<string, unknown> & { id?: string }
 
@@ -60,7 +60,7 @@ export type KnowgrphPocketBaseYjsRoomPeer = {
 export type KnowgrphPocketBaseYjsRoomSnapshot = {
   workspaceId: string
   documentKey: string
-  documentKind: KnowgrphCollaborationDocumentKind
+  documentKind: CollaborationDocumentKind
   activePeerCount: number
   serializedText: string
   yjsStateBase64: string
@@ -79,7 +79,7 @@ export type KnowgrphPocketBaseYjsRoomHandle = {
 export type KnowgrphPocketBaseYjsRoomOptions = {
   workspaceId: string
   documentKey: string
-  documentKind?: KnowgrphCollaborationDocumentKind | null
+  documentKind?: CollaborationDocumentKind | null
   initialText: string
   peerId: string
   displayName: string
@@ -176,7 +176,7 @@ const ensureCollaborationRoom = async (args: {
   client: PocketBaseLike
   workspaceId: string
   documentKey: string
-  documentKind: KnowgrphCollaborationDocumentKind
+  documentKind: CollaborationDocumentKind
   peerId: string
 }): Promise<PocketBaseRecord> => {
   const service = args.client.collection(COLLECTIONS.rooms)
@@ -222,7 +222,7 @@ export const createPocketBaseYjsSourceFileRoom = async (
   if (!workspaceId) throw new Error('workspaceId is required for PocketBase/Yjs collaboration')
   if (!documentKey) throw new Error('documentKey is required for PocketBase/Yjs collaboration')
   if (!peerId) throw new Error('peerId is required for PocketBase/Yjs collaboration')
-  const documentKind = options.documentKind || resolveKnowgrphCollaborationDocumentKind(documentKey)
+  const documentKind = options.documentKind || resolveCollaborationDocumentKind(documentKey)
   if (!documentKind) throw new Error('PocketBase/Yjs collaboration only supports Markdown and JSON source files')
   const pocketBaseUrl = normalizeString(options.pocketBaseUrl)
   const client = options.client || await loadPocketBaseClient(pocketBaseUrl)
@@ -236,14 +236,14 @@ export const createPocketBaseYjsSourceFileRoom = async (
   const roomId = normalizeString(room.id)
   if (!roomId) throw new Error('PocketBase collaboration room did not return an id')
 
-  const doc = createKnowgrphCollaborationYDoc({
+  const doc = createCollaborationYDoc({
     documentKey,
     documentKind,
     initialText: options.initialText,
   })
   const snapshotBase64 = readRecordString(room, 'yjsStateBase64')
   if (snapshotBase64) {
-    applyKnowgrphYjsUpdateBase64({ doc, updateBase64: snapshotBase64, origin: SNAPSHOT_ORIGIN })
+    applyYjsUpdateBase64({ doc, updateBase64: snapshotBase64, origin: SNAPSHOT_ORIGIN })
   }
 
   const roomService = client.collection(COLLECTIONS.rooms)
@@ -300,7 +300,7 @@ export const createPocketBaseYjsSourceFileRoom = async (
 
   const docUpdateHandler = (update: Uint8Array, origin: unknown) => {
     if (disconnected || origin === REMOTE_ORIGIN || origin === SNAPSHOT_ORIGIN) return
-    const updateBase64 = encodeKnowgrphYjsUpdateBase64(update)
+    const updateBase64 = encodeYjsUpdateBase64(update)
     void updateService.create({
       roomId,
       workspaceId,
@@ -320,8 +320,8 @@ export const createPocketBaseYjsSourceFileRoom = async (
     if (readRecordString(record, 'senderPeerId') === peerId) return
     const updateBase64 = readRecordString(record, 'updateBase64')
     if (!updateBase64) return
-    applyKnowgrphYjsUpdateBase64({ doc, updateBase64, origin: REMOTE_ORIGIN })
-    options.onRemoteText?.(serializeKnowgrphCollaborationYDoc({ doc, documentKind }))
+    applyYjsUpdateBase64({ doc, updateBase64, origin: REMOTE_ORIGIN })
+    options.onRemoteText?.(serializeCollaborationYDoc({ doc, documentKind }))
   })
 
   const unsubscribeAwareness = await awarenessService.subscribe('*', event => {
@@ -350,21 +350,21 @@ export const createPocketBaseYjsSourceFileRoom = async (
   })
 
   const readSnapshot = (): KnowgrphPocketBaseYjsRoomSnapshot => {
-    const serializedText = serializeKnowgrphCollaborationYDoc({ doc, documentKind })
+    const serializedText = serializeCollaborationYDoc({ doc, documentKind })
     return {
       workspaceId,
       documentKey,
       documentKind,
       activePeerCount,
       serializedText,
-      yjsStateBase64: encodeKnowgrphCollaborationYDocStateBase64(doc),
-      rawJsonEditable: canEditRawJsonForKnowgrphCollaboration({ documentKind, activePeerCount }),
+      yjsStateBase64: encodeCollaborationYDocStateBase64(doc),
+      rawJsonEditable: canEditRawJsonForCollaboration({ documentKind, activePeerCount }),
       roomId,
     }
   }
 
   return {
-    applyLocalText: text => applySourceTextToKnowgrphCollaborationYDoc({
+    applyLocalText: text => applySourceTextToCollaborationYDoc({
       doc,
       documentKind,
       text,
@@ -372,8 +372,17 @@ export const createPocketBaseYjsSourceFileRoom = async (
     }),
     updateLocalAwareness: patch => upsertLocalAwareness(patch),
     saveSnapshot: async args => {
+      const canFlushEditorText = documentKind !== 'json' || canEditRawJsonForCollaboration({ documentKind, activePeerCount })
+      if (typeof args?.text === 'string' && canFlushEditorText) {
+        applySourceTextToCollaborationYDoc({
+          doc,
+          documentKind,
+          text: args.text,
+          origin: LOCAL_ORIGIN,
+        })
+      }
       const snapshot = readSnapshot()
-      const serializedText = typeof args?.text === 'string' ? args.text : snapshot.serializedText
+      const serializedText = snapshot.serializedText
       const yjsStateBase64 = snapshot.yjsStateBase64
       await roomService.update(roomId, {
         yjsStateBase64,

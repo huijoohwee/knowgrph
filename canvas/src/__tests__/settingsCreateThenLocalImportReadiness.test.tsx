@@ -133,6 +133,7 @@ export async function testSettingsCreateThenLocalImportKeepsCommittedSurfaceTrut
     },
   })
 
+  let cleanupAssertionError: Error | null = null
   try {
     resetBrowserLocalSurfaceSnapshotsForTests()
     resetWorkspaceFsForTests()
@@ -290,7 +291,7 @@ export async function testSettingsCreateThenLocalImportKeepsCommittedSurfaceTrut
     }
     const clearedInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
     if (clearedInspection.available !== false) {
-      throw new Error(`expected FloatingPanel Chat pipeline snapshot cleanup after chat unmount, got ${JSON.stringify(clearedInspection)}`)
+      cleanupAssertionError = new Error(`expected FloatingPanel Chat pipeline snapshot cleanup after chat unmount, got ${JSON.stringify(clearedInspection)}`)
     }
     if (settingsRoot) {
       await unmountReactRoot(settingsRoot, { window: dom.window as unknown as Window })
@@ -302,4 +303,5 @@ export async function testSettingsCreateThenLocalImportKeepsCommittedSurfaceTrut
     restoreDom()
     restoreWindow()
   }
+  if (cleanupAssertionError) throw cleanupAssertionError
 }

@@ -40,24 +40,24 @@ export class FakeKnowgrphStorageD1Database {
   agenticCommerceTraceEvents = new Map<string, FakeRow>()
 
   prepare(sql: string) {
-    const db = this
     let boundValues: unknown[] = []
-    return {
+    const statement = {
       bind(...values: unknown[]) {
         boundValues = values
-        return this
+        return statement
       },
-      async run() {
-        db.applyMutation(sql, boundValues)
+      run: async () => {
+        this.applyMutation(sql, boundValues)
         return { success: true }
       },
-      async all<T = FakeRow>() {
-        return { results: db.readRows(sql, boundValues) as T[] }
+      all: async <T = FakeRow>() => {
+        return { results: this.readRows(sql, boundValues) as T[] }
       },
-      async raw<T = unknown[]>() {
-        return db.readRawRows(sql, boundValues) as T[]
+      raw: async <T = unknown[]>() => {
+        return this.readRawRows(sql, boundValues) as T[]
       },
     }
+    return statement
   }
 
   private applyMutation(sql: string, values: unknown[]) {

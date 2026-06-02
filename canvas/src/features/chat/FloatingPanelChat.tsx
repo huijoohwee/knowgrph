@@ -44,6 +44,10 @@ import {
   clearLocalChatPipelineSurfaceSnapshot,
   publishLocalChatPipelineSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import {
+  KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
+  KTV_STATUS_TEXT_SIZE_CLASS_NAME,
+} from '@/features/panels/ui/KeyTypeValueRow'
 
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -51,8 +55,8 @@ export default function FloatingPanelChat() {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const markdownText = useGraphStore(s => s.markdownDocumentText || null)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
-  const uiPanelMicroLabelTextSizeClass = useGraphStore(s => s.uiPanelMicroLabelTextSizeClass || 'text-xs')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME)
+  const uiPanelMicroLabelTextSizeClass = useGraphStore(s => s.uiPanelMicroLabelTextSizeClass || KTV_STATUS_TEXT_SIZE_CLASS_NAME)
 
   const chatProvider = useGraphStore(s => s.chatProvider)
   const chatAuthMode = useGraphStore(s => (s.chatAuthMode === 'byok' ? 'byok' : 'serverManaged'))

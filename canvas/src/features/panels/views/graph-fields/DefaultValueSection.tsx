@@ -4,10 +4,15 @@ import type { JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import type { GraphFieldDateTimeFormat, GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
+  KTV_STATUS_TEXT_SIZE_CLASS_NAME,
+} from '@/features/panels/ui/KeyTypeValueRow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 export function DefaultValueSection({
   selectedSettings,
@@ -25,18 +30,18 @@ export function DefaultValueSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
-  const neutralToolbarButtonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
-  const selectedToolbarButtonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.primarySolid}`
+  const neutralToolbarButtonClassName = `App-toolbar__btn ${KTV_STATUS_TEXT_SIZE_CLASS_NAME} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
+  const selectedToolbarButtonClassName = `App-toolbar__btn ${KTV_STATUS_TEXT_SIZE_CLASS_NAME} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.primarySolid}`
   const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
-  const inputClassName = `h-8 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const inputClassName = `h-8 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
 
   React.useEffect(() => {
     setLongTextDefaultExpanded(false)

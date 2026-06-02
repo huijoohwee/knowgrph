@@ -7,6 +7,7 @@ import { lsRemove } from '@/lib/persistence'
 import { readWorkspaceDocsMirrorRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { uiToolbarRowScrollClassName, uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
@@ -66,7 +67,7 @@ const readBooleanValue = (
 
 function SourceFileValuePill({ children }: { children: React.ReactNode }) {
   return (
-    <span className={`inline-flex min-h-6 min-w-0 max-w-full items-center overflow-hidden rounded-full border px-2 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+    <span className={getUiSectionChipClassName('secondary')}>
       <span className={UI_TEXT_TRUNCATE}>{children}</span>
     </span>
   )
@@ -85,7 +86,7 @@ function SourceFileSettingsActionButton({
 }) {
   const className = primary
     ? `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
-    : `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+    : getUiSectionActionClassName('primary')
   return (
     <button type="button" className={className} disabled={disabled} onClick={onClick}>
       <span className={UI_TEXT_TRUNCATE}>{children}</span>

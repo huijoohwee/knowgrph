@@ -112,6 +112,7 @@ export async function testSettingsCreateFilesBlankRootFallsBackToDefaultLocalRoo
   const actionsRef: { current: RegisteredSettingsActions | null } = { current: null }
   const originalDateNow = Date.now
 
+  let cleanupAssertionError: Error | null = null
   try {
     resetBrowserLocalSurfaceSnapshotsForTests()
     resetWorkspaceFsForTests()
@@ -273,7 +274,7 @@ export async function testSettingsCreateFilesBlankRootFallsBackToDefaultLocalRoo
     }
     const clearedChatInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
     if (clearedChatInspection.available !== false) {
-      throw new Error(`expected FloatingPanel Chat pipeline snapshot cleanup after chat unmount, got ${JSON.stringify(clearedChatInspection)}`)
+      cleanupAssertionError = new Error(`expected FloatingPanel Chat pipeline snapshot cleanup after chat unmount, got ${JSON.stringify(clearedChatInspection)}`)
     }
     if (settingsRoot) {
       await unmountReactRoot(settingsRoot, { window: dom.window as unknown as Window })
@@ -285,4 +286,5 @@ export async function testSettingsCreateFilesBlankRootFallsBackToDefaultLocalRoo
     restoreDom()
     restoreWindow()
   }
+  if (cleanupAssertionError) throw cleanupAssertionError
 }

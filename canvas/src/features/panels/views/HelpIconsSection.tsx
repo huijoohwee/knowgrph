@@ -1,5 +1,6 @@
 import React from 'react';
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import { HELP_STEP_COPY } from '@/features/panels/config';
 import {
@@ -7,25 +8,31 @@ import {
   GRAPH_FIELDS_ICON_LEGEND_TOOLTIP,
   GRAPH_FIELDS_GRAPH_DATA_TABLE_MAPPING_TOOLTIP,
   UI_COPY,
-  GRAPH_FIELDS_ICON_LEGEND_REUSE_TEXT,
 } from '@/lib/config';
-import { FieldOriginIcon, KindPill, ScopeIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFieldIcons';
+import {
+  loadMainPanelHelpIconTexts,
+  type MainPanelHelpIconText,
+} from '@/features/panels/mainPanelHelpIconTexts';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { getIconSizeClass } from '@/lib/ui';
 import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 import {
-  MAIN_PANEL_HELP_TYPE_ICON_KEYS,
-  MainPanelTypeIcon,
+  MAIN_PANEL_TYPE_ICON_KEYS,
   getMainPanelTypeIconMeta,
-} from '@/features/panels/ui/mainPanelTypeIcons';
+  type MainPanelTypeIconKey,
+} from '@/features/panels/ui/mainPanelHelpIconLibrary';
+import {
+  HelpKtvActionGroup,
+  HelpKtvMutedText,
+  HelpKtvRow,
+  HelpKtvRows,
+  HelpKtvValueStack,
+} from './HelpKtvLayout';
 
 interface IconRow {
-  category: string;
-  icon: React.ReactNode;
+  iconKey: MainPanelTypeIconKey;
   name: string;
-  agentic: string;
-  usage: string;
+  textKey: string;
 }
 
 interface HelpIconsSectionProps {
@@ -34,276 +41,61 @@ interface HelpIconsSectionProps {
   onOpenSettingsTab: () => void;
 }
 
+const EMPTY_HELP_ICON_TEXT: MainPanelHelpIconText = {
+  key: '',
+  type: '',
+  value: '',
+  details: [],
+};
+
 export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: HelpIconsSectionProps) {
-  const uiIconScale = useGraphStore(s => s.uiIconScale);
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth);
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   );
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   );
-  const iconSizeClass = getIconSizeClass(uiIconScale);
+  const [helpIconTextByKey, setHelpIconTextByKey] = React.useState<Record<string, MainPanelHelpIconText>>({});
+
+  React.useEffect(() => {
+    let alive = true;
+    loadMainPanelHelpIconTexts().then(rows => {
+      if (!alive) return;
+      setHelpIconTextByKey(rows);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const getHelpIconText = React.useCallback(
+    (key: string): MainPanelHelpIconText => helpIconTextByKey[key] || EMPTY_HELP_ICON_TEXT,
+    [helpIconTextByKey],
+  );
 
   const iconRows = React.useMemo<IconRow[]>(
-    () => {
-      const iconOnlyPillClass = 'inline-flex items-center justify-center';
-      const mainPanelTypeRows = MAIN_PANEL_HELP_TYPE_ICON_KEYS.map((iconKey): IconRow => {
-        const meta = getMainPanelTypeIconMeta(iconKey);
-        return {
-          category: meta.category,
-          icon: (
-            <span className={iconOnlyPillClass}>
-              <MainPanelTypeIcon
-                iconKey={iconKey}
-                className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
-                strokeWidth={uiIconStrokeWidth}
-              />
-            </span>
-          ),
-          name: meta.label,
-          agentic: meta.agentic,
-          usage: meta.usage,
-        };
-      });
-      return [
-        ...mainPanelTypeRows,
-        {
-          category: 'Scope',
-          icon: <ScopeIcon scope="node" className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} strokeWidth={uiIconStrokeWidth} />,
-          name: 'Node field',
-          agentic: 'Node-level property',
-          usage: 'Field attached to nodes; use for node attributes such as title or type.',
-        },
-        {
-          category: 'Scope',
-          icon: <ScopeIcon scope="edge" className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} strokeWidth={uiIconStrokeWidth} />,
-          name: 'Edge field',
-          agentic: 'Edge-level property',
-          usage: 'Field attached to edges; use for relationship attributes such as weight or labels.',
-        },
-        {
-          category: 'Origin',
-          icon: (
-            <FieldOriginIcon
-              isCustom
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              strokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Custom field',
-          agentic: 'User-defined property',
-          usage: 'Schema-defined field created by the user; stored alongside node or edge properties.',
-        },
-        {
-          category: 'Origin',
-          icon: (
-            <FieldOriginIcon
-              isCustom={false}
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              strokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Derived field',
-          agentic: 'Computed metadata',
-          usage: 'Field computed from graph data; treated as derived metadata for nodes or edges.',
-        },
-        {
-          category: 'Visibility',
-          icon: (
-            <VisibilityIcon
-              hidden={false}
-              iconClassName={iconSizeClass}
-              strokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Show in Graph Data Table',
-          agentic: 'Visible column',
-          usage: 'Field is visible as a column in the Graph Data Table view.',
-        },
-        {
-          category: 'Visibility',
-          icon: (
-            <VisibilityIcon
-              hidden
-              iconClassName={iconSizeClass}
-              strokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Hide in Graph Data Table',
-          agentic: 'Hidden column',
-          usage: 'Field remains available but is hidden from the Graph Data Table view.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="string"
-              label="Single line text"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Single line text',
-          agentic: 'Short string property',
-          usage: 'Short, single-line text values such as titles, names, or labels.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="string"
-              label="Long text"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Long text',
-          agentic: 'Long string property',
-          usage: 'Longer freeform text such as descriptions, notes, or documents.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="number"
-              label="Number"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Number',
-          agentic: 'Numeric scalar',
-          usage: 'Whole-number numeric values such as counts or discrete scores.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="number"
-              label="Decimal"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Decimal',
-          agentic: 'Numeric scalar (decimal)',
-          usage: 'Numeric values with decimals such as probabilities or ratios.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="boolean"
-              label="Checkbox"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Checkbox',
-          agentic: 'Boolean flag',
-          usage: 'True/false flags representing toggles, switches, or binary states.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="string"
-              label="Multi-select"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Multi-select',
-          agentic: 'List of categorical values',
-          usage: 'Array of selected options such as tags or multi-label categories.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="string"
-              label="Single-select"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Single-select',
-          agentic: 'Categorical value',
-          usage: 'Single selected option from a fixed set such as status or type.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="string"
-              label="Date Time"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Date Time',
-          agentic: 'Temporal value',
-          usage: 'Timestamp or date-time string used for temporal reasoning or filtering.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="string"
-              label="URL"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'URL',
-          agentic: 'URI string',
-          usage: 'Link or URL string pointing to external resources or documents.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="number"
-              label="Currency"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'Currency',
-          agentic: 'Monetary numeric',
-          usage: 'Numeric values representing currency amounts such as prices or balances.',
-        },
-        {
-          category: 'Field type',
-          icon: (
-            <KindPill
-              kind="object"
-              label="JSON"
-              className={iconOnlyPillClass}
-              iconClassName={iconSizeClass}
-              iconStrokeWidth={uiIconStrokeWidth}
-            />
-          ),
-          name: 'JSON',
-          agentic: 'Structured JSON payload',
-          usage: 'Structured JSON objects used for nested metadata or model outputs.',
-        },
-      ];
+    () => MAIN_PANEL_TYPE_ICON_KEYS.map((iconKey): IconRow => {
+      const meta = getMainPanelTypeIconMeta(iconKey);
+      return {
+        iconKey,
+        name: meta.label,
+        textKey: iconKey,
+      };
+    }),
+    [],
+  );
+
+  const renderHelpIconValue = React.useCallback(
+    (textKey: string, beforeNode?: React.ReactNode): React.ReactNode => {
+      const text = getHelpIconText(textKey);
+      return (
+        <HelpKtvValueStack>
+          {beforeNode}
+          {text.value ? <HelpKtvMutedText>{text.value}</HelpKtvMutedText> : null}
+        </HelpKtvValueStack>
+      );
     },
-    [iconSizeClass, uiIconStrokeWidth],
+    [getHelpIconText],
   );
 
   return (
@@ -319,69 +111,63 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             {HELP_STEP_COPY.icons.descriptionShort}
           </div>
         )}
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2 flex items-center gap-1`}>
-          <Tooltip
-            content={GRAPH_FIELDS_ICON_LEGEND_TOOLTIP}
-            maxWidthPx={260}
-
-          >
-            <div>
-              {UI_COPY.graphFieldsIconLegendHeaderLabel}
-            </div>
-          </Tooltip>
-        </div>
-        <div className="mb-2 flex flex-wrap gap-2 items-center">
-          <button
-            type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${uiToolbarButtonMutedClassName}`}
-            onClick={onOpenSettingsTab}
-            data-kg-anchor={UI_ANCHORS.settingsUiIconScale}
-          >
-            {UI_COPY.openSettingsUiDensityIconsButton}
-          </button>
-          <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
-            Icons in toolbars, headers, and this legend follow the
-            {' '}
-            <span className="font-semibold">UI Density: Icons</span>
-            {' '}
-            setting in Panel Settings (compact vs default).
-          </div>
-        </div>
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} mb-2 ${UI_THEME_TOKENS.text.tertiary}`}>
-          {GRAPH_FIELDS_ICON_LEGEND_REUSE_TEXT}
-        </div>
-        <div className={`mb-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1 ${UI_THEME_TOKENS.button.neutralSubtle} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`}>
-          <div className="font-semibold mb-0.5">
-            Graph Data Table mapping
-          </div>
-          <div>{GRAPH_FIELDS_GRAPH_DATA_TABLE_MAPPING_TOOLTIP}</div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className={`min-w-full text-xs ${UI_THEME_TOKENS.text.primary} border ${UI_THEME_TOKENS.table.cellBorder} rounded-sm`}>
-            <thead className={UI_THEME_TOKENS.table.headerBg}>
-              <tr>
-                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Category</th>
-                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Icon</th>
-                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Name</th>
-                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>AgenticRAG alignment</th>
-                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Usage notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {iconRows.map(row => (
-                <tr key={`${row.category}-${row.name}`} className={`border-t ${UI_THEME_TOKENS.table.cellBorder}`}>
-                  <td className="px-2 py-1 align-top whitespace-nowrap">{row.category}</td>
-                  <td className="px-2 py-1 align-top">
-                    <span className="inline-flex items-center justify-center">{row.icon}</span>
-                  </td>
-                  <td className="px-2 py-1 align-top whitespace-nowrap">{row.name}</td>
-                  <td className="px-2 py-1 align-top">{row.agentic}</td>
-                  <td className="px-2 py-1 align-top">{row.usage}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <HelpKtvRows className="mb-2">
+          <HelpKtvRow
+            keyNode={(
+              <Tooltip
+                content={GRAPH_FIELDS_ICON_LEGEND_TOOLTIP}
+                maxWidthPx={260}
+              >
+                <span>Icon Legend</span>
+              </Tooltip>
+            )}
+            iconKey="mainPanel.help"
+            valueNode={renderHelpIconValue('iconLegend.header')}
+          />
+          <HelpKtvRow
+            keyNode="Icon Density"
+            iconKey="mainPanel.settings"
+            dataKgAnchor={UI_ANCHORS.settingsUiIconScale}
+            valueNode={renderHelpIconValue('iconDensity.settings', (
+              <HelpKtvActionGroup>
+                <button
+                  type="button"
+                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${uiToolbarButtonMutedClassName}`}
+                  onClick={onOpenSettingsTab}
+                >
+                  {UI_COPY.openSettingsUiDensityIconsButton}
+                </button>
+              </HelpKtvActionGroup>
+            ))}
+          />
+          <HelpKtvRow
+            keyNode="Reuse Contract"
+            iconKey="ktv.type.static"
+            valueNode={renderHelpIconValue('reuse.contract')}
+          />
+          <HelpKtvRow
+            keyNode={(
+              <Tooltip
+                content={GRAPH_FIELDS_GRAPH_DATA_TABLE_MAPPING_TOOLTIP}
+                maxWidthPx={260}
+              >
+                <span>Graph Data Table</span>
+              </Tooltip>
+            )}
+            iconKey="mainPanel.workflowManager"
+            valueNode={renderHelpIconValue('graphDataTable.mapping')}
+          />
+        </HelpKtvRows>
+        <HelpKtvRows>
+          {iconRows.map(row => (
+            <HelpKtvRow
+              key={row.textKey}
+              keyNode={row.name}
+              iconKey={row.iconKey}
+              valueNode={renderHelpIconValue(row.textKey)}
+            />
+          ))}
+        </HelpKtvRows>
       </CollapsibleSection>
     </div>
   );

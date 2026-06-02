@@ -2,6 +2,7 @@ import React, { useCallback, useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { KTV_HEADER_LABEL_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface CollapsibleSubsectionProps {
@@ -63,7 +64,7 @@ export default function CollapsibleSubsection({ title, defaultCollapsed = true, 
         onClick={() => setCollapsed(!isCollapsed)}
         onKeyDown={handleKeyDown}
       >
-        <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>{title}</div>
+        <div className={KTV_HEADER_LABEL_CLASS_NAME}>{title}</div>
         <ChevronDown
           className={clsx(`h-3.5 w-3.5 ${UI_THEME_TOKENS.text.secondary} transition-transform`, !isCollapsed && 'rotate-180')}
           aria-hidden="true"

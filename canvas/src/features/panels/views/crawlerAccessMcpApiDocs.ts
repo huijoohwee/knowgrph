@@ -161,7 +161,7 @@ const CRAWLER_ACCESS_MCP_DOC_ROWS: ReadonlyArray<CrawlerAccessMcpDocRow> = [
   {
     key: 'policy.pay_per_crawl_boundary',
     typeLabel: 'policy',
-    value: 'Cloudflare zone policy owns Pay Per Crawl negotiation; the Worker does not emulate payment headers, prices, or crawler identity.',
+    value: 'cloudflare_zone_policy',
     responsibility: 'Payment boundary for crawler access routes.',
     notes: `Reference: ${CLOUDFLARE_PAY_PER_CRAWL_DOC_URL}`,
     searchHints: ['Cloudflare AI Crawl Control', 'Pay Per Crawl', CLOUDFLARE_PAY_PER_CRAWL_DOC_URL],
@@ -169,14 +169,14 @@ const CRAWLER_ACCESS_MCP_DOC_ROWS: ReadonlyArray<CrawlerAccessMcpDocRow> = [
   {
     key: 'guard.read_only_source_files',
     typeLabel: 'guard',
-    value: 'Crawler routes expose read-only Source Files by reading existing D1 document rows and doc-view URLs only; they do not upload, import, parse, render, or write Source Files.',
+    value: 'read_only_d1_doc_view',
     responsibility: 'Read-only guard aligned to knowgrph-crawler-prd-tad.md.',
     searchHints: ['read-only Source Files', 'D1 documents', 'doc-view', 'no writes'],
   },
   {
     key: 'payment.handoff',
     typeLabel: 'handoff',
-    value: 'Crawler payment is Cloudflare Pay Per Crawl; app/customer commerce remains Stripe MCP plus MainPanel Commerce.',
+    value: 'cloudflare_pay_per_crawl',
     responsibility: 'Keeps crawler monetization and app checkout from conflicting while MainPanel MCP stays payment-ready.',
     searchHints: ['accept payment', 'Stripe MCP', 'MainPanel Commerce', 'Cloudflare Pay Per Crawl'],
   },

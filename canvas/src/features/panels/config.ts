@@ -1,7 +1,6 @@
 import {
   UI_LABELS,
   SCHEMA_SECTIONS,
-  PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION,
   type SchemaSectionId,
   AGENTIC_RAG_CONTEXT_AND_IGNORE_FILTERS_LABEL,
   ORCHESTRATOR_TRAVERSAL_TOOLTIP,
@@ -289,10 +288,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
   },
   panelTour: {
     id: 'panelTour',
-    title: 'Panel tour',
-    descriptionShort:
-      PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION,
-    descriptionLong: `The panel tour explains how the toolbar, main panel, floating panel, bottom surface, and workspace surfaces work together. Toolbar actions load data and toggle views, the main panel anchors Workflow Manager and Help (with Graph Fields inside Workflow Manager), the floating panel hosts Renderer and Graph Traversal (${getOrchestratorSectionListLabel()}), the bottom surface focuses quick Stats and History review, and the Graph Data Table plus Editor Workspace handle structured curation and text inspection so schema design, curation, and exports stay aligned.`,
+    title: 'MainPanel tabs',
   },
   workflowLinks: {
     id: 'workflowLinks',

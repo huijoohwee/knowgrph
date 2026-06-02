@@ -1,5 +1,10 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
+import {
+  KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
+  KTV_SECTION_TITLE_CLASS_NAME,
+  KTV_STATUS_TEXT_SIZE_CLASS_NAME,
+} from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildNodeMediaInventory, type NodeMediaInventoryRow } from '@/components/GraphCanvas/helpers'
@@ -27,10 +32,10 @@ export default function MediaNodesSection({
   const graph = useActiveGraphRenderData() as GraphData | null
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
   const uiPanelMicroLabelTextSizeClass = useGraphStore(
-    s => s.uiPanelMicroLabelTextSizeClass || 'text-xs',
+    s => s.uiPanelMicroLabelTextSizeClass || KTV_STATUS_TEXT_SIZE_CLASS_NAME,
   )
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
@@ -84,7 +89,7 @@ export default function MediaNodesSection({
             {copy.badge}
           </span>
         )}
-        <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>
+        <span className={KTV_SECTION_TITLE_CLASS_NAME}>
           {copy.title}
         </span>
       </span>
@@ -179,7 +184,7 @@ export default function MediaNodesSection({
                   type="button"
                   onClick={() => setRenderMediaAsNodes(false)}
                   className={[
-                    'px-2 py-1 text-[11px]',
+                    `px-2 py-1 ${uiPanelMicroLabelTextSizeClass}`,
                     uiPanelTextFontClass,
                     richMediaDisplayMode === 'panel-only'
                       ? `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -192,7 +197,7 @@ export default function MediaNodesSection({
                   type="button"
                   onClick={() => setRenderMediaAsNodes(true)}
                   className={[
-                    `px-2 py-1 text-[11px] border-l ${UI_THEME_TOKENS.input.border}`,
+                    `px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.input.border}`,
                     uiPanelTextFontClass,
                     richMediaDisplayMode === 'panel-only'
                       ? UI_THEME_TOKENS.button.primarySolid
@@ -298,7 +303,7 @@ export default function MediaNodesSection({
                       <td className="px-2 py-1 truncate" title={label}>{renderMarkdownSigilInlineText(row.label)}</td>
                       <td className="px-2 py-1">
                         <span className="inline-flex items-center gap-1">
-                          <span className={`uppercase tracking-wide text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
+                          <span className={`uppercase tracking-wide ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                             {row.media.kind}
                           </span>
                           <span className={`inline-flex h-2 w-2 rounded-full ${UI_THEME_TOKENS.status.neutralDot}`} />

@@ -8,6 +8,7 @@ import {
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   resolveComposedApplyDeferralReason,
@@ -190,8 +191,7 @@ function applyComposedSourceImportModes(
 }
 
 function requestWorkspaceOpenFlowEditorFit(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
-  const kind = String(((graphData?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
-  if (kind !== 'frontmatter-flow') return
+  if (!isFrontmatterFlowGraph(graphData)) return
   const st = useGraphStore.getState()
   if (!isWorkspaceEditorOverlayOpen(st)) return
   if (st.canvasRenderMode !== '2d' || st.canvas2dRenderer !== 'flowEditor') return

@@ -163,7 +163,7 @@ const STRIPE_MCP_DOC_ROWS: ReadonlyArray<StripeMcpDocRow> = [
   {
     key: 'restricted_key_scope',
     typeLabel: 'security note',
-    value: 'Use restricted API key permissions only for required customer, product, price, payment link, invoice, refund, and read-only payment-intent operations.',
+    value: 'least_privilege_restricted_key',
     responsibility: 'Permission boundary for bearer-token or local Stripe MCP usage.',
     notes: 'OAuth is preferred for user authorization; restricted keys are for agentic/server-side flows when OAuth is unavailable.',
     searchHints: ['restricted api key', 'least privilege', 'payment link', 'price', 'product'],
@@ -171,7 +171,7 @@ const STRIPE_MCP_DOC_ROWS: ReadonlyArray<StripeMcpDocRow> = [
   {
     key: 'accept_payment_ready',
     typeLabel: 'readiness',
-    value: 'MainPanel MCP is ready to accept payment through Stripe MCP: remote OAuth first, restricted-key local/server fallback, human confirmation, and MainPanel Commerce checkout handoff.',
+    value: 'ready',
     responsibility: 'Payment readiness signal for agent workflows that need Stripe without browser-stored secrets.',
     notes: 'Crawler Pay Per Crawl remains Cloudflare-owned; app and customer checkout readiness stays with Stripe MCP plus MainPanel Commerce.',
     searchHints: ['accept payment', 'payment ready', 'MainPanel Commerce', 'checkout handoff', 'crawler payment boundary'],

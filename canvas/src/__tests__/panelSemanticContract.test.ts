@@ -433,16 +433,25 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
 export const testKeyValueRowsKeepMobileGridConsistency = () => {
   const root = process.cwd()
   const filePath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'KeyTypeValueRow.tsx')
+  const sharedKtvRowsPath = path.resolve(root, '..', 'grph-shared', 'src', 'ui', 'keyTypeValueRows.ts')
   const statusBadgePath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'StatusBadge.tsx')
   const text = readUtf8(filePath)
+  const sharedKtvRows = readUtf8(sharedKtvRowsPath)
   const statusBadge = readUtf8(statusBadgePath)
   if (text.includes('grid-cols-1 sm:grid-cols-')) {
     throw new Error('Expected KeyTypeValueRow layouts to preserve KTV grid columns on narrow widths')
   }
-  if (!text.includes('grid-cols-[minmax(0,0.92fr)_minmax(3.75rem,0.62fr)_minmax(0,1fr)]')) {
-    throw new Error('Expected default Key/Type/Value rows to keep a mobile KTV grid')
+  if (
+    !text.includes('KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME')
+    || !sharedKtvRows.includes('grid-cols-[minmax(0,0.95fr)_minmax(2.75rem,0.42fr)_minmax(0,1.2fr)]')
+    || !sharedKtvRows.includes('sm:grid-cols-[minmax(0,1fr)_minmax(3rem,4.75rem)_minmax(0,1.45fr)]')
+  ) {
+    throw new Error('Expected default Key/Type/Value rows to keep the shared KTV grid with a wider bounded Value column')
   }
-  if (!text.includes('grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]')) {
+  if (
+    !text.includes('KTV_KEY_VALUE_GRID_CLASS_NAME')
+    || !sharedKtvRows.includes('grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]')
+  ) {
     throw new Error('Expected simple Key/Value rows to keep a mobile two-column grid')
   }
   if (!text.includes('flex min-w-0 items-center justify-center')) {
@@ -451,10 +460,21 @@ export const testKeyValueRowsKeepMobileGridConsistency = () => {
   if (!text.includes('justify-start sm:justify-end')) {
     throw new Error('Expected right-aligned value cells to relax to start alignment on narrow widths')
   }
-  if (!text.includes('rowTextCellClassName') || !text.includes('overflow-hidden')) {
+  if (
+    !text.includes('KTV_ROW_TEXT_CELL_CLASS_NAME')
+    || !sharedKtvRows.includes('export const KTV_ROW_TEXT_CELL_CLASS_NAME')
+    || !sharedKtvRows.includes('overflow-hidden')
+  ) {
     throw new Error('Expected KeyTypeValueRow cells to clip instead of allowing messy mobile overflow')
   }
-  if (!text.includes('rowLabelCellClassName') || !text.includes('text-ellipsis whitespace-nowrap')) {
+  if (!sharedKtvRows.includes('self-stretch px-2') || sharedKtvRows.includes('border-x ${UI_THEME_TOKENS.panel.border}')) {
+    throw new Error('Expected KTV Value cells to keep shared left/right alignment without grid border lines')
+  }
+  if (
+    !text.includes('KTV_ROW_LABEL_CELL_CLASS_NAME')
+    || !sharedKtvRows.includes('export const KTV_ROW_LABEL_CELL_CLASS_NAME')
+    || !sharedKtvRows.includes('text-ellipsis whitespace-nowrap')
+  ) {
     throw new Error('Expected KeyTypeValueRow labels to use ellipsis on narrow widths')
   }
   if (text.includes('break-words')) {

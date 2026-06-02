@@ -44,6 +44,10 @@ import {
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeSeedPositions'
 import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import {
+  resolveEffectiveFlowWidgetPinnedInCanvas,
+  shouldUseFlowEditorWidgetFloatingScreenAuthority,
+} from '@/lib/flowEditor/widgetPlacementAuthority'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
@@ -464,6 +468,32 @@ export function useFlowEditorRuntimeScene(args: {
       })
       const boundsIds = bounds?.ids || []
       if (!bounds || boundsIds.length <= 1) return true
+      const st = useGraphStore.getState()
+      const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
+      const graphRevisionForSeeding = readGraphDataRevision(graphDataForSeeding)
+      const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
+      const widgetPlacementContext = getCachedFlowEditorWidgetPlacementContext({
+        graphData: graphDataForSeeding,
+        graphRevision: graphRevisionForSeeding,
+        openWidgetNodeIds: args.openWidgetNodeIds,
+        preferCurrentGraphDataRefs: true,
+      })
+      const graphMetaKind = widgetPlacementContext?.graphMetaKind || null
+      const defaultPinnedInCanvas = widgetPlacementContext?.defaultPinnedInCanvas ?? true
+      const pinnedById = resolveScopedFlowWidgetNodeMap({
+        graphMetaKey: graphKey,
+        keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, FlowWidgetPinnedById> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+        globalByNodeId: st.flowWidgetPinnedByNodeId,
+      })
+      const skipDomCollectiveRecoveryForFrontmatterScreenAuthority =
+        graphMetaKind === 'frontmatter-flow'
+        && boundsIds.every(rawId => {
+          const id = String(rawId || '').trim()
+          if (!id) return false
+          const pinned = typeof pinnedById[id] === 'boolean' ? pinnedById[id]! : defaultPinnedInCanvas
+          return shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas: pinned })
+        })
+      if (skipDomCollectiveRecoveryForFrontmatterScreenAuthority) return true
       const visibleViewport = getVisibleViewport()
       const visibleViewportCenterX = visibleViewport.left + visibleViewport.width / 2
       const visibleViewportCenterY = visibleViewport.top + visibleViewport.height / 2
@@ -516,9 +546,6 @@ export function useFlowEditorRuntimeScene(args: {
         ...domCollectiveRecoveryAttemptByScopeRef.current,
         [scopeKey]: attempts + 1,
       }
-      const st = useGraphStore.getState()
-      const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
-      const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
       const currentWorld = resolveScopedFlowWidgetNodeMap({
         graphMetaKey: graphKey,
         keyedByGraphMetaKey: (st as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, FlowWidgetWorldPosById> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
@@ -758,10 +785,7 @@ export function useFlowEditorRuntimeScene(args: {
       ...pinnedById,
       ...activeSurfaceOverlayPinnedById,
     }
-    const resolvePlacementPinnedInCanvas = (id: string): boolean => {
-      const v = placementPinnedById[id]
-      return typeof v === 'boolean' ? v : defaultPinnedInCanvas
-    }
+    const resolvePlacementPinnedInCanvas = (id: string): boolean => resolveEffectiveFlowWidgetPinnedInCanvas({ graphMetaKind, node: { id, type: nodeTypeById.get(id) || '' }, pinnedValue: typeof placementPinnedById[id] === 'boolean' ? placementPinnedById[id] : null })
     const effectiveOrFallbackOpenIds = effectiveOpenIds.length > 0
       ? Array.from(new Set([
           ...effectiveOpenIds.map(id => String(id || '').trim()).filter(Boolean),
@@ -781,11 +805,11 @@ export function useFlowEditorRuntimeScene(args: {
     if (effectiveOrFallbackOpenIds.length === 0) return
     const activeSurfaceOverlayWidgetIdSet = new Set(activeSurfaceOverlayWidgetIds)
     const runtimeSceneNodeCount = (() => {
-      const runtime = flowRuntimeRefRef.current?.current
-      const nodes = runtime?.scene?.nodes
+      const nodes = flowRuntimeRefRef.current?.current?.scene?.nodes
       return Array.isArray(nodes) ? nodes.length : 0
     })()
-    const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow'
+    const partitionedFrontmatterRuntimeScene = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow' && graphNodes.length > 0
+    const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow' && !partitionedFrontmatterRuntimeScene
 
     const pendingRaw = effectiveOrFallbackOpenIds
       .map(id => String(id || '').trim())
@@ -842,7 +866,7 @@ export function useFlowEditorRuntimeScene(args: {
         || (isFrontmatterFlow && workspaceMutationBlockedForSeed)
       )
     const shouldUseNeutralSeedZoom =
-      (runtimeSceneNodeCount <= 0 && !persistedHasViewportOffset)
+      (runtimeSceneNodeCount <= 0 && !partitionedFrontmatterRuntimeScene && !persistedHasViewportOffset)
       || shouldUseNeutralSeedZoomForFrontmatterInit
     const allowPersistedViewportOffsetSeed =
       !workspaceMutationBlockedForSeed

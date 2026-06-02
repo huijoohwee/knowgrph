@@ -827,6 +827,20 @@ const readExistingMirrorText = async (absolutePath: string): Promise<string | nu
   return readTextViaNodeFs(absolutePath)
 }
 
+const normalizeMirrorTextForNoopComparison = (value: string): string =>
+  String(value ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n$/, '')
+
+const shouldSkipEquivalentMirrorWrite = async (args: {
+  absolutePath: string
+  text: string
+}): Promise<boolean> => {
+  const existing = await readExistingMirrorText(args.absolutePath)
+  if (existing == null) return false
+  const next = String(args.text ?? '')
+  if (existing === next) return true
+  return normalizeMirrorTextForNoopComparison(existing) === normalizeMirrorTextForNoopComparison(next)
+}
+
 const shouldBlockBlankMirrorOverwrite = async (args: {
   absolutePath: string
   text: string
@@ -836,6 +850,31 @@ const shouldBlockBlankMirrorOverwrite = async (args: {
   if (String(args.text || '').trim()) return false
   const existing = await readExistingMirrorText(args.absolutePath)
   return !!String(existing || '').trim()
+}
+
+const shouldBlockDuplicateMirrorDocumentOverwrite = async (args: {
+  workspacePath: string
+  text: string
+  allowCrossDocumentOverwrite?: boolean
+}): Promise<boolean> => {
+  if (args.allowCrossDocumentOverwrite === true) return false
+  const nextText = String(args.text || '').trim()
+  if (!nextText) return false
+  const targetRelPath = normalizeMirrorRelPath(String(args.workspacePath || '').replace(/^\/?docs\/?/, ''))
+  if (!targetRelPath) return false
+  try {
+    const entries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i]
+      if (!entry) continue
+      const relPath = normalizeMirrorRelPath(String(entry.relPath || ''))
+      if (!relPath || relPath === targetRelPath) continue
+      if (String(entry.text || '').trim() === nextText) return true
+    }
+  } catch {
+    return false
+  }
+  return false
 }
 
 const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolean> => {
@@ -1296,6 +1335,7 @@ export async function upsertWorkspaceDocsMirrorText(args: {
   workspacePath: string
   text: string
   allowBlankText?: boolean
+  allowCrossDocumentOverwrite?: boolean
 }): Promise<boolean> {
   const absolutePath = resolveWorkspaceDocsMirrorAbsolutePath(args.workspacePath)
   if (!absolutePath) return false
@@ -1304,6 +1344,19 @@ export async function upsertWorkspaceDocsMirrorText(args: {
     absolutePath,
     text: nextText,
     allowBlankText: args.allowBlankText,
+  })) {
+    return false
+  }
+  if (await shouldSkipEquivalentMirrorWrite({
+    absolutePath,
+    text: nextText,
+  })) {
+    return false
+  }
+  if (await shouldBlockDuplicateMirrorDocumentOverwrite({
+    workspacePath: args.workspacePath,
+    text: nextText,
+    allowCrossDocumentOverwrite: args.allowCrossDocumentOverwrite,
   })) {
     return false
   }

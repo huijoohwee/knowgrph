@@ -14,6 +14,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import {
   beginFlowWidgetPointerDragSession,
   buildFlowWidgetDragPayload,
@@ -39,7 +40,7 @@ export default function WidgetPalette(args: {
   dragEnabled: boolean
 }) {
   const panelTypography = usePanelTypography()
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const entries = Array.isArray(args.entries) ? args.entries : []
   const dragEnabled = args.dragEnabled === true

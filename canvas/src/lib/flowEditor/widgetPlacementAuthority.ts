@@ -1,4 +1,6 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
@@ -40,8 +42,25 @@ export function resolveDefaultFlowWidgetPinnedInCanvas(args: {
   graphMetaKind?: string | null
   geospatialWidgetPanelMode?: boolean
 }): boolean {
+  const kind = String(args.graphMetaKind || '').trim()
   if (args.geospatialWidgetPanelMode === true) return false
+  if (kind === 'frontmatter-flow') return false
   return true
+}
+
+export function resolveEffectiveFlowWidgetPinnedInCanvas(args: {
+  graphMetaKind?: string | null
+  geospatialWidgetPanelMode?: boolean
+  node?: Pick<GraphNode, 'id' | 'type'> | null
+  pinnedValue?: boolean | null
+}): boolean {
+  const kind = String(args.graphMetaKind || '').trim()
+  if (kind === 'frontmatter-flow') return false
+  if (typeof args.pinnedValue === 'boolean') return args.pinnedValue
+  return resolveDefaultFlowWidgetPinnedInCanvas({
+    graphMetaKind: args.graphMetaKind,
+    geospatialWidgetPanelMode: args.geospatialWidgetPanelMode,
+  })
 }
 
 export function shouldAutoPlaceFlowEditorWidget(args: {
@@ -84,7 +103,7 @@ export function shouldPreserveFrontmatterAutoManagedBalancedCollective(args: {
   pinnedByNodeId?: Record<string, boolean>
 }): boolean {
   const graphData = args.graphData
-  const kind = String((((graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
+  const kind = isFrontmatterFlowGraph(graphData) ? 'frontmatter-flow' : ''
   if (kind !== 'frontmatter-flow') return false
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
   const items: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
@@ -120,7 +139,7 @@ export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
   preserveStableSameSourceOverlayState?: boolean
 }): Record<string, { top: number; left: number }> {
   const graphData = args.graphData
-  const kind = String((((graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
+  const kind = isFrontmatterFlowGraph(graphData) ? 'frontmatter-flow' : ''
   if (kind !== 'frontmatter-flow') return args.posByNodeId
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
   if (
@@ -157,12 +176,41 @@ export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
   return changed ? next : args.posByNodeId
 }
 
+export function stripFrontmatterAutoManagedWidgetPinnedStates(args: {
+  graphData: GraphData | null | undefined
+  pinnedByNodeId: Record<string, boolean>
+}): Record<string, boolean> {
+  const graphData = args.graphData
+  const kind = isFrontmatterFlowGraph(graphData) ? 'frontmatter-flow' : ''
+  if (kind !== 'frontmatter-flow') return args.pinnedByNodeId
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const next = { ...(args.pinnedByNodeId || {}) }
+  let changed = false
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+    const id = String(node?.id || '').trim()
+    if (!id || next[id] !== true) continue
+    delete next[id]
+    changed = true
+  }
+  for (const [rawId, pinned] of Object.entries(args.pinnedByNodeId || {})) {
+    if (pinned !== true) continue
+    const node = resolveGraphNodeByCanonicalId(graphData, rawId)
+    if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+    if (!Object.prototype.hasOwnProperty.call(next, rawId)) continue
+    delete next[rawId]
+    changed = true
+  }
+  return changed ? next : args.pinnedByNodeId
+}
+
 export function stripFrontmatterAutoManagedWidgetWorldPositions(args: {
   graphData: GraphData | null | undefined
   worldPosByNodeId: Record<string, { x: number; y: number }>
 }): Record<string, { x: number; y: number }> {
   const graphData = args.graphData
-  const kind = String((((graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
+  const kind = isFrontmatterFlowGraph(graphData) ? 'frontmatter-flow' : ''
   if (kind !== 'frontmatter-flow') return args.worldPosByNodeId
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
   const next = { ...(args.worldPosByNodeId || {}) }
@@ -185,7 +233,7 @@ export function shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit(args: {
   preserveBalancedCollective?: boolean
 }): boolean {
   if (args.preserveBalancedCollective === true) return true
-  const kind = String((((args.graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
+  const kind = isFrontmatterFlowGraph(args.graphData) ? 'frontmatter-flow' : ''
   if (kind === 'frontmatter-flow') {
     return args.carryForwardSameSourceUiState === true && args.stableSameSourceNodeLayout === true
   }

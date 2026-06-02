@@ -3,6 +3,7 @@ import type { GraphData } from '@/lib/graph/types'
 import type { GraphField, GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { computeFieldValueFrequencies } from '@/features/panels/views/graph-fields/fieldSamples'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -30,7 +31,7 @@ export default function FieldSamplesPanel({
     [samples],
   )
   const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
+    s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
 
   const displayedSamples = samples
@@ -179,7 +180,7 @@ export default function FieldSamplesPanel({
                 </label>
                 <button
                   type="button"
-                  className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={onCopySelected}
                   disabled={selectedCount === 0}
                 >
@@ -187,7 +188,7 @@ export default function FieldSamplesPanel({
                 </button>
                 <button
                   type="button"
-                  className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={onClearSelection}
                   disabled={selectedCount === 0}
                 >

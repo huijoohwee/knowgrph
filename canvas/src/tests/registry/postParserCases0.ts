@@ -317,6 +317,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["viewport.flowEditor.overlay.wheelProxy","@/__tests__/flowCanvasWheelOverlayProxyRegression.test","testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay"],
   ["viewport.flowEditor.overlay.rootDataAttr","@/__tests__/flowEditorFlyoutOverlayRootDataAttrRegression.test","testFlowEditorFlyoutOverlayRootHasWidgetDataAttr"],
   ["viewport.flowEditor.overlay.defaultPinHelper","@/__tests__/flowEditorWidgetDefaultsPinnedToNodeRegression.test","testFlowEditorWidgetDefaultsUseSharedPinHelper"],
+  ["viewport.flowEditor.overlay.frontmatterDefaultFloating","@/__tests__/flowEditorWidgetDefaultsPinnedToNodeRegression.test","testFlowEditorFrontmatterWidgetsDefaultToFloatingScreenAuthority"],
   ["viewport.flowEditor.overlay.pinnedStateSubscribes","@/__tests__/flowEditorWidgetDefaultsPinnedToNodeRegression.test","testFlowEditorWidgetPinnedStateSubscribesToStoreUpdates"],
   ["viewport.flowEditor.overlay.autoRevealDoesNotForcePin","@/__tests__/flowEditorWidgetDefaultsPinnedToNodeRegression.test","testFlowEditorAutoRevealDoesNotForcePinFloatingWidgets"],
   ["viewport.flowEditor.fit.includesPinnedWidgets","@/__tests__/flowEditorFitPinnedWidgetsRegression.test","testFlowEditorFitIncludesPinnedWidgets"],
