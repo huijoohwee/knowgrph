@@ -443,46 +443,6 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
     }
   }
 
-  if (raw.v === 1) {
-    const migrated: WorkspaceDataViewViewV2 = {
-      ...DEFAULT_VIEW,
-      id: 'v0',
-      v: 2,
-      name: String(raw.name || '').trim() || DEFAULT_VIEW.name,
-      layout: normalizeWorkspaceDataViewLayout(raw.layout),
-      groupByColumnId: typeof raw.groupByColumnId === 'string' ? (raw.groupByColumnId.trim() || null) : null,
-      visibleColumnIds: Array.isArray(raw.visibleColumnIds)
-        ? raw.visibleColumnIds.map(String).map(s => s.trim()).filter(Boolean)
-        : null,
-      columnTypesById: isRecord(raw.columnTypesById)
-        ? (() => {
-            const out: Record<string, MarkdownDataViewColumnType> = {}
-            for (const [k, v] of Object.entries(raw.columnTypesById)) {
-              const colId = String(k || '').trim()
-              if (!colId) continue
-              const t = coerceMarkdownDataViewColumnType(v)
-              if (!t) continue
-              out[colId] = t
-            }
-            return Object.keys(out).length ? out : null
-          })()
-        : null,
-      filterGroups: Array.isArray(raw.filterGroups)
-        ? raw.filterGroups.map(coerceGroup).filter((x): x is WorkspaceDataViewFilterGroup => !!x)
-        : DEFAULT_VIEW.filterGroups,
-      sortRules: [],
-      graphEnabled: typeof raw.graphEnabled === 'boolean' ? raw.graphEnabled : undefined,
-      geospatialViewEnabled: typeof raw.geospatialViewEnabled === 'boolean' ? raw.geospatialViewEnabled : undefined,
-      graphRolesByColumnId: isRecord(raw.graphRolesByColumnId)
-        ? (() => {
-            const m = coerceGraphRolesByColumnId(raw.graphRolesByColumnId)
-            return Object.keys(m).length ? m : null
-          })()
-        : null,
-    }
-    return migrated
-  }
-
   return null
 }
 
@@ -497,10 +457,6 @@ function coerceWorkspaceDataViewState(raw: unknown, fallback: WorkspaceDataViewS
     }
   }
 
-  const maybeView = coerceWorkspaceDataViewConfig(raw)
-  if (maybeView) {
-    return { sv: 1, activeViewId: maybeView.id || 'v0', views: [maybeView] }
-  }
   return fallback
 }
 
@@ -557,6 +513,11 @@ export function buildWorkspaceDataViewScopeKey(args: { activeDocumentPath: strin
   const doc = String(args.activeDocumentPath || '').trim() || 'unknown-doc'
   const tid = String(args.tableId || '').trim() || 'unknown-table'
   return `mdDataView:${doc}::${tid}`
+}
+
+export function buildWorkspaceDataViewSourceTableId(rowCountRaw: number): string {
+  const rowCount = Number.isFinite(rowCountRaw) ? Math.max(0, Math.floor(rowCountRaw)) : 0
+  return `md-block:1-${Math.max(1, rowCount + 2)}`
 }
 
 export function readWorkspaceDataViewStateWithMeta(args: {

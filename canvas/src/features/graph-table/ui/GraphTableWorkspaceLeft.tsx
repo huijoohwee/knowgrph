@@ -18,14 +18,15 @@ import type {
   GraphTableFilterOperator,
   GraphTableSortDirection,
 } from '@/features/graph-table/ui/graphTableViewState'
-import type { GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
+import type { WorkspaceTableViewMode } from '@/features/workspace-table/workspaceEditorMode'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export function GraphTableWorkspaceLeft(props: {
   panelTypography: PanelTypography
   activeTableId: GraphTableId
   setActiveTableId: (next: GraphTableId) => void
-  viewMode: GraphTableViewMode
-  setViewMode: (next: GraphTableViewMode) => void
+  viewMode: WorkspaceTableViewMode
+  setViewMode: (next: WorkspaceTableViewMode) => void
   geospatialViewEnabled: boolean
   setGeospatialViewEnabled: (next: boolean) => void
   tableToGraphRenderingEnabled: boolean
@@ -96,7 +97,7 @@ export function GraphTableWorkspaceLeft(props: {
   }, [props.onDeleteSelected, props.selectedRow, props.setSelectedRowIds])
 
   return (
-    <section className={`kg-graph-table-workspace-left flex-1 min-h-0 min-w-0 max-w-full overflow-hidden flex flex-col ${UI_THEME_TOKENS.text.primary}`} aria-label="Graph Data Table">
+    <section className={`kg-graph-table-workspace-left flex-1 min-h-0 min-w-0 max-w-full overflow-hidden flex flex-col ${UI_THEME_TOKENS.text.primary}`} aria-label={MARKDOWN_DATA_VIEW_COPY.titleDefault}>
       <GraphTableWorkspaceHeader
         panelTypography={props.panelTypography}
         activeTableId={props.activeTableId}
@@ -137,8 +138,8 @@ export function GraphTableWorkspaceLeft(props: {
         onClose={props.onClose}
       />
 
-      <section className="kg-graph-table-body flex-1 min-h-0 min-w-0 max-w-full overflow-hidden flex" aria-label="Table workspace">
-        <section className="kg-graph-table-grid-inspector-shell flex-1 min-w-0 min-h-0 max-w-full overflow-hidden flex" aria-label="Table and inspector">
+      <section className="kg-graph-table-body flex-1 min-h-0 min-w-0 max-w-full overflow-hidden flex" aria-label={MARKDOWN_DATA_VIEW_COPY.workspaceAriaLabel}>
+        <section className="kg-graph-table-grid-inspector-shell flex-1 min-w-0 min-h-0 max-w-full overflow-hidden flex" aria-label={MARKDOWN_DATA_VIEW_COPY.workspaceInspectorAriaLabel}>
           {props.viewMode === 'kanban' ? (
             <GraphTableKanbanView
               tableId={props.activeTableId}

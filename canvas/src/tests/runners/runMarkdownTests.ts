@@ -63,7 +63,6 @@ const modGraphTableToolbarMenuPortal = () => import('@/__tests__/graphTableToolb
 const modOverlayZIndexOrdering = () => import('@/__tests__/overlayZIndexOrdering.test')
 const modGraphTableCloseExitsMultiDimMode = () => import('@/__tests__/graphTableCloseExitsMultiDimMode.test')
 const modEditorWorkspaceSelectExitsMultiDimMode = () => import('@/__tests__/editorWorkspaceSelectExitsMultiDimMode.test')
-const modEditorWorkspaceSelectEntersMultiDimMode = () => import('@/__tests__/editorWorkspaceSelectEntersMultiDimMode.test')
 const modGraphTableAutoSeedOnOpen = () => import('@/__tests__/graphTableAutoSeedOnOpen.test')
 const modWorkspaceResizerHandlersAttachAfterMount = () => import('@/__tests__/workspaceResizerHandlersAttachAfterMount.test')
 const modDocumentModeSelectMultiDimIsCanvasMode = () => import('@/__tests__/documentModeSelectMultiDimIsCanvasMode.test')
@@ -198,6 +197,14 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.dataView.inlineEdit.textCell.parityAndCommit', async () => {
     const mod = await modMarkdownDataViewInlineEditParity()
     await mod.testMarkdownDataViewInlineEditTextCellPreservesTdSurfaceAndCommits()
+  })
+  await execTest(results, 'markdown.dataView.inlineEdit.longTextCell.boundedPreview', async () => {
+    const mod = await modMarkdownDataViewInlineEditParity()
+    await mod.testMarkdownDataViewInlineEditLongTextCellsRenderBoundedPreviewAndEditFullValue()
+  })
+  await execTest(results, 'markdown.dataView.inlineEdit.largeTable.progressiveRows', async () => {
+    const mod = await modMarkdownDataViewInlineEditParity()
+    await mod.testMarkdownDataViewInlineEditLargeTablesRenderProgressiveRowWindow()
   })
   await execTest(results, 'markdown.dataViewSourceMap.rowIndexParsing', async () => {
     const mod = await modMarkdownDataViewSourceMap()
@@ -356,10 +363,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'toolbar.workspaceSelect.exitsMultiDimMode', async () => {
     const mod = await modEditorWorkspaceSelectExitsMultiDimMode()
     mod.testEditorWorkspaceSelectExitsMultiDimModeWhenSelectingEditor()
-  })
-  await execTest(results, 'toolbar.workspaceSelect.entersMultiDimMode', async () => {
-    const mod = await modEditorWorkspaceSelectEntersMultiDimMode()
-    mod.testEditorWorkspaceSelectEntersMultiDimModeWhenSelectingMultiDimTable()
   })
   await execTest(results, 'toolbar.documentMode.multiDim.isCanvasMode', async () => {
     const mod = await modDocumentModeSelectMultiDimIsCanvasMode()

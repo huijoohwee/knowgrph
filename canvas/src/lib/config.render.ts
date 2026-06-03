@@ -149,6 +149,16 @@ export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): b
   return id === 'd3' || id === 'flowchart'
 }
 
+export const TABLE_GRAPH_CANVAS_2D_RENDERER: Canvas2dRendererId = 'd3'
+
+export const isTableGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return isD3Like2dRenderer(id)
+}
+
+export const resolveTableGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): Canvas2dRendererId => {
+  return isTableGraphCanvas2dRenderer(id) ? id : TABLE_GRAPH_CANVAS_2D_RENDERER
+}
+
 export const isFlowchartCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'flowchart'
 }

@@ -17,6 +17,11 @@ import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/gra
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { OrchestratorTraversalDelayRow } from '@/features/panels/ui/OrchestratorTraversalDelayRow'
+import {
+  UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_COMPACT_TOKEN_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_TOKEN_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export interface AgenticContextGraphContextUrlRowProps {
   agenticContext: AgenticRagContextComparison | null
@@ -25,6 +30,7 @@ export interface AgenticContextGraphContextUrlRowProps {
 }
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 const graphRagWorkflowSummaryClassName = `space-y-0.5 text-xs ${UI_THEME_TOKENS.text.secondary}`
 const graphRagWorkflowRowClassName = `border-b ${UI_THEME_TOKENS.panel.divider}`
@@ -64,7 +70,7 @@ export function AgenticContextGraphContextUrlRow({
                 contentClassName={UI_THEME_TOKENS.tooltip.bg}
                 className="w-full h-full"
               >
-                <div className={`w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden min-h-[96px] bg-transparent`}>
+                <div className={`${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden bg-transparent`}>
                   <MonacoTextEditor
                     value={agenticContext?.graphContextUrl || ''}
                     onChange={(val) => onChangeAgenticContextUrl(val)}
@@ -136,7 +142,7 @@ export function GraphRagWorkflowSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
 
   return (
@@ -160,7 +166,7 @@ export function GraphRagWorkflowSection({
                 {UI_COPY.graphRagWorkflowGraphIdLabel}
               </span>
               <span
-                className={`${uiPanelMonospaceTextClass} max-w-[120px] truncate`}
+                className={`${uiPanelMonospaceTextClass} ${UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_TOKEN_CLASSNAME}`}
                 title={workflowDoc.graphId}
               >
                 {workflowDoc.graphId}
@@ -172,7 +178,7 @@ export function GraphRagWorkflowSection({
                 {UI_COPY.graphRagWorkflowRetrievalLabel}
               </span>
               <span
-                className={`${uiPanelMonospaceTextClass} max-w-[100px] truncate`}
+                className={`${uiPanelMonospaceTextClass} ${UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_COMPACT_TOKEN_CLASSNAME}`}
                 title={workflowDoc.retrievalMethod}
               >
                 {workflowDoc.retrievalMethod}

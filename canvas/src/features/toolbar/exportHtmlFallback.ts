@@ -7,6 +7,7 @@ import type { GraphData } from '@/lib/graph/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
@@ -303,7 +304,7 @@ export async function exportHtmlViewerFallback(args: { pushUiToast: (toast: UiTo
       canvasInteractionSpeedMultiplier: (store as unknown as { canvasInteractionSpeedMultiplier?: number }).canvasInteractionSpeedMultiplier,
       canvasPanSpeedMultiplier: (store as unknown as { canvasPanSpeedMultiplier?: number }).canvasPanSpeedMultiplier,
       snapGridEnabled: !!store.schema?.behavior?.snapGrid?.enabled,
-      snapGridSize: store.schema?.behavior?.snapGrid?.size,
+      snapGridSize: readSnapGridScalarSize(store.schema?.behavior?.snapGrid?.size),
       dragConstraint: (store.schema?.behavior?.dragConstraint as any) || 'free',
       allowNodeDrag: true,
       allowEdgeDrag: true,

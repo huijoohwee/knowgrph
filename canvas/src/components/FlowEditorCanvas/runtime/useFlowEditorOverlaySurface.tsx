@@ -5,6 +5,7 @@ import {
   resolveDefaultFlowWidgetPinnedInCanvas,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -44,6 +45,38 @@ const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
 const EMPTY_GRAPH_NODE_BY_ID = new Map<string, GraphNode>()
 const EMPTY_GRAPH_ELIGIBLE_NODE_IDS = new Set<string>()
+
+type StableFrontmatterOverlaySurfaceCache = {
+  sourceKey: string
+  graphKey: string
+  ids: string[]
+  graphData: GraphData | null
+}
+
+const stableFrontmatterOverlaySurfaceCacheById = new Map<string, StableFrontmatterOverlaySurfaceCache>()
+
+function normalizeOverlaySurfaceCacheKey(surfaceId: unknown): string {
+  return String(surfaceId || '').trim() || 'surface'
+}
+
+function readStableFrontmatterOverlaySurfaceCache(surfaceId: unknown): StableFrontmatterOverlaySurfaceCache | null {
+  return stableFrontmatterOverlaySurfaceCacheById.get(normalizeOverlaySurfaceCacheKey(surfaceId)) || null
+}
+
+function writeStableFrontmatterOverlaySurfaceCache(surfaceId: unknown, cache: StableFrontmatterOverlaySurfaceCache): void {
+  const ids = normalizeStringArrayForSignature(cache.ids, { unique: true })
+  if (ids.length === 0) return
+  stableFrontmatterOverlaySurfaceCacheById.set(normalizeOverlaySurfaceCacheKey(surfaceId), {
+    sourceKey: String(cache.sourceKey || '').trim(),
+    graphKey: String(cache.graphKey || '').trim(),
+    ids,
+    graphData: cache.graphData,
+  })
+}
+
+function clearStableFrontmatterOverlaySurfaceCache(surfaceId: unknown): void {
+  stableFrontmatterOverlaySurfaceCacheById.delete(normalizeOverlaySurfaceCacheKey(surfaceId))
+}
 
 function isGraphDataLike(value: unknown): value is GraphData {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
@@ -145,24 +178,33 @@ export function useFlowEditorOverlaySurface(args: {
   const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>('')
   const lastStableOverlayEditorNodeIdsSourceKeyRef = React.useRef<string>('')
+  const renderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)
+  const lastStableRenderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)
   const previousActiveSourceSelectionKeyRef = React.useRef<string>('')
 
   const activeSourceFile = React.useMemo(
     () => resolvePreferredEnabledComposedSourceFile({
       sourceFiles,
       markdownDocumentName,
+      explorerActivePath,
       fallbackName: markdownDocumentName,
     }),
-    [markdownDocumentName, sourceFiles],
+    [explorerActivePath, markdownDocumentName, sourceFiles],
   )
   const activeSourceSelectionKey = React.useMemo(
     () => buildComposedSourceFileSelectionKey(activeSourceFile),
     [activeSourceFile],
   )
+  const stableOverlaySurfaceCacheKey = React.useMemo(() => {
+    const sourceKey = String(activeSourceSelectionKey || '').trim()
+    if (workspaceOverlayOpen && sourceKey) return `workspace:${sourceKey}`
+    return normalizeOverlaySurfaceCacheKey(flowEditorSurfaceId)
+  }, [activeSourceSelectionKey, flowEditorSurfaceId, workspaceOverlayOpen])
   const activeSourceFrontmatterFlowAvailable = React.useMemo(
     () => isFrontmatterFlowGraph(activeSourceFile?.parsedGraphData),
     [activeSourceFile],
@@ -172,24 +214,39 @@ export function useFlowEditorOverlaySurface(args: {
     [activeSourceFile],
   )
 
+  const cachedStableOverlaySurface = readStableFrontmatterOverlaySurfaceCache(stableOverlaySurfaceCacheKey)
+  if (
+    cachedStableOverlaySurface
+    && lastStableOverlayEditorNodeIdsRef.current.length === 0
+    && (!activeSourceSelectionKey || cachedStableOverlaySurface.sourceKey === activeSourceSelectionKey)
+  ) {
+    lastStableOverlayEditorNodeIdsRef.current = cachedStableOverlaySurface.ids
+    lastStableOverlayEditorNodeIdsGraphKeyRef.current = cachedStableOverlaySurface.graphKey
+    lastStableOverlayEditorNodeIdsSourceKeyRef.current = cachedStableOverlaySurface.sourceKey
+    lastStableRenderGraphDataOverrideRef.current = cachedStableOverlaySurface.graphData
+  }
+
   React.useEffect(() => {
     const previous = previousActiveSourceSelectionKeyRef.current
     if (previous && activeSourceSelectionKey && previous !== activeSourceSelectionKey) {
       lastStableOverlayEditorNodeIdsRef.current = []
       lastStableOverlayEditorNodeIdsGraphKeyRef.current = ''
       lastStableOverlayEditorNodeIdsSourceKeyRef.current = ''
+      clearStableFrontmatterOverlaySurfaceCache(stableOverlaySurfaceCacheKey)
     }
     if (activeSourceSelectionKey) previousActiveSourceSelectionKeyRef.current = activeSourceSelectionKey
-  }, [activeSourceSelectionKey])
+  }, [activeSourceSelectionKey, stableOverlaySurfaceCacheKey])
 
   React.useEffect(() => {
     if (!flowEditorViewActive) {
       if (workspaceMutationBlocked) return
+      if (workspaceOverlayOpen) return
       lastStableOverlayEditorNodeIdsRef.current = []
       lastStableOverlayEditorNodeIdsGraphKeyRef.current = ''
       lastStableOverlayEditorNodeIdsSourceKeyRef.current = ''
+      clearStableFrontmatterOverlaySurfaceCache(stableOverlaySurfaceCacheKey)
     }
-  }, [flowEditorViewActive, workspaceMutationBlocked])
+  }, [flowEditorViewActive, stableOverlaySurfaceCacheKey, workspaceMutationBlocked, workspaceOverlayOpen])
 
   const openWidgetNodeIdsKey = React.useMemo(
     () => hashScopedStringArraySignature('open-widget-node-ids', openWidgetNodeIds),
@@ -254,6 +311,12 @@ export function useFlowEditorOverlaySurface(args: {
       lastStableOverlayEditorNodeIdsRef.current = ids
       lastStableOverlayEditorNodeIdsGraphKeyRef.current = renderGraphSemanticKey
       lastStableOverlayEditorNodeIdsSourceKeyRef.current = activeSourceSelectionKey
+      writeStableFrontmatterOverlaySurfaceCache(stableOverlaySurfaceCacheKey, {
+        sourceKey: activeSourceSelectionKey,
+        graphKey: renderGraphSemanticKey,
+        ids,
+        graphData: renderGraphDataOverride,
+      })
     }
     const readLastStableForCurrentSource = (): string[] => {
       const lastStable = lastStableOverlayEditorNodeIdsRef.current
@@ -281,6 +344,7 @@ export function useFlowEditorOverlaySurface(args: {
         }
       }
       const lastStable = readLastStableForCurrentSource()
+      if (workspaceOverlayOpen && lastStable.length > 0) return lastStable
       if (workspaceMutationBlocked && lastStable.length > 0) return lastStable
       return []
     }
@@ -327,6 +391,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphNodeById,
     renderGraphNodes,
     renderGraphSemanticKey,
+    stableOverlaySurfaceCacheKey,
     workspaceMutationBlocked,
     workspaceOverlayOpen,
     deferComposedGraphOverlayRender,
@@ -377,8 +442,6 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphNodes.length,
   ])
 
-  const renderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)
-  const lastStableRenderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)
   React.useEffect(() => {
     renderGraphDataOverrideRef.current = renderGraphDataOverride
     const nodeCount = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0
@@ -466,9 +529,20 @@ export function useFlowEditorOverlaySurface(args: {
   const overlayVisibilityActive = React.useMemo(() => {
     return flowEditorViewActive || (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)
   }, [flowEditorViewActive, overlayEditorNodeIds.length, workspaceOverlayOpen])
+  const frontmatterOverlayAuthorityGraphData = React.useMemo(() => {
+    if (isFrontmatterFlowGraph(renderGraphDataOverride)) return renderGraphDataOverride
+    const lastStableGraph = lastStableRenderGraphDataOverrideRef.current
+    if (!isFrontmatterFlowGraph(lastStableGraph)) return renderGraphDataOverride
+    if (!workspaceOverlayOpen && !flowEditorViewActive) return renderGraphDataOverride
+    if (overlayEditorNodeIdsSnapshot.length === 0) return renderGraphDataOverride
+    return lastStableGraph
+  }, [flowEditorViewActive, overlayEditorNodeIdsSnapshot, renderGraphDataOverride, workspaceOverlayOpen])
   const frontmatterOverlayCoverageActive = React.useMemo(() => {
-    return overlayVisibilityActive && renderGraphPlacementContext?.isFrontmatterFlow === true
-  }, [overlayVisibilityActive, renderGraphPlacementContext])
+    return overlayVisibilityActive && (
+      renderGraphPlacementContext?.isFrontmatterFlow === true
+      || isFrontmatterFlowGraph(frontmatterOverlayAuthorityGraphData)
+    )
+  }, [frontmatterOverlayAuthorityGraphData, overlayVisibilityActive, renderGraphPlacementContext])
 
   React.useEffect(() => {
     if (deferComposedGraphOverlayRender) return
@@ -504,11 +578,11 @@ export function useFlowEditorOverlaySurface(args: {
   } | null>(null)
   const frontmatterVisibleGraphSemanticKey = React.useMemo(
     () => buildScopedGraphSemanticKey('flow-editor-overlay-surface-frontmatter-visible-graph', {
-      graphData: renderGraphDataOverride,
+      graphData: frontmatterOverlayAuthorityGraphData,
       graphRevision: renderGraphDataRevision,
       graphSemanticKey: renderGraphSemanticKey,
     }),
-    [renderGraphDataOverride, renderGraphDataRevision, renderGraphSemanticKey],
+    [frontmatterOverlayAuthorityGraphData, renderGraphDataRevision, renderGraphSemanticKey],
   )
   if (
     !frontmatterVisibleSceneDisplayRef.current
@@ -516,8 +590,8 @@ export function useFlowEditorOverlaySurface(args: {
   ) {
     frontmatterVisibleSceneDisplayRef.current = {
       key: frontmatterVisibleGraphSemanticKey,
-      value: frontmatterOverlayCoverageActive && renderGraphDataOverride
-        ? deriveSceneDisplayGraph({ graphData: renderGraphDataOverride })
+      value: frontmatterOverlayCoverageActive && frontmatterOverlayAuthorityGraphData
+        ? deriveSceneDisplayGraph({ graphData: frontmatterOverlayAuthorityGraphData })
         : null,
     }
   }
@@ -540,13 +614,13 @@ export function useFlowEditorOverlaySurface(args: {
   const connectedValuesByNodeId = React.useMemo(() => {
     if (connectedValueTargetNodeIds.size === 0) return new Map<string, FlowConnectedValuesBySchemaPath>()
     return computeFlowConnectedValuesBySchemaPath({
-      graphData: renderGraphDataOverride,
+      graphData: frontmatterOverlayCoverageActive ? frontmatterOverlayAuthorityGraphData : renderGraphDataOverride,
       registry: Array.isArray(widgetRegistry) ? widgetRegistry : [],
       targetNodeIds: connectedValueTargetNodeIds,
       graphRevision: connectedValuesGraphRevision,
       graphSemanticKey: renderGraphSemanticKey,
     })
-  }, [connectedValuesGraphRevision, connectedValueTargetNodeIds, renderGraphDataOverride, renderGraphSemanticKey, widgetRegistry])
+  }, [connectedValuesGraphRevision, connectedValueTargetNodeIds, frontmatterOverlayAuthorityGraphData, frontmatterOverlayCoverageActive, renderGraphDataOverride, renderGraphSemanticKey, widgetRegistry])
   const frontmatterRichMediaOverlayNodeIds = React.useMemo(() => {
     if (!frontmatterOverlayCoverageActive) return [] as string[]
     const overlayEditorNodeIdSet = new Set(overlayEditorNodeIdsSnapshot)
@@ -676,7 +750,7 @@ export function useFlowEditorOverlaySurface(args: {
   const frontmatterOverlayOnlyCoverageRef = React.useRef<FrontmatterOverlayOnlyCoverageCache | null>(null)
   const frontmatterOverlayVisualIsolation = React.useMemo(() => resolveFrontmatterOverlayVisualIsolationWithStableCoverage({
     frontmatterOverlayOnlyCoverageRef,
-    renderGraphDataOverride,
+    renderGraphDataOverride: frontmatterOverlayAuthorityGraphData,
     frontmatterVisibleSceneDisplay,
     frontmatterRichMediaOverlayNodeIdsSnapshot,
     overlayEditorNodeIdsSnapshot,
@@ -684,7 +758,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphSemanticKey,
     workspaceMutationBlocked,
   }), [
-    renderGraphDataOverride, frontmatterVisibleSceneDisplay, frontmatterRichMediaOverlayNodeIdsSnapshot,
+    frontmatterOverlayAuthorityGraphData, frontmatterVisibleSceneDisplay, frontmatterRichMediaOverlayNodeIdsSnapshot,
     overlayEditorNodeIdsSnapshot, renderGraphEligibleNodeIds, renderGraphSemanticKey, workspaceMutationBlocked,
   ])
 
@@ -698,7 +772,7 @@ export function useFlowEditorOverlaySurface(args: {
 
   const flowCanvasGraphDataOverride = React.useMemo(() => {
     return buildFlowCanvasGraphDataOverride({
-      renderGraphDataOverride,
+      renderGraphDataOverride: frontmatterOverlayAuthorityGraphData,
       frontmatterOverlayVisualIsolation,
       overlayEditorNodeIdsSnapshot,
       overlayOnlyActive,
@@ -708,7 +782,7 @@ export function useFlowEditorOverlaySurface(args: {
     frontmatterOverlayVisualIsolation.visibleNodeIds,
     overlayEditorNodeIdsSnapshot,
     overlayOnlyActive,
-    renderGraphDataOverride,
+    frontmatterOverlayAuthorityGraphData,
   ])
 
   return {

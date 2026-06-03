@@ -7,6 +7,7 @@ import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY } from 'grph-shared/payments/stripePaymentSsot'
+import { UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type SettingsSpecialValueNodeProps = {
   area: string
@@ -44,7 +45,7 @@ type SettingsSpecialValueNodeProps = {
 }
 
 const specialValueRowClassName = `${uiToolbarRowScrollClassName} gap-1.5`
-const specialValueInputShellClassName = 'min-w-[7rem] flex-1 overflow-hidden'
+const specialValueInputShellClassName = `${UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME} overflow-hidden`
 const specialValueStatusShellClassName = 'min-w-0 max-w-full overflow-hidden'
 
 export function shouldRenderSettingsSpecialValueNode({

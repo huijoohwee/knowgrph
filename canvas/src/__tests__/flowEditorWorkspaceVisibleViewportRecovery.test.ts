@@ -130,6 +130,51 @@ export function testFlowEditorWorkspaceRecoveryFitsGenericOverlayBoundsIntoVisib
   }
 }
 
+export function testFlowEditorWorkspaceRecoveryScalesOversizedOverlayBoundsIntoVisibleViewport() {
+  const visibleViewport: VisibleFlowViewport = {
+    left: 0,
+    top: 0,
+    right: 900,
+    bottom: 600,
+    width: 900,
+    height: 600,
+    centerX: 450,
+    centerY: 300,
+  }
+  const current: FlowTransformLike = { x: 2200, y: 600, k: 0.3 }
+  const bounds: FlowOverlayBounds = {
+    minX: 1800,
+    maxX: 3200,
+    minY: 200,
+    maxY: 1400,
+    width: 1400,
+    height: 1200,
+    ids: ['panel', 'widget', 'media'],
+  }
+
+  const next = computeWorkspaceOverlayVisibleViewportFitTransform({
+    current,
+    overlayBounds: bounds,
+    visibleViewport,
+    scaleExtent: [0.000001, 24],
+  })
+  if (!next) throw new Error('expected oversized overlay fit transform')
+  if (!(next.k < current.k)) {
+    throw new Error(`expected oversized overlay recovery to reduce poisoned zoom scale, got ${next.k}`)
+  }
+  const projected = projectBounds(bounds, current, next)
+  if (projected.minX < visibleViewport.left - 1 || projected.maxX > visibleViewport.right + 1) {
+    throw new Error(`expected oversized overlay bounds to fit horizontally, got ${projected.minX}..${projected.maxX}`)
+  }
+  if (projected.minY < visibleViewport.top - 1 || projected.maxY > visibleViewport.bottom + 1) {
+    throw new Error(`expected oversized overlay bounds to fit vertically, got ${projected.minY}..${projected.maxY}`)
+  }
+  const state = deriveFlowOverlayCollectiveViewportState({ bounds: projected, visibleViewport })
+  if (!state?.visible || !state.centered || !state.fitsVisibleViewport) {
+    throw new Error(`expected recovered oversized overlay collective to be visible and centered, got ${JSON.stringify(state)}`)
+  }
+}
+
 export function testFlowEditorWorkspaceRecoveryUsesSemanticKeyAndForbidsDocumentHardcodes() {
   const keyA = buildWorkspaceVisibleViewportFitRecoveryKey({
     zoomViewKey: 'graph-a',

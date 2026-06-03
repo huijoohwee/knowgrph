@@ -1,7 +1,10 @@
 import React from 'react'
 import { CheckCircle2, Circle } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -75,9 +78,9 @@ export const DataViewStatusChip = React.memo(function DataViewStatusChip(props: 
       title={label}
     >
       {props.hideIcon ? null : props.checked ? (
-        <CheckCircle2 className="w-3 h-3 shrink-0" aria-hidden="true" />
+        <CheckCircle2 className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} aria-hidden="true" />
       ) : (
-        <Circle className="w-3 h-3 shrink-0" aria-hidden="true" />
+        <Circle className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} aria-hidden="true" />
       )}
       <span className={UI_TEXT_TRUNCATE_CHIP}>{renderMarkdownSigilInlineText(v)}</span>
     </span>

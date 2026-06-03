@@ -19,6 +19,7 @@ import {
   GLOBE_PARTICLE_COUNT_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 interface ThreeViewGlobeEffectsSectionProps {
   schema: GraphSchema
@@ -36,7 +37,7 @@ export default function ThreeViewGlobeEffectsSection({
   const globeEffectsEnabled = schema.three?.globeEffectsEnabled !== false
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
-  const selectionControlClassName = `h-3.5 w-3.5 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const selectionControlClassName = `${UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   return (
     <CollapsibleSection
       title="Globe effects"

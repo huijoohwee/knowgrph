@@ -840,12 +840,16 @@ export function SourceFilesPersistenceBootstrap() {
     })
     const workspaceEntriesSnapshot = args.bootstrapMaterialization?.workspaceEntries
       ?? reusableWorkspaceEntriesRef.current
+    const initialActivePathRequest = resolveActivePathMaterializationRequest({
+      sourceFilesSnapshot,
+      workspaceEntriesSnapshot,
+    })
     return {
       persistedWorkspace: args.persistedWorkspace,
       bootstrapMaterialization: args.bootstrapMaterialization,
       bootstrapSideEffectsRequest: {
         sourceFilesSnapshot,
-        composeRequest: args.bootstrapMaterialization
+        composeRequest: args.bootstrapMaterialization && !initialActivePathRequest
           ? resolveSourceFilesComposeRequest({
               sourceFilesSnapshot,
               shouldScheduleCompose: true,
@@ -859,17 +863,19 @@ export function SourceFilesPersistenceBootstrap() {
           sourceFilesSnapshot,
         }),
       },
-      initialActivePathRequest: resolveActivePathMaterializationRequest({
-        sourceFilesSnapshot,
-        workspaceEntriesSnapshot,
-      }),
+      initialActivePathRequest,
     }
   }, [readBootstrapMountSourceFilesSnapshot, resolveActivePathMaterializationRequest, resolveSourceFilesComposeRequest, resolveWorkspaceRematerializeRequest])
 
   const applyBootstrapInitialActivePathRequest = React.useCallback((request: ActivePathMaterializationRequest | null) => {
     if (!request) return
-    queueActivePathMaterializationRequest(request)
-  }, [queueActivePathMaterializationRequest])
+    if (activePathMaterializeInFlightRef.current) {
+      queueActivePathMaterializationRequest(request)
+      return
+    }
+    if (shouldSkipActivePathMaterializationRequest(request)) return
+    runActivePathMaterialization(request)
+  }, [queueActivePathMaterializationRequest, runActivePathMaterialization, shouldSkipActivePathMaterializationRequest])
 
   const applyBootstrapInitialRematerializeRequest = React.useCallback((request: WorkspaceRematerializeRequest | null): boolean => {
     if (!request) return false

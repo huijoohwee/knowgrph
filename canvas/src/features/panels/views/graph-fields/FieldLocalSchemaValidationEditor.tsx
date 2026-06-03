@@ -4,6 +4,11 @@ import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphField
 import { UI_COPY } from '@/lib/config.copy'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import {
+  UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_VALIDATION_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type ValidationWarning =
   | { kind: 'requiredMissingSchema'; keys: string[] }
@@ -64,9 +69,9 @@ export default function FieldLocalSchemaValidationEditor({
   focusValidationControl,
 }: FieldLocalSchemaValidationEditorProps) {
   const validationActionButtonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`
-  const validationSelectClassName = `rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 py-1 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const validationSelectClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const validationCheckboxClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
-  const validationPanelClassName = `w-full rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.input.bg} h-[116px]`
+  const validationPanelClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_VALIDATION_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`
   return (
     <div className="space-y-3">
       {localValidationWarnings.length > 0 ? (
@@ -230,7 +235,7 @@ export default function FieldLocalSchemaValidationEditor({
               key={p}
               className={`${uiPanelKeyValueTextSizeClass} flex items-center gap-1`}
             >
-              <span className={`w-24 truncate ${UI_THEME_TOKENS.text.primary}`}>{p}</span>
+              <span className={`${UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME} ${UI_THEME_TOKENS.text.primary}`}>{p}</span>
               <select
                 id={getValidationControlId('type', p)}
                 value={localValidationTypesMap[p] ?? 'string'}

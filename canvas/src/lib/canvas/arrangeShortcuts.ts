@@ -47,22 +47,23 @@ export const readNudgeDelta = (args: {
   e: KeyboardEvent
   snapGridEnabled: boolean
   snapGridSize: number
+  snapGridSizeY?: number
 }): { dx: number; dy: number } | null => {
   const { e } = args
   if (e.metaKey || e.ctrlKey) return null
   const key = String(e.key || '')
   if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowDown') return null
 
-  const gridSize0 = Math.max(1, Math.floor(args.snapGridSize || 1))
+  const gridSizeX = Math.max(1, Math.floor(args.snapGridSize || 1))
+  const gridSizeY = Math.max(1, Math.floor(args.snapGridSizeY || args.snapGridSize || 1))
   const canSnap = args.snapGridEnabled && !e.altKey
-  const base = canSnap ? gridSize0 : 1
   const mult = e.shiftKey ? 10 : 1
-  const step = canSnap ? base * (e.shiftKey ? 5 : 1) : base * mult
+  const stepX = canSnap ? gridSizeX * (e.shiftKey ? 5 : 1) : mult
+  const stepY = canSnap ? gridSizeY * (e.shiftKey ? 5 : 1) : mult
 
-  if (key === 'ArrowLeft') return { dx: -step, dy: 0 }
-  if (key === 'ArrowRight') return { dx: step, dy: 0 }
-  if (key === 'ArrowUp') return { dx: 0, dy: -step }
-  if (key === 'ArrowDown') return { dx: 0, dy: step }
+  if (key === 'ArrowLeft') return { dx: -stepX, dy: 0 }
+  if (key === 'ArrowRight') return { dx: stepX, dy: 0 }
+  if (key === 'ArrowUp') return { dx: 0, dy: -stepY }
+  if (key === 'ArrowDown') return { dx: 0, dy: stepY }
   return null
 }
-

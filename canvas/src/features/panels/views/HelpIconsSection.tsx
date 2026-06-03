@@ -21,6 +21,7 @@ import {
   getMainPanelTypeIconMeta,
   type MainPanelTypeIconKey,
 } from '@/features/panels/ui/mainPanelHelpIconLibrary';
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy';
 import {
   HelpKtvActionGroup,
   HelpKtvMutedText,
@@ -151,7 +152,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
                 content={GRAPH_FIELDS_GRAPH_DATA_TABLE_MAPPING_TOOLTIP}
                 maxWidthPx={260}
               >
-                <span>Graph Data Table</span>
+                <span>{MARKDOWN_DATA_VIEW_COPY.titleDefault}</span>
               </Tooltip>
             )}
             iconKey="mainPanel.workflowManager"

@@ -8,6 +8,12 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 import type { WidgetRegistrySchemaMapping } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
@@ -21,10 +27,11 @@ export default function WidgetRegistrySchemaMappingsEditor({
   const panelTypography = usePanelTypography()
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const fieldClassName = cn(UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text, panelTypography.monospaceTextClass)
 
   return (
     <section aria-label="Schema mappings" className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME}>
         <h4 className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Schema mappings</h4>
         <button
           type="button"
@@ -37,14 +44,14 @@ export default function WidgetRegistrySchemaMappingsEditor({
 
       <div className="space-y-2">
         {(mappings || []).map((m, idx) => (
-          <div key={`${idx}:${m.fromPath}:${m.toPath}`} className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border)}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div key={`${idx}:${m.fromPath}:${m.toPath}`} className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
+            <div className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME, 'sm:grid-cols-2')}>
               <div>
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>From</label>
                 <input
                   value={m.fromPath}
                   onChange={e => onChange(mappings.map((x, i) => (i === idx ? { ...x, fromPath: e.target.value } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text, panelTypography.monospaceTextClass)}
+                  className={fieldClassName}
                 />
               </div>
               <div>
@@ -52,7 +59,7 @@ export default function WidgetRegistrySchemaMappingsEditor({
                 <input
                   value={m.toPath}
                   onChange={e => onChange(mappings.map((x, i) => (i === idx ? { ...x, toPath: e.target.value } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text, panelTypography.monospaceTextClass)}
+                  className={fieldClassName}
                 />
               </div>
             </div>
@@ -75,4 +82,3 @@ export default function WidgetRegistrySchemaMappingsEditor({
     </section>
   )
 }
-

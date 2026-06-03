@@ -10,6 +10,7 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
+import { UI_RESPONSIVE_BADGE_CHIP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface HelpKtvTypeIconProps {
@@ -166,7 +167,7 @@ export function HelpKtvCode({
   return (
     <code
       className={[
-        `max-w-full break-all rounded border px-1 py-[1px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary}`,
+        `max-w-full break-all ${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary}`,
         className || '',
       ]
         .filter(Boolean)

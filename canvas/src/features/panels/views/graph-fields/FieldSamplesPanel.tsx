@@ -6,6 +6,13 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_SAMPLE_ROW_CLASSNAME,
+  UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_WIDE_PANEL_HEADER_SECONDARY_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type FieldSamplesPanelProps = {
   graphData: GraphData | null
@@ -33,6 +40,8 @@ export default function FieldSamplesPanel({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
+  const compactSelectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const selectionControlClassName = `${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   const displayedSamples = samples
   const [selectedByValue, setSelectedByValue] = React.useState<Set<string>>(
@@ -140,9 +149,9 @@ export default function FieldSamplesPanel({
 
   return (
     <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
-      <div className={`h-9 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
+      <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}>
         <div className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.samples}</div>
-        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap max-w-[65%] truncate text-right`}>
+        <div className={`${UI_RESPONSIVE_WIDE_PANEL_HEADER_SECONDARY_CLASSNAME} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap truncate text-right`}>
           {selectedField
             ? `${selectedField.scope === 'node' ? 'Node' : 'Edge'} · ${selectedField.key}${
                 typeof selectedField.samples === 'number'
@@ -174,7 +183,7 @@ export default function FieldSamplesPanel({
                       if (e.target.checked) onSelectAllDisplayed()
                       else onClearDisplayed()
                     }}
-                    className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
+                    className={compactSelectionControlClassName}
                   />
                   <span>{UI_LABELS.selectAll}</span>
                 </label>
@@ -202,7 +211,7 @@ export default function FieldSamplesPanel({
                 <button
                   key={sample.value}
                   type="button"
-                  className={`w-full flex items-center justify-between gap-2 rounded px-1 py-1 text-left ${selected ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight}`}
+                  className={`${UI_RESPONSIVE_GRAPH_FIELDS_SAMPLE_ROW_CLASSNAME} flex items-center justify-between gap-2 rounded text-left ${selected ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight}`}
                   onClick={() => onToggleValue(sample.value)}
                 >
                   <span className="min-w-0 flex-1 inline-flex items-center gap-2">
@@ -211,7 +220,7 @@ export default function FieldSamplesPanel({
                       checked={selected}
                       readOnly
                       tabIndex={-1}
-                      className={`h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
+                      className={selectionControlClassName}
                     />
                     <span className={`min-w-0 flex-1 ${uiPanelKeyValueTextSizeClass} ${selected ? 'text-blue-900 dark:text-blue-100' : UI_THEME_TOKENS.text.primary} truncate`}>
                       {sample.value}

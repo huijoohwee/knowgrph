@@ -31,7 +31,7 @@ export function useArrangeKeyboardShortcuts2d(args: {
       }
       if (selectedIds.length === 0) return
       const grid = readSnapGridConfigFromSchema(schema)
-      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
+      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.x, snapGridSizeY: grid.y })
       if (!delta) return
       const graphDataNow = sceneGraphDataRef.current
       if (!graphDataNow) return

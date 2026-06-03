@@ -5,6 +5,10 @@ import { useGraphStore } from '@/hooks/useGraphStore';
 import { useShallow } from 'zustand/react/shallow';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { RENDERER_HOVER_CONTENT_KEY_TOOLTIP, RENDERER_HOVER_CONTENT_VALUE_TOOLTIP } from '@/lib/config'
+import {
+  UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_LABEL_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export function RendererHoverSettings() {
   const { schema, setSchema } = useGraphStore(
@@ -15,6 +19,7 @@ export function RendererHoverSettings() {
   );
 
   const hoverContent = schema.behavior?.hover?.content || { showProps: true, showType: true, showId: true };
+  const selectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} ${UI_THEME_TOKENS.input.border}`
 
   const updateHover = (key: 'showProps' | 'showType' | 'showId', val: boolean) => {
     const next = { ...hoverContent, [key]: val };
@@ -52,30 +57,30 @@ export function RendererHoverSettings() {
           className="w-full"
         >
           <div className="flex gap-2 justify-end w-full">
-            <label className={`flex items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary} cursor-pointer`}>
+            <label className={`${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.secondary} cursor-pointer`}>
               <input
                 type="checkbox"
                 checked={hoverContent.showType !== false}
                 onChange={(e) => updateHover('showType', e.target.checked)}
-                className={`h-3 w-3 ${UI_THEME_TOKENS.input.border}`}
+                className={selectionControlClassName}
               />
               Type
             </label>
-            <label className={`flex items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary} cursor-pointer`}>
+            <label className={`${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.secondary} cursor-pointer`}>
               <input
                 type="checkbox"
                 checked={hoverContent.showId !== false}
                 onChange={(e) => updateHover('showId', e.target.checked)}
-                className={`h-3 w-3 ${UI_THEME_TOKENS.input.border}`}
+                className={selectionControlClassName}
               />
               ID
             </label>
-            <label className={`flex items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary} cursor-pointer`}>
+            <label className={`${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.secondary} cursor-pointer`}>
               <input
                 type="checkbox"
                 checked={hoverContent.showProps !== false}
                 onChange={(e) => updateHover('showProps', e.target.checked)}
-                className={`h-3 w-3 ${UI_THEME_TOKENS.input.border}`}
+                className={selectionControlClassName}
               />
               Props
             </label>

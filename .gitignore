@@ -52,6 +52,7 @@ credentials.json
 secrets.json
 
 # Local / generated outputs
+.tmp-*.png
 canvas/src/__tests__/demo/airports_full_all_feet.geojson
 canvas/src/__tests__/demo/cities.geojson
 

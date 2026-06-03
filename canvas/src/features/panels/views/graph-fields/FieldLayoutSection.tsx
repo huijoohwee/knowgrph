@@ -2,6 +2,8 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_GRAPH_FIELDS_OWNER_VALUE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type FieldLayoutSectionProps = {
   schema: GraphSchema
@@ -20,7 +22,7 @@ export default function FieldLayoutSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
@@ -33,7 +35,7 @@ export default function FieldLayoutSection({
   const headingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
   const helperTextClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
   const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
-  const ownerValueClassName = `w-40 truncate text-xs ${UI_THEME_TOKENS.text.secondary}`
+  const ownerValueClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_OWNER_VALUE_CLASSNAME} text-xs ${UI_THEME_TOKENS.text.secondary}`
 
   return (
     <div className={panelClassName}>

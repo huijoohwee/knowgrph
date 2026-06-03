@@ -15,6 +15,12 @@ import {
 import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { FrozenAreaResizeHandle, FROZEN_DATA_COLUMN_LEFT } from './GraphDataTableHeader'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_ID_CELL_TEXT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_KIND_CELL_TEXT_CLASSNAME,
+  UI_RESPONSIVE_STRUCTURED_EDITOR_PANEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { MarkdownStructuredTextEditor } from '@/features/markdown/ui/MarkdownStructuredTextEditor'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 import { DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
@@ -79,7 +85,7 @@ function CellJsonEditor({
   
   return (
     <section
-      className={`h-32 min-w-[300px] border ${UI_THEME_TOKENS.panel.border} rounded overflow-hidden ${UI_THEME_TOKENS.panel.bg} shadow-lg relative z-10`}
+      className={`h-32 ${UI_RESPONSIVE_STRUCTURED_EDITOR_PANEL_CLASSNAME} border ${UI_THEME_TOKENS.panel.border} rounded overflow-hidden ${UI_THEME_TOKENS.panel.bg} shadow-lg relative z-10`}
       aria-label="Cell JSON Editor"
     >
       <MarkdownStructuredTextEditor
@@ -136,9 +142,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'kind') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${
-          'truncate max-w-16 overflow-hidden whitespace-nowrap'
-        }`}
+        className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_KIND_CELL_TEXT_CLASSNAME}`}
         style={cellStyle}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -153,7 +157,6 @@ export const BodyCell = React.memo(function BodyCell({
 
   if (columnKey === 'id') {
     const isFrozen = freezeFirstDataColumn === 'id'
-    const overflowClass = 'truncate max-w-52 overflow-hidden whitespace-nowrap'
     const style: React.CSSProperties | undefined = isFrozen
       ? { ...(cellStyle || {}), left: FROZEN_DATA_COLUMN_LEFT }
       : cellStyle
@@ -161,7 +164,7 @@ export const BodyCell = React.memo(function BodyCell({
       <td
         className={`${bodyCellBaseClassName} relative ${
           isFrozen ? `sticky z-0 ${UI_THEME_TOKENS.panel.bg}` : ''
-        } ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${overflowClass}`}
+        } ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_ID_CELL_TEXT_CLASSNAME}`}
         style={style}
         title={row.id}
         onClick={() => {
@@ -242,10 +245,9 @@ export const BodyCell = React.memo(function BodyCell({
   }
 
   if (columnKey === 'type') {
-    const overflowClass = 'truncate max-w-40 overflow-hidden whitespace-nowrap'
     return (
       <td
-        className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${overflowClass}`}
+        className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
         style={cellStyle}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -273,9 +275,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'source') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${
-          'truncate max-w-40 overflow-hidden whitespace-nowrap'
-        }`}
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
         style={cellStyle}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -304,9 +304,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'target') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${
-          'truncate max-w-40 overflow-hidden whitespace-nowrap'
-        }`}
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
         style={cellStyle}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -335,9 +333,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'properties') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${
-          'truncate max-w-40 overflow-hidden whitespace-nowrap'
-        }`}
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
         style={cellStyle}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -368,9 +364,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'metadata') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.secondary} align-top ${
-          'truncate max-w-40 overflow-hidden whitespace-nowrap'
-        }`}
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.secondary} align-top ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
         style={cellStyle}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -401,9 +395,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'codebasePath') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${
-          'truncate max-w-40 overflow-hidden whitespace-nowrap'
-        }`}
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
         style={cellStyle}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -455,9 +447,7 @@ export const BodyCell = React.memo(function BodyCell({
 
       return (
         <td
-          className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${
-            'truncate max-w-40 overflow-hidden whitespace-nowrap'
-          }`}
+          className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
           style={cellStyle}
           onClick={() => {
             if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
@@ -497,9 +487,7 @@ export const BodyCell = React.memo(function BodyCell({
 
   return (
     <td
-      className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${
-        'truncate max-w-40 overflow-hidden whitespace-nowrap'
-      }`}
+      className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_COMPACT_CELL_TEXT_CLASSNAME}`}
       style={cellStyle}
       onClick={() => {
         if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {

@@ -13,6 +13,12 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
+import {
+  UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_JSON_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_TEXT_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_TEXT_EXPANDED_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export function DefaultValueSection({
   selectedSettings,
@@ -41,7 +47,7 @@ export function DefaultValueSection({
   const neutralToolbarButtonClassName = `App-toolbar__btn ${KTV_STATUS_TEXT_SIZE_CLASS_NAME} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
   const selectedToolbarButtonClassName = `App-toolbar__btn ${KTV_STATUS_TEXT_SIZE_CLASS_NAME} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.primarySolid}`
   const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
-  const inputClassName = `h-8 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const inputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
 
   React.useEffect(() => {
     setLongTextDefaultExpanded(false)
@@ -170,8 +176,10 @@ export function DefaultValueSection({
             </div>
             <div
               className={[
-                `w-full rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.input.bg}`,
-                longTextDefaultExpanded ? 'h-[216px]' : 'h-[92px]',
+                `rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`,
+                longTextDefaultExpanded
+                  ? UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_TEXT_EXPANDED_EDITOR_CLASSNAME
+                  : UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_TEXT_EDITOR_CLASSNAME,
               ].join(' ')}
             >
               <MonacoTextEditor
@@ -187,7 +195,7 @@ export function DefaultValueSection({
           </div>
         ) : selectedSettings.fieldType === 'JSON' ? (
           <div className="space-y-2">
-            <div className={`w-full rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.input.bg} h-[140px]`}>
+            <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_JSON_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
               <MonacoTextEditor
                 value={jsonDefaultDraft}
                 onChange={setJsonDefaultDraft}

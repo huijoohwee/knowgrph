@@ -1,7 +1,14 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
-import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_ACTION_SMALL_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_ICON_ACTION_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_ICON_ACTION_SMALL_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type DataViewToolbarButtonVariant = 'default' | 'primary' | 'ghost'
@@ -19,32 +26,54 @@ export type DataViewToolbarButtonProps = {
   className?: string
 }
 
+export type DataViewToolbarClassNameOptions = {
+  disabled?: boolean
+  variant?: DataViewToolbarButtonVariant
+  size?: DataViewToolbarButtonSize
+  className?: string
+}
+
+const readDataViewActionSizeClassName = (size: DataViewToolbarButtonSize): string =>
+  size === 'sm' ? UI_RESPONSIVE_DATA_VIEW_ACTION_SMALL_CLASSNAME : UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME
+
+const readDataViewIconActionSizeClassName = (size: DataViewToolbarButtonSize): string =>
+  size === 'sm' ? UI_RESPONSIVE_DATA_VIEW_ICON_ACTION_SMALL_CLASSNAME : UI_RESPONSIVE_DATA_VIEW_ICON_ACTION_DEFAULT_CLASSNAME
+
+const readDataViewToolbarVariantClassName = (variant: DataViewToolbarButtonVariant): string =>
+  variant === 'primary'
+    ? cn(UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeBorder, UI_THEME_TOKENS.button.activeText)
+    : variant === 'ghost'
+      ? cn('border-transparent', UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)
+      : cn(UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)
+
+export function getDataViewToolbarButtonClassName(options: DataViewToolbarClassNameOptions = {}): string {
+  const variant = options.variant ?? 'default'
+  const size = options.size ?? 'md'
+
+  return cn(
+    UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+    readDataViewActionSizeClassName(size),
+    'justify-center select-none rounded border text-xs',
+    UI_FOCUS_RING,
+    readDataViewToolbarVariantClassName(variant),
+    options.disabled ? 'opacity-50 pointer-events-none' : undefined,
+    options.className,
+  )
+}
+
 export function DataViewToolbarButton(props: DataViewToolbarButtonProps) {
   const variant = props.variant ?? 'default'
   const size = props.size ?? 'md'
 
-  const base = cn(
-    UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
-    'justify-center select-none',
-    'rounded border',
-    UI_FOCUS_RING,
-    props.disabled ? 'opacity-50 pointer-events-none' : undefined,
-  )
-
-  const sizeClass =
-    size === 'sm' ? 'h-7 px-2 text-xs gap-1.5' : 'h-8 px-3 text-xs gap-2'
-
-  const variantClass =
-    variant === 'primary'
-      ? cn(UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeBorder, UI_THEME_TOKENS.button.activeText)
-      : variant === 'ghost'
-        ? cn('border-transparent', UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)
-        : cn(UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)
-
   return (
     <button
       type="button"
-      className={cn(base, sizeClass, variantClass, props.className)}
+      className={getDataViewToolbarButtonClassName({
+        disabled: props.disabled,
+        variant,
+        size,
+        className: props.className,
+      })}
       onClick={props.onClick}
       disabled={props.disabled}
       aria-label={props.ariaLabel ?? props.label}
@@ -63,27 +92,36 @@ export type DataViewIconButtonProps = {
   icon: React.ReactNode
   className?: string
   size?: DataViewToolbarButtonSize
+  variant?: DataViewToolbarButtonVariant
+}
+
+export type DataViewIconClassNameOptions = DataViewToolbarClassNameOptions
+
+export function getDataViewIconButtonClassName(options: DataViewIconClassNameOptions = {}): string {
+  const variant = options.variant ?? 'default'
+  const size = options.size ?? 'md'
+
+  return cn(
+    UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+    readDataViewIconActionSizeClassName(size),
+    'justify-center rounded-md border',
+    UI_FOCUS_RING,
+    readDataViewToolbarVariantClassName(variant),
+    options.disabled ? 'opacity-50 pointer-events-none' : undefined,
+    options.className,
+  )
 }
 
 export function DataViewIconButton(props: DataViewIconButtonProps) {
-  const size = props.size ?? 'md'
-  const dims = size === 'sm' ? 'h-7 w-7' : 'h-8 w-8'
-
   return (
     <button
       type="button"
-      className={cn(
-        UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
-        'justify-center rounded-md border',
-        dims,
-        UI_FOCUS_RING,
-        UI_THEME_TOKENS.panel.border,
-        UI_THEME_TOKENS.panel.bg,
-        UI_THEME_TOKENS.button.text,
-        UI_THEME_TOKENS.button.hoverBg,
-        props.disabled ? 'opacity-50 pointer-events-none' : undefined,
-        props.className,
-      )}
+      className={getDataViewIconButtonClassName({
+        disabled: props.disabled,
+        variant: props.variant,
+        size: props.size,
+        className: props.className,
+      })}
       onClick={props.onClick}
       disabled={props.disabled}
       aria-label={props.ariaLabel}

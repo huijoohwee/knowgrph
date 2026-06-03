@@ -12,7 +12,13 @@ import { isInteractiveEventTarget, useDismissableMenu } from './kanbanMenu'
 import { KanbanCell } from './KanbanCell'
 import { KanbanTypeBadge } from './KanbanTypeBadge'
 import type { KanbanCardDragProps, KanbanCardDropProps } from './useKanbanDragAndDrop'
-import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_COMPACT_MENU_PANEL_CLASSNAME,
+  UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+  UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import type { KanbanDropPosition } from './kanbanReorder'
@@ -262,7 +268,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
               })
             }}
             displayClassName={['text-sm font-semibold leading-5 m-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
-            editorClassName="min-h-[1.5rem] px-0 py-0 text-sm font-semibold leading-5"
+            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
           />
         </div>
         <menu
@@ -274,7 +280,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
             <li className="list-none">
               <button
                 type="button"
-                className={['kg-panel-action-btn kg-panel-icon-btn', 'inline-flex items-center justify-center w-7 h-7 rounded-md', UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
+                className={['kg-panel-action-btn kg-panel-icon-btn', UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME, 'rounded-md', UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
                 aria-label={MARKDOWN_DATA_VIEW_COPY.expandCardLabel}
                 onClick={e => {
                   e.stopPropagation()
@@ -291,7 +297,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
               <button
                 ref={menuTriggerRef}
                 type="button"
-                className={['kg-panel-action-btn kg-panel-icon-btn', 'inline-flex items-center justify-center w-7 h-7 rounded-md', UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
+                className={['kg-panel-action-btn kg-panel-icon-btn', UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME, 'rounded-md', UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
                 aria-label={MARKDOWN_DATA_VIEW_COPY.cardMenuLabel}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
@@ -307,7 +313,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
 
               {menuOpen && props.canMutate ? (
                 <menu
-                  className={['kg-data-view-floating-menu absolute right-0 mt-2 w-[220px] rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+                  className={['kg-data-view-floating-menu absolute right-0 mt-2 rounded border shadow-sm p-2 z-10', UI_RESPONSIVE_DATA_VIEW_COMPACT_MENU_PANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
                   role="menu"
                   aria-label={MARKDOWN_DATA_VIEW_COPY.cardActionsLabel}
                 >
@@ -472,7 +478,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                       })
                     }}
                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                    editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                   />
                 </div>
               )

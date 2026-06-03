@@ -1,11 +1,12 @@
 import React from 'react'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import type { HighlightedLineRange } from '../../markdownWorkspaceTypes'
-import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
+import type { MarkdownGeoDatasetIntegration, MarkdownInlineDraftTextChangeOptions } from '@/features/markdown/ui/MarkdownRendererTypes'
 import {
   appendMarkdownDataViewRow,
   appendMarkdownDataViewColumn,
@@ -35,11 +36,9 @@ import {
   duplicateWorkspaceDataViewConfigColumn,
   removeWorkspaceDataViewConfigColumn,
   readWorkspaceDataViewConfig,
-  readWorkspaceDataViewStateWithMeta,
   type WorkspaceDataViewConfig,
   type WorkspaceDataViewFilterOp,
   writeWorkspaceDataViewConfig,
-  writeWorkspaceDataViewState,
 } from './workspaceDataViewConfig'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
@@ -49,13 +48,20 @@ import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import {
   buildDataViewCandidates,
+  buildDataViewCandidatesFromDelimitedTextParseResult,
+  buildDataViewCandidatesFromRowsJsonArtifact,
   tryBuildApiGraphMarkdownTablesFromJson,
+  type DataViewCandidate,
 } from './markdownWorkspaceDataViewCandidates'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import {
   useWorkspaceDataViewFloatingRegistration,
   type WorkspaceDataViewFloatingBinding,
 } from './workspaceDataViewFloatingStore'
+import { UI_RESPONSIVE_WORKSPACE_DATA_VIEW_MAIN_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { defaultDelimitedTextDelimiterForName } from '@/lib/delimited-text/delimitedText'
+import { parseDelimitedTextWithWorkerFallback } from '@/lib/delimited-text/delimitedTextWorkerBridge'
+import { isMarkdownWorkspaceDelimitedTextPath } from '../types'
 
 const MarkdownWorkspaceHtmlViewerPaneLazy = React.lazy(
   async (): Promise<{ default: typeof import('./MarkdownWorkspaceHtmlViewerPane')['MarkdownWorkspaceHtmlViewerPane'] }> =>
@@ -88,6 +94,8 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   ) => void
   onReplaceLineRange: (args: { startLine: number; endLine: number; replacementLines: string[] }) => void
   onRevealLineInEditor: (line: number) => void
+  onInlineEditStateChange?: (active: boolean) => void
+  onInlineDraftTextChange?: (nextText: string, options?: MarkdownInlineDraftTextChangeOptions) => void
   onViewerRootRef: (el: HTMLDivElement | null) => void
 }) {
   const panelTypography = usePanelTypography()
@@ -97,7 +105,18 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     return trimmed.startsWith('{') || trimmed.startsWith('[') ? trimmed : ''
   }, [props.markdownText])
 
+  const rowsJsonCandidatesKey = React.useMemo(
+    () => (props.viewerMode !== 'read' && jsonLikeMarkdownText ? buildMarkdownTokensKey(jsonLikeMarkdownText) : ''),
+    [jsonLikeMarkdownText, props.viewerMode],
+  )
+
+  const rowsJsonCandidates = React.useMemo(
+    () => (rowsJsonCandidatesKey ? buildDataViewCandidatesFromRowsJsonArtifact(jsonLikeMarkdownText, rowsJsonCandidatesKey) : []),
+    [jsonLikeMarkdownText, rowsJsonCandidatesKey],
+  )
+
   const derivedStructuredText = React.useMemo(() => {
+    if (rowsJsonCandidates.length > 0 && props.viewerMode !== 'read') return null
     const showStructuredInJsonViews = props.viewerKind === 'json'
     const showStructuredInMarkdownViews =
       props.viewerKind === 'markdown' &&
@@ -107,20 +126,68 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     const preferredMode: JsonToMarkdownMode | undefined =
       props.viewerKind === 'markdown' && props.viewerMode === 'read' ? 'table' : undefined
     return tryBuildApiGraphMarkdownTablesFromJson(jsonLikeMarkdownText, preferredMode)
-  }, [jsonLikeMarkdownText, props.viewerKind, props.viewerMode])
+  }, [jsonLikeMarkdownText, props.viewerKind, props.viewerMode, rowsJsonCandidates.length])
 
   const effectiveMarkdownText = derivedStructuredText || props.markdownText
-  const shouldBuildDataViewCandidates = props.viewerMode !== 'read' && (props.viewerKind !== 'json' || !!derivedStructuredText)
+  const shouldBuildDelimitedTextCandidates =
+    props.viewerMode !== 'read' &&
+    isMarkdownWorkspaceDelimitedTextPath(props.activeDocumentPath) &&
+    !jsonLikeMarkdownText
+  const delimitedTextCandidatesKey = React.useMemo(
+    () => (shouldBuildDelimitedTextCandidates ? buildMarkdownTokensKey(effectiveMarkdownText) : ''),
+    [effectiveMarkdownText, shouldBuildDelimitedTextCandidates],
+  )
+  const [delimitedTextCandidatesState, setDelimitedTextCandidatesState] = React.useState<{
+    key: string
+    candidates: DataViewCandidate[]
+  } | null>(null)
+  React.useEffect(() => {
+    if (!shouldBuildDelimitedTextCandidates || !delimitedTextCandidatesKey) {
+      setDelimitedTextCandidatesState(null)
+      return
+    }
+    let cancelled = false
+    const sourcePath = props.activeDocumentPath ?? ''
+    void parseDelimitedTextWithWorkerFallback(effectiveMarkdownText, {
+      header: true,
+      delimiter: defaultDelimitedTextDelimiterForName(sourcePath),
+      chunkSizeChars: 64 * 1024,
+    }).then(parsed => {
+      if (cancelled) return
+      const hasError = parsed.diagnostics.some(item => item.severity === 'error')
+      const candidates = hasError
+        ? []
+        : buildDataViewCandidatesFromDelimitedTextParseResult({
+          parseResult: parsed,
+          candidatesKey: delimitedTextCandidatesKey,
+          sourcePath,
+        })
+      setDelimitedTextCandidatesState({ key: delimitedTextCandidatesKey, candidates })
+    }).catch(() => {
+      if (cancelled) return
+      setDelimitedTextCandidatesState({ key: delimitedTextCandidatesKey, candidates: [] })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [delimitedTextCandidatesKey, effectiveMarkdownText, props.activeDocumentPath, shouldBuildDelimitedTextCandidates])
+  const delimitedTextCandidates =
+    delimitedTextCandidatesState?.key === delimitedTextCandidatesKey
+      ? delimitedTextCandidatesState.candidates
+      : []
+  const shouldBuildDataViewCandidates =
+    props.viewerMode !== 'read' && (rowsJsonCandidates.length > 0 || shouldBuildDelimitedTextCandidates || props.viewerKind !== 'json' || !!derivedStructuredText)
+  const shouldLexDataViewCandidates = shouldBuildDataViewCandidates && rowsJsonCandidates.length === 0 && !shouldBuildDelimitedTextCandidates
   const candidateSourcePath = props.activeDocumentPath ?? `derived-viewer:${props.viewerKind}:${props.viewerMode}`
   const { tokens: candidateTokens } = useMarkdownPreviewLexedMarkdown(
-    shouldBuildDataViewCandidates ? effectiveMarkdownText : '',
+    shouldLexDataViewCandidates ? effectiveMarkdownText : '',
     undefined,
     candidateSourcePath,
     false,
   )
   const candidatesKey = React.useMemo(
-    () => (shouldBuildDataViewCandidates ? buildMarkdownTokensKey(effectiveMarkdownText) : ''),
-    [effectiveMarkdownText, shouldBuildDataViewCandidates],
+    () => (shouldLexDataViewCandidates ? buildMarkdownTokensKey(effectiveMarkdownText) : ''),
+    [effectiveMarkdownText, shouldLexDataViewCandidates],
   )
   const [selectedTableId, setSelectedTableId] = React.useState<string>('')
   const [viewConfig, setViewConfig] = React.useState<WorkspaceDataViewConfig | null>(null)
@@ -132,21 +199,27 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   }))
 
   const strictCandidates = React.useMemo(() => {
-    if (!shouldBuildDataViewCandidates) return []
+    if (!shouldLexDataViewCandidates) return []
     if (props.viewerKind === 'json') return []
     return buildDataViewCandidates(effectiveMarkdownText, candidatesKey, candidateTokens, false)
-  }, [candidateTokens, candidatesKey, effectiveMarkdownText, props.viewerKind, shouldBuildDataViewCandidates])
+  }, [candidateTokens, candidatesKey, effectiveMarkdownText, props.viewerKind, shouldLexDataViewCandidates])
 
   const relaxedCandidates = React.useMemo(() => {
-    if (!shouldBuildDataViewCandidates) return []
+    if (!shouldLexDataViewCandidates) return []
     const shouldRelax = props.viewerKind === 'json'
       ? !!derivedStructuredText
       : strictCandidates.length === 0
     return shouldRelax ? buildDataViewCandidates(effectiveMarkdownText, candidatesKey, candidateTokens, true) : []
-  }, [candidateTokens, candidatesKey, derivedStructuredText, effectiveMarkdownText, props.viewerKind, shouldBuildDataViewCandidates, strictCandidates.length])
+  }, [candidateTokens, candidatesKey, derivedStructuredText, effectiveMarkdownText, props.viewerKind, shouldLexDataViewCandidates, strictCandidates.length])
 
-  const candidates = strictCandidates.length > 0 ? strictCandidates : relaxedCandidates
-  const usingLooseTables = strictCandidates.length === 0 && relaxedCandidates.length > 0
+  const candidates = rowsJsonCandidates.length > 0
+    ? rowsJsonCandidates
+    : delimitedTextCandidates.length > 0
+      ? delimitedTextCandidates
+    : strictCandidates.length > 0
+      ? strictCandidates
+      : relaxedCandidates
+  const usingLooseTables = rowsJsonCandidates.length === 0 && strictCandidates.length === 0 && relaxedCandidates.length > 0
 
   React.useEffect(() => {
     if (candidates.length < 1) {
@@ -180,26 +253,6 @@ export function MarkdownWorkspaceDerivedViewer(props: {
 
     const docPath = props.activeDocumentPath ?? null
     const stableId = selected.id
-    const legacyId = selected.legacyId
-
-    const stableMeta = readWorkspaceDataViewStateWithMeta({
-      activeDocumentPath: docPath,
-      tableId: stableId,
-    })
-    if (!stableMeta.hasStoredValue && legacyId) {
-      const legacyMeta = readWorkspaceDataViewStateWithMeta({
-        activeDocumentPath: docPath,
-        tableId: legacyId,
-      })
-      if (legacyMeta.hasStoredValue) {
-        writeWorkspaceDataViewState({
-          activeDocumentPath: docPath,
-          tableId: stableId,
-          value: legacyMeta.state,
-        })
-      }
-    }
-
     const cfg = readWorkspaceDataViewConfig({ activeDocumentPath: docPath, tableId: stableId, fallback })
     setViewConfig(cfg)
   }, [props.activeDocumentPath, props.viewerMode, selected])
@@ -231,7 +284,23 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     }
   }, [props.activeDocumentPath, selected, viewConfig])
 
-  const canMutate = !props.disableViewerMutations && props.viewerKind !== 'json' && !usingLooseTables
+  const commitViewConfig = React.useCallback((next: WorkspaceDataViewConfig) => {
+    setViewConfig(next)
+    if (selected) {
+      writeWorkspaceDataViewConfig({
+        activeDocumentPath: props.activeDocumentPath ?? null,
+        tableId: selected.id,
+        value: next,
+      })
+    }
+    const prevGraphEnabled = viewConfig?.graphEnabled === true
+    const nextGraphEnabled = next.graphEnabled === true
+    if (prevGraphEnabled !== nextGraphEnabled) {
+      useGraphStore.getState().setMultiDimTableModeEnabled(nextGraphEnabled)
+    }
+  }, [props.activeDocumentPath, selected, viewConfig?.graphEnabled])
+
+  const canMutate = !props.disableViewerMutations && props.viewerKind !== 'json' && !usingLooseTables && !selected?.readonly
 
   const onResetDataView = React.useCallback(() => {
     setHeaderState({ searchQuery: '', visibleGroups: null, sortMode: 'none' })
@@ -500,12 +569,21 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       columns: selected.view.columns,
       groupByColumnId: viewConfig.groupByColumnId || selected.view.groupByColumnId || null,
       viewConfig,
-      setViewConfig,
+      setViewConfig: commitViewConfig,
       onChangeLayout: layout => {
         props.onChangeViewerMode?.(layout)
       },
       onChangeLayoutMode: mode => {
+        if (viewConfig) {
+          commitViewConfig({
+            ...viewConfig,
+            layout: mode === 'kanban' ? 'kanban' : 'table',
+            graphEnabled: mode === 'multiDimTable',
+            geospatialViewEnabled: false,
+          })
+        }
         props.onChangeViewerMode?.(mode)
+        useGraphStore.getState().setMultiDimTableModeEnabled(mode === 'multiDimTable')
       },
       onSelectGeospatialView: handleSelectGeospatialView,
       onReset: onResetDataView,
@@ -525,6 +603,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     onRenameColumn,
     props,
     settingsPanel,
+    commitViewConfig,
     viewConfig,
   ])
 
@@ -555,8 +634,10 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             forbidCopy={false}
             onInsertLineAfter={canMutate ? props.onInsertLineAfter : undefined}
             onReorderLineBlock={canMutate ? props.onReorderLineBlock : undefined}
-            onReplaceLineRange={props.onReplaceLineRange}
+            onReplaceLineRange={canMutate ? props.onReplaceLineRange : undefined}
             onShowInEditor={props.onRevealLineInEditor}
+            onInlineEditStateChange={canMutate ? props.onInlineEditStateChange : undefined}
+            onInlineDraftTextChange={canMutate ? props.onInlineDraftTextChange : undefined}
           />
         )
       }
@@ -604,8 +685,10 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         forbidCopy={false}
         onInsertLineAfter={canMutate ? props.onInsertLineAfter : undefined}
         onReorderLineBlock={canMutate ? props.onReorderLineBlock : undefined}
-        onReplaceLineRange={props.onReplaceLineRange}
+        onReplaceLineRange={canMutate ? props.onReplaceLineRange : undefined}
         onShowInEditor={props.onRevealLineInEditor}
+        onInlineEditStateChange={canMutate ? props.onInlineEditStateChange : undefined}
+        onInlineDraftTextChange={canMutate ? props.onInlineDraftTextChange : undefined}
       />
     )
   }
@@ -625,7 +708,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         supportsMultiDimLayout={true}
         onNewRecord={canMutate ? () => onNewRecord() : undefined}
         viewConfig={viewConfig}
-        setViewConfig={(next) => setViewConfig(next)}
+        setViewConfig={commitViewConfig}
         openSettings={() => openViewSettingsPanel('properties')}
         openSettingsPanel={openViewSettingsPanel}
         tableSelector={
@@ -640,7 +723,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
           ) : null
         }
       />
-      <main className="flex-1 min-h-0 overflow-auto">
+      <main className={`${UI_RESPONSIVE_WORKSPACE_DATA_VIEW_MAIN_CLASSNAME} flex-1 min-h-0 overflow-auto`}>
         {!selected ? (
           <section className="p-4" aria-label="No data views">
             <p className={`${UI_THEME_TOKENS.text.tertiary} ${panelTypography.microLabelClass}`}>No eligible Markdown tables found.</p>

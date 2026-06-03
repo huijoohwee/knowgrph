@@ -332,7 +332,7 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!canvasViewportText.includes('const MARKDOWN_METRICS_DEV_ENABLED = Boolean')) {
     throw new Error('expected CanvasViewport to gate markdown metrics overlay imports behind a cheap DEV constant')
   }
-  if (!canvasViewportText.includes('{MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}')) {
+  if (!canvasViewportText.includes('{!documentSwitchPending && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}')) {
     throw new Error('expected CanvasViewport to mount the dev metrics overlay only through the DEV-gated lazy boundary')
   }
 

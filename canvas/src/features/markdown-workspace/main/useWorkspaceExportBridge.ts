@@ -6,6 +6,7 @@ import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explo
 type UseWorkspaceExportBridgeArgs = {
   activeDocumentKey: string
   activeText: string
+  jsonSourceText?: string | null
   markdownEditText: string | null
   viewerTextOverride?: string | null
   showWebpageHtml: boolean
@@ -20,6 +21,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
   const {
     activeDocumentKey,
     activeText,
+    jsonSourceText,
     markdownEditText,
     viewerTextOverride,
     showWebpageHtml,
@@ -154,11 +156,39 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
 
   const handleExportJson = React.useCallback(async () => {
     flushGraphWritebackForExport()
+    const activeExportText = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
+    const dataFileMod = await import('./exports/exportCsvJsonDataFile')
+    const { exportCsvJsonWorkspaceDataFile } = dataFileMod
+    const dataFileExported = await exportCsvJsonWorkspaceDataFile({
+      activeDocumentKey,
+      activeText: activeExportText,
+      targetFormat: 'json',
+      jsonSourceText,
+    })
+    if (dataFileExported) return
     const gd = useGraphStore.getState().graphData
     const mod = await import('./exports/exportJson')
     const { exportGraphJson } = mod
     await exportGraphJson({ graphData: gd, exportBaseName, pushUiToast })
-  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
+  }, [activeDocumentKey, activeText, exportBaseName, flushGraphWritebackForExport, jsonSourceText, pushUiToast, viewerTextOverride])
+
+  const handleExportCsv = React.useCallback(async () => {
+    flushGraphWritebackForExport()
+    const activeExportText = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
+    const dataFileMod = await import('./exports/exportCsvJsonDataFile')
+    const { exportCsvJsonWorkspaceDataFile } = dataFileMod
+    const dataFileExported = await exportCsvJsonWorkspaceDataFile({
+      activeDocumentKey,
+      activeText: activeExportText,
+      targetFormat: 'csv',
+      jsonSourceText,
+    })
+    if (dataFileExported) return
+    const gd = useGraphStore.getState().graphData
+    const mod = await import('./exports/exportCsv')
+    const { exportGraphCsv } = mod
+    await exportGraphCsv({ graphData: gd, exportBaseName, pushUiToast })
+  }, [activeDocumentKey, activeText, exportBaseName, flushGraphWritebackForExport, jsonSourceText, pushUiToast, viewerTextOverride])
 
   const handleExportPdfPortrait = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -187,6 +217,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
         htmlViewer: () => void handleExportHtmlViewer(),
         htmlCanvas: () => void handleExportHtmlCanvas(),
         json: () => void handleExportJson(),
+        csv: () => void handleExportCsv(),
         svg: () => void handleExportSvg(),
         pdfPortrait: () => void handleExportPdfPortrait(),
         pdfLandscape: () => void handleExportPdfLandscape(),
@@ -198,6 +229,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
       handleExportHtmlCanvas,
       handleExportHtmlWorkspace,
       handleExportHtmlViewer,
+      handleExportCsv,
       handleExportJson,
       handleExportMarkdown,
       handleExportPng,
@@ -224,6 +256,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     handleExportHtmlCanvas,
     handleExportSvg,
     handleExportJson,
+    handleExportCsv,
     handleExportPdfPortrait,
     handleExportPdfLandscape,
   }

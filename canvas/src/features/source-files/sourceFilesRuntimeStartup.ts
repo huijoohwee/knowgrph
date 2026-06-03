@@ -12,7 +12,7 @@ import {
 import { readWorkspaceSourceRootEntriesSnapshot } from '@/features/source-files/sourceFilesRuntimeActive'
 import { resolveMaterializedWorkspaceActivePath } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { resolveMarkdownWorkspaceCanonicalSelection } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionCanonicalPath'
-import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
+import { buildWorkspaceEntriesIndex, hasWorkspaceFileEntry } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
 export function buildInitialWorkspaceStartupSnapshot(args: {
   currentActivePath: WorkspacePath | null
@@ -58,6 +58,43 @@ export function resolveWorkspaceStartupCanonicalPath(args: {
   return canonicalSelection?.activePath || activePath
 }
 
+export function resolveExistingWorkspaceStartupCanonicalPath(args: {
+  activePath: WorkspacePath | null
+  workspaceEntries: WorkspaceEntry[]
+}): WorkspacePath | null {
+  const canonicalPath = resolveWorkspaceStartupCanonicalPath(args)
+  if (!canonicalPath) return null
+  return hasWorkspaceFileEntry(buildWorkspaceEntriesIndex(args.workspaceEntries), canonicalPath)
+    ? canonicalPath
+    : null
+}
+
+export function resolveWorkspaceStartupActivePathToApply(args: {
+  currentActivePath: WorkspacePath | null
+  latestActivePath: WorkspacePath | null
+  snapshotActivePath: WorkspacePath | null
+  preferCustomValidationSeed?: boolean
+}): WorkspacePath | null {
+  if (!args.snapshotActivePath) return null
+  if (
+    !args.preferCustomValidationSeed &&
+    args.latestActivePath &&
+    args.latestActivePath !== args.currentActivePath &&
+    args.latestActivePath !== args.snapshotActivePath
+  ) {
+    return null
+  }
+  return args.snapshotActivePath === args.latestActivePath ? null : args.snapshotActivePath
+}
+
+export function shouldFallbackWorkspaceStartupToReadme(args: {
+  activePath: WorkspacePath | null
+  hasDesiredActiveText: boolean
+  preferCustomValidationSeed?: boolean
+}): boolean {
+  return !args.activePath && !args.hasDesiredActiveText && !args.preferCustomValidationSeed
+}
+
 export async function resolveInitialWorkspaceStartupState(): Promise<{
   activePath: WorkspacePath | null
   workspaceEntries: WorkspaceEntry[]
@@ -69,7 +106,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   const startupWorkspaceEntries = await fs.listEntries()
-  const currentActivePath = resolveWorkspaceStartupCanonicalPath({
+  const currentActivePath = resolveExistingWorkspaceStartupCanonicalPath({
     activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath }),
     workspaceEntries: startupWorkspaceEntries,
   })
@@ -84,7 +121,11 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     ? await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
     : startupWorkspaceEntries
   const hasDesiredActiveText = workspaceEntries.some(entry => entry?.kind === 'file' && entry.path === desiredActivePath && String(entry.text || '').trim())
-  if (!hasDesiredActiveText && !preferCustomValidationSeed) {
+  if (shouldFallbackWorkspaceStartupToReadme({
+    activePath: currentActivePath,
+    hasDesiredActiveText,
+    preferCustomValidationSeed,
+  })) {
     desiredActivePath = resolveWorkspaceStartupCanonicalPath({
       activePath: WORKSPACE_README_SEED_PATH,
       workspaceEntries: startupWorkspaceEntries,
@@ -92,6 +133,24 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     workspaceEntries = desiredActivePath
       ? await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
       : startupWorkspaceEntries
+  }
+  const latestExplorer = useMarkdownExplorerStore.getState()
+  const latestActivePath = resolveExistingWorkspaceStartupCanonicalPath({
+    activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: latestExplorer.activePath }),
+    workspaceEntries: startupWorkspaceEntries,
+  })
+  if (!preferCustomValidationSeed && latestActivePath && latestActivePath !== currentActivePath) {
+    const latestWorkspaceEntries = latestActivePath === desiredActivePath
+      ? workspaceEntries
+      : await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: latestActivePath, workspaceEntries: startupWorkspaceEntries })
+    return buildInitialWorkspaceStartupSnapshot({
+      currentActivePath: latestActivePath,
+      desiredActivePath: latestActivePath,
+      workspaceEntries: latestWorkspaceEntries,
+      lastSetActivePath: latestExplorer.lastSetActivePath,
+      preferCustomValidationSeed,
+      sourceFilesMaterialized: hasMaterializedWorkspaceSourceFiles(),
+    })
   }
   const snapshot = buildInitialWorkspaceStartupSnapshot({
     currentActivePath,
@@ -101,8 +160,14 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     preferCustomValidationSeed,
     sourceFilesMaterialized: hasMaterializedWorkspaceSourceFiles(),
   })
-  if (desiredActivePath && desiredActivePath !== currentActivePath) {
-    explorer.setActivePath(desiredActivePath)
+  const activePathToApply = resolveWorkspaceStartupActivePathToApply({
+    currentActivePath,
+    latestActivePath,
+    snapshotActivePath: snapshot.activePath,
+    preferCustomValidationSeed,
+  })
+  if (activePathToApply) {
+    useMarkdownExplorerStore.getState().setActivePath(activePathToApply)
   }
   return snapshot
 }

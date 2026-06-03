@@ -11,6 +11,7 @@ import {
 } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
@@ -369,7 +370,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       keyValueInputClass,
       textSizeClass,
       'text-left',
-      'h-24',
+      UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
       monospaceTextClass,
       UI_THEME_TOKENS.input.bg,
       UI_THEME_TOKENS.input.border,

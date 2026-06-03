@@ -4,7 +4,11 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { dispatchRuntimeFitToViewSoon } from '@/lib/canvas/runtimeZoomDispatch'
-import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_CANVAS_STATUS_ROW_CLASSNAME,
+  UI_RESPONSIVE_CANVAS_TOOL_ACTION_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
@@ -43,9 +47,9 @@ export function DesignCanvasEditorChrome(props: {
   const buttonClass = cn(
     'App-toolbar__btn',
     UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+    UI_RESPONSIVE_CANVAS_TOOL_ACTION_CLASSNAME,
     UI_THEME_TOKENS.button.hoverBg,
     UI_THEME_TOKENS.button.text,
-    'h-8 w-8 justify-center p-0',
   )
   const activeButtonClass = cn(buttonClass, UI_THEME_TOKENS.button.activeText, UI_THEME_TOKENS.button.activeBg)
   const mode = canvasPointerMode2d === 'pan' ? 'Pan' : 'Select'
@@ -110,7 +114,8 @@ export function DesignCanvasEditorChrome(props: {
       </nav>
       <div
         className={cn(
-          'pointer-events-none flex min-w-0 max-w-[calc(100%-3rem)] items-center gap-2 rounded border px-2 py-1 shadow-sm',
+          'pointer-events-none flex min-w-0 items-center gap-2 rounded border px-2 py-1 shadow-sm',
+          UI_RESPONSIVE_CANVAS_STATUS_ROW_CLASSNAME,
           UI_THEME_TOKENS.panel.overlayBg,
           UI_THEME_TOKENS.panel.border,
           UI_THEME_TOKENS.text.tertiary,

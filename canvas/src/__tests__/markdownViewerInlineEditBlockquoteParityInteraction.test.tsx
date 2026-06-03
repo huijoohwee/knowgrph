@@ -1,5 +1,6 @@
 import React from 'react'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const tick = async (n: number = 1) => {
   for (let i = 0; i < n; i += 1) {
@@ -20,7 +21,7 @@ export async function testMarkdownViewerInlineEditBlockquoteDoesNotDriftRightwar
     root.render(
       <MarkdownBlockContainer
         as="blockquote"
-        className="mt-2 mb-2 pl-[44px] pr-2"
+        className={`mt-2 mb-2 ${UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME} pr-2`}
         highlightClass=""
         startLine={1}
         endLine={1}
@@ -109,7 +110,7 @@ export async function testMarkdownViewerInlineEditBlankBlockquoteKeepsLineByLine
     root.render(
       <MarkdownBlockContainer
         as="blockquote"
-        className="mt-2 mb-2 pl-[44px] pr-2"
+        className={`mt-2 mb-2 ${UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME} pr-2`}
         highlightClass=""
         startLine={1}
         endLine={3}
@@ -178,7 +179,7 @@ export async function testMarkdownViewerInlineEditBlockquoteDoesNotShowSigilAsCo
     root.render(
       <MarkdownBlockContainer
         as="blockquote"
-        className="mt-2 mb-2 pl-[44px] pr-2"
+        className={`mt-2 mb-2 ${UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME} pr-2`}
         highlightClass=""
         startLine={1}
         endLine={1}
@@ -250,7 +251,7 @@ export async function testMarkdownViewerInlineEditMultiLineBlockquoteDoesNotAppe
     root.render(
       <MarkdownBlockContainer
         as="blockquote"
-        className="mt-2 mb-2 pl-[44px] pr-2"
+        className={`mt-2 mb-2 ${UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME} pr-2`}
         highlightClass=""
         startLine={1}
         endLine={3}
@@ -308,7 +309,9 @@ export async function testMarkdownViewerInlineEditMultiLineBlockquoteDoesNotAppe
     if (!lastRowText) {
       throw new Error(`expected multiline blockquote editor not to append trailing empty row; html=${JSON.stringify(String(editor.innerHTML || ''))}`)
     }
-    const edgeWhitespaceNodes = Array.from(editor.childNodes).filter(node => {
+    const editorChildNodes = Array.from(editor.childNodes)
+    const edgeWhitespaceNodes = editorChildNodes.filter((node, index) => {
+      if (index !== 0 && index !== editorChildNodes.length - 1) return false
       if (node.nodeType !== dom.window.Node.TEXT_NODE) return false
       return !String(node.textContent || '').trim()
     })

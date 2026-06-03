@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { settingsRegistry } from '../features/settings/registry'
 import { FALLBACK_DETAILS } from '../features/panels/views/SettingsFallbackDetails'
+import { MARKDOWN_DATA_VIEW_COPY } from '../lib/config-copy/markdownDataViewCopy'
 
 type SettingsFlowRow = {
   area: string
@@ -224,8 +225,8 @@ function humanizeKey(value: string): string {
 }
 
 function inferAreaFromKey(key: string): string {
-  if (key.startsWith('graphDataTable.aggregate')) return 'Graph Data Table Aggregation'
-  if (key.startsWith('graphDataTable.')) return 'Graph Data Table'
+  if (key.startsWith('graphDataTable.aggregate')) return `${MARKDOWN_DATA_VIEW_COPY.titleDefault} Aggregation`
+  if (key.startsWith('graphDataTable.')) return MARKDOWN_DATA_VIEW_COPY.titleDefault
   if (key.startsWith('graphFields.')) return 'Graph Fields'
   if (key.startsWith('graphHoverPreview.')) return 'Graph Hover Preview'
   if (key.startsWith('spotlight.')) return 'Launch Spotlight Layout'

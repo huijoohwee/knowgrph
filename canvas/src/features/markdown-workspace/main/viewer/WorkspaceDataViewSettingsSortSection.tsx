@@ -5,8 +5,7 @@ import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownData
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewSortDirection, WorkspaceDataViewSortRule } from './workspaceDataViewConfig'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
-import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { DataViewToolbarButton } from '@/lib/ui/dataViewToolbarButton'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function makeId(): string {
@@ -70,15 +69,12 @@ export function WorkspaceDataViewSettingsSortSection(props: {
         </div>
 
         <div className="flex min-w-0 max-w-full items-center justify-end">
-          <button
-            type="button"
-            className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+          <DataViewToolbarButton
+            label="Clear"
             onClick={() => props.onChangeView({ ...props.view, sortRules: [] })}
             disabled={props.view.sortRules.length === 0}
-          >
-            <ArrowUpDown className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-            <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Clear</span>
-          </button>
+            leadingIcon={<ArrowUpDown className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
+          />
         </div>
       </section>
     </section>

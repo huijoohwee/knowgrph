@@ -339,7 +339,7 @@ export function testFrontmatterBuiltInPinnedCanvasResidueDoesNotCarryAcrossCompo
   }
 }
 
-export function testFrontmatterBuiltInPinnedCanvasResidueCannotEnterRootSetter() {
+export function testFrontmatterBuiltInExplicitPinSetterPersistsUntilGraphCommitCleanup() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
 
   useGraphStore.getState().setGraphData({
@@ -365,8 +365,8 @@ export function testFrontmatterBuiltInPinnedCanvasResidueCannotEnterRootSetter()
   })
 
   const after = useGraphStore.getState()
-  if (after.flowWidgetPinnedByNodeId.NODE_TEXT_A === true || after.flowWidgetPinnedByNodeId.NODE_PANEL_A === true) {
-    throw new Error('expected root pinned-state setter to reject frontmatter auto-managed pinned-canvas residue')
+  if (after.flowWidgetPinnedByNodeId.NODE_TEXT_A !== true || after.flowWidgetPinnedByNodeId.NODE_PANEL_A !== true) {
+    throw new Error('expected root pinned-state setter to preserve explicit user pinning for frontmatter auto-managed widgets')
   }
   if (after.flowWidgetPinnedByNodeId.NODE_CUSTOM_A !== true) {
     throw new Error('expected root pinned-state setter to preserve non-auto-managed frontmatter widget pin state')

@@ -12,6 +12,7 @@ import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/s
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { uiToolbarRowScrollInlineClassName, uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_INLINE_STATUS_CHIP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   MAIN_PANEL_TABS,
   getMainPanelTabMeta,
@@ -335,7 +336,7 @@ export default function MainPanel({
         <footer className={`${uiToolbarRowScrollJustifyBetweenClassName} w-full gap-1 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}>
           <p className="min-w-0 flex-1 truncate">{footerLabel}</p>
           {traversalChip && (
-            <section className={`${uiToolbarRowScrollInlineClassName} gap-x-1 gap-y-0.5 px-2 py-[1px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label={UI_LABELS.graphTraversal}>
+            <section className={`${uiToolbarRowScrollInlineClassName} gap-x-1 gap-y-0.5 ${UI_RESPONSIVE_INLINE_STATUS_CHIP_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label={UI_LABELS.graphTraversal}>
               <span className="font-semibold mr-1">{UI_LABELS.graphTraversal}</span>
               <span className="mr-1">{traversalChip.modeLabel}</span>
               <span className="mx-0.5">•</span>

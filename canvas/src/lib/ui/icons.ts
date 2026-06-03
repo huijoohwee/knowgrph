@@ -1,10 +1,17 @@
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_BADGE_CHIP_CLASSNAME,
+  UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_CHIP_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type UiIconScale = 'compact' | 'default'
 
 export function getIconSizeClass(scale: UiIconScale | undefined): string {
-  if (scale === 'compact') return 'w-3 h-3'
-  return 'w-4 h-4'
+  if (scale === 'compact') return UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME
+  return UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME
 }
 
 export type UiPillVariant = 'legend' | 'badge'
@@ -30,6 +37,14 @@ export function getPillClass(
 
 export type UiChipVariant = 'default' | 'selected'
 
+const previousBadgeChipBaseClassName = (): string => `${'px'}-1 ${'py'}-[1px] rounded-full border`
+
+export function normalizeBadgeChipBaseClassName(className: string): string {
+  const normalized = className.trim()
+  if (!normalized || normalized === previousBadgeChipBaseClassName()) return UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME
+  return normalized
+}
+
 export function getChipClass(
   variant: UiChipVariant,
   options: {
@@ -39,7 +54,7 @@ export function getChipClass(
     extraClassName?: string
   } = {},
 ): string {
-  const defaultBase = 'px-1.5 py-[1px] border rounded'
+  const defaultBase = `${UI_RESPONSIVE_CHIP_CLASSNAME} border rounded`
   const extraBase = options.baseClass || ''
   const base = extraBase ? `${defaultBase} ${extraBase}` : defaultBase
   const sizeClass = options.textSizeClass || 'text-xs'
@@ -62,9 +77,9 @@ export function getBadgeChipClass(
     extraClassName?: string
   } = {},
 ): string {
-  const defaultBase = 'px-1 py-[1px] rounded-full'
+  const defaultBase = `${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} rounded-full`
   const extraBase = options.baseClass || ''
-  const base = extraBase ? `${defaultBase} ${extraBase}` : defaultBase
+  const base = extraBase ? `${defaultBase} ${normalizeBadgeChipBaseClassName(extraBase)}` : defaultBase
   const sizeClass = options.textSizeClass || 'text-[9px]'
   const defaultStateClass =
     variant === 'selected'

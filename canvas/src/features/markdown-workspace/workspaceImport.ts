@@ -10,6 +10,11 @@ export {
 
 export { importWorkspaceLocalFiles, importWorkspaceLocalFolder } from './workspaceImport/localImport'
 
+export {
+  XR_IMAGE_MODEL_WORKSPACE_ROOT,
+  setXrImageWorkspaceArtifactMirrorForTests,
+} from './workspaceImport/xrImageAssets'
+
 export { fetchWorkspaceUrlContent } from './workspaceImport/urlContent'
 
 export { shouldApplyImportedCanvasDocumentToGraph } from './workspaceImport/applyPolicy'

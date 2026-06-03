@@ -5,6 +5,14 @@ import { Trash2 } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
+import {
+  UI_RESPONSIVE_FLOW_MANAGER_TABLE_ACTION_HEADER_CELL_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_TABLE_ACTION_CELL_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_TABLE_CELL_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_TABLE_FIELD_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_TABLE_HEADER_CELL_CLASSNAME,
+  UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarStyles'
 import { GripDotsIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 
@@ -43,6 +51,11 @@ export default function FlowMappingRowsTable({
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass)
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const tableFieldClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_FIELD_CLASSNAME} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`
+  const tableHeaderCellClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_HEADER_CELL_CLASSNAME} text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`
+  const tableActionHeaderCellClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_ACTION_HEADER_CELL_CLASSNAME} text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`
+  const tableCellClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_CELL_CLASSNAME} ${UI_THEME_TOKENS.panel.border}`
+  const tableActionCellClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_ACTION_CELL_CLASSNAME} ${UI_THEME_TOKENS.panel.border}`
 
   const [draggingRowId, setDraggingRowId] = React.useState<string | null>(null)
   const [dragOverRowId, setDragOverRowId] = React.useState<string | null>(null)
@@ -91,13 +104,13 @@ export default function FlowMappingRowsTable({
     <table className={`w-full border-separate border-spacing-0 ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}>
       <thead>
         <tr>
-          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Move</th>
-          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</th>
-          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</th>
-          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>JSON Key</th>
-          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Required</th>
-          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Direction</th>
-          <th className={`text-right px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Actions</th>
+          <th className={tableHeaderCellClassName}>Move</th>
+          <th className={tableHeaderCellClassName}>Key</th>
+          <th className={tableHeaderCellClassName}>Type</th>
+          <th className={tableHeaderCellClassName}>JSON Key</th>
+          <th className={tableHeaderCellClassName}>Required</th>
+          <th className={tableHeaderCellClassName}>Direction</th>
+          <th className={tableActionHeaderCellClassName}>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -127,10 +140,10 @@ export default function FlowMappingRowsTable({
                 if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOverRowId(null)
               }}
             >
-              <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
+              <td className={tableCellClassName}>
                 <button
                   type="button"
-                  className={`${UI_THEME_TOKENS.button.text} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} inline-flex items-center justify-center h-7 w-7 rounded ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`${UI_THEME_TOKENS.button.text} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME} rounded ${UI_THEME_TOKENS.button.hoverBg}`}
                   draggable
                   onDragStart={e => onDragStart(r.id, e)}
                   onDragEnd={onDragEnd}
@@ -142,21 +155,21 @@ export default function FlowMappingRowsTable({
                   <GripDotsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} />
                 </button>
               </td>
-              <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
+              <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={keyId}>Key</label>
                 <input
                   id={keyId}
-                  className={`w-full h-7 px-2 rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`}
+                  className={tableFieldClassName}
                   value={r.key}
                   onChange={e => onChange(r.id, { key: e.target.value })}
                   placeholder="key"
                 />
               </td>
-              <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
+              <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={typeId}>Type</label>
                 <select
                   id={typeId}
-                  className={`w-full h-7 px-2 rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`}
+                  className={tableFieldClassName}
                   value={r.type}
                   onChange={e => {
                     const nextType = e.target.value as FlowMappingRowType
@@ -170,17 +183,17 @@ export default function FlowMappingRowsTable({
                   ))}
                 </select>
               </td>
-              <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
+              <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={valueId}>JSON Key</label>
                 <input
                   id={valueId}
-                  className={`w-full h-7 px-2 rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`}
+                  className={tableFieldClassName}
                   value={r.value}
                   onChange={e => onChange(r.id, { value: e.target.value })}
                   placeholder="schemaPath"
                 />
               </td>
-              <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
+              <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={reqId}>Required</label>
                 <input
                   id={reqId}
@@ -190,11 +203,11 @@ export default function FlowMappingRowsTable({
                   disabled={isPort}
                 />
               </td>
-              <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
+              <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={dirId}>Direction</label>
                 <select
                   id={dirId}
-                  className={`w-full h-7 px-2 rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`}
+                  className={tableFieldClassName}
                   value={r.direction}
                   onChange={e => {
                     const nextDirection = e.target.value as FlowMappingRowDirection
@@ -208,7 +221,7 @@ export default function FlowMappingRowsTable({
                   ))}
                 </select>
               </td>
-              <td className={`px-2 py-1 align-top text-right border-t ${UI_THEME_TOKENS.panel.border}`}>
+              <td className={tableActionCellClassName}>
                 <button
                   type="button"
                   className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} mr-1`}

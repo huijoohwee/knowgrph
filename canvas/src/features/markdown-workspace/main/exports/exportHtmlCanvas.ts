@@ -7,6 +7,7 @@ import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
 import { defaultSchema } from '@/lib/graph/schema'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
 import type { UiToastInput } from '@/hooks/store/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
@@ -378,7 +379,7 @@ export async function buildHtmlCanvasWorkspaceDocument(args: BuildHtmlCanvasWork
       canvasInteractionSpeedMultiplier: (store as unknown as { canvasInteractionSpeedMultiplier?: number }).canvasInteractionSpeedMultiplier,
       canvasPanSpeedMultiplier: (store as unknown as { canvasPanSpeedMultiplier?: number }).canvasPanSpeedMultiplier,
       snapGridEnabled: !!store.schema?.behavior?.snapGrid?.enabled,
-      snapGridSize: store.schema?.behavior?.snapGrid?.size,
+      snapGridSize: readSnapGridScalarSize(store.schema?.behavior?.snapGrid?.size),
       dragConstraint: (store.schema?.behavior?.dragConstraint as any) || 'free',
       allowNodeDrag: true,
       allowEdgeDrag: true,

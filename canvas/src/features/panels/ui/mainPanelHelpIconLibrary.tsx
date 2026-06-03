@@ -5,6 +5,7 @@ import {
   Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
 } from 'lucide-react'
 import type { MainPanelTabKey } from '@/features/panels/mainPanelTabs'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type MainPanelTypeIconComponent = React.ComponentType<{
   className?: string
@@ -363,12 +364,12 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
   },
   'field.visibility.show': {
     category: 'Graph field type',
-    label: 'Show in Graph Data Table',
+    label: MARKDOWN_DATA_VIEW_COPY.showInLabel,
     Icon: Table,
   },
   'field.visibility.hide': {
     category: 'Graph field type',
-    label: 'Hide in Graph Data Table',
+    label: MARKDOWN_DATA_VIEW_COPY.hideInLabel,
     Icon: Eraser,
   },
   'field.type.singleLineText': {

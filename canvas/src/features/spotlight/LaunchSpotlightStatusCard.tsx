@@ -11,6 +11,10 @@ import { getLocalStorage } from '@/lib/persistence'
 import { emitFlowResetZoomFloorCache } from '@/components/FlowCanvas/shared'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_FLOATING_NOTICE_CARD_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
@@ -29,9 +33,12 @@ type FlowWidgetTraceEntry = {
 
 const FLOW_QE_TRACE_LS_KEY = 'kg:debug:flowEditorWidgetTrace'
 const EMPTY_STRING_ARRAY: string[] = []
-const spotlightCardClassName = `pointer-events-auto rounded-xl border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/95 shadow-lg px-4 py-3 max-w-xs w-80`
+const spotlightCardClassName = `pointer-events-auto rounded-xl border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/95 shadow-lg px-4 py-3 ${UI_RESPONSIVE_FLOATING_NOTICE_CARD_CLASSNAME}`
 const spotlightGhostButtonClassName = `${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg}`
-const spotlightSecondaryButtonClassName = `border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightActionButtonBaseClassName = `${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} inline-flex items-center justify-center rounded border`
+const spotlightGhostActionButtonClassName = `${spotlightActionButtonBaseClassName} border-transparent ${spotlightGhostButtonClassName}`
+const spotlightSecondaryActionButtonClassName = `${spotlightActionButtonBaseClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightPrimaryActionButtonClassName = `${spotlightActionButtonBaseClassName} border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`
 
 type LaunchSpotlightStatusCardProps = {
   dismissed: boolean
@@ -340,14 +347,14 @@ export function LaunchSpotlightStatusCard({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
+                className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
                 onClick={handleClose}
               >
                 Close
               </button>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`${uiPanelKeyValueTextSizeClass} ${spotlightPrimaryActionButtonClassName}`}
                 onClick={handleReopenStatus}
               >
                 Reopen
@@ -363,7 +370,7 @@ export function LaunchSpotlightStatusCard({
               </div>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
+                className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
                 onClick={handleMinimizeStatus}
               >
                 Minimize
@@ -414,14 +421,14 @@ export function LaunchSpotlightStatusCard({
                     <div className="mt-1">
                       <button
                         type="button"
-                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded ${spotlightSecondaryButtonClassName} mr-1`}
+                        className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryActionButtonClassName} mr-1`}
                         onClick={handleResetZoomFloorCache}
                       >
                         Reset Zoom Floor (dev)
                       </button>
                       <button
                         type="button"
-                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded ${spotlightSecondaryButtonClassName}`}
+                        className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryActionButtonClassName}`}
                         onClick={handleSummarizeWidgetTrace}
                       >
                         QE Trace Summary (dev)
@@ -476,7 +483,7 @@ export function LaunchSpotlightStatusCard({
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded ${spotlightSecondaryButtonClassName}`}
+                className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryActionButtonClassName}`}
                 onClick={handleClose}
               >
                 Close

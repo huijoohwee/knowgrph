@@ -11,9 +11,35 @@ import { inspectGlbBytes, inspectGltfJson } from '@/lib/assets/gltfFormat'
 export { GLB_ASSET_DATA_URL_PREFIX, GLB_ASSET_MIME_TYPE, GLTF_ASSET_MIME_TYPE }
 
 export type WorkspaceModelAssetFormat = 'glb' | 'gltf'
+export type ModelAssetMetadataValue = string | number | boolean | null | undefined
 
 function yamlQuote(value: string): string {
   return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function yamlScalar(value: Exclude<ModelAssetMetadataValue, null | undefined>): string {
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('model-asset-metadata-number-invalid')
+    return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(6)))
+  }
+  return yamlQuote(value)
+}
+
+function buildMetadataLines(metadata?: Record<string, ModelAssetMetadataValue> | null): string[] {
+  if (!metadata) return []
+  return Object.entries(metadata).flatMap(([rawKey, value]) => {
+    if (value === null || typeof value === 'undefined') return []
+    const key = String(rawKey || '').trim()
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`model-asset-metadata-key-invalid:${key}`)
+    return [`${key}: ${yamlScalar(value)}`]
+  })
+}
+
+function buildBodyLines(lines?: string[] | null): string[] {
+  if (!lines?.length) return []
+  const out = lines.flatMap(line => String(line || '').split(/\r?\n/))
+  return out.length ? [...out, ''] : []
 }
 
 export function isGlbAssetName(value: unknown): boolean {
@@ -120,6 +146,8 @@ export function buildGlbAssetMarkdown(args: {
   sourceKind: 'local' | 'url'
   sourceUrl?: string | null
   buffer: ArrayBuffer
+  metadata?: Record<string, ModelAssetMetadataValue> | null
+  bodyLines?: string[] | null
 }): string {
   const name = String(args.name || '').trim() || 'model.glb'
   const bytes = Math.max(0, Number(args.buffer?.byteLength || 0))
@@ -151,6 +179,7 @@ export function buildGlbAssetMarkdown(args: {
     inspection.binChunkLength ? `kgAssetGlbBinChunkBytes: ${inspection.binChunkLength}` : '',
     inspection.unknownChunkCount ? `kgAssetGlbUnknownChunkCount: ${inspection.unknownChunkCount}` : '',
     sourceUrl ? `kgAssetUrl: ${yamlQuote(sourceUrl)}` : '',
+    ...buildMetadataLines(args.metadata),
     'kgCanvasSurfaceMode: "xr"',
     'kgCanvasRenderMode: "3d"',
     'kgCanvas3dMode: "xr"',
@@ -163,6 +192,7 @@ export function buildGlbAssetMarkdown(args: {
     '- Format: GLB',
     `- Source: ${args.sourceKind}`,
     `- Bytes: ${bytes}`,
+    ...buildBodyLines(args.bodyLines),
     '',
     `\`\`\`${GLB_ASSET_BASE64_FENCE}`,
     ...chunkBase64(base64),
@@ -176,6 +206,8 @@ export function buildGltfAssetMarkdown(args: {
   sourceKind: 'local' | 'url'
   sourceUrl?: string | null
   text: string
+  metadata?: Record<string, ModelAssetMetadataValue> | null
+  bodyLines?: string[] | null
 }): string {
   const name = String(args.name || '').trim() || 'model.gltf'
   const text = String(args.text || '')
@@ -198,6 +230,7 @@ export function buildGltfAssetMarkdown(args: {
     `kgAssetExternalResourceCount: ${inspection.externalResourceUris.length}`,
     `kgAssetEmbeddedResourceCount: ${inspection.embeddedResourceDataUriCount}`,
     sourceUrl ? `kgAssetUrl: ${yamlQuote(sourceUrl)}` : '',
+    ...buildMetadataLines(args.metadata),
     'kgCanvasSurfaceMode: "xr"',
     'kgCanvasRenderMode: "3d"',
     'kgCanvas3dMode: "xr"',
@@ -210,6 +243,7 @@ export function buildGltfAssetMarkdown(args: {
     '- Format: GLTF',
     `- Source: ${args.sourceKind}`,
     `- Bytes: ${bytes}`,
+    ...buildBodyLines(args.bodyLines),
     '',
     `\`\`\`${GLTF_ASSET_BASE64_FENCE}`,
     ...chunkBase64(base64),

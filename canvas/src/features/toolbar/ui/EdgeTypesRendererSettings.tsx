@@ -23,6 +23,15 @@ import {
   WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
   WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
+import {
+  ResponsiveControlRow,
+  ResponsiveSelectRow,
+} from '@/lib/ui/responsiveControlRows'
+import {
+  UI_RESPONSIVE_CONTROL_TOGGLE_GROUP_END_CLASSNAME,
+  UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { uiToolbarSettingsPanelBodyClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type ThreeEdgeRendererType = 'mesh' | 'shaderLine' | 'tubeBridge'
 
@@ -40,7 +49,6 @@ export function EdgeTypesRendererSettings(props: {
 }) {
   const onSelectEdgeTypeProp = props.onSelectEdgeType
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const schema = useGraphStore(s => s.schema)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -147,86 +155,63 @@ export function EdgeTypesRendererSettings(props: {
 
   return (
     <CollapsibleSection title="Edge Types" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className="px-3 py-2 space-y-2">
+      <div className={uiToolbarSettingsPanelBodyClassName}>
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Applies globally to Flowchart, Flow Canvas, Design, Flow Editor, document modes, 2D/3D/geospatial surfaces, and Text/Image/Video widgets. Default is Bezier with animated blue edges.
         </div>
-        <div className="flex items-center gap-2">
-          <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-            Type
-          </label>
-          <select
-            className={`w-[50%] h-6 px-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            value={selectedEdgeType}
-            onChange={e => onSelectEdgeType((String(e.target.value || '').trim().toLowerCase() as GlobalEdgeType))}
+        <ResponsiveSelectRow
+          label="Type"
+          value={selectedEdgeType}
+          onChange={next => onSelectEdgeType((String(next || '').trim().toLowerCase() as GlobalEdgeType))}
+        >
+          {options.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </ResponsiveSelectRow>
+        <ResponsiveSelectRow
+          label="Color"
+          value={edgeColor}
+          onChange={setEdgeColor}
+        >
+          {GLOBAL_EDGE_COLOR_OPTIONS.map(option => (
+            <option key={option.key} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </ResponsiveSelectRow>
+        <ResponsiveSelectRow
+          label="Thickness"
+          value={String(edgeThicknessPx)}
+          onChange={setEdgeThicknessPx}
+        >
+          {EDGE_THICKNESS_OPTIONS.map(v => (
+            <option key={v} value={String(v)}>
+              {`${v}px`}
+            </option>
+          ))}
+        </ResponsiveSelectRow>
+        <ResponsiveControlRow label="Animate" valueClassName={UI_RESPONSIVE_CONTROL_TOGGLE_GROUP_END_CLASSNAME}>
+          <input
+            type="checkbox"
+            className={UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME}
+            checked={edgeAnimated}
+            onChange={e => setEdgeAnimated(e.target.checked)}
+          />
+        </ResponsiveControlRow>
+        {canvasRenderMode === '3d' || (canvasRenderMode === '2d' && canvas3dMode === 'voxel') ? (
+          <ResponsiveSelectRow
+            label="3D/Voxel"
+            value={threeEdgeRenderer}
+            onChange={onSelectThreeEdgeRenderer}
           >
-            {options.map(option => (
+            {THREE_EDGE_RENDERER_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-            Color
-          </label>
-          <select
-            className={`w-[50%] h-6 px-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            value={edgeColor}
-            onChange={e => setEdgeColor(e.target.value)}
-          >
-            {GLOBAL_EDGE_COLOR_OPTIONS.map(option => (
-              <option key={option.key} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-            Thickness
-          </label>
-          <select
-            className={`w-[50%] h-6 px-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            value={String(edgeThicknessPx)}
-            onChange={e => setEdgeThicknessPx(e.target.value)}
-          >
-            {EDGE_THICKNESS_OPTIONS.map(v => (
-              <option key={v} value={String(v)}>
-                {`${v}px`}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-            Animate
-          </label>
-          <input
-            type="checkbox"
-            className="h-4 w-4"
-            checked={edgeAnimated}
-            onChange={e => setEdgeAnimated(e.target.checked)}
-          />
-        </div>
-        {canvasRenderMode === '3d' || (canvasRenderMode === '2d' && canvas3dMode === 'voxel') ? (
-          <div className="flex items-center gap-2">
-            <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-              3D/Voxel
-            </label>
-            <select
-              className={`w-[50%] h-6 px-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-              value={threeEdgeRenderer}
-              onChange={e => onSelectThreeEdgeRenderer(e.target.value)}
-            >
-              {THREE_EDGE_RENDERER_OPTIONS.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          </ResponsiveSelectRow>
         ) : null}
       </div>
     </CollapsibleSection>

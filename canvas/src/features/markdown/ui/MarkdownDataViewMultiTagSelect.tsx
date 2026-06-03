@@ -5,9 +5,12 @@ import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { resolveDataViewChipClass } from './MarkdownDataViewChips'
 import { toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
 import {
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+  UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME,
+  UI_RESPONSIVE_TAG_INPUT_FORM_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
@@ -142,14 +145,14 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
                   aria-label={`Remove ${t}`}
                   onClick={() => removeTag(t)}
                 >
-                  <X className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                  <X className={[UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME, UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                 </button>
               </span>
             </li>
           ))}
         </ul>
 
-        <form className="min-w-0 flex-1 sm:min-w-[120px]" aria-label="Tag input" onSubmit={e => e.preventDefault()}>
+        <form className={`${UI_RESPONSIVE_TAG_INPUT_FORM_CLASSNAME} flex-1`} aria-label="Tag input" onSubmit={e => e.preventDefault()}>
           <input
             autoFocus={props.autoFocus}
             value={query}
@@ -200,7 +203,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
                 </button>
                 <button
                   type="button"
-                  className={['inline-flex shrink-0 items-center justify-center w-7 h-7 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                  className={[UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME, 'rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                   aria-label={`More for ${t}`}
                   disabled
                 >

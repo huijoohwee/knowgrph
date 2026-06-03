@@ -586,6 +586,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     })()
   }, [bubble.leftPx, bubble.topPx, editorPresentation, getSelectionOffsets, publishMarkdownDraftWithoutDomMutation, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readMarkdownTokenFromHtmlSelection, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
   const {
+    captureSelectionForToolbarAction,
     holdToolbarInteraction,
     updateBubble,
     syncSelectionToolbarState,
@@ -769,6 +770,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         applyDraftAction={applyDraftAction}
         applyWrap={applyWrap}
         applyComment={applyComment}
+        captureSelectionForToolbarAction={captureSelectionForToolbarAction}
         closeCommentPreview={closeCommentPreview}
         applyHighlightColor={applyHighlightColor}
         applyColor={applyColor}

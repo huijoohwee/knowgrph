@@ -17,6 +17,7 @@ import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } fro
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
+import { EXA_MCP_DOC_AREA, EXA_MCP_DOCS_URL } from './exaMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA, PIXVERSE_MCP_DOCS_URL } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA, MIROMIND_MCP_DOCS_URL } from './miromindMcpApiDocs'
@@ -113,6 +114,12 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [API_NATIVE_BROWSER_MCP_DOC_AREA]: {
     docsUrl: 'https://github.com/unbrowse-ai/unbrowse',
     docsLabel: 'Open API-Native Browser MCP Reference',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [EXA_MCP_DOC_AREA]: {
+    docsUrl: EXA_MCP_DOCS_URL,
+    docsLabel: 'Open Exa MCP Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },

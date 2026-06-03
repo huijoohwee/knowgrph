@@ -3,7 +3,11 @@ import { Check } from 'lucide-react'
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+  UI_RESPONSIVE_TYPE_MENU_PANEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type TypeMenuOption<T extends string> = {
   key: T
@@ -21,12 +25,15 @@ export type TypeMenuProps<T extends string> = {
   close?: () => void
 }
 
+const typeMenuGlyphClassName = [UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME, 'shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
+
 export function TypeMenu<T extends string>(props: TypeMenuProps<T>) {
   return (
     <menu
       className={
         [
-          'kg-type-menu rounded border shadow-sm p-1 z-20',
+          UI_RESPONSIVE_TYPE_MENU_PANEL_CLASSNAME,
+          'rounded border shadow-sm p-1 z-20',
           UI_THEME_TOKENS.panel.bg,
           UI_THEME_TOKENS.panel.border,
           props.className || '',
@@ -60,9 +67,9 @@ export function TypeMenu<T extends string>(props: TypeMenuProps<T>) {
                 if (el) el.open = false
               }}
             >
-              <Icon className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} />
+              <Icon className={typeMenuGlyphClassName} />
               <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{o.label}</span>
-              {active ? <Check className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
+              {active ? <Check className={typeMenuGlyphClassName} aria-hidden="true" /> : null}
             </button>
           </li>
         )

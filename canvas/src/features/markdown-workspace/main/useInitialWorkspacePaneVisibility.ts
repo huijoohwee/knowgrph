@@ -2,6 +2,7 @@ import React from 'react'
 import type { WebpageViewMode } from '@/lib/markdown/frontmatter'
 import {
   resolveMarkdownWorkspaceInitialPaneVisibility,
+  resolveMarkdownWorkspaceDocumentPanePreset,
   type MarkdownWorkspacePaneVisibility,
 } from './types'
 
@@ -20,7 +21,10 @@ export function areMarkdownWorkspacePaneVisibilitiesEqual(
   a: MarkdownWorkspacePaneVisibility,
   b: MarkdownWorkspacePaneVisibility,
 ): boolean {
-  return a.json === b.json && a.markdown === b.markdown && a.viewer === b.viewer && a.html === b.html
+  return a.json === b.json
+    && a.markdown === b.markdown
+    && a.viewer === b.viewer
+    && a.html === b.html
 }
 
 export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneVisibilityArgs) {
@@ -31,7 +35,8 @@ export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneV
     // user-enabled Viewer pane does not get reset back to markdown-only for the
     // same workspace document.
     const webpageView = args.webpageView || ''
-    const requiresDocumentSpecificPreset = !!args.modelAssetFormat || webpageView === 'html' || webpageView === 'json'
+    const documentPanePreset = resolveMarkdownWorkspaceDocumentPanePreset(args.activeDocumentKey || null)
+    const requiresDocumentSpecificPreset = !!args.modelAssetFormat || webpageView === 'html' || webpageView === 'json' || !!documentPanePreset
     if (!args.workspaceEditorOverlayOpen && !(args.workspaceEditorSurfaceActive && requiresDocumentSpecificPreset)) return
     const presetKey = [
       args.activeDocumentKey,
@@ -42,6 +47,7 @@ export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneV
       appliedPresetKeyRef.current = presetKey
       previousWebpageViewRef.current = webpageView
       const nextVisibility = resolveMarkdownWorkspaceInitialPaneVisibility({
+        activeDocumentKey: args.activeDocumentKey,
         modelAssetFormat: args.modelAssetFormat,
         webpageView: args.webpageView || null,
       })

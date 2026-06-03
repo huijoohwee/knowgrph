@@ -7,7 +7,10 @@ import { dispatchRuntimeFitToViewSoon } from '@/lib/canvas/runtimeZoomDispatch'
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { getIconSizeClass } from '@/lib/ui'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
-import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
@@ -189,7 +192,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
               </>
             )
           }}
-          menuWidthClass="w-56"
+          menuWidthClass={UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
         />
       </header>
       <section className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTypography.panelTextClass)}>

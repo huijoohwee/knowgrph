@@ -5,9 +5,12 @@ import {
   readMarkdownSigilInlineStyle,
   type MarkdownAnnotation,
 } from '@/lib/markdown/markdownSigil'
-
-const DEFAULT_MARK_BACKGROUND = '#FEF3C7'
-const DEFAULT_MARK_COLOR = '#78350F'
+import {
+  getSemanticHighlightSurfaceAttributes,
+  getSemanticHighlightSurfaceClassName,
+  resolveSemanticHighlightColors,
+  SEMANTIC_HIGHLIGHT_SURFACES,
+} from '@/lib/ui/semanticHighlight'
 
 type MarkdownSigilTextOptions = {
   maxAnnotations?: number
@@ -24,8 +27,9 @@ type MarkdownSigilTextProps = MarkdownSigilTextOptions & {
 
 const readAnnotationStyle = (annotation: MarkdownAnnotation): React.CSSProperties => {
   const explicit = readMarkdownSigilInlineStyle(annotation)
-  if (annotation.highlighted && !explicit.backgroundColor) explicit.backgroundColor = DEFAULT_MARK_BACKGROUND
-  if (annotation.highlighted && !explicit.color) explicit.color = DEFAULT_MARK_COLOR
+  const fallback = resolveSemanticHighlightColors({ defaultHighlight: annotation.highlighted })
+  if (annotation.highlighted && !explicit.backgroundColor) explicit.backgroundColor = fallback.background
+  if (annotation.highlighted && !explicit.color) explicit.color = fallback.color
   return explicit
 }
 
@@ -56,7 +60,8 @@ export const renderMarkdownSigilInlineText = (
         key={`sigil-${start}-${end}-${i}`}
         data-kg-sigil="1"
         data-kg-sigil-default={annotation.highlighted && !annotation.background ? '1' : undefined}
-        className={options?.highlightClassName || 'rounded-sm px-0.5'}
+        className={options?.highlightClassName || `${getSemanticHighlightSurfaceClassName(SEMANTIC_HIGHLIGHT_SURFACES.markdownSigil)} rounded-sm px-0.5`}
+        {...getSemanticHighlightSurfaceAttributes(SEMANTIC_HIGHLIGHT_SURFACES.markdownSigil)}
         style={readAnnotationStyle(annotation)}
       >
         {annotation.text}

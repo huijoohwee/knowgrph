@@ -21,6 +21,11 @@ import {
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
 import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
 import { readGrabMapsByokApiKeyFromBrowser } from 'grph-shared/geospatial/grabMapsAuth'
+import {
+  UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { normalizeBadgeChipBaseClassName } from '@/lib/ui/icons'
 import type { UiStorageReaders } from './uiSliceStorage'
 import {
   CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
@@ -58,9 +63,7 @@ export const createUiInitialState = (
     'canvas',
     value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
   )
-  const initialWorkspaceCanvasPaneOpen = initialWorkspaceViewMode === 'editor'
-    ? true
-    : lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)
+  const initialWorkspaceCanvasPaneOpen = lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)
   return {
     ...createPanelLayoutUiSlice(set),
 
@@ -301,8 +304,8 @@ export const createUiInitialState = (
 
     uiHeaderRowHeightClass: lsJson<string>(
       LS_KEYS.headerRowHeightClass,
-      'min-h-[36px]',
-      value => (typeof value === 'string' ? value : 'min-h-[36px]'),
+      UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+      value => (typeof value === 'string' ? value : UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME),
     ),
 
     uiHeaderRowPaddingClass: lsJson<string>(
@@ -313,8 +316,8 @@ export const createUiInitialState = (
 
     uiSectionHeaderRowHeightClass: lsJson<string>(
       LS_KEYS.sectionHeaderRowHeightClass,
-      'min-h-[36px]',
-      value => (typeof value === 'string' ? value : 'min-h-[36px]'),
+      UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+      value => (typeof value === 'string' ? value : UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME),
     ),
 
     uiSectionHeaderRowPaddingClass: lsJson<string>(
@@ -360,8 +363,8 @@ export const createUiInitialState = (
     ),
     uiIconBadgeChipClass: lsJson<string>(
       LS_KEYS.iconBadgeChipClass,
-      'px-1 py-[1px] rounded-full border',
-      value => (typeof value === 'string' ? value : 'px-1 py-[1px] rounded-full border'),
+      UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
+      value => (typeof value === 'string' ? normalizeBadgeChipBaseClassName(value) : UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME),
     ),
     uiIconBadgeChipTextSizeClass: lsJson<string>(
       LS_KEYS.iconBadgeChipTextSizeClass,

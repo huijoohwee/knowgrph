@@ -37,7 +37,7 @@ export function useWorkspaceImportActions(args: {
   core: {
     importJobRef: React.MutableRefObject<number>
     status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers>
-    focusAfterImport: (createdPath: string, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
+    focusAfterImport: (createdPath: string, opts?: { sourceUrl?: string | null; jsonSourceText?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
   }
   ctx: WorkspaceImportActionsCtx
 }) {
@@ -65,7 +65,7 @@ export function useWorkspaceImportActions(args: {
     async (
       fs: WorkspaceFs,
       path: WorkspacePath | null | undefined,
-      opts?: { sourceUrl?: string | null },
+      opts?: { sourceUrl?: string | null; jsonSourceText?: string | null },
     ) => {
       const normalized = normalizeWorkspacePath(path || '')
       if (!normalized || normalized === WORKSPACE_ROOT_PATH) return
@@ -81,6 +81,7 @@ export function useWorkspaceImportActions(args: {
         setActiveText,
         activeDocumentKey: workspaceDocumentKey(normalized) || activeDocumentKey,
         activeDocumentSourceUrl: opts?.sourceUrl ?? null,
+        jsonSourceText: opts?.jsonSourceText ?? null,
         setActiveMarkdownDocument,
         resetParsedState: false,
       })
@@ -134,8 +135,11 @@ export function useWorkspaceImportActions(args: {
       })
       const source = args.resolveSourceUrl && createdPath ? result.sources.find(s => s.path === createdPath)?.source : result.sources[0]?.source
       const sourceUrl = source && source.kind === 'url' ? source.url : null
-      if (createdPath) await syncImportedExternalWrite(fs, createdPath, { sourceUrl })
-      return { createdPath, sourceUrl }
+      const jsonSourceText = createdPath
+        ? (result.jsonSourceDocuments || []).find(item => String(item?.path || '').trim() === createdPath)?.text ?? null
+        : null
+      if (createdPath) await syncImportedExternalWrite(fs, createdPath, { sourceUrl, jsonSourceText })
+      return { createdPath, sourceUrl, jsonSourceText }
     },
     [hydratePendingImportedPaths, refresh, syncImportedExternalWrite],
   )
@@ -204,14 +208,14 @@ export function useWorkspaceImportActions(args: {
         if (importJobRef.current !== jobId) return
         const applyToGraph = await resolveWorkspaceImportApplyToGraph(fs, res, importRuntime)
         if (importJobRef.current !== jobId) return
-        const { createdPath } = await finalizeWorkspaceImportCommit({
+        const { createdPath, jsonSourceText } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
           hydratePending: false,
           applyToGraph,
         })
         if (createdPath) {
-          await focusAfterImport(createdPath, { applyToGraph, jobId })
+          await focusAfterImport(createdPath, { applyToGraph, jsonSourceText, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported', res).message)
         return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
@@ -276,7 +280,7 @@ export function useWorkspaceImportActions(args: {
           res.applyToGraph = true
         }
         if (importJobRef.current !== jobId) return
-        const { createdPath } = await finalizeWorkspaceImportCommit({
+        const { createdPath, jsonSourceText } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
           hydratePending: false,
@@ -285,7 +289,7 @@ export function useWorkspaceImportActions(args: {
         activateStrybldrImportSurface({ canvas2dRenderer: 'strybldr', openFloatingPanel: true })
         const focusPath = storyPath || createdPath
         if (focusPath) {
-          await focusAfterImport(focusPath, { applyToGraph: true, jobId })
+          await focusAfterImport(focusPath, { applyToGraph: true, jsonSourceText: focusPath === createdPath ? jsonSourceText : null, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported image', res).message)
         return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
@@ -316,14 +320,14 @@ export function useWorkspaceImportActions(args: {
         if (importJobRef.current !== jobId) return
         const applyToGraph = await resolveWorkspaceImportApplyToGraph(fs, res, importRuntime)
         if (importJobRef.current !== jobId) return
-        const { createdPath } = await finalizeWorkspaceImportCommit({
+        const { createdPath, jsonSourceText } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
           hydratePending: false,
           applyToGraph,
         })
         if (createdPath) {
-          await focusAfterImport(createdPath, { applyToGraph, jobId })
+          await focusAfterImport(createdPath, { applyToGraph, jsonSourceText, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported folder:', res).message)
         return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
@@ -410,7 +414,7 @@ export function useWorkspaceImportActions(args: {
               createdPaths: res.createdPaths,
             })
         if (importJobRef.current !== jobId) return
-        const { createdPath, sourceUrl } = await finalizeWorkspaceImportCommit({
+        const { createdPath, sourceUrl, jsonSourceText } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
           hydratePending: false,
@@ -419,7 +423,7 @@ export function useWorkspaceImportActions(args: {
         })
 
         if (createdPath) {
-          await focusAfterImport(createdPath, { sourceUrl, applyToGraph, jobId })
+          await focusAfterImport(createdPath, { sourceUrl, jsonSourceText, applyToGraph, jobId })
         }
         if (selectedCanvas2dRenderer === 'design') {
           activateDesignEditorSurface({ openFloatingPanel: true })

@@ -17,17 +17,22 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
+  UI_RESPONSIVE_CHIP_CLASSNAME,
+  UI_RESPONSIVE_MICRO_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import {
   uiToolbarButtonMutedClassName,
   uiToolbarButtonPrimarySolidClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
 
-const inlineNodeButtonClassName = `px-1.5 py-[1px] border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const inlineNodeButtonClassName = `${UI_RESPONSIVE_CHIP_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const helperPanelClassName = `mb-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1`
 const helperTitleClassName = UI_THEME_TOKENS.text.tertiary
 const helperLabelClassName = `${UI_THEME_TOKENS.text.tertiary} break-words`
 const helperValueTextClassName = UI_THEME_TOKENS.text.primary
 const helperBodyTextClassName = UI_THEME_TOKENS.text.secondary
-const inlineSelectClassName = `border ${UI_THEME_TOKENS.input.border} rounded px-1 py-[1px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} w-full sm:w-auto`
+const inlineSelectClassName = `border ${UI_THEME_TOKENS.input.border} rounded ${UI_RESPONSIVE_MICRO_INLINE_CONTROL_CLASSNAME} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} w-full sm:w-auto`
 
 type DuckDbQueryPresetDirectionMode = {
   id: string
@@ -436,7 +441,7 @@ function DuckDbQueryPresetsSection({
               contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="w-full"
             >
-              <div className={`w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden min-h-[96px] ${UI_THEME_TOKENS.input.bg}`}>
+              <div className={`${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden ${UI_THEME_TOKENS.input.bg}`}>
                 <MonacoTextEditor
                   value={editableSqlById[activePresetId] || activePreset.sql}
                   onChange={(value) => {

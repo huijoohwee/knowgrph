@@ -2,7 +2,22 @@ import React from 'react'
 import { ArrowDownToLine, ArrowUpToLine, CornerDownRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COLOR_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_KANBAN_DROP_INDICATOR_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import type { KanbanDropPosition } from './kanbanReorder'
+
+export function KanbanDropIndicator(props: { className?: string }) {
+  return (
+    <div
+      className={[UI_RESPONSIVE_KANBAN_DROP_INDICATOR_CLASSNAME, props.className].filter(Boolean).join(' ')}
+      style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+      aria-hidden="true"
+    />
+  )
+}
+
+export function KanbanLaneDragOverIndicator() {
+  return <KanbanDropIndicator className="absolute inset-x-0 top-0" />
+}
 
 export function KanbanCardDropPreview(props: { position: KanbanDropPosition; label?: string }) {
   if (props.position === 'end') return null
@@ -14,7 +29,7 @@ export function KanbanCardDropPreview(props: { position: KanbanDropPosition; lab
       className={['pointer-events-none absolute inset-x-2 z-10 flex items-center gap-2', top ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2'].join(' ')}
       aria-hidden="true"
     >
-      <div className="h-[2px] flex-1 rounded-full" style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
+      <KanbanDropIndicator className="flex-1 rounded-full" />
       <span
         className={[
           'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium shadow-sm',

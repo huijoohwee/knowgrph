@@ -11,6 +11,11 @@ import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuR
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
+  UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+  UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { uiPrimaryPillActiveClassName, uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
@@ -539,7 +544,7 @@ export function ToolbarToolMenu({
               <span className="truncate">{option.title}</span>
             </>
           )}
-          menuWidthClass="w-56"
+          menuWidthClass={UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
         />
       ) : null}
     </>
@@ -595,7 +600,7 @@ export function ToolbarToolMenu({
       <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
         <aside
           ref={toolMenuCardRef}
-          className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-0 w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
+          className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-0 ${UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME} p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
           style={toolMenuCardStyle}
           data-kg-floating-panel-root="true"
         >
@@ -630,11 +635,11 @@ export function ToolbarToolMenu({
     <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
       <aside
         ref={toolMenuCardRef}
-        className={`pointer-events-auto ModalContainer flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+        className={`pointer-events-auto ModalContainer flex ${UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME} flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
         style={{ ...toolMenuCardStyle, ...floatingPanelSizeStyle }}
         data-kg-floating-panel-root="true"
       >
-        <section className="px-2 py-1 flex h-full min-h-[36px] min-w-0 flex-col gap-1" aria-label="Floating panel">
+        <section className={`px-2 py-1 flex h-full ${UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME} min-w-0 flex-col gap-1`} aria-label="Floating panel">
           <header className={`${uiToolbarRowScrollJustifyBetweenClassName} w-full gap-1 select-none sm:gap-2 ${!floatingPanelPinned ? 'cursor-move' : ''}`} onPointerDown={handleFloatingPanelPointerDown}>
             <nav className={`${uiToolbarRowScrollClassName} flex-1 gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}

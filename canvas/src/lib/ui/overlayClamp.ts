@@ -87,3 +87,27 @@ export function clampOverlayTopLeftFullyInViewport(args: {
     left: Math.round(rawLeft / snapPx) * snapPx,
   }
 }
+
+export function clampLocalOverlayTopLeftFullyInViewport(args: {
+  localPos: { top: number; left: number }
+  localRootRect: { top: number; left: number }
+  size: { width: number; height: number }
+  viewport: { width: number; height: number }
+  snapPx?: number
+}): { top: number; left: number } {
+  const rootTop = Number.isFinite(args.localRootRect.top) ? args.localRootRect.top : 0
+  const rootLeft = Number.isFinite(args.localRootRect.left) ? args.localRootRect.left : 0
+  const clamped = clampOverlayTopLeftFullyInViewport({
+    pos: {
+      top: rootTop + args.localPos.top,
+      left: rootLeft + args.localPos.left,
+    },
+    size: args.size,
+    viewport: args.viewport,
+    snapPx: args.snapPx,
+  })
+  return {
+    top: clamped.top - rootTop,
+    left: clamped.left - rootLeft,
+  }
+}

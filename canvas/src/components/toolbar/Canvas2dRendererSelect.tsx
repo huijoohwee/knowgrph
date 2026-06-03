@@ -11,6 +11,7 @@ import type { CanvasViewOptionId, CanvasViewModelState } from '@/components/tool
 import { buildCanvasViewOptions, getCanvasViewRendererOptions, getCanvasViewTriggerState } from '@/components/toolbar/canvasViewMenu'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_EXTRA_WIDE_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type Canvas2dRendererSelectProps = {
   iconSizeClass: string
@@ -41,6 +42,7 @@ export function Canvas2dRendererSelect({
       setCanvasRenderMode: s.setCanvasRenderMode,
       setCanvas3dMode: s.setCanvas3dMode,
       setSchema: s.setSchema,
+      setBehavior: s.setBehavior,
       setRenderMediaAsNodes: s.setRenderMediaAsNodes,
       setTimelineEnabled: s.setTimelineEnabled,
       setDocumentSemanticMode: s.setDocumentSemanticMode,
@@ -169,6 +171,7 @@ export function Canvas2dRendererSelect({
           setCanvasRenderMode: state.setCanvasRenderMode,
           setCanvas3dMode: state.setCanvas3dMode,
           setSchema: state.setSchema,
+          setBehavior: state.setBehavior,
           setRenderMediaAsNodes: state.setRenderMediaAsNodes,
           setTimelineEnabled: state.setTimelineEnabled,
           setDocumentSemanticMode: state.setDocumentSemanticMode,
@@ -206,7 +209,7 @@ export function Canvas2dRendererSelect({
           </span>
         </>
       )}
-      menuWidthClass="[--kg-toolbar-dropdown-width:24rem] max-w-[calc(100vw-2rem)]"
+      menuWidthClass={UI_RESPONSIVE_EXTRA_WIDE_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
     />
   )
 }

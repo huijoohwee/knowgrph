@@ -7,7 +7,11 @@ import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/li
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
-import { UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
+  UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 import {
   type WorkspaceUrlImportCanvasRendererId,
@@ -199,9 +203,9 @@ export function LaunchDropdown({
     UI_THEME_TOKENS.text.primary,
     UI_THEME_TOKENS.button.hoverBg,
   )
-  const menuIconClass = 'w-4 h-4 shrink-0'
+  const menuIconClass = cn(UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME, 'shrink-0')
   const menuRootClass = cn(
-    'kg-launch-menu-root flex flex-col w-80 list-none m-0',
+    'kg-launch-menu-root flex flex-col list-none m-0',
     UI_THEME_TOKENS.panel.bg,
     'border',
     UI_THEME_TOKENS.panel.border,
@@ -447,7 +451,8 @@ export function LaunchDropdown({
                       <button
                         type="button"
                         className={cn(
-                          'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border',
+                          UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
+                          'rounded border',
                           importUrlRenderer === DESIGN_IMPORT_URL_RENDERER_SELECTION ? cn(UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText) : UI_THEME_TOKENS.button.text,
                           UI_THEME_TOKENS.input.border,
                           UI_THEME_TOKENS.button.hoverBg,
@@ -467,7 +472,8 @@ export function LaunchDropdown({
                         <button
                           type="button"
                           className={cn(
-                            'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border',
+                            UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
+                            'rounded border',
                             UI_THEME_TOKENS.input.border,
                             UI_THEME_TOKENS.button.text,
                             UI_THEME_TOKENS.button.hoverBg,
@@ -489,7 +495,8 @@ export function LaunchDropdown({
                       <button
                         type="button"
                         className={cn(
-                          'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border',
+                          UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
+                          'rounded border',
                           UI_THEME_TOKENS.input.border,
                           UI_THEME_TOKENS.button.text,
                           UI_THEME_TOKENS.button.hoverBg,

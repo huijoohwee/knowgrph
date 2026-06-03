@@ -12,9 +12,10 @@ import type {
 } from '@/features/panels/views/OrchestratorTraversalSectionModel'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_MICRO_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
-const inlineActionButtonClassName = `px-1 py-[1px] border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const inlineActionButtonClassName = `${UI_RESPONSIVE_MICRO_INLINE_CONTROL_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 
 interface TraversalQueryExampleEditorProps {
   lastTraversal: GraphRagTraversalSummary

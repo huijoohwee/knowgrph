@@ -60,6 +60,14 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
   const lastSelectionSignatureRef = React.useRef<string>('')
   const lastHostRectSignatureRef = React.useRef<string>('')
   const pendingSelectionSignatureRef = React.useRef<string>('')
+  const captureSelectionForToolbarAction = React.useCallback(() => {
+    captureSelectionForFloatingToolbar({
+      getSelectionOffsets,
+      lastNonCollapsedSelectionOffsetsRef,
+      lastNonCollapsedDomRangeRef,
+    })
+  }, [getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef])
+
   const holdToolbarInteraction = React.useCallback(() => {
     if (blurCommitTimerRef.current) {
       window.clearTimeout(blurCommitTimerRef.current)
@@ -67,12 +75,8 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     }
     toolbarInteractingRef.current = true
     toolbarInteractionUntilRef.current = Date.now() + 900
-    captureSelectionForFloatingToolbar({
-      getSelectionOffsets,
-      lastNonCollapsedSelectionOffsetsRef,
-      lastNonCollapsedDomRangeRef,
-    })
-  }, [blurCommitTimerRef, getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef, toolbarInteractionUntilRef, toolbarInteractingRef])
+    captureSelectionForToolbarAction()
+  }, [blurCommitTimerRef, captureSelectionForToolbarAction, toolbarInteractionUntilRef, toolbarInteractingRef])
 
   const updateBubble = React.useCallback(() => {
     if (!editing) return
@@ -206,6 +210,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
   ])
 
   return {
+    captureSelectionForToolbarAction,
     holdToolbarInteraction,
     updateBubble,
     syncSelectionToolbarState,

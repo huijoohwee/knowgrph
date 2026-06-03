@@ -7,6 +7,7 @@ export type WorkspaceImportResult = {
   createdPaths: WorkspacePath[]
   removedPaths?: WorkspacePath[]
   sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>
+  jsonSourceDocuments?: Array<{ path: WorkspacePath; text: string }>
   skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }>
   failed: Array<{ name: string; error: string }>
   applyToGraph?: boolean

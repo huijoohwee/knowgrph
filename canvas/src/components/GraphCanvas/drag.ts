@@ -214,7 +214,7 @@ export const nodeDragBehavior = (
       let ny = event.y;
       
       if (grid.enabled && !altDown) {
-        const snapped = snapPointToGrid({ x: nx, y: ny }, grid.size)
+        const snapped = snapPointToGrid({ x: nx, y: ny }, grid)
         nx = snapped.x
         ny = snapped.y
       }

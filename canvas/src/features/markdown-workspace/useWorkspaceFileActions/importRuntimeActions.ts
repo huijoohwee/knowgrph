@@ -44,6 +44,18 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
         })
         .filter((item): item is WorkspaceImportResult['sources'][number] => !!item)
     : []
+  const jsonSourceDocuments = Array.isArray(rec.jsonSourceDocuments)
+    ? rec.jsonSourceDocuments
+        .map((item): NonNullable<WorkspaceImportResult['jsonSourceDocuments']>[number] | null => {
+          const path = String((item as { path?: unknown } | null)?.path || '').trim() as WorkspacePath
+          const text = typeof (item as { text?: unknown } | null)?.text === 'string'
+            ? String((item as { text?: string }).text || '')
+            : ''
+          if (!path || !text.trim()) return null
+          return { path, text }
+        })
+        .filter((item): item is NonNullable<WorkspaceImportResult['jsonSourceDocuments']>[number] => !!item)
+    : []
   const skipped = Array.isArray(rec.skipped)
     ? rec.skipped
         .map(item => {
@@ -73,6 +85,7 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
     sources,
     skipped,
     failed,
+    ...(jsonSourceDocuments.length > 0 ? { jsonSourceDocuments } : {}),
     ...(typeof applyToGraph === 'boolean' ? { applyToGraph } : {}),
     ...(corpusManifest ? { corpusManifest } : {}),
   }
@@ -151,6 +164,7 @@ export async function activateFirstImportedWorkspaceFile(args: {
   fs: WorkspaceFs
   createdPaths: string[]
   applyToGraph?: boolean
+  jsonSourceDocuments?: WorkspaceImportResult['jsonSourceDocuments']
 }): Promise<void> {
   const createdPaths = Array.isArray(args.createdPaths)
     ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
@@ -175,8 +189,10 @@ export async function activateFirstImportedWorkspaceFile(args: {
     const text = String((hydrated?.text || (await args.fs.readFileText(firstPath).catch(() => ''))) || '')
     const docKey = workspaceDocumentKey(firstPath)
     const name = docKey || workspaceBasename(firstPath) || firstPath
-    const state = useGraphStore.getState()
     const normalizedPath = firstPath as WorkspacePath
+    const jsonSourceText = (args.jsonSourceDocuments || [])
+      .find(item => String(item?.path || '').trim() === normalizedPath)?.text ?? null
+    const state = useGraphStore.getState()
     try {
       useMarkdownExplorerStore.getState().setActivePath(normalizedPath)
     } catch {
@@ -195,7 +211,7 @@ export async function activateFirstImportedWorkspaceFile(args: {
       text: normalizeMermaidMmdToMarkdown(name, text),
       normalizeMermaidMmd: false,
       sourceUrl: null,
-      jsonSourceText: null,
+      jsonSourceText,
       applyViewPreset: args.applyToGraph === true,
       applyToGraph: args.applyToGraph === true,
     })

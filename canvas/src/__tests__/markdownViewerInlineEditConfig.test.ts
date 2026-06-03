@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
+const staleContentStartUtility = (prefix: 'left' | 'pl'): string => `${prefix}-[44px]`
+const staleMarkdownGutterContentStartAlias = (): string => ['MARKDOWN_BLOCK_GUTTER_CONTENT_START', 'LEFT_CLASS'].join('_')
 
 export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () => {
   const root = process.cwd()
@@ -253,15 +255,24 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!derivedViewerText.includes('onReorderLineBlock={canMutate ? props.onReorderLineBlock : undefined}')) {
     throw new Error('expected derived markdown read viewer to expose reorder-line controls when mutations are allowed')
   }
+  if (!derivedViewerText.includes('onReplaceLineRange={canMutate ? props.onReplaceLineRange : undefined}')) {
+    throw new Error('expected derived markdown read viewer to gate line-range replacement through the shared canMutate policy')
+  }
+  if (
+    !derivedViewerText.includes('onInlineEditStateChange={canMutate ? props.onInlineEditStateChange : undefined}') ||
+    !derivedViewerText.includes('onInlineDraftTextChange={canMutate ? props.onInlineDraftTextChange : undefined}')
+  ) {
+    throw new Error('expected derived markdown read viewer to reuse the shared visible inline-edit draft SSOT')
+  }
   if (!derivedViewerText.includes('forbidCopy={false}')) {
     throw new Error('expected derived markdown read viewer code-fence copy action to stay enabled in read mode')
   }
   const workspaceMainPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
   const workspaceMainText = readUtf8(workspaceMainPath)
-  if (!workspaceMainText.includes('onInsertLineAfter={disableViewerMutations ? undefined : onInsertLineAfter}')) {
+  if (!workspaceMainText.includes('onInsertLineAfter={disableDerivedMarkdownMutations ? undefined : onInsertLineAfter}')) {
     throw new Error('expected markdown workspace read viewer to keep insert-line controls enabled unless mutations are disabled')
   }
-  if (!workspaceMainText.includes('onReorderLineBlock={disableViewerMutations ? undefined : onReorderLineBlock}')) {
+  if (!workspaceMainText.includes('onReorderLineBlock={disableDerivedMarkdownMutations ? undefined : onReorderLineBlock}')) {
     throw new Error('expected markdown workspace read viewer to keep reorder-line controls enabled unless mutations are disabled')
   }
   if (!workspaceMainText.includes('forbidCopy={false}')) {
@@ -385,6 +396,14 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   const gutterPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownBlockGutter.tsx')
   const gutterText = readUtf8(gutterPath)
+  if (
+    !gutterText.includes('UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME') ||
+    gutterText.includes(staleContentStartUtility('pl')) ||
+    gutterText.includes(staleContentStartUtility('left')) ||
+    gutterText.includes(staleMarkdownGutterContentStartAlias())
+  ) {
+    throw new Error('expected Markdown block gutter content-start spacing to reuse the shared responsive owner without local 44px literals')
+  }
   if (!gutterText.includes("MARKDOWN_BLOCK_GUTTER_CONTROLS_LIST_ROW_ALIGNMENT_CLASS = ''")) {
     throw new Error('expected list row controls to fully reuse shared heading/paragraph gutter X alignment (no extra row-only offset)')
   }
@@ -516,7 +535,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes("<blockquote className={[MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS, MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS].filter(Boolean).join(' ')}>")) {
     throw new Error('expected gutter blockquote inner node to own centralized quote text-padding plus content reset for list-aligned content-start')
   }
-  if (!blockquoteText.includes('MARKDOWN_BLOCK_GUTTER_CONTENT_START_LEFT_CLASS') || !blockquoteText.includes('before:border-l-4')) {
+  if (!blockquoteText.includes('UI_RESPONSIVE_CONTENT_START_OFFSET_BEFORE_CLASSNAME') || !blockquoteText.includes('before:border-l-4')) {
     throw new Error('expected gutter blockquote border rail to anchor at gutter-content start so border stays right of plus/reorder controls')
   }
   if (!blockquoteText.includes('editTrimEmptyBlockEdges')) {

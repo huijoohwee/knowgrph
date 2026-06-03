@@ -3,6 +3,10 @@ import { Check, Clapperboard, Film, Heart, LocateFixed, Lock, Play, RefreshCw, W
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+  UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { JSONValue } from '@/lib/graph/types'
@@ -499,7 +503,8 @@ export function StrybldrFloatingPanelView() {
                       key={filter.id}
                       type="button"
                       className={cn(
-                        'inline-flex h-7 shrink-0 items-center justify-center rounded border px-2 text-[11px]',
+                        UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
+                        'inline-flex shrink-0 items-center justify-center rounded border text-[11px]',
                         filter.id === storytreePanelFilter ? 'border-black/30 bg-black/10 text-black' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' '),
                       )}
                       aria-pressed={filter.id === storytreePanelFilter}
@@ -527,7 +532,7 @@ export function StrybldrFloatingPanelView() {
                     <div className="grid grid-cols-4 gap-1">
                       <button
                         type="button"
-                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
                         aria-label="Strybldr like storytree branch"
                         onClick={likeSelectedStorytreeCard}
                       >
@@ -536,7 +541,7 @@ export function StrybldrFloatingPanelView() {
                       </button>
                       <button
                         type="button"
-                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
                         aria-label="Strybldr compare storytree candidates"
                         disabled={selectedStorytreeCard.tags.includes('dropped')}
                         onClick={compareSelectedStorytreeCandidates}
@@ -546,7 +551,7 @@ export function StrybldrFloatingPanelView() {
                       </button>
                       <button
                         type="button"
-                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
                         aria-label="Strybldr unlock storytree branch"
                         disabled={!selectedStorytreeCard.tags.includes('unlock-ready') && !selectedStorytreeCard.tags.includes('unlock-needs-credits') && !selectedStorytreeCard.tags.includes('protected')}
                         onClick={unlockSelectedStorytreeCard}
@@ -556,7 +561,7 @@ export function StrybldrFloatingPanelView() {
                       </button>
                       <button
                         type="button"
-                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
                         aria-label="Strybldr draft storytree continuation"
                         disabled={selectedStorytreeCard.tags.includes('dropped')}
                         onClick={draftSelectedStorytreeContinuation}

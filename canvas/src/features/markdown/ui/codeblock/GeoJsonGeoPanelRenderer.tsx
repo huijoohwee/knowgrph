@@ -7,6 +7,11 @@ import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOver
 import { ErrorFeedback } from '@/components/ui/ErrorFeedback'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
+  UI_RESPONSIVE_MARKDOWN_GEO_PANEL_EMPTY_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_GEO_PANEL_FRAME_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_GEO_PANEL_PRESENTATION_FRAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import {
   MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS,
   MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS,
 } from '@/features/markdown/ui/markdownEditSurfaceLayout'
@@ -206,7 +211,7 @@ export function GeoJsonGeoPanelRenderer(props: {
 
   if (!trimmed) {
     return (
-      <section className="w-full h-[120px] flex items-center justify-center">
+      <section className={UI_RESPONSIVE_MARKDOWN_GEO_PANEL_EMPTY_CLASSNAME}>
         <p className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>Empty GeoJSON block.</p>
       </section>
     )
@@ -233,7 +238,9 @@ export function GeoJsonGeoPanelRenderer(props: {
   )
 
   const effectiveNode = mapNode ?? fallbackNode
-  const mapFrameClass = opts.markdownPresentationMode ? 'w-full h-[420px]' : 'w-full h-[320px]'
+  const mapFrameClass = opts.markdownPresentationMode
+    ? UI_RESPONSIVE_MARKDOWN_GEO_PANEL_PRESENTATION_FRAME_CLASSNAME
+    : UI_RESPONSIVE_MARKDOWN_GEO_PANEL_FRAME_CLASSNAME
   const statusText = (() => {
     if (datasetState === 'registering') return 'Registering GeoJSON as a dataset…'
     if (datasetState === 'registered') return 'GeoJSON registered as a dataset.'
@@ -275,7 +282,7 @@ export function GeoJsonGeoPanelRenderer(props: {
               scope={opts.previewOverlayScope}
               portalTarget={opts.previewOverlayPortalTarget}
             >
-              <section className="w-[min(1200px,calc(100vw-40px))] h-[min(720px,calc(100vh-80px))]">
+              <section className="w-[min(1200px,calc(100vw_-_40px))] h-[min(720px,calc(100vh_-_80px))]">
                 {mapNode ? (
                   <section className="w-full h-full">{mapNode}</section>
                 ) : (

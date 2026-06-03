@@ -1,10 +1,14 @@
 import React from 'react'
 import { Download } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME,
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename, type MarkdownMediaDownloadKind } from './mediaDownload'
 
 const DOWNLOAD_CLASS = [
-  'absolute right-1 top-1 z-10 inline-flex h-7 w-7 items-center justify-center rounded border shadow-sm',
+  `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME} absolute right-1 top-1 z-10 rounded border shadow-sm`,
   UI_THEME_TOKENS.panel.border,
   UI_THEME_TOKENS.panel.bg,
   UI_THEME_TOKENS.text.primary,
@@ -12,7 +16,7 @@ const DOWNLOAD_CLASS = [
 ].join(' ')
 
 const CARD_PREVIEW_DOWNLOAD_CLASS = [
-  'absolute right-1 top-1 z-10 inline-flex h-7 w-7 items-center justify-center rounded',
+  `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME} absolute right-1 top-1 z-10 rounded`,
   UI_THEME_TOKENS.panel.bg,
   UI_THEME_TOKENS.text.primary,
   'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
@@ -41,7 +45,7 @@ export const renderInlineMediaWithDownload = (args: {
           try { event.stopPropagation() } catch { void 0 }
         }}
       >
-        <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+        <Download className={UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME} strokeWidth={1.8} aria-hidden="true" />
       </a>
     </span>
   )

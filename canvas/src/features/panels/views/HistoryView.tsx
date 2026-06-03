@@ -15,6 +15,10 @@ import { downloadBlob } from '@/lib/graph/save'
 import { useShallow } from 'zustand/react/shallow'
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
+import {
+  UI_RESPONSIVE_HISTORY_RECENT_FILE_LOCATION_CLASSNAME,
+  UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type HistorySubTab = 'chat' | 'history' | 'log'
 type HistoryEntry = GraphState['history'][number]
@@ -330,7 +334,7 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
             onSelect={id => setTab(id as HistorySubTab)}
             renderButtonContent={activeOption => <span>{activeOption.title}</span>}
             renderOptionContent={option => <span className="truncate">{option.title}</span>}
-            menuWidthClass="w-40"
+            menuWidthClass={UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
           />
         </div>
       </header>
@@ -352,7 +356,7 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
                     <div className="min-w-0 flex-1">
                       <div className={`${UI_THEME_TOKENS.text.primary} truncate`} title={f.name}>{f.name}</div>
                       <div className="flex items-center gap-2 text-xs">
-                        <span className={`${UI_THEME_TOKENS.text.tertiary} truncate max-w-[200px]`} title={f.path || f.url}>
+                        <span className={`${UI_THEME_TOKENS.text.tertiary} ${UI_RESPONSIVE_HISTORY_RECENT_FILE_LOCATION_CLASSNAME}`} title={f.path || f.url}>
                           {f.path || f.url || 'Local Memory'}
                         </span>
                         <span className={`${UI_THEME_TOKENS.text.tertiary} shrink-0`}>· {formatTimestamp(f.timestamp)}</span>

@@ -246,8 +246,8 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
   if (!payloadHelper.includes('asset.validMagic === false')) {
     throw new Error('Expected GLB rendering to honor ingest-time GLB magic validation through the shared payload helper')
   }
-  if (!glbModel.includes('kg_model_xr_orientation_ring') || !glbModel.includes('kg_model_xr_perimeter_markers')) {
-    throw new Error('Expected XR Mode model rendering to include a neutral spatial inspection stage')
+  if (!glbModel.includes('const showStage = false')) {
+    throw new Error('Expected GLB/GLTF model rendering to avoid synthetic XR stage geometry over the authored model')
   }
 }
 
@@ -293,17 +293,150 @@ export function testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate() {
   if (!glbModel.includes('new THREE.AnimationMixer(scene)') || !glbModel.includes('mixerRef.current?.update(delta)')) {
     throw new Error('Expected GLTF rendering to play and advance embedded model animations')
   }
-  if (!glbModel.includes('kg_model_xr_city_grid') || !glbModel.includes('kg_model_xr_city_block_')) {
-    throw new Error('Expected XR model stage to expose an original city-grid inspection theme for GLTF assets')
+  if (!glbModel.includes('const showStage = false')) {
+    throw new Error('Expected GLTF rendering to keep the authored GLTF scene as the only visible model element')
   }
-  if (!glbModel.includes('kg_model_xr_streaming_ring') || !glbModel.includes('kg_model_xr_focus_target')) {
-    throw new Error('Expected XR model stage to expose streaming horizon and focus affordances for model inspection')
+  if (glbModel.includes('group.rotation.y +=')) {
+    throw new Error('Expected GLTF rendering to preserve authored XYZ coordinates instead of mutating model rotation')
   }
-  if (!glbModel.includes('kg_model_xr_lane_marker_') || !glbModel.includes('kg_model_xr_avenue_')) {
-    throw new Error('Expected XR model stage to expose dense road and lane-marker visual structure')
+}
+
+export async function testXrModePreservesFlatModelFacingInsteadOfAutoRotatingAway() {
+  const THREE = await import('three')
+  const { computeGlbFit } = await import('@/lib/three/GlbAssetModel')
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 1), new THREE.MeshBasicMaterial())
+  const planeFit = computeGlbFit(plane)
+  if (planeFit.preserveFlatFacing !== true) {
+    throw new Error('Expected flat GLB/GLTF image-plane assets to keep a stable front-facing pose in XR mode')
   }
-  if (!glbModel.includes('kg_model_xr_traffic_loop') || !glbModel.includes('kg_model_xr_traffic_')) {
-    throw new Error('Expected XR model stage to expose animated traffic affordances for GLTF assets')
+  if (planeFit.flatAxis !== 'z') {
+    throw new Error(`Expected default Three.js XY planes to report z as the flat axis, got ${String(planeFit.flatAxis)}`)
+  }
+  if (Math.abs((planeFit.scale * 2) - 92) > 1e-6) {
+    throw new Error(`Expected flat GLB/GLTF image-plane assets to use a compact 92-unit fit, got ${planeFit.scale * 2}`)
+  }
+  const horizontalPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 1), new THREE.MeshBasicMaterial())
+  horizontalPlane.rotation.x = -Math.PI / 2
+  horizontalPlane.updateWorldMatrix(true, true)
+  const horizontalPlaneFit = computeGlbFit(horizontalPlane)
+  if (horizontalPlaneFit.preserveFlatFacing !== true || horizontalPlaneFit.flatAxis !== 'y') {
+    throw new Error(`Expected horizontal XZ GLB/GLTF planes to report y as the flat axis, got ${String(horizontalPlaneFit.flatAxis)}`)
+  }
+
+  const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial())
+  const cubeFit = computeGlbFit(cube)
+  if (cubeFit.preserveFlatFacing !== false) {
+    throw new Error('Expected volumetric GLB/GLTF assets to be detected separately from flat image-plane assets')
+  }
+  if (cubeFit.scaledSize.some(value => Math.abs(value - 118) > 1e-6)) {
+    throw new Error(`Expected volumetric GLB/GLTF assets to expose bounds-aware scaled XYZ dimensions, got ${cubeFit.scaledSize.join(',')}`)
+  }
+
+  const glbModel = readFileSync(resolve(process.cwd(), 'src/lib/three/GlbAssetModel.tsx'), 'utf8')
+  if (glbModel.includes('group.rotation.y +=')) {
+    throw new Error('Expected XR model rendering to avoid mutating authored model rotation for any GLB/GLTF asset')
+  }
+  if (!glbModel.includes('onFitChange?.(object ? fit : null)')) {
+    throw new Error('Expected loaded GLB/GLTF model bounds to be reported for camera XYZ framing')
+  }
+}
+
+export async function testXrModeModelAssetSwitchUsesDocumentScopedRenderIdentity() {
+  const {
+    GLTF_ASSET_DATA_URL_PREFIX,
+    GLTF_ASSET_MIME_TYPE,
+  } = await import('@/lib/assets/glbAssetDocument')
+  const { buildGlbAssetRenderKey } = await import('@/lib/three/GlbAssetModel')
+  const asset = {
+    name: 'same-name.gltf',
+    format: 'gltf',
+    mimeType: GLTF_ASSET_MIME_TYPE,
+    dataUrl: `${GLTF_ASSET_DATA_URL_PREFIX}eyJhc3NldCI6eyJ2ZXJzaW9uIjoiMi4wIn19`,
+    byteLength: 27,
+    validJson: true,
+    validGltfAsset: true,
+  } as const
+
+  const firstDocumentKey = buildGlbAssetRenderKey(asset, 'canvas-applied-markdown-document:first')
+  const secondDocumentKey = buildGlbAssetRenderKey(asset, 'canvas-applied-markdown-document:second')
+  if (firstDocumentKey === secondDocumentKey) {
+    throw new Error('Expected GLB/GLTF render identity to change when Source Files switches the canvas-applied document')
+  }
+
+  const mutatedAssetKey = buildGlbAssetRenderKey({
+    ...asset,
+    dataUrl: `${GLTF_ASSET_DATA_URL_PREFIX}eyJhc3NldCI6eyJ2ZXJzaW9uIjoiMi4wIn0sIm5vZGUiOjF9`,
+    byteLength: 37,
+  }, 'canvas-applied-markdown-document:first')
+  if (firstDocumentKey === mutatedAssetKey) {
+    throw new Error('Expected GLB/GLTF render identity to change when the model payload changes')
+  }
+
+  const threeGraph = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
+  if (!threeGraph.includes('buildGlbAssetRenderKey(glbAsset, canvasMarkdownDocument.semanticKey)')) {
+    throw new Error('Expected ThreeGraph to scope model component identity to the canvas-applied Source Files document')
+  }
+  if (!threeGraph.includes('key={glbAssetRenderKey}')) {
+    throw new Error('Expected GLB/GLTF model component to remount on asset identity changes')
+  }
+
+  const glbModel = readFileSync(resolve(process.cwd(), 'src/lib/three/GlbAssetModel.tsx'), 'utf8')
+  if (!glbModel.includes('loadIdRef') || !glbModel.includes('isStaleLoad()')) {
+    throw new Error('Expected GLB/GLTF loader callbacks to reject stale async parse completions')
+  }
+  if (!glbModel.includes('const showStage = false')) {
+    throw new Error('Expected GLB/GLTF rendering to avoid showing a synthetic stage as the first visible element')
+  }
+  if (glbModel.includes('kg_model_asset_loading')) {
+    throw new Error('Expected GLB/GLTF render path to avoid a visible placeholder object before the selected model loads')
+  }
+}
+
+export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
+  const threeGraph = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
+  if (!threeGraph.includes('modelAssetRenderKey={glbAssetRenderKey}')) {
+    throw new Error('Expected ThreeGraph to pass the selected model asset identity into 3D controls')
+  }
+  if (!threeGraph.includes('onFitChange={handleGlbAssetFitChange}') || !threeGraph.includes('modelAssetFit={glbAssetFit}')) {
+    throw new Error('Expected ThreeGraph to route loaded GLB/GLTF bounds into 3D controls for XYZ camera framing')
+  }
+
+  const controls = readFileSync(resolve(process.cwd(), 'src/features/three/Controls.tsx'), 'utf8')
+  if (!controls.includes('modelAssetRenderKey?: string')) {
+    throw new Error('Expected 3D Controls to accept model asset render identity')
+  }
+  if (!controls.includes('modelAssetFit?: ModelAssetCameraFit | null')) {
+    throw new Error('Expected 3D Controls to accept loaded model fit dimensions')
+  }
+  if (!controls.includes("flatAxis?: 'x' | 'y' | 'z' | null")) {
+    throw new Error('Expected 3D Controls to receive the loaded model flat-axis orientation')
+  }
+  if (!controls.includes("const modelAssetMode = !!String(modelAssetRenderKey || '').trim()")) {
+    throw new Error('Expected 3D Controls to identify model-asset render sessions')
+  }
+  if (!controls.includes("const topBiasedOrbit = voxelMode || ((mode === '3d' || mode === 'xr') && !modelAssetMode)")) {
+    throw new Error('Expected model-asset sessions to avoid graph-biased orbit clamping')
+  }
+  if (!controls.includes('readModelAssetCameraPose(modelAssetFit)') || !controls.includes('camera.position.set(pose.position[0], pose.position[1], pose.position[2])')) {
+    throw new Error('Expected GLB/GLTF model switches to reset camera XYZ from loaded model bounds')
+  }
+  if (controls.includes('if (paused || viewPinned || !key) return')) {
+    throw new Error('Expected GLB/GLTF model camera reset to reframe selected model assets even when the graph view was pinned')
+  }
+  if (!controls.includes("fit.flatAxis === 'y'") || !controls.includes('position: [0, span * 2.65, span * 0.02]') || !controls.includes('up: [0, 0, -1]')) {
+    throw new Error('Expected horizontal XZ GLB/GLTF planes to use a top-down camera instead of a vertical front camera')
+  }
+  if (!controls.includes('verticalSpan <= lateralSpan * 0.22') || !controls.includes('position: [0, span * 2.65, span * 0.02]')) {
+    throw new Error('Expected low-height horizontal GLB/GLTF scenes to use a top-down camera instead of a side-on camera')
+  }
+  if (!controls.includes('controls.autoRotate = modelAssetMode') || !controls.includes('? false')) {
+    throw new Error('Expected GLB/GLTF model sessions to disable camera auto-rotation mutations')
+  }
+  if (!controls.includes('camera.up.set(pose.up[0], pose.up[1], pose.up[2])')) {
+    throw new Error('Expected model-asset camera reset to apply pose-specific camera up vectors for horizontal planes')
+  }
+  if (!controls.includes('perspectiveCamera.near = pose.near') || !controls.includes('perspectiveCamera.far = pose.far')) {
+    throw new Error('Expected model-asset camera reset to set a safe clipping range for generated planes and imported models')
   }
 }
 

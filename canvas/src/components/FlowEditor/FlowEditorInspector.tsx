@@ -4,6 +4,13 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import {
+  UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_COMPACT_FRAME_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_LARGE_FRAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { UserSubgraph } from '@/lib/graph/subgraphs'
@@ -156,7 +163,7 @@ export default function FlowEditorInspector({
               editActivation="click"
               onCommit={onSetNodeLabel}
               displayClassName={cn('mt-2 text-sm font-semibold leading-5', UI_THEME_TOKENS.text.primary)}
-              editorClassName="mt-2 min-h-[1.5rem] px-0 py-0 text-sm font-semibold leading-5"
+              editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
             />
             <div className="mt-3 flex flex-col gap-2">
               {selectedNodeCardFields.map(field => (
@@ -183,7 +190,7 @@ export default function FlowEditorInspector({
                       )
                     }}
                     displayClassName={cn('m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary)}
-                    editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                   />
                 </div>
               ))}
@@ -215,7 +222,8 @@ export default function FlowEditorInspector({
           <PlainTextInputEditor
             id="flow-editor-node-props"
             className={cn(
-              'mt-1 w-full h-28 px-2 py-1 rounded-md border',
+              'mt-1 px-2 py-1 rounded-md border',
+              UI_RESPONSIVE_PANEL_CODE_EDITOR_LARGE_FRAME_CLASSNAME,
               monospaceTextClass,
               UI_THEME_TOKENS.input.bg,
               UI_THEME_TOKENS.input.border,
@@ -236,7 +244,8 @@ export default function FlowEditorInspector({
           <PlainTextInputEditor
             id="flow-editor-node-meta"
             className={cn(
-              'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+              'mt-1 px-2 py-1 rounded-md border',
+              UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
               monospaceTextClass,
               UI_THEME_TOKENS.input.bg,
               UI_THEME_TOKENS.input.border,
@@ -298,7 +307,8 @@ export default function FlowEditorInspector({
           <PlainTextInputEditor
             id="flow-editor-edge-props"
             className={cn(
-              'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+              'mt-1 px-2 py-1 rounded-md border',
+              UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
               monospaceTextClass,
               UI_THEME_TOKENS.input.bg,
               UI_THEME_TOKENS.input.border,
@@ -319,7 +329,8 @@ export default function FlowEditorInspector({
           <PlainTextInputEditor
             id="flow-editor-edge-meta"
             className={cn(
-              'mt-1 w-full h-20 px-2 py-1 rounded-md border',
+              'mt-1 px-2 py-1 rounded-md border',
+              UI_RESPONSIVE_PANEL_CODE_EDITOR_COMPACT_FRAME_CLASSNAME,
               monospaceTextClass,
               UI_THEME_TOKENS.input.bg,
               UI_THEME_TOKENS.input.border,
@@ -397,7 +408,8 @@ export default function FlowEditorInspector({
           <PlainTextInputEditor
             id="flow-editor-workflow-meta"
             className={cn(
-              'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+              'mt-1 px-2 py-1 rounded-md border',
+              UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
               monospaceTextClass,
               UI_THEME_TOKENS.input.bg,
               UI_THEME_TOKENS.input.border,
@@ -418,7 +430,8 @@ export default function FlowEditorInspector({
           <PlainTextInputEditor
             id="flow-editor-workflow-context"
             className={cn(
-              'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+              'mt-1 px-2 py-1 rounded-md border',
+              UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
               monospaceTextClass,
               UI_THEME_TOKENS.input.bg,
               UI_THEME_TOKENS.input.border,

@@ -5,8 +5,14 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetBool, lsSetFloat, lsSetInt, lsSetJson, lsSetNum } from '@/lib/persistence'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { normalizeBadgeChipBaseClassName } from '@/lib/ui/icons'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -17,7 +23,9 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set(state => {
         const nextMode = next.mode === 'editor' ? 'editor' : 'canvas'
         const nextPaneOpen = nextMode === 'editor'
-          ? true
+          ? next.paneOpen === false
+            ? false
+            : true
           : next.paneOpen === false
             ? false
             : next.paneOpen === true
@@ -103,7 +111,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         uiPanelKeyValueInputClass: lsSetJson(
           LS_KEYS.panelKeyValueInputClass,
           String(className || '').trim() ||
-            `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+            PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
         ),
       }),
 
@@ -142,7 +150,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set({
         uiHeaderRowHeightClass: lsSetJson(
           LS_KEYS.headerRowHeightClass,
-          String(className || '').trim() || 'min-h-[36px]',
+          String(className || '').trim() || UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
         ),
       }),
 
@@ -158,7 +166,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set({
         uiSectionHeaderRowHeightClass: lsSetJson(
           LS_KEYS.sectionHeaderRowHeightClass,
-          String(className || '').trim() || 'min-h-[36px]',
+          String(className || '').trim() || UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
         ),
       }),
 
@@ -215,7 +223,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set({
         uiIconBadgeChipClass: lsSetJson(
           LS_KEYS.iconBadgeChipClass,
-          String(className || '').trim() || 'px-1 py-[1px] rounded-full border',
+          normalizeBadgeChipBaseClassName(String(className || '')) || UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
         ),
       }),
     setUiIconBadgeChipTextSizeClass: (className: string) =>

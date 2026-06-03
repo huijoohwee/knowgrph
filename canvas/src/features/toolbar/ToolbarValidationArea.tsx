@@ -1,5 +1,9 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  uiToolbarAreaStackClassName,
+  uiToolbarAreaWrapActionRowClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 import { EXPORT_UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -32,8 +36,8 @@ export function ToolbarValidationArea({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-center justify-end gap-1">
+    <div className={uiToolbarAreaStackClassName}>
+      <div className={uiToolbarAreaWrapActionRowClassName}>
         <button
           type="button"
           className={neutralToolbarButtonClassName}
@@ -55,7 +59,7 @@ export function ToolbarValidationArea({
           {EXPORT_UI_LABELS.exportValidationMarkdown}
         </button>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-1">
+      <div className={uiToolbarAreaWrapActionRowClassName}>
         <button
           type="button"
           className={`${neutralToolbarButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}

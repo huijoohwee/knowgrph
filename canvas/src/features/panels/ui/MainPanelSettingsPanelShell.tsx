@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { UI_RESPONSIVE_PANEL_HEADER_SECONDARY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
@@ -44,7 +45,8 @@ export function MainPanelSettingsPanelShell(props: {
         {secondaryNode != null ? (
           <section
             className={cn(
-              `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap max-w-[55%] truncate text-right`,
+              UI_RESPONSIVE_PANEL_HEADER_SECONDARY_CLASSNAME,
+              `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap truncate text-right`,
               secondaryNodeClassName,
             )}
             aria-label="Selection summary"

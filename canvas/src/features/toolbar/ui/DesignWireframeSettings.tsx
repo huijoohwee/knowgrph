@@ -5,69 +5,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useDesignWireframeSettings } from '@/features/toolbar/hooks/useDesignWireframeSettings'
 import { clearWebpageIframeSrcdocCaches } from '@/lib/websites/webpageIframeSrcdoc'
 import { clearCachedWebpageLayoutSnapshots } from '@/lib/websites/webpageLayoutCache'
-
-function ToggleRow(props: { label: string; value: boolean; onChange: (next: boolean) => void }) {
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
-  return (
-    <div className="flex items-center gap-2">
-      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-        {props.label}
-      </label>
-      <div className="w-[50%] flex items-center gap-1 justify-end">
-        <button
-          type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${!props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
-          onClick={() => props.onChange(false)}
-        >
-          Off
-        </button>
-        <button
-          type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
-          onClick={() => props.onChange(true)}
-        >
-          On
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function NumberRow(props: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  onChange: (next: number) => void
-}) {
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
-  const uiPanelKeyValueInputClass = useGraphStore(
-    s => s.uiPanelKeyValueInputClass || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
-  )
-  return (
-    <div className="flex items-center gap-2">
-      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-        {props.label}
-      </label>
-      <input
-        type="number"
-        min={props.min}
-        max={props.max}
-        step={typeof props.step === 'number' ? props.step : 1}
-        value={props.value}
-        onChange={e => {
-          const raw = Number.parseFloat(e.target.value)
-          if (!Number.isFinite(raw)) return
-          props.onChange(Math.max(props.min, Math.min(props.max, raw)))
-        }}
-        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[50%] text-right`}
-      />
-    </div>
-  )
-}
+import {
+  ResponsiveNumberRow as NumberRow,
+  ResponsiveToggleRow as ToggleRow,
+} from '@/lib/ui/responsiveControlRows'
+import { uiToolbarSettingsPanelBodyClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 export function DesignWireframeSettings() {
   const { settings, setSettings, resetSettings } = useDesignWireframeSettings()
@@ -77,7 +19,7 @@ export function DesignWireframeSettings() {
 
   return (
     <CollapsibleSection title="Design wireframe" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className="px-3 py-2 space-y-2">
+      <div className={uiToolbarSettingsPanelBodyClassName}>
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Controls for webpage source-url wireframes (layout fidelity, grouping cues, label readability).
         </div>

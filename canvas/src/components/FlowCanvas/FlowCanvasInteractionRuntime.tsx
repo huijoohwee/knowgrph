@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { EMPTY_STRING_ARRAY, type FlowCanvasInteractionRuntimeProps } from '@/components/FlowCanvas/shared'
+import { CanvasArrangeActionBar } from '@/components/canvas/CanvasArrangeActionBar'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
@@ -113,8 +114,9 @@ export default React.memo(function FlowCanvasInteractionRuntime(
         return selectedIds[0] || ''
       })()
       const grid = readSnapGridConfigFromSchema(schema)
-      const gridSize = grid.enabled ? grid.size : 0
-      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
+      const gridSize = grid.enabled ? Math.max(grid.x, grid.y) : 0
+      const snapX = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid, 'x') : v)
+      const snapY = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid, 'y') : v)
       const items = selectedIds
         .map(id => {
           const node = scene.nodeById.get(id)
@@ -135,8 +137,8 @@ export default React.memo(function FlowCanvasInteractionRuntime(
         const node = scene.nodeById.get(id)
         const point = next[id]
         if (!node || !point) continue
-        node.x = snap(point.cx - node.width / 2)
-        node.y = snap(point.cy - node.height / 2)
+        node.x = snapX(point.cx - node.width / 2)
+        node.y = snapY(point.cy - node.height / 2)
       }
       runtime.dirty = true
       positionsDirtySinceCommitRef.current = true
@@ -157,7 +159,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       }
       if (selectedIds.length === 0) return
       const grid = readSnapGridConfigFromSchema(schema)
-      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
+      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.x, snapGridSizeY: grid.y })
       if (!delta) return
       const runtime = runtimeRef.current
       const scene = runtime?.scene
@@ -237,31 +239,11 @@ export default React.memo(function FlowCanvasInteractionRuntime(
 
   if (!(active && allowMutations && selectedIds.length >= 2)) return null
   return (
-    <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
-        Align L
-      </button>
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-x')}>
-        Align CX
-      </button>
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-right')}>
-        Align R
-      </button>
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-top')}>
-        Align T
-      </button>
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-y')}>
-        Align CY
-      </button>
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-bottom')}>
-        Align B
-      </button>
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-x')}>
-        Dist X
-      </button>
-      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-y')}>
-        Dist Y
-      </button>
-    </div>
+    <CanvasArrangeActionBar
+      active={active}
+      selectedCount={selectedIds.length}
+      onArrange={applyArrange}
+      ariaLabel="Arrange selected flow nodes"
+    />
   )
 })

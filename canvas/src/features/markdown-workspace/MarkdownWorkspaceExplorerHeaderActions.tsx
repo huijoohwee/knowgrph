@@ -3,6 +3,7 @@ import { RefreshCcw } from 'lucide-react'
 import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
 import { ExplorerSearchControl } from './ExplorerSearchControl'
 import { uiToolbarRowScrollJustifyEndClassName, uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type MarkdownWorkspaceExplorerHeaderActionsProps = {
   panelTextClass: string
@@ -10,6 +11,8 @@ type MarkdownWorkspaceExplorerHeaderActionsProps = {
   search: string
   setSearch: (next: string) => void
 }
+
+const explorerHeaderActionIconClassName = `${UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME} shrink-0`
 
 export function MarkdownWorkspaceExplorerHeaderActions(props: MarkdownWorkspaceExplorerHeaderActionsProps) {
   const { panelTextClass, onRefresh, search, setSearch } = props
@@ -19,7 +22,7 @@ export function MarkdownWorkspaceExplorerHeaderActions(props: MarkdownWorkspaceE
       <ul className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Explorer actions list">
         <li className="list-none">
           <ExplorerToolbarIconButton ariaLabel="Refresh" title="Refresh" onClick={onRefresh}>
-            <RefreshCcw className="w-4 h-4" />
+            <RefreshCcw className={explorerHeaderActionIconClassName} />
           </ExplorerToolbarIconButton>
         </li>
         <li className="list-none">

@@ -5,6 +5,17 @@ import { isPlainObject } from '@/lib/graph/value'
 export const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey' as const
 export const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey' as const
 export const FLOW_EDGE_DISPLAY_LABEL_KEY = 'flow:displayLabel' as const
+export const FLOW_DEFAULT_SOURCE_PORT_KEY = 'output' as const
+export const FLOW_DEFAULT_TARGET_PORT_KEY = 'input' as const
+
+export function buildImplicitFlowEdgePortKey(args: { socketType: unknown; side: 'source' | 'target' }): string {
+  const fallback = args.side === 'source' ? FLOW_DEFAULT_SOURCE_PORT_KEY : FLOW_DEFAULT_TARGET_PORT_KEY
+  const raw = typeof args.socketType === 'string' ? args.socketType.trim() : ''
+  if (!raw) return fallback
+  const semantic = raw.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '')
+  if (!semantic) return fallback
+  return args.side === 'source' ? `${semantic}_out` : `${semantic}_in`
+}
 
 export const FLOW_SCHEMA_FIELD_PORT_PREFIX = 'field:' as const
 

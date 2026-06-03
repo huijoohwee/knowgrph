@@ -761,8 +761,8 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('sourcesByPath: readReusableWorkspaceSourceIndexSnapshot(),')) {
     throw new Error('expected bootstrap startup materialization to reuse the cached source-index snapshot helper instead of forcing a fresh snapshot read')
   }
-  if (!bootstrapText.includes('bootstrapSideEffectsRequest: {') || !bootstrapText.includes('composeRequest: args.bootstrapMaterialization') || !bootstrapText.includes('const applyBootstrapComposeRequest = React.useCallback((args: {') || !bootstrapText.includes('const applyBootstrapSideEffectsRequest = React.useCallback((request: BootstrapMountSideEffectsRequest) => {') || !bootstrapText.includes('sourceFilesSnapshot: request.sourceFilesSnapshot,') || !bootstrapStartupText.includes('precomputedSignature?: string')) {
-    throw new Error('expected bootstrap composed-graph and rematerialize scheduling to reuse one shared startup side-effects request with a precomputed compose signature instead of reshaping payloads inline')
+  if (!bootstrapText.includes('bootstrapSideEffectsRequest: {') || !bootstrapText.includes('composeRequest: args.bootstrapMaterialization && !initialActivePathRequest') || !bootstrapText.includes('const applyBootstrapComposeRequest = React.useCallback((args: {') || !bootstrapText.includes('const applyBootstrapSideEffectsRequest = React.useCallback((request: BootstrapMountSideEffectsRequest) => {') || !bootstrapText.includes('sourceFilesSnapshot: request.sourceFilesSnapshot,') || !bootstrapStartupText.includes('precomputedSignature?: string')) {
+    throw new Error('expected bootstrap composed-graph and rematerialize scheduling to reuse one shared startup side-effects request while standing down stale bootstrap composition when active-path materialization owns the first graph apply')
   }
   if (!runtimeMaterializationText.includes('resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)')) {
     throw new Error('expected workspace bootstrap materialization to centralize source-index snapshot reuse vs reload decisions in the dedicated materialization helper')
@@ -904,8 +904,12 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (runtimeMaterializationText.includes('parseCanvasWorkspaceFrontmatterPreset(activeWorkspaceText)')) {
     throw new Error('expected shared materialization runtime to avoid duplicate frontmatter preset parsing in source-files rematerialization path')
   }
-  if (!runtimeStartupText.includes('const snapshot = buildInitialWorkspaceStartupSnapshot({') || !runtimeStartupText.includes('explorer.setActivePath(desiredActivePath)')) {
-    throw new Error('expected dedicated startup runtime helper to own startup snapshot branching and explorer active-path initialization')
+  if (
+    !runtimeStartupText.includes('const snapshot = buildInitialWorkspaceStartupSnapshot({') ||
+    !runtimeStartupText.includes('const activePathToApply = resolveWorkspaceStartupActivePathToApply({') ||
+    !runtimeStartupText.includes('useMarkdownExplorerStore.getState().setActivePath(activePathToApply)')
+  ) {
+    throw new Error('expected dedicated startup runtime helper to own startup snapshot branching and guarded explorer active-path initialization')
   }
   if (!bootstrapText.includes('reusableWorkspaceSourcesByPathRef.current = null')) {
     throw new Error('expected source files bootstrap rematerialization path to invalidate the cached source-index snapshot when workspace inputs change')
@@ -1493,6 +1497,9 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('const applyBootstrapInitialActivePathRequest = React.useCallback((request: ActivePathMaterializationRequest | null) => {')) {
     throw new Error('expected source files bootstrap mount to centralize initial active-path request handoff behind a dedicated helper')
   }
+  if (!text.includes('runActivePathMaterialization(request)') || !text.includes('composeRequest: args.bootstrapMaterialization && !initialActivePathRequest')) {
+    throw new Error('expected source files bootstrap mount to run active-path materialization immediately and prevent stale bootstrap composition from racing the active document')
+  }
   if (!text.includes('scheduleKnowgrphStorageQueueRequest(request.initialQueueRequest)')) {
     throw new Error('expected knowgrph storage workspace lifecycle apply path to reuse the prebuilt initial queue request instead of rebuilding queue request context downstream')
   }
@@ -1613,6 +1620,12 @@ export function testSourceFilesBootstrapGuardsSafariStorageSyncHotPath() {
   }
   if (!startupText.includes('buildActiveWorkspaceRuntimeSourceFilesSnapshot({')) {
     throw new Error('expected source files bootstrap startup to reuse the shared active runtime source-files shaping helper')
+  }
+  if (!startupText.includes("import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'")
+    || !startupText.includes('function hasBootstrapActivePathDrifted(')
+    || !startupText.includes('explorerActivePath: useMarkdownExplorerStore.getState().activePath')
+    || !startupText.includes('if (hasBootstrapActivePathDrifted(context.startupActivePath)) {')) {
+    throw new Error('expected source files bootstrap startup to drop stale startup materialization when the active Source Files path changes before bootstrap apply')
   }
   if (!startupText.includes('premergedSourceFiles: context.mergedSourceFiles')) {
     throw new Error('expected source files bootstrap startup to pass the already-merged active source-files snapshot from the dedicated startup context directly into shared materialization')

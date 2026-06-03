@@ -5,7 +5,7 @@ const repoRoot = resolve(process.cwd(), '..')
 const readRepoFile = (repoRelativePath: string): string =>
   readFileSync(resolve(repoRoot, repoRelativePath), 'utf8')
 
-export function testResearchAgentPrdTadStaysReferenceOnlyUntilSourceOwnersExist(): void {
+export function testResearchAgentPrdTadUsesImplementedDevSourceOwners(): void {
   const oldPath = resolve(repoRoot, 'docs/documents/knowgrph-research-agent-prd-tad-proposed.md')
   if (existsSync(oldPath)) {
     throw new Error('Expected research-agent PRD/TAD to remove the proposed document path')
@@ -15,12 +15,13 @@ export function testResearchAgentPrdTadStaysReferenceOnlyUntilSourceOwnersExist(
 
   const requiredDocTokens = [
     'doc_id: knowgrph-research-agent-prd-tad',
-    'status: reference-only-not-implemented',
-    'This document preserves the research-agent concept as a reference-only contract.',
-    'The repo currently has no native research-agent seeder, no research-agent reasoner Worker, no skill-loop writer, and no simulator runtime.',
-    'Use existing Import URL, queryable corpus, and Source Files paths for current ingestion.',
-    'Any future research-agent work must reuse those owners where behavior already exists.',
-    'This document can move from reference-only to implemented only when',
+    'status: dev-source-implemented-no-deploy',
+    'implemented dev-source research-thesis baseline',
+    'canvas/src/features/research-agent/researchThesisContract.ts',
+    'cloudflare/workers/knowgrph-research/index.ts',
+    'cloudflare/d1/migrations/0005_research_thesis.sql',
+    'active_graph_mutated: false',
+    'must not be presented as a live `airvio.co` capability',
   ]
   for (const token of requiredDocTokens) {
     if (!docs.includes(token)) {
@@ -31,7 +32,9 @@ export function testResearchAgentPrdTadStaysReferenceOnlyUntilSourceOwnersExist(
   const forbiddenDocTokens = [
     'prd-tad-proposed',
     'status: proposed',
+    'status: reference-only-not-implemented',
     'PRD + TAD (Proposed)',
+    'reference-only contract',
     '{{doc_id}}',
     'scripts/kgc_seed.py',
     'KGCSeedPipeline',
@@ -42,6 +45,7 @@ export function testResearchAgentPrdTadStaysReferenceOnlyUntilSourceOwnersExist(
     'Claude Sonnet',
     'data/seeds/',
     'data/skills/',
+    'no native research-agent seeder',
   ]
   for (const token of forbiddenDocTokens) {
     if (docs.includes(token)) {

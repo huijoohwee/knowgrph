@@ -5,7 +5,6 @@ import { EMPTY_WIDGET_REGISTRY } from '@/components/FlowEditorCanvas/flowEditorC
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
-import { stripFrontmatterAutoManagedWidgetPinnedStates } from '@/lib/flowEditor/widgetPlacementAuthority'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 const EMPTY_STRING_ARRAY: string[] = []
@@ -68,9 +67,6 @@ export function useFlowEditorRuntimeStoreState() {
       setOpenWidgetNodeIds: s.setOpenWidgetNodeIds,
     })),
   )
-  const flowWidgetPinnedByNodeId = React.useMemo(() => stripFrontmatterAutoManagedWidgetPinnedStates({
-    graphData: state.baseGraphData,
-    pinnedByNodeId: state.flowWidgetPinnedByNodeId || EMPTY_BOOL_RECORD,
-  }), [state.baseGraphData, state.flowWidgetPinnedByNodeId])
+  const flowWidgetPinnedByNodeId = state.flowWidgetPinnedByNodeId || EMPTY_BOOL_RECORD
   return React.useMemo(() => ({ ...state, flowWidgetPinnedByNodeId }), [flowWidgetPinnedByNodeId, state])
 }

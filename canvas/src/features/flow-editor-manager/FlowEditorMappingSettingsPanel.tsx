@@ -5,6 +5,17 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
+import {
+  UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_ACTION_GROUP_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_FOOTER_ROW_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_SECTION_GRID_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_SECTION_HEADER_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_STATUS_ALERT_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 import type { FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 import FlowMappingRowsTable from '@/features/flow-editor-manager/FlowMappingRowsTable'
@@ -54,6 +65,7 @@ export function FlowEditorMappingSettingsPanel(props: {
 
   const panelTypography = usePanelTypography()
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const fieldClassName = cn(UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)
 
   return (
     <section className="h-full min-h-0 flex flex-col overflow-hidden" aria-label="Edit mapping">
@@ -66,7 +78,7 @@ export function FlowEditorMappingSettingsPanel(props: {
           <section className="space-y-3" aria-label="Mapping editor form">
             {error ? (
               <section
-                className={cn('rounded border px-2 py-2', 'border-red-300/50 bg-red-500/10', panelTypography.microLabelClass)}
+                className={cn(UI_RESPONSIVE_FLOW_MANAGER_STATUS_ALERT_CLASSNAME, 'border-red-300/50 bg-red-500/10', panelTypography.microLabelClass)}
                 aria-label="Error"
                 role="status"
               >
@@ -75,15 +87,15 @@ export function FlowEditorMappingSettingsPanel(props: {
             ) : null}
 
             <section aria-label="Identity" className="space-y-2">
-              <section className="flex items-center justify-between gap-2" aria-label="Identity header">
+              <section className={UI_RESPONSIVE_FLOW_MANAGER_SECTION_HEADER_CLASSNAME} aria-label="Identity header">
                 <section className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Identity</section>
-                <label className={cn('inline-flex items-center gap-2', panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+                <label className={cn(UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME, panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                   <input type="checkbox" checked={!!draft.isEnabled} onChange={e => onChangeDraft({ isEnabled: e.target.checked })} />
                   Enabled
                 </label>
               </section>
 
-              <section className="grid grid-cols-1 sm:grid-cols-3 gap-2" aria-label="Identity inputs">
+              <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_SECTION_GRID_CLASSNAME, 'sm:grid-cols-3')} aria-label="Identity inputs">
                 <section className="sm:col-span-1">
                   <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-manager-nodeType">
                     Node Type
@@ -92,7 +104,7 @@ export function FlowEditorMappingSettingsPanel(props: {
                     id="flow-editor-manager-nodeType"
                     value={draft.nodeTypeId}
                     onChange={e => onChangeDraft({ nodeTypeId: e.target.value })}
-                    className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    className={fieldClassName}
                   />
                 </section>
                 <section className="sm:col-span-1">
@@ -103,7 +115,7 @@ export function FlowEditorMappingSettingsPanel(props: {
                     id="flow-editor-manager-editorType"
                     value={draft.widgetTypeId}
                     onChange={e => onChangeDraft({ widgetTypeId: e.target.value })}
-                    className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    className={fieldClassName}
                   />
                 </section>
                 <section className="sm:col-span-1">
@@ -114,13 +126,13 @@ export function FlowEditorMappingSettingsPanel(props: {
                     id="flow-editor-manager-formId"
                     value={draft.formId}
                     onChange={e => onChangeDraft({ formId: e.target.value })}
-                    className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    className={fieldClassName}
                   />
                 </section>
               </section>
             </section>
 
-            <header className="flex items-center justify-between gap-2" aria-label="Rows header">
+            <header className={UI_RESPONSIVE_FLOW_MANAGER_SECTION_HEADER_CLASSNAME} aria-label="Rows header">
               <section className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Rows</section>
               <button
                 type="button"
@@ -142,13 +154,14 @@ export function FlowEditorMappingSettingsPanel(props: {
       {mode !== 'none' ? (
         <section
           className={cn(
-            'sticky bottom-0 py-2 border-t flex items-center justify-between gap-2',
+            UI_RESPONSIVE_FLOW_MANAGER_FOOTER_ROW_CLASSNAME,
+            UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME,
             UI_THEME_TOKENS.panel.border,
             UI_THEME_TOKENS.panel.bg,
           )}
           aria-label="Editor footer"
         >
-          <section className="flex items-center gap-2" aria-label="Left actions">
+          <section className={UI_RESPONSIVE_FLOW_MANAGER_ACTION_GROUP_CLASSNAME} aria-label="Left actions">
             <button
               type="button"
               className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
@@ -171,7 +184,7 @@ export function FlowEditorMappingSettingsPanel(props: {
             ) : null}
           </section>
 
-          <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Primary actions">
+          <menu className={UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME} aria-label="Primary actions">
             <li>
               <button
                 type="button"

@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sanitizeMessageText } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_COMPACT_ERROR_FEEDBACK_BADGE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type ErrorFeedbackProps = {
   title?: string
@@ -21,7 +22,8 @@ export function ErrorFeedback({ title, error, details, code, variant = 'default'
     return (
       <div
         className={cn(
-          'h-[18px] px-2 rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 overflow-hidden flex items-center gap-2',
+          UI_RESPONSIVE_COMPACT_ERROR_FEEDBACK_BADGE_CLASSNAME,
+          'px-2 rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 overflow-hidden flex items-center gap-2',
           className,
         )}
       >

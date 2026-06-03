@@ -4,6 +4,7 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   const flowEditorRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const flowEditorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const canvasViewportText = readFileSync(resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'), 'utf8')
   const runtimeText = readFileSync(flowEditorRuntimePath, 'utf8')
   const sharedText = readFileSync(flowEditorSharedPath, 'utf8')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
@@ -48,11 +49,68 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!overlaySurfaceText.includes('flowEditorFrontmatterGraphAvailable || activeSourceFrontmatterFlowAvailable')) {
     throw new Error('expected frontmatter-flow availability to suppress non-frontmatter widget fallback ids through the dedicated branch')
   }
+  if (!overlaySurfaceText.includes("import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'")) {
+    throw new Error('expected Flow Editor overlay surface to read the active Source Files path from the shared markdown explorer store')
+  }
+  if (!overlaySurfaceText.includes('const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)')
+    || !overlaySurfaceText.includes('explorerActivePath,')
+    || !overlaySurfaceText.includes('[explorerActivePath, markdownDocumentName, sourceFiles]')) {
+    throw new Error('expected Flow Editor overlay surface to resolve active frontmatter source files by explorer active path, not only markdown document name')
+  }
+  if (!canvasViewportText.includes("import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'")
+    || !canvasViewportText.includes("import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'")
+    || !canvasViewportText.includes("import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'")) {
+    throw new Error('expected CanvasViewport to reuse shared active source and frontmatter-flow helpers for Flow Editor surface arbitration')
+  }
+  if (!canvasViewportText.includes('const activeSourceFile = React.useMemo(')
+    || !canvasViewportText.includes('resolvePreferredEnabledComposedSourceFile({')
+    || !canvasViewportText.includes('const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)')
+    || !canvasViewportText.includes('[explorerActivePath, markdownDocumentName, sourceFiles]')) {
+    throw new Error('expected CanvasViewport to resolve the active Source Files graph by explorer active path during workspace transitions')
+  }
+  if (!canvasViewportText.includes('const workspaceFrontmatterFlowEditorSurfaceActive = workspaceEditorOverlayOpen === true')
+    || !canvasViewportText.includes('isFrontmatterFlowGraph(activeGraphData)')
+    || !canvasViewportText.includes('isFrontmatterFlowGraph(activeSourceFile?.parsedGraphData)')
+    || !canvasViewportText.includes("const active2dSurface = workspaceFrontmatterFlowEditorSurfaceActive ? 'flowEditor' : rawActive2dSurface")) {
+    throw new Error('expected CanvasViewport to keep Flow Editor as the active surface while the active Source Files graph is frontmatter-flow')
+  }
+  if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterFlowEditorSurfaceActive')
+    || !canvasViewportText.includes("!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d'")
+    || !canvasViewportText.includes('{documentSwitchBlocksCanvas ? (')) {
+    throw new Error('expected CanvasViewport document-switch gating to avoid blanking Flow Editor when source graph authority is already frontmatter-flow')
+  }
   if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {')) {
     throw new Error('expected flow editor widget id derivation to avoid live overlay ids whenever flow editor view is inactive')
   }
+  if (!overlaySurfaceText.includes('if (workspaceOverlayOpen) return')
+    || !overlaySurfaceText.includes('workspaceMutationBlocked, workspaceOverlayOpen]')
+    || !overlaySurfaceText.includes('stableOverlaySurfaceCacheKey')) {
+    throw new Error('expected inactive-view cleanup to preserve stable overlay ids while Editor Workspace owns the Flow Editor surface')
+  }
+  if (!overlaySurfaceText.includes('stableFrontmatterOverlaySurfaceCacheById')
+    || !overlaySurfaceText.includes('cachedStableOverlaySurface.sourceKey === activeSourceSelectionKey')
+    || !overlaySurfaceText.includes('if (workspaceOverlayOpen && sourceKey) return `workspace:${sourceKey}`')
+    || !overlaySurfaceText.includes('clearStableFrontmatterOverlaySurfaceCache(stableOverlaySurfaceCacheKey)')
+    || !overlaySurfaceText.includes('writeStableFrontmatterOverlaySurfaceCache(stableOverlaySurfaceCacheKey')) {
+    throw new Error('expected Flow Editor surface handoff cache to survive remounts while remaining scoped by active source selection')
+  }
   if (!overlaySurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
     throw new Error('expected overlay surface to reuse the last stable frontmatter overlay ids during transient workspace-blocked frames')
+  }
+  if (!overlaySurfaceText.includes('if (workspaceOverlayOpen && lastStable.length > 0) return lastStable')) {
+    throw new Error('expected workspace overlay handoff frames to preserve stable frontmatter overlay ids instead of falling through to Flow Canvas')
+  }
+  if (!overlaySurfaceText.includes('const frontmatterOverlayAuthorityGraphData = React.useMemo(() => {')
+    || !overlaySurfaceText.includes('return lastStableGraph')
+    || !overlaySurfaceText.includes('renderGraphDataOverride: frontmatterOverlayAuthorityGraphData')) {
+    throw new Error('expected overlay surface to keep the stable frontmatter-flow graph as the handoff authority for Flow Editor and Flow Canvas partitioning')
+  }
+  const surfaceElementsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx'), 'utf8')
+  if (!surfaceElementsText.includes('const useStableFrontmatterGraphAuthority =')
+    || !surfaceElementsText.includes('&& stableGraphIsFrontmatterFlow')
+    || !surfaceElementsText.includes('&& args.overlayEditorNodeIds.length > 0')
+    || surfaceElementsText.includes('!args.renderGraphMetaKind\n    && !currentGraphIsFrontmatterFlow')) {
+    throw new Error('expected overlay element builder to classify preserved overlay ids through the stable frontmatter graph authority')
   }
   if (!runtimeText.includes('forceFrontmatterFlow: frontmatterOnlyPolicyActive')) {
     throw new Error('expected Flow Editor runtime to force flow-only graph-family derivation under frontmatter-only policy')
@@ -151,17 +209,26 @@ export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom(
   if (!text.includes("svg.setAttribute('viewBox', svgViewBox)") || !text.includes("svg.setAttribute('preserveAspectRatio', 'none')")) {
     throw new Error('expected overlay edge SVG to use an explicit non-scaling viewBox for root-relative path coordinates')
   }
-  if (!text.includes('const buildRectAnchorCacheKey = (nodeId: string, dir: \'in\' | \'out\', portKey: string, rect: DOMRect): string =>')) {
+  if (!text.includes('const buildRectAnchorCacheKey = (nodeId: string, dir: \'in\' | \'out\', portKey: string, rect: DOMRect, scrollSignature: string): string =>')) {
     throw new Error('expected overlay edge anchor cache keys to include panel geometry so moved widgets cannot reuse stale absolute anchors')
   }
-  if (!text.includes('round2(rect.left)') || !text.includes('round2(rect.top)') || !text.includes('round2(rect.width)') || !text.includes('round2(rect.height)')) {
-    throw new Error('expected overlay edge anchor cache geometry signature to track rect position and size')
+  if (!text.includes('round2(rect.left)') || !text.includes('round2(rect.top)') || !text.includes('round2(rect.width)') || !text.includes('round2(rect.height)') || !text.includes('scrollSignature')) {
+    throw new Error('expected overlay edge anchor cache geometry signature to track rect position, size, and nested scroll state')
   }
-  if (!text.includes('const anchorCacheKey = buildRectAnchorCacheKey(anchorArgs.nodeId, anchorArgs.dir, portKey, rect)')) {
-    throw new Error('expected overlay edge anchors to use geometry-scoped cache keys')
+  if (!text.includes('const anchorCacheKey = buildRectAnchorCacheKey(anchorArgs.nodeId, anchorArgs.dir, portKey, rect, overlayScrollSignature)')) {
+    throw new Error('expected overlay edge anchors to use geometry-and-scroll-scoped cache keys')
   }
-  if (!text.includes('scrollLeft') || !text.includes('scrollTop')) {
-    throw new Error('expected overlay edge layout signature to include overlay scroll offsets')
+  if (!text.includes('readOverlayScrollSurfaceSignature') || !text.includes('querySelectorAll<HTMLElement>(FLOW_EDITOR_MEDIA_SCROLL_SURFACE_SELECTOR)')) {
+    throw new Error('expected overlay edge layout signature to include nested rich-media scroll surfaces')
+  }
+  if (!text.includes('scrollLeft') || !text.includes('scrollTop') || !text.includes('nestedScrollSignature')) {
+    throw new Error('expected overlay edge layout signature to include overlay and nested scroll offsets')
+  }
+  if (!text.includes('readPortHandleVisibleBoundaryRect') || !text.includes('button.closest<HTMLElement>(FLOW_EDITOR_MEDIA_SCROLL_SURFACE_SELECTOR)')) {
+    throw new Error('expected overlay edge anchors to resolve visible rich-media scroll boundaries for port handles')
+  }
+  if (!text.includes('isAnchorVisibleInBoundary(dotAnchor.anchor, dotAnchor.boundaryRect)') || !text.includes('clampAnchorYToVisibleBounds(nextAnchor.anchor.y, anchorArgs.fallbackRect, nextAnchor.boundaryRect)')) {
+    throw new Error('expected overlay edge anchors to ignore scrolled-away dot handles and clamp to the visible panel boundary')
   }
   if (!text.includes("document.addEventListener('scroll', onAny, true)")) {
     throw new Error('expected overlay edge scheduler to listen to capture scroll updates for widget scrolling')

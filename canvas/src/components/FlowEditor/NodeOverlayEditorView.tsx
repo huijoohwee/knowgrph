@@ -42,6 +42,8 @@ export function NodeOverlayEditorView(args: {
   toolbarVisible: boolean
   toolbarDock: 'above' | 'below'
   toolbarSideClamp: boolean
+  toolbarInlineShiftPx: number
+  toolbarMaxWidthPx: number
   isRichMediaPanelWidget: boolean
   isVideoTranscriberWidget: boolean
   uiIconScale: UiIconScale | undefined
@@ -102,6 +104,8 @@ export function NodeOverlayEditorView(args: {
     toolbarVisible,
     toolbarDock,
     toolbarSideClamp,
+    toolbarInlineShiftPx,
+    toolbarMaxWidthPx,
     isRichMediaPanelWidget,
     isVideoTranscriberWidget,
     uiIconScale,
@@ -156,6 +160,8 @@ export function NodeOverlayEditorView(args: {
   const richMediaPanelFrameWidthPx = isRichMediaPanelWidget
     ? readRichMediaPanelFrameWidthPx(richMediaWidgetPreview)
     : null
+  const safeToolbarInlineShiftPx = Number.isFinite(toolbarInlineShiftPx) ? toolbarInlineShiftPx : 0
+  const safeToolbarMaxWidthPx = Number.isFinite(toolbarMaxWidthPx) && toolbarMaxWidthPx > 0 ? toolbarMaxWidthPx : undefined
   return (
     <aside
       ref={asideRef}
@@ -218,7 +224,7 @@ export function NodeOverlayEditorView(args: {
           className={
             isRichMediaPanelWidget
               ? `absolute z-10 ${pointerPolicy.toolbarPointerEventsClassName}`
-              : `absolute left-1/2 z-10 -translate-x-1/2 ${pointerPolicy.toolbarPointerEventsClassName}`
+              : `absolute left-1/2 z-10 ${pointerPolicy.toolbarPointerEventsClassName}`
           }
           style={isRichMediaPanelWidget
             ? {
@@ -228,10 +234,14 @@ export function NodeOverlayEditorView(args: {
                 marginLeft: toolbarSideClamp ? undefined : `${WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX}px`,
                 transform: 'translateY(-50%)',
               }
-            : { top: toolbarDock === 'above' ? -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX : 8 }}
+            : {
+                top: toolbarDock === 'above' ? -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX : 8,
+                transform: `translateX(calc(-50% + ${safeToolbarInlineShiftPx}px))`,
+              }}
         >
           <NodeOverlayEditorActionsToolbar
             visible={toolbarVisible}
+            maxWidthPx={safeToolbarMaxWidthPx}
             iconSizeClass={getIconSizeClass(uiIconScale)}
             iconStrokeWidth={uiIconStrokeWidth}
             active={active}

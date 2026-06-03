@@ -8,6 +8,12 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 import type { WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
@@ -21,10 +27,11 @@ export default function WidgetRegistryPortsEditor({
   const panelTypography = usePanelTypography()
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const fieldClassName = cn(UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)
 
   return (
     <section aria-label="Ports" className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME}>
         <h4 className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Ports</h4>
         <button
           type="button"
@@ -37,14 +44,14 @@ export default function WidgetRegistryPortsEditor({
 
       <div className="space-y-2">
         {(ports || []).map((p, idx) => (
-          <div key={`${idx}:${p.direction}:${p.portKey}`} className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border)}>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <div key={`${idx}:${p.direction}:${p.portKey}`} className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
+            <div className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME, 'sm:grid-cols-4')}>
               <div>
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Direction</label>
                 <select
                   value={p.direction}
                   onChange={e => onChange(ports.map((x, i) => (i === idx ? { ...x, direction: e.target.value === 'output' ? 'output' : 'input' } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                  className={fieldClassName}
                 >
                   <option value="input">input</option>
                   <option value="output">output</option>
@@ -55,7 +62,7 @@ export default function WidgetRegistryPortsEditor({
                 <input
                   value={p.portKey}
                   onChange={e => onChange(ports.map((x, i) => (i === idx ? { ...x, portKey: e.target.value } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text, panelTypography.monospaceTextClass)}
+                  className={cn(fieldClassName, panelTypography.monospaceTextClass)}
                 />
               </div>
               <div className="sm:col-span-2">
@@ -63,7 +70,7 @@ export default function WidgetRegistryPortsEditor({
                 <input
                   value={p.schemaPath || ''}
                   onChange={e => onChange(ports.map((x, i) => (i === idx ? { ...x, schemaPath: e.target.value } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text, panelTypography.monospaceTextClass)}
+                  className={cn(fieldClassName, panelTypography.monospaceTextClass)}
                 />
               </div>
             </div>
@@ -87,4 +94,3 @@ export default function WidgetRegistryPortsEditor({
     </section>
   )
 }
-

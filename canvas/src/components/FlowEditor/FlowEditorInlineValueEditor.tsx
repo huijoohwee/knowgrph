@@ -2,6 +2,10 @@ import React from 'react'
 
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+  UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 
 export const FlowEditorInlineValueEditor = React.memo(function FlowEditorInlineValueEditor(props: {
@@ -32,7 +36,9 @@ export const FlowEditorInlineValueEditor = React.memo(function FlowEditorInlineV
   } = props
   const baseDisplayClass = cn(
     'w-full min-w-0 rounded border outline-none',
-    multiline ? 'min-h-24 px-2 py-1 whitespace-pre-wrap break-words' : 'min-h-7 px-2 py-1 truncate',
+    multiline
+      ? `${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} px-2 py-1 whitespace-pre-wrap break-words`
+      : `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} truncate`,
     UI_THEME_TOKENS.input.bg,
     UI_THEME_TOKENS.input.border,
     UI_THEME_TOKENS.input.text,

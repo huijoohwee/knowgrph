@@ -1,5 +1,5 @@
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
+import { UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type InspectorTab = 'node' | 'edge' | 'workflow' | 'groups'
 
@@ -30,7 +30,7 @@ export function FlowEditorInspectorTabs({
       onSelect={id => setTab(id as InspectorTab)}
       renderButtonContent={activeOption => <span>{activeOption.title}</span>}
       renderOptionContent={option => <span className="truncate">{option.title}</span>}
-      menuWidthClass="w-40"
+      menuWidthClass={UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
     />
   )
 }

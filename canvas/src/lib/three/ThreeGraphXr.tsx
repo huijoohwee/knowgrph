@@ -1,6 +1,7 @@
 import React from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { WebGLRenderer } from 'three'
+import { UI_RESPONSIVE_CANVAS_FLOATING_ACTION_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export function OverlayFrameSync({ enabled, scheduleRef }: { enabled: boolean; scheduleRef: React.MutableRefObject<(() => void) | null> }) {
   useFrame(() => {
@@ -140,7 +141,7 @@ export function CanvasXrEntryPanel({
       aria-label="XR Mode"
       data-kg-canvas-xr-mode="1"
       data-kg-canvas-xr-status={status}
-      className="absolute right-3 top-3 z-[90] pointer-events-auto rounded-md border border-[var(--kg-border)] bg-[var(--kg-surface)]/90 p-1 shadow-sm backdrop-blur"
+      className={`absolute right-3 top-3 z-[90] pointer-events-auto rounded-md border border-[var(--kg-border)] bg-[var(--kg-surface)]/90 p-1 shadow-sm backdrop-blur ${UI_RESPONSIVE_CANVAS_FLOATING_ACTION_ROW_CLASSNAME}`}
     >
       <button
         type="button"

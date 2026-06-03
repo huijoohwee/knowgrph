@@ -55,10 +55,22 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   }
   if (!overlayPlacementRuntimeText.includes('const currentStoredWorldForPlacement = frontmatterManagedNode && floatingUsesScreenAuthority')
     || !overlayPlacementRuntimeText.includes('const storedWorld = currentStoredWorldForPlacement || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
-    throw new Error('expected frontmatter floating screen-authority mode to ignore stored world placement authority while preserving derived world sync')
+    throw new Error('expected frontmatter floating screen-authority mode to ignore stored world placement authority')
   }
-  if (!overlayPlacementRuntimeText.includes('persistWorldPos(nextWorld)')) {
-    throw new Error('expected node overlay runtime to keep derived world positions synchronized for edge anchors and fit logic')
+  const persistFloatingPlacementIdx = overlayPlacementRuntimeText.indexOf('const persistFloatingPlacement = React.useCallback((pos: { top: number; left: number }) => {')
+  const screenAuthorityPlacementGuardIdx = overlayPlacementRuntimeText.indexOf('if (floatingUsesScreenAuthority) {', persistFloatingPlacementIdx)
+  const floatingPlacementWorldPersistIdx = overlayPlacementRuntimeText.indexOf('persistWorldPos(world)', persistFloatingPlacementIdx)
+  if (
+    persistFloatingPlacementIdx < 0
+    || screenAuthorityPlacementGuardIdx < persistFloatingPlacementIdx
+    || floatingPlacementWorldPersistIdx < screenAuthorityPlacementGuardIdx
+  ) {
+    throw new Error('expected screen-authority floating placement to persist screen coordinates without writing derived canvas-world coordinates')
+  }
+  const screenAuthorityWorldSyncGuardIdx = overlayPlacementRuntimeText.indexOf('if (floatingUsesScreenAuthority) return')
+  const derivedWorldSyncIdx = overlayPlacementRuntimeText.indexOf('persistWorldPos(nextWorld)')
+  if (screenAuthorityWorldSyncGuardIdx < 0 || derivedWorldSyncIdx < screenAuthorityWorldSyncGuardIdx) {
+    throw new Error('expected derived world-position synchronization to run only after screen-authority widgets have been excluded')
   }
   if (!overlayPlacementRuntimeText.includes('hasAppliedPlacement: boolean')
     || !overlayPlacementRuntimeText.includes('if (args.hasAppliedPlacement) return false')
@@ -71,19 +83,24 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
     throw new Error('expected screen-authority base placement to stop reapplying initial balanced fallback after measured placement owns the frame')
   }
   if (!overlayPlacementRuntimeText.includes('const zoomK = initialFrontmatterManagedNode && floatingUsesScreenAuthority')
-    || !overlayPlacementRuntimeText.includes('const frontmatterPanelScaleZoomK = frontmatterManagedNode && floatingUsesScreenAuthority ? 1 : zoomK')
+    || !overlayPlacementRuntimeText.includes('const frontmatterVisibleViewportAuthority = frontmatterManagedNode')
+    || !overlayPlacementRuntimeText.includes('const frontmatterPanelScaleZoomK = frontmatterVisibleViewportAuthority ? 1 : zoomK')
     || !overlayPlacementRuntimeText.includes('zoomK: frontmatterPanelScaleZoomK')) {
-    throw new Error('expected frontmatter screen-authority placement to use neutral viewport layout zoom so graph zoom churn cannot relayout widgets')
+    throw new Error('expected frontmatter placement to use neutral visible-viewport scale authority across pin states so graph zoom churn cannot relayout widgets')
   }
-  if (!overlayPlacementRuntimeText.includes('const frontmatterScreenAuthorityViewportAnchorRef = React.useRef')
-    || !overlayPlacementRuntimeText.includes('const useFrontmatterViewportProjection = frontmatterManagedNode && floatingUsesScreenAuthority && !dragOverride')
-    || !overlayPlacementRuntimeText.includes('const frontmatterViewportAdjustedPos = (() => {')
-    || !overlayPlacementRuntimeText.includes('const viewportPanelScale = panelScale * frontmatterViewportScale')) {
-    throw new Error('expected frontmatter screen-authority placement to project the stable neutral layout through viewport pan/zoom')
+  if (overlayPlacementRuntimeText.includes('frontmatterScreenAuthorityViewportAnchorRef')
+    || overlayPlacementRuntimeText.includes('useFrontmatterViewportProjection')
+    || overlayPlacementRuntimeText.includes('frontmatterViewportAdjustedPos')
+    || overlayPlacementRuntimeText.includes('frontmatterViewportScale')) {
+    throw new Error('expected frontmatter screen-authority placement to forbid Flow Canvas viewport projection from mutating widget positions or size')
+  }
+  if (!overlayPlacementRuntimeText.includes('const pos = posBaseForViewport')
+    || !overlayPlacementRuntimeText.includes('const effectivePanelScale = panelScale')) {
+    throw new Error('expected frontmatter screen-authority placement to keep stable screen-space position and scale from its own placement owner')
   }
   if (!overlayPlacementRuntimeText.includes('const frontmatterScreenAuthority = isFrontmatterManagedOverlayNode(graphMetaKind, nodeRef.current) && floatingUsesScreenAuthority')
-    || !overlayPlacementRuntimeText.includes('if (!frontmatterScreenAuthority && sameScale && !widgetWorldPosRef.current && !pinnedDragOverrideRef.current) return')) {
-    throw new Error('expected frontmatter screen-authority zoom subscriptions to reapply viewport transforms without relayouting the grid')
+    || !overlayPlacementRuntimeText.includes('if (frontmatterScreenAuthority && sameScale && !pinnedDragOverrideRef.current) return')) {
+    throw new Error('expected frontmatter screen-authority zoom subscriptions to ignore canvas zoom churn instead of reprojecting the grid')
   }
   if (!overlayPlacementRuntimeText.includes('initialFrontmatterManagedNode')
     || !overlayPlacementRuntimeText.includes('&& lastAppliedRef.current')

@@ -55,6 +55,28 @@ type UseFlowCanvasLayoutStateArgs = {
   viewportH: number
 }
 
+export function buildFlowCanvasLayoutSchemaSignature(schema: GraphSchema | null): string {
+  if (!schema) return ''
+  return JSON.stringify({
+    layout: schema.layout || null,
+    labelStyles: schema.labelStyles || null,
+    nodeShapes: schema.nodeShapes || null,
+    nodeSizes: schema.nodeSizes || null,
+    nodeStroke: schema.nodeStroke || null,
+    performance: {
+      zoom: schema.performance?.zoom || null,
+    },
+    behavior: {
+      allowNodeDrag: schema.behavior?.allowNodeDrag ?? null,
+      dragConstraint: schema.behavior?.dragConstraint ?? null,
+      expansion: schema.behavior?.expansion || null,
+      hover: schema.behavior?.hover || null,
+      nodeShapeMode: schema.behavior?.nodeShapeMode ?? null,
+      portHandles: schema.behavior?.portHandles || null,
+    },
+  })
+}
+
 export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   const {
     active,
@@ -100,7 +122,8 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     frontmatterFlowOverlayFitProxyScaleTablet,
   ])
 
-  const schemaLayoutEngineJson = React.useMemo(() => buildSchemaLayoutEngineJson2d(schema), [schema])
+  const layoutSchemaSignature = React.useMemo(() => buildFlowCanvasLayoutSchemaSignature(schema), [schema])
+  const schemaLayoutEngineJson = React.useMemo(() => buildSchemaLayoutEngineJson2d(schema), [layoutSchemaSignature])
   const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
   const frontmatterFlowRenderSettings = React.useMemo(() => readFrontmatterFlowRenderSettings(sceneGraphData), [sceneGraphData])
 
@@ -109,7 +132,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     layoutMode === 'block'
       ? 'LR'
       : frontmatterFlowRenderSettings?.rankdir || deriveRankdir({ flowRankdir: schema?.layout?.flow?.rankdir })
-  const flowConfig = React.useMemo(() => readFlowConfig({ schema, rankdir }), [rankdir, schema])
+  const flowConfig = React.useMemo(() => readFlowConfig({ schema, rankdir }), [rankdir, schemaLayoutEngineJson])
   const flowConfigEffective = React.useMemo(() => {
     if (documentSemanticMode !== 'keyword') return flowConfig
     const explicitElkLayout = schema?.layout?.flow?.elkLayout
@@ -117,7 +140,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     if (flowConfig.engine !== 'auto' && flowConfig.engine !== 'elk') return flowConfig
     if (flowConfig.elk.algorithm !== 'layered') return flowConfig
     return { ...flowConfig, elk: { ...flowConfig.elk, algorithm: 'stress' as const } }
-  }, [documentSemanticMode, flowConfig, schema?.layout?.flow?.elkLayout])
+  }, [documentSemanticMode, flowConfig, schemaLayoutEngineJson])
   const sceneGraphLookup = React.useMemo(() => {
     return getCachedGraphLookup({
       cacheScope: 'flow-canvas-layout-state-scene-graph',
@@ -165,7 +188,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
         strokeWidthPx: Math.max(1.5, nextPresentation.portHandles.strokeWidthPx),
       },
     }
-  }, [documentSemanticMode, schema, sceneGraphData])
+  }, [documentSemanticMode, layoutSchemaSignature, sceneGraphData])
 
   const layoutVariant = React.useMemo(() => {
     return [
@@ -199,7 +222,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     filteredGraphDataForRenderer,
     graphDataRevision,
     multiDimTableModeEnabled,
-    schema,
+    layoutSchemaSignature,
   ])
   const sceneGroups = React.useMemo(() => {
     if (!flowPresentation.groups.enabled) return []
@@ -230,7 +253,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       mediaPanelDensity: String(mediaPanelDensity),
       collapsedGroupIdsKey,
     })
-  }, [canvas2dRenderer, canvasRenderMode, collapsedGroupIdsKey, documentSemanticMode, effectiveFrontmatter, mediaPanelDensity, renderMediaAsNodes, sceneGraphData, schemaLayoutEngineJson])
+  }, [canvas2dRenderer, canvasRenderMode, collapsedGroupIdsKey, documentSemanticMode, effectiveFrontmatter, layoutSchemaSignature, mediaPanelDensity, renderMediaAsNodes, sceneGraphData])
 
   const datasetKey = React.useMemo(() => {
     return computeLayoutDatasetKey({
@@ -270,6 +293,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     schema,
     flowConfig: flowConfigEffective,
     flowPresentation,
+    layoutSchemaSignature,
     layoutPositionsForMode,
     setLayoutPositionsForMode,
   })

@@ -27,6 +27,7 @@ import {
 } from '../AiKgLayersSectionTooltips'
 import { OrchestratorTraversalDelayRow } from '@/features/panels/ui/OrchestratorTraversalDelayRow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type AiKgForceControlsProps = {
   schema: GraphSchema
@@ -230,7 +231,7 @@ export default function AiKgForceControls({
                     layout: { ...schema.layout, forces: { ...forces, boxForce: e.target.checked } },
                   })
                 }}
-                className={`h-4 w-4 ${UI_THEME_TOKENS.input.border}`}
+                className={`${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} ${UI_THEME_TOKENS.input.border}`}
               />
             </div>
           </Tooltip>

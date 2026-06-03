@@ -8,6 +8,7 @@ import {
 import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalog'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
@@ -39,7 +40,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
       <CollapsibleSubsection title="Sample Dataset" defaultCollapsed={true}>
         <div className="px-1">
           <select
-            className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
+            className={`w-full ${UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
             value={selectedExampleId}
             onChange={(e) => {
               const id = e.target.value

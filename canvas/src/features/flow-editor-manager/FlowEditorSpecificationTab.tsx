@@ -9,6 +9,15 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
+import {
+  UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_STATUS_TEXT_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME,
+  UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 import {
   buildDefaultFlowNodeSpec,
@@ -136,9 +145,9 @@ export default function FlowEditorSpecificationTab({
 
   return (
     <section className="h-full min-h-0 flex flex-col" aria-label="Flow Editor Specification">
-      <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
-        <nav className="flex flex-wrap items-center justify-between gap-2" aria-label="Specification toolbar">
-          <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Specification actions">
+      <header className={`${UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME} ${UI_THEME_TOKENS.panel.border}`}>
+        <nav className={`${UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME} flex-wrap`} aria-label="Specification toolbar">
+          <menu className={UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME} aria-label="Specification actions">
             <li>
               <button
                 type="button"
@@ -171,18 +180,18 @@ export default function FlowEditorSpecificationTab({
             onSelect={id => setTab(id as SpecTab)}
             renderButtonContent={activeOption => <span>{activeOption.title}</span>}
             renderOptionContent={option => <span className="truncate">{option.title}</span>}
-            menuWidthClass="w-44"
+            menuWidthClass={UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
           />
         </nav>
       </header>
 
       {error ? (
-        <p className={`px-3 pt-2 ${panelTypography.microLabelClass} text-red-700 dark:text-red-400`} role="status">
+        <p className={`${UI_RESPONSIVE_FLOW_MANAGER_STATUS_TEXT_CLASSNAME} ${panelTypography.microLabelClass} text-red-700 dark:text-red-400`} role="status">
           {error}
         </p>
       ) : null}
 
-      <section className="flex-1 min-h-0 overflow-auto p-3" aria-label="Specification editor">
+      <section className={`${UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME} flex-1 min-h-0 overflow-auto`} aria-label="Specification editor">
         <section
           role="tabpanel"
           aria-label="Node spec"
@@ -193,7 +202,7 @@ export default function FlowEditorSpecificationTab({
           </label>
           <PlainTextInputEditor
             id="flow-node-spec-editor"
-            className={`mt-2 w-full min-h-[320px] rounded-md border px-2 py-1 ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+            className={`${UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME} rounded-md border ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={nodeText}
             onChange={setNodeText}
             multiline
@@ -210,7 +219,7 @@ export default function FlowEditorSpecificationTab({
           </label>
           <PlainTextInputEditor
             id="flow-workflow-spec-editor"
-            className={`mt-2 w-full min-h-[320px] rounded-md border px-2 py-1 ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+            className={`${UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME} rounded-md border ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={workflowText}
             onChange={setWorkflowText}
             multiline

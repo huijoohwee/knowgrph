@@ -2,6 +2,10 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
+import {
+  UI_RESPONSIVE_WIDE_DIALOG_MESSAGE_CLASSNAME,
+  UI_RESPONSIVE_WIDE_DIALOG_PANEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export function PaywallOverlay(props: { portalTarget: HTMLElement | null }) {
   const paywallEnabled = useGraphStore(s => s.paymentsStripePaywallEnabled === true)
@@ -35,7 +39,7 @@ export function PaywallOverlay(props: { portalTarget: HTMLElement | null }) {
       scope="container"
       portalTarget={props.portalTarget}
       overlayClassName="bg-black/60"
-      panelClassName={`w-[min(1100px,95vw)] h-[min(760px,95vh)] bg-[color:var(--kg-panel-bg)] border ${UI_THEME_TOKENS.panel.border}`}
+      panelClassName={`${UI_RESPONSIVE_WIDE_DIALOG_PANEL_CLASSNAME} bg-[color:var(--kg-panel-bg)] border ${UI_THEME_TOKENS.panel.border}`}
     >
       <section className={`h-full flex flex-col ${uiPanelTextFontClass}`} aria-label="Paywall">
         <header
@@ -71,7 +75,7 @@ export function PaywallOverlay(props: { portalTarget: HTMLElement | null }) {
             {canLaunchCheckout ? `Checkout URL: ${checkoutUrl}` : checkoutUrlHint}
           </div>
           <div className="flex-1 min-h-0 overflow-hidden flex items-center justify-center">
-            <div className={`max-w-[46rem] p-4 text-center ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
+            <div className={`${UI_RESPONSIVE_WIDE_DIALOG_MESSAGE_CLASSNAME} p-4 text-center ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
               {canLaunchCheckout
                 ? 'Stripe Checkout is a hosted payment page. Use “Open Checkout” to launch the Checkout Session url in a new tab.'
                 : 'Stripe Checkout requires the Session `url` returned by Stripe for an active hosted Checkout Session to open the hosted page.'}

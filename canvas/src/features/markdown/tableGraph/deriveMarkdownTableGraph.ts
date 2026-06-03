@@ -1,6 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
 import { KG_SUBGRAPHS_KEY, type UserSubgraph } from '@/lib/graph/subgraphs'
 import { DESIGN_WIREFRAME_META_KEY } from '@/lib/render/designWireframeSettings'
 import {
@@ -23,6 +24,12 @@ type DeriveArgs = {
 }
 
 const cache = new LRUCache<string, GraphData | null>(32, 30_000)
+export const MARKDOWN_TABLE_GRAPH_CELL_PROPERTY_PREVIEW_CHAR_LIMIT = 240
+
+const hashCellForSignature = (raw: string): string => {
+  const text = String(raw || '')
+  return `${text.length}:${hashStringToHexSharedContentCached(text, 'markdown-table-graph-cell')}`
+}
 
 const hashTableContentToHex = (header: string[], rows: string[][]): string => {
   const parts: Array<string | number> = ['table', header.length, rows.length]
@@ -33,13 +40,19 @@ const hashTableContentToHex = (header: string[], rows: string[][]): string => {
     const row = rows[rIdx]!
     parts.push('r', rIdx, row.length)
     for (let cIdx = 0; cIdx < row.length; cIdx += 1) {
-      parts.push('c', cIdx, row[cIdx] ?? '')
+      parts.push('c', cIdx, hashCellForSignature(row[cIdx] ?? ''))
     }
   }
   return hashSignatureParts(parts)
 }
 
 const normalizeText = (v: unknown): string => String(v ?? '').replace(/\s+/g, ' ').trim()
+
+const readGraphCellPropertyText = (raw: string, role: ColumnRole): string => {
+  if (role !== 'none') return raw
+  if (raw.length <= MARKDOWN_TABLE_GRAPH_CELL_PROPERTY_PREVIEW_CHAR_LIMIT) return raw
+  return `${raw.slice(0, MARKDOWN_TABLE_GRAPH_CELL_PROPERTY_PREVIEW_CHAR_LIMIT).trimEnd()}...`
+}
 
 const readStringArrayProp = (props: unknown, key: string): string[] => {
   if (!props || typeof props !== 'object' || Array.isArray(props)) return []
@@ -258,7 +271,8 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
         const raw = normalizeTableCellText(row[cIdx] ?? '')
         if (!raw) continue
         const role = cfg.rolesByColumnId[`col_${cIdx}`] || 'none'
-        props[key] = role === 'group' ? (toTableCellStringArray(raw) as unknown as JSONValue) : raw
+        const propertyText = readGraphCellPropertyText(raw, role)
+        props[key] = role === 'group' ? (toTableCellStringArray(propertyText) as unknown as JSONValue) : propertyText
       }
 
       if (colorColIndex >= 0) {

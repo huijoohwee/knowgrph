@@ -4,6 +4,10 @@ import { getLocalStorage } from '@/lib/persistence'
 import type { GraphNode } from '@/lib/graph/types'
 import { getUiSectionStatusChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
@@ -239,7 +243,7 @@ export function FloatingPanelChatFooter({
               onModelChanged(next)
             }}
             disabled={isLoading || modelOptions.length <= 1}
-            className={`h-7 px-2 ${uiPanelMicroLabelTextSizeClass} border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
+            className={`${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
           >
             {modelOptions.map(option => (
               <option key={option} value={option}>
@@ -271,7 +275,7 @@ export function FloatingPanelChatFooter({
       )}
 
       <form onSubmit={onSubmit} className="space-y-2">
-        <div className={`w-full border rounded overflow-hidden h-[88px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+        <div className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
           <PlainTextInputEditor
             value={input}
             onChange={setInput}

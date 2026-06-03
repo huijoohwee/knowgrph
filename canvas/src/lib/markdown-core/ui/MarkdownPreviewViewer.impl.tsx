@@ -38,6 +38,13 @@ import {
   deriveMarkdownPreviewDocumentMode,
   getMarkdownPreviewScrollStyle,
 } from './markdownPreviewViewerMode'
+import { useTextSelectionMatchHighlights } from '@/lib/ui/textSelectionMatchHighlights'
+import {
+  buildSemanticTextHighlightOverlayStyle,
+  getSemanticHighlightSurfaceAttributes,
+  getSemanticHighlightSurfaceClassName,
+  SEMANTIC_HIGHLIGHT_SURFACES,
+} from '@/lib/ui/semanticHighlight'
 
 const MARKDOWN_INLINE_EMBED_MAX_CHARS = 120_000
 const MARKDOWN_VARIABLE_SSOT_SCAN_MAX_CHARS = 120_000
@@ -288,6 +295,11 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     },
     [rootRef],
   )
+  const selectionMatchRects = useTextSelectionMatchHighlights({
+    rootRef: scrollRootRef,
+    resetKey: activeDocumentPath,
+    enabled: !markdownCardPreviewMode,
+  })
 
   React.useEffect(() => {
     const tryScrollToHash = () => {
@@ -619,6 +631,22 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       data-kg-large-markdown-viewer={markdownLargeDocumentMode ? '1' : undefined}
       aria-label="Markdown Preview Content"
     >
+      <section
+        aria-hidden="true"
+        className="pointer-events-none select-none absolute left-0 top-0 z-10"
+        data-kg-selection-match-overlay="true"
+        {...getSemanticHighlightSurfaceAttributes(SEMANTIC_HIGHLIGHT_SURFACES.selectionMatch)}
+      >
+        {selectionMatchRects.map(rect => (
+          <span
+            key={rect.id}
+            className={`absolute select-none ${getSemanticHighlightSurfaceClassName(SEMANTIC_HIGHLIGHT_SURFACES.selectionMatch)}`}
+            data-kg-selection-match-highlight="true"
+            {...getSemanticHighlightSurfaceAttributes(SEMANTIC_HIGHLIGHT_SURFACES.selectionMatch)}
+            style={buildSemanticTextHighlightOverlayStyle(rect)}
+          />
+        ))}
+      </section>
       {!markdownCardPreviewMode && embeddedMarkdownBase64 ? (
         <script type="application/x-kg-markdown" data-kg-markdown-source="1" data-kg-encoding="base64">
           {embeddedMarkdownBase64}

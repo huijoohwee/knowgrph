@@ -1,6 +1,8 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
 import { DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
+import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownWorkspaceDisplayMenu, readMarkdownToolbarHighlightCount } from '@/features/markdown-workspace/MarkdownWorkspaceToolbarInlineMenus'
 import {
   readRendererDocumentMetadataTokens,
@@ -12,6 +14,14 @@ import type { GraphData } from '@/lib/graph/types'
 import { getDocumentLocationFromMetadata, resolveMarkdownNavigationMetadata } from '@/lib/graph/markdownMetadata'
 import { findMarkdownTextHighlightLineRange } from '@/lib/markdown/markdownTextHighlights'
 import { MarkdownSigilText, renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import {
+  buildSemanticTextHighlightOverlayStyle,
+  getSemanticHighlightSurfaceAttributes,
+  resolveSemanticHighlightColors,
+  SEMANTIC_HIGHLIGHT_DEFAULT_BACKGROUND,
+  SEMANTIC_HIGHLIGHT_DEFAULT_COLOR,
+  SEMANTIC_HIGHLIGHT_SURFACES,
+} from '@/lib/ui/semanticHighlight'
 
 export const testMarkdownSigilInlineTextRendersEmbeddedAnnotations = () => {
   const html = renderToStaticMarkup(
@@ -59,8 +69,14 @@ export const testMarkdownToolbarHighlightToggleCountsSigils = () => {
         highlightCount={count}
       />,
     )
-    if (!html.includes('data-kg-sigil-highlight-count="2"')) throw new Error('expected toolbar highlight count marker')
-    if (!html.includes('Toggle text highlight (2)')) throw new Error('expected toolbar title to include highlight count')
+  if (!html.includes('data-kg-sigil-highlight-count="2"')) throw new Error('expected toolbar highlight count marker')
+  if (!html.includes('Toggle text highlight (2)')) throw new Error('expected toolbar title to include highlight count')
+    if (!html.includes('data-kg-semantic-highlight-surface="markdown-text-highlight"')) {
+      throw new Error('expected toolbar text-highlight toggle to use shared semantic highlight surface')
+    }
+    if (!html.includes('background-color:#FEF3C7') || !html.includes('color:#78350F')) {
+      throw new Error('expected toolbar text-highlight badge to use shared semantic fallback colors')
+    }
   } finally {
     useGraphStore.setState({ markdownDocumentText: previous } as never)
   }
@@ -101,6 +117,60 @@ export const testRendererSummaryReadsGenericHighlightTokens = () => {
   }
   if (tokens[1]?.background !== '#FEF3C7' || tokens[1]?.color !== '#D85A30') {
     throw new Error('expected renderer highlight token to read visual highlight colors')
+  }
+}
+
+export const testSemanticHighlightSharedSurfacesCoverKeywordDashboardRendererSelection = () => {
+  const surfaces = new Set<string>(Object.values(SEMANTIC_HIGHLIGHT_SURFACES))
+  for (const expected of ['selection-match', 'markdown-text-highlight', 'd3-graph', 'keyword-mode', 'dashboard', 'renderer']) {
+    if (!surfaces.has(expected)) throw new Error(`expected shared semantic highlight surface ${expected}`)
+  }
+  const rendererAttrs = getSemanticHighlightSurfaceAttributes(SEMANTIC_HIGHLIGHT_SURFACES.renderer)
+  if (rendererAttrs['data-kg-semantic-highlight-surface'] !== 'renderer') {
+    throw new Error('expected renderer surface attributes from shared helper')
+  }
+  const fallback = resolveSemanticHighlightColors({ defaultHighlight: true })
+  if (fallback.background !== SEMANTIC_HIGHLIGHT_DEFAULT_BACKGROUND || fallback.color !== SEMANTIC_HIGHLIGHT_DEFAULT_COLOR) {
+    throw new Error(`expected shared default mark colors, got ${JSON.stringify(fallback)}`)
+  }
+  const overlayStyle = buildSemanticTextHighlightOverlayStyle({
+    id: 'selection-peer:agent-labs',
+    left: 24,
+    top: 40,
+    width: 56,
+    height: 16,
+  })
+  const left = Number.parseFloat(String(overlayStyle.left || '0'))
+  const top = Number.parseFloat(String(overlayStyle.top || '0'))
+  const height = Number.parseFloat(String(overlayStyle.height || '0'))
+  if (!(left < 24)) throw new Error(`expected organic text marker to pad horizontally, got ${String(overlayStyle.left)}`)
+  if (!(top > 40)) throw new Error(`expected organic text marker to sit in the text band, got ${String(overlayStyle.top)}`)
+  if (!(height > 0 && height < 16)) throw new Error(`expected organic text marker to be shorter than the glyph rect, got ${String(overlayStyle.height)}`)
+  if (!String(overlayStyle.transform || '').includes('rotate')) throw new Error('expected organic text marker to carry stable shape jitter')
+}
+
+export const testMarkdownTokenRendererTextHighlightUsesSharedSemanticSurface = () => {
+  const { tokens } = lexMarkdown('Alpha highlight line')
+  const html = renderToStaticMarkup(
+    <MarkdownTokenRenderer
+      tokens={tokens}
+      activeDocumentPath="/docs/highlight.md"
+      highlightedLineRange={{ start: 1, end: 1 }}
+      markdownWordWrap
+      markdownPresentationMode={false}
+      uiPanelTextFontClass="font-sans"
+      uiPanelMonospaceTextClass="font-mono text-xs"
+      mermaidFrontmatterConfig={null}
+      rootThemeMode="light"
+      previewOverlayScope="container"
+      markdownTextHighlight
+    />,
+  )
+  if (!html.includes('kg-semantic-highlight-markdown-text-highlight')) {
+    throw new Error(`expected MarkdownTokenRenderer text highlight to use shared semantic class, got ${html}`)
+  }
+  if (!html.includes('background-color:#FEF3C7') || !html.includes('color:#78350F')) {
+    throw new Error(`expected MarkdownTokenRenderer text highlight to use shared semantic fallback colors, got ${html}`)
   }
 }
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -37,7 +38,7 @@ export async function testMarkdownViewerInlineEditHeadingAndParagraphDoNotDriftR
       <div>
         <MarkdownBlockContainer
           as="h2"
-          className="mt-2 mb-2 pl-[44px] pr-2 font-semibold text-xl"
+          className={`mt-2 mb-2 ${UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME} pr-2 font-semibold text-xl`}
           highlightClass=""
           startLine={1}
           endLine={1}
@@ -56,7 +57,7 @@ export async function testMarkdownViewerInlineEditHeadingAndParagraphDoNotDriftR
         </MarkdownBlockContainer>
         <MarkdownBlockContainer
           as="p"
-          className="mt-2 mb-2 pl-[44px] pr-2 text-sm"
+          className={`mt-2 mb-2 ${UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME} pr-2 text-sm`}
           highlightClass=""
           startLine={2}
           endLine={2}

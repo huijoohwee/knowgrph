@@ -17,6 +17,21 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { NODE_MEDIA_KINDS, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
+import {
+  UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME,
+  UI_RESPONSIVE_PANEL_FIELD_LABEL_CLASSNAME,
+  UI_RESPONSIVE_PANEL_FIELD_LABEL_WIDE_CLASSNAME,
+  UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME,
+  UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import {
+  uiToolbarSettingsPanelActionGroupClassName,
+  uiToolbarSettingsPanelBodyClassName,
+  uiToolbarSettingsPanelFooterClassName,
+  uiToolbarSettingsPanelTextActionClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const FLOATING_MEDIA_VIEW_OPTIONS = [
@@ -123,9 +138,50 @@ export function FloatingPropsPanel() {
   const postFitAlphaMax = typeof forces.postFitAlphaMax === 'number' && Number.isFinite(forces.postFitAlphaMax)
     ? forces.postFitAlphaMax
     : 0.12
+  const panelFieldLabelClassName = cn(
+    UI_RESPONSIVE_PANEL_FIELD_LABEL_CLASSNAME,
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    'font-normal',
+    UI_THEME_TOKENS.text.secondary,
+  )
+  const panelFieldWideLabelClassName = cn(
+    UI_RESPONSIVE_PANEL_FIELD_LABEL_WIDE_CLASSNAME,
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    'font-normal',
+    UI_THEME_TOKENS.text.secondary,
+  )
+  const panelFieldTextInputClassName = cn(
+    uiPanelKeyValueInputClass,
+    uiPanelTextFontClass,
+    uiPanelKeyValueTextSizeClass,
+    UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME,
+    'text-left',
+  )
+  const panelFieldPrimarySelectClassName = cn(
+    panelFieldTextInputClassName,
+    UI_THEME_TOKENS.text.primary,
+    UI_THEME_TOKENS.input.bg,
+  )
+  const panelFieldNumericInputClassName = cn(
+    uiPanelKeyValueInputClass,
+    uiPanelTextFontClass,
+    uiPanelKeyValueTextSizeClass,
+    UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME,
+    'text-right',
+  )
+  const panelFieldRangeValueClassName = cn(
+    UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME,
+    UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME,
+  )
+  const panelFieldToggleValueClassName = cn(
+    UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME,
+    UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME,
+  )
 
   return (
-    <div className={`min-w-56 ${UI_THEME_TOKENS.panel.bg}`}>
+    <div className={`${UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME} ${UI_THEME_TOKENS.panel.bg}`}>
       <section className="border-b border-[color:var(--kg-border)]" aria-label="Widgets">
         <div className={cn('px-2 py-1 flex items-center justify-between', UI_THEME_TOKENS.panel.bg)}>
           <span className={cn(uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.tertiary)}>Widgets</span>
@@ -140,16 +196,14 @@ export function FloatingPropsPanel() {
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
         <div className="px-3 py-2">
-          <div className="mb-2 flex items-center gap-2">
-            <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+            <label className={panelFieldLabelClassName}>
               Type
             </label>
             <select
               value={newType}
               onChange={e => setNewType(e.target.value)}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.bg}`}
+              className={panelFieldPrimarySelectClassName}
             >
               {catalogTypes.map(t => (
                 <option key={t} value={t} className={UI_THEME_TOKENS.panel.bg}>
@@ -170,28 +224,24 @@ export function FloatingPropsPanel() {
               )}
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+            <label className={panelFieldLabelClassName}>
               Label
             </label>
             <input
               value={newLabel}
               onChange={e => setNewLabel(e.target.value)}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
+              className={panelFieldTextInputClassName}
             />
           </div>
-          <div className="mt-2 flex items-center gap-2">
-            <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={`mt-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+            <label className={panelFieldLabelClassName}>
               Edge Label
             </label>
             <select
               value={newEdgeLabel}
               onChange={e => setNewEdgeLabel(e.target.value)}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
+              className={panelFieldTextInputClassName}
             >
               {edgeLabels.map(l => (
                 <option key={l} value={l}>
@@ -305,13 +355,11 @@ export function FloatingPropsPanel() {
               </div>
             </div>
           </div>
-          <div className="mb-2 flex items-center gap-2">
-            <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+            <label className={panelFieldLabelClassName}>
               {RICH_MEDIA_DISPLAY_COPY.opacityLabel}
             </label>
-            <div className="w-[70%] flex items-center gap-2">
+            <div className={panelFieldRangeValueClassName}>
               <input
                 type="range"
                 min={0}
@@ -322,16 +370,14 @@ export function FloatingPropsPanel() {
                 className="flex-1"
               />
               <span
-                className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} w-10 text-right`}
+                className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} shrink-0 text-right`}
               >
                 {Math.round(mediaNodeOpacity * 100)}%
               </span>
             </div>
           </div>
-          <div className="mb-2 flex items-center gap-2">
-            <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+            <label className={panelFieldLabelClassName}>
               Kind
             </label>
             <select
@@ -340,7 +386,7 @@ export function FloatingPropsPanel() {
                 const v = e.target.value
                 if (isFloatingMediaKind(v)) setMediaKind(v)
               }}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
+              className={panelFieldTextInputClassName}
             >
               {NODE_MEDIA_KINDS.map(option => (
                 <option key={option} value={option}>
@@ -349,25 +395,21 @@ export function FloatingPropsPanel() {
               ))}
             </select>
           </div>
-          <div className="mb-2 flex items-center gap-2">
-            <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+            <label className={panelFieldLabelClassName}>
               URL
             </label>
             <input
               value={mediaUrl}
               onChange={e => setMediaUrl(e.target.value)}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
+              className={panelFieldTextInputClassName}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+            <label className={panelFieldLabelClassName}>
               Interactive
             </label>
-            <div className="w-[70%] flex items-center gap-1">
+            <div className={panelFieldToggleValueClassName}>
               <button
                 type="button"
                 className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${!mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
@@ -404,11 +446,9 @@ export function FloatingPropsPanel() {
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
-        <div className="px-3 py-2 space-y-2">
-          <div className="flex items-center gap-2">
-            <label
-              className={`w-[40%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+        <div className={uiToolbarSettingsPanelBodyClassName}>
+          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+            <label className={panelFieldWideLabelClassName}>
               Anti-line strength
             </label>
             <input
@@ -428,13 +468,11 @@ export function FloatingPropsPanel() {
                   layout: { ...curLayout, forces: { ...curForces, antiLineStrength: next } },
                 })
               }}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[60%] text-right`}
+              className={panelFieldNumericInputClassName}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label
-              className={`w-[40%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+            <label className={panelFieldWideLabelClassName}>
               Post-fit strength
             </label>
             <input
@@ -454,13 +492,11 @@ export function FloatingPropsPanel() {
                   layout: { ...curLayout, forces: { ...curForces, postFitStrength: next } },
                 })
               }}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[60%] text-right`}
+              className={panelFieldNumericInputClassName}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label
-              className={`w-[40%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
-            >
+          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+            <label className={panelFieldWideLabelClassName}>
               Post-fit alpha max
             </label>
             <input
@@ -480,17 +516,17 @@ export function FloatingPropsPanel() {
                   layout: { ...curLayout, forces: { ...curForces, postFitAlphaMax: next } },
                 })
               }}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[60%] text-right`}
+              className={panelFieldNumericInputClassName}
             />
           </div>
-          <div className="flex items-center justify-between gap-2 pt-1">
+          <div className={uiToolbarSettingsPanelFooterClassName}>
             <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
               Strong spread preset
             </span>
-            <div className="flex items-center gap-2">
+            <div className={uiToolbarSettingsPanelActionGroupClassName}>
               <button
                 type="button"
-                className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} px-2 py-1 rounded ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
+                className={`${uiToolbarSettingsPanelTextActionClassName} ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
                 onClick={() => {
                   const current = schema
                   const curLayout = current.layout || {}
@@ -516,7 +552,7 @@ export function FloatingPropsPanel() {
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} px-2 py-1 rounded ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
+                className={`${uiToolbarSettingsPanelTextActionClassName} ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
                 onClick={() => {
                   const current = schema
                   const curLayout = current.layout || {}

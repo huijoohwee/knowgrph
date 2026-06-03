@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useFitToViewAction } from '@/features/toolbar/hooks/useFitToViewAction'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
+import { UI_RESPONSIVE_COMPACT_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type ZoomModeSelectProps = {
   iconSizeClass: string
@@ -156,7 +157,7 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
           {isOptionActive(option.id) ? <span className="ml-auto text-[10px] opacity-80">On</span> : null}
         </>
       )}
-      menuWidthClass="w-64"
+      menuWidthClass={UI_RESPONSIVE_COMPACT_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
     />
   )
 }

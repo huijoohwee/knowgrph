@@ -431,8 +431,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           const x = typeof p[0] === 'number' ? p[0] : Number.NaN
           const y = typeof p[1] === 'number' ? p[1] : Number.NaN
           if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          const nextX = snapVoxelTo2d ? snapScalarToGrid(x, snapGrid.size) : x
-          const nextY = snapVoxelTo2d ? snapScalarToGrid(y, snapGrid.size) : y
+          const nextX = snapVoxelTo2d ? snapScalarToGrid(x, snapGrid, 'x') : x
+          const nextY = snapVoxelTo2d ? snapScalarToGrid(y, snapGrid, 'y') : y
           posPatch[id] = { x: nextX, y: nextY }
         }
 

@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceBacklinkRow } from '@/features/markdown-workspace/MarkdownWorkspaceBacklinkRow'
+import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export async function testMarkdownWorkspaceBacklinkRowUsesSharedExplorerBacklinkShell() {
   const { dom, restore } = initJsdomHarness()
@@ -35,6 +36,11 @@ export async function testMarkdownWorkspaceBacklinkRowUsesSharedExplorerBacklink
     }
     if (!String(button.className || '').includes('w-full')) {
       throw new Error(`expected shared backlink row shell classes, got ${String(button.className || '')}`)
+    }
+    const icon = container.querySelector('svg')
+    if (!(icon instanceof dom.window.SVGElement)) throw new Error('expected backlink row to render an icon')
+    if (!String(icon.getAttribute('class') || '').includes(UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME)) {
+      throw new Error(`expected backlink row icon to use shared compact glyph sizing, got ${String(icon.getAttribute('class') || '')}`)
     }
 
     button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

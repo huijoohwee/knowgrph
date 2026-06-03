@@ -22,6 +22,10 @@ import {
   DatasetPolygonViz,
 } from '@/features/panels/views/DatasetInspectorMiniViz'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_MICRO_INLINE_CHIP_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 const EMPTY_STRING_ARRAY: string[] = []
 const datasetToggleShellClassName = `inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`
@@ -215,7 +219,7 @@ export default function DatasetInspectorSection({
                     className={[
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
-                      'px-2 py-[2px]',
+                      UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
                       vizSource === 'auto' ? `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}` : UI_THEME_TOKENS.text.tertiary,
                     ].join(' ')}
                     onClick={() => setVizSource('auto')}
@@ -227,7 +231,7 @@ export default function DatasetInspectorSection({
                     className={[
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
-                      'px-2 py-[2px]',
+                      UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
                       vizSource === 'dataset' ? `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}` : UI_THEME_TOKENS.text.tertiary,
                     ].join(' ')}
                     onClick={() => setVizSource('dataset')}
@@ -239,7 +243,7 @@ export default function DatasetInspectorSection({
                     className={[
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
-                      'px-2 py-[2px]',
+                      UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
                       vizSource === 'selection' ? `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}` : UI_THEME_TOKENS.text.tertiary,
                     ].join(' ')}
                     onClick={() => setVizSource('selection')}
@@ -306,7 +310,7 @@ export default function DatasetInspectorSection({
           <span
             className={getPillClass('badge', {
               baseClass:
-                `inline-flex items-center px-1 py-[1px] mr-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle}`,
+                `${UI_RESPONSIVE_MICRO_INLINE_CHIP_CLASSNAME} mr-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle}`,
               badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
               textColorClass: UI_THEME_TOKENS.text.secondary,
             })}

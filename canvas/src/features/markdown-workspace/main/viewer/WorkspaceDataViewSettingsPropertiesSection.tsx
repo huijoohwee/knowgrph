@@ -13,10 +13,21 @@ import { UI_COLOR_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarSt
 import { reorderList } from '@/lib/reorder'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_DATA_VIEW_MENU_PANEL_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_PROPERTY_ROW_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_REORDER_INDICATOR_CLASSNAME,
+  UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { getDataViewIconButtonClassName } from '@/lib/ui/dataViewToolbarButton'
 import { WORKSPACE_DATA_VIEW_GRAPH_ROLE_OPTIONS, inferRoleForColumn } from './workspaceDataViewGraphRoles'
 import type { WorkspaceDataViewGraphColumnRole } from './workspaceDataViewConfig'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+
+const PROPERTY_ICON_BUTTON_CLASS = getDataViewIconButtonClassName({ variant: 'ghost' })
+const PROPERTY_SMALL_ICON_BUTTON_CLASS = getDataViewIconButtonClassName({ size: 'sm', variant: 'ghost' })
+const PROPERTY_SMALL_ICON_PLACEHOLDER_CLASS = getDataViewIconButtonClassName({ size: 'sm', variant: 'ghost', className: 'opacity-70 pointer-events-none' })
 
 export function WorkspaceDataViewSettingsPropertiesSection(props: {
   canMutate: boolean
@@ -30,7 +41,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
 }) {
   const MAP_SELECT_CHEVRON_ALIGN_CLASS = 'mr-0'
   const COLUMN_NAME_EDIT_INPUT_CLASS = [
-    'h-7 px-2 rounded border text-sm min-w-0 flex-1',
+    `${UI_RESPONSIVE_DATA_VIEW_FIELD_INPUT_CLASSNAME} rounded border text-sm flex-1`,
     'overflow-x-auto whitespace-nowrap [text-overflow:clip]',
     UI_FOCUS_RING,
     UI_THEME_TOKENS.input.bg,
@@ -167,7 +178,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
               UI_THEME_TOKENS.text.primary,
             ].join(' ')}
             summaryContent={<span className={UI_TEXT_TRUNCATE}>Add column</span>}
-            menuPositionClassName="mt-2 w-[280px]"
+            menuPositionClassName={`mt-2 ${UI_RESPONSIVE_DATA_VIEW_MENU_PANEL_CLASSNAME}`}
           />
         </section>
       ) : null}
@@ -186,7 +197,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
             <div
               key={c.id}
               className={[
-                'relative px-2 py-1 rounded border',
+                `relative ${UI_RESPONSIVE_DATA_VIEW_PROPERTY_ROW_CLASSNAME}`,
                 UI_THEME_TOKENS.panel.border,
                 UI_THEME_TOKENS.button.hoverBg,
               ]
@@ -227,7 +238,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
               }}
             >
               {isDragOver ? (
-                <div className="absolute left-2 right-2 bottom-0 h-[2px]" style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
+                <div className={`${UI_RESPONSIVE_DATA_VIEW_REORDER_INDICATOR_CLASSNAME} absolute left-2 right-2 bottom-0`} style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
               ) : null}
 
               <div className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
@@ -238,8 +249,8 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                     ariaLabel={`Property type: ${c.name}`}
                     detailsClassName="relative"
                     summaryClassName={[
-                      'list-none cursor-pointer inline-flex items-center justify-center w-7 h-7 rounded',
-                      UI_THEME_TOKENS.button.hoverBg,
+                      PROPERTY_SMALL_ICON_BUTTON_CLASS,
+                      'list-none cursor-pointer',
                     ].join(' ')}
                     menuClassName="kg-column-header-children kg-click-expand-menu-children mt-1"
                     summary={<Icon className={icon14} aria-hidden="true" />}
@@ -247,7 +258,6 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                       <MarkdownDataViewColumnTypeMenu
                         ariaLabel={`Property type: ${c.name}`}
                         value={type}
-                        className="w-[240px]"
                         onSelect={(next) => {
                           setColumnType({ column: c, nextType: next })
                           close()
@@ -291,7 +301,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    className={PROPERTY_ICON_BUTTON_CLASS}
                     onClick={() => setColumnVisible(c.id, false)}
                     aria-pressed={visible}
                     aria-label="Hide"
@@ -301,7 +311,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
 
                   <button
                     type="button"
-                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    className={PROPERTY_ICON_BUTTON_CLASS}
                     onClick={() => props.onDuplicateColumn?.(c.id)}
                     disabled={!props.canMutate || !props.onDuplicateColumn}
                     aria-label="Duplicate"
@@ -311,7 +321,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
 
                   <button
                     type="button"
-                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    className={PROPERTY_ICON_BUTTON_CLASS}
                     onClick={() => props.onDeleteColumn?.(c.id)}
                     disabled={!props.canMutate || !props.onDeleteColumn || props.columns.length <= 1}
                     aria-label="Delete"
@@ -320,7 +330,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                   </button>
                   <button
                     type="button"
-                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    className={PROPERTY_ICON_BUTTON_CLASS}
                     onClick={() => setExpandedColumnId(prev => (prev === c.id ? null : c.id))}
                     aria-label={isExpanded ? 'Collapse property details' : 'Expand property details'}
                     aria-expanded={isExpanded}
@@ -334,7 +344,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                   <div className="flex min-w-0 max-w-full items-start gap-2">
                     <span className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span
-                      className={['inline-flex items-center justify-center w-7 h-7 rounded shrink-0', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      className={[PROPERTY_SMALL_ICON_BUTTON_CLASS, 'shrink-0'].join(' ')}
                       aria-label="Table-to-graph map"
                     >
                       <Link2 className={icon14} aria-hidden="true" />
@@ -378,11 +388,11 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                 const Icon = iconByColumnType[type]
                 const isExpanded = expandedColumnId === c.id
                 return (
-                  <div key={c.id} className={['px-2 py-1 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+                  <div key={c.id} className={[UI_RESPONSIVE_DATA_VIEW_PROPERTY_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}>
                     <div className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
                       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                         <GripDotsIcon className={['w-4 h-4 shrink-0 opacity-30', UI_THEME_TOKENS.text.tertiary].join(' ')} />
-                        <span className={['inline-flex items-center justify-center w-7 h-7 rounded opacity-70'].join(' ')}>
+                        <span className={PROPERTY_SMALL_ICON_PLACEHOLDER_CLASS}>
                           <Icon className={icon14} aria-hidden="true" />
                         </span>
                         {editingColumnId === c.id ? (
@@ -419,7 +429,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                       <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
-                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          className={PROPERTY_ICON_BUTTON_CLASS}
                           onClick={() => setColumnVisible(c.id, true)}
                           aria-pressed={visible}
                           aria-label="Show"
@@ -428,7 +438,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                         </button>
                         <button
                           type="button"
-                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          className={PROPERTY_ICON_BUTTON_CLASS}
                           onClick={() => props.onDuplicateColumn?.(c.id)}
                           disabled={!props.canMutate || !props.onDuplicateColumn}
                           aria-label="Duplicate"
@@ -437,7 +447,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                         </button>
                         <button
                           type="button"
-                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          className={PROPERTY_ICON_BUTTON_CLASS}
                           onClick={() => props.onDeleteColumn?.(c.id)}
                           disabled={!props.canMutate || !props.onDeleteColumn || props.columns.length <= 1}
                           aria-label="Delete"
@@ -446,7 +456,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                         </button>
                         <button
                           type="button"
-                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          className={PROPERTY_ICON_BUTTON_CLASS}
                           onClick={() => setExpandedColumnId(prev => (prev === c.id ? null : c.id))}
                           aria-label={isExpanded ? 'Collapse property details' : 'Expand property details'}
                           aria-expanded={isExpanded}
@@ -460,7 +470,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                         <div className="flex min-w-0 max-w-full items-start gap-2">
                           <span className="w-4 h-4 shrink-0" aria-hidden="true" />
                           <span
-                            className={['inline-flex items-center justify-center w-7 h-7 rounded shrink-0', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                            className={[PROPERTY_SMALL_ICON_BUTTON_CLASS, 'shrink-0'].join(' ')}
                             aria-label="Table-to-graph map"
                           >
                             <Link2 className={icon14} aria-hidden="true" />

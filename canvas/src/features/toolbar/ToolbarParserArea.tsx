@@ -1,5 +1,10 @@
 import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
+import {
+  uiToolbarAreaActionRowClassName,
+  uiToolbarAreaCompactActionRowClassName,
+  uiToolbarAreaStackClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useParserUIState } from '@/features/parsers/uiState'
@@ -22,9 +27,9 @@ export function ToolbarParserArea({
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
   return (
-    <div className="flex flex-col gap-1">
+    <div className={uiToolbarAreaStackClassName}>
       {isExportMenuOpen && (
-        <div className="flex items-center justify-end gap-1">
+        <div className={uiToolbarAreaCompactActionRowClassName}>
           {(['json', 'yaml', 'text'] as const).map(lang => {
             const label =
               lang === 'json'
@@ -55,7 +60,7 @@ export function ToolbarParserArea({
           })}
         </div>
       )}
-      <div className="flex items-center justify-end gap-2">
+      <div className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.parser} ok={parserLoadOk} msg={parserLoadMsg} />
       </div>
     </div>

@@ -2,6 +2,7 @@ import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildMarkdownSidebarTitleClassName } from './markdownSidebarText'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type MarkdownSidebarSectionProps = {
   ariaLabel: string
@@ -50,9 +51,9 @@ export function MarkdownSidebarSection(props: MarkdownSidebarSectionProps) {
               aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
             >
               {collapsed ? (
-                <ChevronRight className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />
+                <ChevronRight className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} strokeWidth={1.5} aria-hidden="true" />
               ) : (
-                <ChevronDown className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />
+                <ChevronDown className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} strokeWidth={1.5} aria-hidden="true" />
               )}
               <h3 className={headerLabelClassName}>{title}</h3>
             </button>

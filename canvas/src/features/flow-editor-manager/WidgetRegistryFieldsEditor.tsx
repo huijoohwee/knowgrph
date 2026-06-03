@@ -8,6 +8,13 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
@@ -21,10 +28,11 @@ export default function WidgetRegistryFieldsEditor({
   const panelTypography = usePanelTypography()
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const fieldClassName = cn(UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)
 
   return (
     <section aria-label="Fields" className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME}>
         <h4 className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Fields</h4>
         <button
           type="button"
@@ -37,14 +45,14 @@ export default function WidgetRegistryFieldsEditor({
 
       <div className="space-y-2">
         {(fields || []).map((f, idx) => (
-          <div key={`${idx}:${f.fieldKey}`} className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border)}>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <div key={`${idx}:${f.fieldKey}`} className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
+            <div className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME, 'sm:grid-cols-4')}>
               <div>
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Field key</label>
                 <input
                   value={f.fieldKey}
                   onChange={e => onChange(fields.map((x, i) => (i === idx ? { ...x, fieldKey: e.target.value } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                  className={fieldClassName}
                 />
               </div>
               <div>
@@ -52,7 +60,7 @@ export default function WidgetRegistryFieldsEditor({
                 <input
                   value={f.fieldType}
                   onChange={e => onChange(fields.map((x, i) => (i === idx ? { ...x, fieldType: e.target.value } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                  className={fieldClassName}
                 />
               </div>
               <div className="sm:col-span-2">
@@ -60,13 +68,13 @@ export default function WidgetRegistryFieldsEditor({
                 <input
                   value={f.schemaPath || ''}
                   onChange={e => onChange(fields.map((x, i) => (i === idx ? { ...x, schemaPath: e.target.value } : x)))}
-                  className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text, panelTypography.monospaceTextClass)}
+                  className={cn(fieldClassName, panelTypography.monospaceTextClass)}
                 />
               </div>
             </div>
 
             <div className="mt-2 flex items-center justify-between">
-              <label className={cn('inline-flex items-center gap-2', panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+              <label className={cn(UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME, panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                 <input
                   type="checkbox"
                   checked={!!f.required}
@@ -93,4 +101,3 @@ export default function WidgetRegistryFieldsEditor({
     </section>
   )
 }
-

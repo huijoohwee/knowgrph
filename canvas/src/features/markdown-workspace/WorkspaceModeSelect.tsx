@@ -1,10 +1,11 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_RESPONSIVE_WORKSPACE_MODE_TAB_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export function WorkspaceModeSelect<T extends string>(props: {
   value: T
-  options: Array<{ value: T; label: string }>
+  options: ReadonlyArray<{ value: T; label: string }>
   ariaLabel: string
   onChange: (next: T) => void
   isActive?: boolean
@@ -41,7 +42,7 @@ export function WorkspaceModeSelect<T extends string>(props: {
                   tabIndex={isSelected ? 0 : -1}
                   title={o.label}
                   className={[
-                    'h-7 max-w-[12rem] px-3 inline-flex min-w-0 items-center overflow-hidden text-ellipsis text-[10px] font-medium border-b-2 transition-colors whitespace-nowrap',
+                    `${UI_RESPONSIVE_WORKSPACE_MODE_TAB_CLASSNAME} px-3 text-[10px] font-medium border-b-2 transition-colors`,
                     isSelected
                       ? ['bg-[color:var(--kg-panel-bg)] text-[color:var(--kg-text-primary)] border-b-[color:var(--kg-accent,#3b82f6)]'].join(' ')
                       : ['bg-transparent text-[color:var(--kg-text-secondary)] border-b-transparent', UI_THEME_TOKENS.button.hoverBg].join(' '),

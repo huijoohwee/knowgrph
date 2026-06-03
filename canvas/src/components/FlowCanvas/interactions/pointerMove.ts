@@ -249,7 +249,7 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       if (!scene) return
       const anchorId = drag.memberNodeIds[0] || ''
       const anchorStart = anchorId ? drag.startNodePosById[anchorId] : null
-      const snappedDelta = allowSnap ? snapDeltaToGridByAnchor({ anchorStart, rawDelta: { dx, dy }, gridSize: grid.size }) : { dx, dy }
+      const snappedDelta = allowSnap ? snapDeltaToGridByAnchor({ anchorStart, rawDelta: { dx, dy }, gridSize: grid }) : { dx, dy }
       const clampedDelta = drag.deltaClamp ? clampFlowDelta({ clamp: drag.deltaClamp, dx: snappedDelta.dx, dy: snappedDelta.dy }) : snappedDelta
       for (let i = 0; i < drag.memberNodeIds.length; i += 1) {
         const id = drag.memberNodeIds[i]
@@ -279,7 +279,7 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       if (!scene) return
       const anchorId = drag.memberNodeIds[0] || ''
       const anchorStart = anchorId ? drag.startNodePosById[anchorId] : null
-      const snappedDelta = allowSnap ? snapDeltaToGridByAnchor({ anchorStart, rawDelta: { dx, dy }, gridSize: grid.size }) : { dx, dy }
+      const snappedDelta = allowSnap ? snapDeltaToGridByAnchor({ anchorStart, rawDelta: { dx, dy }, gridSize: grid }) : { dx, dy }
       for (let i = 0; i < drag.memberNodeIds.length; i += 1) {
         const id = drag.memberNodeIds[i]
         const node = scene.nodeById.get(id)
@@ -308,8 +308,8 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
     if (!scene || !node) return
     const nextX0 = drag.startNodeX + dx
     const nextY0 = drag.startNodeY + dy
-    let nextX = allowSnap ? snapScalarToGrid(nextX0, grid.size) : nextX0
-    let nextY = allowSnap ? snapScalarToGrid(nextY0, grid.size) : nextY0
+    let nextX = allowSnap ? snapScalarToGrid(nextX0, grid, 'x') : nextX0
+    let nextY = allowSnap ? snapScalarToGrid(nextY0, grid, 'y') : nextY0
     if (drag.clamp) {
       const clamped = clampFlowNodeTopLeft({ clamp: drag.clamp, x: nextX, y: nextY })
       nextX = clamped.x

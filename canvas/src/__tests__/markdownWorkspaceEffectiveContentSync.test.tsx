@@ -171,6 +171,79 @@ export async function testMarkdownWorkspaceEffectiveContentPreservesUnsavedEdito
   }
 }
 
+export async function testMarkdownWorkspaceEffectiveContentKeepsNonMarkdownSourceTextAuthoritative() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const container = dom.window.document.getElementById('root')
+  if (!container) throw new Error('missing root container')
+  const root = createRoot(container)
+
+  try {
+    const jsonSourceText = '{"rows":[{"Column":"Value"}]}'
+    const derivedMarkdownText = '| Column |\n|---|\n| Value |'
+
+    function Harness() {
+      const [activeText, setActiveText] = React.useState(jsonSourceText)
+      const userEditedActiveTextRef = React.useRef(false)
+      const effective = useMarkdownWorkspaceEffectiveContent({
+        activePath: '/docs/data.json' as never,
+        activeDocumentKey: 'docs/data.json',
+        activeEntryKind: 'file',
+        activeText,
+        setActiveText,
+        markdownDocumentName: '/docs/data.json',
+        markdownDocumentText: derivedMarkdownText,
+        layoutMode: 'split',
+        contentMode: 'document',
+        widgetFormat: 'markdown',
+        widgetEditorText: '',
+        widgetViewerText: '',
+        pdfWorkspaceViewerTextOverride: null,
+        webpageWorkspaceMeta: null,
+        webpageWorkspaceEditorTextOverride: null,
+        webpageWorkspaceViewerTextOverride: null,
+        userEditedActiveTextRef,
+      })
+
+      return (
+        <output
+          data-testid="state"
+          data-active-text={activeText}
+          data-effective-text={effective.effectiveActiveText}
+        />
+      )
+    }
+
+    const readState = () => {
+      const el = dom.window.document.querySelector('[data-testid="state"]')
+      if (!(el instanceof dom.window.HTMLElement)) throw new Error('missing state output')
+      return {
+        activeText: el.getAttribute('data-active-text') || '',
+        effectiveText: el.getAttribute('data-effective-text') || '',
+      }
+    }
+
+    await act(async () => {
+      root.render(<Harness />)
+      await tick(4)
+    })
+
+    const state = readState()
+    if (state.activeText !== jsonSourceText || state.effectiveText !== jsonSourceText) {
+      throw new Error(`expected non-markdown workspace source text to remain authoritative over derived markdown text, got ${JSON.stringify(state)}`)
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+        await tick(2)
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
 export function testMarkdownWorkspaceEffectiveContentPrefersMatchingLiveStreamingDraft() {
   useGraphStore.getState().setChatWorkspaceStreamingState({
     path: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',

@@ -4,6 +4,10 @@ import Subsection from '@/features/schema-editor/ui/Subsection'
 import { parseJsonOrError } from '@/features/schema-editor/advancedSerialization'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_COMPACT_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_EDITOR_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type SerializationSectionProps = {
   uiPanelKeyValueTextSizeClass: string
@@ -39,7 +43,7 @@ export default function SerializationSection({
             <div className={fieldLabelClassName}>
               Predicates by Edge Label
             </div>
-            <div className={`${editorShellClassName} h-[92px]`}>
+            <div className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_COMPACT_EDITOR_CLASSNAME}`}>
               <MonacoTextEditor
                 value={predicatesText}
                 onChange={setPredicatesText}
@@ -69,7 +73,7 @@ export default function SerializationSection({
             <div className={fieldLabelClassName}>
               Types by Node
             </div>
-            <div className={`${editorShellClassName} h-[92px]`}>
+            <div className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_COMPACT_EDITOR_CLASSNAME}`}>
               <MonacoTextEditor
                 value={typesText}
                 onChange={setTypesText}
@@ -99,7 +103,7 @@ export default function SerializationSection({
             <div className={fieldLabelClassName}>
               JSON-LD Context
             </div>
-            <div className={`${editorShellClassName} h-[120px]`}>
+            <div className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_EDITOR_CLASSNAME}`}>
               <MonacoTextEditor
                 value={contextText}
                 onChange={setContextText}

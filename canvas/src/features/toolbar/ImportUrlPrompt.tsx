@@ -3,6 +3,11 @@ import React from 'react'
 import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 import { SOURCE_FILES_COPY } from '@/lib/config-copy/importExportCopy'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_IMPORT_URL_CONFIRM_ACTION_CLASSNAME,
+  UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME,
+  UI_RESPONSIVE_IMPORT_URL_PRESET_ACTION_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 
 export function ImportUrlPrompt(props: {
@@ -44,7 +49,8 @@ export function ImportUrlPrompt(props: {
             <button
               type="button"
               className={cn(
-                'h-6 px-2 inline-flex items-center justify-center rounded border text-xs',
+                UI_RESPONSIVE_IMPORT_URL_PRESET_ACTION_CLASSNAME,
+                'rounded border text-xs',
                 UI_THEME_TOKENS.input.border,
                 UI_THEME_TOKENS.button.text,
                 UI_THEME_TOKENS.button.hoverBg,
@@ -58,7 +64,8 @@ export function ImportUrlPrompt(props: {
             <button
               type="button"
               className={cn(
-                'h-6 px-2 inline-flex items-center justify-center rounded border text-xs',
+                UI_RESPONSIVE_IMPORT_URL_PRESET_ACTION_CLASSNAME,
+                'rounded border text-xs',
                 UI_THEME_TOKENS.input.border,
                 UI_THEME_TOKENS.button.text,
                 UI_THEME_TOKENS.button.hoverBg,
@@ -75,7 +82,8 @@ export function ImportUrlPrompt(props: {
         <input
           ref={inputRef}
           className={cn(
-            'kg-import-url-input flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border text-xs',
+            UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME,
+            'kg-import-url-input flex-1 rounded border text-xs',
             UI_THEME_TOKENS.input.border,
             UI_THEME_TOKENS.input.bg,
             UI_THEME_TOKENS.input.text,
@@ -99,7 +107,8 @@ export function ImportUrlPrompt(props: {
         <button
           type="button"
           className={cn(
-            'kg-import-url-confirm h-[var(--kg-control-height,28px)] px-2 inline-flex items-center justify-center rounded border text-xs',
+            UI_RESPONSIVE_IMPORT_URL_CONFIRM_ACTION_CLASSNAME,
+            'rounded border text-xs',
             UI_THEME_TOKENS.input.border,
             UI_THEME_TOKENS.button.text,
             UI_THEME_TOKENS.button.hoverBg,

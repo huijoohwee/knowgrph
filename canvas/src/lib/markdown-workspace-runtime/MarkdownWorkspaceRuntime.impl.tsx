@@ -50,6 +50,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const setActiveMarkdownDocument = useGraphStore(s => s.setActiveMarkdownDocument)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
+  const jsonSourceDocumentName = useGraphStore(s => s.jsonSourceDocumentName)
+  const jsonSourceDocumentText = useGraphStore(s => s.jsonSourceDocumentText)
   const chatWorkspaceStreamingPath = useGraphStore(s => s.chatWorkspaceStreamingPath || null)
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
@@ -268,6 +270,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setHighlightedLineRange: () => setHighlightedLineRange(null),
     }),
   )
+  const activeJsonSourceText =
+    String(jsonSourceDocumentName || '').trim() === String(selectionState.activeDocumentKey || '').trim()
+      ? jsonSourceDocumentText
+      : null
   const runtimeStatusBindings = React.useMemo(
     () =>
       buildMarkdownWorkspaceRuntimeStatusBindings({
@@ -607,6 +613,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         onContentFormatChange={undefined}
         activeText={effectiveContent.effectiveActiveText}
         setActiveText={effectiveContent.effectiveSetActiveText}
+        jsonSourceText={activeJsonSourceText}
         editorTextOverride={effectiveContent.effectiveEditorTextOverride}
         disableEditorMutations={effectiveContent.disableEditorMutations || pocketBaseYjsCollaborationRuntime.rawJsonReadOnly}
         webpageHtmlOverride={null}

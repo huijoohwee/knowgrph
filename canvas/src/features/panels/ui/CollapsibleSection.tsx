@@ -5,6 +5,10 @@ import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
+import {
+  UI_RESPONSIVE_PANEL_HEADER_ACTIONS_CLASSNAME,
+  UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { KTV_SECTION_TITLE_CLASS_NAME } from './KeyTypeValueRow'
 
@@ -35,14 +39,13 @@ export default function CollapsibleSection({
   className,
   headerClassName,
   stickyHeader = true,
-  toolbarAligned = false,
   stickyOffsetClassName = 'top-0',
   flushTop = false,
 }: CollapsibleSectionProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiSectionHeaderRowHeightClass = useGraphStore(
-    s => s.uiSectionHeaderRowHeightClass || 'min-h-[36px]',
+    s => s.uiSectionHeaderRowHeightClass || UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   )
   const uiSectionHeaderRowPaddingClass = useGraphStore(
     s => s.uiSectionHeaderRowPaddingClass || 'py-1',
@@ -104,37 +107,20 @@ export default function CollapsibleSection({
         onKeyDown={handleKeyDown}
       >
         <div className={`min-w-0 flex-1 overflow-hidden ${KTV_SECTION_TITLE_CLASS_NAME}`}>{title}</div>
-        {toolbarAligned ? (
-          <div className="flex max-w-[45%] shrink-0 flex-wrap items-center justify-end gap-1">
-            {actions}
-            <IconButton
-              className="App-toolbar__btn flex items-center justify-center"
-              title={isCollapsed ? UI_COPY.expandSectionTitle : UI_COPY.collapseSectionTitle}
-              onClick={(e) => {
-                e.stopPropagation()
-                setCollapsed(!isCollapsed)
-              }}
-              showTooltip
-            >
-              {chevronIcon}
-            </IconButton>
-          </div>
-        ) : (
-          <div className="flex max-w-[45%] shrink-0 flex-wrap items-center justify-end gap-1">
-            {actions}
-            <IconButton
-              className="App-toolbar__btn flex items-center justify-center"
-              title={isCollapsed ? UI_COPY.expandSectionTitle : UI_COPY.collapseSectionTitle}
-              onClick={(e) => {
-                e.stopPropagation()
-                setCollapsed(!isCollapsed)
-              }}
-              showTooltip
-            >
-              {chevronIcon}
-            </IconButton>
-          </div>
-        )}
+        <div className={clsx(UI_RESPONSIVE_PANEL_HEADER_ACTIONS_CLASSNAME, 'flex shrink-0 flex-wrap items-center justify-end gap-1')}>
+          {actions}
+          <IconButton
+            className="App-toolbar__btn flex items-center justify-center"
+            title={isCollapsed ? UI_COPY.expandSectionTitle : UI_COPY.collapseSectionTitle}
+            onClick={(e) => {
+              e.stopPropagation()
+              setCollapsed(!isCollapsed)
+            }}
+            showTooltip
+          >
+            {chevronIcon}
+          </IconButton>
+        </div>
       </div>
       <div id={contentId} className={clsx(isCollapsed ? 'hidden' : 'block mt-2')}>
         {children}

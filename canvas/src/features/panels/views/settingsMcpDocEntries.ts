@@ -16,6 +16,15 @@ import {
   getCrawlerAccessMcpApiRowAnchorId,
 } from './crawlerAccessMcpApiDocs'
 import {
+  EXA_MCP_CODEX_CONFIG_KEY,
+  EXA_MCP_DOC_AREA,
+  EXA_MCP_DOC_ENTRIES,
+  EXA_MCP_REMOTE_CONFIG_KEY,
+  buildExaCodexMcpAddCommand,
+  buildExaRemoteMcpConfigJson,
+  getExaMcpApiRowAnchorId,
+} from './exaMcpApiDocs'
+import {
   STRIPE_MCP_DOC_AREA,
   STRIPE_MCP_DOC_ENTRIES,
   STRIPE_MCP_LOCAL_CONFIG_KEY,
@@ -54,6 +63,7 @@ export function buildMcpDocEntries(
   return [
     ...API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
+    ...EXA_MCP_DOC_ENTRIES,
     ...STRIPE_MCP_DOC_ENTRIES,
     ...PIXVERSE_MCP_DOC_ENTRIES,
     ...MIROMIND_MCP_DOC_ENTRIES,
@@ -73,6 +83,8 @@ export function buildMcpVirtualEntry(
       ? getApiNativeBrowserMcpApiRowAnchorId(entry.meta.key)
       : area === CRAWLER_ACCESS_MCP_DOC_AREA
         ? getCrawlerAccessMcpApiRowAnchorId(entry.meta.key)
+      : area === EXA_MCP_DOC_AREA
+        ? getExaMcpApiRowAnchorId(entry.meta.key)
       : area === STRIPE_MCP_DOC_AREA
         ? getStripeMcpApiRowAnchorId(entry.meta.key)
       : area === PIXVERSE_MCP_DOC_AREA
@@ -92,9 +104,13 @@ export function buildMcpVirtualEntry(
           ? buildStripeRemoteMcpConfigJson(values)
           : entry.meta.key === STRIPE_MCP_LOCAL_CONFIG_KEY
             ? buildStripeLocalMcpConfigJson(values)
-          : entry.meta.key === PIXVERSE_MCP_LOCAL_CONFIG_KEY
-            ? buildPixVerseLocalMcpConfigJson(values)
-            : ''
+            : entry.meta.key === EXA_MCP_CODEX_CONFIG_KEY
+              ? buildExaCodexMcpAddCommand(values)
+              : entry.meta.key === EXA_MCP_REMOTE_CONFIG_KEY
+                ? buildExaRemoteMcpConfigJson(values)
+                : entry.meta.key === PIXVERSE_MCP_LOCAL_CONFIG_KEY
+                  ? buildPixVerseLocalMcpConfigJson(values)
+                  : ''
   if (!configJson) return mappedEntry
   return {
     ...mappedEntry,

@@ -84,7 +84,23 @@ export function InfiniteGridCanvasOverlay(props: {
     const t = safeTransform(getTransform())
     if (!t) return
     const cssKey = readRootCssStateKey()
-    const drawKey = `${viewportW}x${viewportH}@${dpr}|${t.k.toFixed(6)},${t.x.toFixed(2)},${t.y.toFixed(2)}|${gridSize}|${variant}|${majorEvery ?? ''}|${dotRadiusPx ?? ''}|${cssKey}`
+    const drawKey = [
+      `${viewportW}x${viewportH}@${dpr}`,
+      `${t.k.toFixed(6)},${t.x.toFixed(2)},${t.y.toFixed(2)}`,
+      gridSize,
+      anchor,
+      lockToBaseStep ? 1 : 0,
+      variant,
+      majorEvery ?? '',
+      dotRadiusPx ?? '',
+      minorAlpha ?? '',
+      majorAlpha ?? '',
+      minorWidthPx ?? '',
+      majorWidthPx ?? '',
+      minorStrokeOverride ?? '',
+      majorStrokeOverride ?? '',
+      cssKey,
+    ].join('|')
     if (drawKey === lastDrawKeyRef.current) return
     lastDrawKeyRef.current = drawKey
 

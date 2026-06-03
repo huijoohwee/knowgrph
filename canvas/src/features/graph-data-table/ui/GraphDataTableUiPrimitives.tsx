@@ -5,6 +5,12 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import {
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_ICON_BUTTON_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_CHOICE_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_SECONDARY_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export interface FilterComboboxOption<T extends string> {
   value: T
@@ -36,7 +42,7 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
       <button
         ref={buttonRef}
         type="button"
-        className={`inline-flex items-center justify-between gap-2 leading-none ${className}`}
+        className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME} leading-none ${className}`}
         onClick={() => setIsOpen(open => !open)}
       >
         <span className="truncate">{selectedLabel}</span>
@@ -54,7 +60,7 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
               <button
                 key={option.value}
                 type="button"
-                className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`w-full ${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_CHOICE_CLASSNAME} rounded ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={() => {
                   onChange(option.value)
                   setIsOpen(false)
@@ -71,7 +77,7 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
 }
 
 export const iconButtonClassName =
-  `inline-flex items-center justify-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 h-7 w-7`
+  `inline-flex items-center justify-center whitespace-nowrap rounded-md border ${UI_RESPONSIVE_GRAPH_DATA_TABLE_ICON_BUTTON_CLASSNAME} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50`
 
 export const secondaryButtonClassName =
-  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-1.5 h-7 px-2 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg}`
+  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 ${UI_RESPONSIVE_GRAPH_DATA_TABLE_SECONDARY_BUTTON_CLASSNAME} rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg}`

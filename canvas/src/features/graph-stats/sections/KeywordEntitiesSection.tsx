@@ -4,6 +4,7 @@ import { AutoHeightMiniBarChart } from '@/features/panels/views/DatasetInspector
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { StatsUiClasses } from '@/features/graph-stats/types'
+import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type KeywordNodeRow = {
   id: string
@@ -48,7 +49,7 @@ export default function KeywordEntitiesSection({
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
-                `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
+                `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
               ].join(' ')}
               onClick={() => setChartCollapsed(prev => !prev)}
             >

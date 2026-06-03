@@ -6,6 +6,15 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FIELD_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_INPUT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME,
+  UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export interface FieldsPanelProps {
@@ -43,7 +52,8 @@ export function FieldsPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
-  const searchInputClassName = `h-7 w-full rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} pl-7 pr-2 ${panelTypography.textSizeClass} shadow-sm ${UI_THEME_TOKENS.input.placeholder} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`
+  const searchInputClassName = `${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_INPUT_CLASSNAME} rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.textSizeClass} shadow-sm ${UI_THEME_TOKENS.input.placeholder} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`
+  const selectionControlClassName = `${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   const handleDragStart = React.useCallback(
     (event: React.DragEvent<HTMLButtonElement>, key: GraphDataTableColumnKey) => {
       event.dataTransfer.effectAllowed = 'move'
@@ -71,14 +81,14 @@ export function FieldsPanel({
   }, [])
 
   return (
-    <section className={`z-50 flex max-h-96 w-80 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-4 ${UI_THEME_TOKENS.text.primary} shadow-md sm:w-96 md:w-[544px] ${panelTypography.panelTextClass}`}>
-      <header className={`mb-2 flex items-center justify-between gap-2 ${panelTypography.textSizeClass}`}>
+    <section className={`z-50 flex ${UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-4 ${UI_THEME_TOKENS.text.primary} shadow-md ${panelTypography.panelTextClass}`}>
+      <header className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
         <div className="font-medium">{panelTitle}</div>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
           {UI_LABELS.close}
         </button>
       </header>
-      <div className="mb-3 flex items-center gap-2">
+      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_ROW_CLASSNAME}>
         <div className="relative flex-1">
           <SearchIcon
             className={`pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 ${UI_THEME_TOKENS.text.tertiary} ${iconSizeClass}`}
@@ -110,11 +120,11 @@ export function FieldsPanel({
               return (
                 <label
                   key={key}
-                  className={`flex items-center justify-between gap-2 px-2 py-1.5 ${panelTypography.textSizeClass} ${
+                  className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FIELD_ROW_CLASSNAME} ${panelTypography.textSizeClass} ${
                     isDragging ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg
                   }`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
                     <button
                       type="button"
                       className={`inline-flex h-6 w-6 items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`}
@@ -132,7 +142,7 @@ export function FieldsPanel({
                   </div>
                   <input
                     type="checkbox"
-                    className={`h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
+                    className={selectionControlClassName}
                     checked={isVisible}
                     onChange={event => setColumnVisibility(key, event.target.checked)}
                   />

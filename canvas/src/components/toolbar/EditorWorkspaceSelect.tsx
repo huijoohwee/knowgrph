@@ -7,11 +7,13 @@ import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelec
 import {
   isWorkspaceTableOpen,
   openWorkspaceEditorPane,
-  openWorkspaceTable,
 } from '@/features/workspace-table/workspaceTableSsot'
 import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
-import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_COMPACT_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
+  UI_RESPONSIVE_MENU_OPTION_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   readWorkspaceSeedSyncEnabledSetting,
@@ -25,7 +27,7 @@ type EditorWorkspaceSelectProps = {
   ensureBaselineUnlocked?: () => boolean
 }
 
-type EditorWorkspaceOptionKey = 'editor' | 'multiDimTable'
+type EditorWorkspaceOptionKey = 'editor'
 
 type Option = {
   key: EditorWorkspaceOptionKey
@@ -39,21 +41,13 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
   const {
     workspaceViewMode,
     editorWorkspacePane,
-    workspaceCanvasPaneOpen,
     canvasWorkspaceSyncMode,
-    setEditorWorkspacePane,
-    setWorkspaceCanvasPaneOpen,
-    setWorkspaceViewMode,
     setCanvasWorkspaceSyncMode,
   } = useGraphStore(
     useShallow(s => ({
       workspaceViewMode: s.workspaceViewMode,
       editorWorkspacePane: s.editorWorkspacePane,
-      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
       canvasWorkspaceSyncMode: s.canvasWorkspaceSyncMode,
-      setEditorWorkspacePane: s.setEditorWorkspacePane,
-      setWorkspaceCanvasPaneOpen: s.setWorkspaceCanvasPaneOpen,
-      setWorkspaceViewMode: s.setWorkspaceViewMode,
       setCanvasWorkspaceSyncMode: s.setCanvasWorkspaceSyncMode,
     })),
   )
@@ -70,17 +64,11 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           tooltip: WORKSPACE_TABLE_TOOLBAR_UI.editorOffTooltip,
           Icon: FileCode,
         },
-        {
-          key: 'multiDimTable' as const,
-          label: WORKSPACE_TABLE_TOOLBAR_UI.tableLabel,
-          tooltip: WORKSPACE_TABLE_TOOLBAR_UI.tableOptionTooltip,
-          Icon: Table,
-        },
       ] satisfies Option[],
     [],
   )
 
-  const activeKey: EditorWorkspaceOptionKey | null = isGraphTable ? 'multiDimTable' : isEditor ? 'editor' : null
+  const activeKey: EditorWorkspaceOptionKey | null = isEditor ? 'editor' : null
 
   const triggerTitle = UI_LABELS.workspaceView
   const triggerTooltip = (() => {
@@ -90,7 +78,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
   })()
 
   const apply = React.useCallback(
-    (key: EditorWorkspaceOptionKey) => {
+    (_key: EditorWorkspaceOptionKey) => {
       const state = useGraphStore.getState()
       const liveWorkspaceViewMode = state.workspaceViewMode
       const liveEditorWorkspacePane = state.editorWorkspacePane
@@ -99,26 +87,6 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         workspaceViewMode: liveWorkspaceViewMode,
         editorWorkspacePane: liveEditorWorkspacePane,
       })
-
-      if (key === 'multiDimTable') {
-        if (liveIsGraphTable && liveWorkspaceCanvasPaneOpen === true) {
-          return
-        }
-        const snap = workspaceTablePreferencesStore.getSnapshot()
-        if (snap.workspaceEditorMode !== 'multiDimTable') {
-          workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
-        }
-        openWorkspaceTable({
-          workspaceViewMode: liveWorkspaceViewMode,
-          editorWorkspacePane: liveEditorWorkspacePane,
-          workspaceCanvasPaneOpen: liveWorkspaceCanvasPaneOpen,
-          setWorkspaceViewMode: state.setWorkspaceViewMode,
-          setWorkspaceViewState: state.setWorkspaceViewState,
-          setEditorWorkspacePane: state.setEditorWorkspacePane,
-          setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
-        })
-        return
-      }
 
       if (liveWorkspaceViewMode === 'editor' && !liveIsGraphTable && liveWorkspaceCanvasPaneOpen === true) {
         return
@@ -200,7 +168,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       onSelect={id => apply(id)}
       onTriggerClick={handleTriggerClick}
       renderButtonContent={() =>
-        activeKey === 'multiDimTable' ? (
+        isGraphTable ? (
           <Table className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         ) : (
           <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -220,7 +188,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           <li className="list-none">
             <button
               type="button"
-              className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={`${UI_RESPONSIVE_MENU_OPTION_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={toggleWorkspaceSyncMode}
               title={
                 canvasWorkspaceSyncMode === 'realtime'
@@ -235,7 +203,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           <li className="list-none">
             <button
               type="button"
-              className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={`${UI_RESPONSIVE_MENU_OPTION_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={toggleStorageSync}
               title={
                 storageSyncEnabled
@@ -249,7 +217,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           </li>
         </>
       )}
-      menuWidthClass="w-64"
+      menuWidthClass={UI_RESPONSIVE_COMPACT_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
     />
   )
 }

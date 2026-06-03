@@ -1,11 +1,12 @@
 import type { JSONValue } from './types';
+import type { SnapGridTuple } from '@/lib/canvas/snapGridSize'
 
 export interface GraphBehavior {
   allowEdgeCreation: boolean;
   allowNodeDrag: boolean;
   nodeShapeMode?: 'circle' | 'rect' | 'diamond' | 'hex';
   dragConstraint?: 'free' | 'axis-x' | 'axis-y' | 'none';
-  snapGrid?: { enabled: boolean; size: number };
+  snapGrid?: { enabled: boolean; size: number | SnapGridTuple };
   canvasGrid?: {
     enabled: boolean
     variant?: 'lines' | 'dots'

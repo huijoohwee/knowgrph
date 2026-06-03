@@ -5,9 +5,14 @@ import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME,
+  UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME,
+  UI_RESPONSIVE_SCHEMA_RULES_TEXT_EDITOR_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles'
 
-const schemaInputClassName = `px-2 py-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+const schemaInputClassName = `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
 const schemaActionButtonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonMutedClassName}`
 const schemaLabelClassName = `text-xs ${UI_THEME_TOKENS.text.secondary} mb-1`
 const schemaValueTextClassName = `text-xs ${UI_THEME_TOKENS.text.primary}`
@@ -247,14 +252,14 @@ export function SchemaUiValidationRulesRow({
           <div className="grid grid-cols-2 gap-1">
             {propertyNames.map(p => (
               <div key={p} className="flex items-center gap-1">
-                <span className={`${schemaValueTextClassName} w-24 truncate`}>{p}</span>
+                <span className={`${schemaValueTextClassName} ${UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME}`}>{p}</span>
                 <select
                   value={typesMap[p] ?? 'string'}
                   onChange={e => {
                     const v = e.target.value as 'string' | 'number' | 'boolean' | 'array' | 'object'
                     setTypesMap({ ...typesMap, [p]: v })
                   }}
-                  className={`px-1 py-1 text-xs rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing} flex-1`}
+                  className={`${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} text-xs rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing} flex-1`}
                 >
                   <option value="string">string</option>
                   <option value="number">number</option>
@@ -383,7 +388,7 @@ export function SchemaUiRulesRow({
       <MarkdownStructuredTextEditor
         value={rulesText}
         onChange={v => setRulesText(v)}
-        className="w-full min-h-[120px]"
+        className={UI_RESPONSIVE_SCHEMA_RULES_TEXT_EDITOR_CLASSNAME}
         language="json"
       />
     </div>

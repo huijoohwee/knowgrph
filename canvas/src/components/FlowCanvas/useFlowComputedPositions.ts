@@ -35,6 +35,7 @@ export function useFlowComputedPositions(args: {
   sceneGraphData: GraphData | null
   sceneGroups: GraphGroup[]
   schema: GraphSchema | null
+  layoutSchemaSignature: string
   flowConfig: FlowConfig
   flowPresentation: {
     portHandles: { enabled: boolean; sizePx: number; offsetPx: number }
@@ -57,6 +58,7 @@ export function useFlowComputedPositions(args: {
     sceneGraphData,
     sceneGroups,
     schema,
+    layoutSchemaSignature,
     flowConfig,
     flowPresentation,
     layoutPositionsForMode,
@@ -586,11 +588,11 @@ export function useFlowComputedPositions(args: {
     layoutMode,
     layoutVariant,
     layoutViewKey,
+    layoutSchemaSignature,
     rankdir,
     sceneGraphData,
     sceneGraphNodeById,
     sceneGroups,
-    schema,
     setLayoutPositionsForMode,
   ])
 

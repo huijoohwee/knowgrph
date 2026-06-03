@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { isD3Like2dRenderer } from '@/lib/config.render'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
-import { clampSnapGridSize } from '@/lib/canvas/snapGridSize'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
 
 export function withD3FlowchartSceneSchema(args: {
   schema: GraphSchema
@@ -21,7 +21,7 @@ export function withD3FlowchartSceneSchema(args: {
   if (!enforceBlockLayout && graphKind !== 'flowchart') return schema
   const isD3LikeRenderer = isD3Like2dRenderer((canvas2dRenderer || null) as never)
   if (!forceForAny2dRenderer && !isD3LikeRenderer) return schema
-  const gridSize = clampSnapGridSize((schema?.behavior?.snapGrid as { size?: unknown } | null)?.size)
+  const gridSize = readSnapGridScalarSize((schema?.behavior?.snapGrid as { size?: unknown } | null)?.size)
   return {
     ...schema,
     performance: {

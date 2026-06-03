@@ -4,11 +4,13 @@ import { uiSettingsRegistry } from './registry-ui'
 import { threeSettingsRegistry } from './registry-three'
 import { presetAndEnvSettingsRegistry } from './registry-presets'
 import { paymentsSettingsRegistry } from './registry-payments'
+import { searchSettingsRegistry } from './registry-search'
 
 export const settingsRegistry: SettingMeta[] = [
   ...uiSettingsRegistry,
   ...threeSettingsRegistry,
   ...presetAndEnvSettingsRegistry,
+  ...searchSettingsRegistry,
   ...paymentsSettingsRegistry,
 ]
 

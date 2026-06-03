@@ -26,6 +26,7 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { UI_RESPONSIVE_GRAPH_TABLE_CODE_EDITOR_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
@@ -472,7 +473,8 @@ export function GraphTableInspector({
                   <section className="p-2" aria-label="Code">
                     <PlainTextInputEditor
                       className={cn(
-                        'w-full h-[220px] rounded border px-2 py-1',
+                        UI_RESPONSIVE_GRAPH_TABLE_CODE_EDITOR_CLASSNAME,
+                        'rounded border px-2 py-1',
                         monospaceTextClass,
                         textSizeClass,
                         UI_THEME_TOKENS.input.bg,

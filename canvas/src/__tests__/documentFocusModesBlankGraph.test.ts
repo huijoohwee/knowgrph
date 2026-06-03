@@ -1,8 +1,11 @@
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
-import { writeWorkspaceDataViewState } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
+import { buildWorkspaceDataViewSourceTableId, writeWorkspaceDataViewState } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
+import { applySavedDocumentUiModeStateWrites } from '@/features/canvas/graphStoreDocumentUiRestoreWrites'
+import { MARKDOWN_TABLE_GRAPH_CELL_PROPERTY_PREVIEW_CHAR_LIMIT } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
 
 class MemoryStorage implements Storage {
   private readonly map = new Map<string, string>()
@@ -258,6 +261,59 @@ export function testCanvasDocumentModeToolbarActionsNormalizeConflictingFlags() 
   if (tableCalls.join('|') !== 'frontmatter:false|mdtbl:true|semantic:document') {
     throw new Error(`expected Multi-dimensional Table toolbar action to normalize conflicting mode flags, got ${tableCalls.join('|')}`)
   }
+
+  applyCanvasViewSelection({
+    ...baseParams,
+    id: 'document:multiDimTable',
+    canvas2dRenderer: 'flowEditor',
+    documentSemanticMode: 'keyword',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+  })
+  const flowEditorTableCalls = calls.splice(0)
+  if (flowEditorTableCalls.join('|') !== 'mdtbl:true|semantic:document') {
+    throw new Error(`expected Multi-dimensional Table toolbar action to re-apply table mode for non-graph renderer handoff, got ${flowEditorTableCalls.join('|')}`)
+  }
+}
+
+export function testMultiDimTableModeUsesGraphCapableRenderer() {
+  useGraphStore.getState().resetAll()
+  const store = useGraphStore.getState()
+  store.setCanvasRenderMode('2d')
+  store.setCanvas2dRenderer('flowEditor')
+  store.setDocumentSemanticMode('keyword')
+  store.setFrontmatterModeEnabled(true)
+  store.setMultiDimTableModeEnabled(true)
+
+  const next = useGraphStore.getState()
+  if (next.canvasRenderMode !== '2d') throw new Error(`expected Multi-dimensional Table mode to stay on 2D surface, got ${String(next.canvasRenderMode)}`)
+  if (next.canvas2dRenderer !== 'd3') throw new Error(`expected Multi-dimensional Table mode to switch Flow Editor to D3 renderer, got ${String(next.canvas2dRenderer)}`)
+  if (next.frontmatterModeEnabled !== false) throw new Error('expected Multi-dimensional Table mode to disable Frontmatter mode')
+  if (next.multiDimTableModeEnabled !== true) throw new Error('expected Multi-dimensional Table mode to be enabled')
+  if (next.documentSemanticMode !== 'keyword') throw new Error('expected renderer handoff to avoid changing semantic mode outside explicit toolbar actions')
+}
+
+export function testMultiDimTableRestoreUsesGraphCapableRenderer() {
+  useGraphStore.getState().resetAll()
+  const store = useGraphStore.getState()
+  store.setCanvasRenderMode('2d')
+  store.setCanvas2dRenderer('flowEditor')
+  store.setMultiDimTableModeEnabled(false)
+
+  applySavedDocumentUiModeStateWrites(useGraphStore.getState(), {
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+    canvasRenderMode: '2d',
+    canvas3dMode: undefined,
+    canvas2dRenderer: 'flowEditor',
+  })
+
+  const next = useGraphStore.getState()
+  if (next.canvasRenderMode !== '2d') throw new Error(`expected restored Multi-dimensional Table mode to use 2D surface, got ${String(next.canvasRenderMode)}`)
+  if (next.canvas2dRenderer !== 'd3') throw new Error(`expected restored Multi-dimensional Table mode to normalize stale Flow Editor renderer to D3, got ${String(next.canvas2dRenderer)}`)
+  if (next.multiDimTableModeEnabled !== true) throw new Error('expected restored Multi-dimensional Table mode to stay enabled')
+  if (next.frontmatterModeEnabled !== false) throw new Error('expected restored Multi-dimensional Table mode to keep Frontmatter mode disabled')
 }
 
 export function testDocumentFocusModeResolverPrecedence() {
@@ -371,5 +427,134 @@ export function testDocumentFocusModeResolverPrecedence() {
   }
   if (String(((baselineLocked.metadata || {}) as Record<string, unknown>)['kg:activeDocumentViewMode'] || '') !== 'documentStructure') {
     throw new Error('expected baseline lock result to retain document structure active mode metadata')
+  }
+}
+
+export function testMultiDimTableActiveViewDerivesRawCsvSourceTableGraph() {
+  const storage = ensureLocalStorage()
+  storage.clear()
+
+  const markdownName = '/docs/source-table.csv'
+  const markdownText = [
+    'URL,Title,Status,Category',
+    'https://example.com/a,Alpha,Done,AI',
+    'https://example.com/b,Beta,Doing,Data',
+    '',
+  ].join('\n')
+  writeWorkspaceDataViewState({
+    activeDocumentPath: markdownName,
+    tableId: buildWorkspaceDataViewSourceTableId(2),
+    value: {
+      sv: 1,
+      activeViewId: 'v0',
+      views: [
+        {
+          v: 2,
+          id: 'v0',
+          name: 'Table',
+          layout: 'table',
+          groupByColumnId: null,
+          visibleColumnIds: null,
+          columnTypesById: null,
+          filterGroups: [{ id: 'g0', rules: [] }],
+          sortRules: [],
+          graphEnabled: true,
+          graphRolesByColumnId: { col_1: 'node', col_2: 'color', col_3: 'group' },
+        },
+      ],
+    },
+  })
+
+  const derived = deriveGraphDataForActiveView({
+    graphData: {
+      type: 'Graph',
+      context: 'workspace-active-source',
+      nodes: [],
+      edges: [],
+      metadata: { source: `markdown:${markdownName}` },
+    },
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+    markdownName,
+    markdownText,
+    jsonSourceText: null,
+  })
+
+  const labels = new Set((derived.nodes || []).map(node => String((node as { label?: unknown }).label || '').trim()))
+  if (!labels.has('Alpha') || !labels.has('Beta')) {
+    throw new Error('expected raw CSV source table graph to derive nodes from configured DataView node column')
+  }
+  if (String(((derived.metadata || {}) as Record<string, unknown>)['kg:activeDocumentViewMode'] || '') !== 'multiDimTable') {
+    throw new Error('expected raw CSV source table graph to retain Multi-dimensional Table active mode metadata')
+  }
+}
+
+export function testMultiDimTableActiveViewBoundsNonRoleCellProperties() {
+  const storage = ensureLocalStorage()
+  storage.clear()
+
+  const markdownName = '/docs/source-table.csv'
+  const longDescription = `Long description ${'payload '.repeat(120)}end`
+  const markdownText = [
+    'Title,Description,Status',
+    `Alpha,"${longDescription}",Done`,
+    '',
+  ].join('\n')
+  writeWorkspaceDataViewState({
+    activeDocumentPath: markdownName,
+    tableId: buildWorkspaceDataViewSourceTableId(1),
+    value: {
+      sv: 1,
+      activeViewId: 'v0',
+      views: [
+        {
+          v: 2,
+          id: 'v0',
+          name: 'Table',
+          layout: 'table',
+          groupByColumnId: null,
+          visibleColumnIds: null,
+          columnTypesById: null,
+          filterGroups: [{ id: 'g0', rules: [] }],
+          sortRules: [],
+          graphEnabled: true,
+          graphRolesByColumnId: { col_0: 'node', col_2: 'color' },
+        },
+      ],
+    },
+  })
+
+  const derived = deriveGraphDataForActiveView({
+    graphData: {
+      type: 'Graph',
+      context: 'workspace-active-source',
+      nodes: [],
+      edges: [],
+      metadata: { source: `markdown:${markdownName}` },
+    },
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+    markdownName,
+    markdownText,
+    jsonSourceText: null,
+  })
+
+  const alpha = (derived.nodes || []).find(node => String((node as { label?: unknown }).label || '') === 'Alpha')
+  if (!alpha) throw new Error('expected raw CSV source table graph to derive Alpha node')
+  const description = String(((alpha.properties || {}) as Record<string, unknown>)['md:table:description'] || '')
+  if (!description || description === longDescription) {
+    throw new Error('expected non-role CSV graph property to use bounded display text instead of full payload')
+  }
+  if (description.length > MARKDOWN_TABLE_GRAPH_CELL_PROPERTY_PREVIEW_CHAR_LIMIT + 3) {
+    throw new Error(`expected bounded graph property length, got ${description.length}`)
+  }
+  if (String(((alpha.properties || {}) as Record<string, unknown>)['md:table:title'] || '') !== 'Alpha') {
+    throw new Error('expected node role property to preserve the full node label value')
   }
 }

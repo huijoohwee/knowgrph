@@ -2,6 +2,10 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  ResponsiveControlInput,
+  ResponsiveControlRow,
+} from '@/lib/ui/responsiveControlRows'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const FRAME_W = 320
@@ -46,17 +50,9 @@ function NumberFieldRow(props: {
   onChange: (next: string) => void
   onSubmit: () => void
 }) {
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
-  const uiPanelKeyValueInputClass = useGraphStore(
-    s => s.uiPanelKeyValueInputClass || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
-  )
   return (
-    <div className="flex items-center gap-2">
-      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-        {props.label}
-      </label>
-      <input
+    <ResponsiveControlRow label={props.label}>
+      <ResponsiveControlInput
         type="number"
         value={props.value}
         placeholder={props.placeholder}
@@ -64,9 +60,9 @@ function NumberFieldRow(props: {
         onKeyDown={e => {
           if (e.key === 'Enter') props.onSubmit()
         }}
-        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[50%] text-right`}
+        className="text-right"
       />
-    </div>
+    </ResponsiveControlRow>
   )
 }
 

@@ -2,12 +2,13 @@ import React from 'react'
 import { ArrowLeftRight, Braces, ChevronDown, Hash, Lock, Tag, Text } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { UI_RESPONSIVE_COLUMN_HEADER_MENU_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   isGraphDataTableGroupableColumnKey,
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 
-export const FROZEN_DATA_COLUMN_LEFT = '2rem'
+export const FROZEN_DATA_COLUMN_LEFT = 'var(--kg-graph-data-table-index-column-width, 2rem)'
 export const FROZEN_RESIZE_TOOLTIP_TEXT = 'Drag to adjust frozen area'
 
 interface FrozenAreaResizeHandleProps {
@@ -169,7 +170,8 @@ export const HeaderCell = React.memo(function HeaderCell({
                 'rounded border shadow-sm p-1 z-20',
                 UI_THEME_TOKENS.panel.bg,
                 UI_THEME_TOKENS.panel.border,
-                'absolute left-0 mt-2 w-[240px]',
+                UI_RESPONSIVE_COLUMN_HEADER_MENU_PANEL_CLASSNAME,
+                'absolute left-0 mt-2',
               ].join(' ')}
               aria-label={`Column actions: ${label}`}
             >

@@ -90,6 +90,12 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   if (!documentSwitchText.includes('export function isMarkdownWorkspaceDocumentSwitchPending(args:')) {
     throw new Error('Expected markdown workspace document switching to centralize pending-state ownership in a shared helper')
   }
+  if (!documentSwitchText.includes("import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'")) {
+    throw new Error('Expected document-switch pending state to reuse shared markdown-like document detection')
+  }
+  if (!documentSwitchText.includes('if (!isMarkdownLikeFileName(activePath)) return false')) {
+    throw new Error('Expected non-Markdown data documents to bypass the markdown document-switch placeholder')
+  }
   if (!documentSwitchText.includes('return !matchesMarkdownDocumentPath(activePath, markdownDocumentName)')) {
     throw new Error('Expected markdown workspace pending-state helper to key off active-path versus markdown-document ownership mismatch')
   }
@@ -348,8 +354,9 @@ export const testMarkdownWorkspaceSelectionUsesEntryIndexForSwitchHotPath = () =
   }
   if (!bootstrapText.includes('workspaceFilePaths: args.entriesIndex.filePaths')
     || !bootstrapText.includes('hasWorkspaceEntry(args.entriesIndex, activePath)')
+    || !bootstrapText.includes('if (rawActivePath || activePath) return null')
     || !bootstrapText.includes('return canonicalize(args.entriesIndex.firstFilePath) || args.entriesIndex.firstFilePath')) {
-    throw new Error('Expected active-path bootstrap fallback to reuse indexed file paths and first-file metadata')
+    throw new Error('Expected active-path bootstrap fallback to preserve non-empty active paths while reusing indexed file paths and first-file metadata for empty startup only')
   }
   if (!viewShellText.includes('const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(entries), [entries])')
     || !viewShellText.includes('hasWorkspaceFileEntry(entriesIndex, sitemapPath)')
@@ -550,8 +557,13 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!mainText.includes("React.useState<MarkdownWorkspaceDerivedViewerKind>('markdown')")) {
     throw new Error('Expected workspace main viewer kind to initialize from the cheap markdown SSOT')
   }
-  if (!mainText.includes("React.useState<MarkdownWorkspaceDerivedViewerMode>('read')")) {
-    throw new Error('Expected workspace main viewer mode to initialize from the cheap read SSOT')
+  if (
+    !mainText.includes('React.useState<MarkdownWorkspaceDerivedViewerMode>(() => (') ||
+    !mainText.includes("documentPanePreset === 'viewer' && hasJsonSourcePreviewText") ||
+    !mainText.includes("? 'multiDimTable'") ||
+    !mainText.includes(": 'read'")
+  ) {
+    throw new Error('Expected workspace main viewer mode to initialize from the cheap read SSOT with a CSV attached-JSON table preset')
   }
   if (!mainText.includes('const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)')) {
     throw new Error('Expected workspace main to defer JSON editor source text before expensive JSON/JSON-LD derivations')

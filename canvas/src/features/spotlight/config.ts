@@ -1,5 +1,6 @@
 import { getPanelSurfaceLabel, type WorkflowStepId } from '@/features/panels/config'
 import { ORCHESTRATOR_TRAVERSAL_TOOLTIP, GRAPH_FIELDS_ICON_LEGEND_TOOLTIP } from '@/lib/config'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type SpotlightStepVariant = 'primary' | 'secondary'
 
@@ -21,7 +22,7 @@ export interface SpotlightStepConfig {
 
 const graphJsonTabLabel = getPanelSurfaceLabel('data')
 const validateTabLabel = getPanelSurfaceLabel('table')
-const graphTableLabel = 'Graph Data Table'
+const graphTableLabel = MARKDOWN_DATA_VIEW_COPY.titleDefault
 
 export const SPOTLIGHT_STEPS: SpotlightStepConfig[] = [
   {

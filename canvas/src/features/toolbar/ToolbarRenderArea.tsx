@@ -1,5 +1,9 @@
 import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
+import {
+  uiToolbarAreaActionRowClassName,
+  uiToolbarAreaStackClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 import { UI_LABELS } from '@/lib/config'
 
 interface ToolbarRenderAreaProps {
@@ -12,8 +16,8 @@ export function ToolbarRenderArea({
   renderOpMsg,
 }: ToolbarRenderAreaProps) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-end gap-2">
+    <div className={uiToolbarAreaStackClassName}>
+      <div className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.renderer} ok={renderOpOk} msg={renderOpMsg || undefined} />
       </div>
     </div>

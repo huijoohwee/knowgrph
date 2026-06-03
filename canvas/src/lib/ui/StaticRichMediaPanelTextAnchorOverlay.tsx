@@ -2,6 +2,10 @@ import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_BODY_CLASSNAME,
+  UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { AnchorOverlay } from './overlay'
 
 export function StaticRichMediaPanelTextAnchorOverlay(props: {
@@ -36,7 +40,7 @@ export function StaticRichMediaPanelTextAnchorOverlay(props: {
       align="bottom-center"
       autoFocus={false}
       className={[
-        `w-[${widthPx}px] max-w-[calc(100vw-1rem)] overflow-hidden rounded border shadow-lg`,
+        `${UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME} overflow-hidden rounded border shadow-lg`,
         UI_THEME_TOKENS.panel.bg,
         UI_THEME_TOKENS.panel.border,
       ].join(' ')}
@@ -45,9 +49,10 @@ export function StaticRichMediaPanelTextAnchorOverlay(props: {
         {...props.containerProps}
         data-kg-canvas-pointer-ignore="true"
         data-kg-canvas-wheel-ignore="true"
+        className={[UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_BODY_CLASSNAME, props.containerProps?.className || ''].filter(Boolean).join(' ')}
         style={{
           width: widthPx,
-          maxWidth: 'calc(100vw - 1rem)',
+          maxWidth: '100%',
           height: heightPx,
           ...(props.containerProps?.style || null),
         }}

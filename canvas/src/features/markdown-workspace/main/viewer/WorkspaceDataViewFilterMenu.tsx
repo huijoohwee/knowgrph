@@ -4,7 +4,13 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewFilterRule, WorkspaceDataViewFilterOp } from './workspaceDataViewConfig'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_FILTER_MENU_PANEL_CLASSNAME,
+  UI_RESPONSIVE_MENU_ICON_ACTION_CLASSNAME,
+  UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type FilterTarget = {
@@ -99,12 +105,12 @@ export function WorkspaceDataViewFilterMenu(props: {
   }
 
   return (
-    <section className="kg-data-view-filter-menu w-[260px]" aria-label="New filter">
+    <section className={UI_RESPONSIVE_DATA_VIEW_FILTER_MENU_PANEL_CLASSNAME} aria-label="New filter">
       <header className="flex min-w-0 items-center gap-2 px-2 py-1.5">
         {target ? (
           <button
             type="button"
-            className={['inline-flex items-center justify-center w-8 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={[UI_RESPONSIVE_MENU_ICON_ACTION_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
             aria-label="Back"
             onClick={() => setTarget(null)}
           >
@@ -155,7 +161,7 @@ export function WorkspaceDataViewFilterMenu(props: {
           <div className="mt-2 flex items-center justify-end">
             <button
               type="button"
-              className={['inline-flex items-center gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={onApply}
             >
               <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>Apply</span>

@@ -1,9 +1,9 @@
 import type { GraphSchema } from '@/lib/graph/schema'
 import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
-import { clampSnapGridSize } from '@/lib/canvas/snapGridSize'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
 
 export const readFlowchartGridSizePx = (schema: GraphSchema | null | undefined): number => {
-  return clampSnapGridSize((schema?.behavior?.snapGrid as { size?: unknown } | null)?.size)
+  return readSnapGridScalarSize((schema?.behavior?.snapGrid as { size?: unknown } | null)?.size)
 }
 
 export const readFlowchartLaneSeparationPx = (args: { schema: GraphSchema | null | undefined; frameW: number }): number => {

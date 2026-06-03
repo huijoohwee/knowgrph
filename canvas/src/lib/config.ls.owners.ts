@@ -45,7 +45,8 @@ export type LsKeyOwner =
   | 'ui.monaco'
   | 'import.pdf'
   | 'payments.stripe'
-  | 'payments.stripe.mcp';
+  | 'payments.stripe.mcp'
+  | 'search.exa.mcp';
 
 
 export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
@@ -225,6 +226,15 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   apiNativeBrowserMcpConfirmUnsafe: 'ui.mcp',
   apiNativeBrowserMcpConfirmThirdPartyTerms: 'ui.mcp',
   apiNativeBrowserMcpConfirmCookieImport: 'ui.mcp',
+  searchExaMcpServerKey: 'search.exa.mcp',
+  searchExaMcpRemoteUrl: 'search.exa.mcp',
+  searchExaMcpToolProfile: 'search.exa.mcp',
+  searchExaMcpEnabledToolsJson: 'search.exa.mcp',
+  searchExaMcpConnectionMode: 'search.exa.mcp',
+  searchExaMcpStartupTimeoutMs: 'search.exa.mcp',
+  searchExaMcpMaxResults: 'search.exa.mcp',
+  searchExaMcpFetchContentLimit: 'search.exa.mcp',
+  searchExaMcpRequireFetchReview: 'search.exa.mcp',
   orchestratorTraversalDelayMs: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagMaxFull: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagHead: 'orchestrator.prefs',
@@ -362,7 +372,6 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   graphTablePanelCollapsed: 'ui.workspace',
   graphTableInspectorOpen: 'ui.workspace',
   graphTableInspectorWidthPx: 'ui.workspace',
-  graphTableViewMode: 'ui.workspace',
   graphTableColumnVisibilityById: 'ui.workspace',
   graphTableFilters: 'ui.workspace',
   graphTableFilterMatch: 'ui.workspace',

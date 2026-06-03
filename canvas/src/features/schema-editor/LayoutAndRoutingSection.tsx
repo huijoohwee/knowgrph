@@ -2,6 +2,7 @@ import React from 'react'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type LayoutAndRoutingSectionProps = {
   schema: GraphSchema
@@ -24,7 +25,7 @@ export default function LayoutAndRoutingSection({
 }: LayoutAndRoutingSectionProps) {
   const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.secondary}`
   const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
-  const selectClassName = `px-2 py-1 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const selectClassName = `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
     <div className="space-y-3">
       <div className={sectionHeadingClassName}>Layout</div>

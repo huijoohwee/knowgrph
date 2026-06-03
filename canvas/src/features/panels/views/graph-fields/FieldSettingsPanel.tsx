@@ -43,6 +43,11 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { uiToolbarButtonNeutralClassName } from '@/features/toolbar/ui/toolbarStyles'
+import {
+  UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_DESCRIPTION_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 const MonacoTextEditorLazy = React.lazy(async (): Promise<{ default: React.ComponentType<MonacoTextEditorProps> }> =>
   import('@/features/monaco/MonacoTextEditor').then(mod => ({ default: mod.MonacoTextEditor })),
@@ -290,7 +295,7 @@ export default function FieldSettingsPanel({
                   <span className={UI_THEME_TOKENS.text.primary}>Voxel animation</span>
                   <input
                     type="checkbox"
-                    className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
+                    className={`${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                     checked={schema.three?.voxelAnimationEnabled !== false}
                     onChange={e => {
                       const current = schema as GraphSchema
@@ -355,7 +360,7 @@ export default function FieldSettingsPanel({
                         id="graph-fields-display-name"
                         value={selectedSettings.displayName}
                         onChange={e => updateSelectedSettings({ displayName: e.target.value })}
-                        className={`h-9 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+                        className={`${UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
                       />
                     </div>
                   </div>
@@ -368,7 +373,7 @@ export default function FieldSettingsPanel({
                         id="graph-fields-type"
                         value={selectedSettings.fieldType}
                         onChange={e => updateSelectedSettings({ fieldType: e.target.value as GraphFieldType })}
-                        className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-9 w-full text-left'].join(' ')}
+                        className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME, 'w-full text-left'].join(' ')}
                       >
                         {GRAPH_FIELD_TYPES.map(t => (
                           <option key={t} value={t}>
@@ -397,7 +402,7 @@ export default function FieldSettingsPanel({
                     </Tooltip>
                   </label>
                   <div className="mt-1">
-                    <div className={`h-[84px] w-full rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.input.bg}`}>
+                    <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_DESCRIPTION_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
                       <React.Suspense fallback={null}>
                         <MonacoTextEditorLazy
                           value={selectedSettings.description}

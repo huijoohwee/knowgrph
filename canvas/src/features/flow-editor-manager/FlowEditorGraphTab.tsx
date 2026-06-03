@@ -9,6 +9,13 @@ import { cn } from '@/lib/utils'
 import GraphFieldsView from '@/features/panels/views/GraphFieldsView'
 import GraphTableWorkspace from '@/features/graph-table/ui/GraphTableWorkspace'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import {
+  UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_ROW_CLASSNAME,
+  UI_RESPONSIVE_FLOW_MANAGER_TABLE_FRAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 const GRAPH_FIELDS_ALIAS_LABELS = [
   'Renderer',
@@ -62,13 +69,13 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
     return (
       <section className="h-full min-h-0 flex flex-col" aria-label={UI_LABELS.flowEditorGraph}>
         <main className="flex-1 min-h-0 overflow-hidden" aria-label="Workflow manager">
-          <section className="p-3 min-h-0 h-full overflow-hidden">
+          <section className={`${UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME} min-h-0 h-full overflow-hidden`}>
             {multiDimTableView ? (
-              <section className="h-[360px] min-h-[280px] rounded border p-2 overflow-hidden">
+              <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_TABLE_FRAME_CLASSNAME, UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME, 'overflow-hidden')}>
                 <GraphTableWorkspace active />
               </section>
             ) : (
-              <section className="h-full min-h-0 rounded border p-2 overflow-auto">
+              <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME, 'h-full min-h-0 overflow-auto')}>
                 <GraphFieldsView
                   onStatusChange={graphFieldsStatusNoop}
                   searchQuery={searchQuery}
@@ -87,7 +94,7 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
 
   return (
     <section className="h-full min-h-0 flex flex-col" aria-label={UI_LABELS.flowEditorGraph}>
-      <header className={cn('px-3 py-2 border-b flex items-center justify-between gap-3', UI_THEME_TOKENS.panel.border)}>
+      <header className={cn(UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME, UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
         <section className="min-w-0" aria-label="Summary">
           <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>{UI_LABELS.status}</section>
           <section className={cn('text-xs font-semibold truncate', UI_THEME_TOKENS.text.primary)}>
@@ -97,8 +104,8 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
       </header>
 
       <main className="flex-1 min-h-0 overflow-hidden" aria-label="Graph content">
-        <section className="h-full min-h-0 p-3" aria-label="Graph manager">
-          <section className="min-h-0 h-full overflow-hidden rounded border p-2" aria-label="Graph Fields and Field Settings">
+        <section className={`${UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME} h-full min-h-0`} aria-label="Graph manager">
+          <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME, 'min-h-0 h-full overflow-hidden')} aria-label="Graph Fields and Field Settings">
             <section className="h-full min-h-0 overflow-hidden">
               {multiDimTableView ? (
                 <GraphTableWorkspace active />

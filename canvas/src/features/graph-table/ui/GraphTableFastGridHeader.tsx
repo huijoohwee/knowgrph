@@ -289,7 +289,6 @@ export function GraphTableFastGridHeader(props: {
                               ariaLabel={`Property type for ${col.title}`}
                               value={kind}
                               close={close}
-                              className="w-[240px]"
                               onSelect={(next) => props.onColumnKindChanged?.(col.id, next)}
                             />
                           ) : null

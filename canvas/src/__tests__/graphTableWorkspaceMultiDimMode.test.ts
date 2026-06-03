@@ -7,44 +7,44 @@ export function testGraphTableWorkspacePreservesMultiDimWorkspaceMode() {
   const text = fs.readFileSync(filePath, { encoding: 'utf8' })
   const workspaceModeText = fs.readFileSync(workspaceModePath, { encoding: 'utf8' })
 
-  if (!text.includes('toWorkspaceBackedGraphTableViewMode(workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode)')) {
+  if (!text.includes('toWorkspaceBackedTableViewMode(workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode)')) {
     throw new Error("expected GraphTableWorkspace to initialize view mode from the shared workspace->table mode mapper")
   }
-  if (!text.includes('const next = toWorkspaceBackedGraphTableViewMode(workspaceEditorMode)')) {
+  if (!text.includes('const next = toWorkspaceBackedTableViewMode(workspaceEditorMode)')) {
     throw new Error("expected GraphTableWorkspace to reuse the shared workspace->table mode mapper during preference updates")
   }
-  if (!text.includes('toWorkspaceEditorModeFromGraphTableViewMode(next)')) {
+  if (!text.includes('toWorkspaceEditorModeFromTableViewMode(next)')) {
     throw new Error("expected GraphTableWorkspace view-mode handler to reuse the shared table->workspace mode mapper")
   }
-  if (!workspaceModeText.includes('export function toWorkspaceBackedGraphTableViewMode(')) {
+  if (!workspaceModeText.includes('export function toWorkspaceBackedTableViewMode(')) {
     throw new Error('expected workspace editor mode module to expose the shared workspace->table mode mapper')
   }
-  if (!workspaceModeText.includes('export function toWorkspaceEditorModeFromGraphTableViewMode(')) {
+  if (!workspaceModeText.includes('export function toWorkspaceEditorModeFromTableViewMode(')) {
     throw new Error('expected workspace editor mode module to expose the shared table->workspace mode mapper')
   }
 }
 
-export function testGraphTableViewModeSupportsMultiDimTableSsot() {
-  const viewModePath = path.resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'graphTableViewMode.ts')
+export function testWorkspaceTableViewModeSupportsMultiDimTableSsot() {
   const headerPath = path.resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableWorkspaceHeader.tsx')
   const workspaceModePath = path.resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceEditorMode.ts')
-  const viewModeText = fs.readFileSync(viewModePath, { encoding: 'utf8' })
+  const presentationPath = path.resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceEditorModePresentation.ts')
   const headerText = fs.readFileSync(headerPath, { encoding: 'utf8' })
   const workspaceModeText = fs.readFileSync(workspaceModePath, { encoding: 'utf8' })
+  const presentationText = fs.readFileSync(presentationPath, { encoding: 'utf8' })
 
-  if (!viewModeText.includes("export type GraphTableViewMode = 'table' | 'multiDimTable' | 'kanban' | 'geospatial'")) {
-    throw new Error("expected GraphTableViewMode to keep workspace-backed modes and the geospatial overlay mode in one SSOT")
+  if (!workspaceModeText.includes("export type WorkspaceTableViewMode = WorkspaceEditorMode | 'geospatial'")) {
+    throw new Error("expected WorkspaceTableViewMode to keep workspace-backed modes and the geospatial overlay mode in the shared workspace-table SSOT")
   }
-  if (!viewModeText.includes("if (raw === 'table' || raw === 'multiDimTable' || raw === 'kanban') return raw")) {
-    throw new Error("expected parseGraphTableViewMode to accept 'multiDimTable'")
+  if (!workspaceModeText.includes("if (raw === 'table' || raw === 'multiDimTable' || raw === 'kanban') return raw")) {
+    throw new Error("expected parseWorkspaceEditorMode to accept 'multiDimTable' without graph-table-local parsing")
   }
-  if (!headerText.includes("{ value: 'multiDimTable', label: UI_COPY.markdownDataViewTitleDefault }")) {
-    throw new Error("expected GraphTableWorkspaceHeader to expose a Multi-dimensional Table view option")
+  if (!presentationText.includes('WORKSPACE_TABLE_VIEW_MODE_SELECT_OPTIONS')) {
+    throw new Error("expected shared workspace-table presentation options to expose table view labels")
   }
-  if (!workspaceModeText.includes('toWorkspaceEditorModeFromGraphTableViewMode(graphTableView)')) {
-    throw new Error("expected readWorkspaceEditorMode to normalize graphTableViewMode via the shared table->workspace mapper")
+  if (!headerText.includes('WORKSPACE_TABLE_VIEW_MODE_SELECT_OPTIONS')) {
+    throw new Error("expected GraphTableWorkspaceHeader to reuse shared workspace-table view options")
   }
-  if (!workspaceModeText.includes('const nextGraphTableMode = toWorkspaceBackedGraphTableViewMode(mode)')) {
-    throw new Error("expected writeWorkspaceEditorMode to persist graphTableViewMode via the shared workspace->table mapper")
+  if (workspaceModeText.includes('graphTableViewMode') || headerText.includes('graphTableViewMode')) {
+    throw new Error("expected workspace table view mode to avoid duplicate graphTableViewMode persistence")
   }
 }

@@ -12,7 +12,7 @@ import { useThemeDetector } from '@/hooks/useThemeDetector'
 import type { Canvas3dModeId } from '@/lib/config'
 import { emitPropsPanelOpen } from '@/features/canvas/utils'
 import { parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
-import { GlbAssetModel } from '@/lib/three/GlbAssetModel'
+import { GlbAssetModel, buildGlbAssetRenderKey, type GlbFit } from '@/lib/three/GlbAssetModel'
 import { CanvasXrEntryPanel, OverlayFrameSync } from '@/lib/three/ThreeGraphXr'
 import { registerThreeGraphSnapshotFns } from '@/lib/three/ThreeGraphSnapshots'
 import { useThreeRichMediaOverlayController } from '@/lib/three/useThreeRichMediaOverlayController'
@@ -82,6 +82,17 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     applyViewPreset: markdownDocumentApplyViewPreset !== false,
   })
   const glbAsset = useMemo(() => parseGlbAssetDocument(canvasMarkdownDocument.text), [canvasMarkdownDocument.text])
+  const glbAssetRenderKey = useMemo(
+    () => (glbAsset ? buildGlbAssetRenderKey(glbAsset, canvasMarkdownDocument.semanticKey) : ''),
+    [canvasMarkdownDocument.semanticKey, glbAsset],
+  )
+  const [glbAssetFit, setGlbAssetFit] = useState<GlbFit | null>(null)
+  useEffect(() => {
+    setGlbAssetFit(null)
+  }, [glbAssetRenderKey])
+  const handleGlbAssetFitChange = useCallback((fit: GlbFit | null) => {
+    setGlbAssetFit(fit)
+  }, [])
   const sceneGraph = useMemo(() => {
     if (glbAsset) return null
     const g = renderGraph as GraphData | null
@@ -312,10 +323,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
           ) : null}
           {glbAsset ? (
             <GlbAssetModel
+              key={glbAssetRenderKey}
               asset={glbAsset}
               mode={mode}
               paused={paused}
               standalone={!hasGraph}
+              onFitChange={handleGlbAssetFitChange}
             />
           ) : null}
           <ControlsLazy
@@ -323,6 +336,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
             positions={positions}
             paused={paused}
             mode={mode}
+            modelAssetRenderKey={glbAssetRenderKey}
+            modelAssetFit={glbAssetFit}
             onControlsChange={() => {
               try {
                 scheduleRef.current?.()

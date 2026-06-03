@@ -23,6 +23,7 @@ import {
   uiPrimaryToggleActiveClassName,
   uiPrimaryIconInactiveClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_BADGE_CHIP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -369,7 +370,7 @@ export function ParserDataSection({
                     <span
                       className={getPillClass('badge', {
                         baseClass:
-                          `inline-flex items-center px-1 py-[1px] mr-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle}`,
+                          `inline-flex items-center ${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} mr-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle}`,
                         badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
                         textColorClass: UI_THEME_TOKENS.text.secondary,
                       })}

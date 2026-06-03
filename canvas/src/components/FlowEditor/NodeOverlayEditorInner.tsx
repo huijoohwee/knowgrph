@@ -19,6 +19,7 @@ import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowE
 import { lsBool, lsSetBool } from '@/lib/persistence'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { readScopedFlowWidgetNodeValue } from '@/lib/flowEditor/widgetStateScope'
+import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -138,6 +139,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
   const [pinnedInCanvas, setPinnedInCanvasState] = React.useState<boolean>(() => readPinnedInCanvas(nodeId))
   const pinnedInCanvasRef = React.useRef<boolean>(readPinnedInCanvas(nodeId))
   const previousPinnedInCanvasRef = React.useRef<boolean>(pinnedInCanvas)
+  const previousPinnedPlacementAuthorityRef = React.useRef<boolean>(pinnedInCanvas)
   const [minimized, setMinimized] = React.useState<boolean>(() => lsBool(LS_KEYS.flowWidgetMinimized, false))
   const [hideFields, setHideFields] = React.useState<boolean>(() => lsBool(LS_KEYS.flowWidgetHideFields, false))
   const [toolbarVisible, setToolbarVisible] = React.useState(false)
@@ -162,6 +164,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     nodeId,
     stackIndex,
     active,
+    flowEditorSurfaceId,
     viewportW,
     viewportH,
     canvasWindowOffset,
@@ -179,6 +182,8 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     floatingUsesScreenAuthority,
     setFlowWidgetWorldPosByNodeId,
   })
+  const applyOverlayPosition = placement.applyOverlayPosition
+  const persistCurrentScreenPlacementAsWorldPlacement = placement.persistCurrentScreenPlacementAsWorldPlacement
 
   useOutsideClose(toolbarVisible, setToolbarVisible, placement.asideRef)
 
@@ -209,6 +214,13 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
       })
     }
     const unsub = useGraphStore.subscribe(readPinned, next => {
+      if (
+        pinnedInCanvasRef.current !== true
+        && next === true
+        && shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas: false })
+      ) {
+        persistCurrentScreenPlacementAsWorldPlacement()
+      }
       pinnedInCanvasRef.current = next
       setPinnedInCanvasState(prev => (prev === next ? prev : next))
     })
@@ -219,7 +231,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
         void 0
       }
     }
-  }, [graphMetaKey, nodeId, readPinnedInCanvas])
+  }, [graphMetaKey, graphMetaKind, nodeId, persistCurrentScreenPlacementAsWorldPlacement, readPinnedInCanvas])
 
   React.useEffect(() => {
     if (!nodeId || !floatingUsesScreenAuthority) return
@@ -289,6 +301,16 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     previousPinnedInCanvasRef.current = pinnedInCanvas
   }, [floatingUsesScreenAuthority, pinnedInCanvas, placement])
 
+  useIsomorphicLayoutEffect(() => {
+    const wasPinned = previousPinnedPlacementAuthorityRef.current === true
+    const becamePinned = !wasPinned && pinnedInCanvas === true
+    if (becamePinned && shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas: false })) {
+      const persisted = persistCurrentScreenPlacementAsWorldPlacement()
+      if (persisted) applyOverlayPosition({ emitInteractionFrame: false })
+    }
+    previousPinnedPlacementAuthorityRef.current = pinnedInCanvas
+  }, [applyOverlayPosition, graphMetaKind, persistCurrentScreenPlacementAsWorldPlacement, pinnedInCanvas])
+
   React.useEffect(() => {
     if (!active || typeof window === 'undefined') return
     const onFrame = () => {
@@ -312,24 +334,48 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
           void 0
         }
         pinToggleCollisionGuardRef.current = null
+        if (nodeId && useGraphStore.getState().flowWidgetDraggingNodeId === nodeId) {
+          useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
+        }
       }
     }
-  }, [])
+  }, [nodeId])
 
   const setPinnedInCanvas = React.useCallback((next: boolean | ((prev: boolean) => boolean)) => {
     const prev = pinnedInCanvasRef.current
-    const resolved = !!(typeof next === 'function' ? (next as (v: boolean) => boolean)(prev) : next)
+    const requested = !!(typeof next === 'function' ? (next as (v: boolean) => boolean)(prev) : next)
+    const resolved = resolveEffectiveFlowWidgetPinnedInCanvas({
+      graphMetaKind,
+      node,
+      pinnedValue: requested,
+    })
+    if (
+      prev !== true
+      && resolved === true
+      && shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas: false })
+    ) {
+      persistCurrentScreenPlacementAsWorldPlacement()
+    }
     pinnedInCanvasRef.current = resolved
     setPinnedInCanvasState(prevState => (prevState === resolved ? prevState : resolved))
     if (!nodeId) return
     const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
-    if (map[nodeId] === resolved) return
-    setFlowWidgetPinnedByNodeId({ ...map, [nodeId]: resolved })
-  }, [nodeId, setFlowWidgetPinnedByNodeId])
+    const nextMap = { ...map, [nodeId]: resolved }
+    const prevHas = Object.prototype.hasOwnProperty.call(map, nodeId)
+    const nextHas = Object.prototype.hasOwnProperty.call(nextMap, nodeId)
+    if (prevHas === nextHas && map[nodeId] === nextMap[nodeId]) return
+    setFlowWidgetPinnedByNodeId(nextMap)
+  }, [graphMetaKind, node, nodeId, persistCurrentScreenPlacementAsWorldPlacement, setFlowWidgetPinnedByNodeId])
 
   const togglePinnedInternal = React.useCallback(() => {
-    if (pinToggleCollisionGuardRef.current != null) clearTimeout(pinToggleCollisionGuardRef.current)
-    pinToggleCollisionGuardRef.current = null
+    if (pinToggleCollisionGuardRef.current != null) {
+      clearTimeout(pinToggleCollisionGuardRef.current)
+      pinToggleCollisionGuardRef.current = null
+      if (nodeId && useGraphStore.getState().flowWidgetDraggingNodeId === nodeId) {
+        useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
+      }
+    }
+    const requested = !pinnedInCanvasRef.current
     if (nodeId) {
       useGraphStore.getState().setFlowWidgetDraggingNodeId(nodeId)
       pinToggleCollisionGuardRef.current = setTimeout(() => {
@@ -338,8 +384,8 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
         if (cur === nodeId) useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
       }, 240) as unknown as number
     }
-    setPinnedInCanvas(prev => !prev)
-  }, [nodeId, setPinnedInCanvas])
+    setPinnedInCanvas(requested)
+  }, [graphMetaKind, node, nodeId, setPinnedInCanvas])
 
   const handleTogglePinned = React.useCallback((event: React.MouseEvent) => {
     if (skipPinClickRef.current) {
@@ -450,6 +496,8 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
       toolbarVisible={toolbarVisible}
       toolbarDock={placement.toolbarDock}
       toolbarSideClamp={placement.toolbarSideClamp}
+      toolbarInlineShiftPx={placement.toolbarInlineShiftPx}
+      toolbarMaxWidthPx={placement.toolbarMaxWidthPx}
       isRichMediaPanelWidget={isRichMediaPanelWidget}
       isVideoTranscriberWidget={isVideoTranscriberWidget}
       uiIconScale={uiIconScale}

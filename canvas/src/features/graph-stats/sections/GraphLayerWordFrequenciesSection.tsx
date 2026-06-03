@@ -8,12 +8,17 @@ import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByGraphLayerRow } from '@/features/graph-stats/types'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import {
+  UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
-const statsInputClassName = `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
-const statsToggleButtonClassName = `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const statsInputClassName = `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+const statsToggleButtonClassName = `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const statsFilterActiveClassName = `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}`
 const statsFilterInactiveClassName = `${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg}`
-const statsTokenChipBaseClassName = `inline-flex items-center gap-1 px-2 py-[2px] rounded border cursor-pointer`
+const statsTokenChipBaseClassName = `${UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME} rounded border cursor-pointer`
 const statsTokenDefaultClassName = `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.input.border}`
 const statsTokenIncludedClassName = `bg-blue-50 ${UI_THEME_TOKENS.text.primary} border-blue-200 dark:bg-blue-900/20 dark:text-blue-100 dark:border-blue-800`
 const statsTokenExcludedClassName = `bg-red-50 ${UI_THEME_TOKENS.text.tertiary} border-red-200 line-through dark:bg-red-900/20 dark:text-red-200 dark:border-red-800`
@@ -164,7 +169,7 @@ export default function GraphLayerWordFrequenciesSection({
                     className={[
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
-                      'px-2 py-[2px]',
+                      UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
                       statsFilterMode === 'exclude'
                         ? statsFilterActiveClassName
                         : statsFilterInactiveClassName,
@@ -178,7 +183,7 @@ export default function GraphLayerWordFrequenciesSection({
                     className={[
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
-                      `px-2 py-[2px] border-l ${UI_THEME_TOKENS.panel.divider}`,
+                      `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} border-l ${UI_THEME_TOKENS.panel.divider}`,
                       statsFilterMode === 'include'
                         ? statsFilterActiveClassName
                         : statsFilterInactiveClassName,
@@ -354,7 +359,7 @@ export default function GraphLayerWordFrequenciesSection({
               const has = !!(row && row.topTokens.length > 0)
               const w = row ? Math.max(140, row.topTokens.length * 12) : 140
               return (
-                <div className="mt-2 min-h-[72px]">
+                <div className={`mt-2 ${UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME}`}>
                   {!has ? null : (
                     <>
                       <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `${UI_THEME_TOKENS.text.primary} font-semibold`].join(' ')}>

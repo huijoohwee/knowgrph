@@ -303,7 +303,7 @@ export async function testWorkspaceSeedProviderIncompleteSourceFilesStorageFallb
   })
 }
 
-export async function testWorkspaceSeedProviderStorageConfiguredMissDoesNotFetchLocalDocsRoot() {
+export async function testWorkspaceSeedProviderConfiguredDocsRootPrecedesStorageFallback() {
   const capturedUrls: string[] = []
   await withFetchAndEnv({
     VITE_KNOWGRPH_STORAGE_BASE_URL: 'https://storage.example.test',
@@ -311,13 +311,38 @@ export async function testWorkspaceSeedProviderStorageConfiguredMissDoesNotFetch
   }, (async input => {
     const url = String(typeof input === 'string' ? input : (input as URL).toString())
     capturedUrls.push(url)
-    if (!url.includes('/api/storage/export/')) return new Response('# local docs should not be fetched', { status: 200 })
+    if (url === '/__kg_fs_list') {
+      return new Response(JSON.stringify({
+        ok: true,
+        files: [{
+          relPath: 'knowgrph-research-agent-demo.md',
+          text: '# local docs mirror demo',
+          updatedAtMs: 1710000009000,
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    if (!url.includes('/api/storage/export/')) return new Response('', { status: 404 })
     return new Response(JSON.stringify({
       ok: true,
       apiVersion: '2026-05-04',
       workspaceId: 'kgws:test',
       exportedAtMs: 1710000005000,
-      documents: [],
+      documents: [{
+        id: 'doc:stale-storage',
+        workspaceId: 'kgws:test',
+        canonicalPath: 'stale-storage.md',
+        title: 'stale-storage.md',
+        docType: 'markdown',
+        lang: null,
+        graphId: null,
+        sourceKind: 'markdown',
+        contentMd: '# stale storage mirror',
+        contentHash: 'stale-storage',
+        parserVersion: 'source-files',
+        revision: 1,
+        updatedAtMs: 1710000005000,
+        deleted: false,
+      }],
       documentChunks: [],
       graphSnapshots: [],
     }), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -329,12 +354,14 @@ export async function testWorkspaceSeedProviderStorageConfiguredMissDoesNotFetch
       store.setLocalMarkdownSelectedFolderPath('/virtual/workspace/docs')
       store.setSourceFiles([])
       const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
-      if (mirrored.length !== 0) throw new Error(`expected storage miss not to hydrate locally, got ${JSON.stringify(mirrored)}`)
-      if (!capturedUrls.some(url => url.includes('/api/storage/export/'))) {
-        throw new Error(`expected storage export to be checked first, got ${JSON.stringify(capturedUrls)}`)
+      if (mirrored.length !== 1 || mirrored[0]?.relPath !== 'knowgrph-research-agent-demo.md') {
+        throw new Error(`expected configured docs root to seed the mirror before storage fallback, got ${JSON.stringify(mirrored)}`)
       }
-      if (capturedUrls.some(url => url.includes('/@fs') || url.includes('/__codebase_file'))) {
-        throw new Error(`expected storage-configured miss not to fetch local docs root, got ${JSON.stringify(capturedUrls)}`)
+      if (capturedUrls[0] !== '/__kg_fs_list') {
+        throw new Error(`expected docs root proxy read before storage export fallback, got ${JSON.stringify(capturedUrls)}`)
+      }
+      if (capturedUrls.some(url => url.includes('/api/storage/export/'))) {
+        throw new Error(`expected complete configured docs root to avoid storage fallback, got ${JSON.stringify(capturedUrls)}`)
       }
     })
   })

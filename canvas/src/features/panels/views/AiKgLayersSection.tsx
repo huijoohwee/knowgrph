@@ -4,6 +4,7 @@ import { UI_ANCHORS, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import AiKgLayersControls from '@/features/panels/views/AiKgLayersSectionControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 interface AiKgLayersSectionProps {
   schema: GraphSchema
   setSchema: (schema: GraphSchema) => void
@@ -26,7 +27,7 @@ export default function AiKgLayersSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',

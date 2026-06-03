@@ -14,6 +14,7 @@ import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSetti
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_DATA_VIEW_HEADER_ACTIONS_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import type { WorkspaceDataViewFloatingBinding, WorkspaceDataViewSettingsPanelKey } from './workspaceDataViewFloatingStore'
 
@@ -71,8 +72,9 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
     if (next && !hasAnyRole) {
       nextView.graphRolesByColumnId = buildSuggestedRoles(props.columns)
     }
+    props.onChangeLayoutMode?.(next ? 'multiDimTable' : 'table')
     props.setViewConfig(nextView)
-  }, [props.columns, props.setViewConfig, props.viewConfig])
+  }, [props.columns, props.onChangeLayoutMode, props.setViewConfig, props.viewConfig])
 
   const title = props.title || MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel
   const sectionSummaries = React.useMemo(() => ([
@@ -174,7 +176,7 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
           titleCollapse="Collapse (Default)"
         />
       )}
-      secondaryNodeClassName="flex max-w-[45%] shrink-0 items-center justify-end gap-1 text-right"
+      secondaryNodeClassName={`${UI_RESPONSIVE_DATA_VIEW_HEADER_ACTIONS_CLASSNAME} flex shrink-0 items-center justify-end gap-1 text-right`}
       uiPanelKeyValueTextSizeClass="text-xs"
       className="kg-data-view-settings-panel h-full rounded-none border-0"
       headerClassName={['px-3 py-3 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}
@@ -256,10 +258,9 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                     className="rounded"
                     checked={props.viewConfig.graphEnabled === true}
                     onChange={e => setGraphEnabled(e.target.checked)}
-                    disabled={!props.canMutate}
                   />
                   <span className={['min-w-0 text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
-                    Enable table-to-graph rendering
+                    {MARKDOWN_DATA_VIEW_COPY.graphRenderingToggleLabel}
                   </span>
                 </label>
               </fieldset>

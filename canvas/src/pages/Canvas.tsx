@@ -214,7 +214,7 @@ export default function CanvasPage() {
           </main>
         ) : (
           <>
-            {workspaceEditorOverlayOpen ? (
+            {workspaceCanvasPaneVisible ? (
               <header
                 ref={toolbarHeaderRef}
                 className={`absolute inset-0 pointer-events-none ${toolbarHeaderElevated ? 'z-[420]' : 'z-[400]'}`}
@@ -300,7 +300,7 @@ export default function CanvasPage() {
                     >
                       <section
                         className={`absolute inset-y-0 left-0 pointer-events-auto overflow-hidden bg-[var(--kg-panel-bg)] ${workspaceCanvasPaneVisible ? 'border-r border-[var(--kg-border)] shadow-2xl' : ''}`}
-                        style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : 'min(100%, var(--kg-workspace-pane-width, 32rem))' }}
+                        style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : '100%' }}
                         aria-label="Workspace left pane"
                         data-kg-workspace-left-pane="1"
                       >

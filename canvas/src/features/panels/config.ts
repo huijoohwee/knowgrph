@@ -27,6 +27,7 @@ import {
 
 import { CANVAS_SHORTCUT_COPY_LINES } from '@/lib/canvas/interaction-ssot'
 import { KANBAN_SHORTCUT_HELP_LINES } from '@/features/markdown/ui/kanban/kanbanShortcutCopy'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export const PANEL_MIN_PX = 120
 export const PANEL_MAX_RATIO = 1.0
@@ -69,7 +70,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     descriptionShort:
       'Curation \u2192 curate nodes, edges, and metadata tables \u2192 export lossless CSV/JSON so ingest stays source-agnostic.',
     descriptionLong:
-      'Use the in-app Graph Data Table or an external multidimensional spreadsheet UI backed by a relational store to curate Nodes, Edges, Metadata, and Media URLs. Entity resolution, provenance entry, and manual confidence tagging happen here before export. Exports remain high-fidelity CSV/JSON per table so ingest stays source-agnostic and lossless.',
+      `Use the in-app ${MARKDOWN_DATA_VIEW_COPY.titleDefault} or an external multidimensional spreadsheet UI backed by a relational store to curate Nodes, Edges, Metadata, and Media URLs. Entity resolution, provenance entry, and manual confidence tagging happen here before export. Exports remain high-fidelity CSV/JSON per table so ingest stays source-agnostic and lossless.`,
   },
   3: {
     id: 3,
@@ -146,7 +147,7 @@ export function getPanelSurfaceLabel(key: PanelSurfaceRoleKey): string {
   if (key === 'data') return 'Editor Workspace'
   if (key === 'render') return 'Floating Panel Renderer'
   if (key === 'history') return 'History'
-  return 'Graph Data Table'
+  return MARKDOWN_DATA_VIEW_COPY.titleDefault
 }
 
 export function getBottomSurfaceTabLabel(key: 'stats' | 'history'): string {
@@ -284,7 +285,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-based D3 visualizations work together.',
     descriptionLong:
-      'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-driven D3 visualizations work together. The cheatsheet pairs canvas gestures with panel and workspace behavior plus selection-aware mini‑charts (Graph Data Table aggregates, dataset inspector distributions, hierarchy, cluster layers, and path visualizations) so selections and creation flows stay predictable as you switch between modes.',
+      `Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-driven D3 visualizations work together. The cheatsheet pairs canvas gestures with panel and workspace behavior plus selection-aware mini-charts (${MARKDOWN_DATA_VIEW_COPY.titleDefault} aggregates, dataset inspector distributions, hierarchy, cluster layers, and path visualizations) so selections and creation flows stay predictable as you switch between modes.`,
   },
   panelTour: {
     id: 'panelTour',
@@ -303,7 +304,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     title: 'Icon Library',
     descriptionShort: `These icons appear in MainPanel Collaboration Type rows, settings-derived MainPanel tabs, FloatingPanel view buttons, and the ${UI_LABELS.graphFields} section header/table. Icons in this legend reuse the same UI Density: Icons settings so panel and data-view surfaces stay visually aligned.`,
     descriptionLong:
-      'The Icon Library documents how MainPanel type icons, FloatingPanel view icons, scope, origin, visibility, and field-type icons map to shared panel concepts so Collaboration, Integrations, MCP, Maps, Commerce, Settings, Graph Data Table, Schema Configurator, and AgenticRAG pipelines interpret the same visual language consistently. The legend follows the shared UI Density: Icons settings so toolbar, header, Graph Data Table, and tooltip icons remain visually aligned.',
+      `The Icon Library documents how MainPanel type icons, FloatingPanel view icons, scope, origin, visibility, and field-type icons map to shared panel concepts so Collaboration, Integrations, MCP, Maps, Commerce, Settings, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, Schema Configurator, and AgenticRAG pipelines interpret the same visual language consistently. The legend follows the shared UI Density: Icons settings so toolbar, header, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, and tooltip icons remain visually aligned.`,
   },
 }
 

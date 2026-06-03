@@ -29,8 +29,10 @@ import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type GraphTableToolbarProps = {
   columns: { columnId: string; name: string }[]
@@ -68,7 +70,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
   const iconButtonClass = `${UI_THEME_TOKENS.button.square} kg-toolbar-btn shrink-0`
   const iconSummaryClass = `list-none ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} kg-toolbar-btn ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center rounded cursor-pointer select-none`
   const microLabelClass = props.panelTypography?.microLabelClass || ''
-  const inputHeightClass = 'h-[var(--kg-control-height,28px)]'
+  const toolbarFieldClass = UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME
   const menuRowClass = `kg-graph-table-menu-row ${uiToolbarRowScrollClassName} gap-2`
   const menuFieldClass = 'kg-graph-table-menu-field min-w-0 max-w-full'
   const toggleColumn = (columnId: string) => {
@@ -112,7 +114,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
   const hasCustomWidths = Object.keys(props.columnWidthsPxById || {}).length > 0
 
   return (
-    <CollapsibleToolbar ariaLabel="Table toolbar" className={`kg-graph-table-toolbar kg-toolbar ${uiToolbarRowScrollJustifyEndClassName} gap-1.5 ${microLabelClass}`}>
+    <CollapsibleToolbar ariaLabel={MARKDOWN_DATA_VIEW_COPY.toolbarAriaLabel} className={`kg-graph-table-toolbar kg-toolbar ${uiToolbarRowScrollJustifyEndClassName} gap-1.5 ${microLabelClass}`}>
       <IconButton
         title={props.inspectorOpen ? 'Hide Inspector' : 'Show Inspector'}
         showTooltip={false}
@@ -181,7 +183,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                 <select
                   value={props.filterMatch}
                   onChange={e => props.setFilterMatch(e.target.value === 'any' ? 'any' : 'all')}
-                  className={`${inputHeightClass} min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                  className={`${toolbarFieldClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                 >
                   <option value="all">All</option>
                   <option value="any">Any</option>
@@ -194,7 +196,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     <select
                       value={clause.columnId}
                       onChange={e => updateFilterClause(clause.id, { columnId: e.target.value })}
-                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       {props.columns.map(c => (
                         <option key={c.columnId} value={c.columnId}>
@@ -208,7 +210,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     <select
                       value={clause.operator}
                       onChange={e => updateFilterClause(clause.id, { operator: e.target.value as GraphTableFilterOperator })}
-                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       <option value="contains">contains</option>
                       <option value="equals">equals</option>
@@ -221,7 +223,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     <input
                       value={clause.value}
                       onChange={e => updateFilterClause(clause.id, { value: e.target.value })}
-                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     />
                   </label>
                   <button
@@ -259,7 +261,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         <select
           value={props.groupBy}
           onChange={e => props.setGroupBy(e.target.value)}
-          className={`${inputHeightClass} min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+          className={`${toolbarFieldClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
         >
           <option value="">None</option>
           {props.columns.map(c => (
@@ -287,7 +289,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     <select
                       value={rule.columnId}
                       onChange={e => updateSortRule(rule.id, { columnId: e.target.value })}
-                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       {props.columns.map(c => (
                         <option key={c.columnId} value={c.columnId}>
@@ -301,7 +303,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     <select
                       value={rule.direction}
                       onChange={e => updateSortRule(rule.id, { direction: e.target.value as GraphTableSortDirection })}
-                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       <option value="asc">asc</option>
                       <option value="desc">desc</option>
@@ -342,7 +344,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         <select
           value={props.rowHeightPreset}
           onChange={e => props.setRowHeightPreset(e.target.value === 'compact' ? 'compact' : 'comfortable')}
-          className={`${inputHeightClass} min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+          className={`${toolbarFieldClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
         >
           <option value="comfortable">Comfortable</option>
           <option value="compact">Compact</option>

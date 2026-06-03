@@ -1,6 +1,7 @@
 import React from 'react'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_SETTINGS_VALUE_WRAPPER_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type BuildSettingsEntryInputNodeArgs = {
   hasOptions: boolean
@@ -19,7 +20,7 @@ export function buildSettingsEntryInputNode({
   settingType: _settingType,
   valueTooltip,
 }: BuildSettingsEntryInputNodeArgs) {
-  const valueWrapperClass = 'inline-flex w-full min-w-0 max-w-full items-center justify-start sm:justify-end min-h-[24px] overflow-hidden'
+  const valueWrapperClass = UI_RESPONSIVE_SETTINGS_VALUE_WRAPPER_CLASSNAME
 
   return hasOptions && valueTooltip.trim().length > 0
     ? (

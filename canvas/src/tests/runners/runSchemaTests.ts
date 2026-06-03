@@ -4,6 +4,7 @@ const modSchema = () => import('@/__tests__/schema.test')
 const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
+const modXrAssetConversion = () => import('@/__tests__/xrAssetConversionHarness.test')
 const modPmfVoxelImport = () => import('@/__tests__/pmfVoxelImport.test')
 const modPmfVoxelVisibility = () => import('@/__tests__/pmfVoxelVisibility.test')
 const modVoxelCameraPose = () => import('@/__tests__/voxelCameraPose.test')
@@ -77,9 +78,69 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate()
   })
+  await execTest(results, 'canvas.xrMode.flatModelFacingStability', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModePreservesFlatModelFacingInsteadOfAutoRotatingAway()
+  })
+  await execTest(results, 'canvas.xrMode.modelAssetDocumentScopedRenderIdentity', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModeModelAssetSwitchUsesDocumentScopedRenderIdentity()
+  })
+  await execTest(results, 'canvas.xrMode.modelAssetCameraXyzReset', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModeModelAssetSwitchResetsCameraXyzCoordinates()
+  })
   await execTest(results, 'canvas.xrMode.gltfIngestParseRenderPipeline', async () => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeGltfIngestParseRenderPipelineUsesNeutralPayload()
+  })
+  await execTest(results, 'canvas.xrAsset.pngToSvgHarness.vtracerZeroToken', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrPngToSvgHarnessUsesVTracerAndZeroTokenCost()
+  })
+  await execTest(results, 'canvas.xrAsset.pngToSvgHarness.inputFallbacks', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrPngToSvgHarnessFallsBackBeforeToolExecution()
+  })
+  await execTest(results, 'canvas.xrAsset.pngToSvgHarness.pathBudget', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrPngToSvgHarnessFallsBackForPathBudget()
+  })
+  await execTest(results, 'canvas.xrAsset.pngTextureFidelity.glbAndGltf', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrPngToGlbAndGltfEmbedSourceTextureFidelity()
+  })
+  await execTest(results, 'canvas.xrAsset.generatedImageModel.centeredXyzCoordinates', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrGeneratedImageModelUsesCenteredXyzCoordinates()
+  })
+  await execTest(results, 'canvas.xrAsset.svgToGlbCompiler.unsafeSvgGuard', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrSvgToGlbCompilerRejectsUnsafeSvg()
+  })
+  await execTest(results, 'canvas.xrAsset.svgToGlbCompiler.manifestInspect', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrSvgToGlbCompilerProducesValidXrManifest()
+  })
+  await execTest(results, 'workspace.import.xrImage.localSvgToGlbAndGltf', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrImageLocalSvgImportCreatesSourceFilesAndModelArtifacts()
+  })
+  await execTest(results, 'workspace.import.xrImage.urlPngToGlbAndGltf', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrImageUrlPngImportCreatesSourceFilesAndModelArtifacts()
+  })
+  await execTest(results, 'workspace.import.xrImage.absoluteUrlPngFilename', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrImageUrlAbsolutePngImportPreservesLocalFilename()
+  })
+  await execTest(results, 'workspace.import.xrImage.absoluteUrlPngUnicodeFilename', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrImageUrlAbsolutePngImportPreservesUnicodeFilename()
+  })
+  await execTest(results, 'workspace.import.xrImage.githubBlobPngFilename', async () => {
+    const mod = await modXrAssetConversion()
+    await mod.testXrImageUrlGithubBlobPngImportNormalizesAndPreservesFilename()
   })
   await execTest(results, 'canvas.viewSelection.voxelGeospatialGuard', async () => {
     const mod = await modCanvas3dMode()

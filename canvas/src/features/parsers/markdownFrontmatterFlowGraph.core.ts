@@ -1271,7 +1271,10 @@ export function tryParseMarkdownFrontmatterFlowGraph(
       subgraphs: [],
     })
     const socketTypes = readSocketTypes(metaRecord)
-    const warnings = [...readFlowWarnings(metaRecord), ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared })]
+    const warnings = [
+      ...readFlowWarnings(metaRecord),
+      ...buildConnectionWarnings({ meta: { ...metaRecord, nodes: normalized.nodes }, socketTypes, declared: connParsed.declared }),
+    ]
     const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
     const metadata = buildFrontmatterFlowMetadata({
       sourceLayerHash,
@@ -1474,11 +1477,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const warnings = [
     ...frontmatterParseWarnings,
     ...readFlowWarnings(metaRecord),
-    ...buildConnectionWarnings({
-      meta: metaRecord,
-      socketTypes,
-      declared: connParsed.declared,
-    }),
+    ...buildConnectionWarnings({ meta: { ...metaRecord, nodes: normalized.nodes }, socketTypes, declared: connParsed.declared }),
     ...collectNodePositionWarnings(rawNodes),
   ]
   const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null

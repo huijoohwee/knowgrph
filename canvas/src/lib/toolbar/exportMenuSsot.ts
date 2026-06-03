@@ -9,6 +9,7 @@ export type ExportMenuActionKey =
   | 'htmlViewer'
   | 'htmlCanvas'
   | 'json'
+  | 'csv'
   | 'svg'
   | 'pdfPortrait'
   | 'pdfLandscape'
@@ -30,6 +31,7 @@ export const WORKSPACE_EXPORT_MENU_ITEMS: readonly ExportMenuItem[] = [
   { id: 'htmlViewer', menuLabel: 'HTML (.html) — Viewer', toastLabel: 'HTML Viewer' },
   { id: 'htmlCanvas', menuLabel: 'HTML (.html) — Canvas', toastLabel: 'HTML Canvas' },
   { id: 'json', menuLabel: 'JSON (.json)', toastLabel: 'JSON' },
+  { id: 'csv', menuLabel: 'CSV (.csv)', toastLabel: 'CSV' },
   { id: 'svg', menuLabel: 'SVG (.svg)', toastLabel: 'SVG' },
   { id: 'pdfPortrait', menuLabel: 'PDF — Portrait 9:16 (Print…)', toastLabel: 'PDF Portrait' },
   { id: 'pdfLandscape', menuLabel: 'PDF — Landscape 16:9 (Print…)', toastLabel: 'PDF Landscape' },

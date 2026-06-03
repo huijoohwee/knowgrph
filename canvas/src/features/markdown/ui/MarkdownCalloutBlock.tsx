@@ -10,6 +10,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
+import { UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
 import {
   getMarkdownQuoteLikeEditorClass,
@@ -221,7 +222,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
 
     const calloutNode = callout.foldable ? (
       <details className={`${innerClassName} relative`} open={!callout.collapsed || undefined}>
-        <span aria-hidden className={`pointer-events-none absolute left-[44px] top-0 bottom-0 w-1 z-20 ${accentClass}`} />
+        <span aria-hidden className={`pointer-events-none absolute ${UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME} top-0 bottom-0 w-1 z-20 ${accentClass}`} />
         <summary className={[UI_THEME_TOKENS.text.primary, 'font-semibold cursor-pointer select-none'].join(' ')}>
           {callout.title}
         </summary>
@@ -229,7 +230,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
       </details>
     ) : (
       <aside className={`${innerClassName} relative`} aria-label={callout.title}>
-        <span aria-hidden className={`pointer-events-none absolute left-[44px] top-0 bottom-0 w-1 z-20 ${accentClass}`} />
+        <span aria-hidden className={`pointer-events-none absolute ${UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME} top-0 bottom-0 w-1 z-20 ${accentClass}`} />
         <header className={[UI_THEME_TOKENS.text.primary, 'font-semibold'].join(' ')}>{callout.title}</header>
         {calloutBodyNode}
       </aside>

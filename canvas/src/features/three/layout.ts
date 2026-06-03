@@ -357,8 +357,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
           let ny = ov[1]
           const nz = ov[2]
           if (gridEnabled) {
-            nx = snapScalarToGrid(nx, grid.size)
-            ny = snapScalarToGrid(ny, grid.size)
+            nx = snapScalarToGrid(nx, grid, 'x')
+            ny = snapScalarToGrid(ny, grid, 'y')
           }
           if (constraint === 'axis-x') {
             ny = py[i]

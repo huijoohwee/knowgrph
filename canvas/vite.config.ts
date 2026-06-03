@@ -5021,10 +5021,11 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
     const ext = String(path.extname(absPath) || '').toLowerCase()
     const base = path.basename(absPath)
     const isKgcOutputCompanion = /^kgc-output_\d{14}(?:-[a-z0-9-]+)?\.(md|html|svg|png|pdf|jpg|jpeg|webp|gif|mp4|webm|mov|glb)$/i.test(base)
-    if (!(ext === '.md' || isKgcOutputCompanion)) {
+    const isImageModelArtifact = /(?:^|[\\/])image(?:[\\/]|$)/i.test(absPath) && (ext === '.glb' || ext === '.gltf')
+    if (!(ext === '.md' || isKgcOutputCompanion || isImageModelArtifact)) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({ ok: false, error: 'Only .md and supported kgc-output companion files are allowed' }))
+      res.end(JSON.stringify({ ok: false, error: 'Only .md, image .glb/.gltf, and supported kgc-output companion files are allowed' }))
       return
     }
     if (!isAllowed(absPath)) {

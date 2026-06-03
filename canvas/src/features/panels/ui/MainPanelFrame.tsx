@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import MainPanelContainer from './MainPanelContainer'
 import TabHeader, { type TabIconComponent } from './TabHeader'
 
@@ -44,7 +45,7 @@ export default function MainPanelFrame({
   tabIconByKey,
 }: MainPanelFrameProps) {
   const uiHeaderRowHeightClass = useGraphStore(
-    s => s.uiHeaderRowHeightClass || 'min-h-[36px]',
+    s => s.uiHeaderRowHeightClass || UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   )
   const uiHeaderRowPaddingClass = useGraphStore(
     s => s.uiHeaderRowPaddingClass || 'py-1',

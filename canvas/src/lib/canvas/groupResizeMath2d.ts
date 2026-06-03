@@ -1,5 +1,5 @@
 import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
-import { clampSnapGridSize } from '@/lib/canvas/snapGridSize'
+import type { SnapGridConfig } from '@/lib/canvas/gridSnap'
 
 export type GroupResizeBounds = { x: number; y: number; w: number; h: number }
 
@@ -26,7 +26,7 @@ export function computeGroupResizeBottomRight(args: {
   world: { x: number; y: number }
   minW: number
   minH: number
-  snapGrid?: { enabled: boolean; size: number } | null
+  snapGrid?: SnapGridConfig | { enabled: boolean; size: number } | null
   altDown?: boolean
 }): GroupResizeBounds {
   const dx = args.world.x - args.startWorld.x
@@ -39,9 +39,8 @@ export function computeGroupResizeBottomRight(args: {
 
   const snapEnabled = args.snapGrid?.enabled === true && args.altDown !== true
   if (snapEnabled) {
-    const snapSize = clampSnapGridSize(args.snapGrid?.size)
-    w = Math.max(minW, snapScalarToGrid(w, snapSize))
-    h = Math.max(minH, snapScalarToGrid(h, snapSize))
+    w = Math.max(minW, snapScalarToGrid(w, args.snapGrid, 'x'))
+    h = Math.max(minH, snapScalarToGrid(h, args.snapGrid, 'y'))
   }
 
   return { x: start.x, y: start.y, w, h }

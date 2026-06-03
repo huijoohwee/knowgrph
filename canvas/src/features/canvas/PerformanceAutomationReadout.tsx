@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { CanvasPerformanceReadoutOverlay } from '@/features/canvas/CanvasPerformanceReadoutOverlay'
 import { setPipelinePerfEnabled } from '@/lib/pipelinePerf'
 import type { PipelinePerfDetail } from '@/lib/pipelinePerf'
 
@@ -88,16 +88,7 @@ export function PerformanceAutomationReadout() {
   if (!automationPerfEnabled || typeof document === 'undefined' || !document.body) return null
 
   return createPortal(
-    <section
-      id="kg-performance-automation-readout"
-      aria-label="Performance automation readout"
-      aria-live="polite"
-      data-kg-automation-readable="performance"
-      className={`pointer-events-none fixed bottom-2 left-2 z-[9999] max-w-[320px] rounded-md border px-2 py-1.5 text-[10px] shadow-sm ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary}`}
-    >
-      <div className="font-semibold">Performance Readout</div>
-      <pre className="mt-1 whitespace-pre-wrap break-words font-mono">{automationPerfLines.join('\n')}</pre>
-    </section>,
+    <CanvasPerformanceReadoutOverlay lines={automationPerfLines} />,
     document.body,
   )
 }

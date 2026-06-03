@@ -169,13 +169,19 @@ export function computeWorkspaceOverlayVisibleViewportFitTransform(args: {
   const minK = Math.min(scaleExtent[0], 0.000001)
   const maxK = Math.max(minK, Math.min(scaleExtent[1], maxVisualScale))
   const safeBaseK = Number.isFinite(current.k) && current.k > 0 ? current.k : 1
-  const targetK = Math.max(minK, Math.min(maxK, safeBaseK))
+  const fitScaleBy = Math.min(
+    Math.max(0.000001, Number(visibleViewport.width) || 1) / Math.max(1, overlayBounds.width),
+    Math.max(0.000001, Number(visibleViewport.height) || 1) / Math.max(1, overlayBounds.height),
+  )
+  const safeFitScaleBy = Number.isFinite(fitScaleBy) && fitScaleBy > 0 ? Math.min(1, fitScaleBy) : 1
+  const targetK = Math.max(minK, Math.min(maxK, safeBaseK * safeFitScaleBy))
+  const appliedScale = targetK / safeBaseK
   const centerX = (overlayBounds.minX + overlayBounds.maxX) / 2
   const centerY = (overlayBounds.minY + overlayBounds.maxY) / 2
   if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return null
   return {
-    x: current.x + (visibleViewport.centerX - centerX),
-    y: current.y + (visibleViewport.centerY - centerY),
+    x: visibleViewport.centerX - (centerX - current.x) * appliedScale,
+    y: visibleViewport.centerY - (centerY - current.y) * appliedScale,
     k: targetK,
   }
 }

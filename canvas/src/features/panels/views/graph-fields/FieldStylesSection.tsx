@@ -4,6 +4,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
+import {
+  UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type FieldStylesSectionProps = {
   schema: GraphSchema
@@ -38,7 +43,7 @@ export default function FieldStylesSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
@@ -59,10 +64,10 @@ export default function FieldStylesSection({
   const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
   const keyLabelClassName = `${UI_THEME_TOKENS.text.secondary} break-words`
   const ownerValueClassName = `${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.secondary} break-all`
-  const colorPickerClassName = `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:opacity-50`
-  const colorInputClassName = `min-w-0 flex-1 h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing} ${uiPanelMonospaceTextClass} disabled:opacity-50`
+  const colorPickerClassName = `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:opacity-50`
+  const colorInputClassName = `${uiPanelKeyValueInputClass} min-w-0 flex-1 ${uiPanelMonospaceTextClass} disabled:opacity-50`
   const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
-  const selectionControlClassName = `h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const selectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
     <div className={panelClassName}>

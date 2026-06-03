@@ -189,8 +189,8 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
       let snappedDy = dy
       const grid = readSnapGridConfigFromSchema(schema)
       if (grid.enabled && !event.altKey) {
-        const snappedX = snapScalarToGrid(drag.startPos.x + dx, grid.size)
-        const snappedY = snapScalarToGrid(drag.startPos.y + dy, grid.size)
+        const snappedX = snapScalarToGrid(drag.startPos.x + dx, grid, 'x')
+        const snappedY = snapScalarToGrid(drag.startPos.y + dy, grid, 'y')
         snappedDx = snappedX - drag.startPos.x
         snappedDy = snappedY - drag.startPos.y
       }

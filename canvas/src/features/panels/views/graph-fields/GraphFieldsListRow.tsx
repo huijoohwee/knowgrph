@@ -19,6 +19,12 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import {
+  UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_LIST_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_TYPE_SELECT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type GraphFieldsListRowProps = {
   columnKey: GraphDataTableColumnKey
@@ -189,7 +195,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
         const tooltipText = UI_COPY.graphFieldsColorSwatchTooltip(scope)
         return (
           <Tooltip content={tooltipText} maxWidthPx={260}>
-            <label className="inline-flex items-center justify-center relative group h-6 w-6" aria-label={colorLabel}>
+            <label className={`inline-flex items-center justify-center relative group ${UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME}`} aria-label={colorLabel}>
               <FieldColorIcon
                 color={scopeColor}
                 className="inline-flex items-center justify-center"
@@ -226,11 +232,10 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
   return (
       <div
         className={[
-          `border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1.5`,
+          `${UI_RESPONSIVE_GRAPH_FIELDS_LIST_ROW_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`,
           'flex items-center gap-2 border-l-2',
           active ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight,
           isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
-          'min-w-0 overflow-hidden',
         ]
           .filter(Boolean)
           .join(' ')}
@@ -283,13 +288,13 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
                     <input
                       value={settings.displayName}
                       onChange={e => updateGraphFieldSettings(field.id, { displayName: e.target.value })}
-                      className={`h-7 w-full min-w-0 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.text.primary}`}
+                      className={`${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.text.primary}`}
                       onClick={e => e.stopPropagation()}
                     />
                     <select
                       value={settings.fieldType}
                       onChange={e => updateGraphFieldSettings(field.id, { fieldType: e.target.value as GraphFieldType })}
-                      className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-7 w-44 shrink-0 text-left'].join(' ')}
+                      className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, UI_RESPONSIVE_GRAPH_FIELDS_TYPE_SELECT_CLASSNAME, 'text-left'].join(' ')}
                       onClick={e => e.stopPropagation()}
                     >
                       {GRAPH_FIELD_TYPES.map(t => (
@@ -320,10 +325,10 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
           ) : null}
           {originIconNode}
           {!active || !field || !settings ? typeBadgeNode : null}
-          <span className="inline-flex items-center justify-center h-6 w-6">{colorSwatchNode}</span>
+          <span className={`inline-flex items-center justify-center ${UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME}`}>{colorSwatchNode}</span>
           <button
             type="button"
-            className="inline-flex items-center justify-center h-6 w-6 disabled:opacity-40"
+            className={`inline-flex items-center justify-center ${UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME} disabled:opacity-40`}
             disabled={visible && isOnlyVisibleColumn}
             onClick={() => {
               const nextVisible = !visible

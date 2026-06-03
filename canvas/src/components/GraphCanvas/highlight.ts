@@ -12,6 +12,7 @@ import {
   type SelectionIdParams,
 } from '@/lib/selection/anchorIds'
 import { buildSelectedEdgeEndpointNodeIdSet } from '@/lib/graph/edgeEndpoints'
+import { resolveSemanticHighlightColorValue } from '@/lib/ui/semanticHighlight'
 
 export type SelectionHighlightParams = {
   data: GraphData
@@ -98,9 +99,14 @@ export const computeNodeVisual = (
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
   const palette = getRendererPalette(schema)
-  const highlightFill = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
+  const paletteHighlight = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
     ? palette.nodes.idea
     : MVP_COLOR_PALETTE.nodes.idea
+  const highlightFill = resolveSemanticHighlightColorValue({
+    background: paletteHighlight,
+    color: paletteHighlight,
+    defaultHighlight: true,
+  })
   const dimmedFill = typeof palette.edges.neutral === 'string' && palette.edges.neutral.trim()
     ? palette.edges.neutral
     : MVP_COLOR_PALETTE.edges.neutral
@@ -214,9 +220,14 @@ export const computeEdgeVisual = (
   const { selectedEdgeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
   const palette = getRendererPalette(schema)
-  const highlightStroke = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
+  const paletteHighlight = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
     ? palette.nodes.idea
     : MVP_COLOR_PALETTE.nodes.idea
+  const highlightStroke = resolveSemanticHighlightColorValue({
+    background: paletteHighlight,
+    color: paletteHighlight,
+    defaultHighlight: true,
+  })
   if (selectedEdgeIdSet.size > 0) {
     const isSelected = selectedEdgeIdSet.has(edge.id)
     const stroke = isSelected ? highlightStroke : getEdgeBaseStroke(edge, schema)

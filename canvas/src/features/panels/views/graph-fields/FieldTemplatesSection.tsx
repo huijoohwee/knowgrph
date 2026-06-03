@@ -6,6 +6,7 @@ import { parseJsonOrError } from '@/features/schema-editor/advancedSerialization
 import { UI_COPY } from '@/lib/config.copy'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_GRAPH_FIELDS_TEMPLATE_EDITOR_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type FieldTemplatesSectionProps = {
   schema: GraphSchema
@@ -32,7 +33,7 @@ export default function FieldTemplatesSection({
   const headingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
   const helperTextClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
   const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
-  const editorShellClassName = `w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden ${UI_THEME_TOKENS.panel.bg} h-[168px]`
+  const editorShellClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_TEMPLATE_EDITOR_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.panel.bg}`
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
   const template = scope === 'node'

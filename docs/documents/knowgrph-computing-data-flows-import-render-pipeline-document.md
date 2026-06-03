@@ -90,10 +90,14 @@ Key implementation:
   - registry `schemaMappings[]` can reduce/transform connected input groups into derived node properties
   - node `properties['flow:compute']` may emit output values when `frontmatterFlowSettings.computed=true`
 - `computeFlowConnectedValuesBySchemaPath()` is the shared runtime owner for propagation. Flow Editor panels receive connected values from that helper and must not recompute graph data locally.
+- Frontmatter `{key,type,value}` wrappers and widget registry fields resolve through the same normalized schema-path helper. When a declared field row and a functional port share the same normalized schema path, Flow Editor renders one inline-editable KTV row with the port handle on that row and suppresses the duplicate read-only port row.
+- The semantic port key is the authored `key` / `portKey`; `handles.source` and `handles.target` are declaration sites only. Runtime edges, connected-value lookup, accessible port names, and row ids must not remap those semantic keys to `handles.source`, `handles.target`, or UI-only aliases.
 - Multi-handle rows must preserve one structural edge key per semantic port while deriving DOM/control identity from row role + schema path + occurrence. Repeated visible labels or repeated displayed port values must not collapse focus, labels, or click targets.
 - Branching is value-driven: `null` / `undefined` output values are stop signals and must not be forwarded into downstream connected values.
 - Long directed acyclic graphs should evaluate in topological order. Cyclic or partially cyclic graphs may iterate to a stable value key, bounded by graph size, without fixed demo-specific caps.
 - Cache keys must use shared graph semantic keys/signatures and registry shape, not filenames, source URLs, or example ids.
+- Rich Media Panel nodes are ordinary flow endpoints. Text output binds to `output`, image output binds to `imageUrl`, and chart/HTML output binds to `outputSrcDoc`; when `output` and `outputSrcDoc` coexist, shared Rich Media Panel preview state treats `outputSrcDoc` as the render authority and helper text as metadata.
+- Flow Editor templates must prefer plain YAML for normal authoring. The normalized `{key,type,value}` envelope is valid only for validation fixtures that intentionally prove parser fidelity, inline KTV editing, and semantic port preservation.
 
 ### Node Quick Editors
 
@@ -105,11 +109,14 @@ Key implementation:
 - Pinned overlays must remain node-anchored while header drag applies a shared anchor offset across all pinned overlays.
 - Frontmatter envelope field rows that represent authored `{key,type,value}` payloads must stay editable through the same widget-field mutation helper used by registry fields. The Flow Editor must not treat generic `Value` rows as read-only simply because their display label repeats across nodes.
 - Port handle buttons and read-only port-value rows must expose unique accessible names when multiple rows share the same visible port key; the uniqueness suffix belongs to the UI identity only and must not rewrite edge `flow:sourcePortKey` / `flow:targetPortKey` values.
+- For published validation fixtures such as `knowgrph-video-demo.md` and `knowgrph-token-economics-model-demo.md`, a driver like `agent_token_take_rate` must render as exactly one editable KTV row with the output handle attached to that row when the field and port resolve to the same schema path.
 
 Flow Editor + overlay wiring:
 
 - [FlowEditorCanvas.tsx](../../canvas/src/components/FlowEditorCanvas.tsx)
 - [NodeOverlayEditor.tsx](../../canvas/src/components/FlowEditor/NodeOverlayEditor.tsx)
+- [NodeOverlayEditorForm.tsx](../../canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx)
+- [NodeOverlayEditorRegistrySection.tsx](../../canvas/src/components/FlowEditor/NodeOverlayEditorRegistrySection.tsx)
 
 ---
 
@@ -121,3 +128,53 @@ Flow Editor + overlay wiring:
   - registry entries (bundle or GraphData metadata)
   - schema-config toggles
 - Validation inputs may be supplied from outside the repo to prove the same pipeline on published/mirrored documents, but tests must not hardcode those paths or backfill empty external files.
+- Current focused evidence should include the widget duplicate-value/port-row regression, token-economics Flow Editor fixture checks, schema-field port checks, `flowDataflowConnectedValues` computing-flow coverage, and `flowComputeInline` coverage.
+
+---
+
+## Validation Matrix (Flow Editor Computing Flow)
+
+| Layer | Required proof | Failure to block |
+|---|---|---|
+| Ingestion | Source Files/docs mirror exposes the Markdown as `workspace:/docs/<file>.md` without forcing it enabled before selection. | Hidden backfill, stale fallback, or file-name special-casing. |
+| Parsing | Markdown parser returns `context=frontmatter-flow`, expected node/edge counts, and zero warnings. | Missing `flow:portTypes`, synthetic handles, malformed YAML, or divergent body/frontmatter connections. |
+| Port contract | Authored `key` / `portKey`, `sourceHandle`, `targetHandle`, `flow:sourcePortKey`, and `flow:targetPortKey` survive without alias remaps. | Rewriting semantic ports to `handles.source`, `handles.target`, row labels, or demo ids. |
+| Computing | `computeFlowConnectedValuesBySchemaPath()` propagates values and respects null stop signals through the shared graph/registry readers. | Renderer-local recomputation, unbounded iteration, or GraphData mutation during compute. |
+| KTV editing | Matching field + port schema paths render as one editable row with row-attached handle. | Duplicate read-only rows, unwritable `Value`, or focus collisions from repeated labels. |
+| Rendering | Flow Editor mounts `data-kg-flow-editor-surface-root`; Rich Media Panel previews resolve through shared panel/media state. | Panel-local preview branches, stale `srcDoc`, missing SVG/image output, or edge drift after scroll/zoom. |
+| Browser | Local docs-mirror smoke selects the publish doc and samples stable DOM contracts. | Settled-only proof that ignores mid-load blank/seepage states. |
+
+Focused test families:
+
+- `markdown.frontmatterFlowGraph.*` for frontmatter/body flow parsing, typed handles, implicit semantic ports, and warning behavior.
+- `baseline.flowEditor.frontmatterFlow.*` for renderer isolation, widget overlay identity, edge anchoring, and contract rows.
+- `flow.compute.inline.*` for safe inline compute readers and neutral compute context.
+- `flow.dataflow.connectedValues.*` for bounded propagation, transforms, null-stop branching, long DAGs, and runtime validation hardcode guards.
+- Publish-demo E2E tests should resolve the file from `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs` through the docs mirror path, but they must not backfill or rewrite that external file when it is absent.
+
+---
+
+## Canonical Template Contract
+
+Normal runnable templates must keep these keys at the top of YAML frontmatter:
+
+```yaml
+schema: "kgc-computing-flow/v1"
+kgCanvasSurfaceMode: "2d"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "flowEditor"
+kgDocumentSemanticMode: "document"
+kgFrontmatterModeEnabled: true
+kgMultiDimTableModeEnabled: false
+kgDocumentStructureBaselineLock: false
+```
+
+Template `flow:` blocks should include:
+
+- `direction`, `edgeType`, and `computed` under `flow`, consumed as frontmatter-flow settings.
+- `socket_types` for every custom semantic edge type used by the template.
+- Node `handles` declaring target/source membership and matching `"flow:portTypes"` entries for typed connection validation.
+- Edges with explicit `sourceHandle` and `targetHandle` when a concrete field endpoint exists.
+- Rich Media Panel endpoint nodes for rendered outputs instead of sidecar preview instructions.
+
+The publish-side reusable template is `huijoohwee/docs/knowgrph-flow-editor-computing-flow-template.md`; it is intentionally generic and should remain project-agnostic.

@@ -173,6 +173,86 @@ export async function testMarkdownWorkspaceToolbarViewerToggleKeepsEditablePane(
   }
 }
 
+export async function testMarkdownWorkspaceToolbarRemovesMultiDimTableToggleAndViewerKeepsEditablePane() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    function Harness() {
+      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation' | 'slides-gallery'>('editor')
+      const [visibility, setVisibility] = React.useState<MarkdownWorkspacePaneVisibility>({
+        json: false,
+        markdown: false,
+        viewer: false,
+        html: false,
+      })
+
+      return (
+        <>
+          <MarkdownWorkspaceToolbar
+            explorerOpen={true}
+            setExplorerOpen={() => {}}
+            canvasOpen={false}
+            setCanvasOpen={() => {}}
+            layoutMode={layoutMode}
+            setLayoutMode={setLayoutMode}
+            markdownWordWrap={true}
+            setMarkdownWordWrap={() => {}}
+            markdownTextHighlight={false}
+            setMarkdownTextHighlight={() => {}}
+            splitPaneVisibility={visibility}
+            setSplitPaneVisibility={setVisibility}
+            onToggleFullscreen={() => {}}
+            presentationApiRef={{ current: null }}
+            contentFormat="markdown"
+          />
+          <output data-testid="layout-mode">{layoutMode}</output>
+        </>
+      )
+    }
+
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(<Harness />)
+      await tick()
+    })
+
+    const tableInput = dom.window.document.querySelector('input[aria-label="Show Multi-dimensional Table"]')
+    const markdownInput = checkboxFor(dom.window.document, 'Markdown')
+    const viewerInput = checkboxFor(dom.window.document, 'Viewer')
+    if (tableInput) {
+      throw new Error('expected the legacy Multi-dimensional Table pane toggle to be removed')
+    }
+    if (viewerInput.checked || markdownInput.checked) {
+      throw new Error('expected Viewer and Markdown panes to start closed in the pane toggle regression')
+    }
+
+    await act(async () => {
+      viewerInput.click()
+      await tick()
+    })
+
+    if (!checkboxFor(dom.window.document, 'Viewer').checked) {
+      throw new Error('expected Viewer checkbox to turn on from the pane toggle')
+    }
+    if (!checkboxFor(dom.window.document, 'Markdown').checked) {
+      throw new Error('expected Viewer toggle to keep an editable Markdown pane visible')
+    }
+    const layoutModeOutput = dom.window.document.querySelector('[data-testid="layout-mode"]')
+    if (String(layoutModeOutput?.textContent || '') !== 'split') {
+      throw new Error('expected Viewer pane toggle to enter split layout')
+    }
+
+    await act(async () => {
+      root.unmount()
+      await tick()
+    })
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerToggleAcrossOverlayReopen() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
@@ -546,4 +626,26 @@ export function testMarkdownWorkspaceInitialPaneVisibilityFollowsImportView() {
   if (!gltf.json || gltf.markdown || gltf.viewer || gltf.html) throw new Error('expected GLTF imports to prefer the JSON pane')
   const glb = resolveMarkdownWorkspaceInitialPaneVisibility({ modelAssetFormat: 'glb', webpageView: 'html' })
   if (glb.json || glb.markdown || glb.viewer || glb.html) throw new Error('expected GLB imports to keep text panes closed')
+}
+
+export function testMarkdownWorkspaceInitialPaneVisibilityFollowsCsvJsonMarkdownDocumentFormats() {
+  const cases = [
+    { path: 'people.csv', expected: { json: false, markdown: false, viewer: true, html: false } },
+    { path: 'scores.tsv', expected: { json: false, markdown: false, viewer: true, html: false } },
+    { path: 'rows.json', expected: { json: true, markdown: false, viewer: false, html: false } },
+    { path: 'graph.geojson', expected: { json: true, markdown: false, viewer: false, html: false } },
+    { path: 'notes.md', expected: { json: false, markdown: true, viewer: false, html: false } },
+    { path: 'readme.markdown', expected: { json: false, markdown: true, viewer: false, html: false } },
+  ]
+  for (const item of cases) {
+    const actual = resolveMarkdownWorkspaceInitialPaneVisibility({ activeDocumentKey: item.path })
+    if (
+      actual.json !== item.expected.json ||
+      actual.markdown !== item.expected.markdown ||
+      actual.viewer !== item.expected.viewer ||
+      actual.html !== item.expected.html
+    ) {
+      throw new Error(`expected ${item.path} import/export pane route to match its document format`)
+    }
+  }
 }

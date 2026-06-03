@@ -7,16 +7,25 @@ import {
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import {
+  UI_RESPONSIVE_MARKDOWN_SAFE_HTML_EMBED_FRAME_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_SAFE_HTML_PRESENTATION_EMBED_FRAME_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_SAFE_HTML_TABLE_SHELL_CLASSNAME,
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
 import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename, type MarkdownMediaDownloadKind } from './mediaDownload'
 
 const mediaFrameClassName = `rounded border ${UI_THEME_TOKENS.panel.border}`
-const tableShellClassName = `mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.panel.border} shadow-sm`
+const tableShellClassName = `${UI_RESPONSIVE_MARKDOWN_SAFE_HTML_TABLE_SHELL_CLASSNAME} mt-4 mb-4 overflow-auto rounded-lg border ${UI_THEME_TOKENS.panel.border} shadow-sm`
 const tableHeaderClassName = `${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.text.primary}`
 const tableCellBorderClassName = `border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
 const preBlockClassName = `mt-3 mb-3 overflow-x-auto p-3 rounded border ${UI_THEME_TOKENS.panel.border}`
 const getMediaFrameClassName = (cardPreviewMode?: boolean) =>
   cardPreviewMode === true ? CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME : mediaFrameClassName
+const getSrcDocIframeFrameClassName = (presentationMode: boolean): string =>
+  presentationMode ? UI_RESPONSIVE_MARKDOWN_SAFE_HTML_PRESENTATION_EMBED_FRAME_CLASSNAME : UI_RESPONSIVE_MARKDOWN_SAFE_HTML_EMBED_FRAME_CLASSNAME
 
 type RenderOpts = {
   activeDocumentPath: string
@@ -117,8 +126,8 @@ const renderDownloadControl = (src: string, kind: MarkdownMediaDownloadKind, key
       aria-label="Download media"
       className={[
         cardPreviewMode === true
-          ? 'absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded'
-          : 'absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded border shadow-sm',
+          ? `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_DEFAULT_CLASSNAME} absolute right-2 top-2 z-10 rounded`
+          : `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_DEFAULT_CLASSNAME} absolute right-2 top-2 z-10 rounded border shadow-sm`,
         cardPreviewMode === true ? '' : UI_THEME_TOKENS.panel.border,
         UI_THEME_TOKENS.panel.bg,
         UI_THEME_TOKENS.text.primary,
@@ -128,7 +137,7 @@ const renderDownloadControl = (src: string, kind: MarkdownMediaDownloadKind, key
         try { event.stopPropagation() } catch { void 0 }
       }}
     >
-      <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+      <Download className={UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME} strokeWidth={1.8} aria-hidden="true" />
     </a>
   )
 }
@@ -360,8 +369,7 @@ export const renderSafeHtmlBlockImpl = (
         }
         const srcDoc = String(el.getAttribute('srcdoc') || '').trim()
         if (!srcDoc) return <React.Fragment key={key}>{''}</React.Fragment>
-        const heightClass = opts.markdownPresentationMode ? 'h-[220px]' : 'h-[140px]'
-        return <section key={key} className={`w-full ${heightClass}`}><iframe title={el.getAttribute('title') || 'Embedded content'} sandbox="" referrerPolicy="no-referrer" srcDoc={deps.sanitizeSrcDocCached(srcDoc)} className={`w-full h-full ${mediaFrameClassName}`} /></section>
+        return <section key={key} className={getSrcDocIframeFrameClassName(opts.markdownPresentationMode)}><iframe title={el.getAttribute('title') || 'Embedded content'} sandbox="" referrerPolicy="no-referrer" srcDoc={deps.sanitizeSrcDocCached(srcDoc)} className={`w-full h-full ${mediaFrameClassName}`} /></section>
       }
 
       if (svgTagNames.has(tag)) {

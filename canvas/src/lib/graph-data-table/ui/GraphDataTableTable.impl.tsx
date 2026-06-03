@@ -34,6 +34,13 @@ import { workspaceTablePreferencesStore } from '@/features/workspace-table/works
 import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import {
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_BODY_CELL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_HEADER_CELL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_HEADER_CONTENT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_INDEX_COLUMN_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_TEXT_INPUT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 function reorderColumnKeys(
   baseOrder: GraphDataTableColumnKey[],
@@ -257,13 +264,12 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const stepLabelIdPx = useGraphStore(s => s.graphDataTableFrozenDragStepLabelIdPx)
   const headerCellBaseClassName =
     `relative p-0 border-b ${UI_THEME_TOKENS.table.cellBorder} border-r ${UI_THEME_TOKENS.table.cellBorder} last:border-r-0`
-  const headerHeightClassName = 'h-8'
-  const bodyVerticalPaddingClassName = 'py-1'
-  const bodyCellBaseClassName = `px-2 ${bodyVerticalPaddingClassName} ${panelTypography.textSizeClass} align-top border-b ${UI_THEME_TOKENS.table.cellBorder} border-r ${UI_THEME_TOKENS.table.cellBorder} last:border-r-0`
+  const headerHeightClassName = UI_RESPONSIVE_GRAPH_DATA_TABLE_HEADER_CELL_CLASSNAME
+  const bodyCellBaseClassName = `${UI_RESPONSIVE_GRAPH_DATA_TABLE_BODY_CELL_CLASSNAME} ${panelTypography.textSizeClass} align-top border-b ${UI_THEME_TOKENS.table.cellBorder} border-r ${UI_THEME_TOKENS.table.cellBorder} last:border-r-0`
   const textInputClassName =
-    `h-7 w-full px-2 border ${UI_THEME_TOKENS.input.border} rounded-md ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`
+    `${UI_RESPONSIVE_GRAPH_DATA_TABLE_TEXT_INPUT_CLASSNAME} w-full border ${UI_THEME_TOKENS.input.border} rounded-md ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`
   const monoTextInputClassName = `${textInputClassName} ${panelTypography.monospaceTextClass}`
-  const indexColumnWidthClassName = 'w-8'
+  const indexColumnWidthClassName = UI_RESPONSIVE_GRAPH_DATA_TABLE_INDEX_COLUMN_CLASSNAME
 
   const enableVirtualTables = useGraphStore(s => s.enableVirtualTables)
   const graphDataTableVirtualOverscanRows = useGraphStore(s => s.graphDataTableVirtualOverscanRows)
@@ -986,7 +992,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
         className={`min-w-full w-max table-fixed border-separate border-spacing-0 ${UI_THEME_TOKENS.table.rowBg} ${UI_THEME_TOKENS.table.text}`}
       >
         <colgroup>
-          <col style={{ width: 32 }} />
+          <col className={indexColumnWidthClassName} />
           {orderedVisibleColumnKeys.map(columnKey => (
             <col key={columnKey} style={{ width: resolvedColumnWidths[columnKey] }} />
           ))}
@@ -997,7 +1003,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
               scope="col"
               className={`${headerCellBaseClassName} ${headerHeightClassName} group p-0 sticky left-0 top-0 z-40 ${indexColumnWidthClassName} ${UI_THEME_TOKENS.table.headerBg} ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.table.textSecondary} text-center`}
             >
-              <span className="relative flex items-center justify-center h-8">
+              <span className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_HEADER_CONTENT_CLASSNAME} relative flex items-center justify-center`}>
                 <span className={`${uiPanelMonospaceTextClass} tabular-nums ${UI_THEME_TOKENS.table.textSecondary}`}>#</span>
               </span>
             </th>

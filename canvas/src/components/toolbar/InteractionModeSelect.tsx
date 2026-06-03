@@ -144,7 +144,6 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           <span className="truncate">{option.title}</span>
         </>
       )}
-      menuWidthClass="w-72"
     />
   )
 }

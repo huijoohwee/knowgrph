@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type ColumnHeaderPropertyTypeMenuProps = {
   ariaLabel: string
@@ -20,6 +21,8 @@ export type ColumnHeaderPropertyTypeMenuProps = {
   toggleTargets?: 'chevron' | 'icon+chevron'
 }
 
+const columnHeaderPropertyTypeMenuGlyphClassName = [UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME, 'shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
+
 export const ColumnHeaderPropertyTypeMenu = React.memo(function ColumnHeaderPropertyTypeMenu(
   props: ColumnHeaderPropertyTypeMenuProps,
 ) {
@@ -32,7 +35,7 @@ export const ColumnHeaderPropertyTypeMenu = React.memo(function ColumnHeaderProp
   const Icon = props.Icon
   const iconEl = Icon ? (
     <span data-kg-menu-toggle={toggleTargets === 'icon+chevron' ? 'true' : undefined} className="inline-flex items-center">
-      <Icon className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} />
+      <Icon className={columnHeaderPropertyTypeMenuGlyphClassName} />
     </span>
   ) : null
 
@@ -56,7 +59,7 @@ export const ColumnHeaderPropertyTypeMenu = React.memo(function ColumnHeaderProp
           <span className="flex min-w-0 shrink-0 items-center gap-2">
             {props.rightContent}
             <span data-kg-menu-toggle="true" className="inline-flex items-center">
-              <ChevronDown className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+              <ChevronDown className={columnHeaderPropertyTypeMenuGlyphClassName} aria-hidden="true" />
             </span>
           </span>
         </>

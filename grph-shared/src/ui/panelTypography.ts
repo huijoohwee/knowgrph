@@ -11,12 +11,39 @@ export type PanelTypography = {
   microLabelClass: string
 }
 
+export type PanelTypographyDensityPreset = 'comfortable' | 'compact'
+
+export const PANEL_KEY_VALUE_INPUT_CLASS_BY_TEXT_SIZE = {
+  textSm: `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+  textXs: `w-full h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+} as const
+
 export const PANEL_TYPOGRAPHY_DEFAULTS = {
   fontClass: 'font-sans',
   textSizeClass: 'text-sm',
   microLabelTextSizeClass: 'text-[9px]',
   monospaceTextClass: 'font-mono text-xs',
-  keyValueInputClass: `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+  keyValueInputClass: PANEL_KEY_VALUE_INPUT_CLASS_BY_TEXT_SIZE.textSm,
+} as const
+
+export const PANEL_TYPOGRAPHY_DENSITY_PRESETS: Record<PanelTypographyDensityPreset, Pick<
+  PanelTypography,
+  'fontClass' | 'textSizeClass' | 'microLabelTextSizeClass' | 'monospaceTextClass' | 'keyValueInputClass'
+>> = {
+  comfortable: {
+    fontClass: PANEL_TYPOGRAPHY_DEFAULTS.fontClass,
+    textSizeClass: PANEL_TYPOGRAPHY_DEFAULTS.textSizeClass,
+    microLabelTextSizeClass: 'text-xs',
+    monospaceTextClass: PANEL_TYPOGRAPHY_DEFAULTS.monospaceTextClass,
+    keyValueInputClass: PANEL_KEY_VALUE_INPUT_CLASS_BY_TEXT_SIZE.textSm,
+  },
+  compact: {
+    fontClass: PANEL_TYPOGRAPHY_DEFAULTS.fontClass,
+    textSizeClass: 'text-xs',
+    microLabelTextSizeClass: PANEL_TYPOGRAPHY_DEFAULTS.microLabelTextSizeClass,
+    monospaceTextClass: PANEL_TYPOGRAPHY_DEFAULTS.monospaceTextClass,
+    keyValueInputClass: PANEL_KEY_VALUE_INPUT_CLASS_BY_TEXT_SIZE.textXs,
+  },
 } as const
 
 export function coercePanelTypography(input: Partial<PanelTypography> | null | undefined): PanelTypography {

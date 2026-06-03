@@ -6,6 +6,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { FOG_NEAR_TOOLTIP, FOG_FAR_TOOLTIP } from '@/features/panels/views/ThreeViewTuningTooltips'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 interface ThreeViewBackgroundFogSectionProps {
   schema: GraphSchema
@@ -24,7 +25,7 @@ export default function ThreeViewBackgroundFogSection({
 }: ThreeViewBackgroundFogSectionProps) {
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
-  const colorInputClassName = `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const colorInputClassName = `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
     <CollapsibleSection
       title="Background and fog"

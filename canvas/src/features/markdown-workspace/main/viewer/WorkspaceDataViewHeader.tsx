@@ -7,7 +7,13 @@ import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownData
 import type { WorkspaceDataViewConfig } from './workspaceDataViewConfig'
 import { WorkspaceHeader } from '@/components/ui/WorkspaceHeader'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_SEARCH_FORM_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_SEARCH_INPUT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import {
   uiToolbarRowScrollClassName,
   uiToolbarRowScrollInlineClassName,
@@ -50,7 +56,7 @@ export function WorkspaceDataViewHeader(props: {
   const searchExpanded = searchExpandedRaw || props.state.searchQuery.trim().length > 0
   const searchInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  const icon12Class = ['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
+  const icon12Class = [UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME, UI_THEME_TOKENS.icon.color].join(' ')
   const icon14Class = ['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
   const squareIconButtonClassName = [UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
   const viewModeLabel =
@@ -109,7 +115,7 @@ export function WorkspaceDataViewHeader(props: {
             </button>
           ) : (
             <form
-              className={['kg-data-view-search-form flex min-w-0 max-w-full items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
+              className={[UI_RESPONSIVE_DATA_VIEW_SEARCH_FORM_CLASSNAME, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
               role="search"
               onSubmit={e => e.preventDefault()}
             >
@@ -117,7 +123,7 @@ export function WorkspaceDataViewHeader(props: {
               <span className="sr-only">{MARKDOWN_DATA_VIEW_COPY.searchLabel}</span>
               <input
                 ref={searchInputRef}
-                className={['kg-data-view-search-input min-w-0 bg-transparent outline-none text-xs w-[180px]', UI_THEME_TOKENS.input.text].join(' ')}
+                className={[UI_RESPONSIVE_DATA_VIEW_SEARCH_INPUT_CLASSNAME, 'bg-transparent outline-none text-xs', UI_THEME_TOKENS.input.text].join(' ')}
                 placeholder={MARKDOWN_DATA_VIEW_COPY.searchPlaceholder}
                 value={props.state.searchQuery}
                 onChange={e => setState({ ...props.state, searchQuery: e.target.value })}
@@ -179,7 +185,7 @@ export function WorkspaceDataViewHeader(props: {
           {props.canMutate && props.onNewRecord ? (
             <button
               type="button"
-              className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={() => props.onNewRecord?.()}
             >
               <Plus className={icon14Class} aria-hidden="true" />

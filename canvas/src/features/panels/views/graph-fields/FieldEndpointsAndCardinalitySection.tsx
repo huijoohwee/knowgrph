@@ -3,6 +3,11 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_OWNER_VALUE_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type FieldEndpointsAndCardinalitySectionProps = {
   schema: GraphSchema
@@ -35,7 +40,7 @@ export default function FieldEndpointsAndCardinalitySection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
@@ -50,8 +55,8 @@ export default function FieldEndpointsAndCardinalitySection({
   const helperTextClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
   const sectionLabelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
   const fieldLabelClassName = `block ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
-  const textInputClassName = `h-9 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
-  const ownerValueClassName = `w-40 truncate text-xs ${UI_THEME_TOKENS.text.secondary}`
+  const textInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const ownerValueClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_OWNER_VALUE_CLASSNAME} text-xs ${UI_THEME_TOKENS.text.secondary}`
 
   React.useEffect(() => {
     if (!hasOwner) {

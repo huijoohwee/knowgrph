@@ -44,6 +44,15 @@ import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
 import {
+  UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_KANBAN_LANE_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+  UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
+  UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME,
+  UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import {
   createStrytreeCandidateRunAction,
   createStrytreeContinuationDraftAction,
   publishStrytreeCandidateAction,
@@ -197,7 +206,7 @@ function StoryboardDetailRow(props: {
           rows={3}
           onCommit={props.onCommit}
           displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-          editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+          editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
         />
       </div>
     </div>
@@ -259,7 +268,7 @@ function StoryboardReferenceStrip(props: {
               href={reference.url}
               target="_blank"
               rel="noreferrer"
-              className={['inline-flex h-14 min-w-14 max-w-[8rem] shrink-0 items-center justify-center rounded-lg border px-2 text-center text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
+              className={[UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME, 'rounded-lg border px-2 text-center text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
               title={reference.url}
               draggable={false}
               onDragStart={event => {
@@ -716,7 +725,8 @@ export default function StoryboardCanvas({
               <section
                 key={lane.id}
                 className={[
-                  'flex h-full w-[360px] shrink-0 flex-col overflow-hidden rounded-2xl border shadow-sm',
+                  'flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border shadow-sm',
+                  UI_RESPONSIVE_KANBAN_LANE_CLASSNAME,
                   getKanbanLaneDragVisualState({
                     hasActiveDrag: storyboardDrag.draggingRowId !== null,
                     isDragOver: storyboardDrag.dragOverGroupKey === lane.id && storyboardDrag.dragSourceGroupKey !== lane.id,
@@ -755,7 +765,8 @@ export default function StoryboardCanvas({
                         key={filter.id}
                         type="button"
                         className={[
-                          'inline-flex h-7 shrink-0 items-center gap-1 rounded border px-2 text-[11px]',
+                          UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
+                          'inline-flex shrink-0 items-center gap-1 rounded border text-[11px]',
                           filter.id === storytreeFilter ? 'border-black/30 bg-black/10 text-black' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' '),
                         ].join(' ')}
                         aria-pressed={filter.id === storytreeFilter}
@@ -894,7 +905,7 @@ export default function StoryboardCanvas({
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                   <div className="mb-2 flex items-center gap-2">
-                                    <span className="inline-flex min-w-[2rem] items-center justify-center rounded-md border border-black/10 bg-black/[0.03] px-2 py-1 text-[10px] font-semibold text-black/70">
+                                    <span className={`${UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME} inline-flex items-center justify-center rounded-md border border-black/10 bg-black/[0.03] px-2 py-1 text-[10px] font-semibold text-black/70`}>
                                       {displayIndex}
                                     </span>
                                     <DataViewTagChip value={card.typeLabel} />
@@ -909,7 +920,7 @@ export default function StoryboardCanvas({
                                       updateStoryboardTitle(card.id, nextValue)
                                     }}
                                     displayClassName={['m-0 truncate text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}
-                                    editorClassName="min-h-[1.5rem] px-0 py-0 text-sm font-semibold leading-5"
+                                    editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
                                   />
                                   {card.slugline ? (
                                     <p className={['m-0 mt-1 text-[11px] uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
@@ -958,7 +969,7 @@ export default function StoryboardCanvas({
                                       })
                                     }}
                                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                                    editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                                   />
                                 </div>
                               ) : null}
@@ -1002,7 +1013,7 @@ export default function StoryboardCanvas({
                                   <div className="grid grid-cols-4 gap-1.5">
                                     <button
                                       type="button"
-                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      className={[UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
                                       aria-label={`${likedByCurrentUser ? 'Unlike' : 'Like'} storytree branch ${displayTitle}`}
                                       onClick={event => {
                                         event.stopPropagation()
@@ -1014,7 +1025,7 @@ export default function StoryboardCanvas({
                                     </button>
                                     <button
                                       type="button"
-                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      className={[UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
                                       aria-label={`Compare storytree candidates from ${displayTitle}`}
                                       disabled={storytreeStatus === 'dropped'}
                                       onClick={event => {
@@ -1027,7 +1038,7 @@ export default function StoryboardCanvas({
                                     </button>
                                     <button
                                       type="button"
-                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      className={[UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
                                       aria-label={`Unlock storytree branch ${displayTitle}`}
                                       disabled={!unlockRequired || !canUnlock}
                                       onClick={event => {
@@ -1040,7 +1051,7 @@ export default function StoryboardCanvas({
                                     </button>
                                     <button
                                       type="button"
-                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      className={[UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
                                       aria-label={`Draft storytree continuation from ${displayTitle}`}
                                       disabled={storytreeStatus === 'dropped'}
                                       onClick={event => {
@@ -1079,7 +1090,8 @@ export default function StoryboardCanvas({
                                   <button
                                     type="button"
                                     className={[
-                                      'mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded border px-2 text-[11px]',
+                                      UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+                                      'mt-2 inline-flex w-full items-center justify-center gap-1 rounded border text-[11px]',
                                       candidatePublishEligible ? 'border-emerald-900/20 bg-emerald-700/10 text-emerald-950 hover:bg-emerald-700/15' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.tertiary].join(' '),
                                     ].join(' ')}
                                     aria-label={`Publish ForkCompare candidate ${displayTitle}`}
@@ -1124,7 +1136,7 @@ export default function StoryboardCanvas({
                                         })
                                       }}
                                       displayClassName={['m-0 mt-2 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                                      editorClassName="mt-2 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                                      editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                                     />
                                   ) : null}
                                   <div className="mt-2 flex items-center gap-2">

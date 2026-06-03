@@ -1,54 +1,16 @@
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from './types';
-
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = '';
-  let i = 0;
-  let inQuotes = false;
-  while (i < line.length) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
-        current += '"';
-        i += 2;
-        continue;
-      }
-      inQuotes = !inQuotes;
-      i += 1;
-      continue;
-    }
-    if (!inQuotes && ch === ',') {
-      fields.push(current);
-      current = '';
-      i += 1;
-      continue;
-    }
-    current += ch;
-    i += 1;
-  }
-  fields.push(current);
-  return fields;
-}
+import { generateDelimitedText, parseDelimitedText, rowsToRecords } from '@/lib/delimited-text/delimitedText';
 
 function parseCsv(text: string): Array<Record<string, string>> {
-  const lines = text.split(/\r?\n/).filter(l => l.length > 0);
-  if (lines.length === 0) return [];
-  const headerFields = parseCsvLine(lines[0]).map(h => h.trim());
-  if (headerFields.length > 0) {
-    headerFields[0] = headerFields[0].replace(/^\uFEFF/, '');
-  }
-  const headersLower = headerFields.map(h => h.toLowerCase().replace(/^\uFEFF/, ''));
-  const rows: Array<Record<string, string>> = [];
-  for (let idx = 1; idx < lines.length; idx++) {
-    const cols = parseCsvLine(lines[idx]);
-    const row: Record<string, string> = {};
-    for (let j = 0; j < headerFields.length; j++) {
-      const raw = j < cols.length ? cols[j] : '';
-      row[headersLower[j]] = raw;
+  const parsed = parseDelimitedText(text, { delimiter: ',', header: true });
+  const records = rowsToRecords(parsed.rows, parsed.headers);
+  return records.map(row => {
+    const normalized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(row)) {
+      normalized[String(key || '').toLowerCase().replace(/^\uFEFF/, '')] = value;
     }
-    rows.push(row);
-  }
-  return rows;
+    return normalized;
+  });
 }
 
 function detectKind(rowKeys: string[]): 'nodes' | 'edges' | 'unknown' {
@@ -253,11 +215,7 @@ export function parseCsvToGraph(text: string): GraphData {
 }
 
 export function graphToCombinedCsv(data: GraphData): string {
-  const v = (x: string | number | undefined) => {
-    const s = String(x ?? '');
-    return '"' + s.replace(/"/g, '""') + '"';
-  };
-  const header = 'row_type,id,label,node_type,properties,source_id,source_label,source_type,predicate,target_id,target_label,target_type,edge_properties\n';
+  const fields = ['row_type','id','label','node_type','properties','source_id','source_label','source_type','predicate','target_id','target_label','target_type','edge_properties'];
   const nodeRows = data.nodes.map(n => {
     const props: Record<string, JSONValue> = { ...(n.properties ?? {}) }
     if (typeof n.x === 'number') props.x = n.x
@@ -265,13 +223,13 @@ export function graphToCombinedCsv(data: GraphData): string {
     if (typeof n.fx === 'number') props.fx = n.fx
     if (typeof n.fy === 'number') props.fy = n.fy
     return [
-      v('node'),
-      v(n.id),
-      v(n.label),
-      v(n.type),
-      v(JSON.stringify(props)),
-      v(''), v(''), v(''), v(''), v(''), v(''), v('')
-    ].join(',')
+      'node',
+      n.id,
+      n.label,
+      n.type,
+      JSON.stringify(props),
+      '', '', '', '', '', '', '', ''
+    ]
   });
   const nodeMap = new Map(data.nodes.map(n => [n.id, n]));
   const edgeRows = data.edges.map(e => {
@@ -279,13 +237,13 @@ export function graphToCombinedCsv(data: GraphData): string {
     const t = nodeMap.get(e.target);
     const edgeProps = e.properties ?? {};
     return [
-      v('edge'),
-      v(''), v(''), v(''), v(''),
-      v(s?.id), v(s?.label), v(s?.type),
-      v(e.label),
-      v(t?.id), v(t?.label), v(t?.type),
-      v(JSON.stringify(edgeProps))
-    ].join(',');
+      'edge',
+      '', '', '', '',
+      s?.id, s?.label, s?.type,
+      e.label,
+      t?.id, t?.label, t?.type,
+      JSON.stringify(edgeProps)
+    ]
   });
-  return header + [...nodeRows, ...edgeRows].join('\n') + '\n';
+  return `${generateDelimitedText([...nodeRows, ...edgeRows], { fields, escapeFormulaCells: false })}\n`;
 }

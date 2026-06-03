@@ -27,11 +27,13 @@ import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsA
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
+import { EXA_MCP_DOC_AREA } from './exaMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
 import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA } from '@/features/integrations/pixverseVideoGenerationSsot'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type SettingsEntry = {
   meta: {
@@ -74,6 +76,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   MAPS_GRABMAPS_DOC_AREA,
   API_NATIVE_BROWSER_MCP_DOC_AREA,
   CRAWLER_ACCESS_MCP_DOC_AREA,
+  EXA_MCP_DOC_AREA,
   STRIPE_MCP_DOC_AREA,
   KNOWGRPH_VDEOXPLN_DOC_AREA,
   MAPS_GRABMAPS_MCP_DOC_AREA,
@@ -87,7 +90,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'Canvas',
   'Rendering',
   'Performance',
-  'Graph Data Table',
+  MARKDOWN_DATA_VIEW_COPY.titleDefault,
   'Import / Export',
   'Integrations',
   BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
@@ -105,7 +108,8 @@ const SETTINGS_AREA_CANONICAL: Readonly<Record<string, string>> = {
   'ui density panels': 'UI Density: Panels',
   'ui density panel': 'UI Density: Panels',
   'ui density icons': 'UI Density: Icons',
-  'graph data table': 'Graph Data Table',
+  'multi dimensional table': MARKDOWN_DATA_VIEW_COPY.titleDefault,
+  'multi-dimensional table': MARKDOWN_DATA_VIEW_COPY.titleDefault,
   'import export': 'Import / Export',
   'source file management': 'Source File Management',
   'source files management': 'Source File Management',
@@ -169,6 +173,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === MAPS_GRABMAPS_MCP_DOC_AREA) return true
   if (area === API_NATIVE_BROWSER_MCP_DOC_AREA) return true
   if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
+  if (area === EXA_MCP_DOC_AREA) return true
   if (area === STRIPE_MCP_DOC_AREA) return true
   if (area === PIXVERSE_MCP_DOC_AREA) return true
   if (area === MIROMIND_MCP_DOC_AREA) return true

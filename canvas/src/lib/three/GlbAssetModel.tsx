@@ -4,12 +4,18 @@ import * as THREE from 'three'
 import type { Canvas3dModeId } from '@/lib/config'
 import type { GlbAssetDocument } from '@/lib/assets/glbAssetDocument'
 import { loadModelAssetRenderPayload } from '@/lib/assets/modelAssetPayload'
+import { hashSignatureParts } from '@/lib/hash/signature'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
-type GlbFit = {
+export type GlbFit = {
   position: [number, number, number]
   scale: number
   floorY: number
   stageSpan: number
+  preserveFlatFacing: boolean
+  flatAxis: 'x' | 'y' | 'z' | null
+  size: [number, number, number]
+  scaledSize: [number, number, number]
 }
 
 type StageBlock = {
@@ -74,20 +80,53 @@ function prepareModelObject(object: THREE.Object3D, name: string): void {
   })
 }
 
-function computeGlbFit(object: THREE.Object3D | null): GlbFit {
+export function buildGlbAssetRenderKey(asset: GlbAssetDocument, documentSemanticKey?: string): string {
+  const dataUrl = String(asset.dataUrl || '')
+  const dataUrlHash = dataUrl
+    ? hashStringToHexCached(
+        `model-asset-render:${asset.format}:${asset.name}:${asset.byteLength ?? dataUrl.length}`,
+        dataUrl,
+      )
+    : ''
+  return hashSignatureParts([
+    'model-asset-render',
+    String(documentSemanticKey || ''),
+    asset.format,
+    asset.name,
+    asset.mimeType,
+    asset.byteLength ?? '',
+    asset.pendingLocalImport === true ? 'pending:1' : 'pending:0',
+    asset.pendingLocalImportPath || '',
+    asset.sourceUrl || '',
+    asset.validMagic === false ? 'magic:0' : asset.validMagic === true ? 'magic:1' : 'magic:',
+    asset.validContainer === false ? 'container:0' : asset.validContainer === true ? 'container:1' : 'container:',
+    asset.validJson === false ? 'json:0' : asset.validJson === true ? 'json:1' : 'json:',
+    asset.validGltfAsset === false ? 'gltf:0' : asset.validGltfAsset === true ? 'gltf:1' : 'gltf:',
+    dataUrl.length,
+    dataUrlHash,
+  ])
+}
+
+export function computeGlbFit(object: THREE.Object3D | null): GlbFit {
   if (!object) {
-    return { position: [0, 0, 0], scale: 1, floorY: -48, stageSpan: 180 }
+    return { position: [0, 0, 0], scale: 1, floorY: -48, stageSpan: 180, preserveFlatFacing: false, flatAxis: null, size: [0, 0, 0], scaledSize: [0, 0, 0] }
   }
   const box = new THREE.Box3().setFromObject(object)
   if (box.isEmpty()) {
-    return { position: [0, 0, 0], scale: 1, floorY: -48, stageSpan: 180 }
+    return { position: [0, 0, 0], scale: 1, floorY: -48, stageSpan: 180, preserveFlatFacing: false, flatAxis: null, size: [0, 0, 0], scaledSize: [0, 0, 0] }
   }
   const size = new THREE.Vector3()
   const center = new THREE.Vector3()
   box.getSize(size)
   box.getCenter(center)
   const maxDim = Math.max(size.x, size.y, size.z)
-  const scale = maxDim > 0 && Number.isFinite(maxDim) ? clamp(118 / maxDim, 0.0001, 10000) : 1
+  const minDim = Math.min(size.x, size.y, size.z)
+  const preserveFlatFacing = maxDim > 0 && Number.isFinite(maxDim) && minDim <= maxDim * 0.015
+  const flatAxis = preserveFlatFacing
+    ? (size.x <= size.y && size.x <= size.z ? 'x' : size.y <= size.z ? 'y' : 'z')
+    : null
+  const targetMaxDim = preserveFlatFacing ? 92 : 118
+  const scale = maxDim > 0 && Number.isFinite(maxDim) ? clamp(targetMaxDim / maxDim, 0.0001, 10000) : 1
   const floorY = (box.min.y - center.y) * scale
   const stageSpan = clamp(Math.max(size.x, size.z, maxDim) * scale * 2.8, 120, 520)
   return {
@@ -95,6 +134,10 @@ function computeGlbFit(object: THREE.Object3D | null): GlbFit {
     scale,
     floorY,
     stageSpan,
+    preserveFlatFacing,
+    flatAxis,
+    size: [size.x, size.y, size.z],
+    scaledSize: [size.x * scale, size.y * scale, size.z * scale],
   }
 }
 
@@ -319,24 +362,29 @@ function ModelAssetXrStage({ fit, visible }: { fit: GlbFit; visible: boolean }) 
 
 export function GlbAssetModel({
   asset,
-  mode,
   paused,
   standalone,
+  onFitChange,
 }: {
   asset: GlbAssetDocument
   mode?: Canvas3dModeId
   paused?: boolean
   standalone?: boolean
+  onFitChange?: (fit: GlbFit | null) => void
 }) {
   const [object, setObject] = React.useState<THREE.Object3D | null>(null)
   const [failed, setFailed] = React.useState(false)
-  const groupRef = React.useRef<THREE.Group | null>(null)
   const mixerRef = React.useRef<THREE.AnimationMixer | null>(null)
+  const loadIdRef = React.useRef(0)
+  const assetRenderKey = React.useMemo(() => buildGlbAssetRenderKey(asset), [asset])
 
   React.useEffect(() => {
+    const loadId = loadIdRef.current + 1
+    loadIdRef.current = loadId
     let cancelled = false
     let loadedObject: THREE.Object3D | null = null
     let loadedMixer: THREE.AnimationMixer | null = null
+    const isStaleLoad = () => cancelled || loadIdRef.current !== loadId
     mixerRef.current = null
     setObject(null)
     setFailed(false)
@@ -352,7 +400,7 @@ export function GlbAssetModel({
           gltf => {
             const scene = gltf.scene || gltf.scenes?.[0] || null
             if (!scene) {
-              if (!cancelled) setFailed(true)
+              if (!isStaleLoad()) setFailed(true)
               return
             }
             prepareModelObject(scene, asset.name)
@@ -366,7 +414,7 @@ export function GlbAssetModel({
                 }
               }
             }
-            if (cancelled) {
+            if (isStaleLoad()) {
               try {
                 loadedMixer?.stopAllAction()
                 loadedMixer?.uncacheRoot(scene)
@@ -381,11 +429,11 @@ export function GlbAssetModel({
             setObject(scene)
           },
           () => {
-            if (!cancelled) setFailed(true)
+            if (!isStaleLoad()) setFailed(true)
           },
         )
       } catch {
-        if (!cancelled) setFailed(true)
+        if (!isStaleLoad()) setFailed(true)
       }
     }
 
@@ -406,7 +454,14 @@ export function GlbAssetModel({
         loadedObject = null
       }
     }
-  }, [asset.dataUrl, asset.format, asset.name, asset.pendingLocalImportPath, asset.sourceUrl, asset.validJson, asset.validMagic])
+  }, [asset, assetRenderKey])
+
+  const fit = React.useMemo(() => computeGlbFit(object), [object])
+  const showStage = false
+
+  React.useEffect(() => {
+    onFitChange?.(object ? fit : null)
+  }, [fit, object, onFitChange])
 
   useFrame((_, delta) => {
     if (paused) return
@@ -415,14 +470,7 @@ export function GlbAssetModel({
     } catch {
       void 0
     }
-    if (mode !== 'xr') return
-    const group = groupRef.current
-    if (!group) return
-    group.rotation.y += delta * 0.08
   })
-
-  const fit = React.useMemo(() => computeGlbFit(object), [object])
-  const showStage = mode === 'xr' || standalone
 
   return (
     <group name="kg_model_asset_scene">
@@ -437,10 +485,11 @@ export function GlbAssetModel({
       <ModelAssetXrStage fit={fit} visible={showStage} />
       {object ? (
         <group
-          ref={groupRef}
+          key={assetRenderKey}
           name={`kg_model_asset:${asset.name}`}
           position={fit.position}
           scale={[fit.scale, fit.scale, fit.scale]}
+          dispose={null}
         >
           <primitive object={object} />
         </group>
@@ -449,12 +498,7 @@ export function GlbAssetModel({
           <boxGeometry args={[48, 48, 48]} />
           <meshStandardMaterial color="#ef4444" roughness={0.55} metalness={0.08} wireframe />
         </mesh>
-      ) : (
-        <mesh name="kg_model_asset_loading" position={[0, 0, 0]}>
-          <boxGeometry args={[36, 36, 36]} />
-          <meshStandardMaterial color="#60a5fa" roughness={0.65} metalness={0.12} wireframe />
-        </mesh>
-      )}
+      ) : null}
     </group>
   )
 }

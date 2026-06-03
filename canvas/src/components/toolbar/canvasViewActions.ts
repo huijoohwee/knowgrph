@@ -1,9 +1,25 @@
 import type { Canvas2dRendererId } from '@/lib/config'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
-import { SNAP_GRID_SIZE_DEFAULT } from '@/lib/canvas/snapGridSize'
+import { coerceSnapGridTuple, SNAP_GRID_SIZE_DEFAULT, type SnapGridTuple } from '@/lib/canvas/snapGridSize'
+import {
+  CANVAS_GRID_MAJOR_ALPHA_DEFAULT,
+  CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT,
+  CANVAS_GRID_MINOR_ALPHA_DEFAULT,
+  CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT,
+  clampCanvasGridAlpha,
+  clampCanvasGridDotRadiusPx,
+  clampCanvasGridMajorEvery,
+  clampCanvasGridWidthPx,
+  coerceCanvasGridStroke,
+  coerceCanvasGridVariant,
+} from '@/lib/canvas/canvasGridConfig'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
-import { isFrontmatterOnlyCanvas2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import {
+  isFrontmatterOnlyCanvas2dRenderer,
+  isFrontmatterOnlyPolicyActive,
+  isTableGraphCanvas2dRenderer,
+} from '@/lib/config.render'
 import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 
 type CanvasViewActionParams = {
@@ -24,12 +40,44 @@ type CanvasViewActionParams = {
   setCanvasRenderMode: (mode: '2d' | '3d') => void
   setCanvas3dMode: (mode: string) => void
   setSchema: (schema: GraphSchema) => void
+  setBehavior?: (behavior: Partial<GraphSchema['behavior']>) => void
   setRenderMediaAsNodes: (enabled: boolean) => void
   setTimelineEnabled: (enabled: boolean) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
   requestFlowEditorLayoutRebalance?: () => void
+}
+
+type CanvasGridBehaviorInput = {
+  enabled?: unknown
+  variant?: unknown
+  majorEvery?: unknown
+  dotRadiusPx?: unknown
+  minorAlpha?: unknown
+  majorAlpha?: unknown
+  minorWidthPx?: unknown
+  majorWidthPx?: unknown
+  minorStroke?: unknown
+  majorStroke?: unknown
+}
+
+const buildVisibleCanvasGridBehavior = (canvasGrid: CanvasGridBehaviorInput | null | undefined, enabled: boolean) => {
+  const minorStroke = coerceCanvasGridStroke(canvasGrid?.minorStroke) || undefined
+  const majorStroke = coerceCanvasGridStroke(canvasGrid?.majorStroke) || undefined
+  return {
+    ...canvasGrid,
+    enabled,
+    variant: coerceCanvasGridVariant(canvasGrid?.variant),
+    majorEvery: clampCanvasGridMajorEvery(canvasGrid?.majorEvery),
+    dotRadiusPx: clampCanvasGridDotRadiusPx(canvasGrid?.dotRadiusPx),
+    minorAlpha: clampCanvasGridAlpha(canvasGrid?.minorAlpha, CANVAS_GRID_MINOR_ALPHA_DEFAULT),
+    majorAlpha: clampCanvasGridAlpha(canvasGrid?.majorAlpha, CANVAS_GRID_MAJOR_ALPHA_DEFAULT),
+    minorWidthPx: clampCanvasGridWidthPx(canvasGrid?.minorWidthPx, CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT),
+    majorWidthPx: clampCanvasGridWidthPx(canvasGrid?.majorWidthPx, CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT),
+    minorStroke,
+    majorStroke,
+  }
 }
 
 export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
@@ -51,6 +99,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setCanvasRenderMode,
     setCanvas3dMode,
     setSchema,
+    setBehavior,
     setRenderMediaAsNodes,
     setTimelineEnabled,
     setDocumentSemanticMode,
@@ -138,9 +187,15 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     return
   }
   if (id === 'document:multiDimTable') {
-    if (geospatialEnabled || frontmatterOnlyAllowed) return
+    if (geospatialEnabled) return
     if (frontmatterModeEnabled) setFrontmatterModeEnabled(false)
-    if (!multiDimTableModeEnabled) setMultiDimTableModeEnabled(true)
+    if (
+      !multiDimTableModeEnabled ||
+      canvasRenderMode !== '2d' ||
+      !isTableGraphCanvas2dRenderer(canvas2dRenderer)
+    ) {
+      setMultiDimTableModeEnabled(true)
+    }
     if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
     return
   }
@@ -253,25 +308,32 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   }
   if (id === 'control:grid') {
     const behavior = schema.behavior
-    const snapGrid = (behavior.snapGrid || {}) as { enabled?: boolean; size?: number }
-    const canvasGrid = (behavior.canvasGrid || {}) as { enabled?: boolean }
+    const snapGrid = (behavior.snapGrid || {}) as { enabled?: boolean; size?: unknown }
+    const canvasGrid = (behavior.canvasGrid || {}) as CanvasGridBehaviorInput
     const nextEnabled = !(snapGrid.enabled === true || canvasGrid.enabled === true)
+    const snapGridSize: number | SnapGridTuple =
+      Array.isArray(snapGrid.size)
+        ? coerceSnapGridTuple(snapGrid.size)
+        : typeof snapGrid.size === 'number' && Number.isFinite(snapGrid.size)
+          ? snapGrid.size
+          : SNAP_GRID_SIZE_DEFAULT
+    const nextBehavior = {
+      snapGrid: {
+        ...snapGrid,
+        enabled: nextEnabled,
+        size: snapGridSize,
+      },
+      canvasGrid: buildVisibleCanvasGridBehavior(canvasGrid, nextEnabled),
+    }
+    if (typeof setBehavior === 'function') {
+      setBehavior(nextBehavior)
+      return
+    }
     setSchema({
       ...schema,
       behavior: {
         ...behavior,
-        snapGrid: {
-          ...snapGrid,
-          enabled: nextEnabled,
-          size:
-            typeof snapGrid.size === 'number' && Number.isFinite(snapGrid.size)
-              ? snapGrid.size
-              : SNAP_GRID_SIZE_DEFAULT,
-        },
-        canvasGrid: {
-          ...canvasGrid,
-          enabled: nextEnabled,
-        },
+        ...nextBehavior,
       },
     })
     return

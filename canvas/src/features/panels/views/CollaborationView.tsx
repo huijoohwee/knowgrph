@@ -17,6 +17,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { useP2PCollaborationStore } from '@/features/collaboration/p2pCollaborationStore'
 import { MainPanelTypeIcon, type MainPanelTypeIconKey } from '@/features/panels/ui/mainPanelHelpIconLibrary'
+import { UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type SectionId = 'session' | 'invite' | 'answer' | 'peer'
 
@@ -316,7 +317,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                 value={inviteUrl}
                 readOnly
                 placeholder="Host generates one invite per guest."
-                containerClassName="min-w-[14rem] flex-1"
+                containerClassName={UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME}
               />
               <button
                 type="button"
@@ -348,7 +349,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                 value={inviteInput}
                 onChange={event => setInviteInput(event.currentTarget.value)}
                 placeholder="Paste invite link or token"
-                containerClassName="min-w-[14rem] flex-1"
+                containerClassName={UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME}
               />
               <button
                 type="button"
@@ -378,7 +379,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                 value={answerToken}
                 readOnly
                 placeholder="Join an invite to generate the answer token."
-                containerClassName="min-w-[14rem] flex-1"
+                containerClassName={UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME}
               />
               <button
                 type="button"
@@ -410,7 +411,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                 value={answerInput}
                 onChange={event => setAnswerInput(event.currentTarget.value)}
                 placeholder="Paste answer token"
-                containerClassName="min-w-[14rem] flex-1"
+                containerClassName={UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME}
               />
               <button
                 type="button"

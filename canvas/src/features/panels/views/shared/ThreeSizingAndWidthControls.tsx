@@ -4,6 +4,7 @@ import { getThreeConfig } from '@/lib/graph/schema'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type SharedThreeSizingAndWidthControlsProps = {
   schema: GraphSchema
@@ -132,7 +133,7 @@ export default function ThreeSizingAndWidthControls({
               className="w-full h-full"
             >
               <select
-                className={['w-full max-w-[180px] text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
+                className={[UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME, 'text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
                 value={nodeSizingFormula}
                 onChange={e => {
                   const v: 'schema' | 'importance' =
@@ -171,7 +172,7 @@ export default function ThreeSizingAndWidthControls({
               className="w-full h-full"
             >
               <select
-                className={['w-full max-w-[180px] text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
+                className={[UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME, 'text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
                 value={edgeWidthFormula}
                 onChange={e => {
                   const v: 'schema' | 'weight' =
@@ -208,7 +209,7 @@ export default function ThreeSizingAndWidthControls({
               min={0.2}
               max={5}
               step={0.1}
-              className={['w-full max-w-[180px] text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
+              className={[UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME, 'text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
               value={keywordNodeSizeScale}
               onChange={e => {
                 const parsed = Number(e.target.value)
@@ -240,7 +241,7 @@ export default function ThreeSizingAndWidthControls({
               min={0.2}
               max={5}
               step={0.1}
-              className={['w-full max-w-[180px] text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
+              className={[UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME, 'text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
               value={keywordEdgeWidthScale}
               onChange={e => {
                 const parsed = Number(e.target.value)

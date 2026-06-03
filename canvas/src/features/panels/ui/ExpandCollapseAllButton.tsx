@@ -4,6 +4,7 @@ import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type ExpandCollapseAllButtonProps = {
   allCollapsed: boolean
@@ -27,7 +28,7 @@ export default function ExpandCollapseAllButton({
 
   return (
     <IconButton
-      className="App-toolbar__btn flex h-7 w-7 items-center justify-center"
+      className={`App-toolbar__btn ${UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME}`}
       title={allCollapsed ? titleExpand : titleCollapse}
       onClick={() => {
         if (allCollapsed) {

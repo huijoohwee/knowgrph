@@ -2,6 +2,7 @@ import React from 'react'
 import { Link2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceBacklink, WorkspacePath } from '@/features/workspace-fs/types'
+import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type MarkdownWorkspaceBacklinkRowProps = {
   backlink: WorkspaceBacklink
@@ -19,7 +20,7 @@ export function MarkdownWorkspaceBacklinkRow(props: MarkdownWorkspaceBacklinkRow
       onClick={() => onOpenBacklink({ path: backlink.fromPath, line: backlink.line })}
       aria-label={`Backlink from ${backlink.fromPath}`}
     >
-      <Link2 className="w-3 h-3 mt-[2px]" aria-hidden="true" />
+      <Link2 className={`${UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} mt-[2px]`} aria-hidden="true" />
       <span className="min-w-0">
         <span className="block truncate">{backlink.fromPath}</span>
         <span className={`block truncate ${UI_THEME_TOKENS.text.secondary}`}>

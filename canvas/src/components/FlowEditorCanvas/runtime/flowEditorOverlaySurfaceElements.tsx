@@ -95,11 +95,13 @@ export function buildOverlayEditorElements(args: {
   const currentGraphIsFrontmatterFlow = isFrontmatterFlowGraph(args.renderGraphDataOverride)
   const stableGraphIsFrontmatterFlow = isFrontmatterFlowGraph(args.lastStableRenderGraphDataOverride)
   const useStableFrontmatterGraphAuthority =
-    !args.renderGraphMetaKind
-    && !currentGraphIsFrontmatterFlow
+    !currentGraphIsFrontmatterFlow
     && stableGraphIsFrontmatterFlow
+    && args.overlayEditorNodeIds.length > 0
   const graphMetaKind = args.renderGraphMetaKind
-    || (currentGraphIsFrontmatterFlow || useStableFrontmatterGraphAuthority ? 'frontmatter-flow' : null)
+  const overlayGraphMetaKind = useStableFrontmatterGraphAuthority
+    ? 'frontmatter-flow'
+    : graphMetaKind || (currentGraphIsFrontmatterFlow ? 'frontmatter-flow' : null)
   const graphMetaKey = buildGraphMetaKeyIgnoringPending(
     useStableFrontmatterGraphAuthority
       ? args.lastStableRenderGraphDataOverride
@@ -112,7 +114,7 @@ export function buildOverlayEditorElements(args: {
         ? args.lastStableRenderGraphDataOverride?.nodes
         : args.renderGraphDataOverride?.nodes
     ) || [],
-    graphMetaKind,
+    graphMetaKind: overlayGraphMetaKind,
   })
   const resolveNode = (id: string) => {
     const found = args.renderGraphNodeById.get(id) || null
@@ -133,7 +135,7 @@ export function buildOverlayEditorElements(args: {
     if (!node) continue
     if (String(node.type || '') === 'Section') continue
 
-    const identity = resolveFlowEditorOverlayElementIdentity({ graphMetaKind, overlayNodeId: id, node })
+    const identity = resolveFlowEditorOverlayElementIdentity({ graphMetaKind: overlayGraphMetaKind, overlayNodeId: id, node })
     const actionNodeId = identity.actionNodeId || id
     const renderNode = identity.renderNodeId && identity.renderNodeId !== String(node.id || '').trim()
       ? { ...node, id: identity.renderNodeId }
@@ -149,7 +151,7 @@ export function buildOverlayEditorElements(args: {
       || args.renderGraphIncidentEdgesByNodeId?.get(identity.actionNodeId)
       || args.renderGraphIncidentEdgesByNodeId?.get(identity.renderNodeId)
       || EMPTY_GRAPH_EDGES
-    const overlayGraphInstanceKey = graphMetaKind === 'frontmatter-flow'
+    const overlayGraphInstanceKey = overlayGraphMetaKind === 'frontmatter-flow'
       ? String(graphMetaKey || '').trim() || String(args.renderGraphSemanticKey || '').trim() || 'graph'
       : String(args.renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph'
     const overlayInstanceKey = [
@@ -167,7 +169,7 @@ export function buildOverlayEditorElements(args: {
         flowEditorSurfaceId={args.flowEditorSurfaceId}
         overlayCollectiveCount={orderedOverlayEditorNodeIds.length}
         node={renderNode}
-        graphMetaKind={graphMetaKind}
+        graphMetaKind={overlayGraphMetaKind}
         graphMetaKey={graphMetaKey}
         portHandleEdges={portHandleEdges}
         registryEntries={args.widgetRegistry}
@@ -217,7 +219,7 @@ export function buildOverlayEditorElements(args: {
           const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({
             node: renderNode,
             registry: args.widgetRegistry,
-            graphMetaKind,
+            graphMetaKind: overlayGraphMetaKind,
           })
           const widgetIdentity = resolveNodeWidgetIdentity({ node: renderNode, registryEntry: resolvedWidgetRegistryEntry })
           const searchQuery = [

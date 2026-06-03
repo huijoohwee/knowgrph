@@ -1,5 +1,6 @@
 import React from 'react'
 import { AnchorOverlay } from '@/lib/ui/overlay'
+import { UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 
@@ -83,7 +84,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
               <input className={`${props.floatingPopoverInputClassName} mt-2`} placeholder="fallback key or value" value={props.variableMenu.fallbackInput} onChange={(event) => props.setVariableMenu(prev => ({ ...prev, fallbackInput: event.target.value }))} />
             ) : null}
             {props.variableSuggestions.length > 0 ? (
-              <menu className="list-none m-0 p-0 mt-2 max-h-24 overflow-auto">
+              <menu className={`list-none m-0 p-0 mt-2 ${UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME}`}>
                 {props.variableSuggestions.map(suggestion => (
                   <li key={suggestion.key} className="list-none">
                     <button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.setVariableMenu(prev => ({ ...prev, keyInput: suggestion.key, query: suggestion.key }))}>

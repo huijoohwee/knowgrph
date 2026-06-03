@@ -3,6 +3,7 @@ import React from 'react'
 import IconButton from '@/components/IconButton'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
+import { UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { CheckCircle, ChevronDown, ChevronUp, Maximize2, Minimize2, Pin, PinOff } from 'lucide-react'
@@ -94,7 +95,7 @@ export function FlowEditorPanelChromeHeader(props: {
         UI_THEME_TOKENS.panel.border,
         dragHandle ? 'cursor-move' : 'cursor-default',
         'select-none',
-        minimized ? 'px-2 py-0 h-[36px]' : 'px-3 py-2',
+        minimized ? `px-2 py-0 ${UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME}` : 'px-3 py-2',
       )}
       style={richMediaHeaderStyle}
       data-kg-flow-node-drag-handle={dragHandle ? 'true' : undefined}

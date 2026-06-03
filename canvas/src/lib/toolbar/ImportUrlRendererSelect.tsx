@@ -1,4 +1,5 @@
 import React from 'react'
+import { UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import {
@@ -43,7 +44,8 @@ export function ImportUrlRendererSelect(props: {
   return (
     <select
       className={cn(
-        'h-[var(--kg-control-height,28px)] min-w-0 flex-1 px-2 rounded border text-xs',
+        UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME,
+        'flex-1 rounded border text-xs',
         UI_THEME_TOKENS.input.border,
         UI_THEME_TOKENS.input.bg,
         UI_THEME_TOKENS.input.text,

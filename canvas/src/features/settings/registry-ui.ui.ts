@@ -3,6 +3,7 @@ import type { SettingMeta } from './types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { ThemeMode } from '@/lib/ui/theme'
 import { LS_KEYS } from '@/lib/config'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import {
   FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
   FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
@@ -29,6 +30,10 @@ import {
   CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
   CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT,
 } from '@/features/chat/chatAiMarkdownSpec'
+import {
+  UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 const s = () => useGraphStore.getState()
 
@@ -128,8 +133,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().uiPanelKeyValueInputClass,
     write: (v) => s().setUiPanelKeyValueInputClass(String(v || '')),
     docKey: 'uiPanelKeyValueInputClass',
-    default: () =>
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+    default: () => PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   },
   {
     key: 'uiPanelMonospaceTextClass',
@@ -156,7 +160,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().uiHeaderRowHeightClass,
     write: (v) => s().setUiHeaderRowHeightClass(String(v || '')),
     docKey: 'uiHeaderRowHeightClass',
-    default: () => 'min-h-[36px]',
+    default: () => UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   },
   {
     key: 'uiHeaderRowPaddingClass',
@@ -174,7 +178,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().uiSectionHeaderRowHeightClass,
     write: (v) => s().setUiSectionHeaderRowHeightClass(String(v || '')),
     docKey: 'uiSectionHeaderRowHeightClass',
-    default: () => 'min-h-[36px]',
+    default: () => UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   },
   {
     key: 'uiSectionHeaderRowPaddingClass',
@@ -271,7 +275,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().uiIconBadgeChipClass,
     write: (v) => s().setUiIconBadgeChipClass(String(v || '')),
     docKey: 'uiIconBadgeChipClass',
-    default: () => 'px-1 py-[1px] rounded-full border',
+    default: () => UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
   },
   {
     key: 'uiIconBadgeChipTextSizeClass',

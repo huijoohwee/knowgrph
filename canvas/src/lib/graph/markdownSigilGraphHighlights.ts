@@ -7,12 +7,17 @@ import {
   hasMarkdownAnnotationSyntax,
   type MarkdownAnnotation,
 } from '@/lib/markdown/markdownSigil'
+import {
+  SEMANTIC_HIGHLIGHT_DEFAULT_BACKGROUND,
+  SEMANTIC_HIGHLIGHT_DEFAULT_BORDER,
+  SEMANTIC_HIGHLIGHT_DEFAULT_COLOR,
+} from '@/lib/ui/semanticHighlight'
 
 const GRAPH_HIGHLIGHT_CACHE = new LRUCache<string, GraphData>(24)
 const NODE_TEXT_KEYS = ['text', 'content', 'title', 'name', 'summary', 'caption', 'alt', 'keywords', 'tags'] as const
-const DEFAULT_HIGHLIGHT_FILL = '#FEF3C7'
-const DEFAULT_HIGHLIGHT_STROKE = '#D97706'
-const DEFAULT_HIGHLIGHT_LABEL = '#78350F'
+const DEFAULT_HIGHLIGHT_FILL = SEMANTIC_HIGHLIGHT_DEFAULT_BACKGROUND
+const DEFAULT_HIGHLIGHT_STROKE = SEMANTIC_HIGHLIGHT_DEFAULT_BORDER
+const DEFAULT_HIGHLIGHT_LABEL = SEMANTIC_HIGHLIGHT_DEFAULT_COLOR
 
 const readRecord = (value: unknown): Record<string, unknown> => {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}

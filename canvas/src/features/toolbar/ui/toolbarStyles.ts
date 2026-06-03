@@ -51,6 +51,28 @@ export const uiToolbarResponsiveRowScrollClassName = 'kg-responsive-row-scroll'
 
 export const uiToolbarTouchRowScrollClassName = 'App-toolbar--touch-scroll App-toolbar--touch-row-scroll'
 
+export const uiToolbarAreaStackClassName = 'kg-toolbar-area-stack flex flex-col'
+
+export const uiToolbarAreaInsetStackClassName = 'kg-toolbar-area-stack kg-toolbar-area-stack--inset flex flex-col'
+
+export const uiToolbarAreaActionRowClassName = 'kg-toolbar-area-action-row flex items-center justify-end'
+
+export const uiToolbarAreaCompactActionRowClassName = 'kg-toolbar-area-action-row kg-toolbar-area-action-row--compact flex items-center justify-end'
+
+export const uiToolbarAreaWrapActionRowClassName = 'kg-toolbar-area-action-row kg-toolbar-area-action-row--wrap flex flex-wrap items-center justify-end'
+
+export const uiToolbarAreaLabelClassName = 'kg-toolbar-area-label flex items-center text-xs cursor-pointer select-none'
+
+export const uiToolbarSettingsPanelBodyClassName = 'kg-toolbar-settings-panel-body'
+
+export const uiToolbarSettingsPanelSubsectionClassName = 'kg-toolbar-settings-panel-subsection'
+
+export const uiToolbarSettingsPanelFooterClassName = 'kg-toolbar-settings-panel-footer flex items-center justify-between'
+
+export const uiToolbarSettingsPanelActionGroupClassName = 'kg-toolbar-settings-panel-action-group flex items-center justify-end'
+
+export const uiToolbarSettingsPanelTextActionClassName = 'App-toolbar__btn kg-toolbar-settings-panel-text-action rounded'
+
 export const uiPrimaryLinkClassName = `${UI_COLOR_PRIMARY_BLUE} hover:underline`
 
 export const uiPrimaryLinkSmallClassName = `${UI_COLOR_PRIMARY_BLUE} hover:underline`

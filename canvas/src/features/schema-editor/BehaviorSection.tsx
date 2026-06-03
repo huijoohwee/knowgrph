@@ -2,6 +2,8 @@ import React from 'react'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import type { GraphSchema, GraphBehavior } from '@/lib/graph/schema'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
+import { UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type BehaviorSectionProps = {
   schema: GraphSchema
@@ -21,7 +23,7 @@ export default function BehaviorSection({
   const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.secondary}`
   const checkboxLabelClassName = `flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`
   const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
-  const selectClassName = `px-2 py-1 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const selectClassName = `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
@@ -113,7 +115,7 @@ export default function BehaviorSection({
             min={1}
             max={100}
             step={1}
-            value={schema.behavior.snapGrid?.size ?? 10}
+            value={readSnapGridScalarSize(schema.behavior.snapGrid?.size)}
             onChange={e =>
               setBehavior({
                 snapGrid: {

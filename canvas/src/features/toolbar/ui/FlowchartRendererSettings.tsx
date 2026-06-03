@@ -1,6 +1,10 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_COMPACT_CONTROL_TOUCH_TARGET_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_TOUCH_TARGET_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildFlowchartApiMetaUrl } from '@/lib/flowchart/source'
 import { useShallow } from 'zustand/react/shallow'
@@ -11,6 +15,7 @@ import {
   ToggleRow,
   useCompactControls,
 } from './FlowchartRendererControls'
+import { uiToolbarSettingsPanelBodyClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type ApiRuntimeRun = {
   id: string
@@ -360,8 +365,8 @@ export function FlowchartRendererSettings() {
   return (
     <CollapsibleSection title="Flowchart" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
       <div
-        className="px-3 py-2 space-y-2"
-        style={safeAreaAware ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' } : undefined}
+        className={uiToolbarSettingsPanelBodyClassName}
+        style={safeAreaAware ? { paddingBottom: 'max(var(--kg-toolbar-settings-panel-body-padding-block), env(safe-area-inset-bottom))' } : undefined}
       >
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Maps the selected flowchart source into the existing 2D Flowchart scene without file-specific assumptions.
@@ -403,7 +408,7 @@ export function FlowchartRendererSettings() {
               <button
                 key={item.id}
                 type="button"
-                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${compactButtonClass} ${UI_THEME_TOKENS.input.border} ${
+                className={`App-toolbar__btn ${UI_RESPONSIVE_COMPACT_CONTROL_TOUCH_TARGET_CLASSNAME} text-[10px] border ${compactButtonClass} ${UI_THEME_TOKENS.input.border} ${
                   effectiveBuilderPresetId === item.id
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`
@@ -458,7 +463,7 @@ export function FlowchartRendererSettings() {
               <button
                 key={run.id}
                 type="button"
-                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${compactButtonClass} ${UI_THEME_TOKENS.input.border} ${
+                className={`App-toolbar__btn ${UI_RESPONSIVE_COMPACT_CONTROL_TOUCH_TARGET_CLASSNAME} text-[10px] border ${compactButtonClass} ${UI_THEME_TOKENS.input.border} ${
                   effectiveApiRunId === run.id
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`
@@ -474,7 +479,7 @@ export function FlowchartRendererSettings() {
           <div className={compactControls ? 'flex' : 'flex justify-end'}>
             <button
               type="button"
-              className={`App-toolbar__btn min-h-[44px] text-xs border ${compactControls ? 'w-full justify-center' : ''} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
+              className={`App-toolbar__btn ${UI_RESPONSIVE_CONTROL_TOUCH_TARGET_CLASSNAME} text-xs border ${compactControls ? 'w-full justify-center' : ''} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
               onClick={() => setApiRunId(matchingPublishedRun.id)}
             >
               Use builder match

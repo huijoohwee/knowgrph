@@ -30,6 +30,27 @@ export const DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY: MarkdownWorkspacePane
   html: true,
 }
 
+function extensionLower(nameRaw: string): string {
+  const base = String(nameRaw || '').split(/[/?#]/)[0]?.split('/').filter(Boolean).pop() || ''
+  const index = base.lastIndexOf('.')
+  return index > 0 ? base.slice(index + 1).toLowerCase() : ''
+}
+
+export type MarkdownWorkspaceDocumentPanePreset = 'viewer' | 'json' | 'markdown' | null
+
+export function isMarkdownWorkspaceDelimitedTextPath(activeDocumentKey?: string | null): boolean {
+  const ext = extensionLower(String(activeDocumentKey || ''))
+  return ext === 'csv' || ext === 'tsv' || ext === 'tab'
+}
+
+export function resolveMarkdownWorkspaceDocumentPanePreset(activeDocumentKey?: string | null): MarkdownWorkspaceDocumentPanePreset {
+  if (isMarkdownWorkspaceDelimitedTextPath(activeDocumentKey)) return 'viewer'
+  const ext = extensionLower(String(activeDocumentKey || ''))
+  if (ext === 'json' || ext === 'jsonld' || ext === 'geojson') return 'json'
+  if (ext === 'md' || ext === 'markdown') return 'markdown'
+  return null
+}
+
 export function resolveMarkdownWorkspacePaneAvailability(args: {
   modelAssetFormat?: 'glb' | 'gltf' | null
 }): MarkdownWorkspacePaneAvailability {
@@ -43,6 +64,7 @@ export function resolveMarkdownWorkspacePaneAvailability(args: {
 }
 
 export function resolveMarkdownWorkspaceInitialPaneVisibility(args: {
+  activeDocumentKey?: string | null
   modelAssetFormat?: 'glb' | 'gltf' | null
   webpageView?: WebpageViewMode | null
 }): MarkdownWorkspacePaneVisibility {
@@ -50,6 +72,10 @@ export function resolveMarkdownWorkspaceInitialPaneVisibility(args: {
   if (args.modelAssetFormat === 'gltf') return { json: true, markdown: false, viewer: false, html: false }
   if (args.webpageView === 'json') return { json: true, markdown: false, viewer: false, html: false }
   if (args.webpageView === 'html') return { json: false, markdown: false, viewer: true, html: true }
+  const documentPreset = resolveMarkdownWorkspaceDocumentPanePreset(args.activeDocumentKey)
+  if (documentPreset === 'viewer') return { json: false, markdown: false, viewer: true, html: false }
+  if (documentPreset === 'json') return { json: true, markdown: false, viewer: false, html: false }
+  if (documentPreset === 'markdown') return { json: false, markdown: true, viewer: false, html: false }
   return { json: false, markdown: true, viewer: false, html: false }
 }
 
@@ -108,6 +134,7 @@ export type MarkdownWorkspaceMainProps = {
 
   activeText: string
   setActiveText: (next: string) => void
+  jsonSourceText?: string | null
   editorTextOverride?: string | null
   webpageHtmlOverride?: string | null
   disableEditorMutations?: boolean

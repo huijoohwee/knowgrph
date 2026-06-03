@@ -3,6 +3,10 @@ import { FileText, Folder } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MarkdownTocDropMarkers, MarkdownTocExpandGlyph, MarkdownTocReorderHandle } from '@/features/markdown/ui/MarkdownTocChrome'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import {
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_LIST_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 type MarkdownTocTreeRowProps = {
@@ -48,18 +52,18 @@ export function MarkdownTocTreeRow(props: MarkdownTocTreeRowProps) {
       <button
         type="button"
         data-toc-id={itemId}
-        className={`flex-1 min-w-0 flex items-center gap-1 rounded px-1 py-[2px] ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${uiPanelTextFontClass} ${isDragging ? 'opacity-50' : ''} ${isActive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : ''}`}
+        className={`flex-1 min-w-0 flex items-center gap-1 rounded ${UI_RESPONSIVE_COMPACT_LIST_ROW_CLASSNAME} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${uiPanelTextFontClass} ${isDragging ? 'opacity-50' : ''} ${isActive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : ''}`}
         style={{ paddingLeft: 6 + indent }}
         onClick={onClick}
         aria-label={`Heading ${displayText}`}
         title={displayText}
       >
         {hasChildren ? (
-          <MarkdownTocExpandGlyph isExpanded={isExpanded} className="w-3 h-3 shrink-0" />
+          <MarkdownTocExpandGlyph isExpanded={isExpanded} className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} />
         ) : (
-          <span className="w-3 h-3 shrink-0" aria-hidden="true" />
+          <span className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} aria-hidden="true" />
         )}
-        {hasChildren ? <Folder className="w-3 h-3 shrink-0" aria-hidden="true" /> : <FileText className="w-3 h-3 shrink-0" aria-hidden="true" />}
+        {hasChildren ? <Folder className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} aria-hidden="true" /> : <FileText className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} aria-hidden="true" />}
         <span className={`shrink-0 tabular-nums ${UI_THEME_TOKENS.text.secondary}`}>{headingNumber}</span>
         <span className="truncate">{renderMarkdownSigilInlineText(text)}</span>
       </button>
@@ -68,7 +72,7 @@ export function MarkdownTocTreeRow(props: MarkdownTocTreeRowProps) {
         ariaLabel="Reorder heading"
         title="Reorder heading"
         className={`opacity-100 cursor-grab active:cursor-grabbing w-4 h-4 shrink-0 flex items-center justify-center rounded ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverText}`}
-        iconClassName="w-3 h-3"
+        iconClassName={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
       />

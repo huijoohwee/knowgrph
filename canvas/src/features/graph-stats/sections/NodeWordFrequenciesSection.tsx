@@ -3,8 +3,9 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_COPY } from '@/lib/config'
 import type { StatsUiClasses, TokensForSelectedNode, TokensForSelectedNodes } from '@/features/graph-stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
-const statsTokenChipBaseClassName = `inline-flex items-center gap-1 px-2 py-[2px] rounded border cursor-pointer`
+const statsTokenChipBaseClassName = `${UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME} rounded border cursor-pointer`
 const statsTokenDefaultClassName = `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.input.border}`
 const statsTokenIncludedClassName = `bg-blue-50 ${UI_THEME_TOKENS.text.primary} border-blue-200 dark:bg-blue-900/20 dark:text-blue-100 dark:border-blue-800`
 const statsTokenExcludedClassName = `bg-red-50 ${UI_THEME_TOKENS.text.tertiary} border-red-200 line-through dark:bg-red-900/20 dark:text-red-200 dark:border-red-800`

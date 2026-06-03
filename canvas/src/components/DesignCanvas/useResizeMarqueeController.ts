@@ -297,10 +297,10 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
       if (resize.handle.includes('n')) y = resize.startRect.y + (resize.startRect.h - h)
       const grid = readSnapGridConfigFromSchema(schema)
       if (grid.enabled && !event.altKey) {
-        x = snapScalarToGrid(x, grid.size)
-        y = snapScalarToGrid(y, grid.size)
-        w = Math.max(minW, snapScalarToGrid(w, grid.size))
-        h = Math.max(minH, snapScalarToGrid(h, grid.size))
+        x = snapScalarToGrid(x, grid, 'x')
+        y = snapScalarToGrid(y, grid, 'y')
+        w = Math.max(minW, snapScalarToGrid(w, grid, 'x'))
+        h = Math.max(minH, snapScalarToGrid(h, grid, 'y'))
       }
       resizePendingRef.current = { id: resize.id, x, y, w, h }
       scheduleResizeVisual()

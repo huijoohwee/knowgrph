@@ -13,9 +13,8 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
-import { UI_COLOR_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarStyles'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
-import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
+import { KanbanCardDropPreview, KanbanLaneDragOverIndicator, KanbanLaneDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
 import { buildKanbanCardDropIntentLabel, buildKanbanDragStatusText, buildKanbanLaneDropIntentLabel } from '@/features/markdown/ui/kanban/kanbanDragIntent'
 import { buildKanbanDropOutcomeText, isKanbanMoveNoOp } from '@/features/markdown/ui/kanban/kanbanMoveOutcomes'
 import { reorderKanbanRowIds, resolveKanbanGroupOrder } from '@/features/markdown/ui/kanban/kanbanReorder'
@@ -23,6 +22,13 @@ import { getKanbanCardDragVisualState, getKanbanLaneDragVisualState } from '@/fe
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import {
+  UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME,
+  UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 const EMPTY_COLUMN_WIDTHS: Record<string, number> = {}
 const EMPTY_LANE_LABEL = '(empty)'
@@ -302,11 +308,11 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
   ].join(':')
 
   return (
-    <section ref={boardScrollRef} className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-auto overflow-y-auto" aria-label="Graph Data Table Kanban view">
+    <section ref={boardScrollRef} className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-auto overflow-y-auto" aria-label={MARKDOWN_DATA_VIEW_COPY.kanbanViewAriaLabel}>
       <div key={liveRegionKey} className="sr-only" aria-live="polite">{statusPillText}</div>
       {props.onMoveRowToGroup ? (
         <div className="flex items-center justify-between gap-3 px-3 pt-3">
-          <div className={['min-h-[28px] text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+          <div className={[UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
             {statusPillText ? (
               <span className={['inline-flex items-center rounded-full border px-2.5 py-1', UI_THEME_TOKENS.panel.border].join(' ')}>
                 {statusPillText}
@@ -339,9 +345,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
             onDragLeave={kanbanDrag.createLaneDropProps(lane.id).onDragLeave}
             onDrop={kanbanDrag.createLaneDropProps(lane.id).onDrop}
           >
-            {kanbanDrag.dragOverGroupKey === lane.id && kanbanDrag.dragSourceGroupKey !== lane.id ? (
-              <div className="absolute inset-x-0 top-0 h-[2px]" style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} aria-hidden="true" />
-            ) : null}
+            {kanbanDrag.dragOverGroupKey === lane.id && kanbanDrag.dragSourceGroupKey !== lane.id ? <KanbanLaneDragOverIndicator /> : null}
             <header className={['px-3 py-2 border-b', UI_THEME_TOKENS.panel.border].join(' ')}>
               <div className={['flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden', typography.microLabelClass].join(' ')}>
                 <h2 className={['min-w-0 font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} title={readMarkdownSigilDisplayText(lane.label)}>
@@ -359,7 +363,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                 }
                 laneScrollElementsRef.current.delete(lane.id)
               }}
-              className="flex-1 min-h-0 overflow-y-auto list-none m-0 p-2 flex flex-col gap-2 max-h-[min(65vh,720px)]"
+              className={`${UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME} flex-1 min-h-0 overflow-y-auto list-none m-0 p-2 flex flex-col gap-2`}
               aria-label={`${readMarkdownSigilDisplayText(lane.label)} cards`}
             >
               {lane.rows.map(row => {
@@ -456,7 +460,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                           props.onUpdateCell(row.id, titleColumn.columnId, nextValue)
                         }}
                         displayClassName={['font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
-                        editorClassName="min-h-[1.5rem] px-0 py-0 text-sm font-medium leading-5"
+                        editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-medium leading-5`}
                       />
                       {meta ? (
                         <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayMeta}>
@@ -484,7 +488,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                                     props.onUpdateCell(row.id, entry.id, nextValue)
                                   }}
                                   displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                                  editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                                  editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                                 />
                               </div>
                             )

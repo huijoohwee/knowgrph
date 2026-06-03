@@ -590,10 +590,12 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
   },
 
   setJsonSourceDocument: (name: string | null, text: string | null) => {
+    const nextName = typeof name === 'string' && name.trim() ? name.trim() : null
     const trimmed = typeof text === 'string' ? text.trim() : ''
     const nextText = trimmed ? text : null
     set(state => ({
       ...state,
+      jsonSourceDocumentName: nextText ? nextName : null,
       jsonSourceDocumentText: nextText,
     }))
   },

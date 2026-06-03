@@ -1,5 +1,6 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_PREVIEW_GALLERY_DRAG_CARD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 import {
   uiToolbarToggleActiveClassName,
@@ -585,7 +586,7 @@ export default function PreviewGallery({
       >
         <div
           ref={dragImageContainerRef}
-          className={`flex items-stretch rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-md max-w-[260px]`}
+          className={`flex items-stretch rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-md ${UI_RESPONSIVE_PREVIEW_GALLERY_DRAG_CARD_CLASSNAME}`}
         >
           <div
             ref={dragImageStripRef}

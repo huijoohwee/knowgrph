@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export function MarkdownExplorerSection(props: {
   title: string
@@ -45,7 +46,7 @@ export function MarkdownExplorerSection(props: {
           onKeyDown={e => onKeyDown(e as unknown as React.KeyboardEvent<HTMLDivElement>)}
           aria-expanded={!collapsed}
         >
-          {collapsed ? <ChevronRight className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
+          {collapsed ? <ChevronRight className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} /> : <ChevronDown className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} />}
           <span className={`${UI_TEXT_TRUNCATE} ${panelTypography.panelTextClass}`}>{title}</span>
         </button>
 

@@ -5,12 +5,17 @@ import { lsJson, lsSetJson } from '@/lib/persistence'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
+import {
+  UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type ContentSize = { w: number; h: number }
 type Pan = { x: number; y: number }
 type StoredState = { zoom: number; panX: number; panY: number }
 
 const clampZoom = (z: number) => Math.max(0.05, Math.min(8, z))
+const zoomControlButtonClassName = `${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`
 
 const parseStoredState = (raw: unknown): StoredState | null => {
   if (!raw || typeof raw !== 'object') return null
@@ -182,24 +187,24 @@ export default function ZoomPanViewport({
   return (
     <div className={`w-full h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>
       {showControls ? (
-        <div className={`shrink-0 h-10 px-3 flex items-center justify-end gap-2 border-b ${UI_THEME_TOKENS.panel.divider} text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+        <div className={`${UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME} shrink-0 px-3 py-1 flex items-center justify-end gap-2 border-b ${UI_THEME_TOKENS.panel.divider} text-xs ${UI_THEME_TOKENS.text.secondary}`}>
           <button
             type="button"
-            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+            className={zoomControlButtonClassName}
             onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current / 1.15), pan: panRef.current })}
           >
             -
           </button>
           <button
             type="button"
-            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+            className={zoomControlButtonClassName}
             onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current * 1.15), pan: panRef.current })}
           >
             +
           </button>
           <button
             type="button"
-            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+            className={zoomControlButtonClassName}
             onClick={() => {
               scheduleApply({ zoom: 1, pan: { x: 0, y: 0 } })
             }}
@@ -208,7 +213,7 @@ export default function ZoomPanViewport({
           </button>
           <button
             type="button"
-            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+            className={zoomControlButtonClassName}
             onClick={fitToViewport}
           >
             Fit

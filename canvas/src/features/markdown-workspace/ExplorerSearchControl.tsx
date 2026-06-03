@@ -1,6 +1,10 @@
 import React from 'react'
 import { Search } from 'lucide-react'
-import { UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
 
@@ -9,6 +13,8 @@ type ExplorerSearchControlProps = {
   setSearch: (next: string) => void
   panelTextClass: string
 }
+
+const explorerSearchIconClassName = `${UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME} shrink-0`
 
 export const ExplorerSearchControl = React.memo(function ExplorerSearchControl(props: ExplorerSearchControlProps) {
   const { search, setSearch, panelTextClass } = props
@@ -42,7 +48,7 @@ export const ExplorerSearchControl = React.memo(function ExplorerSearchControl(p
         onChange={e => setSearch(e.target.value)}
         placeholder="Search"
         className={[
-          'min-w-0 h-[var(--kg-control-height,28px)] rounded border',
+          `${UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME} rounded border`,
           UI_THEME_TOKENS.input.border,
           UI_THEME_TOKENS.input.bg,
           UI_THEME_TOKENS.input.text,
@@ -73,7 +79,7 @@ export const ExplorerSearchControl = React.memo(function ExplorerSearchControl(p
           })
         }}
       >
-        <Search className="w-4 h-4 shrink-0" />
+        <Search className={explorerSearchIconClassName} />
       </ExplorerToolbarIconButton>
     </label>
   )

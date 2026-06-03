@@ -60,6 +60,21 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.markdown.preview.viewModeSwitchDoesNotCrossDocPath',
       modShowOnCanvas.testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath,
     )
+    await execTest(
+      results,
+      'ui.markdown.preview.selectionHighlightsOtherSameText',
+      modShowOnCanvas.testMarkdownPreviewSelectionHighlightsOtherSameText,
+    )
+    await execTest(
+      results,
+      'ui.markdown.preview.selectionHighlightsOtherSameSentence',
+      modShowOnCanvas.testMarkdownPreviewSelectionHighlightsOtherSameSentence,
+    )
+    await execTest(
+      results,
+      'ui.markdown.preview.sentenceDragSelectionSurvivesPeerHighlightRender',
+      modShowOnCanvas.testMarkdownPreviewSentenceDragSelectionSurvivesPeerHighlightRender,
+    )
 
     const modSelectionScrollHighlight = await import('../__tests__/markdownSelectionScrollHighlight.test')
     await execTest(

@@ -24,5 +24,6 @@ export function testArrangeShortcutsParseAndNudge() {
   if (!n4 || n4.dx !== -40 || n4.dy !== 0) throw new Error('expected Shift grid nudge by 5x gridSize')
   const n5 = readNudgeDelta({ e: mk({ key: 'ArrowLeft', altKey: true }), snapGridEnabled: true, snapGridSize: 8 })
   if (!n5 || n5.dx !== -1 || n5.dy !== 0) throw new Error('expected Alt to bypass grid snapping on nudge')
+  const n6 = readNudgeDelta({ e: mk({ key: 'ArrowDown' }), snapGridEnabled: true, snapGridSize: 8, snapGridSizeY: 20 })
+  if (!n6 || n6.dx !== 0 || n6.dy !== 20) throw new Error('expected vertical nudge to use vertical snap grid size')
 }
-

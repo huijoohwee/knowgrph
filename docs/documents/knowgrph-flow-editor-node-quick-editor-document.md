@@ -13,7 +13,7 @@
 - **Semantics**: semantic HTML only (`aside/section/header/nav/menu/form/fieldset/legend/label/input/select/textarea/button/table/thead/tbody/tr/th/td`).
 - **Frontmatter-only policy**: When the 2D renderer is Flow/Flow Editor, the active view graph comes only from frontmatter-flow data; keyword/table/composed-source pipelines stay disabled so other document modes/renderers cannot mutate Flow Editor graph state.
 - **Flow block sources**: frontmatter-flow graphs may be parsed from either YAML frontmatter or an explicit top-level Markdown-body `flow:` block terminated by a Markdown `---` divider; parsing must not depend on filename or other document modes.
-- **Key/Value rows**: Node, Smart fields, Mapping, and Registry fields render as schema-like rows with **In Port / Key / Type / Value / Out Port** columns (1%/29%/10%/59%/1%) using SSOT typography/tokens; port dots render for every key row and value inputs/selects align to the same left/right borders without horizontal scrolling.
+- **KTV rows**: Node, Smart fields, Mapping, and Registry fields render as schema-like key/type/value rows with **In Port / Key / Type / Value / Out Port** columns (1%/29%/10%/59%/1%) using SSOT typography/tokens; port dots render for every key row and value inputs/selects align to the same left/right borders without horizontal scrolling.
 - **Toolbar**: AI-Flow-style icon toolbar for quick actions; hidden by default and shown only when the node is selected (top-center, outside the panel border), with no “More” menu.
 
 ---
@@ -85,6 +85,8 @@
 - For `metadata.kind=frontmatter-flow` overlays, quick-editor handle rendering must stay strict and flow-derived: use declared flow handles plus edge/registry-derived typed ports only, and do not synthesize fallback default handles.
 - Frontmatter-flow overlay contracts must not render absent hardcoded ports (for example `compute` or `data`) unless those keys are explicitly present on the node properties.
 - **Envelope-driven rows**: for flow blocks that wrap node fields as `{key,type,value}`, quick-editor rows must render only declared fields (no synthetic key/type fallback) and map them to real node properties (`handles → frontmatter:handles`, `data → properties.data`, `compute → properties.flow:compute`).
+- **KTV row/port merge**: when an authored `{key,type,value}` field row and a functional input/output port resolve to the same normalized schema path, the quick editor renders one inline-editable KTV row and attaches the port handle to that row. It must not render a second read-only row for the same semantic key.
+- **Semantic key ownership**: `handles.source` and `handles.target` declare port membership only. Edge creation, connected-value lookup, DOM control ids, and accessible port labels use the field `key` / `portKey` as the semantic handle, never `handles.source`, `handles.target`, or a renderer-local alias.
 - **Inline envelope tolerance**: parser normalization must accept node field lines using `key:{...}` (no space after `:`) and treat them the same as `key: {...}` so declared flow nodes keep their quick-editor form and handle contracts.
 - **Declared data only**: frontmatter-flow node normalization must omit `data` when it is not declared by author input; do not materialize synthetic `{}` placeholders.
 
@@ -116,6 +118,7 @@
 - When a matching **enabled** entry exists in the Node Quick Editor Registry (Flow Editor Manager), the Node Quick Editor renders an additional **Registry** section for the selected node type.
 - Registry fields read/write values via `schemaPath` (defaulting to `properties.<fieldKey>` when omitted).
 - Registry ports render as clickable in/out ports and create edges bound via `flow:sourcePortKey` / `flow:targetPortKey`.
+- Registry ports that share the normalized schema path of a visible registry field attach to the editable field row and suppress the duplicate standalone port-value row. Standalone read-only port rows remain valid only for ports with no visible matching field row.
 - Optional per-field/per-port visibility: `isHidden: true` hides the field/port from the Node Quick Editor UI and suppresses Flow port handles.
 - Optional per-node overrides:
   - `node.properties['flow:quickEditorTypeId']`
@@ -142,6 +145,7 @@
   - The compute path is shared across Flow Editor and Table Inspector so connected-value semantics do not drift across modes.
   - For each connected input port, the UI surfaces a **Connected:** hint next to the mapped field and provides an **Apply** action.
   - Applying writes the value into `node.properties` at the field schemaPath (using object-path setters), making the value explicit and exportable.
+  - Field/port row consolidation is a render concern only: computing-flow propagation still reads by semantic port key and normalized schema path from `computeFlowConnectedValuesBySchemaPath()`.
 - **Propagation model (MVP)**:
   - Connected values are computed across upstream chains (A → B → C) without requiring intermediate nodes to mutate their stored properties.
   - The dataflow iteration is bounded and converges to a stable connected-value map (no unbounded loops).
@@ -160,6 +164,14 @@
   - The Registry section includes an Apply All action that fills empty fields from connected values.
   - Optional Auto-apply continuously fills empty fields as connected values update, without mutating GraphData during compute.
 - **Non-mutation rule**: connected values are computed at render time; the pipeline must not silently mutate `GraphData` while computing.
+
+### Template And Validation Invariants
+
+- Runnable Flow Editor templates must declare the canvas landing in frontmatter: `kgCanvasSurfaceMode: "2d"`, `kgCanvasRenderMode: "2d"`, `kgCanvas2dRenderer: "flowEditor"`, `kgDocumentSemanticMode: "document"`, `kgFrontmatterModeEnabled: true`, `kgMultiDimTableModeEnabled: false`, and `kgDocumentStructureBaselineLock: false`.
+- Template authors should use plain YAML `flow:` blocks with `handles`, `"flow:portTypes"`, `sourceHandle`, and `targetHandle`. Use normalized `{key,type,value}` field envelopes only in parser/render validation fixtures.
+- The Quick Editor must read row identity from normalized schema path + semantic key, not visible label text. Repeated labels such as `Value` are allowed only when their control ids, accessible names, and port handles remain unique.
+- Validation must prove the full Source Files -> Markdown parser -> Flow Editor -> Rich Media Panel chain when a template includes panel outputs. A passing parse without Flow Editor surface proof is not enough for renderer changes.
+- A publish-side template is valid only when parser warnings are zero, declared ports have matching `flow:portTypes`, and Rich Media Panel endpoints render through shared panel state rather than local preview branches.
 
 ### Code Locations
 

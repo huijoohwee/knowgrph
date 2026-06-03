@@ -3,6 +3,10 @@ import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/providers'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { AnchorOverlay } from '@/lib/ui/overlay'
+import {
+  UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_BODY_CLASSNAME,
+  UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 const normalizeCommentPreviewMarkdown = (text: string): string => {
   return String(text || '')
@@ -35,7 +39,7 @@ export function MarkdownBlockContainerCommentPreviewOverlay(props: {
       align="bottom-center"
       autoFocus={false}
       className={[
-        'w-[320px] max-w-[calc(100vw-1rem)] overflow-hidden rounded border shadow-lg',
+        `${UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME} overflow-hidden rounded border shadow-lg`,
         UI_THEME_TOKENS.panel.bg,
         UI_THEME_TOKENS.panel.border,
       ].join(' ')}
@@ -44,11 +48,11 @@ export function MarkdownBlockContainerCommentPreviewOverlay(props: {
         data-kg-comment-rich-media-preview="1"
         data-kg-canvas-pointer-ignore="true"
         data-kg-canvas-wheel-ignore="true"
+        className={UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_BODY_CLASSNAME}
         style={{
           width: 320,
-          maxWidth: 'calc(100vw - 1rem)',
-          maxHeight: 220,
-          overflow: 'auto',
+          maxWidth: '100%',
+          ['--kg-anchor-preview-max-height' as never]: '220px',
         }}
       >
         <div className={`border-b px-3 py-2 text-xs font-medium ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary}`}>

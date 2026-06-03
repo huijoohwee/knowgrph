@@ -75,8 +75,8 @@ const readWorkspaceDocsMirrorStorageFallbackEnabled = (): boolean => {
   return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
 }
 
-const encodeArrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-  const bytes = new Uint8Array(buffer)
+const encodeArrayBufferToBase64 = (buffer: ArrayBuffer | Uint8Array): string => {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
   const chunkSize = 0x8000
   const chunks: string[] = []
   for (let offset = 0; offset < bytes.length; offset += chunkSize) {
@@ -818,6 +818,37 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
   }
 }
 
+const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffer | Uint8Array): Promise<boolean> => {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return false
+  try {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => {
+      try {
+        controller.abort()
+      } catch {
+        void 0
+      }
+    }, 5000)
+    try {
+      const response = await fetch(KG_FS_WRITE_PATH, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: absolutePath,
+          base64: encodeArrayBufferToBase64(bytes),
+          encoding: 'base64',
+        }),
+        signal: controller.signal,
+      })
+      return response.ok
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+  } catch {
+    return false
+  }
+}
+
 const readExistingMirrorText = async (absolutePath: string): Promise<string | null> => {
   const absoluteViaFetch = buildLocalFsFetchPath(absolutePath)
   if (absoluteViaFetch) {
@@ -1161,6 +1192,21 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
     : ''
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
   const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
+  if (docsAbsRoot) {
+    const browserLikeRuntime = typeof window !== 'undefined'
+    const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
+    if (viaProxy.length > 0) {
+      if (!preferCompleteDataset || browserLikeRuntime) return viaProxy
+      completeDatasetCandidates.push(viaProxy)
+    }
+    if (!browserLikeRuntime || viaProxy.length === 0) {
+      const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
+      if (viaNodeFs.length > 0) {
+        if (!preferCompleteDataset) return viaNodeFs
+        completeDatasetCandidates.push(viaNodeFs)
+      }
+    }
+  }
   if (knowgrphStorageBaseUrl && sourceFilesSelection) {
     if (knowgrphStorageWorkspaceId) {
       const storageDatasets: WorkspaceDocsMirrorEntry[][] = []
@@ -1191,21 +1237,6 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
       if (bestStorageDataset.length > 0) {
         if (!preferCompleteDataset) return bestStorageDataset
         completeDatasetCandidates.push(bestStorageDataset)
-      }
-    }
-  }
-  if (!knowgrphStorageBaseUrl && docsAbsRoot) {
-    const browserLikeRuntime = typeof window !== 'undefined'
-    const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
-    if (viaProxy.length > 0) {
-      if (!preferCompleteDataset || browserLikeRuntime) return viaProxy
-      completeDatasetCandidates.push(viaProxy)
-    }
-    if (!browserLikeRuntime || viaProxy.length === 0) {
-      const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
-      if (viaNodeFs.length > 0) {
-        if (!preferCompleteDataset) return viaNodeFs
-        completeDatasetCandidates.push(viaNodeFs)
       }
     }
   }
@@ -1388,6 +1419,27 @@ export async function upsertWorkspaceChatMirrorText(args: {
     const path = await importNodePath()
     await fs.mkdir(path.dirname(absolutePath), { recursive: true })
     await fs.writeFile(absolutePath, String(args.text ?? ''), 'utf8')
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function upsertWorkspaceChatMirrorBytes(args: {
+  workspacePath: string
+  bytes: ArrayBuffer | Uint8Array
+}): Promise<boolean> {
+  const absolutePath = resolveWorkspaceDocsMirrorAbsolutePath(args.workspacePath)
+  if (!absolutePath) return false
+  const bytes = args.bytes instanceof Uint8Array ? args.bytes : new Uint8Array(args.bytes)
+  if (typeof window !== 'undefined') {
+    return writeBytesViaLocalFsProxy(absolutePath, bytes)
+  }
+  try {
+    const fs = await importNodeFsPromises()
+    const path = await importNodePath()
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true })
+    await fs.writeFile(absolutePath, bytes)
     return true
   } catch {
     return false

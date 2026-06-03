@@ -230,6 +230,8 @@ export const useGraphStore = create<GraphState>()(
       orchestratorOpMsg: '',
       renderOpOk: null,
       renderOpMsg: '',
+      jsonSourceDocumentName: null,
+      jsonSourceDocumentText: null,
       lifecycleStage: 'idle',
       documentSemanticMode: 'document',
       frontmatterModeEnabled: true,

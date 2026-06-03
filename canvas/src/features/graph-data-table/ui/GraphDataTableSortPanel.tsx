@@ -14,6 +14,16 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FOOTER_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_CHOICE_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SCROLL_STACK_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME,
+  UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export interface SortPanelProps {
@@ -47,22 +57,24 @@ export function SortPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
-  const sortValueComboboxClassName = `flex items-center justify-between whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm ${UI_THEME_TOKENS.input.placeholder} ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`
+  const sortKeyComboboxClassName = `${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_CHOICE_CLASSNAME} whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} ${panelTypography.textSizeClass}`
+  const sortValueComboboxClassName = `${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_CHOICE_CLASSNAME} whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} ${panelTypography.textSizeClass} shadow-sm ${UI_THEME_TOKENS.input.placeholder} ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`
+  const selectionControlClassName = `${UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
-    <section className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex max-h-96 w-80 sm:w-96 md:w-[544px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}>
-      <header className={`mb-2 flex items-center justify-between gap-2 ${panelTypography.textSizeClass}`}>
+    <section className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}>
+      <header className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
         <div className="font-medium">{panelTitle}</div>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
           {UI_LABELS.close}
         </button>
       </header>
-      <div className={`mb-3 flex items-center justify-between gap-2 ${panelTypography.textSizeClass}`}>
-        <div className="flex items-center gap-2">
+      <div className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
+        <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
           <input
             id="auto-sort-checkbox"
             type="checkbox"
-            className={`h-3.5 w-3.5 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
+            className={selectionControlClassName}
             checked={isAutoSortEnabled}
             onChange={event => setIsAutoSortEnabled(event.target.checked)}
           />
@@ -74,19 +86,19 @@ export function SortPanel({
           {UI_LABELS.reset}
         </button>
       </div>
-      <div className="flex flex-1 flex-col gap-2 overflow-auto pt-2 pb-4">
+      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SCROLL_STACK_CLASSNAME}>
         {sortRules.length === 0 ? (
           <div className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphDataTableSortingByIdFallbackLabel}</div>
         ) : (
           sortRules.map(rule => (
-            <div key={rule.id} className="flex items-center gap-2">
+            <div key={rule.id} className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
               <FilterCombobox
                 value={rule.key}
                 options={columnOptions}
                 onChange={value =>
                   updateSortRule(rule.id, { key: value as GraphDataTableColumnKey })
                 }
-                className={`justify-center whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} px-2 py-1 ${panelTypography.textSizeClass}`}
+                className={sortKeyComboboxClassName}
               />
               <FilterCombobox
                 value={rule.dir}
@@ -108,7 +120,7 @@ export function SortPanel({
           ))
         )}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FOOTER_ROW_CLASSNAME}>
         <button type="button" className={secondaryButtonClassName} onClick={addSortRule}>
           <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
           {UI_COPY.graphDataTableAddSortLabel}

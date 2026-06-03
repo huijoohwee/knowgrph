@@ -8,8 +8,8 @@ import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
+import { UI_RESPONSIVE_CONTENT_START_OFFSET_BEFORE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
-  MARKDOWN_BLOCK_GUTTER_CONTENT_START_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
   MarkdownBlockDropMarkers,
@@ -92,7 +92,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     'py-2 rounded-r',
     `${UI_THEME_TOKENS.table.rowRelated} ${UI_THEME_TOKENS.text.secondary} italic`,
     'before:content-[\'\'] before:absolute before:inset-y-0 before:border-l-4 before:border-blue-400 dark:before:border-blue-600 before:pointer-events-none',
-    `before:${MARKDOWN_BLOCK_GUTTER_CONTENT_START_LEFT_CLASS}`,
+    UI_RESPONSIVE_CONTENT_START_OFFSET_BEFORE_CLASSNAME,
     baseTextClass,
     commonBlockClass,
   ]

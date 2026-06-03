@@ -3,6 +3,11 @@ import { CheckCircle, XCircle } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_STATUS_BADGE_CLASSNAME,
+  UI_RESPONSIVE_STATUS_BADGE_DETAIL_CLASSNAME,
+  UI_RESPONSIVE_STATUS_BADGE_MESSAGE_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 interface StatusBadgeProps {
   label: string
@@ -28,16 +33,16 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
   return (
     <div className="min-w-0 max-w-full overflow-hidden">
       <div
-        className={`${uiIconPillClass} inline-flex h-[var(--kg-status-pill-height,24px)] min-w-0 max-w-full items-center justify-center gap-1 overflow-hidden box-border px-2 text-xs sm:min-w-[120px] ${classes}`}
+        className={`${uiIconPillClass} ${UI_RESPONSIVE_STATUS_BADGE_CLASSNAME} inline-flex h-[var(--kg-status-pill-height,24px)] max-w-full items-center justify-center gap-1 overflow-hidden box-border px-2 text-xs ${classes}`}
       >
         {ok === true ? (
           <CheckCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         ) : ok === false ? (
           <XCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         ) : null}
-        <span className="min-w-0 max-w-40 truncate">{ok == null ? (msg || 'Idle') : (msg || '')}</span>
+        <span className={UI_RESPONSIVE_STATUS_BADGE_MESSAGE_CLASSNAME}>{ok == null ? (msg || 'Idle') : (msg || '')}</span>
         {!below && details ? (
-          <span className={`min-w-0 max-w-32 truncate ${UI_THEME_TOKENS.text.tertiary}`}>
+          <span className={`${UI_RESPONSIVE_STATUS_BADGE_DETAIL_CLASSNAME} ${UI_THEME_TOKENS.text.tertiary}`}>
             · {details}
           </span>
         ) : null}

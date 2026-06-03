@@ -53,3 +53,25 @@ export function testMarkdownWorkspaceSelectionWritebackSuppressesPendingDocument
     throw new Error('expected writeback helper to suppress stale graph/editor writeback while the next workspace document owner is still switching')
   }
 }
+
+export function testMarkdownWorkspaceSelectionWritebackSuppressesNonMarkdownSources() {
+  const csvSync = resolveMarkdownWorkspaceSelectionWritebackSync({
+    activePath: '/docs/table.csv',
+    activeDocumentKey: 'docs/table.csv',
+    markdownDocumentName: '/docs/table.csv',
+    markdownDocumentText: '| Column |\n|---|\n| Value |',
+  })
+  if (csvSync !== null) {
+    throw new Error('expected writeback helper to avoid mutating CSV source text with markdown table text')
+  }
+
+  const jsonSync = resolveMarkdownWorkspaceSelectionWritebackSync({
+    activePath: '/docs/data.json',
+    activeDocumentKey: 'docs/data.json',
+    markdownDocumentName: '/docs/data.json',
+    markdownDocumentText: '# Derived JSON preview',
+  })
+  if (jsonSync !== null) {
+    throw new Error('expected writeback helper to avoid mutating JSON source text with derived markdown text')
+  }
+}

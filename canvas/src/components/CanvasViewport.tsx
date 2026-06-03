@@ -5,12 +5,15 @@ import type { GraphData } from '@/lib/graph/types'
 import { importWithRetry } from '@/lib/react/importWithRetry'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
 import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
+import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
@@ -65,7 +68,27 @@ export function CanvasViewport(props: CanvasViewportProps) {
     documentSwitchPendingLabel = 'Switching document...',
   } = props
   const activeGraphData = useActiveGraphRenderData(true)
-  const active2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
+  const sourceFiles = useGraphStore(s => s.sourceFiles)
+  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
+  const activeSourceFile = React.useMemo(
+    () => resolvePreferredEnabledComposedSourceFile({
+      sourceFiles,
+      markdownDocumentName,
+      explorerActivePath,
+      fallbackName: markdownDocumentName,
+    }),
+    [explorerActivePath, markdownDocumentName, sourceFiles],
+  )
+  const rawActive2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
+  const workspaceFrontmatterFlowEditorSurfaceActive = workspaceEditorOverlayOpen === true
+    && canvasRenderMode === '2d'
+    && (
+      isFrontmatterFlowGraph(activeGraphData)
+      || isFrontmatterFlowGraph(activeSourceFile?.parsedGraphData)
+    )
+  const active2dSurface = workspaceFrontmatterFlowEditorSurfaceActive ? 'flowEditor' : rawActive2dSurface
+  const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterFlowEditorSurfaceActive
   const d3SurfaceActive = active2dSurface === 'd3'
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
   const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, schema, timelineEnabled } = useGraphStore(
@@ -97,7 +120,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const geospatialOverlayOwnsViewport = geospatialModeEnabled && !(workspaceEditorOverlayOpen && active2dSurface === 'flowEditor')
   const timelineBottomPanelVisible = canvas2dRenderer === 'strybldr' && shouldRenderTimelineSurface({
     activeSurface,
-    documentSwitchPending,
+    documentSwitchPending: documentSwitchBlocksCanvas,
     geospatialOverlayOwnsViewport,
     timelineEnabled,
   })
@@ -115,7 +138,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
       aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
-        {!documentSwitchPending && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
+        {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <div className="absolute inset-0 z-[10]">
             <div className={`absolute inset-0 ${d3SurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!d3SurfaceActive}>
               {d3SurfaceActive ? <GraphCanvasLazy active /> : null}
@@ -137,19 +160,19 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </div>
           </div>
         )}
-        {!documentSwitchPending && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' ? (
+        {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' ? (
           <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </div>
         ) : null}
 
-        {!documentSwitchPending && geospatialModeEnabled && active2dSurface === 'flowEditor' ? (
+        {!documentSwitchBlocksCanvas && geospatialModeEnabled && active2dSurface === 'flowEditor' ? (
           <div className="absolute inset-0 z-[30] pointer-events-none" aria-hidden="true">
             <FlowEditorWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />
           </div>
         ) : null}
 
-        {!documentSwitchPending && geospatialOverlayOwnsViewport ? (
+        {!documentSwitchBlocksCanvas && geospatialOverlayOwnsViewport ? (
           <CanvasViewportGeospatialOverlayLazy
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}
@@ -160,12 +183,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
 
         {variant === 'workspace' ? (
           <>
-            {layout === 'full' && !documentSwitchPending ? (
+            {layout === 'full' && !documentSwitchBlocksCanvas ? (
               <React.Suspense fallback={null}>
                 <LaunchSpotlightLazy />
               </React.Suspense>
             ) : null}
-            {!documentSwitchPending && !geospatialOverlayOwnsViewport && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
+            {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 ${workspaceEditorOverlayOpen ? 'z-[420]' : 'z-[201]'} pointer-events-auto`}
                 style={layout === 'pane' ? { bottom: 'calc(var(--kg-safe-bottom) + 0.75rem)' } : { bottom: 'calc(40px + 12px)' }}
@@ -175,10 +198,10 @@ export function CanvasViewport(props: CanvasViewportProps) {
               </aside>
             ) : null}
             {timelineBottomPanelVisible ? <StrybldrTimelineBottomPanelLazy active /> : null}
-            {!documentSwitchPending ? <InfiniteCanvasWorkspaceOverlay /> : null}
-            {!documentSwitchPending && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
-            {!documentSwitchPending && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
-            {documentSwitchPending ? (
+            {!documentSwitchBlocksCanvas ? <InfiniteCanvasWorkspaceOverlay /> : null}
+            {!documentSwitchBlocksCanvas && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
+            {!documentSwitchBlocksCanvas && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
+            {documentSwitchBlocksCanvas ? (
               <section
                 className="absolute inset-0 z-[80] flex items-center justify-center bg-[var(--kg-canvas-bg)]"
                 aria-label={documentSwitchPendingLabel}

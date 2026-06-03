@@ -206,7 +206,7 @@ export async function testFlowEditorPointerPanZoomMovesDoNotCommitEveryFrame() {
       startNodeX: 0,
       startNodeY: 0,
       clamp: null,
-      snapGrid: { enabled: false, size: 24 },
+      snapGrid: { enabled: false, size: 24, x: 24, y: 24, grid: [24, 24] },
       edgeScrollEnabled: true,
       pointerId: 7,
     }

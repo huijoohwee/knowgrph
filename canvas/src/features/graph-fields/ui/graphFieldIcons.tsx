@@ -1,7 +1,11 @@
 import React from 'react'
 import { fieldKindLabel } from '@/features/graph-fields/graphFields'
 import type { GraphFieldKind, GraphFieldScope } from '@/features/graph-fields/graphFields'
+import { UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const graphFieldIconDefaultClassName = UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME
+const graphFieldIconTertiaryClassName = `${UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME} ${UI_THEME_TOKENS.text.tertiary}`
 
 export function resolveFieldTypeIconKind(fieldTypeLabel: string): GraphFieldKind {
   const normalized = String(fieldTypeLabel || '').trim().toLowerCase()
@@ -40,7 +44,7 @@ export function resolveFieldTypeIconKind(fieldTypeLabel: string): GraphFieldKind
 
 export function GripDotsIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className ?? 'w-4 h-4'}>
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className ?? graphFieldIconDefaultClassName}>
       <path
         d="M9 6h2v2H9V6Zm4 0h2v2h-2V6ZM9 11h2v2H9v-2Zm4 0h2v2h-2v-2ZM9 16h2v2H9v-2Zm4 0h2v2h-2v-2Z"
         fill="currentColor"
@@ -60,7 +64,7 @@ export function SearchIcon({
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={className ?? 'w-4 h-4'}
+      className={className ?? graphFieldIconDefaultClassName}
       fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
@@ -84,7 +88,7 @@ export function FieldKeyIcon({
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={className ?? 'w-4 h-4'}
+      className={className ?? graphFieldIconDefaultClassName}
       fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
@@ -108,7 +112,7 @@ export function GraphFieldsIcon({
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={className ?? 'w-4 h-4'}
+      className={className ?? graphFieldIconDefaultClassName}
       fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
@@ -142,7 +146,7 @@ export function ScopeIcon({
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={className ?? `w-4 h-4 ${UI_THEME_TOKENS.text.tertiary}`}
+      className={className ?? graphFieldIconTertiaryClassName}
     >
       {scope === 'node' ? (
         <>
@@ -179,16 +183,12 @@ export function FieldTypeBadgeIcon({
     typeof strokeWidth === 'number' && Number.isFinite(strokeWidth)
       ? Math.max(1.5, Math.min(2.5, Math.round(strokeWidth)))
       : 2
-  const iconClassName = [className ?? 'w-4 h-4'].filter(Boolean).join(' ')
+  const iconClassName = [className ?? graphFieldIconDefaultClassName].filter(Boolean).join(' ')
   const iconColor = 'var(--kg-text-secondary, #6b7280)'
   const iconStyle = {
     fill: 'none',
     opacity: 1,
     display: 'block',
-    width: '16px',
-    height: '16px',
-    minWidth: '16px',
-    minHeight: '16px',
     shapeRendering: 'geometricPrecision',
   } as const
   const normalized = label.toLowerCase()
@@ -341,7 +341,7 @@ export function BaseFieldIcon({
       <svg
         viewBox="0 0 24 24"
         aria-hidden="true"
-        className={iconClassName ?? 'w-4 h-4'}
+        className={iconClassName ?? graphFieldIconDefaultClassName}
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
@@ -373,7 +373,7 @@ export function FieldColorIcon({
       <svg
         viewBox="0 0 24 24"
         aria-hidden="true"
-        className={iconClassName ?? 'w-4 h-4'}
+        className={iconClassName ?? graphFieldIconDefaultClassName}
       >
         <circle cx="12" cy="12" r="6" fill={fill} />
         <circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" opacity="0.25" />
@@ -406,7 +406,7 @@ export function FieldOriginIcon({
       <svg
         viewBox="0 0 24 24"
         aria-hidden="true"
-        className={iconClassName ?? 'w-4 h-4'}
+        className={iconClassName ?? graphFieldIconDefaultClassName}
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
@@ -449,7 +449,7 @@ export function VisibilityIcon({
       <svg
         viewBox="0 0 24 24"
         aria-hidden="true"
-        className={iconClassName ?? 'w-4 h-4'}
+        className={iconClassName ?? graphFieldIconDefaultClassName}
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}

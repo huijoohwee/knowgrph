@@ -587,7 +587,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   },
   uiHeaderRowHeightClass: {
     area: 'UI Density: Headers',
-    responsibility: 'Tailwind class for primary header row min-height',
+    responsibility: 'Responsive class for primary header row min-height',
   },
   uiHeaderRowPaddingClass: {
     area: 'UI Density: Headers',
@@ -595,7 +595,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   },
   uiSectionHeaderRowHeightClass: {
     area: 'UI Density: Headers',
-    responsibility: 'Tailwind class for section header row min-height',
+    responsibility: 'Responsive class for section header row min-height',
   },
   uiSectionHeaderRowPaddingClass: {
     area: 'UI Density: Headers',

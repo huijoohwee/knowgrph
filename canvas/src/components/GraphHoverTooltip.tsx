@@ -5,6 +5,10 @@ import { summarizePropertySpec, getNodePropSpec, getEdgePropSpec, buildEdgeSchem
 import { useGraphStore } from '@/hooks/useGraphStore'
 import IconButton from '@/components/IconButton'
 import { getBadgeChipClass, getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
+import {
+  UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME,
+  UI_RESPONSIVE_TOOLTIP_KEY_LABEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { LS_KEYS } from '@/lib/config.ls.keys'
@@ -156,7 +160,7 @@ function buildNodeContent(
           className={`mt-1 text-left ${UI_THEME_TOKENS.tooltip.text} break-words leading-tight w-full`}
           onClick={onToggleExpanded ?? undefined}
         >
-          <div className={`${expanded ? 'max-h-[220px] overflow-auto pr-1' : ''} text-xs`}>
+          <div className={`${expanded ? UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME : ''} text-xs`}>
             {descText}
           </div>
         </button>
@@ -177,7 +181,7 @@ function buildNodeContent(
                       className={iconClassName}
                     />
                   ) : null}
-                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} truncate max-w-[80px]`}>
+                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} truncate ${UI_RESPONSIVE_TOOLTIP_KEY_LABEL_CLASSNAME}`}>
                     {k}:
                   </span>
                   <span className={`text-xs ${UI_THEME_TOKENS.tooltip.text} break-all`}>
@@ -281,7 +285,7 @@ function buildEdgeContent(
           className={`mt-1 text-left ${UI_THEME_TOKENS.tooltip.text} break-words leading-tight w-full`}
           onClick={onToggleExpanded ?? undefined}
         >
-          <div className={`${expanded ? 'max-h-[220px] overflow-auto pr-1' : ''} text-xs`}>
+          <div className={`${expanded ? UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME : ''} text-xs`}>
             {descText}
           </div>
         </button>
@@ -301,7 +305,7 @@ function buildEdgeContent(
                       className={iconClassName}
                     />
                   ) : null}
-                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} truncate max-w-[80px]`}>
+                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} truncate ${UI_RESPONSIVE_TOOLTIP_KEY_LABEL_CLASSNAME}`}>
                     {k}:
                   </span>
                   <span className={`text-xs ${UI_THEME_TOKENS.tooltip.text} break-all`}>

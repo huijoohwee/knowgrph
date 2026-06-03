@@ -59,7 +59,7 @@ export type CorpusGraphFragment = {
 
 const CODE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rs', '.java', '.c', '.cc', '.cpp', '.cs', '.kt', '.rb', '.php'])
 const SCRIPT_EXTENSIONS = new Set(['.sh', '.bash', '.zsh', '.ps1', '.r'])
-const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'])
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.svg', '.svgz'])
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.m4v'])
 
 const normalizePath = (raw: string): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()

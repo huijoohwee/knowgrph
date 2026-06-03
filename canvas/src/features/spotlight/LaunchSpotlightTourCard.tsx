@@ -13,12 +13,22 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 import { LAUNCH_SPOTLIGHT_TOUR_TOOLTIP } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_FLOATING_NOTICE_CARD_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
-const spotlightCardClassName = `pointer-events-auto rounded-xl border bg-[color:var(--kg-panel-bg)]/95 shadow-lg px-4 py-3 max-w-xs w-80`
+const spotlightCardClassName = `pointer-events-auto rounded-xl border bg-[color:var(--kg-panel-bg)]/95 shadow-lg px-4 py-3 ${UI_RESPONSIVE_FLOATING_NOTICE_CARD_CLASSNAME}`
 const spotlightGhostButtonClassName = `${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg}`
-const spotlightSecondaryButtonClassName = `border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightActionButtonBaseClassName = `${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} inline-flex items-center justify-center rounded border`
+const spotlightGhostActionButtonClassName = `${spotlightActionButtonBaseClassName} border-transparent ${spotlightGhostButtonClassName}`
+const spotlightSecondaryGhostActionButtonClassName = `${spotlightActionButtonBaseClassName} border-transparent ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightSecondaryActionButtonClassName = `${spotlightActionButtonBaseClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightPrimaryActionButtonClassName = `${spotlightActionButtonBaseClassName} border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightDisabledActionButtonClassName = `${spotlightActionButtonBaseClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.tertiary} cursor-not-allowed`
 
 type LaunchSpotlightTourCardProps = {
   dismissed: boolean
@@ -165,14 +175,14 @@ export function LaunchSpotlightTourCard({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
+                className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
                 onClick={handleDismiss}
               >
                 Dismiss
               </button>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`${uiPanelKeyValueTextSizeClass} ${spotlightPrimaryActionButtonClassName}`}
                 onClick={handleReopen}
               >
                 Reopen
@@ -202,7 +212,7 @@ export function LaunchSpotlightTourCard({
               </div>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
+                className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
                 onClick={handleMinimize}
               >
                 Minimize
@@ -213,7 +223,7 @@ export function LaunchSpotlightTourCard({
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded ${spotlightSecondaryButtonClassName}`}
+                  className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryActionButtonClassName}`}
                   onClick={() => {
                     try {
                       useGraphStore.getState().setWorkspaceViewMode('canvas')
@@ -222,7 +232,7 @@ export function LaunchSpotlightTourCard({
                     }
                   }}
                 >
-                  Open Graph Data Table
+                  Open {MARKDOWN_DATA_VIEW_COPY.titleDefault}
                 </button>
               </div>
             )}
@@ -253,7 +263,7 @@ export function LaunchSpotlightTourCard({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
+                  className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
                   onClick={handleBack}
                   disabled={clampedIndex === 0}
                 >
@@ -261,17 +271,15 @@ export function LaunchSpotlightTourCard({
                 </button>
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryGhostActionButtonClassName}`}
                   onClick={handleDismiss}
                 >
                   Dismiss
                 </button>
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border ${
-                    canAdvance
-                      ? `border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`
-                      : `${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.tertiary} cursor-not-allowed`
+                  className={`${uiPanelKeyValueTextSizeClass} ${
+                    canAdvance ? spotlightPrimaryActionButtonClassName : spotlightDisabledActionButtonClassName
                   }`}
                   onClick={handleNext}
                   disabled={!canAdvance}

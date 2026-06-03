@@ -7,7 +7,7 @@ import { lsSetInt } from '@/lib/persistence'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import type { GraphData } from '@/lib/graph/types'
 import type { ZoomRequest } from '@/lib/zoom/requests'
-import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { isFrontmatterOnlyPolicyActive, resolveTableGraphCanvas2dRenderer } from '@/lib/config.render'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -110,14 +110,17 @@ export const createUiSettingsModeActions = (
   },
 
   setMultiDimTableModeEnabled: (v: boolean) => {
-    const stateNow = get()
-    if (v === true && isFrontmatterOnlyPolicyActive({ canvasRenderMode: stateNow.canvasRenderMode, canvas2dRenderer: stateNow.canvas2dRenderer })) {
-      return
-    }
     set(state => {
       const nextEnabled = v === true
       const prevEnabled = state.multiDimTableModeEnabled === true
-      if (nextEnabled === prevEnabled) return {}
+      const nextCanvasRenderMode = nextEnabled ? '2d' : state.canvasRenderMode
+      const nextCanvas2dRenderer = nextEnabled
+        ? resolveTableGraphCanvas2dRenderer(state.canvas2dRenderer)
+        : state.canvas2dRenderer
+      const rendererChanged =
+        state.canvasRenderMode !== nextCanvasRenderMode ||
+        state.canvas2dRenderer !== nextCanvas2dRenderer
+      if (nextEnabled === prevEnabled && !rendererChanged) return {}
 
       const nextFrontmatter = nextEnabled ? false : state.frontmatterModeEnabled === true
 
@@ -135,8 +138,8 @@ export const createUiSettingsModeActions = (
         collapsedGroupIds: state.collapsedGroupIds,
       })
       const nextZoomKey = buildActive2dZoomViewKey({
-        canvasRenderMode: state.canvasRenderMode,
-        canvas2dRenderer: state.canvas2dRenderer,
+        canvasRenderMode: nextCanvasRenderMode,
+        canvas2dRenderer: nextCanvas2dRenderer,
         schema: state.schema,
         graphData: (state.graphData as unknown as GraphData | null),
         documentSemanticMode: state.documentSemanticMode,
@@ -155,18 +158,26 @@ export const createUiSettingsModeActions = (
           : state.zoomStateByKey
 
       const zoomRequest: ZoomRequest | null =
-        nextEnabled && state.canvasRenderMode === '2d' && state.canvas2dRenderer !== 'flowEditor'
+        nextEnabled && nextCanvasRenderMode === '2d' && nextCanvas2dRenderer !== 'flowEditor'
           ? { type: 'fit', intent: 'fitToView', at: Date.now() }
           : null
 
       return zoomRequest
         ? {
+            canvasRenderMode: nextCanvasRenderMode,
+            canvas2dRenderer: nextCanvas2dRenderer,
             multiDimTableModeEnabled: nextEnabled,
             frontmatterModeEnabled: nextFrontmatter,
             zoomStateByKey,
             zoomRequest,
           }
-        : { multiDimTableModeEnabled: nextEnabled, frontmatterModeEnabled: nextFrontmatter, zoomStateByKey }
+        : {
+            canvasRenderMode: nextCanvasRenderMode,
+            canvas2dRenderer: nextCanvas2dRenderer,
+            multiDimTableModeEnabled: nextEnabled,
+            frontmatterModeEnabled: nextFrontmatter,
+            zoomStateByKey,
+          }
     })
   },
   setDocumentSemanticMode: (v: DocumentSemanticMode) => {

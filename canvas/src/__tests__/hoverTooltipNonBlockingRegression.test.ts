@@ -86,10 +86,17 @@ export function testGraphHoverTooltipReusesSharedPanelFrameSurface() {
   const tooltipUiText = readFileSync(tooltipUiPath, 'utf8')
   const panelFramePath = resolve(process.cwd(), 'src', 'lib', 'ui', 'panelFrame.ts')
   const panelFrameText = readFileSync(panelFramePath, 'utf8')
+  const responsiveClassesPath = resolve(process.cwd(), 'src', 'lib', 'ui', 'responsiveElementClasses.ts')
+  const responsiveClassesText = readFileSync(responsiveClassesPath, 'utf8')
+  const responsiveCssPath = resolve(process.cwd(), 'src', 'styles', 'responsive-toolbar.css')
+  const responsiveCssText = readFileSync(responsiveCssPath, 'utf8')
   const requiredTooltipSnippets = [
     "from '@/lib/ui/panelFrame'",
+    "from '@/lib/ui/responsiveElementClasses'",
     'PANEL_FRAME_FLOATING_ROOT_STYLE',
     'PANEL_FRAME_FLOATING_BODY_STYLE',
+    'UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME',
+    'UI_RESPONSIVE_TOOLTIP_KEY_LABEL_CLASSNAME',
     'contentStyle={hoverPanelRootStyle}',
     'contentRef={hoverPanelRootRef}',
     'contentOffset={tooltipPinned ? hoverPanelOffset : null}',
@@ -117,6 +124,21 @@ export function testGraphHoverTooltipReusesSharedPanelFrameSurface() {
   }
   if (tooltipText.includes('contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} shadow-md max-w-xs text-xs`}')) {
     throw new Error('expected GraphHoverTooltip to stop owning duplicate tooltip-local panel chrome')
+  }
+  for (const snippet of ['max-h-[220px]', 'max-w-[80px]']) {
+    if (tooltipText.includes(snippet)) {
+      throw new Error(`expected GraphHoverTooltip responsive content sizing to live in shared CSS, found local snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of ['UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME', 'UI_RESPONSIVE_TOOLTIP_KEY_LABEL_CLASSNAME']) {
+    if (!responsiveClassesText.includes(snippet)) {
+      throw new Error(`expected responsiveElementClasses to expose tooltip sizing class: ${snippet}`)
+    }
+  }
+  for (const snippet of ['.kg-responsive-tooltip-expanded-body', '.kg-responsive-tooltip-key-label', '--kg-responsive-tooltip-expanded-body-max-height', '--kg-responsive-tooltip-key-label-max-width']) {
+    if (!responsiveCssText.includes(snippet)) {
+      throw new Error(`expected responsive toolbar CSS to own tooltip sizing snippet: ${snippet}`)
+    }
   }
 }
 

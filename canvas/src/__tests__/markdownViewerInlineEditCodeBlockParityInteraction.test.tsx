@@ -1,5 +1,6 @@
 import React from 'react'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const tick = async (n: number = 1) => {
   for (let i = 0; i < n; i += 1) {
@@ -187,7 +188,7 @@ export async function testMarkdownViewerInlineEditCodeBlockGutterLayoutKeepsSpac
     const wrapper = dom.window.document.querySelector('section.relative.group') as HTMLElement | null
     if (!wrapper) throw new Error('expected code block gutter wrapper section')
     const wrapperClass = String(wrapper.className || '')
-    if (!wrapperClass.includes('my-4') || !wrapperClass.includes('pl-[44px]') || !wrapperClass.includes('pr-2')) {
+    if (!wrapperClass.includes('my-4') || !wrapperClass.includes(UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME) || !wrapperClass.includes('pr-2')) {
       throw new Error(`expected code block gutter wrapper to keep read-surface spacing/gutter parity classes; class=${JSON.stringify(wrapperClass)}`)
     }
 

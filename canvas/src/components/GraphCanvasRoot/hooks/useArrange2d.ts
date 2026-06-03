@@ -54,8 +54,9 @@ export function useArrange2d(args: {
         return selectedIds[0] || ''
       })()
       const grid = readSnapGridConfigFromSchema(schema)
-      const gridSize = grid.enabled ? grid.size : 0
-      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
+      const gridSize = grid.enabled ? Math.max(grid.x, grid.y) : 0
+      const snapX = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid, 'x') : v)
+      const snapY = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid, 'y') : v)
 
       const items = selectedIds
         .map(id => {
@@ -75,8 +76,8 @@ export function useArrange2d(args: {
         const n = byId.get(id)
         const p = next[id]
         if (!n || !p) continue
-        n.x = snap(p.cx)
-        n.y = snap(p.cy)
+        n.x = snapX(p.cx)
+        n.y = snapY(p.cy)
         n.fx = n.x
         n.fy = n.y
         n.vx = 0

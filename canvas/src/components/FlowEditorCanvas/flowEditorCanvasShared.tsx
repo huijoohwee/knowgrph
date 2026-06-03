@@ -15,6 +15,7 @@ import {
   deriveFrontmatterFlowOverlayNodeIds,
   resolveGraphNodeIdByCanonicalId,
 } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
 export {
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveDefaultFlowWidgetPinnedInCanvas,
@@ -103,8 +104,7 @@ export function readWidgetGridLayoutSettings(schema: unknown): {
   const snapEnabled = snapGrid?.enabled === true
   const canvasEnabled = canvasGrid?.enabled === true
   const gridEnabled = snapEnabled || canvasEnabled
-  const snapSizeRaw = typeof snapGrid?.size === 'number' && Number.isFinite(snapGrid.size) ? snapGrid.size : 20
-  const snapSize = Math.max(6, Math.min(160, Math.floor(snapSizeRaw)))
+  const snapSize = Math.max(6, Math.min(160, readSnapGridScalarSize(snapGrid?.size)))
   const majorEveryRaw = typeof canvasGrid?.majorEvery === 'number' && Number.isFinite(canvasGrid.majorEvery) ? canvasGrid.majorEvery : 5
   const majorEvery = Math.max(2, Math.min(20, Math.floor(majorEveryRaw)))
   const stepPx = gridEnabled ? (snapEnabled ? snapSize : Math.max(8, Math.min(200, snapSize * majorEvery))) : 1

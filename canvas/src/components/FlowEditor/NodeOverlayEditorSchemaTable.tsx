@@ -6,6 +6,7 @@ import type { SchemaFieldSpec } from '@/lib/graph/flowPorts'
 import { buildSchemaFieldPortKey } from '@/lib/graph/flowPorts'
 import { formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { Trash2 } from 'lucide-react'
 import { patchAtIndex } from 'grph-shared/array/patchArrayItem'
@@ -196,7 +197,8 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
 
                     <input
                       className={cn(
-                        'w-full h-8 rounded-md px-2',
+                        UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME,
+                        'rounded-md',
                         keyValueInputClass,
                         textSizeClass,
                         'text-left',
@@ -266,7 +268,8 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                 <td className="py-2">
                   <input
                     className={cn(
-                      'w-full h-8 rounded-md px-2',
+                      UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME,
+                      'rounded-md',
                       keyValueInputClass,
                       textSizeClass,
                       'text-left',

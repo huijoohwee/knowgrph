@@ -84,14 +84,14 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     throw new Error(`expected recent missing request to suppress first-file fallback, got ${String(preserveRecentMissingRequest)}`)
   }
 
-  const fallback = resolveMarkdownWorkspaceBootstrapActivePath({
+  const preserveStaleMissingActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
     entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/first.md'), buildFileEntry('/docs/second.md')]),
     activePath: '/docs/missing.md' as never,
     lastSetActivePath: { path: '/docs/missing.md' as never, atMs: 1_000 },
     lastRequestedActivePath: null,
     nowMs: 10_000,
   })
-  if (fallback !== '/docs/first.md') {
-    throw new Error(`expected stale missing active path to fall back to first file, got ${String(fallback)}`)
+  if (preserveStaleMissingActivePath !== null) {
+    throw new Error(`expected stale missing active path to remain owned by the caller instead of falling back to an arbitrary first file, got ${String(preserveStaleMissingActivePath)}`)
   }
 }

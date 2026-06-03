@@ -1565,7 +1565,12 @@ export async function testMarkdownWorkspaceViewerInlineEditSyncsJsonBackedMarkdo
 
   const workspaceMainPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
   const workspaceMainText = readFileSync(workspaceMainPath, 'utf8')
-  if (!/const\s+editableMarkdownText\s*=/.test(workspaceMainText) || !workspaceMainText.includes('viewerInlineMarkdownDraftText ??') || !workspaceMainText.includes("isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : activeText")) {
+  if (
+    !/const\s+editableMarkdownText\s*=/.test(workspaceMainText)
+    || !workspaceMainText.includes('viewerInlineMarkdownDraftText ??')
+    || !workspaceMainText.includes("isJsonMarkdownEditing\n      ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '')")
+    || !workspaceMainText.includes('sourceAttachedMarkdownTableText ?? activeText')
+  ) {
     throw new Error('expected MarkdownWorkspaceMain to centralize json-backed markdown edits through the visible markdown draft SSOT')
   }
   if (!workspaceMainText.includes('const commitMarkdownEditText = React.useCallback(')) {

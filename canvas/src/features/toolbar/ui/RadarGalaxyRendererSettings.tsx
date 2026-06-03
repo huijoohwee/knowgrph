@@ -3,41 +3,16 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
-
-function NumberRow(props: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  onChange: (next: number) => void
-}) {
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
-  const uiPanelKeyValueInputClass = useGraphStore(
-    s => s.uiPanelKeyValueInputClass || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
-  )
-  return (
-    <div className="flex items-center gap-2">
-      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-        {props.label}
-      </label>
-      <input
-        type="number"
-        min={props.min}
-        max={props.max}
-        step={typeof props.step === 'number' ? props.step : 1}
-        value={props.value}
-        onChange={e => {
-          const raw = Number.parseFloat(e.target.value)
-          if (!Number.isFinite(raw)) return
-          props.onChange(Math.max(props.min, Math.min(props.max, raw)))
-        }}
-        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[50%] text-right`}
-      />
-    </div>
-  )
-}
+import {
+  ResponsiveControlRow,
+  ResponsiveNumberRow as NumberRow,
+  ResponsiveSelectRow,
+} from '@/lib/ui/responsiveControlRows'
+import {
+  UI_RESPONSIVE_CONTROL_TOGGLE_GROUP_END_CLASSNAME,
+  UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { uiToolbarSettingsPanelBodyClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type RadarForceKey =
   | 'radarSpokeDistancePx'
@@ -117,30 +92,27 @@ export function RadarGalaxyRendererSettings() {
 
   return (
     <CollapsibleSection title="Radar Galaxy" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className="px-3 py-2 space-y-2">
+      <div className={uiToolbarSettingsPanelBodyClassName}>
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Controls hub-spoke force distances, curved flow arrows, and repulsion for JSON-imported radar maps.
         </div>
-        <div className="flex items-center gap-2">
-          <label className={`w-[50%] ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.secondary}`}>Orbit animate</label>
+        <ResponsiveControlRow label="Orbit animate" valueClassName={UI_RESPONSIVE_CONTROL_TOGGLE_GROUP_END_CLASSNAME}>
           <input
             type="checkbox"
+            className={UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME}
             checked={readForceBool(schema, 'radialOrbitEnabled', false)}
             onChange={e => setForceAny('radialOrbitEnabled', e.target.checked)}
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className={`w-[50%] ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.secondary}`}>Orbit mode</label>
-          <select
-            className={`w-[50%] h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right ${uiPanelTextFontClass}`}
-            value={readForceMode(schema, 'radialOrbitMode', 'flat')}
-            onChange={e => setForceAny('radialOrbitMode', e.target.value === 'solar' || e.target.value === 'atomic' ? e.target.value : 'flat')}
-          >
-            <option value="flat">Flat</option>
-            <option value="solar">Solar</option>
-            <option value="atomic">Atomic</option>
-          </select>
-        </div>
+        </ResponsiveControlRow>
+        <ResponsiveSelectRow
+          label="Orbit mode"
+          value={readForceMode(schema, 'radialOrbitMode', 'flat')}
+          onChange={next => setForceAny('radialOrbitMode', next === 'solar' || next === 'atomic' ? next : 'flat')}
+        >
+          <option value="flat">Flat</option>
+          <option value="solar">Solar</option>
+          <option value="atomic">Atomic</option>
+        </ResponsiveSelectRow>
         <NumberRow
           label="Orbit speed"
           value={readForceNum(schema, 'radialOrbitSpeedDeg', 18)}

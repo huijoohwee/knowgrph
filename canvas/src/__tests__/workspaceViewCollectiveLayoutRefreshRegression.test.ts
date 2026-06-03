@@ -251,17 +251,15 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   if (!runtimeText.includes('function readFiniteRuntimeZoomTransform(runtime: FlowNativeRuntime | null | undefined)')
     || !runtimeText.includes("reason: 'scene-empty-using-live-runtime-transform'")
+    || !runtimeText.includes('&& !workspaceMutationBlocked')
     || !runtimeText.includes('interactionInProgress || hasViewportOffset(liveRuntimeTransform) || !hasViewportOffset(persistedTransform)')) {
-    throw new Error('expected empty-scene overlay-only Flow Editor interactions to read the live runtime transform before stale persisted fallbacks')
+    throw new Error('expected empty-scene overlay-only Flow Editor interactions to read the live runtime transform only outside workspace-mutation windows')
+  }
+  if (!runtimeText.includes("reason: 'scene-empty-workspace-blocked-rejecting-live-runtime-transform'")) {
+    throw new Error('expected workspace-blocked empty-scene frames to reject live runtime transforms before they can replay FlowCanvas layout movement into Flow Editor')
   }
   if (!runtimeText.includes("reason: 'scene-empty-using-persisted-transform'")) {
     throw new Error('expected runtime transform authority to fallback to persisted effective zoom before neutral identity during transient empty-scene frames')
-  }
-  if (runtimeText.includes('persistedLooksSafeForWorkspaceBlocked') || runtimeText.includes("reason: 'scene-empty-persisted-transform-rejected-workspace-blocked'")) {
-    throw new Error('expected runtime transform authority to preserve persisted transforms without viewport safety rejection in infinite-canvas mode')
-  }
-  if (runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-reusing-last-usable'")) {
-    throw new Error('expected workspace-blocked offscreen transform guard to be removed so pan/zoom cannot bounce back to last usable transform')
   }
   if (!runtimeText.includes('lastUsableZoomTransformRef.current = next')) {
     throw new Error('expected runtime transform authority to refresh last usable transform from visible live transform frames')
@@ -275,7 +273,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     throw new Error('expected overlay collision node obstacle projection to forbid null transform fallback that can trigger number-null runtime warnings')
   }
   if (runtimeText.includes('workspaceMutationBlocked && sceneNodeCount > 0 && !interactionInProgress && !flowWidgetDragging')) {
-    throw new Error('expected runtime transform authority to avoid workspace-mutation-blocked viewport offscreen guards before reusing live transform')
+    throw new Error('expected runtime transform authority to avoid node-bearing workspace-mutation viewport offscreen guards before reusing live transform')
   }
   if (runtimeText.includes('const allowPersistedDuringActiveInteraction = interactionInProgress || flowWidgetDragging') || runtimeText.includes('|| allowPersistedDuringActiveInteraction')) {
     throw new Error('expected runtime scene-empty persisted-transform branch to preserve persisted transforms without viewport-specific active-interaction overrides')
@@ -718,20 +716,14 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('requestFlowNativeDraw(runtime, buildDrawArgs())\n    requestCommit()\n    scheduleWorkspaceViewportSettleRetry()')) {
     throw new Error('expected Flow runtime workspace-open visible-viewport fit to schedule a bounded post-fit retry so settled overlay bounds cannot stall under the editor pane')
   }
-  if (!runtimeText.includes('const provisionalUseD3StyleInitFit =')
-    || !runtimeText.includes('const provisionalCanUseFrontmatterCollectiveInitFit =')
-    || !runtimeText.includes("String(provisionalFitGraphMeta.kind || '').trim() === 'frontmatter-flow'")
-    || !runtimeText.includes("provisionalFitGraphContext === 'frontmatter-flow'")
-    || !runtimeText.includes('const provisionalCanUseCollectiveInitFit =')
-    || !runtimeText.includes('!provisionalCanUseCollectiveInitFit')
-    || !runtimeText.includes('!provisionalCanUseFrontmatterCollectiveInitFit')
-    || !runtimeText.includes('&& provisionalHasCollectiveFlowWidgets')
-    || !runtimeText.includes('&& !provisionalHasUsableCollectiveWidgetWorldPos')
-    || !runtimeText.includes('const provisionalFit = provisionalUseD3StyleInitFit')
-    || !runtimeText.includes(': fitFlowEditorPinnedWidgets({')
-    || !runtimeText.includes('provisionalFit.x + (provisionalUseD3StyleInitFit ? 0 : visibleViewportFit.left)')
-    || !runtimeText.includes('provisionalFit.y + (provisionalUseD3StyleInitFit ? 0 : visibleViewportFit.top)')) {
-    throw new Error('expected Flow runtime provisional workspace-open init fit to keep frontmatter-flow on the collective overlay fit path and reuse pinned-widget fitting with visible-viewport offsets before explicit open widget ids are populated')
+  if (
+    runtimeText.includes('const provisionalUseD3StyleInitFit =')
+    || runtimeText.includes('const provisionalCanUseFrontmatterCollectiveInitFit =')
+    || runtimeText.includes('provisionalFitGraphMeta')
+    || runtimeText.includes('provisionalFit =')
+    || runtimeText.includes('canApplyProvisionalWorkspaceInitFit')
+  ) {
+    throw new Error('expected Flow runtime workspace-open init to forbid provisional transforms that can flash before settled visible-viewport recovery')
   }
   if (!runtimeText.includes('if (!workspaceDeferredDrawPendingRef.current) return')
     || !runtimeText.includes('workspaceOverlayInteractionFrameTick')) {

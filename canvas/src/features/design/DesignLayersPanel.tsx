@@ -8,6 +8,16 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { dispatchRuntimeFitToViewSoon, dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
+import {
+  UI_RESPONSIVE_DESIGN_PANEL_EMPTY_ROW_CLASSNAME,
+  UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME,
+  UI_RESPONSIVE_DESIGN_PANEL_LIST_ROW_CLASSNAME,
+  UI_RESPONSIVE_DESIGN_PANEL_REORDER_ROW_CLASSNAME,
+  UI_RESPONSIVE_DESIGN_PANEL_ROW_ACTION_CLASSNAME,
+  UI_RESPONSIVE_DESIGN_PANEL_SEARCH_BLOCK_CLASSNAME,
+  UI_RESPONSIVE_DESIGN_PANEL_SEARCH_FIELD_CLASSNAME,
+  UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -144,8 +154,8 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <div className={cn('min-w-56', UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
-        <div className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
+      <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
+        <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
           <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{UI_LABELS.layerMode}</span>
         </div>
@@ -155,8 +165,8 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
   }
 
   return (
-    <div className={cn('min-w-56', UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
-      <div className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
+    <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
+      <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
         <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{UI_LABELS.layerMode}</span>
         <span className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>
@@ -204,9 +214,9 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
         </button>
       </div>
 
-      <label className="px-3 py-2 block" aria-label="Layers search">
+      <label className={UI_RESPONSIVE_DESIGN_PANEL_SEARCH_BLOCK_CLASSNAME} aria-label="Layers search">
         <span className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>{UI_LABELS.search}</span>
-        <span className={cn('mt-1 flex items-center gap-2 rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border)}>
+        <span className={cn(UI_RESPONSIVE_DESIGN_PANEL_SEARCH_FIELD_CLASSNAME, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border)}>
           <Search className={cn(iconSizeClass, UI_THEME_TOKENS.text.tertiary)} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           <input
             value={query}
@@ -219,7 +229,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
 
       <div aria-label="Layers list">
         {filtered.length === 0 ? (
-          <span className={cn('block px-3 py-2 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No layers match.</span>
+          <span className={cn(UI_RESPONSIVE_DESIGN_PANEL_EMPTY_ROW_CLASSNAME, 'text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No layers match.</span>
         ) : (
           <ul className="m-0 p-0 list-none" aria-label="Layers">
             {filtered.map(n => {
@@ -228,7 +238,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
               const label = readMarkdownSigilDisplayText(n.label)
               return (
                 <li key={n.id} className={cn('border-b last:border-b-0', UI_THEME_TOKENS.panel.border)}>
-                  <div className={cn('px-2 py-2 flex items-center gap-2', selected ? 'bg-blue-50 dark:bg-blue-900/20' : '')}>
+                  <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_LIST_ROW_CLASSNAME, selected ? 'bg-blue-50 dark:bg-blue-900/20' : '')}>
                     <button
                       type="button"
                       className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg, 'p-1.5')}
@@ -247,7 +257,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
                     <button
                       type="button"
                       className={cn(
-                        'min-w-0 flex-1 text-left rounded px-2 py-1',
+                        UI_RESPONSIVE_DESIGN_PANEL_ROW_ACTION_CLASSNAME,
                         UI_THEME_TOKENS.button.hoverBg,
                         selected ? cn(UI_THEME_TOKENS.button.activeText) : cn(UI_THEME_TOKENS.text.primary),
                       )}
@@ -264,7 +274,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
                       </span>
                     </button>
 
-                    <span className="flex items-center gap-1" aria-label="Reorder">
+                    <span className={UI_RESPONSIVE_DESIGN_PANEL_REORDER_ROW_CLASSNAME} aria-label="Reorder">
                       <button
                         type="button"
                         className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg, 'p-1.5')}

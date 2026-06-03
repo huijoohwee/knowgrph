@@ -1,4 +1,5 @@
 import React from 'react'
+import { UI_RESPONSIVE_MARKDOWN_PRESENTATION_META_TEXT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { SlideVisualMeta } from './markdownSlideVisuals'
 
@@ -158,7 +159,7 @@ export function SlideFooter(props: SlideFooterProps) {
         </div>
         <div className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
           {(meta.institution || meta.venue) && (
-            <span className={`hidden md:inline-block font-medium ${UI_THEME_TOKENS.text.primary} truncate max-w-[28rem]`}>
+            <span className={`hidden md:inline-block font-medium ${UI_THEME_TOKENS.text.primary} ${UI_RESPONSIVE_MARKDOWN_PRESENTATION_META_TEXT_CLASSNAME}`}>
               {[meta.institution, meta.venue].filter(Boolean).join(' · ')}
             </span>
           )}

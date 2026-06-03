@@ -17,6 +17,7 @@ async function focusFirstImportedWorkspaceFile(args: {
   fs: WorkspaceFs
   createdPaths: string[]
   applyToGraph?: boolean
+  jsonSourceDocuments?: Array<{ path: string; text: string }>
 }): Promise<void> {
   try {
     const { activateFirstImportedWorkspaceFile } = (await import(
@@ -80,7 +81,7 @@ export async function importLocalFilesFallback(args: {
       createdPaths: res.createdPaths,
       opts: { applyToGraph },
     })
-    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph, jsonSourceDocuments: res.jsonSourceDocuments })
     args.pushUiToast({
       id: 'launch:import:localFiles',
       kind: 'success',
@@ -138,7 +139,7 @@ export async function importLocalFolderFallback(args: {
       createdPaths: res.createdPaths,
       opts: { applyToGraph },
     })
-    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph, jsonSourceDocuments: res.jsonSourceDocuments })
     args.pushUiToast({
       id: 'launch:import:folder',
       kind: 'success',

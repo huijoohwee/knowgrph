@@ -73,8 +73,9 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
     const docKey = String(activeDocumentKey || '').trim()
     const markdownName = String(markdownDocumentName || '').trim()
     if (!docKey || !markdownName) return false
+    if (!isMarkdownPath(String(activePath || docKey))) return false
     return matchesMarkdownDocumentPath(docKey, markdownName)
-  }, [activeDocumentKey, markdownDocumentName])
+  }, [activeDocumentKey, activePath, markdownDocumentName])
   const canonicalMarkdownText = typeof markdownDocumentText === 'string' ? markdownDocumentText : ''
   const shouldSyncProgrammaticActiveText = (
     contentMode !== 'widget'

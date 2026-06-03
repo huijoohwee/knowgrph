@@ -5,6 +5,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { UI_RESPONSIVE_COMPACT_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type DocumentModeSelectProps = {
   iconSizeClass: string
@@ -155,7 +156,7 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
           <span className="truncate">{option.title}</span>
         </>
       )}
-      menuWidthClass="w-64"
+      menuWidthClass={UI_RESPONSIVE_COMPACT_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
     />
   )
 }

@@ -777,3 +777,102 @@ export async function testFrontmatterWidgetUnpinKeepsCurrentScreenPlacement() {
     restoreWindow()
   }
 }
+
+export async function testFrontmatterWidgetPinKeepsCurrentScreenPlacement() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+    api.setZoomState({ k: 2, x: 120, y: 30 })
+    api.setFlowWidgetPinnedByNodeId({ n1: false })
+    api.setFlowWidgetPosByNodeId({ n1: { top: 200, left: 130 } })
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (typeof raf === 'function') raf(() => resolve())
+        else setTimeout(() => resolve(), 0)
+      })
+    const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
+
+    root.render(
+      React.createElement(NodeOverlayEditor, {
+        active: true,
+        graphMetaKind: 'frontmatter-flow',
+        node: { id: 'n1', label: 'node', type: 'TextGeneration', x: 40, y: 50, properties: {} },
+        edges: [],
+        viewportW: 900,
+        viewportH: 600,
+        canvasWindowOffset: { left: 0, top: 0 },
+        onSetLabel: () => void 0,
+        onSetType: () => void 0,
+        onPatchProperties: () => void 0,
+        onSetProperties: () => void 0,
+        onValidate: () => void 0,
+        onDuplicate: () => void 0,
+        onRemove: () => void 0,
+        onClearOutput: () => void 0,
+        onHelp: () => void 0,
+        onConvertToLoopNode: () => void 0,
+        onEnableHandlesForAllInputs: () => void 0,
+      } as never),
+    )
+
+    await sleep(0)
+    await tick()
+    await sleep(0)
+    await tick()
+
+    const panel = document.body.querySelector('aside[data-kg-canvas-wheel-ignore="true"]') as HTMLElement | null
+    if (!panel) throw new Error('expected widget overlay aside')
+    const txBefore = readTranslateX(panel.style.transform)
+    const tyBefore = readTranslateY(panel.style.transform)
+    if (txBefore == null || tyBefore == null) {
+      throw new Error(`expected matrix() transform before pin, got ${String(panel.style.transform || '')}`)
+    }
+
+    api.setFlowWidgetPinnedByNodeId({ n1: true })
+    await sleep(0)
+    await tick()
+    await sleep(0)
+    await tick()
+
+    const txAfter = readTranslateX(panel.style.transform)
+    const tyAfter = readTranslateY(panel.style.transform)
+    if (txAfter == null || tyAfter == null) {
+      throw new Error(`expected matrix() transform after pin, got ${String(panel.style.transform || '')}`)
+    }
+    if (Math.abs(txAfter - txBefore) > 2 || Math.abs(tyAfter - tyBefore) > 2) {
+      throw new Error(
+        `expected frontmatter pin to keep current screen placement (before=${txBefore},${tyBefore}; after=${txAfter},${tyAfter})`,
+      )
+    }
+
+    const storedWorld = useGraphStore.getState().flowWidgetWorldPosByNodeId?.n1
+    if (!storedWorld) throw new Error('expected pin to persist the current screen placement as world placement')
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}

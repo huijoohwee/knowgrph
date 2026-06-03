@@ -12,6 +12,10 @@ import {
   type RichMediaPanelTab,
 } from '@/lib/render/richMediaSsot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_TEXT_ACTION_BUTTON_CLASSNAME,
+  UI_RESPONSIVE_WIDE_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { Copy, Eraser, ExternalLink, GitMerge, HelpCircle, Images, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
@@ -74,6 +78,7 @@ export type NodeOverlayEditorActionsToolbarProps = {
   onEnableHandlesForAllInputs: () => void
   onConvertToLoopNode: () => void
   onUpdateKvEntry?: () => void
+  maxWidthPx?: number
 }
 
 export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEditorActionsToolbar(args: NodeOverlayEditorActionsToolbarProps) {
@@ -98,6 +103,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     onEnableHandlesForAllInputs,
     onConvertToLoopNode,
     onUpdateKvEntry,
+    maxWidthPx,
   } = args
   const actionVisibility = args.actionVisibility || {}
   const showRunAction = actionVisibility.run !== false
@@ -139,8 +145,9 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   return (
     <>
       <nav
-        className="Island App-toolbar App-toolbar--compact pointer-events-auto w-fit shadow-lg"
+        className="Island App-toolbar App-toolbar--compact App-toolbar--touch-scroll pointer-events-auto w-fit shadow-lg"
         aria-label={UI_LABELS.flowWidgetActions}
+        style={typeof maxWidthPx === 'number' && Number.isFinite(maxWidthPx) && maxWidthPx > 0 ? { maxWidth: `${maxWidthPx}px` } : undefined}
         onPointerDownCapture={e => {
           try {
             e.stopPropagation()
@@ -202,7 +209,8 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             showTooltip
             onClick={richMediaAspectToggle.onToggle}
             className={cn(
-              'App-toolbar__btn px-1.5 min-w-[36px]',
+              'App-toolbar__btn px-1.5',
+              UI_RESPONSIVE_TEXT_ACTION_BUTTON_CLASSNAME,
               richMediaAspectToggle.selected ? UI_THEME_TOKENS.icon.active : '',
             )}
             data-kg-rich-media-aspect-toggle="1"
@@ -220,7 +228,8 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             showTooltip
             onClick={richMediaTextModeToggle.onToggle}
             className={cn(
-              'App-toolbar__btn px-1.5 min-w-[40px] text-[10px] font-semibold',
+              'App-toolbar__btn px-1.5 text-[10px] font-semibold',
+              UI_RESPONSIVE_WIDE_TEXT_ACTION_BUTTON_CLASSNAME,
               richMediaTextModeToggle.freezeConnectedOutput ? UI_THEME_TOKENS.icon.active : '',
             )}
             data-kg-rich-media-text-mode-toggle="1"

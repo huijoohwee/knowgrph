@@ -4,16 +4,21 @@ import type {
   SavedDocumentUiSelectionState,
   SavedDocumentUiViewState,
 } from '@/features/canvas/graphStoreDocumentUiRestoreState'
+import { resolveTableGraphCanvas2dRenderer } from '@/lib/config.render'
 
 type GraphStoreApi = ReturnType<typeof useGraphStore.getState>
 
 export function applySavedDocumentUiModeStateWrites(api: GraphStoreApi, modeState: SavedDocumentUiModeState): void {
+  const tableGraphMode = modeState.multiDimTableModeEnabled === true
+  const canvas2dRenderer = tableGraphMode
+    ? resolveTableGraphCanvas2dRenderer(modeState.canvas2dRenderer)
+    : modeState.canvas2dRenderer
   if (modeState.documentSemanticMode) api.setDocumentSemanticMode(modeState.documentSemanticMode)
-  if (typeof modeState.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(modeState.frontmatterModeEnabled)
-  if (typeof modeState.multiDimTableModeEnabled === 'boolean') api.setMultiDimTableModeEnabled(modeState.multiDimTableModeEnabled)
   if (modeState.canvasRenderMode) api.setCanvasRenderMode(modeState.canvasRenderMode)
   if (modeState.canvas3dMode) api.setCanvas3dMode(modeState.canvas3dMode)
-  if (modeState.canvas2dRenderer) api.setCanvas2dRenderer(modeState.canvas2dRenderer)
+  if (canvas2dRenderer) api.setCanvas2dRenderer(canvas2dRenderer)
+  if (typeof modeState.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(modeState.frontmatterModeEnabled)
+  if (typeof modeState.multiDimTableModeEnabled === 'boolean') api.setMultiDimTableModeEnabled(modeState.multiDimTableModeEnabled)
 }
 
 export function applySavedDocumentUiViewStateWrites(api: GraphStoreApi, viewState: SavedDocumentUiViewState): void {

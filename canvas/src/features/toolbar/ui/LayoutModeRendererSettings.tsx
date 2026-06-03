@@ -16,6 +16,24 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
 import { resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
+import {
+  ResponsiveControlInput,
+  ResponsiveControlRow,
+  ResponsiveNumberRow,
+  ResponsiveSelectRow,
+} from '@/lib/ui/responsiveControlRows'
+import {
+  UI_RESPONSIVE_CONTROL_HINT_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import {
+  uiToolbarSettingsPanelActionGroupClassName,
+  uiToolbarSettingsPanelBodyClassName,
+  uiToolbarSettingsPanelFooterClassName,
+  uiToolbarSettingsPanelSubsectionClassName,
+  uiToolbarSettingsPanelTextActionClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 
 const LAYOUT_MODE_OPTIONS: Array<{ value: LayoutMode2d; label: string }> = [
   { value: 'radial', label: 'Radial (default)' },
@@ -29,7 +47,6 @@ export function LayoutModeRendererSettings(props: {
 }) {
   const onSelectLayoutModeProp = props.onSelectLayoutMode
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
-  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const schema = useGraphStore(s => s.schema)
   const setSchema = useGraphStore(s => s.setSchema)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -124,155 +141,111 @@ export function LayoutModeRendererSettings(props: {
 
   return (
     <CollapsibleSection title="Layout" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className="px-3 py-2 space-y-2">
+      <div className={uiToolbarSettingsPanelBodyClassName}>
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Global layout mode shared across 2D/3D renderers and semantic views.
         </div>
-        <div className="flex items-center gap-2">
-          <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-            Mode
-          </label>
-          <select
-            className={`w-[50%] h-6 px-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            value={selectedLayoutMode}
-            disabled={disabled}
-            onChange={e => onSelectLayoutMode((String(e.target.value || '').trim().toLowerCase() === 'block' ? 'block' : 'radial'))}
-          >
-            {LAYOUT_MODE_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="pt-2 border-t border-[color:var(--kg-border)] space-y-2">
+        <ResponsiveSelectRow
+          label="Mode"
+          value={selectedLayoutMode}
+          disabled={disabled}
+          onChange={next => onSelectLayoutMode((String(next || '').trim().toLowerCase() === 'block' ? 'block' : 'radial'))}
+        >
+          {LAYOUT_MODE_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </ResponsiveSelectRow>
+        <div className={uiToolbarSettingsPanelSubsectionClassName}>
           <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             Shared fit frame for Pin, Fit to View, Fit to Screen, and Zoom to Selection. Frame is clamped upstream against the live viewport.
           </div>
-          <div className="flex items-center gap-2">
-            <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-              Fit fill
-            </label>
-            <input
-              type="number"
-              step={0.01}
-              min={0.2}
-              max={0.95}
-              value={viewportFitFillRatio}
-              disabled={disabled}
-              onChange={e => {
-                const next = Number.parseFloat(e.target.value)
-                if (Number.isFinite(next)) setViewportFitFillRatio(next)
-              }}
-              className={`w-[50%] h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-              Fit width
-            </label>
-            <input
-              type="number"
-              step={1}
-              min={320}
-              max={7680}
-              value={viewportFitReferenceWidth}
-              disabled={disabled}
-              onChange={e => {
-                const next = Number.parseFloat(e.target.value)
-                if (Number.isFinite(next)) setViewportFitReferenceWidth(next)
-              }}
-              className={`w-[50%] h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-              Fit height
-            </label>
-            <input
-              type="number"
-              step={1}
-              min={180}
-              max={4320}
-              value={viewportFitReferenceHeight}
-              disabled={disabled}
-              onChange={e => {
-                const next = Number.parseFloat(e.target.value)
-                if (Number.isFinite(next)) setViewportFitReferenceHeight(next)
-              }}
-              className={`w-[50%] h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            />
-          </div>
+          <ResponsiveNumberRow
+            label="Fit fill"
+            step={0.01}
+            min={0.2}
+            max={0.95}
+            value={viewportFitFillRatio}
+            disabled={disabled}
+            onChange={setViewportFitFillRatio}
+          />
+          <ResponsiveNumberRow
+            label="Fit width"
+            step={1}
+            min={320}
+            max={7680}
+            value={viewportFitReferenceWidth}
+            disabled={disabled}
+            onChange={setViewportFitReferenceWidth}
+          />
+          <ResponsiveNumberRow
+            label="Fit height"
+            step={1}
+            min={180}
+            max={4320}
+            value={viewportFitReferenceHeight}
+            disabled={disabled}
+            onChange={setViewportFitReferenceHeight}
+          />
           <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} leading-snug text-right`}>
             Active fit frame {fitReferenceFrame.width}×{fitReferenceFrame.height}
           </div>
         </div>
         {showFrontmatterFlowControls ? (
-          <div className="pt-2 border-t border-[color:var(--kg-border)] space-y-2">
+          <div className={uiToolbarSettingsPanelSubsectionClassName}>
             <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
               Frontmatter Flow Editor fit controls. Lower proxy values fit a denser overlay footprint and make the on-screen collective larger.
             </div>
-            <div className="flex items-center gap-2">
-              <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-                Initial fit fill
-              </label>
-              <input
-                type="number"
-                step={0.01}
-                min={FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO_MIN}
-                max={FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO_MAX}
-                value={frontmatterFlowInitialFitFillRatio}
-                disabled={disabled}
-                onChange={e => {
-                  const next = Number.parseFloat(e.target.value)
-                  if (Number.isFinite(next)) setFrontmatterFlowInitialFitFillRatio(next)
-                }}
-                className={`w-[50%] h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-              />
-            </div>
+            <ResponsiveNumberRow
+              label="Initial fit fill"
+              step={0.01}
+              min={FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO_MIN}
+              max={FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO_MAX}
+              value={frontmatterFlowInitialFitFillRatio}
+              disabled={disabled}
+              onChange={setFrontmatterFlowInitialFitFillRatio}
+            />
             {frontmatterProxyFields.map(field => (
-              <div key={field.key} className="flex items-center gap-2">
-                <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-                  {field.label}
-                </label>
-                <div className="w-[50%] flex items-center gap-2">
-                  <input
-                    type="number"
-                    step={0.01}
-                    min={FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN}
-                    max={FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MAX}
-                    value={field.value}
-                    disabled={disabled}
-                    onChange={e => {
-                      const next = Number.parseFloat(e.target.value)
-                      if (Number.isFinite(next)) field.setValue(next)
-                    }}
-                    className={`flex-1 h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-                  />
-                  <span className={`min-w-12 text-right text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
-                    {field.hint}
-                  </span>
-                </div>
-              </div>
+              <ResponsiveControlRow key={field.key} label={field.label} valueClassName={UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME}>
+                <ResponsiveControlInput
+                  type="number"
+                  step={0.01}
+                  min={FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN}
+                  max={FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MAX}
+                  value={field.value}
+                  disabled={disabled}
+                  onChange={e => {
+                    const next = Number.parseFloat(e.target.value)
+                    if (Number.isFinite(next)) field.setValue(Math.max(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, Math.min(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MAX, next)))
+                  }}
+                  className={`${UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME} text-right`}
+                />
+                <span className={`${UI_RESPONSIVE_CONTROL_HINT_CLASSNAME} ${UI_THEME_TOKENS.text.tertiary}`}>
+                  {field.hint}
+                </span>
+              </ResponsiveControlRow>
             ))}
-            <div className="flex items-center justify-between gap-2 pt-1">
+            <div className={uiToolbarSettingsPanelFooterClassName}>
               <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
                 Adaptive frontmatter defaults
               </span>
-              <button
-                type="button"
-                className={`App-toolbar__btn text-[11px] px-2 py-1 rounded ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
-                disabled={disabled}
-                onClick={() => {
-                  setFrontmatterFlowInitialFitFillRatio(FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO)
-                  setFrontmatterFlowOverlayFitProxyScalePhone(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE)
-                  setFrontmatterFlowOverlayFitProxyScaleTablet(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET)
-                  setFrontmatterFlowOverlayFitProxyScaleLaptop(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP)
-                  setFrontmatterFlowOverlayFitProxyScaleDesktop(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP)
-                }}
-              >
-                Reset frontmatter
-              </button>
+              <div className={uiToolbarSettingsPanelActionGroupClassName}>
+                <button
+                  type="button"
+                  className={`${uiToolbarSettingsPanelTextActionClassName} text-[11px] ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
+                  disabled={disabled}
+                  onClick={() => {
+                    setFrontmatterFlowInitialFitFillRatio(FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO)
+                    setFrontmatterFlowOverlayFitProxyScalePhone(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE)
+                    setFrontmatterFlowOverlayFitProxyScaleTablet(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET)
+                    setFrontmatterFlowOverlayFitProxyScaleLaptop(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP)
+                    setFrontmatterFlowOverlayFitProxyScaleDesktop(FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP)
+                  }}
+                >
+                  Reset frontmatter
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

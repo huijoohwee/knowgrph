@@ -9,6 +9,10 @@ import { getChatProviderLabel, getChatProviderRegionLabel } from '@/lib/chatEndp
 import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
+import {
+  UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
+  UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type FlowEditorManagerTabKey = 'graph' | 'mapping'
 
@@ -20,7 +24,7 @@ export default function MainPanelFlowEditorManagerHeader(props: {
   const { workflowMode, activeTab, onTabChange } = props
 
   const uiSectionHeaderRowHeightClass = useGraphStore(
-    s => s.uiSectionHeaderRowHeightClass || 'min-h-[36px]',
+    s => s.uiSectionHeaderRowHeightClass || UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   )
   const uiSectionHeaderRowPaddingClass = useGraphStore(
     s => s.uiSectionHeaderRowPaddingClass || 'py-1',
@@ -125,7 +129,7 @@ export default function MainPanelFlowEditorManagerHeader(props: {
               <span className={uiPanelMicroLabelTextSizeClass}>{activeOption.title}</span>
             )}
             renderOptionContent={option => <span className="truncate">{option.title}</span>}
-            menuWidthClass="w-44"
+            menuWidthClass={UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
           />
         )}
       </section>

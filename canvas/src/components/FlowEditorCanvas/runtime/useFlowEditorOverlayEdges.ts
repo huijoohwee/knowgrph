@@ -70,6 +70,87 @@ type FrozenOverlayEdgePathSnapshot = {
 const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()
 const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'
 const FLOW_EDITOR_OVERLAY_EDGE_OPACITY = '0.82'
+const FLOW_EDITOR_MEDIA_SCROLL_SURFACE_SELECTOR = '[data-kg-media-scroll-surface="1"]'
+const FLOW_EDITOR_RICH_MEDIA_RENDER_SURFACE_SELECTOR = '[data-kg-rich-media-render-surface="1"]'
+
+function roundOverlayEdgeGeometryValue(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+function isFiniteRect(rect: DOMRect | null | undefined): rect is DOMRect {
+  return !!rect
+    && Number.isFinite(rect.left)
+    && Number.isFinite(rect.right)
+    && Number.isFinite(rect.top)
+    && Number.isFinite(rect.bottom)
+    && Number.isFinite(rect.width)
+    && Number.isFinite(rect.height)
+}
+
+function readOverlayScrollSurfaceSignature(overlayEl: HTMLElement | null): string {
+  if (!overlayEl) return ''
+  const scrollSurfaces = Array.from(overlayEl.querySelectorAll<HTMLElement>(FLOW_EDITOR_MEDIA_SCROLL_SURFACE_SELECTOR))
+  if (scrollSurfaces.length === 0) return ''
+  return scrollSurfaces
+    .slice(0, 16)
+    .map((surface, index) => {
+      const rect = surface.getBoundingClientRect()
+      return [
+        index,
+        roundOverlayEdgeGeometryValue(rect.left),
+        roundOverlayEdgeGeometryValue(rect.top),
+        roundOverlayEdgeGeometryValue(rect.width),
+        roundOverlayEdgeGeometryValue(rect.height),
+        roundOverlayEdgeGeometryValue(surface.scrollLeft),
+        roundOverlayEdgeGeometryValue(surface.scrollTop),
+        roundOverlayEdgeGeometryValue(surface.clientWidth),
+        roundOverlayEdgeGeometryValue(surface.clientHeight),
+        roundOverlayEdgeGeometryValue(surface.scrollWidth),
+        roundOverlayEdgeGeometryValue(surface.scrollHeight),
+      ].join(':')
+    })
+    .join(';')
+}
+
+function readPortHandleVisibleBoundaryRect(overlayEl: HTMLElement, button: HTMLElement): DOMRect {
+  const scrollSurface = button.closest<HTMLElement>(FLOW_EDITOR_MEDIA_SCROLL_SURFACE_SELECTOR)
+  if (scrollSurface && overlayEl.contains(scrollSurface)) return scrollSurface.getBoundingClientRect()
+  const richMediaSurface = button.closest<HTMLElement>(FLOW_EDITOR_RICH_MEDIA_RENDER_SURFACE_SELECTOR)
+  if (richMediaSurface && overlayEl.contains(richMediaSurface)) return richMediaSurface.getBoundingClientRect()
+  return overlayEl.getBoundingClientRect()
+}
+
+function isAnchorVisibleInBoundary(anchor: { x: number; y: number } | null, boundaryRect: DOMRect | null | undefined): boolean {
+  if (!anchor || !isFiniteRect(boundaryRect)) return false
+  const tolerancePx = 2
+  return anchor.y >= boundaryRect.top - tolerancePx
+    && anchor.y <= boundaryRect.bottom + tolerancePx
+    && anchor.x >= boundaryRect.left - tolerancePx
+    && anchor.x <= boundaryRect.right + tolerancePx
+}
+
+function clampAnchorYToVisibleBounds(value: number, fallbackRect: DOMRect, boundaryRect: DOMRect | null | undefined): number {
+  if (!Number.isFinite(value)) return value
+  const fallbackTop = Number.isFinite(fallbackRect.top) ? fallbackRect.top : null
+  const fallbackBottom = Number.isFinite(fallbackRect.top) && Number.isFinite(fallbackRect.height) && fallbackRect.height > 0
+    ? fallbackRect.top + fallbackRect.height
+    : null
+  const boundaryTop = isFiniteRect(boundaryRect) ? boundaryRect.top : null
+  const boundaryBottom = isFiniteRect(boundaryRect) ? boundaryRect.bottom : null
+  const minY = Math.max(
+    fallbackTop == null ? Number.NEGATIVE_INFINITY : fallbackTop,
+    boundaryTop == null ? Number.NEGATIVE_INFINITY : boundaryTop,
+  )
+  const maxY = Math.min(
+    fallbackBottom == null ? Number.POSITIVE_INFINITY : fallbackBottom,
+    boundaryBottom == null ? Number.POSITIVE_INFINITY : boundaryBottom,
+  )
+  if (!Number.isFinite(minY) || !Number.isFinite(maxY) || minY > maxY) {
+    if (fallbackTop != null && fallbackBottom != null) return Math.max(fallbackTop, Math.min(fallbackBottom, value))
+    return value
+  }
+  return Math.max(minY, Math.min(maxY, value))
+}
 
 export function useFlowEditorOverlayEdges(args: {
   active: boolean
@@ -797,8 +878,8 @@ export function useFlowEditorOverlayEdges(args: {
       if (svg.getAttribute('height') !== String(svgHeight)) svg.setAttribute('height', String(svgHeight))
       if (svg.getAttribute('viewBox') !== svgViewBox) svg.setAttribute('viewBox', svgViewBox)
       if (svg.getAttribute('preserveAspectRatio') !== 'none') svg.setAttribute('preserveAspectRatio', 'none')
-      const round2 = (value: number): number => Math.round(value * 100) / 100
-      const buildRectAnchorCacheKey = (nodeId: string, dir: 'in' | 'out', portKey: string, rect: DOMRect): string => [
+      const round2 = roundOverlayEdgeGeometryValue
+      const buildRectAnchorCacheKey = (nodeId: string, dir: 'in' | 'out', portKey: string, rect: DOMRect, scrollSignature: string): string => [
         nodeId,
         dir,
         portKey,
@@ -806,6 +887,7 @@ export function useFlowEditorOverlayEdges(args: {
         round2(rect.top),
         round2(rect.width),
         round2(rect.height),
+        scrollSignature,
       ].join('|')
       const globalEdgeType = readGlobalEdgeType(schema)
       const globalEdgeColor = readGlobalEdgeColor(schema)
@@ -823,7 +905,8 @@ export function useFlowEditorOverlayEdges(args: {
           const overlayEl = overlayElByNodeIdRef.current.get(nodeId) || null
           const scrollTop = overlayEl && Number.isFinite(overlayEl.scrollTop) ? round2(overlayEl.scrollTop) : 0
           const scrollLeft = overlayEl && Number.isFinite(overlayEl.scrollLeft) ? round2(overlayEl.scrollLeft) : 0
-          nodeParts.push(`${nodeId}:${round2(rect.left)}:${round2(rect.top)}:${round2(rect.width)}:${round2(rect.height)}:${scrollLeft}:${scrollTop}`)
+          const nestedScrollSignature = readOverlayScrollSurfaceSignature(overlayEl)
+          nodeParts.push(`${nodeId}:${round2(rect.left)}:${round2(rect.top)}:${round2(rect.width)}:${round2(rect.height)}:${scrollLeft}:${scrollTop}:${nestedScrollSignature}`)
         }
         const edgeParts = edges
           .map(e => {
@@ -860,13 +943,14 @@ export function useFlowEditorOverlayEdges(args: {
         const el = overlayElByNodeId.get(anchorArgs.nodeId)
         const portKey = String(anchorArgs.portKey || '').trim()
         const rect = anchorArgs.fallbackRect
-        const anchorCacheKey = buildRectAnchorCacheKey(anchorArgs.nodeId, anchorArgs.dir, portKey, rect)
+        const overlayScrollSignature = readOverlayScrollSurfaceSignature(el || null)
+        const anchorCacheKey = buildRectAnchorCacheKey(anchorArgs.nodeId, anchorArgs.dir, portKey, rect, overlayScrollSignature)
         if (el && portKey) {
           const baseSel = `[data-kg-port-handle="1"][data-kg-port-dir="${anchorArgs.dir}"][data-kg-port-key="${esc(portKey)}"]`
           const dotBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null
           const railBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null
           const fallbackBtn = el.querySelector(`button${baseSel}`) as HTMLElement | null
-          const resolveFromButton = (btn: HTMLElement | null): { x: number; y: number } | null => {
+          const resolveFromButton = (btn: HTMLElement | null): { anchor: { x: number; y: number }; boundaryRect: DOMRect } | null => {
             if (!btn) return null
             const dotEl = btn.querySelector('span') as HTMLElement | null
             const r = dotEl ? dotEl.getBoundingClientRect() : btn.getBoundingClientRect()
@@ -877,19 +961,19 @@ export function useFlowEditorOverlayEdges(args: {
                 : r.left
             const y = r.top + r.height / 2
             if (!Number.isFinite(x) || !Number.isFinite(y)) return null
-            return { x, y }
+            return {
+              anchor: { x, y },
+              boundaryRect: readPortHandleVisibleBoundaryRect(el, btn),
+            }
           }
-          const panelRect = el.getBoundingClientRect()
           const dotAnchor = resolveFromButton(dotBtn)
-          const dotVisible = !!(dotAnchor && Number.isFinite(panelRect.top) && Number.isFinite(panelRect.bottom) && dotAnchor.y >= panelRect.top && dotAnchor.y <= panelRect.bottom)
+          const dotVisible = !!(dotAnchor && isAnchorVisibleInBoundary(dotAnchor.anchor, dotAnchor.boundaryRect))
           const railAnchor = resolveFromButton(railBtn)
           const fallbackAnchor = resolveFromButton(fallbackBtn)
           const nextAnchor = (dotVisible ? dotAnchor : null) || railAnchor || dotAnchor || fallbackAnchor
           if (nextAnchor) {
-            const clampedY = Number.isFinite(anchorArgs.fallbackRect.top) && Number.isFinite(anchorArgs.fallbackRect.height) && anchorArgs.fallbackRect.height > 0
-              ? Math.max(anchorArgs.fallbackRect.top, Math.min(anchorArgs.fallbackRect.top + anchorArgs.fallbackRect.height, nextAnchor.y))
-              : nextAnchor.y
-            const resolved = { x: nextAnchor.x, y: clampedY }
+            const clampedY = clampAnchorYToVisibleBounds(nextAnchor.anchor.y, anchorArgs.fallbackRect, nextAnchor.boundaryRect)
+            const resolved = { x: nextAnchor.anchor.x, y: clampedY }
             if (Number.isFinite(resolved.x) && Number.isFinite(resolved.y)) {
               overlayEdgeAnchorCacheRef.current.set(anchorCacheKey, resolved)
               return resolved

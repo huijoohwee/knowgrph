@@ -5,6 +5,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildMarkdownPreviewMediaKey } from '@/features/markdown/ui/markdownPreviewLinks'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import type { RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { getIconSizeClass } from '@/lib/ui'
 import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename } from './mediaDownload'
@@ -161,7 +165,7 @@ export const MediaWrapper = ({
           title="Download media"
           aria-label="Download media"
           className={[
-            'absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded border shadow-sm',
+            `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_DEFAULT_CLASSNAME} absolute right-2 top-2 z-10 rounded border shadow-sm`,
             UI_THEME_TOKENS.panel.border,
             UI_THEME_TOKENS.panel.bg,
             UI_THEME_TOKENS.text.primary,
@@ -171,7 +175,7 @@ export const MediaWrapper = ({
             try { event.stopPropagation() } catch { void 0 }
           }}
         >
-          <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+          <Download className={UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME} strokeWidth={1.8} aria-hidden="true" />
         </a>
       ) : null}
     </figure>

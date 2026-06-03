@@ -1,3 +1,5 @@
+import { MARKDOWN_DATA_VIEW_COPY } from './markdownDataViewCopy'
+
 export type NumericTooltipValue = number | string;
 
 export interface NumericTooltipOptions {
@@ -492,7 +494,7 @@ export const GRAPH_FIELDS_ICON_LEGEND_TOOLTIP = buildRoleActionOutcomeTooltip({
     'align scope, origin, visibility, and field-type badges with AgenticRAG-style node and edge properties',
   ],
   outcome:
-    'keep schema design, curation flows, and Graph Data Table behavior grounded in the same JSON-LD-backed graph schema.',
+    `keep schema design, curation flows, and ${MARKDOWN_DATA_VIEW_COPY.titleDefault} behavior grounded in the same JSON-LD-backed graph schema.`,
 });
 
 export const WORKFLOW_LINKS_TOOLTIP = buildRoleActionOutcomeTooltip({
@@ -525,7 +527,7 @@ export const GRAPHRAG_PATH_METADATA_TOOLTIP = buildRoleActionOutcomeTooltip({
 export const GRAPH_FIELDS_GRAPH_DATA_TABLE_MAPPING_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Graph Fields',
   actions: [
-    'define node and edge field metadata, JSON-LD roles, and Graph Data Table mapping',
+    `define node and edge field metadata, JSON-LD roles, and ${MARKDOWN_DATA_VIEW_COPY.mappingLabel}`,
     'sync column visibility, frozen areas, and samples with schema presets',
   ],
   outcome:
@@ -533,7 +535,7 @@ export const GRAPH_FIELDS_GRAPH_DATA_TABLE_MAPPING_TOOLTIP = buildRoleActionOutc
 });
 
 export const GRAPH_DATA_TABLE_CURATION_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Graph Data Table',
+  role: MARKDOWN_DATA_VIEW_COPY.titleDefault,
   actions: [
     'curate, filter, and export node and edge records',
   ],
@@ -545,7 +547,7 @@ export const TOOL_MENU_SOURCE_FILES_DESCRIPTION =
   'Source Files \u2192 import or export supported formats \u2192 keep Markdown, HTML, PDF, JSON-LD, and JSON ingest paths consistent without hardcoding dataset-specific rules.';
 
 export const TOOL_MENU_VALIDATION_DESCRIPTION =
-  'Validation \u2192 export graph-wide and selection-only validation reports \u2192 keep JSON and Markdown summaries aligned with AgenticRAG schema and Graph Data Table curation.';
+  `Validation \u2192 export graph-wide and selection-only validation reports \u2192 keep JSON and Markdown summaries aligned with AgenticRAG schema and ${MARKDOWN_DATA_VIEW_COPY.titleDefault} curation.`;
 
 export const TOOL_MENU_PARSER_DESCRIPTION =
   'Parser \u2192 manage parser scripts and custom configurations \u2192 keep AgenticRAG graph ingestion paths versioned so CSV, JSON, and JSON-LD inputs map cleanly into schema-aligned GraphData.';
@@ -554,7 +556,7 @@ export const TOOL_MENU_SCHEMA_CONFIG_DESCRIPTION =
   'Schema Configurator (Graph Fields) \u2192 define generic node/edge types, validation rules, and visualization presets \u2192 ensure GraphData, AgenticRAG Node/Edge schema, and Graph Fields stay aligned for ingest, traversal, and export.';
 
 export const TOOL_MENU_GRAPH_FIELDS_DESCRIPTION =
-  'Graph Fields \u2192 configure node/edge field mappings and table columns \u2192 keep Graph Data Table, schema-config, and AgenticRAG JSON-LD mapping aligned with Orchestrator traversal semantics.';
+  `Graph Fields \u2192 configure node/edge field mappings and table columns \u2192 keep ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, schema-config, and AgenticRAG JSON-LD mapping aligned with Orchestrator traversal semantics.`;
 
 export const TOOL_MENU_RENDER_DESCRIPTION =
   'Renderer \u2192 manage 2D/3D render presets and layout configurations \u2192 store JSON-LD (default) and YAML definitions that align camera, forces, and layer opacity with AgenticRAG traversal and selection semantics.';
@@ -705,18 +707,18 @@ export const SETTINGS_TAB_HEADER_TOOLTIP = buildRoleActionOutcomeTooltip({
 });
 
 export const PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION =
-  'The canvas UI is organized into the toolbar, main panel, floating panel, and bottom surface so that data curation, schema design, and workflow exports stay in sync. The Graph Data Table is the spreadsheet-like view of nodes and edges used alongside Workflow Manager and the markdown workspace.';
+  `The canvas UI is organized into the toolbar, main panel, floating panel, and bottom surface so that data curation, schema design, and workflow exports stay in sync. The ${MARKDOWN_DATA_VIEW_COPY.titleDefault} is the spreadsheet-like view of nodes and edges used alongside Workflow Manager and the markdown workspace.`;
 
 export const GRAPH_FIELDS_ICON_LEGEND_REUSE_TEXT =
   'MainPanel Collaboration Type rows, settings-derived Integrations/MCP/Maps/Payments/Settings rows, FloatingPanel view buttons, and node/edge tooltip field-type icons reuse this legend and follow the same UI Density: Icons setting.';
 
 export const GRAPH_FIELDS_HIDDEN_TOGGLE_TOOLTIP_TEXT =
-  'Directive: Toggle · Subject: Graph Data Table visibility · Verb: controls · Object: whether this field appears as a column while remaining available to AgenticRAG pipelines.';
+  `Directive: Toggle · Subject: ${MARKDOWN_DATA_VIEW_COPY.titleDefault} visibility · Verb: controls · Object: whether this field appears as a column while remaining available to AgenticRAG pipelines.`;
 
 import { readEnvString } from '../config.env';
 
 export const GRAPH_FIELDS_DESCRIPTION_TOOLTIP_TEXT =
-  'Directive: Document · Subject: field meaning · Verb: describes · Object: how this field maps to AgenticRAG JSON-LD so agents, schema docs, and Graph Data Table share a consistent interpretation.';
+  `Directive: Document · Subject: field meaning · Verb: describes · Object: how this field maps to AgenticRAG JSON-LD so agents, schema docs, and ${MARKDOWN_DATA_VIEW_COPY.titleDefault} share a consistent interpretation.`;
 
 export const AGENTIC_GRAPHRAG_PIPELINE_DESCRIPTION =
   'Agentic GraphRAG pipeline \u2192 align Workflow, Orchestrator, Renderer, and codebase index traversals with a shared rag:GraphRAGWorkflow JSON-LD document \u2192 keep graphRAGPath metadata, context IRIs, and traversal rules consistent across UI and offline pipelines.';

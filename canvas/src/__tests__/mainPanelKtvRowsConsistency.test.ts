@@ -11,6 +11,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const collapsibleSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'CollapsibleSection.tsx'))
   const collapsibleSubsection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'CollapsibleSubsection.tsx'))
   const sharedKtvRows = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'ui', 'keyTypeValueRows.ts'))
+  const sharedPanelTypography = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'ui', 'panelTypography.ts'))
   const sectionChipChrome = readUtf8(path.resolve(root, 'src', 'lib', 'ui', 'sectionChipChrome.ts'))
   const settingsEntryRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsEntryRow.tsx'))
   const settingsEntryInput = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'settingsEntryRow.input.tsx'))
@@ -87,6 +88,25 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   ].map(fileName => readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName)))
   const graphStatsPanel = readUtf8(path.resolve(root, 'src', 'features', 'graph-stats', 'GraphStatsPanel.tsx'))
   const settingsUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'ui.tsx'))
+  const settingsRegistryUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'registry-ui.ui.ts'))
+  const uiSliceCoreActions = readUtf8(path.resolve(root, 'src', 'hooks', 'store', 'uiSliceCoreActions.ts'))
+  const renderSettingsSection = readUtf8(path.resolve(root, 'src', 'lib', 'panels', 'views', 'RenderSettingsSection.impl.tsx'))
+  const rendererPaletteSettings = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'ui', 'RendererPaletteSettings.tsx'))
+  const aiKgLayersSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'AiKgLayersSection.tsx'))
+  const graphRagWorkflowSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphRagWorkflowSection.tsx'))
+  const graphRagWorkflowIndexingSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphRagWorkflowIndexingSection.tsx'))
+  const threeViewTuningSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewTuningSection.tsx'))
+  const schemaEditorUiClasses = readUtf8(path.resolve(root, 'src', 'features', 'schema-editor', 'useSchemaEditorUiClasses.ts'))
+  const graphFieldSharedInputClassSectionTexts = [
+    'DefaultValueSection.tsx',
+    'FieldStylesSection.tsx',
+    'FieldGraphLayersSection.tsx',
+    'FieldEndpointsAndCardinalitySection.tsx',
+    'FieldLayoutSection.tsx',
+  ].map(fileName => [
+    fileName,
+    readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', fileName)),
+  ] as const)
   const mainPanelTabsDoc = readUtf8(path.resolve(root, '..', 'docs', 'documents', 'knowgrph-mainpanel-tabs.md'))
   const mainPanelHelpCheatsheetDoc = readUtf8(path.resolve(root, '..', 'docs', 'documents', 'knowgrph-mainpanel-help-cheatsheet.md'))
   const mainPanelHelpDevDoc = readUtf8(path.resolve(root, '..', 'docs', 'documents', 'knowgrph-mainpanel-help-dev.md'))
@@ -346,6 +366,18 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
       throw new Error(`Expected ${consumerName} status/action text to reuse the shared KTV status text size`)
     }
   }
+  if (
+    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME') ||
+    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_LABEL_CLASSNAME') ||
+    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_LABEL_WIDE_CLASSNAME') ||
+    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME') ||
+    floatingPropsPanel.includes('w-[30%]') ||
+    floatingPropsPanel.includes('w-[40%]') ||
+    floatingPropsPanel.includes('w-[60%]') ||
+    floatingPropsPanel.includes('w-[70%]')
+  ) {
+    throw new Error('Expected Floating Props value editors to reuse shared responsive field row classes instead of local percentage widths')
+  }
   for (const [consumerName, consumerSource] of [
     ['Settings runtime', settingsViewRuntime],
     ['Floating props', floatingPropsPanel],
@@ -353,6 +385,45 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   ] as const) {
     if (!consumerSource.includes('PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass')) {
       throw new Error(`Expected ${consumerName} editable value inputs to reuse the shared panel typography input class`)
+    }
+  }
+  if (
+    !sharedPanelTypography.includes('export const PANEL_KEY_VALUE_INPUT_CLASS_BY_TEXT_SIZE') ||
+    !sharedPanelTypography.includes('export const PANEL_TYPOGRAPHY_DENSITY_PRESETS') ||
+    !sharedPanelTypography.includes('keyValueInputClass: PANEL_KEY_VALUE_INPUT_CLASS_BY_TEXT_SIZE.textSm') ||
+    !sharedPanelTypography.includes('keyValueInputClass: PANEL_KEY_VALUE_INPUT_CLASS_BY_TEXT_SIZE.textXs')
+  ) {
+    throw new Error('Expected shared panel typography to own key-value input class variants and density presets')
+  }
+  if (
+    !settingsView.includes('PANEL_TYPOGRAPHY_DENSITY_PRESETS') ||
+    settingsView.includes('uiPanelKeyValueInputClass: `w-full h-6 px-2')
+  ) {
+    throw new Error('Expected Settings density presets to reuse shared panel typography presets')
+  }
+  for (const [consumerName, consumerSource] of [
+    ['Settings UI renderer', settingsUi],
+    ['Settings registry UI', settingsRegistryUi],
+    ['UI slice core actions', uiSliceCoreActions],
+    ['Render settings', renderSettingsSection],
+    ['Renderer palette settings', rendererPaletteSettings],
+    ['AI KG layers', aiKgLayersSection],
+    ['GraphRAG workflow', graphRagWorkflowSection],
+    ['GraphRAG workflow indexing', graphRagWorkflowIndexingSection],
+    ['Three view tuning', threeViewTuningSection],
+    ['Schema editor UI classes', schemaEditorUiClasses],
+    ...graphFieldSharedInputClassSectionTexts.map(([fileName, text]) => [`Graph Fields ${fileName}`, text] as const),
+  ] as const) {
+    if (!consumerSource.includes('PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass')) {
+      throw new Error(`Expected ${consumerName} editable value inputs to reuse the shared panel typography input class`)
+    }
+    if (
+      consumerSource.includes('`w-full h-6 px-2 text-sm border') ||
+      consumerSource.includes('`w-full h-6 px-2 text-xs border') ||
+      consumerSource.includes('`w-full min-w-0 max-w-full h-6 px-2 text-sm border') ||
+      consumerSource.includes('min-w-0 flex-1 h-6 px-2 text-xs')
+    ) {
+      throw new Error(`Expected ${consumerName} to avoid local key-value input class redefinitions`)
     }
   }
   if (
@@ -826,7 +897,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     'AgenticRAG alignment',
     'Usage notes',
     'Toolbar / panels',
-    'Graph Data Table mapping',
+    'Multi-dimensional Table mapping',
   ]) {
     if (helpViewSectionTexts.some(([, text]) => text.includes(staleHelpHeaderText))) {
       throw new Error(`Expected MainPanel Help to avoid stale local table header text: ${staleHelpHeaderText}`)

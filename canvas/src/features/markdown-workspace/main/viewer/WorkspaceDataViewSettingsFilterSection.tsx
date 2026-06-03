@@ -6,9 +6,13 @@ import { WorkspaceDataViewFilterMenu } from './WorkspaceDataViewFilterMenu'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewFilterGroup } from './workspaceDataViewConfig'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
-  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
+import {
+  DataViewIconButton,
+  DataViewToolbarButton,
+  getDataViewToolbarButtonClassName,
+} from '@/lib/ui/dataViewToolbarButton'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function buildColumnNameById(columns: readonly MarkdownDataViewColumn[]): Map<string, string> {
@@ -67,14 +71,13 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
                         {opLabel} {value ? `“${value}”` : '“”'}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className={['inline-flex items-center justify-center w-7 h-7 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                      aria-label="Remove filter"
+                    <DataViewIconButton
+                      size="sm"
+                      variant="ghost"
+                      ariaLabel="Remove filter"
                       onClick={() => removeRule(r.id)}
-                    >
-                      <Trash2 className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                    </button>
+                      icon={<Trash2 className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
+                    />
                   </div>
                 )
               })}
@@ -85,7 +88,7 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
         <div className={`${uiToolbarRowScrollClassName} gap-2`}>
           <details ref={addDetailsRef} className="relative">
             <summary
-              className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'list-none cursor-pointer gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={getDataViewToolbarButtonClassName({ className: 'list-none cursor-pointer' })}
             >
               <Plus className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
               <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Add filter</span>
@@ -105,15 +108,13 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
             </div>
           </details>
 
-          <button
-            type="button"
-            className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'ml-auto gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+          <DataViewToolbarButton
+            label="Clear"
+            className="ml-auto"
             onClick={clearAll}
             disabled={totalRules === 0}
-          >
-            <Filter className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-            <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Clear</span>
-          </button>
+            leadingIcon={<Filter className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
+          />
         </div>
       </section>
     </section>

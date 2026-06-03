@@ -61,6 +61,13 @@ function createMinimalGlbBytes(): Uint8Array {
   bytes.fill(0x20, 20 + jsonRaw.byteLength, 20 + jsonLength)
   return bytes
 }
+function buildSiblingDocsRootPathsForTests(): { docsRoot: string; shareRoot: string } {
+  const root = path.join(tmpdir(), 'knowgrph-workspace-root-fixture')
+  return {
+    docsRoot: path.join(root, 'docs'),
+    shareRoot: path.join(root, 'docs_'),
+  }
+}
 function installWebpageProxyFetch(htmlByUrl: Map<string, string>, calls: string[]) {
   const g = globalThis as GlobalWithFetch
   const prev = g.fetch
@@ -454,8 +461,9 @@ export function testWorkspaceImportShareExportRootSettingNormalizesSiblingAbsolu
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousValue = readWorkspaceImportShareExportRootPathSetting()
   try {
-    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
-    writeWorkspaceImportShareExportRootPathSetting('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs_')
+    const { docsRoot, shareRoot } = buildSiblingDocsRootPathsForTests()
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = docsRoot
+    writeWorkspaceImportShareExportRootPathSetting(shareRoot)
     const normalized = readWorkspaceImportShareExportRootPathSetting()
     if (normalized !== '/docs_') {
       throw new Error(`expected sibling absolute docs_ path to normalize to workspace root /docs_, got ${normalized}`)
@@ -472,8 +480,9 @@ export function testWorkspaceSourceRootPathsIncludeConfiguredShareExportRoot(): 
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousValue = readWorkspaceImportShareExportRootPathSetting()
   try {
-    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
-    writeWorkspaceImportShareExportRootPathSetting('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs_')
+    const { docsRoot, shareRoot } = buildSiblingDocsRootPathsForTests()
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = docsRoot
+    writeWorkspaceImportShareExportRootPathSetting(shareRoot)
     const roots = resolveWorkspaceSourceRootPaths()
     if (!roots.includes('/docs_')) {
       throw new Error(`expected configured share export root /docs_ to participate in workspace source roots, got ${roots.join(', ')}`)

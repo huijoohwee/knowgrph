@@ -22,8 +22,14 @@ import { workspaceTablePreferencesStore } from '@/features/workspace-table/works
 import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
 import {
   UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_MENU_PANEL_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_TABLE_FRAME_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME,
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_MENU_ICON_ACTION_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
@@ -59,11 +65,22 @@ const safeLinkHref = (raw: string): string | null => {
   return null
 }
 
+export const MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT = 96
+export const MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT = 32
+export const MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT = 32
+
+export function readMarkdownDataViewTableCellPreviewText(raw: string): string {
+  const value = String(raw || '')
+  if (value.length <= MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT) return value
+  return `${value.slice(0, MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT).trimEnd()}...`
+}
+
 export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTableView(props: MarkdownDataViewTableViewProps) {
   const { view, visibleColumnIds, columnTypesById, canMutate, onUpdateCell, onActivateRow } = props
   const canConfigure = props.canConfigure ?? canMutate
   const [editing, setEditing] = React.useState<{ rowId: string; colId: string; anchorEl: HTMLElement } | null>(null)
   const [draft, setDraft] = React.useState('')
+  const [renderedRowLimit, setRenderedRowLimit] = React.useState(MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT)
 
   const draftRef = React.useRef('')
   draftRef.current = draft
@@ -108,6 +125,27 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
       .map((c, idx) => ({ col: c, index: idx }))
       .filter(x => allowed.has(x.col.id))
   }, [view.columns, visibleColumnIds])
+  const visibleColumnSignature = React.useMemo(
+    () => visibleColumnMeta.map(({ col }) => col.id).join('\u0000'),
+    [visibleColumnMeta],
+  )
+
+  React.useEffect(() => {
+    setRenderedRowLimit(MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT)
+  }, [view.rows, visibleColumnSignature])
+
+  React.useEffect(() => {
+    if (!editing) return
+    const rowIndex = view.rows.findIndex(row => row.id === editing.rowId)
+    if (rowIndex < 0 || rowIndex < renderedRowLimit) return
+    setRenderedRowLimit(Math.min(view.rows.length, rowIndex + 1))
+  }, [editing, renderedRowLimit, view.rows])
+
+  const renderedRows = React.useMemo(
+    () => view.rows.slice(0, Math.min(view.rows.length, renderedRowLimit)),
+    [renderedRowLimit, view.rows],
+  )
+  const hiddenRowCount = Math.max(0, view.rows.length - renderedRows.length)
 
   const workspaceCellSelectPanelPlacement = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
@@ -184,7 +222,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
 
 
   return (
-    <section className="overflow-auto max-h-[70vh]" aria-label="Table view">
+    <section className={UI_RESPONSIVE_DATA_VIEW_TABLE_FRAME_CLASSNAME} aria-label="Table view">
       <table className="min-w-full border-collapse table-auto text-xs">
         <thead className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
           <tr>
@@ -224,7 +262,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                             value={type}
                             close={close}
                             disabled={!allowTypeEdit}
-                            className="w-[240px]"
                             onSelect={(next) => {
                               if (!allowTypeEdit) return
                               props.onChangeColumnType?.({ columnId: c.id, nextType: next })
@@ -271,15 +308,15 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   nextColumnNumber={view.columns.length + 1}
                   canMutate={canMutate}
                   onAddColumn={props.onAddColumn}
-                  summaryClassName={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                  menuPositionClassName="kg-data-view-add-column-menu absolute right-0 mt-2 w-[280px]"
+                  summaryClassName={['list-none', UI_RESPONSIVE_MENU_ICON_ACTION_CLASSNAME, 'rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                  menuPositionClassName={`kg-data-view-add-column-menu absolute right-0 mt-2 ${UI_RESPONSIVE_DATA_VIEW_MENU_PANEL_CLASSNAME}`}
                 />
               </th>
             ) : null}
           </tr>
         </thead>
         <tbody className={UI_THEME_TOKENS.table.text}>
-          {view.rows.map(r => (
+          {renderedRows.map(r => (
             <tr
               key={r.id}
               className={[`${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`, onActivateRow ? 'cursor-pointer' : ''].join(' ')}
@@ -296,6 +333,9 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
               {visibleColumnMeta.map(({ col: c, index: colIndex }) => {
                 const value = String(r.cells[colIndex] ?? '')
                 const displayValue = readMarkdownSigilDisplayText(value)
+                const previewDisplayValue = readMarkdownDataViewTableCellPreviewText(displayValue)
+                const previewRawValue = displayValue === value ? previewDisplayValue : readMarkdownDataViewTableCellPreviewText(value)
+                const isPreviewTruncated = previewDisplayValue !== displayValue
                 const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
                 const baseKind = columnTypeToBaseKind(uiType)
                 const isEditing = editing?.rowId === r.id && editing?.colId === c.id
@@ -379,12 +419,12 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                       </span>
                     ) : uiType === 'progress' && Number.isFinite(progressValue) ? (
                       <div className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
-                        <progress className="h-2 w-24 max-w-[55%] shrink" value={Math.max(0, Math.min(100, progressValue))} max={100} />
+                        <progress className={UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME} value={Math.max(0, Math.min(100, progressValue))} max={100} />
                         <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
                       </div>
                     ) : href ? (
-                      <a className={['block max-w-[24rem] underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" title={displayValue}>
-                        {renderMarkdownSigilInlineText(value)}
+                      <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, 'underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
+                        {previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue}
                       </a>
                     ) : baseKind === 'select' && value ? (
                       <DataViewTagChip value={value} />
@@ -395,8 +435,8 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         ))}
                       </div>
                     ) : (
-                      <span className={['block max-w-[24rem]', UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayValue}>
-                        {value ? renderMarkdownSigilInlineText(value) : (canMutate ? '—' : '')}
+                      <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
+                        {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}
                       </span>
                     )}
                   </td>
@@ -418,8 +458,24 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 text-xs', UI_THEME_TOKENS.text.tertiary, UI_THEME_TOKENS.button.hoverBg, 'px-2 py-1 rounded'].join(' ')}
                   onClick={() => props.onNewRecord?.()}
                 >
-                  <Plus className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                  <Plus className={[UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME, UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                   <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
+                </button>
+              </td>
+            </tr>
+          ) : null}
+          {hiddenRowCount > 0 ? (
+            <tr>
+              <td
+                colSpan={visibleColumnMeta.length + (canMutate && props.onAddColumn ? 1 : 0)}
+                className={`px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder}`}
+              >
+                <button
+                  type="button"
+                  className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 text-xs', UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg, 'px-2 py-1 rounded'].join(' ')}
+                  onClick={() => setRenderedRowLimit(limit => Math.min(view.rows.length, limit + MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT))}
+                >
+                  <span className={UI_TEXT_TRUNCATE}>{`Show ${Math.min(hiddenRowCount, MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT)} more rows`}</span>
                 </button>
               </td>
             </tr>

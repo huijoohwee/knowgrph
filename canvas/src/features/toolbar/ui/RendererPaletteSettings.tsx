@@ -11,12 +11,18 @@ import {
 } from '@/lib/config';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor';
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography';
+import {
+  UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses';
 
 export function RendererPaletteSettings() {
   const uiPanelKeyValueInputClass = useGraphStore(
     (s) =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass
   );
 
   const { palette, handleUpdatePaletteColor, normalizeColorForPicker } = useRendererPalette();
@@ -64,10 +70,10 @@ export function RendererPaletteSettings() {
                 contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full"
               >
-                <div className="flex items-center gap-2">
+                <div className={UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME}>
                   <input
                     type="color"
-                    className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
+                    className={`${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
                     value={normalizeColorForPicker(
                       palette.nodes[type],
                       MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]
@@ -75,7 +81,7 @@ export function RendererPaletteSettings() {
                     onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
                   />
                   <PlainTextInputEditor
-                    className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
+                    className={`${UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                     value={String(palette.nodes[type] || '')}
                     onChange={(next) => handleUpdatePaletteColor('node', type, next)}
                     placeholder={MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]}
@@ -113,10 +119,10 @@ export function RendererPaletteSettings() {
                 contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full"
               >
-                <div className="flex items-center gap-2">
+                <div className={UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME}>
                   <input
                     type="color"
-                    className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
+                    className={`${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
                     value={normalizeColorForPicker(
                       palette.edges[type],
                       MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]
@@ -124,7 +130,7 @@ export function RendererPaletteSettings() {
                     onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
                   />
                   <PlainTextInputEditor
-                    className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
+                    className={`${UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                     value={String(palette.edges[type] || '')}
                     onChange={(next) => handleUpdatePaletteColor('edge', type, next)}
                     placeholder={MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]}

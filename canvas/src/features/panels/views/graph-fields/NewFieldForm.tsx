@@ -4,6 +4,12 @@ import { FieldKeyIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { GRAPH_FIELD_TYPES, type GraphFieldType } from '@/features/graph-fields/graphFields'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_SHELL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_PANEL_STRIP_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type NewFieldFormProps = {
   newFieldKey: string
@@ -34,11 +40,12 @@ export function NewFieldForm({
   iconSizeClass,
   uiIconStrokeWidth,
 }: NewFieldFormProps) {
-  const sectionClassName = `border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg} p-2`
+  const sectionClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_STRIP_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg}`
   const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
-  const inputShellClassName = `mt-1 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-500 dark:focus-within:ring-blue-400`
-  const textInputClassName = `h-8 w-full bg-transparent text-xs ${UI_THEME_TOKENS.input.text} outline-none placeholder:text-[color:var(--kg-text-tertiary)]`
-  const actionButtonClassName = `App-toolbar__btn rounded border px-2 py-1 ${uiPanelKeyValueTextSizeClass}`
+  const inputShellClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_SHELL_CLASSNAME} mt-1 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-500 dark:focus-within:ring-blue-400`
+  const textInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} bg-transparent text-xs ${UI_THEME_TOKENS.input.text} outline-none placeholder:text-[color:var(--kg-text-tertiary)]`
+  const selectClassName = [MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME, 'text-left'].join(' ')
+  const actionButtonClassName = `${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} App-toolbar__btn rounded border ${uiPanelKeyValueTextSizeClass}`
 
   return (
     <div className={sectionClassName}>
@@ -76,7 +83,7 @@ export function NewFieldForm({
                 onChange={e =>
                   setNewFieldScope(e.target.value === 'edge' ? 'edge' : 'node')
                 }
-                className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-8 w-full text-left'].join(' ')}
+                className={selectClassName}
               >
                 <option value="node">Node</option>
                 <option value="edge">Edge</option>
@@ -89,7 +96,7 @@ export function NewFieldForm({
               <select
                 value={newFieldType}
                 onChange={e => setNewFieldType(e.target.value as GraphFieldType)}
-                className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-8 w-full text-left'].join(' ')}
+                className={selectClassName}
               >
                 {GRAPH_FIELD_TYPES.map(t => (
                   <option key={t} value={t}>

@@ -18,6 +18,19 @@ import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { getIconSizeClass } from '@/lib/ui'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
+import {
+  CANVAS_GRID_MAJOR_ALPHA_DEFAULT,
+  CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT,
+  CANVAS_GRID_MINOR_ALPHA_DEFAULT,
+  CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT,
+  clampCanvasGridAlpha,
+  clampCanvasGridDotRadiusPx,
+  clampCanvasGridMajorEvery,
+  clampCanvasGridWidthPx,
+  coerceCanvasGridStroke,
+  coerceCanvasGridVariant,
+} from '@/lib/canvas/canvasGridConfig'
 
 export type CanvasToolbarCallbacks = {
   onZoomIn?: () => void
@@ -131,44 +144,19 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
 
   const isWorkspaceOverlayMode = workspaceViewMode === 'editor'
   const snapGridEnabled = !!schema?.behavior?.snapGrid?.enabled
-  const snapGridSize =
-    typeof schema?.behavior?.snapGrid?.size === 'number' && Number.isFinite(schema.behavior.snapGrid.size)
-      ? Math.max(2, Math.floor(schema.behavior.snapGrid.size))
-      : 10
+  const snapGridSize = readSnapGridScalarSize(schema?.behavior?.snapGrid?.size)
 
   const canvasGridEnabled = !!schema?.behavior?.canvasGrid?.enabled
-  const canvasGridVariant: 'lines' | 'dots' = schema?.behavior?.canvasGrid?.variant === 'lines' ? 'lines' : 'dots'
-  const canvasGridMajorEvery =
-    typeof schema?.behavior?.canvasGrid?.majorEvery === 'number' && Number.isFinite(schema.behavior.canvasGrid.majorEvery)
-      ? Math.max(2, Math.min(20, Math.floor(schema.behavior.canvasGrid.majorEvery)))
-      : 5
-  const canvasGridDotRadiusPx =
-    typeof schema?.behavior?.canvasGrid?.dotRadiusPx === 'number' && Number.isFinite(schema.behavior.canvasGrid.dotRadiusPx)
-      ? Math.max(0.5, Math.min(6, schema.behavior.canvasGrid.dotRadiusPx))
-      : 1
-
-  const canvasGridMinorAlpha =
-    typeof (schema?.behavior?.canvasGrid as any)?.minorAlpha === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).minorAlpha)
-      ? Math.max(0, Math.min(1, (schema?.behavior?.canvasGrid as any).minorAlpha))
-      : 0.06
-  const canvasGridMajorAlpha =
-    typeof (schema?.behavior?.canvasGrid as any)?.majorAlpha === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).majorAlpha)
-      ? Math.max(0, Math.min(1, (schema?.behavior?.canvasGrid as any).majorAlpha))
-      : 0.12
-  const canvasGridMinorWidthPx =
-    typeof (schema?.behavior?.canvasGrid as any)?.minorWidthPx === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).minorWidthPx)
-      ? Math.max(0.5, Math.min(4, (schema?.behavior?.canvasGrid as any).minorWidthPx))
-      : 1
-  const canvasGridMajorWidthPx =
-    typeof (schema?.behavior?.canvasGrid as any)?.majorWidthPx === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).majorWidthPx)
-      ? Math.max(0.5, Math.min(4, (schema?.behavior?.canvasGrid as any).majorWidthPx))
-      : 1
-  const canvasGridMinorStroke = typeof (schema?.behavior?.canvasGrid as any)?.minorStroke === 'string'
-    ? String((schema?.behavior?.canvasGrid as any).minorStroke).trim()
-    : ''
-  const canvasGridMajorStroke = typeof (schema?.behavior?.canvasGrid as any)?.majorStroke === 'string'
-    ? String((schema?.behavior?.canvasGrid as any).majorStroke).trim()
-    : ''
+  const canvasGrid = schema?.behavior?.canvasGrid as Record<string, unknown> | null | undefined
+  const canvasGridVariant = coerceCanvasGridVariant(canvasGrid?.variant)
+  const canvasGridMajorEvery = clampCanvasGridMajorEvery(canvasGrid?.majorEvery)
+  const canvasGridDotRadiusPx = clampCanvasGridDotRadiusPx(canvasGrid?.dotRadiusPx)
+  const canvasGridMinorAlpha = clampCanvasGridAlpha(canvasGrid?.minorAlpha, CANVAS_GRID_MINOR_ALPHA_DEFAULT)
+  const canvasGridMajorAlpha = clampCanvasGridAlpha(canvasGrid?.majorAlpha, CANVAS_GRID_MAJOR_ALPHA_DEFAULT)
+  const canvasGridMinorWidthPx = clampCanvasGridWidthPx(canvasGrid?.minorWidthPx, CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT)
+  const canvasGridMajorWidthPx = clampCanvasGridWidthPx(canvasGrid?.majorWidthPx, CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT)
+  const canvasGridMinorStroke = coerceCanvasGridStroke(canvasGrid?.minorStroke) || ''
+  const canvasGridMajorStroke = coerceCanvasGridStroke(canvasGrid?.majorStroke) || ''
 
   const ensureBaselineUnlocked = useCallback((): boolean => {
     if (documentStructureBaselineLock !== true) return true

@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphTableId } from '@/features/graph-table-db/graphTableDb'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 import { UI_LABELS } from '@/lib/config'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type {
   GraphTableColumnVisibilityById,
@@ -13,27 +14,19 @@ import type {
 } from '@/features/graph-table/ui/graphTableViewState'
 import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import { GraphTableToolbar } from '@/features/graph-table/ui/GraphTableToolbar'
-import type { GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
+import type { WorkspaceTableViewMode } from '@/features/workspace-table/workspaceEditorMode'
 import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceModeSelect'
-import { UI_COPY } from '@/lib/config'
-import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { UI_TEXT_TRUNCATE, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
-
-const GRAPH_TABLE_VIEW_MODE_OPTIONS: Array<{ value: GraphTableViewMode; label: string }> = [
-  { value: 'geospatial', label: MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel },
-  { value: 'kanban', label: UI_COPY.markdownDataViewKanbanViewLabel },
-  { value: 'multiDimTable', label: UI_COPY.markdownDataViewTitleDefault },
-  { value: 'table', label: UI_COPY.markdownDataViewTableViewLabel },
-]
+import { WORKSPACE_TABLE_VIEW_MODE_SELECT_OPTIONS } from '@/features/workspace-table/workspaceEditorModePresentation'
 
 export function GraphTableWorkspaceHeader(props: {
   panelTypography: PanelTypography
   activeTableId: GraphTableId
   setActiveTableId: (next: GraphTableId) => void
-  viewMode: GraphTableViewMode
-  setViewMode: (next: GraphTableViewMode) => void
+  viewMode: WorkspaceTableViewMode
+  setViewMode: (next: WorkspaceTableViewMode) => void
   geospatialViewEnabled: boolean
   setGeospatialViewEnabled: (next: boolean) => void
   tableToGraphRenderingEnabled: boolean
@@ -68,9 +61,9 @@ export function GraphTableWorkspaceHeader(props: {
   onClose: () => void
 }) {
   return (
-    <WorkspaceHeader ariaLabel="Table header" border="divider">
-      <WorkspaceHeaderRow className="kg-graph-table-header kg-toolbar min-h-[var(--kg-control-height,28px)] py-0" ariaLabel="Table header row">
-        <section className={`kg-graph-table-nav kg-toolbar ${uiToolbarRowScrollClassName} gap-2`} aria-label="Table navigation">
+    <WorkspaceHeader ariaLabel={MARKDOWN_DATA_VIEW_COPY.headerAriaLabel} border="divider">
+      <WorkspaceHeaderRow className="kg-graph-table-header kg-toolbar min-h-[var(--kg-control-height,28px)] py-0" ariaLabel={MARKDOWN_DATA_VIEW_COPY.headerRowAriaLabel}>
+        <section className={`kg-graph-table-nav kg-toolbar ${uiToolbarRowScrollClassName} gap-2`} aria-label={MARKDOWN_DATA_VIEW_COPY.navigationAriaLabel}>
           <span className="sr-only">{UI_LABELS.graphDataTable}</span>
 
           <nav className={`kg-toolbar ${uiToolbarRowScrollClassName} gap-1.5`} aria-label="Dataset selector">
@@ -89,10 +82,10 @@ export function GraphTableWorkspaceHeader(props: {
               Edges
             </button>
 
-            <WorkspaceModeSelect<GraphTableViewMode>
-              ariaLabel="Graph Data Table view"
+            <WorkspaceModeSelect<WorkspaceTableViewMode>
+              ariaLabel={MARKDOWN_DATA_VIEW_COPY.viewSelectAriaLabel}
               value={props.viewMode}
-              options={GRAPH_TABLE_VIEW_MODE_OPTIONS}
+              options={WORKSPACE_TABLE_VIEW_MODE_SELECT_OPTIONS}
               isActive={props.viewMode !== 'table'}
               onChange={props.setViewMode}
             />
@@ -112,14 +105,14 @@ export function GraphTableWorkspaceHeader(props: {
                 checked={props.tableToGraphRenderingEnabled}
                 onChange={e => props.setTableToGraphRenderingEnabled(e.target.checked)}
               />
-              <span className={UI_TEXT_TRUNCATE}>Enable table-to-graph rendering</span>
+              <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.graphRenderingToggleLabel}</span>
             </label>
           </nav>
 
           <output className={`${UI_TEXT_TRUNCATE_CHIP} ${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{props.rowCountLabel}</output>
         </section>
 
-        <section className="flex min-w-0 max-w-full flex-1 justify-center overflow-hidden" aria-label="Table toolbar">
+        <section className="flex min-w-0 max-w-full flex-1 justify-center overflow-hidden" aria-label={MARKDOWN_DATA_VIEW_COPY.toolbarAriaLabel}>
           <GraphTableToolbar
             panelTypography={props.panelTypography}
             columns={props.orderedColumns}
@@ -145,7 +138,7 @@ export function GraphTableWorkspaceHeader(props: {
           />
         </section>
 
-        <nav className={`kg-graph-table-actions kg-toolbar ${uiToolbarRowScrollJustifyEndClassName} gap-1.5`} aria-label="Table actions">
+        <nav className={`kg-graph-table-actions kg-toolbar ${uiToolbarRowScrollJustifyEndClassName} gap-1.5`} aria-label={MARKDOWN_DATA_VIEW_COPY.actionsAriaLabel}>
           {props.syncNowVisible ? (
             <button
               type="button"

@@ -17,6 +17,11 @@ import type { MarkdownGeoDatasetIntegration, RenderOpts } from './MarkdownRender
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { applyMediaProxySrc, isSafeMediaSrc, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
+import {
+  buildSemanticTextHighlightStyle,
+  getSemanticTextHighlightClassName,
+  SEMANTIC_HIGHLIGHT_SURFACES,
+} from '@/lib/ui/semanticHighlight'
 
 export type MarkdownTokenRendererProps = {
   tokens: TokenWithLines[]
@@ -283,23 +288,13 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
         const hEnd = highlightedLineRange.end
         const overlap = Math.max(tStart, hStart) <= Math.min(tEnd, hEnd)
         if (overlap) {
-          highlightClass = '-mx-1 px-1 rounded transition-colors duration-1000'
-          const bg = highlightBackgroundColor || null
-          const baseColor = highlightUnderlineColor || null
-          if (selectionKind === 'edge') {
-            highlightStyle = {
-              backgroundColor: bg || undefined,
-              textDecorationLine: 'underline',
-              textDecorationColor: baseColor || undefined,
-              textDecorationThickness: baseColor ? '2px' : undefined,
-              textUnderlineOffset: baseColor ? '2px' : undefined,
-            }
-          } else {
-            highlightStyle = {
-              backgroundColor: bg || undefined,
-              color: baseColor || undefined,
-            }
-          }
+          highlightClass = getSemanticTextHighlightClassName(SEMANTIC_HIGHLIGHT_SURFACES.markdownTextHighlight)
+          highlightStyle = buildSemanticTextHighlightStyle({
+            background: highlightBackgroundColor,
+            color: highlightUnderlineColor,
+            defaultHighlight: true,
+            underline: selectionKind === 'edge',
+          })
         }
       }
 

@@ -5,18 +5,23 @@ import {
   buildMarkdownDataViewFromTableToken,
   type MarkdownDataView,
 } from '@/features/markdown/ui/markdownDataViewModel'
+import { serializeMarkdownDataViewToTableLines } from '@/features/markdown/ui/markdownDataViewSerialize'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { tryBuildJsonMarkdownTablesFromText } from '@/features/markdown/jsonToMarkdownDocument'
+import type { DelimitedTextParseResult } from '@/lib/delimited-text/delimitedText'
+import { buildWorkspaceDataViewSourceTableId } from './workspaceDataViewConfig'
 
 export type DataViewCandidate = {
   id: string
-  legacyId?: string
   label: string
   table: TokenWithLines & TokensTable
   view: MarkdownDataView
+  readonly?: boolean
 }
 
 const DATA_VIEW_CANDIDATES_CACHE = new LRUCache<string, DataViewCandidate[]>(60)
+const ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE = new LRUCache<string, DataViewCandidate[]>(40)
+const DELIMITED_TEXT_DATA_VIEW_CANDIDATES_CACHE = new LRUCache<string, DataViewCandidate[]>(40)
 const DERIVED_TABLE_SCAN_MAX_CHARS = 320_000
 const HEADING_LINE_RE = /^#{1,6}\s+(.+?)\s*#*\s*$/
 
@@ -44,6 +49,153 @@ const buildMarkdownDataViewFromTableTokenLoose = (table: TokensTable): MarkdownD
 
   const titleColumnId = columns[0]?.id ?? 'col_0'
   return { columns, rows, titleColumnId, groupByColumnId: null }
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+)
+
+const normalizeArtifactFields = (fieldsRaw: unknown[], records: readonly Record<string, unknown>[]): string[] => {
+  const fields: string[] = []
+  const seen = new Set<string>()
+  for (const raw of fieldsRaw) {
+    const field = String(raw ?? '').trim()
+    if (!field || seen.has(field)) continue
+    seen.add(field)
+    fields.push(field)
+  }
+  for (const record of records) {
+    for (const key of Object.keys(record)) {
+      if (seen.has(key)) continue
+      seen.add(key)
+      fields.push(key)
+    }
+  }
+  return fields
+}
+
+const cellTextForArtifactValue = (value: unknown): string => {
+  if (value == null) return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+const buildSourceTableCandidate = (args: {
+  fields: readonly string[]
+  rows: readonly (readonly unknown[])[]
+  sourcePath?: string | null
+}): DataViewCandidate | null => {
+  const fields = Array.from(args.fields || []).map((field, index) => String(field || '').trim() || `field_${index + 1}`)
+  const rows = Array.from(args.rows || []).map(row => Array.from({ length: fields.length }).map((_, index) => cellTextForArtifactValue(row[index])))
+  if (fields.length < 1 || rows.length < 1) return null
+  const table: TokenWithLines & TokensTable = {
+    type: 'table',
+    raw: '',
+    header: fields.map(field => ({ text: field })),
+    rows: rows.map(row => row.map(text => ({ text }))),
+    startLine: 1,
+    endLine: Math.max(1, rows.length + 2),
+  }
+  const view = buildMarkdownDataViewFromTableToken(table)
+  if (!view) return null
+  const sourcePath = typeof args.sourcePath === 'string' ? args.sourcePath.trim() : ''
+  return {
+    id: buildWorkspaceDataViewSourceTableId(rows.length),
+    label: sourcePath ? `Source table: ${sourcePath}` : 'Source table',
+    table,
+    view,
+    readonly: true,
+  }
+}
+
+export const buildDataViewCandidatesFromRowsJsonArtifact = (
+  jsonText: string,
+  candidatesKey: string,
+): DataViewCandidate[] => {
+  const trimmed = String(jsonText || '').trim()
+  if (!trimmed || !trimmed.startsWith('{')) return []
+  const cacheKey = `rows-json:${candidatesKey}`
+  const cached = ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.get(cacheKey)
+  if (cached) return cached
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, [])
+    return []
+  }
+  if (!isRecord(parsed)) {
+    ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, [])
+    return []
+  }
+  const rowsRaw = parsed.rows
+  if (!Array.isArray(rowsRaw)) {
+    ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, [])
+    return []
+  }
+  const records = rowsRaw.filter(isRecord)
+  if (records.length < 1) {
+    ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, [])
+    return []
+  }
+  const metadata = isRecord(parsed.metadata) ? parsed.metadata : {}
+  const fieldsRaw = Array.isArray(metadata.fieldNames) ? metadata.fieldNames : []
+  const fields = normalizeArtifactFields(fieldsRaw, records)
+  if (fields.length < 1) {
+    ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, [])
+    return []
+  }
+  const candidate = buildSourceTableCandidate({
+    fields,
+    rows: records.map(record => fields.map(field => record[field])),
+    sourcePath: typeof metadata.sourcePath === 'string' ? metadata.sourcePath.trim() : '',
+  })
+  if (!candidate) {
+    ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, [])
+    return []
+  }
+  const candidates: DataViewCandidate[] = [candidate]
+  ROWS_JSON_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, candidates)
+  return candidates
+}
+
+export const buildDataViewCandidatesFromDelimitedTextParseResult = (args: {
+  parseResult: DelimitedTextParseResult
+  candidatesKey: string
+  sourcePath?: string | null
+}): DataViewCandidate[] => {
+  const cacheKey = `delimited-text:${args.candidatesKey}`
+  const cached = DELIMITED_TEXT_DATA_VIEW_CANDIDATES_CACHE.get(cacheKey)
+  if (cached) return cached
+  const rows = Array.isArray(args.parseResult.rows) ? args.parseResult.rows : []
+  const headers = Array.isArray(args.parseResult.headers) ? args.parseResult.headers : []
+  const fieldCount = Math.max(headers.length, ...rows.map(row => Array.isArray(row) ? row.length : 0))
+  const fields = headers.length > 0
+    ? Array.from({ length: fieldCount }).map((_, index) => headers[index] || `field_${index + 1}`)
+    : Array.from({ length: fieldCount }).map((_, index) => `field_${index + 1}`)
+  const candidate = buildSourceTableCandidate({
+    fields,
+    rows,
+    sourcePath: args.sourcePath,
+  })
+  const candidates = candidate ? [candidate] : []
+  DELIMITED_TEXT_DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, candidates)
+  return candidates
+}
+
+export const buildMarkdownPipeTableFromRowsJsonArtifact = (
+  jsonText: string,
+  candidatesKey: string,
+): string | null => {
+  const candidate = buildDataViewCandidatesFromRowsJsonArtifact(jsonText, candidatesKey)[0]
+  if (!candidate) return null
+  const lines = serializeMarkdownDataViewToTableLines(candidate.view)
+  return lines.length > 0 ? `${lines.join('\n')}\n` : null
 }
 
 const deriveCandidateBaseLabel = (markdownLines: string[], startLine: number, fallbackIndex: number): string => {
@@ -89,7 +241,6 @@ export const buildDataViewCandidates = (
     const label = labelCount > 0 ? `${baseLabel} (${labelCount + 1})` : baseLabel
     candidates.push({
       id: stableId,
-      legacyId: `table_${i}`,
       label,
       table,
       view,

@@ -6,6 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
@@ -138,7 +139,7 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
   const cssOpacity = node ? readPropString(node, 'css:opacity') : ''
 
   return (
-    <div className={cn('min-w-56', UI_THEME_TOKENS.panel.bg)} aria-label="Inspect" data-main-panel-no-drag="true">
+    <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Inspect" data-main-panel-no-drag="true">
       <div className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Inspect header">
         <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Inspect</span>

@@ -27,7 +27,9 @@ const INACTIVE_RENDER_SLICE = {
   multiDimTableModeEnabled: false,
   documentSemanticMode: 'document',
   documentStructureBaselineLock: false,
+  markdownName: null as string | null,
   markdownText: null as string | null,
+  jsonSourceText: null as string | null,
   collapsedGroupIds: [] as string[],
   canvasRenderMode: '2d' as '2d' | '3d',
   canvas2dRenderer: 'd3' as Canvas2dRendererId,
@@ -47,7 +49,9 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
             multiDimTableModeEnabled: s.multiDimTableModeEnabled === true,
             documentSemanticMode: String(s.documentSemanticMode || 'document'),
             documentStructureBaselineLock: s.documentStructureBaselineLock === true,
+            markdownName: s.markdownDocumentName || null,
             markdownText: s.markdownDocumentText || null,
+            jsonSourceText: s.jsonSourceDocumentText || null,
             collapsedGroupIds: (s.collapsedGroupIds ?? EMPTY_STRING_ARRAY) as string[],
             canvasRenderMode: (s.canvasRenderMode || '2d') as '2d' | '3d',
             canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
@@ -62,7 +66,9 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     multiDimTableModeEnabled,
     documentSemanticMode,
     documentStructureBaselineLock,
+    markdownName,
     markdownText,
+    jsonSourceText,
     collapsedGroupIds,
     canvasRenderMode,
     canvas2dRenderer,
@@ -124,21 +130,38 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
   const lastRef = React.useRef<GraphData | null>(null)
 
   const computed = React.useMemo(() => {
-    if (!graphData) return null
+    const sourceTableBaseGraph: GraphData | null =
+      !graphData && effectiveMultiDimTableModeEnabled && (String(jsonSourceText || '').trim() || String(markdownText || '').trim())
+        ? {
+          type: 'Graph',
+          context: 'workspace-active-source',
+          nodes: [],
+          edges: [],
+          metadata: {
+            source: `markdown:${String(markdownName || 'active')}`,
+            pending: true,
+          },
+        }
+        : null
+    const activeGraphData = graphData || sourceTableBaseGraph
+    if (!activeGraphData) return null
     const flowchartMode = canvasRenderMode === '2d' && canvas2dRenderer === 'flowchart'
     if (flowchartMode) {
       return deriveFlowchartFrontmatterActiveViewGraph({
-        graphData,
+        graphData: activeGraphData,
         markdownText,
       })
     }
     return deriveGraphDataForActiveView({
-      graphData,
+      graphData: activeGraphData,
       frontmatterModeEnabled: effectiveFrontmatterModeEnabled,
       multiDimTableModeEnabled: effectiveMultiDimTableModeEnabled,
       documentSemanticMode: effectiveDocumentSemanticMode,
       documentStructureBaselineLock,
       collapsedGroupIds,
+      markdownName,
+      markdownText,
+      jsonSourceText,
     })
   }, [
     canvas2dRenderer,
@@ -148,6 +171,8 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     effectiveFrontmatterModeEnabled,
     effectiveMultiDimTableModeEnabled,
     graphData,
+    jsonSourceText,
+    markdownName,
     markdownText,
     documentStructureBaselineLock,
   ])

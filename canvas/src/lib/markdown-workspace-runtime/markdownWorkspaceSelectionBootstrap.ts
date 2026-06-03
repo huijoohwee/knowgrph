@@ -55,6 +55,7 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
   if (isRecentlyRequested(args.lastRequestedActivePath) || isRecentlyRequested(args.lastSetActivePath)) {
     return null
   }
+  if (rawActivePath || activePath) return null
 
   return canonicalize(args.entriesIndex.firstFilePath) || args.entriesIndex.firstFilePath
 }

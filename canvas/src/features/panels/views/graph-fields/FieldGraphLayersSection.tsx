@@ -4,6 +4,7 @@ import type { JSONValue } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type GraphLayerStyleMeta = {
   fill?: string
@@ -46,7 +47,7 @@ export function FieldGraphLayersSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
@@ -227,7 +228,7 @@ export function GraphLayerMetadataPresetsSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
 
   const metadata = schema && schema.metadata && isRecord(schema.metadata) ? schema.metadata : null

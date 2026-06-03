@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { formatDateDraftFromCellValue, normalizeDateDraftToValue } from '@/features/graph-table/ui/fast-grid/dateCellValue'
 
 function addMonths(d: Date, delta: number): Date {
@@ -96,6 +97,7 @@ export function DateCellEditor(props: {
   }
 
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const dateIconButtonClassName = `${UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`
 
   const monthLabel = useMemo(() => {
     try {
@@ -171,7 +173,7 @@ export function DateCellEditor(props: {
           {draft.trim() ? (
             <button
               type="button"
-              className={`h-7 w-7 rounded border flex items-center justify-center ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={dateIconButtonClassName}
               aria-label="Clear date"
               onMouseDown={e => e.preventDefault()}
               onClick={() => {
@@ -187,7 +189,7 @@ export function DateCellEditor(props: {
           ) : null}
           <button
             type="button"
-            className={`h-7 w-7 rounded border flex items-center justify-center ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+            className={dateIconButtonClassName}
             aria-label={pickerOpen ? 'Close date picker' : 'Open date picker'}
             onMouseDown={e => e.preventDefault()}
             onClick={() => setPickerOpen(v => !v)}
@@ -216,7 +218,7 @@ export function DateCellEditor(props: {
           <header className={`px-2 py-2 border-b flex items-center justify-between ${UI_THEME_TOKENS.panel.divider}`} aria-label="Picker header">
             <button
               type="button"
-              className={`h-7 w-7 rounded border flex items-center justify-center ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={dateIconButtonClassName}
               aria-label="Previous month"
               onClick={() => setActiveMonth(m => addMonths(m, -1))}
             >
@@ -227,7 +229,7 @@ export function DateCellEditor(props: {
             </section>
             <button
               type="button"
-              className={`h-7 w-7 rounded border flex items-center justify-center ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={dateIconButtonClassName}
               aria-label="Next month"
               onClick={() => setActiveMonth(m => addMonths(m, 1))}
             >

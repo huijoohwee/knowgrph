@@ -416,6 +416,15 @@ ROI = (3 × 10) / (8 + 0 + 0.014) ≈ 3.75 — above threshold
 
 Future renderer extension plus 4 configured BFS query chips. Type-filter bar and label search must call `kgcSemanticQuery.ts` helpers. Node detail panel reads from GraphData and optional node-state actuals. NLQ remains a Should-tier enhancement.
 
+#### Current Flow Editor Computing-Flow Contract
+
+The current demo acceptance surface is the native `2D Renderer: Flow Editor`, not a standalone static canvas. The renderer must ingest the token-economics Markdown frontmatter, parse normalized `{key,type,value}` flow fields, render widget KTV rows, and run computing-flow propagation from shared helpers.
+
+- Driver keys such as `agent_token_take_rate` remain semantic port keys across `handles.source`, `sourceHandle`, `targetHandle`, labels, connected-value lookup, and chart computation.
+- When a driver field and a functional port resolve to the same normalized schema path, the Node Quick Editor renders one inline-editable KTV row with the port handle attached to that row. It must not render a second non-inline duplicate row for the same key.
+- Calculator and Rich Media Panel updates use `computeFlowConnectedValuesBySchemaPath()` semantics, including bounded propagation, branch-stop handling for `null` / `undefined`, and cache keys based on graph/registry shape rather than fixture filenames.
+- Validation should exercise the mirrored token-economics demo document as an external fixture input without hardcoding local absolute paths or backfilling missing files.
+
 #### Out of Scope
 
 Server-side rendering; PDF export; 3D visualization; real-time multi-user canvas sync.

@@ -4,8 +4,15 @@ import IconButton from '@/components/IconButton'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { emitToolbarDropdownOpen, subscribeToolbarDropdownOpen } from '@/components/toolbar/dropdownOpenEvents'
 import { uiPrimaryChipActiveClassName, uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/toolbar/ui/toolbarStyles'
-import { UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME,
+  UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_META_CLASSNAME,
+  UI_RESPONSIVE_TOUCH_MENU_OPTION_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const toolbarDropdownChevronClassName = `${UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} ml-auto opacity-70 transition-transform`
 
 type ToolbarDropdownOptionBase = {
   id: string
@@ -43,7 +50,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   showTooltip = true,
   disabled,
   isButtonActive,
-  menuWidthClass = 'w-72',
+  menuWidthClass = '',
   onSelect,
   onTriggerClick,
   renderButtonContent,
@@ -192,7 +199,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                         optionButtonRefs.current[index] = el
                       }}
                       type="button"
-                      className={`kg-toolbar-dropdown-section-toggle ${UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
+                      className={`kg-toolbar-dropdown-section-toggle ${UI_RESPONSIVE_TOUCH_MENU_OPTION_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
                       disabled={option.disabled}
                       aria-expanded={hasChildren ? isExpanded : undefined}
                       aria-controls={childrenId}
@@ -218,18 +225,18 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                         <span className="truncate">{option.title}</span>
                       )}
                       {option.disabled && (option.disabledReason || option.enableHint) ? (
-                        <span className="ml-auto min-w-0 max-w-[45%] truncate text-[10px] text-amber-500/90 text-right">
+                        <span className={`${UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_META_CLASSNAME} ml-auto text-[10px] text-amber-500/90 text-right`}>
                           {option.disabledReason || option.enableHint}
                         </span>
                       ) : hasChildren ? (
                         <ChevronDown
-                          className={`ml-auto h-3 w-3 shrink-0 opacity-70 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          className={`${toolbarDropdownChevronClassName} ${isExpanded ? 'rotate-180' : ''}`}
                           aria-hidden="true"
                         />
                       ) : null}
                     </button>
                     {option.disabled && option.enableHint ? (
-                      <div className="px-2 py-0.5 text-[10px] opacity-75">{option.enableHint}</div>
+                      <div className={UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME}>{option.enableHint}</div>
                     ) : null}
                     {option.children && option.children.length > 0 && isExpanded ? (
                       <menu
@@ -243,7 +250,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                             <li key={child.id} className="list-none">
                               <button
                                 type="button"
-                                className={`${UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isChildActive ? uiPrimaryChipActiveClassName : ''}`}
+                                className={`${UI_RESPONSIVE_TOUCH_MENU_OPTION_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isChildActive ? uiPrimaryChipActiveClassName : ''}`}
                                 disabled={child.disabled}
                                 onClick={() => {
                                   if (child.disabled) return
@@ -263,13 +270,13 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                                   <span className="truncate">{child.title}</span>
                                 )}
                                 {child.disabled && (child.disabledReason || child.enableHint) ? (
-                                  <span className="ml-auto min-w-0 max-w-[45%] truncate text-[10px] text-amber-500/90 text-right">
+                                  <span className={`${UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_META_CLASSNAME} ml-auto text-[10px] text-amber-500/90 text-right`}>
                                     {child.disabledReason || child.enableHint}
                                   </span>
                                 ) : null}
                               </button>
                               {child.disabled && child.enableHint ? (
-                                <div className="px-2 py-0.5 text-[10px] opacity-75">{child.enableHint}</div>
+                                <div className={UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME}>{child.enableHint}</div>
                               ) : null}
                             </li>
                           )

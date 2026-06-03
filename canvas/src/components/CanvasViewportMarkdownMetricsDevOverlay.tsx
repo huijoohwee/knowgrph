@@ -1,5 +1,9 @@
 import React from 'react'
 import { subscribeMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
+import {
+  UI_RESPONSIVE_CANVAS_DIAGNOSTIC_ANCHOR_CLASSNAME,
+  UI_RESPONSIVE_CANVAS_DIAGNOSTIC_SCROLL_PANEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type MarkdownMetricSample = {
   ts: number
@@ -38,7 +42,7 @@ export function CanvasViewportMarkdownMetricsDevOverlay(props: { layout: 'full' 
 
   return (
     <aside
-      className={`${props.layout === 'pane' ? 'absolute' : 'fixed'} right-3 bottom-3 z-[300] pointer-events-auto`}
+      className={`${props.layout === 'pane' ? 'absolute' : 'fixed'} ${UI_RESPONSIVE_CANVAS_DIAGNOSTIC_ANCHOR_CLASSNAME} z-[300] pointer-events-auto`}
       aria-label="Markdown metrics"
     >
       <button
@@ -50,7 +54,7 @@ export function CanvasViewportMarkdownMetricsDevOverlay(props: { layout: 'full' 
         {open ? 'Hide metrics' : 'Metrics'}
       </button>
       {open ? (
-        <section className="mt-2 max-w-[420px] max-h-[300px] overflow-auto rounded border border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)] p-2 text-xs">
+        <section className={`mt-2 ${UI_RESPONSIVE_CANVAS_DIAGNOSTIC_SCROLL_PANEL_CLASSNAME} rounded border border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)] p-2 text-xs`}>
           {samples.length === 0 ? (
             <p className="text-[color:var(--kg-text-tertiary)]">No samples yet.</p>
           ) : (

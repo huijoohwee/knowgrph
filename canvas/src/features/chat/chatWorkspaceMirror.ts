@@ -1,6 +1,7 @@
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import {
   ensureWorkspaceChatMirrorFolder,
+  upsertWorkspaceChatMirrorBytes,
   upsertWorkspaceChatMirrorText,
 } from '@/features/workspace-fs/workspaceSeedProvider'
 
@@ -24,6 +25,22 @@ export const mirrorChatWorkspaceFileToHost = async (args: {
     return await upsertWorkspaceChatMirrorText({
       workspacePath: normalizedPath,
       text: String(args.text ?? ''),
+    })
+  } catch {
+    return false
+  }
+}
+
+export const mirrorChatWorkspaceBinaryFileToHost = async (args: {
+  workspacePath: string
+  bytes: ArrayBuffer | Uint8Array
+}): Promise<boolean> => {
+  const normalizedPath = normalizeWorkspacePath(String(args.workspacePath || '').trim())
+  if (!normalizedPath || normalizedPath === '/') return false
+  try {
+    return await upsertWorkspaceChatMirrorBytes({
+      workspacePath: normalizedPath,
+      bytes: args.bytes,
     })
   } catch {
     return false

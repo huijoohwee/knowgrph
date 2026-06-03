@@ -21,6 +21,7 @@ import { LS_KEYS } from '@/lib/config'
 import { lsRemove } from '@/lib/persistence'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_RESPONSIVE_PANEL_STICKY_OVERLAP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { CHAT_DEFAULT_PROVIDER } from '@/lib/chatEndpoint'
 import { PAYMENTS_PROVIDERS, DEFAULT_PAYMENT_PROVIDER_ID, resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { INTEGRATIONS_SECTION_META, MAPS_SECTION_META, MCP_SECTION_META, type SectionMeta } from './settingsView.constants'
@@ -33,6 +34,7 @@ import {
 } from './SourceFileManagementSettingsRows'
 import { useSettingsRowBundles } from './useSettingsRowBundles'
 import { useSettingsSync } from './useSettingsSync'
+import { PANEL_TYPOGRAPHY_DENSITY_PRESETS } from 'grph-shared/ui/panelTypography'
 import { useSettingsWorkspaceActions } from './useSettingsWorkspaceActions'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
@@ -118,7 +120,7 @@ export default function SettingsView({
   }, [isRestoringWorkspace, pushUiToast])
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
-  const headerStickyTopClass = mode === 'integrations' || mode === 'mcp' ? 'top-0' : '-top-[2px]'
+  const headerStickyTopClass = mode === 'integrations' || mode === 'mcp' ? 'top-0' : UI_RESPONSIVE_PANEL_STICKY_OVERLAP_CLASSNAME
   const headerHasToolbarStrip = mode === 'all' || mode === 'payments'
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
   const normalizedChatProvider = React.useMemo(
@@ -133,23 +135,24 @@ export default function SettingsView({
   )
   const applyUiPanelDensityPreset = React.useCallback(
     (preset: 'comfortable' | 'compact') => {
+      const panelTypographyPreset = PANEL_TYPOGRAPHY_DENSITY_PRESETS[preset]
       const patches: Record<string, string> =
         preset === 'comfortable'
           ? {
-              uiPanelKeyValueTextSizeClass: 'text-sm',
-              uiPanelTextFontClass: 'font-sans',
-              uiPanelKeyValueInputClass: `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+              uiPanelKeyValueTextSizeClass: panelTypographyPreset.textSizeClass,
+              uiPanelTextFontClass: panelTypographyPreset.fontClass,
+              uiPanelKeyValueInputClass: panelTypographyPreset.keyValueInputClass,
               uiPanelRowDensityDefaultClass: 'py-1',
-              uiPanelMonospaceTextClass: 'font-mono text-xs',
-              uiPanelMicroLabelTextSizeClass: 'text-xs',
+              uiPanelMonospaceTextClass: panelTypographyPreset.monospaceTextClass,
+              uiPanelMicroLabelTextSizeClass: panelTypographyPreset.microLabelTextSizeClass,
             }
           : {
-              uiPanelKeyValueTextSizeClass: 'text-xs',
-              uiPanelTextFontClass: 'font-sans',
-              uiPanelKeyValueInputClass: `w-full h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+              uiPanelKeyValueTextSizeClass: panelTypographyPreset.textSizeClass,
+              uiPanelTextFontClass: panelTypographyPreset.fontClass,
+              uiPanelKeyValueInputClass: panelTypographyPreset.keyValueInputClass,
               uiPanelRowDensityDefaultClass: 'py-0.5',
-              uiPanelMonospaceTextClass: 'font-mono text-xs',
-              uiPanelMicroLabelTextSizeClass: 'text-[9px]',
+              uiPanelMonospaceTextClass: panelTypographyPreset.monospaceTextClass,
+              uiPanelMicroLabelTextSizeClass: panelTypographyPreset.microLabelTextSizeClass,
             }
       Object.keys(patches).forEach(key => dirtyRef.current.add(key))
       setValues(prev => ({ ...prev, ...patches }))

@@ -224,6 +224,11 @@
       "import": "./dist/payments/agenticCommerceSsot.js",
       "default": "./dist/payments/agenticCommerceSsot.js"
     },
+    "./search/exaMcpSsot": {
+      "types": "./dist/search/exaMcpSsot.d.ts",
+      "import": "./dist/search/exaMcpSsot.js",
+      "default": "./dist/search/exaMcpSsot.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

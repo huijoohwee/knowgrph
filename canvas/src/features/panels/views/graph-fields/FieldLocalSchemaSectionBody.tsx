@@ -4,6 +4,7 @@ import type { JSONValue } from '@/lib/graph/types'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { UI_COPY, UI_LABELS } from '@/lib/config.copy'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import FieldTemplatesSection from '@/features/panels/views/graph-fields/FieldTemplatesSection'
 import FieldLocalSchemaRowsEditor from '@/features/panels/views/graph-fields/FieldLocalSchemaRowsEditor'
 import FieldLocalSchemaValidationEditor, {
@@ -88,7 +89,7 @@ export default function FieldLocalSchemaSectionBody({
   enumCandidatesByKey,
 }: FieldLocalSchemaSectionBodyProps) {
   const schemaPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
-  const schemaInputClassName = `h-9 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const schemaInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const schemaSectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
   return (
     <div className="p-3 space-y-3">

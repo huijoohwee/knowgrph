@@ -96,7 +96,6 @@ const writePreferenceAndNotify = <T>(writer: () => T): T => {
 
 const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
   storageKey === resolveBrowserStorageKey(LS_KEYS.workspaceEditorMode) ||
-  storageKey === resolveBrowserStorageKey(LS_KEYS.graphTableViewMode) ||
   storageKey === resolveBrowserStorageKey(LS_KEYS.workspaceCellSelectPanelPlacement) ||
   storageKey === resolveBrowserStorageKey(LS_KEYS.jsonImportWorkspaceTarget) ||
   storageKey === resolveBrowserStorageKey(LS_KEYS.jsonMarkdownMode) ||

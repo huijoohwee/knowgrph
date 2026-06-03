@@ -44,3 +44,35 @@ export function testMarkdownEditorSsotSyncAllowsOwnedActiveWorkspaceText() {
     throw new Error('expected editor SSOT sync commit to allow owned editor text for the active workspace file')
   }
 }
+
+export function testMarkdownEditorSsotSyncSkipsNonMarkdownWorkspaceSources() {
+  const nonMarkdownKeys = [
+    '/docs/data.json',
+    '/docs/data.jsonld',
+    '/docs/data.geojson',
+    '/docs/table.csv',
+    '/docs/table.tsv',
+    '/docs/page.html',
+  ]
+
+  for (const activeDocumentKey of nonMarkdownKeys) {
+    const shouldSchedule = shouldScheduleMarkdownEditorSsotSync({
+      activeDocumentKey,
+      activeTextOwnedByActivePath: true,
+      paused: false,
+    })
+    if (shouldSchedule) {
+      throw new Error(`expected editor SSOT sync to skip non-markdown workspace source ${activeDocumentKey}`)
+    }
+
+    const shouldCommit = shouldCommitMarkdownEditorSsotSync({
+      scheduledDocumentKey: activeDocumentKey,
+      activeDocumentKey,
+      activeText: '{"rows":[]}',
+      activeTextOwnedByActivePath: true,
+    })
+    if (shouldCommit) {
+      throw new Error(`expected editor SSOT sync commit to skip non-markdown workspace source ${activeDocumentKey}`)
+    }
+  }
+}

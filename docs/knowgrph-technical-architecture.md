@@ -309,6 +309,7 @@ This root document exists as the auto-generated settings registry table surface 
 | `print.landscape.rootPadding.right` | number | localStorage |  |  |
 | `print.landscape.rootPadding.bottom` | number | localStorage |  |  |
 | `print.landscape.rootPadding.left` | number | localStorage |  |  |
+| `workspace.sync.docsMirror.rootPath` | string | localStorage |  |  |
 | `workspace.sync.seed.enabled` | boolean | localStorage |  |  |
 | `workspace.sync.seed.pollMs` | number | localStorage |  |  |
 | `workspace.sync.seed.idleMaxMs` | number | localStorage |  |  |
@@ -583,6 +584,15 @@ This root document exists as the auto-generated settings registry table surface 
 | `KG_INPUT_PATH` | string | backendEnv |  |  |
 | `KG_OUTPUT_DIR` | string | backendEnv |  |  |
 | `max-lines` | number | eslint |  |  |
+| `search.exa.mcp.serverKey` | string | localStorage |  |  |
+| `search.exa.mcp.remoteUrl` | string | localStorage |  |  |
+| `search.exa.mcp.toolProfile` | string | localStorage |  |  |
+| `search.exa.mcp.enabledTools` | json | localStorage |  |  |
+| `search.exa.mcp.connectionMode` | string | localStorage |  |  |
+| `search.exa.mcp.startupTimeoutMs` | number | localStorage |  |  |
+| `search.exa.mcp.maxResults` | number | localStorage |  |  |
+| `search.exa.mcp.fetchContentLimit` | number | localStorage |  |  |
+| `search.exa.mcp.requireFetchReview` | boolean | localStorage |  |  |
 | `payments.stripe.mode` | string | localStorage |  |  |
 | `payments.stripe.secretKey` | string | localStorage |  |  |
 | `payments.stripe.publishableKey` | string | localStorage |  |  |

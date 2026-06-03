@@ -7,6 +7,12 @@ import {
   WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { isMarkdownPath } from './markdownWorkspaceUtils'
+
+export function isMarkdownEditorSsotPath(path: string | null | undefined): boolean {
+  const key = String(path || '').trim()
+  return !!key && isMarkdownPath(key)
+}
 
 export function shouldScheduleMarkdownEditorSsotSync(args: {
   activeDocumentKey: string
@@ -16,6 +22,7 @@ export function shouldScheduleMarkdownEditorSsotSync(args: {
   const key = String(args.activeDocumentKey || '').trim()
   if (!key) return false
   if (args.paused) return false
+  if (!isMarkdownEditorSsotPath(key)) return false
   if (args.activeTextOwnedByActivePath !== true) return false
   return true
 }
@@ -29,6 +36,7 @@ export function shouldCommitMarkdownEditorSsotSync(args: {
   const scheduledKey = String(args.scheduledDocumentKey || '').trim()
   const currentKey = String(args.activeDocumentKey || '').trim()
   if (!scheduledKey || currentKey !== scheduledKey) return false
+  if (!isMarkdownEditorSsotPath(currentKey)) return false
   if (args.activeTextOwnedByActivePath !== true) return false
   return !!String(args.activeText || '').trim()
 }

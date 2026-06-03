@@ -13,4 +13,5 @@ export type MarkdownWorkspaceRuntimeSetActiveDocument = (args: {
   forceApplyToGraph?: boolean
   canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
   sourceUrl?: string | null
+  jsonSourceText?: string | null
 }) => Promise<boolean>

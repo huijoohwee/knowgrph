@@ -8,6 +8,7 @@ import {
 } from '@/features/panels/ui/KeyTypeValueRow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type FieldLocalSchemaRow = { id: string; key: string; value: string }
 
@@ -46,7 +47,7 @@ export default function FieldLocalSchemaRowsEditor({
   const sectionDividerClassName = UI_THEME_TOKENS.panel.divider
   const headerLabelClassName = `font-semibold ${UI_THEME_TOKENS.text.secondary}`
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
-  const inputClassName = `h-7 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const inputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const actionButtonClassName = `App-toolbar__btn border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary}`
   const suggestionTextClassName = `${uiPanelKeyValueTextSizeClass} flex flex-wrap items-center gap-1 ${UI_THEME_TOKENS.text.tertiary}`
 

@@ -6,9 +6,10 @@ import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
 import { useGraphRagTextCentralityConfig } from '@/features/graphrag/hooks/useGraphRagTextCentralityConfig'
 import type { StatsUiClasses } from '@/features/graph-stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const statsSelectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
-const statsActionButtonClassName = `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+const statsActionButtonClassName = `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
 
 type CentralityRow = {
   id: string
@@ -174,7 +175,7 @@ export default function GraphRagCentralityStatsSection({
             className={[
               ui.uiPanelMicroLabelTextSizeClass,
               ui.uiPanelTextFontClass,
-              'px-2 py-[2px] rounded border',
+              `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border`,
               UI_THEME_TOKENS.panel.border,
               canRecompute ? `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}` : UI_THEME_TOKENS.text.tertiary,
             ].join(' ')}

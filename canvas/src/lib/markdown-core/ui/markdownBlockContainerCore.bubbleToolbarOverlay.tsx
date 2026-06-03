@@ -20,6 +20,7 @@ import {
   Underline,
 } from 'lucide-react'
 import { AnchorOverlay } from '@/lib/ui/overlay'
+import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   preventDefaultMouseDown,
   preventDefaultPointerDown,
@@ -31,6 +32,10 @@ import {
 } from '@/features/toolbar/ui/toolbarStyles'
 import type { SsotSurface } from 'grph-shared/ssot/types'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
+
+const markdownBubbleToolbarIconClassName = UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME
+const markdownBubbleToolbarMenuIconClassName = `${UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} mr-1`
 
 export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
   show: boolean
@@ -49,6 +54,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
   applyTurnInto: (next: string) => void
   applyToggleHeading: (level: 1 | 2 | 3) => void
   applyAlign: (next: string) => void
+  captureSelectionForToolbarAction?: () => void
   applyDraftAction: (action: 'bold' | 'inlineCode' | 'italic' | 'link' | 'strike') => void
   applyWrap: (left: string, right: string) => void
   applyComment: () => void
@@ -92,10 +98,12 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
     'gap-1',
   ].filter(Boolean).join(' ')
   const handleToolbarPointerDownCapture = (event: React.PointerEvent<HTMLElement>) => {
+    props.captureSelectionForToolbarAction?.()
     preventDefaultPointerDown(event)
     props.holdToolbarInteraction()
   }
   const handleToolbarMouseDownCapture = (event: React.MouseEvent<HTMLElement>) => {
+    props.captureSelectionForToolbarAction?.()
     preventDefaultMouseDown(event)
     props.holdToolbarInteraction()
   }
@@ -111,6 +119,8 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
     action: () => void,
     closeMenu?: () => void,
   ) => {
+    event.preventDefault()
+    props.captureSelectionForToolbarAction?.()
     props.holdToolbarInteraction()
     closeMenu?.()
     action()
@@ -121,6 +131,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
     action: () => void,
   ) => {
     event.preventDefault()
+    props.captureSelectionForToolbarAction?.()
     props.holdToolbarInteraction()
     action()
     props.onToolbarInteractionEnd()
@@ -152,6 +163,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
           aria-expanded={openMenuKey === args.key}
           title={args.title}
           onPointerDown={(event) => {
+            props.captureSelectionForToolbarAction?.()
             preventDefaultPointerDown(event)
             props.holdToolbarInteraction()
             if (event.button === 0) {
@@ -161,11 +173,13 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             }
           }}
           onMouseDown={(event) => {
+            props.captureSelectionForToolbarAction?.()
             preventDefaultMouseDown(event)
             props.holdToolbarInteraction()
           }}
           onClick={(event) => {
             event.preventDefault()
+            props.captureSelectionForToolbarAction?.()
             props.holdToolbarInteraction()
             if (suppressToolbarMenuClickRef.current) {
               suppressToolbarMenuClickRef.current = false
@@ -227,30 +241,30 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
           key: 'heading',
           ariaLabel: 'Heading',
           title: 'Heading',
-          summary: <Heading2 className="w-3 h-3" strokeWidth={1.6} />,
+          summary: <Heading2 className={markdownBubbleToolbarIconClassName} strokeWidth={1.6} />,
           menu: close => (
             <menu className={toolbarMenuPanelClassName} aria-label="Turn into menu">
-              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyTurnInto('heading2'), close)}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H2</button></li>
-              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyTurnInto('code'), close)}><Code className="w-3 h-3 mr-1" strokeWidth={1.6} />Code block</button></li>
+              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyTurnInto('heading2'), close)}><Heading2 className={markdownBubbleToolbarMenuIconClassName} strokeWidth={1.6} />H2</button></li>
+              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyTurnInto('code'), close)}><Code className={markdownBubbleToolbarMenuIconClassName} strokeWidth={1.6} />Code block</button></li>
               <li className={props.toolbarMenuDividerClassName} />
-              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyToggleHeading(1), close)}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H1</button></li>
-              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyToggleHeading(2), close)}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H2</button></li>
-              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyToggleHeading(3), close)}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H3</button></li>
+              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyToggleHeading(1), close)}><Heading2 className={markdownBubbleToolbarMenuIconClassName} strokeWidth={1.6} />H1</button></li>
+              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyToggleHeading(2), close)}><Heading2 className={markdownBubbleToolbarMenuIconClassName} strokeWidth={1.6} />H2</button></li>
+              <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyToggleHeading(3), close)}><Heading2 className={markdownBubbleToolbarMenuIconClassName} strokeWidth={1.6} />H3</button></li>
             </menu>
           ),
         })}
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('bold'))} title="Bold"><Bold className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('italic'))} title="Italic"><Italic className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('strike'))} title="Strikethrough"><Strikethrough className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('inlineCode'))} title="Inline Code"><Code className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('link'))} title="Link"><LinkIcon className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('bulletList'))} title="Bulleted List"><List className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('numberedList'))} title="Numbered List"><ListOrdered className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('blockquote'))} title="Quote"><Quote className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('bold'))} title="Bold"><Bold className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('italic'))} title="Italic"><Italic className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('strike'))} title="Strikethrough"><Strikethrough className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('inlineCode'))} title="Inline Code"><Code className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('link'))} title="Link"><LinkIcon className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('bulletList'))} title="Bulleted List"><List className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('numberedList'))} title="Numbered List"><ListOrdered className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('blockquote'))} title="Quote"><Quote className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
         {renderToolbarMenu({
           key: 'align',
           ariaLabel: 'Align',
-          summary: <AlignLeft className="w-3 h-3" strokeWidth={1.8} />,
+          summary: <AlignLeft className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} />,
           menu: close => (
             <menu className={toolbarMenuPanelClassName} aria-label="Align menu">
               <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyAlign('left'), close)}>Left</button></li>
@@ -259,15 +273,15 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             </menu>
           ),
         })}
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('<u>', '</u>'))} title="Underline"><Underline className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('^', '^'))} title="Superscript"><Superscript className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('~', '~'))} title="Subscript"><Subscript className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('<u>', '</u>'))} title="Underline"><Underline className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('^', '^'))} title="Superscript"><Superscript className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('~', '~'))} title="Subscript"><Subscript className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('$', '$'))} title="Math"><span className="text-[10px] leading-none">∑</span></button>
         {renderToolbarMenu({
           key: 'highlight',
           ariaLabel: 'Highlight',
           title: 'Highlight',
-          summary: <Highlighter className="w-3 h-3" strokeWidth={1.8} />,
+          summary: <Highlighter className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} />,
           menu: close => (
             <menu className={toolbarMenuPanelClassName} aria-label="Highlight menu">
               <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => props.applyWrap('==', '=='), close)}>Default (==)</button></li>
@@ -282,7 +296,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
           key: 'text-color',
           ariaLabel: 'Text color',
           title: 'Text color',
-          summary: <Palette className="w-3 h-3" strokeWidth={1.8} />,
+          summary: <Palette className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} />,
           menu: close => (
             <menu className={toolbarMenuPanelClassName} aria-label="Text color menu">
               <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} style={{ color: '#EF4444' }} onClick={(event) => runMenuAction(event, () => props.applyColor('#EF4444'), close)}>Red</button></li>
@@ -292,7 +306,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             </menu>
           ),
         })}
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, props.applyClearFormatting)} title="Clear formatting"><Eraser className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, props.applyClearFormatting)} title="Clear formatting"><Eraser className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
         <button
           type="button"
           className={props.floatingBubbleButtonClassName}
@@ -302,14 +316,14 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
           }}
           title="Comment"
         >
-          <MessageSquare className="w-3 h-3" strokeWidth={1.8} />
+          <MessageSquare className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} />
         </button>
         {renderToolbarMenu({
           key: 'more',
           ariaLabel: 'More',
           title: 'More',
           portalPlacement: 'bottom-end',
-          summary: <MoreHorizontal className="w-3 h-3" strokeWidth={1.8} />,
+          summary: <MoreHorizontal className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} />,
           menu: close => (
             <menu className={toolbarMenuPanelClassName} aria-label="More actions">
               {selectionActions ? (
@@ -319,7 +333,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
                   <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.editor' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.editor'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInEditor(selectionActions.startLine), close)}>Show in Editor</button></li>
                   <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.presentation' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.presentation'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInPresentation(selectionActions.startLine), close)}>Show in Presentation</button></li>
                   <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.slides' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.slides'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInSlidesGallery(selectionActions.startLine), close)}>Show in Slides Gallery</button></li>
-                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'table' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'table'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInGraphDataTable(selectionActions.startLine), close)}>Show in Graph Data Table</button></li>
+                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'table' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'table'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInGraphDataTable(selectionActions.startLine), close)}>{MARKDOWN_DATA_VIEW_COPY.showInLabel}</button></li>
                   <li className={props.toolbarMenuDividerClassName} />
                 </>
               ) : (

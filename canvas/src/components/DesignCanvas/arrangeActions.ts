@@ -1,4 +1,5 @@
 import React from 'react'
+import type { ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
@@ -13,15 +14,7 @@ type FramePosition = {
 
 type PositionMap = Record<string, FramePosition>
 
-export type DesignCanvasArrangeAction =
-  | 'align-left'
-  | 'align-center-x'
-  | 'align-right'
-  | 'align-top'
-  | 'align-center-y'
-  | 'align-bottom'
-  | 'distribute-x'
-  | 'distribute-y'
+export type DesignCanvasArrangeAction = ArrangeAction2d
 
 type UseDesignCanvasArrangeActionsArgs = {
   active: boolean
@@ -71,8 +64,9 @@ export function useDesignCanvasArrangeActions(args: UseDesignCanvasArrangeAction
       if (!reference) return
       const updates: Record<string, { x: number; y: number }> = {}
       const grid = readSnapGridConfigFromSchema(schema)
-      const gridSize = grid.enabled ? grid.size : 0
-      const snap = (value: number) => (grid.enabled ? snapScalarToGrid(value, grid.size) : value)
+      const gridSize = grid.enabled ? Math.max(grid.x, grid.y) : 0
+      const snapX = (value: number) => (grid.enabled ? snapScalarToGrid(value, grid, 'x') : value)
+      const snapY = (value: number) => (grid.enabled ? snapScalarToGrid(value, grid, 'y') : value)
 
       if (action === 'distribute-x' || action === 'distribute-y') {
         const points = selectedIds.map(id => {
@@ -90,8 +84,8 @@ export function useDesignCanvasArrangeActions(args: UseDesignCanvasArrangeAction
           const center = nextCenters[id]
           if (!center) continue
           updates[id] = {
-            x: snap(action === 'distribute-x' ? center.x - position.w / 2 : position.x),
-            y: snap(action === 'distribute-y' ? center.y - position.h / 2 : position.y),
+            x: snapX(action === 'distribute-x' ? center.x - position.w / 2 : position.x),
+            y: snapY(action === 'distribute-y' ? center.y - position.h / 2 : position.y),
           }
         }
         commitPositionUpdates(updates, setDesignFramePosMany)
@@ -109,7 +103,7 @@ export function useDesignCanvasArrangeActions(args: UseDesignCanvasArrangeAction
         if (action === 'align-top') y = reference.y
         if (action === 'align-bottom') y = reference.y + reference.h - position.h
         if (action === 'align-center-y') y = reference.y + reference.h / 2 - position.h / 2
-        updates[id] = { x: snap(x), y: snap(y) }
+        updates[id] = { x: snapX(x), y: snapY(y) }
       }
       commitPositionUpdates(updates, setDesignFramePosMany)
     },
@@ -131,7 +125,8 @@ export function useDesignCanvasArrangeActions(args: UseDesignCanvasArrangeAction
       const delta = readNudgeDelta({
         e: event,
         snapGridEnabled: grid.enabled,
-        snapGridSize: grid.size,
+        snapGridSize: grid.x,
+        snapGridSizeY: grid.y,
       })
       if (!delta) return
       event.preventDefault()

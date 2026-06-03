@@ -52,12 +52,12 @@ import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableD
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import type { PersistedCollectionChangeEvent } from '@/lib/storage/persistedCollectionStore'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
-import { type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
+import { type WorkspaceTableViewMode } from '@/features/workspace-table/workspaceEditorMode'
 import { applyColumnOrder, getRowTocId, mapRowDocToGridRow, reorderIds } from '@/features/graph-table/ui/graphTableWorkspaceUtils'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import {
-  toWorkspaceBackedGraphTableViewMode,
-  toWorkspaceEditorModeFromGraphTableViewMode,
+  toWorkspaceBackedTableViewMode,
+  toWorkspaceEditorModeFromTableViewMode,
 } from '@/features/workspace-table/workspaceEditorMode'
 import {
   cancelGraphTableWorkspaceViewStateSync,
@@ -130,8 +130,8 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     useGraphStore(useShallow(selector))
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const [activeTableId, setActiveTableId] = useState<GraphTableId>('nodes')
-  const [viewMode, setViewMode] = useState<GraphTableViewMode>(() =>
-    toWorkspaceBackedGraphTableViewMode(workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode),
+  const [viewMode, setViewMode] = useState<WorkspaceTableViewMode>(() =>
+    toWorkspaceBackedTableViewMode(workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode),
   )
   const [graphTableGeospatialViewEnabled, setGraphTableGeospatialViewEnabled] = useState<boolean>(() =>
     lsBool(LS_KEYS.graphTableGeospatialViewEnabled, false),
@@ -436,7 +436,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       setViewMode(prev => (prev === 'geospatial' ? prev : 'geospatial'))
       return
     }
-    const next = toWorkspaceBackedGraphTableViewMode(workspaceEditorMode)
+    const next = toWorkspaceBackedTableViewMode(workspaceEditorMode)
     setViewMode(prev => (prev === next ? prev : next))
   }, [graphTableGeospatialViewEnabled, workspaceEditorMode])
 
@@ -500,13 +500,13 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   }, [])
 
   const handleViewModeChanged = useCallback(
-    (next: GraphTableViewMode) => {
+    (next: WorkspaceTableViewMode) => {
       setViewMode(next)
       if (next === 'geospatial') {
         setGraphTableGeospatialViewEnabled(true)
         void setGeospatialModeEnabled(true).catch(() => void 0)
         workspaceTablePreferencesStore.setWorkspaceEditorMode(
-          toWorkspaceEditorModeFromGraphTableViewMode(next),
+          toWorkspaceEditorModeFromTableViewMode(next),
         )
         return
       }
@@ -514,7 +514,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         setGraphTableGeospatialViewEnabled(false)
       }
       workspaceTablePreferencesStore.setWorkspaceEditorMode(
-        toWorkspaceEditorModeFromGraphTableViewMode(next),
+        toWorkspaceEditorModeFromTableViewMode(next),
       )
     },
     [graphTableGeospatialViewEnabled],

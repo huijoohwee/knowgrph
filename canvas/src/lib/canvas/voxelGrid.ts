@@ -1,6 +1,6 @@
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
-import { clampSnapGridSize } from '@/lib/canvas/snapGridSize'
+import { clampSnapGridSize, readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
 
 export const resolveVoxelGridScaleFactorFromSchema = (schema: GraphSchema | null | undefined): number => {
   const threeCfg = getThreeConfig(schema || null)
@@ -11,7 +11,7 @@ export const resolveVoxelGridScaleFactorFromSchema = (schema: GraphSchema | null
 
 export const resolveVoxelGridStepFromSchema = (schema: GraphSchema | null | undefined): number => {
   const snapSizeRaw = (schema?.behavior?.snapGrid as { size?: unknown } | null)?.size
-  const base = clampSnapGridSize(snapSizeRaw)
+  const base = readSnapGridScalarSize(snapSizeRaw)
   const voxelGridScale = resolveVoxelGridScaleFactorFromSchema(schema)
   return clampSnapGridSize(Math.round(base * voxelGridScale))
 }

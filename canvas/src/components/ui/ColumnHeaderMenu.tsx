@@ -4,7 +4,16 @@ import { ArrowLeft, ArrowRight, EyeOff, Filter, Trash2, Copy, ArrowUp, ArrowDown
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_COLUMN_HEADER_FILTER_ACTION_CLASSNAME,
+  UI_RESPONSIVE_COLUMN_HEADER_FILTER_FIELD_CLASSNAME,
+  UI_RESPONSIVE_COLUMN_HEADER_FILTER_LABEL_CLASSNAME,
+  UI_RESPONSIVE_COLUMN_HEADER_FILTER_PANEL_CLASSNAME,
+  UI_RESPONSIVE_COLUMN_HEADER_MENU_PANEL_CLASSNAME,
+  UI_RESPONSIVE_COLUMN_HEADER_TYPE_VALUE_CLASSNAME,
+  UI_RESPONSIVE_MENU_ICON_ACTION_CLASSNAME,
+  UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type ColumnHeaderMenuFilterOp = string
 
@@ -74,7 +83,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
 
   return (
     <menu
-      className={['kg-column-header-menu rounded border shadow-sm p-1 w-[260px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+      className={[UI_RESPONSIVE_COLUMN_HEADER_MENU_PANEL_CLASSNAME, 'rounded border shadow-sm p-1', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
       aria-label={props.ariaLabel}
     >
       <li className="list-none">
@@ -95,7 +104,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           >
             <Columns2 className={icon14} aria-hidden="true" />
             <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{props.typeSummaryLabel}</span>
-            <span className={['min-w-0 max-w-[120px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{props.typeValueLabel}</span>
+            <span className={[UI_RESPONSIVE_COLUMN_HEADER_TYPE_VALUE_CLASSNAME, UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{props.typeValueLabel}</span>
             <ChevronDown className={[icon14, 'transition-transform', isTypeOpen ? 'rotate-180' : ''].join(' ')} aria-hidden="true" />
           </summary>
           <div id={typeMenuId} className="kg-column-header-children kg-click-expand-menu-children mt-1">
@@ -143,13 +152,13 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
             }
             menu={({ close }) => (
               <section
-                className={['kg-column-header-filter-editor rounded border shadow-sm p-2 w-[260px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+                className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_PANEL_CLASSNAME, 'rounded border shadow-sm p-2', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
                 aria-label="Filter editor"
               >
                 <header className="mb-2 flex min-w-0 items-center gap-2">
                   <button
                     type="button"
-                    className={['inline-flex items-center justify-center w-8 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(
+                    className={[UI_RESPONSIVE_MENU_ICON_ACTION_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(
                       ' ',
                     )}
                     aria-label="Back"
@@ -162,9 +171,9 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
 
                 <fieldset className="border-0 p-0 m-0 space-y-2">
                   <label className="flex min-w-0 items-center gap-2">
-                    <span className={['w-12 shrink-0 text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Op</span>
+                    <span className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_LABEL_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Op</span>
                     <select
-                      className={['h-7 min-w-0 px-2 rounded border flex-1', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
+                      className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_FIELD_CLASSNAME, 'rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
                       value={filterOp}
                       onChange={e => setFilterOp(e.target.value)}
                       disabled={props.filter?.isDisabled}
@@ -177,9 +186,9 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
                     </select>
                   </label>
                   <label className="flex min-w-0 items-center gap-2">
-                    <span className={['w-12 shrink-0 text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Value</span>
+                    <span className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_LABEL_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Value</span>
                     <input
-                      className={['h-7 min-w-0 px-2 rounded border flex-1', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
+                      className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_FIELD_CLASSNAME, 'rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
                       value={filterValue}
                       onChange={e => setFilterValue(e.target.value)}
                       disabled={props.filter?.isDisabled}
@@ -189,14 +198,14 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
                   <div className="flex items-center justify-end gap-2 pt-1">
                     <button
                       type="button"
-                      className={['h-7 px-2 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_ACTION_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
                       onClick={() => close()}
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      className={['h-7 px-2 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_ACTION_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
                       disabled={props.filter?.isDisabled}
                       onClick={() => {
                         if (props.filter?.isDisabled) return

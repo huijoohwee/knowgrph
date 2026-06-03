@@ -146,6 +146,7 @@ export interface GraphStatePanelsMarkdown {
   markdownTokensMeta: MarkdownFrontmatter | null;
   markdownTokensStartLineOffset: number | null;
   markdownDocumentSourceUrl: string | null;
+  jsonSourceDocumentName: string | null;
   jsonSourceDocumentText: string | null;
   markdownPreviewMermaidFocusCode: string | null;
   markdownPreviewMermaidFocusConfig: Record<string, unknown> | null;

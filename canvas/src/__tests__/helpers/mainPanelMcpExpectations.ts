@@ -24,6 +24,21 @@ import {
   STRIPE_MCP_SECRET_ENV_KEY,
 } from 'grph-shared/payments/stripeMcpSsot'
 import {
+  EXA_MCP_API_KEY_HEADER,
+  EXA_MCP_DASHBOARD_URL,
+  EXA_MCP_DEFAULT_CONNECTION_MODE,
+  EXA_MCP_DEFAULT_ENABLED_TOOLS_JSON,
+  EXA_MCP_DEFAULT_FETCH_CONTENT_LIMIT,
+  EXA_MCP_DEFAULT_MAX_RESULTS,
+  EXA_MCP_DEFAULT_SERVER_KEY,
+  EXA_MCP_DEFAULT_STARTUP_TIMEOUT_MS,
+  EXA_MCP_DOCS_MARKDOWN_URL,
+  EXA_MCP_DOCS_URL,
+  EXA_MCP_GITHUB_URL,
+  EXA_MCP_LOCAL_API_KEY_ENV,
+  EXA_MCP_REMOTE_URL,
+} from 'grph-shared/search/exaMcpSsot'
+import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
   CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
   CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
@@ -246,5 +261,69 @@ export function assertMcpHubSurfacesCrawlerAccessAndPaymentReadiness(container: 
     .filter(Boolean)
   if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-crawler-'))) {
     throw new Error(`expected crawler MCP rows to use crawler MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesExaMcpConfig(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  ;[
+    'Exa MCP Configuration',
+    'exaMcp.server_key',
+    'exaMcp.remote.url',
+    'exaMcp.tool_profile',
+    'exaMcp.enabled_tools',
+    'exaMcp.connection.mode',
+    'exaMcp.startup_timeout_ms',
+    'exaMcp.max_results',
+    'exaMcp.fetch_content_limit',
+    'exaMcp.require_fetch_review',
+    'exaMcp.remote_config.codex',
+    'exaMcp.remote_config.generic',
+    'web_search_exa',
+    'web_fetch_exa',
+    'web_search_advanced_exa',
+    'company_research_exa',
+    'crawling_exa',
+    'deprecated',
+    'mcpServers',
+    `codex mcp add ${EXA_MCP_DEFAULT_SERVER_KEY} --url '${EXA_MCP_REMOTE_URL}'`,
+    EXA_MCP_DEFAULT_SERVER_KEY,
+    EXA_MCP_REMOTE_URL,
+    EXA_MCP_DEFAULT_ENABLED_TOOLS_JSON,
+    EXA_MCP_DEFAULT_CONNECTION_MODE,
+    String(EXA_MCP_DEFAULT_STARTUP_TIMEOUT_MS),
+    String(EXA_MCP_DEFAULT_MAX_RESULTS),
+    String(EXA_MCP_DEFAULT_FETCH_CONTENT_LIMIT),
+    String(EXA_MCP_API_KEY_HEADER),
+    String(EXA_MCP_LOCAL_API_KEY_ENV),
+    EXA_MCP_DOCS_URL,
+    EXA_MCP_DOCS_MARKDOWN_URL,
+    EXA_MCP_GITHUB_URL,
+    EXA_MCP_DASHBOARD_URL,
+    'restart_mcp_client_after_config_change',
+    'Open Exa MCP Docs',
+    'Open FloatingPanel Chat UI',
+  ].forEach(token => {
+    if (!searchableText.includes(token)) {
+      throw new Error(`expected MCP hub to include Exa MCP config token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;[
+    'YOUR_EXA_API_KEY',
+    'your_api_key',
+    'exaApiKey=',
+    'sk_test_',
+    'sk_live_',
+  ].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected Exa MCP surface to avoid embedded secret examples ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-exa-'))) {
+    throw new Error(`expected Exa MCP rows to use Exa MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
   }
 }

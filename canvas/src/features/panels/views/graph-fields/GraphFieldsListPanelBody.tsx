@@ -23,6 +23,13 @@ import {
 import { NewFieldForm } from './NewFieldForm'
 import { useGraphFieldsFiltering } from '@/features/panels/views/graph-fields/hooks/useGraphFieldsFiltering'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_PANEL_STRIP_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_LIST_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_SHELL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export type GraphFieldsListPanelBodyProps = {
   uiPanelKeyValueTextSizeClass: string
@@ -170,7 +177,7 @@ export function GraphFieldsListPanelBody({
       className={`row-span-2 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden flex flex-col min-h-0 min-w-0`}
       style={{ backgroundColor: 'var(--panel-bg)' }}
     >
-      <header className={`h-9 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
+      <header className={`${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}>
         <div className="flex items-center gap-2">
           <div className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.graphFields}</div>
         </div>
@@ -209,11 +216,11 @@ export function GraphFieldsListPanelBody({
       </header>
       {searchOpen && (
         <div
-          className={`border-b ${UI_THEME_TOKENS.panel.border} p-2`}
+          className={`${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_STRIP_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.border}`}
           style={{ backgroundColor: 'var(--panel-bg)' }}
         >
           <div
-            className={`h-8 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} px-2`}
+            className={`${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_SHELL_CLASSNAME} flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border}`}
             style={{ backgroundColor: 'var(--panel-bg)' }}
           >
             <SearchIcon
@@ -224,7 +231,7 @@ export function GraphFieldsListPanelBody({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={UI_COPY.searchFieldsPlaceholder}
-              className={`h-8 w-full bg-transparent text-xs outline-none ${UI_THEME_TOKENS.text.primary}`}
+              className={`${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} bg-transparent text-xs outline-none ${UI_THEME_TOKENS.text.primary}`}
               autoFocus
             />
           </div>
@@ -340,10 +347,10 @@ export function GraphFieldsListPanelBody({
 
           const localSchemaButtonClassName = (active: boolean) =>
             [
-              `w-full border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1.5`,
+              `${UI_RESPONSIVE_GRAPH_FIELDS_LIST_ROW_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`,
               'flex items-center gap-2 border-l-2',
               active ? UI_THEME_TOKENS.table.rowSelected : `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHover}`,
-              'min-w-0 overflow-hidden text-left',
+              'text-left',
             ].join(' ')
 
           const onSelectLocalSchemaFacet = (

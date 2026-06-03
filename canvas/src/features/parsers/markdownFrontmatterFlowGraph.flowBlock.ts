@@ -10,10 +10,8 @@ import {
 import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { normalizeFlowSubgraphs } from '@/features/parsers/markdownFrontmatterFlowGraph.subgraphs'
-import {
-  normalizeFlowEnvelopeRecord,
-  unwrapFlowEnvelopeFieldValue,
-} from '@/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope'
+import { normalizeFlowEnvelopeRecord, unwrapFlowEnvelopeFieldValue } from '@/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope'
+import { buildImplicitFlowEdgePortKey } from '@/lib/graph/flowPorts'
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
 export const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
@@ -613,12 +611,12 @@ function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
   return out
 }
 
-function parseFlowEdgeEndpoint(rawNode: unknown, rawHandle: unknown): { nodeId: string; portKey: string } | null {
+function parseFlowEdgeEndpoint(rawNode: unknown, rawHandle: unknown, defaultPortKey: string): { nodeId: string; portKey: string } | null {
   const nodeIdRaw = asString(rawNode)
   const handleRaw = asString(rawHandle)
   if (nodeIdRaw && handleRaw) return { nodeId: nodeIdRaw, portKey: handleRaw }
   const dot = nodeIdRaw.lastIndexOf('.')
-  if (dot < 0) return null
+  if (dot < 0) return nodeIdRaw && defaultPortKey ? { nodeId: nodeIdRaw, portKey: defaultPortKey } : null
   const nodeId = nodeIdRaw.slice(0, dot).trim()
   const portKey = nodeIdRaw.slice(dot + 1).trim()
   if (!nodeId || !portKey) return null
@@ -799,8 +797,9 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       recordPath: `flow.edges[${i}]`,
       warnings: flowWarnings,
     })
-    const sourceEp = parseFlowEdgeEndpoint(normalizedRawEdge.source, normalizedRawEdge.sourceHandle)
-    const targetEp = parseFlowEdgeEndpoint(normalizedRawEdge.target, normalizedRawEdge.targetHandle)
+    const edgeSocketType = asString(normalizedRawEdge.type)
+    const sourceEp = parseFlowEdgeEndpoint(normalizedRawEdge.source, normalizedRawEdge.sourceHandle, buildImplicitFlowEdgePortKey({ socketType: edgeSocketType, side: 'source' }))
+    const targetEp = parseFlowEdgeEndpoint(normalizedRawEdge.target, normalizedRawEdge.targetHandle, buildImplicitFlowEdgePortKey({ socketType: edgeSocketType, side: 'target' }))
     if (!sourceEp || !targetEp) continue
     const labelRaw = asString(normalizedRawEdge.label), layoutRoute = asString(normalizedRawEdge.layoutRoute), layoutLane = asFiniteNumber(normalizedRawEdge.layoutLane)
     const label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : ''
@@ -812,7 +811,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       to_port: targetEp.portKey,
       ...(label ? { label } : {}),
       ...(asBoolean(normalizedRawEdge.animated) === true ? { animated: true } : {}),
-      ...(asString(normalizedRawEdge.type) ? { type: asString(normalizedRawEdge.type) } : {}), ...(layoutRoute ? { layoutRoute } : {}), ...(layoutLane != null ? { layoutLane: Math.floor(layoutLane) } : {}),
+      ...(edgeSocketType ? { type: edgeSocketType } : {}), ...(layoutRoute ? { layoutRoute } : {}), ...(layoutLane != null ? { layoutLane: Math.floor(layoutLane) } : {}),
     }
     normalizedConnections.push(conn)
   }

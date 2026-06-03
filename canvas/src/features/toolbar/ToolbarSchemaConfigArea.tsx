@@ -1,5 +1,11 @@
 import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
+import {
+  uiToolbarAreaActionRowClassName,
+  uiToolbarAreaCompactActionRowClassName,
+  uiToolbarAreaInsetStackClassName,
+  uiToolbarAreaStackClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 import { UI_LABELS } from '@/lib/config'
 import { applySchemaUiSnapshotIfNeeded } from '@/features/schema-editor/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -36,10 +42,10 @@ export function ToolbarSchemaConfigArea({
   const neutralToolbarButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
   const primaryToolbarButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.primarySolid}`
   return (
-    <div className="flex flex-col gap-1">
+    <div className={uiToolbarAreaStackClassName}>
       {isExportMenuOpen && (
-        <div className="flex flex-col gap-1 px-1">
-          <div className="flex items-center justify-end gap-1">
+        <div className={uiToolbarAreaInsetStackClassName}>
+          <div className={uiToolbarAreaCompactActionRowClassName}>
             <button
               type="button"
               className={primaryToolbarButtonClassName}
@@ -101,7 +107,7 @@ export function ToolbarSchemaConfigArea({
               Schema CSV
             </button>
           </div>
-          <div className="flex items-center justify-end gap-1">
+          <div className={uiToolbarAreaCompactActionRowClassName}>
             {onCopySchemaJsonLd && (
               <button
                 type="button"
@@ -139,7 +145,7 @@ export function ToolbarSchemaConfigArea({
           </div>
         </div>
       )}
-      <div className="flex items-center justify-end gap-2">
+      <div className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.schemaConfigurator} ok={schemaOpOk} msg={schemaOpMsg || undefined} />
       </div>
     </div>

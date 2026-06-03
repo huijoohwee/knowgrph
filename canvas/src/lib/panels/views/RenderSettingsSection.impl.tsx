@@ -14,6 +14,8 @@ import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSecti
 import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
 import { isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
 import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
+import { UI_RESPONSIVE_BADGE_CHIP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
 type GraphCreateMode = NonNullable<GraphBehavior['createMode']>
@@ -91,7 +93,7 @@ export default function RenderSettingsSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass
-      || `w-full h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded text-right`,
+      || PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
@@ -397,7 +399,7 @@ export default function RenderSettingsSection({
           {schemaBadges.map(badge => (
             <span
               key={badge}
-              className={`px-[4px] py-[1px] rounded-full border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.headerBg}`}
+              className={`${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} rounded-full border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.headerBg}`}
             >
               {badge === 'required' ? 'R' : badge === 'unique' ? 'U' : badge}
             </span>

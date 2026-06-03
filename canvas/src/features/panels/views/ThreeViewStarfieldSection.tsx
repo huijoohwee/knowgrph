@@ -10,6 +10,10 @@ import {
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 interface ThreeViewStarfieldSectionProps {
   schema: GraphSchema
@@ -28,8 +32,8 @@ export default function ThreeViewStarfieldSection({
 }: ThreeViewStarfieldSectionProps) {
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
-  const selectionControlClassName = `h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
-  const colorPickerClassName = `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const selectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const colorPickerClassName = `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
     <CollapsibleSection
       title="Starfield"

@@ -1,4 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentParseIdentity } from '@/features/source-files/sourceFilesIngestIntegration'
 import {
@@ -66,6 +67,14 @@ function readBootstrapSourceIndexSnapshot(
   return snapshot || resolveWorkspaceSourceIndexSnapshot(undefined)
 }
 
+function hasBootstrapActivePathDrifted(startupActivePath: ReturnType<typeof resolveMaterializedWorkspaceActivePath>): boolean {
+  const currentActivePath = resolveMaterializedWorkspaceActivePath({
+    explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+  })
+  if (!startupActivePath || !currentActivePath) return false
+  return currentActivePath !== startupActivePath
+}
+
 export async function prepareBootstrapWorkspaceMaterialization(
   args: BootstrapWorkspaceMaterializationArgs = {},
 ): Promise<BootstrapWorkspaceMaterializationContext> {
@@ -114,6 +123,15 @@ export async function materializeBootstrapWorkspaceSourceFiles(
   workspaceFs: Awaited<ReturnType<typeof getWorkspaceFs>>
 }> {
   const context = await prepareBootstrapWorkspaceMaterialization(args)
+  if (hasBootstrapActivePathDrifted(context.startupActivePath)) {
+    return {
+      activePathKey: '',
+      sourceFiles: useGraphStore.getState().sourceFiles,
+      sourcesByPath: context.startupSourcesByPath,
+      workspaceEntries: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
+      workspaceFs: context.workspaceFs,
+    }
+  }
   await materializeActiveWorkspaceEntryIntoSourceFiles({
     activePathOverride: context.startupActivePath,
     fs: context.workspaceFs,

@@ -235,4 +235,7 @@ export function testResizeTransitionPolishKeepsChevronAndHandleDotTransitions() 
   if (!kanbanGroupText.includes('kg-panel-action-btn kg-panel-icon-btn') || !kanbanCardText.includes('kg-panel-action-btn kg-panel-icon-btn')) {
     throw new Error('expected Kanban icon actions to reuse the shared panel action button classes')
   }
+  if (!kanbanGroupText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') || !kanbanCardText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') || [kanbanGroupText, kanbanCardText].some(text => text.includes('inline-flex items-center justify-center w-7 h-7'))) {
+    throw new Error('expected Kanban icon action sizing to reuse the shared small icon action owner')
+  }
 }

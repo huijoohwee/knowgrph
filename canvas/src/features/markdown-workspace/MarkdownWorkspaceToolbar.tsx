@@ -18,6 +18,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
+  UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_LABEL_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
@@ -38,6 +39,8 @@ import {
   MarkdownWorkspaceDisplayMenu,
   MarkdownWorkspacePresentationNavMenu,
 } from '@/features/markdown-workspace/MarkdownWorkspaceToolbarInlineMenus'
+
+const MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME = UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME
 
 export type MarkdownWorkspaceToolbarProps = {
   explorerOpen: boolean
@@ -170,7 +173,11 @@ export function MarkdownWorkspaceToolbar({
     const enabledCount = visiblePaneCount(current)
     if (current[key] && enabledCount <= 1) return
     const next = { ...current, [key]: !current[key] }
-    setSplitPaneVisibility(key === 'viewer' && next.viewer ? resolveViewerEditPaneVisibility(next) : next)
+    setSplitPaneVisibility(
+      key === 'viewer' && next.viewer
+        ? resolveViewerEditPaneVisibility(next)
+        : next,
+    )
   }, [effectiveSplitPanes, resolveViewerEditPaneVisibility, setSplitPaneVisibility, visiblePaneCount])
   const handleSplitPaneToggle = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
     if (!setSplitPaneVisibility) return
@@ -415,7 +422,7 @@ export function MarkdownWorkspaceToolbar({
               title="Presentation"
               onClick={() => setLayoutMode('presentation')}
             >
-              <LayoutPanelTop className="w-4 h-4" strokeWidth={1.6} />
+              <LayoutPanelTop className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} />
             </button>
           </li>
           <li className="list-none">
@@ -426,7 +433,7 @@ export function MarkdownWorkspaceToolbar({
               title="Slides Gallery"
               onClick={() => setLayoutMode('slides-gallery')}
             >
-              <LayoutGrid className="w-4 h-4" strokeWidth={1.6} />
+              <LayoutGrid className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} />
             </button>
           </li>
         </menu>
@@ -447,7 +454,7 @@ export function MarkdownWorkspaceToolbar({
         <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Actions">
           <li className="list-none">
             <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Fullscreen" onClick={onToggleFullscreen}>
-              <Maximize2 className="w-4 h-4" strokeWidth={1.6} />
+              <Maximize2 className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} />
             </button>
           </li>
           <li className="list-none">
@@ -465,7 +472,7 @@ export function MarkdownWorkspaceToolbar({
                 })
               }}
             >
-              <X className="w-4 h-4" strokeWidth={1.6} />
+              <X className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} />
             </button>
           </li>
         </menu>

@@ -54,8 +54,6 @@ export function resolveEffectiveFlowWidgetPinnedInCanvas(args: {
   node?: Pick<GraphNode, 'id' | 'type'> | null
   pinnedValue?: boolean | null
 }): boolean {
-  const kind = String(args.graphMetaKind || '').trim()
-  if (kind === 'frontmatter-flow') return false
   if (typeof args.pinnedValue === 'boolean') return args.pinnedValue
   return resolveDefaultFlowWidgetPinnedInCanvas({
     graphMetaKind: args.graphMetaKind,

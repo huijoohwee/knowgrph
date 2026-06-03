@@ -32,12 +32,12 @@ export type CanvasGridRenderConfig = {
   lockToBaseStep: true
 }
 
-export const CANVAS_GRID_DOT_RADIUS_PX_DEFAULT = 1
+export const CANVAS_GRID_DOT_RADIUS_PX_DEFAULT = 1.25
 export const CANVAS_GRID_DOT_RADIUS_PX_MIN = 0.5
 export const CANVAS_GRID_DOT_RADIUS_PX_MAX = 6
 
-export const CANVAS_GRID_MINOR_ALPHA_DEFAULT = 0.06
-export const CANVAS_GRID_MAJOR_ALPHA_DEFAULT = 0.12
+export const CANVAS_GRID_MINOR_ALPHA_DEFAULT = 0.16
+export const CANVAS_GRID_MAJOR_ALPHA_DEFAULT = 0.34
 export const CANVAS_GRID_ALPHA_MIN = 0
 export const CANVAS_GRID_ALPHA_MAX = 1
 
@@ -48,7 +48,7 @@ export const clampCanvasGridAlpha = (value: unknown, fallback: number): number =
 }
 
 export const CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT = 1
-export const CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT = 1
+export const CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT = 1.25
 export const CANVAS_GRID_WIDTH_PX_MIN = 0.5
 export const CANVAS_GRID_WIDTH_PX_MAX = 4
 
@@ -77,8 +77,8 @@ export const clampCanvasGridMajorEvery = (value: unknown): number => {
 
 export const coerceCanvasGridVariant = (value: unknown): CanvasGridVariant => {
   const v = String(value || '').trim()
-  if (v === 'lines') return 'lines'
-  return 'dots'
+  if (v === 'dots') return 'dots'
+  return 'lines'
 }
 
 export const readCanvasGridConfigFromSchema = (schema: GraphSchema | null | undefined): CanvasGridConfig => {

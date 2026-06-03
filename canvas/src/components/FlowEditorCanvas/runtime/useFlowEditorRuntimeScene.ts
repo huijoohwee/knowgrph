@@ -285,7 +285,11 @@ export function useFlowEditorRuntimeScene(args: {
           ? { k: persistedK, x: persistedX, y: persistedY }
           : null
       const interactionInProgress = Date.now() - lastInteractionFrameAtMsRef.current < 620
-      if (liveRuntimeTransform && (interactionInProgress || hasViewportOffset(liveRuntimeTransform) || !hasViewportOffset(persistedTransform))) {
+      if (
+        liveRuntimeTransform
+        && !workspaceMutationBlocked
+        && (interactionInProgress || hasViewportOffset(liveRuntimeTransform) || !hasViewportOffset(persistedTransform))
+      ) {
         lastUsableZoomTransformRef.current = liveRuntimeTransform
         pushFlowEditorRuntimeSceneTrace({
           reason: 'scene-empty-using-live-runtime-transform',
@@ -297,6 +301,17 @@ export function useFlowEditorRuntimeScene(args: {
           transform: liveRuntimeTransform,
         })
         return liveRuntimeTransform
+      }
+      if (liveRuntimeTransform && workspaceMutationBlocked) {
+        pushFlowEditorRuntimeSceneTrace({
+          reason: 'scene-empty-workspace-blocked-rejecting-live-runtime-transform',
+          sceneNodeCount,
+          positionsReady,
+          workspaceMutationBlocked,
+          viewportW: args.viewportW,
+          viewportH: args.viewportH,
+          transform: liveRuntimeTransform,
+        })
       }
       const lastUsable = lastUsableZoomTransformRef.current
       if (lastUsable) {

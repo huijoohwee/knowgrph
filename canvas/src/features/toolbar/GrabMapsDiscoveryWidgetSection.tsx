@@ -10,6 +10,10 @@ import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
+  UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_PROVIDER_OPENAI,
   buildChatProxyHeaders,
@@ -480,7 +484,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         </div>
         <button
           type="button"
-          className={`inline-flex h-8 items-center gap-1 rounded border px-2 text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
+          className={`${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} inline-flex items-center gap-1 rounded border text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
           onClick={() => openMainPanelMaps('GrabMaps MCP Configuration')}
         >
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
@@ -500,7 +504,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-widget-query">
           Query
         </label>
-        <div className={`w-full border rounded overflow-hidden h-[88px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+        <div className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
           <PlainTextInputEditor
             id="grabmaps-discovery-widget-query"
             value={queryText}
@@ -513,7 +517,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         <div className="flex items-center justify-end">
           <button
             type="button"
-            className={`inline-flex h-8 items-center gap-1 rounded px-2 text-sm ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} disabled:opacity-50`}
+            className={`${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} inline-flex items-center gap-1 rounded text-sm ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} disabled:opacity-50`}
             onClick={() => void runDiscovery()}
             disabled={running || !queryText.trim()}
           >

@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownTocDropMarkers, MarkdownTocExpandGlyph, MarkdownTocReorderHandle } from '@/features/markdown/ui/MarkdownTocChrome'
+import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export async function testMarkdownTocChromeCentralizesSharedTocRowUi() {
   const { dom, restore } = initJsdomHarness()
@@ -19,13 +20,13 @@ export async function testMarkdownTocChromeCentralizesSharedTocRowUi() {
           React.createElement(MarkdownTocDropMarkers, { dragState: 'top', showArrow: true }),
           React.createElement(MarkdownTocExpandGlyph, {
             isExpanded: false,
-            className: 'w-3 h-3 shrink-0',
+            className: UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
           }),
           React.createElement(MarkdownTocReorderHandle, {
             ariaLabel: 'Reorder item',
             title: 'Reorder item',
             className: 'handle',
-            iconClassName: 'w-3 h-3',
+            iconClassName: UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
             onDragStart: () => {
               dragStarts += 1
             },

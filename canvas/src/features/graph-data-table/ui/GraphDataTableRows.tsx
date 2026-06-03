@@ -19,6 +19,10 @@ import { FROZEN_DATA_COLUMN_LEFT } from './GraphDataTableHeader'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_SCOPE_INDICATOR_CLASSNAME,
+  UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 
@@ -356,7 +360,7 @@ export function GraphDataTableRows({
                 {scopeBorderColor ? (
                   <svg
                     aria-hidden="true"
-                    className="absolute left-0 top-0 h-full w-[3px]"
+                    className={`absolute left-0 top-0 h-full ${UI_RESPONSIVE_GRAPH_DATA_TABLE_SCOPE_INDICATOR_CLASSNAME}`}
                     viewBox="0 0 3 24"
                   >
                     <rect x="0" y="0" width="3" height="24" fill={scopeBorderColor} />
@@ -367,7 +371,7 @@ export function GraphDataTableRows({
                 </span>
                 <input
                   type="checkbox"
-                  className={`absolute h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${uiPrimaryIconActiveClassName} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} transition-opacity ${
+                  className={`absolute ${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${uiPrimaryIconActiveClassName} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} transition-opacity ${
                     isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   checked={isActive}

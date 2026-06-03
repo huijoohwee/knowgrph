@@ -12,6 +12,7 @@ import {
   uiToolbarRowScrollJustifyEndClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type Tab = { key: string; label: string }
 
@@ -58,7 +59,7 @@ function TabHeaderImpl({
 }: TabHeaderProps) {
   const clickTimeoutRef = React.useRef<number | null>(null)
   const uiHeaderRowHeightClass = useGraphStore(
-    s => s.uiHeaderRowHeightClass || 'min-h-[36px]',
+    s => s.uiHeaderRowHeightClass || UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   )
   const uiHeaderRowPaddingClass = useGraphStore(
     s => s.uiHeaderRowPaddingClass || 'py-1',

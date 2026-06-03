@@ -1,6 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { SettingMeta } from './types'
-import { clampSnapGridSize, SNAP_GRID_SIZE_DEFAULT } from '@/lib/canvas/snapGridSize'
+import { clampSnapGridSize, readSnapGridScalarSize, SNAP_GRID_SIZE_DEFAULT } from '@/lib/canvas/snapGridSize'
 import {
   CANVAS_GRID_DOT_RADIUS_PX_DEFAULT,
   CANVAS_GRID_MAJOR_ALPHA_DEFAULT,
@@ -21,7 +21,7 @@ const readSnapGrid = () => {
   const schema = s().schema
   const g = schema?.behavior?.snapGrid
   const enabled = !!(g && g.enabled)
-  const size = clampSnapGridSize((g as { size?: unknown } | null)?.size)
+  const size = readSnapGridScalarSize((g as { size?: unknown } | null)?.size)
   return { enabled, size }
 }
 
@@ -234,10 +234,16 @@ export const uiCanvasGridSettingsRegistry: SettingMeta[] = [
       const enabled = !!(cur && (cur as any).enabled)
       const majorEvery = clampCanvasGridMajorEvery((cur as any)?.majorEvery)
       const dotRadiusPx = clampCanvasGridDotRadiusPx((cur as any)?.dotRadiusPx)
+      const minorAlpha = clampCanvasGridAlpha((cur as any)?.minorAlpha, CANVAS_GRID_MINOR_ALPHA_DEFAULT)
+      const majorAlpha = clampCanvasGridAlpha((cur as any)?.majorAlpha, CANVAS_GRID_MAJOR_ALPHA_DEFAULT)
+      const minorWidthPx = clampCanvasGridWidthPx((cur as any)?.minorWidthPx, CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT)
+      const majorWidthPx = clampCanvasGridWidthPx((cur as any)?.majorWidthPx, CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT)
+      const minorStroke = coerceCanvasGridStroke((cur as any)?.minorStroke) || undefined
+      const majorStroke = coerceCanvasGridStroke((cur as any)?.majorStroke) || undefined
       const variant = coerceCanvasGridVariant(v)
-      s().setBehavior({ canvasGrid: { enabled, variant, majorEvery, dotRadiusPx } })
+      s().setBehavior({ canvasGrid: { enabled, variant, majorEvery, dotRadiusPx, minorAlpha, majorAlpha, minorWidthPx, majorWidthPx, minorStroke, majorStroke } })
     },
-    default: () => 'dots',
+    default: () => 'lines',
     options: ['dots', 'lines'],
   },
   {
@@ -254,8 +260,14 @@ export const uiCanvasGridSettingsRegistry: SettingMeta[] = [
       const enabled = !!(cur && (cur as any).enabled)
       const variant = coerceCanvasGridVariant((cur as any)?.variant)
       const dotRadiusPx = clampCanvasGridDotRadiusPx((cur as any)?.dotRadiusPx)
+      const minorAlpha = clampCanvasGridAlpha((cur as any)?.minorAlpha, CANVAS_GRID_MINOR_ALPHA_DEFAULT)
+      const majorAlpha = clampCanvasGridAlpha((cur as any)?.majorAlpha, CANVAS_GRID_MAJOR_ALPHA_DEFAULT)
+      const minorWidthPx = clampCanvasGridWidthPx((cur as any)?.minorWidthPx, CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT)
+      const majorWidthPx = clampCanvasGridWidthPx((cur as any)?.majorWidthPx, CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT)
+      const minorStroke = coerceCanvasGridStroke((cur as any)?.minorStroke) || undefined
+      const majorStroke = coerceCanvasGridStroke((cur as any)?.majorStroke) || undefined
       const majorEvery = clampCanvasGridMajorEvery(v)
-      s().setBehavior({ canvasGrid: { enabled, variant, majorEvery, dotRadiusPx } })
+      s().setBehavior({ canvasGrid: { enabled, variant, majorEvery, dotRadiusPx, minorAlpha, majorAlpha, minorWidthPx, majorWidthPx, minorStroke, majorStroke } })
     },
     default: () => 5,
   },
@@ -273,8 +285,14 @@ export const uiCanvasGridSettingsRegistry: SettingMeta[] = [
       const enabled = !!(cur && (cur as any).enabled)
       const variant = coerceCanvasGridVariant((cur as any)?.variant)
       const majorEvery = clampCanvasGridMajorEvery((cur as any)?.majorEvery)
+      const minorAlpha = clampCanvasGridAlpha((cur as any)?.minorAlpha, CANVAS_GRID_MINOR_ALPHA_DEFAULT)
+      const majorAlpha = clampCanvasGridAlpha((cur as any)?.majorAlpha, CANVAS_GRID_MAJOR_ALPHA_DEFAULT)
+      const minorWidthPx = clampCanvasGridWidthPx((cur as any)?.minorWidthPx, CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT)
+      const majorWidthPx = clampCanvasGridWidthPx((cur as any)?.majorWidthPx, CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT)
+      const minorStroke = coerceCanvasGridStroke((cur as any)?.minorStroke) || undefined
+      const majorStroke = coerceCanvasGridStroke((cur as any)?.majorStroke) || undefined
       const dotRadiusPx = clampCanvasGridDotRadiusPx(v)
-      s().setBehavior({ canvasGrid: { enabled, variant, majorEvery, dotRadiusPx } })
+      s().setBehavior({ canvasGrid: { enabled, variant, majorEvery, dotRadiusPx, minorAlpha, majorAlpha, minorWidthPx, majorWidthPx, minorStroke, majorStroke } })
     },
     default: () => CANVAS_GRID_DOT_RADIUS_PX_DEFAULT,
   },

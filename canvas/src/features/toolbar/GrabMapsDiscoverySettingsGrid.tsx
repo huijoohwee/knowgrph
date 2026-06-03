@@ -1,5 +1,6 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   GRABMAPS_DISCOVERY_FIELD_META,
   GRABMAPS_DISCOVERY_SETTING_SPECS,
@@ -52,7 +53,7 @@ export function GrabMapsDiscoverySettingsGrid(props: {
                 <select
                   value={valueText}
                   onChange={event => patch(String(event.target.value || '').trim())}
-                  className={`h-7 w-full rounded border px-2 ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
+                  className={`${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
                 >
                   {spec.options.map(option => (
                     <option key={option} value={option}>{option}</option>
@@ -66,7 +67,7 @@ export function GrabMapsDiscoverySettingsGrid(props: {
                     const parsed = Number(String(event.target.value || '').trim())
                     patch(Number.isFinite(parsed) ? parsed : spec?.defaultValue)
                   }}
-                  className={`h-7 w-full rounded border px-2 ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
+                  className={`${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
                 />
               ) : (
                 <input
@@ -77,7 +78,7 @@ export function GrabMapsDiscoverySettingsGrid(props: {
                     if (settingKey === 'maps.grabmaps.mcp.searchPlaces.query') props.setQueryText(next)
                   }}
                   placeholder={field.placeholder}
-                  className={`h-7 w-full rounded border px-2 ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
+                  className={`${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
                 />
               )}
             </div>

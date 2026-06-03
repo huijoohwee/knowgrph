@@ -10,7 +10,11 @@ import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib
 import { buildMarkdownFileTreeContextMenuItems } from './markdownFileTreeContextMenuItems'
 import { MarkdownFileTreeRowButton } from './MarkdownFileTreeRowButton'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
-import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_NARROW_MENU_PANEL_CLASSNAME,
+  UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type Node = {
   entry: WorkspaceEntry
@@ -201,16 +205,16 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
           >
             {isFolder ? (
               isExpanded ? (
-                <ChevronDown className="w-3 h-3 shrink-0" />
+                <ChevronDown className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} />
               ) : (
-                <ChevronRight className="w-3 h-3 shrink-0" />
+                <ChevronRight className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} />
               )
             ) : (
-              <span className="w-3 h-3 shrink-0" />
+              <span className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} />
             )}
-            {isFolder ? <Folder className="w-3 h-3 shrink-0" /> : <FileText className="w-3 h-3 shrink-0" />}
+            {isFolder ? <Folder className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} /> : <FileText className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} />}
             <span className="truncate">{entry.name || (isFolder ? 'folder' : 'file')}</span>
-            {isUrlSource ? <LinkIcon className="w-3 h-3 shrink-0 opacity-70" aria-label="Imported from URL" /> : null}
+            {isUrlSource ? <LinkIcon className={`${UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} opacity-70`} aria-label="Imported from URL" /> : null}
           </MarkdownFileTreeRowButton>
           {renderFileRight ? (
             <span className="shrink-0" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
@@ -230,7 +234,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
       {renderNode(tree, 0)}
       {contextMenu ? (
         <section
-          className={`kg-data-view-floating-menu fixed z-[120] min-w-[180px] rounded border shadow-lg ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}
+          className={`kg-data-view-floating-menu fixed z-[120] ${UI_RESPONSIVE_DATA_VIEW_NARROW_MENU_PANEL_CLASSNAME} rounded border shadow-lg ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onPointerDown={event => event.stopPropagation()}
         >

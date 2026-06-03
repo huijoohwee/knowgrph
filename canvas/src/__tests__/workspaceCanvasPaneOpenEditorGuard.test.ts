@@ -26,17 +26,17 @@ export async function testWorkspaceCanvasPaneOpenCanCloseWhileEditorMode() {
     if (after.workspaceCanvasPaneOpen !== false) {
       throw new Error('expected workspaceCanvasPaneOpen to follow explicit close while workspaceViewMode is editor')
     }
-    if (isWorkspaceEditorOverlayOpen(after)) {
-      throw new Error('expected workspace editor overlay-open SSOT to release when the editor pane is explicitly closed')
+    if (!isWorkspaceEditorOverlayOpen(after)) {
+      throw new Error('expected workspace editor overlay-open SSOT to remain active when only the Canvas pane is unchecked')
     }
-    if (isWorkspaceGraphMutationBlocked({
+    if (!isWorkspaceGraphMutationBlocked({
       workspaceViewMode: after.workspaceViewMode,
       workspaceCanvasPaneOpen: after.workspaceCanvasPaneOpen,
       markdownWorkspaceIndexingInFlight: false,
       workspaceGraphMutationBlockUntilMs: 0,
       workspaceGraphMutationBlockKey: '',
     })) {
-      throw new Error('expected editor mode with a closed workspace pane not to keep Flow Editor mutation blocked')
+      throw new Error('expected editor mode with a hidden Canvas pane to keep canvas graph mutation blocked')
     }
     after.setWorkspaceViewState({ mode: 'canvas', paneOpen: false })
     const atomicClose = useGraphStore.getState()

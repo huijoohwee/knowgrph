@@ -15,6 +15,8 @@ import { useStatsTokens } from '@/features/graph-stats/hooks/useStatsTokens'
 import { useStatsDerivedData } from '@/features/graph-stats/hooks/useStatsDerivedData'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphData } from '@/lib/graph/types'
+import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { normalizeSemanticHighlightColor } from '@/lib/ui/semanticHighlight'
 
 export default function GraphStatsPanel() {
   const semanticMode = useGraphStore(s => (s.documentSemanticMode || 'document') as 'document' | 'keyword')
@@ -145,8 +147,8 @@ export default function GraphStatsPanel() {
         if (kind && kind !== 'entity') return null
         const rawCount = props.count
         const count = typeof rawCount === 'number' && Number.isFinite(rawCount) ? rawCount : 0
-        const vf = typeof props['visual:fill'] === 'string' ? props['visual:fill'].trim() : ''
-        const f = typeof props['fill'] === 'string' ? props['fill'].trim() : ''
+        const vf = normalizeSemanticHighlightColor(props['visual:fill'])
+        const f = normalizeSemanticHighlightColor(props['fill'])
         const color = vf || f || ''
         return { id: String(n.id), label: String(n.label || n.id), count, color }
       })
@@ -184,7 +186,7 @@ export default function GraphStatsPanel() {
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
-                'px-2 py-[2px]',
+                UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
                 statsScope === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
               ].join(' ')}
               onClick={() => setStatsScope(key)}
@@ -205,7 +207,7 @@ export default function GraphStatsPanel() {
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
-                'px-2 py-[2px]',
+                UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
                 statsLod === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
               ].join(' ')}
               onClick={() => setStatsLod(key)}

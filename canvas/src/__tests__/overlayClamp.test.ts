@@ -1,4 +1,9 @@
-import { clampOverlayCenterToViewport, clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import {
+  clampLocalOverlayTopLeftFullyInViewport,
+  clampOverlayCenterToViewport,
+  clampOverlayTopLeftFullyInViewport,
+  clampOverlayTopLeftToViewport,
+} from '@/lib/ui/overlayClamp'
 
 export function testOverlayClampKeepsPanelInViewport() {
   const clamped = clampOverlayTopLeftToViewport({
@@ -51,4 +56,20 @@ export function testOverlayClampCenterRespectsInset() {
   const minLeft = 0 + 32 - halfW
   if (!(clamped.top >= minTop)) throw new Error('expected center top to respect top inset')
   if (!(clamped.left >= minLeft)) throw new Error('expected center left to respect visible bound')
+}
+
+export function testOverlayClampLocalPositionKeepsMenuInViewport() {
+  const clamped = clampLocalOverlayTopLeftFullyInViewport({
+    localPos: { top: 290, left: 360 },
+    localRootRect: { top: 24, left: 32 },
+    size: { width: 180, height: 140 },
+    viewport: { width: 420, height: 360 },
+    snapPx: 1,
+  })
+  if (clamped.left !== 208) {
+    throw new Error(`expected local overlay left to account for root offset and viewport width, got ${clamped.left}`)
+  }
+  if (clamped.top !== 196) {
+    throw new Error(`expected local overlay top to account for root offset and viewport height, got ${clamped.top}`)
+  }
 }

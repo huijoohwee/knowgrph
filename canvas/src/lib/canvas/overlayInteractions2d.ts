@@ -44,7 +44,7 @@ export function computeOverlayDraggedPoint2d(args: {
   const ny = args.baseY + Number(args.dyClientPx) / k
   const grid = readSnapGridConfigFromSchema(args.schema)
   const snap = args.snapToGrid !== false
-  const snapped = snap && grid.enabled ? snapPointToGrid({ x: nx, y: ny }, grid.size) : { x: nx, y: ny }
+  const snapped = snap && grid.enabled ? snapPointToGrid({ x: nx, y: ny }, grid) : { x: nx, y: ny }
   const constraint = args.schema.behavior.dragConstraint || 'free'
   if (constraint === 'axis-x') return { x: snapped.x, y: args.baseY }
   if (constraint === 'axis-y') return { x: args.baseX, y: snapped.y }

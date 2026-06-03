@@ -23,6 +23,7 @@ import {
 export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
   activeDocumentKey: string
   activeDocumentSourceUrl: string | null
+  jsonSourceText?: string | null
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   text: string
   applyViewPreset?: boolean
@@ -37,6 +38,7 @@ export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
     name: args.activeDocumentKey,
     text: args.text,
     sourceUrl: args.activeDocumentSourceUrl,
+    jsonSourceText: args.jsonSourceText,
     autoEnableFrontmatter: false,
     applyViewPreset: args.applyViewPreset ?? false,
     applyToGraph: args.applyToGraph,
@@ -144,6 +146,7 @@ export const syncWorkspaceTextState = (args: {
   synchronizeActiveDocument?: boolean
   activeDocumentKey?: string
   activeDocumentSourceUrl?: string | null
+  jsonSourceText?: string | null
   setActiveMarkdownDocument?: MarkdownWorkspaceRuntimeSetActiveDocument
 }): void => {
   const patchWorkspaceEntryInlineText = resolveWorkspaceEntryInlineTextPatch(args)
@@ -168,6 +171,7 @@ export const syncWorkspaceTextState = (args: {
       pushWorkspaceTextToActiveMarkdownDocument({
         activeDocumentKey: args.activeDocumentKey,
         activeDocumentSourceUrl: args.activeDocumentSourceUrl ?? null,
+        jsonSourceText: args.jsonSourceText,
         setActiveMarkdownDocument: args.setActiveMarkdownDocument,
         text: args.text,
       })
@@ -195,6 +199,7 @@ export const writeWorkspaceFileAndSync = async (args: {
   setActiveText?: (text: string) => void
   activeDocumentKey?: string
   activeDocumentSourceUrl?: string | null
+  jsonSourceText?: string | null
   setActiveMarkdownDocument?: MarkdownWorkspaceRuntimeSetActiveDocument
   setGraphRagWorkflowJsonText?: (text: string) => void
   resetParsedState: boolean

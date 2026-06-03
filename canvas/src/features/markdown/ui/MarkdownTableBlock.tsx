@@ -21,6 +21,7 @@ import {
   CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { UI_RESPONSIVE_MARKDOWN_TABLE_FRAME_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type MarkdownTableBlockProps = {
   token: TokenWithLines
@@ -71,7 +72,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
   const cardPreviewMode = opts.markdownCardPreviewMode === true
-  const documentTableFrameClassName = `overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`
+  const documentTableFrameClassName = `${UI_RESPONSIVE_MARKDOWN_TABLE_FRAME_CLASSNAME} rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`
   const figureClassName = cardPreviewMode ? CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME : documentTableFrameClassName
   const blockSpacingClassName = cardPreviewMode ? CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME : 'mt-4 mb-4'
   const tableEditorClassName = [

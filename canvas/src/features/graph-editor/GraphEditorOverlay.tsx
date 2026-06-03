@@ -5,6 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 
 import { GraphEditorToolRail, type GraphEditorToolId } from '@/features/graph-editor/GraphEditorToolRail'
 import { GraphEditorRightPanel } from '@/features/graph-editor/GraphEditorRightPanel'
+import { UI_RESPONSIVE_SIDE_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 import '@/features/graph-editor/plugins/init'
 
@@ -37,7 +38,7 @@ export function GraphEditorOverlay(props: { active: boolean }) {
         />
       </div>
 
-      <div className="absolute top-3 right-3 bottom-3 z-[260] w-[360px] pointer-events-auto">
+      <div className={`absolute z-[260] pointer-events-auto ${UI_RESPONSIVE_SIDE_PANEL_CLASSNAME}`}>
         <GraphEditorRightPanel />
       </div>
     </section>

@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import {
   resolveDefaultFlowWidgetPinnedInCanvas,
   resolveEffectiveFlowWidgetPinnedInCanvas,
+  stripFrontmatterAutoManagedWidgetPinnedStates,
 } from '@/lib/flowEditor/widgetPlacementAuthority'
 
 export function testFlowEditorWidgetDefaultsUseSharedPinHelper() {
@@ -31,18 +32,40 @@ export function testFlowEditorFrontmatterWidgetsDefaultToFloatingScreenAuthority
       graphMetaKind: 'frontmatter-flow',
       node: { id: 'any-text-widget', type: 'TextGeneration' },
       pinnedValue: true,
-    }) !== false
+    }) !== true
   ) {
-    throw new Error('expected frontmatter built-in widgets to reject stale pinned canvas state')
+    throw new Error('expected frontmatter built-in widgets to honor explicit user pinned canvas state')
   }
   if (
     resolveEffectiveFlowWidgetPinnedInCanvas({
       graphMetaKind: 'frontmatter-flow',
       node: { id: 'any-widget', type: 'CustomFlowWidget' },
       pinnedValue: true,
-    }) !== false
+    }) !== true
   ) {
-    throw new Error('expected frontmatter widgets to reject stale canvas-pinned authority during recomposition')
+    throw new Error('expected frontmatter custom widgets to honor explicit user pinned canvas state')
+  }
+  const stripped = stripFrontmatterAutoManagedWidgetPinnedStates({
+    graphData: {
+      type: 'Graph',
+      context: 'frontmatter-flow',
+      nodes: [
+        { id: 'any-text-widget', type: 'TextGeneration', label: 'Text', properties: {} },
+        { id: 'any-widget', type: 'CustomFlowWidget', label: 'Custom', properties: {} },
+      ],
+      edges: [],
+      metadata: { kind: 'frontmatter-flow' },
+    } as never,
+    pinnedByNodeId: {
+      'any-text-widget': true,
+      'any-widget': true,
+    },
+  })
+  if (stripped['any-text-widget'] === true) {
+    throw new Error('expected graph commit/import cleanup to strip stale auto-managed frontmatter pinned residue')
+  }
+  if (stripped['any-widget'] !== true) {
+    throw new Error('expected graph commit/import cleanup to preserve non-auto-managed frontmatter pinned state')
   }
   if (resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind: 'default-flow' }) !== true) {
     throw new Error('expected non-frontmatter Flow Editor widgets to keep pinned canvas defaults')
@@ -60,6 +83,19 @@ export function testFlowEditorWidgetPinnedStateSubscribesToStoreUpdates() {
   }
   if (!text.includes("pinnedValue: typeof v === 'boolean' ? v : null")) {
     throw new Error('expected NodeOverlayEditor pinned subscription to resolve raw store booleans through shared authority')
+  }
+  if (!text.includes('const requested = !!(typeof next === \'function\'')
+    || !text.includes('const resolved = resolveEffectiveFlowWidgetPinnedInCanvas({')
+    || !text.includes('const nextMap = { ...map, [nodeId]: resolved }')) {
+    throw new Error('expected NodeOverlayEditor pin persistence to store explicit user pin state through the shared authority resolver')
+  }
+  if (text.includes('const effectiveNext = resolveEffectiveFlowWidgetPinnedInCanvas({')
+    || text.includes('if (effectiveNext === pinnedInCanvasRef.current) {')) {
+    throw new Error('expected NodeOverlayEditor pin toggle to avoid treating explicit frontmatter pin requests as rejected stale residue')
+  }
+  if (!text.includes('if (nodeId && useGraphStore.getState().flowWidgetDraggingNodeId === nodeId) {')
+    || !text.includes('useGraphStore.getState().setFlowWidgetDraggingNodeId(null)')) {
+    throw new Error('expected NodeOverlayEditor pin guard cleanup to clear stale dragging authority when a widget unmounts mid-toggle')
   }
 }
 

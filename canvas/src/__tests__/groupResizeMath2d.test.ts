@@ -37,3 +37,15 @@ export function testGroupResizeMathDisablesSnapOnAlt() {
   if (next.w !== 106 || next.h !== 106) throw new Error(`expected raw 106 when altDown, got ${next.w}x${next.h}`)
 }
 
+export function testGroupResizeMathUsesIndependentSnapGridAxes() {
+  const next = computeGroupResizeBottomRight({
+    startBounds: { x: 0, y: 0, w: 100, h: 100 },
+    startWorld: { x: 0, y: 0 },
+    world: { x: 11, y: 24 },
+    minW: 24,
+    minH: 24,
+    snapGrid: { enabled: true, size: 20, x: 20, y: 50, grid: [20, 50] },
+    altDown: false,
+  })
+  if (next.w !== 120 || next.h !== 100) throw new Error(`expected axis snap to 120x100, got ${next.w}x${next.h}`)
+}

@@ -20,6 +20,78 @@ function clamp(value: number, min: number, max: number): number {
   return value
 }
 
+type ModelAssetCameraFit = {
+  preserveFlatFacing?: boolean
+  flatAxis?: 'x' | 'y' | 'z' | null
+  stageSpan?: number
+  scaledSize?: [number, number, number]
+}
+
+function readModelAssetCameraPose(fit?: ModelAssetCameraFit | null): {
+  position: [number, number, number]
+  target: [number, number, number]
+  up: [number, number, number]
+  near: number
+  far: number
+} {
+  const scaledSize = Array.isArray(fit?.scaledSize) ? fit.scaledSize : [0, 0, 0]
+  const maxScaledDim = Math.max(
+    Math.abs(Number(scaledSize[0] || 0)),
+    Math.abs(Number(scaledSize[1] || 0)),
+    Math.abs(Number(scaledSize[2] || 0)),
+    Math.abs(Number(fit?.stageSpan || 0)) * 0.36,
+    92,
+  )
+  const span = clamp(maxScaledDim, 32, 900)
+  const near = Math.max(0.01, span / 5000)
+  const far = Math.max(5000, span * 50)
+  const lateralSpan = Math.max(Math.abs(Number(scaledSize[0] || 0)), Math.abs(Number(scaledSize[2] || 0)))
+  const verticalSpan = Math.abs(Number(scaledSize[1] || 0))
+  if (fit?.preserveFlatFacing) {
+    if (fit.flatAxis === 'y') {
+      return {
+        position: [0, span * 2.65, span * 0.02],
+        target: [0, 0, 0],
+        up: [0, 0, -1],
+        near,
+        far,
+      }
+    }
+    if (fit.flatAxis === 'x') {
+      return {
+        position: [span * 2.8, 0, 0],
+        target: [0, 0, 0],
+        up: [0, 1, 0],
+        near,
+        far,
+      }
+    }
+    return {
+      position: [0, 0, span * 2.8],
+      target: [0, 0, 0],
+      up: [0, 1, 0],
+      near,
+      far,
+    }
+  }
+  if (lateralSpan > 0 && verticalSpan <= lateralSpan * 0.22) {
+    return {
+      position: [0, span * 2.65, span * 0.02],
+      target: [0, clamp(verticalSpan * 0.12, 0, span * 0.08), 0],
+      up: [0, 0, -1],
+      near,
+      far,
+    }
+  }
+  return {
+    position: [span * 1.56, Math.max(72, span * 1.08), span * 2.05],
+    target: [0, clamp(Math.abs(Number(scaledSize[1] || 0)) * 0.18, 0, span * 0.1), 0],
+    up: [0, 1, 0],
+    near,
+    far,
+  }
+}
+
 const easeOutCubic = (t: number): number => {
   const p = clamp(t, 0, 1)
   const u = 1 - p
@@ -31,12 +103,16 @@ export function Controls({
   positions,
   paused,
   mode = '3d',
+  modelAssetRenderKey,
+  modelAssetFit,
   onControlsChange,
 }: {
   schema: GraphSchema
   positions: Record<string, Vec3>
   paused?: boolean
   mode?: Canvas3dModeId
+  modelAssetRenderKey?: string
+  modelAssetFit?: ModelAssetCameraFit | null
   onControlsChange?: () => void
 }) {
   const { camera, gl, size } = useThree()
@@ -347,7 +423,8 @@ export function Controls({
     const layoutMode = schema.layout?.mode
     const pathEnabled = globeEffectsEnabled && globeCameraEllipseEnabled && layoutMode === 'radial' && d3Like
     const voxelMode = mode === 'voxel'
-    const topBiasedOrbit = voxelMode || mode === '3d' || mode === 'xr'
+    const modelAssetMode = !!String(modelAssetRenderKey || '').trim()
+    const topBiasedOrbit = voxelMode || ((mode === '3d' || mode === 'xr') && !modelAssetMode)
     const orbitProfile = voxelMode
       ? {
           rotateFactor: 0.68,
@@ -410,7 +487,9 @@ export function Controls({
     controls.maxDistance = orbitProfile.maxDistance
     const idleMs = Date.now() - lastInteractionAtRef.current
     const voxelIdleAutoRotate = mode === 'voxel' ? idleMs >= voxelIdleDelayMs : true
-    controls.autoRotate = mode === 'voxel'
+    controls.autoRotate = modelAssetMode
+      ? false
+      : mode === 'voxel'
       ? (voxelAnimationEnabled && !viewPinned && voxelIdleAutoRotate)
       : (!pathEnabled && (cfg.autoRotate || globeEffectsEnabled) && !viewPinned && voxelIdleAutoRotate)
     controls.autoRotateSpeed = mode === 'voxel' ? voxelIdleRotateSpeed : (globeEffectsEnabled ? globeAutoRotateSpeed : cfg.autoRotateSpeed)
@@ -419,7 +498,26 @@ export function Controls({
     } catch {
       void 0
     }
-  }, [camera, canvas2dRenderer, controls, mode, schema, viewPinned])
+  }, [camera, canvas2dRenderer, controls, mode, modelAssetRenderKey, schema, viewPinned])
+  React.useEffect(() => {
+    const key = String(modelAssetRenderKey || '').trim()
+    if (paused || !key) return
+    try {
+      const pose = readModelAssetCameraPose(modelAssetFit)
+      camera.up.set(pose.up[0], pose.up[1], pose.up[2])
+      camera.position.set(pose.position[0], pose.position[1], pose.position[2])
+      controls.target.set(pose.target[0], pose.target[1], pose.target[2])
+      perspectiveCamera.fov = 50
+      perspectiveCamera.zoom = 1
+      perspectiveCamera.near = pose.near
+      perspectiveCamera.far = pose.far
+      perspectiveCamera.updateProjectionMatrix()
+      camera.lookAt(controls.target)
+      controls.update()
+    } catch {
+      void 0
+    }
+  }, [camera, controls, modelAssetFit, modelAssetRenderKey, paused, perspectiveCamera])
   React.useEffect(() => {
     const wasMode = previousModeRef.current
     previousModeRef.current = mode

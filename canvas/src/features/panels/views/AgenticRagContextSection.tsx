@@ -16,6 +16,7 @@ import {
 import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getPillClass } from '@/lib/ui'
+import { UI_RESPONSIVE_BADGE_CHIP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface AgenticRagContextSectionProps {
@@ -151,7 +152,7 @@ export function AgenticRagIgnoreFiltersSummaryView({
       <span
         className={getPillClass('badge', {
           baseClass:
-            `inline-flex items-center px-1 py-[1px] mr-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`,
+            `inline-flex items-center ${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} mr-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`,
           badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
           textColorClass: UI_THEME_TOKENS.text.secondary,
         })}

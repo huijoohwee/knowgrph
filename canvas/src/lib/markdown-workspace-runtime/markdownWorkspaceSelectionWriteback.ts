@@ -1,4 +1,5 @@
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
+import { isMarkdownPath } from '@/features/markdown-workspace/markdownWorkspaceUtils'
 
 export type MarkdownWorkspaceSelectionWritebackSync = {
   docKey: string
@@ -17,6 +18,7 @@ export function resolveMarkdownWorkspaceSelectionWritebackSync(args: {
   const markdownName = String(args.markdownDocumentName || '').trim()
   const nextText = typeof args.markdownDocumentText === 'string' ? args.markdownDocumentText : ''
   if (!docKey || !markdownName || !nextText) return null
+  if (!isMarkdownPath(activePath || docKey)) return null
   if (activePath && !matchesMarkdownDocumentPath(activePath, markdownName)) return null
   if (!matchesMarkdownDocumentPath(docKey, markdownName)) return null
   return {

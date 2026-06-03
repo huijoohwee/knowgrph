@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { KTV_HEADER_LABEL_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import { UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface CollapsibleSubsectionProps {
@@ -42,7 +43,7 @@ export default function CollapsibleSubsection({ title, defaultCollapsed = true, 
   )
 
   const uiSectionHeaderRowHeightClass = useGraphStore(
-    s => s.uiSectionHeaderRowHeightClass || 'min-h-[36px]',
+    s => s.uiSectionHeaderRowHeightClass || UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   )
   const uiSectionHeaderRowPaddingClass = useGraphStore(
     s => s.uiSectionHeaderRowPaddingClass || 'py-1',

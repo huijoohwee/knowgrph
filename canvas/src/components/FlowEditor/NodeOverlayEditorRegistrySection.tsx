@@ -8,6 +8,10 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { formatFlowHandleAccessibleName, formatFlowHandleKtvKeyLabel, formatFlowHandleSemanticKey, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
@@ -406,7 +410,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             <p className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.tertiary)}>{UI_COPY.flowWidgetConnectedValuePrefix}{connectedValueText}</p>
             <button
               type="button"
-              className={cn('shrink-0 rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
+              className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
               onClick={() => setValue(coerceWidgetFieldValue({ fieldType, value: connected.value }))}
               disabled={!active}
               aria-label={UI_COPY.flowWidgetApplyConnectedValueLabel}
@@ -547,7 +551,8 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
               active={active}
               placeholder={!v && connectedValueText ? connectedValueText : undefined}
               className={cn(
-                'w-full h-24 px-2 py-1 rounded-md border',
+                UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+                'px-2 py-1 rounded-md border',
                 monospaceTextClass,
                 UI_THEME_TOKENS.input.bg,
                 UI_THEME_TOKENS.input.border,
@@ -577,7 +582,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
               keyValueInputClass,
               textSizeClass,
               'text-left',
-              fieldType === 'textarea' ? 'h-24 px-2 py-1' : '',
+              fieldType === 'textarea' ? 'px-2 py-1' : '',
             )}
             multiline={fieldType === 'textarea'}
             rows={fieldType === 'textarea' ? 4 : undefined}
@@ -659,7 +664,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           </label>
           <button
             type="button"
-            className={cn('shrink-0 rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
+            className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
             onClick={applyConnectedToEmptyFields}
             disabled={!active}
             aria-label={UI_COPY.flowWidgetApplyConnectedValuesToEmptyFieldsLabel}

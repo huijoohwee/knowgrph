@@ -1,5 +1,6 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
+import { UI_RESPONSIVE_MICRO_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type PlainTextInputEditorProps = {
@@ -110,7 +111,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
       onSelect={onSelect}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'w-full px-1 py-[1px] border rounded outline-none',
+        `w-full ${UI_RESPONSIVE_MICRO_INLINE_CONTROL_CLASSNAME} border rounded outline-none`,
         UI_THEME_TOKENS.input.bg,
         UI_THEME_TOKENS.input.border,
         UI_THEME_TOKENS.input.text,

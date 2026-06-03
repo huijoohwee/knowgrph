@@ -18,15 +18,15 @@ export const defaultInfiniteGridPaint = (): InfiniteGridPaint => {
   return {
     minorStroke: 'var(--kg-canvas-grid-minor)',
     majorStroke: 'var(--kg-canvas-grid-major)',
-    minorAlpha: 0.12,
-    majorAlpha: 0.24,
+    minorAlpha: 0.16,
+    majorAlpha: 0.34,
     minorWidthPx: 1,
-    majorWidthPx: 1,
+    majorWidthPx: 1.25,
     majorEvery: 5,
-    minMinorStepPx: 10,
-    minMajorStepPx: 40,
+    minMinorStepPx: 8,
+    minMajorStepPx: 32,
     variant: 'lines',
-    dotRadiusPx: 1,
+    dotRadiusPx: 1.25,
   }
 }
 
@@ -65,8 +65,7 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
   const baseSize = Math.max(1, Math.floor(isFiniteNumber(args.gridSize) ? args.gridSize : 1))
   const p = mergePaint(defaultInfiniteGridPaint(), args.paint)
 
-  const baseStepPx = baseSize * k
-  if (!(baseStepPx > 0.5)) return
+  const majorEvery = Math.max(2, Math.floor(p.majorEvery || 5))
 
   const pickMinorWorldStep = (): number => {
     let step = baseSize
@@ -81,8 +80,16 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
     return step
   }
 
-  const minorStep = args.lockToBaseStep === true ? baseSize : pickMinorWorldStep()
-  const majorEvery = Math.max(2, Math.floor(p.majorEvery || 5))
+  const pickLockedMinorWorldStep = (): number => {
+    let step = baseSize
+    const minPx = Math.max(2, p.minMinorStepPx)
+    while (step * k < minPx && step < 1_000_000) {
+      step *= majorEvery
+    }
+    return step
+  }
+
+  const minorStep = args.lockToBaseStep === true ? pickLockedMinorWorldStep() : pickMinorWorldStep()
   const majorStep = minorStep * majorEvery
 
   const minW = screenToWorld({ transform: { k, x, y }, sx: 0, sy: 0 })

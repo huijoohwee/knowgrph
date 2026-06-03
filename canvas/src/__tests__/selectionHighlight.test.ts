@@ -8,6 +8,7 @@ import {
   type SelectionHighlightParams,
 } from '@/components/GraphCanvas/highlight'
 import type { EdgeWithRuntime } from '@/components/GraphCanvas/utils'
+import { resolveSemanticHighlightColorValue } from '@/lib/ui/semanticHighlight'
 
 const makeSchema = (): GraphSchema => ({
   ...defaultSchema,
@@ -50,7 +51,12 @@ export function testSelectionHighlightNeighborsFromNodeSelection() {
   const centerVisual = computeNodeVisual(center, { ...params, neighborIds })
   const leftVisual = computeNodeVisual(left, { ...params, neighborIds })
   const rightVisual = computeNodeVisual(right, { ...params, neighborIds })
-  if (centerVisual.fill !== 'var(--kg-canvas-accent)' || centerVisual.opacity !== 1) {
+  const expectedSelectionHighlight = resolveSemanticHighlightColorValue({
+    background: 'var(--kg-canvas-accent)',
+    color: 'var(--kg-canvas-accent)',
+    defaultHighlight: true,
+  })
+  if (centerVisual.fill !== expectedSelectionHighlight || centerVisual.opacity !== 1) {
     throw new Error('selected node should use accent fill and be fully opaque')
   }
   if (leftVisual.opacity !== 1 || rightVisual.opacity !== 1) {
@@ -109,7 +115,12 @@ export function testSelectionHighlightEdgeSelectionEndpointsAndEdges() {
   const e2: EdgeWithRuntime = data.edges[1]
   const e1Visual = computeEdgeVisual(e1, params)
   const e2Visual = computeEdgeVisual(e2, params)
-  if (e1Visual.stroke !== 'var(--kg-canvas-accent)' || e1Visual.opacity !== 0.9 || e1Visual.width <= e2Visual.width) {
+  const expectedSelectionHighlight = resolveSemanticHighlightColorValue({
+    background: 'var(--kg-canvas-accent)',
+    color: 'var(--kg-canvas-accent)',
+    defaultHighlight: true,
+  })
+  if (e1Visual.stroke !== expectedSelectionHighlight || e1Visual.opacity !== 0.9 || e1Visual.width <= e2Visual.width) {
     throw new Error('selected edge should use accent stroke, be more opaque, and thicker')
   }
   if (e2Visual.stroke !== 'var(--kg-canvas-edge-stroke)' || e2Visual.opacity !== 0.2) {
@@ -177,5 +188,35 @@ export function testSelectionHighlightLabelOpacityDoesNotDisappearAtZeroLayerOpa
   const v = computeLabelVisual(data.nodes[0], { ...params, neighborIds })
   if (v.opacity < 0.65) {
     throw new Error(`expected label opacity to have a floor even when layer opacity is 0 (got ${v.opacity})`)
+  }
+}
+
+export function testSelectionHighlightUsesSharedSemanticFallbackForD3Graph() {
+  const data = makeLinearGraph()
+  const schema = makeSchema()
+  schema.metadata = {
+    ...(schema.metadata || {}),
+    'renderer:palette': {
+    nodes: {
+      idea: '',
+    },
+    },
+  }
+  const params: SelectionHighlightParams = {
+    data,
+    schema,
+    selectedNodeId: 'a',
+    selectedEdgeId: null,
+    renderMediaAsNodes: true,
+  }
+  const neighborIds = computeNeighborIds(params)
+  const selected = computeNodeVisual(data.nodes[0], { ...params, neighborIds })
+  const expected = resolveSemanticHighlightColorValue({
+    background: 'var(--kg-canvas-accent)',
+    color: 'var(--kg-canvas-accent)',
+    defaultHighlight: true,
+  })
+  if (selected.fill !== expected || selected.stroke !== expected) {
+    throw new Error(`expected D3 Graph selection highlight to reuse shared semantic color resolver, got ${JSON.stringify(selected)}`)
   }
 }

@@ -22,12 +22,20 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const originalNode = (g as { Node?: typeof Node }).Node
   const originalElement = (g as { Element?: typeof Element }).Element
   const originalHTMLElement = (g as { HTMLElement?: typeof HTMLElement }).HTMLElement
+  const originalRange = (g as { Range?: typeof Range }).Range
   const originalNodeFilter = (g as { NodeFilter?: typeof NodeFilter }).NodeFilter
   const originalDomParser = (g as { DOMParser?: typeof DOMParser }).DOMParser
   const originalHtmlIFrameElement = (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
   const originalObjectProtoHtmlIFrameElementDesc = Object.getOwnPropertyDescriptor(Object.prototype, 'HTMLIFrameElement')
   const originalDocumentProtoActiveElementDesc = Object.getOwnPropertyDescriptor(dom.window.Document.prototype, 'activeElement')
   const originalDocumentActiveElementDesc = Object.getOwnPropertyDescriptor(dom.window.document, 'activeElement')
+  const rangePrototype = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype
+  const originalRangeGetBoundingClientRectDesc = rangePrototype
+    ? Object.getOwnPropertyDescriptor(rangePrototype, 'getBoundingClientRect')
+    : undefined
+  const originalRangeGetClientRectsDesc = rangePrototype
+    ? Object.getOwnPropertyDescriptor(rangePrototype, 'getClientRects')
+    : undefined
   const originalResizeObserver = (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
   const originalRequestAnimationFrame = (g as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame
   const originalCancelAnimationFrame = (g as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame
@@ -39,6 +47,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   ;(g as { Node: typeof Node }).Node = dom.window.Node as unknown as typeof Node
   ;(g as { Element: typeof Element }).Element = dom.window.Element as unknown as typeof Element
   ;(g as { HTMLElement: typeof HTMLElement }).HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement
+  ;(g as { Range: typeof Range }).Range = dom.window.Range as unknown as typeof Range
   ;(g as unknown as { IS_REACT_ACT_ENVIRONMENT?: unknown }).IS_REACT_ACT_ENVIRONMENT = true
 
   try {
@@ -95,6 +104,50 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
           textAlign: 'start',
         } as unknown
       }) as unknown
+    }
+  } catch {
+    void 0
+  }
+
+  try {
+    const proto = rangePrototype as unknown as {
+      getBoundingClientRect?: unknown
+      getClientRects?: unknown
+    } | undefined
+    const createZeroRect = (): DOMRect => {
+      const RectCtor = (dom.window as unknown as { DOMRect?: typeof DOMRect }).DOMRect
+      if (typeof RectCtor === 'function') return new RectCtor(0, 0, 0, 0)
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+    const createEmptyRectList = (): DOMRectList => {
+      const rects: DOMRect[] = []
+      return Object.assign(rects, { item: () => null }) as unknown as DOMRectList
+    }
+    if (proto && typeof proto.getBoundingClientRect !== 'function') {
+      Object.defineProperty(proto, 'getBoundingClientRect', {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: createZeroRect,
+      })
+    }
+    if (proto && typeof proto.getClientRects !== 'function') {
+      Object.defineProperty(proto, 'getClientRects', {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: createEmptyRectList,
+      })
     }
   } catch {
     void 0
@@ -283,6 +336,12 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       ;(g as { HTMLElement: typeof HTMLElement }).HTMLElement = originalHTMLElement as typeof HTMLElement
     }
 
+    if (typeof originalRange === 'undefined') {
+      delete (g as { Range?: typeof Range }).Range
+    } else {
+      ;(g as { Range: typeof Range }).Range = originalRange as typeof Range
+    }
+
     if (typeof originalNodeFilter === 'undefined') {
       delete (g as { NodeFilter?: typeof NodeFilter }).NodeFilter
     } else {
@@ -314,6 +373,23 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       void 0
     }
     iframeWindowPatchObserver = null
+
+    try {
+      if (rangePrototype) {
+        if (typeof originalRangeGetBoundingClientRectDesc === 'undefined') {
+          delete rangePrototype.getBoundingClientRect
+        } else {
+          Object.defineProperty(rangePrototype, 'getBoundingClientRect', originalRangeGetBoundingClientRectDesc)
+        }
+        if (typeof originalRangeGetClientRectsDesc === 'undefined') {
+          delete rangePrototype.getClientRects
+        } else {
+          Object.defineProperty(rangePrototype, 'getClientRects', originalRangeGetClientRectsDesc)
+        }
+      }
+    } catch {
+      void 0
+    }
 
     if (typeof originalResizeObserver === 'undefined') {
       delete (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver

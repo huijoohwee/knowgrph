@@ -33,6 +33,7 @@ const EXPORT_ACTION_KEYS: readonly ExportMenuActionKey[] = [
   'htmlViewer',
   'htmlCanvas',
   'json',
+  'csv',
   'svg',
   'pdfPortrait',
   'pdfLandscape',

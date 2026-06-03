@@ -2,10 +2,19 @@ import React from 'react'
 import { Settings as SettingsIcon, Tag as TagIcon } from 'lucide-react'
 import { ScopeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { getIconSizeClass, getPillClass } from '@/lib/ui/icons'
-import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_BADGE_CHIP_CLASSNAME,
+  UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME,
+  UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME,
+  UI_RESPONSIVE_COLOR_SWATCH_DASHED_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 const normalizePanelValueInputClassName = (
   className: string,
@@ -51,12 +60,12 @@ export const renderSettingInput = (
   const badgeChipBaseClass =
     typeof badgeChipBaseRaw === 'string' && badgeChipBaseRaw.trim().length > 0
       ? badgeChipBaseRaw
-      : `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1 h-6 rounded-full border px-1 ${UI_THEME_TOKENS.panel.bg}`
+      : `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1 h-6 ${UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME} ${UI_THEME_TOKENS.panel.bg}`
   const rawPanelInputClass = values['uiPanelKeyValueInputClass']
   const uiPanelKeyValueInputClass =
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
       ? normalizePanelValueInputClassName(rawPanelInputClass)
-      : `w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+      : normalizePanelValueInputClassName(PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass)
   const uiPanelKeyValueInputLeftClass = normalizePanelValueInputClassName(uiPanelKeyValueInputClass, 'left')
   const uiPanelKeyValueTextareaClass = [
     ...uiPanelKeyValueInputClass.split(/\s+/).filter(token => token && token !== 'h-6' && token !== 'text-left' && token !== 'text-right'),
@@ -105,7 +114,7 @@ export const renderSettingInput = (
     const placeholder = key === 'uiIconColorClass' ? UI_THEME_TOKENS.icon.color : UI_THEME_TOKENS.button.hoverBg
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewBase =
-      `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.panel.bg} text-xs ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center`
+      `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.panel.bg} text-xs`
     const previewClass =
       key === 'uiIconColorClass'
         ? `${previewBase} ${appliedClass}`
@@ -131,7 +140,7 @@ export const renderSettingInput = (
     const placeholder = UI_THEME_TOKENS.button.padding
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
-      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center w-8 h-6 rounded border border-dashed ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} text-xs`,
+      `${UI_RESPONSIVE_COLOR_SWATCH_DASHED_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} text-xs`,
       appliedClass,
     ]
       .filter(Boolean)
@@ -263,11 +272,11 @@ export const renderSettingInput = (
   }
   if (key === 'uiIconBadgeChipClass') {
     const str = String(v || '')
-    const placeholder = 'px-1 py-[1px] rounded-full border'
+    const placeholder = UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
       appliedClass,
-      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center gap-1 h-6 box-border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} text-[9px]`,
+      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} ${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} justify-center gap-1 h-6 box-border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} text-[9px]`,
     ]
       .filter(Boolean)
       .join(' ')
@@ -336,7 +345,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
+          className={`${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
         />
         <PlainTextInputEditor
           value={str}
@@ -498,7 +507,10 @@ export const renderSettingInput = (
   if (key === 'chatSystemPrompt' || key === 'integrationConfigsJson') {
     const str = String(v ?? '')
     const rows = key === 'integrationConfigsJson' ? 6 : 4
-    const minHeightClass = key === 'integrationConfigsJson' ? 'min-h-24' : 'min-h-16'
+    const editorFrameClassName =
+      key === 'integrationConfigsJson'
+        ? UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME
+        : UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME
     return (
       <PlainTextInputEditor
         multiline
@@ -509,7 +521,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`${uiPanelKeyValueTextareaClass} ${minHeightClass}`}
+        className={`${uiPanelKeyValueTextareaClass} ${editorFrameClassName}`}
       />
     )
   }
@@ -525,7 +537,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`${uiPanelKeyValueTextareaClass} min-h-24`}
+        className={`${uiPanelKeyValueTextareaClass} ${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME}`}
       />
     )
   }

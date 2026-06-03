@@ -9,7 +9,12 @@ import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
-import { resolveWorkspaceStartupCanonicalPath } from '@/features/source-files/sourceFilesRuntimeStartup'
+import {
+  resolveExistingWorkspaceStartupCanonicalPath,
+  resolveWorkspaceStartupActivePathToApply,
+  resolveWorkspaceStartupCanonicalPath,
+  shouldFallbackWorkspaceStartupToReadme,
+} from '@/features/source-files/sourceFilesRuntimeStartup'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import {
   buildInitialWorkspaceStartupSnapshot,
@@ -596,6 +601,64 @@ export async function testWorkspaceBootstrapMaterializeSharedSnapshotHelpersCent
   })
   if (changedSnapshot.activePath !== '/notes/demo.md' || changedSnapshot.workspaceEntries !== workspaceEntries) {
     throw new Error('expected shared startup snapshot helper to preserve the provided snapshot when startup must materialize a different active file')
+  }
+
+  const canonicalExisting = resolveExistingWorkspaceStartupCanonicalPath({
+    activePath: '/demo.md' as never,
+    workspaceEntries: [
+      { kind: 'folder', path: '/docs' as never, parentPath: '/', name: 'docs', updatedAtMs: 1 },
+      { kind: 'file', path: '/docs/demo.md' as never, parentPath: '/docs', name: 'demo.md', text: '', updatedAtMs: 1 },
+    ],
+  })
+  if (canonicalExisting !== '/docs/demo.md') {
+    throw new Error(`expected startup active-path resolver to canonicalize only existing file entries, got ${String(canonicalExisting)}`)
+  }
+
+  const missingExisting = resolveExistingWorkspaceStartupCanonicalPath({
+    activePath: '/missing.md' as never,
+    workspaceEntries: [
+      { kind: 'folder', path: '/docs' as never, parentPath: '/', name: 'docs', updatedAtMs: 1 },
+      { kind: 'file', path: '/docs/demo.md' as never, parentPath: '/docs', name: 'demo.md', text: '', updatedAtMs: 1 },
+    ],
+  })
+  if (missingExisting !== null) {
+    throw new Error(`expected startup active-path resolver to reject missing file entries without fallback remapping, got ${String(missingExisting)}`)
+  }
+
+  const staleStartupApply = resolveWorkspaceStartupActivePathToApply({
+    currentActivePath: '/docs/old.md' as never,
+    latestActivePath: '/docs/new.md' as never,
+    snapshotActivePath: '/docs/old.md' as never,
+    preferCustomValidationSeed: false,
+  })
+  if (staleStartupApply !== null) {
+    throw new Error(`expected delayed startup active-path apply to preserve a newer user-selected file, got ${String(staleStartupApply)}`)
+  }
+
+  const defaultStartupApply = resolveWorkspaceStartupActivePathToApply({
+    currentActivePath: null,
+    latestActivePath: null,
+    snapshotActivePath: '/docs/default.md' as never,
+    preferCustomValidationSeed: false,
+  })
+  if (defaultStartupApply !== '/docs/default.md') {
+    throw new Error(`expected initial startup active-path apply to initialize when no newer selection exists, got ${String(defaultStartupApply)}`)
+  }
+
+  if (shouldFallbackWorkspaceStartupToReadme({
+    activePath: '/docs/selected.md' as never,
+    hasDesiredActiveText: false,
+    preferCustomValidationSeed: false,
+  })) {
+    throw new Error('expected startup README fallback to preserve an explicit active path while its text snapshot hydrates')
+  }
+
+  if (!shouldFallbackWorkspaceStartupToReadme({
+    activePath: null,
+    hasDesiredActiveText: false,
+    preferCustomValidationSeed: false,
+  })) {
+    throw new Error('expected startup README fallback to initialize only when no active path has been selected')
   }
 }
 

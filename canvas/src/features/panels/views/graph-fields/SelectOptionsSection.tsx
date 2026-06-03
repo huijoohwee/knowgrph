@@ -8,6 +8,14 @@ import { getIconSizeClass } from '@/lib/ui'
 import { reorderList } from '@/lib/reorder'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
+import {
+  UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_OPTION_ACTION_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_OPTION_DRAG_HANDLE_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_OPTION_ROW_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_FIELDS_OPTION_SWATCH_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 function buildOptionSwatchStyle(value: string): React.CSSProperties {
   const raw = String(value || '')
@@ -91,7 +99,7 @@ export function SelectOptionsSection({
         {selectedSettings.selectOptions.map((opt, idx) => (
           <div
             key={`${idx}:${opt}`}
-            className={`flex py-1 items-center group ${UI_THEME_TOKENS.table.rowHover} ${draggingSelectOptionIndex === idx ? 'opacity-60' : ''}`}
+            className={`${UI_RESPONSIVE_GRAPH_FIELDS_OPTION_ROW_CLASSNAME} group ${UI_THEME_TOKENS.table.rowHover} ${draggingSelectOptionIndex === idx ? 'opacity-60' : ''}`}
             onDragOver={e => {
               e.preventDefault()
               e.dataTransfer.dropEffect = 'move'
@@ -108,7 +116,7 @@ export function SelectOptionsSection({
             }}
           >
             <div
-              className={`p-2 flex cursor-grab ${UI_THEME_TOKENS.text.tertiary}`}
+              className={`${UI_RESPONSIVE_GRAPH_FIELDS_OPTION_DRAG_HANDLE_CLASSNAME} cursor-grab ${UI_THEME_TOKENS.text.tertiary}`}
               draggable
               onDragStart={e => {
                 setDraggingSelectOptionIndex(idx)
@@ -128,8 +136,8 @@ export function SelectOptionsSection({
                 />
               </svg>
             </div>
-            <div className="flex-none h-6 w-6 flex cursor-pointer mx-1">
-              <div className="h-6 w-6 rounded flex items-center justify-center" style={buildOptionSwatchStyle(opt)}>
+            <div className={UI_RESPONSIVE_GRAPH_FIELDS_OPTION_SWATCH_CLASSNAME}>
+              <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME} rounded flex items-center justify-center`} style={buildOptionSwatchStyle(opt)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true" className={iconSizeClass}>
                   <path
                     fill="currentColor"
@@ -152,11 +160,11 @@ export function SelectOptionsSection({
                 next[idx] = e.target.value
                 setSelectedSelectOptions(next)
               }}
-              className={`h-8 flex-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text}`}
+              className={`${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} flex-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text}`}
             />
             <button
               type="button"
-              className={`mx-1 ${UI_THEME_TOKENS.text.tertiary} hover:!${UI_THEME_TOKENS.text.secondary} cursor-pointer ${UI_THEME_TOKENS.button.hoverBg} py-1 px-1.5 rounded-md h-7 flex items-center invisible group-hover:visible`}
+              className={`${UI_RESPONSIVE_GRAPH_FIELDS_OPTION_ACTION_CLASSNAME} ${UI_THEME_TOKENS.text.tertiary} hover:!${UI_THEME_TOKENS.text.secondary} cursor-pointer ${UI_THEME_TOKENS.button.hoverBg} rounded-md invisible group-hover:visible`}
               onClick={() => {
                 const next = selectedSettings.selectOptions.filter((_, i) => i !== idx)
                 setSelectedSelectOptions(next)

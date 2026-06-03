@@ -20,6 +20,8 @@ import {
   buildStrybldrWorkspaceDocumentName,
   serializeStrybldrStoryboardMarkdown,
 } from '@/features/strybldr/strybldrStoryboard'
+import { importXrImageWorkspaceAssetsFromUrl, isXrImageAssetUrl } from './xrImageAssets'
+import { materializeCsvJsonImportArtifacts } from './csvJsonConversion'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
@@ -38,6 +40,47 @@ export async function importWorkspaceUrl(args: {
   const repoRef = parseGitHubRepoUrl(rawUrl)
   if (repoRef) {
     return importGitHubFolder({ fs: args.fs, repoRef, parentPath, onProgress: args.onProgress })
+  }
+
+  if (isXrImageAssetUrl(rawUrl)) {
+    try {
+      args.onProgress?.({ phase: 'fetching', current: 0, label: 'Fetching XR image asset' })
+    } catch {
+      void 0
+    }
+    const imported = await importXrImageWorkspaceAssetsFromUrl({
+      fs: args.fs,
+      url: rawUrl,
+      parentPath: '/image/knowgrph/xr',
+    })
+    try {
+      args.onProgress?.({ phase: 'writing', current: imported.createdPaths.length, total: imported.createdPaths.length, label: 'Writing XR image assets' })
+    } catch {
+      void 0
+    }
+    const sourceUnit = buildCorpusSourceUnit({
+      workspacePath: imported.createdPaths[0] || rawUrl,
+      relativePath: rawUrl,
+      originalName: rawUrl,
+      text: imported.sourceText,
+      mimeHint: 'image/*',
+      byteSize: imported.sourceText.length,
+      mediaKind: 'image',
+      status: 'parsed',
+      importMode: 'url',
+    })
+    return {
+      createdPaths: imported.createdPaths,
+      sources: imported.sources,
+      skipped: [],
+      failed: [],
+      applyToGraph: true,
+      corpusManifest: buildCorpusImportManifest({
+        sourceUnits: [sourceUnit],
+        skipped: [],
+        failed: [],
+      }),
+    }
   }
 
   try {
@@ -108,6 +151,7 @@ export async function importWorkspaceUrl(args: {
     importedWorkspacePath: normalized,
   })
   const sources: WorkspaceImportResult['sources'] = [{ path: normalized, source: { kind: 'url', url: sourceUrl } }]
+  const jsonSourceDocuments: NonNullable<WorkspaceImportResult['jsonSourceDocuments']> = []
   const removedPaths = [
     ...(webpageUrlArtifact?.removedPaths || []),
     ...(persistedShareArtifacts?.removedPaths || []),
@@ -150,6 +194,19 @@ export async function importWorkspaceUrl(args: {
     text: fetched.text,
   })
   const createdPaths: WorkspacePath[] = [normalized]
+  const csvJsonDerived = await materializeCsvJsonImportArtifacts({
+    fs: args.fs,
+    sourcePath: normalized,
+    sourceName: fetched.name,
+    sourceText: fetched.text,
+    source: { kind: 'url', url: sourceUrl },
+    options: { sourceKind: 'url', sourceUrl },
+  })
+  if (csvJsonDerived.createdPaths.length > 0 || csvJsonDerived.jsonSourceDocuments.length > 0) {
+    createdPaths.push(...csvJsonDerived.createdPaths)
+    sources.push(...csvJsonDerived.sources)
+    jsonSourceDocuments.push(...csvJsonDerived.jsonSourceDocuments)
+  }
   let effectiveApplyToGraph = applyToGraph
   if (args.canvas2dRenderer === 'strybldr') {
     const storyDoc = buildStrybldrStoryboardDocument({
@@ -174,6 +231,7 @@ export async function importWorkspaceUrl(args: {
     createdPaths,
     sources,
     ...(removedPaths.length > 0 ? { removedPaths } : {}),
+    ...(jsonSourceDocuments.length > 0 ? { jsonSourceDocuments } : {}),
     skipped: [],
     failed: [],
     applyToGraph: effectiveApplyToGraph,

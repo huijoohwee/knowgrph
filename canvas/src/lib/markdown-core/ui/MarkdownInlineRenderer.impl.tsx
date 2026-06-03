@@ -46,6 +46,7 @@ import {
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
 
@@ -563,7 +564,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           />
         )
       }
-      const isPdfAsset = src.startsWith('/__pdf_assets/') || /^data:image\//i.test(src)
+      const isViewportBoundedImage = src.startsWith('/__pdf_assets/') || /^data:image\//i.test(src)
       const isSvgImage = /^data:image\/svg\+xml;base64,/i.test(src) || /\.svg(\?|#|$)/i.test(src)
       const imageNode = (
         <CardMediaPreview
@@ -576,7 +577,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           mediaThumbnailDataAttr
           mediaClassName={[
             cardPreviewMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME : 'max-w-full h-auto rounded border object-contain',
-            isPdfAsset ? 'max-h-[80vh]' : '',
+            isViewportBoundedImage ? UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME : '',
             isSvgImage && !cardPreviewMode ? 'bg-black/5 dark:bg-white/5' : '',
             cardPreviewMode ? '' : UI_THEME_TOKENS.panel.border,
           ]

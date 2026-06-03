@@ -324,10 +324,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
     if (isWorkspaceGraphMutationBlocked(state)) return
-    const nextPinnedById = stripFrontmatterAutoManagedWidgetPinnedStates({
-      graphData: state.graphData,
-      pinnedByNodeId: normalizePinnedByNodeId(pinnedById),
-    })
+    const nextPinnedById = normalizePinnedByNodeId(pinnedById)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
     const prevPinnedById = state.flowWidgetPinnedByNodeId || {}

@@ -14,6 +14,7 @@ import { getCellTextByKind } from '@/features/graph-table/ui/fast-grid/canvasGri
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
@@ -69,7 +70,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
               />
             </th>
             <th
-              className={`sticky left-[44px] z-20 border-b border-r px-2 text-left ${props.panelTypography?.microLabelClass || ''} ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
+              className={`sticky ${UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME} z-20 border-b border-r px-2 text-left ${props.panelTypography?.microLabelClass || ''} ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
               style={{ width: 72 }}
             >
               #
@@ -122,7 +123,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
                   />
                 </td>
                 <td
-                  className={`sticky left-[44px] z-10 border-b border-r px-2 ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.rowBg} ${UI_THEME_TOKENS.text.tertiary}`}
+                  className={`sticky ${UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME} z-10 border-b border-r px-2 ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.rowBg} ${UI_THEME_TOKENS.text.tertiary}`}
                 >
                   {String((row as any).__order ?? '')}
                 </td>

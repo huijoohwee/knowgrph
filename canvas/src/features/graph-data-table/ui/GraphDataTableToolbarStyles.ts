@@ -1,4 +1,5 @@
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_GRAPH_DATA_TABLE_TOOLBAR_BUTTON_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 
 export const UI_COLOR_PRIMARY_BLUE = UI_INTENT_TOKENS.primary.text
@@ -48,7 +49,7 @@ export const uiPrimaryLinkSmallClassName = `${UI_COLOR_PRIMARY_BLUE} hover:under
 export const uiPrimaryLinkButtonClassName = `underline ${UI_COLOR_PRIMARY_BLUE} ${UI_THEME_TOKENS.button.primaryLinkHoverText} focus:outline-none`
 
 export const graphDataTableToolbarButtonClassName = (active: boolean) =>
-  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} rounded-md h-7 px-2 shrink-0 truncate ${
+  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 border ${UI_RESPONSIVE_GRAPH_DATA_TABLE_TOOLBAR_BUTTON_CLASSNAME} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} rounded-md shrink-0 truncate ${
     active ? `${UI_THEME_TOKENS.button.primaryChipActive}` : `${UI_THEME_TOKENS.panel.border}`
   }`
 

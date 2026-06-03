@@ -10,28 +10,30 @@ import {
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 
 export function testWorkspaceDataViewStateDuplicateDelete() {
-  const rawV1 = {
-    v: 1,
+  const rawView = {
+    v: 2,
+    id: 'v0',
     name: 'My View',
     layout: 'table',
     groupByColumnId: null,
     visibleColumnIds: null,
     columnTypesById: null,
     filterGroups: [{ id: 'g0', rules: [] }],
+    sortRules: [],
   }
 
-  const cfg = coerceWorkspaceDataViewConfig(rawV1)
+  const cfg = coerceWorkspaceDataViewConfig(rawView)
   if (!cfg) {
-    throw new Error('expected v1 config coercion to succeed')
+    throw new Error('expected current view config coercion to succeed')
   }
   if (cfg.v !== 2) {
-    throw new Error('expected v2 config after coercion')
+    throw new Error('expected current view config to stay v2')
   }
   if (!cfg.id) {
     throw new Error('expected view config to have stable id')
   }
 
-  const state0 = ensureWorkspaceDataViewState(rawV1, cfg)
+  const state0 = ensureWorkspaceDataViewState({ sv: 1, activeViewId: cfg.id, views: [cfg] }, cfg)
   if (state0.sv !== 1) {
     throw new Error('expected state version 1')
   }

@@ -1,51 +1,46 @@
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
-import { parseGraphTableViewMode, type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 
 export type WorkspaceEditorMode = 'table' | 'multiDimTable' | 'kanban'
-export type WorkspaceBackedGraphTableViewMode = Exclude<GraphTableViewMode, 'geospatial'>
+export type WorkspaceTableViewMode = WorkspaceEditorMode | 'geospatial'
+export type WorkspaceBackedTableViewMode = WorkspaceEditorMode
 
 export const WORKSPACE_EDITOR_MODE_OPTIONS: WorkspaceEditorMode[] = ['table', 'multiDimTable', 'kanban']
+export const WORKSPACE_TABLE_VIEW_MODE_OPTIONS: WorkspaceTableViewMode[] = ['geospatial', 'kanban', 'multiDimTable', 'table']
 
 export function parseWorkspaceEditorMode(raw: unknown): WorkspaceEditorMode | null {
-  const value = String(raw || '').trim().toLowerCase()
-  if (value === 'multidimtable') return 'multiDimTable'
-  if (value === 'kanban') return 'kanban'
-  if (value === 'table') return 'table'
+  if (raw === 'table' || raw === 'multiDimTable' || raw === 'kanban') return raw
   return null
 }
 
-export function toWorkspaceBackedGraphTableViewMode(
-  mode: WorkspaceEditorMode,
-): WorkspaceBackedGraphTableViewMode {
-  return mode === 'kanban' ? 'kanban' : mode === 'multiDimTable' ? 'multiDimTable' : 'table'
+export function parseWorkspaceTableViewMode(raw: unknown): WorkspaceTableViewMode | null {
+  const editorMode = parseWorkspaceEditorMode(raw)
+  if (editorMode) return editorMode
+  if (raw === 'geospatial') return 'geospatial'
+  return null
 }
 
-export function toWorkspaceEditorModeFromGraphTableViewMode(
-  mode: GraphTableViewMode | null | undefined,
+export function toWorkspaceBackedTableViewMode(
+  mode: WorkspaceEditorMode,
+): WorkspaceBackedTableViewMode {
+  return mode
+}
+
+export function toWorkspaceEditorModeFromTableViewMode(
+  mode: WorkspaceTableViewMode | null | undefined,
 ): WorkspaceEditorMode {
   return mode === 'kanban' ? 'kanban' : mode === 'multiDimTable' || mode === 'geospatial' ? 'multiDimTable' : 'table'
 }
 
 export function readWorkspaceEditorMode(): WorkspaceEditorMode {
-  const primary = lsJson(LS_KEYS.workspaceEditorMode, 'table' as WorkspaceEditorMode, parseWorkspaceEditorMode)
-  if (primary) return primary
-  const graphTableView = lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
-  const fallback = toWorkspaceEditorModeFromGraphTableViewMode(graphTableView)
-  if (typeof window !== 'undefined') lsSetJson(LS_KEYS.workspaceEditorMode, fallback)
-  return fallback
+  return lsJson(LS_KEYS.workspaceEditorMode, 'table' as WorkspaceEditorMode, parseWorkspaceEditorMode)
 }
 
 export function writeWorkspaceEditorMode(next: WorkspaceEditorMode): WorkspaceEditorMode {
   const mode = parseWorkspaceEditorMode(next) || 'table'
   const currentWorkspaceMode = parseWorkspaceEditorMode(lsJson(LS_KEYS.workspaceEditorMode, mode, parseWorkspaceEditorMode)) || 'table'
-  const nextGraphTableMode = toWorkspaceBackedGraphTableViewMode(mode)
-  const currentGraphTableMode = lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
   if (currentWorkspaceMode !== mode) {
     lsSetJson(LS_KEYS.workspaceEditorMode, mode)
-  }
-  if (currentGraphTableMode !== nextGraphTableMode) {
-    lsSetJson(LS_KEYS.graphTableViewMode, nextGraphTableMode)
   }
   return mode
 }

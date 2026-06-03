@@ -8,6 +8,11 @@ import { UI_COPY } from '@/lib/config'
 import type { SelectionSnapshot, StatsCommunity, StatsUiClasses, TokenCount } from '@/features/graph-stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import {
+  UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 export default function CommunitiesStatsSection({
   ui,
@@ -126,7 +131,7 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
+                  `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
                 ].join(' ')}
                 placeholder={UI_COPY.statsFilterTokensPlaceholder}
                 value={communityTokenFilter}
@@ -136,7 +141,7 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
+                  `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
                 ].join(' ')}
                 value={communityTokenSort}
                 onChange={e => {
@@ -153,7 +158,7 @@ export default function CommunitiesStatsSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'px-2 py-[2px]',
+                    UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
                     statsFilterMode === 'exclude'
                       ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                       : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
@@ -167,7 +172,7 @@ export default function CommunitiesStatsSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    `px-2 py-[2px] border-l ${UI_THEME_TOKENS.panel.divider}`,
+                    `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} border-l ${UI_THEME_TOKENS.panel.divider}`,
                     statsFilterMode === 'include'
                       ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                       : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
@@ -182,7 +187,7 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
+                  `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
                   UI_THEME_TOKENS.button.text,
                   UI_THEME_TOKENS.button.hoverBg,
                 ].join(' ')}
@@ -195,7 +200,7 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
+                  `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
                   UI_THEME_TOKENS.button.text,
                   UI_THEME_TOKENS.button.hoverBg,
                 ].join(' ')}
@@ -336,7 +341,7 @@ export default function CommunitiesStatsSection({
                   },
                 }))}
               />
-              <div className="mt-2 min-h-[72px]">
+              <div className={`mt-2 ${UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME}`}>
                 {(() => {
                   if (pinnedCommunityId == null) return null
                   const c = communities.find(x => x.id === pinnedCommunityId) || null
@@ -394,7 +399,7 @@ export default function CommunitiesStatsSection({
                           className={[
                             uiPanelMicroLabelTextSizeClass,
                             uiPanelTextFontClass,
-                            `inline-flex items-center gap-1 px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} cursor-pointer`,
+                            `${UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} cursor-pointer`,
                             (() => {
                               const tok = String(t.token || '').toLowerCase()
                               const excluded = statsExcludeTokens.includes(tok)

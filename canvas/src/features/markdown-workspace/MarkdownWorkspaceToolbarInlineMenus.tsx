@@ -6,6 +6,16 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { extractMarkdownAnnotationsFromText } from '@/lib/markdown/markdownSigil'
 import { countMarkdownTextHighlightLineMatches } from '@/lib/markdown/markdownTextHighlights'
 import {
+  UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_TOOLBAR_HIGHLIGHT_BADGE_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import {
+  buildSemanticHighlightChipStyle,
+  getSemanticHighlightSurfaceAttributes,
+  getSemanticHighlightSurfaceClassName,
+  SEMANTIC_HIGHLIGHT_SURFACES,
+} from '@/lib/ui/semanticHighlight'
+import {
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -15,6 +25,8 @@ import {
 export const readMarkdownToolbarHighlightCount = (markdown: string): number => {
   return extractMarkdownAnnotationsFromText(markdown, 100, 120_000).length
 }
+
+const markdownWorkspaceToolbarGlyphClassName = UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME
 
 const readSelectedHighlightLabel = (
   graphData: ReturnType<typeof useActiveGraphRenderData>,
@@ -52,7 +64,7 @@ export function MarkdownWorkspacePresentationNavMenu(props: {
           title="Previous slide"
           onClick={() => props.presentationApiRef.current?.prev()}
         >
-          <ChevronLeft className="w-4 h-4" strokeWidth={1.6} />
+          <ChevronLeft className={markdownWorkspaceToolbarGlyphClassName} strokeWidth={1.6} />
         </button>
       </li>
       <li className="list-none">
@@ -62,7 +74,7 @@ export function MarkdownWorkspacePresentationNavMenu(props: {
           title="Next slide"
           onClick={() => props.presentationApiRef.current?.next()}
         >
-          <ChevronRight className="w-4 h-4" strokeWidth={1.6} />
+          <ChevronRight className={markdownWorkspaceToolbarGlyphClassName} strokeWidth={1.6} />
         </button>
       </li>
     </menu>
@@ -99,6 +111,13 @@ export function MarkdownWorkspaceDisplayMenu(props: {
   const highlightToggleTitle = highlightCount > 0
     ? `Toggle text highlight (${highlightCountLabel})`
     : 'Toggle text highlight'
+  const highlightBadgeClassName = [
+    'pointer-events-none absolute -right-1 -top-1',
+    UI_RESPONSIVE_MARKDOWN_TOOLBAR_HIGHLIGHT_BADGE_CLASSNAME,
+    getSemanticHighlightSurfaceClassName(SEMANTIC_HIGHLIGHT_SURFACES.markdownTextHighlight),
+    'rounded-sm border px-0.5 text-center text-[9px] leading-3',
+  ].join(' ')
+  const highlightBadgeStyle = buildSemanticHighlightChipStyle({ defaultHighlight: true })
 
   return (
     <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Display">
@@ -110,11 +129,16 @@ export function MarkdownWorkspaceDisplayMenu(props: {
           aria-label={highlightToggleTitle}
           title={highlightToggleTitle}
           data-kg-sigil-highlight-count={highlightCount}
+          {...getSemanticHighlightSurfaceAttributes(SEMANTIC_HIGHLIGHT_SURFACES.markdownTextHighlight)}
           onClick={() => props.setMarkdownTextHighlight(!props.markdownTextHighlight)}
         >
-          <Eye className="w-4 h-4" strokeWidth={1.6} />
+          <Eye className={markdownWorkspaceToolbarGlyphClassName} strokeWidth={1.6} />
           {highlightCount > 0 ? (
-            <span className="pointer-events-none absolute -right-1 -top-1 min-w-[1rem] rounded-sm border border-yellow-200 bg-yellow-50 px-0.5 text-center text-[9px] leading-3 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/70 dark:text-yellow-300">
+            <span
+              className={highlightBadgeClassName}
+              style={highlightBadgeStyle}
+              {...getSemanticHighlightSurfaceAttributes(SEMANTIC_HIGHLIGHT_SURFACES.markdownTextHighlight)}
+            >
               {highlightCountLabel}
             </span>
           ) : null}
@@ -128,7 +152,7 @@ export function MarkdownWorkspaceDisplayMenu(props: {
           title="Toggle word wrap"
           onClick={() => props.setMarkdownWordWrap(!props.markdownWordWrap)}
         >
-          <WrapText className="w-4 h-4" strokeWidth={1.6} />
+          <WrapText className={markdownWorkspaceToolbarGlyphClassName} strokeWidth={1.6} />
         </button>
       </li>
     </menu>

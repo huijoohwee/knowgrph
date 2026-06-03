@@ -61,6 +61,7 @@ interface GraphRagWorkflowIndexingSectionProps {
 }
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 export function GraphRagWorkflowIndexingSection({
   workflowDoc,
@@ -89,7 +90,7 @@ export function GraphRagWorkflowIndexingSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`,
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',

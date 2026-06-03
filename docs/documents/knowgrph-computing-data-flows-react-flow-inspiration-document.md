@@ -40,6 +40,7 @@ This maps to Knowgrph as:
 5. Runtime compute is enabled only through frontmatter flow settings and must remain bounded, cached, and deterministic.
 6. Branch-stop semantics must apply by value, not by node id, label, filename, or demo route.
 7. Repeated visible labels such as `Value` must not become repeated control identities: Field rows and port rows must derive DOM ids and accessible names from the row role, schema path, occurrence, and semantic port key while preserving the authored `portKey` used by edges.
+8. When a field row and a port row resolve to the same normalized schema path, the Flow Editor must render one inline-editable KTV row with the port handle on that row and suppress the duplicate read-only row. This is UI consolidation only; edge and compute identity remains the semantic `key` / `portKey`.
 
 ---
 
@@ -55,6 +56,8 @@ A computing-flow demo should be authored as a neutral graph:
 
 When several nodes expose a visible `Value` row, each row must still carry a distinct schema path and each handle must carry a distinct semantic port key for its role. The demo should prove that changing a source `Value` row through the Node Quick Editor updates downstream connected values without renderer-local state or filename-specific branching.
 
+When a value is both editable and connectable, the demo should show the functional port on the editable KTV row itself. It should not create a second non-inline port row or depend on declaration-container names such as `handles.source` / `handles.target` as rendered handle keys.
+
 The demo must avoid copied external component names, exact external sample URLs, vendor package imports, and route ids. It should prove the pattern by changing generic node values and observing downstream connected values through the existing Flow Editor panels.
 
 ---
@@ -66,6 +69,7 @@ Validation should prove:
 - the document parses as `frontmatter-flow` when supplied as a runtime validation input,
 - at least one compute node output propagates to a downstream node,
 - duplicate visible `Value` labels remain editable because control identity is schema-path scoped,
+- matching editable field rows and functional port rows consolidate into one inline KTV row,
 - multi-handle rows have unique accessible names without changing the structural port keys used by edges,
 - copied external tutorial names/routes/packages are absent from validation inputs,
 - empty runtime validation files are treated as absent inputs rather than backfilled fixtures,

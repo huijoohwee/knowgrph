@@ -139,8 +139,11 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (text.includes('effectiveWorkspaceViewMode')) {
     throw new Error('expected Canvas page not to keep stale effective workspace mode aliases after query bootstrap')
   }
+  if (!text.includes('{workspaceCanvasPaneVisible ? (')) {
+    throw new Error('expected Canvas page to mount the canvas-side toolbar only while the Canvas pane is checked')
+  }
   if (!text.includes('{workspaceEditorOverlayOpen ? (')) {
-    throw new Error('expected Canvas page to mount the workspace editor overlay only while the pane is open')
+    throw new Error('expected Canvas page to keep the workspace editor overlay mounted throughout editor mode')
   }
   if (!text.includes('aria-label="Workspace editor overlay shell"')) {
     throw new Error('expected Canvas page to render workspace editor in an absolute overlay shell')
@@ -178,8 +181,11 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!workspaceSsotText.includes("args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })")) {
     throw new Error('expected shared workspace open helper to reopen the canvas pane atomically and clear stale OFF residue')
   }
-  if (!uiInitialStateText.includes("const initialWorkspaceCanvasPaneOpen = initialWorkspaceViewMode === 'editor'")) {
-    throw new Error('expected UI initial state to normalize persisted editor mode with pane-open state')
+  if (!uiInitialStateText.includes('const initialWorkspaceCanvasPaneOpen = lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)')) {
+    throw new Error('expected UI initial state to preserve the explicit Canvas pane checkbox state')
+  }
+  if (!text.includes("style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : '100%' }}")) {
+    throw new Error('expected unchecked Canvas pane to let Editor Workspace fully cover the canvas')
   }
   if (!workspaceSsotText.includes("args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })")) {
     throw new Error('expected shared workspace open helper to prefer atomic editor/pane-open transition')

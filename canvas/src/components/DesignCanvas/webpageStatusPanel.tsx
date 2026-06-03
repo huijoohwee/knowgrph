@@ -1,6 +1,7 @@
 import React from 'react'
 import type { WebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import type { WebpageStatusUiState, WebpageStatusUiStore } from '@/components/DesignCanvas/webpageStatusStore'
+import { UI_RESPONSIVE_CANVAS_STATUS_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 function useWebpageStatusUi(store: WebpageStatusUiStore): WebpageStatusUiState {
   return React.useSyncExternalStore(store.subscribe, store.getState, store.getState)
@@ -31,7 +32,7 @@ export const DesignCanvasWebpageStatusPanel = React.memo(function DesignCanvasWe
   const { progress, message } = useWebpageStatusUi(webpageStatusStore)
   if (!active) return null
   return (
-    <div className="pointer-events-none absolute left-3 top-3 z-50 max-w-[min(720px,calc(100%-24px))] rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow">
+    <div className={`pointer-events-none absolute left-3 top-3 z-50 ${UI_RESPONSIVE_CANVAS_STATUS_PANEL_CLASSNAME} rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow`}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold">Webpage Wireframe</div>

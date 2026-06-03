@@ -7,6 +7,7 @@ import { buildKanbanCardDropIntentLabel, buildKanbanDragStatusText, buildKanbanL
 import { buildKanbanDropOutcomeText, isKanbanMoveNoOp } from './kanban/kanbanMoveOutcomes'
 import { useKanbanDragAndDrop } from './kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, resolveKanbanGroupOrder } from './kanban/kanbanReorder'
+import { UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type MarkdownDataViewKanbanViewProps = {
   view: MarkdownDataView
@@ -231,7 +232,7 @@ export const MarkdownDataViewKanbanView = React.memo(function MarkdownDataViewKa
       <div key={liveRegionKey} className="sr-only" aria-live="polite">{statusPillText}</div>
       {canMutate ? (
         <div className="mb-2 flex items-center justify-between gap-3">
-          <div className={['min-h-[28px] text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+          <div className={[UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
             {statusPillText ? (
               <span className={['inline-flex items-center rounded-full border px-2.5 py-1', UI_THEME_TOKENS.panel.border].join(' ')}>
                 {statusPillText}

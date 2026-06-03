@@ -16,6 +16,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitFloatingPanelOpen, emitWorkflowRunAll } from '@/features/canvas/utils'
 import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
+import {
+  UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME,
+  UI_RESPONSIVE_MAIN_PANEL_OPEN_CARD_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
@@ -205,7 +209,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
               ref={mainPanelCardRef}
               className={[
                 'pointer-events-auto',
-                effectiveMainPanelCollapsed ? 'w-[96vw] sm:w-[80vw] max-w-[1200px] h-fit' : 'w-[96vw] sm:w-[80vw] h-[85vh] sm:h-[80vh] max-w-[1200px] max-h-[800px]',
+                effectiveMainPanelCollapsed
+                  ? UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME
+                  : UI_RESPONSIVE_MAIN_PANEL_OPEN_CARD_CLASSNAME,
               ].join(' ')}
               style={{
                 position: 'absolute',

@@ -176,7 +176,7 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
 export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): {
   importJobRef: React.MutableRefObject<number>
   status: StatusHelpers
-  focusAfterImport: (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
+  focusAfterImport: (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; jsonSourceText?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
   createNewFile: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
   createNewFolder: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
 } {
@@ -269,7 +269,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
   )
 
   const syncFocusedWorkspacePath = React.useCallback(
-    async (path: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => {
+    async (path: WorkspacePath, opts?: { sourceUrl?: string | null; jsonSourceText?: string | null; applyToGraph?: boolean; jobId?: number }) => {
       if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
       const fs = await getFs()
       const text = await fs.readFileText(path)
@@ -283,6 +283,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         setActiveText,
         activeDocumentKey: content.trim() ? docKey : undefined,
         activeDocumentSourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
+        jsonSourceText: opts?.jsonSourceText ?? null,
         setActiveMarkdownDocument: content.trim() ? setActiveMarkdownDocument : undefined,
       })
       const shouldApplyToGraph =
@@ -335,7 +336,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
   )
 
   const focusAfterImport = React.useCallback(
-    async (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => {
+    async (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; jsonSourceText?: string | null; applyToGraph?: boolean; jobId?: number }) => {
       if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
       revealWorkspacePath(createdPath, { activate: true })
       try {

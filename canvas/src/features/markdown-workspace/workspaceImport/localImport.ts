@@ -12,6 +12,7 @@ import {
   isPendingLocalImportStubText,
   setPendingLocalImport,
 } from './pendingLocalImport'
+import { isCsvJsonConvertibleImportName, materializeCsvJsonImportArtifacts } from './csvJsonConversion'
 import {
   buildModelAssetMarkdownFromFile,
   deriveModelWorkspaceDocumentName,
@@ -28,6 +29,7 @@ import {
   buildCorpusWorkspaceImportResult,
   createCorpusSourceUnitRecorder,
 } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
+import { importXrImageWorkspaceAssetsFromFile, isXrImageAssetFile } from './xrImageAssets'
 import {
   getModelAssetFormat,
   isCorpusMediaImportFile,
@@ -113,6 +115,8 @@ function shouldDeferLargeLocalFileImport(file: File, nameRaw: string): boolean {
   if (isPdfFile(file)) return false
   if (isCorpusMediaImportFile(file)) return false
   if (isWorkspaceJsonLdName(nameRaw)) return false
+  const lower = String(nameRaw || '').toLowerCase()
+  if (lower.endsWith('.csv') || lower.endsWith('.tsv') || lower.endsWith('.tab')) return false
   const size = Math.max(0, Number(file?.size || 0))
   if (getModelAssetFormat(file)) return size >= WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES
   return size >= WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES
@@ -141,6 +145,32 @@ function shouldMaterializeFolderTextForCorpus(nameRaw: string, mimeHint?: string
   return mediaKind === 'code' || mediaKind === 'sql' || mediaKind === 'script' || mediaKind === 'data'
 }
 
+async function persistLocalCsvJsonArtifacts(args: {
+  fs: WorkspaceFs
+  sourcePath: WorkspacePath
+  sourceName: string
+  sourceText: string
+  originalName: string
+  createdPaths: WorkspacePath[]
+  sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>
+  jsonSourceDocuments: Array<{ path: WorkspacePath; text: string }>
+}): Promise<void> {
+  if (!isCsvJsonConvertibleImportName(args.sourceName)) return
+  const source = { kind: 'local' as const, originalName: args.originalName }
+  const derived = await materializeCsvJsonImportArtifacts({
+    fs: args.fs,
+    sourcePath: args.sourcePath,
+    sourceName: args.sourceName,
+    sourceText: args.sourceText,
+    source,
+    options: { sourceKind: 'local', originalName: args.originalName },
+  })
+  if (derived.createdPaths.length === 0 && derived.jsonSourceDocuments.length === 0) return
+  args.createdPaths.push(...derived.createdPaths)
+  args.sources.push(...derived.sources)
+  args.jsonSourceDocuments.push(...derived.jsonSourceDocuments)
+}
+
 export async function importWorkspaceLocalFiles(args: {
   fs: WorkspaceFs
   files: FileList | ReadonlyArray<File> | null
@@ -159,6 +189,7 @@ export async function importWorkspaceLocalFiles(args: {
   const parentPath = args.parentPath || WORKSPACE_ROOT_PATH
   const createdPaths: WorkspacePath[] = []
   const sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }> = []
+  const jsonSourceDocuments: Array<{ path: WorkspacePath; text: string }> = []
   const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
   const failed: Array<{ name: string; error: string }> = []
   const sourceUnits: CorpusSourceUnit[] = []
@@ -195,6 +226,20 @@ export async function importWorkspaceLocalFiles(args: {
       continue
     }
     try {
+      if (isXrImageAssetFile(file)) {
+        const imported = await importXrImageWorkspaceAssetsFromFile({ fs: args.fs, file })
+        createdPaths.push(...imported.createdPaths)
+        sources.push(...imported.sources)
+        recordCorpusSourceUnit(recordSourceUnit, {
+          path: imported.createdPaths[0] || normalizeWorkspacePath(`${WORKSPACE_ROOT_PATH}/${nameRaw}`),
+          relativePath: nameRaw,
+          originalName: nameRaw,
+          text: imported.sourceText,
+          file,
+          status: 'parsed',
+        })
+        continue
+      }
       const modelFormat = getModelAssetFormat(file)
       const mediaMetadata = isCorpusMediaImportFile(file)
       const importName = mediaMetadata
@@ -270,6 +315,16 @@ export async function importWorkspaceLocalFiles(args: {
           clearPendingLocalImport(desiredPath)
           createdPaths.push(desiredPath)
           sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+          await persistLocalCsvJsonArtifacts({
+            fs: args.fs,
+            sourcePath: desiredPath,
+            sourceName: nameRaw,
+            sourceText: rawText,
+            originalName: file.name,
+            createdPaths,
+            sources,
+            jsonSourceDocuments,
+          })
           recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: rawText, file, status: 'parsed' })
           continue
         }
@@ -341,13 +396,26 @@ export async function importWorkspaceLocalFiles(args: {
       }
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
+      await persistLocalCsvJsonArtifacts({
+        fs: args.fs,
+        sourcePath: normalized,
+        sourceName: nameRaw,
+        sourceText: unitText || String((await args.fs.readFileText(normalized).catch(() => '')) || ''),
+        originalName: file.name,
+        createdPaths,
+        sources,
+        jsonSourceDocuments,
+      })
       recordCorpusSourceUnit(recordSourceUnit, { path: normalized, relativePath: nameRaw, originalName: nameRaw, text: unitText || String((await args.fs.readFileText(normalized).catch(() => '')) || ''), file, status: unitStatus })
     } catch (e) {
       failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
     }
   }
 
-  return buildCorpusWorkspaceImportResult({ createdPaths, sources, skipped, failed, sourceUnits })
+  return {
+    ...buildCorpusWorkspaceImportResult({ createdPaths, sources, skipped, failed, sourceUnits }),
+    ...(jsonSourceDocuments.length > 0 ? { jsonSourceDocuments } : {}),
+  }
 }
 
 export async function importWorkspaceLocalFolder(args: {
@@ -404,6 +472,7 @@ export async function importWorkspaceLocalFolder(args: {
       .replace(/\\/g, '/')
       .replace(/^\/+/, '')
     const parts = relPath.split('/').filter(Boolean)
+    const isXrImageAsset = isXrImageAssetFile(file)
     const modelFormat = getModelAssetFormat(file)
     const mediaMetadata = isCorpusMediaImportFile(file)
     const rawRelName = String(parts[parts.length - 1] || nameRaw).trim() || nameRaw
@@ -413,6 +482,20 @@ export async function importWorkspaceLocalFolder(args: {
     const relDir = parts.length > 1 ? parts.slice(0, -1).join('/') : ''
 
     try {
+      if (isXrImageAsset) {
+        const imported = await importXrImageWorkspaceAssetsFromFile({ fs: args.fs, file })
+        createdPaths.push(...imported.createdPaths)
+        sources.push(...imported.sources)
+        recordCorpusSourceUnit(recordSourceUnit, {
+          path: imported.createdPaths[0] || normalizeWorkspacePath(`${WORKSPACE_ROOT_PATH}/${rawRelName}`),
+          relativePath: relPath || rawRelName,
+          originalName: rawRelName,
+          text: imported.sourceText,
+          file,
+          status: 'parsed',
+        })
+        continue
+      }
       const parentPath = relDir ? await ensureFolderRel(args.fs, WORKSPACE_ROOT_PATH, relDir) : WORKSPACE_ROOT_PATH
       const desiredPath = normalizeWorkspacePath(`${parentPath}/${relName}`)
       let unitText = ''

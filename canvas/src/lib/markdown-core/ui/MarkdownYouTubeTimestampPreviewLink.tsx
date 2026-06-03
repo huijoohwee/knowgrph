@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { buildYouTubeThumbnailPreviewDescriptor, buildYouTubeTimestampFramePreviewDescriptor, type RichMediaPreviewDescriptor } from 'grph-shared/rich-media/providers'
 import { MediaVideoSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
 import { buildAnchorAttrs } from './markdownPreviewLinks.impl'
 
@@ -139,7 +140,7 @@ export function YouTubeTimestampPreviewLink({
           data-src={sourceUrl}
           data-kg-canvas-pointer-ignore="true"
           data-kg-canvas-wheel-ignore="true"
-          className={['pointer-events-none fixed w-56 max-w-[min(14rem,calc(100vw-2rem))] overflow-hidden rounded border shadow-xl', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+          className={['pointer-events-none fixed', UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME, 'overflow-hidden rounded border shadow-xl', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
           style={{
             left: previewPosition.left,
             top: previewPosition.top,

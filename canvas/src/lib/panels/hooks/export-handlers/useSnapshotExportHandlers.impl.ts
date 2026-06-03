@@ -21,6 +21,7 @@ import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlView
 import { defaultSchema } from '@/lib/graph/schema'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
+import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import type { GraphData } from '@/lib/graph/types'
 import type { WorkflowExportStatusDeps } from '@/features/panels/hooks/export-handlers/useExportUtils'
@@ -479,7 +480,7 @@ export function useSnapshotExportHandlers({
           canvasInteractionSpeedMultiplier: (store as unknown as { canvasInteractionSpeedMultiplier?: number }).canvasInteractionSpeedMultiplier,
           canvasPanSpeedMultiplier: (store as unknown as { canvasPanSpeedMultiplier?: number }).canvasPanSpeedMultiplier,
           snapGridEnabled: !!(store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid && (store.schema.behavior as any).snapGrid.enabled),
-          snapGridSize: store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid ? (store.schema.behavior as any).snapGrid.size : undefined,
+          snapGridSize: readSnapGridScalarSize(store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid ? (store.schema.behavior as any).snapGrid.size : undefined),
           dragConstraint: store.schema && store.schema.behavior ? ((store.schema.behavior as any).dragConstraint as any) : undefined,
           allowNodeDrag: true,
           allowEdgeDrag: true,
@@ -751,7 +752,7 @@ export function useSnapshotExportHandlers({
           canvasInteractionSpeedMultiplier: (store as unknown as { canvasInteractionSpeedMultiplier?: number }).canvasInteractionSpeedMultiplier,
           canvasPanSpeedMultiplier: (store as unknown as { canvasPanSpeedMultiplier?: number }).canvasPanSpeedMultiplier,
           snapGridEnabled: !!(store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid && (store.schema.behavior as any).snapGrid.enabled),
-          snapGridSize: store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid ? (store.schema.behavior as any).snapGrid.size : undefined,
+          snapGridSize: readSnapGridScalarSize(store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid ? (store.schema.behavior as any).snapGrid.size : undefined),
           dragConstraint: store.schema && store.schema.behavior ? ((store.schema.behavior as any).dragConstraint as any) : undefined,
           allowNodeDrag: true,
           allowEdgeDrag: true,

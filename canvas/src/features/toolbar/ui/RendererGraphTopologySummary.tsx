@@ -6,6 +6,12 @@ import { readDocumentMetadataEntries, type DocumentMetadataEntry } from '@/lib/g
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { readGraphTopologySummary, withGraphTopologyMetadata, type GraphTopologySummary } from '@/lib/graph/graphTopology'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import {
+  buildSemanticHighlightChipStyle,
+  getSemanticHighlightSurfaceAttributes,
+  getSemanticHighlightSurfaceClassName,
+  SEMANTIC_HIGHLIGHT_SURFACES,
+} from '@/lib/ui/semanticHighlight'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const formatCount = (value: unknown): string => {
@@ -275,22 +281,22 @@ export function RendererGraphTopologySummary() {
           </div>
           <div className="flex flex-wrap gap-1">
             {rendererHighlights.map(token => {
-              const style: React.CSSProperties = {}
-              if (token.background) style.backgroundColor = token.background
-              if (token.color) style.color = token.color
-              if (token.background) style.borderColor = token.background
+              const style = buildSemanticHighlightChipStyle({
+                background: token.background,
+                color: token.color,
+                defaultHighlight: token.defaultHighlight,
+              })
               const fallbackClass = token.background || token.color
                 ? `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.primary}`
-                : token.defaultHighlight
-                  ? 'border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                  : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary}`
+                : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary}`
               return (
                 <span
                   key={token.id}
-                  className={`max-w-full truncate rounded-sm border px-1.5 py-0.5 text-[11px] leading-4 ${fallbackClass}`}
+                  className={`${getSemanticHighlightSurfaceClassName(SEMANTIC_HIGHLIGHT_SURFACES.renderer)} max-w-full truncate rounded-sm border px-1.5 py-0.5 text-[11px] leading-4 ${fallbackClass}`}
                   style={style}
                   title={`${token.source}: ${token.label}`}
                   data-kg-renderer-highlight-chip="1"
+                  {...getSemanticHighlightSurfaceAttributes(SEMANTIC_HIGHLIGHT_SURFACES.renderer)}
                 >
                   {renderMarkdownSigilInlineText(token.label)}
                 </span>

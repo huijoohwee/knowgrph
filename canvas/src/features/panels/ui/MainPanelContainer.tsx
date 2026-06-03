@@ -1,6 +1,5 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { FloatingPanel } from '@/components/ui/FloatingPanel'
 
 export default function MainPanelContainer({
@@ -14,16 +13,6 @@ export default function MainPanelContainer({
   style?: React.CSSProperties
   ariaLabel: string
 }) {
-  const uiHeaderRowHeightClass = useGraphStore(s => s.uiHeaderRowHeightClass || 'min-h-[36px]')
-  const headerBarHeightPx = React.useMemo(() => {
-    const raw = String(uiHeaderRowHeightClass || '').trim()
-    const match = /min-h-\[(\d+)px\]/.exec(raw)
-    if (match && match[1]) {
-      const n = Number.parseInt(match[1], 10)
-      if (Number.isFinite(n) && n > 0) return n
-    }
-    return 36
-  }, [uiHeaderRowHeightClass])
   const base = `MainPanelContainer flex min-w-0 max-w-full flex-col p-0 rounded-xl border ${UI_THEME_TOKENS.panel.border} shadow-lg shadow-gray-200/60 dark:shadow-black/60 overflow-hidden`
   return (
     <FloatingPanel
@@ -32,7 +21,6 @@ export default function MainPanelContainer({
       className={`${base} ${className || 'h-full'}`}
       style={{
         backgroundColor: 'var(--kg-panel-bg)',
-        ['--kg-header-bar-height' as unknown as string]: `${headerBarHeightPx}px`,
         ...style,
       }}
     >

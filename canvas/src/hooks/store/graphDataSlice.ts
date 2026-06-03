@@ -23,6 +23,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   markdownTokensMeta: null as import('@/lib/markdown').MarkdownFrontmatter | null,
   markdownTokensStartLineOffset: null as number | null,
   markdownDocumentSourceUrl: null as string | null,
+  jsonSourceDocumentName: null as string | null,
   jsonSourceDocumentText: null as string | null,
   markdownPreviewMermaidFocusCode: null as string | null,
   markdownPreviewMermaidFocusConfig: null as Record<string, unknown> | null,

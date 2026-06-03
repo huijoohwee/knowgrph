@@ -5,6 +5,10 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import {
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_TALL_FRAME_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 function safeStableJson(v: unknown): string {
   if (v == null) return ''
@@ -94,7 +98,8 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
                     keyValueInputClass,
                     textSizeClass,
                     monospaceTextClass,
-                    'min-h-[140px] w-full resize-y text-left',
+                    UI_RESPONSIVE_PANEL_CODE_EDITOR_TALL_FRAME_CLASSNAME,
+                    'resize-y text-left',
                     UI_THEME_TOKENS.input.bg,
                     UI_THEME_TOKENS.input.border,
                     UI_THEME_TOKENS.input.text,
@@ -109,7 +114,7 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
                 <section className="mt-2 flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    className={cn('shrink-0 rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
+                    className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
                     onClick={apply}
                     disabled={!active}
                     aria-label={UI_LABELS.apply}
