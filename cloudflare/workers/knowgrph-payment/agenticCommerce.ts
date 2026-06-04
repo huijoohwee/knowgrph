@@ -2,6 +2,7 @@ import {
   AGENTIC_COMMERCE_API_VERSION,
   AGENTIC_COMMERCE_ENV_KEYS,
   AGENTIC_COMMERCE_ROUTE_PATHS,
+  AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY,
   AGENTIC_COMMERCE_X402_ROUTE_PATHS,
   buildAgenticCommerceAcpConfig,
   buildAgenticCommerceDepositAddress,
@@ -13,6 +14,7 @@ import {
   readAgenticCommerceSellerId,
   type AgenticCommerceEnvLike,
 } from '../../../grph-shared/src/payments/agenticCommerceSsot'
+import type { StripeCheckoutSessionCreatePayload } from '../../../grph-shared/src/payments/stripePaymentSsot'
 import type { D1DatabaseLike } from '../shared/d1'
 import {
   asRecord,
@@ -41,6 +43,10 @@ import {
 } from './agenticCommerceIntegrations'
 import { settleAgenticCommerceSession } from './agenticCommerceSettlement'
 import { handleAgenticCommerceX402Route } from './agenticCommerceX402'
+import {
+  createStripeHostedCheckoutSessionForWorker,
+  expireStripeHostedCheckoutSessionForWorker,
+} from './payments'
 
 export { settleAgenticCommerceSessionFromStripeSession } from './agenticCommerceSettlement'
 
@@ -50,6 +56,13 @@ type ParsedSessionRoute =
   | { kind: 'collection' }
   | { kind: 'item'; id: string; action: '' | 'complete' | 'cancel' }
   | null
+
+type AgenticCommerceStripeCheckoutResponse = {
+  id: string
+  url: string
+  status: string
+  payment_status: string
+}
 
 const json = (status: number, body: unknown, corsHeaders: HeadersRecord): Response =>
   new Response(JSON.stringify(body), {
@@ -148,6 +161,42 @@ const handleAcpConfig = (
     web3Enabled: isAgenticCommerceWeb3Enabled(env),
   }), corsHeaders)
 }
+
+const readStoredStripeCheckoutResponse = (row: AgenticCommerceSessionRow): AgenticCommerceStripeCheckoutResponse | null => {
+  const response = asRecord(parseJson(row.response_json || '{}', {}))
+  const stripeCheckout = response ? asRecord(response[AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY]) : null
+  if (!stripeCheckout) return null
+  const id = readRecordString(stripeCheckout, 'id')
+  const url = readRecordString(stripeCheckout, 'url')
+  if (!id || !url) return null
+  return {
+    id,
+    url,
+    status: readRecordString(stripeCheckout, 'status') || 'open',
+    payment_status: readRecordString(stripeCheckout, 'payment_status') || 'unpaid',
+  }
+}
+
+const mapSessionRowForResponse = (row: AgenticCommerceSessionRow) => {
+  const mapped = mapSessionRow(row)
+  const stripeCheckout = readStoredStripeCheckoutResponse(row)
+  return stripeCheckout ? { ...mapped, [AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY]: stripeCheckout } : mapped
+}
+
+const readRequestedStripeCheckoutPayload = (
+  payload: Record<string, unknown>,
+  sessionId: string,
+): StripeCheckoutSessionCreatePayload | null => {
+  const stripeCheckout = asRecord(payload[AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY])
+  if (!stripeCheckout) return null
+  return {
+    successUrl: readRecordString(stripeCheckout, 'success_url'),
+    cancelUrl: readRecordString(stripeCheckout, 'cancel_url'),
+    workspaceId: readRecordString(stripeCheckout, 'workspace_id') || null,
+    agenticCommerceSessionId: sessionId,
+  }
+}
+
 const buildSessionCreateWrite = (
   request: Request,
   env: AgenticCommerceEnvLike,
@@ -235,16 +284,77 @@ const handleCreateSession = async (
     return json(201, {
       ok: true,
       apiVersion: AGENTIC_COMMERCE_API_VERSION,
-      session: mapSessionRow(existing),
+      session: mapSessionRowForResponse(existing),
     }, corsHeaders)
   }
 
-  await writeSession(db, parsed.session)
+  const stripeCheckoutPayload = readRequestedStripeCheckoutPayload(payload, parsed.session.id)
+  let createdStripeCheckoutSessionId = ''
+  if (stripeCheckoutPayload && parsed.session.paymentRail !== 'fiat') {
+    return errorJson(422, 'stripe_checkout requires a fiat ACP checkout session.', corsHeaders)
+  }
+  if (stripeCheckoutPayload) {
+    const stripeCheckout = await createStripeHostedCheckoutSessionForWorker({
+      request,
+      env,
+      db,
+      payload: {
+        ...stripeCheckoutPayload,
+        expectedAmountTotal: parsed.session.amountTotal,
+        expectedCurrency: parsed.session.currency,
+      },
+    })
+    if (stripeCheckout.ok !== true) return errorJson(stripeCheckout.status, stripeCheckout.error, corsHeaders)
+    createdStripeCheckoutSessionId = stripeCheckout.session.id
+    const previousResponse = asRecord(parseJson(parsed.session.responseJson, {})) || {}
+    parsed.session.responseJson = stableJson({
+      ...previousResponse,
+      [AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY]: {
+        id: stripeCheckout.body.id,
+        url: stripeCheckout.body.url,
+        status: stripeCheckout.body.status,
+        payment_status: stripeCheckout.body.paymentStatus,
+      },
+    })
+  }
+
+  try {
+    await writeSession(db, parsed.session)
+  } catch (error) {
+    if (createdStripeCheckoutSessionId) {
+      const expired = await expireStripeHostedCheckoutSessionForWorker({
+        env,
+        db,
+        sessionId: createdStripeCheckoutSessionId,
+      })
+      const expireStatus = expired.ok === true
+        ? 'The hosted Stripe Checkout Session was expired.'
+        : `Stripe Checkout Session expiry failed: ${expired.error}`
+      return errorJson(
+        500,
+        `Failed to persist ACP checkout session after Stripe Checkout creation. ${expireStatus}`,
+        corsHeaders,
+      )
+    }
+    throw error
+  }
+  if (stripeCheckoutPayload) {
+    await writeTraceEvent(db, {
+      sessionId: parsed.session.id,
+      eventType: 'knowgrph.commerce.stripe_checkout_session',
+      payload: {
+        tool: 'knowgrph.commerce.stripe_checkout_session',
+        session_id: parsed.session.id,
+        provider: 'stripe',
+      },
+      createdAt: nowIso,
+    })
+  }
   const created = await readSession(db, parsed.session.id)
   return json(201, {
     ok: true,
     apiVersion: AGENTIC_COMMERCE_API_VERSION,
-    session: created ? mapSessionRow(created) : parseJson(parsed.session.responseJson, {}),
+    session: created ? mapSessionRowForResponse(created) : parseJson(parsed.session.responseJson, {}),
   }, corsHeaders)
 }
 
@@ -259,7 +369,7 @@ const handleGetSession = async (
   return json(200, {
     ok: true,
     apiVersion: AGENTIC_COMMERCE_API_VERSION,
-    session: mapSessionRow(session),
+    session: mapSessionRowForResponse(session),
     ...(proof ? { proof: parseJson(proof.proof_json, null) } : {}),
   }, corsHeaders)
 }
@@ -366,6 +476,12 @@ const handleCompleteSession = async (
 ): Promise<Response> => {
   const session = await readSession(db, sessionId)
   if (!session) return errorJson(404, 'ACP checkout session not found.', corsHeaders)
+  if (session.status === 'cancelled' || session.status === 'payment_failed') {
+    return errorJson(409, `ACP checkout sessions with status ${session.status} cannot be completed.`, corsHeaders)
+  }
+  if (session.payment_rail === 'fiat' && session.status !== 'complete' && readStoredStripeCheckoutResponse(session)) {
+    return errorJson(409, 'Hosted Stripe ACP checkout sessions complete only from verified Stripe webhook or status refresh.', corsHeaders)
+  }
   const payload = asRecord(await readRequestJson(request)) || {}
   const vaultToken = readRecordString(payload, 'vault_token') || readRecordString(payload, 'payment_token') || readRecordString(payload, 'shared_payment_token')
   if (session.payment_rail === 'fiat' && session.status !== 'complete' && !vaultToken) {
@@ -423,6 +539,7 @@ const handleCancelSession = async (
   const session = await readSession(db, sessionId)
   if (!session) return errorJson(404, 'ACP checkout session not found.', corsHeaders)
   if (session.status === 'complete') return errorJson(409, 'completed ACP checkout sessions cannot be cancelled.', corsHeaders)
+  if (session.status === 'payment_failed') return errorJson(409, 'payment-failed ACP checkout sessions cannot be cancelled.', corsHeaders)
   const cancelledAt = session.cancelled_at || new Date().toISOString()
   const cancelledSession: AgenticCommerceSessionRow = {
     ...session,
@@ -430,10 +547,14 @@ const handleCancelSession = async (
     updated_at: cancelledAt,
     cancelled_at: cancelledAt,
   }
+  const previousStripeCheckout = readStoredStripeCheckoutResponse(session)
   await updateSessionState(db, {
     id: session.id,
     status: 'cancelled',
-    responseJson: stableJson(mapSessionRow(cancelledSession)),
+    responseJson: stableJson({
+      ...mapSessionRow(cancelledSession),
+      ...(previousStripeCheckout ? { [AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY]: previousStripeCheckout } : {}),
+    }),
     riskSignalsJson: session.risk_signals_json || '[]',
     updatedAt: cancelledAt,
     cancelledAt,
@@ -442,7 +563,7 @@ const handleCancelSession = async (
   return json(200, {
     ok: true,
     apiVersion: AGENTIC_COMMERCE_API_VERSION,
-    session: updated ? mapSessionRow(updated) : mapSessionRow(cancelledSession),
+    session: updated ? mapSessionRowForResponse(updated) : mapSessionRow(cancelledSession),
   }, corsHeaders)
 }
 

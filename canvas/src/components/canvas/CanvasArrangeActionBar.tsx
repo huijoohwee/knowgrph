@@ -22,7 +22,7 @@ export function CanvasArrangeActionBar(props: {
   if (!active || selectedCount < 2) return null
 
   return (
-    <div
+    <section
       className={[
         'pointer-events-auto absolute right-3 top-3 z-50 flex flex-nowrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow',
         UI_RESPONSIVE_CANVAS_FLOATING_ACTION_ROW_CLASSNAME,
@@ -39,6 +39,6 @@ export function CanvasArrangeActionBar(props: {
           {button.label}
         </button>
       ))}
-    </div>
+    </section>
   )
 }

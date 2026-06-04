@@ -230,12 +230,12 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
     if (next === 'none') return
     if (next === 'left') {
       const current = args.getDraft()
-      const nextText = current.replace(/^<div align="(center|right|left)">\n?([\s\S]*?)\n?<\/div>$/i, '$2')
+      const nextText = current.replace(/^<section align="(center|right|left)">\n?([\s\S]*?)\n?<\/div>$/i, '$2')
       args.setDraftToDom(nextText)
       queueMicrotask(() => args.editorRef.current?.focus())
       return
     }
-    args.setDraftToDom(`<div align="${next}">\n${args.getDraft()}\n</div>`)
+    args.setDraftToDom(`<section align="${next}">\n${args.getDraft()}\n</section>`)
     queueMicrotask(() => args.editorRef.current?.focus())
   }, [args])
 

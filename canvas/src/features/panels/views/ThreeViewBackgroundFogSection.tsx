@@ -34,12 +34,12 @@ export default function ThreeViewBackgroundFogSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Background Color</span>}
           valueNode={(
-            <div className="flex items-center gap-2">
+            <section className="flex items-center gap-2">
               <input
                 type="color"
                 className={colorInputClassName}
@@ -61,14 +61,14 @@ export default function ThreeViewBackgroundFogSection({
                 onChange={next => setThreeConfig({ backgroundColor: next })}
                 placeholder="#020617"
               />
-            </div>
+            </section>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Fog Color (blank = off)</span>}
           valueNode={(
-            <div className="flex items-center gap-2">
+            <section className="flex items-center gap-2">
               <input
                 type="color"
                 className={colorInputClassName}
@@ -90,7 +90,7 @@ export default function ThreeViewBackgroundFogSection({
                 onChange={next => setThreeConfig({ fogColor: next })}
                 placeholder="#1e1b4b"
               />
-            </div>
+            </section>
           )}
         />
         <KeyTypeValueRow
@@ -143,7 +143,7 @@ export default function ThreeViewBackgroundFogSection({
             </>
           )}
         />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

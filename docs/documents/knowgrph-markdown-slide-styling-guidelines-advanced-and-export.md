@@ -130,9 +130,9 @@ Bob --> Alice: Response
 
 **Framework utilities:**
 ```html
-<div class="text-center opacity-50">Centered, semi-transparent</div>
-<div class="grid grid-cols-3 gap-4">Three columns</div>
-<div class="absolute top-10 right-10">Positioned</div>
+<section class="text-center opacity-50">Centered, semi-transparent</section>
+<section class="grid grid-cols-3 gap-4">Three columns</section>
+<section class="absolute top-10 right-10">Positioned</section>
 ```
 
 **Common utilities:** `text-center`, `flex`, `grid`, `absolute`, `relative`, `opacity-*`, `scale-*`
@@ -182,17 +182,17 @@ Content affected by scoped styles
 ## Absolute Positioning (fully supported where expressed via HTML classes)
 
 ```html
-<div class="absolute top-0 left-0">
+<section class="absolute top-0 left-0">
   Top-left corner
-</div>
+</section>
 
-<div class="absolute bottom-0 right-0">
+<section class="absolute bottom-0 right-0">
   Bottom-right corner
-</div>
+</section>
 
-<div class="absolute top-50% left-50% transform -translate-x-50% -translate-y-50%">
+<section class="absolute top-50% left-50% transform -translate-x-50% -translate-y-50%">
   Center
-</div>
+</section>
 ```
 
 ---
@@ -200,18 +200,18 @@ Content affected by scoped styles
 ## Grid Layouts (fully supported where expressed via HTML classes)
 
 ```html
-<div class="grid grid-cols-3 gap-4">
-  <div>Column 1</div>
-  <div>Column 2</div>
-  <div>Column 3</div>
-</div>
+<section class="grid grid-cols-3 gap-4">
+  <section>Column 1</section>
+  <section>Column 2</section>
+  <section>Column 3</section>
+</section>
 
-<div class="grid grid-cols-2 grid-rows-2 gap-2">
-  <div>Cell 1</div>
-  <div>Cell 2</div>
-  <div>Cell 3</div>
-  <div>Cell 4</div>
-</div>
+<section class="grid grid-cols-2 grid-rows-2 gap-2">
+  <section>Cell 1</section>
+  <section>Cell 2</section>
+  <section>Cell 3</section>
+  <section>Cell 4</section>
+</section>
 ```
 
 ---

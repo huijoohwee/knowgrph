@@ -1,5 +1,5 @@
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
-import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { applyCanvasFrontmatterPreset, resolveCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import type { PerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
@@ -24,8 +24,10 @@ export function applySavedDocumentUiPresentationState(api: GraphStoreApi, saved:
   if (presentationPlan.shouldPreferFrontmatterFlowLanding) {
     applyFrontmatterFlowImportModes(graphData)
   } else {
-    const presetApplied = applyCanvasFrontmatterPreset({ graphData, rawText })
-    if (!presetApplied) {
+    const preset = resolveCanvasFrontmatterPreset({ graphData, rawText })
+    if (preset) {
+      applyCanvasFrontmatterPreset({ graphData, rawText, preset })
+    } else {
       applySavedDocumentUiModeStateWrites(api, presentationPlan.modeState)
     }
   }

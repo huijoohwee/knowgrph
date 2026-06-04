@@ -27,7 +27,7 @@
     - Happy Path Call Graphs (Functions Only) (`happy-path-call-graphs-functions-only`)
       - Journey 1: Import JSON/CSV → See Nodes On MapLibre (`journey-1-import-jsoncsv-see-nodes-on-maplibre`)
       - Journey 2: Click Map POI → Host Selects Node → Canvas + Map Highlight (`journey-2-click-map-poi-host-selects-node-canvas-map-highlight`)
-      - Journey 3: Import Quick Editor Bundle → Open Flow Editor → See Port-bound Edges (`journey-3-import-quick-editor-bundle-open-flow-editor-see-port-bound-edges`)
+      - Journey 3: Import Widget Bundle → Open Flow Editor → See Port-bound Edges (`journey-3-import-widget-bundle-open-flow-editor-see-port-bound-edges`)
     - Import (`import`)
     - Parse + Normalize (`parse-normalize`)
     - Validate + Store (`validate-store`)

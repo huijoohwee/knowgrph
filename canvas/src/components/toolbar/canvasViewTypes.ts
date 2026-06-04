@@ -22,15 +22,13 @@ export type CanvasViewOptionId =
   | 'animation:menu'
   | 'animation:force'
   | 'animation:orbit'
-  | 'timeline:menu'
-  | 'timeline:on'
-  | 'timeline:off'
   | 'control:menu'
   | 'control:richMedia'
   | 'control:nodeShape'
   | 'control:clusterShape'
   | 'control:portHandles'
   | 'control:grid'
+  | 'control:timeline'
   | 'view:geospatial'
 
 export type CanvasViewOption = {

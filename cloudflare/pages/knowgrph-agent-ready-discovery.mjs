@@ -2,6 +2,18 @@ import { KNOWGRPH_AGENT_READY_TOOL_IDS } from "../../canvas/src/features/agent-r
 import { buildKnowgrphVdeoxplnAgentSkillDefinitions } from "../../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 
 export const AGENT_READY_A2A_SKILL_META_BY_TOOL_ID = {
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.search]: {
+    id: "search",
+    tags: ["mcp", "search", "source-files", "read-only"],
+    examples: ["Search Knowgrph Source Files for renderer architecture."],
+    outputModes: ["application/json"],
+  },
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.fetch]: {
+    id: "fetch",
+    tags: ["mcp", "fetch", "source-files", "markdown", "read-only"],
+    examples: ["Fetch the Knowgrph Source File id returned by search."],
+    outputModes: ["text/markdown", "application/json"],
+  },
   [KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles]: {
     id: "list-source-files",
     tags: ["mcp", "discovery", "source-files", "read-only"],

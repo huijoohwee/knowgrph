@@ -48,7 +48,7 @@ export function NewFieldForm({
   const actionButtonClassName = `${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} App-toolbar__btn rounded border ${uiPanelKeyValueTextSizeClass}`
 
   return (
-    <div className={sectionClassName}>
+    <section className={sectionClassName}>
       <form
         onSubmit={e => {
           e.preventDefault()
@@ -56,10 +56,10 @@ export function NewFieldForm({
         }}
         className="space-y-2"
       >
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <div className={labelClassName}>{UI_LABELS.name}</div>
-            <div className={inputShellClassName}>
+        <section className="flex items-center gap-2">
+          <section className="flex-1">
+            <section className={labelClassName}>{UI_LABELS.name}</section>
+            <section className={inputShellClassName}>
               <FieldKeyIcon
                 className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}
                 strokeWidth={uiIconStrokeWidth}
@@ -70,14 +70,14 @@ export function NewFieldForm({
                 placeholder={UI_COPY.fieldNamePlaceholder}
                 className={textInputClassName}
               />
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
 
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <div className={labelClassName}>{UI_LABELS.scope}</div>
-            <div className="mt-1">
+        <section className="flex items-center gap-2">
+          <section className="flex-1">
+            <section className={labelClassName}>{UI_LABELS.scope}</section>
+            <section className="mt-1">
               <select
                 value={newFieldScope}
                 onChange={e =>
@@ -88,11 +88,11 @@ export function NewFieldForm({
                 <option value="node">Node</option>
                 <option value="edge">Edge</option>
               </select>
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className={labelClassName}>{UI_LABELS.type}</div>
-            <div className="mt-1">
+            </section>
+          </section>
+          <section className="flex-1">
+            <section className={labelClassName}>{UI_LABELS.type}</section>
+            <section className="mt-1">
               <select
                 value={newFieldType}
                 onChange={e => setNewFieldType(e.target.value as GraphFieldType)}
@@ -104,11 +104,11 @@ export function NewFieldForm({
                   </option>
                 ))}
               </select>
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
 
-        <div className="flex items-center justify-end gap-2">
+        <section className="flex items-center justify-end gap-2">
           <button
             type="button"
             className={`${actionButtonClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary}`}
@@ -123,8 +123,8 @@ export function NewFieldForm({
           >
             {UI_LABELS.create}
           </button>
-        </div>
+        </section>
       </form>
-    </div>
+    </section>
   )
 }

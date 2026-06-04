@@ -27,9 +27,9 @@ export function OrchestratorTraversalDelayRow(props: {
           maxWidthPx={260}
           contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
         >
-          <div className="flex min-w-0 w-full items-center gap-1">
+          <section className="flex min-w-0 w-full items-center gap-1">
             <span className="break-words">orchestratorTraversalDelayMs</span>
-          </div>
+          </section>
         </Tooltip>
       )}
       typeNode={(

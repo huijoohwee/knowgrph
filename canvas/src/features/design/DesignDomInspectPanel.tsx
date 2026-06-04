@@ -38,18 +38,18 @@ function KeyValueRow(props: { k: string; v: string | number | null }) {
   const v = props.v
   const value = v == null ? '' : String(v)
   return (
-    <div className="grid grid-cols-[110px_1fr] gap-2 py-1">
-      <div className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>{props.k}</div>
-      <div className={cn('text-xs font-mono break-words', UI_THEME_TOKENS.text.primary)}>{value || '—'}</div>
-    </div>
+    <section className="grid grid-cols-[110px_1fr] gap-2 py-1">
+      <section className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>{props.k}</section>
+      <section className={cn('text-xs font-mono break-words', UI_THEME_TOKENS.text.primary)}>{value || '—'}</section>
+    </section>
   )
 }
 
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
     <section className={cn('px-3 py-2 border-b last:border-b-0', UI_THEME_TOKENS.panel.border)} aria-label={props.title}>
-      <div className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{props.title}</div>
-      <div className="mt-1">{props.children}</div>
+      <section className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{props.title}</section>
+      <section className="mt-1">{props.children}</section>
     </section>
   )
 }
@@ -139,14 +139,14 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
   const cssOpacity = node ? readPropString(node, 'css:opacity') : ''
 
   return (
-    <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Inspect" data-main-panel-no-drag="true">
-      <div className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Inspect header">
+    <section className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Inspect" data-main-panel-no-drag="true">
+      <section className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Inspect header">
         <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Inspect</span>
         <span className={cn('ml-auto text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>
           {hasLayout ? coerceString(selectedNodeId) || '—' : '—'}
         </span>
-      </div>
+      </section>
 
       {!hasLayout ? (
         <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>
@@ -155,7 +155,7 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
       ) : !node ? (
         <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Select a frame to inspect.</p>
       ) : (
-        <div className={cn('h-full overflow-y-auto', panelTypography.fontClass)} aria-label="Inspect content">
+        <section className={cn('h-full overflow-y-auto', panelTypography.fontClass)} aria-label="Inspect content">
           <Section title="Identity">
             <KeyValueRow k="id" v={coerceString(node.id)} />
             <KeyValueRow k="tag" v={tag || coerceString(node.type)} />
@@ -211,8 +211,8 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
             <KeyValueRow k="boxShadow" v={cssBoxShadow} />
             <KeyValueRow k="opacity" v={cssOpacity} />
           </Section>
-        </div>
+        </section>
       )}
-    </div>
+    </section>
   )
 }

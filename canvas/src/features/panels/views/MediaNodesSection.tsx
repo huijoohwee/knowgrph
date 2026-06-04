@@ -76,7 +76,7 @@ export default function MediaNodesSection({
   const hasIframeHosts = iframeHostList.length > 0
 
   const titleContent = (
-    <div className="flex flex-col">
+    <section className="flex flex-col">
       <span className="inline-flex items-center gap-2">
         {copy.badge && (
           <span
@@ -104,7 +104,7 @@ export default function MediaNodesSection({
           {copy.descriptionShort}
         </span>
       )}
-    </div>
+    </section>
   )
 
   return (
@@ -125,7 +125,7 @@ export default function MediaNodesSection({
       onToggle={onToggle}
     >
       {!graph || totalCount === 0 ? (
-        <div
+        <section
           className={[
             uiPanelMicroLabelTextSizeClass,
             uiPanelTextFontClass,
@@ -133,10 +133,10 @@ export default function MediaNodesSection({
           ].join(' ')}
         >
           No media-capable nodes detected in the current GraphData.
-        </div>
+        </section>
       ) : (
-        <div className="space-y-2">
-          <div
+        <section className="space-y-2">
+          <section
             className={[
               'grid grid-cols-4 gap-2',
               UI_THEME_TOKENS.text.primary,
@@ -144,26 +144,26 @@ export default function MediaNodesSection({
               uiPanelTextFontClass,
             ].join(' ')}
           >
-            <div className="flex flex-col">
+            <section className="flex flex-col">
               <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Media nodes</span>
               <span className="font-semibold">{String(totalCount)}</span>
-            </div>
-            <div className="flex flex-col">
+            </section>
+            <section className="flex flex-col">
               <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Images/SVG</span>
               <span className="font-semibold">{String(imageCount)}</span>
-            </div>
-            <div className="flex flex-col">
+            </section>
+            <section className="flex flex-col">
               <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Video</span>
               <span className="font-semibold">{String(videoCount)}</span>
-            </div>
-            <div className="flex flex-col">
+            </section>
+            <section className="flex flex-col">
               <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>IFrame</span>
               <span className="font-semibold">{String(iframeCount)}</span>
-            </div>
-          </div>
+            </section>
+          </section>
 
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+          <section className="mt-2 flex items-center justify-between gap-2">
+            <section className="flex items-center gap-2">
               <Tooltip
                 content={copy.viewToggleHelper || ''}
                 maxWidthPx={260}
@@ -179,7 +179,7 @@ export default function MediaNodesSection({
                   {RICH_MEDIA_DISPLAY_COPY.viewLabel}
                 </span>
               </Tooltip>
-              <div className={mediaToggleShellClassName}>
+              <section className={mediaToggleShellClassName}>
                 <button
                   type="button"
                   onClick={() => setRenderMediaAsNodes(false)}
@@ -206,9 +206,9 @@ export default function MediaNodesSection({
                 >
                   {RICH_MEDIA_DISPLAY_COPY.panelOnly}
                 </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+              </section>
+            </section>
+            <section className="flex items-center gap-2">
               <span
                 className={[
                   uiPanelMicroLabelTextSizeClass,
@@ -236,10 +236,10 @@ export default function MediaNodesSection({
               >
                 {Math.round(mediaNodeOpacity * 100)}%
               </span>
-            </div>
-          </div>
+            </section>
+          </section>
 
-          <div className="mt-2 flex flex-col gap-1">
+          <section className="mt-2 flex flex-col gap-1">
             <span
               className={[
                 uiPanelMicroLabelTextSizeClass,
@@ -271,9 +271,9 @@ export default function MediaNodesSection({
                 Non-direct iframes load via /__webpage_proxy by default.
               </span>
             )}
-          </div>
+          </section>
 
-          <div className={mediaStatsPanelClassName}>
+          <section className={mediaStatsPanelClassName}>
             <table className="min-w-full text-left">
               <thead>
                 <tr
@@ -314,8 +314,8 @@ export default function MediaNodesSection({
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
+          </section>
+        </section>
       )}
     </CollapsibleSection>
   )

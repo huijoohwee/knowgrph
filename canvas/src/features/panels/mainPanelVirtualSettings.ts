@@ -10,8 +10,24 @@ const MAIN_PANEL_VIRTUAL_SETTING_STORAGE_PREFIX = 'kg:main-panel:virtual:'
 type VirtualSettingValue = string | number | boolean
 type VirtualSettingKind = 'request' | 'reference'
 
+const EXPLANATORY_DEFAULT_PREFIX_PATTERN =
+  /^(required|optional|default|states|documents|pins|keeps|explains|maintains|defines|validates|configures|allows|requires|harness provider|generation strategy|multi-scene|longer narrative|knowgrph preserves)\b/i
+
 function normalizeStorageKey(settingKey: string): string {
   return `${MAIN_PANEL_VIRTUAL_SETTING_STORAGE_PREFIX}${String(settingKey || '').trim()}`
+}
+
+export function isMainPanelVirtualSettingConfigDefault(value: string): boolean {
+  const normalized = String(value || '').trim().replace(/\s+/g, ' ')
+  if (!normalized || normalized === '-' || normalized === '—') return false
+  if (normalized.length > 64) return false
+  if (EXPLANATORY_DEFAULT_PREFIX_PATTERN.test(normalized)) return false
+  if (normalized.includes('->')) return false
+  if (normalized.includes('|')) return false
+  if (normalized.includes(' or ')) return false
+  if (normalized.includes(', ')) return false
+  if (/[.!?](?:\s|$)/.test(normalized)) return false
+  return true
 }
 
 function normalizeInitialValue(args: {
@@ -61,14 +77,7 @@ function normalizeInitialValue(args: {
   }
   if (typeof defaultValue === 'string') {
     const normalizedDefault = defaultValue.trim()
-    if (
-      normalizedDefault.length > 0
-      && normalizedDefault !== '-'
-      && normalizedDefault !== '—'
-      && !normalizedDefault.includes('|')
-      && !normalizedDefault.includes(' or ')
-      && !normalizedDefault.includes(', ')
-    ) {
+    if (isMainPanelVirtualSettingConfigDefault(normalizedDefault)) {
       return normalizedDefault
     }
   }

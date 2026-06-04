@@ -9,7 +9,7 @@ const tick = async (n: number = 1) => {
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteDoesNotDriftRightward() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -98,7 +98,7 @@ export async function testMarkdownViewerInlineEditBlockquoteDoesNotDriftRightwar
 }
 
 export async function testMarkdownViewerInlineEditBlankBlockquoteKeepsLineByLineSpacing() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -155,7 +155,7 @@ export async function testMarkdownViewerInlineEditBlankBlockquoteKeepsLineByLine
     if (brCount < 3) {
       throw new Error(`expected blank blockquote edit surface to preserve first/last line spacing with visible blank-line breaks; html=${JSON.stringify(html)}`)
     }
-    const rowCount = (html.match(/<div>\s*<br\s*\/?>\s*<\/div>/gi) || []).length
+    const rowCount = (html.match(/<section>\s*<br\s*\/?>\s*<\/div>/gi) || []).length
     if (rowCount < 3) {
       throw new Error(`expected blank blockquote edit surface to preserve three explicit blank line rows; html=${JSON.stringify(html)}`)
     }
@@ -167,7 +167,7 @@ export async function testMarkdownViewerInlineEditBlankBlockquoteKeepsLineByLine
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteDoesNotShowSigilAsCodeOrStyledColor() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -239,7 +239,7 @@ export async function testMarkdownViewerInlineEditBlockquoteDoesNotShowSigilAsCo
 }
 
 export async function testMarkdownViewerInlineEditMultiLineBlockquoteDoesNotAppendTrailingEmptyRow() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')

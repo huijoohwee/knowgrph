@@ -194,7 +194,7 @@ export const captureLiveRichMediaOverlayHtmlForHtmlViewerExport = (args: {
     const panels = Array.from(panelByNodeId.values())
     if (panels.length === 0) return ''
 
-    const wrap = document.createElement('div')
+    const wrap = document.createElement('section')
     for (let i = 0; i < panels.length; i += 1) {
       const srcPanel = panels[i] as Element
       const clone = srcPanel.cloneNode(true) as Element
@@ -243,7 +243,7 @@ export const captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport = (args: {
     const blocks = Array.from(blockById.values())
     if (blocks.length === 0) return ''
 
-    const wrap = document.createElement('div')
+    const wrap = document.createElement('section')
     for (let i = 0; i < blocks.length; i += 1) {
       const srcBlock = blocks[i] as Element
       const clone = srcBlock.cloneNode(true) as Element

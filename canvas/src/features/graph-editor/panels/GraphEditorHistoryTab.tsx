@@ -18,7 +18,7 @@ export function GraphEditorHistoryTab() {
   }
 
   return (
-    <div className="space-y-1" aria-label="History list">
+    <section className="space-y-1" aria-label="History list">
       {history
         .slice()
         .reverse()
@@ -33,12 +33,12 @@ export function GraphEditorHistoryTab() {
               onClick={() => restoreHistory(idx)}
               aria-label={`Restore ${h.label}`}
             >
-              <div className="truncate">{h.label}</div>
-              <div className={`mt-0.5 font-mono ${UI_THEME_TOKENS.text.tertiary}`}>{new Date(h.timestamp).toLocaleString()}</div>
+              <section className="truncate">{h.label}</section>
+              <section className={`mt-0.5 font-mono ${UI_THEME_TOKENS.text.tertiary}`}>{new Date(h.timestamp).toLocaleString()}</section>
             </button>
           )
         })}
-    </div>
+    </section>
   )
 }
 

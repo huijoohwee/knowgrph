@@ -35,7 +35,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
   const detailsRef = React.useRef<HTMLDetailsElement | null>(null)
   const containerRef = React.useRef<HTMLElement | null>(null)
   const summaryRef = React.useRef<HTMLElement | null>(null)
-  const portalRootRef = React.useRef<HTMLDivElement | null>(null)
+  const portalRootRef = React.useRef<HTMLElement | null>(null)
   const [isOpen, setIsOpen] = React.useState(false)
   const [portalStyle, setPortalStyle] = React.useState<React.CSSProperties | null>(null)
   const triggerElement = props.triggerElement || 'summary'
@@ -222,7 +222,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     onClickCapture: triggerClickCapture,
   }
   const inlineMenu = (
-    <div
+    <section
       aria-hidden="true"
       className={props.menuClassName || ''}
       style={{ display: props.portal ? 'none' : isOpen || usesSummaryTrigger ? undefined : 'none' }}
@@ -232,7 +232,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       onMouseUpCapture={props.onMenuMouseUpCapture}
     >
       {props.portal ? null : menu}
-    </div>
+    </section>
   )
 
   return usesSummaryTrigger ? (
@@ -251,8 +251,8 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       {inlineMenu}
       {props.portal && isOpen && menu && portalStyle
         ? createPortal(
-            <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
-              <div
+            <section style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
+              <section
                 ref={el => {
                   portalRootRef.current = el
                   if (!el) return
@@ -273,14 +273,14 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
                 onMouseUpCapture={props.onMenuMouseUpCapture}
               >
                 {menu}
-              </div>
-            </div>,
+              </section>
+            </section>,
             document.body,
           )
         : null}
     </details>
   ) : (
-    <div
+    <section
       ref={el => {
         containerRef.current = el
       }}
@@ -292,8 +292,8 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       {inlineMenu}
       {props.portal && isOpen && menu && portalStyle
         ? createPortal(
-            <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
-              <div
+            <section style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
+              <section
                 ref={el => {
                   portalRootRef.current = el
                   if (!el) return
@@ -314,11 +314,11 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
                 onMouseUpCapture={props.onMenuMouseUpCapture}
               >
                 {menu}
-              </div>
-            </div>,
+              </section>
+            </section>,
             document.body,
           )
         : null}
-    </div>
+    </section>
   )
 })

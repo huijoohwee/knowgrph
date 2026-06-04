@@ -30,17 +30,17 @@ export function GraphEditorOverlay(props: { active: boolean }) {
 
   return (
     <section className="absolute inset-0 pointer-events-none" aria-label="Graph editor overlay">
-      <div className="absolute top-3 left-3 z-[260] pointer-events-auto">
+      <section className="absolute top-3 left-3 z-[260] pointer-events-auto">
         <GraphEditorToolRail
           activeToolId={toolId}
           onSelectTool={setToolId}
           disabled={!graphData}
         />
-      </div>
+      </section>
 
-      <div className={`absolute z-[260] pointer-events-auto ${UI_RESPONSIVE_SIDE_PANEL_CLASSNAME}`}>
+      <section className={`absolute z-[260] pointer-events-auto ${UI_RESPONSIVE_SIDE_PANEL_CLASSNAME}`}>
         <GraphEditorRightPanel />
-      </div>
+      </section>
     </section>
   )
 }

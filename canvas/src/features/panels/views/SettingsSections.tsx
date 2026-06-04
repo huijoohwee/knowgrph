@@ -49,9 +49,9 @@ function SettingsSectionIntro({
   if (!sectionMeta && !description) return null
   const highlights = description?.highlights || []
   return (
-    <div className={`mb-2 min-w-0 max-w-full space-y-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+    <section className={`mb-2 min-w-0 max-w-full space-y-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
       {sectionMeta ? (
-        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
+        <section className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
           <button
             type="button"
             className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
@@ -73,7 +73,7 @@ function SettingsSectionIntro({
               {sectionMeta.docsLabel}
             </a>
           ) : null}
-        </div>
+        </section>
       ) : null}
       {description?.value ? (
         <p className="m-0 min-w-0 max-w-full overflow-hidden text-ellipsis">
@@ -81,7 +81,7 @@ function SettingsSectionIntro({
         </p>
       ) : null}
       {highlights.length > 0 ? (
-        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
+        <section className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
           {highlights.map(highlight => (
             <span
               key={highlight}
@@ -90,9 +90,9 @@ function SettingsSectionIntro({
               <span className={UI_TEXT_TRUNCATE}>{highlight}</span>
             </span>
           ))}
-        </div>
+        </section>
       ) : null}
-    </div>
+    </section>
   )
 }
 

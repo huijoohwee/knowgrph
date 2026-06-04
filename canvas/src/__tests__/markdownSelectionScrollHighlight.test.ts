@@ -61,7 +61,7 @@ function MarkdownAutoPositionHarness(props: {
 export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     const doc = dom.window.document
@@ -179,7 +179,7 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
     })
 
     const previewRoot = await waitForValue(
-      () => doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null,
+      () => doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null,
       dom,
     )
     if (!previewRoot) throw new Error('expected markdown preview root')

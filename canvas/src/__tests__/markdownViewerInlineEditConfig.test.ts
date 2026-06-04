@@ -130,7 +130,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('preserveQuoteOnlyBlankLineStructure')) {
     throw new Error('expected quote/callout edit surfaces to preserve blank `>` line-by-line structure when trim-edge-newlines is enabled')
   }
-  if (!blockText.includes("'<div><br/></div>'")) {
+  if (!blockText.includes("'<section><br/></section>'")) {
     throw new Error('expected blank quote-only edit surfaces to use explicit per-line block wrappers for first/last vertical spacing parity')
   }
   if (!blockText.includes('spacingSnapshot.borderLeftWidth = undefined') || !blockText.includes('spacingSnapshot.borderLeftStyle = undefined')) {

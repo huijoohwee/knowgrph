@@ -297,7 +297,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     : undefined
 
   return (
-    <div
+    <section
       className={[
         stickyHeadingEnabled ? 'sticky' : 'relative',
         stickyHeadingEnabled ? stickyTopClass : '',
@@ -384,6 +384,6 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
           ) : null}
         </span>
       </MarkdownBlockContainer>
-    </div>
+    </section>
   )
 })

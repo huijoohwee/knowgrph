@@ -46,7 +46,7 @@ export default function ThreeViewGlobeEffectsSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Enable Effects</span>}
@@ -462,7 +462,7 @@ export default function ThreeViewGlobeEffectsSection({
             </>
           )}
         />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

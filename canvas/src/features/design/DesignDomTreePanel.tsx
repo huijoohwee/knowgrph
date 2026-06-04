@@ -187,8 +187,8 @@ export default function DesignDomTreePanel({ active }: { active: boolean }) {
   }, [])
 
   return (
-    <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="DOM Tree" data-main-panel-no-drag="true">
-      <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="DOM Tree header">
+    <section className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="DOM Tree" data-main-panel-no-drag="true">
+      <section className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="DOM Tree header">
         <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>DOM Tree</span>
         <span className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>
           {hasLayout ? Object.keys(designRendererGraphNodesById || {}).length : 0}
@@ -203,7 +203,7 @@ export default function DesignDomTreePanel({ active }: { active: boolean }) {
         >
           <Target className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         </button>
-      </div>
+      </section>
 
       {!hasLayout ? (
         <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>
@@ -224,7 +224,7 @@ export default function DesignDomTreePanel({ active }: { active: boolean }) {
             </span>
           </label>
 
-          <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_CONTENT_CLASSNAME, panelTypography.fontClass)} aria-label="DOM tree content">
+          <section className={cn(UI_RESPONSIVE_DESIGN_PANEL_CONTENT_CLASSNAME, panelTypography.fontClass)} aria-label="DOM tree content">
             {visibleIds.length === 0 ? (
               <span className={cn(UI_RESPONSIVE_DESIGN_PANEL_EMPTY_ROW_CLASSNAME, 'text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No matches.</span>
             ) : (
@@ -237,7 +237,7 @@ export default function DesignDomTreePanel({ active }: { active: boolean }) {
                   const collapsed = collapsedById[id] === true
                   return (
                     <li key={id} className={cn('border-b last:border-b-0', UI_THEME_TOKENS.panel.border)}>
-                      <div
+                      <section
                         className={cn(UI_RESPONSIVE_DESIGN_PANEL_TREE_ROW_CLASSNAME, selected ? 'bg-blue-50 dark:bg-blue-900/20' : '')}
                         style={{ paddingLeft: 8 + depth * 12 }}
                       >
@@ -274,15 +274,15 @@ export default function DesignDomTreePanel({ active }: { active: boolean }) {
                             {n.tag ? `${n.tag} · ${n.id}` : n.id}
                           </span>
                         </button>
-                      </div>
+                      </section>
                     </li>
                   )
                 })}
               </ul>
             )}
-          </div>
+          </section>
         </>
       )}
-    </div>
+    </section>
   )
 }

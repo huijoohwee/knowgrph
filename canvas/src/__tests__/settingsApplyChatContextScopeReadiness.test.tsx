@@ -58,9 +58,9 @@ function SettingsApplyHarness(props: {
   })
 
   return (
-    <div>
-      <div data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</div>
-    </div>
+    <section>
+      <section data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</section>
+    </section>
   )
 }
 
@@ -87,8 +87,8 @@ export async function testSettingsApplyCommitsChatContextScopeIntoFloatingChatPi
     store.setChatStorageTarget('chatKnowgrph')
 
     const doc = dom.window.document
-    const settingsContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const settingsContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(settingsContainer)
     doc.body.appendChild(chatContainer)
     settingsRoot = createRoot(settingsContainer as unknown as HTMLElement)

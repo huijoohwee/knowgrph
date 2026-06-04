@@ -153,7 +153,7 @@ export async function testMarkdownHtmlIframeSrcdocIngestionProducesMediaNodes() 
     '',
     'Paragraph with HTML iframe srcdoc:',
     '',
-    '<iframe title="Inline" srcdoc="<div style=\'font-family: ui-sans-serif\'><h1>Hello</h1><p>Inline iframe</p></div>"></iframe>',
+    '<iframe title="Inline" srcdoc="<section style=\'font-family: ui-sans-serif\'><h1>Hello</h1><p>Inline iframe</p></section>"></iframe>',
     '',
   ].join('\n')
 

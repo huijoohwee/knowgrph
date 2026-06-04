@@ -51,7 +51,7 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
     throw new Error('expected heading edit surface to avoid extra spacing snapshot replay and stay on normal-text SSOT baseline')
   }
 
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -60,7 +60,7 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
     const createRoot = reactDomClient.createRoot
 
     const root = createRoot(container)
-    root.render(<div data-test-probe="1">probe</div>)
+    root.render(<section data-test-probe="1">probe</section>)
     const probe = await waitForQuery(() => dom.window.document.querySelector('[data-test-probe="1"]'))
     if (!probe) {
       throw new Error('expected react root to render a probe element')
@@ -144,7 +144,7 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
 }
 
 export async function testMarkdownViewerInlineEditHeadingDoubleClickSelectsWordOnOpen() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     ensureRangeRect(dom)
     const container = dom.window.document.getElementById('root')

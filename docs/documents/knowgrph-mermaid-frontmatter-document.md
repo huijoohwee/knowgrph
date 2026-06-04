@@ -15,7 +15,7 @@
 
 ## Mermaid Frontmatter Architecture
 
-**Frontmatter Stack**: Markdown Source → Mermaid Parser → Scoped Nodes → Layer Filter → Layout Engine → Canvas Rendering
+**Frontmatter Stack**: Markdown Source → Mermaid Diagram Kind Classifier → Mermaid Parser/Preserver → Scoped Nodes or Diagram Code → Layer Filter/Renderer Surface → Canvas Rendering
 
 **Processing Flow**: Frontmatter Extraction → Mermaid Parsing → Scope Tagging → Subgraph Nesting → Layer Filtering → Mermaid Seed Layout → Force Layout → Port Positioning → Subgraph Rendering
 
@@ -23,7 +23,9 @@
 
 ### High-Level Components
 
-- **Mermaid Parser**: `markdownJsonLdMermaidParser.ts` processes Mermaid code blocks, tagging nodes with `mermaidScope` and (for frontmatter) `isMermaidFrontmatter: true`.
+- **Mermaid Parser**: `markdownJsonLdMermaidParser.ts` processes Flowchart Mermaid code blocks, tagging nodes with `mermaidScope` and (for frontmatter) `isMermaidFrontmatter: true`.
+- **Mermaid Diagram Kind Classifier**: `grph-shared/src/markdown/mermaidInput.ts` identifies Flowchart vs GitGraph declarations, skips Mermaid config headers, and splits mixed Mermaid blocks without file-specific heuristics.
+- **GitGraph Renderer**: `canvas/src/components/MermaidGitGraphCanvas.tsx` renders frontmatter GitGraph code through the shared Mermaid SVG cache and adapts the output SVG into the shared D3 viewport runtime. `GitGraphFloatingPanelView` hosts command CRUD and writes back to the active Markdown/Source Files text through the shared GitGraph document hook. GitGraph blocks are preserved as `MermaidDiagram` code and are not expanded into Flowchart topology.
 - **Layer Filter**: `layerDerivation.ts` derives a frontmatter-focused graph view: frontmatter Mermaid nodes/subgraphs plus any tied in-doc anchors/internal links/callouts reachable via `pointsTo` (e.g., Mermaid `click ... "#anchor"`).
 - **Force Layout Engine**: Disjoint force layout separates disconnected components using `forceX`/`forceY` targets with `PackedRTree` for O(n log n) overlap broadphase.
 - **Mermaid Seed Layout**: A fast, topology-aware seed that spreads top-level subgraphs across the 16:9 frame and recenters the centroid before simulation.
@@ -35,6 +37,7 @@
 | Frontmatter Stage             | Canvas Layout Equivalent              | Configuration Controls                                    |
 |-------------------------------|---------------------------------------|-----------------------------------------------------------|
 | Mermaid Code Extraction       | Frontmatter parsing                   | Markdown parser with frontmatter block detection          |
+| Diagram Kind Classification   | Flowchart topology vs GitGraph code   | Shared Mermaid input helpers                             |
 | Node Tagging                  | `mermaidScope` + `isMermaidFrontmatter` | Parser-emitted node properties                         |
 | Subgraph Nesting              | `visual:parentId` assignments         | Hierarchical relationship preservation                    |
 | Layer Filtering               | Frontmatter Mode toggle               | `layerDerivation.ts` filtering by tag                     |
@@ -49,6 +52,11 @@
 | Layer/Subsystem       | Path/Module                                   | Component                   | Interface/Method            | Responsibility (S-V-O)                                                                        | Dependencies                          | Contracts                                         | LOC    |
 |-----------------------|-----------------------------------------------|-----------------------------|-----------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------|---------------------------------------------------|--------|
 | Mermaid Parser        | `canvas/src/features/parsers/markdownJsonLdMermaidParser.ts` | Mermaid Parser   | `parseMermaidFrontmatter`   | Parser → extracts Mermaid code → tags scope → preserves nesting → emits GraphData             | Markdown frontmatter + Mermaid syntax | Emits nodes tagged with `mermaidScope`           | ~600   |
+| Mermaid Input Helpers | `grph-shared/src/markdown/mermaidInput.ts` | Diagram Kind Classifier | `readMermaidDiagramKind`, `splitMermaidDiagrams` | Classifier → skips Mermaid config headers → separates Flowchart and GitGraph slices → preserves diagram code | Mermaid code | Diagram kind plus diagram slices | ~150 |
+| GitGraph Renderer | `canvas/src/components/MermaidGitGraphCanvas.tsx` | GitGraph Surface | default React component | Renderer → resolves frontmatter GitGraph code → renders Mermaid SVG → postprocesses SVG → delegates pan/zoom/fit to shared SVG runtime → syncs selected SVG label to shared GitGraph UI state | Graph metadata + Markdown text | Interactive GitGraph SVG surface | ~200 |
+| GitGraph FloatingPanel | `canvas/src/features/gitgraph/GitGraphFloatingPanelView.tsx` | FloatingPanel GitGraph Commands | React view | View → reads shared GitGraph document hook → edits selected command with `CardInlineTextEditor` → appends/updates/deletes command source through shared writeback | Mermaid code + Markdown text + FloatingPanel state | Source-backed GitGraph command CRUD | ~220 |
+| GitGraph Edit Helpers | `canvas/src/lib/mermaid/mermaidGitGraphEdit.ts` | GitGraph Source Transform | `parseMermaidGitGraphModel`, `replaceMermaidGitGraphCodeInMarkdown` | Helper → parses editable command lines → resolves selected labels → appends/updates/deletes command source → replaces only top-level YAML `mermaid` block | Mermaid code + Markdown text | Updated Mermaid code or Markdown source | ~300 |
+| SVG Surface Viewport | `canvas/src/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime.ts` | SVG Viewport Adapter | `useSvgSurfaceZoomRuntime` | Adapter → measures SVG bounds → builds neutral visual-bounds graph → reuses D3 zoom/fit/toolbar owners → cleans listeners/RAF on unmount | SVG element + GraphData metadata | Keyed pan/zoom/fit state and generic SVG selection | ~500 |
 | Layer Filter          | `canvas/src/lib/graph/layerDerivation.ts`     | Layer Derivation Engine     | `filterGraphToFrontmatterMermaid` | Filter → selects frontmatter Mermaid scope → expands via `pointsTo` to anchors/links/callouts → returns bounded focused graph | GraphData                             | Must not blank: if no frontmatter Mermaid nodes, return original GraphData | ~50    |
 | Layout Engine         | `canvas/src/components/GraphCanvas/simulation.ts` | Force Simulation | `buildSimulation`       | Engine → seeds layout → runs forces → resolves overlaps → positions nodes                       | d3-force + native layout helpers      | Mutates node positions via simulation            | ~350   |
 | Mermaid Seed Layout   | `canvas/src/components/GraphCanvas/layout/mermaidSeed.ts` | Mermaid Seed | `applyMermaidSeedLayout` | Seed → orders subgraphs → spreads bands → recenters centroid → forbids clustered layouts | Mermaid topology + grouping props     | Sets initial node positions                       | ~300   |
@@ -103,6 +111,9 @@ properties.visual:topParentId:
 | Mermaid node          | `MermaidNode`          | `{isMermaidFrontmatter: true, type: "MermaidNode"}`      |
 | Mermaid subgraph      | `MermaidSubgraph`      | `{isMermaidFrontmatter: true, type: "MermaidSubgraph"}`  |
 | Nested subgraph       | `MermaidSubgraph`      | `{isMermaidFrontmatter: true, visual:parentId: "parent-id"}` |
+| Mermaid GitGraph      | `MermaidDiagram`       | `{diagramKind: "gitgraph", isMermaidFrontmatter: true}`  |
+
+**GitGraph behavior**: Mermaid `gitGraph` and `gitGraph:` declarations are diagram-code inputs. They must stay in `MermaidDiagram.properties.code` and must not emit `MermaidNode`, `MermaidSubgraph`, or Flowchart membership edges. Runtime viewport interactivity is applied after Mermaid renders the SVG and must remain a generic SVG viewport concern, not GitGraph semantic backfill. Inline CRUD remains source-text CRUD against the active YAML `mermaid: |` block; it updates Markdown/Source Files text and does not create a renderer-local GitGraph topology model.
 
 **Design Compliance**:
 

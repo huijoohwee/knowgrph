@@ -194,7 +194,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
           const isExpanded = expandedColumnId === c.id
 
           return (
-            <div
+            <section
               key={c.id}
               className={[
                 `relative ${UI_RESPONSIVE_DATA_VIEW_PROPERTY_ROW_CLASSNAME}`,
@@ -238,11 +238,11 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
               }}
             >
               {isDragOver ? (
-                <div className={`${UI_RESPONSIVE_DATA_VIEW_REORDER_INDICATOR_CLASSNAME} absolute left-2 right-2 bottom-0`} style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
+                <section className={`${UI_RESPONSIVE_DATA_VIEW_REORDER_INDICATOR_CLASSNAME} absolute left-2 right-2 bottom-0`} style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
               ) : null}
 
-              <div className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
-                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+              <section className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
+                <section className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                   <GripDotsIcon className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.text.tertiary].join(' ')} />
 
                   <DetailsMenu
@@ -296,9 +296,9 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                       {c.name}
                     </button>
                   )}
-                </div>
+                </section>
 
-                <div className="flex shrink-0 items-center gap-1">
+                <section className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     className={PROPERTY_ICON_BUTTON_CLASS}
@@ -337,11 +337,11 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                   >
                     {isExpanded ? <ChevronDown className={icon14} aria-hidden="true" /> : <ChevronRight className={icon14} aria-hidden="true" />}
                   </button>
-                </div>
-              </div>
+                </section>
+              </section>
               {isExpanded ? (
                 <section id={`property-map-panel-${c.id}`} className="mt-2">
-                  <div className="flex min-w-0 max-w-full items-start gap-2">
+                  <section className="flex min-w-0 max-w-full items-start gap-2">
                     <span className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span
                       className={[PROPERTY_SMALL_ICON_BUTTON_CLASS, 'shrink-0'].join(' ')}
@@ -351,7 +351,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                     </span>
                     <label className="block flex-1 min-w-0">
                       <span className="sr-only">Table-to-graph map</span>
-                      <div className="relative">
+                      <section className="relative">
                         <select
                           className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
                           value={graphRole}
@@ -366,19 +366,19 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                             </option>
                           ))}
                         </select>
-                      </div>
+                      </section>
                     </label>
-                  </div>
+                  </section>
                 </section>
               ) : null}
-            </div>
+            </section>
           )
         })}
 
         {hiddenIds.length ? (
           <section className="mt-2" aria-label="Hidden properties">
-            <div className={['text-xs font-medium px-2 py-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Hidden</div>
-            <div className="space-y-1">
+            <section className={['text-xs font-medium px-2 py-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Hidden</section>
+            <section className="space-y-1">
               {hiddenIds.map(columnId => {
                 const c = props.columns.find(x => x.id === columnId)
                 if (!c) return null
@@ -388,9 +388,9 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                 const Icon = iconByColumnType[type]
                 const isExpanded = expandedColumnId === c.id
                 return (
-                  <div key={c.id} className={[UI_RESPONSIVE_DATA_VIEW_PROPERTY_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}>
-                    <div className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
-                      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                  <section key={c.id} className={[UI_RESPONSIVE_DATA_VIEW_PROPERTY_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+                    <section className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
+                      <section className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                         <GripDotsIcon className={['w-4 h-4 shrink-0 opacity-30', UI_THEME_TOKENS.text.tertiary].join(' ')} />
                         <span className={PROPERTY_SMALL_ICON_PLACEHOLDER_CLASS}>
                           <Icon className={icon14} aria-hidden="true" />
@@ -425,8 +425,8 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                             {c.name}
                           </button>
                         )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
+                      </section>
+                      <section className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
                           className={PROPERTY_ICON_BUTTON_CLASS}
@@ -463,11 +463,11 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                         >
                           {isExpanded ? <ChevronDown className={icon14} aria-hidden="true" /> : <ChevronRight className={icon14} aria-hidden="true" />}
                         </button>
-                      </div>
-                    </div>
+                      </section>
+                    </section>
                     {isExpanded ? (
                       <section id={`property-map-panel-${c.id}`} className="mt-2">
-                        <div className="flex min-w-0 max-w-full items-start gap-2">
+                        <section className="flex min-w-0 max-w-full items-start gap-2">
                           <span className="w-4 h-4 shrink-0" aria-hidden="true" />
                           <span
                             className={[PROPERTY_SMALL_ICON_BUTTON_CLASS, 'shrink-0'].join(' ')}
@@ -477,7 +477,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                           </span>
                           <label className="block flex-1 min-w-0">
                             <span className="sr-only">Table-to-graph map</span>
-                            <div className="relative">
+                            <section className="relative">
                               <select
                                 className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
                                 value={graphRole}
@@ -492,15 +492,15 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                                   </option>
                                 ))}
                               </select>
-                            </div>
+                            </section>
                           </label>
-                        </div>
+                        </section>
                       </section>
                     ) : null}
-                  </div>
+                  </section>
                 )
               })}
-            </div>
+            </section>
           </section>
         ) : null}
       </section>

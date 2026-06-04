@@ -181,7 +181,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.session')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className={rowValueClassName}>
+            <section className={rowValueClassName}>
               <span className={statusButtonClassName}>
                 {role === 'idle' ? 'Idle' : `${role} · ${phase}`}
               </span>
@@ -200,7 +200,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                   {sessionId.slice(0, 12)}
                 </span>
               ) : null}
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -212,7 +212,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.peer')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className={rowValueClassName}>
+            <section className={rowValueClassName}>
               <span className={statusButtonClassName}>
                 total {peers.length}
               </span>
@@ -222,7 +222,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
               <span className={secondaryStatusButtonClassName}>
                 connected {connectedRemotePeers.length}
               </span>
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -248,7 +248,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.follow')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className={rowValueClassName}>
+            <section className={rowValueClassName}>
               <button
                 type="button"
                 className={followModeEnabled ? activeButtonClassName : buttonClassName}
@@ -269,7 +269,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
               <span className={noteClassName}>
                 {localCaretLine == null ? 'Local cursor idle' : `Local line ${localCaretLine}`}
               </span>
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -281,7 +281,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.connection')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className={rowValueClassName}>
+            <section className={rowValueClassName}>
               <button
                 type="button"
                 className={activeButtonClassName}
@@ -296,7 +296,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
               >
                 Disconnect
               </button>
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -311,7 +311,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.link')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
+            <section className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
               <RightAlignedTooltipInput
                 tooltip="Share this invite URL with one guest. Generate another invite for each additional peer."
                 value={inviteUrl}
@@ -331,7 +331,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                 {renderTypeIcon('collaboration.copy')}
                 Copy
               </button>
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -343,7 +343,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.connection')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
+            <section className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
               <RightAlignedTooltipInput
                 tooltip="Paste the host invite URL or raw invite token."
                 value={inviteInput}
@@ -358,7 +358,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
               >
                 Join
               </button>
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -373,7 +373,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.copy')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
+            <section className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
               <RightAlignedTooltipInput
                 tooltip="Guest sends this answer token back to the host."
                 value={answerToken}
@@ -393,7 +393,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                 {renderTypeIcon('collaboration.copy')}
                 Copy
               </button>
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -405,7 +405,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         typeNode={renderTypeIcon('collaboration.runtime')}
         valueNode={(
           <RightAlignedValueCell>
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
+            <section className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
               <RightAlignedTooltipInput
                 tooltip="Host pastes the guest answer token to finish the WebRTC handshake."
                 value={answerInput}
@@ -420,7 +420,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
               >
                 Connect
               </button>
-            </div>
+            </section>
           </RightAlignedValueCell>
         )}
       />
@@ -437,7 +437,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
           typeNode={renderTypeIcon('collaboration.peer')}
           valueNode={(
             <RightAlignedValueCell>
-              <div className={rowValueClassName}>
+              <section className={rowValueClassName}>
                 <span className={statusButtonClassName}>
                   {peer.isLocal ? 'You' : peer.ownership === 'owner' ? 'Owner' : 'Guest'}
                 </span>
@@ -487,7 +487,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                     ) : null}
                   </>
                 ) : null}
-              </div>
+              </section>
             </RightAlignedValueCell>
           )}
         />
@@ -531,9 +531,9 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
             onToggle={() => toggleSection(section.id)}
             flushTop={shouldFlushKeyTypeValueSectionTop(index)}
           >
-            <div className="space-y-0.5">
+            <section className="space-y-0.5">
               {section.rows}
-            </div>
+            </section>
           </CollapsibleSection>
         ))}
         {!sectionDescriptors.length ? (

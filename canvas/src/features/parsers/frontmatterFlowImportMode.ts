@@ -6,7 +6,6 @@ import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSe
 import type { GraphData } from '@/lib/graph/types'
 import { applyCanvasFrontmatterPreset } from './canvasFrontmatterPreset'
 import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 
 const FRONTMATTER_FLOW_CANVAS_RENDER_MODE = '2d' as const
 const FRONTMATTER_FLOW_CANVAS_2D_RENDERER = 'flowEditor' as const
@@ -48,7 +47,7 @@ export const applyFrontmatterFlowImportModes = (
   }
   const graphKey = buildGraphMetaKeyIgnoringPending(graphData)
   useGraphStore.setState(prev => {
-    if (opts.resetWidgetLayout === false || isWorkspaceGraphMutationBlocked(prev)) return prev
+    if (opts.resetWidgetLayout === false) return prev
     const prevState = prev as unknown as {
       flowWidgetPinnedByNodeId?: Record<string, boolean>
       flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>>

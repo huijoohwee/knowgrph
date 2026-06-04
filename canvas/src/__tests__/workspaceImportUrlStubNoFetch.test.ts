@@ -757,8 +757,8 @@ export async function testWorkspaceImportUrlImportRecoversJsRenderedContentViaDo
     ...Array.from({ length: 24 }, (_, index) => `<script>window.__shell_${index}=true;</script>`),
     '</head>',
     '<body>',
-    '<div class="banner">Get App</div>',
-    '<div id="__next">Loading shared report...</div>',
+    '<section class="banner">Get App</section>',
+    '<section id="__next">Loading shared report...</section>',
     '</body>',
     '</html>',
   ].join('')
@@ -1194,7 +1194,7 @@ export async function testWorkspaceImportUrlImportRetriesScriptEnabledHtmlProbeW
           '<!doctype html>',
           '<html>',
           '<head><title>Claude Chat Export</title></head>',
-          '<body><div id="root"></div></body>',
+          '<body><section id="root"></section></body>',
           '</html>',
         ].join(''),
         title: 'Claude Chat Export',
@@ -1470,7 +1470,7 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
     '</html>',
   ].join('')
   const recoveredThinkingHtml = [
-    '<div class="wk-main-content">',
+    '<section class="wk-main-content">',
     '<blockquote><p>The user wants me to compare the current report against the Goldman Sachs and UBS baselines.</p></blockquote>',
     '<ol>',
     '<li>Analyze recent oil market reports from major institutions like Goldman Sachs and UBS</li>',
@@ -1482,7 +1482,7 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
     '<table><thead><tr><th>Institution</th><th>Price</th></tr></thead><tbody><tr><td>Goldman</td><td>$85/bbl</td></tr></tbody></table>',
     '<pre><code class="language-python">print("Brent", 85)</code></pre>',
     '<p>Inline math $x+y$ stays visible.</p>',
-    '</div>',
+    '</section>',
   ].join('')
   const proxyCalls: string[] = []
   const domCalls: Array<{ mode: string; clickTextHints: string[]; textCaptureTarget: string }> = []
@@ -1563,18 +1563,18 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryDoesNotUseWho
     '<main>',
     '<p>Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.</p>',
     '<h2>Show thinking trajectory</h2>',
-    '<div>The user wants me to:</div>',
+    '<section>The user wants me to:</section>',
     '<h2>Summary</h2>',
     '<h3>1. Shared logical blind spot in recent Goldman Sachs & UBS oil reports</h3>',
     '</main>',
     '</body></html>',
   ].join('')
   const recoveredHtml = [
-    '<div class="report-container">',
+    '<section class="report-container">',
     '<h2>Summary</h2>',
     '<h3>1. Shared logical blind spot in recent Goldman Sachs & UBS oil reports</h3>',
     '<p>This belongs to the main report, not the thinking trajectory.</p>',
-    '</div>',
+    '</section>',
   ].join('')
   const renderedThinkingText = [
     'The user wants me to:',
@@ -1673,8 +1673,8 @@ export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(
     'inline \\`code\\` and \\*emphasis\\*',
     '- The user wants me to: 1. Analyze reports 2. Identify a blind spot 3. Re-simulate prices',
     'Goldman Sachs: - Focuses on supply shocks - Assumes demand stays resilient',
-    '<div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Found 9 results</span></div></div>',
-    '- <div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Run Code</span></div></div>',
+    '<section class="flex items-center gap-2"><section></section><section><span class="text-p text-secondary">Found 9 results</span></section></section>',
+    '- <section class="flex items-center gap-2"><section></section><section><span class="text-p text-secondary">Run Code</span></section></section>',
     '```python',
     '- import numpy as np',
     'print("ok")',
@@ -1696,7 +1696,7 @@ export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(
   if (!restored.includes('Goldman Sachs:\n- Focuses on supply shocks\n- Assumes demand stays resilient')) {
     throw new Error(`expected inline bullet transcript markers to expand into markdown bullet lines, got:\n${restored}`)
   }
-  if (!restored.includes('Found 9 results') || restored.includes('<div class=')) {
+  if (!restored.includes('Found 9 results') || restored.includes('<section class=')) {
     throw new Error(`expected generic html wrappers to collapse to visible text, got:\n${restored}`)
   }
   if (!restored.includes('- Run Code')) throw new Error(`expected list-prefixed html wrappers to preserve the list marker, got:\n${restored}`)
@@ -1718,8 +1718,8 @@ export async function testWorkspaceImportUrlShareArtifactPersistNormalizesThinki
       importedName: 'c753877f-7480-4e76-bf75-89fe18358943.md',
       importedText: '# Summary\n',
       importedThinkingText: [
-        '<div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Found 6 results</span></div></div>',
-        '- <div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Run Code</span></div></div>',
+        '<section class="flex items-center gap-2"><section></section><section><span class="text-p text-secondary">Found 6 results</span></section></section>',
+        '- <section class="flex items-center gap-2"><section></section><section><span class="text-p text-secondary">Run Code</span></section></section>',
         '```python',
         '- import numpy as np',
         '```',
@@ -1729,7 +1729,7 @@ export async function testWorkspaceImportUrlShareArtifactPersistNormalizesThinki
     })
     if (!persisted) throw new Error('expected eligible share url to persist markdown artifacts')
     const thinkingText = String(await fs.readFileText(persisted.exportThinkingPath || '') || '')
-    if (thinkingText.includes('<div class=')) {
+    if (thinkingText.includes('<section class=')) {
       throw new Error(`expected persisted thinking markdown to drop raw html wrappers, got:\n${thinkingText}`)
     }
     if (!thinkingText.includes('Found 6 results')) {

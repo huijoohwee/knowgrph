@@ -50,7 +50,6 @@ export const createUiSettingsModeActions = (
 )=> ({
   setBottomSurfaceHeightRatio: (v: number) => set({ bottomSurfaceHeightRatio: v }),
   setFloatingPanelWidthRatio: (v: number) => set({ floatingPanelWidthRatio: v }),
-  setFloatingPanelHeightRatio: (v: number) => set({ floatingPanelHeightRatio: v }),
   setFloatingPanelZIndex: (v: number) => set({ floatingPanelZIndex: v }),
   setBottomSurfaceTab: (tab: BottomSurfaceTab) => set({ bottomSurfaceTab: tab }),
   setFrontmatterModeEnabled: (v: boolean) => {

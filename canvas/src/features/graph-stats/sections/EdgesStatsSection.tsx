@@ -72,54 +72,54 @@ export default function EdgesStatsSection({
       title={semanticMode === 'keyword' ? UI_COPY.statsEdgesKeywordSectionTitle : UI_COPY.statsEdgesSectionTitle}
     >
       {selectedEdge ? (
-        <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-          <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
+        <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+          <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
             Selected edge
-          </div>
-          <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1', UI_THEME_TOKENS.text.secondary].join(' ')}>
+          </section>
+          <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1', UI_THEME_TOKENS.text.secondary].join(' ')}>
             id: <span className={uiPanelMonospaceTextClass}>{String(selectedEdge.id)}</span> · label:{' '}
             <span className={uiPanelMonospaceTextClass}>{getEdgeLabelForDisplay(selectedEdge) || ''}</span>
-          </div>
-          <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'mt-2 grid grid-cols-2 gap-2', UI_THEME_TOKENS.text.primary].join(' ')}>
-            <div className="flex flex-col">
+          </section>
+          <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'mt-2 grid grid-cols-2 gap-2', UI_THEME_TOKENS.text.primary].join(' ')}>
+            <section className="flex flex-col">
               <span className={['uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                 {similarityMetricLabel} weight
               </span>
               <span className="font-semibold">{formatNumber(getEdgeWeightForStats(selectedEdge))}</span>
-            </div>
-            <div className="flex flex-col">
+            </section>
+            <section className="flex flex-col">
               <span className={['uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                 Co-occurrence
               </span>
               <span className="font-semibold">{String(getEdgeCooccurrenceForStats(selectedEdge))}</span>
-            </div>
-            <div className="flex flex-col">
+            </section>
+            <section className="flex flex-col">
               <span className={['uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                 Source
               </span>
               <span className={uiPanelMonospaceTextClass}>{String(selectedEdge.source ?? '')}</span>
-            </div>
-            <div className="flex flex-col">
+            </section>
+            <section className="flex flex-col">
               <span className={['uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                 Target
               </span>
               <span className={uiPanelMonospaceTextClass}>{String(selectedEdge.target ?? '')}</span>
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
       ) : (
-        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {UI_COPY.statsSelectEdgeToSeeValuesLabel}
-        </div>
+        </section>
       )}
 
       {topSemanticEdges.length > 0 && (
-        <div className={`mt-2 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1">
-              <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
+        <section className={`mt-2 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+          <section className="flex items-center justify-between gap-3">
+            <section className="flex items-center gap-1">
+              <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
                 {semanticMode === 'keyword' ? `Relationship edges (${similarityMetricLabel})` : `Top semantic edges (${similarityMetricLabel})`}
-              </div>
+              </section>
               <IconButton
                 className="App-toolbar__btn"
                 title={UI_COPY.statsOpenRendererSettingsForSemanticEdgesTitle}
@@ -128,7 +128,7 @@ export default function EdgesStatsSection({
               >
                 <SlidersHorizontal className="w-3 h-3" />
               </IconButton>
-            </div>
+            </section>
             <button
               type="button"
               className={[
@@ -142,9 +142,9 @@ export default function EdgesStatsSection({
             >
               {chartCollapsed ? UI_COPY.statsShowChartLabel : UI_COPY.statsHideChartLabel}
             </button>
-          </div>
+          </section>
           {!chartCollapsed && (
-            <div
+            <section
               onClickCapture={(e) => {
                 const target = e.target as HTMLElement | null
                 const tag = target && typeof target.tagName === 'string' ? target.tagName.toLowerCase() : ''
@@ -191,13 +191,13 @@ export default function EdgesStatsSection({
                   }
                 })}
               />
-            </div>
+            </section>
           )}
           {selectedEdgeTokenCounts && selectedEdgeTokenCounts.length > 0 && (
-            <div className="mt-2">
-              <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
+            <section className="mt-2">
+              <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
                 Top tokens (edge endpoints)
-              </div>
+              </section>
               <AutoHeightMiniBarChart
                 containerClassName="mt-1 overflow-x-auto h-16"
                 minHeight={64}
@@ -210,12 +210,12 @@ export default function EdgesStatsSection({
                   label: `${t.token} • ${t.count}`,
                 }))}
               />
-            </div>
+            </section>
           )}
-          <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1', UI_THEME_TOKENS.text.tertiary].join(' ')}>
+          <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1', UI_THEME_TOKENS.text.tertiary].join(' ')}>
             {UI_COPY.statsBarHeightSimilarityWeightHint(similarityMetricLabel)}
-          </div>
-        </div>
+          </section>
+        </section>
       )}
     </CollapsibleSection>
   )

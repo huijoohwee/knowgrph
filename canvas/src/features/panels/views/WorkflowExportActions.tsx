@@ -178,7 +178,7 @@ export default function WorkflowExportActions({
   }
   return (
     <>
-      <div className="flex items-center gap-2 mb-2">
+      <section className="flex items-center gap-2 mb-2">
         <button
           type="button"
           className={neutralActionButtonClassName}
@@ -186,21 +186,21 @@ export default function WorkflowExportActions({
         >
           Export All
         </button>
-        <div className="ml-auto">
+        <section className="ml-auto">
           <StatusBadge
             label="Export"
             ok={exportedThisSession ? true : null}
             msg={exportedThisSession && exportedAt ? `Exported at ${exportedAt}` : ''}
             below
           />
-        </div>
-      </div>
+        </section>
+      </section>
       {graphHeading && (
-        <div className={`${secondaryTextClassName} mb-1`}>
+        <section className={`${secondaryTextClassName} mb-1`}>
           {graphHeading}
-        </div>
+        </section>
       )}
-      <div className="flex flex-wrap items-center gap-2 mb-2">
+      <section className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
           className={neutralActionButtonClassName}
@@ -236,8 +236,8 @@ export default function WorkflowExportActions({
         >
           Export Graph Cypher
         </button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 mb-2">
+      </section>
+      <section className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
           className={neutralActionButtonClassName}
@@ -277,8 +277,8 @@ export default function WorkflowExportActions({
             Export Parsers
           </button>
         )}
-      </div>
-      <div className="flex flex-wrap items-center gap-2 mb-2">
+      </section>
+      <section className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
           className={neutralActionButtonClassName}
@@ -312,7 +312,7 @@ export default function WorkflowExportActions({
           </button>
         ) : null}
         {onExportHtmlCanvas ? (
-          <div className="w-full flex flex-wrap items-center gap-2">
+          <section className="w-full flex flex-wrap items-center gap-2">
             <button
               type="button"
               className={neutralActionButtonClassName}
@@ -362,7 +362,7 @@ export default function WorkflowExportActions({
                 Folder picker not supported; use “Set Publish File” or save via download.
               </span>
             ) : null}
-          </div>
+          </section>
         ) : null}
         <button
           type="button"
@@ -378,8 +378,8 @@ export default function WorkflowExportActions({
         >
           Copy Graph JSON
         </button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 mb-1">
+      </section>
+      <section className="flex flex-wrap items-center gap-2 mb-1">
         <button
           type="button"
           className={neutralActionButtonDisabledClassName}
@@ -420,18 +420,18 @@ export default function WorkflowExportActions({
         >
           Export Selection Cypher
         </button>
-      </div>
+      </section>
       {selectionSummary && (
-        <div className={`${tertiaryTextClassName} mb-2`}>
+        <section className={`${tertiaryTextClassName} mb-2`}>
           {selectionSummary}
-        </div>
+        </section>
       )}
       {schemaHeading && (
-        <div className={`${secondaryTextClassName} mb-1`}>
+        <section className={`${secondaryTextClassName} mb-1`}>
           {schemaHeading}
-        </div>
+        </section>
       )}
-      <div className="flex flex-wrap items-center gap-2 mb-2">
+      <section className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
           className={neutralActionButtonClassName}
@@ -471,8 +471,8 @@ export default function WorkflowExportActions({
             Copy Schema JSON
           </button>
         )}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
+      </section>
+      <section className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           className={neutralActionButtonClassName}
@@ -503,7 +503,7 @@ export default function WorkflowExportActions({
         >
           Export Selection Validation Markdown
         </button>
-      </div>
+      </section>
     </>
   )
 }

@@ -25,7 +25,7 @@ const clickToEdit = async (host: HTMLElement, dom: ReturnType<typeof initJsdomHa
 }
 
 export async function testMarkdownViewerInlineEditHeadingAndParagraphDoNotDriftRightward() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -35,7 +35,7 @@ export async function testMarkdownViewerInlineEditHeadingAndParagraphDoNotDriftR
     const MarkdownBlockContainer = mod.MarkdownBlockContainer
 
     root.render(
-      <div>
+      <section>
         <MarkdownBlockContainer
           as="h2"
           className={`mt-2 mb-2 ${UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME} pr-2 font-semibold text-xl`}
@@ -69,7 +69,7 @@ export async function testMarkdownViewerInlineEditHeadingAndParagraphDoNotDriftR
         >
           <span>Normal paragraph line</span>
         </MarkdownBlockContainer>
-      </div>,
+      </section>,
     )
 
     await tick()

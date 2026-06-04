@@ -46,7 +46,7 @@ export default function ThreeViewTuningSection({
   )
 
   return (
-    <div>
+    <section>
       <ThreeViewLinksSection
         schema={schema}
         setThreeConfig={setThreeConfig}
@@ -91,6 +91,6 @@ export default function ThreeViewTuningSection({
         collapsed={selectionCollapsed}
         onToggle={next => onToggleThreeGroup && onToggleThreeGroup('selection', next)}
       />
-    </div>
+    </section>
   )
 }

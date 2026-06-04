@@ -49,6 +49,22 @@ export function testTextWidgetOutputSrcDocEscapesRawHtmlWhileRenderingMarkdown()
   if (!srcDoc.includes('<table>')) throw new Error('expected markdown table to render in text widget srcDoc')
 }
 
+export function testMarkdownViewerDocumentNormalizesGenericDivContainers() {
+  const srcDoc = buildTextWidgetOutputSrcDoc({
+    title: 'Semantic HTML guard',
+    text: ['A generic HTML division element should stay readable as text:', '', '<section><span>Plain text</span></section>'].join('\n'),
+  })
+  if (/<section\b|<\/div>/i.test(srcDoc)) {
+    throw new Error(`expected generated markdown viewer srcDoc to avoid generic HTML division element tags, got: ${srcDoc}`)
+  }
+  if (!srcDoc.includes('&lt;div&gt;')) {
+    throw new Error('expected raw markdown div text to remain escaped and visible')
+  }
+  if (!srcDoc.includes('<main>') || !srcDoc.includes('<section data-kg-rich-media-markdown-srcdoc="1">')) {
+    throw new Error('expected generated markdown viewer srcDoc to use semantic main/section containers')
+  }
+}
+
 export function testRichMediaMediaAliasesHaveSingleSharedOwner() {
   const root = process.cwd()
   const owner = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'graph-elements', 'mediaProperties.ts'), 'utf8')

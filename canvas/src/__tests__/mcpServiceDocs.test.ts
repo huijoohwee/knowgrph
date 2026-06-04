@@ -18,8 +18,8 @@ export function testMcpServiceDocsUseImplementedBaselineContract(): void {
   const required = [
     'id: md:knowgrph-mcp-service-prd-tad',
     'status: accepted-implemented-baseline',
-    'version: 0.4.15',
-    '**Document Version**: 0.4.15',
+    'version: 0.4.21',
+    '**Document Version**: 0.4.21',
     '| Remote Worker MCP gateway / pipeline platform | Planned extension | none in repo yet | must not be described as implemented |',
     '| Remote Worker MCP platform | Planned extension | none in repo yet | must not be documented as implemented |',
     'mcp/server.js',

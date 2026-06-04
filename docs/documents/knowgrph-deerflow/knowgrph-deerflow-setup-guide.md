@@ -9,8 +9,9 @@
 
 ## Document Purpose
 
-**Context**: DeerFlow is a super-agent harness that orchestrates rich media content generation (text, image, video) through research, skills, and sandbox execution. Knowgrph Canvas Flow Editor delegates generation to DeerFlow's agent runtime instead of calling provider APIs directly.
-**Intent**: Provide a step-by-step guide to go from zero to a working DeerFlow-powered rich media generation pipeline on Canvas, covering both Dev (local Vite) and Prod (Cloudflare Pages) environments.
+**Context**: DeerFlow is an optional local gateway and conceptual SuperAgent reference. Knowgrph's native long-horizon harness is source-owned in `docs/documents/knowgrph-superagent-harness.md` and `knowgrph_parser/*`; Canvas Flow Editor still consumes provider-neutral graph/media fields through existing widget, chat, and rich-media owners.
+**Intent**: Provide a step-by-step guide to go from zero to a working optional DeerFlow provider path on Canvas, covering Dev (local Vite) and opt-in Prod/Cloudflare Tunnel environments without making DeerFlow a required runtime.
+**Copy boundary**: Use DeerFlow only as conceptual inspiration for message gateway, memory, tools, skills, subagents, sandboxed workspace execution, and long-horizon run management. Do not copy DeerFlow code, clone its architecture, or introduce a DeerFlow-only parser, renderer, memory stack, or graph apply path.
 **Directive**: All configuration is declarative and fixture-driven; no hardcoded paths or provider constants in source.
 
 ---
@@ -33,7 +34,11 @@ DeerFlow is a **first-class optional provider**, not a required dependency. Know
 | `npm run dev:all` | Full (prints warning, skips DeerFlow) | Full |
 | Prod (`airvio.co`) | Full | Full |
 
-Knowgrph's default experience is **OpenAI-powered**. DeerFlow only activates when explicitly selected as `chatProvider = 'deerflow'` in Integrations settings. No DeerFlow gateway running = no impact on any other feature. The `dev:all` script gracefully skips DeerFlow startup if the repo is not found.
+Knowgrph's default experience remains provider-neutral. DeerFlow only activates when explicitly selected as `chatProvider = 'deerflow'` in Integrations settings. No DeerFlow gateway running = no impact on any other feature. The `dev:all` script gracefully skips DeerFlow startup if the repo is not found.
+
+The native Knowgrph SuperAgent harness can still run locally through
+`python3 -m knowgrph_parser superagent`, `npm run goal:run`, or the local MCP
+tool `knowgrph.superagent.run` without a DeerFlow gateway.
 
 ---
 
@@ -561,16 +566,19 @@ Run all nodes in sequence:
 
 The DAG topology ensures correct execution order: text feeds image, image feeds video.
 
-### 6.2 Multi-Locale Parallel Execution (DeerFlow Agent)
+### 6.2 Multi-Locale Parallel Execution (Optional DeerFlow Gateway)
 
-When DeerFlow's agent runtime is fully wired, all three locales (US Wild West, Caribbean Tempest, SG RoboTown) execute concurrently via sub-agents:
+When an operator opts into DeerFlow gateway support for rich-media generation, parallel locale lanes remain Knowgrph-authored Flow Editor branches and DeerFlow stays provider-side. Native long-horizon coordination belongs to the Knowgrph SuperAgent harness; this setup guide does not make DeerFlow a parser, renderer, memory, or graph-apply owner.
 
 ```mermaid
 flowchart TD
-    BRIEF["Markdown Brief"] --> AGENT["DeerFlow Lead Agent"]
-    AGENT -->|"sub-agent 1"| US["US Wild West\nresearch -> prompt -> image -> video"]
-    AGENT -->|"sub-agent 2"| CAR["Caribbean Tempest\nresearch -> prompt -> image -> video"]
-    AGENT -->|"sub-agent 3"| SG["SG RoboTown\nresearch -> prompt -> image -> video"]
+    BRIEF["Markdown Brief"] --> HARNESS["Knowgrph SuperAgent Harness"]
+    HARNESS -->|"locale lane 1"| US["US Wild West\nresearch -> prompt -> image -> video"]
+    HARNESS -->|"locale lane 2"| CAR["Caribbean Tempest\nresearch -> prompt -> image -> video"]
+    HARNESS -->|"locale lane 3"| SG["SG RoboTown\nresearch -> prompt -> image -> video"]
+    US --> GATEWAY["Optional DeerFlow Gateway"]
+    CAR --> GATEWAY
+    SG --> GATEWAY
     US --> ART["Artifact Normalizer"]
     CAR --> ART
     SG --> ART

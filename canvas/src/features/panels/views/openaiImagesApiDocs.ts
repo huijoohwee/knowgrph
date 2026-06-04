@@ -30,6 +30,7 @@ export const OPENAI_IMAGES_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSetting
       type: toBaseType(row.typeLabel),
       source: 'backendEnv',
       read: () => row.value,
+      ...(row.options ? { options: [...row.options] } : {}),
     },
     value: row.value,
     valueKey: row.valueKey,

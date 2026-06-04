@@ -42,7 +42,7 @@ export const MarkdownFrontmatterPreviewBlocks = React.memo(function MarkdownFron
     <section className={`${widthWrapperClassName} mb-8`}>
       {yaml && frontmatterPreviewTable ? (
         <section data-kg-frontmatter-properties className="mb-4">
-          <div
+          <section
             onClickCapture={(event) => {
               const target = event.target as HTMLElement | null
               if (!target) return
@@ -61,7 +61,7 @@ export const MarkdownFrontmatterPreviewBlocks = React.memo(function MarkdownFron
               canConfigure={false}
               onUpdateCell={() => {}}
             />
-          </div>
+          </section>
         </section>
       ) : null}
       {mermaid ? (

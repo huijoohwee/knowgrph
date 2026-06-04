@@ -13,7 +13,7 @@ interface SearchPanelProps {
   onClose?: () => void
 }
 
-const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, ref) => {
+const SearchPanel = forwardRef<HTMLElement, SearchPanelProps>(({ onClose }, ref) => {
   const { graphData, graphDataRevision, selectNode, selectEdge, setSelectionSource, graphId, historyIndex } = useGraphStore()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
@@ -35,7 +35,7 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
   }, [onClose, selectEdge, selectNode, setSelectionSource])
 
   return (
-    <div
+    <section
       ref={ref}
       className={`${UI_RESPONSIVE_WIDE_TOOLBAR_DROPDOWN_PANEL_CLASSNAME} mt-1 rounded border border-[color:var(--kg-border)] bg-[var(--kg-panel-bg)] shadow p-1`}
       data-kg-anchor={UI_ANCHORS.searchPanel}
@@ -60,7 +60,7 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
         }}
         autoFocus
       />
-    </div>
+    </section>
   )
 })
 

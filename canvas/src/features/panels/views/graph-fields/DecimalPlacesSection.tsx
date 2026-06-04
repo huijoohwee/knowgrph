@@ -21,8 +21,8 @@ export function DecimalPlacesSection({
   const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
   const selectClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
-    <div className={panelClassName}>
-      <div className="flex items-center justify-between">
+    <section className={panelClassName}>
+      <section className="flex items-center justify-between">
         <span className={labelClassName}>Decimal places</span>
         <select
           value={String(selectedSettings.decimalPlaces)}
@@ -35,7 +35,7 @@ export function DecimalPlacesSection({
             </option>
           ))}
         </select>
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

@@ -8,12 +8,23 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { callBrowserApiRuntime } from "./browser-api-runtime.js";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "./local-tool-contract.js";
+import {
+  buildKnowgrphAgentReadyPromptContracts,
+  getKnowgrphAgentReadyPrompt,
+} from "../canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs";
+import { buildKnowgrphAgentReadyResourceTemplateContracts, buildKnowgrphSourceFileResourceReadResult, parseKnowgrphSourceFileResourceUri } from "../canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs";
+import { SITE_ORIGIN } from "../cloudflare/pages/knowgrph-agent-ready-shared.mjs";
+import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID } from "../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
+import { createPublishedAgentReadyToolExecutors } from "../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
 import {
   buildKnowgrphVdeoxplnMarkdown,
   buildKnowgrphVdeoxplnRegistry,
@@ -32,6 +43,14 @@ const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000
 
 const KNOWGRPH_ROOT = resolveRootDir();
 const PYTHON_BIN = process.env.KNOWGRPH_PYTHON?.trim() || "python3";
+const LOCAL_MCP_STORAGE_BASE_URL = (
+  process.env.KNOWGRPH_MCP_STORAGE_BASE_URL?.trim()
+  || process.env.KNOWGRPH_STORAGE_BASE_URL?.trim()
+  || SITE_ORIGIN
+).replace(/\/+$/, "");
+const LOCAL_MCP_DEFAULT_WORKSPACE_ID =
+  process.env.KNOWGRPH_MCP_DEFAULT_WORKSPACE_ID?.trim()
+  || KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID;
 const ALLOW_EXTERNAL_PATHS =
   (process.env.KNOWGRPH_ALLOW_EXTERNAL_PATHS || "").trim().toLowerCase() === "1";
 const DEFAULT_UI_HOST = process.env.KNOWGRPH_UI_HOST?.trim() || "127.0.0.1";
@@ -39,6 +58,21 @@ const DEFAULT_UI_PORT = Number(process.env.KNOWGRPH_UI_PORT?.trim() || "5173");
 const LOCAL_MCP_TOOLS = buildKnowgrphLocalMcpToolDefinitions({
   defaultUiHost: DEFAULT_UI_HOST,
   defaultUiPort: DEFAULT_UI_PORT,
+});
+const LOCAL_MCP_PROMPTS = buildKnowgrphAgentReadyPromptContracts();
+const LOCAL_MCP_RESOURCE_TEMPLATES = buildKnowgrphAgentReadyResourceTemplateContracts();
+const LOCAL_PUBLISHED_SOURCE_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors({
+  toolNames: {
+    search: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search,
+    fetch: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch,
+  },
+  defaultWorkspaceId: LOCAL_MCP_DEFAULT_WORKSPACE_ID,
+  publicBaseUrl: LOCAL_MCP_STORAGE_BASE_URL,
+  buildStorageDocPath: buildPublishedStorageDocPath,
+  fetchSourceFilesIndexResponse: () =>
+    fetchPublishedStoragePath(buildPublishedStorageSourceFilesIndexPath()),
+  fetchStorageMarkdownResponse: (storagePath) =>
+    fetchPublishedStoragePath(storagePath),
 });
 
 /** @type {null | { pid: number, host: string, port: number, startedAtMs: number }} */
@@ -106,6 +140,24 @@ function buildCanvasUrl({ host, port, target }) {
   const t = UI_TARGETS[target] || UI_TARGETS.canvas;
   if (!t.query) return base;
   return `${base}?${t.query}`;
+}
+
+function buildPublishedStorageDocPath(canonicalPath, workspaceId = "") {
+  const normalizedWorkspaceId = String(workspaceId || "").trim();
+  const normalizedCanonicalPath = String(canonicalPath || "").trim();
+  return normalizedWorkspaceId
+    ? `/api/storage/doc/${encodeURIComponent(normalizedWorkspaceId)}/${encodeURIComponent(normalizedCanonicalPath)}`
+    : `/api/storage/doc-default/${encodeURIComponent(normalizedCanonicalPath)}`;
+}
+
+function buildPublishedStorageSourceFilesIndexPath() {
+  return "/api/storage/source-files";
+}
+
+function fetchPublishedStoragePath(storagePath) {
+  return fetch(`${LOCAL_MCP_STORAGE_BASE_URL}${storagePath}`, {
+    headers: { accept: "text/markdown" },
+  });
 }
 
 function waitForTcpPort({ host, port, timeoutMs = 8000 }) {
@@ -241,34 +293,37 @@ const server = new Server(
     capabilities: {
       tools: {},
       resources: {},
+      prompts: {
+        listChanged: false,
+      },
       ...buildKnowgrphMcpAppsCapabilities(),
     },
   }
 );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: LOCAL_MCP_TOOLS,
-  };
-});
+server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: LOCAL_MCP_TOOLS }));
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: [LOCAL_MCP_APP_RESOURCE] }));
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: LOCAL_MCP_RESOURCE_TEMPLATES }));
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({ prompts: LOCAL_MCP_PROMPTS }));
 
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  return {
-    resources: [LOCAL_MCP_APP_RESOURCE],
-  };
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  return getKnowgrphAgentReadyPrompt(request.params?.name, request.params?.arguments || {});
 });
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const uri = String(request.params?.uri || "").trim();
-  if (uri !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
-    throw new Error(`Unknown resource: ${uri}`);
+  if (uri === KNOWGRPH_MCP_APP_RESOURCE_URI) {
+    return buildKnowgrphMcpAppsResourceReadResult({
+      appUrl: LOCAL_MCP_APP_URL,
+      updatedAt: "local",
+      toolName: LOCAL_MCP_APP_TOOL_NAME,
+      toolNames: LOCAL_MCP_TOOLS.map((tool) => tool.name),
+    });
   }
-  return buildKnowgrphMcpAppsResourceReadResult({
-    appUrl: LOCAL_MCP_APP_URL,
-    updatedAt: "local",
-    toolName: LOCAL_MCP_APP_TOOL_NAME,
-    toolNames: LOCAL_MCP_TOOLS.map((tool) => tool.name),
-  });
+  const sourceFileId = parseKnowgrphSourceFileResourceUri(uri);
+  if (!sourceFileId) throw new Error(`Unknown resource: ${uri}`);
+  const sourceFile = await LOCAL_PUBLISHED_SOURCE_TOOL_EXECUTORS[KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch]({ id: sourceFileId });
+  return buildKnowgrphSourceFileResourceReadResult({ uri, sourceFile });
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -422,6 +477,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (typeof args.runId === "string" && args.runId.trim()) {
         cmdArgs.push("--run-id", args.runId.trim());
       }
+      if (typeof args.providerMode === "string" && args.providerMode.trim()) {
+        const providerMode = args.providerMode.trim();
+        if (!["mock", "pixverse"].includes(providerMode)) {
+          throw new Error("providerMode must be mock or pixverse.");
+        }
+        cmdArgs.push("--provider-mode", providerMode);
+      }
       if (typeof args.stopAfterStep === "number" && Number.isFinite(args.stopAfterStep)) {
         cmdArgs.push("--stop-after-step", String(Math.max(0, Math.floor(args.stopAfterStep))));
       }
@@ -448,6 +510,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun) {
       return await callBrowserApiRuntime(args, { maxOutputChars: MAX_OUTPUT_CHARS });
+    }
+
+    if (
+      toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search
+      || toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch
+    ) {
+      const execute = LOCAL_PUBLISHED_SOURCE_TOOL_EXECUTORS[toolName];
+      if (typeof execute !== "function") {
+        throw new Error(`Missing local published Source Files executor: ${toolName}`);
+      }
+      const payload = await execute(args);
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+        structuredContent: payload,
+        isError: false,
+      };
     }
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList) {
@@ -505,25 +583,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw new Error(`Unknown tool: ${toolName}`);
   } catch (error) {
     return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
+      content: [{ type: "text", text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
       isError: true,
     };
   }
 });
-
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
 
 main().catch((error) => {
-  // MCP requires that we don't write arbitrary logs to stdout (it breaks JSON-RPC).
-  // stderr is fine.
   process.stderr.write(`knowgrph-mcp: fatal error: ${error instanceof Error ? error.stack : String(error)}\n`);
   process.exit(1);
 });

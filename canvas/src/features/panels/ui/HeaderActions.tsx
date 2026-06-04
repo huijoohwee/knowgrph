@@ -46,7 +46,7 @@ export default function HeaderActions({
   const showCloseButton = typeof onClose === 'function'
 
   return (
-    <div className={`${uiToolbarRowScrollJustifyEndClassName} gap-1`}>
+    <section className={`${uiToolbarRowScrollJustifyEndClassName} gap-1`}>
       {showSearchButton ? (
         <IconButton
           className="App-toolbar__btn"
@@ -112,6 +112,6 @@ export default function HeaderActions({
           <CloseIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         </IconButton>
       ) : null}
-    </div>
+    </section>
   )
 }

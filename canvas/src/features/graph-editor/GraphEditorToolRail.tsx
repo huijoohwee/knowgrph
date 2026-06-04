@@ -42,7 +42,7 @@ export function GraphEditorToolRail(props: {
       className={`rounded-xl border ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border} shadow-sm`}
       aria-label="Graph editor tools"
     >
-      <div className="flex flex-col p-1">
+      <section className="flex flex-col p-1">
         {TOOLS.map(t => {
           const Icon = t.icon
           const isActive = t.id === activeToolId
@@ -61,12 +61,12 @@ export function GraphEditorToolRail(props: {
             </button>
           )
         })}
-      </div>
+      </section>
 
       {pluginTools.length > 0 ? (
         <>
-          <div className={`border-t ${UI_THEME_TOKENS.panel.divider}`} />
-          <div className="flex flex-col p-1">
+          <section className={`border-t ${UI_THEME_TOKENS.panel.divider}`} />
+          <section className="flex flex-col p-1">
             {pluginTools.map(t => {
               const Icon = t.icon
               const isActive = t.id === activeToolId
@@ -87,12 +87,12 @@ export function GraphEditorToolRail(props: {
                 </button>
               )
             })}
-          </div>
+          </section>
         </>
       ) : null}
 
-      <div className={`border-t ${UI_THEME_TOKENS.panel.divider}`} />
-      <div className="flex flex-col p-1">
+      <section className={`border-t ${UI_THEME_TOKENS.panel.divider}`} />
+      <section className="flex flex-col p-1">
         <button
           type="button"
           className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} gap-2 rounded-lg px-2 py-2 text-xs transition ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -117,7 +117,7 @@ export function GraphEditorToolRail(props: {
           <Download className={graphEditorToolRailIconClassName} aria-hidden="true" />
           <span className={`flex-1 text-left ${UI_TEXT_TRUNCATE}`}>Export JSON</span>
         </button>
-      </div>
+      </section>
     </nav>
   )
 }

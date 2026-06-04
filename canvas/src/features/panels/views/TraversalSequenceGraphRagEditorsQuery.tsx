@@ -48,14 +48,14 @@ export function TraversalQueryExampleEditor({
     s => s.uiPanelTextFontClass || 'font-sans',
   )
   return (
-    <div
+    <section
       className={[
         'flex flex-col gap-[2px]',
         uiPanelKeyValueTextSizeClass,
         uiPanelTextFontClass,
       ].join(' ')}
     >
-      <div className="flex items-center gap-1">
+      <section className="flex items-center gap-1">
         <span className="font-semibold">{UI_COPY.orchestratorTraversalQueryLabel}</span>
         {editingQuery ? (
           <>
@@ -158,8 +158,8 @@ export function TraversalQueryExampleEditor({
             </button>
           </>
         )}
-      </div>
-      <div className="flex items-center gap-1">
+      </section>
+      <section className="flex items-center gap-1">
         <span className="font-semibold">{UI_COPY.orchestratorTraversalExampleLabel}</span>
         {editingExample ? (
           <>
@@ -262,8 +262,8 @@ export function TraversalQueryExampleEditor({
             </button>
           </>
         )}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 
@@ -292,14 +292,14 @@ export function AddHopInputs({
   )
   if (lastTraversal.mode !== 'graphRag') return null
   return (
-    <div
+    <section
       className={[
         'flex flex-col gap-1 mt-1',
         uiPanelKeyValueTextSizeClass,
         uiPanelTextFontClass,
       ].join(' ')}
     >
-      <div className="flex items-center gap-1">
+      <section className="flex items-center gap-1">
         <PlainTextInputEditor
           value={newHopText}
           onChange={setNewHopText}
@@ -325,8 +325,8 @@ export function AddHopInputs({
         >
           {UI_COPY.orchestratorTraversalAddHopButtonLabel}
         </button>
-      </div>
-      <div className="flex items-center gap-1">
+      </section>
+      <section className="flex items-center gap-1">
         <PlainTextInputEditor
           value={newMultiHopText}
           onChange={setNewMultiHopText}
@@ -352,7 +352,7 @@ export function AddHopInputs({
         >
           {UI_COPY.orchestratorTraversalAddMultiHopButtonLabel}
         </button>
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

@@ -24,7 +24,7 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
   const dragSchedulerRef = React.useRef(createRafValueScheduler((pos: Point) => setDragPos(pos)))
   const highlightRef = React.useRef<HTMLElement | null>(null)
   const observerRef = React.useRef<MutationObserver | null>(null)
-  const cardRef = React.useRef<HTMLDivElement | null>(null)
+  const cardRef = React.useRef<HTMLElement | null>(null)
 
   const clearObserver = React.useCallback(() => {
     const existing = observerRef.current
@@ -115,7 +115,7 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
     }
   }, [enabled, dismissed, ready, selector, updateAnchor, clearObserver])
 
-  const handleCardPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const handleCardPointerDown = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
     const target = event.target as HTMLElement | null
     if (target) {

@@ -117,7 +117,7 @@ export default function DatasetInspectorSection({
   }, [hasSelectionSubgraph, selectionSubgraph])
 
   const titleContent = (
-    <div className="flex flex-col">
+    <section className="flex flex-col">
       <span className="inline-flex items-center gap-2">
         {copy.badge && (
           <span
@@ -145,7 +145,7 @@ export default function DatasetInspectorSection({
           {copy.descriptionShort}
         </span>
       )}
-    </div>
+    </section>
   )
 
   return (
@@ -166,16 +166,16 @@ export default function DatasetInspectorSection({
       onToggle={onToggle}
     >
       {datasetStats.nodeCount === 0 && datasetStats.edgeCount === 0 ? (
-        <div
+        <section
           className={[
             uiPanelMicroLabelTextSizeClass,
             UI_THEME_TOKENS.text.secondary,
           ].join(' ')}
         >
           {DATASET_EMPTY_TEXT}
-        </div>
+        </section>
       ) : (
-        <div
+        <section
           className={[
             'grid grid-cols-3 gap-2',
             UI_THEME_TOKENS.text.primary,
@@ -183,19 +183,19 @@ export default function DatasetInspectorSection({
             uiPanelTextFontClass,
           ].join(' ')}
         >
-          <div className="flex flex-col">
+          <section className="flex flex-col">
             <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Nodes</span>
             <span className="font-semibold">{String(datasetStats.nodeCount)}</span>
-          </div>
-          <div className="flex flex-col">
+          </section>
+          <section className="flex flex-col">
             <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Edges</span>
             <span className="font-semibold">{String(datasetStats.edgeCount)}</span>
-          </div>
-          <div className="flex flex-col">
+          </section>
+          <section className="flex flex-col">
             <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Distinct relationships</span>
             <span className="font-semibold">{String(datasetStats.distinctTriples)}</span>
-          </div>
-        </div>
+          </section>
+        </section>
       )}
       {effectiveGraph &&
         Array.isArray(effectiveGraph.nodes) &&
@@ -203,8 +203,8 @@ export default function DatasetInspectorSection({
         effectiveGraph.nodes.length > 0 && (
           <>
             {hasSelectionSubgraph && selectionSummary && (
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <div
+              <section className="mt-2 flex items-center justify-between gap-2">
+                <section
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
@@ -212,8 +212,8 @@ export default function DatasetInspectorSection({
                   ].join(' ')}
                 >
                   {selectionSummary}
-                </div>
-                <div className={datasetToggleShellClassName}>
+                </section>
+                <section className={datasetToggleShellClassName}>
                   <button
                     type="button"
                     className={[
@@ -250,11 +250,11 @@ export default function DatasetInspectorSection({
                   >
                     Selection
                   </button>
-                </div>
-              </div>
+                </section>
+              </section>
             )}
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
+            <section className="mt-2 grid grid-cols-2 gap-2">
+              <section className="flex flex-col gap-1">
                 <span
                   className={[
                     uiPanelMicroLabelTextSizeClass,
@@ -265,8 +265,8 @@ export default function DatasetInspectorSection({
                   Node type distribution
                 </span>
                 <DatasetDistributionViz graph={effectiveGraph} />
-              </div>
-              <div className="flex flex-col gap-1">
+              </section>
+              <section className="flex flex-col gap-1">
                 <span
                   className={[
                     uiPanelMicroLabelTextSizeClass,
@@ -277,8 +277,8 @@ export default function DatasetInspectorSection({
                   Type/label hierarchy
                 </span>
                 <DatasetHierarchyViz graph={effectiveGraph} />
-              </div>
-              <div className="flex flex-col gap-1">
+              </section>
+              <section className="flex flex-col gap-1">
                 <span
                   className={[
                     uiPanelMicroLabelTextSizeClass,
@@ -289,8 +289,8 @@ export default function DatasetInspectorSection({
                   Degree outline (nodes)
                 </span>
                 <DatasetPolygonViz graph={effectiveGraph} />
-              </div>
-              <div className="flex flex-col gap-1">
+              </section>
+              <section className="flex flex-col gap-1">
                 <span
                   className={[
                     uiPanelMicroLabelTextSizeClass,
@@ -301,12 +301,12 @@ export default function DatasetInspectorSection({
                   Edge length path
                 </span>
                 <DatasetPathViz graph={effectiveGraph} />
-              </div>
-            </div>
+              </section>
+            </section>
           </>
         )}
       {contextComparison && (
-        <div className={`mt-1 ${UI_THEME_TOKENS.text.tertiary} ${uiPanelKeyValueTextSizeClass}`}>
+        <section className={`mt-1 ${UI_THEME_TOKENS.text.tertiary} ${uiPanelKeyValueTextSizeClass}`}>
           <span
             className={getPillClass('badge', {
               baseClass:
@@ -334,7 +334,7 @@ export default function DatasetInspectorSection({
               {contextComparison.isCanonicalMatch === false && ' (differs)'}
             </>
           )}
-        </div>
+        </section>
       )}
       <AgenticRagIgnoreFiltersSummaryView
         ignoreFilters={ignoreFilters ?? null}

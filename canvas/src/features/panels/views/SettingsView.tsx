@@ -24,7 +24,14 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_RESPONSIVE_PANEL_STICKY_OVERLAP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { CHAT_DEFAULT_PROVIDER } from '@/lib/chatEndpoint'
 import { PAYMENTS_PROVIDERS, DEFAULT_PAYMENT_PROVIDER_ID, resolvePaymentsProviderSpec } from '@/features/payments/providers'
-import { INTEGRATIONS_SECTION_META, MAPS_SECTION_META, MCP_SECTION_META, type SectionMeta } from './settingsView.constants'
+import {
+  INTEGRATIONS_SECTION_META,
+  MAPS_SECTION_META,
+  MCP_SECTION_META,
+  resolveSettingsKtvHeaderLabels,
+  type SectionMeta,
+  type SettingsViewMode,
+} from './settingsView.constants'
 import { useSettingsChatAssist } from './useSettingsChatAssist'
 import { SettingsSections, type SettingsSectionDescriptor } from './SettingsSections'
 import {
@@ -58,7 +65,7 @@ export default function SettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations' | 'payments' | 'maps' | 'mcp'
+  mode?: SettingsViewMode
 }) {
   const [paymentsProviderId, setPaymentsProviderId] = React.useState<string>(DEFAULT_PAYMENT_PROVIDER_ID)
   const {
@@ -97,8 +104,6 @@ export default function SettingsView({
     dirtyRef,
   } = useSettingsView({ searchQuery, onRegisterActions, mode, paymentsProviderId })
   const [isRestoringWorkspace, setIsRestoringWorkspace] = React.useState(false)
-  const [stripeCheckoutStatus, setStripeCheckoutStatus] = React.useState<string | null>(null)
-  const [isGeneratingStripeCheckout, setIsGeneratingStripeCheckout] = React.useState(false)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
 
   const onRestoreWorkspace = React.useCallback(async () => {
@@ -122,6 +127,7 @@ export default function SettingsView({
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const headerStickyTopClass = mode === 'integrations' || mode === 'mcp' ? 'top-0' : UI_RESPONSIVE_PANEL_STICKY_OVERLAP_CLASSNAME
   const headerHasToolbarStrip = mode === 'all' || mode === 'payments'
+  const ktvHeaderLabels = React.useMemo(() => resolveSettingsKtvHeaderLabels(mode), [mode])
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
   const normalizedChatProvider = React.useMemo(
     () => String(values.chatProvider || '').trim() || CHAT_DEFAULT_PROVIDER,
@@ -178,7 +184,7 @@ export default function SettingsView({
       })
     }
   }, [patchChatValues, setExpanded])
-  const { buildChatAssistNodes } = useSettingsChatAssist({
+  const { buildChatAssistNodes, chatModelSuggestions } = useSettingsChatAssist({
     dirtyRef,
     openLocalChatApiKeyEntry,
     setValues,
@@ -259,7 +265,6 @@ export default function SettingsView({
     isCheckingDeerFlowHealth,
     isCheckingGrabMapsHealth,
     isCheckingHealth,
-    isGeneratingStripeCheckout,
     isUpdatingChatHistoryPath,
     isUpdatingKnowgrphPath,
     kgcLocalImportInputRef,
@@ -273,12 +278,9 @@ export default function SettingsView({
     pushUiToast,
     renderInput,
     setChatHistoryPathStatus,
-    setIsGeneratingStripeCheckout,
     setKnowgrphPathStatus,
-    setStripeCheckoutStatus,
     setValues,
     settingsTypeIconSizeClass,
-    stripeCheckoutStatus,
     uiIconStrokeWidth,
     uiPanelKeyValueTextSizeClass,
   })
@@ -367,9 +369,19 @@ export default function SettingsView({
           e.currentTarget.value = ''
         }}
       />
+      {chatModelSuggestions.length > 0 && (
+        <datalist id="settings-chat-model-options">
+          {chatModelSuggestions.map(option => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+      )}
       <section className="space-y-0">
         <KeyTypeValueHeader
           stickyOffsetClassName={headerStickyTopClass}
+          keyLabel={ktvHeaderLabels.keyLabel}
+          typeLabel={ktvHeaderLabels.typeLabel}
+          valueLabel={ktvHeaderLabels.valueLabel}
           actions={(
             <ExpandCollapseAllButton
               allCollapsed={allCollapsed}
@@ -383,7 +395,7 @@ export default function SettingsView({
         <KeyTypeValueSectionStack>
           {mode === 'payments' && (
             <section className={`p-2 border-b border-white/10 ${UI_THEME_TOKENS.text.secondary}`}>
-              <div className="flex flex-wrap items-center gap-1">
+              <section className="flex flex-wrap items-center gap-1">
                 <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Providers</span>
                 {paymentsProviders.map(provider => (
                   <button
@@ -412,7 +424,7 @@ export default function SettingsView({
                     Open docs
                   </a>
                 )}
-              </div>
+              </section>
             </section>
           )}
           {mode === 'all' && (
@@ -444,10 +456,10 @@ export default function SettingsView({
               onToggle={() => void 0}
               className={`mt-2 pt-2 border-t ${UI_COLOR_DANGER_RED_BORDER}`}
             >
-              <div className={`space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
-                <div>
+              <section className={`space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
+                <section>
                   Reset all settings to defaults and clear canvas data. This action cannot be undone.
-                </div>
+                </section>
                 <button
                   type="button"
                   className={uiDangerButtonClassName}
@@ -455,11 +467,11 @@ export default function SettingsView({
                 >
                   Global Reset
                 </button>
-              </div>
-              <div className={`mt-3 space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
-                <div>
+              </section>
+              <section className={`mt-3 space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
+                <section>
                   Restore default workspace seed files after clearing all workspace files in Source Files.
-                </div>
+                </section>
                 <button
                   type="button"
                   className={uiDangerButtonClassName}
@@ -468,7 +480,7 @@ export default function SettingsView({
                 >
                   {isRestoringWorkspace ? 'Restoring…' : 'Restore Workspace'}
                 </button>
-              </div>
+              </section>
             </CollapsibleSection>
           )}
         </KeyTypeValueSectionStack>

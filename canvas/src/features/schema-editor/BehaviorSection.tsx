@@ -27,10 +27,10 @@ export default function BehaviorSection({
   const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
-    <div className="space-y-3">
-      <div className={sectionHeadingClassName}>Behavior</div>
+    <section className="space-y-3">
+      <section className={sectionHeadingClassName}>Behavior</section>
       <Subsection title="Behavior">
-        <div className="flex items-center gap-4 text-xs">
+        <section className="flex items-center gap-4 text-xs">
           <label className={checkboxLabelClassName}>
             <input
               type="checkbox"
@@ -75,8 +75,8 @@ export default function BehaviorSection({
             />
             Neighbor Expansion
           </label>
-        </div>
-        <div className="mt-2 flex items-center gap-2 text-xs">
+        </section>
+        <section className="mt-2 flex items-center gap-2 text-xs">
           <span className={inlineLabelClassName}>Drag Constraint</span>
           <select
             value={schema.behavior.dragConstraint ?? 'free'}
@@ -144,9 +144,9 @@ export default function BehaviorSection({
             />
             Prevent Self-Loops
           </label>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs">
-          <div className="flex items-center gap-2">
+        </section>
+        <section className="mt-2 flex flex-wrap items-center gap-4 text-xs">
+          <section className="flex items-center gap-2">
             <span className={inlineLabelClassName}>Select Mode</span>
             <select
               value={schema.behavior.selectMode ?? 'single'}
@@ -161,8 +161,8 @@ export default function BehaviorSection({
               <option value="multi">Multi</option>
               <option value="lasso">Lasso</option>
             </select>
-          </div>
-          <div className="flex items-center gap-2">
+          </section>
+          <section className="flex items-center gap-2">
             <span className={inlineLabelClassName}>Create Mode</span>
             <select
               value={schema.behavior.createMode ?? 'shift-drag'}
@@ -178,9 +178,9 @@ export default function BehaviorSection({
               <option value="click-source-target">Click source/target</option>
               <option value="panel-only">Panel only</option>
             </select>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center gap-2 text-xs">
+          </section>
+        </section>
+        <section className="mt-2 flex items-center gap-2 text-xs">
           <span className={inlineLabelClassName}>Default Node Type</span>
           <select
             value={schema.behavior.defaultNodeType ?? ''}
@@ -194,8 +194,8 @@ export default function BehaviorSection({
               </option>
             ))}
           </select>
-        </div>
+        </section>
       </Subsection>
-    </div>
+    </section>
   )
 }

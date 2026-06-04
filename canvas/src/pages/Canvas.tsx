@@ -35,6 +35,9 @@ const CanvasQueryBootstrapRuntimeLazy = React.lazy(() =>
 const CanvasDocDeepLinkRuntimeLazy = React.lazy(() =>
   import('@/features/canvas/CanvasDocDeepLinkRuntime').then(mod => ({ default: mod.CanvasDocDeepLinkRuntime })),
 )
+const StripeCheckoutReturnRuntimeLazy = React.lazy(() =>
+  import('@/features/payments/StripeCheckoutReturnRuntime').then(mod => ({ default: mod.StripeCheckoutReturnRuntime })),
+)
 const CanvasFrontmatterRuntimeLazy = React.lazy(() =>
   import('@/features/canvas/CanvasFrontmatterRuntime').then(mod => ({ default: mod.CanvasFrontmatterRuntime })),
 )
@@ -196,6 +199,11 @@ export default function CanvasPage() {
           <CanvasDocDeepLinkRuntimeLazy search={location.search} />
         </React.Suspense>
       ) : null}
+      {hasSearchParams ? (
+        <React.Suspense fallback={null}>
+          <StripeCheckoutReturnRuntimeLazy search={location.search} />
+        </React.Suspense>
+      ) : null}
       <CanvasStartupRuntimes />
       <section
         className="relative flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
@@ -227,20 +235,20 @@ export default function CanvasPage() {
                   aria-label="Canvas Toolbar"
                   role="navigation"
                 >
-                  <div className="pointer-events-auto min-w-0 max-w-full">
+                  <section className="pointer-events-auto min-w-0 max-w-full">
                     {workspaceDocumentSwitchPending ? (
-                      <div
+                      <section
                         className="rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-sm text-[var(--kg-text-secondary)] shadow-sm"
                         aria-label={switchingDocumentLabel}
                       >
                         {switchingDocumentLabel}
-                      </div>
+                      </section>
                     ) : (
                       <React.Suspense fallback={null}>
                         <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
                       </React.Suspense>
                     )}
-                  </div>
+                  </section>
                 </nav>
               </header>
             ) : null}
@@ -262,20 +270,20 @@ export default function CanvasPage() {
                         aria-label="Canvas Toolbar"
                         role="navigation"
                       >
-                        <div className="pointer-events-auto">
+                        <section className="pointer-events-auto">
                           {workspaceDocumentSwitchPending ? (
-                            <div
+                            <section
                               className="rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-sm text-[var(--kg-text-secondary)] shadow-sm"
                               aria-label={switchingDocumentLabel}
                             >
                               {switchingDocumentLabel}
-                            </div>
+                            </section>
                           ) : (
                             <React.Suspense fallback={null}>
                               <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
                             </React.Suspense>
                           )}
-                        </div>
+                        </section>
                       </nav>
                     ) : null}
                     <CanvasViewport

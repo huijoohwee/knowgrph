@@ -1,6 +1,6 @@
 import type { SettingMeta } from './types'
 import { LS_KEYS } from '@/lib/config'
-import { lsJson, lsSetJson } from '@/lib/persistence'
+import { lsJson, lsRemove, lsSetJson } from '@/lib/persistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   STRIPE_MCP_CONNECTION_MODES,
@@ -98,10 +98,14 @@ export const paymentsSettingsRegistry: SettingMeta[] = [
   {
     key: 'payments.stripe.checkoutUrl',
     type: 'string',
-    source: 'localStorage',
-    read: () => String(s().paymentsStripeCheckoutUrl || ''),
-    write: (v) => {
-      s().setPaymentsStripeCheckoutUrl(String(v || ''))
+    source: 'store',
+    read: () => {
+      lsRemove(LS_KEYS.paymentsStripeCheckoutUrl)
+      return ''
+    },
+    write: () => {
+      lsRemove(LS_KEYS.paymentsStripeCheckoutUrl)
+      s().setPaymentsStripeCheckoutUrl('')
     },
     docKey: 'payments.stripe.checkoutUrl',
     default: () => '',

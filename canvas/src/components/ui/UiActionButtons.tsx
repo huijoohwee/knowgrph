@@ -31,7 +31,7 @@ export function UiActionButtons({
   if (resolvedActions.length === 0) return null
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)}>
+    <section className={cn('flex flex-wrap items-center gap-2', className)}>
       {resolvedActions.map(action => {
         const actionId = String(action.id || '').trim()
         const label = String(action.label || '').trim()
@@ -60,7 +60,7 @@ export function UiActionButtons({
           </button>
         )
       })}
-    </div>
+    </section>
   )
 }
 

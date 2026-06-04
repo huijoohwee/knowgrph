@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
 import { computeTransformScaleAboutScreenPoint, screenToWorld } from '@/lib/zoom/viewport'
@@ -183,15 +183,38 @@ export function testFlowEditorLiveCollectiveScaleFollowsZoomWithoutViewportFitCl
   if (!(fittedZoomIn <= followZoomIn)) {
     throw new Error(`expected viewport-fit collective scale to remain the fit/reset path, fitted=${fittedZoomIn} follow=${followZoomIn}`)
   }
+  const fitBaselineK = 0.18
+  const baselineRelative = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: computeCollectiveFollowZoomK({ zoomK: fitBaselineK, baselineZoomK: fitBaselineK }),
+    fitToViewport: false,
+  })
+  const zoomedRelative = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: computeCollectiveFollowZoomK({ zoomK: fitBaselineK * 1.25, baselineZoomK: fitBaselineK }),
+    fitToViewport: false,
+  })
+  if (!(zoomedRelative > baselineRelative)) {
+    throw new Error(`expected baseline-normalized Flow Editor zoom to change visible collective scale while native fit k is below 1, baseline=${baselineRelative} zoomed=${zoomedRelative}`)
+  }
 
   const srcRoot = path.resolve(process.cwd(), 'src')
   const placementText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts'), 'utf8')
   if (!placementText.includes('fitToViewport: false')) {
     throw new Error('expected Flow Editor widget placement to follow zoom instead of fitting every zoom step back into the viewport')
   }
+  if (!placementText.includes('computeCollectiveFollowZoomK({')) {
+    throw new Error('expected screen-authority Flow Editor widgets to normalize viewport zoom against their live baseline')
+  }
+  if (placementText.includes('const frontmatterPanelScaleZoomK = frontmatterVisibleViewportAuthority ? 1 : zoomK')) {
+    throw new Error('expected Flow Editor widget zoom to avoid stale neutral-scale screen-authority gating')
+  }
   const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
   if (!mediaText.includes("fitToViewport: canvas2dRenderer === 'flowEditor' ? false : undefined")) {
     throw new Error('expected rich-media zoom follow mode to stay scoped to Flow Editor and avoid Flow Canvas seepage')
+  }
+  if (!mediaText.includes('computeCollectiveFollowZoomK({')) {
+    throw new Error('expected rich-media Flow Editor overlays to reuse baseline-normalized zoom follow mode')
   }
 }
 

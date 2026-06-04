@@ -10,7 +10,7 @@ const readUtf8 = (relativePath: string): string => {
 }
 
 export const testDismissEventHelpersCentralizeEscapeAndPointerDownDismiss = async () => {
-  const dom = new JSDOM('<!doctype html><html><body><div id="root"><button id="inside"></button></div><button id="outside"></button></body></html>', { url: 'http://localhost' })
+  const dom = new JSDOM('<!doctype html><html><body><section id="root"><button id="inside"></button></section><button id="outside"></button></body></html>', { url: 'http://localhost' })
   const g = globalThis as unknown as { window?: unknown; document?: unknown }
   g.window = dom.window
   g.document = dom.window.document

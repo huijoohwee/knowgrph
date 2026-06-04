@@ -1,5 +1,6 @@
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { slugify } from './markdownJsonLdUtils'
+import { readMermaidDiagramKind } from 'grph-shared/markdown/mermaidInput'
 import {
   mapMermaidShapeToPrimitive,
   mergeMermaidNamedStyles,
@@ -30,6 +31,8 @@ export interface MermaidParserContext {
  * - Click events
  */
 export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext): void => {
+  if (readMermaidDiagramKind(code) !== 'flowchart') return
+
   const {
     gid,
     docId,
@@ -280,7 +283,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     const line = lines[i]
     const trimmed = line.trim()
     if (!trimmed) continue
-    if (trimmed.startsWith('graph ')) continue
+    if (/^(?:graph|flowchart)\b/i.test(trimmed)) continue
     if (trimmed.startsWith('%%')) continue
 
     // --- Subgraph Start ---

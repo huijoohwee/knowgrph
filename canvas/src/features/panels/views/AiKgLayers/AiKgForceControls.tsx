@@ -220,7 +220,7 @@ export default function AiKgForceControls({
             maxWidthPx={260}
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
-            <div className="flex items-center justify-end">
+            <section className="flex items-center justify-end">
               <input
                 type="checkbox"
                 checked={schema.layout?.forces?.boxForce !== false}
@@ -233,7 +233,7 @@ export default function AiKgForceControls({
                 }}
                 className={`${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} ${UI_THEME_TOKENS.input.border}`}
               />
-            </div>
+            </section>
           </Tooltip>
         )}
       />

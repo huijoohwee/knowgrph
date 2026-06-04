@@ -16,7 +16,7 @@ The purpose of this update is to prevent a non-shipped integration from competin
 |------|--------|-------|
 | Chat provider registration | Not implemented | No Manus provider constant or normalization path is present. |
 | Settings / Integrations UI | Not implemented | No Manus settings rows or API documentation rows are present. |
-| Flow editor widget | Not implemented | No Manus widget registry entry or typed port contract is present. |
+| Flow Editor widget | Not implemented | No Manus widget registry entry or typed port contract is present. |
 | Rich media runtime | Not implemented | No Manus generation adapter is present in the rich-media run path. |
 | Proxy authentication | Not implemented | No Manus-specific upstream header mapping is present. |
 | Webhook handling | Not implemented | No Manus webhook endpoint is present. |
@@ -46,7 +46,7 @@ Required owners before this document can mark Manus implemented:
 | Authentication | A source-owned upstream request adapter that keeps provider-specific headers out of UI code. |
 | Runtime execution | A dedicated task lifecycle adapter with bounded polling, terminal-state handling, and error projection. |
 | Structured output | A typed mapper from upstream task output into existing rich-media and text widget output patches. |
-| Flow editor integration | A registry entry with explicit input/output fields and tests for connected-value behavior. |
+| Flow Editor integration | A registry entry with explicit input/output fields and tests for connected-value behavior. |
 | UI visibility | MainPanel or Integrations rows that explain the runtime path without duplicating provider metadata. |
 | Validation | Focused tests for provider settings, runtime dispatch, output mapping, and docs/source-owner alignment. |
 
@@ -56,7 +56,7 @@ The integration should reuse the existing patterns that already own agentic and 
 
 - Provider and endpoint semantics should follow the shared chat endpoint/provider normalization path.
 - Settings rows should use the shared settings row contract and API-documentation row helpers.
-- Flow editor entries should be added through the existing registry template owner.
+- Flow Editor entries should be added through the existing registry template owner.
 - Rich-media output should use existing text/image/video/HTML patch helpers rather than a parallel panel renderer.
 - Any derived cache identity must reuse shared semantic-key helpers.
 - Polling and retries must be bounded and must surface terminal errors through the existing run state model.

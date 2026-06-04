@@ -37,11 +37,11 @@ export default function AiKgLayersSection({
   )
 
   return (
-    <div
+    <section
       className={`mt-2 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} px-2 py-1`}
       data-kg-anchor={UI_ANCHORS.aiKgLayers}
     >
-      <div
+      <section
         className={[
           uiPanelKeyValueTextSizeClass,
           uiPanelTextFontClass,
@@ -49,7 +49,7 @@ export default function AiKgLayersSection({
         ].join(' ')}
       >
         {UI_LABELS.aiKgLayers}
-      </div>
+      </section>
       <AiKgLayersControls
         schema={schema}
         setSchema={setSchema}
@@ -60,6 +60,6 @@ export default function AiKgLayersSection({
         setTraversalDelayMs={setTraversalDelayMs}
         uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
       />
-    </div>
+    </section>
   )
 }

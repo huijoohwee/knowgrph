@@ -246,5 +246,39 @@ export function placeWidgetsCenteredInGroupBounds(args: {
       y: args.snapWorld(minY + cell.top),
     })
   }
+  if (out.length > 0) {
+    let minLeft = Number.POSITIVE_INFINITY
+    let minTop = Number.POSITIVE_INFINITY
+    let maxRight = Number.NEGATIVE_INFINITY
+    let maxBottom = Number.NEGATIVE_INFINITY
+    let centroidX = 0
+    let centroidY = 0
+    for (let i = 0; i < out.length; i += 1) {
+      const item = out[i]!
+      minLeft = Math.min(minLeft, item.x)
+      minTop = Math.min(minTop, item.y)
+      maxRight = Math.max(maxRight, item.x + panelW)
+      maxBottom = Math.max(maxBottom, item.y + panelH)
+      centroidX += item.x + panelW / 2
+      centroidY += item.y + panelH / 2
+    }
+    centroidX /= out.length
+    centroidY /= out.length
+    const shiftX = resolveCenteredShift({
+      preferredShift: (minX + boundW / 2) - centroidX,
+      minShift: Number.isFinite(minLeft) ? minX - minLeft : 0,
+      maxShift: Number.isFinite(maxRight) ? maxX - maxRight : 0,
+    })
+    const shiftY = resolveCenteredShift({
+      preferredShift: (minY + boundH / 2) - centroidY,
+      minShift: Number.isFinite(minTop) ? minY - minTop : 0,
+      maxShift: Number.isFinite(maxBottom) ? maxY - maxBottom : 0,
+    })
+    if (Math.abs(shiftX) > 0.0001 || Math.abs(shiftY) > 0.0001) {
+      for (let i = 0; i < out.length; i += 1) {
+        out[i] = { ...out[i]!, x: out[i]!.x + shiftX, y: out[i]!.y + shiftY }
+      }
+    }
+  }
   return out
 }

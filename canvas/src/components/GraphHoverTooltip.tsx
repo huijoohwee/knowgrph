@@ -101,42 +101,42 @@ function buildNodeContent(
   const descText = expanded ? descRaw : truncateTextWithEllipsis(descRaw, 280)
 
   return (
-    <div>
-      <div className="font-semibold">
+    <section>
+      <section className="font-semibold">
         {primaryNodeText}
         {showType && (
           <span className={UI_THEME_TOKENS.tooltip.textSecondary}>
             ({node.type})
           </span>
         )}
-      </div>
+      </section>
       {showId && (
-        <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
+        <section className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
           {node.id}
-        </div>
+        </section>
       )}
       {voxelScores ? (
-        <div className="mt-1 space-y-1">
+        <section className="mt-1 space-y-1">
           {VOXEL_SCORE_DIMENSIONS.map((d) => {
             const v = voxelScores[d.key]
             const pct = Math.round(v * 100)
             return (
-              <div key={d.key} className="space-y-0.5">
-                <div className={`text-[10px] ${UI_THEME_TOKENS.tooltip.textSecondary} flex justify-between gap-2`}>
+              <section key={d.key} className="space-y-0.5">
+                <section className={`text-[10px] ${UI_THEME_TOKENS.tooltip.textSecondary} flex justify-between gap-2`}>
                   <span className="font-semibold">{d.label}</span>
                   <span>{`${pct}%`}</span>
-                </div>
-                <div className="h-2 w-full rounded bg-black/20 overflow-hidden">
-                  <div className="h-full rounded" style={{ width: `${pct}%`, backgroundColor: d.color }} />
-                </div>
-              </div>
+                </section>
+                <section className="h-2 w-full rounded bg-black/20 overflow-hidden">
+                  <section className="h-full rounded" style={{ width: `${pct}%`, backgroundColor: d.color }} />
+                </section>
+              </section>
             )
           })}
-        </div>
+        </section>
       ) : null}
       {imageSrc ? (
-        <div className="mt-1">
-          <div className="flex gap-2 items-start">
+        <section className="mt-1">
+          <section className="flex gap-2 items-start">
             <CardMediaPreview
               kind="image"
               url={imageSrc}
@@ -146,13 +146,13 @@ function buildNodeContent(
               className="h-12 w-12 flex-none rounded-lg"
               mediaClassName="h-12 w-12 flex-none rounded-lg"
             />
-            <div className="min-w-0 flex-1">
+            <section className="min-w-0 flex-1">
               {imageCount > 1 ? (
-                <div className={`text-[10px] ${UI_THEME_TOKENS.tooltip.textTertiary} font-semibold`}>{`+${imageCount - 1}`}</div>
+                <section className={`text-[10px] ${UI_THEME_TOKENS.tooltip.textTertiary} font-semibold`}>{`+${imageCount - 1}`}</section>
               ) : null}
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
       ) : null}
       {descRaw ? (
         <button
@@ -160,21 +160,21 @@ function buildNodeContent(
           className={`mt-1 text-left ${UI_THEME_TOKENS.tooltip.text} break-words leading-tight w-full`}
           onClick={onToggleExpanded ?? undefined}
         >
-          <div className={`${expanded ? UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME : ''} text-xs`}>
+          <section className={`${expanded ? UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME : ''} text-xs`}>
             {descText}
-          </div>
+          </section>
         </button>
       ) : null}
       {showProps && sorted.length > 0 && (
-        <div className="mt-1 space-y-0.5">
+        <section className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
             if (k === 'description' || k === 'chunk_text' || k === 'mdSectionMarkdown') return null
             const spec = getNodePropSpec(schema, node.type, k)
             const description = spec && typeof spec.description === 'string' ? spec.description.trim() : ''
             const badges = summarizePropertySpec(spec)
             return (
-              <div key={k} className="space-y-0.5">
-                <div className="flex gap-1 items-center">
+              <section key={k} className="space-y-0.5">
+                <section className="flex gap-1 items-center">
                   {spec ? (
                     <FieldTypeBadgeIcon
                       kind={spec.type as GraphFieldKind}
@@ -187,14 +187,14 @@ function buildNodeContent(
                   <span className={`text-xs ${UI_THEME_TOKENS.tooltip.text} break-all`}>
                     {formatPropValue(v)}
                   </span>
-                </div>
+                </section>
                 {description && (
-                  <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.tooltip.textTertiary} leading-tight break-normal`}>
+                  <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.tooltip.textTertiary} leading-tight break-normal`}>
                     {description}
-                  </div>
+                  </section>
                 )}
                 {badges.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
+                  <section className="flex flex-wrap gap-1">
                     {badges.map(badge => (
                       <span
                         key={badge}
@@ -206,14 +206,14 @@ function buildNodeContent(
                         {badge}
                       </span>
                     ))}
-                  </div>
+                  </section>
                 )}
-              </div>
+              </section>
             )
           })}
-        </div>
+        </section>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -246,21 +246,21 @@ function buildEdgeContent(
   const descText = expanded ? desc : truncateTextWithEllipsis(desc, 280)
 
   return (
-    <div>
-      <div className="font-semibold">
+    <section>
+      <section className="font-semibold">
         {(config.showEdgeLabel || !edgeLabelForDisplay) && (
           <span className="block whitespace-normal break-words">
             {primaryEdgeText}
           </span>
         )}
-      </div>
+      </section>
       {config.showEdgeLabel && (
-        <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
+        <section className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
           {String(edge.source)} → {String(edge.target)}
-        </div>
+        </section>
       )}
       {schemaBadges.length > 0 && (
-        <div className="mt-1 flex flex-wrap gap-1">
+        <section className="mt-1 flex flex-wrap gap-1">
           {schemaBadges.map(badge => (
             <span
               key={badge.badge}
@@ -272,12 +272,12 @@ function buildEdgeContent(
               {badge.label}
             </span>
           ))}
-        </div>
+        </section>
       )}
       {showId && (
-        <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
+        <section className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
           {edge.id}
-        </div>
+        </section>
       )}
       {desc ? (
         <button
@@ -285,20 +285,20 @@ function buildEdgeContent(
           className={`mt-1 text-left ${UI_THEME_TOKENS.tooltip.text} break-words leading-tight w-full`}
           onClick={onToggleExpanded ?? undefined}
         >
-          <div className={`${expanded ? UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME : ''} text-xs`}>
+          <section className={`${expanded ? UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME : ''} text-xs`}>
             {descText}
-          </div>
+          </section>
         </button>
       ) : null}
       {showProps && sorted.length > 0 && (
-        <div className="mt-1 space-y-0.5">
+        <section className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
             const spec = getEdgePropSpec(schema, edge.label, k)
             const description = spec && typeof spec.description === 'string' ? spec.description.trim() : ''
             const badges = summarizePropertySpec(spec)
             return (
-              <div key={k} className="space-y-0.5">
-                <div className="flex gap-1 items-center">
+              <section key={k} className="space-y-0.5">
+                <section className="flex gap-1 items-center">
                   {spec ? (
                     <FieldTypeBadgeIcon
                       kind={spec.type as GraphFieldKind}
@@ -311,14 +311,14 @@ function buildEdgeContent(
                   <span className={`text-xs ${UI_THEME_TOKENS.tooltip.text} break-all`}>
                     {formatPropValue(v)}
                   </span>
-                </div>
+                </section>
                 {description && (
-                  <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.tooltip.textTertiary} leading-tight break-normal`}>
+                  <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.tooltip.textTertiary} leading-tight break-normal`}>
                     {description}
-                  </div>
+                  </section>
                 )}
                 {badges.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
+                  <section className="flex flex-wrap gap-1">
                     {badges.map(badge => (
                       <span
                         key={badge}
@@ -330,14 +330,14 @@ function buildEdgeContent(
                         {badge}
                       </span>
                     ))}
-                  </div>
+                  </section>
                 )}
-              </div>
+              </section>
             )
           })}
-        </div>
+        </section>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -348,13 +348,13 @@ function buildGroupContent(
   const memberCount = Array.isArray(group.memberNodeIds) ? group.memberNodeIds.length : 0
   const id = String(group.id || '')
   return (
-    <div>
-      <div className="font-semibold break-words">{label || id}</div>
-      <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>{id}</div>
-      <div className={`mt-1 text-xs ${UI_THEME_TOKENS.tooltip.text}`}>
+    <section>
+      <section className="font-semibold break-words">{label || id}</section>
+      <section className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>{id}</section>
+      <section className={`mt-1 text-xs ${UI_THEME_TOKENS.tooltip.text}`}>
         <span className="font-medium">{memberCount}</span> nodes
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 
@@ -387,7 +387,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
   const [hoverPanelOffset, setHoverPanelOffset] = React.useState<HoverPanelOffset>(ZERO_HOVER_PANEL_OFFSET)
   const [hoverPanelSize, setHoverPanelSize] = React.useState<HoverPanelSize | null>(null)
   const hoverPanelHoveredRef = React.useRef(false)
-  const hoverPanelRootRef = React.useRef<HTMLDivElement | null>(null)
+  const hoverPanelRootRef = React.useRef<HTMLElement | null>(null)
   const hoverPanelPointerDragActiveRef = React.useRef(false)
   const hoverBridgeCloseTimerRef = React.useRef<number | null>(null)
   const container = containerRef.current
@@ -575,7 +575,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     setHoverPanelSize(null)
   }, [hoverSemanticKey, tooltipPinned])
 
-  const handleHoverPanelPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const handleHoverPanelPointerDown = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (!tooltipPinned) return
     if (event.button !== 0) return
     if (isHoverPanelDragExcludedTarget(event.target)) return
@@ -681,7 +681,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
   return (
     <Tooltip
       content={(
-        <div
+        <section
           data-kg-hover-panel="1"
           data-kg-canvas-wheel-ignore="true"
           data-kg-hover-panel-pinned={tooltipPinned ? '1' : undefined}
@@ -690,9 +690,9 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
           style={PANEL_FRAME_FLOATING_BODY_STYLE}
           onPointerDown={handleHoverPanelPointerDown}
         >
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">{content}</div>
-            <div className="flex flex-col gap-1 flex-none">
+          <section className="flex items-start justify-between gap-2">
+            <section className="min-w-0 flex-1">{content}</section>
+            <section className="flex flex-col gap-1 flex-none">
               <IconButton
                 className={getPinToggleButtonClassName(tooltipPinned)}
                 title={tooltipPinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}
@@ -714,8 +714,8 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
               >
                 <CloseIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
               </IconButton>
-            </div>
-          </div>
+            </section>
+          </section>
           {tooltipPinned ? (
             <button
               type="button"
@@ -751,7 +751,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
               />
             </button>
           ) : null}
-        </div>
+        </section>
       )}
       open
       className={effectiveInteractive ? 'absolute z-50 pointer-events-auto' : 'absolute z-50 pointer-events-none'}

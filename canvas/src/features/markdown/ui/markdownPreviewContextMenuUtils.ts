@@ -9,7 +9,7 @@ export type MarkdownPreviewMenuPosition = {
 }
 
 export const findLineRangeFromTarget = (
-  root: HTMLDivElement | null,
+  root: HTMLElement | null,
   target: EventTarget | null,
 ): MarkdownSelectionRange | null => {
   if (!root) return null

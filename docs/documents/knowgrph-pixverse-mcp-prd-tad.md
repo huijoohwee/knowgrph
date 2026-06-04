@@ -29,6 +29,7 @@ Sec 1-7 define the PRD, Sec 8-15 define the TAD, Sec 16 maps traceability, and S
 - Phase A shipped: MainPanel MCP includes PixVerse MCP readiness through the shared `SettingsView` owner.
 - Phase B baseline shipped: `knowgrph_parser` now supports `provider_mode="pixverse"` using local PixVerse MCP stdio with `text_to_video`, `image_to_video`, `transition_video`, `fusion_video`, `extend_video`, `lip_sync_video` for generated clips and uploaded `video_media_id` with TTS plus custom-audio on generated clips and uploaded videos, `sound_effect_video` for generated clips and uploaded `video_media_id`, `upload_image`, automated local uploaded-video handoff, adaptive automated local audio upload when the PixVerse MCP build exposes an audio upload tool, and `get_video_status`, plus local preview/manifest artifacts and mock fallback when local config or live generation is unavailable.
 - MainPanel Integrations and chat-readiness UX now include PixVerse-aware provider affordances through existing settings owners.
+- The local SuperAgent harness boundary follows `docs/documents/knowgrph-superagent-harness.md`: PixVerse extends native `knowgrph_parser` tool/provider owners, and DeerFlow remains conceptual inspiration or an optional gateway, not copied architecture.
 - Focused browser-side readiness coverage now exists for the real Settings -> Integrations flow, validating PixVerse strategy toggles and live browser state.
 - Advanced PixVerse feature coverage such as guaranteed upstream-standard local audio upload exposure across all PixVerse MCP builds remains future additive work.
 
@@ -73,6 +74,7 @@ The repo already has the right seams to add PixVerse without creating a duplicat
 - MainPanel MCP can add a PixVerse MCP readiness section through the same settings-doc machinery already used for Stripe, API-native browser, and GrabMaps MCP.
 - Live PixVerse execution now lives at the harness tool-registry boundary, not in renderer code and not as a second MCP-only markdown-to-canvas path.
 - The existing chat -> YAML frontmatter -> canvas apply pipeline can remain the sole browser-local E2E route.
+- Long-horizon research/code/create harness metadata can wrap the run, but it does not create a PixVerse-only renderer, parser, memory layer, or graph apply path.
 
 ### Falsifiable Hypothesis
 

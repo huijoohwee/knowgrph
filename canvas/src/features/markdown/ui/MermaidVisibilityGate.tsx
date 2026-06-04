@@ -8,7 +8,7 @@ export function MermaidVisibilityGate({
 }: {
   children: React.ReactNode
 }) {
-  const rootRef = React.useRef<HTMLDivElement>(null)
+  const rootRef = React.useRef<HTMLElement>(null)
   const [shouldRender, setShouldRender] = React.useState(false)
 
   React.useEffect(() => {
@@ -61,14 +61,14 @@ export function MermaidVisibilityGate({
   }, [shouldRender])
 
   return (
-    <div
+    <section
       ref={rootRef}
       data-kg-mermaid-visibility-gate={shouldRender ? 'ready' : 'pending'}
       aria-busy={!shouldRender}
       className={shouldRender ? undefined : 'min-h-12'}
     >
       {shouldRender ? children : null}
-    </div>
+    </section>
   )
 }
 

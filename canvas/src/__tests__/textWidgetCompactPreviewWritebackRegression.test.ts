@@ -45,7 +45,7 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
   if (!text.includes('const connectedValuesSnapshotRef = React.useRef<{')) {
     throw new Error('expected NodeOverlayEditorForm to snapshot connected preview inputs by semantic signature')
   }
-  if (!compactPreviewText.includes('const widgetIdentity = resolveNodeWidgetIdentity({ node: args.node, registryEntry: args.registryEntry })')) {
+  if (!compactPreviewText.includes('const widgetIdentity = resolveWidgetIdentity({ node: args.node, registryEntry: args.registryEntry })')) {
     throw new Error('expected shared compact preview helper to reuse shared widget identity resolution')
   }
 }

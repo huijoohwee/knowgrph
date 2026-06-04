@@ -109,7 +109,7 @@ export function testGraphHoverTooltipReusesSharedPanelFrameSurface() {
       throw new Error(`expected GraphHoverTooltip to reuse shared panel-frame surface snippet: ${snippet}`)
     }
   }
-  for (const snippet of ['contentStyle?: React.CSSProperties', 'contentRef?: React.Ref<HTMLDivElement>', 'contentOffset?: { x: number; y: number } | null', 'contentSize?: { width: number; height?: number } | null', 'contentDataAttrs?: Record<string, string | undefined>']) {
+  for (const snippet of ['contentStyle?: React.CSSProperties', 'contentRef?: React.Ref<HTMLElement>', 'contentOffset?: { x: number; y: number } | null', 'contentSize?: { width: number; height?: number } | null', 'contentDataAttrs?: Record<string, string | undefined>']) {
     if (!tooltipUiText.includes(snippet)) {
       throw new Error(`expected shared Tooltip to expose neutral panel-frame extension: ${snippet}`)
     }
@@ -203,7 +203,7 @@ export async function testGraphHoverTooltipRendersSharedPanelFrameSurface() {
       }),
     })
     doc.body.appendChild(graphSurface)
-    const mount = doc.createElement('div')
+    const mount = doc.createElement('section')
     graphSurface.appendChild(mount)
     const root = createRoot(mount as unknown as HTMLElement)
 
@@ -260,7 +260,7 @@ export async function testGraphHoverTooltipPinnedPanelCanDragAndResize() {
       }),
     })
     doc.body.appendChild(graphSurface)
-    const mount = doc.createElement('div')
+    const mount = doc.createElement('section')
     graphSurface.appendChild(mount)
     const root = createRoot(mount as unknown as HTMLElement)
 
@@ -353,7 +353,7 @@ export async function testGraphHoverTooltipBridgesPointerGapToPanel() {
       }),
     })
     doc.body.appendChild(graphSurface)
-    const mount = doc.createElement('div')
+    const mount = doc.createElement('section')
     graphSurface.appendChild(mount)
     const root = createRoot(mount as unknown as HTMLElement)
     const renderTooltip = async (hoverInfo: { kind: 'node'; id: string; clientX: number; clientY: number } | null) => {

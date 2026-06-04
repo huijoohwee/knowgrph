@@ -23,7 +23,13 @@ import { MarkdownGraphBuilder } from '@/features/parsers/markdownJsonLdBuilder'
 import { buildAliasedMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
-import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
+import {
+  isMermaidCodeFenceLang,
+  normalizeMermaidCodeForRuntime,
+  readMermaidDiagramDeclaration,
+  readMermaidDiagramKind,
+  splitMermaidDiagrams,
+} from 'grph-shared/markdown/mermaidInput'
 import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
 import { extractMarkdownAppendixMetadataEntries } from '@/lib/markdown/markdownCommentMarker'
@@ -619,9 +625,9 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const mermaidDensityParts: string[] = []
   const trySetMermaidTreeLayoutFromCode = (code: string) => {
     if (mermaidTreeLayout) return
-    const firstLine = String(code || '').split('\n')[0]?.trim() || ''
-    if (!firstLine.startsWith('graph ') && !firstLine.startsWith('flowchart ')) return
-    const parts = firstLine.split(/\s+/)
+    const declaration = readMermaidDiagramDeclaration(code)
+    if (!declaration || declaration.kind !== 'flowchart') return
+    const parts = declaration.line.split(/\s+/)
     const dir = parts[1]?.toUpperCase()
     if (!dir) return
     if (dir === 'TD' || dir === 'TB' || dir === 'DT') {
@@ -635,32 +641,8 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     }
   }
   
-  const splitMermaidIntoDiagrams = (code: string): Array<{ code: string; offset: number }> => {
-    const lines = String(code || '').split('\n')
-    const indices: number[] = []
-    for (let i = 0; i < lines.length; i += 1) {
-      const t = (lines[i] || '').trim()
-      if (!t) continue
-      if (t.startsWith('graph ') || t.startsWith('flowchart ')) {
-        indices.push(i)
-      }
-    }
-    if (indices.length <= 1) {
-      return [{ code: String(code || ''), offset: 0 }]
-    }
-    const out: Array<{ code: string; offset: number }> = []
-    for (let k = 0; k < indices.length; k += 1) {
-      const start = indices[k]!
-      const end = k + 1 < indices.length ? indices[k + 1]! : lines.length
-      const slice = lines.slice(start, end).join('\n')
-      if (!slice.trim()) continue
-      out.push({ code: slice, offset: start })
-    }
-    return out.length > 0 ? out : [{ code: String(code || ''), offset: 0 }]
-  }
-
   if (mermaidCode) {
-    const diagrams = splitMermaidIntoDiagrams(mermaidCode)
+    const diagrams = splitMermaidDiagrams(mermaidCode)
     trySetMermaidTreeLayoutFromCode(diagrams[0]?.code || mermaidCode)
 
     let mermaidStartLine = 1
@@ -689,19 +671,24 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
       const mermaidId = idx === 0 ? `mermaid:${gid}:frontmatter` : `mermaid:${gid}:frontmatter:${idx + 1}`
       const mermaidName = idx === 0 ? 'Frontmatter Mermaid Diagram' : `Frontmatter Mermaid Diagram ${idx + 1}`
-      builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), mermaidName, { scope: 'frontmatter' })
+      builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), mermaidName, {
+        scope: 'frontmatter',
+        diagramKind: diagram.kind,
+      })
 
-      const parserCtx: MermaidParserContext = {
-        gid,
-        docId,
-        diagramId: mermaidId,
-        diagramScope: 'frontmatter',
-        startIndex: diagramStart,
-        ensureNode: (n) => builder.ensureNode(n),
-        addRel: (s, k, t, relationProps) => builder.addRel(s, k, t, relationProps),
-        mkMeta,
+      if (diagram.kind === 'flowchart') {
+        const parserCtx: MermaidParserContext = {
+          gid,
+          docId,
+          diagramId: mermaidId,
+          diagramScope: 'frontmatter',
+          startIndex: diagramStart,
+          ensureNode: (n) => builder.ensureNode(n),
+          addRel: (s, k, t, relationProps) => builder.addRel(s, k, t, relationProps),
+          mkMeta,
+        }
+        parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)
       }
-      parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)
     }
   }
 
@@ -751,13 +738,12 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
     const isMermaidBlock =
       b.kind === 'code' &&
-      (b.language === 'mermaid' ||
-        b.language === 'mmd' ||
-        b.language === 'graph' ||
+      (isMermaidCodeFenceLang(b.language) ||
+        String(b.language || '').trim().toLowerCase() === 'graph' ||
+        String(b.language || '').trim().toLowerCase() === 'gitgraph' ||
         (String(b.language || '').trim() === '' &&
           (() => {
-            const firstLine = String(b.text || '').split('\n')[0]?.trim() || ''
-            return firstLine.startsWith('graph ') || firstLine.startsWith('flowchart ')
+            return readMermaidDiagramKind(b.text) !== 'unknown'
           })()))
 
     if (mermaidAnchorsOnly && !isMermaidBlock) {
@@ -767,7 +753,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     // Process Mermaid blocks to extract graph nodes
     if (isMermaidBlock) {
       hasMermaidBlock = true
-      const diagrams = splitMermaidIntoDiagrams(b.text)
+      const diagrams = splitMermaidDiagrams(b.text)
       for (let idx = 0; idx < diagrams.length; idx += 1) {
         const diagram = diagrams[idx]!
         mermaidDensityParts.push(diagram.code)
@@ -776,19 +762,24 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         const diagramLineCount = Math.max(1, diagram.code.split('\n').length)
         const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
         const mermaidId = `mermaid:${gid}:code:${b.startLine}:${idx + 1}`
-        builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), `Mermaid Diagram L${diagramStart}`, { scope: 'block' })
+        builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), `Mermaid Diagram L${diagramStart}`, {
+          scope: 'block',
+          diagramKind: diagram.kind,
+        })
 
-        const parserCtx: MermaidParserContext = {
-          gid,
-          docId,
-          diagramId: mermaidId,
-          diagramScope: 'block',
-          startIndex: diagramStart,
-          ensureNode: (n) => builder.ensureNode(n),
-          addRel: (s, k, t, relationProps) => builder.addRel(s, k, t, relationProps),
-          mkMeta,
+        if (diagram.kind === 'flowchart') {
+          const parserCtx: MermaidParserContext = {
+            gid,
+            docId,
+            diagramId: mermaidId,
+            diagramScope: 'block',
+            startIndex: diagramStart,
+            ensureNode: (n) => builder.ensureNode(n),
+            addRel: (s, k, t, relationProps) => builder.addRel(s, k, t, relationProps),
+            mkMeta,
+          }
+          parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)
         }
-        parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)
       }
       
       // If we are in anchors-only mode, we might want to skip creating the CodeBlock node itself

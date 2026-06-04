@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRoot } from 'react-dom/client'
+import { Simulate } from 'react-dom/test-utils'
 import MainPanel from '@/features/panels/MainPanel'
 import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
 import McpHubView from '@/features/panels/views/McpHubView'
@@ -20,14 +21,23 @@ import {
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+  CHAT_AGNES_MODEL_OPTIONS,
+  CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
+  CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
+  CHAT_MIROMIND_MODEL_OPTIONS,
+  CHAT_QWEN_ENDPOINT_URL,
+  CHAT_QWEN_MODEL_OPTIONS,
 } from '@/lib/chatEndpoint'
 import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
 import { getMainPanelVirtualSettingStorageKey } from '@/features/panels/mainPanelVirtualSettings'
 import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
 import {
   assertMapsHubOmitsGrabMapsMcpConfig,
+  assertMcpHubRendersConfigurableValueControls,
   assertMcpHubSurfacesApiNativeBrowserMcpConfig,
   assertMcpHubSurfacesGrabMapsMcpConfig,
+  assertMcpHubSurfacesOpenAiMcpConfig,
+  assertMcpHubMaintainsKeyTypeValueHeader,
 } from '@/__tests__/helpers/mainPanelMcpExpectations'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
@@ -81,7 +91,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
     }))
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 3)
@@ -143,6 +153,22 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'agnesApi.model',
       'agnesApi.streaming.json_chunks',
       'agnesApi.output_contract',
+      'Qwen API',
+      'Open FloatingPanel Chat UI (Qwen)',
+      'qwenApi.provider',
+      'qwenApi.auth_mode',
+      'qwenApi.endpoint_url',
+      'qwenApi.model',
+      'qwenApi.messages',
+      'qwenApi.output_contract',
+      'Google Cloud Vertex AI API',
+      'Open FloatingPanel Chat UI (Google Cloud)',
+      'googleCloudApi.provider',
+      'googleCloudApi.project_id',
+      'googleCloudApi.location',
+      'googleCloudApi.endpoint_url',
+      'googleCloudApi.model',
+      'googleCloudApi.output_contract',
       'BytePlus Video Generation API',
       'Open FloatingPanel BytePlus Video Widget',
       'BytePlus Image Generation API',
@@ -180,7 +206,7 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 3)
@@ -251,7 +277,7 @@ export async function testMainPanelRequestedSettingsSearchExcludesIntegrationEnt
     api.resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -307,7 +333,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
     )
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -366,7 +392,7 @@ export async function testMainPanelRequestedIntegrationsSearchPreservesCustomMod
     api.setChatModel('custom/provider-model')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -423,7 +449,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -492,7 +518,7 @@ export async function testMainPanelRequestedIntegrationsSearchKeepsBytePlusProvi
     api.setChatProvider('openai')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -542,7 +568,7 @@ export async function testMainPanelRequestedIntegrationsSearchBytePlusImageField
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -580,6 +606,78 @@ export async function testMainPanelRequestedIntegrationsSearchBytePlusImageField
   }
 }
 
+export async function testMainPanelRequestedIntegrationsSearchDropsProseVirtualValueDefaults() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusImageApi.prompt',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    let text = container.textContent || ''
+    if (!text.includes('byteplusImageApi.prompt')) {
+      throw new Error(`expected BytePlus prompt row in integrations search, got ${JSON.stringify(text)}`)
+    }
+    if (text.includes('Required. Image generation prompt text.')) {
+      throw new Error('expected BytePlus prompt Value cell to avoid hardcoded explanatory text')
+    }
+    let textEditors = Array.from(container.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
+    let bytePlusPromptInput = textEditors.find(input => input.value === '')
+    if (!bytePlusPromptInput) {
+      throw new Error(`expected BytePlus prompt row to render an empty configurable input, got ${textEditors.map(input => input.value).join(' | ')}`)
+    }
+
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'pixverseVideoApi.transition_flow',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    text = container.textContent || ''
+    if (!text.includes('pixverseVideoApi.transition_flow')) {
+      throw new Error(`expected PixVerse transition_flow row in integrations search, got ${JSON.stringify(text)}`)
+    }
+    if (text.includes('Multi-scene plans derive transition-aware prompts')) {
+      throw new Error('expected PixVerse transition_flow Value cell to avoid hardcoded explanatory text')
+    }
+    textEditors = Array.from(container.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
+    const pixVerseTransitionInput = textEditors.find(input => input.value === '')
+    if (!pixVerseTransitionInput) {
+      throw new Error(`expected PixVerse transition_flow row to render an empty configurable input, got ${textEditors.map(input => input.value).join(' | ')}`)
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testMainPanelRequestedIntegrationsSearchBytePlusVideoCameraFixedUsesEditableValueSlot() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -593,7 +691,7 @@ export async function testMainPanelRequestedIntegrationsSearchBytePlusVideoCamer
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -649,7 +747,7 @@ export async function testMainPanelRequestedIntegrationsValueInputAcceptsTyping(
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -667,9 +765,11 @@ export async function testMainPanelRequestedIntegrationsValueInputAcceptsTyping(
       throw new Error('expected integrations value column to render a text input')
     }
 
+    const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set
+    if (!valueSetter) throw new Error('expected DOM input value setter')
     await act(async () => {
-      input.value = 'Value'
-      input.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'Value' }))
+      valueSetter.call(input, 'Value')
+      Simulate.change(input)
       await waitForFrames(anyWindow.requestAnimationFrame, 1)
     })
 
@@ -710,7 +810,7 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
 
     useGraphStore.getState().resetAll()
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 4)
@@ -749,7 +849,7 @@ export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(MapsHubView), anyWindow.requestAnimationFrame, 4)
@@ -779,6 +879,38 @@ export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
   }
 }
 
+export async function testMcpHubKtvHeaderMaintainsKeyTypeValue() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(McpHubView), anyWindow.requestAnimationFrame, 4)
+
+    assertMcpHubMaintainsKeyTypeValueHeader(container)
+    assertMcpHubRendersConfigurableValueControls(container)
+    assertMcpHubSurfacesOpenAiMcpConfig(container)
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -792,12 +924,16 @@ export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(McpHubView), anyWindow.requestAnimationFrame, 4)
 
     const text = container.textContent || ''
+    const formValues = Array.from(container.querySelectorAll('input, textarea, select'))
+      .map(el => (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value)
+      .join('\n')
+    const searchableText = `${text}\n${formValues}`
     assertMcpHubSurfacesGrabMapsMcpConfig(container)
     ;[
       'MiroMind MCP',
@@ -807,8 +943,8 @@ export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
       'miromindMcp.boundary',
       'markdown YAML frontmatter',
     ].forEach(token => {
-      if (!text.includes(token)) {
-        throw new Error(`expected MCP hub settings surface to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      if (!searchableText.includes(token)) {
+        throw new Error(`expected MCP hub settings surface to include ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
       }
     })
     if (text.includes('Global Reset')) {
@@ -838,7 +974,7 @@ export async function testMcpHubSurfacesApiNativeBrowserMcpConfig() {
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(McpHubView), anyWindow.requestAnimationFrame, 4)
@@ -944,7 +1080,7 @@ export async function testCommerceHubOmitsGlobalResetSection() {
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(CommerceHubView), anyWindow.requestAnimationFrame, 4)
@@ -982,7 +1118,7 @@ export async function testMainPanelTabsPlaceMcpImmediatelyAfterIntegrations() {
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1034,7 +1170,7 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(FloatingPropsPanel), anyWindow.requestAnimationFrame, 4)
@@ -1106,7 +1242,7 @@ export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDupli
     api.setGrabMapsApiKey('gm_test_key')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(FloatingPropsPanel), anyWindow.requestAnimationFrame, 4)
@@ -1149,7 +1285,7 @@ export async function testMainPanelBytePlusModelRowNormalizesAwayOpenAiValueLeak
     api.setChatModel('gpt-5.4-nano')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1200,7 +1336,7 @@ export async function testMainPanelRequestedIntegrationsSearchUnifiesBytePlusVid
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1250,7 +1386,7 @@ export async function testMainPanelRequestedIntegrationsSearchReusesBytePlusScal
     useGraphStore.getState().setChatFrequencyPenalty(-0.5)
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1296,7 +1432,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusJso
     useGraphStore.getState().setChatResponseFormatJson('{"type":"json_object"}')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1346,7 +1482,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersWritableVir
     )
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1419,7 +1555,7 @@ export async function testMainPanelDocMappedReferenceRowsUseEditableVirtualValue
     for (const testCase of cases) {
       useGraphStore.getState().resetAll()
       const doc = dom.window.document
-      const container = doc.createElement('div')
+      const container = doc.createElement('section')
       doc.body.appendChild(container)
       root = createRoot(container as unknown as HTMLElement)
       await renderAndFlush(
@@ -1473,7 +1609,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusMes
     useGraphStore.getState().setChatMessagesJson('[{"role":"user","content":"hi"}]')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1518,7 +1654,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusNes
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1570,7 +1706,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiApiRows
     api.resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1621,7 +1757,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiImagesA
     api.resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(
@@ -1650,6 +1786,453 @@ export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiImagesA
     const textEditors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="text"]'))
     if (textEditors.length === 0) {
       throw new Error('expected OpenAI Images prompt row to render a configurable text input')
+    }
+    const selects: HTMLSelectElement[] = Array.from(container.querySelectorAll('select') as NodeListOf<HTMLSelectElement>)
+    const findSelectWithOption = (optionValue: string): HTMLSelectElement | undefined => {
+      for (const select of selects) {
+        for (let index = 0; index < select.options.length; index += 1) {
+          const option = select.options.item(index) as HTMLOptionElement | null
+          if (option?.value === optionValue) return select
+        }
+      }
+      return undefined
+    }
+    const modelSelect = findSelectWithOption('gpt-image-2')
+    if (!modelSelect) {
+      throw new Error('expected OpenAI Images model row to render SSOT-backed model options')
+    }
+    if (modelSelect.value !== 'gpt-image-2') {
+      throw new Error(`expected OpenAI Images model select to use configurable default gpt-image-2, got ${JSON.stringify(modelSelect.value)}`)
+    }
+    if (!findSelectWithOption('webp')) {
+      throw new Error('expected OpenAI Images output_format row to render png/jpeg/webp options')
+    }
+    if (!findSelectWithOption('transparent')) {
+      throw new Error('expected OpenAI Images background row to render auto/transparent/opaque options')
+    }
+    const numberEditors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="number"]'))
+    if (numberEditors.length < 3) {
+      throw new Error(`expected OpenAI Images numeric rows to render configurable number inputs, got ${numberEditors.length}`)
+    }
+    const streamEditors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
+    if (streamEditors.length < 1) {
+      throw new Error('expected OpenAI Images stream row to render a configurable checkbox')
+    }
+    if (text.includes('openaiImagesApi.')) {
+      throw new Error('expected OpenAI Images rows to avoid stale plural openaiImagesApi aliases')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchShowsMiroMindApiConfigurableValues() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'miromindApi',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    ;[
+      'MiroMind API',
+      'miromindApi.model',
+      'miromindApi.mcp_servers',
+      'miromindApi.streaming.reasoning_steps',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected MiroMind integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    const datalist = container.querySelector('#settings-chat-model-options')
+    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
+      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
+    ;[
+      CHAT_MIROMIND_MODEL_OPTIONS[0],
+      CHAT_MIROMIND_MODEL_OPTIONS[1],
+    ].forEach(value => {
+      if (!datalistOptions.includes(value)) {
+        throw new Error(`expected MiroMind model Value cell to expose shared configurable model option ${JSON.stringify(value)}`)
+      }
+    })
+    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
+    const modelInput = modelInputs
+      .find(input => input.value === CHAT_MIROMIND_MODEL_OPTIONS[0])
+    if (!modelInput) {
+      throw new Error(`expected MiroMind model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
+    }
+    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
+    const hasSelectOption = (value: string): boolean => {
+      for (const select of selects) {
+        for (let index = 0; index < select.options.length; index += 1) {
+          const option = select.options.item(index) as HTMLOptionElement | null
+          if (option?.value === value) return true
+        }
+      }
+      return false
+    }
+    ;[
+      'serverManaged',
+      'byok',
+      'delta.reasoning_steps',
+    ].forEach(value => {
+      if (!hasSelectOption(value)) {
+        throw new Error(`expected MiroMind Value cells to expose configurable option ${JSON.stringify(value)}`)
+      }
+    })
+    const valueRows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
+    const mcpServersRow = valueRows.find(row => row.children[0]?.textContent?.includes('miromindApi.mcp_servers'))
+    const mcpServersValue = mcpServersRow?.children[2] as HTMLElement | undefined
+    if (!mcpServersValue?.querySelector('textarea')) {
+      throw new Error('expected MiroMind mcp_servers Value cell to render a configurable JSON textarea')
+    }
+    if (mcpServersValue.textContent?.includes('Documents the optional provider request field')) {
+      throw new Error('expected MiroMind mcp_servers Value cell to avoid responsibility prose')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchShowsAgnesApiConfigurableValues() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'agnesApi',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    ;[
+      'Agnes AI API',
+      'agnesApi.model',
+      'agnesApi.streaming.json_chunks',
+      'agnesApi.output_contract',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected Agnes integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    const datalist = container.querySelector('#settings-chat-model-options')
+    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
+      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
+    if (!datalistOptions.includes(CHAT_AGNES_MODEL_OPTIONS[0])) {
+      throw new Error(`expected Agnes model Value cell to expose shared configurable model option ${JSON.stringify(CHAT_AGNES_MODEL_OPTIONS[0])}`)
+    }
+    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
+    const modelInput = modelInputs
+      .find(input => input.value === CHAT_AGNES_MODEL_OPTIONS[0])
+    if (!modelInput) {
+      throw new Error(`expected Agnes model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
+    }
+    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
+    const hasSelectOption = (value: string): boolean => {
+      for (const select of selects) {
+        for (let index = 0; index < select.options.length; index += 1) {
+          const option = select.options.item(index) as HTMLOptionElement | null
+          if (option?.value === value) return true
+        }
+      }
+      return false
+    }
+    ;[
+      'serverManaged',
+      'byok',
+      'delta.content',
+      'frontmatter_kgc_markdown',
+    ].forEach(value => {
+      if (!hasSelectOption(value)) {
+        throw new Error(`expected Agnes Value cells to expose configurable option ${JSON.stringify(value)}`)
+      }
+    })
+    const valueRows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
+    const outputContractRow = valueRows.find(row => row.children[0]?.textContent?.includes('agnesApi.output_contract'))
+    const outputContractValue = outputContractRow?.children[2] as HTMLElement | undefined
+    if (!outputContractValue?.querySelector('select')) {
+      throw new Error('expected Agnes output_contract Value cell to render a configurable select')
+    }
+    if (outputContractValue.textContent?.includes('Pins Agnes to the canonical')) {
+      throw new Error('expected Agnes output_contract Value cell to avoid responsibility prose')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchShowsQwenApiConfigurableValues() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'qwenApi',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    ;[
+      'Qwen API',
+      'qwenApi.provider',
+      'qwenApi.endpoint_url',
+      'qwenApi.model',
+      'qwenApi.messages',
+      'qwenApi.output_contract',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected Qwen integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    const datalist = container.querySelector('#settings-chat-model-options')
+    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
+      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
+    ;[
+      CHAT_QWEN_MODEL_OPTIONS[0],
+      'qwen3-max',
+      'qwen-flash',
+    ].forEach(value => {
+      if (!datalistOptions.includes(value)) {
+        throw new Error(`expected Qwen model Value cell to expose shared configurable model option ${JSON.stringify(value)}`)
+      }
+    })
+    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
+    const modelInput = modelInputs
+      .find(input => input.value === CHAT_QWEN_MODEL_OPTIONS[0])
+    if (!modelInput) {
+      throw new Error(`expected Qwen model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
+    }
+    const endpointControls = Array.from(container.querySelectorAll('input, select')) as Array<HTMLInputElement | HTMLSelectElement>
+    const endpointControl = endpointControls.find(control => control.value === CHAT_QWEN_ENDPOINT_URL)
+    if (!endpointControl) {
+      throw new Error(`expected Qwen endpoint Value cell to expose configurable endpoint ${JSON.stringify(CHAT_QWEN_ENDPOINT_URL)}`)
+    }
+    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
+    const hasSelectOption = (value: string): boolean => {
+      for (const select of selects) {
+        for (let index = 0; index < select.options.length; index += 1) {
+          const option = select.options.item(index) as HTMLOptionElement | null
+          if (option?.value === value) return true
+        }
+      }
+      return false
+    }
+    ;[
+      'serverManaged',
+      'byok',
+      CHAT_QWEN_ENDPOINT_URL,
+      'Singapore',
+      'frontmatter_kgc_markdown',
+    ].forEach(value => {
+      if (!hasSelectOption(value)) {
+        throw new Error(`expected Qwen Value cells to expose configurable option ${JSON.stringify(value)}`)
+      }
+    })
+    const valueRows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
+    const messagesRow = valueRows.find(row => row.children[0]?.textContent?.includes('qwenApi.messages'))
+    const messagesValue = messagesRow?.children[2] as HTMLElement | undefined
+    if (!messagesValue?.querySelector('textarea')) {
+      throw new Error('expected Qwen messages Value cell to render a configurable JSON textarea')
+    }
+    if (messagesValue.textContent?.includes('States that Qwen reuses')) {
+      throw new Error('expected Qwen messages Value cell to avoid responsibility prose')
+    }
+    const outputContractRow = valueRows.find(row => row.children[0]?.textContent?.includes('qwenApi.output_contract'))
+    const outputContractValue = outputContractRow?.children[2] as HTMLElement | undefined
+    if (!outputContractValue?.querySelector('select')) {
+      throw new Error('expected Qwen output_contract Value cell to render a configurable select')
+    }
+    if (outputContractValue.textContent?.includes('Pins Qwen to the canonical')) {
+      throw new Error('expected Qwen output_contract Value cell to avoid responsibility prose')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchShowsGoogleCloudApiConfigurableValues() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'googleCloudApi',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    ;[
+      'Google Cloud Vertex AI API',
+      'googleCloudApi.provider',
+      'googleCloudApi.project_id',
+      'googleCloudApi.location',
+      'googleCloudApi.endpoint_url',
+      'googleCloudApi.model',
+      'googleCloudApi.messages',
+      'googleCloudApi.output_contract',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected Google Cloud integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    const datalist = container.querySelector('#settings-chat-model-options')
+    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
+      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
+    ;[
+      CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0],
+      'google/gemini-1.5-flash-001',
+    ].forEach(value => {
+      if (!datalistOptions.includes(value)) {
+        throw new Error(`expected Google Cloud model Value cell to expose shared configurable model option ${JSON.stringify(value)}`)
+      }
+    })
+    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
+    const modelInput = modelInputs
+      .find(input => input.value === CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0])
+    if (!modelInput) {
+      throw new Error(`expected Google Cloud model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
+    }
+    const endpointControls = Array.from(container.querySelectorAll('input, select')) as Array<HTMLInputElement | HTMLSelectElement>
+    const endpointControl = endpointControls.find(control => control.value === CHAT_GOOGLE_CLOUD_ENDPOINT_URL)
+    if (!endpointControl) {
+      throw new Error(`expected Google Cloud endpoint Value cell to expose configurable endpoint ${JSON.stringify(CHAT_GOOGLE_CLOUD_ENDPOINT_URL)}`)
+    }
+    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
+    const hasSelectOption = (value: string): boolean => {
+      for (const select of selects) {
+        for (let index = 0; index < select.options.length; index += 1) {
+          const option = select.options.item(index) as HTMLOptionElement | null
+          if (option?.value === value) return true
+        }
+      }
+      return false
+    }
+    ;[
+      'serverManaged',
+      'byok',
+      'us-central1',
+      'global',
+      'frontmatter_kgc_markdown',
+    ].forEach(value => {
+      if (!hasSelectOption(value)) {
+        throw new Error(`expected Google Cloud Value cells to expose configurable option ${JSON.stringify(value)}`)
+      }
+    })
+    const valueRows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
+    const projectRow = valueRows.find(row => row.children[0]?.textContent?.includes('googleCloudApi.project_id'))
+    const projectValue = projectRow?.children[2] as HTMLElement | undefined
+    if (!projectValue?.querySelector('input[type="text"]')) {
+      throw new Error('expected Google Cloud project_id Value cell to render a configurable text input')
+    }
+    if (projectValue.textContent?.includes('Google Cloud project id segment')) {
+      throw new Error('expected Google Cloud project_id Value cell to avoid responsibility prose')
+    }
+    const messagesRow = valueRows.find(row => row.children[0]?.textContent?.includes('googleCloudApi.messages'))
+    const messagesValue = messagesRow?.children[2] as HTMLElement | undefined
+    if (!messagesValue?.querySelector('textarea')) {
+      throw new Error('expected Google Cloud messages Value cell to render a configurable JSON textarea')
+    }
+    if (messagesValue.textContent?.includes('Configurable message override')) {
+      throw new Error('expected Google Cloud messages Value cell to avoid responsibility prose')
+    }
+    const outputContractRow = valueRows.find(row => row.children[0]?.textContent?.includes('googleCloudApi.output_contract'))
+    const outputContractValue = outputContractRow?.children[2] as HTMLElement | undefined
+    if (!outputContractValue?.querySelector('select')) {
+      throw new Error('expected Google Cloud output_contract Value cell to render a configurable select')
+    }
+    if (outputContractValue.textContent?.includes('Pins Google Cloud to the canonical')) {
+      throw new Error('expected Google Cloud output_contract Value cell to avoid responsibility prose')
     }
   } finally {
     try {
@@ -1681,7 +2264,7 @@ export async function testMainPanelRequestedIntegrationsAnchorScrollsExactBytePl
     }
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     const anchorId = getBytePlusSharedTextApiRowAnchorId('byteplus.auth_mode')

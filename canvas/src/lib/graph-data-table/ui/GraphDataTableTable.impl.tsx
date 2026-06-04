@@ -311,7 +311,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const graphDataTableColumnOrder = useGraphStore(s => s.graphDataTableColumnOrder)
   const setGraphDataTableColumnOrder = useGraphStore(s => s.setGraphDataTableColumnOrder)
 
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+  const scrollContainerRef = React.useRef<HTMLElement>(null)
   const headerRef = React.useRef<HTMLTableSectionElement>(null)
   const isColumnResizingRef = React.useRef(false)
   const headerReorderRafRef = React.useRef<number | null>(null)

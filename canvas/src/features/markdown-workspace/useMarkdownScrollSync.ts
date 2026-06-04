@@ -3,8 +3,8 @@ import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 export type MarkdownScrollSyncConfig = {
   editorTextAreaRef: React.RefObject<MonacoTextEditorHandle | null>
-  viewerRef: React.RefObject<HTMLDivElement>
-  gutterLayerRef: React.RefObject<HTMLDivElement>
+  viewerRef: React.RefObject<HTMLElement>
+  gutterLayerRef: React.RefObject<HTMLElement>
   lineHeightPx: number
   editorPaddingTopPx: number
   editorPaddingBottomPx: number
@@ -375,7 +375,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
     }
   }, [editorTextAreaRef, syncViewerFromEditor])
 
-  const handleViewerScroll = React.useCallback((e?: React.UIEvent<HTMLDivElement>) => {
+  const handleViewerScroll = React.useCallback((e?: React.UIEvent<HTMLElement>) => {
     const rafFn = getRaf()
     const cancelRafFn = getCancelRaf()
     const viewerFromEvent = e?.currentTarget ?? null

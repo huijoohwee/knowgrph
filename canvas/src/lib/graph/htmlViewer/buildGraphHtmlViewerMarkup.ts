@@ -20,6 +20,7 @@ import {
   inlineRepoFileUrlToDataUrl,
   unwrapStandaloneProxyUrl,
 } from '@/lib/graph/htmlViewer/standaloneAssetRewrite'
+import { normalizeSemanticHtmlContainers } from '@/lib/html/semanticHtml'
 
 type HtmlViewerMediaNode = {
   id: string
@@ -338,7 +339,7 @@ const filterStandaloneOverlayHtml = (args: {
   try {
     if (typeof DOMParser === 'undefined') return filterByRegex(raw)
     const doc = new DOMParser().parseFromString(
-      `<!doctype html><html><body><div id="kg-overlay-filter-root">${raw}</div></body></html>`,
+      `<!doctype html><html><body><section id="kg-overlay-filter-root">${raw}</section></body></html>`,
       'text/html',
     )
     const root = doc.querySelector('#kg-overlay-filter-root')
@@ -511,12 +512,13 @@ export async function buildGraphHtmlViewerMarkup(args: {
     )
   }
 
-  const overlayHtmlFiltered = filterStandaloneOverlayHtml({
+  const overlayHtmlFilteredRaw = filterStandaloneOverlayHtml({
     overlayHtml,
     hasGraphNodeIdentity: graphNodeIdentity.nodeIdSet.size > 0,
     resolveOverlayNodeId,
     shouldKeepOverlayLinkedToGraph,
   })
+  const overlayHtmlFiltered = normalizeSemanticHtmlContainers(overlayHtmlFilteredRaw)
 
   const overlaySeedsRaw = (() => {
     const mediaNodes: HtmlViewerMediaNode[] = []
@@ -594,7 +596,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
         return { mediaNodes, markdownBlocks }
       }
       const doc = new DOMParser().parseFromString(
-        `<!doctype html><html><body><div id="kg-overlay-seed">${overlayHtmlFiltered}</div></body></html>`,
+        `<!doctype html><html><body><section id="kg-overlay-seed">${overlayHtmlFiltered}</section></body></html>`,
         'text/html',
       )
       const root = doc.querySelector('#kg-overlay-seed')
@@ -1144,7 +1146,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     #kg-hud{position:absolute;left:max(12px, env(safe-area-inset-left));top:max(12px, env(safe-area-inset-top));display:flex;gap:8px;flex-wrap:wrap;align-items:center;z-index:1000;max-width:calc(100vw - 24px)}
     .kg-btn{border:1px solid var(--kg-border);background:var(--kg-panel-bg);color:var(--kg-text);border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer;min-width:32px;min-height:32px;line-height:1.2}
     .kg-btn.kg-active{outline:2px solid rgba(59,130,246,0.6);outline-offset:0}
-    .kg-tip{position:absolute;left:0;top:0;transform:translate3d(-99999px,-99999px,0);max-width:min(420px,calc(100vw - 24px));padding:8px 10px;border-radius:12px;background:rgba(17,24,39,.9);color:#fff;font-size:12px;line-height:1.25;pointer-events:none;z-index:9999;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border:1px solid rgba(255,255,255,0.08)}
+    .kg-tip{display:block;position:absolute;left:0;top:0;transform:translate3d(-99999px,-99999px,0);max-width:min(420px,calc(100vw - 24px));padding:8px 10px;border-radius:12px;background:rgba(17,24,39,.9);color:#fff;font-size:12px;line-height:1.25;pointer-events:none;z-index:9999;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border:1px solid rgba(255,255,255,0.08)}
     .kg-tip strong{font-weight:600}
     @media (max-width:520px){.kg-btn{padding:10px 12px;font-size:14px;border-radius:12px;min-width:40px;min-height:40px}}
     @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
@@ -1152,18 +1154,18 @@ export async function buildGraphHtmlViewerMarkup(args: {
   </style>
 </head>
 <body>
-  <div id="kg-root">
-    <div id="kg-stage">
+  <main id="kg-root">
+    <section id="kg-stage" aria-label="Graph canvas stage">
       <canvas id="kg-webgl" aria-label="3D canvas" tabindex="-1"></canvas>
-      <div id="kg-svgWrap">${svgPlaceholder}</div>
-    </div>
-    <div id="kg-overlay">${overlayHtmlFiltered}</div>
-    <div id="kg-hud" data-kg-canvas-wheel-ignore="true" data-kg-canvas-pointer-ignore="true">
+      <figure id="kg-svgWrap">${svgPlaceholder}</figure>
+    </section>
+    <section id="kg-overlay" aria-label="Graph overlay">${overlayHtmlFiltered}</section>
+    <nav id="kg-hud" aria-label="Canvas controls" data-kg-canvas-wheel-ignore="true" data-kg-canvas-pointer-ignore="true">
       <button class="kg-btn" id="kg-fit" type="button">Fit</button>
       <button class="kg-btn" id="kg-reset" type="button">Reset</button>
-    </div>
-  </div>
-  <div id="kg-tooltip" class="kg-tip" aria-hidden="true"></div>
+    </nav>
+  </main>
+  <output id="kg-tooltip" class="kg-tip" aria-hidden="true"></output>
   <script>
 ${runtimeScript}
   </script>

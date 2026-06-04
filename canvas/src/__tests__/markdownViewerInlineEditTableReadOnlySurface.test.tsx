@@ -22,7 +22,7 @@ const setRect = (el: HTMLElement, width: number = 560, height: number = 120) => 
 }
 
 export async function testMarkdownViewerInlineEditTableDoesNotOpenGenericContentEditableSurface() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot

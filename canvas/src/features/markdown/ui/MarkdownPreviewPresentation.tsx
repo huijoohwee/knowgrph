@@ -29,9 +29,9 @@ import { resolvePresentationFrameModel } from './markdownPresentationFrame'
 export { SlidesSidebar }
 
 type MarkdownPreviewPresentationProps = {
-  rootRef: (el: HTMLDivElement | null) => void
-  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void
-  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void
+  rootRef: (el: HTMLElement | null) => void
+  onClick?: (e: React.MouseEvent<HTMLElement>) => void
+  onContextMenu?: (e: React.MouseEvent<HTMLElement>) => void
   onRegisterFullscreenHandler?: (fn: (() => void) | null) => void
   headMeta: Record<string, unknown>
   slides: Array<{
@@ -64,7 +64,7 @@ type MarkdownPreviewPresentationProps = {
   effectiveHighlightUnderlineColor: string | null
   onPreviewClick?: (line: number) => void
   onShowInEditor?: (line: number) => void
-  onMouseUp?: (e: React.MouseEvent<HTMLDivElement>) => void
+  onMouseUp?: (e: React.MouseEvent<HTMLElement>) => void
   selectionToolbar?: React.ReactNode
   onSlideContextMenu?: (slideIdx: number, e: React.MouseEvent) => void
   fullDocTokens?: TokenWithLines[]
@@ -373,7 +373,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const handleDoubleClick = React.useCallback(
     (e: React.MouseEvent) => {
       if (onShowInEditor) {
-        const range = findLineRangeFromTarget(e.currentTarget as unknown as HTMLDivElement, e.target)
+        const range = findLineRangeFromTarget(e.currentTarget as unknown as HTMLElement, e.target)
         if (range) {
           onShowInEditor(range.startLine)
           return
@@ -385,7 +385,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
         }
       }
       if (onPreviewClick) {
-        const range = findLineRangeFromTarget(e.currentTarget as unknown as HTMLDivElement, e.target)
+        const range = findLineRangeFromTarget(e.currentTarget as unknown as HTMLElement, e.target)
         if (range) {
           onPreviewClick(range.startLine)
           return
@@ -461,9 +461,9 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
         scope={previewOverlayScope}
         portalTarget={previewOverlayPortalTarget}
       >
-        <div ref={previewOverlayContainerRef} className="w-full h-full bg-[color:var(--kg-panel-bg)] relative overflow-hidden">
+        <section ref={previewOverlayContainerRef} className="w-full h-full bg-[color:var(--kg-panel-bg)] relative overflow-hidden">
           {/* Sidebar Trigger Area */}
-          <div
+          <section
             className={`absolute left-0 top-0 bottom-0 w-2 z-[60] bg-transparent ${UI_THEME_TOKENS.button.hoverBg} transition-colors duration-200`}
             title="Show Slides Sidebar"
             onMouseEnter={handleSidebarMouseEnter}
@@ -477,7 +477,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
               onMouseEnter={handleSidebarMouseEnter}
               onMouseLeave={handleSidebarMouseLeave}
             >
-              <div className="w-64 h-full flex flex-col overflow-hidden">
+              <section className="w-64 h-full flex flex-col overflow-hidden">
                 <SlidesSidebar
                   embedded={true}
                   orderedSlideIndices={orderedSlideIndices}
@@ -494,7 +494,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
                   onSlideContextMenu={onSlideContextMenu}
                   width="w-full"
                 />
-              </div>
+              </section>
             </aside>
             <main className="flex-1 min-w-0 flex flex-col">
             <MarkdownPresentationViewport
@@ -525,7 +525,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
           </main>
           {selectionToolbar}
           </section>
-        </div>
+        </section>
       </PreviewOverlay>
     </>
   )

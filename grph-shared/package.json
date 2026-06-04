@@ -229,6 +229,11 @@
       "import": "./dist/search/exaMcpSsot.js",
       "default": "./dist/search/exaMcpSsot.js"
     },
+    "./openai/openaiMcpSsot": {
+      "types": "./dist/openai/openaiMcpSsot.d.ts",
+      "import": "./dist/openai/openaiMcpSsot.js",
+      "default": "./dist/openai/openaiMcpSsot.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

@@ -141,10 +141,10 @@ export function LayoutModeRendererSettings(props: {
 
   return (
     <CollapsibleSection title="Layout" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className={uiToolbarSettingsPanelBodyClassName}>
-        <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+      <section className={uiToolbarSettingsPanelBodyClassName}>
+        <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Global layout mode shared across 2D/3D renderers and semantic views.
-        </div>
+        </section>
         <ResponsiveSelectRow
           label="Mode"
           value={selectedLayoutMode}
@@ -157,10 +157,10 @@ export function LayoutModeRendererSettings(props: {
             </option>
           ))}
         </ResponsiveSelectRow>
-        <div className={uiToolbarSettingsPanelSubsectionClassName}>
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+        <section className={uiToolbarSettingsPanelSubsectionClassName}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             Shared fit frame for Pin, Fit to View, Fit to Screen, and Zoom to Selection. Frame is clamped upstream against the live viewport.
-          </div>
+          </section>
           <ResponsiveNumberRow
             label="Fit fill"
             step={0.01}
@@ -188,15 +188,15 @@ export function LayoutModeRendererSettings(props: {
             disabled={disabled}
             onChange={setViewportFitReferenceHeight}
           />
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} leading-snug text-right`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} leading-snug text-right`}>
             Active fit frame {fitReferenceFrame.width}×{fitReferenceFrame.height}
-          </div>
-        </div>
+          </section>
+        </section>
         {showFrontmatterFlowControls ? (
-          <div className={uiToolbarSettingsPanelSubsectionClassName}>
-            <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          <section className={uiToolbarSettingsPanelSubsectionClassName}>
+            <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
               Frontmatter Flow Editor fit controls. Lower proxy values fit a denser overlay footprint and make the on-screen collective larger.
-            </div>
+            </section>
             <ResponsiveNumberRow
               label="Initial fit fill"
               step={0.01}
@@ -226,11 +226,11 @@ export function LayoutModeRendererSettings(props: {
                 </span>
               </ResponsiveControlRow>
             ))}
-            <div className={uiToolbarSettingsPanelFooterClassName}>
+            <section className={uiToolbarSettingsPanelFooterClassName}>
               <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
                 Adaptive frontmatter defaults
               </span>
-              <div className={uiToolbarSettingsPanelActionGroupClassName}>
+              <section className={uiToolbarSettingsPanelActionGroupClassName}>
                 <button
                   type="button"
                   className={`${uiToolbarSettingsPanelTextActionClassName} text-[11px] ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
@@ -245,11 +245,11 @@ export function LayoutModeRendererSettings(props: {
                 >
                   Reset frontmatter
                 </button>
-              </div>
-            </div>
-          </div>
+              </section>
+            </section>
+          </section>
         ) : null}
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

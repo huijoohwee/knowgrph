@@ -4,6 +4,7 @@ import { getKgThemeFromDom } from '@/lib/ui/tokens-ssot'
 import { renderMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { readFrontmatterMermaidCode } from '@/lib/mermaid/mermaidFrontmatterCode'
 
 type MermaidTheme = 'light' | 'dark'
 
@@ -843,32 +844,6 @@ export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: Graph
   }
 
   return { ...graphData, nodes: nextNodes }
-}
-
-const findFrontmatterMermaidDiagramNode = (graphData: GraphData): GraphNode | null => {
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]!
-    if (!isFrontmatterMermaidDiagram(n)) continue
-    return n
-  }
-  return null
-}
-
-const readFrontmatterMermaidDiagramProps = (graphData: GraphData): Record<string, unknown> | null => {
-  const node = findFrontmatterMermaidDiagramNode(graphData)
-  if (!node) return null
-  return readNodeProperties(node)
-}
-
-const readFrontmatterMermaidCodeFromProps = (props: Record<string, unknown> | null): string => {
-  const code = props && typeof props.code === 'string' ? String(props.code || '').trim() : ''
-  if (code) return code
-  return ''
-}
-
-const readFrontmatterMermaidCode = (graphData: GraphData): string => {
-  return readFrontmatterMermaidCodeFromProps(readFrontmatterMermaidDiagramProps(graphData))
 }
 
 const resolveMermaidFrontmatterTheme = (theme?: MermaidTheme): MermaidTheme => {

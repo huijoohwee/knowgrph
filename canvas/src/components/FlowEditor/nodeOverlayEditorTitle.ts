@@ -15,7 +15,7 @@ import {
 import { getTextGenerationWidgetLabel, getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
 import { isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
-  resolveNodeWidgetIdentity,
+  resolveWidgetIdentity,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
 const normalizeWidgetLabelText = (raw: unknown): string => {
@@ -62,7 +62,7 @@ function resolveSpecificWidgetTitle(args: {
 }): string | null {
   const properties = (args.node.properties || {}) as Record<string, unknown>
   const registryEntry = args.registryEntry || null
-  const widgetIdentity = resolveNodeWidgetIdentity({ node: args.node, registryEntry })
+  const widgetIdentity = resolveWidgetIdentity({ node: args.node, registryEntry })
   const nodeTypeId = String(registryEntry?.nodeTypeId || args.node.type || '').trim()
   if (registryEntry && isGrabMapsDiscoveryWidgetEntry(registryEntry)) {
     const registryLabel = getWidgetRegistryEntryLabel({

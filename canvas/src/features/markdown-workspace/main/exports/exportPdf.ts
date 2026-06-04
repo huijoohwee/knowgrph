@@ -248,7 +248,7 @@ function buildPrintablePresentationDeck(markdownText: string): HTMLElement | nul
 async function buildViewerFidelityTarget(markdownText: string): Promise<HTMLElement | null> {
   const text = String(markdownText || '')
   if (!text.trim()) return null
-  const host = document.createElement('div')
+  const host = document.createElement('section')
   host.setAttribute('data-testid', 'markdown-pdf-render-host')
   host.style.position = 'fixed'
   host.style.left = '0'
@@ -326,7 +326,7 @@ async function buildViewerFidelityTarget(markdownText: string): Promise<HTMLElem
 async function buildPresentationFidelityDeckTarget(markdownText: string): Promise<HTMLElement | null> {
   const text = String(markdownText || '')
   if (!text.trim()) return null
-  const host = document.createElement('div')
+  const host = document.createElement('section')
   host.setAttribute('data-testid', 'markdown-presentation-pdf-render-host')
   host.style.position = 'fixed'
   host.style.left = '0'

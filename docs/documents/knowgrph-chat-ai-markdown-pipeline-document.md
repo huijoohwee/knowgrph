@@ -38,6 +38,7 @@ Chat uses the provider proxy and sends:
 - Provider-specific endpoint defaults, model defaults, auth hints, and proxy normalization belong to `chatEndpoint.ts`; downstream markdown validation, workspace persistence, and canvas apply stay provider-neutral.
 - When a provider streams `text/event-stream`, each SSE `data:` frame is treated as one JSON payload or `[DONE]`; provider-specific chunk parsers, graph mutation during streaming, or renderer-specific post-processing are forbidden.
 - Agnes readiness is implemented as `MainPanel Integrations -> Agnes AI API -> FloatingPanel Chat`, and the output contract remains one frontmatter-first KGC markdown document on the shared Workspace / Source Files path.
+- Long-horizon SuperAgent runs, including DeerFlow-inspired or DeerFlow-gateway-assisted runs, must still emit one frontmatter-first KGC markdown document before any workspace/canvas apply. Harness traces, memories, tools, skills, or subagent plans are upstream run context and must not bypass validation, parser selection, Source Files persistence, or Flow Editor/Rich Media Panel ownership.
 
 When `chatStorageTarget=chatKnowgrph`, the assistant must output:
 - A standalone parseable KGC markdown document aligned to `kgc-ai-pipeline-chat-response-base-template.md`

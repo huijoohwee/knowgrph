@@ -21,7 +21,7 @@ export async function testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback()
     if (!geojson) throw new Error('Expected sandbox slide demo to include a fenced geojson code block')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
 
@@ -78,7 +78,7 @@ export async function testGeoJsonMapPreviewSupportsContainerHeightMode() {
     if (!geojson) throw new Error('Expected sandbox slide demo to include a fenced geojson code block')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
 

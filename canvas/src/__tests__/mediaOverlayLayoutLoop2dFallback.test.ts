@@ -5,11 +5,11 @@ import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLo
 import { defaultSchema } from '@/lib/graph/schema'
 
 export async function testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
-    const el = dom.window.document.createElement('div')
+    const el = dom.window.document.createElement('section')
     root.appendChild(el)
 
     const loop = startMediaOverlayLayoutLoop2d({
@@ -59,14 +59,14 @@ function readTranslatedPanelBox(el: HTMLElement): { left: number; top: number; w
 }
 
 export async function testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscreenPositions() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const ids = ['m1', 'm2', 'm3']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (const id of ids) {
-      const el = dom.window.document.createElement('div')
+      const el = dom.window.document.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }
@@ -108,14 +108,14 @@ export async function testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscre
 }
 
 export async function testMediaOverlayLayoutLoop2dReseedsManualFrontmatterOverlapsInsideVisibleMargins() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (const id of ids) {
-      const el = dom.window.document.createElement('div')
+      const el = dom.window.document.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }
@@ -173,14 +173,14 @@ export async function testMediaOverlayLayoutLoop2dReseedsManualFrontmatterOverla
 }
 
 export async function testMediaOverlayLayoutLoop2dFallbackPositionsManualFrontmatterMissingCenters() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (const id of ids) {
-      const el = dom.window.document.createElement('div')
+      const el = dom.window.document.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }
@@ -238,14 +238,14 @@ export async function testMediaOverlayLayoutLoop2dFallbackPositionsManualFrontma
 }
 
 export async function testMediaOverlayLayoutLoop2dFallbackDoesNotDeferMixedManualFrontmatterCenters() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const ids = ['m1', 'm2', 'm3', 'm4']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (const id of ids) {
-      const el = dom.window.document.createElement('div')
+      const el = dom.window.document.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }
@@ -314,10 +314,8 @@ export function testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy() {
   }
   for (const snippet of [
     'manualPlacement: richMediaInfiniteCanvasMode',
-    'collision: richMediaInfiniteCanvasMode',
-    'const flowEditorFrontmatterVisibleViewport = React.useMemo',
-    'const richMediaViewportClamp = React.useMemo',
-    'clampToViewport: richMediaViewportClamp',
+    'collision: richMediaInfiniteCanvasMode\n        ? { enabled: false }',
+    'clampToViewport: richMediaInfiniteCanvasMode\n        ? null',
   ]) {
     if (!flowOverlayText.includes(snippet)) {
       throw new Error(`expected Flow Rich Media overlays to route ${snippet} through the shared infinite-canvas gate`)
@@ -335,15 +333,15 @@ export function testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy() {
 }
 
 export async function testMediaOverlayLayoutLoop2dAvoidsSingleVerticalCluster() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (let i = 0; i < ids.length; i += 1) {
       const id = ids[i]!
-      const el = dom.window.document.createElement('div')
+      const el = dom.window.document.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }
@@ -401,15 +399,15 @@ export async function testMediaOverlayLayoutLoop2dAvoidsSingleVerticalCluster() 
 }
 
 export async function testMediaOverlayLayoutLoop2dKeepsDenseCollectiveCenteredWithin16x9Bounds() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (let i = 0; i < ids.length; i += 1) {
       const id = ids[i]!
-      const el = dom.window.document.createElement('div')
+      const el = dom.window.document.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }
@@ -513,15 +511,15 @@ export async function testMediaOverlayLayoutLoop2dKeepsDenseCollectiveCenteredWi
 }
 
 export async function testMediaOverlayLayoutLoop2dKeepsMixedCollectiveClearOfWidgetObstacles() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (let i = 0; i < ids.length; i += 1) {
       const id = ids[i]!
-      const el = dom.window.document.createElement('div')
+      const el = dom.window.document.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }

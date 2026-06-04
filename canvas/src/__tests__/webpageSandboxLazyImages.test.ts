@@ -32,7 +32,7 @@ export async function testWebpageSandboxInjectsWeChatUnhideStyle() {
   const raw = [
     '<!doctype html>',
     '<html><head><meta charset="utf-8"></head><body>',
-    '<div class="rich_media_content" id="js_content" style="opacity:0;visibility:hidden">X</div>',
+    '<section class="rich_media_content" id="js_content" style="opacity:0;visibility:hidden">X</section>',
     '</body></html>',
   ].join('')
   const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://mp.weixin.qq.com/s/test', scriptPolicy: 'strip' })

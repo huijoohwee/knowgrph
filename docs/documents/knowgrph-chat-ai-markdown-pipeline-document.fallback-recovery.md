@@ -21,7 +21,7 @@ The canonical recovery owner is the shared upstream recovery path reused by subm
 ## Workspace Handoff
 - After final save, follow the resolved `kgc_*.md` path again.
 - Force markdown workspace layout to `editor`.
-- If a markdown path is active, runtime must switch from `nodeQuickEditor` to `document`.
+- If a markdown path is active, runtime must switch from `widget` to `document`.
 
 ## Guardrails
 - Strip residual artifacts: bare `kgc`, escaped `\---`, escaped fence wrappers.

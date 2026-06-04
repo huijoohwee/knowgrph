@@ -34,7 +34,7 @@
 - When schema-field ports are used, edge validation also checks that referenced field ids exist on each node and (when both sides provide `type`) denies incompatible `type` pairs.
 - UI surfaces may render a label override for port-bound edges via `edge.properties['flow:displayLabel']` (fallback remains `edge.label`).
 - Edge creation uses the same port metadata: dragging from a port dot writes `flow:sourcePortKey` / `flow:targetPortKey`, while non-port edges omit those keys and fall back to `edge.id`.
-- When the Node Quick Editor is open, its port dots are the edge-creation surface for the selected node (native Flow handles are suppressed).
+- When the Flow Editor widget is open, its port dots are the edge-creation surface for the selected node (native Flow handles are suppressed).
 - Flow Editor KTV rows use normalized schema paths to merge matching functional ports into the editable field row. This prevents a duplicated non-inline row for the same semantic key while preserving the authored `key` / `portKey` used by edges and computing-flow propagation.
 - `handles.source` and `handles.target` define which semantic keys are available on each side; they are not port ids themselves and must not appear as replacement handle names in rendered rows or edge metadata.
 - Toggling port handles updates rendering only and preserves node positions.

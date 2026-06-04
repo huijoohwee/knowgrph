@@ -229,17 +229,17 @@ export const MarkdownDataViewKanbanView = React.memo(function MarkdownDataViewKa
 
   return (
     <section ref={boardScrollRef} className="p-2 overflow-x-auto" aria-label={MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel}>
-      <div key={liveRegionKey} className="sr-only" aria-live="polite">{statusPillText}</div>
+      <section key={liveRegionKey} className="sr-only" aria-live="polite">{statusPillText}</section>
       {canMutate ? (
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div className={[UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className="mb-2 flex items-center justify-between gap-3">
+          <section className={[UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
             {statusPillText ? (
               <span className={['inline-flex items-center rounded-full border px-2.5 py-1', UI_THEME_TOKENS.panel.border].join(' ')}>
                 {statusPillText}
               </span>
             ) : null}
-          </div>
-        </div>
+          </section>
+        </section>
       ) : null}
       <ul className="flex items-start gap-3 min-w-fit list-none m-0 p-0" aria-label="Kanban groups">
         {groups.map(group => (

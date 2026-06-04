@@ -92,9 +92,9 @@ export default function PreviewPanelView() {
   )
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
-  const [overlayPortalTarget, setOverlayPortalTarget] = React.useState<HTMLDivElement | null>(null)
+  const [overlayPortalTarget, setOverlayPortalTarget] = React.useState<HTMLElement | null>(null)
   const [loadedEmbedKey, setLoadedEmbedKey] = React.useState<string>('')
-  const setOverlayPortalRef = React.useCallback((el: HTMLDivElement | null) => {
+  const setOverlayPortalRef = React.useCallback((el: HTMLElement | null) => {
     setOverlayPortalTarget(prev => (prev === el ? prev : el))
   }, [])
 
@@ -573,13 +573,13 @@ export default function PreviewPanelView() {
   const renderMiniPreview = (item: MediaItem) => {
     if (item.kind === 'image' && item.src) {
       return (
-        <div className="flex-1 w-full flex items-center justify-center overflow-hidden rounded bg-black/5">
+        <section className="flex-1 w-full flex items-center justify-center overflow-hidden rounded bg-black/5">
           <img
             src={item.src}
             alt={item.alt || item.label}
             className="max-w-full max-h-full object-contain"
           />
-        </div>
+        </section>
       )
     }
 
@@ -587,9 +587,9 @@ export default function PreviewPanelView() {
       const code = String(item.code || '').trim()
       if (!code) {
         return (
-          <div className="flex-1 w-full flex items-center justify-center rounded bg-slate-900 text-[10px] text-slate-50 px-2">
+          <section className="flex-1 w-full flex items-center justify-center rounded bg-slate-900 text-[10px] text-slate-50 px-2">
             Mermaid
-          </div>
+          </section>
         )
       }
       const lines = code
@@ -599,29 +599,29 @@ export default function PreviewPanelView() {
       const first = lines[0] || ''
       const text = first.length > 60 ? `${first.slice(0, 57)}…` : first
       return (
-        <div className="flex-1 w-full flex items-center justify-center rounded bg-slate-900 text-[10px] text-slate-50 px-2 text-center">
+        <section className="flex-1 w-full flex items-center justify-center rounded bg-slate-900 text-[10px] text-slate-50 px-2 text-center">
           <span className="font-mono truncate w-full">{text || 'Mermaid'}</span>
-        </div>
+        </section>
       )
     }
 
-    return <div className={previewPlaceholderClassName}><span className="truncate w-full">{renderMarkdownSigilInlineText(item.label)}</span></div>
+    return <section className={previewPlaceholderClassName}><span className="truncate w-full">{renderMarkdownSigilInlineText(item.label)}</span></section>
   }
 
   const renderActiveMedia = () => {
     if (!activeMedia) {
       return (
-        <div className={previewEmptyStateClassName}>
+        <section className={previewEmptyStateClassName}>
           Select a Mermaid diagram or rich media item.
-        </div>
+        </section>
       )
     }
 
     if (!activeMedia.src && !activeMedia.srcDoc && activeMedia.kind !== 'mermaid') {
       return (
-        <div className={previewEmptyStateClassName}>
+        <section className={previewEmptyStateClassName}>
           Selected media has no preview source.
-        </div>
+        </section>
       )
     }
 
@@ -648,8 +648,8 @@ export default function PreviewPanelView() {
         ? `aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`
         : `aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`
       return (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className={frameClass}>
+        <section className="w-full h-full flex items-center justify-center">
+          <section className={frameClass}>
             {richMediaLoaded ? (
               <RichMediaPanel
                 title={richMediaTitle}
@@ -670,8 +670,8 @@ export default function PreviewPanelView() {
                 style={{ width: '100%', height: '100%', boxShadow: 'none' }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="flex items-center gap-2">
+              <section className="w-full h-full flex items-center justify-center">
+                <section className="flex items-center gap-2">
                   <button
                     type="button"
                     className={previewActionButtonClassName}
@@ -682,11 +682,11 @@ export default function PreviewPanelView() {
                   <a className="text-xs underline" href={richMediaOpenUrl} target="_blank" rel="noreferrer">
                     {UI_COPY.markdownMediaOpenInNewTabLabel}
                   </a>
-                </div>
-              </div>
+                </section>
+              </section>
             )}
-          </div>
-        </div>
+          </section>
+        </section>
       )
     }
 
@@ -697,23 +697,23 @@ export default function PreviewPanelView() {
     <MainPanelBody header={<header />} scrollable={false}>
       <section ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
         {!hasMarkdown && mediaItems.length === 0 ? (
-          <div className={['px-2 py-2 text-sm', UI_THEME_TOKENS.text.secondary, uiPanelTextFontClass].join(' ')}>
+          <section className={['px-2 py-2 text-sm', UI_THEME_TOKENS.text.secondary, uiPanelTextFontClass].join(' ')}>
             No markdown loaded.
-          </div>
+          </section>
         ) : (
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <section className="flex-1 min-h-0 overflow-hidden flex flex-col">
             <header className={previewPanelHeaderClassName}>
-              <div className="px-3 py-2 flex items-center justify-between">
-                <div className={['text-xs font-medium', UI_THEME_TOKENS.text.primary, uiPanelTextFontClass].join(' ')}>
+              <section className="px-3 py-2 flex items-center justify-between">
+                <section className={['text-xs font-medium', UI_THEME_TOKENS.text.primary, uiPanelTextFontClass].join(' ')}>
                   Preview: Mermaid diagrams and rich media
-                </div>
-                <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
+                </section>
+                <section className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
                   {mediaItems.length ? `${mediaItems.length} item${mediaItems.length === 1 ? '' : 's'}` : 'No media items'}
-                </div>
-              </div>
+                </section>
+              </section>
               {mediaItems.length > 0 ? (
-                <div className="px-3 pb-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <section className="px-3 pb-3">
+                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {mediaItems.map(item => {
                       const isActiveMermaid =
                         hasMermaidFocus &&
@@ -736,30 +736,30 @@ export default function PreviewPanelView() {
                               : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHover}`,
                           ].join(' ')}
                         >
-                          <div className="absolute left-1 top-1 rounded bg-black/60 text-white px-1 py-0.5 text-[10px]">
+                          <section className="absolute left-1 top-1 rounded bg-black/60 text-white px-1 py-0.5 text-[10px]">
                             {item.kind}
-                          </div>
-                          <div className={previewMetaBadgeClassName}>
+                          </section>
+                          <section className={previewMetaBadgeClassName}>
                             {item.source === 'markdown' ? 'Markdown' : 'Graph'}
-                          </div>
-                          <div className="flex-1 w-full mb-1">
+                          </section>
+                          <section className="flex-1 w-full mb-1">
                             {renderMiniPreview(item)}
-                          </div>
-                          <div className={`mt-1 mx-1 line-clamp-2 ${UI_THEME_TOKENS.text.primary}`}>
+                          </section>
+                          <section className={`mt-1 mx-1 line-clamp-2 ${UI_THEME_TOKENS.text.primary}`}>
                             {renderMarkdownSigilInlineText(item.label)}
-                          </div>
+                          </section>
                         </button>
                       )
                     })}
-                  </div>
-                </div>
+                  </section>
+                </section>
               ) : null}
             </header>
-            <div className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg}`}>
+            <section className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg}`}>
               {hasMermaidFocus ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="aspect-video w-full max-w-4xl">
-                    <div className="w-full h-full overflow-auto">
+                <section className="w-full h-full flex items-center justify-center">
+                  <section className="aspect-video w-full max-w-4xl">
+                    <section className="w-full h-full overflow-auto">
                       {splitMermaidIntoDiagrams(mermaidFocusCode).map((code, i) => (
                         <React.Suspense key={i} fallback={null}>
                           <MermaidDiagramLazy
@@ -774,14 +774,14 @@ export default function PreviewPanelView() {
                           />
                         </React.Suspense>
                       ))}
-                    </div>
-                  </div>
-                </div>
+                    </section>
+                  </section>
+                </section>
               ) : (
                 renderActiveMedia()
               )}
-            </div>
-          </div>
+            </section>
+          </section>
         )}
       </section>
     </MainPanelBody>

@@ -27,7 +27,7 @@ export function PresentationNotes(props: PresentationNotesProps) {
   
   return (
     <aside className={className} aria-label="Speaker Notes">
-        <div className={['px-4 py-3 text-xs', UI_THEME_TOKENS.text.primary, props.uiPanelTextFontClass].filter(Boolean).join(' ')}>
+        <section className={['px-4 py-3 text-xs', UI_THEME_TOKENS.text.primary, props.uiPanelTextFontClass].filter(Boolean).join(' ')}>
             <MarkdownTokenRenderer
                 tokens={notesTokens}
                 highlightedLineRange={null}
@@ -39,7 +39,7 @@ export function PresentationNotes(props: PresentationNotesProps) {
                 previewOverlayPortalTarget={previewOverlayPortalTarget ?? null}
                 {...rest}
             />
-        </div>
+        </section>
     </aside>
   )
 }

@@ -1169,7 +1169,7 @@ export function testMarkdownFrontmatterFlowGraphFlowBlockIgnoresMermaidAndRender
   const formIds = registry.map(r => String(r.formId || '')).filter(Boolean).sort()
   const expectedFormIds = expectedNodeIds.map(id => `fm:${id}`).sort()
   if (JSON.stringify(formIds) !== JSON.stringify(expectedFormIds)) {
-    throw new Error(`expected only flow node widget forms, got ${JSON.stringify(formIds)}`)
+    throw new Error(`expected only flow widget forms, got ${JSON.stringify(formIds)}`)
   }
 }
 

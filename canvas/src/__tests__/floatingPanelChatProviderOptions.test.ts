@@ -1,4 +1,4 @@
-import { CHAT_PROVIDER_AGNES, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
+import { CHAT_PROVIDER_AGNES, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_GOOGLE_CLOUD, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_QWEN } from '@/lib/chatEndpoint'
 import { buildProviderChatRequestOptions } from '@/features/chat/FloatingPanelChat.helpers'
 
 function stableStringify(value: unknown): string {
@@ -229,6 +229,94 @@ export function testAgnesProviderOptionsReuseSharedChatCompletionsShape() {
   const serializedExpected = stableStringify(expected)
   if (serialized !== serializedExpected) {
     throw new Error(`expected Agnes chat-completions options ${serializedExpected}, got ${serialized}`)
+  }
+}
+
+export function testQwenProviderOptionsReuseSharedChatCompletionsShape() {
+  const options = buildProviderChatRequestOptions({
+    provider: CHAT_PROVIDER_QWEN,
+    endpointUrl: '/compatible-mode/v1/chat/completions',
+    chatModel: 'qwen-plus',
+    chatTemperature: 0.45,
+    chatServiceTier: 'default',
+    chatStream: true,
+    chatMessagesJson: '',
+    chatReasoningEffort: 'medium',
+    chatThinkingType: 'auto',
+    chatThinkingJson: '',
+    chatFrequencyPenalty: 0.2,
+    chatPresencePenalty: 0.1,
+    chatTopP: 0.85,
+    chatLogprobs: false,
+    chatTopLogprobs: 0,
+    chatParallelToolCalls: true,
+    chatStopJson: '["DONE"]',
+    chatStreamOptionsJson: '{"include_usage":true}',
+    chatResponseFormatJson: '{"type":"json_object"}',
+    chatLogitBiasJson: '',
+    chatToolsJson: '',
+    chatToolChoiceJson: '',
+  })
+  const expected = {
+    temperature: 0.45,
+    service_tier: 'default',
+    frequency_penalty: 0.2,
+    presence_penalty: 0.1,
+    top_p: 0.85,
+    parallel_tool_calls: true,
+    stop: ['DONE'],
+    stream_options: { include_usage: true },
+    response_format: { type: 'json_object' },
+    logprobs: false,
+  }
+  const serialized = stableStringify(options)
+  const serializedExpected = stableStringify(expected)
+  if (serialized !== serializedExpected) {
+    throw new Error(`expected Qwen chat-completions options ${serializedExpected}, got ${serialized}`)
+  }
+}
+
+export function testGoogleCloudProviderOptionsReuseSharedChatCompletionsShape() {
+  const options = buildProviderChatRequestOptions({
+    provider: CHAT_PROVIDER_GOOGLE_CLOUD,
+    endpointUrl: '/v1/projects/PROJECT_ID/locations/us-central1/endpoints/openapi/chat/completions',
+    chatModel: 'google/gemini-2.0-flash-001',
+    chatTemperature: 0.4,
+    chatServiceTier: 'default',
+    chatStream: true,
+    chatMessagesJson: '',
+    chatReasoningEffort: 'medium',
+    chatThinkingType: 'auto',
+    chatThinkingJson: '',
+    chatFrequencyPenalty: 0.2,
+    chatPresencePenalty: 0.1,
+    chatTopP: 0.85,
+    chatLogprobs: false,
+    chatTopLogprobs: 0,
+    chatParallelToolCalls: true,
+    chatStopJson: '["DONE"]',
+    chatStreamOptionsJson: '{"include_usage":true}',
+    chatResponseFormatJson: '{"type":"json_object"}',
+    chatLogitBiasJson: '',
+    chatToolsJson: '',
+    chatToolChoiceJson: '',
+  })
+  const expected = {
+    temperature: 0.4,
+    service_tier: 'default',
+    frequency_penalty: 0.2,
+    presence_penalty: 0.1,
+    top_p: 0.85,
+    parallel_tool_calls: true,
+    stop: ['DONE'],
+    stream_options: { include_usage: true },
+    response_format: { type: 'json_object' },
+    logprobs: false,
+  }
+  const serialized = stableStringify(options)
+  const serializedExpected = stableStringify(expected)
+  if (serialized !== serializedExpected) {
+    throw new Error(`expected Google Cloud chat-completions options ${serializedExpected}, got ${serialized}`)
   }
 }
 

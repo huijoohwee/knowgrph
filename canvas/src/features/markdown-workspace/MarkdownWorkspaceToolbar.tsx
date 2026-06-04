@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  FileDiff,
   LayoutGrid,
   LayoutPanelTop,
   Maximize2,
@@ -24,7 +25,7 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 import {
   uiToolbarRowScrollInlineClassName,
-  uiToolbarRowScrollJustifyEndClassName,
+  uiToolbarRowScrollClassName,
   uiToolbarRowScrollListClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
 import { closeWorkspaceView } from '@/features/workspace-table/workspaceTableSsot'
@@ -55,6 +56,8 @@ export type MarkdownWorkspaceToolbarProps = {
   setMarkdownWordWrap: (next: boolean) => void
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
+  documentVersionGitGraphOpen?: boolean
+  setDocumentVersionGitGraphOpen?: (next: boolean) => void
 
   viewerKind?: 'markdown' | 'html' | 'json'
   viewerMode?: MarkdownWorkspaceDerivedViewerMode
@@ -99,6 +102,8 @@ export function MarkdownWorkspaceToolbar({
   setMarkdownWordWrap,
   markdownTextHighlight,
   setMarkdownTextHighlight,
+  documentVersionGitGraphOpen = false,
+  setDocumentVersionGitGraphOpen,
   viewerKind,
   viewerMode,
   setViewerMode,
@@ -279,6 +284,7 @@ export function MarkdownWorkspaceToolbar({
   const paneToggleTitle = (label: string, available: boolean): string =>
     available ? label : `${label} not applicable for this Source File`
   const paneToggleTextClassName = `kg-workspace-pane-toggle-label ${UI_TEXT_TRUNCATE}`
+  const showDocumentVersionGitGraphToggle = typeof setDocumentVersionGitGraphOpen === 'function'
 
   return (
       <WorkspaceHeaderRow className="kg-markdown-workspace-toolbar-row kg-toolbar min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
@@ -290,7 +296,7 @@ export function MarkdownWorkspaceToolbar({
         ) : (
           <span className="sr-only">Workspace editor</span>
         )}
-        <CollapsibleToolbar forceExpanded={isTouchToolbarViewport} className={`kg-toolbar kg-workspace-toolbar-controls ${uiToolbarRowScrollJustifyEndClassName} gap-1`} ariaLabel="Markdown view controls">
+        <CollapsibleToolbar forceExpanded={isTouchToolbarViewport} className={`kg-toolbar kg-workspace-toolbar-controls ${uiToolbarRowScrollClassName} gap-1`} ariaLabel="Markdown view controls">
           {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
             <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Webpage">
             <li className="list-none">
@@ -373,6 +379,23 @@ export function MarkdownWorkspaceToolbar({
                 />
                 <span className={paneToggleTextClassName}>Markdown</span>
               </label>
+              {showDocumentVersionGitGraphToggle ? (
+                <label
+                  className={`kg-workspace-pane-toggle relative z-[260] ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`}
+                  title="Document version diff GitGraph"
+                  data-kg-markdown-workspace-diff-gitgraph-toggle="1"
+                >
+                  <input
+                    className="kg-workspace-pane-toggle-input"
+                    type="checkbox"
+                    aria-label="Show document version diff GitGraph"
+                    checked={documentVersionGitGraphOpen}
+                    onChange={event => setDocumentVersionGitGraphOpen?.(event.currentTarget.checked)}
+                  />
+                  <FileDiff className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} aria-hidden="true" />
+                  <span className={paneToggleTextClassName}>diff</span>
+                </label>
+              ) : null}
               <label className={`${paneToggleLabelClass(effectivePaneAvailability.viewer)} kg-workspace-pane-toggle--viewer`} title={paneToggleTitle('Viewer preview pane', effectivePaneAvailability.viewer)}>
                 <input
                   className="kg-workspace-pane-toggle-input"

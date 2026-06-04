@@ -16,10 +16,10 @@ export function ToolbarOrchestratorArea({
   orchestratorOpMsg,
 }: ToolbarOrchestratorAreaProps) {
   return (
-    <div className={uiToolbarAreaStackClassName}>
-      <div className={uiToolbarAreaActionRowClassName}>
+    <section className={uiToolbarAreaStackClassName}>
+      <section className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.orchestrator} ok={orchestratorOpOk} msg={orchestratorOpMsg || undefined} />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

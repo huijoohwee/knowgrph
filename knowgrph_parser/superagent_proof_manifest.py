@@ -3,6 +3,7 @@ import os
 from typing import Any, Dict, List
 
 from .common import utc_now_iso, write_json
+from .superagent_contracts import SUPERAGENT_TASK_CAPABILITIES, SUPERAGENT_TASK_LEVELS
 from .superagent_responsive import required_responsive_proof_class_ids, responsive_evidence_from_checks
 
 
@@ -141,6 +142,17 @@ def build_harness_proof_manifest(
                 "mcp_tool": "knowgrph.superagent.run",
                 "surface_route": surface_route,
             },
+            "capabilities": {
+                "task_capabilities": SUPERAGENT_TASK_CAPABILITIES,
+                "task_levels": SUPERAGENT_TASK_LEVELS,
+                "message_gateway": ["CLI", "local MCP knowgrph.superagent.run"],
+                "memory": "state.json observations, trace.jsonl events, proof manifest, recovery events",
+                "sandbox": "generated code executes in the run artifact directory with bounded timeout and no shell invocation",
+                "tools": [str(tool.get("name") or "") for tool in (state.get("tool_registry") or []) if isinstance(tool, dict)],
+                "skills": "registry-backed capability lanes and frontmatter skill hints selected by skill.select",
+                "subagents": [str(agent.get("agent_id") or "") for agent in agents],
+                "copy_policy": "DeerFlow-inspired concepts only; no copied code, prompts, topology, skill packs, memory layout, or renderer ownership.",
+            },
             "orchestration": {
                 "agents": agents,
                 "tool_by_agent": {
@@ -179,6 +191,24 @@ def build_harness_proof_manifest(
             },
             "responsive": responsive_evidence_from_checks(verification_checks),
             "recovery_events": [event for event in (memory.get("recovery_events") or []) if isinstance(event, dict)],
+            "capability_evidence": {
+                "skill": {
+                    "completed": "select_skills" in (state.get("completed_task_ids") or []),
+                    "artifacts": [artifact.get("artifact_id") for artifact in artifacts if artifact.get("kind") == "skill"],
+                },
+                "research": {
+                    "completed": "research_goal" in (state.get("completed_task_ids") or []),
+                    "artifacts": [artifact.get("artifact_id") for artifact in artifacts if artifact.get("kind") == "research"],
+                },
+                "code": {
+                    "completed": "code_sandbox" in (state.get("completed_task_ids") or []),
+                    "artifacts": [artifact.get("artifact_id") for artifact in artifacts if artifact.get("kind") in {"code", "sandbox"}],
+                },
+                "create": {
+                    "completed": "compose_canvas" in (state.get("completed_task_ids") or []),
+                    "artifacts": [artifact.get("artifact_id") for artifact in artifacts if artifact.get("kind") in {"text", "image", "video", "canvas", "workspace"}],
+                },
+            },
             "artifacts": artifact_manifest,
             "files": {
                 "state": os.path.relpath(os.path.join(output_dir, "state.json"), output_dir),

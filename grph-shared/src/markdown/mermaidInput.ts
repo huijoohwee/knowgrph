@@ -3,6 +3,119 @@ export const isMermaidCodeFenceLang = (lang: string): boolean => {
   return v === 'mermaid' || v === 'mmd'
 }
 
+export type MermaidDiagramKind = 'flowchart' | 'gitgraph' | 'unknown'
+
+export type MermaidDiagramSlice = {
+  code: string
+  offset: number
+  kind: MermaidDiagramKind
+}
+
+const readMeaningfulMermaidLine = (line: string): string => {
+  const trimmed = String(line || '').trim()
+  if (!trimmed || trimmed.startsWith('%%')) return ''
+  return trimmed
+}
+
+export const readMermaidDiagramKindFromLine = (line: string): MermaidDiagramKind => {
+  const meaningful = readMeaningfulMermaidLine(line)
+  if (!meaningful) return 'unknown'
+  if (/^(?:graph|flowchart)\b/i.test(meaningful)) return 'flowchart'
+  if (/^gitgraph\b:?\s*/i.test(meaningful)) return 'gitgraph'
+  return 'unknown'
+}
+
+export const readMermaidDiagramDeclaration = (code: string): { line: string; lineIndex: number; kind: MermaidDiagramKind } | null => {
+  const lines = String(code || '').split('\n')
+  let i = 0
+  while (i < lines.length) {
+    const meaningful = readMeaningfulMermaidLine(lines[i] || '')
+    if (!meaningful) {
+      i += 1
+      continue
+    }
+    if (meaningful === '---') {
+      let close = -1
+      for (let j = i + 1; j < lines.length; j += 1) {
+        if (String(lines[j] || '').trim() === '---') {
+          close = j
+          break
+        }
+      }
+      if (close >= 0) {
+        i = close + 1
+        continue
+      }
+    }
+    const kind = readMermaidDiagramKindFromLine(meaningful)
+    return { line: meaningful, lineIndex: i, kind }
+  }
+  return null
+}
+
+export const readMermaidDiagramKind = (code: string): MermaidDiagramKind => {
+  return readMermaidDiagramDeclaration(code)?.kind || 'unknown'
+}
+
+export const isSupportedMermaidDiagramDeclarationLine = (line: string): boolean => {
+  return readMermaidDiagramKindFromLine(line) !== 'unknown'
+}
+
+export const splitMermaidDiagrams = (code: string): MermaidDiagramSlice[] => {
+  const raw = String(code || '')
+  const lines = raw.split('\n')
+  const indices: Array<{ index: number; kind: MermaidDiagramKind }> = []
+  for (let i = 0; i < lines.length; i += 1) {
+    const meaningful = readMeaningfulMermaidLine(lines[i] || '')
+    if (!meaningful) continue
+    if (meaningful === '---') {
+      for (let j = i + 1; j < lines.length; j += 1) {
+        if (String(lines[j] || '').trim() === '---') {
+          i = j
+          break
+        }
+      }
+      continue
+    }
+    const kind = readMermaidDiagramKindFromLine(meaningful)
+    if (kind !== 'unknown') indices.push({ index: i, kind })
+  }
+  if (indices.length === 0) {
+    return [{ code: raw, offset: 0, kind: readMermaidDiagramKind(raw) }]
+  }
+
+  const findSliceStart = (declarationIndex: number, lowerBound: number): number => {
+    let close = declarationIndex - 1
+    while (close >= lowerBound && !readMeaningfulMermaidLine(lines[close] || '')) close -= 1
+    if (close < lowerBound || String(lines[close] || '').trim() !== '---') return declarationIndex
+    for (let open = close - 1; open >= lowerBound; open -= 1) {
+      if (String(lines[open] || '').trim() === '---') return open
+    }
+    return declarationIndex
+  }
+
+  const starts = indices.map((entry, index) => {
+    const lowerBound = index === 0 ? 0 : indices[index - 1]!.index + 1
+    return findSliceStart(entry.index, lowerBound)
+  })
+
+  if (indices.length === 1) {
+    const start = indices[0]!
+    const sliceStart = starts[0] ?? start.index
+    return [{ code: lines.slice(sliceStart).join('\n'), offset: sliceStart, kind: start.kind }]
+  }
+  const out: MermaidDiagramSlice[] = []
+  for (let i = 0; i < indices.length; i += 1) {
+    const start = indices[i]!
+    const sliceStart = starts[i] ?? start.index
+    const end = i + 1 < indices.length ? starts[i + 1] ?? indices[i + 1]!.index : lines.length
+    const slice = lines.slice(sliceStart, end).join('\n')
+    if (!slice.trim()) continue
+    out.push({ code: slice, offset: sliceStart, kind: start.kind })
+  }
+  return out.length > 0 ? out : [{ code: raw, offset: 0, kind: readMermaidDiagramKind(raw) }]
+}
+
 export const normalizeMermaidCodeForRuntime = (code: string): string => {
   const lines = String(code || '').split('\n')
   for (let i = 0; i < lines.length; i += 1) {

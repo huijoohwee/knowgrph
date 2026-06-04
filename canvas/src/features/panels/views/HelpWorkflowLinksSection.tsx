@@ -145,9 +145,9 @@ export function HelpWorkflowLinksSection({
       onToggle={onToggle}
     >
       {HELP_STEP_COPY.workflowLinks.descriptionShort && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
+        <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
           {HELP_STEP_COPY.workflowLinks.descriptionShort}
-        </div>
+        </section>
       )}
       <HelpKtvRows>
         <HelpKtvRow

@@ -17,9 +17,9 @@ interface AnchorOverlayProps {
   children: React.ReactNode
 }
 
-function createPortalRoot(): HTMLDivElement | null {
+function createPortalRoot(): HTMLElement | null {
   if (typeof document === 'undefined') return null
-  return document.createElement('div')
+  return document.createElement('section')
 }
 
 export function AnchorOverlay({
@@ -32,8 +32,8 @@ export function AnchorOverlay({
   allowOverflowVisible = false,
   children,
 }: AnchorOverlayProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const [portalRoot, setPortalRoot] = useState<HTMLDivElement | null>(() => createPortalRoot())
+  const containerRef = useRef<HTMLElement | null>(null)
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(() => createPortalRoot())
   const priorFocusedElementRef = useRef<HTMLElement | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
@@ -219,8 +219,8 @@ export function AnchorOverlay({
   if (!open) return null
   if (!portalRoot) return null
   return createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ANCHOR_OVERLAY, pointerEvents: 'none', isolation: 'isolate' }}>
-      <div
+    <section style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ANCHOR_OVERLAY, pointerEvents: 'none', isolation: 'isolate' }}>
+      <section
         ref={el => {
           containerRef.current = el
           if (!el) return
@@ -238,8 +238,8 @@ export function AnchorOverlay({
         tabIndex={-1}
       >
         {children}
-      </div>
-    </div>,
+      </section>
+    </section>,
     portalRoot,
   )
 }

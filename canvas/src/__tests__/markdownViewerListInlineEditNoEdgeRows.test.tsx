@@ -71,7 +71,7 @@ const runListInteractionCase = async (args: {
   expectContains?: string[]
   expectNotContains?: string[]
 }) => {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot

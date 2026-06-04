@@ -13,7 +13,7 @@ const tick = async () => {
 }
 
 export async function testMarkdownDataViewInlineEditLargeTablesRenderProgressiveRowWindow() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -81,7 +81,7 @@ export async function testMarkdownDataViewInlineEditLargeTablesRenderProgressive
 }
 
 export async function testMarkdownDataViewInlineEditLongTextCellsRenderBoundedPreviewAndEditFullValue() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -153,7 +153,7 @@ export async function testMarkdownDataViewInlineEditLongTextCellsRenderBoundedPr
 }
 
 export async function testMarkdownDataViewInlineEditTextCellPreservesTdSurfaceAndCommits() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot

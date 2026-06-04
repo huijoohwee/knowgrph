@@ -8,7 +8,7 @@ type UseGraphDataTableFrozenAreaOptions = {
   freezeFirstDataColumn: GraphDataTableFreezeMode
   setFreezeFirstDataColumn: (value: GraphDataTableFreezeMode) => void
   orderedVisibleColumnKeys: GraphDataTableColumnKey[]
-  scrollContainerRef: React.RefObject<HTMLDivElement>
+  scrollContainerRef: React.RefObject<HTMLElement>
   stepNoneLabelPx: number
   stepLabelIdPx: number
 }

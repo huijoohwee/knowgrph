@@ -119,7 +119,7 @@ export const MediaIframe = React.memo(function MediaIframe({
   })
 
   return (
-    <div
+    <section
       className={containerClassName || (presentationMode ? 'aspect-video w-full' : 'aspect-video w-full max-w-xl')}
       style={containerStyle}
     >
@@ -173,8 +173,8 @@ export const MediaIframe = React.memo(function MediaIframe({
           />
         )
       ) : (
-        <div className={`w-full h-full ${getMediaFrameClassName(cardPreviewMode)} bg-black/5 flex items-center justify-center`}>
-          <div className="flex items-center gap-2">
+        <section className={`w-full h-full ${getMediaFrameClassName(cardPreviewMode)} bg-black/5 flex items-center justify-center`}>
+          <section className="flex items-center gap-2">
             <button
               type="button"
               className={mediaLoadButtonClassName}
@@ -190,10 +190,10 @@ export const MediaIframe = React.memo(function MediaIframe({
             >
               {UI_COPY.markdownMediaOpenInNewTabLabel}
             </a>
-          </div>
-        </div>
+          </section>
+        </section>
       )}
-    </div>
+    </section>
   )
 })
 
@@ -255,12 +255,12 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   if (!normalizedUrl) return <MediaErrorPlaceholder alt={title} />
 
   return (
-    <div className={presentationMode ? 'w-full' : 'w-full max-w-xl'} data-kg-video-snapshot="1" data-src={normalizedUrl}>
+    <section className={presentationMode ? 'w-full' : 'w-full max-w-xl'} data-kg-video-snapshot="1" data-src={normalizedUrl}>
       <a className="sr-only" href={normalizedUrl} target="_blank" rel="noreferrer">
         {normalizedUrl}
       </a>
-      <div className={containerClassName || (presentationMode ? 'aspect-video w-full' : 'aspect-video w-full')} style={containerStyle}>
-        <div
+      <section className={containerClassName || (presentationMode ? 'aspect-video w-full' : 'aspect-video w-full')} style={containerStyle}>
+        <section
           className={
             [
               getMediaShellClassName(cardPreviewMode),
@@ -287,17 +287,17 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
               }}
             />
           ) : (
-            <div className="absolute inset-0 bg-black/5" />
+            <section className="absolute inset-0 bg-black/5" />
           )}
-          <div aria-hidden={true} className="absolute inset-0 pointer-events-none">
-            <div className={snapshotOverlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
-              <div className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{fallbackInfo.titleLabel}</div>
-              <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{fallbackInfo.hostLabel}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          <section aria-hidden={true} className="absolute inset-0 pointer-events-none">
+            <section className={snapshotOverlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
+              <section className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{fallbackInfo.titleLabel}</section>
+              <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{fallbackInfo.hostLabel}</section>
+            </section>
+          </section>
+        </section>
+      </section>
+    </section>
   )
 })
 
@@ -381,16 +381,16 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
   )
 
   return (
-    <div
+    <section
       className={presentationMode ? 'w-full' : 'w-full max-w-xl'}
       data-kg-webpage-snapshot="1"
       data-src={normalizedUrl}
     >
-      <div
+      <section
         className={containerClassName || (presentationMode ? 'aspect-video w-full' : 'aspect-video w-full')}
         style={containerStyle}
       >
-        <div
+        <section
           className={
             [
               getMediaShellClassName(cardPreviewMode),
@@ -402,9 +402,9 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
           style={style}
         >
           {content}
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </section>
   )
 })
 
@@ -513,9 +513,9 @@ const MediaErrorPlaceholder = ({ alt }: { alt?: string }) => {
   const prefix = UI_COPY.markdownMediaErrorPrefix
   const label = alt ? `${prefix}: ${alt}` : prefix
   return (
-    <div className="flex items-center justify-center w-full max-w-xl h-32 rounded border border-dashed border-red-300 bg-red-50 text-[11px] text-red-700 px-3 text-center">
+    <section className="flex items-center justify-center w-full max-w-xl h-32 rounded border border-dashed border-red-300 bg-red-50 text-[11px] text-red-700 px-3 text-center">
       <span>{label}</span>
-    </div>
+    </section>
   )
 }
 

@@ -230,7 +230,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
     )
 
   return (
-      <div
+      <section
         className={[
           `${UI_RESPONSIVE_GRAPH_FIELDS_LIST_ROW_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`,
           'flex items-center gap-2 border-l-2',
@@ -277,14 +277,14 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
           }
         }}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <section className="flex items-center gap-2 min-w-0 flex-1">
           <GripDotsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} />
-          <div className="min-w-0 flex-1">
-            <div className="min-w-0 flex items-center gap-2">
+          <section className="min-w-0 flex-1">
+            <section className="min-w-0 flex items-center gap-2">
               {scopeIconNode}
-              <div className="min-w-0">
+              <section className="min-w-0">
                 {active && field && settings ? (
-                  <div className="min-w-0 flex items-center gap-2">
+                  <section className="min-w-0 flex items-center gap-2">
                     <input
                       value={settings.displayName}
                       onChange={e => updateGraphFieldSettings(field.id, { displayName: e.target.value })}
@@ -303,23 +303,23 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
                         </option>
                       ))}
                     </select>
-                  </div>
+                  </section>
                 ) : (
                   <>
-                    <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
+                    <section className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                       <span className="truncate">{settings?.displayName || label}</span>
-                    </div>
-                    <div className={`text-sm ${UI_THEME_TOKENS.text.tertiary} truncate`}>
+                    </section>
+                    <section className={`text-sm ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                       {graphFieldId || columnKey}
-                    </div>
+                    </section>
                   </>
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
+              </section>
+            </section>
+          </section>
+        </section>
 
-        <div className="flex items-center gap-2">
+        <section className="flex items-center gap-2">
           {draggingDataTableColumnKey === columnKey ? (
             <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_LABELS.moving}</span>
           ) : null}
@@ -339,7 +339,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
           >
             <VisibilityIcon hidden={!visible} iconClassName={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
           </button>
-        </div>
-      </div>
+        </section>
+      </section>
   )
 })

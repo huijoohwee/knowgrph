@@ -217,7 +217,7 @@ export function injectMarkdownDesignBlocksIntoSvgEl(args: {
     ;(fo.style as any).overflow = 'hidden'
     ;(fo.style as any).pointerEvents = 'none'
 
-    const root = doc.createElement('div')
+    const root = doc.createElement('section')
     root.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml')
     root.setAttribute('style', `${styleToString(PANEL_FRAME_ROOT_STYLE)};width:100%;height:100%;pointer-events:none`)
 

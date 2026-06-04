@@ -36,7 +36,7 @@ export async function testFlowEditorUnpinnedWidgetDoesNotSnapToPhantomBorderOnLa
     api.setFlowWidgetPosByNodeId({ n1: { top: 96, left: dockedLeft } })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)

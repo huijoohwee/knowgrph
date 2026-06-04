@@ -1,4 +1,4 @@
-import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
+import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
@@ -9,7 +9,7 @@ import {
   isD3Like2dRenderer,
 } from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
-import { getTimelineViewModeTitle, resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
+import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
   if (
@@ -31,6 +31,7 @@ const isAnimationApplicable = (state: CanvasViewModelState) => {
 const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRendererOption['Icon']> = {
   d3: CircleDot,
   flowchart: Columns2,
+  gitGraph: GitGraph,
   flow: GitMerge,
   animatic: MonitorPlay,
   storyboard: PanelsTopLeft,
@@ -42,6 +43,7 @@ const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRen
 const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   d3: UI_COPY.canvasViewRendererD3Title,
   flowchart: UI_COPY.canvasViewRendererD3FlowchartTitle,
+  gitGraph: UI_COPY.canvasViewRendererGitGraphTitle,
   flow: UI_COPY.canvasViewRendererFlowTitle,
   animatic: UI_COPY.canvasViewRendererAnimaticTitle,
   storyboard: UI_COPY.canvasViewRendererStoryboardTitle,
@@ -312,32 +314,6 @@ export const buildCanvasViewOptions = (
       ],
     },
     {
-      id: 'timeline:menu',
-      title: 'Timeline',
-      label: 'Time',
-      Icon: MonitorPlay,
-      dividerBefore: true,
-      isActive: timelineEnabled,
-      children: [
-        {
-          id: 'timeline:on',
-          title: getTimelineViewModeTitle(true),
-          label: 'On',
-          Icon: MonitorPlay,
-          isActive: timelineEnabled,
-          disabled: state.geospatialEnabled,
-          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
-        },
-        {
-          id: 'timeline:off',
-          title: getTimelineViewModeTitle(false),
-          label: 'Off',
-          Icon: MonitorPlay,
-          isActive: !timelineEnabled,
-        },
-      ],
-    },
-    {
       id: 'control:menu',
       title: 'Display Controls',
       label: 'Display',
@@ -378,6 +354,15 @@ export const buildCanvasViewOptions = (
           label: 'Grid',
           Icon: Grid3x3,
           isActive: state.schema.behavior?.snapGrid?.enabled === true || state.schema.behavior?.canvasGrid?.enabled === true,
+        },
+        {
+          id: 'control:timeline',
+          title: 'Timeline',
+          label: 'Time',
+          Icon: MonitorPlay,
+          isActive: timelineEnabled,
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },
       ],
     },

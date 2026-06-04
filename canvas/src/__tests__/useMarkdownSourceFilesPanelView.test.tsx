@@ -6,7 +6,7 @@ import { useMarkdownSourceFilesPanelView } from '@/features/markdown/ui/useMarkd
 
 export async function testUseMarkdownSourceFilesPanelViewCentralizesSourcePanelViewComposition() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const reorderCalls: Array<{ fromId: string; toId: string }> = []
@@ -74,7 +74,7 @@ export async function testUseMarkdownSourceFilesPanelViewCentralizesSourcePanelV
           aria-label="drag-start"
           onClick={() => {
             const event = {
-              target: dom.window.document.createElement('div'),
+              target: dom.window.document.createElement('section'),
               dataTransfer: {
                 effectAllowed: '',
                 setData: () => void 0,

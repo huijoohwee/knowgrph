@@ -112,7 +112,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const positionsRef = React.useRef<Record<string, [number, number, number]>>({})
   const positions3d = positions as unknown as Record<string, [number, number, number]>
   positionsRef.current = positions3d
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const containerRef = React.useRef<HTMLElement | null>(null)
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
@@ -248,13 +248,13 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   })
   if (!hasRenderableScene || webglSupported === false) {
     return (
-      <div
+      <section
         className="absolute inset-0 w-full h-full z-0"
       />
     )
   }
   return (
-    <div
+    <section
       ref={containerRef}
       className="absolute inset-0 w-full h-full z-0"
     >
@@ -359,6 +359,6 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         schema={effectiveSchema as GraphSchema | null}
         tooltipInteractive
       />
-    </div>
+    </section>
   )
 }

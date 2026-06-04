@@ -21,8 +21,8 @@ export function CurrencySection({
   const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
   const inputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_SHORT_FIELD_INPUT_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
-    <div className={panelClassName}>
-      <div className="flex items-center justify-between">
+    <section className={panelClassName}>
+      <section className="flex items-center justify-between">
         <span className={labelClassName}>Currency</span>
         <input
           value={selectedSettings.currencyCode}
@@ -30,7 +30,7 @@ export function CurrencySection({
           placeholder="USD"
           className={inputClassName}
         />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

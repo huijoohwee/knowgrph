@@ -309,19 +309,19 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
 
   return (
     <section ref={boardScrollRef} className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-auto overflow-y-auto" aria-label={MARKDOWN_DATA_VIEW_COPY.kanbanViewAriaLabel}>
-      <div key={liveRegionKey} className="sr-only" aria-live="polite">{statusPillText}</div>
+      <section key={liveRegionKey} className="sr-only" aria-live="polite">{statusPillText}</section>
       {props.onMoveRowToGroup ? (
-        <div className="flex items-center justify-between gap-3 px-3 pt-3">
-          <div className={[UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className="flex items-center justify-between gap-3 px-3 pt-3">
+          <section className={[UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME, 'text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
             {statusPillText ? (
               <span className={['inline-flex items-center rounded-full border px-2.5 py-1', UI_THEME_TOKENS.panel.border].join(' ')}>
                 {statusPillText}
               </span>
             ) : null}
-          </div>
-        </div>
+          </section>
+        </section>
       ) : null}
-      <div className="min-h-0 min-w-0 max-w-full flex items-start gap-3 p-3" role="list">
+      <section className="min-h-0 min-w-0 max-w-full flex items-start gap-3 p-3" role="list">
         {lanes.map(lane => {
           const laneDragVisualState = getKanbanLaneDragVisualState({
             hasActiveDrag: kanbanDrag.draggingRowId !== null,
@@ -347,12 +347,12 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
           >
             {kanbanDrag.dragOverGroupKey === lane.id && kanbanDrag.dragSourceGroupKey !== lane.id ? <KanbanLaneDragOverIndicator /> : null}
             <header className={['px-3 py-2 border-b', UI_THEME_TOKENS.panel.border].join(' ')}>
-              <div className={['flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden', typography.microLabelClass].join(' ')}>
+              <section className={['flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden', typography.microLabelClass].join(' ')}>
                 <h2 className={['min-w-0 font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} title={readMarkdownSigilDisplayText(lane.label)}>
                   {renderMarkdownSigilInlineText(lane.label)}
                 </h2>
                 <output className={UI_THEME_TOKENS.text.tertiary}>{lane.rows.length}</output>
-              </div>
+              </section>
             </header>
 
             <ul
@@ -463,16 +463,16 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                         editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-medium leading-5`}
                       />
                       {meta ? (
-                        <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayMeta}>
+                        <section className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayMeta}>
                           {renderMarkdownSigilInlineText(meta)}
-                        </div>
+                        </section>
                       ) : null}
                       {paragraphEntries.length ? (
-                        <div className="mt-2 flex flex-col gap-2">
+                        <section className="mt-2 flex flex-col gap-2">
                           {paragraphEntries.map(entry => {
                             const displayValue = readMarkdownSigilDisplayText(entry.value)
                             return (
-                              <div key={`${row.id}:${entry.id}`} className="rounded border border-black/5 bg-black/[0.025] px-2.5 py-2">
+                              <section key={`${row.id}:${entry.id}`} className="rounded border border-black/5 bg-black/[0.025] px-2.5 py-2">
                                 <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                   {entry.label}
                                 </p>
@@ -490,12 +490,12 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                                   displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
                                   editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                                 />
-                              </div>
+                              </section>
                             )
                           })}
-                        </div>
+                        </section>
                       ) : null}
-                      <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')}>{row.id}</div>
+                      <section className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')}>{row.id}</section>
                     </article>
                   </li>
                 )
@@ -509,7 +509,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
           </section>
           )
         })}
-      </div>
+      </section>
     </section>
   )
 })

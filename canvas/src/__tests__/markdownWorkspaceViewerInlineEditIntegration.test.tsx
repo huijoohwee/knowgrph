@@ -70,7 +70,7 @@ const installInlineExecCommandStub = (
 export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocumentMode() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   const snapshots: string[] = []
@@ -185,7 +185,7 @@ export async function testMarkdownWorkspaceViewerInlineEditInteractionDoesNotFre
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -283,7 +283,7 @@ export async function testMarkdownWorkspaceViewerUsesInlineFloatingFormattingSso
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -383,7 +383,7 @@ export async function testMarkdownWorkspaceViewerUsesInlineFloatingFormattingSso
 export async function testMarkdownWorkspaceEditorOmitsDocumentSelectorInHeader() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -457,7 +457,7 @@ export async function testMarkdownWorkspaceEditorOmitsDocumentSelectorInHeader()
 export async function testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkdown() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -517,7 +517,7 @@ export async function testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkd
 export async function testMarkdownWorkspaceSplitConsolidatesViewerFormattingIntoFloatingToolbar() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -609,7 +609,7 @@ export async function testMarkdownWorkspaceSplitConsolidatesViewerFormattingInto
 export async function testMarkdownWorkspaceSplitButtonOpensPaneSelector() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -678,7 +678,7 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarSyncsSplitMarkdo
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -813,7 +813,7 @@ export async function testMarkdownWorkspaceViewerInlineEditDoubleClickWordSelect
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -887,7 +887,7 @@ export async function testMarkdownWorkspaceViewerInlineEditEditorDoubleClickDoes
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -984,7 +984,7 @@ export async function testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineS
   ensureRangeRect(dom)
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   const outsideButton = doc.createElement('button')
   outsideButton.type = 'button'
   outsideButton.textContent = 'outside'
@@ -1110,7 +1110,7 @@ export async function testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineI
   ensureRangeRect(dom)
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   const outsideButton = doc.createElement('button')
   outsideButton.type = 'button'
   outsideButton.textContent = 'outside'
@@ -1237,7 +1237,7 @@ export async function testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPre
   ensureRangeRect(dom)
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   const outsideButton = doc.createElement('button')
   outsideButton.type = 'button'
   outsideButton.textContent = 'outside'
@@ -1360,7 +1360,7 @@ async function runViewerInlineCommitPreviewFormattingCase(args: {
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   let latestActiveText = args.activeText

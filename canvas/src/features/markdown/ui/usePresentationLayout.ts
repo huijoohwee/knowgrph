@@ -1,13 +1,13 @@
 import React from 'react'
 
 export function usePresentationLayout(
-  rootRef: (el: HTMLDivElement | null) => void,
+  rootRef: (el: HTMLElement | null) => void,
   baseSlideSize: { w: number; h: number }
 ) {
   const [presentationViewport, setPresentationViewport] = React.useState<{ w: number; h: number }>({ w: 1, h: 1 })
   const containerRef = React.useRef<HTMLElement | null>(null)
 
-  const setRef = React.useCallback((el: HTMLDivElement | null) => {
+  const setRef = React.useCallback((el: HTMLElement | null) => {
     containerRef.current = el
     rootRef(el)
     if (!el) return

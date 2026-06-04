@@ -29,7 +29,7 @@ const findButtonByText = (root: ParentNode, text: string): HTMLButtonElement | n
 export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   container.id = 'root'
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)

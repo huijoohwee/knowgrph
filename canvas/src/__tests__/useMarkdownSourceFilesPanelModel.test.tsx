@@ -6,7 +6,7 @@ import { useMarkdownSourceFilesPanelModel } from '@/features/markdown/ui/useMark
 
 export async function testUseMarkdownSourceFilesPanelModelCentralizesSourcePanelOrchestration() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const selectedFileIds: string[] = []

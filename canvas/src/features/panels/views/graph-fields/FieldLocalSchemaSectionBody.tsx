@@ -92,9 +92,9 @@ export default function FieldLocalSchemaSectionBody({
   const schemaInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const schemaSectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
   return (
-    <div className="p-3 space-y-3">
-      <div className={schemaPanelClassName}>
-        <div className="flex items-center gap-2">
+    <section className="p-3 space-y-3">
+      <section className={schemaPanelClassName}>
+        <section className="flex items-center gap-2">
           <select
             value={localSchemaScope}
             onChange={e => {
@@ -136,8 +136,8 @@ export default function FieldLocalSchemaSectionBody({
               ))
             )}
           </select>
-        </div>
-      </div>
+        </section>
+      </section>
 
       {localSchemaFacet === 'template' ? (
         schema ? (
@@ -149,24 +149,24 @@ export default function FieldLocalSchemaSectionBody({
           />
         ) : null
       ) : !hasLocalSchemaOwner ? (
-        <div className={`p-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+        <section className={`p-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
           {UI_COPY.graphFieldsLocalSchemaSelectOwnerEmpty}
-        </div>
+        </section>
       ) : (
-        <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
-          <div className={schemaSectionHeadingClassName}>
+        <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
+          <section className={schemaSectionHeadingClassName}>
             {localSchemaFacet === 'properties'
               ? UI_COPY.graphFieldsLocalSchemaFacetPropertiesLabel
               : localSchemaFacet === 'validation'
                 ? UI_COPY.graphFieldsLocalSchemaFacetValidationLabel
                 : UI_COPY.graphFieldsLocalSchemaFacetLocalRulesLabel}
-          </div>
+          </section>
           {localSchemaError ? (
-            <div className={`${uiPanelKeyValueTextSizeClass} text-red-600`}>
+            <section className={`${uiPanelKeyValueTextSizeClass} text-red-600`}>
               {localSchemaError}
-            </div>
+            </section>
           ) : null}
-          <div className="mb-1 flex items-center gap-1">
+          <section className="mb-1 flex items-center gap-1">
             <button
               type="button"
               onClick={applyLocalSchemaText}
@@ -192,7 +192,7 @@ export default function FieldLocalSchemaSectionBody({
             >
               {UI_LABELS.reset}
             </button>
-          </div>
+          </section>
 
           {localSchemaFacet === 'validation' ? (
             <FieldLocalSchemaValidationEditor
@@ -234,8 +234,8 @@ export default function FieldLocalSchemaSectionBody({
               enumCandidatesByKey={enumCandidatesByKey}
             />
           ) : null}
-        </div>
+        </section>
       )}
-    </div>
+    </section>
   )
 }

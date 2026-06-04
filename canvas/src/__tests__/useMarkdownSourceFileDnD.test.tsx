@@ -5,7 +5,7 @@ import { useMarkdownSourceFileDnD } from '@/features/markdown/ui/useMarkdownSour
 
 export async function testUseMarkdownSourceFileDnDCentralizesSourcePanelReorderState() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const reorderCalls: Array<{ fromId: string; toId: string }> = []
@@ -66,7 +66,7 @@ export async function testUseMarkdownSourceFileDnDCentralizesSourcePanelReorderS
         >
           blocked
         </button>
-        <div
+        <section
           aria-label="file-a"
           draggable
           onDragStart={event => {
@@ -106,7 +106,7 @@ export async function testUseMarkdownSourceFileDnDCentralizesSourcePanelReorderS
     if (draggingAfterBlocked !== '') throw new Error(`expected blocked interactive drag target to keep drag state empty, got ${draggingAfterBlocked}`)
 
     const fileRow = container.querySelector('div[aria-label="file-a"]')
-    if (!(fileRow instanceof dom.window.HTMLDivElement)) throw new Error('expected file drag row')
+    if (!(fileRow instanceof dom.window.HTMLElement)) throw new Error('expected file drag row')
     const dragStart = createDragEvent('dragstart', fileRow)
     await act(async () => {
       fileRow.dispatchEvent(dragStart)

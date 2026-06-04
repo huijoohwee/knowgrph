@@ -173,7 +173,7 @@ const computeContentBBoxFromClone = (
   opts: { removeZoomTransformOnFirstGroup?: boolean },
 ): { x: number; y: number; width: number; height: number } | null => {
   if (typeof document === 'undefined') return null
-  const host = document.createElement('div')
+  const host = document.createElement('section')
   host.style.position = 'fixed'
   host.style.left = '-100000px'
   host.style.top = '-100000px'

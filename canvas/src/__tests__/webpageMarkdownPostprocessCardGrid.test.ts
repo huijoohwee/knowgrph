@@ -67,20 +67,20 @@ export function testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable() {
   const input = [
     '# Pencil',
     '',
-    '<div style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:8px">',
+    '<section style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:8px">',
     '<a href="/">Pencil Logo</a>',
     '<a href="/downloads">Downloads</a>',
     '<a href="/pricing">Pricing</a>',
     '<a href="/gallery">Prompt Gallery</a>',
     '<a href="/docs">Docs</a>',
     '<a href="/download">Download Pencil</a>',
-    '</div>',
+    '</section>',
     '',
     'Backed by',
     '',
   ].join('\n')
   const out = postprocessWebpageMarkdownSsot(input)
-  if (/<\s*div\b/i.test(out)) throw new Error('expected no raw div html in output')
+  if (/<\s*div\b/i.test(out)) throw new Error('expected no raw semantic wrapper html in output')
   if (!out.includes('| [Pencil Logo](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
     throw new Error('expected html grid nav block to coalesce into a markdown table')
   }
@@ -92,12 +92,12 @@ export function testWebpageMarkdownPostprocessCoalescesHtmlFlexCardGridIntoMarkd
   const input = [
     '# Example',
     '',
-    '<div class="flex flex-wrap gap-4">',
+    '<section class="flex flex-wrap gap-4">',
     '<a href="https://example.invalid/a"><img src="https://example.invalid/a.png" alt="A" /></a>',
     '<a href="https://example.invalid/b"><img src="https://example.invalid/b.png" alt="B" /></a>',
     '<a href="https://example.invalid/c"><img src="https://example.invalid/c.png" alt="C" /></a>',
     '<a href="https://example.invalid/d"><img src="https://example.invalid/d.png" alt="D" /></a>',
-    '</div>',
+    '</section>',
     '',
   ].join('\n')
   const out = postprocessWebpageMarkdownSsot(input)

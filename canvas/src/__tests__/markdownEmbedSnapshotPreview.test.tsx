@@ -31,7 +31,7 @@ export async function testMarkdownPreviewRendersWebpageSnapshotForStandaloneLink
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -91,7 +91,7 @@ export async function testMarkdownPreviewRendersStandaloneYouTubeShortUrlInLarge
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -138,7 +138,7 @@ export async function testMarkdownPreviewBudgetsRepeatedLargeDocumentYouTubeSnap
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -190,7 +190,7 @@ export async function testMarkdownPreviewRendersLinkedYouTubeThumbnailImage() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -239,7 +239,7 @@ export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndT
   const previousMatchMedia = anyWindow.matchMedia
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -336,7 +336,7 @@ export async function testMarkdownPreviewKeepsStandaloneTimestampMarkdownLinkInl
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -401,7 +401,7 @@ export async function testImportUrlYouTubeTimestampMarkdownRendersNormalLinkWith
   const prevFetch = g.fetch
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)

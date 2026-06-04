@@ -7,6 +7,7 @@ It does **not** own the current MCP contract. Canonical ownership lives in:
 - `mcp/local-tool-contract.js` for local stdio tool names, descriptions, and `inputSchema`
 - `mcp/server.js` for local stdio transport and tool execution
 - `mcp/README.md` for local stdio usage
+- `docs/documents/knowgrph-superagent-harness.md` for local SuperAgent harness scope, no-copy DeerFlow inspiration boundary, and research/code/create artifact contract
 - `docs/documents/knowgrph-mcp/knowgrph-mcp.md` for the short topology/index
 - `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md` for the canonical product and architecture contract
 - `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md` for file-level owners and invariants
@@ -26,6 +27,7 @@ Use this file only for:
 Do not use this file as the source of truth for:
 
 - the shipped local stdio tool inventory
+- the local SuperAgent harness contract
 - Pages HTTP MCP or browser WebMCP contracts
 - MainPanel `mcp` / `integrations` ownership
 - the FloatingPanel Chat -> KGC -> Canvas pipeline
@@ -91,6 +93,7 @@ For the current local stdio tool inventory, examples, and configuration notes, r
 Guardrails:
 
 - Cloudflare Pages hosts the static UI surface; the local stdio MCP server is not deployed there.
+- Local `knowgrph.superagent.run` is a stdio/CLI harness tool; it is not a deployed public Pages/WebMCP mutation surface.
 - Production mirrors must receive synced artifacts from Dev; do not patch MCP behavior in downstream publish surfaces.
 - Pages/browser MCP and browser WebMCP are separate shipped surfaces with their own canonical owners; do not conflate them with the local stdio server.
 
@@ -109,5 +112,6 @@ Guardrails:
 
 - keep one SSOT per MCP surface
 - keep local stdio tool truth in `mcp/local-tool-contract.js`
+- keep local SuperAgent harness truth in `knowgrph-superagent-harness.md` and `knowgrph_parser/*`
 - keep transport and execution truth in `mcp/server.js`
 - remove stale/conflicting duplicate narratives instead of preserving them

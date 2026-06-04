@@ -103,7 +103,7 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
     }),
   })
   if (openAiTextFromPropsOnly !== 'OpenAI Text Widget') {
-    throw new Error(`expected OpenAI Text Widget from node widget identity fallback, got ${openAiTextFromPropsOnly}`)
+    throw new Error(`expected OpenAI Text Widget from widget identity fallback, got ${openAiTextFromPropsOnly}`)
   }
 
   const seedreamImage = resolveWidgetNodeTitle({

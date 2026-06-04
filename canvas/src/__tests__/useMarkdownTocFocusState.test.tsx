@@ -6,7 +6,7 @@ import { TOC_FOCUS_EVENT } from '@/features/markdown/ui/tocFocusEvents'
 
 export async function testUseMarkdownTocFocusStateCentralizesExplorerTocFocusState() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const parentById = new Map<string, string | null>([

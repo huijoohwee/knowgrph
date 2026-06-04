@@ -4,7 +4,7 @@ export const APP_BASE_PATH = "/knowgrph";
 export const APP_URL = `${SITE_ORIGIN}${APP_BASE_PATH}/`;
 export const ROOT_URL = `${SITE_ORIGIN}/`;
 export const DEFAULT_WORKSPACE_ID = "kgws:canonical-docs";
-export const UPDATED_AT = "2026-05-23";
+export const UPDATED_AT = "2026-06-04";
 export const HEALTH_PATH = `${APP_BASE_PATH}/health`;
 export const HEALTH_URL = `${SITE_ORIGIN}${HEALTH_PATH}`;
 export const A2A_AGENT_CARD_PATH = "/.well-known/agent-card.json";
@@ -53,17 +53,20 @@ Knowgrph is an Agent-actionable chat-to-canvas knowledge graph workspace served 
 ## WebMCP
 
 - Browser app runtime installs WebMCP on page load via \`navigator.modelContext\`.
-- Shared deployed WebMCP/HTTP MCP surface exposes five read-only tools for published Source Files, shared documents, and agent-surface inspection.
+- Shared deployed WebMCP/HTTP MCP surface exposes seven read-only tools for published Source Files, shared documents, data-first search/fetch, and agent-surface inspection.
+- HTTP MCP and local stdio expose shared read-only prompt templates through \`prompts/list\` and \`prompts/get\` for Source Files research and agent-surface inspection.
+- HTTP MCP and local stdio expose Source Files resource templates through \`resources/templates/list\`; \`kgdoc://source-file/{id}\` reads reuse the existing \`fetch\` executor.
 - Full app runtime additionally exposes browser-local inspect tools for the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
-- Deployed HTML fallback injects the shared five-tool WebMCP surface on \`${APP_URL}\` HTML routes.
+- Deployed HTML fallback injects the shared seven-tool WebMCP surface on \`${APP_URL}\` HTML routes.
 
 ## MCP Apps
 
 - HTTP MCP advertises \`io.modelcontextprotocol/ui\` with \`text/html;profile=mcp-app\`.
 - \`inspect_agent_surface\` links to the shared \`ui://knowgrph/agent-ready\` resource through \`_meta.ui.resourceUri\`.
-- \`resources/list\` and \`resources/read\` serve the inline, sandbox-friendly Knowgrph Agent Ready app resource while preserving text fallback and structured tool output.
+- UI-linked tool descriptors expose no-auth \`securitySchemes\`, mirror them in \`_meta.securitySchemes\`, and set OpenAI widget accessibility metadata from the shared contract.
+- \`resources/list\` and \`resources/read\` serve the inline, sandbox-friendly Knowgrph Agent Ready app resource while preserving text fallback and structured tool output; \`resources/templates/list\` exposes Source Files markdown reads under the standard MCP \`resources\` capability.
 - The View initiates the MCP Apps \`ui/initialize\` handshake, sends \`ui/notifications/initialized\` and \`ui/notifications/size-changed\`, handles host context/tool input/result/cancel notifications, and calls the originating server through \`tools/call\`.
-- \`inspect_agent_surface.structuredContent.mcpAppsServerReadiness\` exposes the native server-readiness model used by the View: app tool/resource binding, output-schema and structured-content readiness, sandbox metadata, HTTP JSON-RPC transport, and local stdio transport.
+- \`inspect_agent_surface.structuredContent.mcpAppsServerReadiness\` exposes the native server-readiness model used by the View: app tool/resource binding, prompt discovery, resource-template discovery, output-schema and structured-content readiness, sandbox/security metadata, widget accessibility, Streamable HTTP JSON-RPC transport, local stdio transport, and read-only search/fetch retrieval.
 `;
 
 export const markdownResponse = (body) =>

@@ -33,7 +33,7 @@ export async function testMarkdownPresentationEnterFullscreenExposedOnApi() {
     ]
     const markdownText = markdownLines.join('\n')
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)

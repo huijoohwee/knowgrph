@@ -470,18 +470,18 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
 
   return (
     <section className="px-3 py-2 space-y-3" aria-label={getGrabMapsDiscoveryWidgetLabel()}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+      <section className="flex items-start justify-between gap-3">
+        <section className="min-w-0 flex-1">
+          <section className="flex items-center gap-2">
             <Compass className="h-4 w-4" aria-hidden="true" />
             <h3 className={`font-semibold ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
               {getGrabMapsDiscoveryWidgetLabel()}
             </h3>
-          </div>
+          </section>
           <p className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Chat-style query input. Discovery defaults and model remain shared with MainPanel Integrations and MainPanel Maps.
           </p>
-        </div>
+        </section>
         <button
           type="button"
           className={`${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} inline-flex items-center gap-1 rounded border text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
@@ -490,7 +490,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
           Open MainPanel Maps
         </button>
-      </div>
+      </section>
 
       <GrabMapsDiscoverySettingsGrid
         settingsValues={settingsValues}
@@ -504,7 +504,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-widget-query">
           Query
         </label>
-        <div className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+        <section className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
           <PlainTextInputEditor
             id="grabmaps-discovery-widget-query"
             value={queryText}
@@ -513,8 +513,8 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
             className="w-full h-full border-0 rounded-none bg-transparent"
             inputClassName={uiPanelTextFontClass}
           />
-        </div>
-        <div className="flex items-center justify-end">
+        </section>
+        <section className="flex items-center justify-end">
           <button
             type="button"
             className={`${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} inline-flex items-center gap-1 rounded text-sm ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} disabled:opacity-50`}
@@ -524,7 +524,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
             <Send className="h-4 w-4" aria-hidden="true" />
             {running ? 'Running...' : 'Search Places (Run Discovery)'}
           </button>
-        </div>
+        </section>
         {statusText ? (
           <p className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>{statusText}</p>
         ) : null}

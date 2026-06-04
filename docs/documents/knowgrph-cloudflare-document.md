@@ -273,6 +273,7 @@ flowchart LR
   StorageWorker --> StorageRoutes["airvio.co/api/storage/*"]
   Dev --> PaymentDeploy["npm run payment:worker:deploy"]
   PaymentDeploy --> PaymentWorker["knowgrph-payment Worker"]
+  PaymentDeploy --> D1
   PaymentWorker --> PaymentRoutes["airvio.co/api/payments/*"]
   Dev --> DnsAidPublish["npm run dns-aid:publish"]
   DnsAidPublish --> DnsAid["SVCB _agents.airvio.co records"]
@@ -287,7 +288,7 @@ flowchart LR
 | Build | `pages:build-sync` | source -> Vite build -> publish mirror | `scripts/sync-pages-knowgrph.mjs` |
 | Deploy static app | Wrangler Pages deploy | publish mirror -> Cloudflare Pages | `pages:deploy-cloudflare` |
 | Deploy storage | D1 migrations, Worker deploy, docs seed | migrations -> D1, Worker bundle -> route, `huijoohwee/docs` -> D1 | `storage:deploy` |
-| Deploy payment | Worker deploy | payment Worker bundle -> route | `payment:worker:deploy` |
+| Deploy payment | Payment D1 migrations, Worker deploy, payment readiness | payment migrations -> D1 schema, payment Worker bundle -> route, visible payment vars -> production authority | `payment:d1:migrate:remote`, `payment:worker:deploy`, `payment:stripe:readiness`, `payment:x402:configure`, `payment:x402:readiness`, `payment:readiness` |
 | Publish DNS-AID | REST API upsert | record contract -> Cloudflare DNS -> public DoH | `dns-aid:publish` |
 | Validate discovery | HTTP and DNS checks | public routes -> validators -> pass/fail | `agent-ready:check`, `dns-aid:check` |
 
@@ -298,7 +299,7 @@ flowchart LR
 | Cloudflare Pages project | Serve the static SPA and Pages Functions | `https://airvio.co/knowgrph/*` | project `joohwee`, publish repo `huijoohwee` | Vendor free-tier target; alternative static host would lose Workers/D1 adjacency | Implemented |
 | Pages Functions | Serve agent-ready routes, Markdown negotiation, and MCP metadata | `.well-known`, `/knowgrph/mcp`, Link headers | `cloudflare/pages/knowgrph-agent-ready*.mjs` | Cloudflare Pages Functions; FOSS alternative is self-hosted Node edge router | Implemented |
 | Storage Worker | Serve D1-backed Source Files indexes and doc views | `airvio.co/api/storage/*` | `cloudflare/workers/knowgrph-storage/wrangler.toml` | Cloudflare Workers; FOSS alternative is self-hosted HTTP API + SQLite/Postgres | Implemented |
-| D1 database | Persist Source Files and storage sync rows | Worker `DB` binding | `knowgrph-storage` D1 binding | Cloudflare D1; FOSS alternative is local SQLite, but not globally hosted | Implemented |
+| D1 database | Persist Source Files, storage sync rows, Stripe sessions, and ACP proof/trace rows | Worker `DB` binding | `knowgrph-storage` D1 binding | Cloudflare D1; FOSS alternative is local SQLite, but not globally hosted | Implemented |
 | Payment Worker | Isolate checkout/payment route family | `airvio.co/api/payments/*`, `.well-known/acp-config`, `/checkout/sessions*` | `cloudflare/workers/knowgrph-payment/wrangler.toml` | Cloudflare Workers; FOSS alternative is self-hosted payment webhook service | Implemented |
 | DNS-AID publisher | Upsert SVCB discovery records | Cloudflare REST API | `CLOUDFLARE_DNS_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_ZONE_NAME` | Cloudflare DNS; FOSS alternative is another authoritative DNS provider with SVCB + DNSSEC | Implemented |
 | DNS-AID checker | Validate public DNSSEC-authenticated SVCB answers | DoH JSON, SVCB RFC3597 parser | `scripts/dns-aid-records.mjs` | FOSS local script; no vendor lock-in beyond DNS host | Implemented |
@@ -311,7 +312,7 @@ flowchart LR
 | Pages app route | HTTPS | HTML, Markdown, JSON metadata | Public | Return route-specific status; avoid app-shell fallback for known metadata routes |
 | HTTP MCP route | HTTPS JSON-RPC | JSON-RPC requests/responses | Public read-only surface | Reject unsupported methods/tools without mutation |
 | Storage Worker routes | HTTPS | Markdown, JSON, plain text | Public read routes | Derive from D1; omit deleted records; no local file fallback |
-| Payment Worker routes | HTTPS | JSON/HTTP payment endpoints | Provider-specific secrets in Worker env | Keep payment errors isolated from storage reads |
+| Payment Worker routes | HTTPS | JSON/HTTP payment endpoints | Provider-specific secrets in Worker env and D1 payment tables/columns | Keep payment errors isolated from storage reads; readiness verifies remote D1 tables and webhook-processing columns before live smoke |
 | DNS-AID publish | Cloudflare REST API | DNS record JSON | `CLOUDFLARE_DNS_API_TOKEN` or `CLOUDFLARE_API_TOKEN` with zone DNS edit | Fail fast on missing token, invalid permission, DNSSEC inactive, or Cloudflare validation errors |
 | DNS-AID verify | DNS-over-HTTPS | `application/dns-json`, type 64 answers | Public resolver | Require `AD=true`; decode RFC3597 SVCB answers for custom parameters |
 
@@ -335,6 +336,7 @@ flowchart LR
 | Check mirror drift | `npm run pages:check-sync` | Fix source/sync owner before deploying |
 | Deploy Pages | `npm run pages:deploy-cloudflare` | Wrangler rollback or redeploy previous publish mirror |
 | Deploy storage Worker | `npm run storage:deploy` | Wrangler rollback for Worker; D1 migration rollback requires explicit migration plan |
+| Apply payment D1 migrations | `npm run payment:d1:migrate:remote` | D1 migration history |
 | Deploy payment Worker | `npm run payment:worker:deploy` | Wrangler rollback for Worker |
 | Publish DNS-AID | `npm run dns-aid:publish` | Update/delete records through the same Cloudflare REST API owner |
 | Verify DNS-AID | `npm run dns-aid:check` | Re-publish or inspect DNSSEC/DoH answer shape |
@@ -358,7 +360,7 @@ scoped API token with zone DNS edit permission. Presence checks must print only 
 |---|---|---|---|
 | Availability | Public app and storage routes must survive deploy | Pages + Workers route separation | live `curl` probes and browser smoke |
 | Security | DNS writes require least privilege | scoped token, secure local storage, fail-fast scripts | masked env checks and Cloudflare token validation |
-| Observability | Worker behavior must be inspectable | Wrangler logs, route probes, explicit check scripts | `wrangler tail`, `agent-ready:check`, `dns-aid:check` |
+| Observability | Worker behavior must be inspectable | Wrangler logs, route probes, explicit check scripts; x402 readiness must reject fallback `payTo` authority until `X402_PAY_TO_ADDRESS` is deployed | `wrangler tail`, `agent-ready:check`, `dns-aid:check`, `payment:stripe:configure`, `payment:stripe:readiness`, `payment:x402:configure`, `payment:x402:readiness`, `payment:readiness` |
 | Consistency | Dev, publish mirror, and Cloudflare stay aligned | source-owned sync and deploy commands | `pages:check-sync` |
 | Agent discovery | Agents find the same service via DNS and HTTP | DNS-AID SVCB + `.well-known` + MCP metadata | DoH `AD=true` and route checks |
 | Token cost | Cloudflare routing path has no LLM calls | no AI harness in routing path | token cost remains `$0` |
@@ -498,7 +500,7 @@ testable.
 | Storage Worker | Worker config | `cloudflare/workers/knowgrph-storage/wrangler.toml` | Implemented |
 | Storage Worker | Route implementation | `cloudflare/workers/knowgrph-storage/index.ts` | Implemented |
 | Storage Worker | Crawler markdown/index owner | `cloudflare/workers/knowgrph-storage/crawler.ts` | Implemented |
-| D1 | Storage database | `knowgrph-storage` D1 binding | Implemented |
+| D1 | Storage and payment database | `knowgrph-storage` D1 binding, payment migrations `0002_stripe_payments.sql`, `0003_agentic_commerce.sql`, and `0006_stripe_webhook_processing_state.sql` | Implemented |
 | Payment Worker | Worker config | `cloudflare/workers/knowgrph-payment/wrangler.toml` | Implemented |
 | DNS-AID | Shared record contract | `scripts/dns-aid-records.mjs` | Implemented |
 | DNS-AID | Cloudflare publisher | `scripts/publish-dns-aid-cloudflare.mjs` | Implemented |

@@ -55,10 +55,10 @@ export function MarkdownBlockContainerCommentPreviewOverlay(props: {
           ['--kg-anchor-preview-max-height' as never]: '220px',
         }}
       >
-        <div className={`border-b px-3 py-2 text-xs font-medium ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary}`}>
+        <section className={`border-b px-3 py-2 text-xs font-medium ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary}`}>
           Comment
-        </div>
-        <div className="px-3 py-2">
+        </section>
+        <section className="px-3 py-2">
           <MarkdownPreview
             markdownText={markdownText}
             activeDocumentPath="/comment-preview.md"
@@ -74,7 +74,7 @@ export function MarkdownBlockContainerCommentPreviewOverlay(props: {
             showSidebar={false}
             markdownTokenStoreSync={false}
           />
-        </div>
+        </section>
       </section>
     </AnchorOverlay>
   )

@@ -15,7 +15,7 @@ const tick = async () => {
 export async function testToastHostRendersSharedActionsAndDispatchesUiRuntime() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   let root: ReturnType<typeof createRoot> | null = null
   try {
@@ -80,7 +80,7 @@ export async function testToastHostRendersSharedActionsAndDispatchesUiRuntime() 
 export async function testHistoryViewRendersSharedLogActionsAndDispatchesUiRuntime() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   let root: ReturnType<typeof createRoot> | null = null
   try {

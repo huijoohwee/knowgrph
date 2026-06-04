@@ -15,6 +15,8 @@ RICH_MEDIA_SURFACE_ROUTE = (
     "MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> "
     "Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges"
 )
+SUPERAGENT_TASK_CAPABILITIES = ["research", "code", "create"]
+SUPERAGENT_TASK_LEVELS = ["quick_triage", "bounded_compile", "deep_research", "parallel_build"]
 BALANCED_LAYOUT_ID = "balanced-16x9"
 BALANCED_LAYOUT_FRAME = {
     "id": BALANCED_LAYOUT_ID,
@@ -67,6 +69,9 @@ BALANCED_WIDGET_LAYOUT = {
     },
     "goal": {"x": 60, "y": 40, "width": 260, "height": 96, "role": "provenance", "xIndex": -2, "yIndex": -2, "zIndex": -1},
     "brief": {"x": 420, "y": 40, "width": 280, "height": 96, "role": "brief", "xIndex": -1, "yIndex": -2, "zIndex": -1},
+    "skill-selector": {"x": 760, "y": 40, "width": 260, "height": 96, "role": "skillSelector", "xIndex": 0, "yIndex": -2, "zIndex": -1},
+    "research-scout": {"x": 1100, "y": 40, "width": 300, "height": 96, "role": "research", "xIndex": 1, "yIndex": -2, "zIndex": -1},
+    "code-sandbox": {"x": 1440, "y": 40, "width": 300, "height": 96, "role": "codeSandbox", "xIndex": 2, "yIndex": -2, "zIndex": -1},
     "verification": {"x": 160, "y": 800, "width": 360, "height": 140, "role": "verification", "xIndex": -1, "yIndex": 2, "zIndex": 0},
     "report": {"x": 1400, "y": 800, "width": 360, "height": 140, "role": "report", "xIndex": 1, "yIndex": 2, "zIndex": 0},
 }

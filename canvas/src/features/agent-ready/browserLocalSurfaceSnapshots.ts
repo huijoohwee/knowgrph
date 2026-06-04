@@ -60,6 +60,8 @@ export type LocalSettingsChatReadinessSurfaceSnapshot = {
   chatModel: string
   chatAuthMode: string
   chatContextScope: string
+  integrationProviderIds?: string[]
+  integrationProviderLabels?: string[]
   integrationEnabled: boolean
   integrationOpenTab: string
   pixverseVideoEnabled: boolean

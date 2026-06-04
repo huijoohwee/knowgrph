@@ -79,10 +79,10 @@ function SettingsActiveWorkspaceDelayedOpenHarness(props: {
   })
 
   return (
-    <div>
-      <div data-draft-storage-target={String(values.chatStorageTarget || '')} />
-      <div data-draft-chat-history-path={String(values.chatHistoryWorkspacePath || '')} />
-      <div data-draft-chat-knowgrph-path={String(values.chatKnowgrphWorkspacePath || '')} />
+    <section>
+      <section data-draft-storage-target={String(values.chatStorageTarget || '')} />
+      <section data-draft-chat-history-path={String(values.chatHistoryWorkspacePath || '')} />
+      <section data-draft-chat-knowgrph-path={String(values.chatKnowgrphWorkspacePath || '')} />
       <button
         type="button"
         onClick={() => patchChatValues({ chatStorageTarget: 'chatKnowgrph' })}
@@ -107,7 +107,7 @@ function SettingsActiveWorkspaceDelayedOpenHarness(props: {
       >
         Use Active Chat History File
       </button>
-    </div>
+    </section>
   )
 }
 
@@ -138,8 +138,8 @@ export async function testSettingsApplyActiveWorkspaceDelayedOpenKeepsCommittedS
     useMarkdownExplorerStore.getState().setActivePath('/workspace/chat/start.md')
 
     const doc = dom.window.document
-    const settingsContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const settingsContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(settingsContainer)
     doc.body.appendChild(chatContainer)
     settingsRoot = createRoot(settingsContainer as unknown as HTMLElement)

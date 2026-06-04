@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { isMainPanelVirtualSettingConfigDefault } from '@/features/panels/mainPanelVirtualSettings'
 
 const readUtf8 = (absPath: string): string => {
   return fs.readFileSync(absPath, { encoding: 'utf8' })
@@ -20,11 +21,15 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const settingsRowTypes = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'settingsRowTypes.ts'))
   const settingsView = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsView.tsx'))
   const settingsViewRuntime = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'useSettingsView.ts'))
+  const settingsRowBundles = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'useSettingsRowBundles.ts'))
   const settingsViewHelpers = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'useSettingsView.helpers.ts'))
   const settingsSections = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsSections.tsx'))
   const settingsChatAssist = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'useSettingsChatAssist.tsx'))
   const sourceFileManagementSettingsRows = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SourceFileManagementSettingsRows.tsx'))
   const settingsViewConstants = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'settingsView.constants.ts'))
+  const settingsMcpDocEntries = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'settingsMcpDocEntries.ts'))
+  const openAiMcpApiDocs = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'openaiMcpApiDocs.ts'))
+  const responsiveElementClasses = readUtf8(path.resolve(root, 'src', 'lib', 'ui', 'responsiveElementClasses.ts'))
   const collaborationView = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'CollaborationView.tsx'))
   const expandCollapseAllButton = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'ExpandCollapseAllButton.tsx'))
   const mainPanelTabs = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'mainPanelTabs.ts'))
@@ -88,7 +93,11 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   ].map(fileName => readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName)))
   const graphStatsPanel = readUtf8(path.resolve(root, 'src', 'features', 'graph-stats', 'GraphStatsPanel.tsx'))
   const settingsUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'ui.tsx'))
+  const settingsRegistry = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'registry.ts'))
+  const settingsRegistryOpenAiMcp = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'registry-openai-mcp.ts'))
   const settingsRegistryUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'registry-ui.ui.ts'))
+  const sharedOpenAiMcpSsot = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'openai', 'openaiMcpSsot.ts'))
+  const sharedPackageJson = readUtf8(path.resolve(root, '..', 'grph-shared', 'package.json'))
   const uiSliceCoreActions = readUtf8(path.resolve(root, 'src', 'hooks', 'store', 'uiSliceCoreActions.ts'))
   const renderSettingsSection = readUtf8(path.resolve(root, 'src', 'lib', 'panels', 'views', 'RenderSettingsSection.impl.tsx'))
   const rendererPaletteSettings = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'ui', 'RendererPaletteSettings.tsx'))
@@ -207,6 +216,23 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   if (!settingsEntryRow.includes('RightAlignedValueCell') || !settingsEntryRow.includes('valueNode={<RightAlignedValueCell>')) {
     throw new Error('Expected SettingsEntryRow values to use the shared KTV value cell')
   }
+  for (const [fileName, source] of [
+    ['SettingsView.tsx', settingsView],
+    ['useSettingsRowBundles.ts', settingsRowBundles],
+    ['settingsRowTypes.ts', settingsRowTypes],
+    ['SettingsSpecialValueNode.tsx', settingsSpecialValueNode],
+  ] as const) {
+    for (const staleStripeCheckoutState of [
+      'isGeneratingStripeCheckout',
+      'setIsGeneratingStripeCheckout',
+      'stripeCheckoutStatus',
+      'setStripeCheckoutStatus',
+    ]) {
+      if (source.includes(staleStripeCheckoutState)) {
+        throw new Error(`Expected ${fileName} to remove stale settings-level Stripe checkout state ${staleStripeCheckoutState}`)
+      }
+    }
+  }
   if (fs.existsSync(path.resolve(root, 'src', 'features', 'integrations', 'integrationVirtualSettings.ts'))) {
     throw new Error('Expected MainPanel virtual editable values to use one neutral panels owner, not an integrations-only legacy helper')
   }
@@ -214,6 +240,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     !mainPanelVirtualSettings.includes("kg:main-panel:virtual:")
     || !mainPanelVirtualSettings.includes('buildMainPanelVirtualSettingMeta')
     || !mainPanelVirtualSettings.includes('getMainPanelVirtualSettingStorageKey')
+    || !mainPanelVirtualSettings.includes('isMainPanelVirtualSettingConfigDefault')
     || !settingsViewRuntime.includes("from '@/features/panels/mainPanelVirtualSettings'")
     || !settingsViewHelpers.includes("from '@/features/panels/mainPanelVirtualSettings'")
     || !settingsViewHelpers.includes('resolveDocMappedEntryMeta')
@@ -222,6 +249,32 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     || !settingsViewHelpers.includes('valueType: resolvedMeta.type')
   ) {
     throw new Error('Expected all MainPanel doc-mapped Value cells to resolve through editable neutral virtual settings')
+  }
+  for (const proseDefault of [
+    'Required. Image generation prompt text.',
+    'Required. Video generation prompt text. Max 1024 tokens. Supports audio prompts.',
+    'States that Qwen reuses the canonical Knowgrph chat request message assembly.',
+    'Documents the optional provider request field without creating a second MainPanel-to-canvas pipeline.',
+    'Pins Google Cloud to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.',
+    'Multi-scene plans derive transition-aware prompts and a synthesized last-frame upload so PixVerse transition_video can connect scenes without introducing a second canvas schema.',
+  ]) {
+    if (isMainPanelVirtualSettingConfigDefault(proseDefault)) {
+      throw new Error(`Expected prose virtual default to be rejected before it reaches a KTV Value cell: ${proseDefault}`)
+    }
+  }
+  for (const configDefault of [
+    'frontmatter_kgc_markdown',
+    'delta.content',
+    'delta.reasoning_steps',
+    'Singapore',
+    'google-cloud',
+    'PROJECT_ID',
+    'pixverse',
+    'v5',
+  ]) {
+    if (!isMainPanelVirtualSettingConfigDefault(configDefault)) {
+      throw new Error(`Expected concise config literal to remain usable as a KTV Value default: ${configDefault}`)
+    }
   }
   if (
     settingsEntryRow.includes('sectionMeta')
@@ -909,7 +962,10 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
       throw new Error(`Expected Settings value editors to stop ${eventName} from toggling the row`)
     }
   }
-  if (!settingsEntryInput.includes('justify-start sm:justify-end')) {
+  if (
+    !settingsEntryInput.includes('UI_RESPONSIVE_SETTINGS_VALUE_WRAPPER_CLASSNAME')
+    || !responsiveElementClasses.includes('justify-start sm:justify-end')
+  ) {
     throw new Error('Expected Settings value editors to share responsive value alignment')
   }
 
@@ -931,5 +987,46 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     if (!text.includes('SettingsView') || !text.includes(`mode="${mode}"`)) {
       throw new Error(`Expected ${fileName} to inherit KTV rows through SettingsView mode=${mode}`)
     }
+  }
+
+  if (
+    !settingsViewConstants.includes('SETTINGS_VIEW_MODE_CONFIG_BY_MODE')
+    || !settingsViewConstants.includes('SETTINGS_MCP_KTV_HEADER_LABELS')
+    || !settingsViewConstants.includes('mcp: { ktvHeaderLabels: SETTINGS_MCP_KTV_HEADER_LABELS }')
+  ) {
+    throw new Error('Expected SettingsView mode config to own the MCP KTV header labels instead of a renderer-local Value label')
+  }
+  const forbiddenMcpHeaderLabelSnippets = [
+    ['valueLabel: ', "'Config'"].join(''),
+    ['valueLabel: ', '"Config"'].join(''),
+  ]
+  if (forbiddenMcpHeaderLabelSnippets.some(snippet => settingsViewConstants.includes(snippet))) {
+    throw new Error('Expected MCP KTV header labels to preserve the shared KeyTypeValue vocabulary; MCP rows may configure Value cells, not rename Value to Config')
+  }
+  if (
+    !settingsView.includes('resolveSettingsKtvHeaderLabels(mode)')
+    || !settingsView.includes('valueLabel={ktvHeaderLabels.valueLabel}')
+  ) {
+    throw new Error('Expected SettingsView to render KTV header labels from resolved mode config')
+  }
+  if (
+    !settingsViewRuntime.includes("import type { SettingsViewMode } from './settingsView.constants'")
+    || settingsViewRuntime.includes("mode?: 'all' | 'integrations' | 'payments' | 'maps' | 'mcp'")
+  ) {
+    throw new Error('Expected useSettingsView to reuse the shared SettingsViewMode type without duplicating mode literals')
+  }
+  if (
+    !sharedOpenAiMcpSsot.includes('OPENAI_MCP_DOCS_URL')
+    || !sharedPackageJson.includes('"./openai/openaiMcpSsot"')
+    || !settingsRegistry.includes('...openAiMcpSettingsRegistry')
+    || !settingsRegistryOpenAiMcp.includes('openai.mcp.serverUrl')
+    || !settingsMcpDocEntries.includes('...OPENAI_MCP_DOC_ENTRIES')
+    || !settingsMcpDocEntries.includes('buildOpenAiMcpResponsesToolConfigJson(values)')
+    || !settingsViewHelpers.includes('OPENAI_MCP_DOC_AREA')
+    || !settingsViewConstants.includes('[OPENAI_MCP_DOC_AREA]')
+    || !openAiMcpApiDocs.includes('valueKey: `${OPENAI_MCP_KEY_PREFIX}serverUrl`')
+    || !openAiMcpApiDocs.includes('buildOpenAiMcpResponsesRequestJson')
+  ) {
+    throw new Error('Expected OpenAI MCP rows to use shared SSOT, writable settings registry, and SettingsView MCP aggregation')
   }
 }

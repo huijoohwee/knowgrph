@@ -38,13 +38,13 @@ export function TraverseNodesListEditor({
     setEditingTraverseText,
   } = editPaths
   return (
-    <div
+    <section
       className={[
         useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm'),
         useGraphStore(s => s.uiPanelTextFontClass || 'font-sans'),
       ].join(' ')}
     >
-      <div className="flex items-center justify-between mb-[2px]">
+      <section className="flex items-center justify-between mb-[2px]">
         <span className="font-semibold">{UI_COPY.orchestratorTraversalTraverseNodesTitle}</span>
         <button
           type="button"
@@ -63,7 +63,7 @@ export function TraverseNodesListEditor({
         >
           <Eraser className="w-3.5 h-3.5" />
         </button>
-      </div>
+      </section>
       <ol className="list-decimal ml-4 space-y-[2px]">
         {lastTraversal.traverseNodeIds.map((id, index) => {
           const isEditing = editingTraverseIndex === index
@@ -120,7 +120,7 @@ export function TraverseNodesListEditor({
                   >
                     {label}
                   </button>
-                  <div className="flex items-center gap-1">
+                  <section className="flex items-center gap-1">
                     <button
                       type="button"
                       className={inlineActionButtonClassName}
@@ -184,14 +184,14 @@ export function TraverseNodesListEditor({
                     >
                       <Eraser className="w-3.5 h-3.5" />
                     </button>
-                  </div>
+                  </section>
                 </>
               )}
             </li>
           )
         })}
       </ol>
-    </div>
+    </section>
   )
 }
 
@@ -211,13 +211,13 @@ export function HopsListEditor({
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
   return (
-    <div
+    <section
       className={[
         useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm'),
         useGraphStore(s => s.uiPanelTextFontClass || 'font-sans'),
       ].join(' ')}
     >
-      <div className="flex items-center justify-between mb-[2px]">
+      <section className="flex items-center justify-between mb-[2px]">
         <span className="font-semibold">{UI_COPY.orchestratorTraversalHopsTitle}</span>
         <button
           type="button"
@@ -236,7 +236,7 @@ export function HopsListEditor({
         >
           <Eraser className="w-3.5 h-3.5" />
         </button>
-      </div>
+      </section>
       <ol className="list-decimal ml-4 space-y-[2px]">
         {lastTraversal.hops.map((hop, index) => {
           const isEditing = editingHopIndex === index
@@ -283,7 +283,7 @@ export function HopsListEditor({
               ) : (
                 <>
                   <span className={`${uiPanelMonospaceTextClass} break-words flex-1`}>{hop}</span>
-                  <div className="flex items-center gap-1">
+                  <section className="flex items-center gap-1">
                     <button
                       type="button"
                       className={inlineActionButtonClassName}
@@ -347,14 +347,14 @@ export function HopsListEditor({
                     >
                       <Eraser className="w-3.5 h-3.5" />
                     </button>
-                  </div>
+                  </section>
                 </>
               )}
             </li>
           )
         })}
       </ol>
-    </div>
+    </section>
   )
 }
 
@@ -379,13 +379,13 @@ export function MultiHopListEditor({
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
   return (
-    <div
+    <section
       className={[
         useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm'),
         useGraphStore(s => s.uiPanelTextFontClass || 'font-sans'),
       ].join(' ')}
     >
-      <div className="flex items-center justify-between mb-[2px]">
+      <section className="flex items-center justify-between mb-[2px]">
         <span className="font-semibold">{UI_COPY.orchestratorTraversalMultiHopTitle}</span>
         <button
           type="button"
@@ -404,7 +404,7 @@ export function MultiHopListEditor({
         >
           <Eraser className="w-3.5 h-3.5" />
         </button>
-      </div>
+      </section>
       <ol className="list-decimal ml-4 space-y-[2px]">
         {lastTraversal.multiHop.map((hop, index) => {
           const isEditing = editingMultiHopIndex === index
@@ -451,7 +451,7 @@ export function MultiHopListEditor({
               ) : (
                 <>
                   <span className={`${uiPanelMonospaceTextClass} break-words flex-1`}>{hop}</span>
-                  <div className="flex items-center gap-1">
+                  <section className="flex items-center gap-1">
                     <button
                       type="button"
                       className={inlineActionButtonClassName}
@@ -515,13 +515,13 @@ export function MultiHopListEditor({
                     >
                       <Eraser className="w-3.5 h-3.5" />
                     </button>
-                  </div>
+                  </section>
                 </>
               )}
             </li>
           )
         })}
       </ol>
-    </div>
+    </section>
   )
 }

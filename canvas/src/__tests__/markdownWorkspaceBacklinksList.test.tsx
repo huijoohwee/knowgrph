@@ -5,7 +5,7 @@ import { MarkdownWorkspaceBacklinksList } from '@/features/markdown-workspace/Ma
 
 export async function testMarkdownWorkspaceBacklinksListOwnsExplorerBacklinksSectionBody() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const opened: Array<{ path: string; line: number }> = []

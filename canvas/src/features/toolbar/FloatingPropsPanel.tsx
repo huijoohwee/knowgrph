@@ -181,11 +181,11 @@ export function FloatingPropsPanel() {
   )
 
   return (
-    <div className={`${UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME} ${UI_THEME_TOKENS.panel.bg}`}>
+    <section className={`${UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME} ${UI_THEME_TOKENS.panel.bg}`}>
       <section className="border-b border-[color:var(--kg-border)]" aria-label="Widgets">
-        <div className={cn('px-2 py-1 flex items-center justify-between', UI_THEME_TOKENS.panel.bg)}>
+        <section className={cn('px-2 py-1 flex items-center justify-between', UI_THEME_TOKENS.panel.bg)}>
           <span className={cn(uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.tertiary)}>Widgets</span>
-        </div>
+        </section>
         <WidgetPalette entries={widgetPaletteEntries} dragEnabled={widgetDragEnabled} />
       </section>
 
@@ -195,8 +195,8 @@ export function FloatingPropsPanel() {
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
-        <div className="px-3 py-2">
-          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+        <section className="px-3 py-2">
+          <section className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
             <label className={panelFieldLabelClassName}>
               Type
             </label>
@@ -223,8 +223,8 @@ export function FloatingPropsPanel() {
                 </option>
               )}
             </select>
-          </div>
-          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+          </section>
+          <section className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
             <label className={panelFieldLabelClassName}>
               Label
             </label>
@@ -233,8 +233,8 @@ export function FloatingPropsPanel() {
               onChange={e => setNewLabel(e.target.value)}
               className={panelFieldTextInputClassName}
             />
-          </div>
-          <div className={`mt-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+          </section>
+          <section className={`mt-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
             <label className={panelFieldLabelClassName}>
               Edge Label
             </label>
@@ -254,8 +254,8 @@ export function FloatingPropsPanel() {
                 </option>
               )}
             </select>
-          </div>
-        </div>
+          </section>
+        </section>
         <FloatingPropsPanelMenuButton onClick={doAddNode} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelAddNode}
         </FloatingPropsPanelMenuButton>
@@ -315,13 +315,13 @@ export function FloatingPropsPanel() {
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
-        <div className="px-3 py-2">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="flex flex-col gap-1">
+        <section className="px-3 py-2">
+          <section className="mb-2 flex items-center justify-between gap-2">
+            <section className="flex flex-col gap-1">
               <span className={`${uiPanelMicroLabelTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                 {RICH_MEDIA_DISPLAY_COPY.viewLabel}
               </span>
-              <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
+              <section className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
                 {FLOATING_MEDIA_VIEW_OPTIONS.map((option, index) => {
                   const selected = richMediaDisplayMode === 'panel-only' ? option.value === true : option.value === false
                   return (
@@ -335,13 +335,13 @@ export function FloatingPropsPanel() {
                     </button>
                   )
                 })}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
+              </section>
+            </section>
+            <section className="flex flex-col gap-1">
               <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                 {RICH_MEDIA_DISPLAY_COPY.densityLabel}
               </span>
-              <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
+              <section className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
                 {FLOATING_MEDIA_DENSITY_OPTIONS.map((option, index) => (
                   <button
                     key={option.value}
@@ -352,14 +352,14 @@ export function FloatingPropsPanel() {
                     {option.label}
                   </button>
                 ))}
-              </div>
-            </div>
-          </div>
-          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+              </section>
+            </section>
+          </section>
+          <section className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
             <label className={panelFieldLabelClassName}>
               {RICH_MEDIA_DISPLAY_COPY.opacityLabel}
             </label>
-            <div className={panelFieldRangeValueClassName}>
+            <section className={panelFieldRangeValueClassName}>
               <input
                 type="range"
                 min={0}
@@ -374,9 +374,9 @@ export function FloatingPropsPanel() {
               >
                 {Math.round(mediaNodeOpacity * 100)}%
               </span>
-            </div>
-          </div>
-          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+            </section>
+          </section>
+          <section className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
             <label className={panelFieldLabelClassName}>
               Kind
             </label>
@@ -394,8 +394,8 @@ export function FloatingPropsPanel() {
                 </option>
               ))}
             </select>
-          </div>
-          <div className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
+          </section>
+          <section className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
             <label className={panelFieldLabelClassName}>
               URL
             </label>
@@ -404,12 +404,12 @@ export function FloatingPropsPanel() {
               onChange={e => setMediaUrl(e.target.value)}
               className={panelFieldTextInputClassName}
             />
-          </div>
-          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+          </section>
+          <section className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
             <label className={panelFieldLabelClassName}>
               Interactive
             </label>
-            <div className={panelFieldToggleValueClassName}>
+            <section className={panelFieldToggleValueClassName}>
               <button
                 type="button"
                 className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${!mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
@@ -424,9 +424,9 @@ export function FloatingPropsPanel() {
               >
                 On
               </button>
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
         <FloatingPropsPanelMenuButton onClick={doUpdateMedia} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           Update Media
         </FloatingPropsPanelMenuButton>
@@ -446,8 +446,8 @@ export function FloatingPropsPanel() {
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
-        <div className={uiToolbarSettingsPanelBodyClassName}>
-          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+        <section className={uiToolbarSettingsPanelBodyClassName}>
+          <section className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
             <label className={panelFieldWideLabelClassName}>
               Anti-line strength
             </label>
@@ -470,8 +470,8 @@ export function FloatingPropsPanel() {
               }}
               className={panelFieldNumericInputClassName}
             />
-          </div>
-          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+          </section>
+          <section className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
             <label className={panelFieldWideLabelClassName}>
               Post-fit strength
             </label>
@@ -494,8 +494,8 @@ export function FloatingPropsPanel() {
               }}
               className={panelFieldNumericInputClassName}
             />
-          </div>
-          <div className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+          </section>
+          <section className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
             <label className={panelFieldWideLabelClassName}>
               Post-fit alpha max
             </label>
@@ -518,12 +518,12 @@ export function FloatingPropsPanel() {
               }}
               className={panelFieldNumericInputClassName}
             />
-          </div>
-          <div className={uiToolbarSettingsPanelFooterClassName}>
+          </section>
+          <section className={uiToolbarSettingsPanelFooterClassName}>
             <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
               Strong spread preset
             </span>
-            <div className={uiToolbarSettingsPanelActionGroupClassName}>
+            <section className={uiToolbarSettingsPanelActionGroupClassName}>
               <button
                 type="button"
                 className={`${uiToolbarSettingsPanelTextActionClassName} ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
@@ -595,9 +595,9 @@ export function FloatingPropsPanel() {
               >
                 Reset
               </button>
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -631,6 +631,6 @@ export function FloatingPropsPanel() {
           {UI_COPY.propsPanelShowInMarkdown}
         </FloatingPropsPanelMenuButton>
       </CollapsibleSection>
-    </div>
+    </section>
   )
 }

@@ -1,7 +1,6 @@
 import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { createStripeHostedCheckoutSessionUrl } from '@/features/payments/stripeCheckout'
 import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW } from '@/lib/chatEndpoint'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
@@ -33,9 +32,7 @@ type SettingsSpecialValueNodeProps = {
     | 'openWorkspaceFile'
     | 'pushUiToast'
     | 'setChatHistoryPathStatus'
-    | 'setIsGeneratingStripeCheckout'
     | 'setKnowgrphPathStatus'
-    | 'setStripeCheckoutStatus'
     | 'setValues'
   >
   refs: SettingsRowRefs
@@ -62,6 +59,7 @@ export function shouldRenderSettingsSpecialValueNode({
     || (area === DEERFLOW_API_DOC_AREA && sKey === 'deerflowApi.provider')
     || resolvedValueKey === 'maps.grabmaps.apiKey'
     || sKey === 'stripeApi.auth.secret_key'
+    || sKey === 'stripeApi.webhooks.signing_secret'
     || sKey === 'stripeApi.checkout.session_url'
     || sKey === 'chatHistoryWorkspacePath'
     || sKey === 'chatKnowgrphWorkspacePath'
@@ -89,35 +87,35 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (sKey === 'chatSystemPrompt') {
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>{inputNode}</div>
-        <div className={specialValueStatusShellClassName} title={status.chatHealthDetails || undefined}>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>{inputNode}</section>
+        <section className={specialValueStatusShellClassName} title={status.chatHealthDetails || undefined}>
           <StatusBadge
             label="Chat API"
             ok={status.isCheckingHealth ? null : (status.chatHealthOk ?? null)}
             msg={status.isCheckingHealth ? 'Checking...' : status.chatHealthOk === true ? 'Success' : status.chatHealthOk === false ? 'Failed' : 'Idle'}
             details={status.chatHealthDetails || undefined}
           />
-        </div>
+        </section>
         {status.normalizedChatProvider !== CHAT_PROVIDER_BYTEPLUS ? (
-          <div className={specialValueStatusShellClassName} title={status.bytePlusHealthDetails || undefined}>
+          <section className={specialValueStatusShellClassName} title={status.bytePlusHealthDetails || undefined}>
             <StatusBadge
               label="BytePlus API"
               ok={status.isCheckingBytePlusHealth ? null : (status.bytePlusHealthOk ?? null)}
               msg={status.isCheckingBytePlusHealth ? 'Checking...' : status.bytePlusHealthOk === true ? 'Success' : status.bytePlusHealthOk === false ? 'Failed' : 'Idle'}
               details={status.bytePlusHealthDetails || undefined}
             />
-          </div>
+          </section>
         ) : null}
         {status.normalizedChatProvider === CHAT_PROVIDER_DEERFLOW ? (
-          <div className={specialValueStatusShellClassName} title={status.deerFlowHealthDetails || undefined}>
+          <section className={specialValueStatusShellClassName} title={status.deerFlowHealthDetails || undefined}>
             <StatusBadge
               label="DeerFlow Gateway"
               ok={status.isCheckingDeerFlowHealth ? null : (status.deerFlowHealthOk ?? null)}
               msg={status.isCheckingDeerFlowHealth ? 'Checking...' : status.deerFlowHealthOk === true ? 'Success' : status.deerFlowHealthOk === false ? 'Failed' : 'Idle'}
               details={status.deerFlowHealthDetails || undefined}
             />
-          </div>
+          </section>
         ) : null}
         <button
           type="button"
@@ -137,22 +135,22 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
         >
           {status.isCheckingHealth || status.isCheckingBytePlusHealth || status.isCheckingDeerFlowHealth || status.isCheckingBytePlusVideoModelPreview ? 'Checking...' : 'Check Health'}
         </button>
-      </div>
+      </section>
     )
   }
 
   if (area === DEERFLOW_API_DOC_AREA && sKey === 'deerflowApi.provider') {
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>{inputNode}</div>
-        <div className={specialValueStatusShellClassName} title={status.deerFlowHealthDetails || undefined}>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>{inputNode}</section>
+        <section className={specialValueStatusShellClassName} title={status.deerFlowHealthDetails || undefined}>
           <StatusBadge
             label="DeerFlow Gateway"
             ok={status.isCheckingDeerFlowHealth ? null : (status.deerFlowHealthOk ?? null)}
             msg={status.isCheckingDeerFlowHealth ? 'Checking...' : status.deerFlowHealthOk === true ? 'Success' : status.deerFlowHealthOk === false ? 'Failed' : 'Idle'}
             details={status.deerFlowHealthDetails || undefined}
           />
-        </div>
+        </section>
         <button
           type="button"
           onClick={e => {
@@ -164,22 +162,22 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
         >
           {status.isCheckingDeerFlowHealth ? 'Checking...' : 'Check Health'}
         </button>
-      </div>
+      </section>
     )
   }
 
   if (resolvedValueKey === 'maps.grabmaps.apiKey') {
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>{inputNode}</div>
-        <div className={specialValueStatusShellClassName} title={status.grabMapsHealthDetails || undefined}>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>{inputNode}</section>
+        <section className={specialValueStatusShellClassName} title={status.grabMapsHealthDetails || undefined}>
           <StatusBadge
             label="GrabMaps API"
             ok={status.isCheckingGrabMapsHealth ? null : (status.grabMapsHealthOk ?? null)}
             msg={status.isCheckingGrabMapsHealth ? 'Checking...' : status.grabMapsHealthOk === true ? 'Success' : status.grabMapsHealthOk === false ? 'Failed' : 'Idle'}
             details={status.grabMapsHealthDetails || undefined}
           />
-        </div>
+        </section>
         <button
           type="button"
           onClick={e => {
@@ -191,7 +189,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
         >
           {status.isCheckingGrabMapsHealth ? 'Checking...' : 'Check Health'}
         </button>
-      </div>
+      </section>
     )
   }
 
@@ -199,8 +197,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
     const secretLabel = sKey === 'stripeApi.auth.secret_key' ? 'Stripe secret keys' : 'Stripe webhook signing secrets'
     const envLabel = sKey === 'stripeApi.auth.secret_key' ? STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY : 'STRIPE_WEBHOOK_SECRET'
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>
           <input
             value=""
             readOnly
@@ -208,91 +206,49 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             className={`w-full rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} px-2 py-1.5 ${ui.uiPanelKeyValueTextSizeClass}`}
             title="Server-managed only"
           />
-          <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+          <section className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
             {secretLabel} are not stored in the browser. Use `{envLabel}` on the server.
-          </div>
-        </div>
+          </section>
+        </section>
         <span className={sectionStatusClassName} title="Secret stays server-side.">
           server-managed
         </span>
-      </div>
+      </section>
     )
   }
 
   if (sKey === 'stripeApi.checkout.session_url') {
-    const checkoutUrlValue = String(values[resolvedValueKey] ?? '').trim()
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>
           <input
-            value={checkoutUrlValue}
+            value=""
             readOnly
-            placeholder="Server-managed Checkout Session url"
+            placeholder="Generated per Checkout attempt"
             className={`w-full rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} px-2 py-1.5 ${ui.uiPanelKeyValueTextSizeClass}`}
-            title={checkoutUrlValue || 'Server-managed Checkout Session url'}
+            title="Generated per Checkout attempt"
           />
-          {status.stripeCheckoutStatus ? (
-            <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.stripeCheckoutStatus}</div>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={async e => {
-            e.stopPropagation()
-            if (status.isGeneratingStripeCheckout) return
-            actions.setStripeCheckoutStatus(null)
-            actions.setIsGeneratingStripeCheckout(true)
-            try {
-              const origin = typeof window !== 'undefined' ? window.location.origin : ''
-              const basePath = typeof window !== 'undefined' ? window.location.pathname : '/'
-              const successUrl = `${origin}${basePath}?stripeCheckout=success&session_id={CHECKOUT_SESSION_ID}`
-              const cancelUrl = `${origin}${basePath}?stripeCheckout=cancel`
-              const created = await createStripeHostedCheckoutSessionUrl({ successUrl, cancelUrl })
-              refs.dirtyRef.current.add(resolvedValueKey)
-              actions.setValues(prev => ({ ...prev, [resolvedValueKey]: created.url }))
-              actions.setStripeCheckoutStatus('Generated secure Checkout Session URL. Click Apply to persist.')
-              actions.pushUiToast({
-                id: `stripe-checkout-generated-${created.id}`,
-                kind: 'neutral',
-                message: 'Generated secure Stripe Checkout Session URL. Click Apply to persist.',
-                ttlMs: 2600,
-              })
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : 'Failed to generate Stripe Checkout Session.'
-              actions.setStripeCheckoutStatus(msg)
-              actions.pushUiToast({
-                id: 'stripe-checkout-generate-failed',
-                kind: 'error',
-                message: msg,
-                ttlMs: 3200,
-              })
-            } finally {
-              actions.setIsGeneratingStripeCheckout(false)
-            }
-          }}
-          disabled={status.isGeneratingStripeCheckout}
-          className={sectionActionClassName}
-          title="Create a server-managed Checkout Session and fill the returned Session url."
-        >
-          {status.isGeneratingStripeCheckout ? 'Generating...' : 'Generate (secure)'}
-        </button>
-        <span className={sectionStatusClassName} title="Secret key stays server-side; browser only receives the returned Session url.">
-          server-managed
+          <section className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+            Checkout Session URLs are not persisted in browser settings. The paywall creates a fresh hosted Session through the payment Worker.
+          </section>
+        </section>
+        <span className={sectionStatusClassName} title="Session URL is created only during hosted Checkout handoff.">
+          per-attempt
         </span>
-      </div>
+      </section>
     )
   }
 
   if (sKey === 'chatHistoryWorkspacePath') {
     const currentPath = typeof values.chatHistoryWorkspacePath === 'string' ? values.chatHistoryWorkspacePath.trim() : ''
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>
           {inputNode}
           {status.chatHistoryPathStatus && (
-            <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.chatHistoryPathStatus}</div>
+            <section className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.chatHistoryPathStatus}</section>
           )}
-        </div>
+        </section>
         <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localImportInputRef.current) }} className={sectionActionClassName}>Import Files</button>
         <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localFolderImportInputRef.current) }} className={sectionActionClassName}>Import Folder</button>
         <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsChatHistory() }} className={sectionActionClassName}>Use Active</button>
@@ -312,20 +268,20 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
         >
           Open
         </button>
-      </div>
+      </section>
     )
   }
 
   if (sKey === 'chatKnowgrphWorkspacePath') {
     const currentPath = typeof values.chatKnowgrphWorkspacePath === 'string' ? values.chatKnowgrphWorkspacePath.trim() : ''
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>
           {inputNode}
           {status.knowgrphPathStatus && (
-            <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.knowgrphPathStatus}</div>
+            <section className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.knowgrphPathStatus}</section>
           )}
-        </div>
+        </section>
         <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalImportInputRef.current) }} className={sectionActionClassName}>Import Files</button>
         <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalFolderImportInputRef.current) }} className={sectionActionClassName}>Import Folder</button>
         <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsKnowgrph() }} className={sectionActionClassName}>Use Active</button>
@@ -345,25 +301,25 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
         >
           Open
         </button>
-      </div>
+      </section>
     )
   }
 
   if (sKey === 'chatHistoryCloudUrl') {
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>{inputNode}</div>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>{inputNode}</section>
         <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForChatHistory() }} className={sectionActionClassName}>Import URL</button>
-      </div>
+      </section>
     )
   }
 
   if (sKey === 'chatKnowgrphCloudUrl') {
     return (
-      <div className={specialValueRowClassName}>
-        <div className={specialValueInputShellClassName}>{inputNode}</div>
+      <section className={specialValueRowClassName}>
+        <section className={specialValueInputShellClassName}>{inputNode}</section>
         <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForKnowgrph() }} className={sectionActionClassName}>Import URL</button>
-      </div>
+      </section>
     )
   }
 

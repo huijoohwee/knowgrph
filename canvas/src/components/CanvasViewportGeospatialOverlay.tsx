@@ -52,9 +52,9 @@ export type CanvasViewportGeospatialOverlayProps = {
 
 const MissingGeospatialOverlayHost = React.memo(function MissingGeospatialOverlayHost(_props: GeospatialOverlayHostProps) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center text-xs text-[color:var(--kg-text-primary)] bg-[color:var(--kg-panel-bg)]/70 dark:bg-black/40">
+    <section className="absolute inset-0 flex items-center justify-center text-xs text-[color:var(--kg-text-primary)] bg-[color:var(--kg-panel-bg)]/70 dark:bg-black/40">
       Geospatial overlay unavailable
-    </div>
+    </section>
   )
 })
 
@@ -329,12 +329,12 @@ export const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewpor
   }, [geospatialModeEnabled, selectedEdgeId, selectedNodeId, selectedNodeIds, viewPinned, zoomToSelectionMode])
 
   return (
-    <div className={`absolute inset-0 z-[20] ${active ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+    <section className={`absolute inset-0 z-[20] ${active ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
       <GeospatialOverlayHostLazy
         active={active}
         snapshot={snapshot}
         handlers={handlers}
       />
-    </div>
+    </section>
   )
 })

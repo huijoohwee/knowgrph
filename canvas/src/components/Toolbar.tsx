@@ -75,7 +75,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchBtnRef = useRef<HTMLButtonElement>(null);
-  const searchPanelRef = useRef<HTMLDivElement>(null);
+  const searchPanelRef = useRef<HTMLElement>(null);
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
   const runAllFloatingPanelTab = getToolbarRunAllFloatingPanelTab(canvas2dRenderer)
@@ -159,7 +159,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         geospatialEnabled={geospatialEnabled}
         onOpenGeospatialMode={actions.handleOpenGeospatialMode}
       />
-      <div className="App-toolbar__divider" />
+      <section className="App-toolbar__divider" />
       <IconButton
         className="App-toolbar__btn"
         title={UI_LABELS.settings}
@@ -170,12 +170,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         <Settings className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       {isMainPanelOpen && (
-        <div
+        <section
           className={`${effectiveMainPanelPinned ? 'fixed inset-0 z-[2000]' : 'fixed inset-0 z-[80]'} ${(isNarrowViewport || effectiveMainPanelPinned) ? 'pointer-events-auto' : 'pointer-events-none'}`}
         >
           {isNarrowViewport ? (
             <>
-              <div
+              <section
                 className="absolute inset-0 bg-black/30"
                 onPointerDown={(e) => {
                   e.stopPropagation()
@@ -183,7 +183,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
                 }}
                 aria-hidden="true"
               />
-              <div
+              <section
                 ref={mainPanelCardRef}
                 className="absolute left-2 right-2 top-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] bottom-[calc(var(--kg-safe-bottom)+var(--kg-canvas-viewport-edge-gap))] pointer-events-auto"
               >
@@ -202,10 +202,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
                     onPinToggle={undefined}
                   />
                 </React.Suspense>
-              </div>
+              </section>
             </>
           ) : (
-            <div
+            <section
               ref={mainPanelCardRef}
               className={[
                 'pointer-events-auto',
@@ -236,9 +236,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
                   onPinToggle={() => setMainPanelPinned(v => !v)}
                 />
               </React.Suspense>
-            </div>
+            </section>
           )}
-        </div>
+        </section>
       )}
 
       <IconButton className="App-toolbar__btn" title={UI_LABELS.history} onClick={actions.handleOpenHistory} showTooltip>
@@ -249,7 +249,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         <HelpCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
 
-      <div className="App-toolbar__divider" />
+      <section className="App-toolbar__divider" />
       <IconButton
         className="App-toolbar__btn"
         title={UI_LABELS.createNode}

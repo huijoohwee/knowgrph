@@ -31,7 +31,7 @@ const ensureRangeRect = (dom: ReturnType<typeof initJsdomHarness>['dom']) => {
 }
 
 export async function testMarkdownViewerInlineEditParagraphDoesNotInsertBlockElementsIntoP() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -105,7 +105,7 @@ export async function testMarkdownViewerInlineEditParagraphDoesNotInsertBlockEle
 }
 
 export async function testMarkdownViewerInlineEditParagraphClickingInlineLinkStillOpensEditor() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -167,7 +167,7 @@ export async function testMarkdownViewerInlineEditParagraphClickingInlineLinkSti
 }
 
 export async function testMarkdownViewerInlineEditParagraphDoubleClickOpensEditor() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -227,7 +227,7 @@ export async function testMarkdownViewerInlineEditParagraphDoubleClickOpensEdito
 }
 
 export async function testMarkdownViewerInlineEditParagraphDoubleClickSelectsWordOnOpen() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     ensureRangeRect(dom)
     const container = dom.window.document.getElementById('root')
@@ -297,7 +297,7 @@ export async function testMarkdownViewerInlineEditParagraphDoubleClickSelectsWor
 }
 
 export async function testMarkdownViewerInlineEditParagraphEarlyBlurDoesNotBounceOut() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     ensureRangeRect(dom)
     const container = dom.window.document.getElementById('root')
@@ -349,7 +349,7 @@ export async function testMarkdownViewerInlineEditParagraphEarlyBlurDoesNotBounc
 }
 
 export async function testMarkdownViewerInlineEditParagraphPlainTextCommitDoesNotEscapeMarkdownChars() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     ensureRangeRect(dom)
     const container = dom.window.document.getElementById('root')

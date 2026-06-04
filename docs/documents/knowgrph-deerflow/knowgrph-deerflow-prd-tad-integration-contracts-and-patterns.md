@@ -15,6 +15,8 @@
 
 **Directive**: New DeerFlow capability must extend a listed source owner or introduce a new guarded owner before docs describe it as implemented.
 
+**Inspiration boundary**: Long-horizon SuperAgent concepts inspired by DeerFlow must be implemented through Knowgrph's native `knowgrph_parser` harness and local MCP contracts. Do not copy DeerFlow code, clone its architecture, or add a DeerFlow-only parser, renderer, memory stack, or graph apply path.
+
 ---
 
 ## Contract Catalog
@@ -28,6 +30,7 @@
 | DFI-C005 | Rich-Media Dispatch Contract | `richMediaRun.ts` | image/video generation nodes | Shipped |
 | DFI-C006 | Gateway Run Adapter Contract | `deerflowRunGeneration.ts` | DeerFlow `/api/runs/stream` | Shipped |
 | DFI-C007 | URL Import Manifest Contract | `deerflowUrlImport.ts` | Source Files workspace | Shipped |
+| DFI-C008 | Native SuperAgent Boundary | `docs/documents/knowgrph-superagent-harness.md` | local long-horizon harness | Source-owned; DeerFlow is conceptual inspiration only |
 
 ## DFI-C001: Settings Row Contract
 
@@ -108,6 +111,17 @@ Rules:
 - Source Files remain the persistence boundary.
 - Failures return structured `failed` entries.
 
+## DFI-C008: Native SuperAgent Boundary
+
+```ts
+type DeerFlowInspirationUse = "conceptual-reference-only";
+```
+
+Rules:
+- Use DeerFlow only to inform neutral primitives such as message gateway, memory, tools, skills, subagents, sandboxed workspace artifacts, and long-horizon run boundaries.
+- Implement Knowgrph harness behavior in `knowgrph_parser` and local MCP owners before documenting it as shipped.
+- Keep Flow Editor, Rich Media Panel, KGC apply, Source Files, and chat owners provider-neutral.
+
 ---
 
 ## Integration Patterns
@@ -151,6 +165,7 @@ Rules:
 - Do not hardcode `/Users/...`, repo-local paths, or Cloudflare URLs in runtime source.
 - Do not document a DeerFlow MCP bridge as implemented until source owners exist.
 - Do not introduce provider-specific renderer branches.
+- Do not copy DeerFlow code or architecture into Knowgrph's native SuperAgent harness.
 - Do not silently fallback from DeerFlow to another provider.
 
 ---

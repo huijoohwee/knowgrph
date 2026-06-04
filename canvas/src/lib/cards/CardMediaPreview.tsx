@@ -455,7 +455,7 @@ export function CardMediaPreview({
   }
 
   return (
-    <div
+    <section
       className={[
         'flex h-full w-full items-center justify-center gap-2 text-sm',
         UI_THEME_TOKENS.text.secondary,
@@ -466,6 +466,6 @@ export function CardMediaPreview({
     >
       {fallbackHref ? <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" /> : <ImageIcon className="h-4 w-4 shrink-0" aria-hidden="true" />}
       <span className="truncate">{fallbackHref ? 'Open reference' : 'No preview'}</span>
-    </div>
+    </section>
   )
 }

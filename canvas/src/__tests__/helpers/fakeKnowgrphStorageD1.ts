@@ -210,7 +210,7 @@ export class FakeKnowgrphStorageD1Database {
       return
     }
     if (normalizedSql.includes('insert into stripe_webhook_events')) {
-      const [id, eventType, livemode, payloadHash, receivedAt, processedAt] = values
+      const [id, eventType, livemode, payloadHash, receivedAt, processedAt, processingStatus, processingError] = values
       this.stripeWebhookEvents.set(String(id), {
         id,
         event_type: eventType,
@@ -218,7 +218,45 @@ export class FakeKnowgrphStorageD1Database {
         payload_hash: payloadHash,
         received_at: receivedAt,
         processed_at: processedAt,
+        processing_status: processingStatus || 'processed',
+        processing_error: processingError || null,
       })
+      return
+    }
+    if (normalizedSql.includes('update stripe_webhook_events')) {
+      const existingByLastValue = this.stripeWebhookEvents.get(String(values[values.length - 1]))
+      if (!existingByLastValue) return
+      if (normalizedSql.includes('event_type = ?')) {
+        const [eventType, livemode, payloadHash, receivedAt, processingStatus, id] = values
+        this.stripeWebhookEvents.set(String(id), {
+          ...existingByLastValue,
+          event_type: eventType,
+          livemode,
+          payload_hash: payloadHash,
+          received_at: receivedAt,
+          processing_status: processingStatus,
+          processing_error: null,
+        })
+        return
+      }
+      if (normalizedSql.includes('processed_at = ?')) {
+        const [processedAt, processingStatus, id] = values
+        this.stripeWebhookEvents.set(String(id), {
+          ...existingByLastValue,
+          processed_at: processedAt,
+          processing_status: processingStatus,
+          processing_error: null,
+        })
+        return
+      }
+      if (normalizedSql.includes('processing_error = ?')) {
+        const [processingStatus, processingError, id] = values
+        this.stripeWebhookEvents.set(String(id), {
+          ...existingByLastValue,
+          processing_status: processingStatus,
+          processing_error: processingError,
+        })
+      }
       return
     }
     if (normalizedSql.includes('insert into agentic_commerce_sessions')) {
@@ -394,9 +432,12 @@ export class FakeKnowgrphStorageD1Database {
       const max = rows.reduce((acc, row) => Math.max(acc, Number(row.graph_revision || 0)), 0)
       return rows.length > 0 ? [{ graph_revision: max }] : []
     }
-    if (normalizedSql.includes('select id from stripe_webhook_events where id = ?')) {
+    if (normalizedSql.includes('select id') && normalizedSql.includes('from stripe_webhook_events where id = ?')) {
       const row = this.stripeWebhookEvents.get(String(values[0]))
-      return row ? [{ id: row.id }] : []
+      if (!row) return []
+      const columns = readSelectedColumns(sql)
+      if (columns.length === 0) return [row]
+      return [Object.fromEntries(columns.map(column => [column, row[column]]))]
     }
     if (normalizedSql.includes('select * from stripe_checkout_sessions where id = ?')) {
       const row = this.stripeCheckoutSessions.get(String(values[0]))

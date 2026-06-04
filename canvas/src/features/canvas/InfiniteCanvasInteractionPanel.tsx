@@ -15,7 +15,7 @@ function Section(props: { title: string; children: React.ReactNode }) {
   return (
     <section aria-label={props.title}>
       <h3 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>{props.title}</h3>
-      <div className="mt-2 space-y-2">{props.children}</div>
+      <section className="mt-2 space-y-2">{props.children}</section>
     </section>
   )
 }
@@ -207,7 +207,7 @@ export function InfiniteCanvasInteractionPanel() {
   ]
 
   return (
-    <div className="space-y-4">
+    <section className="space-y-4">
       <Section title="Viewport">
         {viewportGroups.map(group => (
           <CollapsibleSection
@@ -221,27 +221,27 @@ export function InfiniteCanvasInteractionPanel() {
             stickyHeader={false}
           >
             {group.key === 'readout' ? (
-              <div className={`rounded-full border px-3 py-1 text-xs ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} shadow-sm`} aria-label="Viewport readout">
+              <section className={`rounded-full border px-3 py-1 text-xs ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} shadow-sm`} aria-label="Viewport readout">
                 <span className="font-mono">Zoom {zoomPct}%</span>
                 <span className="mx-2 opacity-60">·</span>
                 <span className="font-mono">Center {Math.round(center.x)} {Math.round(center.y)}</span>
-              </div>
+              </section>
             ) : null}
-            <div className="mt-2 space-y-1.5">
+            <section className="mt-2 space-y-1.5">
               {group.rows.map((row, idx) => (
-                <div key={`${group.key}-${idx}`} className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                <section key={`${group.key}-${idx}`} className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>{row.label}</span>
                   <span className="font-mono">{row.value}</span>
-                </div>
+                </section>
               ))}
-            </div>
+            </section>
           </CollapsibleSection>
         ))}
       </Section>
       <CollapsibleSection title="Interaction" defaultCollapsed={false} stickyHeader={false}>
-        <div className="mt-2 space-y-2">
-          <div className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
-            <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+        <section className="mt-2 space-y-2">
+          <section className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
+            <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
               <Tooltip
                 content="Higher values make the simulation respond faster to drags but can cause large global movement."
                 maxWidthPx={260}
@@ -250,8 +250,8 @@ export function InfiniteCanvasInteractionPanel() {
                 <span>Drag alphaTarget</span>
               </Tooltip>
               <span className="font-mono">{Number.isFinite(graphDragAlphaTarget2d) ? graphDragAlphaTarget2d.toFixed(2) : '0.00'}</span>
-            </div>
-            <div className="mt-1">
+            </section>
+            <section className="mt-1">
               <input
                 type="range"
                 min={0}
@@ -261,9 +261,9 @@ export function InfiniteCanvasInteractionPanel() {
                 onChange={e => setGraphDragAlphaTarget2d(Number(e.target.value))}
                 className="w-full"
               />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+            </section>
+          </section>
+          <section className="grid grid-cols-2 gap-2">
             <button
               type="button"
               className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasPointerMode2d !== 'pan' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -280,7 +280,7 @@ export function InfiniteCanvasInteractionPanel() {
             >
               Pan
             </button>
-          </div>
+          </section>
 
           <label className={`block text-xs ${UI_THEME_TOKENS.text.secondary}`}>
             Layout
@@ -297,8 +297,8 @@ export function InfiniteCanvasInteractionPanel() {
             </select>
           </label>
 
-          <div className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
-            <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+          <section className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
+            <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
               <Tooltip
                 content="Auto-tuning multipliers for collision/repulsion across nodes, groups, labels, and rich media."
                 maxWidthPx={280}
@@ -325,87 +325,87 @@ export function InfiniteCanvasInteractionPanel() {
               >
                 Reset
               </button>
-            </div>
+            </section>
 
-            <div className="mt-2 space-y-2">
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+            <section className="mt-2 space-y-2">
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Charge scale</span>
                   <span className="font-mono">{physics2d.chargeScale.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={0.1} max={2} step={0.01} value={physics2d.chargeScale} onChange={e => setPhysics2d({ physics2dChargeScale: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Collide strength</span>
                   <span className="font-mono">{physics2d.collideStrengthScale.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={0.1} max={2} step={0.01} value={physics2d.collideStrengthScale} onChange={e => setPhysics2d({ physics2dCollideStrengthScale: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>BBox strength</span>
                   <span className="font-mono">{physics2d.bboxStrengthScale.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={0.1} max={2} step={0.01} value={physics2d.bboxStrengthScale} onChange={e => setPhysics2d({ physics2dBboxStrengthScale: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Velocity decay bias</span>
                   <span className="font-mono">{physics2d.velocityDecayBias.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={-0.25} max={0.25} step={0.01} value={physics2d.velocityDecayBias} onChange={e => setPhysics2d({ physics2dVelocityDecayBias: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Max speed scale</span>
                   <span className="font-mono">{physics2d.maxSpeedScale.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={0.3} max={3} step={0.01} value={physics2d.maxSpeedScale} onChange={e => setPhysics2d({ physics2dMaxSpeedScale: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Strict overlap</span>
                   <span className="font-mono">{physics2d.strictOverlapScale.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={0.3} max={3} step={0.01} value={physics2d.strictOverlapScale} onChange={e => setPhysics2d({ physics2dStrictOverlapScale: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Label nudge</span>
                   <span className="font-mono">{physics2d.labelNudgeScale.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={0.2} max={3} step={0.01} value={physics2d.labelNudgeScale} onChange={e => setPhysics2d({ physics2dLabelNudgeScale: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Drag charge scale</span>
                   <span className="font-mono">{physics2d.dragChargeScale.toFixed(2)}</span>
-                </div>
+                </section>
                 <input type="range" min={0.1} max={1} step={0.01} value={physics2d.dragChargeScale} onChange={e => setPhysics2d({ physics2dDragChargeScale: Number(e.target.value) })} className="w-full" />
-              </div>
+              </section>
 
-              <div>
-                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
+                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
                   <span>Drag distanceMax</span>
                   <span className="font-mono">{Math.round(physics2d.dragDistanceMaxPx)}px</span>
-                </div>
+                </section>
                 <input type="range" min={120} max={6000} step={10} value={physics2d.dragDistanceMaxPx} onChange={e => setPhysics2d({ physics2dDragDistanceMaxPx: Number(e.target.value) })} className="w-full" />
-              </div>
-            </div>
-          </div>
-        </div>
+              </section>
+            </section>
+          </section>
+        </section>
       </CollapsibleSection>
 
       <CollapsibleSection title="Centering / Centroid" defaultCollapsed={false} stickyHeader={false}>
-        <div className="mt-2 space-y-2">
+        <section className="mt-2 space-y-2">
           <button
             type="button"
             className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -421,11 +421,11 @@ export function InfiniteCanvasInteractionPanel() {
           >
             Center on All Items
           </button>
-        </div>
+        </section>
       </CollapsibleSection>
 
       <CollapsibleSection title="Even Spread" defaultCollapsed={false} stickyHeader={false}>
-        <div className="mt-2 space-y-2">
+        <section className="mt-2 space-y-2">
           <button
             type="button"
             className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -442,13 +442,13 @@ export function InfiniteCanvasInteractionPanel() {
           >
             Distribute Vertically
           </button>
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
             {selectedCount < 3 ? 'Select at least 3 nodes.' : `Selected: ${selectedCount}`}
-          </div>
-        </div>
+          </section>
+        </section>
       </CollapsibleSection>
 
       <CanvasPerformancePanel />
-    </div>
+    </section>
   )
 }

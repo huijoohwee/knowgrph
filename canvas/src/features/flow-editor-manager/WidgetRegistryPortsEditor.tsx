@@ -31,7 +31,7 @@ export default function WidgetRegistryPortsEditor({
 
   return (
     <section aria-label="Ports" className="space-y-2">
-      <div className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME}>
+      <section className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME}>
         <h4 className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Ports</h4>
         <button
           type="button"
@@ -40,13 +40,13 @@ export default function WidgetRegistryPortsEditor({
         >
           {UI_LABELS.add} port
         </button>
-      </div>
+      </section>
 
-      <div className="space-y-2">
+      <section className="space-y-2">
         {(ports || []).map((p, idx) => (
-          <div key={`${idx}:${p.direction}:${p.portKey}`} className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
-            <div className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME, 'sm:grid-cols-4')}>
-              <div>
+          <section key={`${idx}:${p.direction}:${p.portKey}`} className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
+            <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME, 'sm:grid-cols-4')}>
+              <section>
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Direction</label>
                 <select
                   value={p.direction}
@@ -56,25 +56,25 @@ export default function WidgetRegistryPortsEditor({
                   <option value="input">input</option>
                   <option value="output">output</option>
                 </select>
-              </div>
-              <div>
+              </section>
+              <section>
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Port key</label>
                 <input
                   value={p.portKey}
                   onChange={e => onChange(ports.map((x, i) => (i === idx ? { ...x, portKey: e.target.value } : x)))}
                   className={cn(fieldClassName, panelTypography.monospaceTextClass)}
                 />
-              </div>
-              <div className="sm:col-span-2">
+              </section>
+              <section className="sm:col-span-2">
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Schema path (optional)</label>
                 <input
                   value={p.schemaPath || ''}
                   onChange={e => onChange(ports.map((x, i) => (i === idx ? { ...x, schemaPath: e.target.value } : x)))}
                   className={cn(fieldClassName, panelTypography.monospaceTextClass)}
                 />
-              </div>
-            </div>
-            <div className="mt-2 flex items-center justify-end">
+              </section>
+            </section>
+            <section className="mt-2 flex items-center justify-end">
               <button
                 type="button"
                 className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
@@ -83,14 +83,14 @@ export default function WidgetRegistryPortsEditor({
               >
                 <X className={iconSizeClass} aria-hidden="true" />
               </button>
-            </div>
-          </div>
+            </section>
+          </section>
         ))}
 
         {(ports || []).length === 0 && (
-          <div className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>No ports.</div>
+          <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>No ports.</section>
         )}
-      </div>
+      </section>
     </section>
   )
 }

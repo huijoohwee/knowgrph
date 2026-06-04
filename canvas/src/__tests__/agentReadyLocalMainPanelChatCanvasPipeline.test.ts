@@ -3,12 +3,22 @@ import { createRoot } from 'react-dom/client'
 import MainPanel from '@/features/panels/MainPanel'
 import { inspectLocalMainPanelChatCanvasPipeline } from '@/features/agent-ready/localMainPanelChatCanvasPipelineInspection'
 import {
+  KNOWGRPH_SUPERAGENT_CANVAS_RENDERER,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS,
+  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME,
+  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SHARE_URL,
+  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+  KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
+  KNOWGRPH_SUPERAGENT_REVIEW_EDGE_ID,
+  KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS,
+  KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS,
+} from '@/features/agent-ready/mainPanelSuperAgentIntegrationContract'
+import {
   readLocalMainPanelSurfaceSnapshot,
-  readLocalSettingsChatReadinessSurfaceSnapshot,
   resetBrowserLocalSurfaceSnapshotsForTests,
-  type LocalChatPipelineSurfaceSnapshot,
   type LocalEditorWorkspaceSurfaceSnapshot,
-  type LocalMainPanelSurfaceSnapshot,
   type LocalSettingsChatReadinessSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { DEFAULT_INTEGRATION_CONFIGS, stringifyIntegrationConfigs } from '@/features/integrations/config'
@@ -24,150 +34,34 @@ import {
   waitForTasks,
 } from '@/tests/lib/reactRootHarness'
 import { AGENTIC_COMMERCE_MAIN_PANEL_READINESS } from 'grph-shared/payments/agenticCommerceSsot'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
+import { readResearchAgentDemoText } from './helpers/researchAgentDemoFixture'
+import {
+  READY_CHAT_PIPELINE,
+  READY_EDITOR_WORKSPACE,
+  READY_GRAPH,
+  READY_MARKDOWN,
+  READY_SETTINGS_CHAT,
+  buildMainPanelSnapshot,
+  inspectReadyPipeline,
+} from './helpers/mainPanelChatCanvasPipelineFixtures'
 
-const READY_MARKDOWN = `---
-flow:
-  nodes:
-    - id: start
-      label: Start
-    - id: end
-      label: End
-  connections:
-    - source: start
-      target: end
----
+type BrowserLocalSurfaceSnapshotsModule = typeof import('@/features/agent-ready/browserLocalSurfaceSnapshots')
 
-# Agent Ready
-`
+const loadRenderedMainPanelSurfaceSnapshots = async (): Promise<BrowserLocalSurfaceSnapshotsModule> => (
+  import('@/features/agent-ready/browserLocalSurfaceSnapshots')
+)
 
-const READY_GRAPH = {
-  nodes: [
-    { id: 'start', type: 'Step', label: 'Start' },
-    { id: 'end', type: 'Step', label: 'End' },
-  ],
-  edges: [
-    { id: 'edge-1', source: 'start', target: 'end', label: 'next' },
-  ],
+const resetRenderedMainPanelSurfaceSnapshots = async (): Promise<void> => {
+  resetBrowserLocalSurfaceSnapshotsForTests()
+  const renderedSnapshots = await loadRenderedMainPanelSurfaceSnapshots()
+  renderedSnapshots.resetBrowserLocalSurfaceSnapshotsForTests()
 }
 
-const buildMainPanelSnapshot = (activeTab: string): LocalMainPanelSurfaceSnapshot => ({
-  activeTab,
-  activeTabLabel: activeTab === 'mcp' ? 'MCP' : activeTab === 'integrations' ? 'Integrations' : activeTab === 'commerce' ? 'Commerce' : activeTab,
-  searchable: true,
-  searchOpen: true,
-  searchVisible: true,
-  searchQuery: 'agent ready',
-  searchPlaceholder: 'Search',
-  footerLabel: activeTab,
-  traversalChip: null,
-  sharedActions: {
-    hasApply: true,
-    hasReset: true,
-    hasGlobalReset: false,
-    hasCollapseAll: true,
-    hasExpandAll: true,
-    allCollapsed: false,
-  },
-})
-
-const READY_SETTINGS_CHAT: LocalSettingsChatReadinessSurfaceSnapshot = {
-  normalizedChatProvider: 'openai',
-  chatEndpointUrl: '/api/chat',
-  chatModel: 'gpt-4.1',
-  chatAuthMode: 'server',
-  chatContextScope: 'workspace',
-  integrationEnabled: true,
-  integrationOpenTab: 'chat',
-  pixverseVideoEnabled: false,
-  pixverseVideoStrategy: 'disabled',
-  pixverseVideoTransport: 'none',
-  isRefreshingChatModels: false,
-  chatModelsStatus: 'ready',
-  discoveredChatModelCount: 3,
-  suggestedChatModelCount: 1,
+const readRenderedSettingsChatReadinessSurfaceSnapshot = async (): Promise<LocalSettingsChatReadinessSurfaceSnapshot | null> => {
+  const renderedSnapshots = await loadRenderedMainPanelSurfaceSnapshots()
+  return renderedSnapshots.readLocalSettingsChatReadinessSurfaceSnapshot()
 }
-
-const READY_CHAT_PIPELINE: LocalChatPipelineSurfaceSnapshot = {
-  messageCount: 2,
-  isLoading: false,
-  errorText: null,
-  connectivity: 'ok',
-  connectivityDetail: 'ready',
-  chatProviderSummary: 'OpenAI / gpt-4.1',
-  chatProviderHint: null,
-  chatContextScope: 'workspace',
-  chatStorageTarget: 'chatKnowgrph',
-  chatKnowgrphWorkspacePath: '/chat/knowgrph/agent-ready.md',
-  chatHistoryWorkspacePath: '/chat/history/agent-ready.md',
-  workspaceViewMode: 'editor',
-  editorWorkspacePane: 'markdown',
-  markdownDocumentName: 'workspace:/docs/agent-ready.md',
-  selectedNodeId: 'start',
-  streamingAssistant: null,
-  streamingWorkspacePath: null,
-  streamFollowPath: '/chat/knowgrph/agent-ready.md',
-  streamDraft: null,
-  kgcValidation: {
-    stage: 'validated',
-    attempt: 1,
-    maxAttempts: 3,
-    failedRuleId: null,
-    failedMessage: null,
-    correctionPromptPreview: null,
-    hasStructuredKgc: true,
-    hasYamlFrontmatter: true,
-    validatedKgcLength: READY_MARKDOWN.length,
-  },
-  finalize: {
-    stage: 'applied',
-    traceId: 'trace-agent-ready',
-    modelId: 'gpt-4.1',
-    finalStatus: 'ok',
-    persistedKnowgrphPath: '/chat/knowgrph/agent-ready.md',
-    applied: true,
-    message: 'Applied',
-  },
-}
-
-const READY_EDITOR_WORKSPACE: LocalEditorWorkspaceSurfaceSnapshot = {
-  activeDocumentKey: 'workspace:/docs/agent-ready.md',
-  workspaceViewMode: 'editor',
-  workspaceCanvasPaneOpen: true,
-  workspaceEditorOverlayOpen: true,
-  layoutMode: 'editor',
-  viewerKind: 'markdown',
-  viewerMode: 'read',
-  isMarkdown: true,
-  isJsonMarkdownEditing: false,
-  paneVisibility: { markdown: true, json: true, viewer: true, html: false, binary: false },
-  splitPaneVisibility: { markdown: true, json: true, viewer: true, html: false, bin: false },
-  liveMarkdownText: READY_MARKDOWN,
-  persistedMarkdownText: READY_MARKDOWN,
-  hasUncommittedDraft: false,
-  liveDraftSource: 'persisted',
-}
-
-const inspectReadyPipeline = (activeTab: string) => inspectLocalMainPanelChatCanvasPipeline({
-  mainPanelSnapshot: buildMainPanelSnapshot(activeTab),
-  commerceReadinessSnapshot: AGENTIC_COMMERCE_MAIN_PANEL_READINESS,
-  settingsChatReadinessSnapshot: READY_SETTINGS_CHAT,
-  editorWorkspaceSnapshot: READY_EDITOR_WORKSPACE,
-  chatPipelineSnapshot: READY_CHAT_PIPELINE,
-  markdownDocumentName: 'workspace:/docs/agent-ready.md',
-  markdownDocumentText: READY_MARKDOWN,
-  markdownDocumentSourceUrl: '/knowgrph/share/agent-ready',
-  graphData: READY_GRAPH,
-  graphDataRevision: 1,
-  canvasRenderMode: '2d',
-  canvas2dRenderer: 'd3',
-  documentSemanticMode: 'document',
-  frontmatterModeEnabled: true,
-  multiDimTableModeEnabled: false,
-  documentStructureBaselineLock: false,
-  collapsedGroupIds: [],
-  selectedNodeId: 'start',
-  selectedEdgeId: 'edge-1',
-})
 
 export function testLocalMainPanelChatCanvasPipelineAcceptsMcpIntegrationsCommerceEntryTabs() {
   for (const activeTab of ['mcp', 'integrations', 'commerce']) {
@@ -206,7 +100,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    resetBrowserLocalSurfaceSnapshotsForTests()
+    await resetRenderedMainPanelSurfaceSnapshots()
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
@@ -230,7 +124,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
       },
     }))
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container)
     await mountReactRoot(root, React.createElement(MainPanel, {
@@ -239,12 +133,13 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
     }), {
       window: dom.window as unknown as Window,
       frames: 8,
+      tasks: 4,
     })
     await waitForTasks(4)
     await waitForFrames(dom.window as unknown as Window, 2)
 
     const mainPanelSnapshot = readLocalMainPanelSurfaceSnapshot()
-    const settingsChatReadinessSnapshot = readLocalSettingsChatReadinessSurfaceSnapshot()
+    const settingsChatReadinessSnapshot = await readRenderedSettingsChatReadinessSurfaceSnapshot()
     if (mainPanelSnapshot?.activeTab !== 'integrations') {
       throw new Error(`expected rendered MainPanel snapshot to stay on Integrations, got ${JSON.stringify(mainPanelSnapshot)}`)
     }
@@ -317,10 +212,321 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
     if (root) {
       await unmountReactRoot(root, { window: dom.window as unknown as Window })
     }
-    resetBrowserLocalSurfaceSnapshotsForTests()
+    await resetRenderedMainPanelSurfaceSnapshots()
     useGraphStore.getState().resetAll()
     restoreDom()
     restoreWindow()
+  }
+}
+
+export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryForResearchAgentDemoSuperAgentFlowEditor() {
+  const demoText = readResearchAgentDemoText()
+  const parsed = await loadGraphDataFromTextViaParser(KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME, demoText, {
+    applyToStore: false,
+    syncMarkdownDocument: false,
+  })
+  if (!parsed?.graphData) throw new Error('expected research-agent demo parser result for rendered MainPanel MCP proof')
+
+  const parsedNodeCount = (parsed.graphData.nodes || []).length
+  const parsedEdgeCount = (parsed.graphData.edges || []).length
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    await resetRenderedMainPanelSurfaceSnapshots()
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+    api.setChatProvider('openai')
+    api.setChatEndpointUrl('/api/chat')
+    api.setChatModel('gpt-4.1')
+    api.setChatContextScope('workspace')
+    api.setChatStorageTarget('chatKnowgrph')
+    api.setIntegrationConfigsJson(stringifyIntegrationConfigs({
+      ...DEFAULT_INTEGRATION_CONFIGS,
+      aiChat: {
+        ...DEFAULT_INTEGRATION_CONFIGS.aiChat,
+        enabled: true,
+        openTab: 'chat',
+      },
+    }))
+
+    const container = dom.window.document.createElement('section')
+    dom.window.document.body.appendChild(container)
+    root = createRoot(container)
+    await mountReactRoot(root, React.createElement(MainPanel, {
+      requestedTab: 'mcp',
+      requestedSearchQuery: 'openaiMcp',
+    }), {
+      window: dom.window as unknown as Window,
+      frames: 10,
+      tasks: 4,
+    })
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      if (await readRenderedSettingsChatReadinessSurfaceSnapshot()) break
+      await waitForTasks(2)
+      await waitForFrames(dom.window as unknown as Window, 2)
+    }
+
+    const mainPanelSnapshot = readLocalMainPanelSurfaceSnapshot()
+    const settingsChatReadinessSnapshot = await readRenderedSettingsChatReadinessSurfaceSnapshot()
+    if (mainPanelSnapshot?.activeTab !== 'mcp') {
+      throw new Error(`expected rendered MainPanel snapshot to stay on MCP, got ${JSON.stringify(mainPanelSnapshot)}`)
+    }
+    if (mainPanelSnapshot.sharedActions?.hasApply !== true || mainPanelSnapshot.sharedActions.hasReset !== true) {
+      throw new Error(`expected rendered MCP entry to register shared Settings actions, got ${JSON.stringify(mainPanelSnapshot.sharedActions)}`)
+    }
+    if (
+      settingsChatReadinessSnapshot?.integrationEnabled !== true ||
+      settingsChatReadinessSnapshot.integrationOpenTab !== 'chat' ||
+      settingsChatReadinessSnapshot.chatContextScope !== 'workspace'
+    ) {
+      throw new Error(`expected rendered MCP settings snapshot to expose chat routing, got ${JSON.stringify(settingsChatReadinessSnapshot)}`)
+    }
+
+    const inspection = inspectLocalMainPanelChatCanvasPipeline({
+      mainPanelSnapshot,
+      commerceReadinessSnapshot: AGENTIC_COMMERCE_MAIN_PANEL_READINESS,
+      settingsChatReadinessSnapshot,
+      editorWorkspaceSnapshot: {
+        ...READY_EDITOR_WORKSPACE,
+        activeDocumentKey: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        liveMarkdownText: demoText,
+        persistedMarkdownText: demoText,
+        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+      } as LocalEditorWorkspaceSurfaceSnapshot,
+      chatPipelineSnapshot: {
+        ...READY_CHAT_PIPELINE,
+        chatProviderSummary: KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS.join(' / '),
+        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        selectedNodeId: KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
+        streamFollowPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        kgcValidation: {
+          ...READY_CHAT_PIPELINE.kgcValidation!,
+          validatedKgcLength: demoText.length,
+        },
+        finalize: {
+          ...READY_CHAT_PIPELINE.finalize!,
+          persistedKnowgrphPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        },
+      },
+      markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+      markdownDocumentText: demoText,
+      markdownDocumentSourceUrl: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SHARE_URL,
+      graphData: parsed.graphData,
+      graphDataRevision: 3,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: KNOWGRPH_SUPERAGENT_CANVAS_RENDERER,
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: true,
+      multiDimTableModeEnabled: true,
+      documentStructureBaselineLock: false,
+      collapsedGroupIds: [],
+      selectedNodeId: KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
+      selectedEdgeId: KNOWGRPH_SUPERAGENT_REVIEW_EDGE_ID,
+    }) as {
+      pipelineReady?: unknown
+      readiness?: {
+        routeReady?: unknown
+        settingsReady?: unknown
+        editorWorkspaceReady?: unknown
+        chatReady?: unknown
+        markdownFlowReady?: unknown
+        canvasReady?: unknown
+        integrationProviderCoverageReady?: unknown
+        superAgentEntryTabReady?: unknown
+        superAgentRuntimeSurfacesReady?: unknown
+        superAgentRuntimeSurfaceNodesReady?: unknown
+        superAgentSubagentNodesReady?: unknown
+        flowEditorRendererReady?: unknown
+        superAgentDemoReady?: unknown
+      }
+      entrySurfaces?: { mcp?: { active?: unknown; ready?: unknown } }
+      route?: { activeMainPanelTab?: unknown; integrationOpenTab?: unknown; chatContextScope?: unknown }
+      counts?: { flowNodeCount?: unknown; flowConnectionCount?: unknown; canvasNodeCount?: unknown; canvasEdgeCount?: unknown }
+      canvasTopology?: { canvas2dRenderer?: unknown }
+      issues?: unknown
+    }
+
+    if (
+      inspection.pipelineReady !== true ||
+      inspection.entrySurfaces?.mcp?.active !== true ||
+      inspection.entrySurfaces.mcp.ready !== true ||
+      inspection.route?.activeMainPanelTab !== 'mcp' ||
+      inspection.route.integrationOpenTab !== 'chat' ||
+      inspection.route.chatContextScope !== 'workspace' ||
+      inspection.readiness?.routeReady !== true ||
+      inspection.readiness.settingsReady !== true ||
+      inspection.readiness.editorWorkspaceReady !== true ||
+      inspection.readiness.chatReady !== true ||
+      inspection.readiness.markdownFlowReady !== true ||
+      inspection.readiness.canvasReady !== true ||
+      inspection.readiness.integrationProviderCoverageReady !== true ||
+      inspection.readiness.superAgentEntryTabReady !== true ||
+      inspection.readiness.superAgentRuntimeSurfacesReady !== true ||
+      inspection.readiness.superAgentRuntimeSurfaceNodesReady !== true ||
+      inspection.readiness.superAgentSubagentNodesReady !== true ||
+      inspection.readiness.flowEditorRendererReady !== true ||
+      inspection.readiness.superAgentDemoReady !== true ||
+      inspection.canvasTopology?.canvas2dRenderer !== KNOWGRPH_SUPERAGENT_CANVAS_RENDERER ||
+      inspection.counts?.flowNodeCount !== parsedNodeCount ||
+      inspection.counts.flowConnectionCount !== parsedEdgeCount ||
+      inspection.counts.canvasNodeCount !== parsedNodeCount ||
+      inspection.counts.canvasEdgeCount !== parsedEdgeCount ||
+      (Array.isArray(inspection.issues) && inspection.issues.length > 0)
+    ) {
+      throw new Error(`expected rendered MainPanel MCP to prove research demo ingestion -> parsing -> Flow Editor SuperAgent rendering, got ${JSON.stringify(inspection)}`)
+    }
+
+    const renderedText = container.textContent || ''
+    if (!renderedText.includes('OpenAI MCP Server Configuration') || !renderedText.includes('openaiMcp.server_url')) {
+      throw new Error(`expected rendered MCP UI to expose configurable OpenAI MCP rows, got ${JSON.stringify(renderedText)}`)
+    }
+  } finally {
+    if (root) {
+      await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    }
+    await resetRenderedMainPanelSurfaceSnapshots()
+    useGraphStore.getState().resetAll()
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoSuperAgentFlowEditor() {
+  const demoText = readResearchAgentDemoText()
+  const parsed = await loadGraphDataFromTextViaParser(KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME, demoText, {
+    applyToStore: false,
+    syncMarkdownDocument: false,
+  })
+  if (!parsed?.graphData) throw new Error('expected research-agent demo parser result for MainPanel pipeline proof')
+
+  const parsedNodeCount = (parsed.graphData.nodes || []).length
+  const parsedEdgeCount = (parsed.graphData.edges || []).length
+
+  for (const activeTab of KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS) {
+    const inspection = inspectLocalMainPanelChatCanvasPipeline({
+      mainPanelSnapshot: buildMainPanelSnapshot(activeTab),
+      commerceReadinessSnapshot: AGENTIC_COMMERCE_MAIN_PANEL_READINESS,
+      settingsChatReadinessSnapshot: READY_SETTINGS_CHAT,
+      editorWorkspaceSnapshot: {
+        ...READY_EDITOR_WORKSPACE,
+        activeDocumentKey: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        liveMarkdownText: demoText,
+        persistedMarkdownText: demoText,
+        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+      } as LocalEditorWorkspaceSurfaceSnapshot,
+      chatPipelineSnapshot: {
+        ...READY_CHAT_PIPELINE,
+        chatProviderSummary: KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS.join(' / '),
+        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        selectedNodeId: KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
+        streamFollowPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        kgcValidation: {
+          ...READY_CHAT_PIPELINE.kgcValidation!,
+          validatedKgcLength: demoText.length,
+        },
+        finalize: {
+          ...READY_CHAT_PIPELINE.finalize!,
+          persistedKnowgrphPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        },
+      },
+      markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+      markdownDocumentText: demoText,
+      markdownDocumentSourceUrl: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SHARE_URL,
+      graphData: parsed.graphData,
+      graphDataRevision: 2,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: KNOWGRPH_SUPERAGENT_CANVAS_RENDERER,
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: true,
+      multiDimTableModeEnabled: true,
+      documentStructureBaselineLock: false,
+      collapsedGroupIds: [],
+      selectedNodeId: KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
+      selectedEdgeId: KNOWGRPH_SUPERAGENT_REVIEW_EDGE_ID,
+    }) as {
+      pipelineReady?: unknown
+      readiness?: {
+        integrationProviderCoverageReady?: unknown
+        superAgentEntryTabReady?: unknown
+        superAgentTaskCapabilitiesReady?: unknown
+        superAgentTaskLevelsReady?: unknown
+        superAgentRuntimeSurfacesReady?: unknown
+        superAgentRuntimeSurfaceNodesReady?: unknown
+        superAgentSubagentNodesReady?: unknown
+        flowEditorRendererReady?: unknown
+        superAgentDemoReady?: unknown
+      }
+      route?: { activeMainPanelTab?: unknown; integrationOpenTab?: unknown }
+      counts?: { flowNodeCount?: unknown; flowConnectionCount?: unknown; canvasNodeCount?: unknown; canvasEdgeCount?: unknown }
+      superAgentPipeline?: {
+        requiredEntryTabs?: unknown
+        requiredProviderIds?: unknown
+        availableProviderIds?: unknown
+        declaredTaskCapabilities?: unknown
+        declaredTaskLevels?: unknown
+        declaredRuntimeSurfaces?: unknown
+        requiredRuntimeSurfaceNodeIds?: unknown
+        requiredSubagentNodeIds?: unknown
+        renderedNodeIds?: unknown
+        declaredRenderer?: unknown
+      }
+      canvasTopology?: { canvas2dRenderer?: unknown }
+      issues?: unknown
+    }
+
+    if (
+      inspection.pipelineReady !== true ||
+      inspection.route?.activeMainPanelTab !== activeTab ||
+      inspection.route.integrationOpenTab !== 'chat' ||
+      inspection.readiness?.integrationProviderCoverageReady !== true ||
+      inspection.readiness.superAgentEntryTabReady !== true ||
+      inspection.readiness.superAgentTaskCapabilitiesReady !== true ||
+      inspection.readiness.superAgentTaskLevelsReady !== true ||
+      inspection.readiness.superAgentRuntimeSurfacesReady !== true ||
+      inspection.readiness.superAgentRuntimeSurfaceNodesReady !== true ||
+      inspection.readiness.superAgentSubagentNodesReady !== true ||
+      inspection.readiness.flowEditorRendererReady !== true ||
+      inspection.readiness.superAgentDemoReady !== true ||
+      inspection.canvasTopology?.canvas2dRenderer !== KNOWGRPH_SUPERAGENT_CANVAS_RENDERER ||
+      inspection.counts?.flowNodeCount !== parsedNodeCount ||
+      inspection.counts.flowConnectionCount !== parsedEdgeCount ||
+      inspection.counts.canvasNodeCount !== parsedNodeCount ||
+      inspection.counts.canvasEdgeCount !== parsedEdgeCount ||
+      (Array.isArray(inspection.issues) && inspection.issues.length > 0)
+    ) {
+      throw new Error(`expected research-agent demo to prove MainPanel ${activeTab} -> ingestion -> parsing -> Flow Editor SuperAgent rendering, got ${JSON.stringify(inspection)}`)
+    }
+
+    const requiredEntryTabs = new Set(Array.isArray(inspection.superAgentPipeline?.requiredEntryTabs) ? inspection.superAgentPipeline.requiredEntryTabs.map(String) : [])
+    if (!requiredEntryTabs.has(activeTab)) {
+      throw new Error(`expected active MainPanel tab ${activeTab} in declared SuperAgent entry coverage, got ${JSON.stringify(inspection.superAgentPipeline)}`)
+    }
+    const requiredProviderIds = new Set(Array.isArray(inspection.superAgentPipeline?.requiredProviderIds) ? inspection.superAgentPipeline.requiredProviderIds.map(String) : [])
+    const availableProviderIds = new Set(Array.isArray(inspection.superAgentPipeline?.availableProviderIds) ? inspection.superAgentPipeline.availableProviderIds.map(String) : [])
+    for (const providerId of KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS) {
+      if (!requiredProviderIds.has(providerId) || !availableProviderIds.has(providerId)) {
+        throw new Error(`expected provider ${providerId} in declared and available MainPanel coverage, got ${JSON.stringify(inspection.superAgentPipeline)}`)
+      }
+    }
+    const requiredRuntimeSurfaceNodeIds = new Set(Array.isArray(inspection.superAgentPipeline?.requiredRuntimeSurfaceNodeIds) ? inspection.superAgentPipeline.requiredRuntimeSurfaceNodeIds.map(String) : [])
+    const requiredSubagentNodeIds = new Set(Array.isArray(inspection.superAgentPipeline?.requiredSubagentNodeIds) ? inspection.superAgentPipeline.requiredSubagentNodeIds.map(String) : [])
+    const renderedNodeIds = new Set(Array.isArray(inspection.superAgentPipeline?.renderedNodeIds) ? inspection.superAgentPipeline.renderedNodeIds.map(String) : [])
+    for (const nodeId of Object.values(KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS)) {
+      if (!requiredRuntimeSurfaceNodeIds.has(nodeId) || !renderedNodeIds.has(nodeId)) {
+        throw new Error(`expected rendered SuperAgent runtime surface node ${nodeId}, got ${JSON.stringify(inspection.superAgentPipeline)}`)
+      }
+    }
+    for (const nodeId of Object.values(KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS)) {
+      if (!requiredSubagentNodeIds.has(nodeId) || !renderedNodeIds.has(nodeId)) {
+        throw new Error(`expected rendered SuperAgent subagent node ${nodeId}, got ${JSON.stringify(inspection.superAgentPipeline)}`)
+      }
+    }
   }
 }
 

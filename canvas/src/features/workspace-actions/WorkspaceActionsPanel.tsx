@@ -38,7 +38,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
   return (
     <section className="px-2 py-1" aria-label="Workspace actions">
       <CollapsibleSubsection title="Sample Dataset" defaultCollapsed={true}>
-        <div className="px-1">
+        <section className="px-1">
           <select
             className={`w-full ${UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
             value={selectedExampleId}
@@ -55,11 +55,11 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
               <option key={example.id} value={example.id}>{example.label}</option>
             ))}
           </select>
-        </div>
+        </section>
       </CollapsibleSubsection>
 
       <CollapsibleSubsection title="Dataset fetch limits">
-        <div className="space-y-1">
+        <section className="space-y-1">
           <SimpleKeyValueRow label="Timeout (ms)" density="compact" className="px-1">
             <RightAlignedTooltipInput
               tooltip="Bounded fetch timeout. Range: 1,000–60,000 ms."
@@ -84,7 +84,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
               onClick={e => e.stopPropagation()}
             />
           </SimpleKeyValueRow>
-        </div>
+        </section>
       </CollapsibleSubsection>
 
       <CollapsibleSubsection title="Source Files">

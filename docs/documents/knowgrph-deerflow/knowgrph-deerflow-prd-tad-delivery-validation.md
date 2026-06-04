@@ -15,6 +15,8 @@
 
 **Directive**: Validate the active gateway path. Do not use broad proposed phase gates or unimplemented MCP assumptions as evidence.
 
+**SuperAgent boundary**: DeerFlow validates as an optional provider/gateway. Knowgrph's native long-horizon SuperAgent harness validates through `knowgrph_parser`, `npm run goal:run`, local MCP `knowgrph.superagent.run`, and the source-side contract in `knowgrph-superagent-harness.md`. DeerFlow-inspired docs must not copy DeerFlow code or claim a DeerFlow-owned parser, renderer, memory, or graph-apply stack.
+
 ---
 
 ## Implemented Delivery Map
@@ -41,6 +43,7 @@ flowchart LR
 | DFD-005 | Gateway adapter | `deerflowRunGeneration.ts` | `/api/runs/stream`, `parseSseEvents()` |
 | DFD-006 | URL import | `deerflowUrlImport.ts` | `/api/runs/wait`, manifest-to-workspace write |
 | DFD-007 | Operator setup | `knowgrph-deerflow-setup-guide.md` | Active Dev/Prod/Cloudflare Tunnel guide |
+| DFD-008 | Native SuperAgent distinction | `knowgrph-superagent-harness.md` | DeerFlow remains optional provider/inspiration, not the owner of Knowgrph's local harness |
 
 ## Focused Test Matrix
 
@@ -63,6 +66,7 @@ flowchart LR
 | Rich-media generation | `richMediaRun.ts` dispatches image/video through DeerFlow functions after provider normalization |
 | Gateway run adapter | `deerflowRunGeneration.ts` derives `/api/runs/stream` and returns `GeneratedBinaryAsset` |
 | URL import | `deerflowUrlImport.ts` derives `/api/runs/wait` and writes sanitized files through workspace FS |
+| SuperAgent inspiration boundary | DeerFlow references stay conceptual-reference-only and point to the native Knowgrph harness owner |
 | Stale-doc cleanup | PRD/TAD family no longer uses proposed status or unshipped adapter claims |
 
 ## Validation Commands
@@ -94,6 +98,7 @@ Rules:
 
 - [x] PRD/TAD status reflects implemented baseline.
 - [x] Direct/MCP proposed language is removed from implementation-owned docs.
+- [x] DeerFlow-inspired SuperAgent language is marked conceptual-reference-only and points to the native Knowgrph harness owner.
 - [x] Source owners are named explicitly.
 - [x] Focused docs guard is registered.
 - [x] Validation commands are source-owned and repeatable.
@@ -103,6 +108,7 @@ Rules:
 - DeerFlow is optional; Knowgrph must operate fully when no DeerFlow gateway is running.
 - The implemented baseline is local HTTP gateway based.
 - A future DeerFlow MCP bridge requires source owners and tests before docs can mark it implemented.
+- A copied DeerFlow SuperAgent stack is out of scope; native long-horizon harness work belongs to `knowgrph_parser` and local MCP owners.
 
 ---
 

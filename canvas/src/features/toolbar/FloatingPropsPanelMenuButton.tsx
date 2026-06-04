@@ -21,16 +21,16 @@ export default function FloatingPropsPanelMenuButton({
   disabled?: boolean
   className?: string
   draggable?: boolean
-  onDragStart?: (ev: React.DragEvent<HTMLDivElement>) => void
-  onDragEnd?: (ev: React.DragEvent<HTMLDivElement>) => void
-  onPointerDownCapture?: (ev: React.PointerEvent<HTMLDivElement>) => void
+  onDragStart?: (ev: React.DragEvent<HTMLElement>) => void
+  onDragEnd?: (ev: React.DragEvent<HTMLElement>) => void
+  onPointerDownCapture?: (ev: React.PointerEvent<HTMLElement>) => void
   title?: string
   ariaLabel?: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelTextFontClass: string
 }) {
   const interactiveClassName = `block w-full text-left px-3 py-2 ${UI_THEME_TOKENS.table.rowHover} ${disabled ? 'opacity-50 cursor-not-allowed' : draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.primary} ${className || ''}`
-  const handleKeyDown = (ev: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (ev: React.KeyboardEvent<HTMLElement>) => {
     if (disabled || !onClick) return
     if (ev.key !== 'Enter' && ev.key !== ' ') return
     ev.preventDefault()
@@ -38,7 +38,7 @@ export default function FloatingPropsPanelMenuButton({
   }
 
   return (
-    <div
+    <section
       role="button"
       tabIndex={disabled ? -1 : 0}
       className={interactiveClassName}
@@ -62,6 +62,6 @@ export default function FloatingPropsPanelMenuButton({
       aria-label={ariaLabel}
     >
       {children}
-    </div>
+    </section>
   )
 }

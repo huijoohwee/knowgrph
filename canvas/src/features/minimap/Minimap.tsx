@@ -638,7 +638,7 @@ function Minimap() {
 
   return (
     <aside className="relative group" aria-label="Minimap">
-      <div
+      <section
         className={`relative overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow backdrop-blur-sm`}
         style={{ opacity: minimapOpacity }}
       >
@@ -686,8 +686,8 @@ function Minimap() {
             </g>
           )}
         </svg>
-      </div>
-      <div className="absolute top-1 right-1 flex flex-col items-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      </section>
+      <section className="absolute top-1 right-1 flex flex-col items-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <IconButton
           title="Hide Minimap"
           onClick={() => setMinimapCollapsed(true)}
@@ -720,7 +720,7 @@ function Minimap() {
         >
           <ZoomOut size={14} aria-hidden="true" />
         </IconButton>
-      </div>
+      </section>
     </aside>
   );
 }

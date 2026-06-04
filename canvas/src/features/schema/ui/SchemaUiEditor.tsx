@@ -398,12 +398,12 @@ export default function SchemaUiEditor({
   }, [lintOwner, preferredKey, type, availableKeys, setSelectedKey])
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-2">
-      <div className={schemaEditorPanelClassName}>
-        <div className="flex items-center justify-between gap-2">
-          <div className={schemaEditorSectionTitleClassName}>
+    <section className="flex-1 min-h-0 flex flex-col gap-2">
+      <section className={schemaEditorPanelClassName}>
+        <section className="flex items-center justify-between gap-2">
+          <section className={schemaEditorSectionTitleClassName}>
             Global schema
-          </div>
+          </section>
           {!registerApply ? (
             <button
               type="button"
@@ -413,7 +413,7 @@ export default function SchemaUiEditor({
               Apply
             </button>
           ) : null}
-        </div>
+        </section>
         <SchemaUiMetadataContextRow
           metadataText={metadataText}
           contextText={contextText}
@@ -441,15 +441,15 @@ export default function SchemaUiEditor({
           setLinkDistanceText={setLinkDistanceText}
           setCollisionByTypeText={setCollisionByTypeText}
         />
-      </div>
+      </section>
 
       {mode !== 'globalOnly' ? (
-        <div className={`${schemaEditorPanelClassName} flex-1 min-h-0`}>
-          <div className="flex items-center justify-between gap-2">
-            <div className={schemaEditorSectionTitleClassName}>
+        <section className={`${schemaEditorPanelClassName} flex-1 min-h-0`}>
+          <section className="flex items-center justify-between gap-2">
+            <section className={schemaEditorSectionTitleClassName}>
               Local schema (per owner)
-            </div>
-            <div className="flex items-center gap-1">
+            </section>
+            <section className="flex items-center gap-1">
               <button
                 type="button"
                 className={`App-toolbar__btn text-xs ${type === 'node' ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -464,9 +464,9 @@ export default function SchemaUiEditor({
               >
                 Edge
               </button>
-            </div>
-          </div>
-          <div className="mt-2">
+            </section>
+          </section>
+          <section className="mt-2">
             <SchemaUiHeaderRow
               type={type}
               availableKeys={availableKeys}
@@ -500,9 +500,9 @@ export default function SchemaUiEditor({
               rulesTitle={`Local rules (${type}:${selectedKey || '(none)'})`}
               rulesHelperText="Rules with a type apply only to the selected owner."
             />
-          </div>
-        </div>
+          </section>
+        </section>
       ) : null}
-    </div>
+    </section>
   )
 }

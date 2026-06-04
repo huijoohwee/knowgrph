@@ -8,7 +8,7 @@ const tick = async () => {
 }
 
 export async function testMarkdownViewerVariableClickNavigatesToSsotLine() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     const container = dom.window.document.getElementById('root')

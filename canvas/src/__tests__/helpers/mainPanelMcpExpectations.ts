@@ -39,6 +39,20 @@ import {
   EXA_MCP_REMOTE_URL,
 } from 'grph-shared/search/exaMcpSsot'
 import {
+  OPENAI_MCP_CHATGPT_CONNECT_URL,
+  OPENAI_MCP_DEFAULT_ALLOWED_TOOLS_JSON,
+  OPENAI_MCP_DEFAULT_API_KEY_ENV,
+  OPENAI_MCP_DEFAULT_AUTH_MODE,
+  OPENAI_MCP_DEFAULT_REQUIRE_APPROVAL,
+  OPENAI_MCP_DEFAULT_RESPONSES_MODEL,
+  OPENAI_MCP_DEFAULT_SERVER_LABEL,
+  OPENAI_MCP_DEFAULT_SERVER_PORT,
+  OPENAI_MCP_DEFAULT_SERVER_URL,
+  OPENAI_MCP_DEFAULT_TRANSPORT,
+  OPENAI_MCP_DEFAULT_VECTOR_STORE_ENV,
+  OPENAI_MCP_DOCS_URL,
+} from 'grph-shared/openai/openaiMcpSsot'
+import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
   CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
   CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
@@ -48,12 +62,93 @@ import {
   buildKnowgrphStorageLlmsPath,
   buildKnowgrphStorageSourceFilesIndexPath,
 } from '@/lib/storage/knowgrphStorageSyncContract'
+import {
+  SETTINGS_DEFAULT_KTV_HEADER_LABELS,
+  SETTINGS_MCP_KTV_HEADER_LABELS,
+} from '@/features/panels/views/settingsView.constants'
 
 const readRenderedFormValues = (container: Element): string => (
   Array.from(container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select'))
     .map(el => el.value)
     .join('\n')
 )
+
+const findKtvValueCell = (container: Element, key: string): HTMLElement => {
+  const rows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
+  const row = rows.find(item => item.children[0]?.textContent?.includes(key))
+  if (!row) {
+    throw new Error(`expected MCP hub to render KTV row ${JSON.stringify(key)}, got ${JSON.stringify(container.textContent || '')}`)
+  }
+  const valueCell = row.children[2] as HTMLElement | undefined
+  if (!valueCell) {
+    throw new Error(`expected MCP hub KTV row ${JSON.stringify(key)} to include a configurable Value cell`)
+  }
+  return valueCell
+}
+
+const assertMcpValueCellControl = (container: Element, key: string, selector: string): void => {
+  const valueCell = findKtvValueCell(container, key)
+  if (!valueCell.querySelector(selector)) {
+    throw new Error(`expected MCP hub KTV row ${JSON.stringify(key)} Value cell to render configurable control ${JSON.stringify(selector)}, got ${JSON.stringify(valueCell.textContent || '')}`)
+  }
+}
+
+export function assertMcpHubRendersConfigurableValueControls(container: Element): void {
+  ;[
+    ['grabmapsMcp.server_key', 'input'],
+    ['grabmapsMcp.args', 'textarea'],
+    ['grabmapsMcp.startup_timeout_ms', 'input[type="number"]'],
+    ['browserMcp.server_key', 'input'],
+    ['browserMcp.args', 'textarea'],
+    ['browserMcp.dry_run', 'input[type="checkbox"]'],
+    ['browserMcp.agent_config', 'textarea'],
+    ['openaiMcp.server_label', 'input'],
+    ['openaiMcp.server_url', 'input'],
+    ['openaiMcp.transport', 'select'],
+    ['openaiMcp.allowed_tools', 'textarea'],
+    ['openaiMcp.require_approval', 'input'],
+    ['openaiMcp.responses_model', 'input'],
+    ['openaiMcp.auth_mode', 'select'],
+    ['openaiMcp.api_key_env', 'input'],
+    ['openaiMcp.vector_store_env', 'input'],
+    ['openaiMcp.server_port', 'input[type="number"]'],
+    ['openaiMcp.require_tool_review', 'input[type="checkbox"]'],
+    ['openaiMcp.responses_api_tool_config', 'textarea'],
+    ['openaiMcp.responses_api_request', 'textarea'],
+    ['openaiMcp.chatgpt_app_connection', 'textarea'],
+    ['exaMcp.enabled_tools', 'textarea'],
+    ['exaMcp.require_fetch_review', 'input[type="checkbox"]'],
+    ['stripeMcp.local.args', 'textarea'],
+    ['stripeMcp.tool.confirmation_required', 'input[type="checkbox"]'],
+    ['stripeMcp.local_config', 'textarea'],
+  ].forEach(([key, selector]) => {
+    assertMcpValueCellControl(container, key, selector)
+  })
+}
+
+export function assertMcpHubMaintainsKeyTypeValueHeader(container: Element): void {
+  const header = container.querySelector('header')
+  if (!header) {
+    throw new Error('expected MCP hub to render a KTV header')
+  }
+  const text = header.textContent || ''
+  const forbiddenCombinedHeaderLabel = ['KeyType', 'Config'].join('')
+  if (SETTINGS_MCP_KTV_HEADER_LABELS.valueLabel !== SETTINGS_DEFAULT_KTV_HEADER_LABELS.valueLabel) {
+    throw new Error(`expected MCP hub to maintain the shared KTV Value label, got ${JSON.stringify(SETTINGS_MCP_KTV_HEADER_LABELS.valueLabel)}`)
+  }
+  ;[
+    SETTINGS_MCP_KTV_HEADER_LABELS.keyLabel,
+    SETTINGS_MCP_KTV_HEADER_LABELS.typeLabel,
+    SETTINGS_MCP_KTV_HEADER_LABELS.valueLabel,
+  ].forEach(token => {
+    if (!text.includes(token)) {
+      throw new Error(`expected MCP hub KTV header to include configured label ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+    }
+  })
+  if (text.includes(forbiddenCombinedHeaderLabel) || /\bConfig\b/.test(text)) {
+    throw new Error(`expected MCP hub KTV header to remain KeyTypeValue, got ${JSON.stringify(text)}`)
+  }
+}
 
 export function assertMapsHubOmitsGrabMapsMcpConfig(text: string): void {
   ;[
@@ -140,6 +235,70 @@ export function assertMcpHubSurfacesApiNativeBrowserMcpConfig(container: Element
     .filter(Boolean)
   if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-browser-'))) {
     throw new Error(`expected API-native browser MCP rows to use browser MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesOpenAiMcpConfig(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  ;[
+    'OpenAI MCP Server Configuration',
+    'openaiMcp.server_label',
+    'openaiMcp.server_url',
+    'openaiMcp.transport',
+    'openaiMcp.allowed_tools',
+    'openaiMcp.require_approval',
+    'openaiMcp.responses_model',
+    'openaiMcp.auth_mode',
+    'openaiMcp.api_key_env',
+    'openaiMcp.vector_store_env',
+    'openaiMcp.server_port',
+    'openaiMcp.require_tool_review',
+    'openaiMcp.responses_api_tool_config',
+    'openaiMcp.responses_api_request',
+    'openaiMcp.chatgpt_app_connection',
+    'openaiMcp.safety.prompt_injection',
+    'openaiMcp.safety.trusted_servers',
+    'server_label',
+    'server_url',
+    'allowed_tools',
+    'require_approval',
+    'ChatGPT settings',
+    'Apps & Connectors',
+    'prompt_injection',
+    OPENAI_MCP_DOCS_URL,
+    OPENAI_MCP_CHATGPT_CONNECT_URL,
+    OPENAI_MCP_DEFAULT_SERVER_LABEL,
+    OPENAI_MCP_DEFAULT_SERVER_URL,
+    OPENAI_MCP_DEFAULT_TRANSPORT,
+    OPENAI_MCP_DEFAULT_ALLOWED_TOOLS_JSON,
+    OPENAI_MCP_DEFAULT_REQUIRE_APPROVAL,
+    OPENAI_MCP_DEFAULT_RESPONSES_MODEL,
+    OPENAI_MCP_DEFAULT_AUTH_MODE,
+    OPENAI_MCP_DEFAULT_API_KEY_ENV,
+    OPENAI_MCP_DEFAULT_VECTOR_STORE_ENV,
+    String(OPENAI_MCP_DEFAULT_SERVER_PORT),
+    'Open OpenAI MCP Docs',
+    'Open FloatingPanel Chat UI',
+  ].forEach(token => {
+    if (!searchableText.includes(token)) {
+      throw new Error(`expected MCP hub to include OpenAI MCP config token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;[
+    'sk-',
+    'YOUR_OPENAI_API_KEY',
+    'your_api_key',
+  ].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected OpenAI MCP surface to avoid embedded secret examples ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-openai-'))) {
+    throw new Error(`expected OpenAI MCP rows to use OpenAI MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
   }
 }
 

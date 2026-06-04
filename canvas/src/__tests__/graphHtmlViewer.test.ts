@@ -21,6 +21,10 @@ const readRuntimeJsonArray = (html: string, varName: string): unknown[] => {
   }
 }
 
+const stripOpaqueHtmlBlocks = (html: string): string => {
+  return String(html || '').replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, '')
+}
+
 export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg })
@@ -63,6 +67,28 @@ export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelect
   }
   if (html.includes('mediaOffsetById') || html.includes('startMediaHeaderDrag')) {
     throw new Error('expected exported viewer media header drag to move node (not detach panel)')
+  }
+}
+
+export async function testExportHtmlViewerSemanticHtmlAvoidsGenericDivContainers() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="a"><circle cx="0" cy="0" r="5"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'Semantic HTML',
+    svgMarkup: svg,
+    overlayHtml: '<section data-md-id="a" data-kg-anchor-node-id="a" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="120" data-kg-world-h="80">Overlay</section>',
+    graphData: {
+      type: 'Graph',
+      nodes: [{ id: 'a', label: 'A', type: 'Entity', properties: {} }],
+      edges: [],
+    },
+  })
+  if (!html) throw new Error('expected html')
+  const visibleHtml = stripOpaqueHtmlBlocks(html)
+  if (/<section\b|<\/div>/i.test(visibleHtml)) {
+    throw new Error(`expected exported Graph HTML viewer markup to avoid visible generic HTML division element containers, got: ${visibleHtml}`)
+  }
+  for (const snippet of ['<main id="kg-root"', '<section id="kg-stage"', '<figure id="kg-svgWrap"', '<section id="kg-overlay"', '<nav id="kg-hud"', '<output id="kg-tooltip"']) {
+    if (!html.includes(snippet)) throw new Error(`expected semantic Graph HTML viewer container: ${snippet}`)
   }
 }
 
@@ -309,11 +335,12 @@ export async function testExportHtmlViewerRuntimeFallsBackToRawMediaWhenProxyFai
 
 export async function testExportHtmlViewerEmbedsProvidedOverlayHtml() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
-  const overlayHtml = '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><div>Overlay</div></article>'
+  const overlayHtml = '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><section>Overlay</section></article>'
   const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
   if (!html) throw new Error('expected html')
-  if (!html.includes(overlayHtml)) {
-    throw new Error('expected provided overlayHtml to be embedded in exported viewer')
+  const normalizedOverlayHtml = '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><section>Overlay</section></article>'
+  if (!html.includes(normalizedOverlayHtml)) {
+    throw new Error('expected provided overlayHtml to be semantically embedded in exported viewer')
   }
 }
 
@@ -395,10 +422,10 @@ export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsWhenEd
 export async function testExportHtmlViewerFiltersEmbeddedOverlayHtmlByGraphConnectivity() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="md-a"><circle cx="6" cy="0" r="5" fill="blue"/></g></svg>`
   const overlayHtml = [
-    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><div>Connected media</div></article>',
-    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="ghost"><div>Disconnected media</div></article>',
-    '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"><div>Connected md</div></article>',
-    '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"><div>Disconnected md</div></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><section>Connected media</section></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="ghost"><section>Disconnected media</section></article>',
+    '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"><section>Connected md</section></article>',
+    '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"><section>Disconnected md</section></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -422,8 +449,8 @@ export async function testExportHtmlViewerFiltersEmbeddedOverlayHtmlByGraphConne
 export async function testExportHtmlViewerPrefersInteractiveOverlayOverFixedDuplicate() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const overlayHtml = [
-    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" style="position:fixed;left:0;top:0"><div>Static duplicate</div></article>',
-    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><div>Interactive connected</div></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" style="position:fixed;left:0;top:0"><section>Static duplicate</section></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><section>Interactive connected</section></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -439,7 +466,7 @@ export async function testExportHtmlViewerPrefersInteractiveOverlayOverFixedDupl
   if (!html.includes('Interactive connected')) {
     throw new Error('expected non-fixed connected overlay to be kept')
   }
-  const overlayMatch = html.match(/<div id="kg-overlay">([\s\S]*?)<\/div>\s*<script>/)
+  const overlayMatch = html.match(/<section id="kg-overlay"[^>]*>([\s\S]*?)<\/section>\s*<script>/)
   const overlaySection = overlayMatch && overlayMatch[1] ? overlayMatch[1] : ''
   if (overlaySection.includes('Static duplicate') || overlaySection.includes('position:fixed;left:0;top:0')) {
     throw new Error('expected fixed-style duplicate overlay to be removed')
@@ -449,8 +476,8 @@ export async function testExportHtmlViewerPrefersInteractiveOverlayOverFixedDupl
 export async function testExportHtmlViewerDedupesMarkdownByAnchorNode() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="a1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const overlayHtml = [
-    '<article data-md-id="md-a" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>A</div></article>',
-    '<article data-md-id="md-b" data-kg-world-x="1" data-kg-world-y="1" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>B</div></article>',
+    '<article data-md-id="md-a" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><section>A</section></article>',
+    '<article data-md-id="md-b" data-kg-world-x="1" data-kg-world-y="1" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><section>B</section></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -640,7 +667,7 @@ export async function testExportHtmlViewerInlinesRemoteMediaAtExportTime() {
 export async function testExportHtmlViewerOverlayExportPreservesInteractionGuards() {
   const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
   try {
-  const root = document.createElement('div')
+  const root = document.createElement('section')
   const panel = document.createElement('article')
   panel.setAttribute('data-kg-rich-media-panel', '1')
   panel.setAttribute('data-kg-rich-media-render-surface', '1')
@@ -651,7 +678,7 @@ export async function testExportHtmlViewerOverlayExportPreservesInteractionGuard
   panel.style.pointerEvents = 'auto'
   panel.style.touchAction = 'none'
   panel.style.userSelect = 'none'
-  panel.innerHTML = '<a aria-label="Overlay Media" href="https://example.com/open"></a><div style="pointer-events:auto">B</div>'
+  panel.innerHTML = '<a aria-label="Overlay Media" href="https://example.com/open"></a><section style="pointer-events:auto">B</section>'
   root.appendChild(panel)
 
   const html = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({ overlayRootEl: root })
@@ -670,7 +697,7 @@ export async function testExportHtmlViewerOverlayExportPreservesInteractionGuard
 export async function testExportHtmlViewerOverlayExportStripsTransformPositioning() {
   const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
   try {
-    const root = document.createElement('div')
+    const root = document.createElement('section')
 
     const panel = document.createElement('article')
     panel.setAttribute('data-kg-rich-media-panel', '1')
@@ -682,7 +709,7 @@ export async function testExportHtmlViewerOverlayExportStripsTransformPositionin
     panel.style.top = '456px'
     panel.style.transform = 'translate3d(12px,34px,0)'
     panel.style.zIndex = '999'
-    panel.innerHTML = '<a aria-label="Overlay Media" href="https://example.com/open"></a><div>B</div>'
+    panel.innerHTML = '<a aria-label="Overlay Media" href="https://example.com/open"></a><section>B</section>'
     root.appendChild(panel)
 
     const html = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({ overlayRootEl: root })
@@ -707,8 +734,8 @@ export async function testExportHtmlViewerOverlayExportStripsTransformPositionin
       throw new Error('expected overlay export to hide panels until runtime positions them')
     }
 
-    const mdRoot = document.createElement('div')
-    const block = document.createElement('div')
+    const mdRoot = document.createElement('section')
+    const block = document.createElement('section')
     block.setAttribute('data-md-id', 'b1')
     block.style.position = 'absolute'
     block.style.left = '10px'
@@ -793,7 +820,7 @@ export async function testExportHtmlViewerSeedsOverlayPanelsIntoRuntimePayloads(
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="n1"><circle cx="10" cy="10" r="5" fill="blue"/></g><line data-edge-id="e1" data-source-id="m1" data-target-id="n1" x1="0" y1="0" x2="10" y2="10"/></svg>`
   const overlayHtml =
     '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" data-kg-title="Overlay Media" data-kg-kind="iframe" data-kg-url="https://example.com/media" data-kg-open-url="https://example.com/open"><iframe src="https://example.com/media" title="Overlay Media"></iframe></article>' +
-    '<article data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
+    '<article data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><h3 class="kg-mdTitle">MD Block</h3></header></article>'
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
     svgMarkup: svg,
@@ -822,7 +849,7 @@ export async function testExportHtmlViewerSeedsOverlayPanelsIntoRuntimePayloads(
 export async function testExportHtmlViewerSeedsNodePositionsFromOverlayMarkdownWorldAttrs() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"><g data-node-id="n2"><circle cx="10" cy="10" r="5" fill="blue"/></g><line data-edge-id="e1" data-source-id="n1" data-target-id="n2" x1="0" y1="0" x2="10" y2="10"/></svg>`
   const overlayHtml =
-    '<article data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
+    '<article data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><h3 class="kg-mdTitle">MD Block</h3></header></article>'
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
     svgMarkup: svg,

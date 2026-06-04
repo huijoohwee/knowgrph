@@ -152,22 +152,23 @@ function GeospatialPointLegend(props: {
     { key: 'route', label: 'Route' },
   ]
   return (
-    <div
+    <aside
       className={`absolute left-2 bottom-2 z-20 pointer-events-none rounded-md border px-2 py-1.5 text-[11px] shadow-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`}
+      aria-label="Geospatial point legend"
     >
-      <div className={`mb-1 text-[10px] font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Legend</div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+      <p className={`mb-1 text-[10px] font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Legend</p>
+      <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
         {items.map(item => (
-          <div key={item.key} className="flex items-center gap-1.5">
+          <li key={item.key} className="flex items-center gap-1.5">
             <span
               className="inline-block h-2.5 w-2.5 rounded-full border border-white/80 shadow-[0_0_0_1px_rgba(15,23,42,0.16)]"
               style={{ backgroundColor: props.colors[item.key] }}
             />
             <span>{item.label}</span>
-          </div>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </aside>
   )
 }
 
@@ -298,7 +299,7 @@ function SvgGeospatialFallback(args: {
   }, [safeImageBounds.height, safeImageBounds.valid, safeImageBounds.width, safeImageBounds.x, safeImageBounds.y])
 
   return (
-    <div className={args.className} style={args.style}>
+    <figure className={args.className} style={args.style}>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-label="Fallback geospatial basemap">
         <defs>
           <linearGradient id="kg-geo-fallback-bg" x1="0" y1="0" x2="0" y2="1">
@@ -388,7 +389,7 @@ function SvgGeospatialFallback(args: {
         <path d={selectedPath} fill={SVG_FALLBACK_STYLE.selectedFill} stroke={SVG_FALLBACK_STYLE.selectedOutline} strokeWidth="3" filter="url(#kg-geo-fallback-point-shadow)" />
         <path d={selectedPath} fill="none" stroke={SVG_FALLBACK_STYLE.selectedStroke} strokeWidth="1.25" />
       </svg>
-    </div>
+    </figure>
   )
 }
 
@@ -561,9 +562,9 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const geospatialFitRequest = useGympgrphStore(s => s.geospatialFitRequest)
   const clearGeospatialFitRequest = useGympgrphStore(s => s.clearGeospatialFitRequest)
   const setGeospatialCursorLngLat = useGympgrphStore(s => s.setGeospatialCursorLngLat)
-  const rootRef = React.useRef<HTMLDivElement | null>(null)
-  const map2dContainerRef = React.useRef<HTMLDivElement | null>(null)
-  const map3dContainerRef = React.useRef<HTMLDivElement | null>(null)
+  const rootRef = React.useRef<HTMLElement | null>(null)
+  const map2dContainerRef = React.useRef<HTMLElement | null>(null)
+  const map3dContainerRef = React.useRef<HTMLElement | null>(null)
   const [targetStyleUrl, setTargetStyleUrl] = React.useState<string | null>(() => readStyleUrl())
   const [pointStyleConfig, setPointStyleConfig] = React.useState(() => readGeospatialPointStyleConfig())
   const [geospatialViewMode, setGeospatialViewMode] = React.useState<GeospatialViewMode>(
@@ -1295,7 +1296,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   }, [debug, graphFeatureCollection.features, overlayDebugInfo, props.handlers, props.snapshot])
 
   return (
-    <div ref={rootRef} className="relative w-full h-full" style={{ width: '100%', height: '100%' }}>
+    <main ref={rootRef} className="relative w-full h-full" style={{ width: '100%', height: '100%' }}>
       <SvgGeospatialFallback
         featureCollection={graphFeatureCollection}
         selectedFeatureCollection={selectedFeatureCollection}
@@ -1303,16 +1304,18 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         insetPadding={shouldOverlaySvgFallbackBasemap ? { top: 12, right: Math.max(220, svgOverlayInsetRight), bottom: 12, left: 12 } : undefined}
         style={shouldOverlaySvgFallbackBasemap ? { transform: 'translateX(-220px)' } : undefined}
       />
-      <div
+      <section
         ref={map2dContainerRef}
         className={show2dMapLibre ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
         style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        aria-label="2D geospatial map host"
       />
 
-      <div
+      <section
         ref={map3dContainerRef}
         className={show3d ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
         style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        aria-label="3D geospatial map host"
       />
       <GeospatialPointLegend
         visible={(show2dMapLibre || show3d) && Array.isArray(graphFeatureCollection.features) && graphFeatureCollection.features.length > 0}
@@ -1324,34 +1327,35 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         }}
       />
       {debug ? (
-        <div
+        <aside
           className={`absolute top-2 right-2 z-20 pointer-events-none rounded-md border px-2 py-1 text-[11px] ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`}
+          aria-label="Geospatial debug status"
         >
-          <div>map: {activeBasemap.map ? 'yes' : 'no'}</div>
-          <div>view: {geospatialViewMode} provider: {providerLabel}</div>
-          <div>
+          <p>map: {activeBasemap.map ? 'yes' : 'no'}</p>
+          <p>view: {geospatialViewMode} provider: {providerLabel}</p>
+          <p>
             canvas: {activeBasemap.probe.canvasW}×{activeBasemap.probe.canvasH} tilesLoaded: {activeBasemap.probe.tilesLoaded ? 'yes' : 'no'}
-          </div>
-          <div>basemapUnavailable: {activeBasemap.basemapUnavailable ? 'yes' : 'no'}</div>
-          <div>
+          </p>
+          <p>basemapUnavailable: {activeBasemap.basemapUnavailable ? 'yes' : 'no'}</p>
+          <p>
             zoom: {activeBasemap.probe.zoom.toFixed(2)} center: {activeBasemap.probe.lng.toFixed(4)},{activeBasemap.probe.lat.toFixed(4)}
-          </div>
-          <div>features: {Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0}</div>
+          </p>
+          <p>features: {Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0}</p>
           {basemapGraphDebug ? (
             <>
-              <div>styleReady: {basemapGraphDebug.styleReady ? 'yes' : 'no'} source: {basemapGraphDebug.activeSourceId}</div>
-              <div>sourceFeatures: {String(basemapGraphDebug.activeSourceFeatures ?? 'n/a')} inactive: {String(basemapGraphDebug.inactiveSourceFeatures ?? 'n/a')}</div>
-              <div>layers: points={basemapGraphDebug.pointsLayer ? 'yes' : 'no'} routes={basemapGraphDebug.routesLayer ? 'yes' : 'no'} clusters={basemapGraphDebug.clusterLayer ? 'yes' : 'no'}</div>
+              <p>styleReady: {basemapGraphDebug.styleReady ? 'yes' : 'no'} source: {basemapGraphDebug.activeSourceId}</p>
+              <p>sourceFeatures: {String(basemapGraphDebug.activeSourceFeatures ?? 'n/a')} inactive: {String(basemapGraphDebug.inactiveSourceFeatures ?? 'n/a')}</p>
+              <p>layers: points={basemapGraphDebug.pointsLayer ? 'yes' : 'no'} routes={basemapGraphDebug.routesLayer ? 'yes' : 'no'} clusters={basemapGraphDebug.clusterLayer ? 'yes' : 'no'}</p>
             </>
           ) : null}
-          {activeBasemap.mapError ? <div className="text-red-700 dark:text-red-300">err: {activeBasemap.mapError}</div> : null}
-        </div>
+          {activeBasemap.mapError ? <p className="text-red-700 dark:text-red-300">err: {activeBasemap.mapError}</p> : null}
+        </aside>
       ) : null}
       {!debug && shouldShowMapLibreErrorOverlay ? (
-        <div className={`absolute inset-0 flex items-center justify-center text-xs ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`}>
+        <output className={`absolute inset-0 flex items-center justify-center text-xs ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`} aria-label="Geospatial map error">
           {activeBasemap.mapError}
-        </div>
+        </output>
       ) : null}
-    </div>
+    </main>
   )
 }

@@ -35,7 +35,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
   }, [filteredShortcuts]);
 
   // 3. Scroll ref and anchor scrolling
-  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollRef = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
     const node = scrollRef.current;

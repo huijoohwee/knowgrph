@@ -150,9 +150,6 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   if (id === 'animation:menu') {
     return
   }
-  if (id === 'timeline:menu') {
-    return
-  }
   if (id === 'control:menu') {
     return
   }
@@ -266,8 +263,9 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setRenderMediaAsNodes(!renderMediaAsNodes)
     return
   }
-  if (id === 'timeline:on' || id === 'timeline:off') {
-    const nextEnabled = id === 'timeline:on'
+  if (id === 'control:timeline') {
+    if (geospatialEnabled) return
+    const nextEnabled = !resolveTimelineEnabled(timelineEnabled)
     if (resolveTimelineEnabled(timelineEnabled) !== nextEnabled) setTimelineEnabled(nextEnabled)
     return
   }

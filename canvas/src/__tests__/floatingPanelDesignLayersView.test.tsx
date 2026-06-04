@@ -9,7 +9,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForNextTask } from '@/tests/lib/reactRootHarness'
 
 export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   try {
     try {
@@ -75,7 +75,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
 }
 
 export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   try {
     try {
@@ -135,7 +135,7 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
 }
 
 export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByState() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   try {
     try {

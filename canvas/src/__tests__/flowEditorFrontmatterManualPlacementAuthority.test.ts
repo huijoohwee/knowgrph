@@ -84,9 +84,9 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   }
   if (!overlayPlacementRuntimeText.includes('const zoomK = initialFrontmatterManagedNode && floatingUsesScreenAuthority')
     || !overlayPlacementRuntimeText.includes('const frontmatterVisibleViewportAuthority = frontmatterManagedNode')
-    || !overlayPlacementRuntimeText.includes('const frontmatterPanelScaleZoomK = frontmatterVisibleViewportAuthority ? 1 : zoomK')
+    || !overlayPlacementRuntimeText.includes('const frontmatterPanelScaleZoomK = readScreenAuthorityFollowZoomK(zoomK, frontmatterVisibleViewportAuthority)')
     || !overlayPlacementRuntimeText.includes('zoomK: frontmatterPanelScaleZoomK')) {
-    throw new Error('expected frontmatter placement to use neutral visible-viewport scale authority across pin states so graph zoom churn cannot relayout widgets')
+    throw new Error('expected frontmatter placement to keep screen-position authority while letting shared viewport zoom drive baseline-normalized visual scale')
   }
   if (overlayPlacementRuntimeText.includes('frontmatterScreenAuthorityViewportAnchorRef')
     || overlayPlacementRuntimeText.includes('useFrontmatterViewportProjection')

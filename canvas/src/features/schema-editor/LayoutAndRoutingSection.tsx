@@ -27,11 +27,11 @@ export default function LayoutAndRoutingSection({
   const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
   const selectClassName = `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
-    <div className="space-y-3">
-      <div className={sectionHeadingClassName}>Layout</div>
+    <section className="space-y-3">
+      <section className={sectionHeadingClassName}>Layout</section>
       <Subsection title="Layout">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs">
+        <section className="space-y-2">
+          <section className="flex items-center gap-2 text-xs">
             <span className={inlineLabelClassName}>Charge</span>
             <input
               type="number"
@@ -50,12 +50,12 @@ export default function LayoutAndRoutingSection({
               onChange={e => setAlphaDecay(parseFloat(e.target.value || '0.02'))}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
-        </div>
+          </section>
+        </section>
       </Subsection>
       <Subsection title="Edge Routing">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs">
+        <section className="space-y-2">
+          <section className="flex items-center gap-2 text-xs">
             <span className={inlineLabelClassName}>Routing Mode</span>
             {(() => {
               const routing = schema.edgeRouting || {}
@@ -82,11 +82,11 @@ export default function LayoutAndRoutingSection({
                 </select>
               )
             })()}
-          </div>
-        </div>
+          </section>
+        </section>
       </Subsection>
       <Subsection title="3D Layout">
-        <div className="flex items-center gap-2 text-xs">
+        <section className="flex items-center gap-2 text-xs">
           <span className={inlineLabelClassName}>Sphere Radius</span>
           <input
             type="number"
@@ -117,8 +117,8 @@ export default function LayoutAndRoutingSection({
             onChange={e => setThreeConfig({ minSpacing: parseFloat(e.target.value || '0') })}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
+        </section>
       </Subsection>
-    </div>
+    </section>
   )
 }

@@ -174,7 +174,7 @@ export default function GraphStatsPanel() {
   return (
     <section className="h-full min-h-0 flex flex-col overflow-auto px-3 py-2" aria-label="Dashboard">
       <nav className="mb-2 flex flex-wrap items-center justify-between gap-2" aria-label="Dashboard controls">
-        <div
+        <section
           className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
           role="group"
           aria-label="Stats scope"
@@ -194,8 +194,8 @@ export default function GraphStatsPanel() {
               {key === 'auto' ? 'Auto' : key === 'dataset' ? 'Dataset' : 'Selection'}
             </button>
           ))}
-        </div>
-        <div
+        </section>
+        <section
           className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
           role="group"
           aria-label="Stats level of detail"
@@ -215,7 +215,7 @@ export default function GraphStatsPanel() {
               {key === 'auto' ? 'Auto' : key === 'low' ? 'Low' : key === 'medium' ? 'Med' : 'High'}
             </button>
           ))}
-        </div>
+        </section>
       </nav>
 
       {semanticMode === 'keyword' && keywordPending ? (
@@ -228,13 +228,13 @@ export default function GraphStatsPanel() {
 
       {semanticMode === 'keyword' ? (
         <CollapsibleSection title="Keyword Mode" className="mt-2">
-          <div className="space-y-3">
-            <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>
+          <section className="space-y-3">
+            <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>
               Tune keyword extraction and graph caps. Changes apply immediately.
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Source max lines</div>
+            </section>
+            <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <section className="space-y-1">
+                <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Source max lines</section>
                 <input
                   type="number"
                   min={200}
@@ -244,9 +244,9 @@ export default function GraphStatsPanel() {
                   onChange={e => setKeywordSourceMaxLines(parseInt(e.target.value || '0', 10))}
                   className={uiPanelKeyValueInputClass}
                 />
-              </div>
-              <div className="space-y-1">
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Source max chars</div>
+              </section>
+              <section className="space-y-1">
+                <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Source max chars</section>
                 <input
                   type="number"
                   min={10000}
@@ -256,9 +256,9 @@ export default function GraphStatsPanel() {
                   onChange={e => setKeywordSourceMaxChars(parseInt(e.target.value || '0', 10))}
                   className={uiPanelKeyValueInputClass}
                 />
-              </div>
-              <div className="space-y-1">
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Edges per keyword node</div>
+              </section>
+              <section className="space-y-1">
+                <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Edges per keyword node</section>
                 <input
                   type="number"
                   min={1}
@@ -268,9 +268,9 @@ export default function GraphStatsPanel() {
                   onChange={e => setKeywordGraphEdgesPerNode(parseInt(e.target.value || '0', 10))}
                   className={uiPanelKeyValueInputClass}
                 />
-              </div>
-              <div className="space-y-1">
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Max keyword edges cap</div>
+              </section>
+              <section className="space-y-1">
+                <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Max keyword edges cap</section>
                 <input
                   type="number"
                   min={0}
@@ -280,9 +280,9 @@ export default function GraphStatsPanel() {
                   onChange={e => setKeywordGraphMaxEdgesCap(parseInt(e.target.value || '0', 10))}
                   className={uiPanelKeyValueInputClass}
                 />
-              </div>
-              <div className="space-y-1">
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Mentions per document node</div>
+              </section>
+              <section className="space-y-1">
+                <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Mentions per document node</section>
                 <input
                   type="number"
                   min={0}
@@ -292,9 +292,9 @@ export default function GraphStatsPanel() {
                   onChange={e => setKeywordGraphMentionEdgesPerSourceNode(parseInt(e.target.value || '0', 10))}
                   className={uiPanelKeyValueInputClass}
                 />
-              </div>
-            </div>
-          </div>
+              </section>
+            </section>
+          </section>
         </CollapsibleSection>
       ) : null}
 

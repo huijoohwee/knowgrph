@@ -63,7 +63,7 @@ export async function testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
 
@@ -105,9 +105,9 @@ export async function testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange() {
     })
 
     const rootEl =
-      (doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null) ||
-      (doc.querySelector('[data-testid="markdown-preview"]') as HTMLDivElement | null) ||
-      (doc.body as unknown as HTMLDivElement)
+      (doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null) ||
+      (doc.querySelector('[data-testid="markdown-preview"]') as HTMLElement | null) ||
+      (doc.body as unknown as HTMLElement)
     const text = String(rootEl.textContent || '').replace(/\s+/g, ' ').trim()
     if (!text.includes('Hello')) {
       throw new Error('expected split preview to render active text immediately after doc switch')

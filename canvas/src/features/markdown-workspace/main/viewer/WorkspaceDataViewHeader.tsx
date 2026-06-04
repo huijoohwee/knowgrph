@@ -198,9 +198,9 @@ export function WorkspaceDataViewHeader(props: {
       <section className={`kg-data-view-header-options ${uiToolbarRowScrollClassName} gap-2 px-3 pb-2`} aria-label="Data view header options">
         {props.tableSelector ? (
           <aside className="kg-data-view-table-selector ml-2 min-w-0 max-w-full" aria-label="Data view table selector">
-            <div className={`${uiToolbarRowScrollInlineClassName} gap-2`} role="group" aria-label="Table selector">
+            <section className={`${uiToolbarRowScrollInlineClassName} gap-2`} role="group" aria-label="Table selector">
               {props.tableSelector}
-            </div>
+            </section>
           </aside>
         ) : null}
       </section>

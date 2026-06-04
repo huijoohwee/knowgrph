@@ -12,6 +12,7 @@ import {
   STRIPE_MCP_DEFAULT_STARTUP_TIMEOUT_MS,
   STRIPE_MCP_DOC_AREA,
   STRIPE_MCP_DOCS_URL,
+  STRIPE_MCP_PAYMENT_READINESS_POLICY,
   STRIPE_MCP_PAYMENT_TOOL_NAMES,
   STRIPE_MCP_REGISTRY_URL,
   STRIPE_MCP_REMOTE_URL,
@@ -135,6 +136,13 @@ const STRIPE_MCP_DOC_ROWS: ReadonlyArray<StripeMcpDocRow> = [
     responsibility: 'Require human confirmation before payment-mutating Stripe MCP tool calls.',
     tooltipDefaultValue: STRIPE_MCP_DEFAULT_REQUIRE_CONFIRMATION,
     searchHints: ['human confirmation', 'payment tools', 'prompt injection'],
+  },
+  {
+    key: 'payment_readiness_policy',
+    typeLabel: 'security note',
+    value: STRIPE_MCP_PAYMENT_READINESS_POLICY,
+    responsibility: 'Visible operator policy for payment-mutating Stripe MCP tools and Commerce checkout handoff.',
+    searchHints: ['human confirmation', 'accept payment', 'checkout handoff', 'least privilege'],
   },
   {
     key: 'payment_tools',

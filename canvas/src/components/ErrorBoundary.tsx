@@ -34,10 +34,10 @@ export default class ErrorBoundary extends React.Component<React.PropsWithChildr
     const stack = this.state.error instanceof Error ? String(this.state.error.stack || '') : ''
     const details = [message, stack, this.state.componentStack || ''].filter(Boolean).join('\n')
     return (
-      <div className="p-3 text-sm text-red-600">
-        <div>Something went wrong.</div>
-        <div className="mt-2 whitespace-pre-wrap break-words text-xs text-red-700">{details}</div>
-      </div>
+      <section className="p-3 text-sm text-red-600">
+        <section>Something went wrong.</section>
+        <section className="mt-2 whitespace-pre-wrap break-words text-xs text-red-700">{details}</section>
+      </section>
     )
   }
 }

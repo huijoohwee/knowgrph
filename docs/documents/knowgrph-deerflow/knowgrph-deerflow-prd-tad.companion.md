@@ -12,7 +12,7 @@ Continuation of [knowgrph-deerflow-prd-tad.md](knowgrph-deerflow-prd-tad.md). Co
 
 ## Architecture Overview
 
-Knowgrph's implemented DeerFlow baseline is a local-gateway integration. UI surfaces remain provider-neutral; DeerFlow-specific transport stays in DeerFlow gateway owners.
+Knowgrph's implemented DeerFlow baseline is a local-gateway integration. UI surfaces remain provider-neutral; DeerFlow-specific transport stays in DeerFlow gateway owners. DeerFlow may inform long-horizon harness concepts, but Knowgrph's native SuperAgent implementation remains source-owned in `docs/documents/knowgrph-superagent-harness.md`, `knowgrph_parser/*`, and the local MCP tool contract.
 
 ```mermaid
 flowchart LR
@@ -112,6 +112,12 @@ flowchart LR
 - Failed import attempts return structured failure entries.
 - Import does not bypass Source Files or write to generated downstream mirrors.
 
+### TAD-DF-I005: SuperAgent Inspiration Boundary
+
+- DeerFlow may be cited only as a conceptual reference for message gateway, memory, tools, skills, subagents, sandboxed workspace execution, and long-horizon run management.
+- Knowgrph must not copy DeerFlow code, duplicate its architecture, or add DeerFlow-specific parser, renderer, memory, or graph-apply owners.
+- Native SuperAgent work extends `knowgrph_parser` and local MCP owners first, then documents the shipped source owner.
+
 ## Architectural Decisions
 
 ### ADR-DF-001: Reuse OpenAI-Compatible Rows for DeerFlow
@@ -155,6 +161,7 @@ flowchart LR
 - Keep `deerflowApi.*` keys stable.
 - Extend future gateway features inside `deerflowRunGeneration.ts` or `deerflowUrlImport.ts` first.
 - Add any future MCP bridge as a new source-backed owner and guard before documenting it as implemented.
+- Keep future SuperAgent work on Knowgrph's native harness owners; DeerFlow remains optional provider/inspiration rather than a copied runtime stack.
 
 ## Revision History
 

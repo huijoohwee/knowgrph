@@ -25,7 +25,7 @@ type UseMarkdownSectionLogicProps = {
   setMarkdownLayoutMode: (mode: MarkdownLayoutMode) => void
   setMarkdownPresentationMode: (next: boolean) => void
   editorTextAreaRef: React.RefObject<MonacoTextEditorHandle | null>
-  viewerRef: React.RefObject<HTMLDivElement>
+  viewerRef: React.RefObject<HTMLElement>
   selectNode: (id: string) => void
   selectEdge: (id: string) => void
   setSelectionSource: (source: 'editor' | 'canvas' | 'table') => void

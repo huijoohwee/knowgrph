@@ -18,7 +18,7 @@ interface TooltipProps {
   maxWidthPx?: number
   contentClassName?: string
   contentStyle?: React.CSSProperties
-  contentRef?: React.Ref<HTMLDivElement>
+  contentRef?: React.Ref<HTMLElement>
   contentOffset?: { x: number; y: number } | null
   contentSize?: { width: number; height?: number } | null
   contentDataAttrs?: Record<string, string | undefined>
@@ -35,13 +35,13 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
   const open = typeof controlledOpen === 'boolean' ? controlledOpen : uncontrolledOpen
   const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null)
   const [maxW, setMaxW] = React.useState<number | undefined>(undefined)
-  const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const scrollRef = React.useRef<HTMLElement | null>(null)
   const scrollTimerRef = React.useRef<number | null>(null)
   const scrollDelayRef = React.useRef<number | null>(null)
   const scrollAllowedRef = React.useRef<boolean>(false)
   const delayElapsedRef = React.useRef<boolean>(false)
   const constrainedRef = React.useRef<boolean>(false)
-  const setContentElement = React.useCallback((node: HTMLDivElement | null) => {
+  const setContentElement = React.useCallback((node: HTMLElement | null) => {
     scrollRef.current = node
     if (!contentRef) return
     if (typeof contentRef === 'function') {
@@ -49,7 +49,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
       return
     }
     try {
-      ;(contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+      ;(contentRef as React.MutableRefObject<HTMLElement | null>).current = node
     } catch {
       void 0
     }
@@ -183,7 +183,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
         {children}
       </span>
       {open && pos && createPortal(
-        <div
+        <section
           ref={setContentElement}
           {...contentDataAttrs}
           data-kg-tooltip-root="1"
@@ -237,7 +237,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
           }}
         >
           {content}
-        </div>,
+        </section>,
         getTooltipPortalTarget(anchorRef.current)
       )}
     </>

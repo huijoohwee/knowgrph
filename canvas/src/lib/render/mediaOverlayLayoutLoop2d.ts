@@ -106,6 +106,12 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const clampMarginBottom = args.clampToViewport && Number.isFinite(args.clampToViewport.marginBottom)
       ? Math.max(0, Number(args.clampToViewport.marginBottom))
       : clampMargin
+    const clampMargins = {
+      left: clampMarginLeft,
+      right: clampMarginRight,
+      top: clampMarginTop,
+      bottom: clampMarginBottom,
+    }
     const spreadMargins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
@@ -120,10 +126,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
           viewportW: args.viewportW,
           viewportH: args.viewportH,
           margin: 0,
-          marginLeft: spreadMargins.left,
-          marginRight: spreadMargins.right,
-          marginTop: spreadMargins.top,
-          marginBottom: spreadMargins.bottom,
+          marginLeft: clampMargins.left,
+          marginRight: clampMargins.right,
+          marginTop: clampMargins.top,
+          marginBottom: clampMargins.bottom,
         }
       : undefined
 
@@ -215,10 +221,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const vh = Math.max(1, Number(args.viewportH) || 1)
       const w = Math.max(1, Number(size.w) || 1)
       const h = Math.max(1, Number(size.h) || 1)
-      const leftMin = spreadMargins.left
-      const leftMax = Math.max(leftMin, vw - spreadMargins.right - w)
-      const topMin = spreadMargins.top
-      const topMax = Math.max(topMin, vh - spreadMargins.bottom - h)
+      const leftMin = clampMargins.left
+      const leftMax = Math.max(leftMin, vw - clampMargins.right - w)
+      const topMin = clampMargins.top
+      const topMax = Math.max(topMin, vh - clampMargins.bottom - h)
       const left = Math.max(leftMin, Math.min(leftMax, pos.left))
       const top = Math.max(topMin, Math.min(topMax, pos.top))
       return { left, top }

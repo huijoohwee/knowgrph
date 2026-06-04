@@ -251,7 +251,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
         aria-grabbed={props.cardDragProps?.draggable ? props.isDragging : undefined}
         {...sharedDragRegionProps}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <section className="flex items-center gap-2 min-w-0 flex-1">
           <KanbanTypeBadge size="sm" />
           <CardInlineTextEditor
             value={props.title}
@@ -270,7 +270,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
             displayClassName={['text-sm font-semibold leading-5 m-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
             editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
           />
-        </div>
+        </section>
         <menu
           data-kg-kanban-actions="1"
           className="m-0 p-0 list-none flex items-center gap-1 opacity-0 pointer-events-none transition-opacity"
@@ -459,7 +459,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
           <section className="flex flex-col gap-2 mb-2" aria-label="Details">
             {paragraphEntries.map(entry => {
               return (
-                <div key={`${props.row.id}:text:${entry.id}`} className="rounded border border-black/5 bg-black/[0.025] px-2.5 py-2">
+                <section key={`${props.row.id}:text:${entry.id}`} className="rounded border border-black/5 bg-black/[0.025] px-2.5 py-2">
                   <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                     {entry.label}
                   </p>
@@ -480,7 +480,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
                     editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                   />
-                </div>
+                </section>
               )
             })}
           </section>

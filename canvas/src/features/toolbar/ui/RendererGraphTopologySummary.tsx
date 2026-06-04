@@ -91,18 +91,18 @@ export function RendererDocumentMetadataSummary({
   if (entries.length === 0) return null
 
   return (
-    <div className="mt-2">
-      <div className={`mb-1 text-[11px] font-medium ${UI_THEME_TOKENS.text.secondary}`}>
+    <section className="mt-2">
+      <section className={`mb-1 text-[11px] font-medium ${UI_THEME_TOKENS.text.secondary}`}>
         Document metadata {formatCount(entries.length)}
-      </div>
-      <div className="flex flex-col gap-1" data-kg-renderer-document-metadata-list="1">
+      </section>
+      <section className="flex flex-col gap-1" data-kg-renderer-document-metadata-list="1">
         {entries.map(entry => (
-          <div
+          <section
             key={entry.id}
             className={`rounded border px-2 py-1 text-[11px] ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}
             data-kg-renderer-document-metadata-item="1"
           >
-            <div className="flex items-center gap-2">
+            <section className="flex items-center gap-2">
               <span className={`shrink-0 rounded-sm border px-1 py-0.5 uppercase tracking-wide ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.tertiary}`}>
                 {formatMetadataTypeLabel(entry.type)}
               </span>
@@ -112,14 +112,14 @@ export function RendererDocumentMetadataSummary({
               >
                 {renderMarkdownSigilInlineText(entry.value)}
               </span>
-            </div>
-            <div className={`mt-1 break-words ${UI_THEME_TOKENS.text.secondary}`}>
+            </section>
+            <section className={`mt-1 break-words ${UI_THEME_TOKENS.text.secondary}`}>
               {renderMarkdownSigilInlineText(entry.note)}
-            </div>
-          </div>
+            </section>
+          </section>
         ))}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 
@@ -243,43 +243,43 @@ export function RendererGraphTopologySummary() {
 
   return (
     <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 py-2`} aria-label="Graph topology">
-      <div className={`mb-2 text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>Graph topology</div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <div className="flex items-center justify-between gap-2">
+      <section className={`mb-2 text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>Graph topology</section>
+      <section className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        <section className="flex items-center justify-between gap-2">
           <span className={UI_THEME_TOKENS.text.tertiary}>Nodes</span>
           <span className={UI_THEME_TOKENS.text.primary}>{formatCount(summary.nodeCount)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-2">
+        </section>
+        <section className="flex items-center justify-between gap-2">
           <span className={UI_THEME_TOKENS.text.tertiary}>Edges</span>
           <span className={UI_THEME_TOKENS.text.primary}>{formatCount(summary.edgeCount)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-2">
+        </section>
+        <section className="flex items-center justify-between gap-2">
           <span className={UI_THEME_TOKENS.text.tertiary}>Connected</span>
           <span className={UI_THEME_TOKENS.text.primary}>{formatCount(summary.connectedNodeCount)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-2">
+        </section>
+        <section className="flex items-center justify-between gap-2">
           <span className={UI_THEME_TOKENS.text.tertiary}>Structural</span>
           <span className={UI_THEME_TOKENS.text.primary}>{formatCount(summary.structuralEdgeCount)}</span>
-        </div>
+        </section>
         {(prunedNodes > 0 || prunedEdges > 0) ? (
-          <div className={`col-span-2 flex items-center justify-between gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
+          <section className={`col-span-2 flex items-center justify-between gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
             <span>Pruned</span>
             <span>{formatCount(prunedNodes)} nodes / {formatCount(prunedEdges)} edges</span>
-          </div>
+          </section>
         ) : null}
-      </div>
-      <div className={`mt-2 text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
+      </section>
+      <section className={`mt-2 text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
         Types: {compactCounts(summary.topNodeTypes)}
-      </div>
-      <div className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
+      </section>
+      <section className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
         Labels: {compactCounts(summary.topEdgeLabels)}
-      </div>
+      </section>
       {rendererHighlights.length > 0 ? (
-        <div className="mt-2">
-          <div className={`mb-1 text-[11px] font-medium ${UI_THEME_TOKENS.text.secondary}`}>
+        <section className="mt-2">
+          <section className={`mb-1 text-[11px] font-medium ${UI_THEME_TOKENS.text.secondary}`}>
             Highlights{rendererHighlightCount > rendererHighlights.length ? ` ${formatCount(rendererHighlightCount)}` : ''}
-          </div>
-          <div className="flex flex-wrap gap-1">
+          </section>
+          <section className="flex flex-wrap gap-1">
             {rendererHighlights.map(token => {
               const style = buildSemanticHighlightChipStyle({
                 background: token.background,
@@ -302,8 +302,8 @@ export function RendererGraphTopologySummary() {
                 </span>
               )
             })}
-          </div>
-        </div>
+          </section>
+        </section>
       ) : null}
       <RendererDocumentMetadataSummary entries={documentMetadataTokens} />
     </section>

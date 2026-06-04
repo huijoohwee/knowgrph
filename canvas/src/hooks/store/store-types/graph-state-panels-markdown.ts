@@ -92,7 +92,6 @@ export interface GraphStatePanelsMarkdown {
   bottomSurfaceHeightRatio: number;
   bottomSurfaceCollapsed: boolean;
   floatingPanelWidthRatio: number;
-  floatingPanelHeightRatio: number;
   floatingPanelZIndex: number;
   bottomSurfaceTab: BottomSurfaceTab;
   requestedHistorySubTab: string | null;
@@ -206,7 +205,6 @@ export interface GraphStatePanelsMarkdown {
   setBottomSurfaceHeightRatio: (v: number) => void;
   setBottomSurfaceCollapsed: (v: boolean) => void;
   setFloatingPanelWidthRatio: (v: number) => void;
-  setFloatingPanelHeightRatio: (v: number) => void;
   setFloatingPanelZIndex: (v: number) => void;
   setBottomSurfaceTab: (tab: BottomSurfaceTab) => void;
   setLaunchSpotlightMode: (mode: 'tour' | 'stats') => void;
@@ -262,6 +260,7 @@ export interface GraphStatePanelsMarkdown {
     text: string
     sourceUrl?: string | null
     jsonSourceText?: string | null
+    canonicalMarkdownText?: string | null
     autoEnableFrontmatter?: boolean
     applyViewPreset?: boolean
     recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null

@@ -288,10 +288,10 @@ export default function FieldSettingsPanel({
       secondaryNode={secondaryLabel}
     >
         {selectedGlobalView?.kind === 'globalSchema' ? (
-          <div className="p-3 space-y-3">
+          <section className="p-3 space-y-3">
             {schema ? (
-              <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-                <div className={`flex items-center justify-between ${uiPanelKeyValueTextSizeClass}`}>
+              <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+                <section className={`flex items-center justify-between ${uiPanelKeyValueTextSizeClass}`}>
                   <span className={UI_THEME_TOKENS.text.primary}>Voxel animation</span>
                   <input
                     type="checkbox"
@@ -309,14 +309,14 @@ export default function FieldSettingsPanel({
                       })
                     }}
                   />
-                </div>
-              </div>
+                </section>
+              </section>
             ) : null}
             <SchemaUiEditor schema={schema} setSchema={setSchema} mode="globalOnly" />
             {uniqueNodeTypes.length > 0 ? (
-              <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+              <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
                 <AdvancedSection uniqueNodeTypes={uniqueNodeTypes} />
-              </div>
+              </section>
             ) : null}
             {schema ? (
               <GraphLayerMetadataPresetsSection
@@ -324,7 +324,7 @@ export default function FieldSettingsPanel({
                 uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
               />
             ) : null}
-          </div>
+          </section>
         ) : selectedGlobalView?.kind === 'localSchema' ? (
           <FieldLocalSchemaSection
             graphData={graphData}
@@ -338,9 +338,9 @@ export default function FieldSettingsPanel({
             localSchemaEdgeLabels={localSchemaEdgeLabels}
           />
         ) : !selectedField || !selectedSettings ? (
-          <div className={`p-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+          <section className={`p-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
             {UI_COPY.graphFieldsSelectFieldToEdit}
-          </div>
+          </section>
         ) : (
           <>
             <form
@@ -349,26 +349,26 @@ export default function FieldSettingsPanel({
               }}
               className="p-3 space-y-3"
             >
-                <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
+                <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
+                <section className="grid grid-cols-2 gap-3">
+                  <section className="min-w-0">
                     <label className={`block ${fieldLabelClassName}`} htmlFor="graph-fields-display-name">
                       {UI_LABELS.name}
                     </label>
-                    <div className="mt-1">
+                    <section className="mt-1">
                       <input
                         id="graph-fields-display-name"
                         value={selectedSettings.displayName}
                         onChange={e => updateSelectedSettings({ displayName: e.target.value })}
                         className={`${UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
                       />
-                    </div>
-                  </div>
-                  <div className="min-w-0">
+                    </section>
+                  </section>
+                  <section className="min-w-0">
                     <label className={`block ${fieldLabelClassName}`} htmlFor="graph-fields-type">
                       {UI_LABELS.type}
                     </label>
-                    <div className="mt-1">
+                    <section className="mt-1">
                       <select
                         id="graph-fields-type"
                         value={selectedSettings.fieldType}
@@ -382,14 +382,14 @@ export default function FieldSettingsPanel({
                         ))}
                       </select>
                       {suggestedFieldType ? (
-                        <div className={`${fieldHintClassName} mt-1`}>
+                        <section className={`${fieldHintClassName} mt-1`}>
                           Suggested: {suggestedFieldType}
-                        </div>
+                        </section>
                       ) : null}
-                    </div>
-                  </div>
-                </div>
-                <div>
+                    </section>
+                  </section>
+                </section>
+                <section>
                   <label className={`block ${fieldLabelClassName}`} htmlFor="graph-fields-description">
                     <Tooltip
                       content={GRAPH_FIELDS_DESCRIPTION_TOOLTIP_TEXT}
@@ -401,8 +401,8 @@ export default function FieldSettingsPanel({
                       </span>
                     </Tooltip>
                   </label>
-                  <div className="mt-1">
-                    <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_DESCRIPTION_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+                  <section className="mt-1">
+                    <section className={`${UI_RESPONSIVE_GRAPH_FIELDS_DESCRIPTION_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
                       <React.Suspense fallback={null}>
                         <MonacoTextEditorLazy
                           value={selectedSettings.description}
@@ -414,10 +414,10 @@ export default function FieldSettingsPanel({
                           className="w-full h-full"
                         />
                       </React.Suspense>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    </section>
+                  </section>
+                </section>
+              </section>
 
               {selectedSettings.fieldType === 'Multi-select' || selectedSettings.fieldType === 'Single-select' ? (
                 <SelectOptionsSection
@@ -467,7 +467,7 @@ export default function FieldSettingsPanel({
                   stickyHeader={false}
                   className="mt-0 border-t-0 pt-0"
                 >
-                  <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
+                  <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
                     <FieldGraphLayersSection
                       schema={schema as GraphSchema}
                       scope={selectedField.scope}
@@ -489,7 +489,7 @@ export default function FieldSettingsPanel({
                       ownerKey={schemaOwnerKey}
                       uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
                     />
-                  </div>
+                  </section>
                 </CollapsibleSection>
               ) : null}
 
@@ -506,7 +506,7 @@ export default function FieldSettingsPanel({
 
               <UrlProtocolSection selectedSettings={selectedSettings} updateSettings={updateSelectedSettings} />
 
-              <div className="flex items-center justify-end gap-2 pt-1">
+              <section className="flex items-center justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={resetSelectedSettings}
@@ -522,7 +522,7 @@ export default function FieldSettingsPanel({
                 >
                   {UI_COPY.graphFieldsResyncButtonLabel}
                 </button>
-              </div>
+              </section>
             </form>
           </>
         )}

@@ -543,8 +543,11 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!nodeOverlayFormText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
     throw new Error('expected Rich Media Panel form preview to auto-fit measured inline rich media content at the panel chrome')
   }
-  if (!srcDocText.includes('body>:is(main,section,article,div):first-child')) {
-    throw new Error('expected shared Rich Media Panel srcdoc reset to flatten top-level generated frame wrappers')
+  if (!srcDocText.includes('body>:is(main,section,article):first-child')) {
+    throw new Error('expected shared Rich Media Panel srcdoc reset to flatten top-level semantic frame wrappers')
+  }
+  if (srcDocText.includes('body>:is(main,section,article,div)')) {
+    throw new Error('expected shared Rich Media Panel srcdoc reset to avoid generic HTML division element selectors')
   }
   if (!srcDocText.includes(RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE) || !srcDocText.includes(RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID)) {
     throw new Error('expected shared Rich Media Panel srcdoc reset to include a sandbox-safe content-size bridge')
@@ -562,7 +565,7 @@ export function testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle() {
     `<style id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}">body>.wrap:first-child{border:0!important}</style>`,
     '<style>.chart-card{border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 16px rgba(15,23,42,.12);padding:18px}</style>',
     '</head>',
-    '<body><div><main class="chart-card"><h1>Generated output</h1></main></div></body>',
+    '<body><section><main class="chart-card"><h1>Generated output</h1></main></section></body>',
     '</html>',
   ].join('')
 
@@ -589,11 +592,17 @@ export function testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle() {
   if (!(chartStyleIndex >= 0 && resetStyleIndex > chartStyleIndex)) {
     throw new Error('expected Rich Media Panel srcdoc reset to be injected after chart-authored styles so the shared panel frame wins')
   }
-  if (!normalized.includes('body>:is(main,section,article,div):first-child')) {
-    throw new Error('expected refreshed Rich Media Panel srcdoc reset to flatten top-level frame wrappers')
+  if (!normalized.includes('body>:is(main,section,article):first-child')) {
+    throw new Error('expected refreshed Rich Media Panel srcdoc reset to flatten top-level semantic frame wrappers')
   }
-  if (!normalized.includes('body>:is(main,section,article,div):first-child>:is(main,section,article,div):first-child')) {
-    throw new Error('expected refreshed Rich Media Panel srcdoc reset to flatten nested generated frame wrappers')
+  if (!normalized.includes('body>:is(main,section,article):first-child>:is(main,section,article):first-child')) {
+    throw new Error('expected refreshed Rich Media Panel srcdoc reset to flatten nested semantic frame wrappers')
+  }
+  if (/<section\b|<\/div>/i.test(normalized)) {
+    throw new Error(`expected Rich Media Panel srcdoc normalization to replace generic HTML division element containers, got: ${normalized}`)
+  }
+  if (normalized.includes('body>:is(main,section,article,div)')) {
+    throw new Error('expected Rich Media Panel srcdoc reset to avoid generic HTML division element selectors')
   }
   for (const resetRule of [
     'border:0!important',

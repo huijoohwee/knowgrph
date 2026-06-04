@@ -81,9 +81,9 @@ ACP defines a standard REST + Delegate Payment interface that any compliant agen
 
 > **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.checkoutLifecycle" passes; POST /checkout/sessions returns 201 with status "open", persists through D1, and echoes the idempotency key`
 
-**AC-E1-S3-AC1**: Given a completed checkout session, when Stripe emits a `checkout.session.completed` webhook event, then `knowgrph.commerce.settle` tool is invoked within 5 s, a `harness-proof.json` delta is appended, and the seller receives a 200 acknowledgment.
+**AC-E1-S3-AC1**: Given a completed checkout session, when Stripe emits a first-time `checkout.session.completed` webhook event, then `knowgrph.commerce.settle` tool is invoked within 5 s, a `harness-proof.json` delta is appended, and the seller receives a 200 acknowledgment; repeated same-payload `processing` or `processed` Stripe event ids are acknowledged without replaying settlement, failure, cancellation, OpenBOX, or proof side effects; conflicting payloads for an existing event id fail closed; and `failed` or stale `processing` event ids remain retryable.
 
-> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.stripeWebhookSettle" passes; harness-proof.json contains a commerce entry with session_id, and settle tool call is logged in trace.jsonl`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.stripeWebhookSettle" passes; "worker.payments.agenticCommerce.stripeWebhookDuplicateSkipsSettlement" passes; "worker.payments.stripe.webhook.retriesFailedProcessing" passes; harness-proof.json contains a commerce entry with session_id for first-time paid events only, and settle tool call is logged in trace.jsonl`
 
 #### Success Metrics
 
@@ -325,14 +325,14 @@ flowchart LR
 ---
 
 **Component**: `checkout-worker`
-**Responsibility**: Implements ACP Agentic Checkout REST API (session CRUD + complete + cancel); validates request schemas; routes payment to Stripe or Web3 path based on `x-web3` extension presence; persists session, proof, and trace state to D1 through the existing payment Worker owner.
+**Responsibility**: Implements ACP Agentic Checkout REST API (session CRUD + complete + cancel); validates request schemas; routes fiat sessions through hosted Stripe Checkout or the explicit delegate-token completion path, routes Web3 sessions through the `x-web3` extension, and persists session, proof, Stripe, and trace state to D1 through the existing payment Worker owner.
 **Interfaces**:
 - `POST /checkout/sessions` → `CheckoutSession`
 - `GET /checkout/sessions/:id` → `CheckoutSession`
 - `POST /checkout/sessions/:id/complete` → `CheckoutSession`
 - `POST /checkout/sessions/:id/cancel` → `CheckoutSession`
-**Dependencies**: Cloudflare D1 (free tier); Stripe delegate-payment endpoint; Base RPC and EAS attestation endpoint for Web3 path
-**Configuration**: `STRIPE_DELEGATE_PAYMENT_URL`, `ACP_BEARER_TOKEN`, `BASE_RPC_URL`, `EAS_ATTEST_URL`, `WEBHOOK_SECRET`
+**Dependencies**: Cloudflare D1 (free tier); hosted Stripe Checkout + webhook verification; optional Stripe delegate-payment endpoint; Base RPC and EAS attestation endpoint for Web3 path
+**Configuration**: `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY`, visible Worker `[vars]` checkout price authority (`STRIPE_CHECKOUT_PRICE_ID` or the inline checkout price tuple), `STRIPE_WEBHOOK_SECRET`, `STRIPE_DELEGATE_PAYMENT_URL`, `ACP_BEARER_TOKEN`, `BASE_RPC_URL`, `EAS_ATTEST_URL`. Use `npm run payment:stripe:configure` to validate operator-supplied Stripe env, write checkout price authority to `wrangler.toml` only with `-- --write-visible-vars --yes --confirm=apply-stripe-payment-worker-config`, reject mode/return-origin process input, and dry-run Worker secret names before applying secrets with `-- --apply --yes --confirm=apply-stripe-payment-worker-config`; deploy `payment:worker:deploy` after visible Worker `[vars]` changes, or include `--deploy-visible-vars --apply --yes --confirm=apply-stripe-payment-worker-config` for the explicit deploy path before live Checkout smoke.
 **FOSS / Vendor**: FOSS — Cloudflare Worker + D1; ACP spec Apache 2.0; Stripe proprietary (see ADR-1)
 **Token Budget**: N/A (no LLM call)
 
@@ -473,15 +473,29 @@ Max iterations: 1 (no loop); circuit-breaker: N/A (sequential, no retry beyond 2
 **Actors**: AI Agent, `checkout-worker`, Stripe PSP, `commerce-harness`.
 
 **Happy Path**:
-1. Agent sends `POST /checkout/sessions` with items + buyer info → Worker validates schema → D1 upserts `status: "open"` → returns `CheckoutSession`
-2. Agent calls `POST /checkout/sessions/:id/complete` with `vault_token` → Worker validates token → calls Stripe delegate-payment endpoint → D1 writes `status: "complete"`
-3. Stripe webhook fires → `commerce-harness` called → proof emitted → Worker returns 200
+1. Agent sends `POST /checkout/sessions` with items, buyer info, and optional `stripe_checkout { success_url, cancel_url, workspace_id }` → Worker validates schema and hosted Checkout return URLs against the server-owned return origin → derives the deterministic ACP session id and expected amount/currency.
+2. If `stripe_checkout` is present, Worker creates a hosted Stripe Checkout Session with the ACP session id in `client_reference_id`, Stripe `Idempotency-Key`, expected amount/currency metadata, and `metadata[acp_session_id]`, stores the ACP session plus Stripe row only when the Stripe total matches ACP, and returns `CheckoutSession.stripe_checkout.url`.
+3. Stripe webhook verifies the signature and paid/no-payment-required status, requires Stripe `metadata[acp_session_id]`, `client_reference_id`, amount, and currency to match the fiat ACP session, then D1 writes `status: "complete"` and proof/trace rows.
+4. If the buyer or agent returns before webhook delivery, `GET /api/payments/stripe/checkout/session?session_id=...` first requires a locally-owned Stripe checkout row, then retrieves the Checkout Session server-side, persists the live Stripe state, returns only minimal payment state to public callers, and runs the same ACP settlement guard for `paid` or `no_payment_required` sessions.
+5. If hosted Checkout is not requested and the ACP session is not terminal, the existing explicit `POST /checkout/sessions/:id/complete` delegate-token path remains available for compatible ACP clients.
 
 **Alternate Paths**:
-- Agent calls `POST /checkout/sessions/:id/cancel` before complete → D1 writes `status: "cancelled"` → Stripe token released
+- Agent calls `POST /checkout/sessions/:id/cancel` before complete → D1 writes `status: "cancelled"` and preserves any existing hosted Checkout reference for audit reads.
 
 **Error Paths**:
-- Stripe charge fails (declined) → session `status: "payment_failed"` → agent receives 422 with error code
+- Stripe Checkout price authority missing on the payment Worker → create request fails closed before Stripe is called
+- Hosted Checkout `success_url` or `cancel_url` is owned only by the caller `Origin` header rather than the Checkout route origin or `STRIPE_CHECKOUT_RETURN_ORIGIN` → create request fails closed before Stripe is called or the ACP session is written
+- Hosted Checkout inline price tuple differs from ACP amount/currency → create request fails closed before Stripe is called or the ACP session is written
+- Hosted Checkout Price ID returns a Stripe `amount_total`/`currency` that differs from ACP amount/currency → Worker expires the new Stripe Session and fails closed before writing ACP or Stripe audit rows
+- Stripe checkout audit persistence fails after hosted Stripe Checkout creation → Worker expires the new Stripe Session, returns 500, and exposes no Checkout URL
+- ACP session persistence fails after hosted Stripe Checkout creation → Worker expires the new Stripe Session, refreshes the Stripe audit row to `expired` when possible, returns 500, and writes no ACP session or proof rows
+- Stripe webhook `metadata[acp_session_id]`, `client_reference_id`, amount, or currency does not match the fiat ACP session → webhook is acknowledged but ACP settlement is skipped
+- Stripe sends `checkout.session.expired` or the status route retrieves `status=expired` for the matching fiat ACP session → D1 writes `status: "cancelled"`, refreshes `session.stripe_checkout`, and writes no proof
+- Stripe sends `checkout.session.async_payment_failed` for the matching fiat ACP session → D1 writes `status: "payment_failed"`, refreshes `session.stripe_checkout`, and writes no proof
+- Stripe later sends `checkout.session.completed` for a `cancelled` or `payment_failed` ACP session → Stripe row is stored for audit, ACP terminal state remains unchanged, and no proof is written
+- Stripe status refresh returns `status=complete` with `payment_status=unpaid` → status is stored for audit, but no ACP proof or unlock is emitted
+- Agent calls `POST /checkout/sessions/:id/complete` with a delegate token on a hosted, cancelled, or payment-failed fiat ACP session → 409 returned; no delegate payment or proof write occurs
+- Delegate-token charge fails (declined) → session `status: "payment_failed"` → agent receives 422 with error code
 - Idempotency key conflict → 409 returned; existing session returned unchanged
 - OpenBOX API timeout → `commerce-harness` degrades; proof emitted without risk block; warning logged
 
@@ -495,17 +509,27 @@ sequenceDiagram
     participant Stripe
     participant CommerceHarness
 
-    Agent->>CheckoutWorker: POST /checkout/sessions
-    CheckoutWorker->>D1: upsert session (status: open)
-    CheckoutWorker-->>Agent: 201 CheckoutSession
-
-    Agent->>CheckoutWorker: POST /checkout/sessions/:id/complete (vault_token)
-    CheckoutWorker->>Stripe: charge vault_token
-    Stripe-->>CheckoutWorker: charge success
-    CheckoutWorker->>D1: write status: complete
-    CheckoutWorker->>CommerceHarness: webhook trigger
-    CommerceHarness-->>CheckoutWorker: 200 proof emitted
-    CheckoutWorker-->>Agent: 200 session complete
+    Agent->>CheckoutWorker: POST /checkout/sessions + stripe_checkout
+    CheckoutWorker->>Stripe: create hosted Checkout Session
+    Stripe-->>CheckoutWorker: checkout url + session id
+    CheckoutWorker->>D1: persist Stripe checkout audit row
+    alt Stripe audit persistence fails
+        CheckoutWorker->>Stripe: expire hosted Checkout Session
+        CheckoutWorker-->>Agent: 500 without stripe_checkout.url
+    else Stripe audit persistence succeeds
+        CheckoutWorker->>D1: persist ACP session
+        alt ACP session persistence fails
+            CheckoutWorker->>Stripe: expire hosted Checkout Session
+            CheckoutWorker->>D1: refresh Stripe row to expired when writable
+            CheckoutWorker-->>Agent: 500 without stripe_checkout.url
+        else ACP session persistence succeeds
+            CheckoutWorker-->>Agent: 201 CheckoutSession + stripe_checkout.url
+        end
+    end
+    Stripe->>CheckoutWorker: signed checkout.session.completed webhook
+    CheckoutWorker->>D1: verify client_reference_id + amount/currency + write status: complete
+    CheckoutWorker->>CommerceHarness: emit proof + trace rows
+    CommerceHarness-->>CheckoutWorker: proof stored
 ```
 
 #### Workflow: Web3 Checkout + EAS Attestation
@@ -534,7 +558,7 @@ sequenceDiagram
 | Stage | Component | Input Format | Output Format | Persistence | Error Handling |
 |---|---|---|---|---|---|
 | Ingest | `checkout-worker` | ACP `CreateSessionRequest` JSON | Validated `CheckoutSession` | D1: `agentic_commerce_sessions` | 400 on schema fail; 422 on semantic fail |
-| Transform | `checkout-worker` | `CheckoutSession` + `vault_token` | Stripe charge request | None | Fail-fast; 422 to caller |
+| Transform | `checkout-worker` | `CheckoutSession` + optional `stripe_checkout` request | Hosted Stripe Checkout Session | D1: `stripe_checkout_sessions` | Fail-fast before Stripe when price authority, return-origin policy, or inline ACP total is invalid; use ACP id as Stripe idempotency; expire mismatched Price-ID-backed Sessions before persistence; expire hosted Sessions if Stripe audit or ACP persistence fails after Stripe creation |
 | Store | Cloudflare D1 | `CheckoutSession` JSON | `CheckoutSession` JSON | D1 row with proof/trace joins | D1 write error → 500; no silent fallback |
 | Serve | `checkout-worker` | `session_id` | `CheckoutSession` JSON | D1 read | Missing row → 404 |
 
@@ -630,7 +654,7 @@ flowchart TB
 | Harness | Commerce Harness persistence | `cloudflare/workers/knowgrph-payment/agenticCommerceSettlement.ts`, `agenticCommercePersistence.ts` | Implemented |
 | Schema | ACP/session/Web3/proof shared SSOT + semantic keys | `grph-shared/src/payments/agenticCommerceSsot.ts`, `grph-shared/src/hash/signature.ts` | Implemented |
 | Data | D1 session/proof/trace tables | `cloudflare/d1/migrations/0003_agentic_commerce.sql` | Implemented |
-| Test | ACP config, checkout, Web3 settle, Stripe webhook settle, OpenBOX proof/ingest, artifact routes, shared semantic-key helper | `canvas/src/__tests__/agenticCommerceWorker.test.ts` | Implemented; includes `worker.payments.agenticCommerce.sharedSemanticKey` |
+| Test | ACP config, hosted Stripe Checkout handoff, checkout lifecycle, Web3 settle, Stripe webhook/status-refresh settle guards, webhook idempotency/retry, OpenBOX proof/ingest, artifact routes, shared semantic-key helper | `canvas/src/__tests__/agenticCommerceWorker.test.ts`, `canvas/src/__tests__/knowgrphPaymentWorker.test.ts` | Implemented; includes `worker.payments.agenticCommerce.hostedStripeCheckoutHandoff`, `worker.payments.agenticCommerce.hostedStripeCheckoutRejectsDelegateComplete`, `worker.payments.agenticCommerce.terminalFiatRejectsDelegateComplete`, `worker.payments.agenticCommerce.stripePaidWebhookSkipsCancelled`, `worker.payments.agenticCommerce.stripeWebhookDuplicateSkipsSettlement`, `worker.payments.stripe.webhook.duplicatePayloadConflict`, `worker.payments.stripe.webhook.retriesFailedProcessing`, `worker.payments.stripe.webhook.reclaimsStaleProcessingClaim`, `worker.payments.agenticCommerce.stripeStatusRefreshSettle`, `worker.payments.agenticCommerce.stripeExpiredStatusRefreshCancel`, `worker.payments.agenticCommerce.stripeExpiredWebhookCancel`, `worker.payments.agenticCommerce.stripeAsyncPaymentFailed`, `worker.payments.agenticCommerce.stripeWebhookRejectsAmountMismatch`, and `worker.payments.agenticCommerce.sharedSemanticKey` |
 | Config | Wrangler config | `cloudflare/workers/knowgrph-payment/wrangler.toml` | Implemented |
 | Operator UI | MainPanel Commerce | `docs/documents/knowgrph-mainpanel-commerce-prd-tad.md` | Implemented as canonical Commerce operator UI |
 
@@ -643,8 +667,8 @@ flowchart TB
 | PRD Story | Acceptance Criterion | TAD Component | Interface | `/goal` Condition |
 |---|---|---|---|---|
 | AC-E1-S1 | AC-E1-S1-AC1 | `acp-config-route` | `GET /.well-known/acp-config` | `worker.payments.agenticCommerce.acpConfig` passes |
-| AC-E1-S2 | AC-E1-S2-AC1 | `checkout-worker` | `POST /checkout/sessions` | `worker.payments.agenticCommerce.checkoutLifecycle` passes |
-| AC-E1-S3 | AC-E1-S3-AC1 | `commerce-harness` | Webhook → harness | `worker.payments.agenticCommerce.stripeWebhookSettle` passes; harness-proof.json updated |
+| AC-E1-S2 | AC-E1-S2-AC1 | `checkout-worker` | `POST /checkout/sessions` | `worker.payments.agenticCommerce.checkoutLifecycle` and `worker.payments.agenticCommerce.hostedStripeCheckoutHandoff` pass |
+| AC-E1-S3 | AC-E1-S3-AC1 | `commerce-harness` | Stripe webhook/status refresh → ACP settlement | `worker.payments.agenticCommerce.stripeWebhookSettle`, `worker.payments.agenticCommerce.stripeWebhookDuplicateSkipsSettlement`, `worker.payments.stripe.webhook.duplicatePayloadConflict`, `worker.payments.stripe.webhook.retriesFailedProcessing`, `worker.payments.stripe.webhook.reclaimsStaleProcessingClaim`, `worker.payments.agenticCommerce.stripeStatusRefreshSettle`, `worker.payments.agenticCommerce.hostedStripeCheckoutRejectsDelegateComplete`, `worker.payments.agenticCommerce.terminalFiatRejectsDelegateComplete`, `worker.payments.agenticCommerce.stripePaidWebhookSkipsCancelled`, `worker.payments.agenticCommerce.stripeExpiredStatusRefreshCancel`, `worker.payments.agenticCommerce.stripeExpiredWebhookCancel`, `worker.payments.agenticCommerce.stripeAsyncPaymentFailed`, and `worker.payments.agenticCommerce.stripeWebhookRejectsAmountMismatch` pass; proof writes occur only after verified matching first-time payment |
 | AC-E2-S1 | AC-E2-S1-AC1 | `checkout-worker` | `POST /checkout/sessions` (x-web3) | `worker.payments.agenticCommerce.web3Checkout` passes |
 | AC-E2-S2 | AC-E2-S2-AC1 | `web3-settle-worker` + `commerce-harness` | EAS + canvas writer | `worker.payments.agenticCommerce.web3SettleRoute` passes; @node:proof payload emitted |
 | AC-E3-S1 | AC-E3-S1-AC1 | `commerce-harness` | OpenBOX API | `worker.payments.agenticCommerce.openboxIngest` passes |

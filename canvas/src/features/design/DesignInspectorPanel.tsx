@@ -210,28 +210,28 @@ export default function DesignInspectorPanel({ active }: { active: boolean }) {
   const anyRect = anySelected && selectedIds.some(id => !!rectById[id])
 
   if (!active) {
-    return <div className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Inspector is available in Design renderer.</div>
+    return <section className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Inspector is available in Design renderer.</section>
   }
 
   if (!anySelected) {
-    return <div className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Select one or more frames to inspect.</div>
+    return <section className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Select one or more frames to inspect.</section>
   }
 
   if (!anyRect) {
-    return <div className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Inspector requires selectable Design frames.</div>
+    return <section className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Inspector requires selectable Design frames.</section>
   }
 
   const mixed = '—'
   return (
-    <div className="px-3 py-2 space-y-2">
-      <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
+    <section className="px-3 py-2 space-y-2">
+      <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
         {selectedIds.length} selected
-      </div>
+      </section>
       <NumberFieldRow label="X" value={xText} placeholder={uniform.x == null ? mixed : undefined} onChange={setXText} onSubmit={apply} />
       <NumberFieldRow label="Y" value={yText} placeholder={uniform.y == null ? mixed : undefined} onChange={setYText} onSubmit={apply} />
       <NumberFieldRow label="W" value={wText} placeholder={uniform.w == null ? mixed : undefined} onChange={setWText} onSubmit={apply} />
       <NumberFieldRow label="H" value={hText} placeholder={uniform.h == null ? mixed : undefined} onChange={setHText} onSubmit={apply} />
-      <div className="pt-1 flex justify-end">
+      <section className="pt-1 flex justify-end">
         <button
           type="button"
           className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary}`}
@@ -239,7 +239,7 @@ export default function DesignInspectorPanel({ active }: { active: boolean }) {
         >
           Apply
         </button>
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

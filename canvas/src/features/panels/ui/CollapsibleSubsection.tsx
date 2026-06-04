@@ -33,7 +33,7 @@ export default function CollapsibleSubsection({ title, defaultCollapsed = true, 
   const contentId = id || `subsection-${generatedId}`
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         setCollapsed(!isCollapsed)
@@ -50,8 +50,8 @@ export default function CollapsibleSubsection({ title, defaultCollapsed = true, 
   )
 
   return (
-    <div className={clsx(`mt-3 border-t ${UI_THEME_TOKENS.panel.divider} pt-2`, className)}>
-      <div
+    <section className={clsx(`mt-3 border-t ${UI_THEME_TOKENS.panel.divider} pt-2`, className)}>
+      <section
         className={clsx(
           `sticky top-0 z-10 flex cursor-pointer select-none items-center justify-between px-3 backdrop-blur-[4px] ${UI_THEME_TOKENS.panel.bg}`,
           uiSectionHeaderRowHeightClass,
@@ -65,15 +65,15 @@ export default function CollapsibleSubsection({ title, defaultCollapsed = true, 
         onClick={() => setCollapsed(!isCollapsed)}
         onKeyDown={handleKeyDown}
       >
-        <div className={KTV_HEADER_LABEL_CLASS_NAME}>{title}</div>
+        <section className={KTV_HEADER_LABEL_CLASS_NAME}>{title}</section>
         <ChevronDown
           className={clsx(`h-3.5 w-3.5 ${UI_THEME_TOKENS.text.secondary} transition-transform`, !isCollapsed && 'rotate-180')}
           aria-hidden="true"
         />
-      </div>
-      <div id={contentId} className={clsx(isCollapsed ? 'hidden' : 'block')}>
-        <div className="px-3 mt-2">{children}</div>
-      </div>
-    </div>
+      </section>
+      <section id={contentId} className={clsx(isCollapsed ? 'hidden' : 'block')}>
+        <section className="px-3 mt-2">{children}</section>
+      </section>
+    </section>
   )
 }

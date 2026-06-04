@@ -117,17 +117,17 @@ export default function GraphLayerWordFrequenciesSection({
   return (
     <CollapsibleSection title="Word frequencies by cluster layer">
       {tokensByGraphLayer.length === 0 ? (
-        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {UI_COPY.statsNoNodesAvailableLabel}
-        </div>
+        </section>
       ) : (
-        <div className="space-y-2">
-          <div className={statsPanelClassName}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1">
-                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
+        <section className="space-y-2">
+          <section className={statsPanelClassName}>
+            <section className="flex items-center justify-between gap-3">
+              <section className="flex items-center gap-1">
+                <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
                   Cluster layer
-                </div>
+                </section>
                 <IconButton
                   className="App-toolbar__btn"
                   title={UI_COPY.statsOpenRendererSettingsForGraphLayersTitle}
@@ -136,8 +136,8 @@ export default function GraphLayerWordFrequenciesSection({
                 >
                   <SlidersHorizontal className="w-3 h-3" />
                 </IconButton>
-              </div>
-              <div className="flex items-center gap-2">
+              </section>
+              <section className="flex items-center gap-2">
                 <PlainTextInputEditor
                   className={[
                     uiPanelMicroLabelTextSizeClass,
@@ -163,7 +163,7 @@ export default function GraphLayerWordFrequenciesSection({
                   <option value="freq">{UI_COPY.statsSortByCountLabel}</option>
                   <option value="alpha">{UI_COPY.statsSortAzLabel}</option>
                 </select>
-                <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.bg}`}>
+                <section className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.bg}`}>
                   <button
                     type="button"
                     className={[
@@ -192,7 +192,7 @@ export default function GraphLayerWordFrequenciesSection({
                   >
                     {UI_COPY.statsIncludeWordsLabel}
                   </button>
-                </div>
+                </section>
                 <button
                   type="button"
                   className={[
@@ -215,11 +215,11 @@ export default function GraphLayerWordFrequenciesSection({
                 >
                   {chartCollapsed ? UI_COPY.statsShowChartLabel : UI_COPY.statsHideChartLabel}
                 </button>
-              </div>
-            </div>
+              </section>
+            </section>
             {!tokensCollapsed && (
-            <div className="mt-2">
-              <div
+            <section className="mt-2">
+              <section
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
@@ -275,7 +275,7 @@ export default function GraphLayerWordFrequenciesSection({
                     </label>
                   )
                 })()}
-                <div className="px-2 pb-2">
+                <section className="px-2 pb-2">
                   {graphLayerTokensForDropdown.map((t) => {
                     const tok = String(t.token || '').toLowerCase()
                     const checked =
@@ -315,12 +315,12 @@ export default function GraphLayerWordFrequenciesSection({
                       </label>
                     )
                   })}
-                </div>
-              </div>
-            </div>
+                </section>
+              </section>
+            </section>
             )}
             {!chartCollapsed && (
-              <div className="mt-2">
+              <section className="mt-2">
                 <AutoHeightMiniBarChart
                   containerClassName="overflow-x-auto h-16"
                   minHeight={64}
@@ -352,19 +352,19 @@ export default function GraphLayerWordFrequenciesSection({
                     },
                   }))}
                 />
-              </div>
+              </section>
             )}
             {(() => {
               const row = pinnedGraphLayerId ? tokensByGraphLayer.find(r => r.graphLayerId === pinnedGraphLayerId) || null : null
               const has = !!(row && row.topTokens.length > 0)
               const w = row ? Math.max(140, row.topTokens.length * 12) : 140
               return (
-                <div className={`mt-2 ${UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME}`}>
+                <section className={`mt-2 ${UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME}`}>
                   {!has ? null : (
                     <>
-                      <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `${UI_THEME_TOKENS.text.primary} font-semibold`].join(' ')}>
+                      <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `${UI_THEME_TOKENS.text.primary} font-semibold`].join(' ')}>
                         Top tokens for {row!.label}
-                      </div>
+                      </section>
                       <AutoHeightMiniBarChart
                         containerClassName="mt-1 overflow-x-auto h-16"
                         minHeight={64}
@@ -379,29 +379,29 @@ export default function GraphLayerWordFrequenciesSection({
                       />
                     </>
                   )}
-                </div>
+                </section>
               )
             })()}
-            <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-1 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
+            <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-1 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
               {UI_COPY.statsBarHeightTotalTokensHint}
-            </div>
-          </div>
+            </section>
+          </section>
           {tokensByGraphLayer.slice(0, Math.min(tokensByGraphLayer.length, 6)).map((row) => (
-            <div key={row.graphLayerId} className={statsPanelClassName}>
-              <div className="flex items-center justify_between gap-2">
-                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
+            <section key={row.graphLayerId} className={statsPanelClassName}>
+              <section className="flex items-center justify_between gap-2">
+                <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
                   Cluster layer {row.label}
-                </div>
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+                </section>
+                <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
                   {row.nodeCount} nodes, {row.totalTokens} tokens
-                </div>
-              </div>
+                </section>
+              </section>
               {row.topTokens.length === 0 ? (
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-2 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
+                <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-2 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
                   {UI_COPY.statsNoTokensFoundForGraphLayerLabel}
-                </div>
+                </section>
               ) : (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <section className="mt-2 flex flex-wrap gap-1">
                   {row.topTokens.map(t => (
                     <span
                       key={t.token}
@@ -425,11 +425,11 @@ export default function GraphLayerWordFrequenciesSection({
                       <span className={UI_THEME_TOKENS.text.tertiary}>{t.count}</span>
                     </span>
                   ))}
-                </div>
+                </section>
               )}
-            </div>
+            </section>
           ))}
-        </div>
+        </section>
       )}
     </CollapsibleSection>
   )

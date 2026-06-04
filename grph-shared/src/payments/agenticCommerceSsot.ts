@@ -32,10 +32,12 @@ export const AGENTIC_COMMERCE_DEFAULT_X402_ASSET = 'USDC'
 export const AGENTIC_COMMERCE_DEFAULT_X402_FACILITATOR_URL = 'https://x402.org/facilitator'
 export const AGENTIC_COMMERCE_DEFAULT_X402_NETWORK = 'eip155:84532'
 export const AGENTIC_COMMERCE_DEFAULT_X402_PRICE = '$0.001'
+export const AGENTIC_COMMERCE_X402_PAY_TO_FALLBACK_RESOURCE_ID = 'x402-payment-required'
 export const AGENTIC_COMMERCE_UCP_VERSION = '2026-04-08'
 export const AGENTIC_COMMERCE_UCP_SPEC_URL = 'https://ucp.dev/2026-04-08/specification/overview/'
 export const AGENTIC_COMMERCE_ACP_DISCOVERY_SERVICES = ['checkout'] as const
 export const AGENTIC_COMMERCE_ACP_DISCOVERY_TRANSPORTS = ['rest'] as const
+export const AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY = 'stripe_checkout'
 
 export const AGENTIC_COMMERCE_ROUTE_PATHS = {
   acpDiscovery: '/.well-known/acp.json',
@@ -351,12 +353,17 @@ export const buildAgenticCommerceAcpConfig = (args: {
 
 export const readAgenticCommerceX402PayToAddress = (
   env: AgenticCommerceEnvLike,
-  resourceId = 'x402-payment-required',
+  resourceId = AGENTIC_COMMERCE_X402_PAY_TO_FALLBACK_RESOURCE_ID,
 ): string => {
   const configured = readEnvString(env, AGENTIC_COMMERCE_ENV_KEYS.x402PayToAddress)
   if (/^0x[0-9a-fA-F]{40}$/.test(configured)) return configured
   return buildAgenticCommerceDepositAddress(env, resourceId)
 }
+
+export const AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS = buildAgenticCommerceDepositAddress(
+  {},
+  AGENTIC_COMMERCE_X402_PAY_TO_FALLBACK_RESOURCE_ID,
+)
 
 const AGENTIC_COMMERCE_X402_NETWORK_PATTERN = /^[a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,64}$/
 
@@ -435,7 +442,7 @@ export const buildAgenticCommerceUcpProfile = (args: {
     trace: buildAgenticCommerceUrl(base, AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact),
     x402_payment_required: buildAgenticCommerceUrl(base, AGENTIC_COMMERCE_ROUTE_PATHS.x402PaymentRequired),
   }
-  const legacyCapabilities = {
+  const commerceCapabilities = {
     checkout_sessions: true,
     content_payments: true,
     proof_artifacts: true,
@@ -491,7 +498,7 @@ export const buildAgenticCommerceUcpProfile = (args: {
         },
       },
     ],
-    capabilities: legacyCapabilities,
+    capabilities: commerceCapabilities,
     endpoints,
     spec_urls: [AGENTIC_COMMERCE_UCP_SPEC_URL],
     schema_urls: [

@@ -3,6 +3,7 @@ export type OpenAiImagesApiDocRow = {
   typeLabel: string
   value: string
   responsibility: string
+  options?: readonly string[]
   valueKey?: string
   notes?: string
   searchHints?: string[]
@@ -17,6 +18,16 @@ export type OpenAiImagesApiDocRow = {
   classes?: string[]
   functions?: string[]
 }
+
+const OPENAI_IMAGES_MODEL_DEFAULT = 'gpt-image-2'
+const OPENAI_IMAGES_MODEL_OPTIONS = [OPENAI_IMAGES_MODEL_DEFAULT, 'gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini', 'dall-e-3', 'dall-e-2'] as const
+const OPENAI_IMAGES_SIZE_OPTIONS = ['auto', '1024x1024', '1536x1024', '1024x1536', '256x256', '512x512', '1792x1024', '1024x1792'] as const
+const OPENAI_IMAGES_QUALITY_OPTIONS = ['auto', 'low', 'medium', 'high', 'standard', 'hd'] as const
+const OPENAI_IMAGES_BACKGROUND_OPTIONS = ['auto', 'transparent', 'opaque'] as const
+const OPENAI_IMAGES_OUTPUT_FORMAT_OPTIONS = ['png', 'jpeg', 'webp'] as const
+const OPENAI_IMAGES_RESPONSE_FORMAT_OPTIONS = ['url', 'b64_json'] as const
+const OPENAI_IMAGES_MODERATION_OPTIONS = ['auto', 'low'] as const
+const OPENAI_IMAGES_STYLE_OPTIONS = ['vivid', 'natural'] as const
 
 export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = [
   {
@@ -66,10 +77,11 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
   {
     key: 'model',
     typeLabel: 'enum',
-    value: 'gpt-image-1.5 | gpt-image-1 | gpt-image-1-mini | dall-e-3 | dall-e-2',
+    value: 'gpt-image-2 | gpt-image-1.5 | gpt-image-1 | gpt-image-1-mini | dall-e-3 | dall-e-2',
+    options: OPENAI_IMAGES_MODEL_OPTIONS,
     responsibility: 'Model selector -> choose the OpenAI image model for generation.',
-    tooltipDefaultValue: 'gpt-image-1.5',
-    searchHints: ['gpt-image-1.5 gpt-image-1 gpt-image-1-mini dall-e-3 dall-e-2 model'],
+    tooltipDefaultValue: OPENAI_IMAGES_MODEL_DEFAULT,
+    searchHints: ['gpt-image-2 gpt-image-1.5 gpt-image-1 gpt-image-1-mini dall-e-3 dall-e-2 model'],
     modules: ['docs/documents/knowgrph-api-reference/api-reference-index_202604261230/openai-images-api-reference-index.md'],
     classes: ['ImageModel'],
     functions: ['Create image'],
@@ -89,6 +101,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     key: 'size',
     typeLabel: 'enum',
     value: 'auto | 1024x1024 | 1536x1024 | 1024x1536 | 256x256 | 512x512 | 1792x1024 | 1024x1792',
+    options: OPENAI_IMAGES_SIZE_OPTIONS,
     responsibility: 'Size selector -> control output dimensions for generated image.',
     tooltipDefaultValue: 'auto',
     searchHints: ['size 1024x1024 1536x1024 1024x1536 auto 256x256 512x512 1792x1024 1024x1792'],
@@ -97,6 +110,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     key: 'quality',
     typeLabel: 'enum',
     value: 'auto | low | medium | high | standard | hd',
+    options: OPENAI_IMAGES_QUALITY_OPTIONS,
     responsibility: 'Quality selector -> tune image fidelity against cost/latency.',
     tooltipDefaultValue: 'auto',
     searchHints: ['quality auto low medium high standard hd'],
@@ -105,6 +119,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     key: 'background',
     typeLabel: 'enum',
     value: 'auto | transparent | opaque',
+    options: OPENAI_IMAGES_BACKGROUND_OPTIONS,
     responsibility: 'Background mode -> choose transparent/opaque/auto background behavior.',
     tooltipDefaultValue: 'auto',
     searchHints: ['background transparent opaque auto'],
@@ -113,6 +128,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     key: 'output_format',
     typeLabel: 'enum',
     value: 'png | jpeg | webp',
+    options: OPENAI_IMAGES_OUTPUT_FORMAT_OPTIONS,
     responsibility: 'Output encoder -> choose generated image format.',
     tooltipDefaultValue: 'png',
     searchHints: ['output format png jpeg webp'],
@@ -121,6 +137,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     key: 'response_format',
     typeLabel: 'enum',
     value: 'url | b64_json',
+    options: OPENAI_IMAGES_RESPONSE_FORMAT_OPTIONS,
     responsibility: 'Response transport -> choose url or base64 JSON return mode for dall-e.',
     tooltipDefaultValue: 'url',
     searchHints: ['response format url b64_json'],
@@ -140,6 +157,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     key: 'moderation',
     typeLabel: 'enum',
     value: 'auto | low',
+    options: OPENAI_IMAGES_MODERATION_OPTIONS,
     responsibility: 'Moderation mode -> choose low or auto moderation policy for GPT image models.',
     tooltipDefaultValue: 'auto',
     searchHints: ['moderation low auto'],
@@ -178,6 +196,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     key: 'style',
     typeLabel: 'enum',
     value: 'vivid | natural',
+    options: OPENAI_IMAGES_STYLE_OPTIONS,
     responsibility: 'Style selector -> pick vivid or natural style for dall-e-3 generation.',
     tooltipDefaultValue: 'vivid',
     searchHints: ['style vivid natural dalle-3'],
@@ -209,7 +228,7 @@ export const OPENAI_IMAGES_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
   provider: { defaultValue: 'openai' },
   auth_mode: { defaultValue: 'serverManaged' },
   api_key: { defaultValue: '' },
-  model: { defaultValue: 'gpt-image-1.5' },
+  model: { defaultValue: OPENAI_IMAGES_MODEL_DEFAULT },
   prompt: { defaultValue: '' },
   size: { defaultValue: '1024x1024' },
   quality: { defaultValue: 'auto' },

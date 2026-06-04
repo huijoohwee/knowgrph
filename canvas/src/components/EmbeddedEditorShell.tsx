@@ -34,22 +34,22 @@ export function EmbeddedEditorShell(props: { active: boolean }) {
   const showMarkdown = !showGraphTable
 
   return (
-    <div className={`relative w-full h-full ${props.active ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!props.active}>
+    <section className={`relative w-full h-full ${props.active ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!props.active}>
       {showMarkdown ? (
-        <div className="absolute inset-0">
+        <section className="absolute inset-0">
           <React.Suspense fallback={null}>
             <MarkdownWorkspaceLazy active={props.active} />
           </React.Suspense>
-        </div>
+        </section>
       ) : null}
 
       {graphTableWarmed && showGraphTable ? (
-        <div className="absolute inset-0">
-          <React.Suspense fallback={<div className="p-3 text-sm opacity-70">Loading table…</div>}>
+        <section className="absolute inset-0">
+          <React.Suspense fallback={<section className="p-3 text-sm opacity-70">Loading table…</section>}>
             <GraphTableWorkspaceLazy active={props.active} />
           </React.Suspense>
-        </div>
+        </section>
       ) : null}
-    </div>
+    </section>
   )
 }

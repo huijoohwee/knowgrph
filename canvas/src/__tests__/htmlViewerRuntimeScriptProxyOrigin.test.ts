@@ -52,6 +52,10 @@ export function testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder() {
   if (!out.includes('scheduleEdgeGeometryUpdateForNode(nodeId)')) {
     throw new Error('Expected node offset translation to schedule edge geometry updates')
   }
+
+  if (out.includes("document.createElement('section')") || /<section\b|<\/div>/i.test(out)) {
+    throw new Error('Expected HTML viewer runtime-created DOM to avoid generic HTML division element containers')
+  }
 }
 
 export function testHtmlViewerRuntimeScriptDisablesNetworkByDefault() {

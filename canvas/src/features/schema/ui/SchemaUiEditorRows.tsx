@@ -21,7 +21,7 @@ function SchemaSubstepHeader({ title, label }: { title: string; label?: string }
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
   return (
-    <div className="flex items-center justify-between mb-1">
+    <section className="flex items-center justify-between mb-1">
       <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
         {title}
       </span>
@@ -30,7 +30,7 @@ function SchemaSubstepHeader({ title, label }: { title: string; label?: string }
           {label}
         </span>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -60,7 +60,7 @@ export function SchemaUiHeaderRow({
   )
   return (
     <>
-      <div className="Stack Stack_horizontal items-center gap-1 mb-1">
+      <section className="Stack Stack_horizontal items-center gap-1 mb-1">
         <select
           value={selectedKey}
           onChange={e => setSelectedKey(e.target.value)}
@@ -82,11 +82,11 @@ export function SchemaUiHeaderRow({
         >
           Add
         </button>
-      </div>
+      </section>
       {error && (
-        <div className={`${uiPanelMicroLabelTextSizeClass} text-red-600 mb-2`}>
+        <section className={`${uiPanelMicroLabelTextSizeClass} text-red-600 mb-2`}>
           {error}
-        </div>
+        </section>
       )}
     </>
   )
@@ -117,30 +117,30 @@ export function SchemaUiMetadataContextRow({
   )
   return (
     <TwoColumnEditorGrid className="mt-2">
-      <div className="flex min-h-0 flex-col">
+      <section className="flex min-h-0 flex-col">
         <SchemaSubstepHeader title="Metadata" label="Metadata" />
-        <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
+        <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           Shared provenance and RAG configuration belong here, not in per-type properties.
-        </div>
+        </section>
         <MarkdownStructuredTextEditor
           value={metadataText}
           onChange={v => setMetadataText(v)}
           className="w-full flex-1 min-h-0"
           language="json"
         />
-      </div>
-      <div className="flex min-h-0 flex-col">
+      </section>
+      <section className="flex min-h-0 flex-col">
         <SchemaSubstepHeader title="Context" label="Context" />
-        <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
+        <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           JSON-LD context for schema serialization.
-        </div>
+        </section>
         <MarkdownStructuredTextEditor
           value={contextText}
           onChange={v => setContextText(v)}
           className="w-full flex-1 min-h-0"
           language="json"
         />
-      </div>
+      </section>
     </TwoColumnEditorGrid>
   )
 }
@@ -156,7 +156,7 @@ export function SchemaUiTemplatePropsRow({
   )
   return (
     <TwoColumnEditorGrid className="flex-1 min-h-0">
-      <div className="flex min-h-0 flex-col">
+      <section className="flex min-h-0 flex-col">
         <SchemaSubstepHeader title="Template" label="Template" />
         <MarkdownStructuredTextEditor
           value={templateText}
@@ -164,20 +164,20 @@ export function SchemaUiTemplatePropsRow({
           className="w-full flex-1 min-h-0"
           language="json"
         />
-      </div>
-      <div className="flex min-h-0 flex-col">
+      </section>
+      <section className="flex min-h-0 flex-col">
         <SchemaSubstepHeader title="Properties" label="Properties" />
-        <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
+        <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           For shared schemas, keep provenance and RAG configuration in top-level metadata or context,
           not in node or edge properties.
-        </div>
+        </section>
         <MarkdownStructuredTextEditor
           value={propsText}
           onChange={v => setPropsText(v)}
           className="w-full flex-1 min-h-0"
           language="json"
         />
-      </div>
+      </section>
     </TwoColumnEditorGrid>
   )
 }
@@ -224,12 +224,12 @@ export function SchemaUiValidationRulesRow({
   )
   return (
     <TwoColumnEditorGrid className="mt-2">
-      <div className="flex min-h-0 flex-col">
+      <section className="flex min-h-0 flex-col">
         <SchemaSubstepHeader title="Validation" label="Validation" />
-        <div className="mb-2">
-          <div className={schemaLabelClassName}>{UI_COPY.validationRequiredFieldsTitle}</div>
-          <div className="grid grid-cols-3 gap-1">
-            {propertyNames.length === 0 && <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>(no properties)</div>}
+        <section className="mb-2">
+          <section className={schemaLabelClassName}>{UI_COPY.validationRequiredFieldsTitle}</section>
+          <section className="grid grid-cols-3 gap-1">
+            {propertyNames.length === 0 && <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>(no properties)</section>}
             {propertyNames.map(p => (
               <label key={p} className="flex items-center gap-1 text-xs">
                 <input
@@ -245,13 +245,13 @@ export function SchemaUiValidationRulesRow({
                 <span>{p}</span>
               </label>
             ))}
-          </div>
-        </div>
-        <div className="mb-2">
-          <div className={schemaLabelClassName}>{UI_COPY.validationPropertyTypesTitle}</div>
-          <div className="grid grid-cols-2 gap-1">
+          </section>
+        </section>
+        <section className="mb-2">
+          <section className={schemaLabelClassName}>{UI_COPY.validationPropertyTypesTitle}</section>
+          <section className="grid grid-cols-2 gap-1">
             {propertyNames.map(p => (
-              <div key={p} className="flex items-center gap-1">
+              <section key={p} className="flex items-center gap-1">
                 <span className={`${schemaValueTextClassName} ${UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME}`}>{p}</span>
                 <select
                   value={typesMap[p] ?? 'string'}
@@ -267,11 +267,11 @@ export function SchemaUiValidationRulesRow({
                   <option value="array">array</option>
                   <option value="object">object</option>
                 </select>
-              </div>
+              </section>
             ))}
-          </div>
-        </div>
-        <div className="Stack Stack_horizontal items-center gap-1 mb-2">
+          </section>
+        </section>
+        <section className="Stack Stack_horizontal items-center gap-1 mb-2">
           <button
             type="button"
             className={schemaActionButtonClassName}
@@ -335,20 +335,20 @@ export function SchemaUiValidationRulesRow({
           >
             {UI_COPY.validationInferTypesButtonLabel}
           </button>
-        </div>
+        </section>
         <MarkdownStructuredTextEditor
           value={validationText}
           onChange={v => setValidationText(v)}
           className="w-full flex-1 min-h-0"
           language="json"
         />
-      </div>
-      <div className="flex min-h-0 flex-col">
+      </section>
+      <section className="flex min-h-0 flex-col">
         <SchemaSubstepHeader title={rulesTitle ?? 'Rules'} label={rulesTitle ?? 'Rules'} />
         {rulesHelperText ? (
-          <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
+          <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
             {rulesHelperText}
-          </div>
+          </section>
         ) : null}
         <MarkdownStructuredTextEditor
           value={rulesText}
@@ -356,7 +356,7 @@ export function SchemaUiValidationRulesRow({
           className="w-full flex-1 min-h-0"
           language="json"
         />
-      </div>
+      </section>
     </TwoColumnEditorGrid>
   )
 }
@@ -378,12 +378,12 @@ export function SchemaUiRulesRow({
     s => s.uiPanelMicroLabelTextSizeClass || 'text-xs',
   )
   return (
-    <div className={className ?? ''}>
+    <section className={className ?? ''}>
       <SchemaSubstepHeader title={title} label={title} />
       {helperText ? (
-        <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
+        <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           {helperText}
-        </div>
+        </section>
       ) : null}
       <MarkdownStructuredTextEditor
         value={rulesText}
@@ -391,7 +391,7 @@ export function SchemaUiRulesRow({
         className={UI_RESPONSIVE_SCHEMA_RULES_TEXT_EDITOR_CLASSNAME}
         language="json"
       />
-    </div>
+    </section>
   )
 }
 
@@ -429,10 +429,10 @@ export function SchemaUiLayoutSection({
   )
 
   return (
-    <div className="mt-2">
+    <section className="mt-2">
       <SchemaSubstepHeader title="Layout" label="Layout" />
-      <div className="grid grid-cols-4 gap-2">
-        <div className="flex flex-col">
+      <section className="grid grid-cols-4 gap-2">
+        <section className="flex flex-col">
           <label className={schemaLabelClassName}>Charge</label>
           <input
             type="range"
@@ -443,9 +443,9 @@ export function SchemaUiLayoutSection({
             value={layoutCharge}
             onChange={e => setLayoutCharge(parseFloat(e.target.value))}
           />
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutCharge}</div>
-        </div>
-        <div className="flex flex-col">
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutCharge}</section>
+        </section>
+        <section className="flex flex-col">
           <label className={schemaLabelClassName}>Center Strength</label>
           <input
             type="range"
@@ -456,9 +456,9 @@ export function SchemaUiLayoutSection({
             value={layoutCenterStrength}
             onChange={e => setLayoutCenterStrength(parseFloat(e.target.value))}
           />
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutCenterStrength}</div>
-        </div>
-        <div className="flex flex-col">
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutCenterStrength}</section>
+        </section>
+        <section className="flex flex-col">
           <label className={schemaLabelClassName}>Alpha Decay</label>
           <input
             type="range"
@@ -469,9 +469,9 @@ export function SchemaUiLayoutSection({
             value={layoutAlphaDecay}
             onChange={e => setLayoutAlphaDecay(parseFloat(e.target.value))}
           />
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutAlphaDecay}</div>
-        </div>
-        <div className="flex flex-col">
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutAlphaDecay}</section>
+        </section>
+        <section className="flex flex-col">
           <label className={schemaLabelClassName}>Fit Padding</label>
           <input
             type="range"
@@ -482,29 +482,29 @@ export function SchemaUiLayoutSection({
             value={fitPadding}
             onChange={e => setFitPadding(parseFloat(e.target.value))}
           />
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{fitPadding}</div>
-        </div>
-      </div>
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{fitPadding}</section>
+        </section>
+      </section>
       <TwoColumnEditorGrid className="mt-2">
-        <div className="flex min-h-0 flex-col">
-          <div className="text-xs font-medium mb-1">Link Distance by Label</div>
+        <section className="flex min-h-0 flex-col">
+          <section className="text-xs font-medium mb-1">Link Distance by Label</section>
           <MarkdownStructuredTextEditor
             value={linkDistanceText}
             onChange={v => setLinkDistanceText(v)}
             className="w-full flex-1 min-h-0"
             language="json"
           />
-        </div>
-        <div className="flex min-h-0 flex-col">
-          <div className="text-xs font-medium mb-1">Collision Radius by Node Type</div>
+        </section>
+        <section className="flex min-h-0 flex-col">
+          <section className="text-xs font-medium mb-1">Collision Radius by Node Type</section>
           <MarkdownStructuredTextEditor
             value={collisionByTypeText}
             onChange={v => setCollisionByTypeText(v)}
             className="w-full flex-1 min-h-0"
             language="json"
           />
-        </div>
+        </section>
       </TwoColumnEditorGrid>
-    </div>
+    </section>
   )
 }

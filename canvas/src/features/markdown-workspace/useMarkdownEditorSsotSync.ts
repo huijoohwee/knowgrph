@@ -1,6 +1,6 @@
 import React from 'react'
 import type { GraphState } from '@/hooks/store/types'
-import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
+import { normalizeWebpageFrontmatterView, preferCanonicalYamlFrontmatterFencedText } from '@/lib/markdown/frontmatter'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
   WORKSPACE_SYNC_SCOPE_MARKDOWN_EDITOR_SSOT_RUNTIME_PERSISTENCE,
@@ -46,6 +46,7 @@ export function useMarkdownEditorSsotSync(args: {
   activeDocumentSourceUrl: string | null
   activeText: string
   activeTextOwnedByActivePath: boolean
+  canonicalMarkdownText?: string
   setActiveMarkdownDocument: GraphState['setActiveMarkdownDocument']
   paused?: boolean
 }): void {
@@ -54,6 +55,7 @@ export function useMarkdownEditorSsotSync(args: {
     activeDocumentSourceUrl,
     activeText,
     activeTextOwnedByActivePath,
+    canonicalMarkdownText,
     setActiveMarkdownDocument,
     paused,
   } = args
@@ -105,7 +107,11 @@ export function useMarkdownEditorSsotSync(args: {
         activeTextOwnedByActivePath,
       })) return
 
-      const normalized = normalizeWebpageFrontmatterView(rawNow, 'markdown')
+      const normalizedRaw = normalizeWebpageFrontmatterView(rawNow, 'markdown')
+      const normalized = preferCanonicalYamlFrontmatterFencedText({
+        candidateText: normalizedRaw,
+        canonicalText: canonicalMarkdownText || '',
+      })
       const normalizedHash = hashStringToHexCached(`markdown-editor-ssot-normalized:${key}`, normalized)
       const prev = lastPushedRef.current
       if (prev && prev.key === key && prev.textHash === normalizedHash) return
@@ -158,5 +164,5 @@ export function useMarkdownEditorSsotSync(args: {
         idleRef.current = null
       }
     }
-  }, [activeDocumentKey, activeDocumentSourceUrl, activeText, activeTextOwnedByActivePath, paused, setActiveMarkdownDocument])
+  }, [activeDocumentKey, activeDocumentSourceUrl, activeText, activeTextOwnedByActivePath, canonicalMarkdownText, paused, setActiveMarkdownDocument])
 }

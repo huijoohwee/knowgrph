@@ -30,8 +30,8 @@ export function ToolbarSettingsArea({
   }
 
   return (
-    <div className={uiToolbarAreaInsetStackClassName}>
-      <div className={uiToolbarAreaActionRowClassName}>
+    <section className={uiToolbarAreaInsetStackClassName}>
+      <section className={uiToolbarAreaActionRowClassName}>
         <label className={`${uiToolbarAreaLabelClassName} ${UI_THEME_TOKENS.text.primary}`}>
           <input
             type="checkbox"
@@ -54,7 +54,7 @@ export function ToolbarSettingsArea({
         >
           {EXPORT_UI_LABELS.exportSettingsJsonLd}
         </button>
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

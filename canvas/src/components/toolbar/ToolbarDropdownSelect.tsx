@@ -62,6 +62,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   const [expandedOptionId, setExpandedOptionId] = React.useState<string | null>(null)
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const optionButtonRefs = React.useRef<Array<HTMLButtonElement | null>>([])
+  const autoExpandedParentOptionIdRef = React.useRef<string | null>(null)
   const dropdownIdRef = React.useRef(`toolbar-dropdown-${Math.random().toString(36).slice(2)}`)
   const activeOption = React.useMemo(() => options.find(option => option.id === value) || options[0], [options, value])
   const enabledOptions = React.useMemo(() => options.filter(option => option.disabled !== true), [options])
@@ -88,21 +89,31 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   const closeMenuNow = React.useCallback(() => {
     setOpen(false)
     setExpandedOptionId(null)
+    autoExpandedParentOptionIdRef.current = null
   }, [])
   React.useEffect(() => {
     return subscribeToolbarDropdownOpen(detail => {
       if (detail.sourceId === dropdownIdRef.current) return
       setOpen(false)
       setExpandedOptionId(null)
+      autoExpandedParentOptionIdRef.current = null
     })
   }, [])
   React.useEffect(() => {
     if (!open) {
       optionButtonRefs.current = []
+      autoExpandedParentOptionIdRef.current = null
       if (expandedOptionId !== null) setExpandedOptionId(null)
       return
     }
-    if (activeParentOptionId && expandedOptionId == null) setExpandedOptionId(activeParentOptionId)
+    if (
+      activeParentOptionId &&
+      expandedOptionId == null &&
+      autoExpandedParentOptionIdRef.current !== activeParentOptionId
+    ) {
+      autoExpandedParentOptionIdRef.current = activeParentOptionId
+      setExpandedOptionId(activeParentOptionId)
+    }
     const preferredIndex = Math.max(0, enabledOptions.findIndex(option => option.id === value || option.id === activeParentOptionId))
     const rafId = requestAnimationFrame(() => {
       focusOptionAtIndex(preferredIndex)
@@ -133,6 +144,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
             emitToolbarDropdownOpen(dropdownIdRef.current)
           } else {
             setExpandedOptionId(null)
+            autoExpandedParentOptionIdRef.current = null
           }
           setOpen(next)
         }}
@@ -147,6 +159,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
           onClose={() => {
             setOpen(false)
             setExpandedOptionId(null)
+            autoExpandedParentOptionIdRef.current = null
           }}
           align="bottom-center"
         >
@@ -236,7 +249,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                       ) : null}
                     </button>
                     {option.disabled && option.enableHint ? (
-                      <div className={UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME}>{option.enableHint}</div>
+                      <section className={UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME}>{option.enableHint}</section>
                     ) : null}
                     {option.children && option.children.length > 0 && isExpanded ? (
                       <menu
@@ -276,7 +289,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                                 ) : null}
                               </button>
                               {child.disabled && child.enableHint ? (
-                                <div className={UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME}>{child.enableHint}</div>
+                                <section className={UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME}>{child.enableHint}</section>
                               ) : null}
                             </li>
                           )

@@ -29,6 +29,8 @@ frontmatter_contract: required
 | Shared tool contract | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Owns shared tool names, titles, descriptions, and input schema for browser WebMCP and HTTP MCP parity |
 | Browser WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Owns app-installed `navigator.modelContext` integration |
 | App bootstrap | `canvas/src/main.tsx` | Installs WebMCP runtime at app startup |
+| Local SuperAgent harness | `knowgrph_parser/superagent_harness.py`, `knowgrph_parser/superagent_plan.py`, `knowgrph_parser/superagent_tools.py` | Owns local long-horizon research/code/create artifact runs, trace memory, role-scoped agent contracts, and proof artifacts |
+| Local SuperAgent MCP tool | `mcp/server.js`, `mcp/local-tool-contract.js` | Owns local stdio MCP `knowgrph.superagent.run`; not deployed through Pages MCP |
 | MainPanel shared tab shell | `canvas/src/features/panels/MainPanel.tsx` | Owns tab registration and lazy mounting for `integrations` and `mcp` |
 | MainPanel Integrations hub | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | Thin `SettingsView mode="integrations"` shell |
 | MainPanel MCP hub | `canvas/src/features/panels/views/McpHubView.tsx` | Thin `SettingsView mode="mcp"` shell |
@@ -70,6 +72,9 @@ The following are explicitly non-authoritative and must not be used to justify n
 - any claim that the separate planned remote MCP platform in
   `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md` is already implemented in
   the current repo or deployed Cloudflare Pages surface
+- any claim that the local SuperAgent harness is a deployed public Pages/WebMCP mutation service
+- any copied DeerFlow code, copied DeerFlow architecture, DeerFlow-only parser, DeerFlow-only
+  renderer, DeerFlow-owned memory stack, or DeerFlow-owned graph apply path
 - any claim that the apex root homepage `/` is the Knowgrph service homepage
 - any parallel MainPanel MCP configuration system that bypasses `SettingsView`,
   `useSettingsChatAssist()`, or the existing open-panel helpers

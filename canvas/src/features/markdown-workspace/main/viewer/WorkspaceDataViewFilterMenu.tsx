@@ -99,7 +99,7 @@ export function WorkspaceDataViewFilterMenu(props: {
   if (!cfg) {
     return (
       <section className={['rounded border p-2', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')} aria-label="New filter">
-        <div className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>No data view config available.</div>
+        <section className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>No data view config available.</section>
       </section>
     )
   }
@@ -117,17 +117,17 @@ export function WorkspaceDataViewFilterMenu(props: {
             <ArrowLeft className={icon14} aria-hidden="true" />
           </button>
         ) : null}
-        <div className={['min-w-0 flex-1 font-medium text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
+        <section className={['min-w-0 flex-1 font-medium text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
           {target ? `Filter: ${target.column.name}` : 'New filter'}
-        </div>
+        </section>
       </header>
 
       {target ? (
-        <div className="px-2 pb-2">
+        <section className="px-2 pb-2">
           {target.column.kind === 'select' && Array.isArray(target.column.options) && target.column.options.length ? (
             <fieldset className="border-0 p-0 m-0">
               <legend className="sr-only">Select value</legend>
-              <div className={`${uiToolbarRowScrollClassName} gap-1`}>
+              <section className={`${uiToolbarRowScrollClassName} gap-1`}>
                 {target.column.options.map(o => (
                   <button
                     key={o}
@@ -142,7 +142,7 @@ export function WorkspaceDataViewFilterMenu(props: {
                     {o}
                   </button>
                 ))}
-              </div>
+              </section>
             </fieldset>
           ) : (
             <label className="block">
@@ -158,7 +158,7 @@ export function WorkspaceDataViewFilterMenu(props: {
             </label>
           )}
 
-          <div className="mt-2 flex items-center justify-end">
+          <section className="mt-2 flex items-center justify-end">
             <button
               type="button"
               className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
@@ -166,8 +166,8 @@ export function WorkspaceDataViewFilterMenu(props: {
             >
               <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>Apply</span>
             </button>
-          </div>
-        </div>
+          </section>
+        </section>
       ) : (
         <>
           <menu className="m-0 p-0" aria-label="Filter properties">
@@ -185,7 +185,7 @@ export function WorkspaceDataViewFilterMenu(props: {
             ))}
           </menu>
 
-          <div className={['my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
+          <section className={['my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
           <button
             type="button"
             className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}

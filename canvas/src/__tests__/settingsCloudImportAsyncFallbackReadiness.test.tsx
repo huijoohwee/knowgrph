@@ -86,13 +86,13 @@ function SettingsCloudImportAsyncFallbackHarness(props: {
   })
 
   return (
-    <div>
-      <div data-draft-knowgrph-cloud-url={String(values.chatKnowgrphCloudUrl || '')} />
-      <div data-draft-history-cloud-url={String(values.chatHistoryCloudUrl || '')} />
-      <div data-draft-knowgrph-storage-mode={String(values.chatKnowgrphStorageMode || '')} />
-      <div data-draft-history-storage-mode={String(values.chatHistoryStorageMode || '')} />
-      <div data-knowgrph-status={String(knowgrphPathStatus || '')} />
-      <div data-history-status={String(chatHistoryPathStatus || '')} />
+    <section>
+      <section data-draft-knowgrph-cloud-url={String(values.chatKnowgrphCloudUrl || '')} />
+      <section data-draft-history-cloud-url={String(values.chatHistoryCloudUrl || '')} />
+      <section data-draft-knowgrph-storage-mode={String(values.chatKnowgrphStorageMode || '')} />
+      <section data-draft-history-storage-mode={String(values.chatHistoryStorageMode || '')} />
+      <section data-knowgrph-status={String(knowgrphPathStatus || '')} />
+      <section data-history-status={String(chatHistoryPathStatus || '')} />
       <button
         type="button"
         onClick={() => patchChatValues({
@@ -114,7 +114,7 @@ function SettingsCloudImportAsyncFallbackHarness(props: {
       >
         Async Fallback Import History Cloud URL
       </button>
-    </div>
+    </section>
   )
 }
 
@@ -146,8 +146,8 @@ export async function testSettingsCloudImportAsyncFallbackKeepsCommittedSurfaceT
     store.setChatHistoryCloudUrl('https://cloud.example/fallback-initial-history-async.md')
 
     const doc = dom.window.document
-    const settingsContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const settingsContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(settingsContainer)
     doc.body.appendChild(chatContainer)
     settingsRoot = createRoot(settingsContainer as unknown as HTMLElement)

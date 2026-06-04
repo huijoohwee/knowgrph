@@ -44,7 +44,7 @@ export default function MainPanelSectionHeader({
         .join(' ')}
       aria-label={ariaLabel}
     >
-      <div
+      <section
         className={[
           MAIN_PANEL_SECTION_HEADER_TITLE_CLASS_NAME,
           titleClassName || '',
@@ -53,9 +53,9 @@ export default function MainPanelSectionHeader({
           .join(' ')}
       >
         {title}
-      </div>
+      </section>
       {actions ? (
-        <div
+        <section
           className={[
             MAIN_PANEL_SECTION_HEADER_ACTIONS_CLASS_NAME,
             actionsClassName || '',
@@ -64,7 +64,7 @@ export default function MainPanelSectionHeader({
             .join(' ')}
         >
           {actions}
-        </div>
+        </section>
       ) : null}
     </header>
   )

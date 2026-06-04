@@ -21,7 +21,7 @@ import {
 import {
   FLOW_WIDGET_FORM_ID_KEY,
   FLOW_WIDGET_TYPE_ID_KEY,
-  resolveNodeWidgetIdentity,
+  resolveWidgetIdentity,
   resolveWidgetRegistryEntry,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -235,7 +235,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       return
     }
     const props = (node?.properties || {}) as Record<string, unknown>
-    const widgetIdentity = resolveNodeWidgetIdentity({ node })
+    const widgetIdentity = resolveWidgetIdentity({ node })
     const inferredMode = inferSmartMediaMode({
       nodeTypeId,
       formId: widgetIdentity.formId,
@@ -320,7 +320,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     }
 
     const props = (node.properties || {}) as Record<string, unknown>
-    const widgetIdentity = resolveNodeWidgetIdentity({ node })
+    const widgetIdentity = resolveWidgetIdentity({ node })
     const inferredMode = inferSmartMediaMode({
       nodeTypeId: baseType,
       formId: widgetIdentity.formId,

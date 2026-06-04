@@ -15,11 +15,12 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 
 | Surface | Status | Canonical owner | Notes |
 |---|---|---|---|
-| Local stdio MCP | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` | local UI launch, local pipelines, local browser bridge, and local MCP Apps resource support |
-| Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP on `/knowgrph/mcp`, including tool and resource discovery |
-| MCP Apps resource/server-readiness | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` + `cloudflare/pages/knowgrph-agent-ready.mjs` + `mcp/server.js` | native `io.modelcontextprotocol/ui` capability, `ui://knowgrph/agent-ready`, `text/html;profile=mcp-app`, `resources/list`, `resources/read`, and `mcpAppsServerReadiness` |
-| Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | shared five-tool WebMCP injection on `/knowgrph` HTML routes |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, and browser-local E2E readiness inspectors |
+| Local stdio MCP | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` + `knowgrphAgentReadyPromptContract.mjs` + `knowgrphAgentReadyResourceContract.mjs` | standard read-only `search`/`fetch`, prompt discovery, resource-template discovery, local UI launch, local pipelines, local browser bridge, and local MCP Apps resource support |
+| Local SuperAgent harness | Shipped | `knowgrph_parser/superagent_harness.py` + `knowgrph_parser/superagent_plan.py` + `knowgrph_parser/superagent_tools.py` + `mcp/server.js` | CLI/local-MCP long-horizon research/code/create artifact runs through `knowgrph.superagent.run`; DeerFlow-inspired concepts only, no copied architecture |
+| Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP on `/knowgrph/mcp`, including tool/resource/prompt/template discovery and data-first `search`/`fetch` |
+| MCP Apps resource/server-readiness | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` + `canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs` + `cloudflare/pages/knowgrph-agent-ready.mjs` + `mcp/server.js` | native `io.modelcontextprotocol/ui` capability, `ui://knowgrph/agent-ready`, `text/html;profile=mcp-app`, `kgdoc://source-file/{id}`, mirrored no-auth `securitySchemes`, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, `prompts/list`, `prompts/get`, `resources/templates/list`, `resources/list`, `resources/read`, and `mcpAppsServerReadiness` |
+| Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | shared seven-tool WebMCP injection on `/knowgrph` HTML routes; `inspect_agent_surface` reads structured content through `/knowgrph/mcp` |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with descriptor-complete shared tools, `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, and browser-local E2E readiness inspectors |
 | MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
 | FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown -> Canvas apply path |
 | Remote Worker MCP platform | Planned extension | none in repo yet | must not be documented as implemented |
@@ -42,10 +43,18 @@ The current shipped MCP-aware path is:
 Guardrails:
 
 - WebMCP is already implemented in repo and must not be described as future-only work.
+- Local SuperAgent execution is already implemented in repo, but it remains a local CLI/stdio MCP surface and must not be described as a deployed public Pages/WebMCP mutation service.
+- DeerFlow-inspired SuperAgent language is conceptual-reference-only: no copied DeerFlow code, copied architecture, DeerFlow-only parser, DeerFlow-only renderer, or DeerFlow-owned graph apply path.
 - MCP Apps-ready means the shipped MCP servers expose a native UI resource and tool linkage; the repo does not copy the upstream `modelcontextprotocol/ext-apps` examples or add an ext-apps runtime dependency for the current resource.
 - The canonical MCP Apps resource URI is `ui://knowgrph/agent-ready` and its MIME type is `text/html;profile=mcp-app`.
-- `inspect_agent_surface.structuredContent.mcpAppsServerReadiness` is the canonical server-readiness model for app tool/resource binding, output schema, text fallback, structured content, sandbox metadata, HTTP JSON-RPC transport, and local stdio transport.
-- Local stdio and Pages HTTP MCP both expose resource discovery and resource read handling from the shared MCP Apps-ready contract.
+- The app resource HTML supports both host bridge shapes from the shared resource owner: OpenAI Apps `window.openai` globals / `openai:set_globals` for ChatGPT widgets and the native MCP Apps `ui/initialize` / `ui/notifications/initialized` lifecycle for extension-capable hosts.
+- `search` and `fetch` are the canonical data-first published document tools for OpenAI Deep Research-style hosts, Claude, Qwen Code, Kimi CLI, BytePlus ModelArk, and generic MCP clients; Pages HTTP MCP, local stdio MCP, and WebMCP expose them as read-only tools returning stable `kgdoc:` Source File IDs, citation-ready result URLs, and complete markdown as both `content` and `text` without mutating graph state.
+- `search` ranks Source Files with bounded content-aware scoring through the same storage reader used by `fetch`; it must not remain index-line-only because natural LLM queries often target terms inside markdown body content rather than filenames.
+- Public retrieval and discovery tools declare complete read-only, non-destructive, non-open-world, idempotent annotations; browser-local inspectors remain read-only, non-destructive, non-open-world, and idempotent.
+- `prompts/list` and `prompts/get` expose shared read-only host guidance prompts for Source Files research and agent-surface inspection; prompts tell hosts to use existing tools and do not create a second execution path.
+- `resources/templates/list` exposes `kgdoc://source-file/{id}` from `knowgrphAgentReadyResourceContract.mjs`; `resources/read` resolves that URI through the existing `fetch` executor instead of creating a second Source Files read path.
+- `inspect_agent_surface.structuredContent.mcpAppsServerReadiness` is the canonical server-readiness model for app tool/resource binding, Source Files resource-template discovery, OpenAI output-template/widget metadata, OpenAI widget bridge compatibility, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored no-auth `securitySchemes`, read-only annotations, widget accessibility, output schema, text fallback, structured content, sandbox/security metadata, prompt discovery, `search`/`fetch` output-schema readiness, Streamable HTTP JSON-RPC transport, and local stdio transport.
+- Local stdio and Pages HTTP MCP both expose resource discovery, resource-template discovery, and resource read handling from shared MCP Apps-ready contracts.
 - Browser WebMCP inspection now reaches Settings chat readiness plus chat validation/finalize/apply diagnostics while remaining read-only.
 - `flow.subgraphs` is the sole upstream grouping authoring surface.
 - Rendered groups and clusters are downstream projections, not a second authoring SSOT.
@@ -55,17 +64,29 @@ Guardrails:
 
 ## MCP Apps Reference Boundary
 
-As of 2026-05-31, the upstream MCP Apps reference points Knowgrph cares about are:
+As of 2026-06-04, the upstream MCP Apps, OpenAI Apps, Qwen Code/Qwen-Agent, Kimi CLI, BytePlus ModelArk, and FastMCP reference points Knowgrph cares about are:
 
 - MCP Apps is an optional MCP extension identified by `io.modelcontextprotocol/ui`.
 - UI resources use the `ui://` scheme and HTML resources use `text/html;profile=mcp-app`.
 - Tools link to UI resources through `_meta.ui.resourceUri`.
-- App resources are listed and read through MCP resource handlers, then sandboxed by the host.
+- OpenAI Apps-compatible tools also expose `_meta["openai/outputTemplate"]` pointing at the same UI resource.
+- OpenAI Apps-compatible tool descriptors expose `securitySchemes` and mirror them in `_meta.securitySchemes`; Knowgrph currently declares no-auth because the shipped public retrieval/app tools do not require OAuth.
+- Browser WebMCP and the Pages HTML fallback preserve shared `outputSchema`, `securitySchemes`, annotations, and `_meta` fields instead of narrowing descriptors per transport.
+- UI-backed tools that the app resource can call expose `_meta["openai/widgetAccessible"] = true`.
+- App resources declare sandbox/security metadata through `_meta.ui.csp`, border preference, and a derived `_meta.ui.domain` / `_meta["openai/widgetDomain"]` when the serving app URL has an origin.
+- Remote HTTP MCP uses Streamable HTTP semantics; JSON-RPC requests use POST, metadata discovery can use JSON GET, client notifications/responses return 202 with no body, and GET with `Accept: text/event-stream` returns 405 because Knowgrph does not open an SSE stream. Local clients use stdio.
+- Data-first MCP connectors expose read-only `search(query)` and `fetch(id)` tools when a host needs indexed retrieval plus full-content fetch; Knowgrph search uses bounded markdown-content scoring on top of Source Files index discovery.
+- Multi-host MCP servers can expose prompt templates alongside tools and resources; Knowgrph uses prompts only for read-only guidance over existing tools.
+- MCP resources use the standard `resources` capability; parameterized resources are discovered with `resources/templates/list`, not a separate capability.
+- App resources are listed and read through MCP resource handlers, then sandboxed by the host; Source Files resources use `kgdoc://source-file/{id}` and return `text/markdown`.
 - Tool results must remain useful without UI through text fallback and structured output.
+- Qwen Code remote MCP clients install the Pages HTTP endpoint with `qwen mcp add --transport http knowgrph https://airvio.co/knowgrph/mcp` or equivalent `mcpServers.knowgrph.httpUrl`; Knowgrph exposes this setup through the shared server card and readiness payload instead of as a docs-only snippet.
+- Kimi CLI remote MCP clients install the Pages HTTP endpoint with `kimi mcp add --transport http knowgrph https://airvio.co/knowgrph/mcp` or equivalent `~/.kimi/mcp.json` `mcpServers.knowgrph.url`; Knowgrph exposes this setup through the shared server card and readiness payload instead of as a docs-only snippet.
+- BytePlus ModelArk invokes remote MCP through the Responses API with `ark-beta-mcp: true` and a `tools` item shaped as `{ "type": "mcp", "server_label": "knowgrph", "server_url": "https://airvio.co/knowgrph/mcp", "require_approval": "never" }`; BytePlus only invokes Cloud-deployed MCP/Remote MCP over Streamable HTTP, so Knowgrph exposes this setup through the shared server card and readiness payload.
 
 Knowgrph implements those primitives natively through the owners above. The upstream `modelcontextprotocol/ext-apps` repository and docs are references only; they are not copied into this repo.
 
-References: [MCP Apps overview](https://modelcontextprotocol.io/extensions/apps/overview), [MCP Apps specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), [MCP Apps API docs](https://apps.extensions.modelcontextprotocol.io/api/).
+References: [MCP Apps overview](https://modelcontextprotocol.io/extensions/apps/overview), [MCP Apps specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), [MCP Apps API docs](https://apps.extensions.modelcontextprotocol.io/api/), [OpenAI Apps SDK MCP server guide](https://developers.openai.com/apps-sdk/build/mcp-server), [OpenAI Apps SDK UI guide](https://developers.openai.com/apps-sdk/build/chatgpt-ui), [Qwen Code MCP guide](https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/), [Qwen-Agent MCP guide](https://qwenlm.github.io/Qwen-Agent/en/guide/core_moduls/mcp/), [Kimi CLI MCP guide](https://moonshotai.github.io/kimi-cli/en/customization/mcp.html), [BytePlus ModelArk remote MCP guide](https://docs.byteplus.com/en/docs/modelark/1827534), [FastMCP ChatGPT integration](https://github.com/prefecthq/fastmcp/blob/main/docs/integrations/chatgpt.mdx).
 
 ---
 
@@ -82,6 +103,7 @@ This file is an overview and document index. The canonical detailed contracts li
 ## Policy
 
 - keep one SSOT contract per MCP surface
+- keep local SuperAgent harness truth in `knowgrph-superagent-harness.md`, `knowgrph_parser/*`, and `mcp/local-tool-contract.js`
 - reuse the shipped chat/validation/parser/apply chain instead of creating a second MCP-only graph pipeline
 - introduce future remote tools as thin adapters over current owners
 - remove stale/conflicting content instead of preserving parallel narratives

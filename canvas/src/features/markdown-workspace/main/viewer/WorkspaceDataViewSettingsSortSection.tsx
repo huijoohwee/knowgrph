@@ -40,7 +40,7 @@ export function WorkspaceDataViewSettingsSortSection(props: {
   return (
     <section aria-label="Sort">
       <section className={['rounded border p-2 space-y-2', UI_THEME_TOKENS.panel.border].join(' ')} aria-label="Sort rules">
-        <div className={`${uiToolbarRowScrollClassName} gap-2`}>
+        <section className={`${uiToolbarRowScrollClassName} gap-2`}>
           <label className="min-w-0 flex-1">
             <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Field</span>
             <select
@@ -66,16 +66,16 @@ export function WorkspaceDataViewSettingsSortSection(props: {
               <option value="desc">DESC</option>
             </select>
           </label>
-        </div>
+        </section>
 
-        <div className="flex min-w-0 max-w-full items-center justify-end">
+        <section className="flex min-w-0 max-w-full items-center justify-end">
           <DataViewToolbarButton
             label="Clear"
             onClick={() => props.onChangeView({ ...props.view, sortRules: [] })}
             disabled={props.view.sortRules.length === 0}
             leadingIcon={<ArrowUpDown className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
           />
-        </div>
+        </section>
       </section>
     </section>
   )

@@ -54,7 +54,7 @@ export function useThreeRichMediaOverlayController(args: {
   effectiveSchema: GraphSchema
   positions: Record<string, [number, number, number]>
   glCanvasRef: React.MutableRefObject<HTMLCanvasElement | null>
-  containerRef: React.MutableRefObject<HTMLDivElement | null>
+  containerRef: React.MutableRefObject<HTMLElement | null>
   threeCameraRef: React.MutableRefObject<Camera | null>
   threeGlRef: React.MutableRefObject<WebGLRenderer | null>
   draggedNodeIdRef: React.MutableRefObject<string | null>

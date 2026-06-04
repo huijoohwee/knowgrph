@@ -36,7 +36,7 @@ export default function HistoryPanel({ onClose }: { onClose?: () => void }) {
       searchQuery={search}
       onSearchChange={setSearch}
       rightSlot={(
-        <div className="Stack Stack_horizontal items-center">
+        <section className="Stack Stack_horizontal items-center">
           <IconButton className="App-toolbar__btn" title={UI_LABELS.search} onClick={() => setSearchOpen(v => !v)} showTooltip>
             <SearchIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
           </IconButton>
@@ -49,38 +49,38 @@ export default function HistoryPanel({ onClose }: { onClose?: () => void }) {
           <IconButton className="App-toolbar__btn" title={UI_LABELS.close} onClick={onClose} showTooltip>
             <CloseIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
           </IconButton>
-        </div>
+        </section>
       )}
     >
-      <div className="px-3">
-        <div className="mb-2 flex items-center gap-2">
+      <section className="px-3">
+        <section className="mb-2 flex items-center gap-2">
           <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} showTooltip>
             <ResetIcon className={`${iconSizeClass} rotate-180`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
           </IconButton>
           <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} showTooltip>
             <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
           </IconButton>
-        </div>
-      </div>
-      <div className="flex-1 min-h-0 overflow-auto px-3">
+        </section>
+      </section>
+      <section className="flex-1 min-h-0 overflow-auto px-3">
         {filtered.length === 0 ? (
-          <div className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>No history yet</div>
+          <section className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>No history yet</section>
         ) : (
-          <div>
+          <section>
             {filtered.map((h, idx) => (
-              <div key={h.id} className={`px-3 py-2 text-sm flex items-center justify-between ${idx === historyIndex ? 'bg-blue-50' : ''}`}>
-                <div>
-                  <div className={UI_THEME_TOKENS.text.primary}>{h.label}</div>
-                  <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{formatTimestamp(h.timestamp)}</div>
-                </div>
+              <section key={h.id} className={`px-3 py-2 text-sm flex items-center justify-between ${idx === historyIndex ? 'bg-blue-50' : ''}`}>
+                <section>
+                  <section className={UI_THEME_TOKENS.text.primary}>{h.label}</section>
+                  <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{formatTimestamp(h.timestamp)}</section>
+                </section>
                 <IconButton className="App-toolbar__btn" title={UI_LABELS.restore} onClick={() => restoreHistory(history.findIndex(x => x.id === h.id))} showTooltip>
                   <RestoreIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
                 </IconButton>
-              </div>
+              </section>
             ))}
-          </div>
+          </section>
         )}
-      </div>
+      </section>
     </MainPanelFrame>
   )
 }

@@ -49,7 +49,7 @@ function TokenDetail({ token }: { token: TokenRow | null }) {
         <dt className={cn('m-0', UI_THEME_TOKENS.text.secondary)}>Dark</dt>
         <dd className="m-0">{token.dark}</dd>
       </dl>
-      <div className="mt-4 flex flex-col gap-2">
+      <section className="mt-4 flex flex-col gap-2">
         <button
           type="button"
           className={cn('px-3 py-2 rounded-md border text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_FOCUS_RING)}
@@ -64,7 +64,7 @@ function TokenDetail({ token }: { token: TokenRow | null }) {
         >
           Copy TypeScript
         </button>
-      </div>
+      </section>
     </aside>
   )
 }
@@ -105,7 +105,7 @@ export default function TokensExplorer() {
       </section>
 
       <section className={cn('p-4', UI_SURFACE_CARD)} aria-label="Token table">
-        <div className="overflow-auto">
+        <section className="overflow-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className={cn('border-b', UI_THEME_TOKENS.panel.divider)}>
@@ -137,7 +137,7 @@ export default function TokensExplorer() {
               })}
             </tbody>
           </table>
-        </div>
+        </section>
       </section>
 
       <TokenDetail token={selected} />

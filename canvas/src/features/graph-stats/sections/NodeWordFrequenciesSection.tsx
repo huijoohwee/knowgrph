@@ -39,19 +39,19 @@ export default function NodeWordFrequenciesSection({
   return (
     <CollapsibleSection title="Word frequencies by node">
       {!tokensForSelectedNodes ? (
-        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {UI_COPY.statsSelectNodesToSeeTokenFrequenciesLabel}
-        </div>
+        </section>
       ) : (
-        <div className="space-y-2">
-          <div className={statsPanelClassName}>
-            <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
+        <section className="space-y-2">
+          <section className={statsPanelClassName}>
+            <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
               Selection
-            </div>
-            <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-1 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
+            </section>
+            <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-1 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
               {tokensForSelectedNodes.nodeCount} nodes, {tokensForSelectedNodes.totalTokens} tokens
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1">
+            </section>
+            <section className="mt-2 flex flex-wrap gap-1">
               {tokensForSelectedNodes.topTokens.map(t => (
                 <span
                   key={t.token}
@@ -75,15 +75,15 @@ export default function NodeWordFrequenciesSection({
                   <span className={UI_THEME_TOKENS.text.tertiary}>{t.count}</span>
                 </span>
               ))}
-            </div>
-          </div>
+            </section>
+          </section>
 
           {tokensForSelectedNode && (
-            <div className={statsPanelClassName}>
-              <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
+            <section className={statsPanelClassName}>
+              <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
                 Focus node
-              </div>
-              <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-1 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
+              </section>
+              <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-1 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
                 id: <span className={uiPanelMonospaceTextClass}>{String(tokensForSelectedNode.node.id)}</span>
                 {tokensForSelectedNode.node.label ? (
                   <>
@@ -92,8 +92,8 @@ export default function NodeWordFrequenciesSection({
                   </>
                 ) : null}{' '}
                 · {tokensForSelectedNode.totalTokens} tokens
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
+              </section>
+              <section className="mt-2 flex flex-wrap gap-1">
                 {tokensForSelectedNode.topTokens.map(t => (
                   <span
                     key={t.token}
@@ -117,10 +117,10 @@ export default function NodeWordFrequenciesSection({
                     <span className={UI_THEME_TOKENS.text.tertiary}>{t.count}</span>
                   </span>
                 ))}
-              </div>
-            </div>
+              </section>
+            </section>
           )}
-        </div>
+        </section>
       )}
     </CollapsibleSection>
   )

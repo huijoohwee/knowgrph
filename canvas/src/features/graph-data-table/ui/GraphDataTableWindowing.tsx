@@ -22,11 +22,11 @@ type GraphDataTableWindowingOptions = {
   overscanMultiplier: number
   debugLogRanges: boolean
   onVisibleRangeChange?: (range: VisibleRowRange) => void
-  scrollContainerRef: React.RefObject<HTMLDivElement>
+  scrollContainerRef: React.RefObject<HTMLElement>
 }
 
 type GraphDataTableWindowingResult = {
-  handleScroll: (event: React.UIEvent<HTMLDivElement>) => void
+  handleScroll: (event: React.UIEvent<HTMLElement>) => void
   startIndex: number
   endIndex: number
   topSpacerHeight: number
@@ -58,7 +58,7 @@ export function useGraphDataTableWindowing(options: GraphDataTableWindowingOptio
   const onVisibleRangeChangeRef = React.useRef<GraphDataTableWindowingOptions['onVisibleRangeChange']>()
   const scrollContainerEl = scrollContainerRef.current
 
-  const handleScroll = React.useCallback((event: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = React.useCallback((event: React.UIEvent<HTMLElement>) => {
     const next = event.currentTarget.scrollTop
     setScrollTop(prev => (next === prev ? prev : next))
   }, [])

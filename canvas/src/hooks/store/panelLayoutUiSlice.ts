@@ -19,8 +19,7 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
   return {
     bottomSurfaceHeightRatio: lsNum(LS_KEYS.bottomSurfaceHeight, 0.35),
     bottomSurfaceCollapsed: lsBool(LS_KEYS.bottomSurfaceCollapsed, true),
-    floatingPanelWidthRatio: lsNum(LS_KEYS.floatingPanelWidthRatio, 0.25),
-    floatingPanelHeightRatio: lsNum(LS_KEYS.floatingPanelHeightRatio, 0.5),
+    floatingPanelWidthRatio: lsNum(LS_KEYS.floatingPanelWidthRatio, 0.3),
     floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, Z_INDEX_FLOATING_PANEL_DEFAULT),
     bottomSurfaceTab: 'stats' as BottomSurfaceTab,
     requestedHistorySubTab: null as string | null,
@@ -35,10 +34,6 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     setFloatingPanelWidthRatio: (v: number) =>
       set({
         floatingPanelWidthRatio: lsSetNum(LS_KEYS.floatingPanelWidthRatio, v),
-      }),
-    setFloatingPanelHeightRatio: (v: number) =>
-      set({
-        floatingPanelHeightRatio: lsSetNum(LS_KEYS.floatingPanelHeightRatio, v),
       }),
     setFloatingPanelZIndex: (v: number) =>
       set({

@@ -4,8 +4,10 @@ import type { GraphData } from '@/lib/graph/types'
 import {
   CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_GOOGLE_CLOUD,
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
+  CHAT_PROVIDER_QWEN,
   isResponsesEndpointUrl,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
@@ -161,11 +163,16 @@ export const buildProviderChatRequestOptions = (args: {
     }
   }
 
-  if (provider !== CHAT_PROVIDER_OPENAI && provider !== CHAT_PROVIDER_MIROMIND) return base
+  if (provider !== CHAT_PROVIDER_OPENAI && provider !== CHAT_PROVIDER_MIROMIND && provider !== CHAT_PROVIDER_QWEN && provider !== CHAT_PROVIDER_GOOGLE_CLOUD) return base
 
-  const providerLabel = provider === CHAT_PROVIDER_MIROMIND
-    ? 'MiroMind'
-    : 'OpenAI'
+  const providerLabel =
+    provider === CHAT_PROVIDER_MIROMIND
+      ? 'MiroMind'
+      : provider === CHAT_PROVIDER_QWEN
+        ? 'Qwen'
+        : provider === CHAT_PROVIDER_GOOGLE_CLOUD
+          ? 'Google Cloud'
+        : 'OpenAI'
   const logprobs = coerceBooleanFlag(args.chatLogprobs, false)
   const topLogprobs = clampBytePlusTopLogprobs(args.chatTopLogprobs)
   const stop = parseOptionalJsonConfig(args.chatStopJson, 'stop', providerLabel)

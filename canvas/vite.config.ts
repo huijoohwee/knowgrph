@@ -16,6 +16,7 @@ import {
   STRIPE_PAYMENT_ROUTE_PATHS,
   buildStripeCheckoutSessionCreateForm,
   isStripeCheckoutReturnUrlAllowed,
+  readStripeCheckoutRequestUrlOrigin,
   readStripeCheckoutReturnOrigin,
   readStripePaymentServerKey,
   resolveStripeCheckoutServerConfig,
@@ -64,9 +65,29 @@ const GRABMAPS_PROXY_PREFIX = GRABMAPS_PROXY_PATH
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_MIROMIND_HOST = 'api.miromind.ai'
 const CHAT_PROXY_AGNES_HOST = 'apihub.agnes-ai.com'
+const CHAT_PROXY_QWEN_SINGAPORE_HOST = 'dashscope-intl.aliyuncs.com'
+const CHAT_PROXY_QWEN_US_VIRGINIA_HOST = 'dashscope-us.aliyuncs.com'
+const CHAT_PROXY_QWEN_CHINA_BEIJING_HOST = 'dashscope.aliyuncs.com'
+const CHAT_PROXY_QWEN_HONG_KONG_HOST = 'cn-hongkong.dashscope.aliyuncs.com'
+const CHAT_PROXY_GOOGLE_CLOUD_GLOBAL_HOST = 'aiplatform.googleapis.com'
+const CHAT_PROXY_GOOGLE_CLOUD_US_CENTRAL1_HOST = 'us-central1-aiplatform.googleapis.com'
+const CHAT_PROXY_GOOGLE_CLOUD_EUROPE_WEST4_HOST = 'europe-west4-aiplatform.googleapis.com'
+const CHAT_PROXY_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST = 'asia-southeast1-aiplatform.googleapis.com'
 const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 const CHAT_PROXY_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
+const CHAT_PROXY_QWEN_HOSTS = new Set([
+  CHAT_PROXY_QWEN_SINGAPORE_HOST,
+  CHAT_PROXY_QWEN_US_VIRGINIA_HOST,
+  CHAT_PROXY_QWEN_CHINA_BEIJING_HOST,
+  CHAT_PROXY_QWEN_HONG_KONG_HOST,
+])
+const CHAT_PROXY_GOOGLE_CLOUD_HOSTS = new Set([
+  CHAT_PROXY_GOOGLE_CLOUD_GLOBAL_HOST,
+  CHAT_PROXY_GOOGLE_CLOUD_US_CENTRAL1_HOST,
+  CHAT_PROXY_GOOGLE_CLOUD_EUROPE_WEST4_HOST,
+  CHAT_PROXY_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST,
+])
 const CHAT_PROXY_BYTEPLUS_HOSTS = new Set([CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST, CHAT_PROXY_BYTEPLUS_EU_WEST_HOST])
 const CHAT_LOG_MAX_BODY_BYTES = 1024 * 1024
 const CHAT_LOG_MAX_FIELD_LENGTH = 20_000
@@ -79,17 +100,19 @@ const readSingleHeader = (value: unknown): string => {
   return ''
 }
 const isLocalChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_LOCAL_HOSTS.has(normalizeHost(value))
+const isQwenChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_QWEN_HOSTS.has(normalizeHost(value))
+const isGoogleCloudChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_GOOGLE_CLOUD_HOSTS.has(normalizeHost(value))
 const isBytePlusChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_BYTEPLUS_HOSTS.has(normalizeHost(value))
 const parseAllowedChatProxyHosts = (): Set<string> => {
   const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
-  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   const out = new Set<string>()
   envValue
     .split(',')
     .map(part => normalizeHost(part))
     .filter(Boolean)
     .forEach(host => out.add(host))
-  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   return out
 }
 const toLogSafeText = (value: unknown): string => {
@@ -474,7 +497,7 @@ async function createStripeCheckoutSessionServer(args: {
   successUrl: string
   cancelUrl: string
   workspaceId?: string | null
-  requestOrigin: string
+  serverOrigin: string
 }): Promise<{ id: string; url: string }> {
   const apiKey = readStripePaymentServerKey(process.env)
   if (!apiKey) {
@@ -484,10 +507,10 @@ async function createStripeCheckoutSessionServer(args: {
   if (!config.ok) throw new Error(config.error)
   const configuredOrigin = readStripeCheckoutReturnOrigin(process.env)
   if (
-    !isStripeCheckoutReturnUrlAllowed(args.successUrl, args.requestOrigin, configuredOrigin)
-    || !isStripeCheckoutReturnUrlAllowed(args.cancelUrl, args.requestOrigin, configuredOrigin)
+    !isStripeCheckoutReturnUrlAllowed(args.successUrl, args.serverOrigin, configuredOrigin)
+    || !isStripeCheckoutReturnUrlAllowed(args.cancelUrl, args.serverOrigin, configuredOrigin)
   ) {
-    throw new Error('Checkout return URLs must stay on the configured request origin.')
+    throw new Error('Checkout return URLs must stay on the configured server return origin.')
   }
 
   const body = buildStripeCheckoutSessionCreateForm({
@@ -525,6 +548,14 @@ async function createStripeCheckoutSessionServer(args: {
   return { id, url }
 }
 
+const readStripeCheckoutDevServerOrigin = (req: import('node:http').IncomingMessage): string => {
+  const host = String(req.headers.host || '').trim()
+  if (!host) return ''
+  const forwardedProto = readSingleHeader(req.headers['x-forwarded-proto']).split(',')[0]?.trim()
+  const protocol = forwardedProto || 'http'
+  return readStripeCheckoutRequestUrlOrigin(`${protocol}://${host}${req.url || '/'}`)
+}
+
 function createStripeCheckoutDevHandler(): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
     if (req.method !== 'POST') {
@@ -539,12 +570,12 @@ function createStripeCheckoutDevHandler(): import('vite').Connect.NextHandleFunc
         writeJsonResponse(res, 400, { ok: false, error: 'Missing Checkout Session success_url or cancel_url.' })
         return
       }
-      const reqOrigin = String(req.headers.origin || '').trim() || `http://${String(req.headers.host || '').trim()}`
+      const serverOrigin = readStripeCheckoutDevServerOrigin(req)
       const created = await createStripeCheckoutSessionServer({
         successUrl,
         cancelUrl,
         workspaceId: String(payload?.workspaceId || '').trim() || null,
-        requestOrigin: reqOrigin,
+        serverOrigin,
       })
       writeJsonResponse(res, 200, { ok: true, id: created.id, url: created.url })
     } catch (error) {
@@ -2015,6 +2046,8 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const bytePlusProviderSelected = providerHeader === 'byteplus-modelark'
     const miromindProviderSelected = providerHeader === 'miromind'
     const agnesProviderSelected = providerHeader === 'agnes-ai'
+    const qwenProviderSelected = providerHeader === 'qwen'
+    const googleCloudProviderSelected = providerHeader === 'google-cloud'
     if (localGatewayOnly && providerHeader === 'openai') {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -2032,6 +2065,8 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       if (bytePlusProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST}`
       if (miromindProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_MIROMIND_HOST}`
       if (agnesProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_AGNES_HOST}`
+      if (qwenProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_QWEN_SINGAPORE_HOST}`
+      if (googleCloudProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_GOOGLE_CLOUD_US_CENTRAL1_HOST}`
       if (providerHeader === 'openai') return 'https://api.openai.com'
       if (requestedUpstreamRaw) return requestedUpstreamRaw
       return String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
@@ -2064,26 +2099,38 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const bytePlusUpstreamSelected = bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname)
+    const qwenUpstreamSelected = qwenProviderSelected || isQwenChatUpstreamHost(upstreamHostname)
+    const googleCloudUpstreamSelected = googleCloudProviderSelected || isGoogleCloudChatUpstreamHost(upstreamHostname)
     const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
     const requiresMiroMindKey = !localGatewayOnly && (miromindProviderSelected || upstreamHostname === CHAT_PROXY_MIROMIND_HOST)
     const requiresAgnesKey = !localGatewayOnly && (agnesProviderSelected || upstreamHostname === CHAT_PROXY_AGNES_HOST)
+    const requiresQwenKey = !localGatewayOnly && qwenUpstreamSelected
+    const requiresGoogleCloudKey = !localGatewayOnly && googleCloudUpstreamSelected
     const requiresBytePlusKey = !localGatewayOnly && bytePlusUpstreamSelected
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
     const envMiroMindApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY || process.env.MIROMIND_API_KEY || '').trim()
     const envAgnesApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_AGNES_API_KEY || process.env.AGNES_API_KEY || '').trim()
+    const envQwenApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_QWEN_API_KEY || process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY || '').trim()
+    const envGoogleCloudApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_GOOGLE_CLOUD_ACCESS_TOKEN || process.env.GOOGLE_CLOUD_ACCESS_TOKEN || process.env.VERTEX_AI_ACCESS_TOKEN || process.env.GOOGLE_OAUTH_ACCESS_TOKEN || '').trim()
     const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
     const headerProviderApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
     const openAiApiKey = (headerProviderApiKey || envOpenAiApiKey).slice(0, 512)
     const miromindApiKey = (headerProviderApiKey || envMiroMindApiKey).slice(0, 512)
     const agnesApiKey = (headerProviderApiKey || envAgnesApiKey).slice(0, 512)
+    const qwenApiKey = (headerProviderApiKey || envQwenApiKey).slice(0, 512)
+    const googleCloudApiKey = (headerProviderApiKey || envGoogleCloudApiKey).slice(0, 4096)
     const bytePlusApiKey = (headerProviderApiKey || envBytePlusApiKey).slice(0, 512)
     const providerApiKey = requiresBytePlusKey
       ? bytePlusApiKey
       : requiresAgnesKey
         ? agnesApiKey
-      : requiresMiroMindKey
-        ? miromindApiKey
-        : openAiApiKey
+        : requiresQwenKey
+          ? qwenApiKey
+          : requiresGoogleCloudKey
+            ? googleCloudApiKey
+            : requiresMiroMindKey
+              ? miromindApiKey
+              : openAiApiKey
     if (requiresOpenAiKey && !openAiApiKey) {
       res.statusCode = 401
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -2111,6 +2158,24 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }))
       return
     }
+    if (requiresQwenKey && !providerApiKey) {
+      res.statusCode = 401
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({
+        ok: false,
+        error: 'Missing Qwen API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export DASHSCOPE_API_KEY and restart the dev server.',
+      }))
+      return
+    }
+    if (requiresGoogleCloudKey && !providerApiKey) {
+      res.statusCode = 401
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({
+        ok: false,
+        error: 'Missing Google Cloud access token for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export GOOGLE_CLOUD_ACCESS_TOKEN and restart the dev server.',
+      }))
+      return
+    }
     if (requiresBytePlusKey && !providerApiKey) {
       res.statusCode = 500
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -2118,10 +2183,29 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     let suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length)
-    if (!suffix) suffix = bytePlusUpstreamSelected ? '/api/v3/chat/completions' : '/v1/chat/completions'
+    if (!suffix) {
+      suffix = bytePlusUpstreamSelected
+        ? '/api/v3/chat/completions'
+        : qwenUpstreamSelected
+          ? '/compatible-mode/v1/chat/completions'
+          : googleCloudUpstreamSelected
+            ? '/v1/projects/PROJECT_ID/locations/us-central1/endpoints/openapi/chat/completions'
+            : '/v1/chat/completions'
+    }
     if (providerHeader === 'openai' && !bytePlusUpstreamSelected) {
       if (suffix === '/api/v3/chat/completions') suffix = '/v1/chat/completions'
       if (suffix === '/api/v3/models') suffix = '/v1/models'
+    }
+    if (qwenUpstreamSelected) {
+      suffix = suffix.startsWith('/') ? suffix : `/${suffix}`
+      if (suffix === '/compatible-mode/v1' || suffix === '/compatible-mode/v1/') suffix = '/compatible-mode/v1/chat/completions'
+      if (suffix === '/v1/chat/completions' || suffix === '/v1/chat/completions/') suffix = '/compatible-mode/v1/chat/completions'
+      if (suffix === '/v1/models' || suffix === '/v1/models/' || suffix === '/models' || suffix === '/models/') suffix = '/compatible-mode/v1/models'
+    }
+    if (googleCloudUpstreamSelected) {
+      suffix = suffix.startsWith('/') ? suffix : `/${suffix}`
+      if (/\/v1\/projects\/[^/]+\/locations\/[^/]+\/endpoints\/openapi\/?$/i.test(suffix)) suffix = `${suffix.replace(/\/?$/i, '')}/chat/completions`
+      if (/\/v1\/projects\/[^/]+\/locations\/[^/]+\/endpoints\/openapi\/chat\/completions\/?$/i.test(suffix) && method === 'GET') suffix = suffix.replace(/\/chat\/completions\/?$/i, '/models')
     }
     if (bytePlusUpstreamSelected) {
       suffix = suffix.startsWith('/') ? suffix : `/${suffix}`
@@ -2205,7 +2289,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       if (contentType) headers.set('Content-Type', contentType)
       if (accept) headers.set('Accept', accept)
-      if (requiresOpenAiKey || requiresMiroMindKey || requiresAgnesKey || requiresBytePlusKey) {
+      if (requiresOpenAiKey || requiresMiroMindKey || requiresAgnesKey || requiresQwenKey || requiresGoogleCloudKey || requiresBytePlusKey) {
         headers.set('Authorization', `Bearer ${providerApiKey}`)
       }
       const clientRequestId = readSingleHeader(req.headers['x-client-request-id']).slice(0, 512)
@@ -4618,11 +4702,11 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       '<style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#0f172a;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}a{word-break:break-all}</style>',
       '</head>',
       '<body>',
-      `<div style="max-width:min(720px,92vw);border:1px solid rgba(148,163,184,0.5);border-radius:12px;background:#fff;padding:16px 18px;box-shadow:0 12px 30px rgba(15,23,42,0.08)">`,
-      '<div style="font-size:12px;font-weight:700;margin-bottom:6px">Preview unavailable</div>',
-      '<div style="font-size:12px;opacity:0.78;margin-bottom:10px">The upstream site requires cookies or blocks proxy requests.</div>',
-      `<div style="font-size:12px"><a href="${safeUrl}" target="_blank" rel="noreferrer">Open in new tab</a></div>`,
-      '</div>',
+      `<main style="max-width:min(720px,92vw);border:1px solid rgba(148,163,184,0.5);border-radius:12px;background:#fff;padding:16px 18px;box-shadow:0 12px 30px rgba(15,23,42,0.08)">`,
+      '<header style="font-size:12px;font-weight:700;margin-bottom:6px">Preview unavailable</header>',
+      '<p style="font-size:12px;opacity:0.78;margin:0 0 10px">The upstream site requires cookies or blocks proxy requests.</p>',
+      `<nav style="font-size:12px" aria-label="Blocked preview fallback"><a href="${safeUrl}" target="_blank" rel="noreferrer">Open in new tab</a></nav>`,
+      '</main>',
       '</body>',
       '</html>',
     ].join('\n')

@@ -25,10 +25,10 @@ export function ToolbarGraphFieldsArea({
   setIsExportMenuOpen,
 }: ToolbarGraphFieldsAreaProps) {
   return (
-    <div className={uiToolbarAreaStackClassName}>
+    <section className={uiToolbarAreaStackClassName}>
       {isExportMenuOpen && (
-        <div className={uiToolbarAreaInsetStackClassName}>
-          <div className={uiToolbarAreaCompactActionRowClassName}>
+        <section className={uiToolbarAreaInsetStackClassName}>
+          <section className={uiToolbarAreaCompactActionRowClassName}>
             <button
               type="button"
               className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -39,12 +39,12 @@ export function ToolbarGraphFieldsArea({
             >
               {EXPORT_UI_LABELS.exportGraphFieldSettingsJsonLd}
             </button>
-          </div>
-        </div>
+          </section>
+        </section>
       )}
-      <div className={uiToolbarAreaActionRowClassName}>
+      <section className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.graphFields} ok={graphFieldsOpOk} msg={graphFieldsOpMsg || undefined} />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

@@ -120,8 +120,8 @@ Recommended width and height:
 
 |Resolution |Aspect ratio |Width and Height Pixel Values |
 |---|---|---|
-|<div style="text-align: center">|1:1 |2048x2048 |\\
-|2K</div>| | |\\
+|<section style="text-align: center">|1:1 |2048x2048 |\\
+|2K</section>| | |\\
 | | | |
 |^^|4:3 |2304x1728 |
 |^^|3:4 |1728x2304 |
@@ -130,8 +130,8 @@ Recommended width and height:
 |^^|3:2 |2496x1664 |
 |^^|2:3 |1664x2496 |
 |^^|21:9 |3136x1344 |
-|<div style="text-align: center">|1:1 |3072x3072 |\\
-|3K</div>| | |\\
+|<section style="text-align: center">|1:1 |3072x3072 |\\
+|3K</section>| | |\\
 | | | |
 |^^|4:3 |3456x2592 |
 |^^|3:4 |2592x3456 |
@@ -167,8 +167,8 @@ Recommended width and height:
 
 |Resolution |Aspect ratio |Width and Height Pixel Values |
 |---|---|---|
-|<div style="text-align: center">|1:1 |2048x2048 |\\
-|2K</div>| | |\\
+|<section style="text-align: center">|1:1 |2048x2048 |\\
+|2K</section>| | |\\
 | | | |
 |^^|4:3 |2304x1728 |
 |^^|3:4 |1728x2304 |
@@ -177,8 +177,8 @@ Recommended width and height:
 |^^|3:2 |2496x1664 |
 |^^|2:3 |1664x2496 |
 |^^|21:9 |3136x1344 |
-|<div style="text-align: center">|1:1 |4096x4096 |\\
-|4K</div>| | |\\
+|<section style="text-align: center">|1:1 |4096x4096 |\\
+|4K</section>| | |\\
 | | | |
 |^^|3:4 |3520x4704 |
 |^^|4:3 |4704x3520 |
@@ -214,8 +214,8 @@ Recommended width and height:
 
 |Resolution |Aspect ratio |Width and Height Pixel Values |
 |---|---|---|
-|<div style="text-align: center">|1:1 |1024x1024 |\\
-|1K</div>| | |\\
+|<section style="text-align: center">|1:1 |1024x1024 |\\
+|1K</section>| | |\\
 | | | |
 |^^|4:3 |864x1152 |
 |^^|3:4 |1152x864 |
@@ -224,8 +224,8 @@ Recommended width and height:
 |^^|3:2 |832x1248  |
 |^^|2:3 |1248x832 |
 |^^|21:9 |1512x648 |
-|<div style="text-align: center">|1:1 |2048x2048 |\\
-|2K</div>| | |\\
+|<section style="text-align: center">|1:1 |2048x2048 |\\
+|2K</section>| | |\\
 | | | |
 |^^|4:3 |2304x1728 |
 |^^|3:4 |1728x2304 |
@@ -234,8 +234,8 @@ Recommended width and height:
 |^^|3:2 |2496x1664 |
 |^^|2:3 |1664x2496 |
 |^^|21:9 |3136x1344 |
-|<div style="text-align: center">|1:1 |4096x4096 |\\
-|4K</div>| | |\\
+|<section style="text-align: center">|1:1 |4096x4096 |\\
+|4K</section>| | |\\
 | | | |
 |^^|3:4 |3520x4704 |
 |^^|4:3 |4704x3520 |

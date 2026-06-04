@@ -217,6 +217,13 @@ const API_NATIVE_BROWSER_MCP_DOC_ROWS: ReadonlyArray<ApiNativeBrowserMcpDocRow> 
     searchHints: ['confirm cookie import', 'cookie import', 'auth cookie storage', 'mutation guard'],
   },
   {
+    key: 'actions_scope',
+    typeLabel: 'readiness',
+    value: 'Route cache, native browser actions, loopback runtime URL, dry-run, unsafe-action, third-party terms, and cookie-import confirmation stay configurable in MainPanel MCP.',
+    responsibility: 'Keeps API-native browser MCP readiness controls visible in the MCP KTV surface.',
+    searchHints: ['native browser actions', 'route cache', 'mainpanel mcp'],
+  },
+  {
     key: 'agent_config',
     typeLabel: 'object',
     value: buildApiNativeBrowserMcpAgentConfigJson({}),

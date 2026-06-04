@@ -83,13 +83,13 @@ export function FieldsPanel({
   return (
     <section className={`z-50 flex ${UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-4 ${UI_THEME_TOKENS.text.primary} shadow-md ${panelTypography.panelTextClass}`}>
       <header className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
-        <div className="font-medium">{panelTitle}</div>
+        <section className="font-medium">{panelTitle}</section>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
           {UI_LABELS.close}
         </button>
       </header>
-      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_ROW_CLASSNAME}>
-        <div className="relative flex-1">
+      <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_ROW_CLASSNAME}>
+        <section className="relative flex-1">
           <SearchIcon
             className={`pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 ${UI_THEME_TOKENS.text.tertiary} ${iconSizeClass}`}
             strokeWidth={uiIconStrokeWidth}
@@ -100,19 +100,19 @@ export function FieldsPanel({
             placeholder={UI_COPY.searchFieldsPlaceholder}
             className={searchInputClassName}
           />
-        </div>
+        </section>
         <button type="button" className={secondaryButtonClassName} onClick={showAllColumns}>
           {UI_LABELS.showAll}
         </button>
         <button type="button" className={secondaryButtonClassName} onClick={hideAllColumns}>
           {UI_LABELS.hideAll}
         </button>
-      </div>
-      <div className={`flex-1 overflow-auto border ${UI_THEME_TOKENS.panel.border} rounded-md ${UI_THEME_TOKENS.panel.headerBg}`}>
+      </section>
+      <section className={`flex-1 overflow-auto border ${UI_THEME_TOKENS.panel.border} rounded-md ${UI_THEME_TOKENS.panel.headerBg}`}>
         {fieldsPanelColumnKeys.length === 0 ? (
-          <div className={`flex h-32 items-center justify-center ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.noFieldsMatch}</div>
+          <section className={`flex h-32 items-center justify-center ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.noFieldsMatch}</section>
         ) : (
-          <div className={`divide-y ${UI_THEME_TOKENS.table.rowDivider}`}>
+          <section className={`divide-y ${UI_THEME_TOKENS.table.rowDivider}`}>
             {fieldsPanelColumnKeys.map(key => {
               const isVisible = isColumnVisible(key)
               const label = columnLabelByKey.get(key) ?? key
@@ -124,7 +124,7 @@ export function FieldsPanel({
                     isDragging ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg
                   }`}
                 >
-                  <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
+                  <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
                     <button
                       type="button"
                       className={`inline-flex h-6 w-6 items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`}
@@ -139,7 +139,7 @@ export function FieldsPanel({
                     <span className={`truncate ${UI_THEME_TOKENS.text.primary}`} title={label}>
                       {label}
                     </span>
-                  </div>
+                  </section>
                   <input
                     type="checkbox"
                     className={selectionControlClassName}
@@ -149,9 +149,9 @@ export function FieldsPanel({
                 </label>
               )
             })}
-          </div>
+          </section>
         )}
-      </div>
+      </section>
     </section>
   )
 }

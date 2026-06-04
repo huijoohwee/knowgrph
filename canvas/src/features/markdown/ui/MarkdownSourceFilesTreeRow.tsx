@@ -46,6 +46,7 @@ export function MarkdownSourceFilesTreeRow(props: MarkdownSourceFilesTreeRowProp
 
   const isFolder = node.kind === 'folder'
   const indentPx = Math.max(0, node.depth - 1) * indentStepPx
+  const versionCount = Math.max(0, Math.floor(Number(node.versionCount || 0)))
   const rowClassName = [
     `border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1`,
     'flex items-center gap-2 border-l-2',
@@ -128,6 +129,15 @@ export function MarkdownSourceFilesTreeRow(props: MarkdownSourceFilesTreeRowProp
           >
             {node.label}
           </bdi>
+          {versionCount > 0 ? (
+            <span
+              className={`shrink-0 rounded border px-1 py-0 text-[10px] leading-4 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.tertiary}`}
+              data-kg-source-file-version-count={versionCount}
+              title={`${versionCount} document versions`}
+            >
+              {`v${versionCount}`}
+            </span>
+          ) : null}
         </button>
         {canWrite && node.fileId && onDeleteFile ? (
           <button

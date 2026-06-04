@@ -1,5 +1,33 @@
 # Knowgrph: 0 → 1 “SuperAgent / Swarm Intelligence” Repo-Level Checklist
 
+## Current Source-Truth Update
+
+Knowgrph now has a local, runnable SuperAgent harness baseline. The canonical
+source-side contract is [knowgrph-superagent-harness.md](knowgrph-superagent-harness.md).
+The runnable owners are `knowgrph_parser/superagent_harness.py`,
+`knowgrph_parser/superagent_plan.py`, `knowgrph_parser/superagent_tools.py`,
+`knowgrph_parser/superagent_verifier.py`, `mcp/server.js`, and
+`mcp/local-tool-contract.js`.
+
+The baseline is long-horizon and Deer Flow-inspired only at the conceptual
+primitive level: message gateway, tools, skills, memory, subagents, sandboxed
+workspace artifacts, and minutes-to-hours runs. It must not copy Deer Flow code,
+clone Deer Flow architecture, create a provider-specific renderer branch, or
+add downstream alias stacks around Source Files, MCP, Flow Editor, KGC, or
+Rich Media Panel owners.
+
+The current state meets the local SuperAgent harness threshold for repo-owned
+runs and local MCP execution. The implemented task chain is
+`inspect_goal -> select_skills -> research_goal -> code_sandbox ->
+generate_text -> generate_image -> generate_video -> compose_canvas ->
+verify_outputs -> synthesize_report`, with `skill.select`, `research.scout`,
+and `code.write_and_run` proving skill/research/code lanes before media
+creation. The declared task-depth levels are `quick_triage`, `bounded_compile`,
+`deep_research`, and `parallel_build`; those levels describe run depth and
+coordination style, while the task capabilities remain `research`, `code`, and
+`create`. It does not claim a deployed public mutating SuperAgent service, and
+it is not a Level 3 swarm-intelligence simulation.
+
 This document is a **repo-level** checklist to distinguish:
 
 - **GraphRAG / KG tooling** (single-process ingestion + retrieval + visualization), vs
@@ -169,13 +197,29 @@ For each claimed capability, capture:
 
 ## Current snapshot: `knowgrph` (high-level placement)
 
-Based on repo scan (as of current workspace state):
+Based on current repo state:
 
-- `knowgrph` is **strong in KG/GraphRAG pipeline + visualization**.
-- `knowgrph` contains “agentic” naming, but key Level 1–3 artifacts are missing:
-  - no real planner/tool runtime
-  - no subagent harness
-  - no sandbox provider layer
-  - no simulation engine / replay logs
+- `knowgrph` remains strong in KG/GraphRAG ingestion, parsing, Source Files,
+  Flow Editor rendering, and visualization.
+- `knowgrph` now meets the local SuperAgent harness baseline:
+  - CLI entrypoints: `python3 -m knowgrph_parser superagent`,
+    `python3 -m knowgrph_parser run-goal`, `npm run goal:run`, and
+    `npm run superagent:example`.
+  - Local MCP entrypoint: `knowgrph.superagent.run`.
+  - Planner/tool runtime: `SuperAgentHarness`, `build_plan()`,
+    `build_agent_contracts()`, and the typed tool registry.
+  - Role-scoped subagent contracts: planner, skill curator, research worker,
+    code worker, text worker, image worker, video worker, canvas worker,
+    verifier, and synthesizer.
+  - Local workspace/sandbox boundary: caller-owned output directory with
+    `state.json`, `trace.jsonl`, `goal.json`, proof manifest, final report,
+    and generated artifacts.
+  - Memory and trace: run observations, retry/recovery events, artifact
+    provenance, and trace event counts.
+- `knowgrph` is not Level 3 swarm intelligence:
+  - no many-agent simulation engine
+  - no world-state schema
+  - no replayable simulation event log for emergent multi-agent behavior
 
-So: **it does not meet Level 1+ for “SuperAgent harness”**, and is **not Level 3 swarm intelligence**.
+So: **it meets Level 2 local SuperAgent harness for repo-owned runs, but not
+Level 3 swarm intelligence and not a deployed public mutating agent service**.

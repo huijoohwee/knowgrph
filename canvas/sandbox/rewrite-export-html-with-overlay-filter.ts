@@ -17,15 +17,6 @@ function readArg(name: string): string {
   return out
 }
 
-function sliceBetween(haystack: string, startNeedle: string, endNeedle: string, startFrom = 0): { inner: string; endIx: number } | null {
-  const startIx = haystack.indexOf(startNeedle, startFrom)
-  if (startIx < 0) return null
-  const innerStart = startIx + startNeedle.length
-  const endIx = haystack.indexOf(endNeedle, innerStart)
-  if (endIx < 0) return null
-  return { inner: haystack.slice(innerStart, endIx), endIx: endIx + endNeedle.length }
-}
-
 function tryParseViewportFromSvg(svgMarkup: string): { w?: number; h?: number } {
   try {
     const mW = svgMarkup.match(/\bwidth=("|')([^"']+)(\1)/i)
@@ -100,18 +91,17 @@ async function main() {
     return m && m[1] ? String(m[1] || '').trim() : 'Graph viewer'
   })()
 
-  const svgChunk = sliceBetween(htmlRaw, '<div id="kg-svgWrap">', '</div>')
-  if (!svgChunk) throw new Error('Failed to locate #kg-svgWrap in input html')
-  const svgInnerRaw = String(svgChunk.inner || '')
-  const svgStartIx = svgInnerRaw.indexOf('<svg')
-  const svgEndIx = svgInnerRaw.lastIndexOf('</svg>')
-  if (svgStartIx < 0 || svgEndIx < 0) throw new Error('Failed to extract <svg>...</svg> markup from input html')
-  const svgMarkup = svgInnerRaw.slice(svgStartIx, svgEndIx + '</svg>'.length).trim()
+  const inputDoc = new JSDOM(htmlRaw).window.document
+  const svgWrap = inputDoc.getElementById('kg-svgWrap')
+  if (!svgWrap || svgWrap.tagName.toLowerCase() !== 'figure') throw new Error('Failed to locate semantic #kg-svgWrap in input html')
+  const svgEl = svgWrap.querySelector('svg')
+  if (!svgEl) throw new Error('Failed to extract <svg>...</svg> markup from input html')
+  const svgMarkup = svgEl.outerHTML.trim()
   if (!svgMarkup) throw new Error('Empty svgMarkup extracted from input html')
 
-  const overlayChunk = sliceBetween(htmlRaw, '<div id="kg-overlay">', '</div>', svgChunk.endIx)
-  if (!overlayChunk) throw new Error('Failed to locate #kg-overlay in input html')
-  const overlayHtml = String(overlayChunk.inner || '')
+  const overlayEl = inputDoc.getElementById('kg-overlay')
+  if (!overlayEl || overlayEl.tagName.toLowerCase() !== 'section') throw new Error('Failed to locate semantic #kg-overlay in input html')
+  const overlayHtml = String(overlayEl.innerHTML || '')
 
   const cfg = tryParseExportConfigFromHtml(htmlRaw)
   const vp = tryParseViewportFromSvg(svgMarkup)

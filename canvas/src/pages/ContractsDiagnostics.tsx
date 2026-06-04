@@ -133,10 +133,10 @@ export default function ContractsDiagnostics() {
     <main className={`min-h-screen bg-[var(--kg-canvas-bg)] ${UI_THEME_TOKENS.text.primary}`} aria-label="Contracts & Diagnostics">
       <section className="mx-auto w-full max-w-5xl px-6 py-8">
         <header className="flex items-center justify-between gap-4">
-          <div>
+          <section>
             <h1 className="text-lg font-semibold">Contracts & Diagnostics</h1>
             <p className={`mt-1 text-sm ${UI_THEME_TOKENS.text.secondary}`}>Renderer contract + current runtime snapshot.</p>
-          </div>
+          </section>
           <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
             Back to Canvas
           </Link>
@@ -145,12 +145,12 @@ export default function ContractsDiagnostics() {
         <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <section className="rounded-lg border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-4">
             <h2 className="text-sm font-semibold">Contract</h2>
-            <div className={`mt-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-              <div>Mode: {String(s.canvasRenderMode)}</div>
-              <div>2D Renderer: {String(s.canvasRenderMode === '2d' ? s.canvas2dRenderer : 'n/a')}</div>
-              <div>Viewport preset: {String(s.viewportControlsPreset)} (effective: {String(effectivePreset)})</div>
-              <div>Document key: {docKey}</div>
-            </div>
+            <section className={`mt-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>Mode: {String(s.canvasRenderMode)}</section>
+              <section>2D Renderer: {String(s.canvasRenderMode === '2d' ? s.canvas2dRenderer : 'n/a')}</section>
+              <section>Viewport preset: {String(s.viewportControlsPreset)} (effective: {String(effectivePreset)})</section>
+              <section>Document key: {docKey}</section>
+            </section>
             <button
               className={`mt-3 inline-flex items-center justify-center rounded-md bg-black/80 px-3 py-2 text-xs font-medium text-white ${UI_THEME_TOKENS.button.inverseHoverBg}`}
               onClick={() => downloadJson('knowgrph-contract.json', contract)}
@@ -162,13 +162,13 @@ export default function ContractsDiagnostics() {
 
           <section className="rounded-lg border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-4">
             <h2 className="text-sm font-semibold">Diagnostics</h2>
-            <div className={`mt-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-              <div>Doc: {docRef || '(none)'}</div>
-              <div>Semantic mode: {String(s.documentSemanticMode)}</div>
-              <div>Frontmatter mode: {String(s.frontmatterModeEnabled)}</div>
-              <div>Baseline lock: {String(s.documentStructureBaselineLock)}</div>
-              <div>Zoom view key: {zoomViewKey || '(none)'}</div>
-            </div>
+            <section className={`mt-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>Doc: {docRef || '(none)'}</section>
+              <section>Semantic mode: {String(s.documentSemanticMode)}</section>
+              <section>Frontmatter mode: {String(s.frontmatterModeEnabled)}</section>
+              <section>Baseline lock: {String(s.documentStructureBaselineLock)}</section>
+              <section>Zoom view key: {zoomViewKey || '(none)'}</section>
+            </section>
             <button
               className={`mt-3 inline-flex items-center justify-center rounded-md bg-black/80 px-3 py-2 text-xs font-medium text-white ${UI_THEME_TOKENS.button.inverseHoverBg}`}
               onClick={() => downloadJson('knowgrph-diagnostics.json', diagnostics)}

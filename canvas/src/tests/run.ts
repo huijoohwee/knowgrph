@@ -407,6 +407,7 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     const modFloatingPanels = await import('../__tests__/floatingPanelsUseSharedPointerDragRegression.test')
     await execTest(results, 'ui.toolMenu.drag.usesSharedPointerDrag', modFloatingPanels.testToolMenuDragUsesSharedPointerDrag)
     await execTest(results, 'ui.spotlight.drag.usesSharedPointerDrag', modFloatingPanels.testSpotlightCardDragUsesSharedPointerDrag)
+    await execTest(results, 'ui.floatingPanel.defaultGeometry.commandPanelAligned', modFloatingPanels.testFloatingPanelDefaultGeometryMatchesCanvasCommandPanel)
 
     const modAuxDrags = await import('../__tests__/canvasAuxDragsUseSharedPointerDragRegression.test')
     await execTest(results, 'ui.minimap.drag.usesSharedPointerDrag', modAuxDrags.testMinimapDragUsesSharedPointerDrag)

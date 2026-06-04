@@ -1,12 +1,20 @@
 import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import {
+  CHAT_AGNES_ENDPOINT_URL,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
   CHAT_DEERFLOW_ENDPOINT_URL,
+  CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
+  CHAT_MIROMIND_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
+  CHAT_QWEN_ENDPOINT_URL,
+  CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_DEERFLOW,
+  CHAT_PROVIDER_GOOGLE_CLOUD,
+  CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
+  CHAT_PROVIDER_QWEN,
   getDefaultChatModelForProvider,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
@@ -62,14 +70,18 @@ import {
   getOpenAiApiDocRowByRowKey,
   resolveOpenAiTextWidgetChatApiRowKey,
 } from '@/features/integrations/openaiResponsesSsot'
-import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
 import {
+  getAgnesApiRowAnchorId,
+  getBytePlusSharedTextApiRowAnchorId,
   getDeerFlowApiRowAnchorId,
+  getGoogleCloudApiRowAnchorId,
+  getMiroMindApiRowAnchorId,
+  getOpenAiChatApiRowAnchorId,
+  getQwenApiRowAnchorId,
   mapOpenAiRowKeyToDeerFlowRowKey,
-} from '@/features/panels/views/deerflowApiDocs'
-import { getOpenAiChatApiRowAnchorId } from '@/features/panels/views/openaiChatApiDocs'
+} from '@/features/panels/views/chatApiDocAnchors'
 
-export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'deerflow'
+export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'deerflow' | 'miromind' | 'agnes' | 'qwen' | 'google-cloud'
 
 export type WidgetRegistryApiDocRef = {
   rowKey: string
@@ -108,7 +120,61 @@ const TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY: Readonly<Record<TextGeneration
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_DEERFLOW),
     widgetLabel: 'DeerFlow Text Widget',
   },
+  miromind: {
+    providerId: CHAT_PROVIDER_MIROMIND,
+    defaultEndpointUrl: CHAT_MIROMIND_ENDPOINT_URL,
+    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_MIROMIND),
+    widgetLabel: 'MiroMind Text Widget',
+  },
+  agnes: {
+    providerId: CHAT_PROVIDER_AGNES,
+    defaultEndpointUrl: CHAT_AGNES_ENDPOINT_URL,
+    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_AGNES),
+    widgetLabel: 'Agnes AI Text Widget',
+  },
+  qwen: {
+    providerId: CHAT_PROVIDER_QWEN,
+    defaultEndpointUrl: CHAT_QWEN_ENDPOINT_URL,
+    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_QWEN),
+    widgetLabel: 'Qwen Text Widget',
+  },
+  'google-cloud': {
+    providerId: CHAT_PROVIDER_GOOGLE_CLOUD,
+    defaultEndpointUrl: CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
+    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_GOOGLE_CLOUD),
+    widgetLabel: 'Google Cloud Text Widget',
+  },
 } as const
+
+const OPENAI_COMPATIBLE_PROVIDER_ROW_PREFIX: Readonly<Record<'miromind' | 'agnes' | 'qwen' | 'google-cloud', string>> = {
+  miromind: 'miromindApi',
+  agnes: 'agnesApi',
+  qwen: 'qwenApi',
+  'google-cloud': 'googleCloudApi',
+}
+
+const OPENAI_COMPATIBLE_PROVIDER_ROW_SUFFIX_BY_OPENAI_SUFFIX: Readonly<Record<string, string>> = {
+  provider: 'provider',
+  auth_mode: 'auth_mode',
+  endpoint_url: 'endpoint_url',
+  api_key: 'api_key',
+  model: 'model',
+  input: 'messages',
+  stream: 'stream',
+  max_output_tokens: 'max_tokens',
+}
+
+function mapOpenAiRowKeyToChatCompatibleProviderRowKey(
+  rowKey: string,
+  providerFamily: 'miromind' | 'agnes' | 'qwen' | 'google-cloud',
+): string | null {
+  const normalized = String(rowKey || '').trim()
+  if (!normalized.startsWith('openaiApi.')) return null
+  const suffix = normalized.slice('openaiApi.'.length)
+  const mappedSuffix = OPENAI_COMPATIBLE_PROVIDER_ROW_SUFFIX_BY_OPENAI_SUFFIX[suffix]
+  if (!mappedSuffix) return null
+  return `${OPENAI_COMPATIBLE_PROVIDER_ROW_PREFIX[providerFamily]}.${mappedSuffix}`
+}
 
 function hasTextGenerationOverrideValue(value: unknown): boolean {
   if (typeof value === 'undefined' || value === null) return false
@@ -123,6 +189,10 @@ function hasTextGenerationOverrideValue(value: unknown): boolean {
 function getTextGenerationProviderProfile(providerFamily?: TextGenerationProviderFamily): TextGenerationProviderProfile {
   if (providerFamily === 'openai') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.openai
   if (providerFamily === 'deerflow') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.deerflow
+  if (providerFamily === 'miromind') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.miromind
+  if (providerFamily === 'agnes') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.agnes
+  if (providerFamily === 'qwen') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.qwen
+  if (providerFamily === 'google-cloud') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY['google-cloud']
   return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.byteplus
 }
 
@@ -135,10 +205,18 @@ export function inferTextGenerationProviderFamily(args: {
   const widgetTypeId = String(args.widgetTypeId || '').trim().toLowerCase()
   const formId = String(args.formId || '').trim().toLowerCase()
   if (widgetTypeId.includes('deerflow') || widgetTypeId.includes('deer-flow') || formId.includes('deerflow') || formId.includes('deer-flow')) return 'deerflow'
+  if (widgetTypeId.includes('miromind') || widgetTypeId.includes('miro-mind') || formId.includes('miromind') || formId.includes('miro-mind')) return 'miromind'
+  if (widgetTypeId.includes('agnes') || formId.includes('agnes')) return 'agnes'
+  if (widgetTypeId.includes('qwen') || widgetTypeId.includes('dashscope') || formId.includes('qwen') || formId.includes('dashscope')) return 'qwen'
+  if (widgetTypeId.includes('google-cloud') || widgetTypeId.includes('googlecloud') || widgetTypeId.includes('vertex') || formId.includes('google-cloud') || formId.includes('googlecloud') || formId.includes('vertex')) return 'google-cloud'
   if (widgetTypeId.includes('openai') || formId.includes('openai')) return 'openai'
   if (formId === FLOW_VIDEO_SCRIPT_FORM_ID.toLowerCase()) return 'byteplus'
   if (widgetTypeId.includes('byteplus') || formId.includes('byteplus') || formId === 'textgeneration') return 'byteplus'
   if (provider.includes('deerflow') || provider.includes('deer-flow')) return 'deerflow'
+  if (provider.includes('miromind') || provider.includes('miro-mind')) return 'miromind'
+  if (provider.includes('agnes')) return 'agnes'
+  if (provider.includes('qwen') || provider.includes('dashscope') || provider.includes('modelstudio') || provider.includes('model-studio')) return 'qwen'
+  if (provider.includes('google-cloud') || provider.includes('googlecloud') || provider.includes('vertex') || provider.includes('gcp')) return 'google-cloud'
   if (provider.includes('openai')) return 'openai'
   if (provider.includes('byteplus') || provider.includes('modelark')) return 'byteplus'
   return 'byteplus'
@@ -199,15 +277,30 @@ export function resolveWidgetRegistryApiDocRef(args: {
       widgetTypeId: args.registryEntry?.widgetTypeId,
       formId: args.registryEntry?.formId,
     })
-    const rowKey = providerFamily === 'openai' || providerFamily === 'deerflow'
+    const isOpenAiCompatibleProvider =
+      providerFamily === 'openai'
+      || providerFamily === 'deerflow'
+      || providerFamily === 'miromind'
+      || providerFamily === 'agnes'
+      || providerFamily === 'qwen'
+      || providerFamily === 'google-cloud'
+    const rowKey = isOpenAiCompatibleProvider
       ? resolveOpenAiTextWidgetChatApiRowKey({ schemaPath, fieldKey, portKey })
       : resolveBytePlusTextWidgetSharedTextApiRowKey({ schemaPath, fieldKey, portKey })
     if (!rowKey) return null
-    const normalizedRowKey = providerFamily === 'deerflow' ? mapOpenAiRowKeyToDeerFlowRowKey(rowKey) : rowKey
-    const row = providerFamily === 'openai' || providerFamily === 'deerflow'
+    const normalizedRowKey =
+      providerFamily === 'deerflow'
+        ? mapOpenAiRowKeyToDeerFlowRowKey(rowKey)
+        : providerFamily === 'miromind' || providerFamily === 'agnes' || providerFamily === 'qwen' || providerFamily === 'google-cloud'
+          ? mapOpenAiRowKeyToChatCompatibleProviderRowKey(rowKey, providerFamily)
+          : rowKey
+    if (!normalizedRowKey) return null
+    const row = isOpenAiCompatibleProvider
       ? getOpenAiApiDocRowByRowKey(rowKey)
       : getBytePlusSharedTextApiDocRowByRowKey(rowKey)
-    const apiKey = String(row?.key || '').trim()
+    const apiKey = providerFamily === 'miromind' || providerFamily === 'agnes' || providerFamily === 'qwen' || providerFamily === 'google-cloud'
+      ? normalizedRowKey
+      : String(row?.key || '').trim()
     return apiKey ? { rowKey: normalizedRowKey, apiKey } : null
   }
 
@@ -262,7 +355,15 @@ export function resolveWidgetRegistryMainPanelLink(args: {
         ? getOpenAiChatApiRowAnchorId(apiDocRef.rowKey)
         : providerFamily === 'deerflow'
           ? getDeerFlowApiRowAnchorId(apiDocRef.rowKey)
-        : getBytePlusSharedTextApiRowAnchorId(apiDocRef.rowKey),
+          : providerFamily === 'miromind'
+            ? getMiroMindApiRowAnchorId(apiDocRef.rowKey)
+            : providerFamily === 'agnes'
+              ? getAgnesApiRowAnchorId(apiDocRef.rowKey)
+              : providerFamily === 'qwen'
+                ? getQwenApiRowAnchorId(apiDocRef.rowKey)
+                : providerFamily === 'google-cloud'
+                  ? getGoogleCloudApiRowAnchorId(apiDocRef.rowKey)
+                : getBytePlusSharedTextApiRowAnchorId(apiDocRef.rowKey),
     }
   }
 
@@ -318,7 +419,19 @@ export function normalizeTextGenerationWidgetPropertiesForProviderFamily(args: {
   properties?: Record<string, unknown>
 }): Record<string, unknown> {
   const providerFamily: TextGenerationProviderFamily =
-    args.providerFamily === 'openai' ? 'openai' : args.providerFamily === 'deerflow' ? 'deerflow' : 'byteplus'
+    args.providerFamily === 'openai'
+      ? 'openai'
+      : args.providerFamily === 'deerflow'
+        ? 'deerflow'
+        : args.providerFamily === 'miromind'
+          ? 'miromind'
+        : args.providerFamily === 'agnes'
+          ? 'agnes'
+          : args.providerFamily === 'qwen'
+            ? 'qwen'
+            : args.providerFamily === 'google-cloud'
+              ? 'google-cloud'
+              : 'byteplus'
   const prev = { ...(args.properties || {}) }
   const profile = getTextGenerationProviderProfile(providerFamily)
   const rawProvider = String(prev.chatProvider || '').trim()
@@ -354,7 +467,19 @@ export function resolveEffectiveTextGenerationWidgetProperties(args: {
   globalProperties?: Record<string, unknown>
 }): Record<string, unknown> {
   const providerFamily: TextGenerationProviderFamily =
-    args.providerFamily === 'openai' ? 'openai' : args.providerFamily === 'deerflow' ? 'deerflow' : 'byteplus'
+    args.providerFamily === 'openai'
+      ? 'openai'
+      : args.providerFamily === 'deerflow'
+        ? 'deerflow'
+        : args.providerFamily === 'miromind'
+          ? 'miromind'
+        : args.providerFamily === 'agnes'
+          ? 'agnes'
+          : args.providerFamily === 'qwen'
+            ? 'qwen'
+            : args.providerFamily === 'google-cloud'
+              ? 'google-cloud'
+              : 'byteplus'
   const base = resolveTextGenerationGlobalDefaultsForProviderFamily({
     providerFamily,
     globalProperties: args.globalProperties,
@@ -552,7 +677,19 @@ export function buildTextGenerationRegistryDraft(args?: {
   formId?: string
 }): Omit<WidgetRegistryEntry, 'updatedAt'> {
   const providerFamily: TextGenerationProviderFamily =
-    args?.providerFamily === 'openai' ? 'openai' : args?.providerFamily === 'deerflow' ? 'deerflow' : 'byteplus'
+    args?.providerFamily === 'openai'
+      ? 'openai'
+      : args?.providerFamily === 'deerflow'
+        ? 'deerflow'
+        : args?.providerFamily === 'miromind'
+          ? 'miromind'
+        : args?.providerFamily === 'agnes'
+          ? 'agnes'
+          : args?.providerFamily === 'qwen'
+            ? 'qwen'
+            : args?.providerFamily === 'google-cloud'
+              ? 'google-cloud'
+              : 'byteplus'
   return {
     id: '',
     isEnabled: true,

@@ -1,5 +1,9 @@
 import type { RecentFileEntry } from '@/hooks/store/types'
-import { normalizeWebpageFrontmatterView, type CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import {
+  normalizeWebpageFrontmatterView,
+  preferCanonicalYamlFrontmatterFencedText,
+  type CanvasWorkspaceFrontmatterPreset,
+} from '@/lib/markdown/frontmatter'
 
 export type ActiveMarkdownDocumentPayload = {
   name: string
@@ -7,6 +11,7 @@ export type ActiveMarkdownDocumentPayload = {
   normalizeMermaidMmd: false
   sourceUrl?: string | null
   jsonSourceText?: string | null
+  canonicalMarkdownText?: string | null
   autoEnableFrontmatter?: boolean
   applyViewPreset?: boolean
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
@@ -20,6 +25,7 @@ export function buildActiveMarkdownDocumentPayload(args: {
   text: string
   sourceUrl?: string | null
   jsonSourceText?: string | null
+  canonicalMarkdownText?: string | null
   autoEnableFrontmatter?: boolean
   applyViewPreset?: boolean
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
@@ -30,9 +36,13 @@ export function buildActiveMarkdownDocumentPayload(args: {
 }): ActiveMarkdownDocumentPayload {
   const name = String(args.name || '').trim()
   const rawText = String(args.text || '')
-  const text = args.normalizeWebpageFrontmatterToMarkdown
+  const normalizedText = args.normalizeWebpageFrontmatterToMarkdown
     ? normalizeWebpageFrontmatterView(rawText, 'markdown')
     : rawText
+  const text = preferCanonicalYamlFrontmatterFencedText({
+    candidateText: normalizedText,
+    canonicalText: String(args.canonicalMarkdownText || ''),
+  })
 
   return {
     name,
@@ -40,6 +50,7 @@ export function buildActiveMarkdownDocumentPayload(args: {
     normalizeMermaidMmd: false,
     ...(args.sourceUrl === null || typeof args.sourceUrl === 'string' ? { sourceUrl: args.sourceUrl ?? null } : {}),
     ...(args.jsonSourceText === null || typeof args.jsonSourceText === 'string' ? { jsonSourceText: args.jsonSourceText ?? null } : {}),
+    ...(args.canonicalMarkdownText === null || typeof args.canonicalMarkdownText === 'string' ? { canonicalMarkdownText: args.canonicalMarkdownText ?? null } : {}),
     ...(typeof args.autoEnableFrontmatter === 'boolean' ? { autoEnableFrontmatter: args.autoEnableFrontmatter } : {}),
     ...(typeof args.applyViewPreset === 'boolean' ? { applyViewPreset: args.applyViewPreset } : {}),
     ...(args.recent ? { recent: args.recent } : {}),
@@ -55,6 +66,7 @@ export function applyActiveMarkdownDocumentPayload(args: {
   text: string
   sourceUrl?: string | null
   jsonSourceText?: string | null
+  canonicalMarkdownText?: string | null
   autoEnableFrontmatter?: boolean
   applyViewPreset?: boolean
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null

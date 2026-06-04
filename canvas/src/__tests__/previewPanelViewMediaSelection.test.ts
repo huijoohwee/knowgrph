@@ -89,7 +89,7 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
 
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -166,7 +166,7 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
 
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -276,7 +276,7 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
 
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -317,7 +317,7 @@ export async function testPreviewPanelGraphRichMediaPanelTextPreviewUsesCanonica
 
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)

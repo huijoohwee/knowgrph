@@ -1,4 +1,7 @@
-import { shouldAllowPanDragForPreset } from '@/lib/canvas/viewport-controls'
+import {
+  shouldAllowPanDragForPointerEvent,
+  shouldAllowPanDragForPreset,
+} from '@/lib/canvas/viewport-controls'
 
 export const testViewportControlsPanDragPreset = () => {
   const mapArgs = { preset: 'map' as const, eventType: 'mousedown', spacePanHeld: false }
@@ -25,3 +28,26 @@ export const testViewportControlsPanDragPreset = () => {
   }
 }
 
+export const testViewportControlsPanToolAllowsLeftDragInDesignPreset = () => {
+  if (!shouldAllowPanDragForPointerEvent({
+    preset: 'design',
+    eventType: 'pointerdown',
+    button: 0,
+    shiftKey: false,
+    spacePanHeld: false,
+    pointerMode2d: 'pan',
+  })) {
+    throw new Error('expected explicit pan tool to allow left-button pan drag in design preset')
+  }
+
+  if (shouldAllowPanDragForPointerEvent({
+    preset: 'map',
+    eventType: 'pointerdown',
+    button: 0,
+    shiftKey: true,
+    spacePanHeld: false,
+    pointerMode2d: 'select',
+  })) {
+    throw new Error('expected map preset shift-left selection gate to remain active outside the pan tool')
+  }
+}

@@ -2,6 +2,10 @@ import {
   STRIPE_PAYMENT_SERVER_RUNTIME_SCOPE,
   STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY,
 } from 'grph-shared/payments/stripePaymentSsot'
+import {
+  OPENAI_MCP_DEFAULT_API_KEY_ENV,
+  OPENAI_MCP_DEFAULT_VECTOR_STORE_ENV,
+} from 'grph-shared/openai/openaiMcpSsot'
 
 const WORKSPACE_LAYOUT_SETTING_KEYS = [
   'workspace.surface.padding.top',
@@ -160,6 +164,17 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   'browser.apiNative.mcp.confirmUnsafe': { area: 'API-Native Browser MCP Configuration', responsibility: 'Unsafe browser API execution confirmation flag' },
   'browser.apiNative.mcp.confirmThirdPartyTerms': { area: 'API-Native Browser MCP Configuration', responsibility: 'Third-party terms confirmation flag for policy-sensitive browser API routes' },
   'browser.apiNative.mcp.confirmCookieImport': { area: 'API-Native Browser MCP Configuration', responsibility: 'Cookie import confirmation flag for auth cookie storage access' },
+  'openai.mcp.serverLabel': { area: 'OpenAI MCP Server Configuration', responsibility: 'Responses API MCP tool server_label' },
+  'openai.mcp.serverUrl': { area: 'OpenAI MCP Server Configuration', responsibility: 'Remote MCP server_url for ChatGPT Apps and Responses API' },
+  'openai.mcp.transport': { area: 'OpenAI MCP Server Configuration', responsibility: 'Remote MCP transport for the custom server' },
+  'openai.mcp.allowedTools': { area: 'OpenAI MCP Server Configuration', responsibility: 'Responses API allowed_tools JSON array' },
+  'openai.mcp.requireApproval': { area: 'OpenAI MCP Server Configuration', responsibility: 'Responses API require_approval mode' },
+  'openai.mcp.responsesModel': { area: 'OpenAI MCP Server Configuration', responsibility: 'Responses API model used to test the MCP server' },
+  'openai.mcp.authMode': { area: 'OpenAI MCP Server Configuration', responsibility: 'ChatGPT app auth mode for the remote MCP server' },
+  'openai.mcp.apiKeyEnv': { area: 'OpenAI MCP Server Configuration', responsibility: `Server-side OpenAI API key env var name (${OPENAI_MCP_DEFAULT_API_KEY_ENV})`, notes: 'Stores the environment variable name only; never stores the API key value.' },
+  'openai.mcp.vectorStoreEnv': { area: 'OpenAI MCP Server Configuration', responsibility: `Server-side vector store id env var name (${OPENAI_MCP_DEFAULT_VECTOR_STORE_ENV})` },
+  'openai.mcp.serverPort': { area: 'OpenAI MCP Server Configuration', responsibility: 'Local development FastMCP SSE server port' },
+  'openai.mcp.requireToolReview': { area: 'OpenAI MCP Server Configuration', responsibility: 'Require review of custom MCP tool parameters and untrusted content' },
   uiPanelOpacity: { area: 'Global Translucency', responsibility: 'Main Panel opacity' },
   uiToolbarOpacity: { area: 'Global Translucency', responsibility: 'Toolbar opacity' },
   chatMaxCompletionTokens: {
@@ -741,7 +756,6 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     notes: 'clamps to [0,1]',
   },
   floatingPanelWidthRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel width ratio (viewport)' },
-  floatingPanelHeightRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel height ratio (viewport)' },
   floatingPanelZIndex: { area: 'Floating Panel Layout', responsibility: 'Floating panel z-index' },
   enableTabSync: { area: 'Tab Sync', responsibility: 'Enable cross‑tab sync' },
   enableVirtualTables: { area: 'Multi-dimensional Table Virtualization', responsibility: 'Virtualized tables' },

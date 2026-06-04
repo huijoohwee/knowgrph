@@ -22,7 +22,7 @@ export async function testMarkdownPreviewShowsGutterControlsForRichMedia() {
       anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 

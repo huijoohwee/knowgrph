@@ -1,5 +1,5 @@
 ## Scope & Targets
-- Sweep and remove redundant wrapper `div`s around toolbar toggles and dropdowns.
+- Sweep and remove redundant generic wrapper elements around toolbar toggles and dropdowns.
 - Convert local wrapper refs to button refs using `forwardRef` on shared components.
 - Keep functional containers (canvas/ModalContainer/panel containers) intact.
 
@@ -11,11 +11,11 @@
 
 ## Refactors
 - `Toolbar.tsx` (export/help dropdowns):
-  - Replace `<div ref={exportRef} className="relative">` with `const exportBtnRef = useRef<HTMLButtonElement|null>(null)` and add `ref={exportBtnRef}` to the `IconButton`.
+  - Replace the generic wrapper around `exportRef` with `const exportBtnRef = useRef<HTMLButtonElement|null>(null)` and add `ref={exportBtnRef}` to the `IconButton`.
   - Render dropdown via `DropdownPanel` anchored to `exportBtnRef`; remove local `relative` wrapper.
   - Repeat for help (`helpBtnRef`).
 - `Toolbar.tsx` (modals: settings/history/schema):
-  - Replace `<div ref={settingsToggleRef}>` / `<div ref={historyToggleRef}>` / `<div ref={schemaToggleRef}>` with direct `ref` on their `IconButton`s.
+  - Replace generic toggle wrappers for `settingsToggleRef`, `historyToggleRef`, and `schemaToggleRef` with direct `ref` on their `IconButton`s.
   - Keep existing fixed modal layout; update `useOutsideClose` ignore arrays to use the new button refs.
 - `Canvas.tsx`:
   - Already consolidated overlay toolbar container; ensure `SidebarTrigger` keeps `ref` on the button (no extra wrapper).
@@ -23,7 +23,7 @@
   - Toggle already uses `HTMLButtonElement` ref; no change.
 
 ## Patterns & Rules
-- Prefer `forwardRef` on shared button components (`IconButton`) so consumers never need wrapper `div`s solely for refs.
+- Prefer `forwardRef` on shared button components (`IconButton`) so consumers never need generic wrappers solely for refs.
 - Use anchored fixed overlays (`DropdownPanel`) to avoid `relative` containers.
 - Avoid duplicate layout wrappers; keep a single container per overlay surface.
 

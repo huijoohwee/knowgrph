@@ -23,14 +23,14 @@ export default function MainPanelGraphFieldsHeader({
   if (!agenticLegend || agenticLegend.length === 0) return null
 
   return (
-    <div
+    <section
       className={[
         `mt-4 pt-3 border-t ${UI_THEME_TOKENS.panel.divider} mb-1 ${UI_THEME_TOKENS.text.tertiary} space-y-1`,
         uiPanelKeyValueTextSizeClass,
         uiPanelTextFontClass,
       ].join(' ')}
     >
-      <div className="flex flex-wrap items-center gap-1">
+      <section className="flex flex-wrap items-center gap-1">
         <span
           className={getChipClass('default', {
             textSizeClass: 'text-[9px]',
@@ -52,7 +52,7 @@ export default function MainPanelGraphFieldsHeader({
             {label}
           </span>
         ))}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

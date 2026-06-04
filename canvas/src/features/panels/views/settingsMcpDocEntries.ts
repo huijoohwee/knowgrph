@@ -16,6 +16,17 @@ import {
   getCrawlerAccessMcpApiRowAnchorId,
 } from './crawlerAccessMcpApiDocs'
 import {
+  OPENAI_MCP_CHATGPT_APP_CONFIG_KEY,
+  OPENAI_MCP_DOC_AREA,
+  OPENAI_MCP_DOC_ENTRIES,
+  OPENAI_MCP_RESPONSES_REQUEST_KEY,
+  OPENAI_MCP_RESPONSES_TOOL_CONFIG_KEY,
+  buildOpenAiMcpChatGptAppConnectionJson,
+  buildOpenAiMcpResponsesRequestJson,
+  buildOpenAiMcpResponsesToolConfigJson,
+  getOpenAiMcpApiRowAnchorId,
+} from './openaiMcpApiDocs'
+import {
   EXA_MCP_CODEX_CONFIG_KEY,
   EXA_MCP_DOC_AREA,
   EXA_MCP_DOC_ENTRIES,
@@ -63,6 +74,7 @@ export function buildMcpDocEntries(
   return [
     ...API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
+    ...OPENAI_MCP_DOC_ENTRIES,
     ...EXA_MCP_DOC_ENTRIES,
     ...STRIPE_MCP_DOC_ENTRIES,
     ...PIXVERSE_MCP_DOC_ENTRIES,
@@ -83,6 +95,8 @@ export function buildMcpVirtualEntry(
       ? getApiNativeBrowserMcpApiRowAnchorId(entry.meta.key)
       : area === CRAWLER_ACCESS_MCP_DOC_AREA
         ? getCrawlerAccessMcpApiRowAnchorId(entry.meta.key)
+      : area === OPENAI_MCP_DOC_AREA
+        ? getOpenAiMcpApiRowAnchorId(entry.meta.key)
       : area === EXA_MCP_DOC_AREA
         ? getExaMcpApiRowAnchorId(entry.meta.key)
       : area === STRIPE_MCP_DOC_AREA
@@ -100,6 +114,12 @@ export function buildMcpVirtualEntry(
       ? buildApiNativeBrowserMcpAgentConfigJson(values)
       : entry.meta.key === API_NATIVE_BROWSER_MCP_BRIDGE_CONFIG_KEY
         ? buildBrowserBridgeMcpConfigJson(values)
+        : entry.meta.key === OPENAI_MCP_RESPONSES_TOOL_CONFIG_KEY
+          ? buildOpenAiMcpResponsesToolConfigJson(values)
+          : entry.meta.key === OPENAI_MCP_RESPONSES_REQUEST_KEY
+            ? buildOpenAiMcpResponsesRequestJson(values)
+            : entry.meta.key === OPENAI_MCP_CHATGPT_APP_CONFIG_KEY
+              ? buildOpenAiMcpChatGptAppConnectionJson(values)
         : entry.meta.key === STRIPE_MCP_REMOTE_CONFIG_KEY
           ? buildStripeRemoteMcpConfigJson(values)
           : entry.meta.key === STRIPE_MCP_LOCAL_CONFIG_KEY

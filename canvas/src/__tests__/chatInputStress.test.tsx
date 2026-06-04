@@ -4,7 +4,7 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testChatInputRapidOpenCloseSwitchCycles() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -16,7 +16,7 @@ export async function testChatInputRapidOpenCloseSwitchCycles() {
       const value = `cycle-${i}`
       await act(async () => {
         root.render(
-          <div>
+          <section>
             {opened ? (
               <PlainTextInputEditor
                 value={value}
@@ -26,7 +26,7 @@ export async function testChatInputRapidOpenCloseSwitchCycles() {
                 placeholder="chat input stress"
               />
             ) : null}
-          </div>,
+          </section>,
         )
       })
       const selector = multiline ? 'textarea' : 'input[type="text"]'

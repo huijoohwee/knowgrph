@@ -20,7 +20,7 @@ export function ErrorFeedback({ title, error, details, code, variant = 'default'
 
   if (variant === 'compact') {
     return (
-      <div
+      <section
         className={cn(
           UI_RESPONSIVE_COMPACT_ERROR_FEEDBACK_BADGE_CLASSNAME,
           'px-2 rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 overflow-hidden flex items-center gap-2',
@@ -28,28 +28,28 @@ export function ErrorFeedback({ title, error, details, code, variant = 'default'
         )}
       >
         <AlertCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-        <div className="text-[11px] text-red-700 dark:text-red-300 truncate">
+        <section className="text-[11px] text-red-700 dark:text-red-300 truncate">
           {title ? title : 'Error'}: {safeError}
-        </div>
-      </div>
+        </section>
+      </section>
     )
   }
 
   return (
-    <div
+    <section
       className={cn(
         'mt-3 mb-3 p-3 rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 overflow-auto',
         className,
       )}
     >
-      <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold text-xs mb-2">
+      <section className="flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold text-xs mb-2">
         <AlertCircle className="w-4 h-4" />
         <span>{title ? title : 'Error'}: {safeError}</span>
-      </div>
+      </section>
       {details ? (
-        <div className="text-[11px] text-red-700/80 dark:text-red-300/80 mb-2 whitespace-pre-wrap">
+        <section className="text-[11px] text-red-700/80 dark:text-red-300/80 mb-2 whitespace-pre-wrap">
           {details}
-        </div>
+        </section>
       ) : null}
       {code && (
         <pre className="m-0 overflow-x-auto">
@@ -58,6 +58,6 @@ export function ErrorFeedback({ title, error, details, code, variant = 'default'
           </code>
         </pre>
       )}
-    </div>
+    </section>
   )
 }

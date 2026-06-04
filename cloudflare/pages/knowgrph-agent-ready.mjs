@@ -3,8 +3,19 @@ import {
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import {
+  buildKnowgrphAgentReadyPromptContracts,
+  getKnowgrphAgentReadyPrompt,
+} from "../../canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs";
+import {
+  buildKnowgrphAgentReadyResourceTemplateContracts,
+  buildKnowgrphSourceFileResourceReadResult,
+  parseKnowgrphSourceFileResourceUri,
+} from "../../canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs";
+import {
   KNOWGRPH_MCP_APP_RESOURCE_URI,
+  KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
   buildKnowgrphMcpAppsCapabilities,
+  buildKnowgrphMcpClientSetups,
   buildKnowgrphMcpAppsResourceDescriptor,
   buildKnowgrphMcpAppsResourceReadResult,
 } from "../../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
@@ -12,7 +23,10 @@ import {
   buildAgentSurfaceInspectionPayload,
   createAgentSurfaceInspectionExecutor,
 } from "../../canvas/src/features/agent-ready/agentSurfaceInspection.mjs";
-import { createPublishedAgentReadyToolExecutors } from "../../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
+import {
+  PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE,
+  createPublishedAgentReadyToolExecutors,
+} from "../../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
 import { inspectSharedDocumentStructure } from "../../canvas/src/features/agent-ready/sharedDocumentStructureInspection.mjs";
 import { buildKnowgrphVdeoxplnMarkdownByName } from "../../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 import {
@@ -61,6 +75,8 @@ import {
 const AGENT_READY_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
 });
+const AGENT_READY_PROMPT_CONTRACTS = buildKnowgrphAgentReadyPromptContracts();
+const AGENT_READY_RESOURCE_TEMPLATE_CONTRACTS = buildKnowgrphAgentReadyResourceTemplateContracts();
 const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
   const normalizedCanonicalPath = String(canonicalPath || "").trim();
   const normalizedWorkspaceId = String(workspaceId || "").trim();
@@ -89,6 +105,15 @@ const jsonStatusResponse = (status, body) =>
       "access-control-allow-origin": "*",
     },
   });
+const emptyStatusResponse = (status, headers = {}) =>
+  new Response(null, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+      ...headers,
+    },
+  });
 const textResponse = (body, contentType) =>
   new Response(body, {
     status: 200,
@@ -98,6 +123,8 @@ const textResponse = (body, contentType) =>
       "access-control-allow-origin": "*",
     },
   });
+const mcpAppsHtmlResponse = (body) =>
+  textResponse(body, "text/html;profile=mcp-app; charset=utf-8");
 const healthResponse = (body) =>
   new Response(JSON.stringify(body, null, 2), {
     status: 200,
@@ -257,8 +284,10 @@ const mcpServerCard = {
     version: "0.1.0",
   },
   transport: {
-    type: "http",
+    type: KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
     url: `${APP_URL}mcp`,
+    stateless: true,
+    legacySse: false,
   },
   capabilities: {
     tools: AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
@@ -267,14 +296,25 @@ const mcpServerCard = {
       description: tool.description,
       inputSchema: tool.inputSchema,
       outputSchema: tool.outputSchema,
+      securitySchemes: tool.securitySchemes,
       annotations: tool.annotations,
       _meta: tool._meta,
     })),
     resources: {
       listChanged: false,
     },
+    prompts: {
+      listChanged: false,
+    },
     ...buildKnowgrphMcpAppsCapabilities(),
   },
+  prompts: AGENT_READY_PROMPT_CONTRACTS,
+  resourceTemplates: AGENT_READY_RESOURCE_TEMPLATE_CONTRACTS,
+  clientSetups: buildKnowgrphMcpClientSetups({
+    baseUrl: APP_URL,
+    mcpUrl: `${APP_URL}mcp`,
+    serverName: "knowgrph",
+  }),
   links: {
     apiCatalog: `${APP_URL}.well-known/api-catalog`,
     skills: `${APP_URL}.well-known/agent-skills/index.json`,
@@ -292,10 +332,15 @@ const webMcpTools = AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
   title: tool.title,
   description: tool.description,
   inputSchema: tool.inputSchema,
+  outputSchema: tool.outputSchema,
+  securitySchemes: tool.securitySchemes,
   annotations: tool.annotations,
+  _meta: tool._meta,
 }));
 const findWebMcpToolName = (toolId) =>
   normalizeToolString(AGENT_READY_TOOL_CONTRACTS.find((tool) => tool.name === toolId)?.webName);
+const SEARCH_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.search);
+const FETCH_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.fetch);
 const LIST_SOURCE_FILES_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles);
 const READ_SOURCE_FILE_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile);
 const READ_SHARED_DOCUMENT_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument);
@@ -496,140 +541,35 @@ export const webMcpScript = `(() => {
       .toString()
       .replace(/\\/+$/, "");
   };
-  const fetchJson = async (url, accept = "application/json") => {
-    const response = await fetch(url, {
-      headers: { accept },
-    });
-    if (!response.ok) throw new Error(\`inspect_agent_surface failed with \${response.status} for \${url}\`);
-    return response.json();
-  };
-  const buildAgentSurfaceInspectionPayload = (args = {}) => {
-    const baseUrl = String(args.baseUrl || "").replace(/\\/+$/, "");
-    const originUrl = baseUrl ? new URL(baseUrl + "/").origin : "";
-    return {
-      baseUrl,
-      healthUrl: baseUrl + "/health",
-      mcpUrl: baseUrl + "/mcp",
-      apiCatalogUrl: baseUrl + "/.well-known/api-catalog",
-      openApiUrl: baseUrl + "/.well-known/openapi.json",
-      mcpServerCardUrl: baseUrl + "/.well-known/mcp/server-card.json",
-      agentCardUrl: baseUrl + "/.well-known/agent-card.json",
-      agentSkillsUrl: baseUrl + "/.well-known/agent-skills/index.json",
-      commerceUrls: { acpDiscoveryUrl: originUrl + "/.well-known/acp.json", ucpProfileUrl: originUrl + "/.well-known/ucp", mppOpenApiUrl: originUrl + "/openapi.json", x402PaymentRequiredUrl: originUrl + "/api/payments/commerce/x402" },
-      health: args.health,
-      apiCatalog: args.apiCatalog,
-      openApi: args.openApi,
-      mcpServerCard: args.mcpServerCard,
-      agentCard: args.agentCard,
-      agentSkills: args.agentSkills,
-      commerce: args.commerce,
-    };
-  };
   const createAgentSurfaceInspectionExecutor = (args = {}) => {
     const baseUrl = String(args.baseUrl || "").replace(/\\/+$/, "");
-    const fetchJson = args.fetchJson;
+    const toolName = String(args.toolName || "inspect_agent_surface").trim();
     if (!baseUrl) {
       throw new Error("baseUrl is required");
     }
-    if (typeof fetchJson !== "function") {
-      throw new Error("fetchJson is required");
-    }
-    const fetchJsonOrNull = async (url, accept = "application/json") => { try { return await fetchJson(url, accept); } catch { return null; } };
     return async () => {
-      const originUrl = new URL(baseUrl + "/").origin;
-      const responses = await Promise.all([
-        fetchJson(baseUrl + "/health", "application/health+json"),
-        fetchJson(baseUrl + "/.well-known/api-catalog", "application/linkset+json"),
-        fetchJson(baseUrl + "/.well-known/openapi.json", "application/json"),
-        fetchJson(baseUrl + "/.well-known/mcp/server-card.json", "application/json"),
-        fetchJson(baseUrl + "/.well-known/agent-card.json", "application/json"),
-        fetchJson(baseUrl + "/.well-known/agent-skills/index.json", "application/json"),
-        fetchJsonOrNull(originUrl + "/.well-known/acp.json", "application/json"),
-        fetchJsonOrNull(originUrl + "/.well-known/ucp", "application/json"),
-        fetchJsonOrNull(originUrl + "/openapi.json", "application/json"),
-      ]);
-      return buildAgentSurfaceInspectionPayload({
-        baseUrl,
-        health: responses[0],
-        apiCatalog: responses[1],
-        openApi: responses[2],
-        mcpServerCard: responses[3],
-        agentCard: responses[4],
-        agentSkills: responses[5],
-        commerce: { acpDiscovery: responses[6], ucpProfile: responses[7], mppOpenApi: responses[8] },
+      const response = await fetch(baseUrl + "/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: toolName, arguments: {} },
+        }),
       });
+      if (!response.ok) throw new Error("inspect_agent_surface MCP call failed with " + response.status);
+      const payload = await response.json();
+      if (payload && payload.error) throw new Error(payload.error.message || "inspect_agent_surface MCP call failed");
+      const result = payload && payload.result;
+      const structuredContent = result && result.structuredContent;
+      if (!structuredContent || typeof structuredContent !== "object") {
+        throw new Error("inspect_agent_surface MCP call did not return structured content");
+      }
+      return structuredContent;
     };
   };
-  const createPublishedAgentReadyToolExecutors = (args = {}) => {
-    const toolNames = args.toolNames || {};
-    const defaultWorkspaceId = String(args.defaultWorkspaceId || "").trim();
-    const buildStorageDocPath = args.buildStorageDocPath;
-    const fetchSourceFilesIndexResponse = args.fetchSourceFilesIndexResponse;
-    const fetchStorageMarkdownResponse = args.fetchStorageMarkdownResponse;
-    const resolveSharedDocumentInput = args.resolveSharedDocumentInput;
-    const inspectSharedDocumentStructure = args.inspectSharedDocumentStructure;
-    const buildAgentSurfaceInspection = args.buildAgentSurfaceInspection;
-    const normalizeString = (value) => String(value || "").trim();
-    if (typeof buildStorageDocPath !== "function") throw new Error("buildStorageDocPath is required");
-    if (typeof fetchSourceFilesIndexResponse !== "function") throw new Error("fetchSourceFilesIndexResponse is required");
-    if (typeof fetchStorageMarkdownResponse !== "function") throw new Error("fetchStorageMarkdownResponse is required");
-    if (typeof resolveSharedDocumentInput !== "function") throw new Error("resolveSharedDocumentInput is required");
-    if (typeof inspectSharedDocumentStructure !== "function") throw new Error("inspectSharedDocumentStructure is required");
-    if (typeof buildAgentSurfaceInspection !== "function") throw new Error("buildAgentSurfaceInspection is required");
-    const readSourceFile = async (input = {}) => {
-      const canonicalPath = normalizeString(input.canonicalPath);
-      if (!canonicalPath) {
-        throw new Error("canonicalPath is required");
-      }
-      const workspaceId = normalizeString(input.workspaceId);
-      const response = await fetchStorageMarkdownResponse(buildStorageDocPath(canonicalPath, workspaceId));
-      if (!response.ok) {
-        throw new Error("read_source_file failed with " + response.status);
-      }
-      return {
-        workspaceId: workspaceId || defaultWorkspaceId,
-        canonicalPath,
-        markdown: await response.text(),
-      };
-    };
-    const readSharedDocument = async (input = {}) => {
-      const resolvedDocument = resolveSharedDocumentInput(input);
-      if (!resolvedDocument) {
-        throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
-      }
-      const workspaceId = normalizeString(resolvedDocument.workspaceId);
-      const canonicalPath = normalizeString(resolvedDocument.canonicalPath);
-      const response = await fetchStorageMarkdownResponse(buildStorageDocPath(canonicalPath, workspaceId));
-      if (!response.ok) {
-        throw new Error("read_shared_document failed with " + response.status);
-      }
-      return {
-        workspaceId: workspaceId || defaultWorkspaceId,
-        canonicalPath,
-        markdown: await response.text(),
-      };
-    };
-    const inspectSharedDocument = async (input = {}) => {
-      const sharedDocument = await readSharedDocument(input);
-      return inspectSharedDocumentStructure(sharedDocument);
-    };
-    return {
-      [toolNames.listSourceFiles]: async () => {
-        const response = await fetchSourceFilesIndexResponse();
-        if (!response.ok) {
-          throw new Error("list_source_files failed with " + response.status);
-        }
-        return {
-          workspaceId: defaultWorkspaceId,
-          markdownIndex: await response.text(),
-        };
-      },
-      [toolNames.readSourceFile]: readSourceFile,
-      [toolNames.readSharedDocument]: readSharedDocument,
-      [toolNames.inspectSharedDocumentStructure]: inspectSharedDocument,
-      [toolNames.inspectAgentSurface]: async () => buildAgentSurfaceInspection(),
-    };
-  };
+  const createPublishedAgentReadyToolExecutors = ${PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE};
   const createWebMcpLifecycleController = (args = {}) => {
     const root = args.root, lifecycleState = args.state, tools = Array.isArray(args.tools) ? args.tools : [], toolNames = Array.isArray(args.toolNames) ? args.toolNames : [];
     const lateBindingRetryDelayMs = Number(args.lateBindingRetryDelayMs || 500), lateBindingMaxAttempts = Number(args.lateBindingMaxAttempts || 20), markRuntimeState = typeof args.markRuntimeState === "function" ? args.markRuntimeState : () => {};
@@ -777,6 +717,8 @@ export const webMcpScript = `(() => {
   };
   const toolExecutors = createPublishedAgentReadyToolExecutors({
     toolNames: {
+      search: ${JSON.stringify(SEARCH_WEB_TOOL_NAME)},
+      fetch: ${JSON.stringify(FETCH_WEB_TOOL_NAME)},
       listSourceFiles: ${JSON.stringify(LIST_SOURCE_FILES_WEB_TOOL_NAME)},
       readSourceFile: ${JSON.stringify(READ_SOURCE_FILE_WEB_TOOL_NAME)},
       readSharedDocument: ${JSON.stringify(READ_SHARED_DOCUMENT_WEB_TOOL_NAME)},
@@ -784,6 +726,7 @@ export const webMcpScript = `(() => {
       inspectAgentSurface: ${JSON.stringify(INSPECT_AGENT_SURFACE_WEB_TOOL_NAME)},
     },
     defaultWorkspaceId,
+    publicBaseUrl: siteOrigin,
     buildStorageDocPath: buildDocPath,
     fetchSourceFilesIndexResponse: () =>
       fetch(buildStorageRequestUrl("/api/storage/source-files"), {
@@ -797,7 +740,7 @@ export const webMcpScript = `(() => {
     inspectSharedDocumentStructure,
     buildAgentSurfaceInspection: createAgentSurfaceInspectionExecutor({
       baseUrl: resolveAgentReadyBaseUrl(),
-      fetchJson,
+      toolName: ${JSON.stringify(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)},
     }),
   });
   const tools = toolDefinitions.map((tool) => {
@@ -835,6 +778,8 @@ const injectWebMcpScript = async (response) => {
 };
 
 const PUBLISHED_TOOL_NAME_CONFIG = {
+  search: KNOWGRPH_AGENT_READY_TOOL_IDS.search,
+  fetch: KNOWGRPH_AGENT_READY_TOOL_IDS.fetch,
   listSourceFiles: KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles,
   readSourceFile: KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile,
   readSharedDocument: KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument,
@@ -895,6 +840,9 @@ const mcpInitializeResult = {
   capabilities: {
     tools: {},
     resources: {},
+    prompts: {
+      listChanged: false,
+    },
     ...buildKnowgrphMcpAppsCapabilities(),
   },
   serverInfo: mcpServerCard.serverInfo,
@@ -902,6 +850,8 @@ const mcpInitializeResult = {
 
 const mcpTools = mcpServerCard.capabilities.tools;
 const mcpResources = [mcpAppResource];
+const mcpPrompts = AGENT_READY_PROMPT_CONTRACTS;
+const mcpResourceTemplates = AGENT_READY_RESOURCE_TEMPLATE_CONTRACTS;
 
 const buildHealthStatusBody = () => ({
   status: "pass",
@@ -934,6 +884,7 @@ const buildAgentSurfaceInspection = async () => buildAgentSurfaceInspectionPaylo
 const PUBLISHED_MCP_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors({
   toolNames: PUBLISHED_TOOL_NAME_CONFIG,
   defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+  publicBaseUrl: SITE_ORIGIN,
   buildStorageDocPath,
   fetchSourceFilesIndexResponse: () =>
     fetch(`${STORAGE_FETCH_ORIGIN}${buildKnowgrphStorageSourceFilesIndexPath()}`, {
@@ -1001,17 +952,36 @@ const readJsonRpcRequest = async (request) => {
   }
 };
 
-const jsonRpcResult = (id, result) => jsonResponse({
+const jsonRpcResult = (id, result) => jsonStatusResponse(200, {
   jsonrpc: "2.0",
   id: id ?? null,
   result,
 });
 
-const jsonRpcError = (id, code, message) => jsonResponse({
+const jsonRpcError = (id, code, message) => jsonStatusResponse(200, {
   jsonrpc: "2.0",
   id: id ?? null,
   error: { code, message },
 });
+
+const requestAcceptsEventStream = (request) =>
+  String(request.headers.get("accept") || "")
+    .toLowerCase()
+    .split(",")
+    .some((part) => part.trim().startsWith("text/event-stream"));
+
+const hasOwnProperty = (value, key) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const isJsonRpcNotificationOrResponse = (rpc) => {
+  if (Array.isArray(rpc)) return rpc.length > 0 && rpc.every(isJsonRpcNotificationOrResponse);
+  if (!rpc || typeof rpc !== "object") return false;
+  if (String(rpc.jsonrpc || "") !== "2.0") return false;
+  const hasMethod = typeof rpc.method === "string" && rpc.method.length > 0;
+  const hasId = hasOwnProperty(rpc, "id");
+  const hasResultOrError = hasOwnProperty(rpc, "result") || hasOwnProperty(rpc, "error");
+  return (hasMethod && !hasId) || (!hasMethod && hasResultOrError);
+};
 
 const executeMcpTool = async (name, args) => {
   const execute = PUBLISHED_MCP_TOOL_EXECUTORS[name];
@@ -1021,20 +991,27 @@ const executeMcpTool = async (name, args) => {
   return execute(args);
 };
 
-const readMcpResource = (uri) => {
-  if (normalizeToolString(uri) !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
-    throw new Error(`unknown resource: ${uri}`);
+const readMcpResource = async (uri) => {
+  const normalizedUri = normalizeToolString(uri);
+  if (normalizedUri === KNOWGRPH_MCP_APP_RESOURCE_URI) {
+    return buildKnowgrphMcpAppsResourceReadResult({
+      appUrl: APP_URL,
+      updatedAt: UPDATED_AT,
+      toolNames: mcpTools.map((tool) => tool.name),
+    });
   }
-  return buildKnowgrphMcpAppsResourceReadResult({
-    appUrl: APP_URL,
-    updatedAt: UPDATED_AT,
-    toolNames: mcpTools.map((tool) => tool.name),
-  });
+  const sourceFileId = parseKnowgrphSourceFileResourceUri(normalizedUri);
+  if (sourceFileId) {
+    const sourceFile = await executeMcpTool(KNOWGRPH_AGENT_READY_TOOL_IDS.fetch, { id: sourceFileId });
+    return buildKnowgrphSourceFileResourceReadResult({ uri: normalizedUri, sourceFile });
+  }
+  throw new Error(`unknown resource: ${uri}`);
 };
 
 const handleMcpTransport = async (request) => {
   const method = String(request.method || "GET").toUpperCase();
   if (method === "GET" || method === "HEAD") {
+    if (requestAcceptsEventStream(request)) return emptyStatusResponse(405, { allow: "POST" });
     return jsonResponse({
       ok: true,
       transport: mcpServerCard.transport,
@@ -1045,18 +1022,34 @@ const handleMcpTransport = async (request) => {
   if (method !== "POST") return jsonStatusResponse(405, { ok: false, error: "unsupported_method" });
   const rpc = await readJsonRpcRequest(request);
   if (!rpc) return jsonRpcError(null, -32700, "Parse error");
+  if (isJsonRpcNotificationOrResponse(rpc)) return emptyStatusResponse(202);
+  if (Array.isArray(rpc)) return jsonRpcError(null, -32600, "Batch JSON-RPC requests are not supported");
   switch (rpc.method) {
     case "initialize":
       return jsonRpcResult(rpc.id, mcpInitializeResult);
     case "tools/list":
       return jsonRpcResult(rpc.id, { tools: mcpTools });
+    case "prompts/list":
+      return jsonRpcResult(rpc.id, { prompts: mcpPrompts });
+    case "resources/templates/list":
+      return jsonRpcResult(rpc.id, { resourceTemplates: mcpResourceTemplates });
+    case "prompts/get": {
+      const promptName = normalizeToolString(rpc.params?.name);
+      const promptArgs = rpc.params?.arguments && typeof rpc.params.arguments === "object" ? rpc.params.arguments : {};
+      if (!promptName) return jsonRpcError(rpc.id, -32602, "Prompt name is required");
+      try {
+        return jsonRpcResult(rpc.id, getKnowgrphAgentReadyPrompt(promptName, promptArgs));
+      } catch (error) {
+        return jsonRpcError(rpc.id, -32602, error instanceof Error ? error.message : String(error));
+      }
+    }
     case "resources/list":
       return jsonRpcResult(rpc.id, { resources: mcpResources });
     case "resources/read": {
       const uri = normalizeToolString(rpc.params?.uri);
       if (!uri) return jsonRpcError(rpc.id, -32602, "Resource URI is required");
       try {
-        return jsonRpcResult(rpc.id, readMcpResource(uri));
+        return jsonRpcResult(rpc.id, await readMcpResource(uri));
       } catch (error) {
         return jsonRpcError(rpc.id, -32602, error instanceof Error ? error.message : String(error));
       }
@@ -1095,6 +1088,12 @@ const handleMcpTransport = async (request) => {
       return jsonRpcError(rpc.id, -32601, "Method not found");
   }
 };
+
+const buildKnowgrphMcpAppHtmlBody = () => buildKnowgrphMcpAppsResourceReadResult({
+  appUrl: APP_URL,
+  updatedAt: UPDATED_AT,
+  toolNames: mcpTools.map((tool) => tool.name),
+}).contents[0].text;
 
 export const buildAgentReadyStaticFiles = async () => ({
   ...buildKnowgrphCommerceStaticFiles({ origin: SITE_ORIGIN }),
@@ -1145,11 +1144,7 @@ export const buildAgentReadyStaticFiles = async () => ({
   },
   ".well-known/mcp/apps/knowgrph-agent-ready.html": {
     contentType: "text/html;profile=mcp-app; charset=utf-8",
-    body: buildKnowgrphMcpAppsResourceReadResult({
-      appUrl: APP_URL,
-      updatedAt: UPDATED_AT,
-      toolNames: mcpTools.map((tool) => tool.name),
-    }).contents[0].text,
+    body: buildKnowgrphMcpAppHtmlBody(),
   },
   ...agentSkillStaticFiles(),
   ".well-known/http-message-signatures-directory": {
@@ -1225,6 +1220,8 @@ const routeResponse = async (request) => {
       return jsonResponse(oauthAuthorizationServer);
     case `${APP_BASE_PATH}/.well-known/mcp/server-card.json`:
       return jsonResponse(mcpServerCard);
+    case `${APP_BASE_PATH}/.well-known/mcp/apps/knowgrph-agent-ready.html`:
+      return mcpAppsHtmlResponse(buildKnowgrphMcpAppHtmlBody());
     case `${APP_BASE_PATH}/.well-known/mcp.json`:
       return jsonResponse(mcpServerCard);
     case `${APP_BASE_PATH}/.well-known/agent-skills/index.json`:

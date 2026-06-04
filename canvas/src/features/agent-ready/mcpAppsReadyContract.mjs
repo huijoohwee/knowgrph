@@ -1,3 +1,8 @@
+import {
+  KNOWGRPH_AGENT_READY_PROMPT_NAMES,
+} from './knowgrphAgentReadyPromptContract.mjs'
+import { KNOWGRPH_SOURCE_FILE_RESOURCE_URI_TEMPLATE } from './knowgrphAgentReadyResourceContract.mjs'
+
 export const KNOWGRPH_MCP_APPS_EXTENSION_ID = 'io.modelcontextprotocol/ui'
 export const KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app'
 export const KNOWGRPH_MCP_APPS_PROTOCOL_VERSION = '2026-01-26'
@@ -5,6 +10,22 @@ export const KNOWGRPH_MCP_APPS_SERVER_READINESS_SCHEMA_VERSION = 'knowgrph-mcp-a
 export const KNOWGRPH_MCP_APP_RESOURCE_URI = 'ui://knowgrph/agent-ready'
 export const KNOWGRPH_MCP_APP_RESOURCE_NAME = 'knowgrph-agent-ready'
 export const KNOWGRPH_MCP_APP_TOOL_NAME = 'inspect_agent_surface'
+export const KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES = Object.freeze(['search', 'fetch'])
+export const KNOWGRPH_MCP_DEEP_RESEARCH_REQUIRED_OUTPUTS = Object.freeze({
+  search: Object.freeze(['ids']),
+  fetch: Object.freeze(['id', 'title', 'content', 'text']),
+})
+export const KNOWGRPH_MCP_REQUIRED_PROMPT_NAMES = Object.freeze(Object.values(KNOWGRPH_AGENT_READY_PROMPT_NAMES))
+export const KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE = 'streamable-http'
+export const KNOWGRPH_MCP_NOAUTH_SECURITY_SCHEMES = Object.freeze([Object.freeze({ type: 'noauth' })])
+export const KNOWGRPH_MCP_CLIENT_IDS = Object.freeze({
+  openAiApps: 'openai-apps',
+  claude: 'claude-mcp-connector',
+  qwenCode: 'qwen-code',
+  kimiCli: 'kimi-cli',
+  bytePlusModelArk: 'byteplus-modelark',
+  generic: 'generic-mcp',
+})
 
 const normalizeString = (value) => String(value || '').trim()
 
@@ -16,6 +37,16 @@ const escapeHtml = (value) => normalizeString(value)
 
 const safeJsonForInlineScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c')
 
+const readUrlOrigin = (value) => {
+  const source = normalizeString(value)
+  if (!source) return ''
+  try {
+    return new URL(source).origin
+  } catch {
+    return ''
+  }
+}
+
 export const buildKnowgrphMcpAppsCapabilities = () => ({
   extensions: {
     [KNOWGRPH_MCP_APPS_EXTENSION_ID]: {
@@ -25,6 +56,39 @@ export const buildKnowgrphMcpAppsCapabilities = () => ({
 })
 
 const arrayFrom = (value) => Array.isArray(value) ? value : []
+export const buildKnowgrphMcpNoauthSecuritySchemes = () =>
+  KNOWGRPH_MCP_NOAUTH_SECURITY_SCHEMES.map((scheme) => ({ ...scheme }))
+
+const normalizeSecuritySchemes = (value) => {
+  const schemes = Array.isArray(value) && value.length ? value : buildKnowgrphMcpNoauthSecuritySchemes()
+  return schemes
+    .filter((scheme) => scheme && typeof scheme === 'object')
+    .map((scheme) => ({ ...scheme }))
+}
+
+const hasNoauthSecurityScheme = (value) =>
+  arrayFrom(value).some((scheme) => scheme?.type === 'noauth')
+const readSecuritySchemes = (value) =>
+  Array.isArray(value) ? normalizeSecuritySchemes(value) : []
+const hasOpenAiWidgetBridgeHtml = (value) => {
+  const html = normalizeString(value)
+  return html.includes('window.openai')
+    && html.includes('openai:set_globals')
+    && html.includes('toolInput')
+    && html.includes('toolOutput')
+    && html.includes('callTool')
+    && html.includes("request('ui/initialize'")
+}
+
+const hasToolOutputSchemaFields = (tool, requiredFields = []) =>
+  tool?.outputSchema?.type === 'object'
+  && requiredFields.every((field) => arrayFrom(tool.outputSchema?.required).includes(field))
+
+const hasReadOnlyToolAnnotations = (tool) =>
+  tool?.annotations?.readOnlyHint === true
+  && tool?.annotations?.destructiveHint === false
+  && tool?.annotations?.openWorldHint === false
+  && tool?.annotations?.idempotentHint === true
 
 const booleanCheck = (id, label, ok, evidence = []) => ({
   id,
@@ -32,6 +96,126 @@ const booleanCheck = (id, label, ok, evidence = []) => ({
   ok: ok === true,
   evidence: arrayFrom(evidence).map(normalizeString).filter(Boolean),
 })
+
+export const buildKnowgrphMcpClientSetups = (args = {}) => {
+  const baseUrl = normalizeString(args.baseUrl).replace(/\/+$/, '')
+  const serverName = normalizeString(args.serverName) || 'knowgrph'
+  const mcpUrl = normalizeString(args.mcpUrl) || (baseUrl ? `${baseUrl}/mcp` : '')
+  return {
+    [KNOWGRPH_MCP_CLIENT_IDS.openAiApps]: {
+      id: KNOWGRPH_MCP_CLIENT_IDS.openAiApps,
+      label: 'OpenAI Apps / ChatGPT',
+      transport: KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
+      url: mcpUrl,
+      appResourceUri: KNOWGRPH_MCP_APP_RESOURCE_URI,
+      appToolName: KNOWGRPH_MCP_APP_TOOL_NAME,
+      requiredMetadata: ['openai/outputTemplate', 'openai/widgetAccessible', 'openai/widgetCSP', 'openai/widgetDomain'],
+      requiredTools: [KNOWGRPH_MCP_APP_TOOL_NAME, ...KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES],
+    },
+    [KNOWGRPH_MCP_CLIENT_IDS.claude]: {
+      id: KNOWGRPH_MCP_CLIENT_IDS.claude,
+      label: 'Claude MCP connector',
+      transport: KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
+      url: mcpUrl,
+      beta: 'mcp-client-2025-11-20',
+      mcp_servers: [{
+        type: 'url',
+        url: mcpUrl,
+        name: serverName,
+      }],
+      tools: [{
+        type: 'mcp_toolset',
+        mcp_server_name: serverName,
+      }],
+      requiredTools: KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES,
+    },
+    [KNOWGRPH_MCP_CLIENT_IDS.qwenCode]: {
+      id: KNOWGRPH_MCP_CLIENT_IDS.qwenCode,
+      label: 'Qwen Code',
+      transport: 'http',
+      url: mcpUrl,
+      command: `qwen mcp add --transport http ${serverName} ${mcpUrl}`,
+      settingsJson: {
+        mcpServers: {
+          [serverName]: {
+            httpUrl: mcpUrl,
+            timeout: 30000,
+            trust: false,
+            includeTools: ['search', 'fetch', KNOWGRPH_MCP_APP_TOOL_NAME],
+          },
+        },
+      },
+      requiredTools: KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES,
+      primaryFlow: 'Call search with a natural-language query, then call fetch with the returned kgdoc id.',
+    },
+    [KNOWGRPH_MCP_CLIENT_IDS.kimiCli]: {
+      id: KNOWGRPH_MCP_CLIENT_IDS.kimiCli,
+      label: 'Kimi CLI',
+      transport: 'http',
+      url: mcpUrl,
+      command: `kimi mcp add --transport http ${serverName} ${mcpUrl}`,
+      configFile: '~/.kimi/mcp.json',
+      mcpJson: {
+        mcpServers: {
+          [serverName]: {
+            url: mcpUrl,
+            transport: 'http',
+          },
+        },
+      },
+      requiredTools: KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES,
+      primaryFlow: 'Call search with a natural-language query, then call fetch with the returned kgdoc id.',
+    },
+    [KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]: {
+      id: KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk,
+      label: 'BytePlus ModelArk Responses API',
+      transport: KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
+      url: mcpUrl,
+      apiBaseUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3',
+      endpoint: '/responses',
+      requiredHeaders: {
+        'ark-beta-mcp': 'true',
+      },
+      tools: [{
+        type: 'mcp',
+        server_label: serverName,
+        server_url: mcpUrl,
+        require_approval: 'never',
+      }],
+      openAiCompatible: {
+        base_url: 'https://ark.ap-southeast.bytepluses.com/api/v3',
+        default_headers: {
+          'ark-beta-mcp': 'true',
+        },
+        responsesCreate: {
+          model: '<MODELARK_MODEL_OR_ENDPOINT_ID>',
+          tools: [{
+            type: 'mcp',
+            server_label: serverName,
+            server_url: mcpUrl,
+            require_approval: 'never',
+          }],
+        },
+      },
+      invocationScope: 'ModelArk Responses API with MCP service and model permissions enabled.',
+      requiredTools: KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES,
+      primaryFlow: 'Use ModelArk Responses API with the Knowgrph MCP tool entry, then ask the model to call search and fetch.',
+    },
+    [KNOWGRPH_MCP_CLIENT_IDS.generic]: {
+      id: KNOWGRPH_MCP_CLIENT_IDS.generic,
+      label: 'Generic MCP clients',
+      transport: KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
+      url: mcpUrl,
+      initialize: {
+        method: 'initialize',
+        accept: ['application/json', 'text/event-stream'],
+      },
+      requiredMethods: ['initialize', 'notifications/initialized', 'tools/list', 'tools/call'],
+      optionalMethods: ['prompts/list', 'prompts/get', 'resources/list', 'resources/templates/list', 'resources/read'],
+      requiredTools: KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES,
+    },
+  }
+}
 
 export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
   const baseUrl = normalizeString(args.baseUrl).replace(/\/+$/, '')
@@ -44,15 +228,78 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
   const resources = arrayFrom(args.resources).length
     ? arrayFrom(args.resources)
     : [buildKnowgrphMcpAppsResourceDescriptor({ appUrl: baseUrl, updatedAt })]
+  const prompts = arrayFrom(args.prompts).length ? arrayFrom(args.prompts) : arrayFrom(mcpServerCard.prompts)
+  const resourceTemplates = arrayFrom(args.resourceTemplates).length ? arrayFrom(args.resourceTemplates) : arrayFrom(mcpServerCard.resourceTemplates)
   const appTools = tools.filter((tool) => tool?._meta?.ui?.resourceUri === KNOWGRPH_MCP_APP_RESOURCE_URI)
   const appTool = appTools.find((tool) => tool?.name === KNOWGRPH_MCP_APP_TOOL_NAME) || appTools[0] || null
   const appResource = resources.find((resource) => resource?.uri === KNOWGRPH_MCP_APP_RESOURCE_URI) || null
   const extension = capabilities.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]
   const transportUrl = normalizeString(mcpServerCard.transport?.url) || (baseUrl ? `${baseUrl}/mcp` : '')
-  const transportType = normalizeString(mcpServerCard.transport?.type) || 'http'
+  const transportType = normalizeString(mcpServerCard.transport?.type) || KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
+  const appResourceHtml = normalizeString(args.appResourceHtml)
+    || buildKnowgrphMcpAppsHtml({
+      appUrl: baseUrl,
+      updatedAt,
+      toolName: appTool?.name || KNOWGRPH_MCP_APP_TOOL_NAME,
+    })
+  const clientSetups = args.clientSetups && typeof args.clientSetups === 'object'
+    ? args.clientSetups
+    : buildKnowgrphMcpClientSetups({ baseUrl, mcpUrl: transportUrl, serverName: mcpServerCard.serverInfo?.name })
   const outputSchemaReady = appTool?.outputSchema && typeof appTool.outputSchema === 'object'
   const textFallbackReady = Boolean(appTool?.name)
   const structuredContentReady = outputSchemaReady
+  const openAiOutputTemplateReady = appTool?._meta?.['openai/outputTemplate'] === KNOWGRPH_MCP_APP_RESOURCE_URI
+  const openAiWidgetBridgeReady = hasOpenAiWidgetBridgeHtml(appResourceHtml)
+  const appToolSecuritySchemesReady = hasNoauthSecurityScheme(appTool?.securitySchemes)
+    && hasNoauthSecurityScheme(appTool?._meta?.securitySchemes)
+  const appToolAnnotationsReady = hasReadOnlyToolAnnotations(appTool)
+  const appToolWidgetAccessibleReady = appTool?._meta?.['openai/widgetAccessible'] === true
+  const promptNames = prompts.map((prompt) => normalizeString(prompt?.name)).filter(Boolean)
+  const promptCapabilityReady = mcpServerCard.capabilities?.prompts && typeof mcpServerCard.capabilities.prompts === 'object'
+  const promptsReady = KNOWGRPH_MCP_REQUIRED_PROMPT_NAMES
+    .every((promptName) => promptNames.includes(promptName))
+  const resourceTemplateUris = resourceTemplates.map((template) => normalizeString(template?.uriTemplate)).filter(Boolean)
+  const sourceFileResourceTemplateReady = resourceTemplateUris.includes(KNOWGRPH_SOURCE_FILE_RESOURCE_URI_TEMPLATE)
+  const deepResearchTools = Object.fromEntries(
+    KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES.map((toolName) => [
+      toolName,
+      tools.find((tool) => tool?.name === toolName) || null,
+    ]),
+  )
+  const deepResearchToolsReady = KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES
+    .every((toolName) => {
+      const tool = deepResearchTools[toolName]
+      return hasReadOnlyToolAnnotations(tool)
+        && hasToolOutputSchemaFields(tool, KNOWGRPH_MCP_DEEP_RESEARCH_REQUIRED_OUTPUTS[toolName])
+    })
+  const qwenCodeSetup = clientSetups[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]
+  const qwenCodeReady = qwenCodeSetup?.transport === 'http'
+    && qwenCodeSetup?.url === transportUrl
+    && qwenCodeSetup?.settingsJson?.mcpServers?.[mcpServerCard.serverInfo?.name || 'knowgrph']?.httpUrl === transportUrl
+    && String(qwenCodeSetup?.command || '').includes('--transport http')
+    && String(qwenCodeSetup?.command || '').includes(transportUrl)
+  const kimiCliSetup = clientSetups[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]
+  const kimiCliReady = kimiCliSetup?.transport === 'http'
+    && kimiCliSetup?.url === transportUrl
+    && kimiCliSetup?.mcpJson?.mcpServers?.[mcpServerCard.serverInfo?.name || 'knowgrph']?.url === transportUrl
+    && kimiCliSetup?.mcpJson?.mcpServers?.[mcpServerCard.serverInfo?.name || 'knowgrph']?.transport === 'http'
+    && String(kimiCliSetup?.command || '').includes('kimi mcp add --transport http')
+    && String(kimiCliSetup?.command || '').includes(transportUrl)
+  const bytePlusModelArkSetup = clientSetups[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]
+  const bytePlusModelArkReady = bytePlusModelArkSetup?.transport === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
+    && bytePlusModelArkSetup?.url === transportUrl
+    && bytePlusModelArkSetup?.endpoint === '/responses'
+    && bytePlusModelArkSetup?.requiredHeaders?.['ark-beta-mcp'] === 'true'
+    && arrayFrom(bytePlusModelArkSetup?.tools).some((tool) =>
+      tool?.type === 'mcp'
+      && tool?.server_label === (mcpServerCard.serverInfo?.name || 'knowgrph')
+      && tool?.server_url === transportUrl
+      && tool?.require_approval === 'never')
+    && bytePlusModelArkSetup?.openAiCompatible?.responsesCreate?.tools?.some((tool) =>
+      tool?.type === 'mcp'
+      && tool?.server_label === (mcpServerCard.serverInfo?.name || 'knowgrph')
+      && tool?.server_url === transportUrl
+      && tool?.require_approval === 'never')
   const checklist = [
     booleanCheck('app-tool-resource-link', 'App tool is linked to the UI resource', appTools.length > 0, appTools.map((tool) => tool.name)),
     booleanCheck('output-schema', 'App tool exposes an output schema', outputSchemaReady, [appTool?.name]),
@@ -60,8 +307,19 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
     booleanCheck('structured-content', 'Tool result returns structured content for the View', structuredContentReady, [appTool?.name]),
     booleanCheck('resource-descriptor', 'MCP resource descriptor uses the MCP Apps MIME type', appResource?.mimeType === KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE, [appResource?.uri]),
     booleanCheck('resource-security-meta', 'Resource declares UI sandbox metadata', appResource?._meta?.ui?.prefersBorder === true && Boolean(appResource?._meta?.ui?.csp), [appResource?.uri]),
+    booleanCheck('openai-output-template', 'App tool exposes the OpenAI output template compatibility key', openAiOutputTemplateReady, [appTool?.name]),
+    booleanCheck('openai-widget-bridge', 'App resource supports the OpenAI Apps widget bridge', openAiWidgetBridgeReady, ['window.openai', 'openai:set_globals']),
+    booleanCheck('tool-security-schemes', 'App tool exposes no-auth securitySchemes and mirrors them in _meta', appToolSecuritySchemesReady, [appTool?.name]),
+    booleanCheck('tool-impact-annotations', 'App tool exposes complete read-only impact annotations', appToolAnnotationsReady, [appTool?.name]),
+    booleanCheck('widget-accessible', 'App tool allows the widget bridge to call tools', appToolWidgetAccessibleReady, [appTool?.name]),
+    booleanCheck('prompt-discovery', 'Server exposes MCP prompt templates for multi-host guidance', promptCapabilityReady && promptsReady, promptNames),
+    booleanCheck('source-file-resource-template', 'Server exposes a dynamic Source Files resource template', sourceFileResourceTemplateReady, resourceTemplateUris),
+    booleanCheck('deep-research-search-fetch', 'Server exposes read-only search and fetch tools', deepResearchToolsReady, KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES),
+    booleanCheck('qwen-code-http-client-setup', 'Server advertises Qwen Code HTTP MCP setup', qwenCodeReady, [qwenCodeSetup?.command]),
+    booleanCheck('kimi-cli-http-client-setup', 'Server advertises Kimi CLI HTTP MCP setup', kimiCliReady, [kimiCliSetup?.command]),
+    booleanCheck('byteplus-modelark-responses-mcp-setup', 'Server advertises BytePlus ModelArk Responses API MCP setup', bytePlusModelArkReady, [bytePlusModelArkSetup?.apiBaseUrl, bytePlusModelArkSetup?.endpoint]),
     booleanCheck('extension-capability', 'Server advertises the MCP Apps extension capability', extension?.mimeTypes?.includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE), [KNOWGRPH_MCP_APPS_EXTENSION_ID]),
-    booleanCheck('http-transport', 'Server exposes a stateless HTTP JSON-RPC transport', Boolean(transportUrl), [transportUrl]),
+    booleanCheck('streamable-http-transport', 'Server exposes a stateless Streamable HTTP JSON-RPC transport', Boolean(transportUrl) && transportType === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE, [transportUrl, transportType]),
     booleanCheck('stdio-transport', 'Repo-local MCP server supports stdio host configuration', args.localStdio === false ? false : true, ['node mcp/server.js']),
   ]
   const ready = checklist.every((check) => check.ok)
@@ -82,17 +340,60 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
       resourceUri: appTool?._meta?.ui?.resourceUri || KNOWGRPH_MCP_APP_RESOURCE_URI,
       visibility: arrayFrom(appTool?._meta?.ui?.visibility).length ? appTool._meta.ui.visibility : ['model', 'app'],
       readOnly: appTool?.annotations?.readOnlyHint === true,
+      destructive: appTool?.annotations?.destructiveHint === true,
+      openWorld: appTool?.annotations?.openWorldHint === true,
+      idempotent: appTool?.annotations?.idempotentHint === true,
+      annotationsReady: appToolAnnotationsReady,
       hasOutputSchema: Boolean(outputSchemaReady),
       textFallback: textFallbackReady,
       structuredContent: structuredContentReady,
+      openAiOutputTemplate: openAiOutputTemplateReady,
+      openAiWidgetBridge: openAiWidgetBridgeReady,
+      securitySchemes: readSecuritySchemes(appTool?.securitySchemes),
+      mirroredSecuritySchemes: readSecuritySchemes(appTool?._meta?.securitySchemes),
+      widgetAccessible: appToolWidgetAccessibleReady,
     },
     resource: {
       uri: appResource?.uri || KNOWGRPH_MCP_APP_RESOURCE_URI,
       name: appResource?.name || KNOWGRPH_MCP_APP_RESOURCE_NAME,
       mimeType: appResource?.mimeType || KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE,
       prefersBorder: appResource?._meta?.ui?.prefersBorder === true,
+      domain: normalizeString(appResource?._meta?.ui?.domain),
       csp: appResource?._meta?.ui?.csp || {},
+      openAiWidgetBridge: openAiWidgetBridgeReady,
     },
+    retrieval: {
+      mode: 'deep-research-search-fetch',
+      requiredTools: KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES,
+      tools: KNOWGRPH_MCP_DEEP_RESEARCH_TOOL_NAMES.map((toolName) => {
+        const tool = deepResearchTools[toolName]
+        return {
+          name: toolName,
+          readOnly: tool?.annotations?.readOnlyHint === true,
+          destructive: tool?.annotations?.destructiveHint === true,
+          openWorld: tool?.annotations?.openWorldHint === true,
+          idempotent: tool?.annotations?.idempotentHint === true,
+          annotationsReady: hasReadOnlyToolAnnotations(tool),
+          requiredOutputFields: KNOWGRPH_MCP_DEEP_RESEARCH_REQUIRED_OUTPUTS[toolName],
+          outputSchemaReady: hasToolOutputSchemaFields(
+            tool,
+            KNOWGRPH_MCP_DEEP_RESEARCH_REQUIRED_OUTPUTS[toolName],
+          ),
+        }
+      }),
+    },
+    prompts: {
+      requiredPrompts: KNOWGRPH_MCP_REQUIRED_PROMPT_NAMES,
+      names: promptNames,
+      capability: Boolean(promptCapabilityReady),
+      ready: promptCapabilityReady && promptsReady,
+    },
+    resourceTemplates: {
+      requiredTemplates: [KNOWGRPH_SOURCE_FILE_RESOURCE_URI_TEMPLATE],
+      uriTemplates: resourceTemplateUris,
+      ready: sourceFileResourceTemplateReady,
+    },
+    clients: clientSetups,
     transports: [
       {
         id: 'pages-http-jsonrpc',
@@ -100,6 +401,7 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
         url: transportUrl,
         stateless: true,
         serverFactory: true,
+        legacySse: false,
       },
       {
         id: 'local-stdio-jsonrpc',
@@ -122,14 +424,23 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
   }
 }
 
-export const buildKnowgrphMcpAppsToolMeta = (args = {}) => ({
-  ui: {
-    resourceUri: normalizeString(args.resourceUri) || KNOWGRPH_MCP_APP_RESOURCE_URI,
-    visibility: Array.isArray(args.visibility) && args.visibility.length
-      ? args.visibility
-      : ['model', 'app'],
-  },
-})
+export const buildKnowgrphMcpAppsToolMeta = (args = {}) => {
+  const resourceUri = normalizeString(args.resourceUri) || KNOWGRPH_MCP_APP_RESOURCE_URI
+  const securitySchemes = normalizeSecuritySchemes(args.securitySchemes)
+  return {
+    securitySchemes,
+    ui: {
+      resourceUri,
+      visibility: Array.isArray(args.visibility) && args.visibility.length
+        ? args.visibility
+        : ['model', 'app'],
+    },
+    'openai/outputTemplate': resourceUri,
+    'openai/widgetAccessible': args.widgetAccessible === false ? false : true,
+    'openai/toolInvocation/invoking': normalizeString(args.invoking) || 'Inspecting Knowgrph.',
+    'openai/toolInvocation/invoked': normalizeString(args.invoked) || 'Knowgrph is ready.',
+  }
+}
 
 export const KNOWGRPH_AGENT_SURFACE_OUTPUT_SCHEMA = Object.freeze({
   type: 'object',
@@ -162,6 +473,13 @@ export const KNOWGRPH_AGENT_SURFACE_OUTPUT_SCHEMA = Object.freeze({
 export const buildKnowgrphMcpAppsResourceDescriptor = (args = {}) => {
   const appUrl = normalizeString(args.appUrl)
   const updatedAt = normalizeString(args.updatedAt)
+  const domain = normalizeString(args.domain) || readUrlOrigin(appUrl)
+  const csp = {
+    connectDomains: [],
+    resourceDomains: [],
+    frameDomains: [],
+    baseUriDomains: [],
+  }
   return {
     uri: KNOWGRPH_MCP_APP_RESOURCE_URI,
     name: KNOWGRPH_MCP_APP_RESOURCE_NAME,
@@ -173,13 +491,17 @@ export const buildKnowgrphMcpAppsResourceDescriptor = (args = {}) => {
     mimeType: KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE,
     _meta: {
       ui: {
-        csp: {
-          connectDomains: [],
-          resourceDomains: [],
-          frameDomains: [],
-          baseUriDomains: [],
-        },
+        csp,
+        ...(domain ? { domain } : {}),
         prefersBorder: true,
+      },
+      'openai/widgetDescription': 'Interactive Knowgrph agent-ready server-readiness view.',
+      'openai/widgetPrefersBorder': true,
+      ...(domain ? { 'openai/widgetDomain': domain } : {}),
+      'openai/widgetCSP': {
+        connect_domains: csp.connectDomains,
+        resource_domains: csp.resourceDomains,
+        frame_domains: csp.frameDomains,
       },
     },
   }
@@ -234,14 +556,14 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
 <body>
   <main>
     <header>
-      <div>
+      <section>
         <h1>Knowgrph Agent Ready</h1>
         <p>Interactive MCP Apps view backed by the existing read-only agent surface.</p>
-      </div>
-      <div class="actions">
+      </section>
+      <nav class="actions" aria-label="Agent Ready actions">
         <button id="refresh" type="button">Refresh</button>
         ${appUrl ? `<a href="${escapeHtml(appUrl)}" target="_blank" rel="noreferrer">Open</a>` : ''}
-      </div>
+      </nav>
     </header>
     <section aria-label="MCP app state">
       <dl>
@@ -253,7 +575,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       </dl>
     </section>
     <section aria-label="MCP Apps server readiness">
-      <div id="readiness" class="readiness">Waiting for structured server-readiness data.</div>
+      <section id="readiness" class="readiness">Waiting for structured server-readiness data.</section>
     </section>
     <section aria-label="Tool result">
       <pre id="structured">No tool result received yet.</pre>
@@ -270,6 +592,10 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
     const pending = new Map();
     const state = { hostCapabilities: null, hostContext: null, input: null, result: null };
     const hasParent = () => window.parent && window.parent !== window;
+    const readOpenAiBridge = () => {
+      const bridge = window.openai;
+      return bridge && typeof bridge === 'object' ? bridge : null;
+    };
     const post = (message) => {
       if (!hasParent()) return;
       window.parent.postMessage({ jsonrpc: '2.0', ...message }, '*');
@@ -290,7 +616,10 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
     const requestTool = async () => {
       statusEl.textContent = 'Requesting ' + boot.toolName + ' through the host.';
       try {
-        const result = await request('tools/call', { name: boot.toolName, arguments: {} });
+        const openAiBridge = readOpenAiBridge();
+        const result = openAiBridge && typeof openAiBridge.callTool === 'function'
+          ? await openAiBridge.callTool(boot.toolName, {})
+          : await request('tools/call', { name: boot.toolName, arguments: {} });
         state.result = result || null;
         render();
       } catch (error) {
@@ -309,6 +638,21 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       if (host.theme === 'dark' || host.theme === 'light') {
         document.documentElement.dataset.theme = host.theme;
       }
+    };
+    const syncOpenAiGlobals = (globals = readOpenAiBridge()) => {
+      const source = globals && typeof globals === 'object' ? globals : {};
+      if (Object.prototype.hasOwnProperty.call(source, 'toolInput')) {
+        state.input = source.toolInput || null;
+      }
+      if (Object.prototype.hasOwnProperty.call(source, 'toolOutput')) {
+        state.result = source.toolOutput || null;
+      }
+      updateHost({
+        platform: 'OpenAI Apps',
+        displayMode: source.displayMode || source.hostDisplayMode,
+        theme: source.theme,
+      });
+      state.hostCapabilities = { ...(state.hostCapabilities || {}), openaiAppsBridge: true };
     };
     const appendText = (parent, tagName, text, className = '') => {
       const element = document.createElement(tagName);
@@ -374,6 +718,12 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       };
     })();
     const connect = async () => {
+      if (readOpenAiBridge()) {
+        syncOpenAiGlobals();
+        render();
+        sendSizeChanged();
+        return;
+      }
       if (!hasParent()) {
         statusEl.textContent = 'Standalone preview. Waiting for embedded MCP Apps host.';
         return;
@@ -440,6 +790,11 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       if (message.method === 'ui/resource-teardown') {
         if (message.id !== undefined && message.id !== null) post({ id: message.id, result: {} });
       }
+    });
+    window.addEventListener('openai:set_globals', (event) => {
+      syncOpenAiGlobals(event && event.detail && (event.detail.globals || event.detail));
+      render();
+      sendSizeChanged();
     });
     document.getElementById('refresh')?.addEventListener('click', requestTool);
     render();

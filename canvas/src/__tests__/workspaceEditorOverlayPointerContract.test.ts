@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { resolveWorkspacePreviewWidthFromPointerDrag } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
+import { shouldUseFlowEditorScreenAuthorityCollectivePan } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import {
   WORKSPACE_EDITOR_CANVAS_GUTTER_CSS,
   WORKSPACE_EDITOR_CANVAS_GUTTER_PX,
@@ -301,7 +302,7 @@ export function testWorkspaceEditorOverlayMaxWidthPreservesUsableCanvasStrip() {
   }
 }
 
-export function testFlowEditorVisibleViewportUsesNarrowActualCanvasStrip() {
+export function testFlowEditorVisibleViewportIgnoresEditorWorkspaceOverlayPane() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const surface = dom.window.document.createElement('section')
@@ -320,11 +321,28 @@ export function testFlowEditorVisibleViewportUsesNarrowActualCanvasStrip() {
       viewportH: 800,
     })
 
-    if (visibleViewport.left !== 920 || visibleViewport.width !== 80 || visibleViewport.centerX !== 960) {
-      throw new Error(`expected Flow Editor visible viewport to use the actual exposed strip, got ${JSON.stringify(visibleViewport)}`)
+    if (visibleViewport.left !== 0 || visibleViewport.width !== 1000 || visibleViewport.centerX !== 500) {
+      throw new Error(`expected Flow Editor visible viewport to keep the full canvas surface when Editor Workspace overlays it, got ${JSON.stringify(visibleViewport)}`)
     }
   } finally {
     restoreDom()
+  }
+}
+
+export function testFlowEditorScreenAuthorityCollectivePanIncludesStandaloneRenderer() {
+  if (!shouldUseFlowEditorScreenAuthorityCollectivePan({
+    canvas2dRenderer: 'flowEditor',
+    frontmatterModeEnabled: false,
+    documentSemanticMode: 'keyword',
+  })) {
+    throw new Error('expected standalone 2D Renderer: Flow Editor to use collective screen-authority pan')
+  }
+  if (shouldUseFlowEditorScreenAuthorityCollectivePan({
+    canvas2dRenderer: 'd3',
+    frontmatterModeEnabled: false,
+    documentSemanticMode: 'keyword',
+  })) {
+    throw new Error('expected non-Flow-Editor 2D renderers to avoid Flow Editor collective screen-authority pan')
   }
 }
 

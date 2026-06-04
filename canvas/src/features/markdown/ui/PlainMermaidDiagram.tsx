@@ -52,13 +52,13 @@ export function PlainMermaidDiagram({
   }, [code, rootThemeMode])
 
   if (error) {
-    return <div className="text-xs text-red-600 dark:text-red-400">{error}</div>
+    return <section className="text-xs text-red-600 dark:text-red-400">{error}</section>
   }
 
   if (!svg) return null
 
   return (
-    <div
+    <section
       className={cardPreviewMode
         ? CARD_MARKDOWN_PREVIEW_MERMAID_SURFACE_CLASS_NAME
         : `overflow-auto rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}

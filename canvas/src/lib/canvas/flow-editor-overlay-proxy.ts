@@ -80,19 +80,28 @@ export function readCanvasOverlayNodeId(overlayRoot: HTMLElement | null | undefi
   return String(overlayRoot.dataset.nodeId || '').trim()
 }
 
-export function readFlowEditorOverlaySurfaceId(overlayRoot: HTMLElement | null | undefined): string {
-  if (!overlayRoot) return ''
-  const ownSurfaceId = String(overlayRoot.dataset.kgFlowEditorSurface || '').trim()
+export function readFlowEditorElementSurfaceId(el: Element | null | undefined): string {
+  if (!(el instanceof HTMLElement)) return ''
+  const ownSurfaceId = String(el.dataset.kgFlowEditorSurface || '').trim()
   if (ownSurfaceId) return ownSurfaceId
   try {
-    const closestSurface = overlayRoot.closest(`[${FLOW_EDITOR_OVERLAY_SURFACE_ATTR}]`)
+    const closestSurface = el.closest(`[${FLOW_EDITOR_OVERLAY_SURFACE_ATTR}]`)
     if (closestSurface instanceof HTMLElement) {
-      return String(closestSurface.dataset.kgFlowEditorSurface || '').trim()
+      const closestSurfaceId = String(closestSurface.dataset.kgFlowEditorSurface || '').trim()
+      if (closestSurfaceId) return closestSurfaceId
+    }
+    const closestSurfaceRoot = el.closest(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}]`)
+    if (closestSurfaceRoot instanceof HTMLElement) {
+      return String(closestSurfaceRoot.getAttribute(FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR) || '').trim()
     }
   } catch {
     void 0
   }
   return ''
+}
+
+export function readFlowEditorOverlaySurfaceId(overlayRoot: HTMLElement | null | undefined): string {
+  return readFlowEditorElementSurfaceId(overlayRoot)
 }
 
 export function isTransientOffscreenRichMediaOverlayRoot(overlayRoot: HTMLElement | null | undefined, rect: DOMRect | null | undefined): boolean {
@@ -170,7 +179,9 @@ export function resolveFlowEditorOverlayProxyTarget(args: { target: unknown; can
   const root = el.closest(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR)
   const overlayRoot = root instanceof HTMLElement ? root : null
   if (!overlayRoot) return { kind: 'none' }
-  const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
+  const activeSurfaceId =
+    String(args.flowEditorSurfaceId || '').trim()
+    || readFlowEditorElementSurfaceId(args.canvasEl)
   if (!activeSurfaceId) return { kind: 'none' }
   if (activeSurfaceId) {
     const overlaySurfaceId = readFlowEditorOverlaySurfaceId(overlayRoot)

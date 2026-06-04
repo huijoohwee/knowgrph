@@ -97,7 +97,7 @@ export function useRichMediaOverlays2d(args: {
       }
     }),
   )
-  const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
+  const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLElement | null) => void>>(new Map())
   const stickyOverlayNodeByIdRef = useRef<Map<string, ReturnType<typeof listDisplayRichMediaOverlayNodes>[number]>>(new Map())
   const stickyOverlayOrderRef = useRef<string[]>([])
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)

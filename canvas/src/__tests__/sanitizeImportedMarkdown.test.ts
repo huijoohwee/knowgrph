@@ -260,18 +260,18 @@ export const testSanitizeImportedMarkdownFinetunesArticleMarkdownStructure = () 
 
 export const testSanitizeImportedMarkdownConvertsInteractiveHtmlDivBlockToPlainText = () => {
   const input = [
-    '<div role="button" tabindex="0" aria-disabled="false" class="mx-auto mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-secondary-button px-4 py-3 transition-colors cursor-pointer hover:bg-active" style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">',
-    '  <div class="flex flex-col" style="display:flex;flex-direction:column">',
-    '    <div class="text-sm font-medium text-secondary">Web report</div>',
-    '    <div class="text-xs text-secondary">View / share web report</div>',
-    '  </div>',
-    '  <div class="flex items-center gap-2 text-xs text-secondary" style="display:flex;flex-direction:row;align-items:center;gap:8px">Click to view</div>',
-    '</div>',
+    '<section role="button" tabindex="0" aria-disabled="false" class="mx-auto mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-secondary-button px-4 py-3 transition-colors cursor-pointer hover:bg-active" style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">',
+    '  <section class="flex flex-col" style="display:flex;flex-direction:column">',
+    '    <section class="text-sm font-medium text-secondary">Web report</section>',
+    '    <section class="text-xs text-secondary">View / share web report</section>',
+    '  </section>',
+    '  <section class="flex items-center gap-2 text-xs text-secondary" style="display:flex;flex-direction:row;align-items:center;gap:8px">Click to view</section>',
+    '</section>',
     '',
   ].join('\n')
   const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://example.com' })
   if (!out.changed) throw new Error('expected changed')
-  if (/<div\b/i.test(out.text)) throw new Error(`expected raw div html removed, got: ${out.text}`)
+  if (/<section\b/i.test(out.text)) throw new Error(`expected raw semantic wrapper html removed, got: ${out.text}`)
   if (!out.text.includes('Web report')) throw new Error(`expected title text preserved, got: ${out.text}`)
   if (!out.text.includes('View / share web report')) throw new Error(`expected detail text preserved, got: ${out.text}`)
   if (!out.text.includes('Click to view')) throw new Error(`expected CTA text preserved, got: ${out.text}`)

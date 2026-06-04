@@ -34,7 +34,7 @@ export default function PreviewOverlay({
   if (!open) return null
 
   const node = (
-    <div
+    <section
       className={[
         scope === 'container' ? 'absolute inset-0 z-[99999]' : 'fixed inset-0 z-[99999]',
         'bg-black/60 flex items-center justify-center p-4',
@@ -42,7 +42,7 @@ export default function PreviewOverlay({
       ].filter(Boolean).join(' ')}
       onMouseDown={onClose}
     >
-      <div
+      <section
         className={[
           `${UI_RESPONSIVE_PREVIEW_OVERLAY_PANEL_CLASSNAME} ${UI_THEME_TOKENS.panel.bg} rounded border ${UI_THEME_TOKENS.panel.border} shadow-lg`,
           panelClassName || '',
@@ -50,8 +50,8 @@ export default function PreviewOverlay({
         onMouseDown={(e) => e.stopPropagation()}
       >
         {children}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 
   if (typeof document === 'undefined') return node

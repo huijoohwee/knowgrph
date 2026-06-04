@@ -14,7 +14,7 @@ const tick = async (n = 1): Promise<void> => {
 }
 
 export async function testMarkdownWorkspaceEffectiveContentPrefersCanonicalWritebackWhenEditorIsClean() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const container = dom.window.document.getElementById('root')
   if (!container) throw new Error('missing root container')
   const root = createRoot(container)
@@ -99,7 +99,7 @@ export async function testMarkdownWorkspaceEffectiveContentPrefersCanonicalWrite
 }
 
 export async function testMarkdownWorkspaceEffectiveContentPreservesUnsavedEditorDraftOverCanonicalWriteback() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const container = dom.window.document.getElementById('root')
   if (!container) throw new Error('missing root container')
   const root = createRoot(container)
@@ -172,7 +172,7 @@ export async function testMarkdownWorkspaceEffectiveContentPreservesUnsavedEdito
 }
 
 export async function testMarkdownWorkspaceEffectiveContentKeepsNonMarkdownSourceTextAuthoritative() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const container = dom.window.document.getElementById('root')
   if (!container) throw new Error('missing root container')
   const root = createRoot(container)

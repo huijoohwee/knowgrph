@@ -68,12 +68,12 @@ function SettingsActiveWorkspaceNonMarkdownHarness(props: {
   })
 
   return (
-    <div>
-      <div data-draft-storage-target={String(values.chatStorageTarget || '')} />
-      <div data-draft-chat-history-path={String(values.chatHistoryWorkspacePath || '')} />
-      <div data-draft-chat-knowgrph-path={String(values.chatKnowgrphWorkspacePath || '')} />
-      <div data-history-status={String(chatHistoryPathStatus || '')} />
-      <div data-knowgrph-status={String(knowgrphPathStatus || '')} />
+    <section>
+      <section data-draft-storage-target={String(values.chatStorageTarget || '')} />
+      <section data-draft-chat-history-path={String(values.chatHistoryWorkspacePath || '')} />
+      <section data-draft-chat-knowgrph-path={String(values.chatKnowgrphWorkspacePath || '')} />
+      <section data-history-status={String(chatHistoryPathStatus || '')} />
+      <section data-knowgrph-status={String(knowgrphPathStatus || '')} />
       <button
         type="button"
         onClick={() => applyActiveWorkspaceFileAsChatHistory()}
@@ -86,7 +86,7 @@ function SettingsActiveWorkspaceNonMarkdownHarness(props: {
       >
         Use Active Knowgrph File
       </button>
-    </div>
+    </section>
   )
 }
 
@@ -116,8 +116,8 @@ export async function testSettingsActiveWorkspaceApplyKeepsCommittedFloatingChat
     useMarkdownExplorerStore.getState().setActivePath('/workspace/assets/image.png')
 
     const doc = dom.window.document
-    const settingsContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const settingsContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(settingsContainer)
     doc.body.appendChild(chatContainer)
     settingsRoot = createRoot(settingsContainer as unknown as HTMLElement)

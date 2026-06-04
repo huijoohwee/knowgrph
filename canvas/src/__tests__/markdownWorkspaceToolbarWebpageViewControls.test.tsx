@@ -23,7 +23,7 @@ const checkboxFor = (doc: Document, label: string): HTMLInputElement => {
 }
 
 export async function testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -105,7 +105,7 @@ export async function testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks() 
 }
 
 export async function testMarkdownWorkspaceToolbarViewerToggleKeepsEditablePane() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -174,7 +174,7 @@ export async function testMarkdownWorkspaceToolbarViewerToggleKeepsEditablePane(
 }
 
 export async function testMarkdownWorkspaceToolbarRemovesMultiDimTableToggleAndViewerKeepsEditablePane() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -254,7 +254,7 @@ export async function testMarkdownWorkspaceToolbarRemovesMultiDimTableToggleAndV
 }
 
 export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerToggleAcrossOverlayReopen() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -281,7 +281,7 @@ export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerT
       })
 
       return (
-        <div>
+        <section>
           <button type="button" onClick={() => {
             setVisibility(prev => ({ ...prev, markdown: true, viewer: true }))
           }}
@@ -301,7 +301,7 @@ export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerT
             Switch Document
           </button>
           <output data-testid="pane-state">{summary}</output>
-        </div>
+        </section>
       )
     }
 
@@ -376,7 +376,7 @@ export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerT
 }
 
 export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidated() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const state = useGraphStore.getState()
   const prevWorkspaceViewMode = state.workspaceViewMode
   const prevWorkspaceCanvasPaneOpen = state.workspaceCanvasPaneOpen
@@ -500,7 +500,7 @@ export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidate
 }
 
 export async function testMarkdownWorkspaceToolbarViewerAndHtmlRenderTogetherAfterSelection() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const state = useGraphStore.getState()
   const prevWorkspaceViewMode = state.workspaceViewMode
   const prevWorkspaceCanvasPaneOpen = state.workspaceCanvasPaneOpen

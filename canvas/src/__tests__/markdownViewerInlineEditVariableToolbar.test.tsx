@@ -21,7 +21,7 @@ const setCaretToEnd = (dom: Window, el: HTMLElement) => {
 }
 
 export async function testMarkdownViewerInlineEditVariableToolbarInvokesWithAtAndAppliesReference() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -131,7 +131,7 @@ export async function testMarkdownViewerInlineEditVariableToolbarInvokesWithAtAn
 }
 
 export async function testMarkdownViewerInlineEditVariableToolbarDeleteUpdatesFrontmatter() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')

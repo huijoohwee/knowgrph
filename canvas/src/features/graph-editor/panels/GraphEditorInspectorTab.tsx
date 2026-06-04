@@ -90,11 +90,11 @@ export function GraphEditorInspectorTab() {
 
   if (selectedNode) {
     return (
-      <div className="space-y-3" aria-label="Inspector node">
-        <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Node</div>
-        <div className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedNode.id}</div>
+      <section className="space-y-3" aria-label="Inspector node">
+        <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Node</section>
+        <section className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedNode.id}</section>
         <label className="block">
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</div>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</section>
           <input
             className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={String(selectedNode.label || '')}
@@ -103,7 +103,7 @@ export function GraphEditorInspectorTab() {
           />
         </label>
         <label className="block">
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Type</div>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Type</section>
           <input
             className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={String(selectedNode.type || '')}
@@ -112,7 +112,7 @@ export function GraphEditorInspectorTab() {
           />
         </label>
         <label className="block">
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Subgraph</div>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Subgraph</section>
           <select
             className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={nodeSubgraphId}
@@ -127,17 +127,17 @@ export function GraphEditorInspectorTab() {
             ))}
           </select>
         </label>
-      </div>
+      </section>
     )
   }
 
   if (selectedEdge) {
     return (
-      <div className="space-y-3" aria-label="Inspector edge">
-        <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Edge</div>
-        <div className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedEdge.id}</div>
+      <section className="space-y-3" aria-label="Inspector edge">
+        <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Edge</section>
+        <section className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedEdge.id}</section>
         <label className="block">
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</div>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</section>
           <input
             className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={String(selectedEdge.label || '')}
@@ -145,30 +145,30 @@ export function GraphEditorInspectorTab() {
             aria-label="Edge label"
           />
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Source</div>
-            <div className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.source)}</div>
-          </div>
-          <div>
-            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Target</div>
-            <div className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.target)}</div>
-          </div>
-        </div>
-      </div>
+        <section className="grid grid-cols-2 gap-2">
+          <section>
+            <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Source</section>
+            <section className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.source)}</section>
+          </section>
+          <section>
+            <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Target</section>
+            <section className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.target)}</section>
+          </section>
+        </section>
+      </section>
     )
   }
 
   if (selectedSubgraph) {
     return (
-      <div className="space-y-3" aria-label="Inspector subgraph">
-        <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Subgraph</div>
-        <div className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{subgraphGroupId(selectedSubgraph.id)}</div>
-        <div className={`text-sm ${UI_THEME_TOKENS.text.secondary}`}>{selectedSubgraph.memberNodeIds.length} nodes</div>
+      <section className="space-y-3" aria-label="Inspector subgraph">
+        <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Subgraph</section>
+        <section className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{subgraphGroupId(selectedSubgraph.id)}</section>
+        <section className={`text-sm ${UI_THEME_TOKENS.text.secondary}`}>{selectedSubgraph.memberNodeIds.length} nodes</section>
         {selectedGroupBoundsOverride.source ? (
-          <div className="space-y-2" aria-label="Bounds override">
-            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</div>
-            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</div>
+          <section className="space-y-2" aria-label="Bounds override">
+            <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</section>
+            <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</section>
             <button
               type="button"
               className={`w-full rounded-md border px-2 py-1 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -178,21 +178,21 @@ export function GraphEditorInspectorTab() {
             >
               Reset bounds to auto
             </button>
-          </div>
+          </section>
         ) : null}
-      </div>
+      </section>
     )
   }
 
   if (selectedGroupId) {
     return (
-      <div className="space-y-3" aria-label="Inspector group">
-        <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Group</div>
-        <div className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedGroupId}</div>
+      <section className="space-y-3" aria-label="Inspector group">
+        <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Group</section>
+        <section className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedGroupId}</section>
         {selectedGroupBoundsOverride.source ? (
-          <div className="space-y-2" aria-label="Bounds override">
-            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</div>
-            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</div>
+          <section className="space-y-2" aria-label="Bounds override">
+            <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</section>
+            <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</section>
             <button
               type="button"
               className={`w-full rounded-md border px-2 py-1 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -202,11 +202,11 @@ export function GraphEditorInspectorTab() {
             >
               Reset bounds to auto
             </button>
-          </div>
+          </section>
         ) : (
-          <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>No bounds override set.</div>
+          <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>No bounds override set.</section>
         )}
-      </div>
+      </section>
     )
   }
 

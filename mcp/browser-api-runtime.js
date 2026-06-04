@@ -62,7 +62,7 @@ const ALLOW_REMOTE_BROWSER_API_RUNTIME = readEnvFlag("KNOWGRPH_BROWSER_API_ALLOW
 export const BROWSER_API_TOOL = {
   name: "knowgrph.browser_api.run",
   description:
-    "Call a configurable local API-native browser runtime for health, search, route resolution, login/auth, skill listing, feedback, verification, or dry-run/confirmed route execution.",
+    "Use this when a local MCP host needs a configurable API-native browser runtime for health, search, route resolution, login/auth, skill listing, feedback, verification, or dry-run/confirmed route execution.",
   inputSchema: {
     type: "object",
     additionalProperties: false,

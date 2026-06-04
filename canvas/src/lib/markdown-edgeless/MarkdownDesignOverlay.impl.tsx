@@ -533,7 +533,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
           && (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd),
         )
         return (
-          <div
+          <section
             key={b.id}
             ref={getOverlayRefForId(b.id)}
             className={
@@ -642,7 +642,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               panel={buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: snippet })}
               style={{ width: '100%', height: '100%', boxShadow: 'none' }}
             />
-          </div>
+          </section>
         )
       })}
     </section>

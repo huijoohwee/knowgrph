@@ -25,7 +25,7 @@ export default function AiKgLayersControls({
   uiPanelKeyValueInputClass,
 }: AiKgLayersControlsProps) {
   return (
-    <div className="mt-1 space-y-1">
+    <section className="mt-1 space-y-1">
       <AiKgOpacityControls
         schema={schema}
         setThreeConfig={setThreeConfig}
@@ -45,6 +45,6 @@ export default function AiKgLayersControls({
         setThreeConfig={setThreeConfig}
         uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
       />
-    </div>
+    </section>
   )
 }

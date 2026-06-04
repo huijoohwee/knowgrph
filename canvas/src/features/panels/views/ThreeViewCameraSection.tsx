@@ -41,7 +41,7 @@ export default function ThreeViewCameraSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Camera Damping</span>}
@@ -193,7 +193,7 @@ export default function ThreeViewCameraSection({
             </>
           )}
         />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

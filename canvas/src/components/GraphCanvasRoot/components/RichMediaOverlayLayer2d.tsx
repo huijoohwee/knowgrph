@@ -40,7 +40,7 @@ function readGraphNodePropertiesFromStore(nodeId: string): Record<string, unknow
 export function RichMediaOverlayLayer2d(props: {
   active: boolean
   mediaOverlayNodes: MediaOverlayNode[]
-  getOverlayRefForId: (id: string) => (el: HTMLDivElement | null) => void
+  getOverlayRefForId: (id: string) => (el: HTMLElement | null) => void
   svgRef: RefObject<SVGSVGElement | null>
   renderMediaAsNodes: boolean
   stopEvent: (event: SyntheticEvent) => void
@@ -84,7 +84,7 @@ export function RichMediaOverlayLayer2d(props: {
     const fn = (el: HTMLElement | null) => {
       if (el) overlayElsRef.current.set(key, el)
       else overlayElsRef.current.delete(key)
-      outerRef(el as HTMLDivElement | null)
+      outerRef(el as HTMLElement | null)
     }
     overlayRefFnByIdRef.current.set(key, fn)
     return fn

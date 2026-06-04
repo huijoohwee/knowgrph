@@ -45,7 +45,7 @@ function SchemaTabContent({
   const sectionHeadingClassName = `text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`
 
   const getStepTitle = (step: SchemaSectionCopy, opts?: { showDescription?: boolean }) => (
-    <div className="flex flex-col">
+    <section className="flex flex-col">
       <span className={titleClassName}>
         {step.title}
       </span>
@@ -54,7 +54,7 @@ function SchemaTabContent({
           {step.descriptionShort}
         </span>
       )}
-    </div>
+    </section>
   )
 
   const collapsedBySectionId: Record<SchemaSidebarItem['sectionId'], boolean> = {
@@ -74,66 +74,66 @@ function SchemaTabContent({
   const renderSectionBody = (item: SchemaSidebarItem) => {
     if (item.sectionId === 'schemaApplyPresets') {
       return (
-        <div className="mt-1 space-y-1">
-          <div className={sectionHeadingClassName}>
+        <section className="mt-1 space-y-1">
+          <section className={sectionHeadingClassName}>
             {step311.title}
-          </div>
+          </section>
           {step311.descriptionShort && (
-            <div className={descriptionClassName}>
+            <section className={descriptionClassName}>
               {step311.descriptionShort}
-            </div>
+            </section>
           )}
           {schemaError && (
-            <div className={`${uiPanelMicroLabelTextSizeClass} text-red-600 shrink-0 mt-1`}>
+            <section className={`${uiPanelMicroLabelTextSizeClass} text-red-600 shrink-0 mt-1`}>
               {schemaError}
-            </div>
+            </section>
           )}
-        </div>
+        </section>
       )
     }
 
     if (item.sectionId === 'schemaTuneRules') {
       return (
-        <div className="mt-1 space-y-1">
-          <div className={sectionHeadingClassName}>
+        <section className="mt-1 space-y-1">
+          <section className={sectionHeadingClassName}>
             {step321.title}
-          </div>
+          </section>
           {step321.descriptionShort && (
-            <div className={descriptionClassName}>
+            <section className={descriptionClassName}>
               {step321.descriptionShort}
-            </div>
+            </section>
           )}
-        </div>
+        </section>
       )
     }
 
     if (item.sectionId === 'schemaCustomizeUi') {
       return (
-        <div className="mt-1 space-y-1">
-          <div className={sectionHeadingClassName}>
+        <section className="mt-1 space-y-1">
+          <section className={sectionHeadingClassName}>
             {step331.title}
-          </div>
+          </section>
           {step331.descriptionShort && (
-            <div className={descriptionClassName}>
+            <section className={descriptionClassName}>
               {step331.descriptionShort}
-            </div>
+            </section>
           )}
-        </div>
+        </section>
       )
     }
 
     if (item.sectionId === 'schemaValidationRules') {
       return (
-        <div className="mt-1 space-y-1">
-          <div className={sectionHeadingClassName}>
+        <section className="mt-1 space-y-1">
+          <section className={sectionHeadingClassName}>
             {step332.title}
-          </div>
+          </section>
           {step332.descriptionShort && (
-            <div className={descriptionClassName}>
+            <section className={descriptionClassName}>
               {step332.descriptionShort}
-            </div>
+            </section>
           )}
-        </div>
+        </section>
       )
     }
 
@@ -141,7 +141,7 @@ function SchemaTabContent({
   }
 
   return (
-    <div className="space-y-3">
+    <section className="space-y-3">
       {schemaSidebarItems.map(item => {
         const collapsed = collapsedBySectionId[item.sectionId]
         const onToggle = toggleBySectionId[item.sectionId]
@@ -163,7 +163,7 @@ function SchemaTabContent({
           </CollapsibleSection>
         )
       })}
-    </div>
+    </section>
   )
 }
 

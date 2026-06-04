@@ -19,7 +19,7 @@ export async function testMarkdownFrontmatterFlowMergeKeepsDocGraphAndFlowGraph(
     '',
     '# Title',
     '',
-    '<iframe title="Inline" srcdoc="<div><h1>Hello</h1><p>Inline iframe</p></div>"></iframe>',
+    '<iframe title="Inline" srcdoc="<section><h1>Hello</h1><p>Inline iframe</p></section>"></iframe>',
     '',
   ].join('\n')
 
@@ -70,7 +70,7 @@ export async function testMarkdownFrontmatterFlowFilterKeepsOnlyFlowNodesAndEdge
     '',
     '# Title',
     '',
-    '<iframe title="Inline" srcdoc="<div><h1>Hello</h1><p>Inline iframe</p></div>"></iframe>',
+    '<iframe title="Inline" srcdoc="<section><h1>Hello</h1><p>Inline iframe</p></section>"></iframe>',
     '',
   ].join('\n')
 

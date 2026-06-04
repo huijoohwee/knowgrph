@@ -14,6 +14,7 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { LS_KEYS, UI_LABELS } from '@/lib/config'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { readFlowEditorScreenAuthorityPanSnapshot } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, readDocsSsotFixtureText } from '@/tests/lib/docsSsotFixture'
 import { assertFlowWidgetStateScopedToEligibleIds } from '@/tests/lib/flowWidgetStateScopeAssert'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -415,7 +416,7 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
     }
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'runtime-root'
     doc.body.appendChild(container)
     root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
@@ -550,7 +551,7 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
     store.setOpenWidgetNodeIds([textWidgetId, imageWidgetId, videoWidgetId, richMediaWidgetId])
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'runtime-root-widget-visibility'
     doc.body.appendChild(container)
 
@@ -646,6 +647,7 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
         || this.matches('[data-kg-flow-editor-surface-root]')
+        || this.tagName.toLowerCase() === 'canvas'
       if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
       return {
         x: 0,
@@ -700,7 +702,7 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
     store.setFlowWidgetWorldPosByNodeId({})
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.setAttribute('data-kg-canvas-viewport-root', '1')
     container.id = 'runtime-root-balanced-1920x1080'
     doc.body.appendChild(container)
@@ -917,7 +919,7 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
     store.setFlowWidgetWorldPosByNodeId({})
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.setAttribute('data-kg-canvas-viewport-root', '1')
     container.id = 'runtime-root-source-files-balanced-1920x1080'
     doc.body.appendChild(container)
@@ -1110,7 +1112,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityIgnoresCanva
     store.setFlowWidgetWorldPosByNodeId({})
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.setAttribute('data-kg-canvas-viewport-root', '1')
     container.id = 'runtime-root-source-files-screen-authority-zoom-projection'
     doc.body.appendChild(container)
@@ -1274,7 +1276,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     const workspaceLeftPane = doc.createElement('aside')
     workspaceLeftPane.setAttribute('data-kg-workspace-left-pane', '1')
     doc.body.appendChild(workspaceLeftPane)
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.setAttribute('data-kg-canvas-viewport-root', '1')
     container.id = 'runtime-root-source-files-screen-authority-drag-pin-unpin'
     doc.body.appendChild(container)
@@ -1294,14 +1296,167 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
       minSpanH: targetViewport.height * 0.35,
       label: 'drag-pin-unpin-initial',
     })
-    const paneBlockedEntries = initial.filter(entry => entry.left < workspaceLeftPaneWidth - 1)
-    if (paneBlockedEntries.length > 0) {
-      throw new Error(`expected Flow Editor screen-authority widgets to honor the visible canvas strip beside the workspace pane; paneWidth=${workspaceLeftPaneWidth} blocked=${JSON.stringify(paneBlockedEntries.slice(0, 8))}`)
-    }
     assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'drag-pin-unpin-initial' })
 
-    const widgetTarget = pickFlowEditorWidgetTarget({ entries: initial, richMedia: false, viewport: targetViewport })
-    const richMediaTarget = pickFlowEditorWidgetTarget({ entries: initial, richMedia: true, viewport: targetViewport })
+    const collectiveTarget = pickFlowEditorWidgetTarget({ entries: initial, richMedia: false, viewport: targetViewport })
+    const collectiveRoot = findWidgetOverlayById(doc, collectiveTarget.id)
+    if (!collectiveRoot) throw new Error(`expected collective pan target ${collectiveTarget.id} to stay mounted`)
+    const collectiveSurfaceId = doc.querySelector<HTMLElement>('[data-kg-flow-editor-surface-root]')?.getAttribute('data-kg-flow-editor-surface-root') || ''
+    const collectiveSnapshot = readFlowEditorScreenAuthorityPanSnapshot({
+      flowEditorSurfaceId: collectiveSurfaceId,
+      transform: { k: 1, x: 0, y: 0 },
+    })
+    const missingRichMediaSnapshotIds = initial
+      .filter(entry => entry.richMedia)
+      .map(entry => entry.id)
+      .filter(id => !collectiveSnapshot?.screenByNodeId[id] && !collectiveSnapshot?.worldByNodeId[id])
+    if (missingRichMediaSnapshotIds.length > 0) {
+      throw new Error(`expected collective body pan snapshot to include rich-media widget overlays; missing=${JSON.stringify(missingRichMediaSnapshotIds)}`)
+    }
+    const collectiveDx = 48
+    const collectiveDy = 32
+    dispatchFlowEditorPointerEvent(collectiveRoot, dom.window, 'pointerdown', {
+      pointerId: 90,
+      clientX: collectiveTarget.left + 24,
+      clientY: collectiveTarget.top + 48,
+      buttons: 1,
+    })
+    await waitForRuntimeTick()
+    dispatchFlowEditorPointerEvent(dom.window, dom.window, 'pointermove', {
+      pointerId: 90,
+      clientX: collectiveTarget.left + 24 + collectiveDx,
+      clientY: collectiveTarget.top + 48 + collectiveDy,
+      buttons: 1,
+    })
+    await waitForRuntimeTick()
+    dispatchFlowEditorPointerEvent(dom.window, dom.window, 'pointerup', {
+      pointerId: 90,
+      clientX: collectiveTarget.left + 24 + collectiveDx,
+      clientY: collectiveTarget.top + 48 + collectiveDy,
+      buttons: 0,
+    })
+    for (let i = 0; i < 4; i += 1) await waitForRuntimeTick()
+
+    const afterCollectivePanEntries = await waitForFlowEditorWidgetTransformSpread({
+      doc,
+      minCount: Math.min(eligibleWidgetIds.length, 24),
+      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
+      minSpanW: targetViewport.width * 0.45,
+      minSpanH: targetViewport.height * 0.35,
+      label: 'after-collective-body-pan',
+    })
+    for (let i = 0; i < initial.length; i += 1) {
+      const before = initial[i]!
+      const after = findFlowEditorWidgetEntry(afterCollectivePanEntries, before.id)
+      const movedDx = after.left - before.left
+      const movedDy = after.top - before.top
+      if (Math.abs(movedDx - collectiveDx) > 1 || Math.abs(movedDy - collectiveDy) > 1 || Math.abs(after.scale - before.scale) > 0.0001) {
+        throw new Error(`expected collective body pan to move ${before.id} by the shared pointer delta; before=${JSON.stringify(before)} after=${JSON.stringify(after)} delta=${JSON.stringify({ movedDx, movedDy })}`)
+      }
+    }
+    assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-collective-body-pan' })
+
+    store.setCanvasPointerMode2d('pan')
+    const nativeCanvasPanDx = -36
+    const nativeCanvasPanDy = 28
+    const canvas = doc.querySelector<HTMLCanvasElement>('canvas')
+    if (!canvas) throw new Error('expected Flow Editor native canvas to stay mounted for collective pan tuning')
+    dispatchFlowEditorPointerEvent(canvas, dom.window, 'pointerdown', {
+      pointerId: 94,
+      clientX: targetViewport.width - 24,
+      clientY: targetViewport.height - 24,
+      buttons: 1,
+    })
+    await waitForRuntimeTick()
+    dispatchFlowEditorPointerEvent(canvas, dom.window, 'pointermove', {
+      pointerId: 94,
+      clientX: targetViewport.width - 24 + nativeCanvasPanDx,
+      clientY: targetViewport.height - 24 + nativeCanvasPanDy,
+      buttons: 1,
+    })
+    await waitForRuntimeTick()
+    dispatchFlowEditorPointerEvent(canvas, dom.window, 'pointerup', {
+      pointerId: 94,
+      clientX: targetViewport.width - 24 + nativeCanvasPanDx,
+      clientY: targetViewport.height - 24 + nativeCanvasPanDy,
+      buttons: 0,
+    })
+    for (let i = 0; i < 4; i += 1) await waitForRuntimeTick()
+    store.setCanvasPointerMode2d('select')
+
+    const afterNativeCanvasPanEntries = await waitForFlowEditorWidgetTransformSpread({
+      doc,
+      minCount: Math.min(eligibleWidgetIds.length, 24),
+      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
+      minSpanW: targetViewport.width * 0.45,
+      minSpanH: targetViewport.height * 0.35,
+      label: 'after-native-canvas-collective-pan',
+    })
+    for (let i = 0; i < afterCollectivePanEntries.length; i += 1) {
+      const before = afterCollectivePanEntries[i]!
+      const after = findFlowEditorWidgetEntry(afterNativeCanvasPanEntries, before.id)
+      const movedDx = after.left - before.left
+      const movedDy = after.top - before.top
+      if (Math.abs(movedDx - nativeCanvasPanDx) > 1 || Math.abs(movedDy - nativeCanvasPanDy) > 1 || Math.abs(after.scale - before.scale) > 0.0001) {
+        throw new Error(`expected native canvas pan to move Flow Editor collective widgets and rich media by the shared pointer delta; before=${JSON.stringify(before)} after=${JSON.stringify(after)} delta=${JSON.stringify({ movedDx, movedDy })}`)
+      }
+    }
+    assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-native-canvas-collective-pan' })
+
+    store.setZoomState({ k: 1, x: 150, y: 75 })
+    for (let i = 0; i < 4; i += 1) await waitForRuntimeTick()
+    const afterZoomProjectionEntries = readFlowEditorWidgetTransformEntries(doc)
+    for (let i = 0; i < afterNativeCanvasPanEntries.length; i += 1) {
+      const before = afterNativeCanvasPanEntries[i]!
+      const after = findFlowEditorWidgetEntry(afterZoomProjectionEntries, before.id)
+      assertFlowEditorWidgetGeometryStable({ before, after, label: `collective-widget-after-stale-zoom-projection:${before.id}` })
+    }
+
+    const toggleAndAssert = async (id: string, expectedPinned: boolean, label: string) => {
+      const beforeEntries = readFlowEditorWidgetTransformEntries(doc)
+      const before = findFlowEditorWidgetEntry(beforeEntries, id)
+      const button = findPinToggleButton(doc, id)
+      dispatchFlowEditorPointerEvent(button, dom.window, 'pointerdown', {
+        pointerId: expectedPinned ? 92 : 93,
+        clientX: before.left + 8,
+        clientY: before.top + 8,
+        buttons: 1,
+      })
+      dispatchFlowEditorPointerEvent(button, dom.window, 'pointerup', {
+        pointerId: expectedPinned ? 92 : 93,
+        clientX: before.left + 8,
+        clientY: before.top + 8,
+        buttons: 0,
+      })
+      button.dispatchEvent(new dom.window.MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: before.left + 8,
+        clientY: before.top + 8,
+        button: 0,
+      }))
+      await waitForPinToggleGuard()
+      const nextEntries = await waitForFlowEditorWidgetTransformSpread({
+        doc,
+        minCount: Math.min(eligibleWidgetIds.length, 24),
+        minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
+        minSpanW: targetViewport.width * 0.45,
+        minSpanH: targetViewport.height * 0.35,
+        label,
+      })
+      const after = findFlowEditorWidgetEntry(nextEntries, id)
+      if (after.pinned !== expectedPinned) {
+        throw new Error(`expected ${label} to set pinned=${expectedPinned}, got ${after.pinned}`)
+      }
+      assertFlowEditorWidgetGeometryStable({ before, after, label })
+      assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label })
+    }
+
+    await toggleAndAssert(collectiveTarget.id, true, 'collective-widget-pin-after-body-pan')
+    await toggleAndAssert(collectiveTarget.id, false, 'collective-widget-unpin-after-body-pan')
+
+    const widgetTarget = pickFlowEditorWidgetTarget({ entries: afterNativeCanvasPanEntries, richMedia: false, viewport: targetViewport })
+    const richMediaTarget = pickFlowEditorWidgetTarget({ entries: afterNativeCanvasPanEntries, richMedia: true, viewport: targetViewport })
 
     const dragDx = 96
     const dragDy = 64
@@ -1354,33 +1509,6 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     })
     assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-widget-drag' })
 
-    const toggleAndAssert = async (id: string, expectedPinned: boolean, label: string) => {
-      const beforeEntries = readFlowEditorWidgetTransformEntries(doc)
-      const before = findFlowEditorWidgetEntry(beforeEntries, id)
-      const button = findPinToggleButton(doc, id)
-      dispatchFlowEditorPointerEvent(button, dom.window, 'pointerdown', {
-        pointerId: expectedPinned ? 92 : 93,
-        clientX: before.left + 8,
-        clientY: before.top + 8,
-        buttons: 1,
-      })
-      await waitForPinToggleGuard()
-      const nextEntries = await waitForFlowEditorWidgetTransformSpread({
-        doc,
-        minCount: Math.min(eligibleWidgetIds.length, 24),
-        minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
-        minSpanW: targetViewport.width * 0.45,
-        minSpanH: targetViewport.height * 0.35,
-        label,
-      })
-      const after = findFlowEditorWidgetEntry(nextEntries, id)
-      if (after.pinned !== expectedPinned) {
-        throw new Error(`expected ${label} to set pinned=${expectedPinned}, got ${after.pinned}`)
-      }
-      assertFlowEditorWidgetGeometryStable({ before, after, label })
-      assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label })
-    }
-
     await toggleAndAssert(widgetTarget.id, true, 'widget-pin-after-drag')
     await toggleAndAssert(widgetTarget.id, false, 'widget-unpin-after-drag')
     await toggleAndAssert(richMediaTarget.id, true, 'rich-media-pin')
@@ -1409,6 +1537,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
   const targetViewport = { width: 1920, height: 1080 }
+  const workspaceLeftPaneWidth = Math.round(targetViewport.width * 0.28)
   let restoreElementRect: (() => void) | null = null
   let restoreRuntimeFrames: (() => void) | null = null
 
@@ -1420,6 +1549,19 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
         || this.matches('[data-kg-flow-editor-surface-root]')
+      if (this.matches('[data-kg-workspace-left-pane="1"]')) {
+        return {
+          x: 0,
+          y: 0,
+          left: 0,
+          top: 0,
+          width: workspaceLeftPaneWidth,
+          height: targetViewport.height,
+          right: workspaceLeftPaneWidth,
+          bottom: targetViewport.height,
+          toJSON: () => ({}),
+        } as DOMRect
+      }
       if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
       return {
         x: 0,
@@ -1485,7 +1627,9 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     store.setFlowWidgetWorldPosByNodeId({})
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const workspaceLeftPane = doc.createElement('aside')
+    workspaceLeftPane.setAttribute('data-kg-workspace-left-pane', '1')
+    const container = doc.createElement('section')
     container.setAttribute('data-kg-canvas-viewport-root', '1')
     container.id = 'runtime-root-source-files-open-close-reopen-1920x1080'
     doc.body.appendChild(container)
@@ -1575,25 +1719,76 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
       throw new Error(`expected source-files Flow Editor collective layout to remain in-view after ${phase}; snapshot=${lastSnapshot}`)
     }
 
-    await waitForInViewCollective('initial-canvas')
+    const assertOverlayToggleDoesNotMutateGeometry = (
+      beforeEntries: FlowEditorWidgetTransformEntry[],
+      afterEntries: FlowEditorWidgetTransformEntry[],
+      label: string,
+    ) => {
+      for (let i = 0; i < beforeEntries.length; i += 1) {
+        const before = beforeEntries[i]!
+        const after = findFlowEditorWidgetEntry(afterEntries, before.id)
+        assertFlowEditorWidgetGeometryStable({ before, after, label: `${label}:${before.id}` })
+      }
+    }
 
+    await waitForInViewCollective('initial-canvas')
+    const initialEntries = await waitForFlowEditorWidgetTransformSpread({
+      doc,
+      minCount: Math.min(eligibleWidgetIds.length, 24),
+      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
+      minSpanW: targetViewport.width * 0.45,
+      minSpanH: targetViewport.height * 0.35,
+      label: 'open-close-initial-canvas',
+    })
+
+    doc.body.appendChild(workspaceLeftPane)
     store.setWorkspaceViewMode('editor')
     store.setWorkspaceCanvasPaneOpen(true)
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
 
     await waitForInViewCollective('opened')
+    const openedEntries = await waitForFlowEditorWidgetTransformSpread({
+      doc,
+      minCount: Math.min(eligibleWidgetIds.length, 24),
+      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
+      minSpanW: targetViewport.width * 0.45,
+      minSpanH: targetViewport.height * 0.35,
+      label: 'open-close-opened',
+    })
+    assertOverlayToggleDoesNotMutateGeometry(initialEntries, openedEntries, 'workspace-overlay-open')
 
+    workspaceLeftPane.remove()
     store.setWorkspaceCanvasPaneOpen(false)
     store.setWorkspaceViewMode('canvas')
     await waitForRuntimeTick()
+    await waitForInViewCollective('closed')
+    const closedEntries = await waitForFlowEditorWidgetTransformSpread({
+      doc,
+      minCount: Math.min(eligibleWidgetIds.length, 24),
+      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
+      minSpanW: targetViewport.width * 0.45,
+      minSpanH: targetViewport.height * 0.35,
+      label: 'open-close-closed',
+    })
+    assertOverlayToggleDoesNotMutateGeometry(openedEntries, closedEntries, 'workspace-overlay-close')
 
+    doc.body.appendChild(workspaceLeftPane)
     store.setWorkspaceViewMode('editor')
     store.setWorkspaceCanvasPaneOpen(true)
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
 
     await waitForInViewCollective('reopen')
+    const reopenedEntries = await waitForFlowEditorWidgetTransformSpread({
+      doc,
+      minCount: Math.min(eligibleWidgetIds.length, 24),
+      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
+      minSpanW: targetViewport.width * 0.45,
+      minSpanH: targetViewport.height * 0.35,
+      label: 'open-close-reopened',
+    })
+    assertOverlayToggleDoesNotMutateGeometry(closedEntries, reopenedEntries, 'workspace-overlay-reopen')
   } finally {
     try {
       restoreElementRect?.()
@@ -1617,6 +1812,7 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
   const targetViewport = { width: 1920, height: 1080 }
+  const workspaceLeftPaneWidth = Math.round(targetViewport.width * 0.28)
   let restoreElementRect: (() => void) | null = null
   let restoreRuntimeFrames: (() => void) | null = null
 
@@ -1628,6 +1824,19 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
         || this.matches('[data-kg-flow-editor-surface-root]')
+      if (this.matches('[data-kg-workspace-left-pane="1"]')) {
+        return {
+          x: 0,
+          y: 0,
+          left: 0,
+          top: 0,
+          width: workspaceLeftPaneWidth,
+          height: targetViewport.height,
+          right: workspaceLeftPaneWidth,
+          bottom: targetViewport.height,
+          toJSON: () => ({}),
+        } as DOMRect
+      }
       if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
       return {
         x: 0,
@@ -1657,7 +1866,10 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
     store.setWorkspaceCanvasPaneOpen(true)
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const workspaceLeftPane = doc.createElement('aside')
+    workspaceLeftPane.setAttribute('data-kg-workspace-left-pane', '1')
+    doc.body.appendChild(workspaceLeftPane)
+    const container = doc.createElement('section')
     container.setAttribute('data-kg-canvas-viewport-root', '1')
     container.id = 'runtime-root-source-files-initial-workspace-open-1920x1080'
     doc.body.appendChild(container)

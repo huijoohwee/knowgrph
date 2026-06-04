@@ -47,6 +47,18 @@ import type {
   WorkspaceViewMode,
 } from './core'
 
+export type FloatingPanelView =
+  | 'propsPanel'
+  | 'view'
+  | 'interaction'
+  | 'design'
+  | 'chat'
+  | 'geo'
+  | 'renderer'
+  | 'gitGraph'
+  | 'strybldr'
+  | 'graphTraversal'
+
 export interface GraphStateChatImport {
   flowchartDataSource: 'api' | 'fixture' | 'workspace';
   setFlowchartDataSource: (v: 'api' | 'fixture' | 'workspace') => void;
@@ -158,8 +170,10 @@ export interface GraphStateChatImport {
   clearUiLog: () => void;
   floatingPanelOpen: boolean;
   setFloatingPanelOpen: (open: boolean) => void;
-  floatingPanelView: 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'strybldr' | 'graphTraversal';
-  setFloatingPanelView: (view: 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'strybldr' | 'graphTraversal') => void;
+  floatingPanelView: FloatingPanelView;
+  setFloatingPanelView: (view: FloatingPanelView) => void;
+  gitGraphSelectedCommandLineIndex: number | null;
+  setGitGraphSelectedCommandLineIndex: (lineIndex: number | null) => void;
   chatExchangeLogs: ChatExchangeLogEntry[];
   pushChatExchangeLog: (entry: ChatExchangeLogEntryInput) => void;
   clearChatExchangeLogs: () => void;

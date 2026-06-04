@@ -1,6 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { analyzeMarkdownGeodataSources } from '@/lib/markdown/markdownGeodataAnalysis'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
+import { preferCanonicalYamlFrontmatterFencedText } from '@/lib/markdown/frontmatter'
 
 export function resolveMarkdownWorkspaceApplyText(args: {
   activeText: string
@@ -11,7 +12,14 @@ export function resolveMarkdownWorkspaceApplyText(args: {
   markdownDocumentText: string
 }): string {
   const raw = String(args.activeText || '')
-  if (raw.trim()) return raw
+  if (raw.trim()) {
+    return args.markdownDocumentName === args.activeDocumentKey && typeof args.markdownDocumentText === 'string' && args.markdownDocumentText
+      ? preferCanonicalYamlFrontmatterFencedText({
+          candidateText: raw,
+          canonicalText: args.markdownDocumentText,
+        })
+      : raw
+  }
   if (args.contentMode === 'widget') return String(args.widgetEditorText || '')
   if (args.markdownDocumentName === args.activeDocumentKey && typeof args.markdownDocumentText === 'string' && args.markdownDocumentText) {
     return args.markdownDocumentText

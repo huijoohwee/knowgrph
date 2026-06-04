@@ -101,12 +101,12 @@ export default function CommunitiesStatsSection({
   return (
     <CollapsibleSection title="Clusters">
       {communities.length === 0 ? (
-        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           No clusters detected.
-        </div>
+        </section>
       ) : (
-        <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
-          <div
+        <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
+          <section
             className={[
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
@@ -115,7 +115,7 @@ export default function CommunitiesStatsSection({
               UI_THEME_TOKENS.text.primary,
             ].join(' ')}
           >
-            <div className="flex items-center gap-1">
+            <section className="flex items-center gap-1">
               <span>Cluster sizes</span>
               <IconButton
                 className="App-toolbar__btn"
@@ -125,8 +125,8 @@ export default function CommunitiesStatsSection({
               >
                 <SlidersHorizontal className="w-3 h-3" />
               </IconButton>
-            </div>
-            <div className="flex items-center gap-2">
+            </section>
+            <section className="flex items-center gap-2">
               <PlainTextInputEditor
                 className={[
                   uiPanelMicroLabelTextSizeClass,
@@ -152,7 +152,7 @@ export default function CommunitiesStatsSection({
                 <option value="freq">{UI_COPY.statsSortByCountLabel}</option>
                 <option value="alpha">{UI_COPY.statsSortAzLabel}</option>
               </select>
-              <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
+              <section className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
                 <button
                   type="button"
                   className={[
@@ -181,7 +181,7 @@ export default function CommunitiesStatsSection({
                 >
                   {UI_COPY.statsIncludeWordsLabel}
                 </button>
-              </div>
+              </section>
               <button
                 type="button"
                 className={[
@@ -208,11 +208,11 @@ export default function CommunitiesStatsSection({
               >
                 {chartCollapsed ? UI_COPY.statsShowChartLabel : UI_COPY.statsHideChartLabel}
               </button>
-            </div>
-          </div>
+            </section>
+          </section>
           {!tokensCollapsed && (
-          <div className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider}`}>
-            <div
+          <section className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider}`}>
+            <section
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
@@ -268,7 +268,7 @@ export default function CommunitiesStatsSection({
                   </label>
                 )
               })()}
-              <div className="px-2 pb-2">
+              <section className="px-2 pb-2">
                 {communityTokensForDropdown.map((t) => {
                   const tok = String(t.token || '').toLowerCase()
                   const checked =
@@ -306,12 +306,12 @@ export default function CommunitiesStatsSection({
                     </label>
                   )
                 })}
-              </div>
-            </div>
-          </div>
+              </section>
+            </section>
+          </section>
           )}
           {!chartCollapsed && (
-            <div className="px-3 py-2">
+            <section className="px-3 py-2">
               <AutoHeightMiniBarChart
                 containerClassName="overflow-x-auto h-16"
                 minHeight={64}
@@ -341,7 +341,7 @@ export default function CommunitiesStatsSection({
                   },
                 }))}
               />
-              <div className={`mt-2 ${UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME}`}>
+              <section className={`mt-2 ${UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME}`}>
                 {(() => {
                   if (pinnedCommunityId == null) return null
                   const c = communities.find(x => x.id === pinnedCommunityId) || null
@@ -349,9 +349,9 @@ export default function CommunitiesStatsSection({
                   const w = Math.max(140, c.topTokens.length * 12)
                   return (
                     <>
-                      <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
+                      <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
                         Top tokens for {c.name}
-                      </div>
+                      </section>
                       <AutoHeightMiniBarChart
                         containerClassName="mt-1 overflow-x-auto h-16"
                         minHeight={64}
@@ -367,32 +367,32 @@ export default function CommunitiesStatsSection({
                     </>
                   )
                 })()}
-              </div>
-            </div>
+              </section>
+            </section>
           )}
-          <div className="divide-y divide-[color:var(--kg-divider)]">
+          <section className="divide-y divide-[color:var(--kg-divider)]">
             {communities.slice(0, Math.min(communities.length, 20)).map((c) => (
-              <div key={String(c.id)} className="px-3 py-2 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
+              <section key={String(c.id)} className="px-3 py-2 flex items-center justify-between gap-3">
+                <section className="min-w-0">
+                  <section className="flex items-center gap-2 min-w-0">
                     <span
                       className={`inline-block w-3 h-3 rounded border ${UI_THEME_TOKENS.panel.border}`}
                       style={{ backgroundColor: c.fill }}
                     />
-                    <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.primary, 'truncate'].join(' ')}>
+                    <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.primary, 'truncate'].join(' ')}>
                       {c.name}{' '}
                       <span className={uiPanelMonospaceTextClass}>
                         {String(c.id)}
                       </span>
-                    </div>
-                  </div>
+                    </section>
+                  </section>
                   {c.description ? (
-                    <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-0.5', UI_THEME_TOKENS.text.tertiary, 'truncate'].join(' ')}>
+                    <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-0.5', UI_THEME_TOKENS.text.tertiary, 'truncate'].join(' ')}>
                       {c.description}
-                    </div>
+                    </section>
                   ) : null}
                   {Array.isArray(c.topTokens) && c.topTokens.length > 0 ? (
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    <section className="mt-1 flex flex-wrap gap-1">
                       {c.topTokens.slice(0, 6).map(t => (
                         <span
                           key={t.token}
@@ -420,16 +420,16 @@ export default function CommunitiesStatsSection({
                           <span className={UI_THEME_TOKENS.text.tertiary}>{t.count}</span>
                         </span>
                       ))}
-                    </div>
+                    </section>
                   ) : null}
-                </div>
-                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
+                </section>
+                <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
                   {String(c.count)}
-                </div>
-              </div>
+                </section>
+              </section>
             ))}
-          </div>
-        </div>
+          </section>
+        </section>
       )}
     </CollapsibleSection>
   )

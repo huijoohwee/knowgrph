@@ -30,8 +30,9 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: local UI launch, local pipelines, local superagent harness, local browser API bridge, vdeoxpln registry inspection
+   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, local browser API bridge, vdeoxpln registry inspection
    - Transport: stdio only
+   - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
 2. **Pages HTTP MCP**
    - Owner: `cloudflare/pages/knowgrph-agent-ready.mjs`
@@ -79,6 +80,11 @@ Canonical local tool inventory owner:
 
 ### UI launcher
 
+- `search` — searches published Knowgrph Source Files and returns stable `kgdoc:` ids with citation-ready result URLs
+- `fetch` — fetches the complete published Source File markdown for an id returned by `search`, returning both `content` and `text`
+- `prompts/list` / `prompts/get` — expose read-only prompt templates that guide MCP hosts to use `search`/`fetch` or `inspect_agent_surface`; prompts do not introduce a second execution path
+- `resources/templates/list` — exposes the shared `kgdoc://source-file/{id}` template for Source Files returned by `search`
+- `resources/read` — reads either `ui://knowgrph/agent-ready` as MCP Apps HTML or `kgdoc://source-file/{id}` as Source Files `text/markdown` through the existing `fetch` executor
 - `knowgrph.ui.launch` — starts the **Canvas Vite dev server** and returns a mode-specific URL:
   - `target=canvas` → normal Canvas
   - `target=workspaceEditor` → opens Workspace Editor (`?openEditorWorkspace=1`)
@@ -95,8 +101,8 @@ Canonical local tool inventory owner:
    - Typical use: generate GraphData + A0 exports from a GraphRAG indexing run
 3. `knowgrph.superagent.run`
    - Runs: `python -m knowgrph_parser superagent ...`
-   - Typical use: run the Codex-compatible rich media super-agent harness with deterministic mock text/image providers plus either mock video or `provider_mode=pixverse` through local PixVerse MCP stdio, constrained additive `fusion_video`, bounded polling, optional additive `lip_sync_video` on generated clips or uploaded `video_media_id` in TTS mode plus custom-audio on generated clips and uploaded videos, automated local uploaded-media handoff, optional `sound_effect_video` on generated clips or uploaded `video_media_id`, and mock fallback
-   - Emits: `state.json`, `trace.jsonl`, `final-report.md`, `artifacts/canvas/canvas.graph.json`, and `artifacts/workspace/rich-media-flow.md`
+   - Typical use: run the Codex-compatible long-horizon SuperAgent harness for research, code, and create tasks across `quick_triage`, `bounded_compile`, `deep_research`, and `parallel_build` levels. The run uses native memory, role-scoped subagents, `skill.select`, `research.scout`, `code.write_and_run`, bounded generated-code sandbox artifacts, deterministic mock media providers, optional `providerMode="pixverse"` local PixVerse MCP stdio video execution, and mock fallback.
+   - Emits: `state.json`, `trace.jsonl`, `goal.json`, `harness-proof.json`, `final-report.md`, selected-skill/research/code/sandbox artifacts, `artifacts/canvas/canvas.graph.json`, and `artifacts/workspace/rich-media-flow.md`
 4. `knowgrph.browser_api.run`
    - Calls a configurable local API-native browser runtime, using an Unbrowse-compatible shape without copying its implementation
    - Typical use: health-check the runtime, search/resolve first-party browser API routes, list cached skills, login through a local browser session, run guarded cookie import, send feedback/verification, execute a resolved route with `dryRun=true` by default, or fall back to native browser capture/action operations such as `go`, `snap`, `click`, `fill`, `screenshot`, `text`, `markdown`, `sync`, and `close`
@@ -106,6 +112,8 @@ Canonical local tool inventory owner:
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.
+
+All shipped local read-only Source Files tools declare no-auth `securitySchemes`. The UI-linked `knowgrph.vdeoxpln.list` tool also mirrors that scheme in `_meta.securitySchemes`, links `_meta.ui.resourceUri` to `ui://knowgrph/agent-ready`, and sets `_meta["openai/widgetAccessible"]` so Apps-capable hosts can let the resource call back through the MCP tool bridge. Resource templates are served through the standard MCP `resources` capability; Knowgrph does not define a custom resource-template capability.
 
 ## What this README does not claim
 
@@ -174,10 +182,12 @@ Add a server entry similar to:
 
 Then you can call:
 
+- `search` with `{ "query": "renderer architecture", "limit": 10 }`
+- `fetch` with `{ "id": "kgdoc::docs%2Fexample.md" }`
 - `knowgrph.ui.launch` with `{ "target": "workspaceEditor" }` (or `canvas` / `geospatial`)
 - `knowgrph.pipeline` with `{ "mode": "pipeline", "inputPath": "data/outputs/graph.json", "outputDir": "data/outputs" }`
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
-- `knowgrph.superagent.run` with `{ "inputPath": "knowgrph_parser/fixtures/superagent-neutral.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example" }`
+- `knowgrph.superagent.run` with `{ "inputPath": "knowgrph_parser/fixtures/superagent-neutral.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example", "providerMode": "mock" }`
 - `knowgrph.browser_api.run` with `{ "operation": "resolve", "targetUrl": "<TARGET_URL>", "intent": "find the current account profile JSON endpoint" }`
 - `knowgrph.browser_api.run` with `{ "operation": "execute", "skillId": "resolved-skill-id", "payload": {}, "dryRun": true, "confirmUnsafe": false, "confirmThirdPartyTerms": false }`
 - `knowgrph.browser_api.run` with `{ "operation": "cookieImport", "targetUrl": "<TARGET_URL>", "dryRun": false, "confirmCookieImport": true, "confirmUnsafe": true, "confirmThirdPartyTerms": true }`

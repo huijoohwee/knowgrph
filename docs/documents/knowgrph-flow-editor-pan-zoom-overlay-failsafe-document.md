@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document describes the interaction contract for restoring pan/zoom when Flow Editor “fly-out” overlays (e.g., Node Quick Editor) are present.
+This document describes the interaction contract for restoring pan/zoom when Flow Editor widget overlays are present.
 
 ## SSOT Rules
 
@@ -16,12 +16,12 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 ## Overlay Contract
 
 - Overlays may be marked as wheel-ignore/pointer-ignore to prevent accidental canvas wheel zoom.
-- Flow Editor fly-out overlays must expose the overlay root via `[data-kg-node-quick-editor]` on the portal root so global capture handlers can reliably proxy wheel/pan/zoom.
+- Flow Editor widget overlays must expose the overlay root via `[data-kg-widget][data-kg-flow-editor-mode="1"]` and the active surface id via `data-kg-flow-editor-surface` so global capture handlers can reliably proxy wheel/pan/zoom.
 - When Space-pan is held, Space+drag pan must remain usable even if the pointerdown starts on an overlay.
-- Dragging a fly-out overlay must never start a canvas pan proxy unless Space-pan is held.
+- Dragging a widget overlay must never start a canvas pan proxy unless Space-pan is held.
 - Pinned overlay drags must update overlay anchor offsets directly (applied collectively to all pinned overlays) and must not route through any pan proxy path.
-- When `flowEditorOverlayWheelProxyEnabled=true`, wheel gestures that originate over a Node Quick Editor overlay must be forwarded to the Flow canvas unless the overlay can scroll in that direction (including when the wheel originates over interactive form fields).
-- When Safari emits `gesture*` pinch events over the canvas or fly-out overlays, the app must prevent browser zoom and apply anchored zoom to the Flow canvas.
+- When `flowEditorOverlayWheelProxyEnabled=true`, wheel gestures that originate over a Flow Editor widget overlay must be forwarded to the Flow canvas unless the overlay can scroll in that direction (including when the wheel originates over interactive form fields).
+- When Safari emits `gesture*` pinch events over the canvas or widget overlays, the app must prevent browser zoom and apply anchored zoom to the Flow canvas.
 - Overlay-driven global user-select locks must always unlock on pointer end/cancel and must not leak across unmount.
 - Wheel-ignore zones must not be able to “blanket block” canvas zoom when the top-most element under the pointer is still the canvas; in Flow Editor, prefer an `elementFromPoint` check to bypass ignore guards in that case.
 
@@ -39,7 +39,9 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - Widget placement authority: frontmatter-flow auto-managed widget nodes (text/image/video generation, rich media panel, video transcriber) use a centralized placement authority (`widgetPlacementAuthority.ts`) that decides auto-placement, pinned-in-canvas defaults, and balanced collective layout preservation.
 - Screen authority for floating widgets: frontmatter-flow floating widgets bypass viewport clamping and use raw screen coordinates (`floatingUsesScreenAuthority`); world position stamping is skipped when screen authority is active, and a guard prevents stamping far-offscreen world coordinates during pre-init.
 - Per-graph-key widget world positions: widget world positions are stored per graph meta key (`flowWidgetWorldPosByNodeIdByGraphMetaKey`) so positions persist correctly when switching between frontmatter-flow graphs; transient placement authorities are reset on workspace reopen to prevent far-right jumps.
-- Frontmatter flow import mode clearing: importing a frontmatter-flow graph clears both the global `flowWidgetWorldPosByNodeId` and the per-graph-key variant to ensure a clean slate.
+- Frontmatter flow import mode clearing: an explicit frontmatter-flow graph import clears the global and per-graph-key pinned, screen-position, and world-position widget placement caches even during transient workspace mutation gates, so stale Flow Canvas/previous-document placement cannot seed Flow Editor. Passive Source Files switches opt out via `resetWidgetLayout: false`.
+- Workspace-blocked seed zoom: frontmatter-flow auto-seeding must ignore persisted viewport-offset zoom while workspace graph mutation is blocked; live interaction transforms remain authoritative, and persisted offsets may seed only after the mutation gate is open.
+- Rich Media infinite-canvas layout: Flow Editor and Flow Canvas Rich Media overlays opt out of viewport collision/clamp relayout so pan/zoom preserves world placement. Bounded callers still use the shared media overlay layout loop with explicit caller clamp margins and obstacle collision.
 
 ## References
 
@@ -60,5 +62,8 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - `knowgrph/canvas/src/lib/canvas/interaction-user-select.ts`
 - `knowgrph/canvas/src/lib/flowEditor/widgetPlacementAuthority.ts` (widget auto-placement + screen authority + balanced collective)
 - `knowgrph/canvas/src/features/parsers/frontmatterFlowImportMode.ts` (import mode clearing)
+- `knowgrph/canvas/src/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeScene.ts` (workspace-blocked seed zoom)
+- `knowgrph/canvas/src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx` (Flow Rich Media infinite-canvas layout policy)
+- `knowgrph/canvas/src/lib/render/mediaOverlayLayoutLoop2d.ts` (bounded media layout collision and caller clamp margins)
 - `knowgrph/canvas/src/hooks/store/canvasSlice.ts`
 - `knowgrph/canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts`

@@ -111,7 +111,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
             if (quoteLineStructured) {
               const lines = String(presentText || '').split(/\r?\n/)
               if (preserveQuoteOnlyBlankLineStructure) {
-                el.innerHTML = Array.from({ length: Math.max(1, lines.length) }, () => '<div><br/></div>').join('')
+                el.innerHTML = Array.from({ length: Math.max(1, lines.length) }, () => '<section><br/></section>').join('')
               } else {
                 el.innerHTML = readCachedOrComputeEditHtml(
                   `quote-block:${args.editSigilRenderMode}:${presentText}`,
@@ -153,7 +153,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
             args.lastSerializedEditorHtmlRef.current = el.innerHTML
           }
         } else {
-          if (preserveQuoteOnlyBlankLineStructure) el.innerHTML = Array.from({ length: Math.max(1, stripped.length) }, () => '<div><br/></div>').join('')
+          if (preserveQuoteOnlyBlankLineStructure) el.innerHTML = Array.from({ length: Math.max(1, stripped.length) }, () => '<section><br/></section>').join('')
           else el.textContent = presentText
           args.initialEditorHtmlRef.current = el.innerHTML
         }

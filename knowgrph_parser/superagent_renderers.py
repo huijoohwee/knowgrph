@@ -20,6 +20,8 @@ from .superagent_contracts import (
     RICH_MEDIA_PANEL_EDGE_LANES,
     RICH_MEDIA_PANEL_EDGE_IDS,
     RICH_MEDIA_SURFACE_ROUTE,
+    SUPERAGENT_TASK_CAPABILITIES,
+    SUPERAGENT_TASK_LEVELS,
 )
 from .superagent_proof_manifest import render_harness_proof_manifest_report_lines
 from .superagent_responsive import build_responsive_layout_metadata, render_responsive_frontmatter_lines
@@ -196,6 +198,12 @@ def render_workspace_flow_markdown(
         "kgFrontmatterModeEnabled: true",
         f"kgSuperAgentRunId: {yaml_inline_string(run_id)}",
         f"kgSuperAgentSurfaceRoute: {yaml_inline_string(RICH_MEDIA_SURFACE_ROUTE)}",
+        "kgSuperAgentCapabilities:",
+        *[f"  - {yaml_inline_string(capability)}" for capability in SUPERAGENT_TASK_CAPABILITIES],
+        "kgSuperAgentTaskLevels:",
+        *[f"  - {yaml_inline_string(level)}" for level in SUPERAGENT_TASK_LEVELS],
+        "kgSuperAgentMessageGateway: \"CLI or knowgrph.superagent.run local MCP\"",
+        "kgSuperAgentSandbox: \"bounded generated-code execution inside run artifacts\"",
         "kgSuperAgentLayout:",
         f"  id: {yaml_inline_string(BALANCED_LAYOUT_ID)}",
         "  label: \"Balanced 16:9\"",
@@ -264,6 +272,9 @@ def render_workspace_flow_markdown(
         f"- Source: `{source_name}`",
         f"- Source hash: `{source_hash}`",
         f"- Surface route: `{RICH_MEDIA_SURFACE_ROUTE}`",
+        "- Harness lanes: `SkillSelector`, `ResearchAgent`, `CodeWorker`, `TextGeneration`, `ImageGeneration`, `VideoGeneration`, `RichMediaPanel`",
+        "- Message gateway: `CLI` or `knowgrph.superagent.run` local MCP",
+        "- Sandbox: generated code executes inside the run artifact directory before media creation",
         "",
     ]
     return "\n".join(lines)

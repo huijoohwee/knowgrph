@@ -185,7 +185,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     if (!raw.trim() || typeof DOMParser === 'undefined') return raw
     let doc: Document
     try {
-      doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+      doc = new DOMParser().parseFromString(`<section>${raw}</section>`, 'text/html')
     } catch {
       return raw
     }

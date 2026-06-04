@@ -334,17 +334,17 @@ export function LaunchSpotlightStatusCard({
   if (!shouldRender) return null
 
   return (
-    <div className="fixed inset-0 z-[2000] pointer-events-none">
-      <div
+    <section className="fixed inset-0 z-[2000] pointer-events-none">
+      <section
         ref={cardRef}
         className={`${spotlightCardClassName} ${minimized ? 'cursor-default' : 'cursor-move'}`}
         onPointerDown={minimized ? undefined : handleCardPointerDown}
         style={cardStyle}
       >
         {minimized ? (
-          <div className="flex items-center justify-between">
+          <section className="flex items-center justify-between">
             <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Status</span>
-            <div className="flex items-center gap-2">
+            <section className="flex items-center gap-2">
               <button
                 type="button"
                 className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
@@ -359,15 +359,15 @@ export function LaunchSpotlightStatusCard({
               >
                 Reopen
               </button>
-            </div>
-          </div>
+            </section>
+          </section>
         ) : (
           <>
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex flex-col gap-0.5">
+            <section className="flex items-start justify-between mb-2">
+              <section className="flex flex-col gap-0.5">
                 <span className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Status Panel</span>
-                <div className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>Status</div>
-              </div>
+                <section className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>Status</section>
+              </section>
               <button
                 type="button"
                 className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
@@ -375,9 +375,9 @@ export function LaunchSpotlightStatusCard({
               >
                 Minimize
               </button>
-            </div>
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-start gap-2">
+            </section>
+            <section className="space-y-2">
+              <section className="flex flex-wrap items-start gap-2">
                 <StatusBadge label={UI_LABELS.data} ok={dataLoadOk} msg={dataLoadMsg} />
                 <StatusBadge label={UI_LABELS.parser} ok={parserLoadOk} msg={parserLoadMsg} />
                 <StatusBadge
@@ -395,30 +395,30 @@ export function LaunchSpotlightStatusCard({
                     {ingestionKindLabel}
                   </span>
                 )}
-              </div>
-              <div className={`text-xs ${UI_THEME_TOKENS.text.primary} space-y-2`}>
-                <div>
-                  <div className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
+              </section>
+              <section className={`text-xs ${UI_THEME_TOKENS.text.primary} space-y-2`}>
+                <section>
+                  <section className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
                     Graph state
-                  </div>
-                  <div>
+                  </section>
+                  <section>
                     GraphData: {nodesCount.toLocaleString()} nodes · {edgesCount.toLocaleString()} edges
-                  </div>
-                  <div className={`${UI_THEME_TOKENS.text.tertiary}`}>{workspaceSeedSyncDebugText}</div>
-                  <div>Selected: {selectedLabel}</div>
-                  {schemaImport ? <div>Import: {schemaImport}</div> : null}
+                  </section>
+                  <section className={`${UI_THEME_TOKENS.text.tertiary}`}>{workspaceSeedSyncDebugText}</section>
+                  <section>Selected: {selectedLabel}</section>
+                  {schemaImport ? <section>Import: {schemaImport}</section> : null}
                   {widgetTraceBadge ? (
-                    <div className="mt-1">
+                    <section className="mt-1">
                       <span className={ingestionKindChipClass}>
                         QE d/s {widgetTraceBadge.drops}/{widgetTraceBadge.spikes} · n={widgetTraceBadge.samples}
                       </span>
                       <span className={`${ingestionKindChipClass} ml-1`}>
                         g/o {nodesCount.toLocaleString()}/{widgetTraceBadge.lastOverlayCount.toLocaleString()}
                       </span>
-                    </div>
+                    </section>
                   ) : null}
                   {devTraceEnabled ? (
-                    <div className="mt-1">
+                    <section className="mt-1">
                       <button
                         type="button"
                         className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryActionButtonClassName} mr-1`}
@@ -433,7 +433,7 @@ export function LaunchSpotlightStatusCard({
                       >
                         QE Trace Summary (dev)
                       </button>
-                    </div>
+                    </section>
                   ) : null}
 
                   <section className="mt-2" aria-label="Viewport status">
@@ -453,16 +453,16 @@ export function LaunchSpotlightStatusCard({
                       <dd className="font-mono">{rendererLabel}</dd>
                     </dl>
                   </section>
-                </div>
-                <div>
-                  <div className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
+                </section>
+                <section>
+                  <section className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
                     Validation
-                  </div>
-                  <div className="flex items-center gap-1 mb-1">
+                  </section>
+                  <section className="flex items-center gap-1 mb-1">
                     {validationIcon}
                     <span className={validationTextClass}>{graphValidationStatusText}</span>
-                  </div>
-                  <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+                  </section>
+                  <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                     <SchemaSummary
                       variant="full"
                       showTitle={false}
@@ -471,16 +471,16 @@ export function LaunchSpotlightStatusCard({
                       showLintSummary
                       onOpenSchemaUiEditor={() => openSchemaConfigWorkspaceFile()}
                     />
-                  </div>
+                  </section>
                   {typeof schemaLintCount === 'number' && schemaLintCount > 0 && (
-                    <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+                    <section className={`mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                       {schemaLintCount.toLocaleString()} schema lint issue{schemaLintCount === 1 ? '' : 's'} detected
-                    </div>
+                    </section>
                   )}
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-end gap-2">
+                </section>
+              </section>
+            </section>
+            <section className="mt-3 flex items-center justify-end gap-2">
               <button
                 type="button"
                 className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryActionButtonClassName}`}
@@ -488,10 +488,10 @@ export function LaunchSpotlightStatusCard({
               >
                 Close
               </button>
-            </div>
+            </section>
           </>
         )}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

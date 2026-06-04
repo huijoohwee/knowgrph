@@ -22,12 +22,12 @@ export default function RulesAndQualitySection({
   const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
   const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   return (
-    <div className="space-y-3">
-      <div className={sectionHeadingClassName}>
+    <section className="space-y-3">
+      <section className={sectionHeadingClassName}>
         Rules and Quality
-      </div>
+      </section>
       <Subsection title="Performance">
-        <div className="flex items-center gap-2 text-xs">
+        <section className="flex items-center gap-2 text-xs">
           <span className={inlineLabelClassName}>Hide labels below scale</span>
           <input
             type="number"
@@ -38,10 +38,10 @@ export default function RulesAndQualitySection({
             onChange={e => setLodHideLabelsBelow(parseFloat(e.target.value || '0'))}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
+        </section>
       </Subsection>
       <Subsection title="Accessibility">
-        <div className="flex items-center gap-2 text-xs">
+        <section className="flex items-center gap-2 text-xs">
           <label className={`flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`}>
             <input
               type="checkbox"
@@ -51,8 +51,8 @@ export default function RulesAndQualitySection({
             />
             High Contrast
           </label>
-        </div>
+        </section>
       </Subsection>
-    </div>
+    </section>
   )
 }

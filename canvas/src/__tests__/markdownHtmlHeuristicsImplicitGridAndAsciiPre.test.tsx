@@ -12,14 +12,14 @@ export async function testMarkdownSafeHtmlHeuristicsImplicitGridAndAsciiPre() {
     if (!('gridColumn' in style)) throw new Error('expected col-span-6 to set gridColumn')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
     const node = (
       <section>
-        {renderSafeHtmlBlock('<div class="col-span-6">A</div><div class="col-span-6">B</div>', {
+        {renderSafeHtmlBlock('<section class="col-span-6">A</section><section class="col-span-6">B</section>', {
           activeDocumentPath: '/test.md',
           uiPanelTextFontClass: 'font-sans',
           uiPanelMonospaceTextClass: 'font-mono',

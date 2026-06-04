@@ -48,7 +48,7 @@ export function testAnimaticDemoReusesSharedFlowFrontmatterContract() {
 export function testAnimaticDemoRetainsReferenceSwitchContractSnippet() {
   const text = readFileSync(DEMO_DOC_PATH, 'utf8')
   const expectedSnippet = normalizeSpace(`
-    <div class="player-config">
+    <section class="player-config">
       <button
         type="button"
         role="switch"
@@ -57,11 +57,11 @@ export function testAnimaticDemoRetainsReferenceSwitchContractSnippet() {
         ant-click-animating="true"
         style="margin-bottom: 20px;"
       >
-        <div class="ant-switch-handle"></div>
+        <section class="ant-switch-handle"></section>
         <span class="ant-switch-inner">Enable Runtime Auto Scroll</span>
-        <div class="ant-click-animating-node"></div>
+        <section class="ant-click-animating-node"></section>
       </button>
-    </div>
+    </section>
   `)
   const normalizedText = normalizeSpace(text)
   if (!normalizedText.includes(expectedSnippet)) {

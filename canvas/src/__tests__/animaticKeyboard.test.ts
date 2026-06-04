@@ -70,7 +70,7 @@ export function testShouldIgnoreAnimaticTimelineHotkeysBlocksEditingAndInteracti
 
 export function testShouldIgnoreAnimaticTimelineHotkeysAllowsPlainCanvasFocus() {
   const ignored = shouldIgnoreAnimaticTimelineHotkeys({
-    targetTagName: 'div',
+    targetTagName: 'section',
     targetRole: 'presentation',
     targetContentEditable: false,
   })

@@ -61,9 +61,9 @@
   - Inserts or updates `GraphRowDoc` rows for changed nodes/edges and avoids rewriting unchanged rows, so noop syncs keep `updatedAtMs` stable.
   - Serializes writes via a `withGraphTableDbWrite` queue to avoid concurrent write conflicts while still allowing concurrent callers.
 
-## Quick Editor Parity
+## Widget Parity
 
-- The Record Inspector must render the same Node Quick Editor panel as Flow Editor for any node id in the shared open list.
+- The Record Inspector must render the same Flow Editor widget panel as Flow Editor for any node id in the shared open list.
 - The open list remains SSOT in graph view state; the table must not keep a local open-state fork.
 
 ### Column Rearrangement (Drag Header)

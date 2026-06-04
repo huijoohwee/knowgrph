@@ -46,6 +46,7 @@ export type LsKeyOwner =
   | 'import.pdf'
   | 'payments.stripe'
   | 'payments.stripe.mcp'
+  | 'openai.mcp'
   | 'search.exa.mcp';
 
 
@@ -184,6 +185,7 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   markdownWorkspaceSourcesByPath: 'ui.bottomSurface',
   markdownWorkspaceSeeded: 'ui.bottomSurface',
   markdownWorkspaceUserClearedAllFiles: 'ui.bottomSurface',
+  documentVersions: 'ui.workspace',
   markdownCollapsedHeadingIds: 'ui.bottomSurface',
   jsonMarkdownMode: 'ui.bottomSurface',
   jsonMarkdownTableMaxRows: 'ui.bottomSurface',
@@ -197,7 +199,6 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   floatingPanelPinned: 'ui.floatingPanel',
   hoverTooltipPinned: 'ui.floatingPanel',
   floatingPanelWidthRatio: 'ui.floatingPanel',
-  floatingPanelHeightRatio: 'ui.floatingPanel',
   floatingPanelZIndex: 'ui.floatingPanel',
   flowWidgetPinnedByNodeId: 'ui.floatingPanel',
   flowWidgetPinnedSemanticsVersion: 'ui.floatingPanel',
@@ -235,6 +236,17 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   searchExaMcpMaxResults: 'search.exa.mcp',
   searchExaMcpFetchContentLimit: 'search.exa.mcp',
   searchExaMcpRequireFetchReview: 'search.exa.mcp',
+  openAiMcpServerLabel: 'openai.mcp',
+  openAiMcpServerUrl: 'openai.mcp',
+  openAiMcpTransport: 'openai.mcp',
+  openAiMcpAllowedToolsJson: 'openai.mcp',
+  openAiMcpRequireApproval: 'openai.mcp',
+  openAiMcpResponsesModel: 'openai.mcp',
+  openAiMcpAuthMode: 'openai.mcp',
+  openAiMcpApiKeyEnv: 'openai.mcp',
+  openAiMcpVectorStoreEnv: 'openai.mcp',
+  openAiMcpServerPort: 'openai.mcp',
+  openAiMcpRequireToolReview: 'openai.mcp',
   orchestratorTraversalDelayMs: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagMaxFull: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagHead: 'orchestrator.prefs',

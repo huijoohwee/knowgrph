@@ -554,7 +554,7 @@ export const testFlowEditorLayoutRebalanceUsesCenteredBalancedSpreadRuntime = ()
     || !runtimeText.includes('&& !persistedHasViewportOffset')
     || !runtimeText.includes('const allowPersistedViewportOffsetSeed =')
     || !runtimeText.includes('&& persistedHasViewportOffset')
-    || !runtimeText.includes('&& (!liveZoom || liveLooksDefault)')) {
+    || !runtimeText.includes('&& liveLooksDefault')) {
     throw new Error('expected Flow Editor runtime scene to preserve active zoom/pan authority during renderer Layout rebalance and workspace-open initialization')
   }
   if (!runtimeText.includes('buildFlowOverlayBoundsFromRects({')

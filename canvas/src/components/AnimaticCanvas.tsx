@@ -349,12 +349,12 @@ export default function AnimaticCanvas({
   const [timingOverrides, setTimingOverrides] = React.useState<Record<string, AnimaticTimelineBeatTimingOverride>>({})
   const [dragState, setDragState] = React.useState<AnimationDragState | null>(null)
   const [laneItemDragPreviewOffsetPx, setLaneItemDragPreviewOffsetPx] = React.useState(0)
-  const scrollRef = React.useRef<HTMLDivElement | null>(null)
-  const laneRowRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})
-  const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})
-  const laneOptionRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})
+  const scrollRef = React.useRef<HTMLElement | null>(null)
+  const laneRowRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLElement | null>>>({})
+  const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLElement | null>>>({})
+  const laneOptionRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLElement | null>>>({})
   const laneItemOptionRefs = React.useRef<Record<string, HTMLElement | null>>({})
-  const beatOptionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
+  const beatOptionRefs = React.useRef<Record<string, HTMLElement | null>>({})
   const laneShortcutHighlightTimeoutRef = React.useRef<number | null>(null)
   const timingOverridesRef = React.useRef<Record<string, AnimaticTimelineBeatTimingOverride>>({})
   const dragSessionIdRef = React.useRef(0)
@@ -1583,11 +1583,11 @@ export default function AnimaticCanvas({
   if (!timelineEnabled) {
     return (
       <section className="w-full h-full bg-[#0b0f17] text-slate-100" data-kg-timeline-disabled="1">
-        <div className="h-full w-full flex items-center justify-center p-8">
-          <div className="max-w-xl rounded border border-slate-800 bg-slate-900/85 p-6 shadow-2xl">
+        <section className="h-full w-full flex items-center justify-center p-8">
+          <section className="max-w-xl rounded border border-slate-800 bg-slate-900/85 p-6 shadow-2xl">
             <h2 className="text-lg font-semibold">Timeline Off</h2>
-          </div>
-        </div>
+          </section>
+        </section>
       </section>
     )
   }
@@ -1595,8 +1595,8 @@ export default function AnimaticCanvas({
   if (!timelineModel.beats.length) {
     return (
       <section className="w-full h-full bg-[#0b0f17] text-slate-100">
-        <div className="h-full w-full flex items-center justify-center p-8">
-          <div className="max-w-xl rounded-2xl border border-slate-800 bg-slate-900/85 p-6 shadow-2xl">
+        <section className="h-full w-full flex items-center justify-center p-8">
+          <section className="max-w-xl rounded-2xl border border-slate-800 bg-slate-900/85 p-6 shadow-2xl">
             <h2 className="text-lg font-semibold">2D Renderer: Animatic</h2>
             <p className="mt-3 text-sm leading-6 text-slate-300">
               Add beat-linked graph nodes or provide <code> timeline.beats </code> in Markdown frontmatter to populate the native timeline surface.
@@ -1604,17 +1604,17 @@ export default function AnimaticCanvas({
             <p className="mt-3 text-sm leading-6 text-slate-400">
               This renderer reads the current workspace graph and Markdown document directly. It does not ship fixture-only demo rows.
             </p>
-          </div>
-        </div>
+          </section>
+        </section>
       </section>
     )
   }
 
   return (
     <section className="w-full h-full bg-[#0b0f17] text-slate-100 select-none">
-      <div className="flex h-full min-h-0 flex-col">
+      <section className="flex h-full min-h-0 flex-col">
         <header className="shrink-0 border-b border-slate-800 bg-[#0f1625]/95 px-4 pt-4 pb-2 backdrop-blur">
-          <div className="player-config">
+          <section className="player-config">
             <button
               type="button"
               role="switch"
@@ -1624,11 +1624,11 @@ export default function AnimaticCanvas({
               style={{ marginBottom: 20 }}
               onClick={() => setRuntimeAutoScrollEnabled(current => !current)}
             >
-              <div className="ant-switch-handle"></div>
+              <section className="ant-switch-handle"></section>
               <span className="ant-switch-inner">Enable Runtime Auto Scroll</span>
-              <div className="ant-click-animating-node"></div>
+              <section className="ant-click-animating-node"></section>
             </button>
-          </div>
+          </section>
           <TimelineTransportControls
             ariaLabel="Animation timeline playhead"
             currentLabel={currentTimeLabel}
@@ -1646,7 +1646,7 @@ export default function AnimaticCanvas({
               setPlaybackPosition(nextValue)
             }}
           />
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <section className="mt-2 flex flex-wrap items-center gap-1.5">
             <IconButton title="Prev Beat (Left Arrow)" showTooltip className={getTimelineCompactIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
               <SkipBack className={compactToolbarIconClassName} />
             </IconButton>
@@ -1711,7 +1711,7 @@ export default function AnimaticCanvas({
             >
               <Trash2 className={compactToolbarIconClassName} />
             </IconButton>
-            <div className="flex h-7 items-center overflow-hidden rounded-md border border-slate-800 bg-slate-950/80">
+            <section className="flex h-7 items-center overflow-hidden rounded-md border border-slate-800 bg-slate-950/80">
               <button
                 type="button"
                 className={`h-full px-2 text-[10px] font-medium transition ${
@@ -1733,23 +1733,23 @@ export default function AnimaticCanvas({
                   {step}ms
                 </button>
               ))}
-            </div>
-            <div className="ml-auto flex items-center gap-1.5 text-sm text-slate-300">
+            </section>
+            <section className="ml-auto flex items-center gap-1.5 text-sm text-slate-300">
               {timelineModel.usesAbsoluteTiming ? (
                 <span className={getTimelineCompactStatusChipClassName()}>
                   Grid {snapStepMs}ms
                 </span>
               ) : null}
               {activeBeat ? (
-                <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
+                <section className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                   <IconButton title={`Rename ${activeBeat.label} (L)`} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatLabelEdit(activeBeat)}>
                     <Pencil className={toolbarIconClassName} />
                   </IconButton>
                   <span className="max-w-32 truncate text-[10px] text-slate-400">{activeBeat.label}</span>
-                </div>
+                </section>
               ) : null}
               {activeBeat ? (
-                <div className="flex items-start gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
+                <section className="flex items-start gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                   <IconButton title={activeBeat.note ? 'Edit beat note (N)' : 'Add beat note (N)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatNoteEdit(activeBeat)}>
                     <FileText className={toolbarIconClassName} />
                   </IconButton>
@@ -1778,18 +1778,18 @@ export default function AnimaticCanvas({
                     displayClassName="max-w-32 truncate text-[10px] leading-4 text-slate-400"
                     editorClassName="min-h-16 w-52 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
                   />
-                </div>
+                </section>
               ) : null}
               {activeBeat ? (
-                <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
+                <section className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                   <IconButton title={activeBeat.summary ? 'Edit beat summary (M)' : 'Add beat summary (M)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatSummaryEdit(activeBeat)}>
                     <AlignLeft className={toolbarIconClassName} />
                   </IconButton>
                   {activeBeat.summary ? <span className="max-w-36 truncate text-[10px] text-slate-400">{activeBeat.summary}</span> : null}
-                </div>
+                </section>
               ) : null}
               {activeBeat ? (
-                <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
+                <section className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                   <IconButton title={activeBeat.tags.length > 0 ? 'Edit beat tags (T)' : 'Add beat tags (T)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatTagsEdit(activeBeat)}>
                     <Tags className={toolbarIconClassName} />
                   </IconButton>
@@ -1816,7 +1816,7 @@ export default function AnimaticCanvas({
                     displayClassName="max-w-32 truncate text-[10px] leading-4 text-slate-400"
                     editorClassName="w-56 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
                   />
-                </div>
+                </section>
               ) : null}
               {!canDeleteActiveBeat && activeBeat ? (
                 <span className={getTimelineCompactStatusChipClassName('muted')}>
@@ -1843,26 +1843,26 @@ export default function AnimaticCanvas({
                   Solo Lane: {soloLaneId}
                 </span>
               ) : null}
-            </div>
-          </div>
+            </section>
+          </section>
         </header>
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <section className="flex min-h-0 flex-1 overflow-hidden">
           <aside className="w-44 shrink-0 border-r border-slate-800 bg-[#111827]">
-            <div
+            <section
               className="flex items-center border-b border-slate-800 px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
               style={{ height: SCALE_ROW_HEIGHT_PX }}
             >
               Scale
-            </div>
-            <div
+            </section>
+            <section
               className="flex items-center border-b border-slate-800 px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400"
               style={{ height: BEAT_HEADER_HEIGHT_PX }}
             >
               Timeline
-            </div>
-            <div role="listbox" aria-label="Animation timeline lanes">
+            </section>
+            <section role="listbox" aria-label="Animation timeline lanes">
               {lanePresentations.map((lane, laneIndex) => (
-                <div
+                <section
                 key={lane.id}
                 ref={node => {
                   laneOptionRefs.current[lane.id] = node
@@ -1899,7 +1899,7 @@ export default function AnimaticCanvas({
                   }
                 }}
               >
-                <div className="flex min-w-0 flex-1 items-center gap-1">
+                <section className="flex min-w-0 flex-1 items-center gap-1">
                   <IconButton
                     title={`Move ${lane.label} up`}
                     showTooltip
@@ -1918,25 +1918,25 @@ export default function AnimaticCanvas({
                   >
                     <ArrowDown className={compactToolbarIconClassName} />
                   </IconButton>
-                  <div className={`flex min-w-0 flex-1 items-center gap-1 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}>
-                    <div
+                  <section className={`flex min-w-0 flex-1 items-center gap-1 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}>
+                    <section
                       className={`min-w-0 truncate ${lane.solo ? 'text-cyan-200' : lane.hidden ? 'text-slate-500 line-through' : lane.muted ? 'text-slate-400' : 'text-slate-200'}`}
                       title={`Tab to focus ${lane.label}; use Arrow Up/Down, Home, End, [ / ], H, U, O`}
                     >
                       {lane.label}
-                    </div>
+                    </section>
                     {selectedLaneId === lane.id ? (
-                      <div className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
+                      <section className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
                         {SELECTED_LANE_HINTS.map(hint => (
                           <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
                             {hint.label}
                           </span>
                         ))}
-                      </div>
+                      </section>
                     ) : null}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
+                  </section>
+                </section>
+                <section className="flex items-center gap-1">
                   <IconButton
                     title={lane.hidden && !lane.solo ? `Show ${lane.label}` : `Hide ${lane.label}`}
                     showTooltip
@@ -1961,14 +1961,14 @@ export default function AnimaticCanvas({
                   >
                     <CircleDot className={compactToolbarIconClassName} />
                   </IconButton>
-                </div>
-                </div>
+                </section>
+                </section>
               ))}
-            </div>
+            </section>
           </aside>
-          <div ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">
-            <div className="relative" style={{ width: Math.max(totalTimelineWidth, 1) }}>
-              <div
+          <section ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">
+            <section className="relative" style={{ width: Math.max(totalTimelineWidth, 1) }}>
+              <section
                 className="timeline-editor-cursor pointer-events-none absolute z-20"
                 draggable={false}
                 data-width="2"
@@ -1983,10 +1983,10 @@ export default function AnimaticCanvas({
                 <svg className="timeline-editor-cursor-top" width="8" height="12" viewBox="0 0 8 12" fill="none">
                   <path d="M0 1C0 0.447715 0.447715 0 1 0H7C7.55228 0 8 0.447715 8 1V9.38197C8 9.76074 7.786 10.107 7.44721 10.2764L4.44721 11.7764C4.16569 11.9172 3.83431 11.9172 3.55279 11.7764L0.552786 10.2764C0.214002 10.107 0 9.76074 0 9.38197V1Z" fill="#5297FF"></path>
                 </svg>
-                <div className="timeline-editor-cursor-area"></div>
-              </div>
+                <section className="timeline-editor-cursor-area"></section>
+              </section>
               <header className="timeline-editor-header sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">
-                <div className="timeline-editor-time-area relative border-b border-slate-800" style={{ height: SCALE_ROW_HEIGHT_PX }}>
+                <section className="timeline-editor-time-area relative border-b border-slate-800" style={{ height: SCALE_ROW_HEIGHT_PX }}>
                   <ol className="timeline-editor-time-scale-list" aria-label="Animatic timeline scale">
                   {timelineEditorTimeUnits.map(unit => (
                     <li
@@ -2022,8 +2022,8 @@ export default function AnimaticCanvas({
                     )
                   })}
                   </aside>
-                </div>
-                <div
+                </section>
+                <section
                   className="timeline-editor-edit-area flex border-b border-slate-800"
                   role="listbox"
                   aria-label="Animatic timeline beats"
@@ -2052,7 +2052,7 @@ export default function AnimaticCanvas({
                       nextBeatForCard?.endMs != null &&
                       (nextBeatForCard?.items.length || 0) === 0
                     return (
-                      <div
+                      <section
                         key={beat.beatRef}
                         ref={node => {
                           beatOptionRefs.current[beat.beatRef] = node
@@ -2089,7 +2089,7 @@ export default function AnimaticCanvas({
                           }
                         }}
                       >
-                        <div
+                        <section
                           className={`absolute inset-x-1.5 top-1 z-30 ${laneInlineScrollClassName} justify-end opacity-0 transition group-hover/beat:opacity-100 group-focus-within/beat:opacity-100`}
                           style={laneInlineScrollStyle}
                         >
@@ -2197,7 +2197,7 @@ export default function AnimaticCanvas({
                           >
                             <Tags className={compactToolbarIconClassName} />
                           </IconButton>
-                        </div>
+                        </section>
                         <button
                           type="button"
                           className="absolute inset-0 z-0"
@@ -2259,7 +2259,7 @@ export default function AnimaticCanvas({
                           displayClassName="relative z-[25] text-[10px] font-semibold leading-3.5 text-slate-100"
                           editorClassName="relative z-[25] rounded border border-slate-700 bg-slate-950/95 px-1 py-0.5 text-[10px] font-semibold leading-4 text-slate-50 outline-none"
                         />
-                        <div
+                        <section
                           className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5 text-slate-400`}
                           style={laneInlineScrollStyle}
                         >
@@ -2271,9 +2271,9 @@ export default function AnimaticCanvas({
                           <span className="rounded-full border border-slate-700 bg-slate-900/70 px-1 py-0 text-[9px] leading-3 text-slate-300">
                             {beat.items.length} item{beat.items.length === 1 ? '' : 's'}
                           </span>
-                        </div>
+                        </section>
                         {beatLaneSummary.length > 0 ? (
-                          <div
+                          <section
                             className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5`}
                             style={laneInlineScrollStyle}
                           >
@@ -2296,7 +2296,7 @@ export default function AnimaticCanvas({
                                 +{beatLaneSummary.length - BEAT_LANE_SUMMARY_LIMIT}
                               </span>
                             ) : null}
-                          </div>
+                          </section>
                         ) : null}
                         {beat.summary || isActiveBeat ? (
                           <CardInlineTextEditor
@@ -2326,7 +2326,7 @@ export default function AnimaticCanvas({
                           />
                         ) : null}
                         {beat.tags.length > 0 ? (
-                          <div
+                          <section
                             className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5`}
                             style={laneInlineScrollStyle}
                           >
@@ -2347,10 +2347,10 @@ export default function AnimaticCanvas({
                                 +{beat.tags.length - 3}
                               </span>
                             ) : null}
-                          </div>
+                          </section>
                         ) : null}
                         {isActiveBeat ? (
-                          <div
+                          <section
                             className={`relative z-10 ${laneInlineScrollClassName} text-[9px] text-cyan-100`}
                             style={laneInlineScrollStyle}
                           >
@@ -2359,15 +2359,15 @@ export default function AnimaticCanvas({
                                 {hint.label}
                               </span>
                             ))}
-                          </div>
+                          </section>
                         ) : null}
-                      </div>
+                      </section>
                     )
                   })}
-                </div>
+                </section>
               </header>
               {lanePresentations.map(lane => (
-                <div
+                <section
                   key={lane.id}
                   ref={node => {
                     laneRowRefs.current[lane.id] = node
@@ -2377,18 +2377,18 @@ export default function AnimaticCanvas({
                   }`}
                   style={timelineRowStyle}
                 >
-                  <div className="pointer-events-none flex shrink-0" style={{ width: totalTimelineTrackWidth, minHeight: LANE_ROW_HEIGHT_PX - 1, height: LANE_ROW_HEIGHT_PX - 1 }}>
+                  <section className="pointer-events-none flex shrink-0" style={{ width: totalTimelineTrackWidth, minHeight: LANE_ROW_HEIGHT_PX - 1, height: LANE_ROW_HEIGHT_PX - 1 }}>
                     {timelineModel.beats.map((beat, index) => {
                       const isActiveBeat = index === activeBeatIndex
                       return (
-                        <div
+                        <section
                           key={`${lane.id}:${beat.beatRef}`}
                           className={`shrink-0 border-r border-slate-800 ${isActiveBeat ? 'bg-slate-900/75' : 'bg-[#0b1020]'}`}
                           style={{ width: beatWidths[index], minHeight: LANE_ROW_HEIGHT_PX - 1, height: LANE_ROW_HEIGHT_PX - 1 }}
-                        ></div>
+                        ></section>
                       )
                     })}
-                  </div>
+                  </section>
                   {(() => {
                     const laneItemContexts = timelineModel.beats.flatMap((beat, index) =>
                       beat.items
@@ -2403,20 +2403,20 @@ export default function AnimaticCanvas({
                     )
                     if (!lane.visibleItems) {
                       return (
-                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-[10px] text-slate-600">
+                        <section className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-[10px] text-slate-600">
                           {lane.soloFiltered ? 'Solo filtered' : lane.hidden ? 'Hidden lane' : lane.muted ? 'Muted lane' : `No ${lane.label.toLowerCase()} item`}
-                        </div>
+                        </section>
                       )
                     }
                     if (laneItemContexts.length === 0) {
                       return (
-                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-[10px] text-slate-600">
+                        <section className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-[10px] text-slate-600">
                           No {lane.label.toLowerCase()} item
-                        </div>
+                        </section>
                       )
                     }
                     return (
-                      <div
+                      <section
                         ref={node => {
                           laneTrackOverlayRefs.current[lane.id] = node
                         }}
@@ -2486,21 +2486,21 @@ export default function AnimaticCanvas({
                               }}
                             >
                               <section className={`timeline-editor-action-effect ${actionEffectClassName}`} aria-label={`${lane.label} action ${item.title}`}>
-                                <div
+                                <section
                                   className={`${laneInlineScrollClassName} min-w-0 w-full justify-center px-2 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}
                                   style={laneInlineScrollStyle}
                                 >
                                   <span className={`${actionEffectClassName}-text min-w-0 truncate text-[9px] leading-3.5 font-normal`}>{item.title}</span>
                                   {selectedItemNodeId === item.nodeId ? (
-                                    <div className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
+                                    <section className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
                                       {SELECTED_ITEM_HINTS.map(hint => (
                                         <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
                                           {hint.label}
                                         </span>
                                       ))}
-                                    </div>
+                                    </section>
                                   ) : null}
-                                </div>
+                                </section>
                                 <nav
                                   aria-label={`Move ${item.title} between beats`}
                                   className={`absolute inset-y-0 right-0 z-10 flex items-center gap-0.5 pr-0.5 transition-opacity duration-150 ${selectedItemNodeId === item.nodeId ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 group-focus-within/item:pointer-events-auto group-focus-within/item:opacity-100'}`}
@@ -2560,15 +2560,15 @@ export default function AnimaticCanvas({
                             </article>
                           )
                         })}
-                      </div>
+                      </section>
                     )
                   })()}
-                </div>
+                </section>
               ))}
-            </div>
-          </div>
-        </div>
-      </div>
+            </section>
+          </section>
+        </section>
+      </section>
     </section>
   )
 }

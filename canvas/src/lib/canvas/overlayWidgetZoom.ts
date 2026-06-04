@@ -61,6 +61,18 @@ export function computeWidgetScaledSize(scale: number): { width: number; height:
   }
 }
 
+export function computeCollectiveFollowZoomK(args: {
+  zoomK: number
+  baselineZoomK?: number | null
+}): number {
+  const zoomK = Number.isFinite(args.zoomK) && args.zoomK > 0 ? Number(args.zoomK) : 1
+  const baselineZoomK =
+    Number.isFinite(args.baselineZoomK) && Number(args.baselineZoomK) > 0
+      ? Number(args.baselineZoomK)
+      : zoomK
+  return zoomK / Math.max(0.001, baselineZoomK)
+}
+
 export function computeCollectiveFollowPinnedScale(args: {
   zoomK: number
   extent?: ZoomScaleExtent | null

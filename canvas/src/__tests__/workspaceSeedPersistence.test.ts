@@ -1863,7 +1863,7 @@ export async function testRuntimeSourceFilesReflectWorkspaceSeedFileContentChang
       throw new Error(`expected workspace seed file text to load v1 before runtime mount, got ${String(seededText || '')}`)
     }
 
-    const container = document.createElement('div')
+    const container = document.createElement('section')
     document.body.appendChild(container)
     await act(async () => {
       root = createRoot(container)
@@ -1949,7 +1949,7 @@ export async function testRuntimeSourceFilesSyncsFullDocsMirrorTree() {
     useGraphStore.getState().resetAll()
     useGraphStore.getState().setSourceFiles([])
     useMarkdownExplorerStore.getState().setActivePath('/docs/active.md')
-    const container = document.createElement('div')
+    const container = document.createElement('section')
     document.body.appendChild(container)
     await act(async () => {
       root = createRoot(container)

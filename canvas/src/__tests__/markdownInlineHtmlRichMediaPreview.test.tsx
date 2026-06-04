@@ -10,7 +10,7 @@ export async function testMarkdownPreviewRendersInlineHtmlRichMedia() {
   const prevMode = state.richMediaPanelMode
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -94,7 +94,7 @@ export async function testMarkdownPreviewRendersNestedInlineHtmlWrappers() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -169,7 +169,7 @@ export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens(
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)

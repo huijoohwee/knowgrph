@@ -14,7 +14,7 @@ export const testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames = () => {
     '',
     'Use React to create sophisticated videos with code.',
     '',
-    '<div style="animation: spin 1s linear infinite">x</div>',
+    '<section style="animation: spin 1s linear infinite">x</section>',
     '',
     'Uses lottie animations',
     '',

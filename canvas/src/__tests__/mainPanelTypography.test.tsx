@@ -35,7 +35,7 @@ export async function testMainPanelTypographyUsesUiSettings() {
     api.setLastTraversalSummary({ mode: 'graphRag', edgeIds: ['e1'] } as never)
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -82,7 +82,7 @@ export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
     api.resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -129,7 +129,7 @@ export async function testMainPanelRequestedCommerceSearchUsesTabMetadata() {
     api.resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)

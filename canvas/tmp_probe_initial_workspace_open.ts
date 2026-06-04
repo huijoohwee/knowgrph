@@ -60,7 +60,7 @@ store.setWorkspaceViewMode('editor')
 store.setWorkspaceCanvasPaneOpen(true)
 
 const doc = dom.window.document
-const container = doc.createElement('div')
+const container = doc.createElement('main')
 container.setAttribute('data-kg-canvas-viewport-root', '1')
 container.id = 'tmp-probe-root'
 doc.body.appendChild(container)

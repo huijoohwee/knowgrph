@@ -7,18 +7,18 @@ export async function testMarkdownPreviewRendersHtmlTableDivAndPictureSources() 
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
     const markdownText = [
-      '<div class="table table-fixed border-collapse w-full">',
-      '  <div class="table-row">',
-      '    <div class="table-cell">A</div>',
-      '    <div class="table-cell">B</div>',
-      '  </div>',
-      '</div>',
+      '<section class="table table-fixed border-collapse w-full">',
+      '  <section class="table-row">',
+      '    <section class="table-cell">A</section>',
+      '    <section class="table-cell">B</section>',
+      '  </section>',
+      '</section>',
       '',
       '<picture>',
       '  <source type="image/webp" srcset="https://example.com/a.webp 1x" />',

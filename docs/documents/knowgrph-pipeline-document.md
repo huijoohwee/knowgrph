@@ -48,6 +48,8 @@
 - Centralize configs (labels, boxes, collisions, timing, knobs); reuse shared utilities.
 - For arbitrary JSON ingest, render only explicit graph entities (`nodes`/`edges`); forbid synthetic placeholder/fallback graph construction when entities are absent.
 - Keep the computing-flow sample and its pipeline docs aligned as the canonical ingest→parse→render fixture/docs pair; oversized docs may split into companion files, but the original filename remains the sub-600 canonical index with continuation links.
+- Long-horizon SuperAgent harness metadata is upstream orchestration context only: it may plan research, code, and create slices, but parser, GraphData, Flow Editor, and Rich Media Panel ownership must remain on the shared ingest→parse→render pipeline.
+- DeerFlow may inform harness concepts or act as an optional provider gateway; do not copy DeerFlow code, architecture, prompts, skills, memory layout, or create DeerFlow-specific parser/render/apply branches.
 - Embedded Markdown GeoJSON must extract requests through one shared helper, then reuse the same graph-load and geospatial auto-enable contract as file imports.
 - Resolve cross‑repo conflicts; remove legacy/conflicting/stale code.
 - Test only bounded diffs; forbid indefinite runs.
@@ -97,6 +99,7 @@ When changing shared packages that are wired via `file:` links (for example `sin
 - `rawToGraphData` must output non-empty graph nodes/edges only from explicit input graph entities.
 - If input payloads do not contain valid `nodes` or `edges` arrays, the runtime returns an empty graph envelope (`metadata.empty=true`) instead of inferred placeholder graph content.
 - Renderer surfaces must treat this empty envelope as “no data available,” not as a signal to synthesize display nodes.
+- `superagent_harness_template`, `superagent_harness_demo`, and related long-horizon metadata must remain metadata unless authored under `flow:` as explicit graph nodes and edges.
 
 ### Happy Path Call Graphs (Functions Only)
 
@@ -121,16 +124,16 @@ When changing shared packages that are wired via `file:` links (for example `sin
 - `Canvas` snapshots `selectedNodeId/selectedNodeIds` back into gympgrph → `applyHostSnapshot` updates gympgrph store
 - `GeospatialOverlay` reacts to `selectedNodeId/selectedNodeIds` → `map.setFilter(GRAPH_SELECTED_LAYER_ID, ...)` highlights the selected node layer
 
-#### Journey 3: Import Quick Editor Bundle → Open Flow Editor → See Port-bound Edges
+#### Journey 3: Import Widget Bundle → Open Flow Editor → See Port-bound Edges
 
 - Toolbar import action reads local JSON and routes through the shared parser loader:
   - [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts)
   - [importFlow.ts](../../canvas/src/features/toolbar/importFlow.ts)
   - [loader.ts](../../canvas/src/features/parsers/loader.ts)
-- JSON adapter detects `kg:flow:nodeQuickEditorBundle` (kind/version) and writes registry entries to `GraphData.metadata['flow:nodeQuickEditorRegistry']`:
-  - [quickEditorImport.ts](../../canvas/src/lib/graph/io/quickEditorImport.ts)
+- JSON adapter detects `kg:flow:widgetBundle` (kind/version) and writes registry entries to `GraphData.metadata['flow:widgetRegistry']`:
+  - [widgetImport.ts](../../canvas/src/lib/graph/io/widgetImport.ts)
   - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
-- Store commit applies registry metadata into the Flow Editor Manager snapshot and enables immediate Node Quick Editor rendering:
+- Store commit applies registry metadata into the Flow Editor Manager snapshot and enables immediate Flow Editor widget rendering:
   - [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
   - [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)
 - Flow Editor renders the graph using the native Flow renderer (edges are rendered by the same 2D Flow edge path; no overlay-only edge renderer):
@@ -454,6 +457,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 | `knowgrph-renderer-document.md`      | Canvas rendering and visualization                       | docs:update, doc:lint, tests | Component Documenter |
 | `knowgrph-semantic-document.md`      | Semantic extraction and neutrality constraints           | docs:update, doc:lint, tests | Component Documenter |
 | `knowgrph-mermaid-frontmatter-document.md` | Mermaid frontmatter parsing                        | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-yaml-mermaid-gitgraph-frontmatter-prd-tad.md` | YAML Mermaid GitGraph frontmatter renderer contract | docs:update, doc:lint, tests | Component Documenter |
 | `knowgrph-ui-ux-design-document.md`  | UI/UX flows and interaction models                       | docs:update, doc:lint, tests | Technical Writer     |
 | `knowgrph-codebase-semantics-document.md` | Codebase semantics and traversal                   | docs:update, doc:lint, tests | Component Documenter |
 | `knowgrph-fields-document.md`        | Graph field definitions                                  | docs:update, doc:lint, tests | Schema Documenter    |

@@ -148,10 +148,10 @@ export default function FieldSamplesPanel({
   }, [onStatusChange, selectedCount, selectedValues])
 
   return (
-    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
-      <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}>
-        <div className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.samples}</div>
-        <div className={`${UI_RESPONSIVE_WIDE_PANEL_HEADER_SECONDARY_CLASSNAME} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap truncate text-right`}>
+    <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
+      <section className={`${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}>
+        <section className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.samples}</section>
+        <section className={`${UI_RESPONSIVE_WIDE_PANEL_HEADER_SECONDARY_CLASSNAME} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap truncate text-right`}>
           {selectedField
             ? `${selectedField.scope === 'node' ? 'Node' : 'Edge'} · ${selectedField.key}${
                 typeof selectedField.samples === 'number'
@@ -159,21 +159,21 @@ export default function FieldSamplesPanel({
                   : ''
               }`
             : '—'}
-        </div>
-      </div>
-      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2 ${UI_THEME_TOKENS.panel.bg}`}>
+        </section>
+      </section>
+      <section className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2 ${UI_THEME_TOKENS.panel.bg}`}>
         {!selectedField ? (
-          <div className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsSelectFieldToViewSamples}</div>
+          <section className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsSelectFieldToViewSamples}</section>
         ) : samples.length === 0 ? (
-          <div className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsNoSamplesFound}</div>
+          <section className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsNoSamplesFound}</section>
         ) : (
-          <div className="px-3 space-y-1">
-            <div className="flex items-center justify-between mb-1 gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+          <section className="px-3 space-y-1">
+            <section className="flex items-center justify-between mb-1 gap-2">
+              <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                 {samples.length.toLocaleString()} values · {totalSampleCount.toLocaleString()} occurrences
                 {selectedCount > 0 ? ` · ${selectedCount.toLocaleString()} selected` : ''}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
+              </section>
+              <section className="flex items-center gap-1 shrink-0">
                 <label className={`flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>
                   <input
                     ref={selectAllRef}
@@ -203,8 +203,8 @@ export default function FieldSamplesPanel({
                 >
                   {UI_LABELS.clear}
                 </button>
-              </div>
-            </div>
+              </section>
+            </section>
             {displayedSamples.map(sample => {
               const selected = selectedByValue.has(sample.value)
               return (
@@ -230,9 +230,9 @@ export default function FieldSamplesPanel({
                 </button>
               )
             })}
-          </div>
+          </section>
         )}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

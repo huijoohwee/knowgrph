@@ -56,7 +56,7 @@ export function RendererHoverSettings() {
           contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           className="w-full"
         >
-          <div className="flex gap-2 justify-end w-full">
+          <section className="flex gap-2 justify-end w-full">
             <label className={`${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} ${UI_THEME_TOKENS.text.secondary} cursor-pointer`}>
               <input
                 type="checkbox"
@@ -84,7 +84,7 @@ export function RendererHoverSettings() {
               />
               Props
             </label>
-          </div>
+          </section>
         </Tooltip>
       }
     />

@@ -38,12 +38,12 @@ export default function SchemaStepCopyAndStatus({
         {renderActions ? (
           renderActions(statusNode)
         ) : (
-          <div className="flex items-center gap-2">
+          <section className="flex items-center gap-2">
             {statusNode}
-          </div>
+          </section>
         )}
         {showSchemaInlineStatus && (
-          <div
+          <section
             className={[
               `mt-1 ${UI_THEME_TOKENS.text.secondary}`,
               uiPanelMicroLabelTextSizeClass,
@@ -56,14 +56,14 @@ export default function SchemaStepCopyAndStatus({
               showLintSummary
               onOpenSchemaUiEditor={onOpenSchemaUiEditor}
             />
-          </div>
+          </section>
         )}
       </>
     )
   }
 
   return (
-    <div
+    <section
       className={[
         `mt-1 flex flex-wrap items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`,
         uiPanelMicroLabelTextSizeClass,
@@ -82,6 +82,6 @@ export default function SchemaStepCopyAndStatus({
           />
         </>
       )}
-    </div>
+    </section>
   )
 }

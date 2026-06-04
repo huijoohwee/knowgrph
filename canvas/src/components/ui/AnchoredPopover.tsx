@@ -22,9 +22,9 @@ export type AnchoredPopoverProps = {
 }
 
 export const AnchoredPopover = React.memo(function AnchoredPopover(props: AnchoredPopoverProps) {
-  const rootRef = React.useRef<HTMLDivElement | null>(null)
+  const rootRef = React.useRef<HTMLElement | null>(null)
   const [style, setStyle] = React.useState<React.CSSProperties | null>(null)
-  const [portalHost, setPortalHost] = React.useState<HTMLDivElement | null>(null)
+  const [portalHost, setPortalHost] = React.useState<HTMLElement | null>(null)
 
   const updatePosition = React.useCallback(() => {
     const anchor = props.anchorEl
@@ -90,7 +90,7 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
       return
     }
     if (typeof document === 'undefined') return
-    const host = document.createElement('div')
+    const host = document.createElement('section')
     try {
       document.body.appendChild(host)
     } catch {
@@ -174,8 +174,8 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
   const zIndex = typeof props.zIndex === 'number' ? props.zIndex : Z_INDEX_MENU
 
   return createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex, pointerEvents: 'none', isolation: 'isolate' }}>
-      <div
+    <section style={{ position: 'fixed', inset: 0, zIndex, pointerEvents: 'none', isolation: 'isolate' }}>
+      <section
         ref={el => {
           rootRef.current = el
         }}
@@ -185,8 +185,8 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
         aria-label={props.ariaLabel}
       >
         {props.children}
-      </div>
-    </div>,
+      </section>
+    </section>,
     portalHost,
   )
 })

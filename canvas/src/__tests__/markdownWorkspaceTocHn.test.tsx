@@ -14,7 +14,7 @@ import {
 export async function testMarkdownWorkspaceExplorerTocShowsHeadingNumbers() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 

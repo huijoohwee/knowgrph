@@ -3911,17 +3911,17 @@
       }
     },
     {
-      "@id": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "@id": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "@type": "Section",
       "labels": [
         "Section"
       ],
-      "name": "Flow Editor (Node Quick Editor)",
-      "chunk_text": "Flow Editor (Node Quick Editor)",
+      "name": "Flow Editor Widgets",
+      "chunk_text": "Flow Editor Widgets",
       "properties": {
-        "heading": "Flow Editor (Node Quick Editor)",
+        "heading": "Flow Editor Widgets",
         "level": 2,
-        "anchor": "flow-editor-node-quick-editor",
+        "anchor": "flow-editor-widgets",
         "order": 11
       },
       "metadata": {
@@ -3945,7 +3945,7 @@
         "List"
       ],
       "name": "List 1",
-      "chunk_text": "Node Quick Editor overlay state:",
+      "chunk_text": "Flow Editor widget overlay state:",
       "properties": {
         "order": 1
       },
@@ -3969,10 +3969,10 @@
       "labels": [
         "ListItem"
       ],
-      "name": "Node Quick Editor overlay state:",
-      "chunk_text": "Node Quick Editor overlay state:",
+      "name": "Flow Editor widget overlay state:",
+      "chunk_text": "Flow Editor widget overlay state:",
       "properties": {
-        "text": "Node Quick Editor overlay state:",
+        "text": "Flow Editor widget overlay state:",
         "ordered": false,
         "index": null,
         "order": 1
@@ -3998,7 +3998,7 @@
         "List"
       ],
       "name": "List 2",
-      "chunk_text": "`LS_KEYS.flowNodeQuickEditorPinned` (legacy single-flag; do not use for multi-node overlays)\n`LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)\n`LS_KEYS.flowNodeQuickEditorMinimized`\n`LS_KEYS.flowNodeQuickEditorHideFields`\n`LS_KEYS.flowNodeQuickEditorTopPx` / `LS_KEYS.flowNodeQuickEditorLeftPx` (legacy single-position; do not use for multi-node overlays)\n`LS_KEYS.flowNodeQuickEditorPosByNodeId` (per-node detached position)",
+      "chunk_text": "`LS_KEYS.flowWidgetPinnedByNodeId` (legacy single-flag; do not use for multi-node overlays)\n`LS_KEYS.flowWidgetPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)\n`LS_KEYS.flowWidgetMinimized`\n`LS_KEYS.flowWidgetHideFields`\n`LS_KEYS.flowWidgetPosByNodeId` / `LS_KEYS.flowWidgetPosByNodeId` (legacy single-position; do not use for multi-node overlays)\n`LS_KEYS.flowWidgetPosByNodeId` (per-node detached position)",
       "properties": {
         "order": 2
       },
@@ -4022,10 +4022,10 @@
       "labels": [
         "ListItem"
       ],
-      "name": "`LS_KEYS.flowNodeQuickEditorPinned` (legacy single-flag; do not use for multi-no",
-      "chunk_text": "`LS_KEYS.flowNodeQuickEditorPinned` (legacy single-flag; do not use for multi-node overlays)",
+      "name": "`LS_KEYS.flowWidgetPinnedByNodeId` (legacy single-flag; do not use for multi-no",
+      "chunk_text": "`LS_KEYS.flowWidgetPinnedByNodeId` (legacy single-flag; do not use for multi-node overlays)",
       "properties": {
-        "text": "`LS_KEYS.flowNodeQuickEditorPinned` (legacy single-flag; do not use for multi-node overlays)",
+        "text": "`LS_KEYS.flowWidgetPinnedByNodeId` (legacy single-flag; do not use for multi-node overlays)",
         "ordered": false,
         "index": null,
         "order": 1
@@ -4050,10 +4050,10 @@
       "labels": [
         "ListItem"
       ],
-      "name": "`LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinn",
-      "chunk_text": "`LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)",
+      "name": "`LS_KEYS.flowWidgetPinnedByNodeId` (per-node pinned-to-node state; pinn",
+      "chunk_text": "`LS_KEYS.flowWidgetPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)",
       "properties": {
-        "text": "`LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)",
+        "text": "`LS_KEYS.flowWidgetPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)",
         "ordered": false,
         "index": null,
         "order": 2
@@ -4078,10 +4078,10 @@
       "labels": [
         "ListItem"
       ],
-      "name": "`LS_KEYS.flowNodeQuickEditorMinimized`",
-      "chunk_text": "`LS_KEYS.flowNodeQuickEditorMinimized`",
+      "name": "`LS_KEYS.flowWidgetMinimized`",
+      "chunk_text": "`LS_KEYS.flowWidgetMinimized`",
       "properties": {
-        "text": "`LS_KEYS.flowNodeQuickEditorMinimized`",
+        "text": "`LS_KEYS.flowWidgetMinimized`",
         "ordered": false,
         "index": null,
         "order": 3
@@ -4106,10 +4106,10 @@
       "labels": [
         "ListItem"
       ],
-      "name": "`LS_KEYS.flowNodeQuickEditorHideFields`",
-      "chunk_text": "`LS_KEYS.flowNodeQuickEditorHideFields`",
+      "name": "`LS_KEYS.flowWidgetHideFields`",
+      "chunk_text": "`LS_KEYS.flowWidgetHideFields`",
       "properties": {
-        "text": "`LS_KEYS.flowNodeQuickEditorHideFields`",
+        "text": "`LS_KEYS.flowWidgetHideFields`",
         "ordered": false,
         "index": null,
         "order": 4
@@ -4134,10 +4134,10 @@
       "labels": [
         "ListItem"
       ],
-      "name": "`LS_KEYS.flowNodeQuickEditorTopPx` / `LS_KEYS.flowNodeQuickEditorLeftPx` (legacy",
-      "chunk_text": "`LS_KEYS.flowNodeQuickEditorTopPx` / `LS_KEYS.flowNodeQuickEditorLeftPx` (legacy single-position; do not use for multi-node overlays)",
+      "name": "`LS_KEYS.flowWidgetPosByNodeId` / `LS_KEYS.flowWidgetPosByNodeId` (legacy",
+      "chunk_text": "`LS_KEYS.flowWidgetPosByNodeId` / `LS_KEYS.flowWidgetPosByNodeId` (legacy single-position; do not use for multi-node overlays)",
       "properties": {
-        "text": "`LS_KEYS.flowNodeQuickEditorTopPx` / `LS_KEYS.flowNodeQuickEditorLeftPx` (legacy single-position; do not use for multi-node overlays)",
+        "text": "`LS_KEYS.flowWidgetPosByNodeId` / `LS_KEYS.flowWidgetPosByNodeId` (legacy single-position; do not use for multi-node overlays)",
         "ordered": false,
         "index": null,
         "order": 5
@@ -4162,10 +4162,10 @@
       "labels": [
         "ListItem"
       ],
-      "name": "`LS_KEYS.flowNodeQuickEditorPosByNodeId` (per-node detached position)",
-      "chunk_text": "`LS_KEYS.flowNodeQuickEditorPosByNodeId` (per-node detached position)",
+      "name": "`LS_KEYS.flowWidgetPosByNodeId` (per-node detached position)",
+      "chunk_text": "`LS_KEYS.flowWidgetPosByNodeId` (per-node detached position)",
       "properties": {
-        "text": "`LS_KEYS.flowNodeQuickEditorPosByNodeId` (per-node detached position)",
+        "text": "`LS_KEYS.flowWidgetPosByNodeId` (per-node detached position)",
         "ordered": false,
         "index": null,
         "order": 6
@@ -13992,11 +13992,11 @@
       "labels": [
         "Mention"
       ],
-      "name": "Flow Editor Node Quick Editor",
-      "chunk_text": "Flow Editor Node Quick Editor",
+      "name": "Flow Editor Flow Editor widget",
+      "chunk_text": "Flow Editor Flow Editor widget",
       "properties": {
-        "text": "Flow Editor Node Quick Editor",
-        "blockId": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+        "text": "Flow Editor Flow Editor widget",
+        "blockId": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
         "blockType": "Section",
         "charStart": 0,
         "charEnd": 30,
@@ -14026,10 +14026,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "Node Quick Editor",
-      "chunk_text": "Node Quick Editor",
+      "name": "Flow Editor widget",
+      "chunk_text": "Flow Editor widget",
       "properties": {
-        "text": "Node Quick Editor",
+        "text": "Flow Editor widget",
         "blockId": "blk:md:knowgrph-local-storage-document:li:148:1",
         "blockType": "ListItem",
         "charStart": 0,
@@ -14094,10 +14094,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "flowNodeQuickEditorPinned",
-      "chunk_text": "flowNodeQuickEditorPinned",
+      "name": "flowWidgetPinnedByNodeId",
+      "chunk_text": "flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorPinned",
+        "text": "flowWidgetPinnedByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:1",
         "blockType": "ListItem",
         "charStart": 9,
@@ -14128,10 +14128,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorPinned",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorPinned",
+      "name": "LS_KEYS.flowWidgetPinnedByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorPinned",
+        "text": "LS_KEYS.flowWidgetPinnedByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:1",
         "blockType": "ListItem",
         "charStart": 1,
@@ -14196,10 +14196,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "flowNodeQuickEditorPinnedByNodeId",
-      "chunk_text": "flowNodeQuickEditorPinnedByNodeId",
+      "name": "flowWidgetPinnedByNodeId",
+      "chunk_text": "flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorPinnedByNodeId",
+        "text": "flowWidgetPinnedByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:2",
         "blockType": "ListItem",
         "charStart": 9,
@@ -14230,10 +14230,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorPinnedByNodeId",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorPinnedByNodeId",
+      "name": "LS_KEYS.flowWidgetPinnedByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorPinnedByNodeId",
+        "text": "LS_KEYS.flowWidgetPinnedByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:2",
         "blockType": "ListItem",
         "charStart": 1,
@@ -14298,10 +14298,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "flowNodeQuickEditorMinimized",
-      "chunk_text": "flowNodeQuickEditorMinimized",
+      "name": "flowWidgetMinimized",
+      "chunk_text": "flowWidgetMinimized",
       "properties": {
-        "text": "flowNodeQuickEditorMinimized",
+        "text": "flowWidgetMinimized",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:3",
         "blockType": "ListItem",
         "charStart": 9,
@@ -14332,10 +14332,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorMinimized",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorMinimized",
+      "name": "LS_KEYS.flowWidgetMinimized",
+      "chunk_text": "LS_KEYS.flowWidgetMinimized",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorMinimized",
+        "text": "LS_KEYS.flowWidgetMinimized",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:3",
         "blockType": "ListItem",
         "charStart": 1,
@@ -14400,10 +14400,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "flowNodeQuickEditorHideFields",
-      "chunk_text": "flowNodeQuickEditorHideFields",
+      "name": "flowWidgetHideFields",
+      "chunk_text": "flowWidgetHideFields",
       "properties": {
-        "text": "flowNodeQuickEditorHideFields",
+        "text": "flowWidgetHideFields",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:4",
         "blockType": "ListItem",
         "charStart": 9,
@@ -14434,10 +14434,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorHideFields",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorHideFields",
+      "name": "LS_KEYS.flowWidgetHideFields",
+      "chunk_text": "LS_KEYS.flowWidgetHideFields",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorHideFields",
+        "text": "LS_KEYS.flowWidgetHideFields",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:4",
         "blockType": "ListItem",
         "charStart": 1,
@@ -14502,10 +14502,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "flowNodeQuickEditorTopPx",
-      "chunk_text": "flowNodeQuickEditorTopPx",
+      "name": "flowWidgetPosByNodeId",
+      "chunk_text": "flowWidgetPosByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorTopPx",
+        "text": "flowWidgetPosByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:5",
         "blockType": "ListItem",
         "charStart": 9,
@@ -14570,10 +14570,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "flowNodeQuickEditorLeftPx",
-      "chunk_text": "flowNodeQuickEditorLeftPx",
+      "name": "flowWidgetPosByNodeId",
+      "chunk_text": "flowWidgetPosByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorLeftPx",
+        "text": "flowWidgetPosByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:5",
         "blockType": "ListItem",
         "charStart": 46,
@@ -14604,10 +14604,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorTopPx",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorTopPx",
+      "name": "LS_KEYS.flowWidgetPosByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPosByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorTopPx",
+        "text": "LS_KEYS.flowWidgetPosByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:5",
         "blockType": "ListItem",
         "charStart": 1,
@@ -14638,10 +14638,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorLeftPx",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorLeftPx",
+      "name": "LS_KEYS.flowWidgetPosByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPosByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorLeftPx",
+        "text": "LS_KEYS.flowWidgetPosByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:5",
         "blockType": "ListItem",
         "charStart": 38,
@@ -14706,10 +14706,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "flowNodeQuickEditorPosByNodeId",
-      "chunk_text": "flowNodeQuickEditorPosByNodeId",
+      "name": "flowWidgetPosByNodeId",
+      "chunk_text": "flowWidgetPosByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorPosByNodeId",
+        "text": "flowWidgetPosByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:6",
         "blockType": "ListItem",
         "charStart": 9,
@@ -14740,10 +14740,10 @@
       "labels": [
         "Mention"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorPosByNodeId",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorPosByNodeId",
+      "name": "LS_KEYS.flowWidgetPosByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPosByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorPosByNodeId",
+        "text": "LS_KEYS.flowWidgetPosByNodeId",
         "blockId": "blk:md:knowgrph-local-storage-document:li:149:6",
         "blockType": "ListItem",
         "charStart": 1,
@@ -22732,11 +22732,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "Flow Editor Node Quick Editor",
-      "chunk_text": "Flow Editor Node Quick Editor",
+      "name": "Flow Editor Flow Editor widget",
+      "chunk_text": "Flow Editor Flow Editor widget",
       "properties": {
-        "text": "Flow Editor Node Quick Editor",
-        "normalizedText": "flow editor node quick editor",
+        "text": "Flow Editor Flow Editor widget",
+        "normalizedText": "flow editor widget",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -22768,11 +22768,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "Node Quick Editor",
-      "chunk_text": "Node Quick Editor",
+      "name": "Flow Editor widget",
+      "chunk_text": "Flow Editor widget",
       "properties": {
-        "text": "Node Quick Editor",
-        "normalizedText": "node quick editor",
+        "text": "Flow Editor widget",
+        "normalizedText": "widget",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -22804,11 +22804,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "flowNodeQuickEditorPinned",
-      "chunk_text": "flowNodeQuickEditorPinned",
+      "name": "flowWidgetPinnedByNodeId",
+      "chunk_text": "flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorPinned",
-        "normalizedText": "flownodequickeditorpinned",
+        "text": "flowWidgetPinnedByNodeId",
+        "normalizedText": "flowwidgetpinned",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -22840,11 +22840,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorPinned",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorPinned",
+      "name": "LS_KEYS.flowWidgetPinnedByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorPinned",
-        "normalizedText": "ls_keys.flownodequickeditorpinned",
+        "text": "LS_KEYS.flowWidgetPinnedByNodeId",
+        "normalizedText": "ls_keys.flowwidgetpinned",
         "entityType": "CodeSpan",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -22876,11 +22876,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "flowNodeQuickEditorPinnedByNodeId",
-      "chunk_text": "flowNodeQuickEditorPinnedByNodeId",
+      "name": "flowWidgetPinnedByNodeId",
+      "chunk_text": "flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorPinnedByNodeId",
-        "normalizedText": "flownodequickeditorpinnedbynodeid",
+        "text": "flowWidgetPinnedByNodeId",
+        "normalizedText": "flowwidgetpinnedbynodeid",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -22912,11 +22912,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorPinnedByNodeId",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorPinnedByNodeId",
+      "name": "LS_KEYS.flowWidgetPinnedByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPinnedByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorPinnedByNodeId",
-        "normalizedText": "ls_keys.flownodequickeditorpinnedbynodeid",
+        "text": "LS_KEYS.flowWidgetPinnedByNodeId",
+        "normalizedText": "ls_keys.flowwidgetpinnedbynodeid",
         "entityType": "CodeSpan",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -22948,11 +22948,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "flowNodeQuickEditorMinimized",
-      "chunk_text": "flowNodeQuickEditorMinimized",
+      "name": "flowWidgetMinimized",
+      "chunk_text": "flowWidgetMinimized",
       "properties": {
-        "text": "flowNodeQuickEditorMinimized",
-        "normalizedText": "flownodequickeditorminimized",
+        "text": "flowWidgetMinimized",
+        "normalizedText": "flowwidgetminimized",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -22984,11 +22984,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorMinimized",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorMinimized",
+      "name": "LS_KEYS.flowWidgetMinimized",
+      "chunk_text": "LS_KEYS.flowWidgetMinimized",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorMinimized",
-        "normalizedText": "ls_keys.flownodequickeditorminimized",
+        "text": "LS_KEYS.flowWidgetMinimized",
+        "normalizedText": "ls_keys.flowwidgetminimized",
         "entityType": "CodeSpan",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23020,11 +23020,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "flowNodeQuickEditorHideFields",
-      "chunk_text": "flowNodeQuickEditorHideFields",
+      "name": "flowWidgetHideFields",
+      "chunk_text": "flowWidgetHideFields",
       "properties": {
-        "text": "flowNodeQuickEditorHideFields",
-        "normalizedText": "flownodequickeditorhidefields",
+        "text": "flowWidgetHideFields",
+        "normalizedText": "flowwidgethidefields",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23056,11 +23056,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorHideFields",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorHideFields",
+      "name": "LS_KEYS.flowWidgetHideFields",
+      "chunk_text": "LS_KEYS.flowWidgetHideFields",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorHideFields",
-        "normalizedText": "ls_keys.flownodequickeditorhidefields",
+        "text": "LS_KEYS.flowWidgetHideFields",
+        "normalizedText": "ls_keys.flowwidgethidefields",
         "entityType": "CodeSpan",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23092,11 +23092,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "flowNodeQuickEditorTopPx",
-      "chunk_text": "flowNodeQuickEditorTopPx",
+      "name": "flowWidgetPosByNodeId",
+      "chunk_text": "flowWidgetPosByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorTopPx",
-        "normalizedText": "flownodequickeditortoppx",
+        "text": "flowWidgetPosByNodeId",
+        "normalizedText": "flowwidgettoppx",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23128,11 +23128,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "flowNodeQuickEditorLeftPx",
-      "chunk_text": "flowNodeQuickEditorLeftPx",
+      "name": "flowWidgetPosByNodeId",
+      "chunk_text": "flowWidgetPosByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorLeftPx",
-        "normalizedText": "flownodequickeditorleftpx",
+        "text": "flowWidgetPosByNodeId",
+        "normalizedText": "flowwidgetleftpx",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23164,11 +23164,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorTopPx",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorTopPx",
+      "name": "LS_KEYS.flowWidgetPosByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPosByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorTopPx",
-        "normalizedText": "ls_keys.flownodequickeditortoppx",
+        "text": "LS_KEYS.flowWidgetPosByNodeId",
+        "normalizedText": "ls_keys.flowwidgettoppx",
         "entityType": "CodeSpan",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23200,11 +23200,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorLeftPx",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorLeftPx",
+      "name": "LS_KEYS.flowWidgetPosByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPosByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorLeftPx",
-        "normalizedText": "ls_keys.flownodequickeditorleftpx",
+        "text": "LS_KEYS.flowWidgetPosByNodeId",
+        "normalizedText": "ls_keys.flowwidgetleftpx",
         "entityType": "CodeSpan",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23236,11 +23236,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "flowNodeQuickEditorPosByNodeId",
-      "chunk_text": "flowNodeQuickEditorPosByNodeId",
+      "name": "flowWidgetPosByNodeId",
+      "chunk_text": "flowWidgetPosByNodeId",
       "properties": {
-        "text": "flowNodeQuickEditorPosByNodeId",
-        "normalizedText": "flownodequickeditorposbynodeid",
+        "text": "flowWidgetPosByNodeId",
+        "normalizedText": "flowwidgetposbynodeid",
         "entityType": "Entity",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -23272,11 +23272,11 @@
       "labels": [
         "Entity"
       ],
-      "name": "LS_KEYS.flowNodeQuickEditorPosByNodeId",
-      "chunk_text": "LS_KEYS.flowNodeQuickEditorPosByNodeId",
+      "name": "LS_KEYS.flowWidgetPosByNodeId",
+      "chunk_text": "LS_KEYS.flowWidgetPosByNodeId",
       "properties": {
-        "text": "LS_KEYS.flowNodeQuickEditorPosByNodeId",
-        "normalizedText": "ls_keys.flownodequickeditorposbynodeid",
+        "text": "LS_KEYS.flowWidgetPosByNodeId",
+        "normalizedText": "ls_keys.flowwidgetposbynodeid",
         "entityType": "CodeSpan",
         "mentionCount": 1,
         "blockFrequency": 1,
@@ -28514,9 +28514,9 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:secmdknowgrph-local-storage-documentknowgrph-local-storage-document1:hassection:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:196",
+      "@id": "edge:secmdknowgrph-local-storage-documentknowgrph-local-storage-document1:hassection:secmdknowgrph-local-storage-documentflow-editor-widgets146:196",
       "source": "sec:md:knowgrph-local-storage-document:knowgrph-local-storage-document:1",
-      "target": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "target": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "relation": "hasSection",
       "properties": {
         "order": 11
@@ -28537,9 +28537,9 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:blkmdknowgrph-local-storage-documentp1445:next:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:197",
+      "@id": "edge:blkmdknowgrph-local-storage-documentp1445:next:secmdknowgrph-local-storage-documentflow-editor-widgets146:197",
       "source": "blk:md:knowgrph-local-storage-document:p:144:5",
-      "target": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "target": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "relation": "next",
       "metadata": {
         "parsedAt": "2026-05-24T02:20:56+00:00",
@@ -28557,8 +28557,8 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:hasblock:blkmdknowgrph-local-storage-documentlist1481:198",
-      "source": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-widgets146:hasblock:blkmdknowgrph-local-storage-documentlist1481:198",
+      "source": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "target": "blk:md:knowgrph-local-storage-document:list:148:1",
       "relation": "hasBlock",
       "properties": {
@@ -28580,8 +28580,8 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:next:blkmdknowgrph-local-storage-documentlist1481:199",
-      "source": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-widgets146:next:blkmdknowgrph-local-storage-documentlist1481:199",
+      "source": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "target": "blk:md:knowgrph-local-storage-document:list:148:1",
       "relation": "next",
       "metadata": {
@@ -28623,8 +28623,8 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:hasblock:blkmdknowgrph-local-storage-documentlist1492:201",
-      "source": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-widgets146:hasblock:blkmdknowgrph-local-storage-documentlist1492:201",
+      "source": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "target": "blk:md:knowgrph-local-storage-document:list:149:2",
       "relation": "hasBlock",
       "properties": {
@@ -28804,8 +28804,8 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:hasblock:blkmdknowgrph-local-storage-documentp1563:209",
-      "source": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-widgets146:hasblock:blkmdknowgrph-local-storage-documentp1563:209",
+      "source": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "target": "blk:md:knowgrph-local-storage-document:p:156:3",
       "relation": "hasBlock",
       "properties": {
@@ -54730,8 +54730,8 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:hasmention:menmdknowgrph-local-storage-document0ee836eedc26:1337",
-      "source": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "@id": "edge:secmdknowgrph-local-storage-documentflow-editor-widgets146:hasmention:menmdknowgrph-local-storage-document0ee836eedc26:1337",
+      "source": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "target": "men:md:knowgrph-local-storage-document:0ee836eedc26",
       "relation": "hasMention",
       "properties": {
@@ -54753,9 +54753,9 @@
     },
     {
       "@type": "Edge",
-      "@id": "edge:menmdknowgrph-local-storage-document0ee836eedc26:mentionof:secmdknowgrph-local-storage-documentflow-editor-node-quick-editor146:1338",
+      "@id": "edge:menmdknowgrph-local-storage-document0ee836eedc26:mentionof:secmdknowgrph-local-storage-documentflow-editor-widgets146:1338",
       "source": "men:md:knowgrph-local-storage-document:0ee836eedc26",
-      "target": "sec:md:knowgrph-local-storage-document:flow-editor-node-quick-editor:146",
+      "target": "sec:md:knowgrph-local-storage-document:flow-editor-widgets:146",
       "relation": "mentionOf",
       "properties": {
         "blockType": "Section"

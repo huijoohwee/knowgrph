@@ -7,10 +7,36 @@ import {
   shouldAcceptWorkspaceDocumentSelectionText,
   shouldHydrateStableWorkspaceSelectionText,
 } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceSelection'
-import { resolveAuthoritativeWorkspaceText } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
+import { resolveAuthoritativeWorkspaceText, writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
+import { resolveMarkdownWorkspaceApplyText } from '@/lib/markdown-workspace-runtime/markdownWorkspaceApply'
+import { preferCanonicalYamlFrontmatterFencedText } from '@/lib/markdown/frontmatter'
+import { buildActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { shouldCommitResolvedActiveMarkdownText } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { upsertWorkspaceDocsMirrorText } from '@/features/workspace-fs/workspaceSeedProvider'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
+
+const FENCED_FRONTMATTER_MARKDOWN = [
+  '---',
+  'title: Demo',
+  'flow:',
+  '  nodes:',
+  '    - id: root',
+  '      label: Root',
+  '---',
+  '',
+  '# Demo',
+].join('\n')
+
+const UNFENCED_FRONTMATTER_MARKDOWN = [
+  'title: Demo',
+  'flow:',
+  '  nodes:',
+  '    - id: root',
+  '      label: Root',
+  '',
+  '# Demo',
+].join('\n')
 
 export function testWorkspaceDocumentSelectionAcceptsEmptyRealFileText() {
   const accepted = shouldAcceptWorkspaceDocumentSelectionText({
@@ -319,6 +345,147 @@ export async function testWorkspaceExplicitSavePreservesIntentionalBlankDraft() 
   })
   if (resolved !== '') {
     throw new Error(`expected explicit save to preserve an intentional blank draft for the selected path, got ${JSON.stringify(resolved)}`)
+  }
+}
+
+export function testMarkdownFrontmatterFenceHelperPrefersCanonicalWhenOnlyFenceLinesAreMissing() {
+  const resolved = preferCanonicalYamlFrontmatterFencedText({
+    candidateText: UNFENCED_FRONTMATTER_MARKDOWN,
+    canonicalText: FENCED_FRONTMATTER_MARKDOWN,
+  })
+  if (resolved !== FENCED_FRONTMATTER_MARKDOWN) {
+    throw new Error('expected matching frontmatter text without fences to resolve back to canonical fenced markdown')
+  }
+
+  const edited = UNFENCED_FRONTMATTER_MARKDOWN.replace('# Demo', '# Edited Demo')
+  const editedResolved = preferCanonicalYamlFrontmatterFencedText({
+    candidateText: edited,
+    canonicalText: FENCED_FRONTMATTER_MARKDOWN,
+  })
+  if (editedResolved !== edited) {
+    throw new Error('expected edited unfenced markdown to remain authoritative instead of being replaced by canonical text')
+  }
+}
+
+export function testMarkdownWorkspaceApplyPreservesYamlFrontmatterFencesFromCanonicalDocument() {
+  const resolved = resolveMarkdownWorkspaceApplyText({
+    activeText: UNFENCED_FRONTMATTER_MARKDOWN,
+    contentMode: 'document',
+    widgetEditorText: '',
+    markdownDocumentName: 'docs/demo.md',
+    activeDocumentKey: 'docs/demo.md',
+    markdownDocumentText: FENCED_FRONTMATTER_MARKDOWN,
+  })
+  if (resolved !== FENCED_FRONTMATTER_MARKDOWN) {
+    throw new Error('expected markdown workspace apply to preserve canonical YAML frontmatter fences')
+  }
+}
+
+export function testActiveMarkdownDocumentPayloadPreservesYamlFrontmatterFencesFromCanonicalText() {
+  const payload = buildActiveMarkdownDocumentPayload({
+    name: 'docs/demo.md',
+    text: UNFENCED_FRONTMATTER_MARKDOWN,
+    canonicalMarkdownText: FENCED_FRONTMATTER_MARKDOWN,
+    normalizeWebpageFrontmatterToMarkdown: false,
+  })
+  if (payload.text !== FENCED_FRONTMATTER_MARKDOWN) {
+    throw new Error('expected active markdown document payload to preserve canonical YAML frontmatter fences')
+  }
+}
+
+export async function testSetActiveMarkdownDocumentPreservesYamlFrontmatterFencesFromCanonicalText() {
+  const store = useGraphStore.getState()
+  const previousName = store.markdownDocumentName
+  const previousText = store.markdownDocumentText
+  const previousApplyPreset = store.markdownDocumentApplyViewPreset
+  try {
+    store.setMarkdownDocument('docs/demo.md', FENCED_FRONTMATTER_MARKDOWN, {
+      autoEnableFrontmatter: false,
+      applyViewPreset: false,
+    })
+    await useGraphStore.getState().setActiveMarkdownDocument({
+      name: 'docs/demo.md',
+      text: UNFENCED_FRONTMATTER_MARKDOWN,
+      canonicalMarkdownText: FENCED_FRONTMATTER_MARKDOWN,
+      normalizeMermaidMmd: false,
+      autoEnableFrontmatter: false,
+      applyViewPreset: false,
+      applyToGraph: false,
+    })
+    const after = useGraphStore.getState()
+    if (after.markdownDocumentText !== FENCED_FRONTMATTER_MARKDOWN) {
+      throw new Error('expected setActiveMarkdownDocument to reject same-document frontmatter fence loss')
+    }
+  } finally {
+    useGraphStore.getState().setMarkdownDocument(previousName, previousText, {
+      autoEnableFrontmatter: false,
+      applyViewPreset: previousApplyPreset,
+    })
+  }
+}
+
+export async function testWorkspaceExplicitSavePreservesYamlFrontmatterFencesFromCanonicalLoadedText() {
+  const resolved = await resolveAuthoritativeWorkspaceText({
+    path: '/docs/demo.md' as never,
+    getFs: async () => ({
+      ensureSeed: async () => true,
+      listEntries: async () => [],
+      readFileText: async () => UNFENCED_FRONTMATTER_MARKDOWN,
+      writeFileText: async () => {},
+      createFile: async () => '/docs/new.md',
+      createFolder: async () => '/docs/new-folder',
+      deleteEntry: async () => {},
+    }),
+    lastLoadedRef: {
+      current: {
+        path: '/docs/demo.md' as never,
+        text: FENCED_FRONTMATTER_MARKDOWN,
+      },
+    },
+    activeTextRef: { current: UNFENCED_FRONTMATTER_MARKDOWN },
+    userEditedActiveTextRef: { current: true },
+  })
+  if (resolved !== FENCED_FRONTMATTER_MARKDOWN) {
+    throw new Error('expected explicit save to restore canonical YAML frontmatter fences when only fence lines are missing')
+  }
+}
+
+export async function testWorkspaceWriteFileAndSyncPreservesYamlFrontmatterFencesBeforePersisting() {
+  const writes: string[] = []
+  let inlineText = ''
+  const lastLoadedRef = {
+    current: {
+      path: '/docs/demo.md' as never,
+      text: FENCED_FRONTMATTER_MARKDOWN,
+    },
+  }
+
+  await writeWorkspaceFileAndSync({
+    path: '/docs/demo.md' as never,
+    text: UNFENCED_FRONTMATTER_MARKDOWN,
+    getFs: async () => ({
+      ensureSeed: async () => true,
+      listEntries: async () => [],
+      readFileText: async () => UNFENCED_FRONTMATTER_MARKDOWN,
+      writeFileText: async (_path, text) => {
+        writes.push(String(text || ''))
+      },
+      createFile: async () => '/docs/new.md',
+      createFolder: async () => '/docs/new-folder',
+      deleteEntry: async () => {},
+    }),
+    lastLoadedRef,
+    patchWorkspaceEntryInlineText: (_path, text) => {
+      inlineText = text
+    },
+    resetParsedState: false,
+  })
+
+  if (writes.length !== 1 || writes[0] !== FENCED_FRONTMATTER_MARKDOWN) {
+    throw new Error(`expected workspace write to persist fenced frontmatter text, got ${JSON.stringify(writes)}`)
+  }
+  if (lastLoadedRef.current?.text !== FENCED_FRONTMATTER_MARKDOWN || inlineText !== FENCED_FRONTMATTER_MARKDOWN) {
+    throw new Error('expected workspace writeback state to preserve canonical YAML frontmatter fences')
   }
 }
 

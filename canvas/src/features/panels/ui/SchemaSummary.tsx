@@ -153,7 +153,7 @@ export default function SchemaSummary({
 
   const sections: Array<JSX.Element> = []
   if (resolvedShowTitle) {
-    sections.push(<div key="title" className={`font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>SCHEMA SUMMARY</div>)
+    sections.push(<section key="title" className={`font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>SCHEMA SUMMARY</section>)
   }
   if (resolvedShowSchemaSummary) {
     sections.push(
@@ -246,8 +246,8 @@ export default function SchemaSummary({
   }
 
   return (
-    <div className={className ?? (variant === 'full' ? 'mb-1' : undefined)}>
-      <div
+    <section className={className ?? (variant === 'full' ? 'mb-1' : undefined)}>
+      <section
         className={[
           `inline-flex items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`,
           uiPanelMicroLabelTextSizeClass,
@@ -259,7 +259,7 @@ export default function SchemaSummary({
             {section}
           </span>
         ))}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

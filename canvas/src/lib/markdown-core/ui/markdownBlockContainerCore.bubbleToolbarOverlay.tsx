@@ -201,7 +201,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
           className=""
           autoFocus={false}
         >
-          <div
+          <section
             onPointerDownCapture={(event) => {
               props.holdToolbarInteraction()
             }}
@@ -212,7 +212,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             onMouseUpCapture={handleToolbarInteractionEndCapture}
           >
             {args.menu(closeMenu)}
-          </div>
+          </section>
         </AnchorOverlay>
       </>
     )

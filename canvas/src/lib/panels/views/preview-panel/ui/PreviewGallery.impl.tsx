@@ -50,12 +50,12 @@ export default function PreviewGallery({
   const [draggingId, setDraggingId] = React.useState<string | null>(null)
   const [dragOverId, setDragOverId] = React.useState<string | null>(null)
   const [highlightId, setHighlightId] = React.useState<string | null>(null)
-  const dragImageRef = React.useRef<HTMLDivElement | null>(null)
-  const dragImageContainerRef = React.useRef<HTMLDivElement | null>(null)
-  const dragImagePrimaryLabelRef = React.useRef<HTMLDivElement | null>(null)
-  const dragImageSecondaryLabelRef = React.useRef<HTMLDivElement | null>(null)
-  const dragImageStripRef = React.useRef<HTMLDivElement | null>(null)
-  const dragImageActiveBadgeRef = React.useRef<HTMLDivElement | null>(null)
+  const dragImageRef = React.useRef<HTMLElement | null>(null)
+  const dragImageContainerRef = React.useRef<HTMLElement | null>(null)
+  const dragImagePrimaryLabelRef = React.useRef<HTMLElement | null>(null)
+  const dragImageSecondaryLabelRef = React.useRef<HTMLElement | null>(null)
+  const dragImageStripRef = React.useRef<HTMLElement | null>(null)
+  const dragImageActiveBadgeRef = React.useRef<HTMLElement | null>(null)
 
   const ids = React.useMemo(() => items.map(i => i.id), [items])
   const isGridLayout = layout === 'grid'
@@ -203,7 +203,7 @@ export default function PreviewGallery({
               if (onHighlightChange) onHighlightChange(null)
             }}
           >
-            <div
+            <section
               className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent"
               style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
             />
@@ -222,7 +222,7 @@ export default function PreviewGallery({
           return (
             <li key={it.id} className="relative">
               {!isGridLayout && showTopDivider ? (
-                <div
+                <section
                   className={`absolute left-0 right-0 -top-2 h-5 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-t-2 cursor-move transition-colors`}
                   style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
                   onDragEnter={(e) => {
@@ -254,14 +254,14 @@ export default function PreviewGallery({
                     if (onHighlightChange) onHighlightChange(null)
                   }}
                 >
-                  <div
+                  <section
                     className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent"
                     style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
                   />
-                </div>
+                </section>
               ) : null}
               {!isGridLayout && showBottomDivider ? (
-                <div
+                <section
                   className={`absolute left-0 right-0 -bottom-2 h-5 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-b-2 cursor-move transition-colors`}
                   style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
                   onDragEnter={(e) => {
@@ -294,11 +294,11 @@ export default function PreviewGallery({
                     if (onHighlightChange) onHighlightChange(null)
                   }}
                 >
-                  <div
+                  <section
                     className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent"
                     style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
                   />
-                </div>
+                </section>
               ) : null}
               <section
                 className={[
@@ -481,23 +481,23 @@ export default function PreviewGallery({
                 }}
               >
                 {showPreview && it.preview ? (
-                  <div className="mb-2">
-                    <div className={`w-full aspect-video overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}>
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-full h-full overflow-hidden">
+                  <section className="mb-2">
+                    <section className={`w-full aspect-video overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}>
+                      <section className="w-full h-full flex items-center justify-center">
+                        <section className="w-full h-full overflow-hidden">
                           {it.preview}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                        </section>
+                      </section>
+                    </section>
+                  </section>
                 ) : null}
                 <header className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className={`text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>{it.label}</div>
-                    <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>#{idx + 1}</div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="flex items-center gap-1">
+                  <section className="min-w-0">
+                    <section className={`text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>{it.label}</section>
+                    <section className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>#{idx + 1}</section>
+                  </section>
+                  <section className="flex flex-col items-end gap-1">
+                    <section className="flex items-center gap-1">
                       {idx > 0 ? (
                         <button
                           type="button"
@@ -530,9 +530,9 @@ export default function PreviewGallery({
                           ↓
                         </button>
                       ) : null}
-                    </div>
-                    {isDragging ? <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>Moving</div> : null}
-                  </div>
+                    </section>
+                    {isDragging ? <section className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>Moving</section> : null}
+                  </section>
                 </header>
               </section>
             </li>
@@ -573,50 +573,50 @@ export default function PreviewGallery({
               if (onHighlightChange) onHighlightChange(null)
             }}
           >
-            <div
+            <section
               className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent"
               style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
             />
           </li>
         ) : null}
       </ul>
-      <div
+      <section
         ref={dragImageRef}
         className="fixed top-0 left-0 pointer-events-none z-50"
       >
-        <div
+        <section
           ref={dragImageContainerRef}
           className={`flex items-stretch rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-md ${UI_RESPONSIVE_PREVIEW_GALLERY_DRAG_CARD_CLASSNAME}`}
         >
-          <div
+          <section
             ref={dragImageStripRef}
             className="w-1.5 rounded-l"
             style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
           />
-          <div className="px-3 py-1.5 flex flex-col">
-            <div
+          <section className="px-3 py-1.5 flex flex-col">
+            <section
               ref={dragImagePrimaryLabelRef}
               className={`text-[12px] font-semibold ${UI_THEME_TOKENS.text.primary} leading-tight`}
             >
               #1
-            </div>
-            <div className="flex items-center gap-1">
-              <div
+            </section>
+            <section className="flex items-center gap-1">
+              <section
                 ref={dragImageSecondaryLabelRef}
                 className={`text-[11px] ${UI_THEME_TOKENS.text.secondary} leading-tight truncate`}
               >
                 Slide title
-              </div>
-              <div
+              </section>
+              <section
                 ref={dragImageActiveBadgeRef}
                 className={previewGalleryActiveBadgeClassName}
               >
                 Active
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+              </section>
+            </section>
+          </section>
+        </section>
+      </section>
     </section>
   )
 }

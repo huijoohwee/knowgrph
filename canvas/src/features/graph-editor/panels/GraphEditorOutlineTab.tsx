@@ -118,10 +118,10 @@ export function GraphEditorOutlineTab() {
   }
 
   return (
-    <div className="space-y-4" aria-label="Graph outline">
+    <section className="space-y-4" aria-label="Graph outline">
       <section>
-        <div className="flex items-center justify-between gap-2">
-          <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Subgraphs</div>
+        <section className="flex items-center justify-between gap-2">
+          <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Subgraphs</section>
           <button
             type="button"
             className={`rounded-md px-2 py-1 text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -130,21 +130,21 @@ export function GraphEditorOutlineTab() {
           >
             New
           </button>
-        </div>
+        </section>
 
         {subgraphs.length === 0 ? (
           <p className={`mt-2 text-sm ${UI_THEME_TOKENS.text.secondary}`}>No subgraphs yet.</p>
         ) : (
-          <div className="mt-2 space-y-2">
+          <section className="mt-2 space-y-2">
             {subgraphs.map(sg => {
               const gid = subgraphGroupId(sg.id)
               const isSelected = gid && selectedGroupId === gid
               return (
-                <div
+                <section
                   key={sg.id}
                   className={`rounded-lg border px-2 py-2 ${UI_THEME_TOKENS.input.border} ${isSelected ? 'ring-1 ring-blue-500/40' : ''}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <section className="flex items-center justify-between gap-2">
                     <button
                       type="button"
                       className={`flex-1 truncate rounded-md px-2 py-1 text-left text-xs ${isSelected ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -166,11 +166,11 @@ export function GraphEditorOutlineTab() {
                     >
                       Collapse
                     </button>
-                  </div>
+                  </section>
 
-                  <div className="mt-2 grid grid-cols-2 gap-2">
+                  <section className="mt-2 grid grid-cols-2 gap-2">
                     <label className="block">
-                      <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</div>
+                      <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</section>
                       <input
                         className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
                         value={sg.label}
@@ -179,7 +179,7 @@ export function GraphEditorOutlineTab() {
                       />
                     </label>
                     <label className="block">
-                      <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Parent</div>
+                      <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Parent</section>
                       <select
                         className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
                         value={sg.parentId || ''}
@@ -196,11 +196,11 @@ export function GraphEditorOutlineTab() {
                           ))}
                       </select>
                     </label>
-                  </div>
+                  </section>
 
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{sg.memberNodeIds.length} nodes</div>
-                    <div className="flex items-center gap-1">
+                  <section className="mt-2 flex items-center justify-between gap-2">
+                    <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{sg.memberNodeIds.length} nodes</section>
+                    <section className="flex items-center gap-1">
                       <button
                         type="button"
                         className={`rounded-md px-2 py-1 text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -228,24 +228,24 @@ export function GraphEditorOutlineTab() {
                       >
                         Delete
                       </button>
-                    </div>
-                  </div>
-                </div>
+                    </section>
+                  </section>
+                </section>
               )
             })}
-          </div>
+          </section>
         )}
       </section>
 
       <section>
-        <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Nodes</div>
-        <div className="mt-2 space-y-1">
+        <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Nodes</section>
+        <section className="mt-2 space-y-1">
           {nodes.slice(0, 800).map(n => {
             const id = String(n.id || '')
             const isSel = id && id === selectedNodeId
             const isChecked = checked.has(id)
             return (
-              <div key={id} className={`flex items-center gap-2 rounded-md px-2 py-1 ${isSel ? UI_THEME_TOKENS.button.activeBg : ''}`}>
+              <section key={id} className={`flex items-center gap-2 rounded-md px-2 py-1 ${isSel ? UI_THEME_TOKENS.button.activeBg : ''}`}>
                 <input
                   type="checkbox"
                   checked={isChecked}
@@ -266,12 +266,12 @@ export function GraphEditorOutlineTab() {
                   {String(n.label || id) || id}
                 </button>
                 <span className={`shrink-0 font-mono text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>{String(n.type || '')}</span>
-              </div>
+              </section>
             )
           })}
-        </div>
+        </section>
       </section>
-    </div>
+    </section>
   )
 }
 

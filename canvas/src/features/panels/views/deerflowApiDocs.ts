@@ -9,26 +9,14 @@ import {
   CHAT_DEERFLOW_ENDPOINT_URL,
   CHAT_PROVIDER_DEERFLOW,
 } from '@/lib/chatEndpoint'
+import {
+  getDeerFlowApiRowAnchorId,
+  mapOpenAiRowKeyToDeerFlowRowKey,
+} from './chatApiDocAnchors'
 
 export const DEERFLOW_API_DOC_AREA = 'DeerFlow Gateway API'
 
-export function getDeerFlowApiRowAnchorId(rowKey: string): string {
-  const normalized = String(rowKey || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `deerflow-api-row-${normalized || 'entry'}`
-}
-
-export function mapOpenAiRowKeyToDeerFlowRowKey(rowKey: string): string {
-  const normalized = String(rowKey || '').trim()
-  if (!normalized) return ''
-  if (normalized.startsWith('openaiApi.')) {
-    return `deerflowApi.${normalized.slice('openaiApi.'.length)}`
-  }
-  return `deerflowApi.${normalized}`
-}
+export { getDeerFlowApiRowAnchorId, mapOpenAiRowKeyToDeerFlowRowKey }
 
 const toBaseType = (typeLabel: string): SettingMeta['type'] => {
   const normalized = String(typeLabel || '').trim().toLowerCase()

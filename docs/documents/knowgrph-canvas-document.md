@@ -46,7 +46,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ---
 
-## Renderer Modes (D3 / Flow / 3D / Geospatial)
+## Renderer Modes (D3 / GitGraph / Flow / 3D / Geospatial)
 
 ### Mode Model (SSOT)
 
@@ -55,6 +55,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `3d` (graph)
 - **2D renderer**: `canvas2dRenderer` selects the active 2D implementation:
   - `d3` (`GraphCanvas` SVG/D3 renderer)
+  - `gitGraph` (`MermaidGitGraphCanvas` Mermaid GitGraph SVG renderer)
   - `flow` (`FlowCanvas` native Canvas2D renderer)
   - `design` (`DesignCanvas` 2D design surface)
   - `flowEditor` (`FlowEditorCanvas` 2D workflow editor surface)
@@ -62,7 +63,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ### Exclusivity Rules (Non-Negotiable)
 
-- Only one renderer surface is active at a time (2D: D3/Flow/Design/Flow Editor, 3D, Geospatial).
+- Only one renderer surface is active at a time (2D: D3/GitGraph/Flow/Design/Flow Editor, 3D, Geospatial).
 - The host may warm-mount inactive surfaces to reduce switch lag, but inactive surfaces must be effect-gated (no draw loops, no request consumption, no shared-cache writes).
 - Only the active renderer may consume shared requests (e.g. `zoomRequest`) and own interactive listeners.
 - Switching modes must preserve selection and avoid cross-mode cache contamination by keying layout/zoom caches with mode + renderer.
@@ -77,7 +78,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **Editor mode** is a VS Code-like embedded workspace that reuses the existing Markdown Workspace SSOT (files + editor/viewer/split/presentation + import + apply-to-graph) and shares the same Canvas pane.
 - **Graph Data Table mode** is a table-first workspace for Nodes/Edges inspection that also shares the same Canvas pane.
 
-- The right FloatingPanel shell is a single FloatingPanel primitive (`<div role="complementary">` via `FloatingPanel as="div"`) and must not be re-implemented with ad-hoc containers.
+- The right FloatingPanel shell is a single FloatingPanel primitive (semantic complementary shell via `FloatingPanel semantic shell`) and must not be re-implemented with ad-hoc containers.
 - Only the active FloatingPanel tab is mounted; inactive tabs must not render hidden panels to avoid background work and cross-mode interference.
 - FloatingPanel tabs header must use semantic navigation elements (`<header>` + `<nav>`/`<menu>`), not generic wrappers.
 - MainPanel tab behavior must come from one metadata path for tab labels, searchable tabs, search placeholders, and footer copy; headers, search rows, footers, and key/value rows must wrap responsively on narrow widths instead of overlapping, and Settings lazy-load helpers must not depend on toolbar-owned init chunks.
@@ -169,14 +170,14 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - The Inspector view must render its layout even with no active selection so the Floating Panel always shows stable structure; inputs may be disabled but the surface must stay visible.
 - Editing a field in the inspector updates the persisted Graph Table cache first, then applies a bounded write-through to the graph store to keep `graphDataRevision` and derived render views consistent.
 
-### Node Quick Editor Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
+### Flow Editor Widget Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
 
-- Node Quick Editor open state is stored in the shared graph view state (`openQuickEditorNodeIds`) and must not be local to a single renderer.
-- Flow Editor canvas and Graph Table Inspector must consult the same open list to render quick editor panels for node rows.
-- Editor Workspace must surface Node Quick Editor **as codes** inside the Markdown editor/viewer (JSON/Markdown), not as a second quick editor panel.
+- Flow Editor widget open state is stored in the shared graph view state (`openWidgetNodeIds`) and must not be local to a single renderer.
+- Flow Editor canvas and Graph Table Inspector must consult the same open list to render widget panels for node rows.
+- Editor Workspace must surface Flow Editor widgets **as codes** inside the Markdown editor/viewer (JSON/Markdown), not as a second widget panel.
 - Switching workspace view modes must preserve the open list unless the underlying nodes are removed from `GraphData`.
-- In Flow Editor, pinned quick editors adjust anchor offsets on header drag; dragging a pinned editor moves all pinned overlays together, while unpinned overlays drag freely and clamp in the viewport.
-- NodeOverlayEditor is decomposed into focused modules: `NodeOverlayEditorInner` (orchestrator), `NodeOverlayEditorView` (pure view), `nodeOverlayEditorShared` (types/constants), `useNodeOverlayPlacementRuntime` (position/scale), `useNodeOverlayDragHandlers` (pointer drag), `useNodeOverlayRichMediaToolbar` (rich-media toolbar). See `knowgrph-flow-editor-node-quick-editor-document.md`.
+- In Flow Editor, pinned widgets adjust anchor offsets on header drag; dragging a pinned widget moves all pinned overlays together, while unpinned overlays drag freely and clamp in the viewport.
+- NodeOverlayEditor is decomposed into focused modules: `NodeOverlayEditorInner` (orchestrator), `NodeOverlayEditorView` (pure view), `nodeOverlayEditorShared` (types/constants), `useNodeOverlayPlacementRuntime` (position/scale), `useNodeOverlayDragHandlers` (pointer drag), `useNodeOverlayRichMediaToolbar` (rich-media toolbar). See `knowgrph-flow-editor-widget-document.md`.
 - Flow Editor overlay collision resolution is scheduled on overlay set changes and quantized zoom changes (not every interaction tick). See `knowgrph-flow-editor-pan-zoom-overlay-failsafe-document.md`.
 - Graph data commits preserve overlay-carryover state: when a commit modifies graph data, overlay-managed node positions and connected edges are carried over to the new revision so pinned overlays do not drift.
 - Widget world positions are stored per graph meta key (`flowWidgetWorldPosByNodeIdByGraphMetaKey`) so positions persist correctly when switching between frontmatter-flow graphs; transient placement authorities are reset on workspace reopen.

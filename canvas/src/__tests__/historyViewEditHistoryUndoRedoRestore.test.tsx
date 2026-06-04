@@ -16,7 +16,7 @@ const tick = async () => {
 export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   let root: ReturnType<typeof createRoot> | null = null
   try {
@@ -40,16 +40,9 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
     })
     await tick()
 
-    const historyChooser = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[])
-      .find(button => button.getAttribute('aria-label')?.startsWith('History section:'))
-    if (!historyChooser) throw new Error('expected History section chooser')
-    await act(async () => {
-      historyChooser.click()
-      await tick()
-    })
-
-    const historyTab = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[])
-      .find(button => button.textContent?.trim() === 'History')
+    const historyTab = dom.window.document.querySelector(
+      'button[data-kg-history-section-tab="history"]',
+    ) as HTMLButtonElement | null
     if (!historyTab) throw new Error('expected History option')
     await act(async () => {
       historyTab.click()
@@ -109,7 +102,13 @@ export function testHistoryViewUsesScopedStoreSelectionAndSemanticSignatures() {
   if (!text.includes('const historyIndexById = React.useMemo(() => {')) {
     throw new Error('expected HistoryView to precompute a history index lookup instead of rescanning history rows per render')
   }
-  if (!text.includes('<ToolbarDropdownSelect') || !text.includes('title={`History section:') || text.includes('aria-label="History tabs"')) {
-    throw new Error('expected HistoryView section switching to use the shared click-expand-down chooser instead of a local horizontal tabs row')
+  if (text.includes('<ToolbarDropdownSelect') || text.includes('kg-toolbar-dropdown-menu')) {
+    throw new Error('expected HistoryView section switching to avoid the legacy dropdown menu')
+  }
+  if (!text.includes('data-kg-history-section-tabs="1"') || !text.includes('data-kg-history-section-tab={item.id}')) {
+    throw new Error('expected HistoryView section switching to use the compact icon-only header tablist')
+  }
+  if (!text.includes('role="tablist"') || !text.includes('role="tab"') || !text.includes('showTooltip')) {
+    throw new Error('expected HistoryView icon-only tabs to preserve tab semantics and tooltips')
   }
 }

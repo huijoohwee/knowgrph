@@ -3,11 +3,10 @@ import * as d3 from 'd3'
 
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/FlowCanvas/shared'
-import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
-import { computeWidgetScale, computeCollectiveFollowPinnedScale } from '@/lib/canvas/overlayWidgetZoom'
+import { computeWidgetScale, computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK } from '@/lib/canvas/overlayWidgetZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
@@ -202,6 +201,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayPanMoveSchedulerRef = React.useRef<RafLatestScheduler<{ pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }> | null>(null)
   const mediaOverlayHeaderMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const mediaOverlayResizeMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
+  const flowEditorZoomBaselineKRef = React.useRef<number | null>(null)
   const lastPlannedOverlayNodeIdsKeyRef = React.useRef<string>('')
   const workspaceOverlayOpenRef = React.useRef(false)
   const workspaceMutationBlockedRef = React.useRef(false)
@@ -322,9 +322,13 @@ export default function FlowCanvasMediaOverlays(args: {
     [mediaNodes],
   )
   const mediaLayoutItemIdsKey = React.useMemo(() => mediaLayoutItemIds.join('|'), [mediaLayoutItemIds])
-  const flowEditorOverlaySurfaceId = flowEditorOverlayInteractionMode ? flowEditorSurfaceId : ''
+  const flowEditorSurfaceInteractionMode =
+    flowEditorOverlayInteractionMode
+    || flowEditorFrontmatterInteractionMode
+    || flowEditorFrontmatterDocumentModeRequested
+  const flowEditorOverlaySurfaceId = flowEditorSurfaceInteractionMode ? flowEditorSurfaceId : ''
   const queryActiveFlowEditorOverlays = React.useCallback((): HTMLElement[] => {
-    if (!flowEditorOverlayInteractionMode || typeof document === 'undefined') return []
+    if (!flowEditorSurfaceInteractionMode || typeof document === 'undefined') return []
     const surfaceId = String(flowEditorOverlaySurfaceId || '').trim()
     if (!surfaceId) return []
     const surfaceRoot = surfaceId
@@ -333,7 +337,7 @@ export default function FlowCanvasMediaOverlays(args: {
     const queryRoot: ParentNode = surfaceRoot || document
     return Array.from(queryRoot.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
       .filter(el => readFlowEditorOverlaySurfaceId(el) === surfaceId)
-  }, [flowEditorOverlayInteractionMode, flowEditorOverlaySurfaceId])
+  }, [flowEditorSurfaceInteractionMode, flowEditorOverlaySurfaceId])
   const mediaLayoutItems = React.useMemo(
     () => mediaLayoutItemIdsKey ? mediaLayoutItemIdsKey.split('|').filter(Boolean).map(id => ({ id })) : [],
     [mediaLayoutItemIdsKey],
@@ -343,42 +347,16 @@ export default function FlowCanvasMediaOverlays(args: {
     () => computeBalancedSpreadViewportMargins({ viewportW, viewportH, preset: 'richMedia', minLeftPx: 16, minRightPx: 16, minTopPx: 16, minBottomPx: 16 }),
     [viewportH, viewportW],
   )
-  const flowEditorFrontmatterVisibleViewport = React.useMemo(() => {
-    if (!flowEditorFrontmatterDocumentModeRequested || !flowEditorSurfaceId) return null
-    return resolveFlowEditorVisibleViewport({ flowEditorSurfaceId, viewportW, viewportH })
-  }, [flowEditorFrontmatterDocumentModeRequested, flowEditorSurfaceId, viewportH, viewportW, workspaceOverlayOpenKey])
-  const richMediaViewportClamp = React.useMemo(() => {
-    const margin = Math.max(
-      mediaViewportMargins.left,
-      mediaViewportMargins.right,
-      mediaViewportMargins.top,
-      mediaViewportMargins.bottom,
-    )
-    if (!richMediaInfiniteCanvasMode) return { margin }
-    if (!flowEditorFrontmatterDocumentModeRequested) return null
-
-    const visible = flowEditorFrontmatterVisibleViewport
-    const visibleLeft = Math.max(0, Math.min(viewportW, Number(visible?.left) || 0))
-    const visibleTop = Math.max(0, Math.min(viewportH, Number(visible?.top) || 0))
-    const visibleRight = Math.max(visibleLeft + 1, Math.min(viewportW, Number(visible?.right) || viewportW))
-    const visibleBottom = Math.max(visibleTop + 1, Math.min(viewportH, Number(visible?.bottom) || viewportH))
-    return {
-      margin,
-      marginLeft: visibleLeft + mediaViewportMargins.left,
-      marginRight: Math.max(mediaViewportMargins.right, viewportW - visibleRight + mediaViewportMargins.right),
-      marginTop: visibleTop + mediaViewportMargins.top,
-      marginBottom: Math.max(mediaViewportMargins.bottom, viewportH - visibleBottom + mediaViewportMargins.bottom),
-    }
-  }, [
-    flowEditorFrontmatterDocumentModeRequested,
-    flowEditorFrontmatterVisibleViewport,
+  const mediaViewportMargin = React.useMemo(() => Math.max(
+    mediaViewportMargins.left,
+    mediaViewportMargins.right,
+    mediaViewportMargins.top,
+    mediaViewportMargins.bottom,
+  ), [
     mediaViewportMargins.bottom,
     mediaViewportMargins.left,
     mediaViewportMargins.right,
     mediaViewportMargins.top,
-    richMediaInfiniteCanvasMode,
-    viewportH,
-    viewportW,
   ])
   const mediaLayoutPropsSignature = React.useMemo(
     () => readMediaLayoutNodePropsSignature(mediaLayoutItemIds, sceneGraphData),
@@ -435,10 +413,28 @@ export default function FlowCanvasMediaOverlays(args: {
       void 0
     }
   }, [])
+  React.useEffect(() => {
+    flowEditorZoomBaselineKRef.current = null
+  }, [canvas2dRenderer, flowEditorSurfaceId, mediaLayoutItemIdsKey])
   const computeOverlaySizingScale = React.useCallback((zoomK: number, itemCount: number, panelW: number, panelH: number) => {
     const layoutViewport = clampViewportToLayoutFrame16x9(viewportW, viewportH)
+    const sizingZoomK = (() => {
+      if (canvas2dRenderer !== 'flowEditor') return zoomK
+      const safeZoomK = Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
+      if (
+        flowEditorZoomBaselineKRef.current == null
+        || !Number.isFinite(flowEditorZoomBaselineKRef.current)
+        || flowEditorZoomBaselineKRef.current <= 0
+      ) {
+        flowEditorZoomBaselineKRef.current = safeZoomK
+      }
+      return computeCollectiveFollowZoomK({
+        zoomK: safeZoomK,
+        baselineZoomK: flowEditorZoomBaselineKRef.current,
+      })
+    })()
     return computeCollectiveFollowPinnedScale({
-      zoomK,
+      zoomK: sizingZoomK,
       viewportW: layoutViewport.width,
       viewportH: layoutViewport.height,
       count: itemCount,
@@ -708,7 +704,7 @@ export default function FlowCanvasMediaOverlays(args: {
       },
       schema: schema && typeof schema === 'object' ? (schema as GraphSchema) : null,
       collision: richMediaInfiniteCanvasMode
-        ? { enabled: flowEditorFrontmatterDocumentModeRequested, gapPx: 12 }
+        ? { enabled: false }
         : { enabled: true },
       sizingConfig: {
         widthRatio: sizingConfig.widthRatio,
@@ -716,7 +712,9 @@ export default function FlowCanvasMediaOverlays(args: {
         widthMaxPx: sizingConfig.widthMaxPx,
         quantizeStepPx: richMediaInfiniteCanvasMode ? 1 : 16,
       },
-      clampToViewport: richMediaViewportClamp,
+      clampToViewport: richMediaInfiniteCanvasMode
+        ? null
+        : { margin: mediaViewportMargin },
     })
     mediaOverlayLayoutScheduleRef.current = loop.schedule
     loop.schedule()
@@ -729,7 +727,7 @@ export default function FlowCanvasMediaOverlays(args: {
     workspaceOverlayOpenKey,
     flowEditorFrontmatterDocumentModeRequested,
     richMediaInfiniteCanvasMode,
-    richMediaViewportClamp,
+    mediaViewportMargin,
     mediaLayoutItems.length,
     mediaLayoutItemsKey,
     mediaPanelDensity,
@@ -879,7 +877,7 @@ export default function FlowCanvasMediaOverlays(args: {
                 requestCommit()
               }
             } : undefined}
-            flowEditorInteractionMode={flowEditorOverlayInteractionMode}
+            flowEditorInteractionMode={flowEditorSurfaceInteractionMode}
             flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
             flowEditorSurfaceId={flowEditorOverlaySurfaceId}
             style={{ transform: `translate(${Math.max(-99999, -mediaViewportMargins.left)}px, ${Math.max(-99999, -mediaViewportMargins.top)}px)`, width: 1, height: 1, zIndex: overlayZIndex }}

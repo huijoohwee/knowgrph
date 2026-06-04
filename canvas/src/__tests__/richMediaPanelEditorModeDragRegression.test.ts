@@ -62,9 +62,9 @@ export async function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteract
 
     const doc = dom.window.document
     const root = doc.createElement('section')
-    const scrollSurface = doc.createElement('div')
+    const scrollSurface = doc.createElement('section')
     const child = doc.createElement('p')
-    const forwardedTarget = doc.createElement('div')
+    const forwardedTarget = doc.createElement('section')
     const forwarded: WheelEvent[] = []
     const readForwardedCount = () => forwarded.length
     scrollSurface.style.overflowY = 'auto'

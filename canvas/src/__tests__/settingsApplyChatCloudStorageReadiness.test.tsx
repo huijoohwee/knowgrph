@@ -52,10 +52,10 @@ function SettingsCloudApplyHarness(props: {
   }, [dirtyRef, setValues])
 
   return (
-    <div>
-      <div data-draft-storage-target={String(values.chatStorageTarget || '')} />
-      <div data-draft-knowgrph-cloud-url={String(values.chatKnowgrphCloudUrl || '')} />
-      <div data-draft-history-cloud-url={String(values.chatHistoryCloudUrl || '')} />
+    <section>
+      <section data-draft-storage-target={String(values.chatStorageTarget || '')} />
+      <section data-draft-knowgrph-cloud-url={String(values.chatKnowgrphCloudUrl || '')} />
+      <section data-draft-history-cloud-url={String(values.chatHistoryCloudUrl || '')} />
       <button
         type="button"
         onClick={() => patchChatValues({
@@ -68,7 +68,7 @@ function SettingsCloudApplyHarness(props: {
       >
         Use Cloud Chat Storage
       </button>
-    </div>
+    </section>
   )
 }
 
@@ -101,8 +101,8 @@ export async function testSettingsApplyCommitsChatCloudStorageIntoFloatingChatPi
     store.setChatHistoryCloudUrl('https://cloud.example/history-initial.md')
 
     const doc = dom.window.document
-    const settingsContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const settingsContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(settingsContainer)
     doc.body.appendChild(chatContainer)
     settingsRoot = createRoot(settingsContainer as unknown as HTMLElement)

@@ -2,7 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
-import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { isFlowEditorCanvas2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import {
   parseCanvasWorkspaceFrontmatterPreset,
   readCanvasWorkspaceFrontmatterPresetFromMeta,
@@ -129,6 +129,9 @@ export function applyCanvasFrontmatterPreset(args: {
   const documentStructureBaselineLock =
     preset?.documentStructureBaselineLock ?? args.defaultDocumentStructureBaselineLock
   const canvas2dRenderer = preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer
+  const flowEditorLandingRequested =
+    isFlowEditorCanvas2dRenderer(canvas2dRenderer) &&
+    (surfacePreset.canvasRenderMode ?? store.canvasRenderMode) === '2d'
   const frontmatterOnlyPolicyActive = isFrontmatterOnlyPolicyActive({
     canvasRenderMode: surfacePreset.canvasRenderMode ?? store.canvasRenderMode,
     canvas2dRenderer: canvas2dRenderer ?? store.canvas2dRenderer,
@@ -213,12 +216,9 @@ export function applyCanvasFrontmatterPreset(args: {
   const frontmatterModeEnabled = frontmatterOnlyPolicyActive
     ? true
     : (preset?.frontmatterModeEnabled ?? args.defaultFrontmatterModeEnabled)
-  const multiDimTableModeEnabled = frontmatterOnlyPolicyActive
+  const multiDimTableModeEnabled = frontmatterOnlyPolicyActive || flowEditorLandingRequested || args.disableMultiDimTableMode === true
     ? false
-    : (
-        preset?.multiDimTableModeEnabled
-        ?? (args.disableMultiDimTableMode === true ? false : args.defaultMultiDimTableModeEnabled)
-      )
+    : (preset?.multiDimTableModeEnabled ?? args.defaultMultiDimTableModeEnabled)
 
   if (typeof frontmatterModeEnabled === 'boolean' && frontmatterModeEnabled === false && store.frontmatterModeEnabled !== false) {
     store.setFrontmatterModeEnabled(false)

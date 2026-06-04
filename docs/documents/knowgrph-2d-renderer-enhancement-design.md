@@ -3,7 +3,7 @@
 ## Scope
 
 - This document defines the 2D renderer enhancement goals and constraints for in-repo, native implementation.
-- It applies to 2D render variants (D3 Graph, Flowchart, Flow, Design, Flow Editor) and their shared behaviors across touchpoints; 3D and Voxel modes reuse the same SSOT GraphData/layout and canvas.jsonld contracts and are documented in the renderer and AgenticRAG Canvas directives.
+- It applies to 2D render variants (D3 Graph, Flowchart, GitGraph, Flow, Design, Flow Editor) and their shared behaviors across touchpoints; 3D and Voxel modes reuse the same SSOT GraphData/layout and canvas.jsonld contracts and are documented in the renderer and AgenticRAG Canvas directives.
 
 ## Hard Constraints
 
@@ -30,9 +30,14 @@
 - Best for high-density graphs and consistent frame budget.
 - Main risk: inconsistent semantics vs D3 (fit/zoom, selection, group envelopes) if derivations diverge.
 
+### GitGraph (Mermaid SVG)
+
+- Best for Git history, branch, commit, checkout, and merge diagrams authored in YAML frontmatter `mermaid: |`.
+- Main risk: parser drift if GitGraph commands are expanded by the Flowchart topology parser. GitGraph must remain diagram-code rendering unless a future source-owned semantic parser is added.
+
 ### Flow Editor (Canvas2D + Semantic Overlays)
 
-- Best for editing workflows and node quick editors.
+- Best for editing workflows and flow editor widgets.
 - Main risk: overlay re-render churn and viewport transform drift.
 
 ### Design (2D Webpage Wireframe)
@@ -59,7 +64,7 @@
 - Initialization must be idempotent:
   - If a valid stored transform is applied, do not also auto-fit in the same init pass.
   - Bounds guard: do not apply stale transforms until graph bounds are computable.
-- Initialization group envelopes must derive from the same display-graph AABBs across D3, Flowchart, Flow, Design, and Flow Editor; Flow Editor extends these envelopes with zoom-aware pinned quick-editor overlay extents so panels remain contained inside cluster/subgraph/layer borders on first paint.
+- Initialization group envelopes must derive from the same display-graph AABBs across D3, Flowchart, Flow, Design, and Flow Editor; Flow Editor extends these envelopes with zoom-aware pinned widget overlay extents so panels remain contained inside cluster/subgraph/layer borders on first paint.
 
 ### 3) Layer Stack Ordering
 
@@ -120,4 +125,4 @@
 - No upstream design-tool repository URL literals exist in the repository.
 - 2D render variants share the same display-graph derivation and fit/zoom initialization contract.
 - Switching 2D variants preserves mental map: no chaotic clustering or excessive void-space regressions.
-- Bounded validation: `npm run typecheck` and `npm run test:ci` pass.
+- Bounded validation: focused renderer/parser tests and `npm run typecheck` pass; full `npm run test:ci` remains a release-level gate.

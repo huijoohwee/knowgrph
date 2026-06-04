@@ -58,6 +58,7 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | floatingPanel.chat | floatingPanel.chat | Assistant interface | FloatingPanel view for chat runs and KGC output creation. |
 | floatingPanel.geo | floatingPanel.geo | Map interaction | FloatingPanel view for geospatial inspection and map interaction. |
 | floatingPanel.renderer | floatingPanel.renderer | Rendering controls | FloatingPanel view for renderer presets and visualization controls. |
+| floatingPanel.gitGraph | floatingPanel.gitGraph | Git history graph | FloatingPanel view for GitGraph history, branch topology, and commit inspection. |
 | floatingPanel.strybldr | floatingPanel.strybldr | Image storyboard orchestration | FloatingPanel view for image reverse engineering, element cards, and video handoff. |
 | floatingPanel.graphTraversal | floatingPanel.graphTraversal | Path reasoning | FloatingPanel view for graph traversal and orchestrator workflow controls. |
 | field.scope.node | field.scope.node | Node-level property | Field attached to nodes; use for node attributes such as title or type. |

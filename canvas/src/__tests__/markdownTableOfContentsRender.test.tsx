@@ -5,7 +5,7 @@ import { MarkdownTableOfContents } from '@/features/markdown/ui/MarkdownTableOfC
 
 export async function testMarkdownTableOfContentsRendersHeadings() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
 

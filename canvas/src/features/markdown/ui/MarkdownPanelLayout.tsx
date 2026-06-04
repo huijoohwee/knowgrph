@@ -16,6 +16,8 @@ import { MarkdownBacklinksSidebarSection } from './MarkdownBacklinksSidebarSecti
 import { MarkdownOutlineSidebarSection } from './MarkdownOutlineSidebarSection'
 import { useMarkdownExplorerSectionCollapseState } from './useMarkdownExplorerSectionCollapseState'
 import { persistMarkdownExplorerChromeState, readMarkdownExplorerChromeState } from './markdownExplorerChromePersistence'
+import { normalizeDocumentVersionPath } from '@/features/document-versioning/documentVersioning'
+import { useDocumentVersionRecords } from '@/features/document-versioning/useDocumentVersions'
 
 const SIDEBAR_MIN_PX = 160
 const SIDEBAR_MAX_PX = 560
@@ -73,6 +75,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
     sourceFilesPanelIntegration,
   } = props
 
+  const documentVersionSnapshot = useDocumentVersionRecords()
   const derivedAllCollapsed = React.useMemo(() => {
     if (!onExpandAll && !onCollapseAll) return undefined
     if (!tokens || !collapsedIds) return undefined
@@ -97,8 +100,16 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
   const sidebarBorderClass = sidebarPosition === 'right' ? 'border-l' : 'border-r'
   const sourceFilesList: MarkdownSourceFileListItem[] | undefined = React.useMemo(() => {
     const list = Array.isArray(sourceFiles) ? sourceFiles : []
-    return list.map(f => ({ id: String(f.id || ''), name: String(f.name || ''), active: !!f.active }))
-  }, [sourceFiles])
+    return list.map(f => {
+      const name = String(f.name || '')
+      return {
+        id: String(f.id || ''),
+        name,
+        active: !!f.active,
+        versionCount: documentVersionSnapshot.countsByPath[normalizeDocumentVersionPath(name)] || 0,
+      }
+    })
+  }, [documentVersionSnapshot.countsByPath, sourceFiles])
 
   const activeSourceFileKey = React.useMemo(() => {
     const list = Array.isArray(sourceFiles) ? sourceFiles : []

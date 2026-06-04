@@ -62,6 +62,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.chat',
   'floatingPanel.geo',
   'floatingPanel.renderer',
+  'floatingPanel.gitGraph',
   'floatingPanel.strybldr',
   'floatingPanel.graphTraversal',
   'field.scope.node',
@@ -332,6 +333,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Renderer',
     Icon: MonitorPlay,
   },
+  'floatingPanel.gitGraph': {
+    category: 'FloatingPanel surface',
+    label: 'GitGraph',
+    Icon: GitBranch,
+  },
   'floatingPanel.strybldr': {
     category: 'FloatingPanel surface',
     label: 'Strybldr',
@@ -463,6 +469,7 @@ export type FloatingPanelTypeIconView =
   | 'chat'
   | 'geo'
   | 'renderer'
+  | 'gitGraph'
   | 'strybldr'
   | 'graphTraversal'
 
@@ -474,6 +481,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   chat: 'floatingPanel.chat',
   geo: 'floatingPanel.geo',
   renderer: 'floatingPanel.renderer',
+  gitGraph: 'floatingPanel.gitGraph',
   strybldr: 'floatingPanel.strybldr',
   graphTraversal: 'floatingPanel.graphTraversal',
 } satisfies Record<FloatingPanelTypeIconView, MainPanelTypeIconKey>

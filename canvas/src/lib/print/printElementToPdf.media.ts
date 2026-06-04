@@ -203,10 +203,11 @@ const createVideoEmbedPreview = (thumbSrc: string, alt: string, href: string): H
   a.style.border = '1px solid #d1d5db'
   a.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'
 
-  const wrapper = document.createElement('div')
+  const wrapper = document.createElement('figure')
   wrapper.style.position = 'relative'
   wrapper.style.lineHeight = '0'
   wrapper.style.backgroundColor = '#000'
+  wrapper.style.margin = '0'
 
   const img = document.createElement('img')
   img.src = thumbSrc
@@ -217,17 +218,17 @@ const createVideoEmbedPreview = (thumbSrc: string, alt: string, href: string): H
   img.style.height = 'auto'
   img.style.display = 'block'
 
-  const gradient = document.createElement('div')
+  const gradient = document.createElement('section')
   gradient.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0) 50%);pointer-events:none'
 
-  const playBtn = document.createElement('div')
+  const playBtn = document.createElement('span')
   playBtn.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;background:rgba(0,0,0,0.65);border-radius:50%;display:flex;align-items:center;justify-content:center;pointer-events:none'
-  const playTriangle = document.createElement('div')
+  const playTriangle = document.createElement('span')
   playTriangle.style.cssText = 'width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent;border-left:20px solid #fff;margin-left:4px'
   playBtn.appendChild(playTriangle)
 
   const label = inferPlatformLabel(href)
-  const titleBar = document.createElement('div')
+  const titleBar = document.createElement('figcaption')
   titleBar.style.cssText = 'position:absolute;bottom:0;left:0;right:0;padding:10px 12px;display:flex;align-items:center;gap:8px;pointer-events:none'
   const titleText = document.createElement('span')
   titleText.style.cssText = 'color:#fff;font-size:12px;font-family:system-ui,-apple-system,sans-serif;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1'

@@ -2,8 +2,8 @@
 
 Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md).
 
-**Document Version**: 0.4.16  
-**Date**: 2026-05-31
+**Document Version**: 0.4.21
+**Date**: 2026-06-04
 **Status**: Implementation-aligned supplement
 
 ---
@@ -26,20 +26,23 @@ It answers five questions:
 
 | Surface | Status | Canonical owner | Contract |
 |---|---|---|---|
-| Local stdio MCP transport | Shipped | `mcp/server.js` | stdio request handling and tool execution |
-| Local stdio MCP tool contract | Shipped | `mcp/local-tool-contract.js` | shared local tool names, descriptions, and `inputSchema` inventory |
+| Local stdio MCP transport | Shipped | `mcp/server.js` | stdio request handling, read-only `search`/`fetch`, prompt/resource/template handlers, and local tool execution |
+| Local stdio MCP tool contract | Shipped | `mcp/local-tool-contract.js` | shared local tool names, descriptions, `inputSchema`, output schema, and read-only annotation inventory |
+| Local SuperAgent harness | Shipped | `knowgrph_parser/superagent_harness.py` + `knowgrph_parser/superagent_plan.py` + `knowgrph_parser/superagent_tools.py` + `mcp/server.js` | local long-horizon research/code/create artifact loop exposed through CLI and `knowgrph.superagent.run`; not deployed through Pages MCP |
 | Local stdio MCP Apps resource | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` + `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | advertises `io.modelcontextprotocol/ui`, exposes `resources/list` and `resources/read`, and links `knowgrph.vdeoxpln.list` to `ui://knowgrph/agent-ready` |
+| Agent-ready resource-template contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs` | shared `kgdoc://source-file/{id}` template, URI parsing/building, and `text/markdown` Source Files resource read results |
 | Local stdio MCP docs | Shipped | `mcp/README.md` | local configuration and usage |
-| Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP with tools and resources |
-| MCP Apps-ready shared contract | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `io.modelcontextprotocol/ui`, `text/html;profile=mcp-app`, `ui://knowgrph/agent-ready`, resource descriptor/read result, app HTML, tool metadata, output schema, and readiness payload |
+| Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP with tools, resources, and data-first `search`/`fetch` |
+| MCP Apps-ready shared contract | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `io.modelcontextprotocol/ui`, `text/html;profile=mcp-app`, `ui://knowgrph/agent-ready`, app resource descriptor/read result, app HTML, tool metadata, mirrored no-auth security schemes, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, `search`/`fetch` plus resource-template readiness, and readiness payload |
+| Agent-ready prompt contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs` | shared prompt names, descriptors, and rendered read-only guidance for Source Files research and agent-surface inspection |
 | MCP Apps-ready inspection payload | Shipped | `canvas/src/features/agent-ready/agentSurfaceInspection.mjs` | adds `mcpAppsServerReadiness` to `inspect_agent_surface.structuredContent` |
 | MCP Apps static artifact | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | publishes `.well-known/mcp/apps/knowgrph-agent-ready.html` from the shared resource contract |
-| Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects shared five-tool WebMCP into `/knowgrph` HTML surfaces |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers read-only tools including `knowgrph.inspect_local_settings_chat_readiness`, `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_mainpanel_chat_canvas_pipeline`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
+| Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects shared seven-tool WebMCP into `/knowgrph` HTML surfaces and delegates `inspect_agent_surface` through `/knowgrph/mcp` |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers descriptor-complete read-only tools including `knowgrph.inspect_local_settings_chat_readiness`, `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_mainpanel_chat_canvas_pipeline`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
 | Browser-local WebMCP state snapshots | Shipped | `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | shared browser-local Settings chat readiness, MainPanel, Editor Workspace, and chat pipeline state publication for app-runtime inspection tools, including KGC validation and finalize/apply diagnostics |
 | Browser WebMCP lifecycle | Shipped | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, duplicate registration tolerance |
 | Browser WebMCP bootstrap | Shipped | `canvas/src/main.tsx` | installs app-runtime WebMCP on page load |
-| Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published Pages/HTTP tool set = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface` |
+| Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published HTTP tool set includes `search`, `fetch`, `list_source_files`, `read_source_file`, `read_shared_document`, `inspect_shared_document_structure`, and `inspect_agent_surface`; WebMCP prefixes the same published tools with `knowgrph.` |
 | Vdeoxpln registry | Shipped | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | canonical vdeoxpln ids, semantic keys, source owners, tool projections, neutral routing, run manifest builder, and generated agent-skill Markdown |
 | Vdeoxpln run manifests | Shipped | `canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts` | writes KGC companion manifests through Workspace FS and host mirror after FloatingPanel Chat finalization |
 | Agent-ready metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | health, API catalog, OpenAPI, MCP server card, A2A agent card, agent-skills |
@@ -62,7 +65,7 @@ It answers five questions:
 |---|---|---|
 | Page-load install | `canvas/src/main.tsx` | calls `installKnowgrphWebMcpRuntime()` at app startup |
 | Tool contract builder | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | shared source for names, descriptions, `inputSchema`, and browser-only gate |
-| Tool executor assembly | `canvas/src/features/agent-ready/webMcpRuntime.ts` | builds WebMCP tool objects with `name`, `description`, `inputSchema`, `execute`, and read-only hints |
+| Tool executor assembly | `canvas/src/features/agent-ready/webMcpRuntime.ts` | builds WebMCP tool objects with `name`, `description`, `inputSchema`, `outputSchema`, `securitySchemes`, annotations, `_meta`, and `execute` |
 | Lifecycle controller | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | prefers `provideContext({ tools })`, also calls `registerTool(tool, { signal })`, and falls back to readable `modelContext.tools` state |
 | Late binding | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | supports `navigator.modelContext` appearing after bootstrap |
 | Runtime markers | `canvas/src/features/agent-ready/webMcpRuntime.ts` | writes `data-kg-webmcp-tools` and `data-kg-webmcp-context` on the document root |
@@ -71,10 +74,10 @@ It answers five questions:
 
 | Concern | Owner | Notes |
 |---|---|---|
-| HTML fallback injection | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects the shared five-tool WebMCP surface on `/knowgrph` HTML routes |
+| HTML fallback injection | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects the shared seven-tool WebMCP surface on `/knowgrph` HTML routes and reuses `/knowgrph/mcp` for `inspect_agent_surface` structured content |
 | Agent-skills index | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/knowgrph-agent-ready-discovery.mjs` | publishes `/.well-known/agent-skills/index.json` under `/knowgrph` |
 | Vdeoxpln markdown | `cloudflare/pages/knowgrph-agent-ready.mjs` + `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | publishes generated `/.well-known/agent-skills/{vdeoxpln-id}.md` routes from the canonical registry |
-| HTTP MCP / server card parity | `cloudflare/pages/knowgrph-agent-ready.mjs` | metadata surfaces must stay contract-equal with the shared published five-tool contract |
+| HTTP MCP / server card parity | `cloudflare/pages/knowgrph-agent-ready.mjs` | metadata surfaces must stay contract-equal with the shared published seven-tool contract |
 
 ### MCP Apps Server-Readiness Owners
 
@@ -82,28 +85,44 @@ It answers five questions:
 |---|---|---|
 | Extension constants | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `io.modelcontextprotocol/ui`, `2026-01-26`, `text/html;profile=mcp-app`, and `ui://knowgrph/agent-ready` |
 | Server capability builder | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `buildKnowgrphMcpAppsCapabilities()` is reused by Pages HTTP MCP and local stdio MCP |
-| Tool metadata builder | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `buildKnowgrphMcpAppsToolMeta()` owns `_meta.ui.resourceUri` and app/model visibility |
-| Resource descriptor and read result | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | owns `resources/list` descriptor shape and `resources/read` HTML payload |
-| Resource HTML view | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | native inline HTML implements the MCP Apps host bridge and readiness view |
-| Pages resource route | `cloudflare/pages/knowgrph-agent-ready.mjs` | handles `resources/list`, `resources/read`, static app artifact, and `tools/call` text fallback plus structured content |
-| Local resource route | `mcp/server.js` | handles `ListResourcesRequestSchema` and `ReadResourceRequestSchema` for stdio clients |
+| Tool metadata builder | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `buildKnowgrphMcpAppsToolMeta()` owns `_meta.ui.resourceUri`, `_meta.securitySchemes`, `_meta["openai/outputTemplate"]`, `_meta["openai/widgetAccessible"]`, and app/model visibility |
+| Prompt contract builder | `canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs` | `buildKnowgrphAgentReadyPromptContracts()` and `getKnowgrphAgentReadyPrompt()` own prompt discovery and rendered prompt messages |
+| Resource-template contract builder | `canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs` | owns `kgdoc://source-file/{id}`, URI parsing/building, and Source Files markdown resource read payloads |
+| Resource descriptor and read result | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | owns `resources/list` descriptor shape, CSP/border/domain metadata, and `resources/read` HTML payload |
+| Resource HTML view | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | native inline HTML implements the OpenAI Apps `window.openai` bridge, the MCP Apps host bridge, and the readiness view |
+| Pages prompt/resource route | `cloudflare/pages/knowgrph-agent-ready.mjs` | handles `prompts/list`, `prompts/get`, `resources/templates/list`, `resources/list`, `resources/read`, static app artifact, and `tools/call` text fallback plus structured content |
+| Local prompt/resource route | `mcp/server.js` | handles `ListPromptsRequestSchema`, `GetPromptRequestSchema`, `ListResourcesRequestSchema`, `ListResourceTemplatesRequestSchema`, and `ReadResourceRequestSchema` for stdio clients |
 | Pages app tool | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | links `inspect_agent_surface` to the shared app resource and output schema |
 | Local app tool | `mcp/local-tool-contract.js` | links `knowgrph.vdeoxpln.list` to the shared app resource and output schema |
-| Server-readiness payload | `canvas/src/features/agent-ready/agentSurfaceInspection.mjs` | builds `mcpAppsServerReadiness` from current tools, resources, server card, base URL, and local stdio support |
-| Focused coverage | `canvas/src/__tests__/agentReadyHttpMcpParity.test.ts` + `canvas/src/__tests__/mcpLocalToolContract.test.ts` + `scripts/check-agent-ready.mjs` | checks resource linkage, MIME type, output schema, static artifact, and live readiness |
+| Server-readiness payload | `canvas/src/features/agent-ready/agentSurfaceInspection.mjs` | builds `mcpAppsServerReadiness` from current tools, resources, server card, `search`/`fetch` output-schema readiness, base URL, and local stdio support |
+| Focused coverage | `canvas/src/__tests__/agentReadyHttpMcpParity.test.ts` + `canvas/src/__tests__/mcpLocalToolContract.test.ts` + `scripts/check-agent-ready.mjs` | checks `search`/`fetch`, prompt discovery/rendering, resource-template discovery/read, resource linkage, OpenAI metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored security schemes, widget accessibility, MIME type, output schema, static artifact, full tool descriptor parity, and live readiness |
 
 ### Readiness Invariants
 
 - Browser WebMCP is already implemented and must not be described as future-only work.
-- Shipped readiness follows the current WebMCP guidance: tools expose `name`, `description`, `inputSchema`, and `execute`.
+- Shipped readiness follows the current WebMCP guidance: tools expose `name`, `description`, `inputSchema`, `outputSchema`, `securitySchemes`, annotations, `_meta`, and `execute` where the shared contract provides those fields.
 - Runtime installation occurs on page load, not after a user manually opens a separate MCP panel.
 - Lifecycle cleanup uses `AbortController` so tool registration can be released cleanly.
-- Shared deployed WebMCP stays on the published five-tool read-only contract.
+- Shared deployed WebMCP stays on the published seven-tool read-only contract.
 - Browser-local inspect tools remain app-runtime only unless a future shared contract explicitly promotes them.
+- Local SuperAgent execution remains CLI/local-stdio MCP only unless a future source-owned deployed route and live validation prove otherwise.
+- DeerFlow-inspired SuperAgent language is conceptual-reference-only; do not copy DeerFlow code, clone its architecture, or add DeerFlow-owned parser, renderer, memory, or graph-apply stacks.
+- Public retrieval and discovery tools stay read-only, non-destructive, non-open-world, and idempotent; browser-local inspectors stay read-only, non-destructive, non-open-world, and idempotent.
 - MCP Apps-ready resource delivery stays server-owned through `resources/list` and `resources/read`; do not inline app HTML in tool results as a second resource path.
+- MCP prompt delivery stays server-owned through `prompts/list` and `prompts/get`; prompts may guide hosts to call existing tools, but must not define a second execution path or mutate state.
+- Source Files resource-template delivery stays server-owned through `resources/templates/list`; `resources/read` for `kgdoc://source-file/{id}` must reuse the existing `fetch` executor and must not introduce a second storage reader.
 - The app resource URI stays `ui://knowgrph/agent-ready`; the HTML MIME type stays `text/html;profile=mcp-app`.
+- Shipped read-only tool descriptors declare no-auth `securitySchemes`; UI-linked tools mirror the same scheme in `_meta.securitySchemes` and set `_meta["openai/widgetAccessible"]` when the widget bridge can call tools.
+- Resource descriptors declare CSP/border metadata and derive the resource domain from the app URL origin when one is available.
+- App resource HTML must read OpenAI Apps `window.openai.toolInput` / `window.openai.toolOutput`, listen for `openai:set_globals`, and call `window.openai.callTool` when available while keeping the native `ui/initialize` bridge for MCP Apps extension hosts.
+- Qwen Code HTTP setup must stay server-owned in the shared server card and `mcpAppsServerReadiness.clients`: `qwen mcp add --transport http knowgrph https://airvio.co/knowgrph/mcp` and equivalent `mcpServers.knowgrph.httpUrl` point at the same Pages Streamable HTTP endpoint.
+- Kimi CLI HTTP setup must stay server-owned in the shared server card and `mcpAppsServerReadiness.clients`: `kimi mcp add --transport http knowgrph https://airvio.co/knowgrph/mcp` and equivalent `~/.kimi/mcp.json` `mcpServers.knowgrph.url` point at the same Pages Streamable HTTP endpoint.
+- BytePlus ModelArk Responses API setup must stay server-owned in the shared server card and `mcpAppsServerReadiness.clients`: `ark-beta-mcp: true` and `{ type: "mcp", server_label: "knowgrph", server_url: "https://airvio.co/knowgrph/mcp", require_approval: "never" }` point at the same Pages Streamable HTTP endpoint.
+- `search` and `fetch` are read-only Source Files retrieval tools with stable `kgdoc:` ids, result URLs, `search.ids`, and `fetch.content`/`fetch.text` payloads; `search` must use bounded content-aware markdown scoring through the same storage reader as `fetch`, and neither tool may become a graph mutation alias or schema-light alias without required output fields.
 - Tool results keep a text fallback and structured output so non-UI hosts and app-capable hosts share the same source payload.
-- `mcpAppsServerReadiness` is the canonical readiness payload; downstream pages or docs should not recalculate a second checklist.
+- Pages HTTP MCP keeps Streamable HTTP status behavior at the route owner: JSON-RPC requests use POST, JSON GET is metadata-only discovery, `Accept: text/event-stream` GET returns 405 while no SSE stream is implemented, and client notifications/responses return 202 with no body.
+- `mcpAppsServerReadiness` is the canonical readiness payload; downstream pages or docs should not recalculate a second checklist, and resource templates remain under the standard MCP `resources` capability rather than a custom capability.
+- Pages HTML fallback must not rebuild `mcpAppsServerReadiness`; it reads the same `inspect_agent_surface` structured content through `/knowgrph/mcp`.
 - The current implementation is native in-repo; upstream `modelcontextprotocol/ext-apps` is a reference, not source code to copy or vendor.
 
 ---
@@ -138,7 +157,7 @@ It answers five questions:
 
 | Stage | Owner | Notes |
 |---|---|---|
-| KGC recovery | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | strips wrappers and legacy grouping aliases upstream |
+| KGC recovery | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | strips wrappers and non-canonical grouping aliases before validation retry |
 | KGC validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | frontmatter-first and `flow.subgraphs` enforcement |
 | Validation snapshot publish | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | publishes retry, failed-rule, and validated-YAML readiness state for WebMCP inspection |
 | Finalize write | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | canonical workspace KGC persistence |
@@ -147,20 +166,8 @@ It answers five questions:
 | Finalize/apply snapshot publish | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | publishes persisted path and apply outcome for WebMCP inspection |
 | Graph apply action | `canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts` | canonical graph apply gateway |
 | Parse priority | `canvas/src/features/parsers/default.ts` | frontmatter-flow parser first |
-| Graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + helpers | edge/subgraph/cluster compose |
+| Graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + helpers | frontmatter-flow graph compose |
 | Group projection | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | subgraph metadata -> rendered groups and clusters |
-
----
-
-## Known Compatibility Seams
-
-These exist in code today but are not canonical architecture:
-
-- parser compatibility still recognizes legacy downstream grouping material such as `clusters` in `markdownFrontmatterFlowGraph.*`
-- chat recovery still strips `kg:subgraphs`, `clusters`, `groups`, and `layers` upstream before validation retry
-- `frontmatter:chatKnowgrphRelaxed` remains a downstream parser leniency seam and must not be treated as a second upstream authoring contract
-
-These seams are compatibility debt, not an approved authoring surface.
 
 ---
 
@@ -230,14 +237,14 @@ If a future remote MCP service is added, it must:
 
 ## Review Checklist
 
-- [x] Companion aligns with the main PRD/TAD `0.4.16`
+- [x] Companion aligns with the main PRD/TAD `0.4.21`
 - [x] Owner map points only to files that actually exist in the repo
 - [x] WebMCP readiness ownership is implementation-accurate
-- [x] MCP Apps-ready resource, capability, tool metadata, and server-readiness owners are documented
+- [x] MCP Apps-ready resource, resource-template, capability, tool metadata, and server-readiness owners are documented
 - [x] Shipped vs planned boundary is explicit
 - [x] E2E MainPanel -> FloatingPanel Chat -> KGC -> Canvas contract is documented
 - [x] Forbidden architecture list blocks stale/conflicting narratives
 
 ---
 
-*Document Version: 0.4.16 · Updated: 2026-05-31*
+*Document Version: 0.4.21 · Updated: 2026-06-04*

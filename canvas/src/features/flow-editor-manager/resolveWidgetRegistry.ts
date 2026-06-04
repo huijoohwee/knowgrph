@@ -148,7 +148,7 @@ export function hasWidgetRegistryHint(
   return Boolean(pickString(props[FLOW_WIDGET_TYPE_ID_KEY]) || pickString(props[FLOW_WIDGET_FORM_ID_KEY]))
 }
 
-export function resolveNodeWidgetIdentity(args: {
+export function resolveWidgetIdentity(args: {
   node: Pick<GraphNode, 'properties'> | null | undefined
   registryEntry?: Pick<WidgetRegistryEntry, 'widgetTypeId' | 'formId'> | null | undefined
 }): {
@@ -165,7 +165,7 @@ export function resolveNodeWidgetIdentity(args: {
 export function resolveExpectedFrontmatterWidgetFormId(
   node: Pick<GraphNode, 'id' | 'properties'> | null | undefined,
 ): string {
-  const widgetIdentity = resolveNodeWidgetIdentity({ node })
+  const widgetIdentity = resolveWidgetIdentity({ node })
   if (widgetIdentity.formId) return widgetIdentity.formId
   const nodeId = pickString(node?.id)
   return nodeId ? `fm:${nodeId}` : ''
@@ -235,7 +235,7 @@ export function listScopedWidgetRegistryEntries(args: {
   if (reg.length === 0) return []
   const candidatesAll = getRegistryIndex(reg).byNodeType.get(nodeType) || []
   if (candidatesAll.length === 0) return []
-  const widgetIdentity = resolveNodeWidgetIdentity({ node: args.node })
+  const widgetIdentity = resolveWidgetIdentity({ node: args.node })
   const isFrontmatterFlow =
     pickString(args.graphMetaKind) === 'frontmatter-flow'
     || (widgetIdentity.formId && widgetIdentity.formId.startsWith('fm:'))

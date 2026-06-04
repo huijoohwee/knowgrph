@@ -15,6 +15,8 @@
 
 **Directive**: DeerFlow configuration and runtime behavior must remain provider-neutral at the UI boundary. DeerFlow-specific transport is isolated to the existing gateway owners.
 
+**SuperAgent boundary**: DeerFlow may be referenced as conceptual inspiration for long-horizon harness primitives such as message gateway, memory, tools, skills, subagents, sandboxes, and minutes-to-hours runs. Knowgrph's native SuperAgent contract lives in `docs/documents/knowgrph-superagent-harness.md` and `knowgrph_parser/*`. Do not copy DeerFlow code, clone its architecture, or describe a DeerFlow MCP bridge, parser, renderer, memory stack, or graph apply path as implemented unless a source owner and focused tests exist.
+
 ---
 
 # Part I: Product Requirements Documentation (PRD)
@@ -31,6 +33,7 @@
 | Image/video runtime dispatch | `canvas/src/features/chat/richMediaRun.ts` | Shipped |
 | DeerFlow rich-media gateway adapter | `canvas/src/features/chat/deerflowRunGeneration.ts` | Shipped |
 | DeerFlow URL import | `canvas/src/features/markdown-workspace/workspaceImport/deerflowUrlImport.ts` | Shipped |
+| Native SuperAgent harness reference | `docs/documents/knowgrph-superagent-harness.md` | Source-owned local harness; DeerFlow is conceptual inspiration only |
 | Dev/Prod setup guidance | `docs/documents/knowgrph-deerflow/knowgrph-deerflow-setup-guide.md` | Active |
 
 ## Problem Statement
@@ -121,6 +124,7 @@ Acceptance:
 - Provider-specific Canvas renderer branches.
 - Hardcoded absolute fixture paths or local repo paths.
 - A separate DeerFlow graph parser.
+- A DeerFlow-copied SuperAgent architecture or duplicated Knowgrph harness stack.
 - Silent fallback from DeerFlow to another provider.
 - Unimplemented DeerFlow MCP bridge claims in the shipped baseline.
 

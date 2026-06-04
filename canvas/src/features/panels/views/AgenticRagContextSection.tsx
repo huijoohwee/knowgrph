@@ -79,7 +79,7 @@ function AgenticContextSummary({ agenticContext }: AgenticContextSummaryProps) {
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
   return (
-    <div
+    <section
       className={[
         `mt-2 mb-1 ${UI_THEME_TOKENS.text.tertiary}`,
         uiPanelKeyValueTextSizeClass,
@@ -101,7 +101,7 @@ function AgenticContextSummary({ agenticContext }: AgenticContextSummaryProps) {
           {AGENTIC_RAG_CONTEXT_URL}
         </span>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -148,7 +148,7 @@ export function AgenticRagIgnoreFiltersSummaryView({
   const resolvedText = ignoreFilters.resolvedPatterns.join(', ') || 'none'
 
   return (
-    <div className={containerClassName}>
+    <section className={containerClassName}>
       <span
         className={getPillClass('badge', {
           baseClass:
@@ -170,6 +170,6 @@ export function AgenticRagIgnoreFiltersSummaryView({
       <span className={`${uiPanelMonospaceTextClass} break-all`}>
         {resolvedText}
       </span>
-    </div>
+    </section>
   )
 }

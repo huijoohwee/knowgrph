@@ -49,20 +49,20 @@ export function AgenticRagNodeInspectorSection({
   const inspectorLabelClassName = UI_THEME_TOKENS.text.secondary
 
   return (
-    <div className={inspectorPanelClassName}>
-      <div className="flex items-center justify-between mb-1">
+    <section className={inspectorPanelClassName}>
+      <section className="flex items-center justify-between mb-1">
         <Tooltip
           content={ORCHESTRATOR_AGENTIC_COPY.nodeInspectorTooltip}
           maxWidthPx={260}
           contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
         >
-          <div className="flex items-center gap-1">
-            <div
+          <section className="flex items-center gap-1">
+            <section
               className={inspectorHeadingClassName}
             >
               {ORCHESTRATOR_AGENTIC_COPY.nodeInspectorTitle}
-            </div>
-          </div>
+            </section>
+          </section>
         </Tooltip>
         {selectedAgenticNode && (
           <button
@@ -79,30 +79,30 @@ export function AgenticRagNodeInspectorSection({
             {AGENTIC_RAG_NODE_JSON_COPY_LABEL}
           </button>
         )}
-      </div>
+      </section>
       {agenticCopyStatus && selectedAgenticNode && (
-        <div
+        <section
           className={`${inspectorMutedTextClassName} mb-1`}
         >
           {agenticCopyStatus}
-        </div>
+        </section>
       )}
       {!selectedAgenticNode && (
-        <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary} space-y-[2px]`}>
-          <div>
+        <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary} space-y-[2px]`}>
+          <section>
             {ORCHESTRATOR_AGENTIC_COPY.nodeInspectorEmptyIntro}
-          </div>
-          <div>
+          </section>
+          <section>
             {ORCHESTRATOR_AGENTIC_COPY.nodeInspectorEmptyExample}
-          </div>
-          <div>
+          </section>
+          <section>
             {ORCHESTRATOR_AGENTIC_COPY.nodeInspectorEmptyProvenance}
-          </div>
-        </div>
+          </section>
+        </section>
       )}
       {selectedAgenticNode && (
-        <div className={inspectorBodyClassName}>
-          <div className="grid grid-cols-2 gap-1">
+        <section className={inspectorBodyClassName}>
+          <section className="grid grid-cols-2 gap-1">
             <SimpleKeyValueRow
               density="compact"
               label={<span className={inspectorLabelClassName}>Id</span>}
@@ -119,8 +119,8 @@ export function AgenticRagNodeInspectorSection({
                 {selectedAgenticNode.labels.join(', ')}
               </span>
             </SimpleKeyValueRow>
-          </div>
-          <div className="grid grid-cols-2 gap-1">
+          </section>
+          <section className="grid grid-cols-2 gap-1">
             {selectedAgenticNode.chunkText && (
               <SimpleKeyValueRow
                 density="compact"
@@ -173,9 +173,9 @@ export function AgenticRagNodeInspectorSection({
                 </span>
               </SimpleKeyValueRow>
             )}
-          </div>
+          </section>
           {selectedAgenticNode.provenance && (
-            <div className="grid grid-cols-2 gap-1">
+            <section className="grid grid-cols-2 gap-1">
               {Object.entries(selectedAgenticNode.provenance).map(([key, value]) => {
                 return (
                   <SimpleKeyValueRow
@@ -194,9 +194,9 @@ export function AgenticRagNodeInspectorSection({
                   </SimpleKeyValueRow>
                 )
               })}
-            </div>
+            </section>
           )}
-          <div className="grid grid-cols-2 gap-1">
+          <section className="grid grid-cols-2 gap-1">
             {selectedAgenticNode.graphRAGPath && (
               <SimpleKeyValueRow
                 density="compact"
@@ -313,8 +313,8 @@ export function AgenticRagNodeInspectorSection({
                 )}
               </>
             )}
-          </div>
-          <div className="grid grid-cols-2 gap-1">
+          </section>
+          <section className="grid grid-cols-2 gap-1">
             <SimpleKeyValueRow
               density="compact"
               align="start"
@@ -354,9 +354,9 @@ export function AgenticRagNodeInspectorSection({
                 {AGENTIC_RAG_GRAPH_RAG_PATH_IRI}
               </span>
             </SimpleKeyValueRow>
-          </div>
-        </div>
+          </section>
+        </section>
       )}
-    </div>
+    </section>
   )
 }

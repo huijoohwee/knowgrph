@@ -60,7 +60,7 @@ const ensureChildContainerId = (containerEl: HTMLElement): string => {
   const existing = Array.from(containerEl.children).find((child): child is HTMLElement => child instanceof HTMLElement)
   if (existing && existing.id) return existing.id
   const id = `kg-grabmaps-${containerSeq += 1}`
-  const child = document.createElement('div')
+  const child = document.createElement('section')
   child.id = id
   child.style.width = '100%'
   child.style.height = '100%'

@@ -291,9 +291,20 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
     clearTimeout: typeof clearTimeout
   }
 
-  anyWindow.requestAnimationFrame = (cb: FrameRequestCallback) =>
-    setTimeout(() => cb(Date.now()), 0) as unknown as number
-  anyWindow.cancelAnimationFrame = (id: number) => clearTimeout(id as unknown as never)
+  const animationFrameTimeouts = new Set<ReturnType<typeof setTimeout>>()
+  anyWindow.requestAnimationFrame = (cb: FrameRequestCallback) => {
+    const timeout = setTimeout(() => {
+      animationFrameTimeouts.delete(timeout)
+      cb(Date.now())
+    }, 0)
+    animationFrameTimeouts.add(timeout)
+    return timeout as unknown as number
+  }
+  anyWindow.cancelAnimationFrame = (id: number) => {
+    const timeout = id as unknown as ReturnType<typeof setTimeout>
+    clearTimeout(timeout)
+    animationFrameTimeouts.delete(timeout)
+  }
 
   ;(g as unknown as { requestAnimationFrame: (cb: FrameRequestCallback) => number }).requestAnimationFrame =
     anyWindow.requestAnimationFrame.bind(dom.window)
@@ -306,6 +317,9 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   }
 
   const restore = () => {
+    for (const timeout of animationFrameTimeouts) clearTimeout(timeout)
+    animationFrameTimeouts.clear()
+
     if (typeof originalWindow === 'undefined') {
       delete (g as { window?: Window }).window
     } else {

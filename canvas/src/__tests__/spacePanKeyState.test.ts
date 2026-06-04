@@ -44,7 +44,7 @@ export const testSpacePanKeyStateTracksHeldSpace = () => {
   if (typeof keyup !== 'function') throw new Error('expected keyup listener installed')
 
   let prevented = 0
-  keydown({ code: 'Space', key: ' ', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'DIV' }, preventDefault: () => (prevented += 1) })
+  keydown({ code: 'Space', key: ' ', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'SECTION' }, preventDefault: () => (prevented += 1) })
   if (!isSpacePanHeld()) throw new Error('expected Space to be marked held after keydown')
   if (prevented !== 1) throw new Error('expected Space keydown to preventDefault')
 
@@ -53,12 +53,12 @@ export const testSpacePanKeyStateTracksHeldSpace = () => {
   focusin({ target: { tagName: 'INPUT' } })
   if (isSpacePanHeld()) throw new Error('expected Space to clear when focus enters input')
 
-  keyup({ code: 'Space', key: ' ', target: { tagName: 'DIV' } })
+  keyup({ code: 'Space', key: ' ', target: { tagName: 'SECTION' } })
   if (isSpacePanHeld()) throw new Error('expected Space to be released after keyup')
 
   keydown({ code: 'Space', key: ' ', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'INPUT' }, preventDefault: () => (prevented += 1) })
   if (isSpacePanHeld()) throw new Error('expected Space not to be held when typing in input')
 
-  keydown({ code: 'Space', key: ' ', metaKey: true, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'DIV' }, preventDefault: () => (prevented += 1) })
+  keydown({ code: 'Space', key: ' ', metaKey: true, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'SECTION' }, preventDefault: () => (prevented += 1) })
   if (isSpacePanHeld()) throw new Error('expected Space not to be held with meta modifier')
 }

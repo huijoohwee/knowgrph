@@ -7,7 +7,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   return (
     <section className={cn('p-4', UI_SURFACE_CARD)}>
       <h3 className="m-0 text-sm font-semibold">{title}</h3>
-      <div className="mt-3">{children}</div>
+      <section className="mt-3">{children}</section>
     </section>
   )
 }
@@ -90,12 +90,12 @@ export default function UtilitiesAndPatterns() {
                   <td className={cn(UI_TABLE.cell)}>{r.status}</td>
                   <td className={cn(UI_TABLE.cell)}>{r.tag}</td>
                   <td className={cn(UI_TABLE.cell)}>
-                    <div className="h-2 rounded bg-[var(--kg-divider)]">
-                      <div
+                    <section className="h-2 rounded bg-[var(--kg-divider)]">
+                      <section
                         className="h-2 rounded bg-[var(--kg-focus-ring)]"
                         style={{ width: `${Math.max(0, Math.min(100, r.progress))}%` }}
                       />
-                    </div>
+                    </section>
                   </td>
                 </tr>
               ))}

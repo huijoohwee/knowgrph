@@ -39,10 +39,10 @@ const MIROMIND_MCP_DOC_ROWS: ReadonlyArray<MiroMindMcpDocRow> = [
   {
     key: 'boundary',
     typeLabel: 'readiness',
-    value: 'mainpanel_mcp_boundary',
+    value: 'shared chat -> markdown YAML frontmatter -> canvas apply boundary',
     responsibility: 'Prevents a second E2E runtime contract and preserves upstream/downstream boundaries.',
-    notes: 'Do not treat provider-side MCP as authority for renderer, widget, grouping, or direct graph mutation behavior.',
-    searchHints: ['boundary', 'chat pipeline', 'markdown frontmatter', 'canvas'],
+    notes: 'Do not treat provider-side MCP as authority for renderer, widget, grouping, markdown YAML frontmatter, or direct graph mutation behavior.',
+    searchHints: ['boundary', 'chat pipeline', 'markdown YAML frontmatter', 'canvas'],
   },
   {
     key: 'docs_url',

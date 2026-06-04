@@ -24,7 +24,7 @@ const withRenderedMcpHub = async (assertions: (container: Element) => void): Pro
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(root, React.createElement(McpHubView), { window: dom.window, frames: 4 })

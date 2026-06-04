@@ -108,9 +108,10 @@ export class MarkdownGraphBuilder {
     code: string,
     meta: Record<string, unknown>,
     name?: string,
-    opts?: { scope?: 'frontmatter' | 'block' },
+    opts?: { scope?: 'frontmatter' | 'block'; diagramKind?: string },
   ) {
     const scope: 'frontmatter' | 'block' = opts?.scope === 'frontmatter' ? 'frontmatter' : 'block'
+    const diagramKind = String(opts?.diagramKind || '').trim()
     this.ensureNode({
       '@id': id,
       '@type': 'MermaidDiagram',
@@ -121,6 +122,7 @@ export class MarkdownGraphBuilder {
         code,
         format: 'graph',
         mermaidScope: scope,
+        ...(diagramKind ? { diagramKind } : {}),
         ...(scope === 'frontmatter' ? { isMermaidFrontmatter: true } : {}),
       },
       metadata: meta,

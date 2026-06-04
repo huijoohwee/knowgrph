@@ -5,14 +5,11 @@ import {
   CHAT_MIROMIND_MODEL_OPTIONS,
   CHAT_PROVIDER_MIROMIND,
 } from '@/lib/chatEndpoint'
-import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 
 export const MIROMIND_API_DOC_AREA = 'MiroMind API'
 export const MIROMIND_API_DOCS_URL = 'https://api.miromind.ai/v1/chat/completions'
 
-export function getMiroMindApiRowAnchorId(rowKey: string): string {
-  return buildSettingsRowAnchorId('miromind-chat-api-row', rowKey)
-}
+export { getMiroMindApiRowAnchorId } from './chatApiDocAnchors'
 
 const MIROMIND_TOOLTIP_ROLE = 'MiroMind API'
 
@@ -20,19 +17,24 @@ type MiroMindDocRow = {
   key: string
   typeLabel: string
   value?: string | number | boolean
+  options?: readonly string[]
   valueKey?: string
   responsibility: string
   notes?: string
   searchHints?: string[]
+  tooltipDefaultValue?: string | number | boolean | null
 }
 
 const toBaseType = (typeLabel: string): SettingMeta['type'] => {
   const normalized = String(typeLabel || '').trim().toLowerCase()
   if (normalized.includes('boolean')) return 'boolean'
   if (normalized.includes('integer') || normalized.includes('float') || normalized.includes('number')) return 'number'
-  if (normalized.includes('object') || normalized.includes('[]')) return 'json'
+  if (normalized.includes('object') || normalized.includes('[]') || normalized.includes('array')) return 'json'
   return 'string'
 }
+
+const CHAT_AUTH_MODE_OPTIONS = ['serverManaged', 'byok'] as const
+const MIROMIND_STREAMING_REASONING_OPTIONS = ['delta.reasoning_steps', 'delta.content', 'usage'] as const
 
 const MIROMIND_API_DOC_ROWS: ReadonlyArray<MiroMindDocRow> = [
   {
@@ -46,19 +48,24 @@ const MIROMIND_API_DOC_ROWS: ReadonlyArray<MiroMindDocRow> = [
   },
   {
     key: 'auth_mode',
-    typeLabel: 'string',
+    typeLabel: 'enum',
     valueKey: 'chatAuthMode',
+    value: 'serverManaged',
+    options: CHAT_AUTH_MODE_OPTIONS,
     responsibility: 'Shared auth mode for the upstream MiroMind API key.',
     notes: 'Prefer server-managed auth; BYOK stays session-only and never persists to localStorage.',
     searchHints: ['auth', 'byok', 'serverManaged'],
+    tooltipDefaultValue: 'serverManaged',
   },
   {
     key: 'api_key',
     typeLabel: 'string',
     valueKey: 'chatApiKey',
+    value: '',
     responsibility: 'Session-only BYOK field for MiroMind API access.',
     notes: 'Browser state must not persist the raw key.',
     searchHints: ['api key', 'bearer', 'MIROMIND_API_KEY'],
+    tooltipDefaultValue: '',
   },
   {
     key: 'endpoint_url',
@@ -70,19 +77,22 @@ const MIROMIND_API_DOC_ROWS: ReadonlyArray<MiroMindDocRow> = [
   },
   {
     key: 'model',
-    typeLabel: 'string',
+    typeLabel: 'enum',
     valueKey: 'chatModel',
     value: CHAT_MIROMIND_MODEL_OPTIONS[0],
+    options: CHAT_MIROMIND_MODEL_OPTIONS,
     responsibility: 'Model id for MiroMind deep-research chat completions.',
     searchHints: ['model', 'mirothinker-1-7-deepresearch-mini', 'mirothinker-1-7-deepresearch'],
+    tooltipDefaultValue: CHAT_MIROMIND_MODEL_OPTIONS[0],
   },
   {
     key: 'messages',
     typeLabel: 'array',
-    value: 'messages[]',
+    value: '[]',
     responsibility: 'States that MiroMind reuses the canonical Knowgrph chat request message assembly.',
     notes: 'No provider-specific prompt schema fork is allowed.',
     searchHints: ['messages', 'prompt contract', 'context pack'],
+    tooltipDefaultValue: '[]',
   },
   {
     key: 'stream',
@@ -104,18 +114,21 @@ const MIROMIND_API_DOC_ROWS: ReadonlyArray<MiroMindDocRow> = [
   {
     key: 'mcp_servers',
     typeLabel: 'array',
-    value: 'mcp_servers[]',
+    value: '[]',
     responsibility: 'Documents the optional provider request field without creating a second MainPanel-to-canvas pipeline.',
     notes: 'Treat as provider capability only; downstream ownership still stays chat -> markdown -> workspace -> canvas.',
     searchHints: ['mcp_servers', 'provider-side mcp', 'optional'],
+    tooltipDefaultValue: '[]',
   },
   {
     key: 'streaming.reasoning_steps',
-    typeLabel: 'streaming',
+    typeLabel: 'enum',
     value: 'delta.reasoning_steps',
+    options: MIROMIND_STREAMING_REASONING_OPTIONS,
     responsibility: 'Documents the additive SSE extensions that the shared raw stream parser can surface.',
     notes: 'Reasoning remains observational metadata and must not directly mutate the graph.',
     searchHints: ['reasoning_steps', 'reasoning_tokens', 'num_search_queries', 'usage'],
+    tooltipDefaultValue: 'delta.reasoning_steps',
   },
 ]
 
@@ -126,11 +139,13 @@ export const MIROMIND_API_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =
       type: toBaseType(row.typeLabel),
       source: row.valueKey ? 'localStorage' : 'backendEnv',
       read: () => row.value ?? 'MiroMind API setting',
+      ...(row.options ? { options: [...row.options] } : {}),
     },
     value: row.value ?? 'MiroMind API setting',
     valueKey: row.valueKey,
     typeLabel: row.typeLabel,
     tooltipRole: row.valueKey ? MIROMIND_TOOLTIP_ROLE : undefined,
+    tooltipDefaultValue: row.tooltipDefaultValue,
     searchHints: ['miromind api', row.key, ...(row.searchHints || [])],
     details: {
       area: MIROMIND_API_DOC_AREA,

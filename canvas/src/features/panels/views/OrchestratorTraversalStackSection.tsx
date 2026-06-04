@@ -157,19 +157,19 @@ export function OrchestratorTraversalSection({
           collapsed={presetsCollapsed}
           onToggle={setPresetsCollapsed}
         >
-          <div className={`mb-1 ${UI_THEME_TOKENS.text.secondary}`}>
+          <section className={`mb-1 ${UI_THEME_TOKENS.text.secondary}`}>
             {UI_COPY.orchestratorTraversalPresetsIntro(getOrchestratorSectionListLabel())}
-          </div>
+          </section>
           <Tooltip
             content={AGENTIC_REASONING_LABELS_TOOLTIP}
             maxWidthPx={260}
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
-            <div className={`mb-2 flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`}>
-              <div>
+            <section className={`mb-2 flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
                 {UI_COPY.orchestratorTraversalAgenticReasoningLabelsTitle}
-              </div>
-            </div>
+              </section>
+            </section>
           </Tooltip>
           <OrchestratorTraversalPresetsSection
             runGraphRagTraversal={presetsProps.runGraphRagTraversal}

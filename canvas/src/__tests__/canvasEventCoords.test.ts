@@ -56,7 +56,7 @@ export async function testCanvasEventCoordsIgnoresOffsetXYWhenTargetNotCanvas() 
     ;(canvas as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () =>
       ({ left: 50, top: 100, width: 200, height: 150, right: 250, bottom: 250 } as DOMRect)
 
-    const overlayEl = doc.createElement('div')
+    const overlayEl = doc.createElement('section')
     doc.body.appendChild(overlayEl)
 
     const p = readCanvasLocalPoint({

@@ -8,6 +8,8 @@ import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { MIROMIND_API_DOC_AREA } from './miromindApiDocs'
 import { AGNES_API_DOC_AREA } from './agnesApiDocs'
+import { QWEN_API_DOC_AREA } from './qwenApiDocs'
+import { GOOGLE_CLOUD_API_DOC_AREA } from './googleCloudApiDocs'
 import { STRIPE_PAYMENT_API_DOC_AREA } from './stripePaymentApiDocs'
 import {
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
@@ -27,6 +29,7 @@ import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsA
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
+import { OPENAI_MCP_DOC_AREA } from './openaiMcpApiDocs'
 import { EXA_MCP_DOC_AREA } from './exaMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
@@ -76,6 +79,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   MAPS_GRABMAPS_DOC_AREA,
   API_NATIVE_BROWSER_MCP_DOC_AREA,
   CRAWLER_ACCESS_MCP_DOC_AREA,
+  OPENAI_MCP_DOC_AREA,
   EXA_MCP_DOC_AREA,
   STRIPE_MCP_DOC_AREA,
   KNOWGRPH_VDEOXPLN_DOC_AREA,
@@ -99,6 +103,8 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   GEMINI_VIDEO_GENERATION_API_DOC_AREA,
   MIROMIND_API_DOC_AREA,
   AGNES_API_DOC_AREA,
+  QWEN_API_DOC_AREA,
+  GOOGLE_CLOUD_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
   OPENAI_IMAGES_API_DOC_AREA,
   DEERFLOW_API_DOC_AREA,
@@ -140,6 +146,8 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
     || area === MIROMIND_API_DOC_AREA
     || area === AGNES_API_DOC_AREA
+    || area === QWEN_API_DOC_AREA
+    || area === GOOGLE_CLOUD_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
     || area === OPENAI_IMAGES_API_DOC_AREA
     || area === DEERFLOW_API_DOC_AREA
@@ -173,6 +181,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === MAPS_GRABMAPS_MCP_DOC_AREA) return true
   if (area === API_NATIVE_BROWSER_MCP_DOC_AREA) return true
   if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
+  if (area === OPENAI_MCP_DOC_AREA) return true
   if (area === EXA_MCP_DOC_AREA) return true
   if (area === STRIPE_MCP_DOC_AREA) return true
   if (area === PIXVERSE_MCP_DOC_AREA) return true
@@ -203,9 +212,18 @@ export function buildDocMappedEntry(
   anchorId: string | undefined,
 ): SettingsEntry {
   const resolvedMeta = resolveDocMappedEntryMeta(entry)
-  const stateKey = entry.valueKey && SETTINGS_REGISTRY_BY_VALUE_KEY.has(entry.valueKey)
+  const hasRegistryValueKey = Boolean(entry.valueKey && SETTINGS_REGISTRY_BY_VALUE_KEY.has(entry.valueKey))
+  const stateKey = hasRegistryValueKey
     ? entry.valueKey
     : resolvedMeta.key
+  const rawDisplayValue = Object.prototype.hasOwnProperty.call(values, stateKey)
+    ? (values[stateKey] as string | number | boolean | undefined)
+    : undefined
+  const hasDisplayValue =
+    typeof rawDisplayValue === 'boolean'
+    || typeof rawDisplayValue === 'number'
+    || (typeof rawDisplayValue === 'string' && rawDisplayValue.trim().length > 0)
+  const valueDisplayOverride = hasDisplayValue ? rawDisplayValue : entry.value
   return {
     meta: entry.meta,
     details: entry.details,
@@ -215,17 +233,14 @@ export function buildDocMappedEntry(
         entry.details.area,
         entry.meta.key,
         entry.typeLabel,
-        String(values[stateKey] ?? ''),
+        typeof valueDisplayOverride === 'undefined' ? '' : String(valueDisplayOverride),
         entry.details.responsibility,
         ...(entry.searchHints || []),
       ].join(' '),
     ),
     typeLabel: entry.typeLabel,
     valueKey: stateKey,
-    valueDisplayOverride:
-      Object.prototype.hasOwnProperty.call(values, stateKey)
-        ? (values[stateKey] as string | number | boolean | undefined)
-        : entry.value,
+    valueDisplayOverride,
     valueType: resolvedMeta.type,
     valueOptions: resolvedMeta.options,
     tooltipRole: entry.tooltipRole,

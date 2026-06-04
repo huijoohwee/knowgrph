@@ -61,21 +61,21 @@ export default function DesignTokensPanel({ active }: { active: boolean }) {
   )
 
   if (!active) {
-    return <div className={cn('px-3 py-2 text-xs', UI_THEME_TOKENS.text.secondary)}>Tokens are available in Design renderer.</div>
+    return <section className={cn('px-3 py-2 text-xs', UI_THEME_TOKENS.text.secondary)}>Tokens are available in Design renderer.</section>
   }
 
   return (
-    <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, 'space-y-2 px-3 py-2', panelTypography.panelTextClass)} aria-label="Design Tokens" data-main-panel-no-drag="true">
-      <div className={cn('flex items-center justify-between gap-2', UI_THEME_TOKENS.text.tertiary)}>
+    <section className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, 'space-y-2 px-3 py-2', panelTypography.panelTextClass)} aria-label="Design Tokens" data-main-panel-no-drag="true">
+      <section className={cn('flex items-center justify-between gap-2', UI_THEME_TOKENS.text.tertiary)}>
         <span className="text-[10px] font-mono">{summary.nodeCount} nodes</span>
         <span className="min-w-0 truncate text-right font-mono text-[10px]" title={summary.semanticKey}>
           {summary.semanticKey ? summary.semanticKey.slice(0, 10) : 'empty'}
         </span>
-      </div>
+      </section>
       <TokenSection title="Colors" entries={summary.colorEntries} color />
       <TokenSection title="Typography" entries={summary.typographyEntries} />
       <TokenSection title="Spacing" entries={summary.spacingEntries} />
       <TokenSection title="Types" entries={summary.typeEntries} />
-    </div>
+    </section>
   )
 }

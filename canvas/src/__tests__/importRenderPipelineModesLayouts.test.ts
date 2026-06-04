@@ -616,6 +616,24 @@ export const testImportRenderPipelineRadialLayoutForces2d = () => {
   if (renderer !== 'd3') {
     throw new Error(`expected radial layout to force canvas2dRenderer=d3, got ${String(renderer)}`)
   }
+
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvasRenderMode('3d')
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  const flowEditorSchema = useGraphStore.getState().schema
+  useGraphStore.getState().setSchema({
+    ...flowEditorSchema,
+    layout: { ...(flowEditorSchema.layout || {}), mode: 'radial' as const },
+  })
+  const flowEditorMode = useGraphStore.getState().canvasRenderMode
+  if (flowEditorMode !== '2d') {
+    throw new Error(`expected radial layout to keep Flow Editor on the 2d canvas surface, got ${String(flowEditorMode)}`)
+  }
+  const flowEditorRenderer = useGraphStore.getState().canvas2dRenderer
+  if (flowEditorRenderer !== 'flowEditor') {
+    throw new Error(`expected radial layout to preserve Flow Editor renderer, got ${String(flowEditorRenderer)}`)
+  }
 }
 
 export const testImportRenderPipelineThreeFibSphereStable = () => {

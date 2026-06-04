@@ -33,7 +33,7 @@ function pendingGltfStub(args: { path: string; name: string; bytes: number }): s
 }
 
 export async function testMarkdownWorkspacePendingGltfJsonPaneLoadsOriginalJson() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const pendingPath = '/large-scene.gltf'
   try {
     const gltf = JSON.stringify({

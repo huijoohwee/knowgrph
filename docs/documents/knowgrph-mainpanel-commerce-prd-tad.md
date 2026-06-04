@@ -2,9 +2,9 @@
 title: "Knowgrph MainPanel Commerce - PRD & TAD"
 doc_type: "PRD+TAD"
 doc_id: "KGC-MP-COMMERCE-001"
-version: "1.0.2"
+version: "1.0.3"
 status: "Accepted and implemented"
-date: "2026-05-29"
+date: "2026-06-04"
 authors: ["airvio"]
 schema: "kgc-computing-flow/v1"
 lang: "en-US"
@@ -18,7 +18,7 @@ tags: ["mainpanel", "commerce", "payments", "agentic-commerce", "stripe", "web3"
 
 Accepted and implemented.
 
-This document defines the MainPanel Commerce surface for the implemented Agentic Commerce Protocol, Stripe delegate payment, Web3 settlement, OpenBOX governance, proof artifact, and trace artifact paths.
+This document defines the MainPanel Commerce surface for the implemented Agentic Commerce Protocol, hosted Stripe Checkout, Stripe delegate payment, Web3 settlement, OpenBOX governance, proof artifact, and trace artifact paths.
 
 ## Recommendation
 
@@ -77,7 +77,7 @@ As a Knowgrph operator, I want one Commerce tab in MainPanel so I can verify sel
 |---|---|---|
 | Overview | ACP seller config, worker route health, D1 readiness, deploy context | `grph-shared/src/payments/agenticCommerceSsot.ts`, payment Worker |
 | Sessions | Create/get/cancel/complete diagnostics and idempotency checks | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` |
-| Payments | Stripe delegate payment and server-managed key readiness | existing payments settings/docs owners |
+| Payments | Hosted Stripe Checkout, Stripe delegate payment, server-managed key readiness, and remote D1 payment schema readiness | existing payments settings/docs owners |
 | Web3 | Base RPC confirmation, deposit address, EAS attestation readiness | `agenticCommerceIntegrations.ts` |
 | Governance | OpenBOX risk API and proof ingest readiness | `agenticCommerceIntegrations.ts` |
 | Proofs | `harness-proof.json` and `trace.jsonl` inspection | `agenticCommercePersistence.ts`, artifact routes |
@@ -110,15 +110,25 @@ Commerce consumes route metadata from shared owners:
 | ACP config | `GET /.well-known/acp-config` | `AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig` |
 | UCP profile | `GET /.well-known/ucp` with required root `ucp` services, capabilities, payment handlers, and endpoints | `AGENTIC_COMMERCE_ROUTE_PATHS.ucpProfile` |
 | MPP OpenAPI | `GET /openapi.json` with `x-payment-info` | `AGENTIC_COMMERCE_ROUTE_PATHS.mppOpenApi` |
-| x402 API probes | `GET /api`, `GET /api/v1`, and `GET /api/payments/commerce/x402` return middleware-backed HTTP 402 | `AGENTIC_COMMERCE_X402_ROUTE_PATHS` |
+| x402 API probes | `GET /api`, `GET /api/v1`, and `GET /api/payments/commerce/x402` return middleware-backed HTTP 402 with an operator-owned `payTo` address | `AGENTIC_COMMERCE_X402_ROUTE_PATHS`, `X402_PAY_TO_ADDRESS`, `payment:x402:configure`, `payment:x402:readiness` |
 | Checkout sessions | `/checkout/sessions` and session item routes | `AGENTIC_COMMERCE_ROUTE_PATHS.checkoutSessions` |
+| Stripe Checkout status | Hosted Checkout status route, D1/live Stripe status refresh, and paid/no-payment-required unlock guard | `STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession`, payment Worker |
 | Stripe webhook settlement | Stripe webhook route and ACP settlement path | `STRIPE_PAYMENT_ROUTE_PATHS.webhook`, `AGENTIC_COMMERCE_ROUTE_PATHS.commerceWebhook` |
+| Stripe D1 migrations | Payment Worker D1 migration command for pending Stripe/ACP schema changes | `payment:d1:migrate:remote`, `STRIPE_PAYMENT_D1_MIGRATION_APPLY_COMMAND_TEMPLATE` |
+| Stripe readiness gate | Worker secret names, visible Worker vars including checkout mode and return origin, remote D1 payment tables, required webhook-processing columns, and bounded optional hosted Checkout create-and-expire smoke | `STRIPE_PAYMENT_READINESS_CHECK_SUMMARY`, `payment:stripe:readiness` |
+| Combined payment readiness | Final post-config payment readiness wrapper for Stripe plus x402 gates | `payment:readiness`, `payment:stripe:readiness`, `payment:x402:readiness` |
 | Web3 settlement | Web3 settlement route | `AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle` |
 | OpenBOX ingest | OpenBOX ingest route | `AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest` |
 | Proof artifact | Commerce proof artifact route | `AGENTIC_COMMERCE_ROUTE_PATHS.commerceProofArtifact` |
 | Trace artifact | Commerce trace artifact route | `AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact` |
 
 Do not duplicate route strings locally in the UI if a shared route helper exists.
+
+Production x402 readiness must reject the shared deterministic fallback `payTo`
+address. Use `payment:x402:configure -- --write-visible-vars --yes
+--confirm=apply-stripe-payment-worker-config` to write `X402_PAY_TO_ADDRESS`
+into `knowgrph-payment` Worker `[vars]`, then deploy before treating
+machine-native x402 payments as payable.
 
 For the MainPanel operator view, `buildAgenticCommerceMainPanelReadiness` derives
 `AGENTIC_COMMERCE_MAIN_PANEL_READINESS` from those route owners and the shared
@@ -137,6 +147,7 @@ browser-local agent inspection reads the same readiness snapshot instead of rebu
 | Keep entry tabs explicit | `localMainPanelChatCanvasPipelineInspection.ts` | MCP, Integrations, and Commerce are accepted as first-class E2E entry tabs; stale Payments tab state is rejected instead of compatibility-remapped. |
 | Reuse shared icon metadata | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Commerce icon metadata is added through the MainPanel icon SSOT. |
 | Guard against duplicate tabs | `canvas/src/__tests__/mainPanelCommerce.test.tsx` | Tests assert Commerce renders and Payments is not a top-level tab. |
+| Surface Stripe readiness gate | `stripePaymentApiDocs.ts`, `stripePaymentSsot.ts` | Commerce renders `stripeApi.worker.d1_migrations` and `stripeApi.worker.readiness_gate`, including Worker secrets, visible Worker vars, checkout mode and return origin not hidden as secrets, remote D1 payment tables, required webhook-processing columns, and bounded optional live Checkout create-and-expire smoke. |
 | Keep Dev -> Prod -> Cloudflare deploy path intact | `scripts/build-pages-functions-worker.mjs`, Pages sync/deploy scripts | Pages functions worker is built before deploy so commerce UI and API routes stay published together. |
 
 ## Validation Contract
@@ -144,6 +155,7 @@ browser-local agent inspection reads the same readiness snapshot instead of rebu
 | Gate | Command / Probe | Expected Result |
 |---|---|---|
 | MainPanel Commerce focused tests | `npm --prefix canvas run test:ci:unit -- "ui.mainPanel.commerce"` | Commerce tab exists, renders route readiness, and excludes top-level Payments. |
+| Stripe payment focused tests | `npm --prefix canvas run test:ci:unit -- "payments.stripe"` | Commerce Stripe rows, hosted Checkout, status refresh, config helper, readiness helper, and remote D1 table/column schema checks pass. |
 | MainPanel entry-tab inspector | `npm --prefix canvas run test:ci:unit -- "agentReady.localMainPanelChatCanvasPipeline"` | MCP, Integrations, and Commerce all pass the same E2E readiness fixture; stale Payments is reported as an issue. |
 | MainPanel hub regression | `npm --prefix canvas run test:ci:unit -- "ui.mainPanel.commerceHub"` | Commerce hub keeps shared MainPanel controls stable. |
 | WebMCP E2E readiness | `npm --prefix canvas run test:ci:unit -- "agentReady.webMcpRuntime.lateBinding.sameOriginStoragePaths"` | Browser-local pipeline inspection exposes Commerce readiness with the shared semantic key. |

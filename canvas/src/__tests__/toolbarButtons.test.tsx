@@ -8,7 +8,7 @@ const tick = async () => {
 }
 
 export async function testToolbarIconTooltipsDoNotInterceptClicks() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -49,7 +49,7 @@ export async function testToolbarIconTooltipsDoNotInterceptClicks() {
 }
 
 export async function testIconButtonStopsPropagation() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -59,7 +59,7 @@ export async function testIconButtonStopsPropagation() {
 
     const root = createRoot(container)
     root.render(
-      <div
+      <section
         onClick={() => {
           parentClicks += 1
         }}
@@ -73,7 +73,7 @@ export async function testIconButtonStopsPropagation() {
         >
           <span>Go</span>
         </IconButton>
-      </div>,
+      </section>,
     )
 
     await tick()

@@ -66,7 +66,7 @@ export default function CollapsibleSection({
   const contentId = id || `section-${generatedId}`
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         setCollapsed(!isCollapsed)
@@ -84,13 +84,13 @@ export default function CollapsibleSection({
   )
 
   return (
-    <div
+    <section
       className={clsx(
         flushTop ? 'mt-0 border-t-0 pt-0' : `mt-3 border-t ${UI_THEME_TOKENS.panel.border} pt-2`,
         className,
       )}
     >
-      <div
+      <section
         className={clsx(
           'flex min-w-0 max-w-full items-center justify-between gap-1 cursor-pointer select-none',
           uiSectionHeaderRowHeightClass,
@@ -106,8 +106,8 @@ export default function CollapsibleSection({
         onClick={() => setCollapsed(!isCollapsed)}
         onKeyDown={handleKeyDown}
       >
-        <div className={`min-w-0 flex-1 overflow-hidden ${KTV_SECTION_TITLE_CLASS_NAME}`}>{title}</div>
-        <div className={clsx(UI_RESPONSIVE_PANEL_HEADER_ACTIONS_CLASSNAME, 'flex shrink-0 flex-wrap items-center justify-end gap-1')}>
+        <section className={`min-w-0 flex-1 overflow-hidden ${KTV_SECTION_TITLE_CLASS_NAME}`}>{title}</section>
+        <section className={clsx(UI_RESPONSIVE_PANEL_HEADER_ACTIONS_CLASSNAME, 'flex shrink-0 flex-wrap items-center justify-end gap-1')}>
           {actions}
           <IconButton
             className="App-toolbar__btn flex items-center justify-center"
@@ -120,11 +120,11 @@ export default function CollapsibleSection({
           >
             {chevronIcon}
           </IconButton>
-        </div>
-      </div>
-      <div id={contentId} className={clsx(isCollapsed ? 'hidden' : 'block mt-2')}>
+        </section>
+      </section>
+      <section id={contentId} className={clsx(isCollapsed ? 'hidden' : 'block mt-2')}>
         {children}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

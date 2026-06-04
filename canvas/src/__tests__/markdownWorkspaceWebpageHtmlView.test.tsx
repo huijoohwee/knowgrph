@@ -30,7 +30,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
   try {
     state.setRichMediaPanelMode('embed')
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
@@ -143,7 +143,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
   try {
     state.setRichMediaPanelMode('embed')
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
@@ -268,7 +268,7 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
       throw new Error(`expected HTML editor workspace to mount direct proxy iframe without prefetching ${String(input || '')}`)
     }) as unknown
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
@@ -447,7 +447,7 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
   const { dom, restore } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 

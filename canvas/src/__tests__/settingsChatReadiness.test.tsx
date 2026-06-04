@@ -72,7 +72,7 @@ export async function testUseSettingsChatAssistPublishesLiveWebMcpReadinessState
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container)
 
@@ -93,12 +93,12 @@ export async function testUseSettingsChatAssistPublishesLiveWebMcpReadinessState
         values,
       })
       return (
-        <div>
-          <div data-row="provider">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.provider)}</div>
-          <div data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</div>
-          <div data-row="routing">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.routing)}</div>
-          <div data-row="model">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.model)}</div>
-        </div>
+        <section>
+          <section data-row="provider">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.provider)}</section>
+          <section data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</section>
+          <section data-row="routing">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.routing)}</section>
+          <section data-row="model">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.model)}</section>
+        </section>
       )
     }
 

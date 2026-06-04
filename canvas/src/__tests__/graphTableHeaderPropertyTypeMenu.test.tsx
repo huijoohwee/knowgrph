@@ -18,8 +18,8 @@ function Harness(props: {
   rows: GraphTableGridRow[]
   onColumnKindChanged: (columnId: string, nextKind: GraphColumnDoc['kind']) => void
 }) {
-  const viewportRef = React.useRef<HTMLDivElement | null>(null)
-  const headerScrollableContentRef = React.useRef<HTMLDivElement | null>(null)
+  const viewportRef = React.useRef<HTMLElement | null>(null)
+  const headerScrollableContentRef = React.useRef<HTMLElement | null>(null)
   const selectAllRef = React.useRef<HTMLInputElement | null>(null)
   const scrollRef = React.useRef({ left: 0, top: 0 })
   const reorderFromRef = React.useRef<string | null>(null)
@@ -43,8 +43,8 @@ function Harness(props: {
   })
 
   return (
-    <div>
-      <div
+    <section>
+      <section
         ref={viewportRef}
         style={{ position: 'relative', width: '640px', height: '240px', overflow: 'auto' }}
       />
@@ -68,14 +68,14 @@ function Harness(props: {
         onColumnWidthChanged={() => void 0}
         onColumnKindChanged={props.onColumnKindChanged}
       />
-    </div>
+    </section>
   )
 }
 
 export async function testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   container.id = 'root'
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)

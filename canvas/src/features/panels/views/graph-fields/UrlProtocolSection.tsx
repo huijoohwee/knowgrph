@@ -20,12 +20,12 @@ export function UrlProtocolSection({
   const setUrlProtocol = (urlProtocol: GraphFieldUrlProtocol) => updateSettings({ urlProtocol })
 
   return (
-    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-      <div className="flex items-center justify-between">
+    <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+      <section className="flex items-center justify-between">
         <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>Protocol</span>
         <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{selectedSettings.urlProtocol}</span>
-      </div>
-      <div className="mt-2 flex items-center gap-1">
+      </section>
+      <section className="mt-2 flex items-center gap-1">
         <button
           type="button"
           className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${selectedSettings.urlProtocol === 'any' ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -47,7 +47,7 @@ export function UrlProtocolSection({
         >
           HTTPS
         </button>
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

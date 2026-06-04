@@ -241,7 +241,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                 key={c.id}
                 className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
               >
-                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                <section className="flex min-w-0 items-center gap-2 overflow-hidden">
                   <ColumnHeaderPropertyTypeMenu
                     ariaLabel={`Column type: ${c.name}`}
                     label={c.name}
@@ -295,7 +295,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                       />
                     )}
                   />
-                </div>
+                </section>
               </th>
               )
             })}
@@ -366,11 +366,11 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           const chips = splitMultiValues(draft)
                           if (!chips.length) return <span className={UI_THEME_TOKENS.text.tertiary}>—</span>
                           return (
-                            <div className={`${uiToolbarRowScrollClassName} gap-1`}>
+                            <section className={`${uiToolbarRowScrollClassName} gap-1`}>
                               {chips.map(v => (
                                 <DataViewTagChip key={v} value={v} />
                               ))}
-                            </div>
+                            </section>
                           )
                         })()
                       ) : (
@@ -418,10 +418,10 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         />
                       </span>
                     ) : uiType === 'progress' && Number.isFinite(progressValue) ? (
-                      <div className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
+                      <section className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
                         <progress className={UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME} value={Math.max(0, Math.min(100, progressValue))} max={100} />
                         <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
-                      </div>
+                      </section>
                     ) : href ? (
                       <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, 'underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
                         {previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue}
@@ -429,11 +429,11 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                     ) : baseKind === 'select' && value ? (
                       <DataViewTagChip value={value} />
                     ) : baseKind === 'multi-select' && chips.length ? (
-                      <div className={`${uiToolbarRowScrollClassName} gap-1`}>
+                      <section className={`${uiToolbarRowScrollClassName} gap-1`}>
                         {chips.map(v => (
                           <DataViewTagChip key={v} value={v} />
                         ))}
-                      </div>
+                      </section>
                     ) : (
                       <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
                         {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}

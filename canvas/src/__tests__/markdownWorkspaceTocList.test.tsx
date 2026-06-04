@@ -6,7 +6,7 @@ import type { TocItem } from '@/features/markdown/ui/markdownSectionUtils'
 
 export async function testMarkdownWorkspaceTocListOwnsExplorerTocSectionBody() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
 

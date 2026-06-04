@@ -68,7 +68,7 @@ export async function testRichMediaPanelRendersSnapshotForNonDirectIframe() {
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -106,7 +106,7 @@ export async function testRichMediaPanelClickToOpenUsesBodyNotHeader() {
     }
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -141,7 +141,7 @@ export async function testRichMediaPanelImageRendersInlineWithoutBodyClickOverla
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -176,7 +176,7 @@ export async function testRichMediaPanelVideoRendersInlineWithoutBodyClickOverla
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -211,7 +211,7 @@ export async function testRichMediaPanelBodyPanStartsWithoutSelectionGate() {
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -262,7 +262,7 @@ export async function testRichMediaPanelHeaderDragIsScopedToChromeHeader() {
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -313,7 +313,7 @@ export async function testRichMediaPanelPlayableMediaDoesNotStartOverlayPan() {
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -357,7 +357,7 @@ export async function testRichMediaPanelDirectIframeAndVideoKeepPlayableSurfaceW
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -679,7 +679,7 @@ export async function testRichMediaPanelVideoBecomesVisibleOnLoadedMetadataWhenH
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -721,7 +721,7 @@ export async function testRichMediaPanelEmptyImageRendersPlaceholderInsteadOfBla
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -756,7 +756,7 @@ export async function testRichMediaPanelEmptyVideoRendersPlaceholderInsteadOfBla
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -791,7 +791,7 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -935,7 +935,7 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
       void 0
     }
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -997,7 +997,7 @@ export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
   try {
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)

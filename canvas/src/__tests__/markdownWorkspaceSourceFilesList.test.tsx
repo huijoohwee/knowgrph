@@ -6,7 +6,7 @@ import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 
 export async function testMarkdownWorkspaceSourceFilesListOwnsExplorerSourceFilesSectionBody() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const clicks: string[] = []

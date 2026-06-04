@@ -29,7 +29,6 @@ type UseSettingsRowBundlesArgs = {
   isCheckingDeerFlowHealth: boolean
   isCheckingGrabMapsHealth: boolean
   isCheckingHealth: boolean
-  isGeneratingStripeCheckout: boolean
   isUpdatingChatHistoryPath: boolean
   isUpdatingKnowgrphPath: boolean
   kgcLocalImportInputRef: React.RefObject<HTMLInputElement | null>
@@ -43,12 +42,9 @@ type UseSettingsRowBundlesArgs = {
   pushUiToast: SettingsRowActions['pushUiToast']
   renderInput: SettingsRowActions['renderInput']
   setChatHistoryPathStatus: React.Dispatch<React.SetStateAction<string | null>>
-  setIsGeneratingStripeCheckout: React.Dispatch<React.SetStateAction<boolean>>
   setKnowgrphPathStatus: React.Dispatch<React.SetStateAction<string | null>>
-  setStripeCheckoutStatus: React.Dispatch<React.SetStateAction<string | null>>
   setValues: React.Dispatch<React.SetStateAction<Record<string, string | number | boolean>>>
   settingsTypeIconSizeClass: string
-  stripeCheckoutStatus: string | null
   uiIconStrokeWidth: number
   uiPanelKeyValueTextSizeClass: string
 }
@@ -81,7 +77,6 @@ export function useSettingsRowBundles({
   isCheckingDeerFlowHealth,
   isCheckingGrabMapsHealth,
   isCheckingHealth,
-  isGeneratingStripeCheckout,
   isUpdatingChatHistoryPath,
   isUpdatingKnowgrphPath,
   kgcLocalImportInputRef,
@@ -95,12 +90,9 @@ export function useSettingsRowBundles({
   pushUiToast,
   renderInput,
   setChatHistoryPathStatus,
-  setIsGeneratingStripeCheckout,
   setKnowgrphPathStatus,
-  setStripeCheckoutStatus,
   setValues,
   settingsTypeIconSizeClass,
-  stripeCheckoutStatus,
   uiIconStrokeWidth,
   uiPanelKeyValueTextSizeClass,
 }: UseSettingsRowBundlesArgs) {
@@ -127,12 +119,10 @@ export function useSettingsRowBundles({
     isCheckingDeerFlowHealth,
     isCheckingGrabMapsHealth,
     isCheckingHealth,
-    isGeneratingStripeCheckout,
     isUpdatingChatHistoryPath,
     isUpdatingKnowgrphPath,
     knowgrphPathStatus,
     normalizedChatProvider,
-    stripeCheckoutStatus,
   }), [
     bytePlusHealthDetails,
     bytePlusHealthOk,
@@ -148,12 +138,10 @@ export function useSettingsRowBundles({
     isCheckingDeerFlowHealth,
     isCheckingGrabMapsHealth,
     isCheckingHealth,
-    isGeneratingStripeCheckout,
     isUpdatingChatHistoryPath,
     isUpdatingKnowgrphPath,
     knowgrphPathStatus,
     normalizedChatProvider,
-    stripeCheckoutStatus,
   ])
 
   const ui = React.useMemo<SettingsRowUi>(() => ({
@@ -180,9 +168,7 @@ export function useSettingsRowBundles({
     pushUiToast,
     renderInput,
     setChatHistoryPathStatus,
-    setIsGeneratingStripeCheckout,
     setKnowgrphPathStatus,
-    setStripeCheckoutStatus,
     setValues,
   }), [
     applyActiveWorkspaceFileAsChatHistory,
@@ -202,9 +188,7 @@ export function useSettingsRowBundles({
     pushUiToast,
     renderInput,
     setChatHistoryPathStatus,
-    setIsGeneratingStripeCheckout,
     setKnowgrphPathStatus,
-    setStripeCheckoutStatus,
     setValues,
   ])
 

@@ -5,7 +5,7 @@ import { ExplorerToolbarIconButton } from '@/features/markdown-workspace/Explore
 
 export async function testExplorerToolbarIconButtonUsesSharedButtonShell() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   let clicks = 0

@@ -68,8 +68,8 @@ export default function ZoomPanViewport({
   disablePan = false,
   lockViewportAtFitScale = false,
 }: ZoomPanViewportProps) {
-  const viewportRef = React.useRef<HTMLDivElement | null>(null)
-  const frameRef = React.useRef<HTMLDivElement | null>(null)
+  const viewportRef = React.useRef<HTMLElement | null>(null)
+  const frameRef = React.useRef<HTMLElement | null>(null)
   const dragRef = React.useRef<{ active: boolean; startX: number; startY: number; baseX: number; baseY: number } | null>(null)
   const applySchedulerRef = React.useRef(
     createRafValueScheduler((next: { zoom: number; pan: Pan }) => {
@@ -185,9 +185,9 @@ export default function ZoomPanViewport({
   }, [fitKey, fitOnOpen, fitToViewport, open])
 
   return (
-    <div className={`w-full h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>
+    <section className={`w-full h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>
       {showControls ? (
-        <div className={`${UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME} shrink-0 px-3 py-1 flex items-center justify-end gap-2 border-b ${UI_THEME_TOKENS.panel.divider} text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+        <section className={`${UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME} shrink-0 px-3 py-1 flex items-center justify-end gap-2 border-b ${UI_THEME_TOKENS.panel.divider} text-xs ${UI_THEME_TOKENS.text.secondary}`}>
           <button
             type="button"
             className={zoomControlButtonClassName}
@@ -218,9 +218,9 @@ export default function ZoomPanViewport({
           >
             Fit
           </button>
-        </div>
+        </section>
       ) : null}
-      <div
+      <section
         ref={viewportRef}
         data-kg-canvas-wheel-ignore="true"
         className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
@@ -287,9 +287,9 @@ export default function ZoomPanViewport({
           wheelActiveRef.current = false
         }}
       >
-        <div className="w-full h-full flex items-center justify-center">
-          <div style={{ padding: `${frameSize.pad}px` }}>
-            <div
+        <section className="w-full h-full flex items-center justify-center">
+          <section style={{ padding: `${frameSize.pad}px` }}>
+            <section
               ref={frameRef}
               className={['relative overflow-hidden', frameClassName || ''].filter(Boolean).join(' ')}
               style={{
@@ -298,25 +298,25 @@ export default function ZoomPanViewport({
                 touchAction: 'none',
               }}
             >
-              <div className="w-full h-full flex items-center justify-center">
-                <div
+              <section className="w-full h-full flex items-center justify-center">
+                <section
                   style={{
                     transform: `translate(${disablePan ? 0 : Math.round(pan.x)}px, ${disablePan ? 0 : Math.round(pan.y)}px) scale(${zoom})`,
                     transformOrigin: 'center center',
                   }}
                 >
                   {children}
-                </div>
-              </div>
+                </section>
+              </section>
               {showZoomIndicator ? (
-                <div className="absolute right-2 bottom-2 rounded bg-black/60 text-white text-[11px] px-1.5 py-0.5 pointer-events-none">
+                <section className="absolute right-2 bottom-2 rounded bg-black/60 text-white text-[11px] px-1.5 py-0.5 pointer-events-none">
                   {`${Math.round(zoom * 100)}%`}
-                </div>
+                </section>
               ) : null}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            </section>
+          </section>
+        </section>
+      </section>
+    </section>
   )
 }

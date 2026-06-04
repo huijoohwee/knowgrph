@@ -22,6 +22,9 @@ export function testResearchAgentPrdTadUsesImplementedDevSourceOwners(): void {
     'cloudflare/d1/migrations/0005_research_thesis.sql',
     'active_graph_mutated: false',
     'must not be presented as a live `airvio.co` capability',
+    'whose node/edge counts match the parsed frontmatter instead of fixture literals',
+    'agentReady.localMainPanelChatCanvasPipeline.renderedMcpResearchAgentDemoSuperAgentFlowEditor',
+    'agentReady.localMainPanelChatCanvasPipeline.researchAgentDemoSuperAgentFlowEditor',
   ]
   for (const token of requiredDocTokens) {
     if (!docs.includes(token)) {
@@ -46,6 +49,8 @@ export function testResearchAgentPrdTadUsesImplementedDevSourceOwners(): void {
     'data/seeds/',
     'data/skills/',
     'no native research-agent seeder',
+    'parses warning-clean to 22 nodes and 19 edges',
+    'parses warning-clean to 16 nodes and 13 edges',
   ]
   for (const token of forbiddenDocTokens) {
     if (docs.includes(token)) {

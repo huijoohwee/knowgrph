@@ -27,6 +27,30 @@ def build_agent_contracts(provider_mode: str = "mock") -> List[AgentContract]:
             "scene plan persisted",
         ),
         AgentContract(
+            "research_worker",
+            "Build a source-grounded research pack from the brief, frontmatter, and corpus evidence.",
+            ["research.scout"],
+            "run",
+            "research pack artifacts",
+            "research pack persisted",
+        ),
+        AgentContract(
+            "skill_curator",
+            "Select registry-backed capability lanes and frontmatter skill hints needed for the run.",
+            ["skill.select"],
+            "run",
+            "selected skill artifacts",
+            "skill manifest persisted",
+        ),
+        AgentContract(
+            "code_worker",
+            "Create deterministic code and execute it in a bounded local sandbox artifact directory.",
+            ["code.write_and_run"],
+            "run",
+            "code and sandbox proof artifacts",
+            "sandbox result persisted",
+        ),
+        AgentContract(
             "image_worker",
             "Generate or mock a reference image from the scene plan.",
             ["image.generate.mock"],
@@ -73,7 +97,10 @@ def build_plan(provider_mode: str = "mock") -> List[TaskSpec]:
     video_tool_name = resolve_video_tool_name(provider_mode)
     return [
         TaskSpec("inspect_goal", "Inspect goal, input brief, and tool capabilities", "planner", "workspace.inspect"),
-        TaskSpec("generate_text", "Generate text plan and media prompts", "text_worker", "text.generate.mock", ["inspect_goal"]),
+        TaskSpec("select_skills", "Select registry-backed skills and frontmatter hints for the run", "skill_curator", "skill.select", ["inspect_goal"]),
+        TaskSpec("research_goal", "Research the input brief and produce an evidence pack", "research_worker", "research.scout", ["inspect_goal", "select_skills"]),
+        TaskSpec("code_sandbox", "Create and execute bounded sandbox code", "code_worker", "code.write_and_run", ["inspect_goal", "select_skills", "research_goal"]),
+        TaskSpec("generate_text", "Generate text plan and media prompts", "text_worker", "text.generate.mock", ["inspect_goal", "select_skills", "research_goal", "code_sandbox"]),
         TaskSpec("generate_image", "Generate reference image", "image_worker", "image.generate.mock", ["generate_text"]),
         TaskSpec("generate_video", "Generate storyboard video", "video_worker", video_tool_name, ["generate_text", "generate_image"]),
         TaskSpec(
@@ -81,7 +108,7 @@ def build_plan(provider_mode: str = "mock") -> List[TaskSpec]:
             "Compose rich media canvas graph",
             "canvas_worker",
             "canvas.write",
-            ["inspect_goal", "generate_text", "generate_image", "generate_video"],
+            ["inspect_goal", "select_skills", "research_goal", "code_sandbox", "generate_text", "generate_image", "generate_video"],
         ),
         TaskSpec("verify_outputs", "Verify artifacts, trace, canvas, and neutrality posture", "verifier", "judge.verify", ["compose_canvas"]),
         TaskSpec("synthesize_report", "Export final run report", "synthesizer", "artifact.export_report", ["verify_outputs"], terminal=True),
@@ -108,7 +135,7 @@ def parse_goal_contract(goal_text: str) -> GoalSpec:
         if "stop" in lower or "terminate" in lower or "complete only when" in lower:
             stop_rules.append(item)
     return GoalSpec(
-        intent="Build and run a Codex-compatible super-agent harness for rich media canvas generation.",
+        intent="Build and run a Codex-compatible SuperAgent harness for research, code, and creation tasks with rich media canvas output.",
         constraints=constraints[:12],
         output_contract=output_contract[:12],
         quality_bar=quality_bar[:12],

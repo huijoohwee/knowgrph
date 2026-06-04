@@ -35,15 +35,15 @@ export default function KeywordEntitiesSection({
   return (
     <CollapsibleSection title={UI_COPY.statsKeywordNodesSectionTitle}>
       {keywordNodes.length === 0 ? (
-        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {UI_COPY.statsNoKeywordNodesLabel}
-        </div>
+        </section>
       ) : (
-        <div className={`mt-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-          <div className="flex items-center justify-between gap-3">
-            <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
+        <section className={`mt-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+          <section className="flex items-center justify-between gap-3">
+            <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
               {UI_COPY.statsKeywordNodesTitle}
-            </div>
+            </section>
             <button
               type="button"
               className={[
@@ -55,7 +55,7 @@ export default function KeywordEntitiesSection({
             >
               {chartCollapsed ? UI_COPY.statsShowChartLabel : UI_COPY.statsHideChartLabel}
             </button>
-          </div>
+          </section>
           {!chartCollapsed && (
             <AutoHeightMiniBarChart
               containerClassName="overflow-x-auto h-16 mt-2"
@@ -76,10 +76,10 @@ export default function KeywordEntitiesSection({
               })}
             />
           )}
-          <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1', UI_THEME_TOKENS.text.tertiary].join(' ')}>
+          <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1', UI_THEME_TOKENS.text.tertiary].join(' ')}>
             {UI_COPY.statsKeywordNodesBarHeightHint}
-          </div>
-        </div>
+          </section>
+        </section>
       )}
     </CollapsibleSection>
   )

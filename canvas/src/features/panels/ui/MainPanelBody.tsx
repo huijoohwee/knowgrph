@@ -3,7 +3,7 @@ import React from 'react';
 interface MainPanelBodyProps {
   header: React.ReactNode;
   children: React.ReactNode;
-  scrollRef?: React.Ref<HTMLDivElement>;
+  scrollRef?: React.Ref<HTMLElement>;
   scrollable?: boolean;
 }
 

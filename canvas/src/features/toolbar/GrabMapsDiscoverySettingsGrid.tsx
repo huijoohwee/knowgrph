@@ -26,12 +26,12 @@ export function GrabMapsDiscoverySettingsGrid(props: {
 }) {
   return (
     <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
-      <div className={`grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+      <section className={`grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
         <span>Key</span>
         <span>Type</span>
         <span>Value</span>
-      </div>
-      <div className="space-y-2">
+      </section>
+      <section className="space-y-2">
         {GRABMAPS_DISCOVERY_FIELD_META.map(field => {
           const settingKey = field.settingKey
           const spec = GRABMAPS_DISCOVERY_SETTING_SPECS[settingKey]
@@ -44,7 +44,7 @@ export function GrabMapsDiscoverySettingsGrid(props: {
             writeGrabMapsDiscoverySettingsValues(patched)
           }
           return (
-            <div key={field.propertyKey} className="grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 items-center">
+            <section key={field.propertyKey} className="grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 items-center">
               <span className={`${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} truncate`} title={settingKey}>
                 {settingKey}
               </span>
@@ -81,10 +81,10 @@ export function GrabMapsDiscoverySettingsGrid(props: {
                   className={`${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
                 />
               )}
-            </div>
+            </section>
           )
         })}
-      </div>
+      </section>
       {props.selectedNodeActive ? (
         <p className={`${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
           Selected widget local values override global discovery defaults at run time.

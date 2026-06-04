@@ -19,7 +19,7 @@ export function GraphTableFastGridHeader(props: {
   panelTextClass: string
   model: GraphTableGridModel
   viewportRef: React.RefObject<HTMLElement>
-  headerScrollableContentRef: React.MutableRefObject<HTMLDivElement | null>
+  headerScrollableContentRef: React.MutableRefObject<HTMLElement | null>
   selectAllRef: React.RefObject<HTMLInputElement>
   scrollRef: React.MutableRefObject<{ left: number; top: number }>
   reorderFromRef: React.MutableRefObject<string | null>
@@ -151,7 +151,7 @@ export function GraphTableFastGridHeader(props: {
         </section>
 
         <section className="h-full overflow-hidden" style={{ width: headerLayout.scrollableClipW }} aria-label="Scrollable columns">
-          <div
+          <section
             ref={el => {
               props.headerScrollableContentRef.current = el
             }}
@@ -345,7 +345,7 @@ export function GraphTableFastGridHeader(props: {
                       />
                     )}
                   />
-                  <div
+                  <section
                     data-kg-col-resize="true"
                     className="absolute right-0 top-0 h-full w-2 cursor-col-resize pointer-events-auto"
                     onPointerDown={e => {
@@ -358,7 +358,7 @@ export function GraphTableFastGridHeader(props: {
                 </section>
               )
             })}
-          </div>
+          </section>
         </section>
       </section>
     </section>

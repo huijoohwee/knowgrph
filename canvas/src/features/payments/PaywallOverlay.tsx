@@ -3,32 +3,75 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import {
+  buildStripeCheckoutReturnUrls,
+  createStripeHostedCheckoutSessionUrl,
+  redirectToStripeHostedCheckoutUrl,
+} from '@/features/payments/stripeCheckout'
+import {
   UI_RESPONSIVE_WIDE_DIALOG_MESSAGE_CLASSNAME,
   UI_RESPONSIVE_WIDE_DIALOG_PANEL_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 
 export function PaywallOverlay(props: { portalTarget: HTMLElement | null }) {
+  const [checkoutBusy, setCheckoutBusy] = React.useState(false)
+  const mountedRef = React.useRef(true)
   const paywallEnabled = useGraphStore(s => s.paymentsStripePaywallEnabled === true)
   const floatingPanelOpen = useGraphStore(s => s.floatingPanelOpen === true)
   const floatingPanelView = useGraphStore(s => s.floatingPanelView)
   const setPaywallEnabled = useGraphStore(s => s.setPaymentsStripePaywallEnabled)
-  const checkoutUrl = useGraphStore(s => String(s.paymentsStripeCheckoutUrl || '').trim())
+  const setCheckoutUrl = useGraphStore(s => s.setPaymentsStripeCheckoutUrl)
+  const pushUiToast = useGraphStore(s => s.pushUiToast)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMicroLabelTextSizeClass = useGraphStore(s => s.uiPanelMicroLabelTextSizeClass || 'text-xs')
+
+  React.useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   if (!paywallEnabled) return null
   if (!floatingPanelOpen) return null
   if (floatingPanelView !== 'chat') return null
 
-  const canLaunchCheckout = checkoutUrl.length > 0
   const checkoutUrlHint =
-    'In MainPanel → Payments → Stripe Payment API: use “Generate (secure)” to create a server-managed Checkout Session and fill stripeApi.checkout.session_url, then click Apply. Stripe returns the Session `url` for active hosted Checkout Sessions, and it can use checkout.stripe.com or your custom domain.'
-  const handleOpenCheckout = () => {
-    if (!canLaunchCheckout) return
+    'Open Checkout creates a server-managed Checkout Session through the payment Worker, then redirects this browser window to the hosted Stripe Checkout URL.'
+  const redirectToCheckoutUrl = (url: string) => {
     try {
-      window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
-    } catch {
-      void 0
+      redirectToStripeHostedCheckoutUrl(url)
+    } catch (error) {
+      pushUiToast({
+        id: 'stripe-checkout-redirect-failed',
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Stripe Checkout redirect failed.',
+        ttlMs: 10_000,
+      })
+    }
+  }
+  const handleOpenCheckout = async () => {
+    if (checkoutBusy) return
+    setCheckoutBusy(true)
+    setCheckoutUrl('')
+    try {
+      const returnUrls = buildStripeCheckoutReturnUrls()
+      const session = await createStripeHostedCheckoutSessionUrl(returnUrls)
+      setCheckoutUrl(session.url)
+      pushUiToast({
+        id: 'stripe-checkout-session-created',
+        kind: 'success',
+        message: 'Stripe Checkout Session created. Redirecting to hosted Checkout.',
+      })
+      redirectToCheckoutUrl(session.url)
+    } catch (error) {
+      pushUiToast({
+        id: 'stripe-checkout-session-create-failed',
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Stripe Checkout Session creation failed.',
+        ttlMs: 10_000,
+      })
+    } finally {
+      if (mountedRef.current) setCheckoutBusy(false)
     }
   }
 
@@ -45,21 +88,21 @@ export function PaywallOverlay(props: { portalTarget: HTMLElement | null }) {
         <header
           className={`flex items-center justify-between gap-3 px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
         >
-          <div className="min-w-0">
-            <div className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>Paywall</div>
-            <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+          <section className="min-w-0">
+            <section className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>Paywall</section>
+            <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
               Stripe Checkout gates Chat UI features.
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+            </section>
+          </section>
+          <section className="flex items-center gap-2">
             <button
               type="button"
               className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
               onClick={handleOpenCheckout}
-              disabled={!canLaunchCheckout}
-              title={canLaunchCheckout ? 'Open Stripe Checkout' : checkoutUrlHint}
+              disabled={checkoutBusy}
+              title={checkoutUrlHint}
             >
-              Open Checkout
+              {checkoutBusy ? 'Generating...' : 'Open Checkout'}
             </button>
             <button
               type="button"
@@ -68,20 +111,18 @@ export function PaywallOverlay(props: { portalTarget: HTMLElement | null }) {
             >
               Close
             </button>
-          </div>
+          </section>
         </header>
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
-            {canLaunchCheckout ? `Checkout URL: ${checkoutUrl}` : checkoutUrlHint}
-          </div>
-          <div className="flex-1 min-h-0 overflow-hidden flex items-center justify-center">
-            <div className={`${UI_RESPONSIVE_WIDE_DIALOG_MESSAGE_CLASSNAME} p-4 text-center ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
-              {canLaunchCheckout
-                ? 'Stripe Checkout is a hosted payment page. Use “Open Checkout” to launch the Checkout Session url in a new tab.'
-                : 'Stripe Checkout requires the Session `url` returned by Stripe for an active hosted Checkout Session to open the hosted page.'}
-            </div>
-          </div>
-        </div>
+        <section className="flex-1 min-h-0 flex flex-col">
+          <section className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
+            {checkoutBusy ? 'Creating a hosted Checkout Session.' : checkoutUrlHint}
+          </section>
+          <section className="flex-1 min-h-0 overflow-hidden flex items-center justify-center">
+            <section className={`${UI_RESPONSIVE_WIDE_DIALOG_MESSAGE_CLASSNAME} p-4 text-center ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
+              Stripe Checkout is generated fresh by the payment Worker and opened in this browser window.
+            </section>
+          </section>
+        </section>
       </section>
     </PreviewOverlay>
   )

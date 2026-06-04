@@ -2,9 +2,9 @@
 schema: kgc-computing-flow/v1
 doc_id: knowgrph-research-agent-prd-tad
 doc_type: prd-tad
-version: 0.4.1
+version: 0.4.2
 status: dev-source-implemented-no-deploy
-updated: 2026-06-03
+updated: 2026-06-04
 repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
 repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
 deploy_url: airvio.co/knowgrph
@@ -26,10 +26,17 @@ The implemented adjacent surfaces are:
 | KGC prompt and canvas apply contract | `docs/documents/knowgrph-llm-prompt-contract-prd-tad.md` |
 | Agent-ready WebMCP/runtime readiness | `docs/documents/knowgrph-agent-ready-prd-tad.md` |
 | DeerFlow local gateway provider | `docs/documents/knowgrph-deerflow/knowgrph-deerflow-prd-tad.md` |
+| Long-horizon SuperAgent harness | `docs/documents/knowgrph-superagent-harness.md` |
 | Research-thesis harness | `canvas/src/features/research-agent/researchThesisContract.ts` |
 | Research Worker source | `cloudflare/workers/knowgrph-research/index.ts` |
 
 Any future research-agent work must reuse those owners where behavior already exists. It must not introduce a competing graph schema, duplicate source-file ingestion path, local-only patch stack, or second chat-to-canvas application pipeline.
+
+The long-horizon harness may use [bytedance/deer-flow](https://github.com/bytedance/deer-flow)
+as conceptual inspiration for message gateway, memory, tools, skills, subagents,
+sandboxed workspace artifacts, and minutes-to-hours task handling. It must not
+copy Deer Flow code, clone Deer Flow architecture, or move research-agent graph
+mutation outside the review-first KGC apply owner.
 
 ## Implemented Dev-Source Baseline
 
@@ -40,7 +47,8 @@ Any future research-agent work must reuse those owners where behavior already ex
 | Evidence ledger | `canvas/src/features/research-agent/researchThesisContract.ts` | Ledger labels claims as `sourced`, `assumption`, `calculated`, `contradicted`, or `open_question`. |
 | Candidate graph delta | `canvas/src/features/research-agent/researchThesisContract.ts` | Candidate graph metadata sets `active_graph_mutated: false` and names the existing KGC apply owner. |
 | Review audit | `canvas/src/features/research-agent/researchThesisContract.ts` | Accepted and rejected candidate ids are recorded; only accepted candidates enter the staged accepted delta. |
-| Demo ingestion/parsing/rendering guard | Existing docs-mirror Source Files merge, Markdown frontmatter Flow parser, and Flow native scene builder | `researchAgent.demo.ingestParseRender` proves the publish-side research demo ingests as `workspace:/docs/knowgrph-research-agent-demo.md`, parses warning-clean to 13 nodes and 10 edges, preserves `deployed_api_claim: false`, and builds a Flow scene with 13 nodes and 10 edges. |
+| Long-horizon harness envelope | `docs/documents/knowgrph-superagent-harness.md` plus `knowgrph_parser/superagent_harness.py` | The research demo carries `superagent_harness_demo` metadata for research/code/create orchestration while the active graph remains staged until review. |
+| Demo ingestion/parsing/rendering guard | Existing docs-mirror Source Files merge, Markdown frontmatter Flow parser, Flow native scene builder, and MainPanel pipeline inspector | `researchAgent.demo.ingestParseRender` proves the publish-side research demo ingests as `workspace:/docs/knowgrph-research-agent-demo.md`, parses warning-clean, preserves `deployed_api_claim: false`, renders the shared MainPanel provider contract into the SuperAgent gateway, parses every runtime surface and subagent as typed Flow nodes/edges, and builds a Flow scene whose node/edge counts match the parsed frontmatter instead of fixture literals. `agentReady.localMainPanelChatCanvasPipeline.renderedMcpResearchAgentDemoSuperAgentFlowEditor` renders MainPanel MCP with configurable OpenAI MCP KTV rows and proves the same parsed demo reaches MCP -> FloatingPanel Chat -> Markdown frontmatter -> Flow Editor canvas topology with message gateway, sandbox, memory, tools, skills, and subagent nodes present in the active render graph; `agentReady.localMainPanelChatCanvasPipeline.researchAgentDemoSuperAgentFlowEditor` keeps the semantic MainPanel Integrations and MCP entry-tab contract dynamic across parsed node and edge counts. |
 | Optional Worker source | `cloudflare/workers/knowgrph-research/index.ts` | `researchThesisWorker.test.ts` covers compile/status/candidates/commit routes and queue message processing with an in-memory dev store. |
 | D1 run table | `cloudflare/d1/migrations/0005_research_thesis.sql` | Migration defines `research_thesis_runs` for manifest/spec/delta/audit rows. |
 
@@ -52,7 +60,7 @@ The Cloudflare route source exists in Dev but has not been deployed to Prod or C
 |------------|--------|----------|
 | Research seeding from external sources | Implemented as selected source refs in the headless harness | Reuses selected Source Files / queryable-corpus style refs; no second ingestion stack. |
 | Canvas-side reasoner suggestions | Implemented as a staged candidate graph delta | Candidate graph state is separate from active graph state until review. |
-| Session skill loop | Not implemented | No write path may create independent memory files without source-owner tests. |
+| Session skill loop | Implemented locally for the shared SuperAgent artifact loop; research-specific skill mutation remains gated | `knowgrph_parser` records role-scoped agent contracts, run memory, trace, and artifacts; no write path may create independent global memory files without source-owner tests. |
 | Scenario simulator | Not implemented | No simulator runtime or scenario-diff overlay is active. |
 | Cloudflare research Worker | Source implemented, not deployed | Worker routes and queue handler exist in Dev; no Cloudflare live-route claim until deploy validation exists. |
 
@@ -353,6 +361,26 @@ Caller -> [Validate source refs + prompt + budget]
        -> [Write cost log + artifacts]
        -> [Expose candidate graph delta]
 ```
+
+### Long-Horizon SuperAgent Extension Contract
+
+Research-agent runs may be embedded in the shared local SuperAgent envelope when
+the user asks for research, code, and creation work that spans minutes to hours.
+The envelope is metadata and orchestration glue, not a second graph pipeline:
+
+```text
+Message gateway -> [Run manifest + scoped agent contracts]
+                -> [Source scout / thesis compiler / code worker / artifact builder]
+                -> [Sandboxed workspace artifacts + trace memory]
+                -> [Text, Image, Chart, or code outputs through shared owners]
+                -> [Review gate]
+                -> [Existing KGC apply owner for accepted graph candidates only]
+```
+
+The envelope must stay source-owned, provider-neutral, review-first, and
+bounded. It may call local MCP or optional provider adapters through existing
+tool contracts, but it must not create a DeerFlow-only parser, renderer,
+memory directory, or graph apply path.
 
 **Bounds**:
 

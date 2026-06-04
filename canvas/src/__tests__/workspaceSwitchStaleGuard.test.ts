@@ -609,8 +609,10 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
     throw new Error('Expected closed toolbar dropdown effects not to re-clear expanded state on every parent option churn')
   }
   if (!dropdownText.includes('if (expandedOptionId !== null) setExpandedOptionId(null)')
-    || !dropdownText.includes('if (activeParentOptionId && expandedOptionId == null) setExpandedOptionId(activeParentOptionId)')) {
-    throw new Error('Expected toolbar dropdown expanded state writes to be guarded against closed-menu update loops')
+    || !dropdownText.includes('autoExpandedParentOptionIdRef')
+    || !dropdownText.includes('autoExpandedParentOptionIdRef.current !== activeParentOptionId')
+    || !dropdownText.includes('setExpandedOptionId(prev => (prev === option.id ? null : option.id))')) {
+    throw new Error('Expected toolbar dropdown expanded state writes to allow manual section collapse without closed-menu update loops')
   }
   if (editorPaneText.includes('const lineStarts = React.useMemo')) {
     throw new Error('Expected markdown editor pane not to scan full text for line starts during open render')

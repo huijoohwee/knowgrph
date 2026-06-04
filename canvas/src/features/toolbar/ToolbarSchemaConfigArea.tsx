@@ -42,10 +42,10 @@ export function ToolbarSchemaConfigArea({
   const neutralToolbarButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
   const primaryToolbarButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.primarySolid}`
   return (
-    <div className={uiToolbarAreaStackClassName}>
+    <section className={uiToolbarAreaStackClassName}>
       {isExportMenuOpen && (
-        <div className={uiToolbarAreaInsetStackClassName}>
-          <div className={uiToolbarAreaCompactActionRowClassName}>
+        <section className={uiToolbarAreaInsetStackClassName}>
+          <section className={uiToolbarAreaCompactActionRowClassName}>
             <button
               type="button"
               className={primaryToolbarButtonClassName}
@@ -106,8 +106,8 @@ export function ToolbarSchemaConfigArea({
             >
               Schema CSV
             </button>
-          </div>
-          <div className={uiToolbarAreaCompactActionRowClassName}>
+          </section>
+          <section className={uiToolbarAreaCompactActionRowClassName}>
             {onCopySchemaJsonLd && (
               <button
                 type="button"
@@ -142,12 +142,12 @@ export function ToolbarSchemaConfigArea({
                 Copy Schema JSON
               </button>
             )}
-          </div>
-        </div>
+          </section>
+        </section>
       )}
-      <div className={uiToolbarAreaActionRowClassName}>
+      <section className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.schemaConfigurator} ok={schemaOpOk} msg={schemaOpMsg || undefined} />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

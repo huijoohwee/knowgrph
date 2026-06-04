@@ -5,7 +5,7 @@ import { useMarkdownTocTreeState } from '@/features/markdown/ui/useMarkdownTocTr
 
 export async function testUseMarkdownTocTreeStateCentralizesGenericTocTreeInteractions() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const reorderCalls: Array<{ parentId: string | null; fromIndex: number; toIndex: number }> = []

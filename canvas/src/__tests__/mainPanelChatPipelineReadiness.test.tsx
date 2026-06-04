@@ -45,8 +45,8 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
     store.setChatStorageTarget('chatKnowgrph')
 
     const doc = dom.window.document
-    const mainPanelContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const mainPanelContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(mainPanelContainer)
     doc.body.appendChild(chatContainer)
     mainPanelRoot = createRoot(mainPanelContainer as unknown as HTMLElement)
@@ -70,10 +70,10 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
         values,
       })
       return (
-        <div>
-          <div data-row="provider">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.provider)}</div>
-          <div data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</div>
-        </div>
+        <section>
+          <section data-row="provider">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.provider)}</section>
+          <section data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</section>
+        </section>
       )
     }
 

@@ -124,7 +124,7 @@ export default function FloatingPanelChat() {
   const [streamingWorkspacePath, setStreamingWorkspacePath] = React.useState<string | null>(null)
 
   const abortRef = React.useRef<AbortController | null>(null)
-  const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const scrollRef = React.useRef<HTMLElement | null>(null)
   const scrollRafRef = React.useRef<number | null>(null)
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
   const streamFollowRef = React.useRef<{ path: string; atMs: number } | null>(null)
@@ -656,8 +656,8 @@ export default function FloatingPanelChat() {
   }, [handleSubmit, input, isLoading, parseDeerFlowIngestCommand, pushUiToast])
 
   return (
-    <div className="h-full flex flex-col">
-      <div ref={scrollRef} className={`${FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
+    <section className="h-full flex flex-col">
+      <section ref={scrollRef} className={`${FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
         <FloatingPanelChatMessagesSection
           messages={messages}
           isLoading={isLoading}
@@ -668,7 +668,7 @@ export default function FloatingPanelChat() {
           onOpenWorkspacePath={openWorkspaceMarkdownPath}
           setMessages={setMessages}
         />
-      </div>
+      </section>
 
       <FloatingPanelChatFooter
         input={input}
@@ -698,6 +698,6 @@ export default function FloatingPanelChat() {
         isNewChatDisabled={isLoading}
         onNewChat={handleNewChat}
       />
-    </div>
+    </section>
   )
 }

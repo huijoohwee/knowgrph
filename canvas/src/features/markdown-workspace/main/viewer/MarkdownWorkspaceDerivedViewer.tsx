@@ -96,7 +96,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   onRevealLineInEditor: (line: number) => void
   onInlineEditStateChange?: (active: boolean) => void
   onInlineDraftTextChange?: (nextText: string, options?: MarkdownInlineDraftTextChangeOptions) => void
-  onViewerRootRef: (el: HTMLDivElement | null) => void
+  onViewerRootRef: (el: HTMLElement | null) => void
 }) {
   const panelTypography = usePanelTypography()
   const jsonLikeMarkdownText = React.useMemo(() => {
@@ -642,25 +642,25 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         )
       }
       return (
-        <div
+        <section
           ref={props.onViewerRootRef}
           className={`h-full w-full overflow-auto ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} ${props.uiPanelMonospaceTextClass}`}
           aria-label="JSON viewer"
         >
           <pre className="m-0 p-3 text-[11px] leading-snug whitespace-pre-wrap break-words">{props.markdownText}</pre>
-        </div>
+        </section>
       )
     }
     if (props.viewerKind === 'html') {
       return (
-        <div ref={props.onViewerRootRef} className="h-full w-full">
+        <section ref={props.onViewerRootRef} className="h-full w-full">
           <React.Suspense fallback={null}>
             <MarkdownWorkspaceHtmlViewerPaneLazy
               markdownText={props.markdownText}
               title={props.title}
             />
           </React.Suspense>
-        </div>
+        </section>
       )
     }
     return (

@@ -47,6 +47,32 @@ const readTopologyGraph = (graphData: GraphData | null, graphDataRevision: numbe
   }) || graphData
 }
 
+const readGraphNodeIds = (graphData: GraphData | null): string[] => {
+  if (!graphData || !Array.isArray(graphData.nodes)) return []
+  const seen = new Set<string>()
+  const ids: string[] = []
+  for (const node of graphData.nodes) {
+    const id = normalizeString(node?.id)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    ids.push(id)
+  }
+  return ids
+}
+
+const readGraphEdgeIds = (graphData: GraphData | null): string[] => {
+  if (!graphData || !Array.isArray(graphData.edges)) return []
+  const seen = new Set<string>()
+  const ids: string[] = []
+  for (const edge of graphData.edges) {
+    const id = normalizeString(edge?.id)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    ids.push(id)
+  }
+  return ids
+}
+
 export const inspectLocalCanvasTopology = (args: LocalCanvasTopologyInspectionArgs) => {
   const graphData = args.graphData || null
   const documentName = normalizeString(args.markdownDocumentName)
@@ -128,6 +154,8 @@ export const inspectLocalCanvasTopology = (args: LocalCanvasTopologyInspectionAr
     selectedEdgeId,
     collapsedGroupCount: collapsedGroupIds.length,
     subgraphCount: readSubgraphs(renderTopologyGraph).length,
+    graphNodeIds: readGraphNodeIds(renderTopologyGraph),
+    graphEdgeIds: readGraphEdgeIds(renderTopologyGraph),
     graphTopology,
     message: documentSemanticMode === 'keyword'
       ? 'Keyword semantic mode currently reports baseline graph topology because the active keyword render graph is not bridged into WebMCP yet.'

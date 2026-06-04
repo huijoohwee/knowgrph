@@ -470,7 +470,7 @@ export async function buildHtmlViewerSnapshotDocument(args: BuildHtmlViewerSnaps
       const text = String(args.fallbackMarkdownText ?? '')
       if (!text.trim()) return null
       if (typeof document === 'undefined') return null
-      const host = document.createElement('div')
+      const host = document.createElement('section')
       host.setAttribute('data-kg-export-hidden-viewer-render', '1')
       host.style.position = 'fixed'
       host.style.left = '-10000px'

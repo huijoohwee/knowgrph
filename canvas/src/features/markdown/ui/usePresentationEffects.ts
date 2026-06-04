@@ -99,7 +99,7 @@ export function usePresentationEffects(props: UsePresentationEffectsProps) {
     }
   }, [onRegisterFullscreenHandler])
 
-  const previewOverlayContainerRef = React.useRef<HTMLDivElement>(null)
+  const previewOverlayContainerRef = React.useRef<HTMLElement>(null)
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return

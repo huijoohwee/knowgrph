@@ -158,14 +158,14 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
     <MainPanelSettingsPanelShell
       ariaLabel={MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}
       titleNode={(
-        <div className="flex min-w-0 max-w-full flex-col gap-1">
+        <section className="flex min-w-0 max-w-full flex-col gap-1">
           <h3 className={['text-base font-semibold min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
             {title}
           </h3>
           <p className={['text-xs min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>
             {props.contextLabel}
           </p>
-        </div>
+        </section>
       )}
       secondaryNode={(
         <ExpandCollapseAllButton
@@ -210,12 +210,12 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                 />
               </label>
 
-              <div>
-                <div className={['flex items-center gap-2 text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>
+              <section>
+                <section className={['flex items-center gap-2 text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>
                   <LayoutGrid className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                   <span>Layout</span>
-                </div>
-                <div className={`${uiToolbarRowScrollClassName} mt-2 gap-2`}>
+                </section>
+                <section className={`${uiToolbarRowScrollClassName} mt-2 gap-2`}>
                   {layoutModeOptions.map(mode => (
                     <LayoutChoice
                       key={mode}
@@ -242,16 +242,16 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                       props.onSelectGeospatialView?.()
                     }}
                   />
-                </div>
-              </div>
+                </section>
+              </section>
 
               <fieldset className={['rounded border p-3', UI_THEME_TOKENS.panel.border].join(' ')}>
                 <legend className={['px-1 text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
                   Multi-dimensional Table
                 </legend>
-                <div className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+                <section className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
                   Configure property mapping in Properties.
-                </div>
+                </section>
                 <label className="mt-3 flex min-w-0 max-w-full items-center gap-2" aria-label="Enable Multi-dimensional Table graph">
                   <input
                     type="checkbox"
@@ -326,9 +326,9 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
             headerClassName={VIEW_SECTION_HEADER_SPACING_CLASS_NAME}
           >
             <section aria-label="Group" className="space-y-2">
-              <div className={['text-sm font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>
+              <section className={['text-sm font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>
                 Group by
-              </div>
+              </section>
               <select
                 className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
                 value={props.viewConfig.groupByColumnId || ''}
@@ -345,9 +345,9 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                   </option>
                 ))}
               </select>
-              <div className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+              <section className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
                 Grouping is available for Select / Multi-select properties.
-              </div>
+              </section>
             </section>
           </CollapsibleSection>
 
@@ -360,12 +360,12 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
             headerClassName={VIEW_SECTION_HEADER_SPACING_CLASS_NAME}
           >
             <section aria-label="Reset" className="space-y-3">
-              <div className={['text-sm font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>
+              <section className={['text-sm font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>
                 Reset view state
-              </div>
-              <div className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+              </section>
+              <section className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
                 Clears local search, grouping, filters, sorting, and view state overrides for the active data view.
-              </div>
+              </section>
               <button
                 type="button"
                 className={['App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg].join(' ')}

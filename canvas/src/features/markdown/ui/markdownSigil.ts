@@ -85,7 +85,7 @@ export const rewriteSigilSpansToInlineCodeHtml = (html: string): string => {
   if (typeof DOMParser === 'undefined') return raw
   let doc: Document
   try {
-    doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+    doc = new DOMParser().parseFromString(`<section>${raw}</section>`, 'text/html')
   } catch {
     return raw
   }
@@ -136,7 +136,7 @@ export const rewriteInlineCodeSigilsToStyledSpansHtml = (html: string): string =
   if (typeof DOMParser === 'undefined') return raw
   let doc: Document
   try {
-    doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+    doc = new DOMParser().parseFromString(`<section>${raw}</section>`, 'text/html')
   } catch {
     return raw
   }
@@ -208,7 +208,7 @@ export const rewriteInlineCodeSigilsToPlainTextHtml = (html: string): string => 
   if (typeof DOMParser === 'undefined') return raw
   let doc: Document
   try {
-    doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+    doc = new DOMParser().parseFromString(`<section>${raw}</section>`, 'text/html')
   } catch {
     return raw
   }

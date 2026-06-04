@@ -4,10 +4,10 @@ graphId: md:knowgrph-stripe-mcp-service
 product: "Knowgrph Canvas"
 service_type: "AI-native MCP payment integration"
 doc_type: "PRD + TAD"
-version: "0.2.0"
+version: "0.2.1"
 owner: "joohwee"
 status: "accepted-implemented-baseline"
-date: "2026-05-29"
+date: "2026-06-04"
 license: "FOSS-compatible integration posture"
 tier: "free + pay-per-use + subscription"
 ai_model: "provider-swappable"
@@ -119,6 +119,8 @@ The official Stripe MCP server is the integration source of truth. Use the remot
 
 Stripe Projects can provision and sync local provider credentials, but production checkout still requires explicit Cloudflare Worker configuration. `stripe projects env --pull` writes local `.env` credentials; it does not write variables into `knowgrph-payment` or Cloudflare Pages.
 
+Agentic checkout remains a Commerce/payment Worker handoff, not a hidden MCP mutation. ACP session creators can request hosted Checkout during `POST /checkout/sessions` with `stripe_checkout { success_url, cancel_url, workspace_id }`, or call the hosted Checkout route with `agenticCommerceSessionId`, `expectedAmountTotal`, and `expectedCurrency`; `knowgrph-payment` maps both paths to Stripe `metadata[acp_session_id]`, `metadata[expected_amount_total]`, `metadata[expected_currency]`, `client_reference_id`, and `Idempotency-Key`, keeps workspace context in `metadata[workspace_id]`, rejects or expires hosted Checkout when Stripe totals diverge from ACP, expires hosted Sessions if Stripe audit or ACP persistence fails before the handoff is owned, and lets verified Stripe webhooks or the status-route live refresh settle only the matching fiat ACP session whose payment status, `metadata[acp_session_id]`, `client_reference_id`, amount, and currency still match D1.
+
 ---
 
 ## Flow Graph
@@ -216,6 +218,7 @@ Out of scope: creating live Stripe products, choosing actual prices, running pro
 | MainPanel MCP | Renders Stripe MCP configuration rows and agent-ready JSON | Non-secret settings only | Browser UI |
 | Stripe remote MCP | Official hosted MCP server | OAuth or bearer authorization | External service |
 | Local Stripe MCP | Local/server MCP process launched by an agent host | `STRIPE_SECRET_KEY` from environment | Local/server process |
+| Payment Worker Stripe Checkout | Hosted Checkout Session create/status/webhook routes | D1 Stripe sessions, ACP metadata, webhook settlement | Cloudflare Worker |
 | MainPanel Commerce | Checkout, entitlement, and reconciliation UX | Payment state and entitlement state | Product commerce surface |
 | Stripe Projects | Local project credential provisioning and sync | `.env` and `.projects/vault/` on developer machines | Local development, not production host |
 | `knowgrph-payment` Worker | Hosted Checkout Session creation, status reads, and webhook verification | Cloudflare Worker secrets and D1 checkout-session rows | `airvio.co/api/payments/*` |
@@ -337,13 +340,14 @@ Production checkout configuration belongs to the `knowgrph-payment` Worker:
 
 | Variable | Required For | Current context |
 |---|---|---|
-| `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY` | Stripe API authentication | `STRIPE_SECRET_KEY` is configured on `knowgrph-payment` as of 2026-05-19 |
-| `STRIPE_CHECKOUT_PRICE_ID` | Preferred server-owned checkout price authority | Pending unless configured in Cloudflare |
-| `STRIPE_CHECKOUT_CURRENCY` + `STRIPE_CHECKOUT_UNIT_AMOUNT` + `STRIPE_CHECKOUT_PRODUCT_NAME` | Inline price tuple fallback | Pending unless configured in Cloudflare |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook verification | Required before relying on webhook reconciliation |
-| `STRIPE_CHECKOUT_RETURN_ORIGIN` | Optional return-origin override | Optional |
+| `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY` | Stripe API authentication; Worker secret only, never visible Worker `[vars]` | `STRIPE_SECRET_KEY` is configured on `knowgrph-payment` as of 2026-06-04 |
+| `STRIPE_CHECKOUT_PRICE_ID` | Preferred non-secret Worker `[vars]` checkout price authority | Pending unless configured in Worker `[vars]` |
+| `STRIPE_CHECKOUT_CURRENCY` + `STRIPE_CHECKOUT_UNIT_AMOUNT` + `STRIPE_CHECKOUT_PRODUCT_NAME` | Non-secret Worker `[vars]` inline price tuple fallback | Pending unless configured in Worker `[vars]` |
+| `STRIPE_CHECKOUT_MODE` | Optional non-secret Worker `[vars]` checkout mode; defaults to one-time `payment`, or `subscription` with `STRIPE_CHECKOUT_PRICE_ID` | Optional |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook verification; Worker secret only, never visible Worker `[vars]` | Configured on `knowgrph-payment` as of 2026-06-04 |
+| `STRIPE_CHECKOUT_RETURN_ORIGIN` | Optional non-secret Worker `[vars]` return-origin override | Optional |
 
-Do not configure these as browser storage or rely on Cloudflare Pages project variables for the payment route. Pages variables are separate from the standalone `knowgrph-payment` Worker runtime.
+Do not configure these as browser storage or rely on Cloudflare Pages project variables for the payment route. Pages variables are separate from the standalone `knowgrph-payment` Worker runtime. Keep Stripe API credentials and webhook signing secret as Worker secrets, never visible Worker `[vars]`; keep checkout price authority, `STRIPE_CHECKOUT_MODE`, and `STRIPE_CHECKOUT_RETURN_ORIGIN` in Worker `[vars]`, not Worker secrets, so readiness can validate the exact Stripe price source, mode/price compatibility, and redirect authority. Checkout success URLs carry `session_id={CHECKOUT_SESSION_ID}` so post-redirect status lookup stays on the app-owned Worker route; the Worker retrieves Stripe live status only after it finds a locally-owned Checkout row, accepts only the canonical `session_id` query parameter, rejects unknown `session_id` values before Stripe is called, rejects legacy `id` aliases with 400, returns only minimal payment state to browser callers, and keeps customer identifiers, Stripe metadata, hosted Checkout URLs, and workspace ids in D1/server settlement paths. The Canvas return runtime unlocks only verified paid or no-payment-required sessions while cancelled/unpaid sessions stay locked. Use `npm run payment:stripe:configure` for an environment-driven dry run of the Worker secret names that would be applied; existing Worker secrets satisfy secret-input checks, so operators do not need to re-enter `STRIPE_SECRET_KEY` or `STRIPE_WEBHOOK_SECRET` when only checkout price authority is missing. Mutating Cloudflare secrets requires `-- --apply --yes --confirm=apply-stripe-payment-worker-config`, and writing visible checkout price authority to `wrangler.toml` requires `-- --write-visible-vars --yes --confirm=apply-stripe-payment-worker-config` followed by `payment:worker:deploy`, or explicit `--deploy-visible-vars --apply --yes --confirm=apply-stripe-payment-worker-config`, before live Checkout smoke. The helper rejects Stripe credential names in visible Worker `[vars]` and rejects `STRIPE_CHECKOUT_MODE` and `STRIPE_CHECKOUT_RETURN_ORIGIN` process input because both are non-secret Worker `[vars]` config. Use `npm run payment:d1:migrate:remote` to apply the Stripe webhook processing migration, including the `stripe_webhook_events.processed_at` nullable rebuild needed for in-flight webhook claims. Current remote D1 has no pending payment migrations as of 2026-06-04. Use `npm run payment:stripe:readiness` for a non-mutating Worker config/readiness gate that also verifies remote D1 payment tables and webhook-processing column constraints through Wrangler and fails if Stripe credentials appear in visible Worker `[vars]` or if checkout price authority, checkout mode, or return origin is hidden as a Worker secret; add `-- --live-checkout-create` only when an operator intentionally wants the Worker to create, persist, expire, and withhold the hosted URL for one hosted Checkout smoke Session.
 
 ### Quality Attributes
 

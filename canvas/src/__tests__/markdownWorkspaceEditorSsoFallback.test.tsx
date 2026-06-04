@@ -26,7 +26,7 @@ export async function testMarkdownWorkspaceEditorUsesGraphStoreFallbackWhenActiv
   storage.setItem(LS_KEYS.markdownLayoutMode, JSON.stringify('editor'))
   storage.setItem(LS_KEYS.markdownWorkspaceUserClearedAllFiles, 'true')
 
-  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const { restore: restoreWindow } = initWindowHarness({ storage })
   let root: ReturnType<typeof createRoot> | null = null
 
@@ -66,7 +66,7 @@ export async function testMarkdownWorkspaceImmediatelySyncsPlainDocumentOnFileSw
   storage.setItem(LS_KEYS.markdownLayoutMode, JSON.stringify('editor'))
   storage.setItem(LS_KEYS.markdownWorkspaceUserClearedAllFiles, 'true')
 
-  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const { restore: restoreWindow } = initWindowHarness({ storage })
   let root: ReturnType<typeof createRoot> | null = null
 

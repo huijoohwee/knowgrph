@@ -577,7 +577,7 @@ export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
     getCanvasViewRendererOptions(),
   )
   const titles = options.map(option => option.title)
-  const expected = ['2D Renderer', 'Layout Mode', 'Document Modes', 'Surface Mode', 'Animation Mode', 'Timeline', 'Display Controls']
+  const expected = ['2D Renderer', 'Layout Mode', 'Document Modes', 'Surface Mode', 'Animation Mode', 'Display Controls']
   if (titles.join('|') !== expected.join('|')) {
     throw new Error(`Expected Canvas View Mode grouped order ${expected.join(' > ')}, got ${titles.join(' > ')}`)
   }
@@ -607,17 +607,33 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     },
     getCanvasViewRendererOptions(),
   )
-  const timelineMenu = options.find(option => option.id === 'timeline:menu')
-  if (!timelineMenu?.children?.length) {
-    throw new Error('Expected Canvas View Mode to expose a shared Timeline menu')
+  const retiredTimelineMenuId = ['timeline', 'menu'].join(':')
+  if (options.some(option => String(option.id) === retiredTimelineMenuId)) {
+    throw new Error('Expected Canvas View Mode to avoid a standalone Timeline menu')
   }
-  const childIds = timelineMenu.children.map(child => child.id).join('|')
-  if (childIds !== 'timeline:on|timeline:off') {
-    throw new Error(`Expected Timeline menu to own On/Off children, got ${childIds}`)
+  const displayControls = options.find(option => option.id === 'control:menu')
+  const timelineToggle = displayControls?.children?.find(child => child.id === 'control:timeline')
+  const gridToggle = displayControls?.children?.find(child => child.id === 'control:grid')
+  if (!displayControls || !timelineToggle || !gridToggle) {
+    throw new Error('Expected Display Controls to own Grid and Timeline toggles')
+  }
+  const childIds = displayControls.children?.map(child => child.id).join('|')
+  if (childIds !== 'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:grid|control:timeline') {
+    throw new Error(`Expected Timeline to sit beside Grid in Display Controls, got ${childIds}`)
+  }
+  if (timelineToggle.children?.length) {
+    throw new Error('Expected Timeline to reuse Grid-style single toggle semantics, not On/Off submenu children')
+  }
+  if (timelineToggle.isActive !== true || gridToggle.isActive === true) {
+    throw new Error('Expected Timeline and Grid toggles to expose peer active states under Display Controls')
   }
   const calls: string[] = []
+  const unexpectedViewMutations: string[] = []
+  const markUnexpected = (name: string) => () => {
+    unexpectedViewMutations.push(name)
+  }
   applyCanvasViewSelection({
-    id: 'timeline:off',
+    id: 'control:timeline',
     ensureBaselineUnlocked: () => true,
     geospatialEnabled: false,
     onOpenGeospatialMode: () => {
@@ -632,22 +648,26 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     renderMediaAsNodes: false,
     timelineEnabled: true,
     schema: BLOCK_SCHEMA,
-    setCanvas2dRenderer: () => {},
-    setCanvasRenderMode: () => {},
-    setCanvas3dMode: () => {},
-    setSchema: () => {},
-    setRenderMediaAsNodes: () => {},
+    setCanvas2dRenderer: markUnexpected('setCanvas2dRenderer') as any,
+    setCanvasRenderMode: markUnexpected('setCanvasRenderMode') as any,
+    setCanvas3dMode: markUnexpected('setCanvas3dMode'),
+    setSchema: markUnexpected('setSchema') as any,
+    setBehavior: markUnexpected('setBehavior') as any,
+    setRenderMediaAsNodes: markUnexpected('setRenderMediaAsNodes'),
     setTimelineEnabled: enabled => calls.push(String(enabled)),
-    setDocumentSemanticMode: () => {},
-    setFrontmatterModeEnabled: () => {},
-    setMultiDimTableModeEnabled: () => {},
+    setDocumentSemanticMode: markUnexpected('setDocumentSemanticMode') as any,
+    setFrontmatterModeEnabled: markUnexpected('setFrontmatterModeEnabled'),
+    setMultiDimTableModeEnabled: markUnexpected('setMultiDimTableModeEnabled'),
   })
   if (calls.join('|') !== 'false') {
-    throw new Error(`Expected Timeline Off to toggle the shared bottom-panel setting, got ${calls.join('|')}`)
+    throw new Error(`Expected Timeline toggle to disable the shared bottom-panel setting, got ${calls.join('|')}`)
+  }
+  if (unexpectedViewMutations.length > 0) {
+    throw new Error(`Expected Timeline toggle not to mutate Canvas View Mode setters, got ${unexpectedViewMutations.join(', ')}`)
   }
   calls.length = 0
   applyCanvasViewSelection({
-    id: 'timeline:on',
+    id: 'control:timeline',
     ensureBaselineUnlocked: () => true,
     geospatialEnabled: false,
     onOpenGeospatialMode: () => {
@@ -673,7 +693,7 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     setMultiDimTableModeEnabled: () => {},
   })
   if (calls.join('|') !== 'true') {
-    throw new Error(`Expected Timeline On to enable the shared bottom-panel setting, got ${calls.join('|')}`)
+    throw new Error(`Expected Timeline toggle to enable the shared bottom-panel setting, got ${calls.join('|')}`)
   }
 }
 

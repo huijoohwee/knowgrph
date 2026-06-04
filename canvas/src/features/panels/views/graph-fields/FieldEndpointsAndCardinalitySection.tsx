@@ -86,24 +86,24 @@ export default function FieldEndpointsAndCardinalitySection({
   }, [hasOwner, ownerKey, schema, scope])
 
   return (
-    <div className={panelClassName}>
-      <div className={headingClassName}>
+    <section className={panelClassName}>
+      <section className={headingClassName}>
         {UI_COPY.endpointsAndCardinalityHeader}
-      </div>
+      </section>
 
       {!hasOwner ? (
-        <div className={helperTextClassName}>
+        <section className={helperTextClassName}>
           {UI_COPY.selectScopeToEditConstraints(scope)}
-        </div>
+        </section>
       ) : (
-        <div className="space-y-3">
+        <section className="space-y-3">
           {scope === 'edge' ? (
-            <div className="space-y-2">
-              <div className={sectionLabelClassName}>
+            <section className="space-y-2">
+              <section className={sectionLabelClassName}>
                 {UI_COPY.endpointMatrixHeader}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="min-w-0">
+              </section>
+              <section className="grid grid-cols-2 gap-2">
+                <section className="min-w-0">
                   <label className={fieldLabelClassName} htmlFor="graph-fields-endpoint-sources">
                     {UI_COPY.sourcesPlaceholder}
                   </label>
@@ -118,8 +118,8 @@ export default function FieldEndpointsAndCardinalitySection({
                     }}
                     className={textInputClassName}
                   />
-                </div>
-                <div className="min-w-0">
+                </section>
+                <section className="min-w-0">
                   <label className={fieldLabelClassName} htmlFor="graph-fields-endpoint-targets">
                     {UI_COPY.targetsPlaceholder}
                   </label>
@@ -134,18 +134,18 @@ export default function FieldEndpointsAndCardinalitySection({
                     }}
                     className={textInputClassName}
                   />
-                </div>
-              </div>
-            </div>
+                </section>
+              </section>
+            </section>
           ) : null}
 
           {scope === 'node' ? (
-            <div className="space-y-2">
-              <div className={sectionLabelClassName}>
+            <section className="space-y-2">
+              <section className={sectionLabelClassName}>
                 {UI_COPY.edgesPerNodeTypeHeader}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={ownerValueClassName}>{ownerKey}</div>
+              </section>
+              <section className="flex items-center gap-2">
+                <section className={ownerValueClassName}>{ownerKey}</section>
                 <input
                   type="number"
                   min={0}
@@ -168,15 +168,15 @@ export default function FieldEndpointsAndCardinalitySection({
                   }}
                   className={uiPanelKeyValueInputClass}
                 />
-              </div>
-            </div>
+              </section>
+            </section>
           ) : (
-            <div className="space-y-2">
-              <div className={sectionLabelClassName}>
+            <section className="space-y-2">
+              <section className={sectionLabelClassName}>
                 {UI_COPY.edgesPerLabelPerNodeHeader}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={ownerValueClassName}>{ownerKey}</div>
+              </section>
+              <section className="flex items-center gap-2">
+                <section className={ownerValueClassName}>{ownerKey}</section>
                 <input
                   type="number"
                   min={0}
@@ -188,11 +188,11 @@ export default function FieldEndpointsAndCardinalitySection({
                   }}
                   className={uiPanelKeyValueInputClass}
                 />
-              </div>
-            </div>
+              </section>
+            </section>
           )}
-        </div>
+        </section>
       )}
-    </div>
+    </section>
   )
 }

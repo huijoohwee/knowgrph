@@ -45,8 +45,8 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
     onValueChange,
   } = props
   return (
-    <div className={cn('timeline-transport-shell', shellClassName)} data-kg-timeline-transport="shared">
-      <div className="timeline-player">
+    <section className={cn('timeline-transport-shell', shellClassName)} data-kg-timeline-transport="shared">
+      <section className="timeline-player">
         <button
           type="button"
           className="play-control"
@@ -57,12 +57,12 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
         >
           {playing ? <Pause className="h-4 w-4" strokeWidth={2} aria-hidden={true} /> : <Play className="h-4 w-4" strokeWidth={2} aria-hidden={true} />}
         </button>
-        <div className="time">{currentLabel}</div>
-        <div className="rate-control">
+        <section className="time">{currentLabel}</section>
+        <section className="rate-control">
           <label className="sr-only" htmlFor="timeline-transport-playback-rate">
             Playback rate
           </label>
-          <div className="ant-select ant-select-sm ant-select-single ant-select-show-arrow" style={{ width: 90 }}>
+          <section className="ant-select ant-select-sm ant-select-single ant-select-show-arrow" style={{ width: 90 }}>
             <select
               id="timeline-transport-playback-rate"
               className="ant-select-selection-native"
@@ -78,18 +78,18 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
                 </option>
               ))}
             </select>
-            <div className="ant-select-selector">
+            <section className="ant-select-selector">
               <span className="ant-select-selection-item" title={`${playbackRate.toFixed(1)}x`}>
                 {playbackRate.toFixed(1)}x
               </span>
-            </div>
+            </section>
             <span className="ant-select-arrow" unselectable="on" aria-hidden="true">
               <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
             </span>
-          </div>
-        </div>
-      </div>
-      <div className={cn('timeline-player-range', rangeClassName)}>
+          </section>
+        </section>
+      </section>
+      <section className={cn('timeline-player-range', rangeClassName)}>
         <input
           aria-label={ariaLabel}
           className="timeline-player-range-input"
@@ -101,7 +101,7 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
           disabled={disabled}
           onChange={event => onValueChange(Number(event.target.value || 0))}
         />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

@@ -36,7 +36,7 @@ This maps to Knowgrph as:
 1. Flow Editor must not import, bundle, or depend on external flow-rendering libraries for computing-flow behavior.
 2. Flow Editor must render the same GraphData contract as Flow Canvas while keeping Flow Editor overlay/runtime state isolated from Flow Canvas view state.
 3. Computed data propagation must be owned by shared flow dataflow helpers, not by node overlay components.
-4. Node Quick Editor fields may display connected values, but field display must not recompute the graph or mutate upstream nodes.
+4. Flow Editor widget fields may display connected values, but field display must not recompute the graph or mutate upstream nodes.
 5. Runtime compute is enabled only through frontmatter flow settings and must remain bounded, cached, and deterministic.
 6. Branch-stop semantics must apply by value, not by node id, label, filename, or demo route.
 7. Repeated visible labels such as `Value` must not become repeated control identities: Field rows and port rows must derive DOM ids and accessible names from the row role, schema path, occurrence, and semantic port key while preserving the authored `portKey` used by edges.
@@ -54,7 +54,7 @@ A computing-flow demo should be authored as a neutral graph:
 - a branch node that writes to one of several output ports and leaves inactive ports empty,
 - sink/debug nodes that show propagated results.
 
-When several nodes expose a visible `Value` row, each row must still carry a distinct schema path and each handle must carry a distinct semantic port key for its role. The demo should prove that changing a source `Value` row through the Node Quick Editor updates downstream connected values without renderer-local state or filename-specific branching.
+When several nodes expose a visible `Value` row, each row must still carry a distinct schema path and each handle must carry a distinct semantic port key for its role. The demo should prove that changing a source `Value` row through the Flow Editor widget updates downstream connected values without renderer-local state or filename-specific branching.
 
 When a value is both editable and connectable, the demo should show the functional port on the editable KTV row itself. It should not create a second non-inline port row or depend on declaration-container names such as `handles.source` / `handles.target` as rendered handle keys.
 

@@ -15,7 +15,7 @@ const tick = async () => {
 export async function testDetailsMenuToggleGuardOnlyOpensFromToggleTarget() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   container.id = 'root'
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
@@ -77,7 +77,7 @@ export async function testDetailsMenuToggleGuardOnlyOpensFromToggleTarget() {
 export async function testTypeMenuClosesClosestDetailsWhenSelecting() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   container.id = 'root'
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)

@@ -32,42 +32,42 @@ export const DesignCanvasWebpageStatusPanel = React.memo(function DesignCanvasWe
   const { progress, message } = useWebpageStatusUi(webpageStatusStore)
   if (!active) return null
   return (
-    <div className={`pointer-events-none absolute left-3 top-3 z-50 ${UI_RESPONSIVE_CANVAS_STATUS_PANEL_CLASSNAME} rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-semibold">Webpage Wireframe</div>
-          {documentUrl ? <div className="truncate opacity-80">{documentUrl}</div> : <div className="opacity-80">No webpage URL found for this graph</div>}
+    <section className={`pointer-events-none absolute left-3 top-3 z-50 ${UI_RESPONSIVE_CANVAS_STATUS_PANEL_CLASSNAME} rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow`}>
+      <section className="flex items-center justify-between gap-3">
+        <section className="min-w-0">
+          <section className="font-semibold">Webpage Wireframe</section>
+          {documentUrl ? <section className="truncate opacity-80">{documentUrl}</section> : <section className="opacity-80">No webpage URL found for this graph</section>}
           {documentUrl ? (
-            <div className="mt-1 flex items-center gap-2 opacity-80">
-              <div>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</div>
+            <section className="mt-1 flex items-center gap-2 opacity-80">
+              <section>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</section>
               {webpageWorkspacePath ? (
-                <div className="flex gap-1">
+                <section className="flex gap-1">
                   <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs" onClick={onDecreaseFidelity}>
                     -
                   </button>
                   <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs" onClick={onIncreaseFidelity}>
                     +
                   </button>
-                </div>
+                </section>
               ) : null}
-            </div>
+            </section>
           ) : (
-            <div className="mt-2 opacity-70">Import a URL-based document or add kgWebpageUrl frontmatter.</div>
+            <section className="mt-2 opacity-70">Import a URL-based document or add kgWebpageUrl frontmatter.</section>
           )}
-        </div>
-        {webpageLayoutStatus === 'loading' ? <div className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(progress)))}%</div> : null}
-      </div>
+        </section>
+        {webpageLayoutStatus === 'loading' ? <section className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(progress)))}%</section> : null}
+      </section>
       {webpageLayoutStatus === 'loading' ? (
-        <div className="mt-2">
-          <div className="h-2 w-full overflow-hidden rounded bg-[var(--kg-border)]/40">
-            <div className="h-full bg-[var(--kg-canvas-accent)]" style={{ width: `${Math.max(0, Math.min(100, Math.floor(progress)))}%` }} />
-          </div>
-          {message ? <div className="mt-1 opacity-80">{message}</div> : null}
-        </div>
+        <section className="mt-2">
+          <section className="h-2 w-full overflow-hidden rounded bg-[var(--kg-border)]/40">
+            <section className="h-full bg-[var(--kg-canvas-accent)]" style={{ width: `${Math.max(0, Math.min(100, Math.floor(progress)))}%` }} />
+          </section>
+          {message ? <section className="mt-1 opacity-80">{message}</section> : null}
+        </section>
       ) : webpageLayoutStatus === 'error' ? (
-        <div className="mt-2">
-          <div className="text-[var(--kg-danger,#c0392b)]">{message || 'Export failed'}</div>
-          <div className="mt-2 flex gap-2">
+        <section className="mt-2">
+          <section className="text-[var(--kg-danger,#c0392b)]">{message || 'Export failed'}</section>
+          <section className="mt-2 flex gap-2">
             <button
               type="button"
               className="pointer-events-auto rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-2 py-1 text-xs"
@@ -75,11 +75,11 @@ export const DesignCanvasWebpageStatusPanel = React.memo(function DesignCanvasWe
             >
               Retry
             </button>
-          </div>
-        </div>
+          </section>
+        </section>
       ) : webpageLayoutStatus === 'ready' ? (
-        message ? <div className="mt-2 opacity-70">{message}</div> : null
+        message ? <section className="mt-2 opacity-70">{message}</section> : null
       ) : null}
-    </div>
+    </section>
   )
 })

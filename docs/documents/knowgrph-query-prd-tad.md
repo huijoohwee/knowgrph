@@ -58,6 +58,8 @@ The min-viable-max-value version finetunes the existing E2E pipeline rather than
 
 **Implementation note (2026-05-29)**: The Phase 1 through Phase 3 native slice is implemented through `canvas/src/features/queryable-corpus/`, existing workspace import owners, Source Files composition, and FloatingPanel Chat request construction. The implementation does not add a Graphify dependency, a separate graph database, a duplicate import bridge, or a standalone chat pipeline.
 
+**Long-horizon harness note (2026-06-04)**: The queryable corpus graph is a research/scout input for Knowgrph's native SuperAgent harness, not a separate harness memory store. SuperAgent runs must reuse the same source-unit, GraphData, citation, and chat-pack owners; DeerFlow-style long-horizon concepts are inspiration only and must not introduce copied graph extraction, parser, or query execution paths.
+
 ## Directive Commitments
 
 | Directive | Product rule | Technical rule |

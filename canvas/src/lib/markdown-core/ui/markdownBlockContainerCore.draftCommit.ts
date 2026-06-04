@@ -97,7 +97,7 @@ const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
   if (typeof DOMParser === 'undefined') return raw
   let doc: Document
   try {
-    doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+    doc = new DOMParser().parseFromString(`<section>${raw}</section>`, 'text/html')
   } catch {
     return raw
   }
@@ -372,7 +372,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       return String(plainDraft || '').replace(/\r/g, '').replace(/\n+$/g, '')
     }
     const result = await convertHtmlToMarkdownUnified({
-      html: `<div>${htmlForMarkdownConversion}</div>`,
+      html: `<section>${htmlForMarkdownConversion}</section>`,
       ...HTML_TO_MARKDOWN_UNIFIED_DEFAULTS,
     })
     if (!result.ok) return ''

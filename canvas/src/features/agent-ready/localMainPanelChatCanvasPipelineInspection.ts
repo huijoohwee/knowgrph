@@ -11,6 +11,17 @@ import { inspectLocalEditorWorkspaceState } from './localEditorWorkspaceStateIns
 import { inspectLocalMainPanelState } from './localMainPanelStateInspection'
 import { inspectLocalSettingsChatReadiness } from './localSettingsChatReadinessInspection'
 import { inspectLocalWorkspaceDocument } from './localWorkspaceDocumentInspection'
+import {
+  KNOWGRPH_AGENT_READY_MAIN_PANEL_ENTRY_TABS,
+  KNOWGRPH_SUPERAGENT_CANVAS_RENDERER,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS,
+  KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS,
+  KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS,
+  KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS,
+  KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES,
+  KNOWGRPH_SUPERAGENT_TASK_LEVELS,
+} from './mainPanelSuperAgentIntegrationContract'
 
 type LocalMainPanelChatCanvasPipelineInspectionArgs = {
   mainPanelSnapshot: (LocalMainPanelSurfaceSnapshot & { updatedAtMs?: number }) | null
@@ -34,7 +45,117 @@ type LocalMainPanelChatCanvasPipelineInspectionArgs = {
   selectedEdgeId?: unknown
 }
 
-const AGENT_READY_MAIN_PANEL_ENTRY_TABS = ['mcp', 'integrations', 'commerce']
+const normalizeString = (value: unknown): string => String(value || '').trim()
+const normalizeStringList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const entry of value) {
+    const normalized = normalizeString(entry)
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    out.push(normalized)
+  }
+  return out
+}
+const includesAll = (available: readonly string[], required: readonly string[]): boolean => {
+  const availableSet = new Set(available.map(value => normalizeString(value)))
+  return required.every(value => availableSet.has(normalizeString(value)))
+}
+
+const inspectDeclaredSuperAgentPipeline = (args: {
+  activeMainPanelTab: unknown
+  settingsChatReadiness: ReturnType<typeof inspectLocalSettingsChatReadiness>
+  workspaceDocument: ReturnType<typeof inspectLocalWorkspaceDocument>
+  canvasTopology: ReturnType<typeof inspectLocalCanvasTopology>
+}) => {
+  const mainPanelDemo = (args.workspaceDocument.mainPanelIntegrationsDemo || { present: false }) as {
+    present?: boolean
+    mainPanelEntries?: unknown
+    providerIds?: unknown
+    taskCapabilities?: unknown
+    taskLevels?: unknown
+    canvas2dRenderer?: unknown
+  }
+  const superAgentDemo = (args.workspaceDocument.superAgentHarnessDemo || { present: false }) as {
+    present?: boolean
+    taskCapabilities?: unknown
+    taskLevels?: unknown
+    runtimeSurfaces?: unknown
+  }
+  const declaredEntryTabs = normalizeStringList(mainPanelDemo.mainPanelEntries)
+  const requiredEntryTabs = declaredEntryTabs.length > 0
+    ? declaredEntryTabs
+    : [...KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS]
+  const activeEntryTab = normalizeString(args.activeMainPanelTab)
+  const declaredProviderIds = normalizeStringList(mainPanelDemo.providerIds)
+  const requiredProviderIds = declaredProviderIds.length > 0
+    ? declaredProviderIds
+    : [...KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS]
+  const availableProviderIds = normalizeStringList(args.settingsChatReadiness.providerCoverage?.availableProviderIds)
+  const entryTabReady = mainPanelDemo.present === true
+    ? Boolean(activeEntryTab) && requiredEntryTabs.includes(activeEntryTab)
+    : true
+  const providerCoverageReady = mainPanelDemo.present === true
+    ? includesAll(availableProviderIds, requiredProviderIds)
+    : true
+  const declaredCapabilities = normalizeStringList(superAgentDemo.taskCapabilities || mainPanelDemo.taskCapabilities)
+  const declaredLevels = normalizeStringList(superAgentDemo.taskLevels || mainPanelDemo.taskLevels)
+  const declaredRuntimeSurfaces = normalizeStringList(superAgentDemo.runtimeSurfaces)
+  const runtimeSurfacesReady = superAgentDemo.present === true
+    ? includesAll(declaredRuntimeSurfaces, [...KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS])
+    : true
+  const renderedNodeIds = normalizeStringList((args.canvasTopology as { graphNodeIds?: unknown }).graphNodeIds)
+  const runtimeSurfaceNodesReady = superAgentDemo.present === true
+    ? includesAll(renderedNodeIds, Object.values(KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS))
+    : true
+  const subagentNodesReady = superAgentDemo.present === true
+    ? includesAll(renderedNodeIds, Object.values(KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS))
+    : true
+  const taskCapabilitiesReady = superAgentDemo.present === true
+    ? includesAll(declaredCapabilities, [...KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES])
+    : true
+  const taskLevelsReady = superAgentDemo.present === true
+    ? includesAll(declaredLevels, [...KNOWGRPH_SUPERAGENT_TASK_LEVELS])
+    : true
+  const declaredRenderer = normalizeString(
+    mainPanelDemo.canvas2dRenderer
+    || args.workspaceDocument.frontmatterScalars?.kgCanvas2dRenderer,
+  )
+  const flowEditorRendererReady = declaredRenderer === KNOWGRPH_SUPERAGENT_CANVAS_RENDERER
+    ? args.canvasTopology.canvas2dRenderer === KNOWGRPH_SUPERAGENT_CANVAS_RENDERER
+    : true
+  const superAgentDemoReady =
+    (superAgentDemo.present !== true || (taskCapabilitiesReady && taskLevelsReady && runtimeSurfacesReady && runtimeSurfaceNodesReady && subagentNodesReady))
+    && (mainPanelDemo.present !== true || (entryTabReady && providerCoverageReady))
+    && flowEditorRendererReady
+
+  return {
+    declared: mainPanelDemo.present === true || superAgentDemo.present === true,
+    entryTabReady,
+    providerCoverageReady,
+    taskCapabilitiesReady,
+    taskLevelsReady,
+    runtimeSurfacesReady,
+    runtimeSurfaceNodesReady,
+    subagentNodesReady,
+    flowEditorRendererReady,
+    superAgentDemoReady,
+    requiredEntryTabs,
+    activeEntryTab: activeEntryTab || null,
+    requiredProviderIds,
+    availableProviderIds,
+    declaredTaskCapabilities: declaredCapabilities,
+    declaredTaskLevels: declaredLevels,
+    declaredRuntimeSurfaces,
+    requiredRuntimeSurfaceNodeIds: Object.values(KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS),
+    requiredSubagentNodeIds: Object.values(KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS),
+    renderedNodeIds,
+    declaredRenderer: declaredRenderer || null,
+    mainPanelDemo,
+    superAgentDemo,
+  }
+}
 
 const inspectLocalCommerceReadiness = (
   snapshot: (LocalCommerceReadinessSurfaceSnapshot & { updatedAtMs?: number }) | null,
@@ -68,11 +189,12 @@ const buildIssues = (args: {
   chatPipeline: ReturnType<typeof inspectLocalChatPipelineState>
   workspaceDocument: ReturnType<typeof inspectLocalWorkspaceDocument>
   canvasTopology: ReturnType<typeof inspectLocalCanvasTopology>
+  declaredSuperAgentPipeline: ReturnType<typeof inspectDeclaredSuperAgentPipeline>
 }): string[] => {
   const issues: string[] = []
   if (args.mainPanel.available !== true) {
     issues.push('MainPanel is not mounted in the local browser runtime.')
-  } else if (!AGENT_READY_MAIN_PANEL_ENTRY_TABS.includes(String(args.mainPanel.activeTab || ''))) {
+  } else if (!KNOWGRPH_AGENT_READY_MAIN_PANEL_ENTRY_TABS.includes(String(args.mainPanel.activeTab || '') as (typeof KNOWGRPH_AGENT_READY_MAIN_PANEL_ENTRY_TABS)[number])) {
     issues.push('MainPanel is mounted, but the active tab is not MCP, Integrations, or Commerce.')
   } else if (
     String(args.mainPanel.activeTab || '') === 'commerce'
@@ -132,6 +254,33 @@ const buildIssues = (args: {
     issues.push('The active canvas topology is available, but the render graph is empty.')
   }
 
+  if (args.declaredSuperAgentPipeline.declared === true) {
+    if (args.declaredSuperAgentPipeline.entryTabReady !== true) {
+      issues.push(`The active MainPanel entry tab is not declared for the SuperAgent demo: ${args.declaredSuperAgentPipeline.requiredEntryTabs.join(', ')}.`)
+    }
+    if (args.declaredSuperAgentPipeline.providerCoverageReady !== true) {
+      issues.push(`MainPanel Integrations provider coverage is incomplete for the declared SuperAgent demo: ${args.declaredSuperAgentPipeline.requiredProviderIds.join(', ')}.`)
+    }
+    if (args.declaredSuperAgentPipeline.taskCapabilitiesReady !== true) {
+      issues.push(`The active workspace document does not declare all SuperAgent task capabilities: ${KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES.join(', ')}.`)
+    }
+    if (args.declaredSuperAgentPipeline.taskLevelsReady !== true) {
+      issues.push(`The active workspace document does not declare all SuperAgent task levels: ${KNOWGRPH_SUPERAGENT_TASK_LEVELS.join(', ')}.`)
+    }
+    if (args.declaredSuperAgentPipeline.runtimeSurfacesReady !== true) {
+      issues.push(`The active workspace document does not declare all SuperAgent runtime surfaces: ${KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS.join(', ')}.`)
+    }
+    if (args.declaredSuperAgentPipeline.runtimeSurfaceNodesReady !== true) {
+      issues.push('The active Flow Editor graph does not render every declared SuperAgent runtime surface node.')
+    }
+    if (args.declaredSuperAgentPipeline.subagentNodesReady !== true) {
+      issues.push('The active Flow Editor graph does not render every declared SuperAgent subagent node.')
+    }
+    if (args.declaredSuperAgentPipeline.flowEditorRendererReady !== true) {
+      issues.push('The active workspace document declares Flow Editor rendering, but the active canvas topology is not using the Flow Editor renderer.')
+    }
+  }
+
   return issues
 }
 
@@ -163,6 +312,12 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
     selectedNodeId: args.selectedNodeId,
     selectedEdgeId: args.selectedEdgeId,
   })
+  const declaredSuperAgentPipeline = inspectDeclaredSuperAgentPipeline({
+    activeMainPanelTab: mainPanel.available === true ? mainPanel.activeTab : null,
+    settingsChatReadiness,
+    workspaceDocument,
+    canvasTopology,
+  })
 
   const issues = buildIssues({
     mainPanel,
@@ -172,6 +327,7 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
     chatPipeline,
     workspaceDocument,
     canvasTopology,
+    declaredSuperAgentPipeline,
   })
   const activeMainPanelTab = mainPanel.available === true ? String(mainPanel.activeTab || '') : ''
   const commerceReady =
@@ -206,7 +362,10 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
     editorWorkspace.available === true
     && editorWorkspace.workspaceViewMode === 'editor'
     && editorWorkspace.isMarkdown === true
-  const pipelineReady = routeReady && settingsReady && editorWorkspaceReady && chatReady && markdownFlowReady && canvasReady
+  const declaredSuperAgentReady =
+    declaredSuperAgentPipeline.declared !== true
+    || declaredSuperAgentPipeline.superAgentDemoReady === true
+  const pipelineReady = routeReady && settingsReady && editorWorkspaceReady && chatReady && markdownFlowReady && canvasReady && declaredSuperAgentReady
 
   return {
     available: mainPanel.available === true
@@ -238,6 +397,15 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
       chatReady,
       markdownFlowReady,
       canvasReady,
+      integrationProviderCoverageReady: declaredSuperAgentPipeline.providerCoverageReady,
+      superAgentEntryTabReady: declaredSuperAgentPipeline.entryTabReady,
+      superAgentTaskCapabilitiesReady: declaredSuperAgentPipeline.taskCapabilitiesReady,
+      superAgentTaskLevelsReady: declaredSuperAgentPipeline.taskLevelsReady,
+      superAgentRuntimeSurfacesReady: declaredSuperAgentPipeline.runtimeSurfacesReady,
+      superAgentRuntimeSurfaceNodesReady: declaredSuperAgentPipeline.runtimeSurfaceNodesReady,
+      superAgentSubagentNodesReady: declaredSuperAgentPipeline.subagentNodesReady,
+      flowEditorRendererReady: declaredSuperAgentPipeline.flowEditorRendererReady,
+      superAgentDemoReady: declaredSuperAgentPipeline.superAgentDemoReady,
     },
     entrySurfaces: {
       mcp: {
@@ -273,6 +441,7 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
       canvasSubgraphCount: canvasTopology.available === true ? canvasTopology.subgraphCount : null,
       collapsedGroupCount: canvasTopology.available === true ? canvasTopology.collapsedGroupCount : null,
     },
+    superAgentPipeline: declaredSuperAgentPipeline,
     issues,
     mainPanel,
     commerceReadiness,

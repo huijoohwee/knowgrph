@@ -7,7 +7,11 @@ import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersisten
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
-import { parseCanvasWorkspaceFrontmatterPreset, type CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import {
+  parseCanvasWorkspaceFrontmatterPreset,
+  preferCanonicalYamlFrontmatterFencedText,
+  type CanvasWorkspaceFrontmatterPreset,
+} from '@/lib/markdown/frontmatter'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
@@ -236,13 +240,18 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     text: string | null,
     opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean },
   ) => {
-    const nextText = String(text || '')
-    const shouldAutoEnableFrontmatter = opts?.autoEnableFrontmatter !== false
     const state = get()
+    const nextText = state.markdownDocumentName === name
+      ? preferCanonicalYamlFrontmatterFencedText({
+          candidateText: String(text || ''),
+          canonicalText: String(state.markdownDocumentText || ''),
+        })
+      : String(text || '')
+    const shouldAutoEnableFrontmatter = opts?.autoEnableFrontmatter !== false
     const requestedApplyViewPreset = typeof opts?.applyViewPreset === 'boolean' ? opts.applyViewPreset !== false : true
     const sameActiveDocumentText =
       state.markdownDocumentName === name &&
-      state.markdownDocumentText === text
+      state.markdownDocumentText === nextText
     const applyViewPreset =
       requestedApplyViewPreset === false &&
       sameActiveDocumentText &&
@@ -254,7 +263,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       containsFrontmatterMermaid(nextText)
     const documentSwitches =
       state.markdownDocumentName !== name ||
-      state.markdownDocumentText !== text ||
+      state.markdownDocumentText !== nextText ||
       state.markdownDocumentApplyViewPreset !== applyViewPreset
     if (
       !needsAutoEnable &&
@@ -267,14 +276,14 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
           transitionSemanticKey: buildMarkdownDocumentSwitchMutationSemanticKey({
             name,
-            text,
+            text: nextText,
             applyViewPreset,
           }),
         })
       : {}
     set({
       markdownDocumentName: name,
-      markdownDocumentText: text,
+      markdownDocumentText: nextText,
       markdownDocumentApplyViewPreset: applyViewPreset,
       markdownTokens: null, // Invalidate tokens
       markdownTokensPath: null,
@@ -291,6 +300,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     text: string
     sourceUrl?: string | null
     jsonSourceText?: string | null
+    canonicalMarkdownText?: string | null
     autoEnableFrontmatter?: boolean
     applyViewPreset?: boolean
     recent?: Omit<import('@/hooks/store/types').RecentFileEntry, 'id' | 'timestamp'> | null
@@ -302,7 +312,19 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     const name = String(args?.name || '').trim()
     if (!name) return false
     const rawText = String(args?.text || '')
-    const text = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
+    const normalizedText = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
+    const previousState = get()
+    const canonicalText = typeof args?.canonicalMarkdownText === 'string'
+      ? args.canonicalMarkdownText
+      : previousState.markdownDocumentName === name
+        ? String(previousState.markdownDocumentText || '')
+        : ''
+    const text = canonicalText
+      ? preferCanonicalYamlFrontmatterFencedText({
+          candidateText: normalizedText,
+          canonicalText,
+        })
+      : normalizedText
     const hasProvidedCanvasPreset = Object.prototype.hasOwnProperty.call(args || {}, 'canvasWorkspacePreset')
     const shouldApplyExplicitCanvasPreset = hasProvidedCanvasPreset && !!args.canvasWorkspacePreset
     const shouldResolveCanvasPreset =

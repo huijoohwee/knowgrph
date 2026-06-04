@@ -16,15 +16,18 @@ export type ShouldAllowPanDragForPointerEventArgs = {
   button: number
   shiftKey: boolean
   spacePanHeld: boolean
+  pointerMode2d?: string | null
 }
 
 export function shouldAllowPanDragForPointerEvent(args: ShouldAllowPanDragForPointerEventArgs): boolean {
+  const type = typeof args.eventType === 'string' ? args.eventType : ''
+  const isDown = type === 'pointerdown' || type === 'mousedown'
+  if (String(args.pointerMode2d || '') === 'pan' && isDown && args.button === 0) return true
+
   const impl = (controls as unknown as { shouldAllowPanDragForPointerEvent?: (a: ShouldAllowPanDragForPointerEventArgs) => boolean })
     .shouldAllowPanDragForPointerEvent
   if (typeof impl === 'function') return impl(args)
 
-  const type = typeof args.eventType === 'string' ? args.eventType : ''
-  const isDown = type === 'pointerdown' || type === 'mousedown'
   if (args.preset === 'map' && args.shiftKey === true && isDown && args.button === 0) return false
 
   return controls.shouldAllowPanDragForPreset({

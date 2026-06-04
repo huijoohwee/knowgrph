@@ -22,7 +22,7 @@
   - Canvas Interaction & Workspace Sync Modes (`canvas-interaction-workspace-sync-modes`)
   - Floating Panels (Tool Menu) (`floating-panels-tool-menu`)
   - MainPanel (Floating) (`mainpanel-floating`)
-  - Flow Editor (Node Quick Editor) (`flow-editor-node-quick-editor`)
+  - Flow Editor Widgets (`flow-editor-widgets`)
   - Geospatial Mode (Extracted) (`geospatial-mode-extracted`)
   - State-Sync + Scheduler Keys (`state-sync-scheduler-keys`)
 

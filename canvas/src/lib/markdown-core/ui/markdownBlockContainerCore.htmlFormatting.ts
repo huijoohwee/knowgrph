@@ -152,7 +152,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     expandSelectionToSemanticToken(root, sel)
     if (!sel || !hasExpandedSelectionInRoot({ root, selection: sel })) return
     const range = sel.getRangeAt(0)
-    const wrap = document.createElement('div')
+    const wrap = document.createElement('section')
     wrap.appendChild(range.cloneContents())
     const html = `${payload.leftHtml}${wrap.innerHTML}${payload.rightHtml}`
     try {

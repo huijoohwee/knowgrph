@@ -140,7 +140,7 @@ export async function printElementToPdf(
       void 0
     }
 
-    const root = document.createElement('div')
+    const root = document.createElement('main')
     root.id = printRootId
     root.style.position = 'fixed'
     root.style.inset = '0'

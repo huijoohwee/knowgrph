@@ -9,7 +9,10 @@ type RegisteredTool = {
   title?: string
   description?: string
   inputSchema?: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+  securitySchemes?: Array<Record<string, unknown>>
   annotations?: Record<string, unknown>
+  _meta?: Record<string, unknown>
   execute: (input?: Record<string, unknown>) => Promise<unknown>
 }
 
@@ -159,6 +162,21 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input)
       fetchCalls.push(url)
+      if (url.endsWith('/knowgrph/mcp')) {
+        const structuredContent = buildExpectedMockAgentSurfaceInspection('http://localhost/knowgrph')
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          result: {
+            content: [{ type: 'text', text: JSON.stringify(structuredContent, null, 2) }],
+            structuredContent,
+            isError: false,
+          },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
       return createMockResponse(url)
     }) as typeof fetch
 
@@ -221,8 +239,17 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
       if (JSON.stringify(registeredTool.inputSchema) !== JSON.stringify(contract.inputSchema)) {
         throw new Error(`expected injected HTML fallback inputSchema parity for ${contract.webName}`)
       }
+      if (JSON.stringify(registeredTool.outputSchema || null) !== JSON.stringify(contract.outputSchema || null)) {
+        throw new Error(`expected injected HTML fallback outputSchema parity for ${contract.webName}`)
+      }
+      if (JSON.stringify(registeredTool.securitySchemes || null) !== JSON.stringify(contract.securitySchemes || null)) {
+        throw new Error(`expected injected HTML fallback securitySchemes parity for ${contract.webName}`)
+      }
       if (JSON.stringify(registeredTool.annotations || null) !== JSON.stringify(contract.annotations || null)) {
         throw new Error(`expected injected HTML fallback annotations parity for ${contract.webName}`)
+      }
+      if (JSON.stringify(registeredTool._meta || null) !== JSON.stringify(contract._meta || null)) {
+        throw new Error(`expected injected HTML fallback _meta parity for ${contract.webName}`)
       }
     }
     for (const browserOnlyToolName of expectedBrowserOnlyToolNames) {
@@ -306,11 +333,13 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     if ((sharedStructure as { headingCount?: unknown }).headingCount !== 2) {
       throw new Error(`expected injected inspect_shared_document_structure to count markdown headings, got ${JSON.stringify(sharedStructure)}`)
     }
-    if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
-      throw new Error(`expected injected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)
+    if (!fetchCalls.some((url) => url.endsWith('/knowgrph/mcp'))) {
+      throw new Error(`expected injected inspect_agent_surface to use the Pages MCP route, got ${fetchCalls.join(', ')}`)
     }
-    if (!fetchCalls.some((url) => url.endsWith('/knowgrph/.well-known/agent-skills/index.json'))) {
-      throw new Error(`expected injected inspect_agent_surface to fetch the agent skills index, got ${fetchCalls.join(', ')}`)
+    const staleInspectionFetch = fetchCalls.find((url) =>
+      url.endsWith('/knowgrph/health') || url.endsWith('/knowgrph/.well-known/agent-skills/index.json'))
+    if (staleInspectionFetch) {
+      throw new Error(`expected injected inspect_agent_surface to avoid local readiness fanout, got ${fetchCalls.join(', ')}`)
     }
     const expectedInspection = buildExpectedMockAgentSurfaceInspection('http://localhost/knowgrph')
     if (JSON.stringify(inspection) !== JSON.stringify(expectedInspection)) {

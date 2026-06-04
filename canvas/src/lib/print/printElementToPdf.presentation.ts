@@ -16,7 +16,7 @@ export const markMarkdownDividerPageBreaks = (root: Element): void => {
       hr.setAttribute('data-kg-hr', '1')
       const next = hr.nextElementSibling as HTMLElement | null
       if (!next || next.getAttribute('data-kg-page-break') !== '1') {
-        const marker = document.createElement('div')
+        const marker = document.createElement('section')
         marker.setAttribute('data-kg-page-break', '1')
         hr.insertAdjacentElement('afterend', marker)
       }
@@ -129,7 +129,7 @@ export const materializePresentationPages = (root: HTMLElement): void => {
   const pages: HTMLElement[] = []
   for (let i = 0; i < sections.length; i += 1) {
     const section = sections[i]
-    const page = document.createElement('div')
+    const page = document.createElement('article')
     page.setAttribute('data-kg-presentation-page', '1')
     page.appendChild(section)
     pages.push(page)
@@ -178,7 +178,7 @@ export const flattenPresentationPagesToSlideSurfaces = (root: HTMLElement): void
     const frameContent = surface || section || article
     if (!frameContent) continue
     try {
-      const frame = document.createElement('div')
+      const frame = document.createElement('figure')
       frame.setAttribute('data-kg-presentation-page-frame', '1')
       frame.appendChild(frameContent)
       page.replaceChildren(frame)

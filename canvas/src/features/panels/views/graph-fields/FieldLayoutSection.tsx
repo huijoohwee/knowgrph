@@ -38,22 +38,22 @@ export default function FieldLayoutSection({
   const ownerValueClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_OWNER_VALUE_CLASSNAME} text-xs ${UI_THEME_TOKENS.text.secondary}`
 
   return (
-    <div className={panelClassName}>
-      <div className={headingClassName}>
+    <section className={panelClassName}>
+      <section className={headingClassName}>
         Layout
-      </div>
+      </section>
 
       {!hasOwner ? (
-        <div className={helperTextClassName}>
+        <section className={helperTextClassName}>
           Select a {scope === 'node' ? 'node type' : 'edge label'} to edit layout settings
-        </div>
+        </section>
       ) : scope === 'node' ? (
-        <div className="space-y-2">
-          <div className={labelClassName}>
+        <section className="space-y-2">
+          <section className={labelClassName}>
             Collision radius
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={ownerValueClassName}>{ownerKey}</div>
+          </section>
+          <section className="flex items-center gap-2">
+            <section className={ownerValueClassName}>{ownerKey}</section>
             <input
               type="number"
               min={0}
@@ -63,15 +63,15 @@ export default function FieldLayoutSection({
               onChange={e => setCollisionByType(ownerKey, parseInt(e.target.value || '0', 10))}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
-        </div>
+          </section>
+        </section>
       ) : (
-        <div className="space-y-2">
-          <div className={labelClassName}>
+        <section className="space-y-2">
+          <section className={labelClassName}>
             Link distance
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={ownerValueClassName}>{ownerKey}</div>
+          </section>
+          <section className="flex items-center gap-2">
+            <section className={ownerValueClassName}>{ownerKey}</section>
             <input
               type="number"
               min={10}
@@ -81,13 +81,13 @@ export default function FieldLayoutSection({
               onChange={e => setLinkDistanceByLabel(ownerKey, parseInt(e.target.value || '150', 10))}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
+          </section>
 
-          <div className={labelClassName}>
+          <section className={labelClassName}>
             Curvature
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={ownerValueClassName}>{ownerKey}</div>
+          </section>
+          <section className="flex items-center gap-2">
+            <section className={ownerValueClassName}>{ownerKey}</section>
             <input
               type="number"
               min={0}
@@ -108,9 +108,9 @@ export default function FieldLayoutSection({
               }}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
-        </div>
+          </section>
+        </section>
       )}
-    </div>
+    </section>
   )
 }

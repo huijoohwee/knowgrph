@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
+import { applySavedDocumentUiPresentationState } from '@/features/canvas/graphStoreDocumentUiRestoreHelpers'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyInteractiveImportModes } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { resolveCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
@@ -146,6 +147,50 @@ export function testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAlig
 
   if (handled !== true) {
     throw new Error('expected frontmatter-flow import mode to report handled even when no fallback state mutation is needed')
+  }
+}
+
+export function testFrontmatterFlowImportModeFlowEditorPresetDisablesConflictingTableMode() {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas2dRenderer('d3')
+  useGraphStore.getState().setDocumentSemanticMode('keyword')
+  useGraphStore.getState().setFrontmatterModeEnabled(false)
+  useGraphStore.getState().setMultiDimTableModeEnabled(false)
+
+  const handled = applyFrontmatterFlowImportModes({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [{ id: 'w1', type: 'TextGeneration', label: 'w1', properties: { 'flow:widgetFormId': 'textGeneration.openai' } }],
+    edges: [],
+  } as never, {
+    preset: {
+      canvasSurfaceMode: '2d',
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'flowEditor',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: true,
+      multiDimTableModeEnabled: true,
+    },
+  })
+
+  const st = useGraphStore.getState()
+  if (handled !== true) {
+    throw new Error('expected frontmatter-flow import mode to handle Flow Editor presets with conflicting table mode')
+  }
+  if (st.canvas2dRenderer !== 'flowEditor') {
+    throw new Error(`expected Flow Editor preset to avoid D3 table-mode demotion, got ${String(st.canvas2dRenderer)}`)
+  }
+  if (st.documentSemanticMode !== 'document') {
+    throw new Error(`expected Flow Editor preset to keep document mode, got ${String(st.documentSemanticMode)}`)
+  }
+  if (st.frontmatterModeEnabled !== true) {
+    throw new Error('expected Flow Editor preset to keep frontmatter mode enabled')
+  }
+  if (st.multiDimTableModeEnabled !== false) {
+    throw new Error('expected Flow Editor preset to disable conflicting multi-dimensional table mode')
   }
 }
 
@@ -326,6 +371,46 @@ export function testWorkspaceImportModesNormalizeRendererAliasesAndExplicitTable
   if (st.frontmatterModeEnabled !== false) throw new Error('expected explicit frontmatter OFF to be preserved')
   if (st.multiDimTableModeEnabled !== true) throw new Error('expected explicit multi-dimensional table mode ON to be preserved')
   if (st.documentStructureBaselineLock !== false) throw new Error('expected explicit preset to unlock baseline lock')
+}
+
+export function testWorkspaceImportModesFlowEditorPresetDisablesConflictingTableMode() {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas2dRenderer('d3')
+  useGraphStore.getState().setDocumentSemanticMode('keyword')
+  useGraphStore.getState().setFrontmatterModeEnabled(false)
+  useGraphStore.getState().setMultiDimTableModeEnabled(false)
+
+  const rawText = [
+    '---',
+    'title: "Flow Editor Table Conflict"',
+    'kgCanvasSurfaceMode: "2d"',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "flowEditor"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgMultiDimTableModeEnabled: true',
+    'kgDocumentStructureBaselineLock: false',
+    '---',
+    '',
+    '# Flow Editor Table Conflict',
+  ].join('\n')
+
+  const preset = resolveCanvasFrontmatterPreset({ rawText })
+  if (!preset) throw new Error('expected Flow Editor preset to resolve')
+  if (preset.canvas2dRenderer !== 'flowEditor') throw new Error(`expected Flow Editor preset, got ${String(preset.canvas2dRenderer)}`)
+  if (preset.multiDimTableModeEnabled !== true) throw new Error('expected source preset to preserve explicit multi-dimensional table flag')
+
+  applyInteractiveImportModes({ rawText })
+
+  const st = useGraphStore.getState()
+  if (st.canvasRenderMode !== '2d') throw new Error(`expected Flow Editor preset to force 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
+  if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected Flow Editor preset to avoid D3 table-mode demotion, got ${String(st.canvas2dRenderer)}`)
+  if (st.documentSemanticMode !== 'document') throw new Error(`expected Flow Editor preset to keep document semantic mode, got ${String(st.documentSemanticMode)}`)
+  if (st.frontmatterModeEnabled !== true) throw new Error('expected Flow Editor preset to keep frontmatter mode enabled')
+  if (st.multiDimTableModeEnabled !== false) throw new Error('expected Flow Editor preset to disable conflicting multi-dimensional table mode')
+  if (st.documentStructureBaselineLock !== false) throw new Error('expected Flow Editor preset to unlock baseline lock')
 }
 
 export function testWorkspaceImportModesNormalizeFlowCanvasAliasToFrontmatterOnlyLanding() {
@@ -520,7 +605,7 @@ export async function testActiveMarkdownDocumentSwitchReappliesExplicitFrontmatt
 export async function testGraphStoreRuntimeExplicitFrontmatterPresetBeatsSavedUiCarryover() {
   const storage = createMemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     useGraphStore.getState().resetAll()
@@ -593,6 +678,44 @@ export async function testGraphStoreRuntimeExplicitFrontmatterPresetBeatsSavedUi
     }
     restore()
     restoreWindow()
+  }
+}
+
+export function testPerDocumentUiRestoreKeepsAlreadyAlignedFlowEditorPreset() {
+  useGraphStore.getState().resetAll()
+  const name = '/notes/aligned-flow-editor.md'
+  const text = createFlowEditorPresetMarkdown({ title: 'Aligned Flow Editor' })
+  useGraphStore.getState().setMarkdownDocument(name, text, {
+    autoEnableFrontmatter: false,
+    applyViewPreset: true,
+  })
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setDocumentSemanticMode('document')
+  useGraphStore.getState().setFrontmatterModeEnabled(true)
+  useGraphStore.getState().setMultiDimTableModeEnabled(false)
+
+  applySavedDocumentUiPresentationState(useGraphStore.getState(), {
+    canvasRenderMode: '2d',
+    canvas2dRenderer: 'd3',
+    documentSemanticMode: 'keyword',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+  })
+
+  const next = useGraphStore.getState()
+  if (next.canvas2dRenderer !== 'flowEditor') {
+    throw new Error(`expected aligned Flow Editor preset to block saved D3 restore, got ${String(next.canvas2dRenderer)}`)
+  }
+  if (next.documentSemanticMode !== 'document') {
+    throw new Error(`expected aligned Flow Editor preset to keep document semantic mode, got ${String(next.documentSemanticMode)}`)
+  }
+  if (next.frontmatterModeEnabled !== true) {
+    throw new Error('expected aligned Flow Editor preset to keep frontmatter mode enabled')
+  }
+  if (next.multiDimTableModeEnabled !== false) {
+    throw new Error('expected aligned Flow Editor preset to keep multi-dimensional table mode disabled')
   }
 }
 
@@ -1008,10 +1131,10 @@ export function testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract() 
   if (!documentUiRestoreHelpersText.includes('applyFrontmatterFlowImportModes(graphData)')) {
     throw new Error('expected per-document UI restore helpers to reuse shared frontmatter-flow landing helper')
   }
-  if (!documentUiRestoreHelpersText.includes('const presetApplied = applyCanvasFrontmatterPreset({ graphData, rawText })')) {
-    throw new Error('expected per-document UI restore to apply explicit frontmatter workspace presets before saved ui state')
+  if (!documentUiRestoreHelpersText.includes('const preset = resolveCanvasFrontmatterPreset({ graphData, rawText })')) {
+    throw new Error('expected per-document UI restore to resolve explicit frontmatter workspace presets before saved ui state')
   }
-  if (!documentUiRestoreHelpersText.includes('if (!presetApplied) {')) {
+  if (!documentUiRestoreHelpersText.includes('if (preset) {')) {
     throw new Error('expected saved canvas/ui restore to be skipped when an explicit frontmatter workspace preset is present')
   }
   if (!documentUiRestoreHelpersText.includes('const viewState = buildSavedDocumentUiViewState(saved)')) {
@@ -1079,7 +1202,14 @@ export function testInitializationWorkspaceSelectionPromotesAtomicGraphAndPreset
   const indexingText = fs.readFileSync(indexingPath, 'utf8')
   const runtimeIoText = fs.readFileSync(runtimeIoPath, 'utf8')
 
-  if (!documentActionsText.includes('const shouldResolveCanvasPreset = args?.applyViewPreset !== false || args?.applyToGraph === true') || !documentActionsText.includes('hasProvidedCanvasPreset ? args.canvasWorkspacePreset ?? null : parseCanvasWorkspaceFrontmatterPreset(text)')) {
+  if (
+    !documentActionsText.includes('const shouldResolveCanvasPreset =') ||
+    !documentActionsText.includes('shouldApplyExplicitCanvasPreset') ||
+    !documentActionsText.includes('args?.applyViewPreset !== false') ||
+    !documentActionsText.includes('args?.applyToGraph === true') ||
+    !documentActionsText.includes('hasProvidedCanvasPreset ? args.canvasWorkspacePreset ?? null : parseCanvasWorkspaceFrontmatterPreset(text)') ||
+    !documentActionsText.includes('preset: parsedTextPreset')
+  ) {
     throw new Error('expected active markdown document switching to resolve and reuse frontmatter presets for graph applies')
   }
   if (indexingText.includes('frontmatterLanding') || indexingText.includes('resolveMarkdownWorkspaceFrontmatterLanding')) {

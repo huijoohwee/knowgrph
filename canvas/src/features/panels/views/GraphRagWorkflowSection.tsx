@@ -61,7 +61,7 @@ export function AgenticContextGraphContextUrlRow({
       )}
       typeNode={null}
       valueNode={(
-        <div className="space-y-1 w-full">
+        <section className="space-y-1 w-full">
           {mode === 'edit' ? (
             <RightAlignedValueCell className="mt-0.5">
               <Tooltip
@@ -70,7 +70,7 @@ export function AgenticContextGraphContextUrlRow({
                 contentClassName={UI_THEME_TOKENS.tooltip.bg}
                 className="w-full h-full"
               >
-                <div className={`${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden bg-transparent`}>
+                <section className={`${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden bg-transparent`}>
                   <MonacoTextEditor
                     value={agenticContext?.graphContextUrl || ''}
                     onChange={(val) => onChangeAgenticContextUrl(val)}
@@ -80,11 +80,11 @@ export function AgenticContextGraphContextUrlRow({
                     wordWrap
                     className={`w-full h-full ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.input.text}`}
                   />
-                </div>
+                </section>
               </Tooltip>
             </RightAlignedValueCell>
           ) : (
-            <div className="flex items-center justify-start">
+            <section className="flex items-center justify-start">
               <button
                 type="button"
                 className={`App-toolbar__btn ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary}`}
@@ -94,9 +94,9 @@ export function AgenticContextGraphContextUrlRow({
               >
                 {UI_COPY.graphRagOpenOrchestratorAgenticContextButtonLabel}
               </button>
-            </div>
+            </section>
           )}
-        </div>
+        </section>
       )}
       align="start"
     />
@@ -146,7 +146,7 @@ export function GraphRagWorkflowSection({
   )
 
   return (
-    <div
+    <section
       data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
       className={graphRagWorkflowSummaryClassName}
     >
@@ -161,7 +161,7 @@ export function GraphRagWorkflowSection({
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
-            <div className={graphRagWorkflowSummaryContentClassName}>
+            <section className={graphRagWorkflowSummaryContentClassName}>
               <span className="whitespace-nowrap">
                 {UI_COPY.graphRagWorkflowGraphIdLabel}
               </span>
@@ -192,7 +192,7 @@ export function GraphRagWorkflowSection({
                 {workflowSource === 'invalid' && UI_COPY.graphRagWorkflowSourceInvalidLabel}
                 {workflowSource === 'parse-error' && UI_COPY.graphRagWorkflowSourceParseErrorLabel}
               </span>
-            </div>
+            </section>
           </Tooltip>
         )}
       />
@@ -207,15 +207,15 @@ export function GraphRagWorkflowSection({
         mode="edit"
       />
       {workflowError && (
-        <div className="mt-1 text-red-600">
+        <section className="mt-1 text-red-600">
           {workflowError}
-        </div>
+        </section>
       )}
       {workflowValidationErrors && workflowValidationErrors.length > 0 && (
-        <div className="mt-1 text-amber-700">
+        <section className="mt-1 text-amber-700">
           {workflowValidationErrors.slice(0, 3).join('; ')}
           {workflowValidationErrors.length > 3 && '; …'}
-        </div>
+        </section>
       )}
       <GraphRagWorkflowIndexingSection
         workflowDoc={workflowDoc}
@@ -240,8 +240,8 @@ export function GraphRagWorkflowSection({
         onToggle={onToggleTracingCollapsed}
         stickyOffsetClassName="top-6"
       >
-        <div className={`space-y-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-          <div>
+        <section className={`space-y-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+          <section>
             {UI_COPY.graphRagWorkflowLastTraversalLabel}{' '}
             {lastTraversal
               ? `${lastTraversal.edgeIds.length} ${UI_COPY.graphRagWorkflowEdgesUnitLabel} · ${
@@ -250,9 +250,9 @@ export function GraphRagWorkflowSection({
                     : `${UI_COPY.graphRagWorkflowMaxDepthLabel} ${lastTraversal.maxDepth}`
                 }`
               : UI_COPY.graphRagWorkflowNoTraversalYetLabel}
-          </div>
-        </div>
+          </section>
+        </section>
       </CollapsibleSection>
-    </div>
+    </section>
   )
 }

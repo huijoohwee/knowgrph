@@ -84,20 +84,20 @@ export function SelectOptionsSection({
   )
 
   return (
-    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-      <div className="flex items-center justify-between">
+    <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+      <section className="flex items-center justify-between">
         <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{UI_LABELS.options}</span>
-        <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+        <section className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
           {typeof sampleCount === 'number' && sampleCount > 0 ? <span>Graph data {sampleCount}</span> : null}
           <span>{selectedSettings.selectOptions.length}</span>
-        </div>
-      </div>
-      <div className={`mt-2 rounded-lg border ${UI_THEME_TOKENS.panel.border} overflow-auto`}>
+        </section>
+      </section>
+      <section className={`mt-2 rounded-lg border ${UI_THEME_TOKENS.panel.border} overflow-auto`}>
         {selectedSettings.selectOptions.length === 0 ? (
-          <div className={`px-2 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsNoOptions}</div>
+          <section className={`px-2 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsNoOptions}</section>
         ) : null}
         {selectedSettings.selectOptions.map((opt, idx) => (
-          <div
+          <section
             key={`${idx}:${opt}`}
             className={`${UI_RESPONSIVE_GRAPH_FIELDS_OPTION_ROW_CLASSNAME} group ${UI_THEME_TOKENS.table.rowHover} ${draggingSelectOptionIndex === idx ? 'opacity-60' : ''}`}
             onDragOver={e => {
@@ -115,7 +115,7 @@ export function SelectOptionsSection({
               setDraggingSelectOptionIndex(null)
             }}
           >
-            <div
+            <section
               className={`${UI_RESPONSIVE_GRAPH_FIELDS_OPTION_DRAG_HANDLE_CLASSNAME} cursor-grab ${UI_THEME_TOKENS.text.tertiary}`}
               draggable
               onDragStart={e => {
@@ -135,17 +135,17 @@ export function SelectOptionsSection({
                   strokeLinecap="round"
                 />
               </svg>
-            </div>
-            <div className={UI_RESPONSIVE_GRAPH_FIELDS_OPTION_SWATCH_CLASSNAME}>
-              <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME} rounded flex items-center justify-center`} style={buildOptionSwatchStyle(opt)}>
+            </section>
+            <section className={UI_RESPONSIVE_GRAPH_FIELDS_OPTION_SWATCH_CLASSNAME}>
+              <section className={`${UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME} rounded flex items-center justify-center`} style={buildOptionSwatchStyle(opt)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true" className={iconSizeClass}>
                   <path
                     fill="currentColor"
                     d="M12 14.975q-.2 0-.375-.062T11.3 14.7l-4.6-4.6q-.275-.275-.275-.7t.275-.7t.7-.275t.7.275l3.9 3.9l3.9-3.9q.275-.275.7-.275t.7.275t.275.7t-.275.7l-4.6 4.6q-.15.15-.325.213t-.375.062"
                   />
                 </svg>
-              </div>
-            </div>
+              </section>
+            </section>
             <input
               value={opt}
               ref={el => {
@@ -179,9 +179,9 @@ export function SelectOptionsSection({
                 />
               </svg>
             </button>
-          </div>
+          </section>
         ))}
-      </div>
+      </section>
       <button
         type="button"
         className={`mt-2 w-full App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary} flex items-center justify-center gap-2`}
@@ -197,6 +197,6 @@ export function SelectOptionsSection({
         </svg>
         <span>{UI_LABELS.add}</span>
       </button>
-    </div>
+    </section>
   )
 }

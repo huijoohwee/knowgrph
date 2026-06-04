@@ -13,6 +13,11 @@ import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 import type { MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
 import { installFloatingPanelBridge, type FloatingPanelRequestedView } from '@/features/toolbar/floatingPanelBridge'
+import {
+  FLOATING_PANEL_CANVAS_INSET_PX,
+  FLOATING_PANEL_DEFAULT_HEIGHT_FALLBACK_PX,
+  FLOATING_PANEL_DEFAULT_WIDTH_FALLBACK_PX,
+} from '@/lib/ui/floatingPanelGeometry'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
@@ -39,7 +44,7 @@ export function ToolbarMenuLauncher({
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
     {
-      view: 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'strybldr' | 'graphTraversal'
+      view: FloatingPanelRequestedView
       seq: number
     } | null
   >(null)
@@ -84,9 +89,9 @@ export function ToolbarMenuLauncher({
         const clientX = detail && typeof detail.clientX === 'number' ? detail.clientX : null
         const clientY = detail && typeof detail.clientY === 'number' ? detail.clientY : null
         if (!isPinned && clientX !== null && clientY !== null && Number.isFinite(clientX) && Number.isFinite(clientY)) {
-          const padding = 8
-          const estimatedWidth = 320
-          const estimatedHeight = 420
+          const padding = FLOATING_PANEL_CANVAS_INSET_PX
+          const estimatedWidth = FLOATING_PANEL_DEFAULT_WIDTH_FALLBACK_PX
+          const estimatedHeight = FLOATING_PANEL_DEFAULT_HEIGHT_FALLBACK_PX
           const maxLeft = Math.max(padding, window.innerWidth - estimatedWidth - padding)
           const maxTop = Math.max(padding, window.innerHeight - estimatedHeight - padding)
           setToolMenuDragPos({
@@ -119,9 +124,11 @@ export function ToolbarMenuLauncher({
           ? 'chat'
           : tab === 'geo'
             ? 'geo'
-            : tab === 'strybldr'
-              ? 'strybldr'
-            : null
+            : tab === 'gitGraph'
+              ? 'gitGraph'
+              : tab === 'strybldr'
+                ? 'strybldr'
+                : null
       if (!requested) return
       if (detail?.open === false) {
         closeToolMenu()

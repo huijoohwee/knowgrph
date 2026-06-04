@@ -697,7 +697,7 @@ export async function convertHtmlToMarkdownUnified(args: {
         }))
         return {
           type: 'element',
-          tagName: 'div',
+          tagName: 'section',
           properties: {},
           children: [
             { type: 'element', tagName: 'p', properties: {}, children: [{ type: 'text', value: `${label}:` }] },

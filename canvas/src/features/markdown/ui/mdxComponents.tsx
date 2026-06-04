@@ -29,10 +29,10 @@ export function Alert({
       : 'border-blue-200 bg-blue-50 text-blue-900'
 
   return (
-    <div className={['my-3 p-3 rounded border', color].join(' ')}>
-      {title ? <div className="font-semibold mb-1">{title}</div> : null}
-      <div className="text-sm">{children}</div>
-    </div>
+    <section className={['my-3 p-3 rounded border', color].join(' ')}>
+      {title ? <section className="font-semibold mb-1">{title}</section> : null}
+      <section className="text-sm">{children}</section>
+    </section>
   )
 }
 
@@ -55,7 +55,7 @@ export function Chart({
   const barW = safe.length ? innerW / safe.length : innerW
 
   return (
-    <div className="my-3 overflow-auto">
+    <section className="my-3 overflow-auto">
       <svg
         width={w}
         height={h}
@@ -83,7 +83,7 @@ export function Chart({
           <line x1={0} y1={innerH} x2={innerW} y2={innerH} stroke="#e5e7eb" />
         </g>
       </svg>
-    </div>
+    </section>
   )
 }
 
@@ -127,7 +127,7 @@ export function LiveCode({
   }, [css, html, js])
 
   return (
-    <div className={`my-3 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.bg}`}>
+    <section className={`my-3 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.bg}`}>
       <iframe
         title="Live preview"
         sandbox="allow-scripts"
@@ -135,7 +135,7 @@ export function LiveCode({
         className="w-full"
         style={{ height: `${Math.max(80, Math.floor(height))}px` }}
       />
-    </div>
+    </section>
   )
 }
 

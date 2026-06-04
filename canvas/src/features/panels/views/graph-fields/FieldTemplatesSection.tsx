@@ -58,23 +58,23 @@ export default function FieldTemplatesSection({
   }, [hasOwner, ownerKey, scope, template])
 
   return (
-    <div className={panelClassName}>
-      <div className={headingClassName}>
+    <section className={panelClassName}>
+      <section className={headingClassName}>
         Templates
-      </div>
+      </section>
 
       {!hasOwner ? (
-        <div className={helperTextClassName}>
+        <section className={helperTextClassName}>
           Select a {scope === 'node' ? 'node type' : 'edge label'} to edit templates
-        </div>
+        </section>
       ) : (
-        <div className="space-y-2">
-          <div className={labelClassName}>
+        <section className="space-y-2">
+          <section className={labelClassName}>
             {scope === 'node'
               ? `${UI_COPY.graphFieldsScopeNodeLabel} ${UI_COPY.graphFieldsLocalSchemaFacetTemplateJsonLabel}`
               : `${UI_COPY.graphFieldsScopeEdgeLabel} ${UI_COPY.graphFieldsLocalSchemaFacetTemplateJsonLabel}`}
-          </div>
-          <div className={editorShellClassName}>
+          </section>
+          <section className={editorShellClassName}>
             <MonacoTextEditor
               value={templateText}
               onChange={setTemplateText}
@@ -98,14 +98,14 @@ export default function FieldTemplatesSection({
                 setError('')
               }}
             />
-          </div>
+          </section>
           {error ? (
-            <div className={`${uiPanelKeyValueTextSizeClass} text-red-600`}>
+            <section className={`${uiPanelKeyValueTextSizeClass} text-red-600`}>
               {error}
-            </div>
+            </section>
           ) : null}
-        </div>
+        </section>
       )}
-    </div>
+    </section>
   )
 }

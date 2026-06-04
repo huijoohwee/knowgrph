@@ -77,16 +77,16 @@ export default function StatusBar() {
 
   return (
     <footer className="StatusBar" aria-label={UI_LABELS.statusBarAriaLabel}>
-      <div className="flex items-center gap-4">
+      <section className="flex items-center gap-4">
         <span>{UI_LABELS.nodesLabel} {nodeCount}</span>
         <span>{UI_LABELS.edgesLabel} {edgeCount}</span>
-      </div>
-      <div className="flex items-center gap-4">
+      </section>
+      <section className="flex items-center gap-4">
         <span>
           {UI_LABELS.selectedLabel} <span className="font-medium">{selectedLabel}</span>
         </span>
         {import.meta.env.DEV && (
-          <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+          <section className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             <button
               type="button"
               className={`px-2 py-0.5 rounded border ${
@@ -97,7 +97,7 @@ export default function StatusBar() {
               {UI_LABELS.perfButtonLabel}
             </button>
             {perfEnabled && (
-              <div className="flex flex-wrap gap-2">
+              <section className="flex flex-wrap gap-2">
         {(['canvas', 'three', 'nodeEditor', 'graphDataTable'] as const).map(name => {
                   const s = stats[name];
                   if (!s.count || s.last == null) {
@@ -114,11 +114,11 @@ export default function StatusBar() {
                     </span>
                   );
                 })}
-              </div>
+              </section>
             )}
-          </div>
+          </section>
         )}
-      </div>
+      </section>
     </footer>
   );
 }

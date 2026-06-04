@@ -401,7 +401,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
 
   const markdownToolbar = readUtf8(markdownToolbarPath)
   const markdownToolbarInlineMenus = readUtf8(markdownToolbarInlineMenusPath)
-  if (!markdownToolbar.includes('kg-workspace-toolbar-controls') || !markdownToolbar.includes('uiToolbarRowScrollJustifyEndClassName')) {
+  if (!markdownToolbar.includes('kg-workspace-toolbar-controls') || !markdownToolbar.includes('uiToolbarRowScrollClassName')) {
     throw new Error('Expected MarkdownWorkspaceToolbar controls to scroll on one mobile row')
   }
   if (!markdownToolbar.includes('UI_TEXT_TRUNCATE')) {
@@ -1163,7 +1163,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (!kanbanView.includes('buildKanbanDragStatusText') || !kanbanView.includes('activeDragStatusText')) {
     throw new Error('Expected Markdown kanban view to expose visible shared drag-intent status before drop')
   }
-  if (!kanbanView.includes('const liveRegionKey = [') || !kanbanView.includes('kanbanDrag.dragOutcomeSequence') || !kanbanView.includes('aria-live="polite">{statusPillText}</div>') || !kanbanView.includes('UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME') || kanbanView.includes("setLiveMessage(statusPillText || '')") || kanbanView.includes('min-h-[28px]')) {
+  if (!kanbanView.includes('const liveRegionKey = [') || !kanbanView.includes('kanbanDrag.dragOutcomeSequence') || !kanbanView.includes('aria-live="polite">{statusPillText}</section>') || !kanbanView.includes('UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME') || kanbanView.includes("setLiveMessage(statusPillText || '')") || kanbanView.includes('min-h-[28px]')) {
     throw new Error('Expected Markdown kanban live-region announcements to stay aligned with the shared status pill without local live-message state churn')
   }
   if (!kanbanView.includes('isKanbanMoveNoOp') || !kanbanView.includes('dragOutcomeMessage') || !kanbanView.includes('commitFlashGroupKey') || !kanbanView.includes('statusPillText')) {

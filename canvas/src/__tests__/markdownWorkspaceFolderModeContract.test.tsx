@@ -32,7 +32,7 @@ const waitFor = async (dom: { window: Window }, predicate: () => boolean, timeou
 export async function testMarkdownWorkspaceFolderModeContractOpensDocs() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
 
   try {

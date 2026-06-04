@@ -92,14 +92,14 @@ export function StrybldrTimelinePanel({ active = true }: { active?: boolean }) {
       aria-label="Strybldr timeline"
       data-kg-strybldr-timeline-panel="1"
     >
-      <div className="flex min-w-0 items-center justify-between gap-3 px-1">
-        <div className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>
+      <section className="flex min-w-0 items-center justify-between gap-3 px-1">
+        <section className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>
           Strybldr timeline
-        </div>
-        <div className={cn('min-w-0 truncate text-[11px]', UI_THEME_TOKENS.text.secondary)} title={activeItem?.title || ''}>
+        </section>
+        <section className={cn('min-w-0 truncate text-[11px]', UI_THEME_TOKENS.text.secondary)} title={activeItem?.title || ''}>
           {activeItem ? `${activeItem.laneLabel}: ${activeItem.title}` : 'No active card'}
-        </div>
-      </div>
+        </section>
+      </section>
       <TimelineTransportControls
         ariaLabel="Strybldr storyboard timeline"
         currentLabel={currentLabel}

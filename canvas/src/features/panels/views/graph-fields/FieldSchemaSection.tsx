@@ -76,30 +76,30 @@ export default function FieldSchemaSection({
   const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
-    <div className={panelClassName}>
-      <div className={headingClassName}>
+    <section className={panelClassName}>
+      <section className={headingClassName}>
         Schema
-      </div>
+      </section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="min-w-0">
+      <section className="grid grid-cols-2 gap-3">
+        <section className="min-w-0">
           <label className={labelClassName}>
             {ownerLabel}
           </label>
           {shouldShowOwnersWithField ? (
-            <div className={helperTextClassName}>
+            <section className={helperTextClassName}>
               Detected on {ownersWithField!.length}: {ownersWithField!.join(', ')}
-            </div>
+            </section>
           ) : null}
-        </div>
-      </div>
+        </section>
+      </section>
 
-      <div className={constraintsPanelClassName}>
-        <div className="min-w-0">
+      <section className={constraintsPanelClassName}>
+        <section className="min-w-0">
           <label className={labelClassName}>
             Constraints
           </label>
-          <div className="mt-1 flex items-center gap-4">
+          <section className="mt-1 flex items-center gap-4">
             <label className={constraintLabelClassName}>
               <input
                 type="checkbox"
@@ -123,9 +123,9 @@ export default function FieldSchemaSection({
             <span className={constraintStatusClassName}>
               {spec ? 'In schema' : 'Not in schema'}
             </span>
-          </div>
-        </div>
-      </div>
-    </div>
+          </section>
+        </section>
+      </section>
+    </section>
   )
 }

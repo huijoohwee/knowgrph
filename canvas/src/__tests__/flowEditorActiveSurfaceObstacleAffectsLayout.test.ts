@@ -71,7 +71,7 @@ export function testFlowEditorCanonicalOverlayRectEntriesSkipTransientOffscreenR
 }
 
 export async function testFlowEditorActiveSurfaceObstaclesAffectFinalRichMediaLayoutPlacement() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const doc = dom.window.document
     const root = doc.getElementById('root')
@@ -96,7 +96,7 @@ export async function testFlowEditorActiveSurfaceObstaclesAffectFinalRichMediaLa
       width: number
       height: number
     }) => {
-      const el = doc.createElement('div')
+      const el = doc.createElement('section')
       el.setAttribute('data-kg-flow-editor-mode', '1')
       el.setAttribute('data-kg-flow-editor-surface', args.surfaceId)
       if (args.widgetId) el.setAttribute('data-kg-widget', args.widgetId)
@@ -130,10 +130,10 @@ export async function testFlowEditorActiveSurfaceObstaclesAffectFinalRichMediaLa
     })
 
     const ids = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']
-    const els = new Map<string, HTMLDivElement>()
+    const els = new Map<string, HTMLElement>()
     for (let i = 0; i < ids.length; i += 1) {
       const id = ids[i]!
-      const el = doc.createElement('div')
+      const el = doc.createElement('section')
       root.appendChild(el)
       els.set(id, el)
     }

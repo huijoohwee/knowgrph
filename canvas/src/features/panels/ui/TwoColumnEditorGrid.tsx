@@ -8,9 +8,9 @@ export interface TwoColumnEditorGridProps {
 export function TwoColumnEditorGrid({ children, className }: TwoColumnEditorGridProps) {
   const rootClassName = ['grid grid-cols-2 gap-2', className || ''].filter(Boolean).join(' ')
   return (
-    <div className={rootClassName}>
+    <section className={rootClassName}>
       {children}
-    </div>
+    </section>
   )
 }
 

@@ -156,8 +156,8 @@ export function LaunchSpotlightTourCard({
   const cardStyle = getSpotlightCardStyle(anchor, dragPos, minimized)
 
   return (
-    <div className="fixed inset-0 z-[2000] pointer-events-none">
-      <div
+    <section className="fixed inset-0 z-[2000] pointer-events-none">
+      <section
         ref={cardRef}
         className={`${spotlightCardClassName} ${
           minimized ? 'cursor-default' : 'cursor-move'
@@ -168,11 +168,11 @@ export function LaunchSpotlightTourCard({
         style={cardStyle}
       >
         {minimized ? (
-          <div className="flex items-center justify-between">
+          <section className="flex items-center justify-between">
             <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
               {current.title} ({clampedIndex + 1}/{total})
             </span>
-            <div className="flex items-center gap-2">
+            <section className="flex items-center gap-2">
               <button
                 type="button"
                 className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
@@ -187,12 +187,12 @@ export function LaunchSpotlightTourCard({
               >
                 Reopen
               </button>
-            </div>
-          </div>
+            </section>
+          </section>
         ) : (
           <>
-            <div className="flex items-start justify-between mb-1">
-              <div className="flex flex-col gap-0.5">
+            <section className="flex items-start justify-between mb-1">
+              <section className="flex flex-col gap-0.5">
                 <span
                   className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${
                     current.variant === 'primary' ? 'text-blue-600' : UI_THEME_TOKENS.text.tertiary
@@ -205,11 +205,11 @@ export function LaunchSpotlightTourCard({
                   maxWidthPx={260}
 
                 >
-                  <div className="flex items-center gap-1">
-                    <div className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>{current.title}</div>
-                  </div>
+                  <section className="flex items-center gap-1">
+                    <section className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>{current.title}</section>
+                  </section>
                 </Tooltip>
-              </div>
+              </section>
               <button
                 type="button"
                 className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
@@ -217,10 +217,10 @@ export function LaunchSpotlightTourCard({
               >
                 Minimize
               </button>
-            </div>
-            <div className={`text-xs ${UI_THEME_TOKENS.text.primary} mb-2`}>{current.body}</div>
+            </section>
+            <section className={`text-xs ${UI_THEME_TOKENS.text.primary} mb-2`}>{current.body}</section>
             {current.id === 2 && (
-              <div className="mb-2 flex flex-wrap items-center gap-2">
+              <section className="mb-2 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   className={`${uiPanelKeyValueTextSizeClass} ${spotlightSecondaryActionButtonClassName}`}
@@ -234,10 +234,10 @@ export function LaunchSpotlightTourCard({
                 >
                   Open {MARKDOWN_DATA_VIEW_COPY.titleDefault}
                 </button>
-              </div>
+              </section>
             )}
             {!canAdvance && (
-              <div className={`mb-2 flex items-center ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+              <section className={`mb-2 flex items-center ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <span>
                   {clampedIndex === 1
                     ? 'User loads a dataset via Load Data before continuing.'
@@ -247,10 +247,10 @@ export function LaunchSpotlightTourCard({
                     ? 'User runs a traversal preset in the Renderer panel to complete this tour.'
                     : ''}
                 </span>
-              </div>
+              </section>
             )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
+            <section className="flex items-center justify-between">
+              <section className="flex items-center gap-1">
                 {steps.map((stepConfig, stepIndex) => (
                   <span
                     key={stepConfig.id}
@@ -259,8 +259,8 @@ export function LaunchSpotlightTourCard({
                     }`}
                   />
                 ))}
-              </div>
-              <div className="flex items-center gap-2">
+              </section>
+              <section className="flex items-center gap-2">
                 <button
                   type="button"
                   className={`${uiPanelKeyValueTextSizeClass} ${spotlightGhostActionButtonClassName}`}
@@ -286,11 +286,11 @@ export function LaunchSpotlightTourCard({
                 >
                   {clampedIndex >= total - 1 ? 'Done' : 'Next'}
                 </button>
-              </div>
-            </div>
+              </section>
+            </section>
           </>
         )}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

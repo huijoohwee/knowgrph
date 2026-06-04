@@ -5,7 +5,64 @@ import {
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
   readFlowEditorOverlaySurfaceId,
+  resolveFlowEditorOverlayProxyTarget,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
+
+export async function testFlowEditorOverlaySurfaceResolutionFallsBackToSurfaceRoot() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const doc = dom.window.document
+    const canvas = doc.createElement('canvas')
+    doc.body.appendChild(canvas)
+
+    const surface = doc.createElement('section')
+    surface.setAttribute(FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR, 'surface-a')
+    doc.body.appendChild(surface)
+
+    const richMediaRoot = doc.createElement('section')
+    richMediaRoot.setAttribute('data-kg-flow-editor-mode', '1')
+    richMediaRoot.setAttribute('data-kg-rich-media-overlay', '1')
+    richMediaRoot.setAttribute('data-node-id', 'panel-a')
+    surface.appendChild(richMediaRoot)
+
+    const target = doc.createElement('div')
+    richMediaRoot.appendChild(target)
+    const surfaceCanvas = doc.createElement('canvas')
+    surface.appendChild(surfaceCanvas)
+
+    if (readFlowEditorOverlaySurfaceId(richMediaRoot) !== 'surface-a') {
+      throw new Error('expected Flow Editor overlay surface resolution to fall back to the owning surface root')
+    }
+
+    const resolved = resolveFlowEditorOverlayProxyTarget({
+      target,
+      canvasEl: canvas,
+      flowEditorSurfaceId: 'surface-a',
+    })
+    if (resolved.kind !== 'overlay') {
+      throw new Error(`expected surface-root-owned Rich Media overlay to resolve for active proxy gestures, got ${resolved.kind}`)
+    }
+
+    const resolvedFromCanvasSurface = resolveFlowEditorOverlayProxyTarget({
+      target,
+      canvasEl: surfaceCanvas,
+    })
+    if (resolvedFromCanvasSurface.kind !== 'overlay') {
+      throw new Error(`expected Flow Editor overlay proxy resolver to derive active surface identity from the owning canvas root, got ${resolvedFromCanvasSurface.kind}`)
+    }
+
+    const stale = resolveFlowEditorOverlayProxyTarget({
+      target,
+      canvasEl: canvas,
+      flowEditorSurfaceId: 'surface-b',
+    })
+    if (stale.kind !== 'none') {
+      throw new Error('expected Flow Editor overlay proxy resolver to reject overlays under a non-active surface root')
+    }
+  } finally {
+    restore()
+  }
+}
 
 export async function testFlowEditorActiveSurfaceObstacleCollectionIsSurfaceBoundedAndCanonical() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
@@ -32,7 +89,7 @@ export async function testFlowEditorActiveSurfaceObstacleCollectionIsSurfaceBoun
       width: number
       height: number
     }) => {
-      const el = doc.createElement('div')
+      const el = doc.createElement('section')
       el.setAttribute('data-kg-flow-editor-mode', '1')
       el.setAttribute('data-kg-flow-editor-surface', args.surfaceId)
       if (args.widgetId) el.setAttribute('data-kg-widget', args.widgetId)
@@ -150,7 +207,7 @@ export async function testFlowEditorActiveSurfaceObstacleCollectionIgnoresTinyPa
       width: number
       height: number
     }) => {
-      const el = doc.createElement('div')
+      const el = doc.createElement('section')
       el.setAttribute('data-kg-flow-editor-mode', '1')
       el.setAttribute('data-kg-flow-editor-surface', 'surface-a')
       if (args.widgetId) el.setAttribute('data-kg-widget', args.widgetId)

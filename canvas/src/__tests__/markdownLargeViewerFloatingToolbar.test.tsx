@@ -35,7 +35,7 @@ export async function testLargeMarkdownViewerKeepsInlineFormattingToolbar() {
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 

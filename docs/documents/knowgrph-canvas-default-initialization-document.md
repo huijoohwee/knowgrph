@@ -136,7 +136,7 @@
   - 2D layer ordering must be SSOT and reused across renderers: centralize ranks for nodes/edges/groups/labels/handles and apply consistently for SVG z-order and native canvas draw order.
   - Collision avoidance must be deterministic and non-destructive: seed any force RNG by node ids; clamp displacement to avoid teleporting; run bounded relax after layouts are produced/frozen; use overlap-pressure heuristics for non-force layouts (avoid persistent overlaps without re-layout thrash).
   - Design frame dragging must forbid overlap: on drag end, resolve collisions with the shared relax runner, pin the dragged frame, and batch position writes to avoid rerender churn.
-  - Overlay stacking must be stable: z-index for overlay-only edge routing must be keyed relative to `floatingPanelZIndex` so quick editors stay on top without hardcoded constants.
+  - Overlay stacking must be stable: z-index for overlay-only edge routing must be keyed relative to `floatingPanelZIndex` so widgets stay on top without hardcoded constants.
   - Must use actual viewport dimensions for layout and fit when available; fallback to preset only when viewport is invalid (<100px).
   - Must enforce strict node separation via increased collision padding (20px) and charge (-800) to prevent initial clustering.
   - Keyword Mode must remain anchored to Document Structure baseline: seed Keyword node positions from cached Document baseline positions when available; if Keyword cached positions are unstable (extreme/offscreen, overly spread, or overly clustered), override skip-initial-layout and force bounded relayout + post-fit-to-viewport to keep Nodes/Clusters/Edges centered and visible.

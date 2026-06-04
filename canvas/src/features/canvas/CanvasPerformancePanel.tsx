@@ -109,7 +109,7 @@ export function CanvasPerformancePanel() {
   return (
     <>
       <CollapsibleSection title="Performance" defaultCollapsed={false} stickyHeader={false}>
-        <div className="mt-2 space-y-2">
+        <section className="mt-2 space-y-2">
           <button
             type="button"
             className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${perfOpen ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -118,32 +118,32 @@ export function CanvasPerformancePanel() {
             {perfEnabled ? 'Hide Perf Overlay' : 'Show Perf Overlay'}
           </button>
           {perfEnabled ? (
-            <div className={`rounded-md border p-2 text-xs ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>
-              <div className={`flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
+            <section className={`rounded-md border p-2 text-xs ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>
+              <section className={`flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
                 <span>Render updates/sec</span>
                 <span className="font-mono">{rafFps}</span>
-              </div>
-              <div className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
+              </section>
+              <section className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
                 <span>State updates/sec</span>
                 <span className="font-mono">{stateUps}</span>
-              </div>
-              <div className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
+              </section>
+              <section className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
                 <span>Last layout init (ms)</span>
                 <span className="font-mono">{lastLayoutInitMs == null ? '-' : lastLayoutInitMs}</span>
-              </div>
+              </section>
               {recentPerfStages.length > 0 ? (
-                <div className="mt-2 space-y-1">
+                <section className="mt-2 space-y-1">
                   {recentPerfStages.map(entry => (
-                    <div key={entry.key} className={`flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
+                    <section key={entry.key} className={`flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
                       <span>{entry.label}</span>
                       <span className="font-mono">{entry.durationMs}</span>
-                    </div>
+                    </section>
                   ))}
-                </div>
+                </section>
               ) : null}
-            </div>
+            </section>
           ) : null}
-        </div>
+        </section>
       </CollapsibleSection>
       {perfOpen && typeof document !== 'undefined' && document.body
         ? createPortal(

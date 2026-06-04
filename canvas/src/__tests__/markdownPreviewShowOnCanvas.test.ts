@@ -99,7 +99,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
     ]
     const markdownText = markdownLines.join('\n')
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -137,7 +137,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
           resolve()
         }, 0)
       })
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown preview root not found')
     }
@@ -230,7 +230,7 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
     ]
     const markdownText = markdownLines.join('\n')
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -268,7 +268,7 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
           resolve()
         }, 0)
       })
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown preview root not found')
     }
@@ -350,7 +350,7 @@ export async function testMarkdownPreviewTokenCacheDoesNotCrossDocumentPath() {
       startLineOffset: startLineOffsetA,
     })
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -372,7 +372,7 @@ export async function testMarkdownPreviewTokenCacheDoesNotCrossDocumentPath() {
       { window: dom.window as unknown as Window, frames: 1, tasks: 1 },
     )
 
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) throw new Error('markdown preview root not found')
 
     const text = String(rootEl.textContent || '')
@@ -408,7 +408,7 @@ export async function testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath(
       anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -450,9 +450,9 @@ export async function testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath(
     )
 
     const rootEl =
-      (doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null) ||
-      (doc.querySelector('[data-testid="markdown-preview"]') as HTMLDivElement | null) ||
-      (container as unknown as HTMLDivElement)
+      (doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null) ||
+      (doc.querySelector('[data-testid="markdown-preview"]') as HTMLElement | null) ||
+      (container as unknown as HTMLElement)
     const text = String(rootEl.textContent || '')
     if (!text.includes('B')) {
       throw new Error(`expected B content after view switch, got: ${text.slice(0, 80)}`)
@@ -523,7 +523,7 @@ export async function testMarkdownPreviewSelectionHighlightsOtherSameText() {
       return rects[0] || rect(0, 0, 0, 0)
     }
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -545,7 +545,7 @@ export async function testMarkdownPreviewSelectionHighlightsOtherSameText() {
       { window: dom.window as unknown as Window, frames: 2, tasks: 2 },
     )
 
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) throw new Error('markdown preview root not found')
     rootEl.getBoundingClientRect = () => rect(0, 0, 900, 600)
 
@@ -653,7 +653,7 @@ export async function testMarkdownPreviewSelectionHighlightsOtherSameSentence() 
       return rects[0] || rect(0, 0, 0, 0)
     }
 
-    const rootEl = doc.createElement('div')
+    const rootEl = doc.createElement('section')
     rootEl.setAttribute('data-testid', 'markdown-preview-root')
     rootEl.innerHTML = [
       '<p data-row="1">Semantic highlight follows a complete sentence.</p>',
@@ -744,7 +744,7 @@ export async function testMarkdownPreviewSentenceDragSelectionSurvivesPeerHighli
     }
 
     const sentence = 'Semantic highlight follows a complete sentence.'
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -766,7 +766,7 @@ export async function testMarkdownPreviewSentenceDragSelectionSurvivesPeerHighli
       { window: dom.window as unknown as Window, frames: 2, tasks: 2 },
     )
 
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) throw new Error('markdown preview root not found')
     rootEl.getBoundingClientRect = () => rect(0, 0, 900, 600)
     const paragraph = rootEl.querySelector('[data-start-line="3"]') as HTMLElement | null

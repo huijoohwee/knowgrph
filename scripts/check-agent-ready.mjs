@@ -1,9 +1,23 @@
-import { buildKnowgrphAgentReadyToolContracts } from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
+import {
+  KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
+  buildKnowgrphAgentReadyToolContracts,
+} from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
+import {
+  KNOWGRPH_AGENT_READY_PROMPT_NAMES,
+  buildKnowgrphAgentReadyPromptContracts,
+} from '../canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs'
+import {
+  KNOWGRPH_SOURCE_FILE_RESOURCE_MIME_TYPE,
+  buildKnowgrphAgentReadyResourceTemplateContracts,
+  buildKnowgrphSourceFileResourceUri,
+} from '../canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs'
 import {
   KNOWGRPH_MCP_APPS_EXTENSION_ID,
   KNOWGRPH_MCP_APPS_PROTOCOL_VERSION,
   KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE,
   KNOWGRPH_MCP_APP_RESOURCE_URI,
+  KNOWGRPH_MCP_CLIENT_IDS,
+  KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
 } from '../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs'
 import { encodePublishedDocShareToken, PUBLISHED_DOC_SHARE_TOKEN_PARAM } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
 import { buildAgentReadyDiscoveryExpectations } from '../cloudflare/pages/knowgrph-agent-ready-discovery.mjs'
@@ -15,15 +29,30 @@ const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).
 const originUrl = new URL(baseUrl).origin
 const rootA2aAgentCardUrl = `${originUrl}/.well-known/agent-card.json`
 const appBasePath = new URL(baseUrl).pathname.replace(/\/+$/, '') || '/'
-const defaultWorkspaceId = 'kgws:canonical-docs'
+const defaultWorkspaceId = KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID
 const expectedTools = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId,
 })
-const expectedMcpToolEntries = expectedTools.map((tool) => ({
+const expectedPrompts = buildKnowgrphAgentReadyPromptContracts()
+const expectedResourceTemplates = buildKnowgrphAgentReadyResourceTemplateContracts()
+const toComparableMcpToolEntry = (tool) => ({
   name: tool.name,
+  title: tool.title,
   description: tool.description,
   inputSchema: tool.inputSchema,
-})).sort((left, right) => left.name.localeCompare(right.name))
+  outputSchema: tool.outputSchema,
+  securitySchemes: tool.securitySchemes,
+  annotations: tool.annotations,
+  _meta: tool._meta,
+})
+const expectedMcpToolEntries = expectedTools
+  .map(toComparableMcpToolEntry)
+  .sort((left, right) => left.name.localeCompare(right.name))
+const hasReadOnlyAnnotations = (tool) =>
+  tool?.annotations?.readOnlyHint === true
+  && tool?.annotations?.destructiveHint === false
+  && tool?.annotations?.openWorldHint === false
+  && tool?.annotations?.idempotentHint === true
 const expectedBrowserOnlyTools = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId,
   includeBrowserOnlyTools: true,
@@ -106,6 +135,21 @@ const sharedDocSample = await buildSharedDocSample({ ...preferredSharedDocSample
   || await resolveSharedDocSampleFromIndex({ requireNonEmpty: true })
   || await buildSharedDocSample(preferredSharedDocSample)
   || await resolveSharedDocSampleFromIndex()
+const deepResearchSearchQuery = String(sharedDocSample?.canonicalPath || preferredSharedDocSample.canonicalPath)
+  .split('/')
+  .filter(Boolean)
+  .pop()
+  ?.replace(/\.[^.]+$/, '')
+  || 'knowgrph'
+const contentAwareSearchQuery = 'deployment topology'
+const normalizeSearchEvidence = (value) => String(value || '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+const contentAwareSearchEvidence = normalizeSearchEvidence(contentAwareSearchQuery)
+const deepResearchFetchCanonicalPath = sharedDocSample?.canonicalPath || preferredSharedDocSample.canonicalPath
+const deepResearchFetchId = `kgdoc::${encodeURIComponent(deepResearchFetchCanonicalPath)}`
 
 const sharedDocAliasUrls = sharedDocSample
   ? {
@@ -213,7 +257,7 @@ const checks = [
     assert: async (response, body) =>
       response.ok
       && response.headers.get('content-type')?.includes('text/html')
-      && body.includes('<div id="root"></div>')
+      && body.includes('<main id="root"></main>')
       && body.includes('/knowgrph/assets/')
       && body.includes('name="x-knowgrph-root-alias" content="/knowgrph/"')
       && body.includes('id="knowgrph-root-fallback"')
@@ -366,25 +410,67 @@ const checks = [
       const inspectTool = Array.isArray(payload.capabilities?.tools)
         ? payload.capabilities.tools.find((tool) => tool?.name === 'inspect_agent_surface')
         : null
+      const searchTool = Array.isArray(payload.capabilities?.tools)
+        ? payload.capabilities.tools.find((tool) => tool?.name === 'search')
+        : null
+      const fetchTool = Array.isArray(payload.capabilities?.tools)
+        ? payload.capabilities.tools.find((tool) => tool?.name === 'fetch')
+        : null
       const tools = Array.isArray(payload.capabilities?.tools)
-        ? payload.capabilities.tools.map((tool) => ({
-            name: tool?.name,
-            description: tool?.description,
-            inputSchema: tool?.inputSchema || {},
-          })).sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
+        ? payload.capabilities.tools
+          .map((tool) => toComparableMcpToolEntry(tool || {}))
+          .sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
         : null
       return response.ok
         && payload.serverInfo?.name
         && payload.serverInfo?.version
-        && payload.transport
+        && payload.transport?.type === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
+        && payload.transport?.stateless === true
+        && payload.transport?.legacySse === false
         && payload.links?.status === `${canonicalBaseUrl}/health`
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.transport === 'http'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.url === `${canonicalBaseUrl}/mcp`
+        && String(payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.command || '').includes(`qwen mcp add --transport http knowgrph ${canonicalBaseUrl}/mcp`)
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.settingsJson?.mcpServers?.knowgrph?.httpUrl === `${canonicalBaseUrl}/mcp`
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.settingsJson?.mcpServers?.knowgrph?.includeTools?.includes('search')
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.settingsJson?.mcpServers?.knowgrph?.includeTools?.includes('fetch')
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.transport === 'http'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.url === `${canonicalBaseUrl}/mcp`
+        && String(payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.command || '').includes(`kimi mcp add --transport http knowgrph ${canonicalBaseUrl}/mcp`)
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.configFile === '~/.kimi/mcp.json'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.mcpJson?.mcpServers?.knowgrph?.url === `${canonicalBaseUrl}/mcp`
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.mcpJson?.mcpServers?.knowgrph?.transport === 'http'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.transport === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.url === `${canonicalBaseUrl}/mcp`
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.endpoint === '/responses'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.requiredHeaders?.['ark-beta-mcp'] === 'true'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.tools?.[0]?.type === 'mcp'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.tools?.[0]?.server_label === 'knowgrph'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.tools?.[0]?.server_url === `${canonicalBaseUrl}/mcp`
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.tools?.[0]?.require_approval === 'never'
+        && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.openAiCompatible?.responsesCreate?.tools?.[0]?.server_url === `${canonicalBaseUrl}/mcp`
         && Array.isArray(tools)
         && tools.length === expectedMcpToolEntries.length
         && JSON.stringify(tools) === JSON.stringify(expectedMcpToolEntries)
         && payload.capabilities?.resources
+        && payload.capabilities?.prompts?.listChanged === false
+        && JSON.stringify(payload.prompts) === JSON.stringify(expectedPrompts)
+        && JSON.stringify(payload.resourceTemplates) === JSON.stringify(expectedResourceTemplates)
         && payload.capabilities?.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]?.mimeTypes?.includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)
         && inspectTool?._meta?.ui?.resourceUri === KNOWGRPH_MCP_APP_RESOURCE_URI
+        && inspectTool?._meta?.['openai/outputTemplate'] === KNOWGRPH_MCP_APP_RESOURCE_URI
+        && inspectTool?.securitySchemes?.[0]?.type === 'noauth'
+        && inspectTool?._meta?.securitySchemes?.[0]?.type === 'noauth'
+        && inspectTool?._meta?.['openai/widgetAccessible'] === true
         && inspectTool?.outputSchema?.type === 'object'
+        && hasReadOnlyAnnotations(inspectTool)
+        && searchTool?.outputSchema?.required?.includes('ids')
+        && searchTool?.outputSchema?.required?.includes('results')
+        && hasReadOnlyAnnotations(searchTool)
+        && fetchTool?.outputSchema?.required?.includes('content')
+        && fetchTool?.outputSchema?.required?.includes('text')
+        && fetchTool?.outputSchema?.required?.includes('url')
+        && hasReadOnlyAnnotations(fetchTool)
     },
   },
   {
@@ -395,7 +481,9 @@ const checks = [
       const payload = JSON.parse(body)
       return response.ok
         && payload.transport?.url === `${canonicalBaseUrl}/mcp`
+        && payload.transport?.type === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
         && Array.isArray(payload.capabilities?.tools)
+        && payload.capabilities?.prompts?.listChanged === false
     },
   },
   {
@@ -424,6 +512,23 @@ const checks = [
     },
   },
   {
+    name: 'mcp-streamable-http-sse-get-declined',
+    url: `${baseUrl}/mcp`,
+    accept: 'text/event-stream',
+    assert: async (response, body) => response.status === 405 && body === '',
+  },
+  {
+    name: 'mcp-initialized-notification-accepted',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'notifications/initialized',
+    }),
+    assert: async (response, body) => response.status === 202 && body === '',
+  },
+  {
     name: 'mcp-tools-list',
     url: `${baseUrl}/mcp`,
     method: 'POST',
@@ -438,19 +543,94 @@ const checks = [
       const inspectTool = Array.isArray(payload.result?.tools)
         ? payload.result.tools.find((tool) => tool?.name === 'inspect_agent_surface')
         : null
+      const searchTool = Array.isArray(payload.result?.tools)
+        ? payload.result.tools.find((tool) => tool?.name === 'search')
+        : null
+      const fetchTool = Array.isArray(payload.result?.tools)
+        ? payload.result.tools.find((tool) => tool?.name === 'fetch')
+        : null
       const tools = Array.isArray(payload.result?.tools)
-        ? payload.result.tools.map((tool) => ({
-            name: tool?.name,
-            description: tool?.description,
-            inputSchema: tool?.inputSchema || {},
-          })).sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
+        ? payload.result.tools
+          .map((tool) => toComparableMcpToolEntry(tool || {}))
+          .sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
         : null
       return response.ok
         && Array.isArray(tools)
         && tools.length === expectedMcpToolEntries.length
         && JSON.stringify(tools) === JSON.stringify(expectedMcpToolEntries)
         && inspectTool?._meta?.ui?.resourceUri === KNOWGRPH_MCP_APP_RESOURCE_URI
+        && inspectTool?._meta?.['openai/outputTemplate'] === KNOWGRPH_MCP_APP_RESOURCE_URI
+        && inspectTool?.securitySchemes?.[0]?.type === 'noauth'
+        && inspectTool?._meta?.securitySchemes?.[0]?.type === 'noauth'
+        && inspectTool?._meta?.['openai/widgetAccessible'] === true
         && inspectTool?.outputSchema?.type === 'object'
+        && hasReadOnlyAnnotations(inspectTool)
+        && searchTool?.outputSchema?.required?.includes('ids')
+        && searchTool?.outputSchema?.required?.includes('results')
+        && hasReadOnlyAnnotations(searchTool)
+        && fetchTool?.outputSchema?.required?.includes('content')
+        && fetchTool?.outputSchema?.required?.includes('text')
+        && fetchTool?.outputSchema?.required?.includes('url')
+        && hasReadOnlyAnnotations(fetchTool)
+    },
+  },
+  {
+    name: 'mcp-prompts-list',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 29,
+      method: 'prompts/list',
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && JSON.stringify(payload.result?.prompts) === JSON.stringify(expectedPrompts)
+    },
+  },
+  {
+    name: 'mcp-prompts-get-source-files-research',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 30,
+      method: 'prompts/get',
+      params: {
+        name: KNOWGRPH_AGENT_READY_PROMPT_NAMES.researchSourceFiles,
+        arguments: {
+          query: deepResearchSearchQuery,
+          limit: '3',
+        },
+      },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const text = String(payload.result?.messages?.[0]?.content?.text || '')
+      return response.ok
+        && payload.result?.messages?.[0]?.role === 'user'
+        && text.includes('Call search')
+        && text.includes('call fetch')
+        && text.includes(deepResearchSearchQuery)
+    },
+  },
+  {
+    name: 'mcp-resource-templates-list',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 31,
+      method: 'resources/templates/list',
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && JSON.stringify(payload.result?.resourceTemplates) === JSON.stringify(expectedResourceTemplates)
     },
   },
   {
@@ -500,9 +680,48 @@ const checks = [
         && String(content?.text || '').includes('ui/notifications/tool-cancelled')
         && String(content?.text || '').includes('ui/notifications/host-context-changed')
         && String(content?.text || '').includes('ui/notifications/size-changed')
+        && String(content?.text || '').includes('window.openai')
+        && String(content?.text || '').includes('openai:set_globals')
+        && String(content?.text || '').includes('openaiAppsBridge')
         && String(content?.text || '').includes('mcpAppsServerReadiness')
         && String(content?.text || '').includes('MCP Apps server-ready')
         && String(content?.text || '').includes('tools/call')
+    },
+  },
+  {
+    name: 'mcp-apps-prefixed-static-resource',
+    url: `${baseUrl}/.well-known/mcp/apps/knowgrph-agent-ready.html`,
+    accept: 'text/html',
+    assert: async (response, body) =>
+      response.ok
+      && String(response.headers.get('content-type') || '').includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)
+      && body.includes(KNOWGRPH_MCP_APP_RESOURCE_URI)
+      && body.includes('window.openai')
+      && body.includes('openai:set_globals')
+      && body.includes('openaiAppsBridge')
+      && body.includes("request('ui/initialize'")
+      && !body.includes('<div id="root"></div>'),
+  },
+  {
+    name: 'mcp-source-file-resource-read',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 32,
+      method: 'resources/read',
+      params: { uri: buildKnowgrphSourceFileResourceUri(deepResearchFetchId) },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const content = payload.result?.contents?.[0]
+      return response.ok
+        && content?.uri === buildKnowgrphSourceFileResourceUri(deepResearchFetchId)
+        && content?.mimeType === KNOWGRPH_SOURCE_FILE_RESOURCE_MIME_TYPE
+        && content?._meta?.id === deepResearchFetchId
+        && content?._meta?.metadata?.canonicalPath === deepResearchFetchCanonicalPath
+        && String(content?.text || '').trim().length > 0
     },
   },
   {
@@ -528,6 +747,101 @@ const checks = [
         && typeof result?.markdownIndex === 'string'
         && result.markdownIndex.includes('/api/storage/doc-default/')
         && result.markdownIndex.length > 0
+    },
+  },
+  {
+    name: 'mcp-search-source-files',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 25,
+      method: 'tools/call',
+      params: {
+        name: 'search',
+        arguments: {
+          query: deepResearchSearchQuery,
+          limit: 10,
+        },
+      },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const result = payload.result?.structuredContent
+      return response.ok
+        && payload.result?.isError === false
+        && Array.isArray(result?.ids)
+        && result.ids.length > 0
+        && result.ids.every((id) => typeof id === 'string' && id.startsWith('kgdoc:'))
+        && Array.isArray(result?.results)
+        && result.results.length === result.ids.length
+        && result.results.every((entry) =>
+          result.ids.includes(entry?.id)
+          && typeof entry?.title === 'string'
+          && typeof entry?.url === 'string'
+          && typeof entry?.canonicalPath === 'string',
+        )
+    },
+  },
+  {
+    name: 'mcp-search-source-files-content-aware',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 33,
+      method: 'tools/call',
+      params: {
+        name: 'search',
+        arguments: {
+          query: contentAwareSearchQuery,
+          limit: 5,
+        },
+      },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const result = payload.result?.structuredContent
+      return response.ok
+        && payload.result?.isError === false
+        && Array.isArray(result?.ids)
+        && result.ids.length > 0
+        && result.results?.some((entry) =>
+          String(entry?.canonicalPath || '').endsWith('knowgrph-modularity-prd-tad.md')
+          && normalizeSearchEvidence(entry?.snippet).includes(contentAwareSearchEvidence),
+        )
+    },
+  },
+  {
+    name: 'mcp-fetch-source-file',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 26,
+      method: 'tools/call',
+      params: {
+        name: 'fetch',
+        arguments: {
+          id: deepResearchFetchId,
+        },
+      },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const result = payload.result?.structuredContent
+      return response.ok
+        && payload.result?.isError === false
+        && result?.id === deepResearchFetchId
+        && result?.metadata?.canonicalPath === deepResearchFetchCanonicalPath
+        && result?.metadata?.contentType === 'text/markdown'
+        && typeof result?.url === 'string'
+        && result.text === result.content
+        && typeof result?.content === 'string'
+        && result.content.trim().length > 0
     },
   },
   {
@@ -637,14 +951,49 @@ const checks = [
         && result?.healthUrl === `${canonicalBaseUrl}/health`
         && result?.mcpUrl === `${canonicalBaseUrl}/mcp`
         && result?.mcpServerCard?.transport?.url === `${canonicalBaseUrl}/mcp`
+        && result?.mcpServerCard?.transport?.type === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
         && result?.mcpAppsServerReadiness?.ready === true
         && result.mcpAppsServerReadiness.tool?.name === 'inspect_agent_surface'
+        && result.mcpAppsServerReadiness.tool?.securitySchemes?.[0]?.type === 'noauth'
+        && result.mcpAppsServerReadiness.tool?.mirroredSecuritySchemes?.[0]?.type === 'noauth'
+        && result.mcpAppsServerReadiness.tool?.widgetAccessible === true
+        && result.mcpAppsServerReadiness.tool?.openAiWidgetBridge === true
+        && result.mcpAppsServerReadiness.tool?.annotationsReady === true
+        && result.mcpAppsServerReadiness.tool?.openWorld === false
+        && result.mcpAppsServerReadiness.tool?.destructive === false
+        && result.mcpAppsServerReadiness.tool?.idempotent === true
+        && result.mcpAppsServerReadiness.prompts?.ready === true
+        && result.mcpAppsServerReadiness.prompts?.names?.includes(KNOWGRPH_AGENT_READY_PROMPT_NAMES.researchSourceFiles)
+        && result.mcpAppsServerReadiness.prompts?.names?.includes(KNOWGRPH_AGENT_READY_PROMPT_NAMES.inspectAgentSurface)
+        && result.mcpAppsServerReadiness.resourceTemplates?.ready === true
+        && result.mcpAppsServerReadiness.resourceTemplates?.uriTemplates?.includes(expectedResourceTemplates[0]?.uriTemplate)
         && result.mcpAppsServerReadiness.resource?.mimeType === KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE
+        && result.mcpAppsServerReadiness.resource?.openAiWidgetBridge === true
         && Array.isArray(result.mcpAppsServerReadiness.transports)
-        && result.mcpAppsServerReadiness.transports.some((transport) => transport?.id === 'pages-http-jsonrpc')
+        && result.mcpAppsServerReadiness.transports.some((transport) => transport?.id === 'pages-http-jsonrpc' && transport?.type === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE)
         && result.mcpAppsServerReadiness.transports.some((transport) => transport?.id === 'local-stdio-jsonrpc')
         && Array.isArray(result.mcpAppsServerReadiness.checklist)
         && result.mcpAppsServerReadiness.checklist.every((check) => check?.ok === true)
+        && result.mcpAppsServerReadiness.clients?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.settingsJson?.mcpServers?.knowgrph?.httpUrl === `${canonicalBaseUrl}/mcp`
+        && String(result.mcpAppsServerReadiness.clients?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.command || '').includes(`qwen mcp add --transport http knowgrph ${canonicalBaseUrl}/mcp`)
+        && result.mcpAppsServerReadiness.checklist.some((check) => check?.id === 'qwen-code-http-client-setup' && check?.ok === true)
+        && result.mcpAppsServerReadiness.clients?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.mcpJson?.mcpServers?.knowgrph?.url === `${canonicalBaseUrl}/mcp`
+        && String(result.mcpAppsServerReadiness.clients?.[KNOWGRPH_MCP_CLIENT_IDS.kimiCli]?.command || '').includes(`kimi mcp add --transport http knowgrph ${canonicalBaseUrl}/mcp`)
+        && result.mcpAppsServerReadiness.checklist.some((check) => check?.id === 'kimi-cli-http-client-setup' && check?.ok === true)
+        && result.mcpAppsServerReadiness.clients?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.tools?.[0]?.server_url === `${canonicalBaseUrl}/mcp`
+        && result.mcpAppsServerReadiness.clients?.[KNOWGRPH_MCP_CLIENT_IDS.bytePlusModelArk]?.requiredHeaders?.['ark-beta-mcp'] === 'true'
+        && result.mcpAppsServerReadiness.checklist.some((check) => check?.id === 'byteplus-modelark-responses-mcp-setup' && check?.ok === true)
+        && result.mcpAppsServerReadiness.retrieval?.mode === 'deep-research-search-fetch'
+        && result.mcpAppsServerReadiness.retrieval?.tools?.every((tool) =>
+          tool?.readOnly === true
+          && tool?.outputSchemaReady === true
+          && tool?.annotationsReady === true
+          && tool?.openWorld === false
+          && tool?.destructive === false
+          && tool?.idempotent === true
+        )
+        && result.mcpAppsServerReadiness.retrieval?.tools?.some((tool) => tool?.name === 'search' && tool?.requiredOutputFields?.includes('ids'))
+        && result.mcpAppsServerReadiness.retrieval?.tools?.some((tool) => tool?.name === 'fetch' && tool?.requiredOutputFields?.includes('content') && tool?.requiredOutputFields?.includes('text'))
         && Array.isArray(result?.agentSkills?.skills)
         && result.agentSkills.skills.length > 0
     },
@@ -729,7 +1078,12 @@ const checks = [
     name: 'root-mcp-card-alias',
     url: `${originUrl}/.well-known/mcp/server-card.json`,
     accept: 'application/json',
-    assert: async (response, body) => response.ok && JSON.parse(body).transport?.url === `${canonicalBaseUrl}/mcp`,
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && payload.transport?.url === `${canonicalBaseUrl}/mcp`
+        && payload.transport?.type === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
+    },
   },
   {
     name: 'root-agent-skills-alias',

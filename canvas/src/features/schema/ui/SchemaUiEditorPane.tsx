@@ -33,8 +33,8 @@ export default function SchemaUiEditorPane({
     s => s.uiPanelTextFontClass || 'font-sans',
   )
   return (
-    <div className="h-full min-h-0 flex flex-col overflow-auto">
-      <div
+    <section className="h-full min-h-0 flex flex-col overflow-auto">
+      <section
         className={[
           `py-2 ${UI_THEME_TOKENS.text.secondary} space-y-3`,
           uiPanelKeyValueTextSizeClass,
@@ -52,7 +52,7 @@ export default function SchemaUiEditorPane({
           step332Collapsed={schemaUiStep332Collapsed}
           onToggleStep332={onToggleStep332}
         />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

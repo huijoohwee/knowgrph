@@ -13,8 +13,8 @@ export function testFlowEditorRichMediaOverlayBalancedSpreadUsesSharedCentered16
   if (!overlaysText.includes("preset: 'richMedia'")) {
     throw new Error('expected FlowCanvas rich media overlays to request the shared rich-media balanced spread viewport preset')
   }
-  if (!overlaysText.includes('clampToViewport: richMediaInfiniteCanvasMode')
-    || !overlaysText.includes(': { margin: Math.max(mediaViewportMargins.left, mediaViewportMargins.right, mediaViewportMargins.top, mediaViewportMargins.bottom) }')) {
+  if (!overlaysText.includes('clampToViewport: richMediaInfiniteCanvasMode\n        ? null')
+    || !overlaysText.includes(': { margin: mediaViewportMargin }')) {
     throw new Error('expected bounded FlowCanvas rich media overlays to clamp layout through the shared balanced-spread-derived viewport margins')
   }
   if (!loopText.includes('computeBalancedSpreadLayout')) {

@@ -26,7 +26,7 @@ const baseOpts = (sourceLines: string[], onReplaceLineRange: (args: { startLine:
 })
 
 export async function testMarkdownViewerCodeFenceLanguageSelectorUpdatesFenceInfoAndKeepsMetadata() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -70,7 +70,7 @@ export async function testMarkdownViewerCodeFenceLanguageSelectorUpdatesFenceInf
 }
 
 export async function testMarkdownViewerCodeFenceLanguageSelectorAllowsAutoModeWithoutOpeningInlineEditor() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -127,7 +127,7 @@ export async function testMarkdownViewerCodeFenceLanguageSelectorAllowsAutoModeW
 }
 
 export async function testMarkdownViewerCodeFenceCopyButtonRespectsExplicitForbidOnly() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')

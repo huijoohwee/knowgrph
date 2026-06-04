@@ -1,7 +1,7 @@
 import { injectLiveMarkdownDesignBlocksIntoSvgMarkup, injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored } from '@/lib/graph/svgSnapshot'
 
 export async function testInjectLiveMarkdownDesignBlocksIntoSvgMarkupEmbedsForeignObject(): Promise<void> {
-  const root = document.createElement('div')
+  const root = document.createElement('section')
   root.id = 'kg-root'
   document.body.appendChild(root)
 
@@ -12,7 +12,7 @@ export async function testInjectLiveMarkdownDesignBlocksIntoSvgMarkupEmbedsForei
   block.setAttribute('data-kg-world-w', '300')
   block.setAttribute('data-kg-world-h', '120')
   block.style.background = 'rgb(255, 0, 0)'
-  block.innerHTML = '<div><a href="https://example.com">Hello</a></div>'
+  block.innerHTML = '<section><a href="https://example.com">Hello</a></section>'
   root.appendChild(block)
 
   const svgIn = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g></g></svg>'
@@ -33,7 +33,7 @@ export async function testInjectLiveMarkdownDesignBlocksIntoSvgMarkupEmbedsForei
 }
 
 export async function testInjectLiveMarkdownDesignBlocksIntoSvgMarkupAnchoredUsesNodeCenter(): Promise<void> {
-  const root = document.createElement('div')
+  const root = document.createElement('section')
   root.id = 'kg-root'
   document.body.appendChild(root)
 

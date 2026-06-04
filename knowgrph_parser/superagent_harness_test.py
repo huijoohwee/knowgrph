@@ -14,17 +14,22 @@ from .superagent_harness import (
     run_harness,
 )
 from .pixverse_smoke_cmd import main as pixverse_smoke_main
-from .superagent_contracts import BALANCED_WIDGET_LAYOUT, RICH_MEDIA_PANEL_EDGE_LANES
+from .superagent_contracts import (
+    BALANCED_WIDGET_LAYOUT,
+    RICH_MEDIA_PANEL_EDGE_LANES,
+    SUPERAGENT_TASK_CAPABILITIES,
+    SUPERAGENT_TASK_LEVELS,
+)
 from .superagent_responsive import REQUIRED_RESPONSIVE_WIDGET_IDS, required_responsive_proof_class_ids
 
 
 GOAL_TEXT = """
 # Goal
 
-Build a universal super-agent harness for rich media canvas generation.
+Build a universal super-agent harness for research, code, and creation tasks with rich media canvas output.
 
 - Keep tests neutral and independent of a specific demo document.
-- Produce text, image, video, canvas, trace, and report artifacts.
+- Produce research, code, sandbox, text, image, video, canvas, trace, and report artifacts.
 - Stop only when deterministic validation passes or a blocker is recorded.
 """
 
@@ -314,6 +319,15 @@ while True:
         registry = ToolRegistry()
         # Reuse the default registry through a tiny fake object because the builder does not depend on harness state.
         registry = build_default_tool_registry(object())  # type: ignore[arg-type]
+        tool_by_name = {tool["name"]: tool for tool in registry.describe()}
+        self.assertIn("skill.select", tool_by_name)
+        self.assertIn("tool_inventory", tool_by_name["skill.select"]["required"])
+        self.assertIn("research_result", tool_by_name["text.generate.mock"]["required"])
+        self.assertIn("code_result", tool_by_name["text.generate.mock"]["required"])
+        self.assertIn("skill_result", tool_by_name["text.generate.mock"]["required"])
+        self.assertIn("research_result", tool_by_name["canvas.write"]["required"])
+        self.assertIn("code_result", tool_by_name["canvas.write"]["required"])
+        self.assertIn("skill_result", tool_by_name["canvas.write"]["required"])
         with self.assertRaises(HarnessError):
             registry.call("text.generate.mock", {"inspection": {}})
 
@@ -330,6 +344,10 @@ while True:
             )
             self.assertEqual(state["run"]["status"], "completed")
             self.assertTrue(state["verification"]["passed"])
+            self.assertEqual(
+                state["memory"]["observations"]["inspect_goal"]["tool_count"],
+                len(state["tool_registry"]),
+            )
             self.assertTrue(os.path.exists(os.path.join(out, "trace.jsonl")))
             self.assertTrue(os.path.exists(os.path.join(out, "final-report.md")))
             proof_path = os.path.join(out, "harness-proof.json")
@@ -339,10 +357,29 @@ while True:
             self.assertEqual(proof["schema_version"], "knowgrph.superagent.proof.v1")
             self.assertEqual(proof["harness_contract"]["codex_integration"]["mcp_tool"], "knowgrph.superagent.run")
             self.assertEqual(proof["harness_contract"]["codex_integration"]["surface_route"], RICH_MEDIA_SURFACE_ROUTE)
+            self.assertEqual(proof["harness_contract"]["capabilities"]["task_capabilities"], SUPERAGENT_TASK_CAPABILITIES)
+            self.assertEqual(proof["harness_contract"]["capabilities"]["task_levels"], SUPERAGENT_TASK_LEVELS)
+            self.assertIn("skill.select", proof["harness_contract"]["capabilities"]["tools"])
+            self.assertIn("research.scout", proof["harness_contract"]["capabilities"]["tools"])
+            self.assertIn("code.write_and_run", proof["harness_contract"]["capabilities"]["tools"])
+            self.assertIn("skill_curator", proof["harness_contract"]["capabilities"]["subagents"])
+            self.assertIn("research_worker", proof["harness_contract"]["capabilities"]["subagents"])
+            self.assertIn("code_worker", proof["harness_contract"]["capabilities"]["subagents"])
             self.assertTrue(proof["evidence"]["verification"]["passed"])
             self.assertGreaterEqual(proof["evidence"]["trace_event_counts"]["tool.call"], 1)
+            self.assertIn("select_skills", proof["evidence"]["completed_task_ids"])
+            self.assertIn("research_goal", proof["evidence"]["completed_task_ids"])
+            self.assertIn("code_sandbox", proof["evidence"]["completed_task_ids"])
             self.assertIn("synthesize_report", proof["evidence"]["completed_task_ids"])
+            self.assertTrue(proof["evidence"]["capability_evidence"]["skill"]["completed"])
+            self.assertTrue(proof["evidence"]["capability_evidence"]["research"]["completed"])
+            self.assertTrue(proof["evidence"]["capability_evidence"]["code"]["completed"])
+            self.assertTrue(proof["evidence"]["capability_evidence"]["create"]["completed"])
             proof_artifacts = {artifact["artifact_id"] for artifact in proof["evidence"]["artifacts"]}
+            self.assertIn("selected_skills_json", proof_artifacts)
+            self.assertIn("research_pack_json", proof_artifacts)
+            self.assertIn("code_generated_summary_py", proof_artifacts)
+            self.assertIn("code_sandbox_result", proof_artifacts)
             self.assertIn("harness_proof_manifest", proof_artifacts)
             self.assertIn("responsive_verification", proof_artifacts)
             self.assertEqual(
@@ -370,6 +407,9 @@ while True:
                 self.assertTrue(set(REQUIRED_RESPONSIVE_WIDGET_IDS).issubset(proof_class["widgets"]))
                 self.assertTrue(set(["e-text-panel", "e-image-panel", "e-video-panel"]).issubset(proof_class["edgePolicy"]["reachableEdgeIds"]))
             node_types = {node["type"] for node in graph["nodes"]}
+            self.assertIn("SkillSelector", node_types)
+            self.assertIn("ResearchAgent", node_types)
+            self.assertIn("CodeWorker", node_types)
             self.assertIn("TextGeneration", node_types)
             self.assertIn("ImageGeneration", node_types)
             self.assertIn("VideoGeneration", node_types)
@@ -399,6 +439,8 @@ while True:
                 if edge.get("target") == "rich-media-panel"
             }
             self.assertTrue({"output", "imageUrl", "videoUrl"}.issubset(panel_edges))
+            edge_ids = {edge["id"] for edge in graph["edges"]}
+            self.assertTrue({"e-brief-skill", "e-skill-research", "e-brief-research", "e-research-code", "e-code-text", "e-research-text"}.issubset(edge_ids))
             for edge in graph["edges"]:
                 if edge["id"] in {"e-text-panel", "e-image-panel", "e-video-panel"}:
                     self.assertEqual(edge["properties"]["layoutRoute"]["frame"], "balanced-16x9")
@@ -411,6 +453,12 @@ while True:
                 workspace_text = handle.read()
             self.assertIn('kgCanvas2dRenderer: "flowEditor"', workspace_text)
             self.assertIn("kgSuperAgentLayout:", workspace_text)
+            self.assertIn("kgSuperAgentCapabilities:", workspace_text)
+            self.assertIn("kgSuperAgentTaskLevels:", workspace_text)
+            self.assertIn("quick_triage", workspace_text)
+            self.assertIn("parallel_build", workspace_text)
+            self.assertIn("kgSuperAgentMessageGateway:", workspace_text)
+            self.assertIn("kgSuperAgentSandbox:", workspace_text)
             self.assertIn("width: 1920", workspace_text)
             self.assertIn("height: 1080", workspace_text)
             self.assertIn("frontmatterFlowSettings:", workspace_text)
@@ -426,13 +474,22 @@ while True:
             self.assertIn("visual:yIndex", workspace_text)
             self.assertIn("visual:zIndex", workspace_text)
             self.assertIn("TextGeneration", workspace_text)
+            self.assertIn("SkillSelector", workspace_text)
+            self.assertIn("ResearchAgent", workspace_text)
+            self.assertIn("CodeWorker", workspace_text)
             self.assertIn("ImageGeneration", workspace_text)
             self.assertIn("VideoGeneration", workspace_text)
             self.assertIn("RichMediaPanel", workspace_text)
             self.assertIn("flow:widgetFormId", workspace_text)
             self.assertIn("richMediaPanel", workspace_text)
             check_ids = {check["id"] for check in state["verification"]["checks"]}
+            self.assertIn("artifact:skill", check_ids)
             self.assertIn("canvas:has_rich_media_panel", check_ids)
+            self.assertIn("canvas:has_skill_node", check_ids)
+            self.assertIn("canvas:has_research_node", check_ids)
+            self.assertIn("canvas:has_code_node", check_ids)
+            self.assertIn("harness:research_code_create_capabilities", check_ids)
+            self.assertIn("sandbox:generated_code_passed", check_ids)
             self.assertIn("workspace:frontmatter_flow_rich_media_panel", check_ids)
             self.assertIn("surface:route", check_ids)
             self.assertIn("layout:balanced_16x9_widgets", check_ids)

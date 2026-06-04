@@ -12,7 +12,7 @@ function ActionsRowImpl({ actions, className }: { actions: Action[]; className?:
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
   return (
-    <div className={className || 'mb-2 flex items-center gap-2'}>
+    <section className={className || 'mb-2 flex items-center gap-2'}>
       {actions.map(a => {
         if (a.disabled) return null
         if (a.label === 'Format') {
@@ -55,7 +55,7 @@ function ActionsRowImpl({ actions, className }: { actions: Action[]; className?:
           </button>
         )
       })}
-    </div>
+    </section>
   )
 }
 

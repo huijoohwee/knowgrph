@@ -39,8 +39,8 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
   const overlayBadgeClassName = `rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
 
   return (
-    <div className={props.className} style={props.style} data-kg-webpage-snapshot="1" data-src={props.url}>
-      <div
+    <section className={props.className} style={props.style} data-kg-webpage-snapshot="1" data-src={props.url}>
+      <section
         className="w-full h-full relative"
         data-kg-media-thumbnail={props.thumbnailInteractive ? '1' : undefined}
         role={props.thumbnailInteractive ? 'button' : undefined}
@@ -56,7 +56,7 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
             style={{ objectFit: 'cover', filter: 'saturate(1.05) contrast(1.02)' }}
           />
         ) : props.faviconSrc ? (
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10))' }}>
+          <section className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10))' }}>
             <img
               src={props.faviconSrc}
               alt=""
@@ -65,9 +65,9 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
               className="absolute inset-0 w-full h-full"
               style={{ objectFit: 'contain', padding: '18%', opacity: 0.6, filter: 'saturate(1.05) contrast(1.02)' }}
             />
-          </div>
+          </section>
         ) : props.hostIconSrc ? (
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10))' }}>
+          <section className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10))' }}>
             <img
               src={props.hostIconSrc}
               alt=""
@@ -76,7 +76,7 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
               className="absolute inset-0 w-full h-full"
               style={{ objectFit: 'contain', padding: '18%', opacity: 0.65, filter: 'saturate(1.05) contrast(1.02)' }}
             />
-          </div>
+          </section>
         ) : null}
         {props.snap ? (
           <svg
@@ -113,20 +113,20 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
             ))}
           </svg>
         ) : (
-          <div className="absolute inset-0 bg-black/5" />
+          <section className="absolute inset-0 bg-black/5" />
         )}
-        <div aria-hidden={true} className="absolute inset-0 pointer-events-none">
-          <div className={overlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
-            <div className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{props.titleLabel}</div>
-            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{props.hostLabel}</div>
-          </div>
+        <section aria-hidden={true} className="absolute inset-0 pointer-events-none">
+          <section className={overlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
+            <section className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{props.titleLabel}</section>
+            <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{props.hostLabel}</section>
+          </section>
           {props.blocked ? (
-            <div className={`absolute right-2 top-2 ${overlayBadgeClassName}`}>
-              <div className={`text-[10px] font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Blocked</div>
-            </div>
+            <section className={`absolute right-2 top-2 ${overlayBadgeClassName}`}>
+              <section className={`text-[10px] font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Blocked</section>
+            </section>
           ) : null}
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </section>
   )
 }

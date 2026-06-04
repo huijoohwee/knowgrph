@@ -19,10 +19,10 @@ export function DesignWireframeSettings() {
 
   return (
     <CollapsibleSection title="Design wireframe" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className={uiToolbarSettingsPanelBodyClassName}>
-        <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+      <section className={uiToolbarSettingsPanelBodyClassName}>
+        <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Controls for webpage source-url wireframes (layout fidelity, grouping cues, label readability).
-        </div>
+        </section>
         <ToggleRow label="Show edges" value={settings.showEdges} onChange={v => setSettings({ showEdges: v })} />
         <ToggleRow label="Show labels" value={settings.showLabelChips} onChange={v => setSettings({ showLabelChips: v })} />
         <ToggleRow label="Show label meta" value={settings.showMetaChips} onChange={v => setSettings({ showMetaChips: v })} />
@@ -32,7 +32,7 @@ export function DesignWireframeSettings() {
         <ToggleRow label="Depth fade" value={settings.depthFade} onChange={v => setSettings({ depthFade: v })} />
         <NumberRow label="Max edges" value={settings.maxEdges} min={0} max={5000} onChange={v => setSettings({ maxEdges: v })} />
         <NumberRow label="Max label chars" value={settings.maxLabelChars} min={8} max={140} onChange={v => setSettings({ maxLabelChars: v })} />
-        <div className="pt-1 flex justify-end gap-2">
+        <section className="pt-1 flex justify-end gap-2">
           <button
             type="button"
             className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
@@ -51,8 +51,8 @@ export function DesignWireframeSettings() {
           >
             Reset
           </button>
-        </div>
-      </div>
+        </section>
+      </section>
     </CollapsibleSection>
   )
 }

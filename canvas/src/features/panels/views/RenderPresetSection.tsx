@@ -175,8 +175,8 @@ export default function RenderPresetSection({
   )
 
   return (
-    <div className="mt-2" data-kg-anchor={UI_ANCHORS.ragEmbedding}>
-      <div className="flex flex-wrap gap-2">
+    <section className="mt-2" data-kg-anchor={UI_ANCHORS.ragEmbedding}>
+      <section className="flex flex-wrap gap-2">
         <button
           className={presetButtonClassName}
           type="button"
@@ -252,8 +252,8 @@ export default function RenderPresetSection({
             {preset.label}
           </button>
         ))}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 
@@ -277,22 +277,22 @@ export function TraversalPresetSection({
   const keyLabelClassName = `${UI_THEME_TOKENS.text.secondary} break-words`
 
   return (
-    <div
+    <section
       className={panelClassName}
       data-kg-anchor={UI_ANCHORS.ragEmbedding}
     >
-      <div className="flex items-center justify-between gap-1 mb-1">
+      <section className="flex items-center justify-between gap-1 mb-1">
         <Tooltip
           content={TRAVERSAL_PRESET_UI_TOOLTIP}
           maxWidthPx={260}
 
         >
-          <div className={sectionHeadingClassName}>
+          <section className={sectionHeadingClassName}>
             Traversal
-          </div>
+          </section>
         </Tooltip>
-      </div>
-      <div className="flex flex-wrap gap-2">
+      </section>
+      <section className="flex flex-wrap gap-2">
         <button
           className={presetButtonClassName}
           type="button"
@@ -328,12 +328,12 @@ export function TraversalPresetSection({
         >
           Requires/enables chain preset
         </button>
-      </div>
-      <div className={`mt-2 border-t ${UI_THEME_TOKENS.panel.divider} pt-2`}>
-        <div className={sectionHeadingClassName}>
+      </section>
+      <section className={`mt-2 border-t ${UI_THEME_TOKENS.panel.divider} pt-2`}>
+        <section className={sectionHeadingClassName}>
           Traversal Query
-        </div>
-        <div className="space-y-1">
+        </section>
+        <section className="space-y-1">
           <KeyTypeValueRow
             density="compact"
             layout="keyIconValue"
@@ -425,7 +425,7 @@ export function TraversalPresetSection({
               />
             )}
           />
-          <div className="flex justify-end pt-1">
+          <section className="flex justify-end pt-1">
             <button
               className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} px-2 py-1 border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`}
               type="button"
@@ -433,9 +433,9 @@ export function TraversalPresetSection({
             >
               Run Traversal
             </button>
-          </div>
-        </div>
-      </div>
-    </div>
+          </section>
+        </section>
+      </section>
+    </section>
   )
 }

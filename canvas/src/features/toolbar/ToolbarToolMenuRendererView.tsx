@@ -182,7 +182,7 @@ export function ToolbarToolMenuRendererView(props: {
   }, [])
 
   return (
-    <div className="flex flex-col gap-2">
+    <section className="flex flex-col gap-2">
       <RendererGraphTopologySummary />
       <React.Suspense fallback={null}>
         <WorkspaceTableModeControlLazy />
@@ -201,9 +201,9 @@ export function ToolbarToolMenuRendererView(props: {
       {showRadarGalaxyUi ? <RadarGalaxyRendererSettings /> : null}
       {showFlowchartUi ? <FlowchartRendererSettings /> : null}
       <section className="flex flex-col gap-1" aria-label="Rich media rendering">
-        <div className={`text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>
+        <section className={`text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>
           Rich media
-        </div>
+        </section>
         <label className="flex items-center gap-2 text-xs">
           <span className="min-w-0">Panel mode</span>
           <select
@@ -227,12 +227,12 @@ export function ToolbarToolMenuRendererView(props: {
             onSelectTool={setToolId}
             disabled={!graphData}
           />
-          <div className="flex-1 min-w-0">
+          <section className="flex-1 min-w-0">
             <GraphEditorRightPanel />
-          </div>
+          </section>
         </section>
       ) : null}
-      <div className="flex items-center gap-2">
+      <section className="flex items-center gap-2">
         <button
           type="button"
           className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -248,7 +248,7 @@ export function ToolbarToolMenuRendererView(props: {
         >
           {UI_LABELS.expandAll}
         </button>
-      </div>
+      </section>
       <RenderSettingsSection
         threeGroupsCollapsed={{
           links: renderLinksCollapsed,
@@ -271,6 +271,6 @@ export function ToolbarToolMenuRendererView(props: {
         codebaseIndexCollapsed={renderCodebaseIndexCollapsed}
         onToggleCodebaseIndex={setRenderCodebaseIndexCollapsed}
       />
-    </div>
+    </section>
   )
 }

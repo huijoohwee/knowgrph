@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { JSDOM } from 'jsdom'
 import { buildWorkspaceHtmlExportDocument } from '@/features/markdown-workspace/main/exports/exportHtmlWorkspace'
 import { buildHtmlViewerSnapshotDocument } from '@/features/markdown-workspace/main/exports/exportHtmlViewer'
+import { buildMarkdownHtmlViewerDocument } from '@/features/markdown/htmlViewerCss'
 
 const readJsonScriptPayload = (html: string, id: string): unknown => {
   const re = new RegExp(`<script type="application/json" id="${id}">([\\s\\S]*?)<\\/script>`)
@@ -31,6 +32,7 @@ export function testBuildWorkspaceHtmlExportDocumentEmbedsEditorAndCanvasPayload
   })
 
   if (!html.includes('data-kg-workspace-export="workspace"')) throw new Error('expected workspace export marker')
+  if (/<section\b|<\/div>/i.test(html)) throw new Error(`expected outer Workspace HTML export to avoid generic HTML division element containers, got: ${html}`)
   if (!html.includes('data-kg-workspace-export-section="editor-workspace"')) throw new Error('expected Editor Workspace section')
   if (!html.includes('data-kg-workspace-export-section="canvas"')) throw new Error('expected Canvas section')
   if (!html.includes('kg-workspace-editor-frame') || !html.includes('kg-workspace-canvas-frame')) {
@@ -96,6 +98,26 @@ export function testWorkspaceHtmlExportReusesViewerCanvasBuildersAndSemanticKey(
   ]
   for (const snippet of forbiddenSnippets) {
     if (text.includes(snippet)) throw new Error(`expected Workspace HTML export to avoid duplicate local owner: ${snippet}`)
+  }
+}
+
+export function testMarkdownHtmlViewerDocumentNormalizesGenericDivContainers() {
+  const html = buildMarkdownHtmlViewerDocument({
+    title: 'Semantic Viewer',
+    bodyHtml: [
+      '<section class="outer" role="article">',
+      '  <section class="inner">Readable content</section>',
+      '</section>',
+    ].join(''),
+  })
+  if (/<section\b|<\/div>/i.test(html)) {
+    throw new Error(`expected generated markdown viewer HTML to avoid generic HTML division element containers, got: ${html}`)
+  }
+  if (!/<section\b[^>]*class="outer"[^>]*role="article"[^>]*>/.test(html)) {
+    throw new Error(`expected role=article generic wrapper to become a semantic section with role metadata, got: ${html}`)
+  }
+  if (!/<section\b[^>]*class="inner"[^>]*>Readable content<\/section>/.test(html)) {
+    throw new Error(`expected nested generic wrapper to become section, got: ${html}`)
   }
 }
 

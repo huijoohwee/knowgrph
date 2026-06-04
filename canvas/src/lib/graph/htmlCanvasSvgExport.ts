@@ -183,7 +183,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     for (const row of inventory.rows) ids.add(row.id)
     return ids.size > 0 ? ids : undefined
   })()
-  const container = document.createElement('div')
+  const container = document.createElement('section')
   container.style.position = 'fixed'
   container.style.left = '-100000px'
   container.style.top = '-100000px'

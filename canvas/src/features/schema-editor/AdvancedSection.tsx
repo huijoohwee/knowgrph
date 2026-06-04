@@ -21,7 +21,7 @@ function AdvancedSection({
   } = useSchemaEditorUiClasses()
 
   return (
-    <div className="space-y-4">
+    <section className="space-y-4">
       <BehaviorSection
         schema={schema}
         uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
@@ -54,7 +54,7 @@ function AdvancedSection({
         setLodHideLabelsBelow={setLodHideLabelsBelow}
         setHighContrast={setHighContrast}
       />
-    </div>
+    </section>
   )
 }
 

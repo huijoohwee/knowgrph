@@ -32,7 +32,7 @@ export default function WidgetRegistryFieldsEditor({
 
   return (
     <section aria-label="Fields" className="space-y-2">
-      <div className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME}>
+      <section className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME}>
         <h4 className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Fields</h4>
         <button
           type="button"
@@ -41,39 +41,39 @@ export default function WidgetRegistryFieldsEditor({
         >
           {UI_LABELS.add} field
         </button>
-      </div>
+      </section>
 
-      <div className="space-y-2">
+      <section className="space-y-2">
         {(fields || []).map((f, idx) => (
-          <div key={`${idx}:${f.fieldKey}`} className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
-            <div className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME, 'sm:grid-cols-4')}>
-              <div>
+          <section key={`${idx}:${f.fieldKey}`} className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
+            <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME, 'sm:grid-cols-4')}>
+              <section>
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Field key</label>
                 <input
                   value={f.fieldKey}
                   onChange={e => onChange(fields.map((x, i) => (i === idx ? { ...x, fieldKey: e.target.value } : x)))}
                   className={fieldClassName}
                 />
-              </div>
-              <div>
+              </section>
+              <section>
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Type</label>
                 <input
                   value={f.fieldType}
                   onChange={e => onChange(fields.map((x, i) => (i === idx ? { ...x, fieldType: e.target.value } : x)))}
                   className={fieldClassName}
                 />
-              </div>
-              <div className="sm:col-span-2">
+              </section>
+              <section className="sm:col-span-2">
                 <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>Schema path</label>
                 <input
                   value={f.schemaPath || ''}
                   onChange={e => onChange(fields.map((x, i) => (i === idx ? { ...x, schemaPath: e.target.value } : x)))}
                   className={cn(fieldClassName, panelTypography.monospaceTextClass)}
                 />
-              </div>
-            </div>
+              </section>
+            </section>
 
-            <div className="mt-2 flex items-center justify-between">
+            <section className="mt-2 flex items-center justify-between">
               <label className={cn(UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME, panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                 <input
                   type="checkbox"
@@ -90,14 +90,14 @@ export default function WidgetRegistryFieldsEditor({
               >
                 <X className={iconSizeClass} aria-hidden="true" />
               </button>
-            </div>
-          </div>
+            </section>
+          </section>
         ))}
 
         {(fields || []).length === 0 && (
-          <div className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>No fields.</div>
+          <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>No fields.</section>
         )}
-      </div>
+      </section>
     </section>
   )
 }

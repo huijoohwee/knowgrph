@@ -3,13 +3,13 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { readWheelBehavior, shouldWheelZoom } from '@/lib/canvas/camera-options-2d'
 import { UI_SELECTORS } from '@/lib/config'
-import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequestNative'
 import {
   readCanvasOverlayPinnedState,
   resolveFlowEditorOverlayProxyTarget,
   type FlowEditorOverlayProxyTarget,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { shouldUseFlowEditorScreenAuthorityCollectivePan } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import { createSafariGestureZoomController } from '@/lib/canvas/safari-gesture-zoom'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
@@ -35,10 +35,10 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     const dy = typeof (event as unknown as { deltaY?: unknown }).deltaY === 'number' ? (event as unknown as { deltaY: number }).deltaY : 0
     if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return false
 
-    if (shouldKeepWidgetInnerPanelWheel(event, overlayRoot)) return false
-
-    // Explicit zoom intent still reaches the canvas when it does not originate from an inner scroll surface.
+    // Explicit zoom intent is viewport-owned; ordinary wheel remains local to inner scroll surfaces.
     if (event.ctrlKey === true || event.metaKey === true) return true
+
+    if (shouldKeepWidgetInnerPanelWheel(event, overlayRoot)) return false
 
     if (isFlowEditor && overlayPinnedToNode && event.altKey !== true) return true
     if (overlayPinnedToNode && resolved.isInteractive !== true && event.altKey !== true) return true
@@ -48,7 +48,8 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   }
 
   const handleWheel = (e: WheelEvent, opts?: { skipIgnoreGuard?: boolean }) => {
-    if (shouldKeepWidgetInnerPanelWheel(e)) return
+    const explicitOverlayZoomIntent = opts?.skipIgnoreGuard === true && (e.ctrlKey === true || e.metaKey === true)
+    if (shouldKeepWidgetInnerPanelWheel(e) && !explicitOverlayZoomIntent) return
 
     cancelFlowZoomRequestAnim(runtime)
     const drag = ctx.args.dragRef.current
@@ -111,11 +112,8 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     if (!ctx.args.active) return
     const st = ctx.readViewportInteractionSnapshot()
     const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
-    if (!isFlowEditorFrontmatterDocumentModeRequested({
-      canvas2dRenderer: String(st.canvas2dRenderer || ''),
-      frontmatterModeEnabled: st.frontmatterModeEnabled === true,
-      documentSemanticMode: String(st.documentSemanticMode || ''),
-    })) return
+    const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)
+    if (!flowEditorOverlayInteractionMode) return
     const resolved = resolveFlowEditorOverlayProxyTarget({
       target: (e as unknown as { target?: unknown }).target,
       canvasEl,
@@ -146,11 +144,8 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
 
   const shouldProxyGestureToCanvas = (event: Event): boolean => {
     const st = ctx.readViewportInteractionSnapshot()
-    if (!isFlowEditorFrontmatterDocumentModeRequested({
-      canvas2dRenderer: String(st.canvas2dRenderer || ''),
-      frontmatterModeEnabled: st.frontmatterModeEnabled === true,
-      documentSemanticMode: String(st.documentSemanticMode || ''),
-    })) return false
+    const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)
+    if (!flowEditorOverlayInteractionMode) return false
     const resolved = resolveFlowEditorOverlayProxyTarget({
       target: (event as unknown as { target?: unknown }).target,
       canvasEl,

@@ -38,12 +38,12 @@ export function GraphEditorRightPanel() {
   return (
     <aside className={`flex h-full min-h-0 flex-col rounded-xl border ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border} shadow-sm`} aria-label="Graph editor panel">
       <header className={`flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2 ${UI_THEME_TOKENS.panel.divider}`} aria-label="Graph editor panel header">
-        <div className="flex items-center gap-1">
+        <section className="flex items-center gap-1">
           <TabButton id="outline" active={tab === 'outline'} onClick={() => setTab('outline')}>Outline</TabButton>
           <TabButton id="inspector" active={tab === 'inspector'} onClick={() => setTab('inspector')}>Inspector</TabButton>
           <TabButton id="history" active={tab === 'history'} onClick={() => setTab('history')}>History</TabButton>
-        </div>
-        <div className="flex items-center gap-1">
+        </section>
+        <section className="flex items-center gap-1">
           <button
             type="button"
             className={`rounded-md px-2 py-1 text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -60,7 +60,7 @@ export function GraphEditorRightPanel() {
           >
             Redo
           </button>
-        </div>
+        </section>
       </header>
 
       <section className="min-h-0 flex-1 overflow-auto px-3 py-3" aria-label="Graph editor panel content">

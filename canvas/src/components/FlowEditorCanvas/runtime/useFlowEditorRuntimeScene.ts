@@ -498,7 +498,6 @@ export function useFlowEditorRuntimeScene(args: {
         preferCurrentGraphDataRefs: true,
       })
       const graphMetaKind = widgetPlacementContext?.graphMetaKind || null
-      const defaultPinnedInCanvas = widgetPlacementContext?.defaultPinnedInCanvas ?? true
       const pinnedById = resolveScopedFlowWidgetNodeMap({
         graphMetaKey: graphKey,
         keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, FlowWidgetPinnedById> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
@@ -509,7 +508,11 @@ export function useFlowEditorRuntimeScene(args: {
         && boundsIds.every(rawId => {
           const id = String(rawId || '').trim()
           if (!id) return false
-          const pinned = typeof pinnedById[id] === 'boolean' ? pinnedById[id]! : defaultPinnedInCanvas
+          const pinned = resolveEffectiveFlowWidgetPinnedInCanvas({
+            graphMetaKind,
+            node: null,
+            pinnedValue: typeof pinnedById[id] === 'boolean' ? pinnedById[id]! : null,
+          })
           return shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas: pinned })
         })
       if (skipDomCollectiveRecoveryForFrontmatterScreenAuthority) return true
@@ -885,7 +888,10 @@ export function useFlowEditorRuntimeScene(args: {
     const shouldUseNeutralSeedZoomForFrontmatterInit =
       !layoutRebalanceRequested
       && !liveHasViewportOffset
-      && !persistedHasViewportOffset
+      && (
+        !persistedHasViewportOffset
+        || (isFrontmatterFlow && workspaceMutationBlockedForSeed)
+      )
       && (
         isFirstFrontmatterInitSeed
         || (isFrontmatterFlow && workspaceMutationBlockedForSeed)
@@ -893,18 +899,16 @@ export function useFlowEditorRuntimeScene(args: {
     const shouldUseNeutralSeedZoom =
       (runtimeSceneNodeCount <= 0 && !partitionedFrontmatterRuntimeScene && !persistedHasViewportOffset)
       || shouldUseNeutralSeedZoomForFrontmatterInit
-    const allowPersistedViewportOffsetSeed =
-      !workspaceMutationBlockedForSeed
-      || (
-        isFrontmatterFlow
-        && persistedHasViewportOffset
-        && (!liveZoom || liveLooksDefault)
-      )
+    const allowPersistedViewportOffsetSeed = !workspaceMutationBlockedForSeed
+    const persistedZoomForSeed =
+      allowPersistedViewportOffsetSeed || !persistedHasViewportOffset
+        ? persistedZoom
+        : null
     const z =
       (shouldUseNeutralSeedZoom ? { k: 1, x: 0, y: 0 } : null)
       || (allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)
       || liveZoom
-      || persistedZoom
+      || persistedZoomForSeed
       || { k: 1, x: 0, y: 0 }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
     const visibleViewport = getVisibleViewport()

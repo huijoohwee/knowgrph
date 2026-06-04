@@ -28,7 +28,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
     const markdownText = readMarkdownSlideDemo()
     if (!markdownText) return
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -57,7 +57,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
       )
     await tick()
 
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown preview root not found')
     }
@@ -72,7 +72,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
 
     root.unmount()
 
-    const container2 = doc.createElement('div')
+    const container2 = doc.createElement('section')
     container2.id = 'root-presentation'
     doc.body.appendChild(container2)
     const root2 = createRoot(container2 as unknown as HTMLElement)
@@ -98,7 +98,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
 
     await tick()
 
-    const rootEl2 = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
+    const rootEl2 = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLElement | null
     if (!rootEl2) {
       throw new Error('markdown presentation root not found in presentation mode')
     }

@@ -35,9 +35,9 @@ export function testParseAsciiBoxTableDetectsPlusPipe() {
 
 export async function testHtmlToMarkdownUnifiedConvertsStandaloneSvgToMarkdownImageAtFidelity4() {
   const html = [
-    '<div>',
+    '<section>',
     '<svg viewBox="0 0 10 10" width="10" height="10"><circle cx="5" cy="5" r="4" fill="red"></circle></svg>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -56,12 +56,12 @@ export async function testHtmlToMarkdownUnifiedConvertsStandaloneSvgToMarkdownIm
 
 export async function testHtmlToMarkdownUnifiedConvertsSpriteUseSvgToMarkdownImageWhenSymbolAvailable() {
   const html = [
-    '<div>',
+    '<section>',
     '<svg style="display:none">',
     '<symbol id="logos-node" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="red"></circle></symbol>',
     '</svg>',
     '<svg width="10" height="10" aria-hidden="true" data-icon="logos/node"><use href="#logos-node"></use></svg>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -79,14 +79,14 @@ export async function testHtmlToMarkdownUnifiedConvertsSpriteUseSvgToMarkdownIma
 
 export async function testHtmlToMarkdownUnifiedSimplifiesLinkTextWithDecorativeSvgIcon() {
   const html = [
-    '<div>',
+    '<section>',
     '<a href="https://astro.build/blog/astro-5170/">',
     '<span>Astro 5.17</span>',
     '<svg width="0.89em" height="1em" class="w-7 h-auto" aria-hidden="true" data-icon="logos/node">',
     '<path d="M0 0h10v10H0z"></path>',
     '</svg>',
     '</a>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -107,12 +107,12 @@ export async function testHtmlToMarkdownUnifiedSimplifiesLinkTextWithDecorativeI
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10H0z"/></svg>'
   const b64 = Buffer.from(svg, 'utf8').toString('base64')
   const html = [
-    '<div>',
+    '<section>',
     '<a href="https://astro.build/blog/astro-5170/">',
     '<span>Astro 5.17</span>',
     `<img src="data:image/svg+xml;base64,${b64}" alt="" aria-hidden="true" class="icon" />`,
     '</a>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -131,12 +131,12 @@ export async function testHtmlToMarkdownUnifiedSimplifiesLinkTextWithDecorativeI
 
 export async function testHtmlToMarkdownUnifiedStripsLinkedCardImageWhenTextPresent() {
   const html = [
-    '<div>',
+    '<section>',
     '<a href="https://astro.build/agencies/bejamas/">',
     '<span>Bejamas</span>',
     '<img src="https://astro.build/__webpage_asset_path/https%3A%2F%2Fastro.build/_astro/bejamas.rFjqlsuX_ZKJaRs.webp" alt="" />',
     '</a>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -155,9 +155,9 @@ export async function testHtmlToMarkdownUnifiedStripsLinkedCardImageWhenTextPres
 
 export async function testHtmlToMarkdownUnifiedKeepsSvgImageSyntaxWhenAltPresent() {
   const html = [
-    '<div>',
+    '<section>',
     '<svg aria-label="Google" viewBox="0 0 10 10" width="10" height="10"><circle cx="5" cy="5" r="4"></circle></svg>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -179,9 +179,9 @@ export async function testHtmlToMarkdownUnifiedKeepsSvgImageSyntaxWhenAltPresent
 export async function testHtmlToMarkdownUnifiedCapsLargeSvgToShortDataUri() {
   const big = 'A'.repeat(9000)
   const html = [
-    '<div>',
+    '<section>',
     `<svg aria-label="Big" viewBox="0 0 10 10" width="10" height="10"><text>${big}</text></svg>`,
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -199,11 +199,11 @@ export async function testHtmlToMarkdownUnifiedCapsLargeSvgToShortDataUri() {
 
 export async function testHtmlToMarkdownUnifiedConvertsIconOnlyLinkWithAriaLabelToTextLink() {
   const html = [
-    '<div>',
+    '<section>',
     '<a href="https://astro.build/themes/details/darkrise-astro/" aria-label="View Theme">',
     '<svg width="0.89em" height="1em" aria-hidden="true" data-icon="ri/eye-line"><path d="M0 0h10v10H0z"></path></svg>',
     '</a>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -223,10 +223,10 @@ export async function testHtmlToMarkdownUnifiedConvertsIconOnlyLinkWithAriaLabel
 
 export async function testHtmlToMarkdownUnifiedPreservesGridDivAsHtmlAtFidelity4() {
   const html = [
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">',
-    '<div>Left</div>',
-    '<div>Right</div>',
-    '</div>',
+    '<section style="display:grid;grid-template-columns:1fr 1fr;gap:8px">',
+    '<section>Left</section>',
+    '<section>Right</section>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,
@@ -243,12 +243,12 @@ export async function testHtmlToMarkdownUnifiedPreservesGridDivAsHtmlAtFidelity4
 
 export async function testHtmlToMarkdownUnifiedPreservesLinkedFlexGridAsHtmlAtFidelity4() {
   const html = [
-    '<div class="flex flex-wrap gap-4">',
+    '<section class="flex flex-wrap gap-4">',
     '<a href="https://example.invalid/a" class="w-48">A</a>',
     '<a href="https://example.invalid/b" class="w-48">B</a>',
     '<a href="https://example.invalid/c" class="w-48">C</a>',
     '<a href="https://example.invalid/d" class="w-48">D</a>',
-    '</div>',
+    '</section>',
   ].join('')
   const res = await convertHtmlToMarkdownUnified({
     html,

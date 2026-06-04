@@ -24,7 +24,7 @@ export function testCanvasSelectionSyncCanonicalizesDocsMirrorAliases() {
 }
 
 export async function testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive() {
-  const bootstrap = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const bootstrap = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const store = useGraphStore.getState()
     store.resetAll()
@@ -113,7 +113,7 @@ export async function testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive() 
 }
 
 export async function testCanvasSelectionSyncSkipsWhenLiveSelectionSourceChangesToEditor() {
-  const bootstrap = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const bootstrap = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const store = useGraphStore.getState()
     store.resetAll()
@@ -193,7 +193,7 @@ export async function testCanvasSelectionSyncSkipsWhenLiveSelectionSourceChanges
 }
 
 export async function testCanvasSelectionSyncRetriesKeywordTextHighlightWhenSourceTextArrives() {
-  const bootstrap = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const bootstrap = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const store = useGraphStore.getState()
     store.resetAll()

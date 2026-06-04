@@ -6,7 +6,7 @@ import {
   listScopedWidgetRegistryEntries,
   resolveFrontmatterWidgetRegistrySectionState,
   resolveExpectedFrontmatterWidgetFormId,
-  resolveNodeWidgetIdentity,
+  resolveWidgetIdentity,
   resolveWidgetRegistryEntry,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { GraphNode } from '@/lib/graph/types'
@@ -209,8 +209,8 @@ export const testDeriveWidgetCandidateNodeIdsKeepsOpenWidgetsAndAppendsSelectedW
   }
 }
 
-export const testResolveNodeWidgetIdentityPrefersRegistryThenFallsBackToProps = () => {
-  const fromRegistry = resolveNodeWidgetIdentity({
+export const testResolveWidgetIdentityPrefersRegistryThenFallsBackToProps = () => {
+  const fromRegistry = resolveWidgetIdentity({
     node: {
       properties: {
         'flow:widgetTypeId': 'stale-type',
@@ -226,7 +226,7 @@ export const testResolveNodeWidgetIdentityPrefersRegistryThenFallsBackToProps = 
     throw new Error(`expected registry identity to win, got ${fromRegistry.widgetTypeId}/${fromRegistry.formId}`)
   }
 
-  const fromProps = resolveNodeWidgetIdentity({
+  const fromProps = resolveWidgetIdentity({
     node: {
       properties: {
         'flow:widgetTypeId': 'custom',
@@ -235,7 +235,7 @@ export const testResolveNodeWidgetIdentityPrefersRegistryThenFallsBackToProps = 
     },
   })
   if (fromProps.widgetTypeId !== 'custom' || fromProps.formId !== 'textGeneration.custom') {
-    throw new Error(`expected raw node widget identity fallback, got ${fromProps.widgetTypeId}/${fromProps.formId}`)
+    throw new Error(`expected raw widget identity fallback, got ${fromProps.widgetTypeId}/${fromProps.formId}`)
   }
 }
 

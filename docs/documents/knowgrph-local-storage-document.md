@@ -68,6 +68,7 @@
 
 - Workspace view mode and Editor layout state:
   - `LS_KEYS.workspaceViewMode` (Canvas | Editor | Table)
+  - `LS_KEYS.documentVersions` (bounded local document snapshots for Editor Workspace, Source Files, and GitGraph CRUD diff/history surfaces)
   - `LS_KEYS.documentStructureBaselineLock` (default on; disables mode switches that can desync surfaces)
   - `LS_KEYS.workspacePreviewWidthPx` (Editor/Table split: Canvas pane width)
   - `LS_KEYS.workspaceCanvasPaneOpen` (Editor/Table split: Canvas pane open/closed)
@@ -120,7 +121,6 @@
 - Floating panel shell and layout state:
   - `LS_KEYS.floatingPanelPinned`
   - `LS_KEYS.floatingPanelWidthRatio`
-  - `LS_KEYS.floatingPanelHeightRatio`
   - `LS_KEYS.floatingPanelZIndex`
 
 - Pin semantics (SSOT):
@@ -143,15 +143,19 @@
 
 ---
 
-## Flow Editor (Node Quick Editor)
+## Flow Editor Widgets
 
-- Node Quick Editor overlay state:
-  - `LS_KEYS.flowNodeQuickEditorPinned` (legacy single-flag; do not use for multi-node overlays)
-  - `LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)
-  - `LS_KEYS.flowNodeQuickEditorMinimized`
-  - `LS_KEYS.flowNodeQuickEditorHideFields`
-  - `LS_KEYS.flowNodeQuickEditorTopPx` / `LS_KEYS.flowNodeQuickEditorLeftPx` (legacy single-position; do not use for multi-node overlays)
-  - `LS_KEYS.flowNodeQuickEditorPosByNodeId` (per-node detached position)
+- Flow Editor widget overlay state:
+  - `LS_KEYS.flowWidgetPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)
+  - `LS_KEYS.flowWidgetPinnedSemanticsVersion` (migration/version marker for pinned widget semantics)
+  - `LS_KEYS.flowWidgetMinimized`
+  - `LS_KEYS.flowWidgetHideFields`
+  - `LS_KEYS.flowWidgetPosByNodeId` (per-node detached position)
+  - `LS_KEYS.flowWidgetWorldPosByNodeId` (per-node pinned world position)
+  - `LS_KEYS.flowWidgetPinnedByGraphMetaKey`
+  - `LS_KEYS.flowWidgetPosByGraphMetaKey`
+  - `LS_KEYS.flowWidgetWorldPosByGraphMetaKey`
+  - `LS_KEYS.flowEditorManagerWidgetRegistry`
 
 ---
 

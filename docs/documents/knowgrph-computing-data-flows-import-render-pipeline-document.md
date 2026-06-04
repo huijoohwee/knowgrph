@@ -16,25 +16,38 @@
 
 Expected result:
 
-- A JSON bundle may be a `kg:flow:nodeQuickEditorBundle` (kind/version guarded) that carries:
-  - a Node Quick Editor registry snapshot (`registry[]`)
+- A JSON bundle may be a `kg:flow:widgetBundle` (kind/version guarded) that carries:
+  - a Flow Editor widget registry snapshot (`registry[]`)
   - a workflow graph payload (`graph`)
 - A Markdown document may carry a frontmatter or body `flow:` graph with the same port-bound edge semantics.
 - Flow Editor renders the workflow graph using the native Flow renderer.
-- Node Quick Editors can be opened concurrently; pinned header drag updates anchor offsets collectively, while detached overlays are draggable and must not overlap by default.
+- Flow Editor widgets can be opened concurrently; pinned header drag updates anchor offsets collectively, while detached overlays are draggable and must not overlap by default.
+
+## Long-Horizon SuperAgent Template Boundary
+
+The publish-side computing-flow template may include `superagent_harness_template` metadata to describe a Knowgrph-native long-horizon harness envelope. That metadata is documentation and run-planning context only; it must not create a second parser, renderer, provider dispatcher, graph apply stack, or Flow Editor widget registry owner.
+
+The external [bytedance/deer-flow](https://github.com/bytedance/deer-flow) reference is allowed only as conceptual inspiration for message gateway, memory, tools, skills, subagents, sandbox/workspace execution, and bounded minutes-to-hours task management. Knowgrph must keep implementation ownership in `knowgrph_parser`, local MCP contracts, shared markdown/frontmatter parsing, GraphData, Flow Editor, and Rich Media Panel owners.
+
+Rich-media outputs from the harness stay ordinary Flow Editor fields:
+
+- Text output binds to `output`.
+- Image output binds to `imageUrl`.
+- Chart or HTML output binds to `outputSrcDoc`.
+- `outputSrcDoc` remains the render authority when helper text and inline HTML coexist.
 
 ---
 
 ## Data Contract (Bundle → GraphData)
 
 - Import must treat the demo as a project-agnostic bundle:
-  - kind: `kg:flow:nodeQuickEditorBundle`
+  - kind: `kg:flow:widgetBundle`
   - version: `1`
-- Import writes registry entries into `GraphData.metadata['flow:nodeQuickEditorRegistry']` so the UI can render Node Quick Editor fields/ports immediately after commit.
+- Import writes registry entries into `GraphData.metadata['flow:widgetRegistry']` so the UI can render Flow Editor widget fields/ports immediately after commit.
 
 Key implementation:
 
-- Bundle parsing + GraphData metadata wiring: [quickEditorImport.ts](../../canvas/src/lib/graph/io/quickEditorImport.ts)
+- Bundle parsing + GraphData metadata wiring: [widgetImport.ts](../../canvas/src/lib/graph/io/widgetImport.ts)
 
 ---
 
@@ -60,7 +73,7 @@ Key implementation:
 - MainPanel must not keep a standalone Graph Fields tab after consolidation; Graph Fields configuration/editing should be embedded inside Workflow Manager and all prior Graph Fields open actions should target `workflowManager`.
 - Graph Fields must not duplicate MainPanel Settings workspace/json controls; `Workspace editor view`, `Open Workspace View: Multi-dimensional Table`, `Select panel position`, `JSON import target`, `JSON markdown mode`, and JSON table row/column limits should be configured only from MainPanel Settings SSOT.
 - Graph Fields icon legend ownership belongs to MainPanel Help → Icon Library; Workflow Manager Graph Fields should not render a separate legend header copy.
-- Workflow Manager should consolidate workflow-mode rendering into existing Graph Fields panes (`Global/Base/Derived Fields` left + `Field Settings` right) and remove dedicated workflow utility/edit surfaces (`Workflow Sections`, `Steps`, `tierB/runtime/pipeline/mermaid/flow`, quick-editor/samples/inspector blocks).
+- Workflow Manager should consolidate workflow-mode rendering into existing Graph Fields panes (`Global/Base/Derived Fields` left + `Field Settings` right) and remove dedicated workflow utility/edit surfaces (`Workflow Sections`, `Steps`, `tierB/runtime/pipeline/mermaid/flow`, widget/samples/inspector blocks).
 - Workflow Manager must keep Graph Fields in a single top-panel composition; remove stacked top/bottom manager panel splits and render only Graph Fields panes or Multi-dimensional Table in one upstream surface.
 - Workflow Manager should reuse workspace preference SSOT for table composition: when `workspaceEditorMode` is `multiDimTable`, render Multi-dimensional Table (`GraphTableWorkspace`) in the manager content surface instead of a parallel local table-mode implementation.
 - FloatingPanel should not maintain a separate Layer Mode view after consolidation; Layer Mode (including `Switch to Design renderer to view layers.` inactive guidance) must be rendered inside Workflow Manager as the upstream owner surface.
@@ -99,9 +112,9 @@ Key implementation:
 - Rich Media Panel nodes are ordinary flow endpoints. Text output binds to `output`, image output binds to `imageUrl`, and chart/HTML output binds to `outputSrcDoc`; when `output` and `outputSrcDoc` coexist, shared Rich Media Panel preview state treats `outputSrcDoc` as the render authority and helper text as metadata.
 - Flow Editor templates must prefer plain YAML for normal authoring. The normalized `{key,type,value}` envelope is valid only for validation fixtures that intentionally prove parser fidelity, inline KTV editing, and semantic port preservation.
 
-### Node Quick Editors
+### Flow Editor widgets
 
-- Multiple Node Quick Editors may be visible at once.
+- Multiple Flow Editor widgets may be visible at once.
 - Detached overlays must:
   - have deterministic default placement (grid/stack)
   - persist detached positions per node id
@@ -142,6 +155,7 @@ Flow Editor + overlay wiring:
 | Computing | `computeFlowConnectedValuesBySchemaPath()` propagates values and respects null stop signals through the shared graph/registry readers. | Renderer-local recomputation, unbounded iteration, or GraphData mutation during compute. |
 | KTV editing | Matching field + port schema paths render as one editable row with row-attached handle. | Duplicate read-only rows, unwritable `Value`, or focus collisions from repeated labels. |
 | Rendering | Flow Editor mounts `data-kg-flow-editor-surface-root`; Rich Media Panel previews resolve through shared panel/media state. | Panel-local preview branches, stale `srcDoc`, missing SVG/image output, or edge drift after scroll/zoom. |
+| Harness metadata | `superagent_harness_template` parses as frontmatter metadata while graph counts and Flow Editor renderer ownership remain stable. | Treating harness metadata as a second parser, renderer, provider, or graph apply stack. |
 | Browser | Local docs-mirror smoke selects the publish doc and samples stable DOM contracts. | Settled-only proof that ignores mid-load blank/seepage states. |
 
 Focused test families:
@@ -156,7 +170,7 @@ Focused test families:
 
 ## Canonical Template Contract
 
-Normal runnable templates must keep these keys at the top of YAML frontmatter:
+Normal runnable templates must keep these keys at the top of YAML frontmatter. Simple Flow Editor seeds use `kgMultiDimTableModeEnabled: false`; computing-flow templates that intentionally expose Workflow Manager / Multi-dimensional Table companion views use `kgMultiDimTableModeEnabled: true` plus `kgWorkflowManagerModeEnabled: true`.
 
 ```yaml
 schema: "kgc-computing-flow/v1"
@@ -165,8 +179,9 @@ kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "flowEditor"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
-kgMultiDimTableModeEnabled: false
+kgMultiDimTableModeEnabled: true
 kgDocumentStructureBaselineLock: false
+kgWorkflowManagerModeEnabled: true
 ```
 
 Template `flow:` blocks should include:
@@ -176,5 +191,7 @@ Template `flow:` blocks should include:
 - Node `handles` declaring target/source membership and matching `"flow:portTypes"` entries for typed connection validation.
 - Edges with explicit `sourceHandle` and `targetHandle` when a concrete field endpoint exists.
 - Rich Media Panel endpoint nodes for rendered outputs instead of sidecar preview instructions.
+- Optional `superagent_harness_template` metadata for long-horizon harness planning; it is not graph authoring data.
+- If `superagent_harness_template` is present, it must name native Knowgrph owners and the no-copy DeerFlow inspiration boundary.
 
 The publish-side reusable template is `huijoohwee/docs/knowgrph-flow-editor-computing-flow-template.md`; it is intentionally generic and should remain project-agnostic.

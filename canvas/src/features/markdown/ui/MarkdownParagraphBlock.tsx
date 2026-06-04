@@ -79,7 +79,7 @@ const StandaloneLinkCard = React.memo(function StandaloneLinkCard({ href, title,
       className={`sm:flex ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded-xl shadow-sm hover:shadow-md transition-shadow no-underline text-inherit block`}
       onClick={e => e.stopPropagation()}
     >
-      <div className="shrink-0 relative w-full rounded-t-xl overflow-hidden sm:rounded-s-xl sm:rounded-se-none sm:max-w-20 bg-gray-100 dark:bg-gray-800">
+      <section className="shrink-0 relative w-full rounded-t-xl overflow-hidden sm:rounded-s-xl sm:rounded-se-none sm:max-w-20 bg-gray-100 dark:bg-gray-800">
         {!imgError && faviconUrl ? (
           <img
             className="size-full absolute top-0 start-0 object-contain p-2"
@@ -88,26 +88,26 @@ const StandaloneLinkCard = React.memo(function StandaloneLinkCard({ href, title,
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="flex items-center justify-center h-16 sm:h-full text-[color:var(--kg-text-tertiary)] text-xs font-mono">
+          <section className="flex items-center justify-center h-16 sm:h-full text-[color:var(--kg-text-tertiary)] text-xs font-mono">
             {domain ? domain.charAt(0).toUpperCase() : '?'}
-          </div>
+          </section>
         )}
-      </div>
-      <div className="flex flex-wrap min-w-0">
-        <div className="p-3 flex flex-col h-full sm:p-4 min-w-0">
+      </section>
+      <section className="flex flex-wrap min-w-0">
+        <section className="p-3 flex flex-col h-full sm:p-4 min-w-0">
           <h3 className={`font-semibold ${UI_THEME_TOKENS.text.primary} text-sm leading-snug truncate`}>
             {displayTitle}
           </h3>
           <p className={`mt-1 ${UI_THEME_TOKENS.text.secondary} text-xs truncate`}>
             {truncatedUrl}
           </p>
-          <div className="mt-2 sm:mt-auto">
+          <section className="mt-2 sm:mt-auto">
             <p className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} font-mono`}>
               {domain}
             </p>
-          </div>
-        </div>
-      </div>
+          </section>
+        </section>
+      </section>
     </a>
   )
 })

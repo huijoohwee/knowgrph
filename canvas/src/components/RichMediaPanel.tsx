@@ -72,12 +72,12 @@ export type RichMediaPanelProps = {
   onHeaderDragStart?: (args: { pointerId: number; clientX: number; clientY: number }) => void
   onHeaderDrag?: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => void
   onHeaderDragEnd?: (args: { pointerId: number; clientX: number; clientY: number }) => void
-  onPointerDownCapture?: React.PointerEventHandler<HTMLDivElement>
-  onPointerUpCapture?: React.PointerEventHandler<HTMLDivElement>
-  onWheelCapture?: React.WheelEventHandler<HTMLDivElement>
-  onClickCapture?: React.MouseEventHandler<HTMLDivElement>
-  onDoubleClickCapture?: React.MouseEventHandler<HTMLDivElement>
-  onContextMenuCapture?: React.MouseEventHandler<HTMLDivElement>
+  onPointerDownCapture?: React.PointerEventHandler<HTMLElement>
+  onPointerUpCapture?: React.PointerEventHandler<HTMLElement>
+  onWheelCapture?: React.WheelEventHandler<HTMLElement>
+  onClickCapture?: React.MouseEventHandler<HTMLElement>
+  onDoubleClickCapture?: React.MouseEventHandler<HTMLElement>
+  onContextMenuCapture?: React.MouseEventHandler<HTMLElement>
   widgetToolbarActive?: boolean
   frameMode?: 'panel' | 'surface'
   resizeHandlePlacement?: 'root' | 'external'
@@ -601,7 +601,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })
     return true
   }, [installHeaderDrag, props, selectSelf])
-  const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
     const native = e.nativeEvent
     selectSelf(native)
     const targetEl = (() => {

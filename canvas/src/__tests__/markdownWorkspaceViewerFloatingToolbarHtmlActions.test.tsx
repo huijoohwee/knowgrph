@@ -110,7 +110,7 @@ async function runViewerToolbarActionCase(args: {
   ensureRangeRect(dom)
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline', 'bold', 'italic', 'strikeThrough'])
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   let latestActiveText = args.activeText
@@ -453,7 +453,7 @@ export async function testMarkdownWorkspaceViewerTaskRowUnderlineKeepsRenderedUn
   ensureRangeRect(dom)
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 

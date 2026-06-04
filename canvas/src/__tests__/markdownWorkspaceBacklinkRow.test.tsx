@@ -6,7 +6,7 @@ import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElemen
 
 export async function testMarkdownWorkspaceBacklinkRowUsesSharedExplorerBacklinkShell() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const opened: Array<{ path: string; line: number }> = []

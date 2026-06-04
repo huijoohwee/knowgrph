@@ -99,7 +99,7 @@ Code blocks now feature a structured layout matching GitHub's design system:
 - **Caret hash href stability**: For `#^block-id` links, the rendered anchor preserves a raw `href="#^..."` attribute so tests and UI selectors remain stable even if URL serialization encodes the caret.
 
 ### Semantic HTML
-The implementation replaces generic `<div>` wrappers with semantic elements:
+The implementation replaces generic HTML division element wrappers with semantic elements:
 - `<figure>`: The main container for the code block.
 - `<header>`: Container for the top bar controls.
 - `<pre>` & `<code>`: Standard elements for code content.

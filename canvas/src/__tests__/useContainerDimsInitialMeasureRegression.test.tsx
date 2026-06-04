@@ -7,7 +7,7 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 
 function DimsProbe() {
-  const ref = React.useRef<HTMLDivElement | null>(null)
+  const ref = React.useRef<HTMLElement | null>(null)
   const dims = useContainerDims(ref)
   return (
     <section ref={ref} data-testid="probe">
@@ -17,7 +17,7 @@ function DimsProbe() {
 }
 
 function DimsProbeWithViewportSource() {
-  const ref = React.useRef<HTMLDivElement | null>(null)
+  const ref = React.useRef<HTMLElement | null>(null)
   const dims = useContainerDims(ref, {
     resolveMeasureElement: self => {
       if (!self) return null
@@ -27,15 +27,15 @@ function DimsProbeWithViewportSource() {
   })
   return (
     <section data-kg-canvas-viewport-root="1" data-testid="viewport-root">
-      <div ref={ref} data-testid="probe-inner">
+      <section ref={ref} data-testid="probe-inner">
         {`${Math.floor(dims.width)}x${Math.floor(dims.height)}@${Math.floor(dims.left)},${Math.floor(dims.top)}`}
-      </div>
+      </section>
     </section>
   )
 }
 
 function DimsProbeWithStableResolverWrappedByFreshOptions() {
-  const ref = React.useRef<HTMLDivElement | null>(null)
+  const ref = React.useRef<HTMLElement | null>(null)
   const [tick, setTick] = React.useState(0)
   const resolveViewportMeasureElement = React.useCallback((self: HTMLElement | null) => {
     if (!self) return null
@@ -53,9 +53,9 @@ function DimsProbeWithStableResolverWrappedByFreshOptions() {
 
   return (
     <section data-kg-canvas-viewport-root="1" data-testid="viewport-root-stable-options">
-      <div ref={ref} data-testid="probe-inner-stable-options">
+      <section ref={ref} data-testid="probe-inner-stable-options">
         {`${tick}:${Math.floor(dims.width)}x${Math.floor(dims.height)}@${Math.floor(dims.left)},${Math.floor(dims.top)}`}
-      </div>
+      </section>
     </section>
   )
 }
@@ -95,7 +95,7 @@ export async function testUseContainerDimsMeasuresMountedRectBeforeResizeObserve
       return originalGetBoundingClientRect.call(this)
     }
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     root.render(<DimsProbe />)
@@ -174,7 +174,7 @@ export async function testUseContainerDimsCoalescesResizeObserverBursts() {
       return originalGetBoundingClientRect.call(this)
     }
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     root.render(<DimsProbe />)
@@ -275,7 +275,7 @@ export async function testUseContainerDimsCanResolveCanonicalViewportSource() {
       return originalGetBoundingClientRect.call(this)
     }
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     root.render(<DimsProbeWithViewportSource />)
@@ -346,7 +346,7 @@ export async function testUseContainerDimsIgnoresFreshOptionsWrapperWhenResolver
       return originalGetBoundingClientRect.call(this)
     }
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     root.render(<DimsProbeWithStableResolverWrappedByFreshOptions />)

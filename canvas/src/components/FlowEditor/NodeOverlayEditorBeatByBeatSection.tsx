@@ -145,7 +145,7 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
           <span>{' → '}</span>
           <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{overlayNodeId}</code>
         </h3>
-        <div className={cn('mt-2', UI_THEME_TOKENS.text.secondary)}>
+        <section className={cn('mt-2', UI_THEME_TOKENS.text.secondary)}>
           <strong>Timing</strong>
           <span>{' — '}</span>
           <code className={monospaceTextClass}>{`{{timeline.beats.${beatRef}.start_ms}}`}</code>
@@ -154,13 +154,13 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
           <span>{' ms · duration '}</span>
           <code className={monospaceTextClass}>{`{{timeline.beats.${beatRef}.duration_ms}}`}</code>
           <span>{' ms'}</span>
-        </div>
+        </section>
       </header>
 
       <section className="min-w-0 mt-3" aria-label="Visual">
-        <div className={cn(UI_THEME_TOKENS.text.secondary)}>
+        <section className={cn(UI_THEME_TOKENS.text.secondary)}>
           <strong>Visual</strong>
-        </div>
+        </section>
         <ul className={cn('mt-1 list-disc pl-5', UI_THEME_TOKENS.text.secondary)}>
           <li>
             <span>{'Clip description — '}</span>
@@ -190,12 +190,12 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
       </section>
 
       <section className="min-w-0 mt-3" aria-label="Overlay">
-        <div className={cn(UI_THEME_TOKENS.text.secondary)}>
+        <section className={cn(UI_THEME_TOKENS.text.secondary)}>
           <strong>Overlay</strong>
           <span>{' — '}</span>
           <code className={monospaceTextClass}>{overlayNodeId}</code>
           {overlayNote ? <span>{` · ${overlayNote}`}</span> : null}
-        </div>
+        </section>
         <ul className={cn('mt-1 list-disc pl-5', UI_THEME_TOKENS.text.secondary)}>
           <li>
             <span>{'Text — '}</span>
@@ -232,10 +232,10 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
 
       {audioNote ? (
         <section className="min-w-0 mt-3" aria-label="Audio">
-          <div className={cn(UI_THEME_TOKENS.text.secondary)}>
+          <section className={cn(UI_THEME_TOKENS.text.secondary)}>
             <strong>Audio</strong>
             {audioNote ? <span>{` — ${audioNote}`}</span> : null}
-          </div>
+          </section>
           <ul className={cn('mt-1 list-disc pl-5', UI_THEME_TOKENS.text.secondary)}>
             <li>
               <span>{'Voice over — '}</span>
@@ -265,8 +265,8 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
       ) : null}
 
       <section className="min-w-0 mt-3" aria-label="Port handles wiring this beat">
-        <div className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Port handles wiring this beat</div>
-        <div className="-mx-3 mt-2">
+        <section className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Port handles wiring this beat</section>
+        <section className="-mx-3 mt-2">
           <table className="w-full border-collapse">
             <colgroup>
               <col style={{ width: '12%' }} />
@@ -311,7 +311,7 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
               )}
             </tbody>
           </table>
-        </div>
+        </section>
       </section>
     </section>
   )

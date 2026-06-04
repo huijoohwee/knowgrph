@@ -7,16 +7,16 @@ export async function testMarkdownPreviewRendersHtmlGridWithCalcGapImportant() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
     const markdownText = [
-      '<div class="grid-test" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(1rem + 2px) !important;">',
-      '  <div>Cell A</div>',
-      '  <div>Cell B</div>',
-      '</div>',
+      '<section class="grid-test" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(1rem + 2px) !important;">',
+      '  <section>Cell A</section>',
+      '  <section>Cell B</section>',
+      '</section>',
       '',
     ].join('\n')
 

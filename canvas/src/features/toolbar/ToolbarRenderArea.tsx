@@ -16,10 +16,10 @@ export function ToolbarRenderArea({
   renderOpMsg,
 }: ToolbarRenderAreaProps) {
   return (
-    <div className={uiToolbarAreaStackClassName}>
-      <div className={uiToolbarAreaActionRowClassName}>
+    <section className={uiToolbarAreaStackClassName}>
+      <section className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.renderer} ok={renderOpOk} msg={renderOpMsg || undefined} />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

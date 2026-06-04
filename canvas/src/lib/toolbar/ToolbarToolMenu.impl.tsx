@@ -9,6 +9,7 @@ import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelec
 import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { FloatingPanelView } from '@/hooks/store/store-types/graph-state-chat-import'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
@@ -21,6 +22,12 @@ import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { uiPrimaryPillActiveClassName, uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { cn } from '@/lib/utils'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
+import {
+  FLOATING_PANEL_CANVAS_INLINE_CLEARANCE_CSS,
+  FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS,
+  FLOATING_PANEL_DEFAULT_MIN_WIDTH_CSS,
+  FLOATING_PANEL_DEFAULT_WIDTH_RATIO,
+} from '@/lib/ui/floatingPanelGeometry'
 import { LS_KEYS, UI_LABELS, UI_SELECTORS } from '@/lib/config'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import {
@@ -42,9 +49,7 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { WorkspaceDataViewFloatingPanelView } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewFloatingPanelView'
-import { StrybldrFloatingPanelView } from '@/features/strybldr/StrybldrFloatingPanelView'
 
-type FloatingPanelView = 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'strybldr' | 'graphTraversal'
 type RequestedFloatingPanelView = FloatingPanelView; type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
   apply?: () => void
@@ -87,9 +92,9 @@ type GeospatialPanelHostProps = {
 
 const MissingGeospatialPanelHost = React.memo(function MissingGeospatialPanelHost(_props: GeospatialPanelHostProps) {
   return (
-    <div className={`h-full w-full flex items-center justify-center text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+    <section className={`h-full w-full flex items-center justify-center text-xs ${UI_THEME_TOKENS.text.secondary}`}>
       Geospatial panel unavailable
-    </div>
+    </section>
   )
 })
 
@@ -101,8 +106,14 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 })
 
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
+const GitGraphFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })),
+)
+const StrybldrFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/strybldr/StrybldrFloatingPanelView').then(mod => ({ default: mod.StrybldrFloatingPanelView })),
+)
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'strybldr'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'gitGraph', 'strybldr'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -205,12 +216,12 @@ const GeoView = React.memo(function GeoView(props: {
         <ErrorBoundary>
           <React.Suspense
             fallback={
-              <div className={`p-3 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <section className={`p-3 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                 Loading geospatial panel...
-              </div>
+              </section>
             }
           >
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+            <section className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
               <GeospatialPanelHostLazy
                 active
                 showDatasetsManager={false}
@@ -235,11 +246,11 @@ const GeoView = React.memo(function GeoView(props: {
                   dismissUiToast: gympgrphBridge.dismissUiToast,
                 }}
               />
-            </div>
+            </section>
           </React.Suspense>
         </ErrorBoundary>
       ) : (
-        <div className="flex h-full flex-col items-start justify-center gap-3 p-3">
+        <section className="flex h-full flex-col items-start justify-center gap-3 p-3">
           <p className={cn('text-sm', UI_THEME_TOKENS.text.secondary)}>
             {isEnablingGeospatial
               ? 'Enabling Geospatial Mode...'
@@ -256,7 +267,7 @@ const GeoView = React.memo(function GeoView(props: {
           {geospatialEnableError ? (
             <p className={cn('text-xs', UI_THEME_TOKENS.text.secondary)}>{geospatialEnableError}</p>
           ) : null}
-        </div>
+        </section>
       )}
     </section>
   )
@@ -291,7 +302,6 @@ export function ToolbarToolMenu({
 
   const {
     floatingPanelWidthRatio,
-    floatingPanelHeightRatio,
     floatingPanelZIndex,
     uiIconScale,
     uiIconStrokeWidth,
@@ -302,7 +312,6 @@ export function ToolbarToolMenu({
   } = useGraphStore(
     useShallow(state => ({
       floatingPanelWidthRatio: state.floatingPanelWidthRatio,
-      floatingPanelHeightRatio: state.floatingPanelHeightRatio,
       floatingPanelZIndex: state.floatingPanelZIndex,
       uiIconScale: state.uiIconScale,
       uiIconStrokeWidth: state.uiIconStrokeWidth,
@@ -448,15 +457,14 @@ export function ToolbarToolMenu({
   }, [floatingPanelPinned, floatingPanelZIndex, workspaceEditorOverlayOpen])
 
   const floatingPanelSizeStyle = React.useMemo(() => {
-    const widthRatio = Number.isFinite(floatingPanelWidthRatio) ? floatingPanelWidthRatio : 0.25
-    const heightRatio = Number.isFinite(floatingPanelHeightRatio) ? floatingPanelHeightRatio : 0.5
+    const widthRatio = Number.isFinite(floatingPanelWidthRatio) ? floatingPanelWidthRatio : FLOATING_PANEL_DEFAULT_WIDTH_RATIO
     const safeWidth = Math.max(0.15, Math.min(0.6, widthRatio))
-    const safeHeight = Math.max(0.3, Math.min(0.9, heightRatio))
     return {
-      width: `min(calc(100vw - 1rem - var(--kg-safe-left) - var(--kg-safe-right)), max(18rem, ${Math.round(safeWidth * 100)}vw))`,
-      height: `min(calc(100vh - 1rem - var(--kg-safe-top) - var(--kg-safe-bottom)), max(20rem, ${Math.round(safeHeight * 100)}vh))`,
+      width: `min(calc(100vw - ${FLOATING_PANEL_CANVAS_INLINE_CLEARANCE_CSS}), max(${FLOATING_PANEL_DEFAULT_MIN_WIDTH_CSS}, ${Math.round(safeWidth * 100)}vw))`,
+      height: FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS,
+      maxHeight: FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS,
     }
-  }, [floatingPanelWidthRatio, floatingPanelHeightRatio])
+  }, [floatingPanelWidthRatio])
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const designPanelsAvailable =
@@ -481,7 +489,9 @@ export function ToolbarToolMenu({
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
       { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
       { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
-      { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer }, { view: 'strybldr', title: 'Strybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.strybldr },
+      { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer },
+      { view: 'gitGraph', title: UI_LABELS.gitGraph, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gitGraph },
+      { view: 'strybldr', title: 'Strybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.strybldr },
     ],
     [],
   )
@@ -669,15 +679,15 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'interaction' && (
               <section className="h-full flex flex-col" aria-label="Interaction panel">
                 <header className={`flex items-center justify-between gap-2 w-full select-none ${UI_THEME_TOKENS.panel.divider}`}>
-                  <div className={cn('text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary)}>Interaction</div>
+                  <section className={cn('text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary)}>Interaction</section>
                 </header>
                 <section
                   className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', uiPanelTextFontClass, uiPanelKeyValueTextSizeClass)}
                   aria-label="Interaction panel content"
                 >
-                  <div className="px-1 pb-2">
+                  <section className="px-1 pb-2">
                     <InfiniteCanvasInteractionPanel />
-                  </div>
+                  </section>
                 </section>
               </section>
             )}
@@ -697,7 +707,17 @@ export function ToolbarToolMenu({
                 }}
               />
             )}
-            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />} {floatingPanelView === 'strybldr' && <StrybldrFloatingPanelView />}
+            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />}
+            {floatingPanelView === 'gitGraph' && (
+              <React.Suspense fallback={null}>
+                <GitGraphFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'strybldr' && (
+              <React.Suspense fallback={null}>
+                <StrybldrFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
             {floatingPanelView === 'graphTraversal' && (
               <section className="space-y-2" aria-label="Graph traversal">
                 <header className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2`} aria-label="Graph traversal actions">

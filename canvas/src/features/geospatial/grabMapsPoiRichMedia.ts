@@ -95,9 +95,9 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     `<a href="${searchHref}" target="_blank" rel="noopener noreferrer">Search POI label in OpenStreetMap</a>`,
   ].filter(Boolean).join('')
   const metaRows = [
-    `<div><strong>Address</strong><span>${address || 'Not provided'}</span></div>`,
-    `<div><strong>Category</strong><span>${category || 'Uncategorized'}</span></div>`,
-    `<div><strong>Coordinates</strong><span>${coordText || 'Not provided'}</span></div>`,
+    `<section><strong>Address</strong><span>${address || 'Not provided'}</span></section>`,
+    `<section><strong>Category</strong><span>${category || 'Uncategorized'}</span></section>`,
+    `<section><strong>Coordinates</strong><span>${coordText || 'Not provided'}</span></section>`,
   ].filter(Boolean).join('')
   const semanticKey = buildGeoPoiRichMediaSemanticKey({
     label: rawLabel,
@@ -112,7 +112,7 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     maxRows: 18,
   })
   const geoRowsHtml = geoRows.map(row => (
-    `<div><strong>${escapeHtml(row.label)}</strong><span>${escapeHtml(row.value)}</span></div>`
+    `<section><strong>${escapeHtml(row.label)}</strong><span>${escapeHtml(row.value)}</span></section>`
   )).join('')
   const payload = escapeHtml(JSON.stringify({
     semanticKey,
@@ -184,7 +184,7 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     metaRows ? `<section>${metaRows}</section>` : '',
     geoRowsHtml ? `<section class="geo-details" aria-label="Geo metadata">${geoRowsHtml}</section>` : '',
     miniMap,
-    actions ? `<div class="actions">${actions}</div>` : '',
+    actions ? `<section class="actions">${actions}</section>` : '',
     `<pre aria-label="POI payload">${payload}</pre>`,
     '</article></main></body></html>',
   ].join('')

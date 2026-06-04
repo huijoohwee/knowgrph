@@ -41,7 +41,7 @@ export default function ThreeViewLinksSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Arrow Length</span>}
@@ -252,7 +252,7 @@ export default function ThreeViewLinksSection({
             </>
           )}
         />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

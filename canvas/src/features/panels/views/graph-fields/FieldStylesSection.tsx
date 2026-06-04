@@ -70,9 +70,9 @@ export default function FieldStylesSection({
   const selectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
-    <div className={panelClassName}>
+    <section className={panelClassName}>
       {scope === 'node' ? (
-        <div className="space-y-2">
+        <section className="space-y-2">
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
@@ -163,9 +163,9 @@ export default function FieldStylesSection({
               </RightAlignedValueCell>
             )}
           />
-        </div>
+        </section>
       ) : (
-        <div className="space-y-2">
+        <section className="space-y-2">
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
@@ -230,11 +230,11 @@ export default function FieldStylesSection({
               </RightAlignedValueCell>
             )}
           />
-        </div>
+        </section>
       )}
 
-      <div className="space-y-2">
-        <div className={sectionHeadingClassName}>Labels</div>
+      <section className="space-y-2">
+        <section className={sectionHeadingClassName}>Labels</section>
         <KeyTypeValueRow
           layout="keyValue"
           align="start"
@@ -306,7 +306,7 @@ export default function FieldStylesSection({
             </RightAlignedValueCell>
           )}
         />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

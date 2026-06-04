@@ -99,11 +99,11 @@ export function FilterPanel({
   return (
     <section className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}>
       <header className={`mb-2 ${panelTypography.microLabelClass}`}>
-        <div>In this view, show records</div>
+        <section>In this view, show records</section>
       </header>
-      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SCROLL_STACK_CLASSNAME}>
+      <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SCROLL_STACK_CLASSNAME}>
         {filterClauses.length === 0 ? (
-          <div className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphDataTableNoFilters}</div>
+          <section className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphDataTableNoFilters}</section>
         ) : null}
         {filterClauses.map((clause, index) => {
           const prefix =
@@ -126,7 +126,7 @@ export function FilterPanel({
             const isValueDisabled =
               condition.operator === 'is_empty' || condition.operator === 'is_not_empty'
             return (
-              <div key={condition.id} className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
+              <section key={condition.id} className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
                 {prefix}
                 <FilterCombobox
                   value={condition.key}
@@ -161,15 +161,15 @@ export function FilterPanel({
                 >
                   <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
                 </button>
-              </div>
+              </section>
             )
           }
 
           const group = clause
           return (
-            <div key={group.id} className={filterGroupPanelClassName}>
-              <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME}>
-                <div className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
+            <section key={group.id} className={filterGroupPanelClassName}>
+              <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME}>
+                <section className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
                   {prefix}
                   <FilterCombobox
                     value={group.match}
@@ -181,7 +181,7 @@ export function FilterPanel({
                     className={filterComboboxClassName}
                   />
                   <span className={UI_THEME_TOKENS.text.tertiary}>of the following conditions:</span>
-                </div>
+                </section>
                 <button
                   type="button"
                   className={iconButtonClassName}
@@ -189,8 +189,8 @@ export function FilterPanel({
                 >
                   <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
                 </button>
-              </div>
-              <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_STACK_CLASSNAME}>
+              </section>
+              <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_STACK_CLASSNAME}>
                 {group.clauses.map(innerClause => {
                   if (innerClause.kind !== 'condition') return null
                   const condition = innerClause
@@ -198,7 +198,7 @@ export function FilterPanel({
                     condition.operator === 'is_empty' || condition.operator === 'is_not_empty'
                   const columnLabel = columnLabelByKey.get(condition.key) ?? condition.key
                   return (
-                    <div key={condition.id} className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
+                    <section key={condition.id} className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
                       <FilterCombobox
                         value={condition.key}
                         options={columnOptions}
@@ -235,16 +235,16 @@ export function FilterPanel({
                     >
                       <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
                     </button>
-                    </div>
+                    </section>
                   )
                 })}
-              </div>
-            </div>
+              </section>
+            </section>
           )
         })}
-      </div>
-      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FOOTER_ROW_CLASSNAME}>
-        <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
+      </section>
+      <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FOOTER_ROW_CLASSNAME}>
+        <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
           <button
             type="button"
             className={secondaryButtonClassName}
@@ -257,7 +257,7 @@ export function FilterPanel({
             <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
             Add group
           </button>
-        </div>
+        </section>
         <button
           type="button"
           className={`${secondaryButtonClassName} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME}`}
@@ -266,7 +266,7 @@ export function FilterPanel({
           <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
           Clear all
         </button>
-      </div>
+      </section>
     </section>
   )
 }

@@ -2405,7 +2405,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!detailsMenuText.includes('clampOverlayTopLeftFullyInViewport') || !detailsMenuText.includes('viewportHeight')) {
     throw new Error('expected shared details menus to clamp portal placement against full viewport bounds')
   }
-  if (!anchorOverlayText.includes('useState<HTMLDivElement | null>(() => createPortalRoot())') || !anchorOverlayText.includes('resolveOverlayVerticalTop')) {
+  if (!anchorOverlayText.includes('useState<HTMLElement | null>(() => createPortalRoot())') || !anchorOverlayText.includes('resolveOverlayVerticalTop')) {
     throw new Error('expected shared dropdown overlays to render from the first open and use viewport-aware vertical placement')
   }
   if (!anchorOverlayText.includes('allowOverflowVisible') || !anchorOverlayText.includes("overflow: allowOverflowVisible ? 'visible' : 'auto'")) {
@@ -2730,7 +2730,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (
     !graphTableKanbanViewText.includes('const liveRegionKey = [') ||
     !graphTableKanbanViewText.includes('kanbanDrag.dragOutcomeSequence') ||
-    !graphTableKanbanViewText.includes('aria-live="polite">{statusPillText}</div>') ||
+    !graphTableKanbanViewText.includes('aria-live="polite">{statusPillText}</section>') ||
     !graphTableKanbanViewText.includes('UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME') ||
     !markdownDataViewKanbanViewText.includes('UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME') ||
     graphTableKanbanViewText.includes("setLiveMessage(statusPillText || '')") ||

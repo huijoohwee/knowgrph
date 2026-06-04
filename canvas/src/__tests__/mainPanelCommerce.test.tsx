@@ -1,13 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MainPanel from '@/features/panels/MainPanel'
 import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
-import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
+import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   AGENTIC_COMMERCE_MAIN_PANEL_READINESS,
@@ -16,12 +16,12 @@ import {
 } from 'grph-shared/payments/agenticCommerceSsot'
 import {
   STRIPE_PAYMENT_ROUTE_PATHS,
-  STRIPE_PROJECTS_URL,
 } from 'grph-shared/payments/stripePaymentSsot'
 import {
   readLocalCommerceReadinessSurfaceSnapshot,
   resetBrowserLocalSurfaceSnapshotsForTests,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import { getStripePaymentApiRowAnchorId } from '@/features/panels/views/stripePaymentApiDocs'
 
 export function testMainPanelCommerceReplacesPaymentsTopLevelTab() {
   const keys = MAIN_PANEL_TABS.map(tab => tab.key)
@@ -40,6 +40,10 @@ export function testMainPanelCommercePrdTadUsesCanonicalCommerceOwner() {
     readFileSync(resolve(repoRoot, 'docs/documents/knowgrph-mainpanel-commerce-prd-tad.md'), 'utf8'),
     readFileSync(resolve(repoRoot, 'docs/documents/knowgrph-agentic-commerce-prd-tad.md'), 'utf8'),
   ].join('\n')
+  const stripePaymentApiDocsSource = readFileSync(
+    resolve(repoRoot, 'canvas/src/features/panels/views/stripePaymentApiDocs.ts'),
+    'utf8',
+  )
   const requiredSnippets = [
     'Commerce is the canonical top-level operator surface for commerce and payment readiness.',
     'Commerce is the canonical superset for Stripe, ACP, Web3, governance, and proof inspection.',
@@ -51,12 +55,26 @@ export function testMainPanelCommercePrdTadUsesCanonicalCommerceOwner() {
     'grph-shared/src/payments/agenticCommerceSsot.ts',
     'canvas/src/__tests__/agenticCommerceWorker.test.ts',
     'Cloudflare Workers + D1',
+    'stripeApi.worker.d1_migrations',
+    'payment:d1:migrate:remote',
+    'required webhook-processing columns',
     'worker.payments.agenticCommerce.sharedSemanticKey',
     'buildAgenticCommerceMainPanelReadiness',
   ]
   requiredSnippets.forEach(snippet => {
     if (!docs.includes(snippet)) {
       throw new Error(`expected Commerce PRD/TAD docs to include ${JSON.stringify(snippet)}`)
+    }
+  })
+  const stripeSourceRequiredSnippets = [
+    'STRIPE_PAYMENT_D1_MIGRATION_APPLY_COMMAND_TEMPLATE',
+    'STRIPE_PAYMENT_REQUIRED_D1_COLUMNS',
+    'STRIPE_PROJECTS_URL',
+    'stripeApi.worker.d1_migrations',
+  ]
+  stripeSourceRequiredSnippets.forEach(snippet => {
+    if (!stripePaymentApiDocsSource.includes(snippet)) {
+      throw new Error(`expected Commerce Stripe API docs source to include ${JSON.stringify(snippet)}`)
     }
   })
 
@@ -93,12 +111,23 @@ export async function testMainPanelCommerceRendersAgenticCommerceAndStripeSurfac
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(root, React.createElement(MainPanel, { requestedTab: 'commerce', requestedSearchQuery: '' } as never), {
       window: dom.window,
       frames: 4,
+    })
+
+    const stripeRuntimeRow = container.querySelector(
+      `[data-kg-anchor="${getStripePaymentApiRowAnchorId('stripeApi.runtime.env_scope')}"]`,
+    ) as HTMLElement | null
+    if (!stripeRuntimeRow) {
+      throw new Error('expected Commerce Stripe runtime scope row to render')
+    }
+    await act(async () => {
+      stripeRuntimeRow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 2)
     })
 
     const text = container.textContent || ''
@@ -128,14 +157,19 @@ export async function testMainPanelCommerceRendersAgenticCommerceAndStripeSurfac
       'stripeApi.auth.secret_key',
       'stripeApi.runtime.env_scope',
       'stripeApi.checkout.server_price_authority',
+      'stripeApi.checkout.mode',
+      'stripeApi.worker.configure_command',
+      'stripeApi.worker.d1_migrations',
+      'stripeApi.worker.readiness_gate',
       'stripeApi.projects.url',
       'Cloudflare Pages project variables',
-      STRIPE_PROJECTS_URL,
       'stripeApi.webhooks.signing_secret',
+      'Stripe webhook signing secrets are not stored in the browser.',
+      'Use `STRIPE_WEBHOOK_SECRET` on the server.',
       'stripeApi.checkout.session_url',
       STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession,
       STRIPE_PAYMENT_ROUTE_PATHS.webhook,
-      'Generate (secure)',
+      'per-attempt',
     ]
     expectedTokens.forEach(token => {
       if (!text.includes(token)) {

@@ -6,16 +6,16 @@ const normalizeSpace = (value: string): string => String(value || '').replace(/\
 export function testAnimaticCanvasRetainsNativeRunnerAutoScrollSwitchContract() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
   const orderedSnippets = [
-    '<div className="player-config">',
+    '<section className="player-config">',
     'type="button"',
     'role="switch"',
     'aria-checked={runtimeAutoScrollEnabled}',
     "className={runtimeAutoScrollEnabled ? 'ant-switch ant-switch-checked' : 'ant-switch'}",
     'ant-click-animating="true"',
     'style={{ marginBottom: 20 }}',
-    '<div className="ant-switch-handle"></div>',
+    '<section className="ant-switch-handle"></section>',
     '<span className="ant-switch-inner">Enable Runtime Auto Scroll</span>',
-    '<div className="ant-click-animating-node"></div>',
+    '<section className="ant-click-animating-node"></section>',
   ] as const
   for (const snippet of orderedSnippets) {
     if (!text.includes(snippet)) {
@@ -65,14 +65,14 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     "backgroundSize: `${timelineModel.scaleConfig.startLeft}px, ${timelineModel.scaleConfig.scaleWidth}px`",
     'paddingLeft: timelineModel.scaleConfig.startLeft',
     "touchAction: 'pan-x manipulation'",
-    '<div className="timeline-player">',
+    '<section className="timeline-player">',
     'className="play-control"',
     "aria-label={playing ? 'Pause playback' : 'Start playback'}",
     'currentLabel={currentTimeLabel}',
-    '<div className="time">{currentLabel}</div>',
-    '<div className="rate-control">',
+    '<section className="time">{currentLabel}</section>',
+    '<section className="rate-control">',
     'className="ant-select ant-select-sm ant-select-single ant-select-show-arrow"',
-    '<div ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">',
+    '<section ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">',
     '<header className="timeline-editor-header sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">',
     'className="timeline-editor-time-area relative border-b border-slate-800"',
     'className="timeline-editor-time-scale-list"',
@@ -104,7 +104,7 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     'itemTitle: string',
     'sourceBeatRef: string',
     'type AnimationLaneItemMoveSource = {',
-    'const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})',
+    'const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLElement | null>>>({})',
     'const resolveBeatAtLaneTrackClientX = React.useCallback(',
     'const resolveLaneItemMoveNodeId = React.useCallback(',
     'const overlay = laneTrackOverlayRefs.current[laneId]',

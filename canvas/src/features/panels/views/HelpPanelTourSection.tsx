@@ -44,9 +44,9 @@ export function HelpPanelTourSection({ collapsed, onToggle }: HelpPanelTourSecti
       onToggle={onToggle}
     >
       {HELP_STEP_COPY.panelTour.descriptionShort && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
+        <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
           {HELP_STEP_COPY.panelTour.descriptionShort}
-        </div>
+        </section>
       )}
       <HelpKtvRows>
         {mainPanelTabRows.map(row => (

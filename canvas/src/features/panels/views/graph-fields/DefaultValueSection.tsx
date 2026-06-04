@@ -113,14 +113,14 @@ export function DefaultValueSection({
   }
 
   return (
-    <div className={panelClassName}>
-      <div className="flex items-center justify-between">
+    <section className={panelClassName}>
+      <section className="flex items-center justify-between">
         <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{UI_LABELS.defaultValue}</span>
         <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{selectedSettings.defaultValue === null ? '—' : 'Set'}</span>
-      </div>
-      <div className="mt-2">
+      </section>
+      <section className="mt-2">
         {selectedSettings.fieldType === 'Checkbox' ? (
-          <div className="flex items-center gap-1">
+          <section className="flex items-center gap-1">
             <button
               type="button"
               className={selectedSettings.defaultValue === null ? selectedToolbarButtonClassName : neutralToolbarButtonClassName}
@@ -142,7 +142,7 @@ export function DefaultValueSection({
             >
               False
             </button>
-          </div>
+          </section>
         ) : selectedSettings.fieldType === 'Number' || selectedSettings.fieldType === 'Decimal' || selectedSettings.fieldType === 'Currency' ? (
           <input
             type="number"
@@ -164,8 +164,8 @@ export function DefaultValueSection({
             className={uiPanelKeyValueInputClass}
           />
         ) : selectedSettings.fieldType === 'Long text' ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-end">
+          <section className="space-y-2">
+            <section className="flex items-center justify-end">
               <button
                 type="button"
                 className={neutralToolbarButtonClassName}
@@ -173,8 +173,8 @@ export function DefaultValueSection({
               >
                 {longTextDefaultExpanded ? 'Collapse' : 'Expand'}
               </button>
-            </div>
-            <div
+            </section>
+            <section
               className={[
                 `rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`,
                 longTextDefaultExpanded
@@ -191,11 +191,11 @@ export function DefaultValueSection({
                 wordWrap
                 className="w-full h-full"
               />
-            </div>
-          </div>
+            </section>
+          </section>
         ) : selectedSettings.fieldType === 'JSON' ? (
-          <div className="space-y-2">
-            <div className={`${UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_JSON_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+          <section className="space-y-2">
+            <section className={`${UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_JSON_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
               <MonacoTextEditor
                 value={jsonDefaultDraft}
                 onChange={setJsonDefaultDraft}
@@ -205,8 +205,8 @@ export function DefaultValueSection({
                 wordWrap={false}
                 className={`w-full h-full ${uiPanelMonospaceTextClass}`}
               />
-            </div>
-            <div className="flex items-center gap-1">
+            </section>
+            <section className="flex items-center gap-1">
               <button type="button" className={neutralToolbarButtonClassName} onClick={applyJsonDraft}>
                 Apply
               </button>
@@ -224,17 +224,17 @@ export function DefaultValueSection({
               <button type="button" className={neutralToolbarButtonClassName} onClick={formatJsonDraft}>
                 Format
               </button>
-            </div>
-          </div>
+            </section>
+          </section>
         ) : selectedSettings.fieldType === 'Date Time' ? (
-          <div className="space-y-2">
+          <section className="space-y-2">
             <input
               value={typeof selectedSettings.defaultValue === 'string' ? selectedSettings.defaultValue : ''}
               onChange={e => setDefaultValue(e.target.value ? e.target.value : null)}
               placeholder="2025-01-01T00:00"
               className={inputClassName}
             />
-            <div className="flex items-center gap-1">
+            <section className="flex items-center gap-1">
               <button
                 type="button"
                 className={selectedSettings.dateTimeFormat === 'ISO' ? selectedToolbarButtonClassName : neutralToolbarButtonClassName}
@@ -257,8 +257,8 @@ export function DefaultValueSection({
                 <Eraser className="w-3.5 h-3.5" />
                 Clear
               </button>
-            </div>
-          </div>
+            </section>
+          </section>
         ) : (
           <input
             value={typeof selectedSettings.defaultValue === 'string' ? selectedSettings.defaultValue : ''}
@@ -267,7 +267,7 @@ export function DefaultValueSection({
             className={inputClassName}
           />
         )}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

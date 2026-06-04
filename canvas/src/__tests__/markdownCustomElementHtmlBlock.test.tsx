@@ -7,17 +7,17 @@ export async function testMarkdownPreviewRendersCustomElementContainers() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
     const markdownText = [
       '<astro-island>',
-      '  <div class="grid grid-cols-2 gap-4">',
-      '    <div>Left</div>',
-      '    <div>Right</div>',
-      '  </div>',
+      '  <section class="grid grid-cols-2 gap-4">',
+      '    <section>Left</section>',
+      '    <section>Right</section>',
+      '  </section>',
       '</astro-island>',
       '',
     ].join('\n')

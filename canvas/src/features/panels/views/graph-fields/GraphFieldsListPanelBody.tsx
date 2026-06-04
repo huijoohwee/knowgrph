@@ -178,10 +178,10 @@ export function GraphFieldsListPanelBody({
       style={{ backgroundColor: 'var(--panel-bg)' }}
     >
       <header className={`${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}>
-        <div className="flex items-center gap-2">
-          <div className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.graphFields}</div>
-        </div>
-        <div className="flex items-center gap-1">
+        <section className="flex items-center gap-2">
+          <section className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.graphFields}</section>
+        </section>
+        <section className="flex items-center gap-1">
           <IconButton
             title={UI_COPY.searchFieldsPlaceholder}
             onClick={() => {
@@ -196,12 +196,12 @@ export function GraphFieldsListPanelBody({
           >
             <SearchIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           </IconButton>
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>
             {UI_COPY.graphFieldsVisibleTotalStatus(
               visibleGraphFieldColumnCount,
               orderedAllDataTableColumnKeys.length,
             )}
-          </div>
+          </section>
           {graphDataPresent ? (
             <IconButton
               title={UI_LABELS.newField}
@@ -212,14 +212,14 @@ export function GraphFieldsListPanelBody({
               <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
             </IconButton>
           ) : null}
-        </div>
+        </section>
       </header>
       {searchOpen && (
-        <div
+        <section
           className={`${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_STRIP_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.border}`}
           style={{ backgroundColor: 'var(--panel-bg)' }}
         >
-          <div
+          <section
             className={`${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_SHELL_CLASSNAME} flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border}`}
             style={{ backgroundColor: 'var(--panel-bg)' }}
           >
@@ -234,8 +234,8 @@ export function GraphFieldsListPanelBody({
               className={`${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} bg-transparent text-xs outline-none ${UI_THEME_TOKENS.text.primary}`}
               autoFocus
             />
-          </div>
-        </div>
+          </section>
+        </section>
       )}
 
       {newFieldOpen ? (
@@ -255,7 +255,7 @@ export function GraphFieldsListPanelBody({
         />
       ) : null}
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <section className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {(() => {
           const isOnlyVisibleColumn = visibleGraphFieldColumnCount <= 1
 
@@ -339,9 +339,9 @@ export function GraphFieldsListPanelBody({
 
           if (!hasAnyRows) {
             return (
-              <div className={`p-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+              <section className={`p-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 {UI_COPY.noFields}
-              </div>
+              </section>
             )
           }
 
@@ -379,7 +379,7 @@ export function GraphFieldsListPanelBody({
             <>
               {globalSchemaVisible ? (
                 <>
-                  <div className={sectionHeaderClass}>{UI_LABELS.globalFields}</div>
+                  <section className={sectionHeaderClass}>{UI_LABELS.globalFields}</section>
                   <button
                     type="button"
                     className={localSchemaButtonClassName(
@@ -392,14 +392,14 @@ export function GraphFieldsListPanelBody({
                     }}
                   >
                     <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
-                    <div className="min-w-0 flex-1">
-                      <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
+                    <section className="min-w-0 flex-1">
+                      <section className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                         <span className="truncate">{globalSchemaLabel}</span>
-                      </div>
-                      <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
+                      </section>
+                      <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                         {SCHEMA_KEYS.globalSchema}
-                      </div>
-                    </div>
+                      </section>
+                    </section>
                   </button>
                   {localSchemaValidationVisible ? (
                     <button
@@ -412,14 +412,14 @@ export function GraphFieldsListPanelBody({
                       onClick={() => onSelectLocalSchemaFacet('validation', 'global')}
                     >
                       <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
-                      <div className="min-w-0 flex-1">
-                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
+                      <section className="min-w-0 flex-1">
+                        <section className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaValidationLabel}</span>
-                        </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
+                        </section>
+                        <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('validation')}
-                        </div>
-                      </div>
+                        </section>
+                      </section>
                     </button>
                   ) : null}
                 </>
@@ -427,7 +427,7 @@ export function GraphFieldsListPanelBody({
 
               {baseColumnKeys.length > 0 || basePropertyColumnKeys.length > 0 ? (
                 <>
-                  <div className={sectionHeaderClass}>{UI_LABELS.baseFields}</div>
+                  <section className={sectionHeaderClass}>{UI_LABELS.baseFields}</section>
                   {localSchemaPropsVisible ? (
                     <button
                       type="button"
@@ -439,14 +439,14 @@ export function GraphFieldsListPanelBody({
                       onClick={() => onSelectLocalSchemaFacet('properties', 'base')}
                     >
                       <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
-                      <div className="min-w-0 flex-1">
-                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
+                      <section className="min-w-0 flex-1">
+                        <section className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaPropsLabel}</span>
-                        </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
+                        </section>
+                        <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('properties')}
-                        </div>
-                      </div>
+                        </section>
+                      </section>
                     </button>
                   ) : null}
                   {baseColumnKeys.map(renderColumnRow)}
@@ -456,7 +456,7 @@ export function GraphFieldsListPanelBody({
 
               {customPropertyColumnKeys.length > 0 ? (
                 <>
-                  <div className={sectionHeaderClass}>{UI_LABELS.customFields}</div>
+                  <section className={sectionHeaderClass}>{UI_LABELS.customFields}</section>
                   {localSchemaTemplateVisible ? (
                     <button
                       type="button"
@@ -468,14 +468,14 @@ export function GraphFieldsListPanelBody({
                       onClick={() => onSelectLocalSchemaFacet('template', 'custom')}
                     >
                       <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
-                      <div className="min-w-0 flex-1">
-                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
+                      <section className="min-w-0 flex-1">
+                        <section className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaTemplateLabel}</span>
-                        </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
+                        </section>
+                        <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('template')}
-                        </div>
-                      </div>
+                        </section>
+                      </section>
                     </button>
                   ) : null}
                   {customPropertyColumnKeys.map(renderColumnRow)}
@@ -484,7 +484,7 @@ export function GraphFieldsListPanelBody({
 
               {derivedPropertyColumnKeys.length > 0 ? (
                 <>
-                  <div className={sectionHeaderClass}>{UI_LABELS.derivedFields}</div>
+                  <section className={sectionHeaderClass}>{UI_LABELS.derivedFields}</section>
                   {localSchemaLocalRulesVisible ? (
                     <button
                       type="button"
@@ -496,14 +496,14 @@ export function GraphFieldsListPanelBody({
                       onClick={() => onSelectLocalSchemaFacet('localRules', 'derived')}
                     >
                       <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
-                      <div className="min-w-0 flex-1">
-                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
+                      <section className="min-w-0 flex-1">
+                        <section className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaLocalRulesLabel}</span>
-                        </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
+                        </section>
+                        <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('localRules')}
-                        </div>
-                      </div>
+                        </section>
+                      </section>
                     </button>
                   ) : null}
                   {derivedPropertyColumnKeys.map(renderColumnRow)}
@@ -512,7 +512,7 @@ export function GraphFieldsListPanelBody({
             </>
           )
         })()}
-      </div>
+      </section>
     </section>
   )
 }

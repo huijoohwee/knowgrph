@@ -216,7 +216,7 @@ Required behavior:
 - MainPanel Integrations must collapse to a narrow, touch-safe setup flow with reachable provider fields, validation states, and action buttons.
 - FloatingPanel Chat UI must remain usable above mobile keyboards, preserve conversation context, and avoid scroll traps when streamed output or tool traces update.
 - Editor Workspace must provide readable Markdown, source-file, and generated workspace review without overlapping the toolbar, bottom surface, or canvas.
-- Canvas must preserve pan, zoom, fit-to-content, selection, quick editor, and inspect actions through touch and pointer input without mounting duplicate preview surfaces.
+- Canvas must preserve pan, zoom, fit-to-content, selection, widget, and inspect actions through touch and pointer input without mounting duplicate preview surfaces.
 - Rich Media Panel must support mobile playback and inspection with declared aspect ratio, visible fallback states, and no offscreen-only controls.
 - Generated Text, Image, Video, and Rich Media Panel widgets must expose responsive bounds, min sizes, fit strategy, edge anchor policy, and overflow behavior in metadata.
 - Toolbar, status, toast, modal, menu, drawer, and panel shells must share responsive tokens for safe areas, hit targets, z-index, density, and motion.

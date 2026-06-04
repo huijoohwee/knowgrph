@@ -166,7 +166,7 @@ export async function testHtmlToMarkdownUnifiedUsesWeChatArticleRootAndLazyImage
     '<!doctype html><html><head><title>WeChat title</title></head><body>',
     '<h1>Publisher chrome should not be imported</h1>',
     '<a href="javascript:void(0);">Open App</a>',
-    '<div id="js_content" class="rich_media_content">',
+    '<section id="js_content" class="rich_media_content">',
     '<p>一幅讴歌客家先民的</p>',
     '<p>壮丽画卷</p>',
     '<p>赣州是客家先民中原南迁的第一站，是客家民系孕育成熟的重要摇篮。这里山川绵延、江河汇聚，先民在迁徙、拓垦、守望与融合中留下了厚重的文化记忆。</p>',
@@ -178,7 +178,7 @@ export async function testHtmlToMarkdownUnifiedUsesWeChatArticleRootAndLazyImage
     `<img alt="ornament" src="${placeholder}" data-src="${ornamentUrl}" />`,
     '<p><strong>作品赏析</strong></p>',
     '</section>',
-    '</div>',
+    '</section>',
     '<footer>Related article chrome</footer>',
     '</body></html>',
   ].join('')

@@ -55,7 +55,7 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
     <section aria-label="Filter">
       <section className={['rounded border p-2 space-y-2', UI_THEME_TOKENS.panel.border].join(' ')} aria-label="Filter rules">
         {totalRules === 0 ? (
-          <div className={['text-xs px-2 py-1', UI_THEME_TOKENS.text.secondary].join(' ')}>No filters</div>
+          <section className={['text-xs px-2 py-1', UI_THEME_TOKENS.text.secondary].join(' ')}>No filters</section>
         ) : (
           props.view.filterGroups.map(g => (
             <section key={g.id} className="space-y-1">
@@ -64,13 +64,13 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
                 const opLabel = r.op === 'equals' ? '=' : r.op === 'includes' ? 'includes' : 'contains'
                 const value = String(r.value ?? '').trim()
                 return (
-                  <div key={r.id} className={[UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-1 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
-                    <div className="min-w-0 flex-1">
-                      <div className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{colName}</div>
-                      <div className={['text-[11px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>
+                  <section key={r.id} className={[UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-1 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+                    <section className="min-w-0 flex-1">
+                      <section className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{colName}</section>
+                      <section className={['text-[11px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>
                         {opLabel} {value ? `“${value}”` : '“”'}
-                      </div>
-                    </div>
+                      </section>
+                    </section>
                     <DataViewIconButton
                       size="sm"
                       variant="ghost"
@@ -78,14 +78,14 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
                       onClick={() => removeRule(r.id)}
                       icon={<Trash2 className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
                     />
-                  </div>
+                  </section>
                 )
               })}
             </section>
           ))
         )}
 
-        <div className={`${uiToolbarRowScrollClassName} gap-2`}>
+        <section className={`${uiToolbarRowScrollClassName} gap-2`}>
           <details ref={addDetailsRef} className="relative">
             <summary
               className={getDataViewToolbarButtonClassName({ className: 'list-none cursor-pointer' })}
@@ -93,8 +93,8 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
               <Plus className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
               <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Add filter</span>
             </summary>
-            <div className="kg-data-view-floating-menu absolute left-0 mt-2">
-              <div className={['rounded border shadow-lg', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
+            <section className="kg-data-view-floating-menu absolute left-0 mt-2">
+              <section className={['rounded border shadow-lg', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
                 <WorkspaceDataViewFilterMenu
                   columns={props.columns}
                   viewConfig={props.view}
@@ -104,8 +104,8 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
                     if (el) el.open = false
                   }}
                 />
-              </div>
-            </div>
+              </section>
+            </section>
           </details>
 
           <DataViewToolbarButton
@@ -115,7 +115,7 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
             disabled={totalRules === 0}
             leadingIcon={<Filter className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
           />
-        </div>
+        </section>
       </section>
     </section>
   )

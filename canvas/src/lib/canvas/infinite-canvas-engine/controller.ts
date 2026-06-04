@@ -481,6 +481,7 @@ export function createInfiniteCanvasViewportController(args: {
       button,
       shiftKey,
       spacePanHeld: args.isSpacePanHeld(),
+      pointerMode2d,
     })
     if (!allow) return false
     if (pointerMode2d !== 'pan' && args.isSpacePanHeld() !== true && typeof args.shouldBlockPanStart === 'function') {

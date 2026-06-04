@@ -35,8 +35,23 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   if (!wheelText.includes('if (ignoreWheelTarget && !proxyOverlayWheel) return')) {
     throw new Error('expected FlowCanvas wheel proxy to let explicit overlay proxying bypass the generic ignore-guard early return')
   }
+  const explicitZoomIndex = wheelText.indexOf('if (event.ctrlKey === true || event.metaKey === true) return true')
+  const innerWheelIndex = wheelText.indexOf('if (shouldKeepWidgetInnerPanelWheel(event, overlayRoot)) return false')
+  if (explicitZoomIndex < 0 || innerWheelIndex < 0 || explicitZoomIndex > innerWheelIndex) {
+    throw new Error('expected explicit Flow Editor overlay zoom intent to bypass widget/rich-media inner scroll guards')
+  }
+  if (!wheelText.includes('const explicitOverlayZoomIntent = opts?.skipIgnoreGuard === true && (e.ctrlKey === true || e.metaKey === true)')) {
+    throw new Error('expected proxied overlay wheel handling to preserve explicit zoom through handleWheel inner-scroll guard')
+  }
+  if (!wheelText.includes('if (shouldKeepWidgetInnerPanelWheel(e) && !explicitOverlayZoomIntent) return')) {
+    throw new Error('expected handleWheel to keep ordinary inner scroll local while allowing explicit overlay zoom')
+  }
   if (!wheelText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas wheel proxy to reuse shared frontmatter-document mode gate SSOT')
+  }
+  if (!wheelText.includes('const flowEditorOverlayInteractionMode =')
+    || !wheelText.includes('isFlowEditor\n      || isFlowEditorFrontmatterDocumentModeRequested')) {
+    throw new Error('expected FlowCanvas wheel proxy to activate for the Flow Editor renderer, not frontmatter-only documents')
   }
   if (!wheelText.includes('flowEditorSurfaceId: ctx.args.flowEditorSurfaceId')) {
     throw new Error('expected FlowCanvas wheel proxy to forward the active Flow Editor surface identity into shared overlay proxy resolution')

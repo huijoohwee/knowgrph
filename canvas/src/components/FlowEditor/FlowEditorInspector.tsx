@@ -165,9 +165,9 @@ export default function FlowEditorInspector({
               displayClassName={cn('mt-2 text-sm font-semibold leading-5', UI_THEME_TOKENS.text.primary)}
               editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
             />
-            <div className="mt-3 flex flex-col gap-2">
+            <section className="mt-3 flex flex-col gap-2">
               {selectedNodeCardFields.map(field => (
-                <div key={field.id} className="rounded-md border border-black/5 bg-black/[0.025] px-2.5 py-2">
+                <section key={field.id} className="rounded-md border border-black/5 bg-black/[0.025] px-2.5 py-2">
                   <p className={cn('m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary)}>
                     {field.label}
                   </p>
@@ -192,9 +192,9 @@ export default function FlowEditorInspector({
                     displayClassName={cn('m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary)}
                     editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                   />
-                </div>
+                </section>
               ))}
-            </div>
+            </section>
           </section>
           <label className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-type">
             Type

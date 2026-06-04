@@ -11,7 +11,7 @@ export async function testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)

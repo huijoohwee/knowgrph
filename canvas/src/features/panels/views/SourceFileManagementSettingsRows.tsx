@@ -213,7 +213,7 @@ export function SourceFileManagementSettingsRows({
           keyNode={<span className="font-semibold">Source File Management</span>}
           typeNode={<span className={UI_THEME_TOKENS.text.secondary}>actions</span>}
           valueNode={(
-            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+            <section className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
               <SourceFileSettingsActionButton primary onClick={openSourceFiles}>
                 Open Source Files
               </SourceFileSettingsActionButton>
@@ -223,7 +223,7 @@ export function SourceFileManagementSettingsRows({
               <SourceFileSettingsActionButton disabled={isRestoringDefaults} onClick={() => { void restoreDefaultSourceFiles() }}>
                 {isRestoringDefaults ? 'Restoring...' : 'Restore docs mirror defaults'}
               </SourceFileSettingsActionButton>
-            </div>
+            </section>
           )}
           align="start"
         />
@@ -235,9 +235,9 @@ export function SourceFileManagementSettingsRows({
           keyNode="Docs mirror contract"
           typeNode={<span className={UI_THEME_TOKENS.text.secondary}>policy</span>}
           valueNode={(
-            <div className={SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME}>
+            <section className={SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME}>
               Automated defaults hydrate Source Files from the configured docs mirror. Import local files remains an explicit manual action, not a hidden bootstrap path.
-            </div>
+            </section>
           )}
           align="start"
         />
@@ -249,12 +249,12 @@ export function SourceFileManagementSettingsRows({
           keyNode="Source Files"
           typeNode={<span className={UI_THEME_TOKENS.text.secondary}>summary</span>}
           valueNode={(
-            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+            <section className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
               <SourceFileValuePill>Total: {summary.total}</SourceFileValuePill>
               <SourceFileValuePill>Enabled: {summary.enabled}</SourceFileValuePill>
               <SourceFileValuePill>Parsed: {summary.parsed}</SourceFileValuePill>
               <SourceFileValuePill>Errors: {summary.errors}</SourceFileValuePill>
-            </div>
+            </section>
           )}
           align="start"
         />
@@ -266,13 +266,13 @@ export function SourceFileManagementSettingsRows({
           keyNode="Storage defaults"
           typeNode={<span className={UI_THEME_TOKENS.text.secondary}>local</span>}
           valueNode={(
-            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+            <section className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
               <SourceFileValuePill>Docs root: {docsMirrorRootPath || 'not configured'}</SourceFileValuePill>
               <SourceFileValuePill>Workspace root: /docs</SourceFileValuePill>
               <SourceFileValuePill>Docs only: {docsOnly ? 'on' : 'off'}</SourceFileValuePill>
               <SourceFileValuePill>Seed sync: {seedSync ? 'on' : 'off'}</SourceFileValuePill>
               <SourceFileValuePill>Auto refresh: {autoRefresh ? 'on' : 'off'}</SourceFileValuePill>
-            </div>
+            </section>
           )}
           align="start"
         />
@@ -284,12 +284,12 @@ export function SourceFileManagementSettingsRows({
           keyNode="Source mix"
           typeNode={<span className={UI_THEME_TOKENS.text.secondary}>origin</span>}
           valueNode={(
-            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+            <section className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
               <SourceFileValuePill>Workspace-backed: {summary.workspaceBacked}</SourceFileValuePill>
               <SourceFileValuePill>Manual local: {summary.manualLocal}</SourceFileValuePill>
               <SourceFileValuePill>URL imports: {summary.remoteUrl}</SourceFileValuePill>
               {defaultSourceUrl ? <SourceFileValuePill>Default source: {defaultSourceUrl}</SourceFileValuePill> : null}
-            </div>
+            </section>
           )}
           align="start"
         />

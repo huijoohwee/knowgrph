@@ -81,6 +81,22 @@ export const inspectSharedDocumentStructure = (args = {}) => {
     return Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b))
   }
 
+  const extractDirectYamlKeys = (blockText) => {
+    const lines = splitLines(blockText).filter(line => normalizeString(line))
+    if (!lines.length) return []
+    const minIndent = Math.min(...lines.map(readIndent))
+    const keys = []
+    for (const line of lines) {
+      if (readIndent(line) !== minIndent) continue
+      const trimmed = normalizeString(line)
+      if (trimmed.startsWith('- ')) continue
+      const match = trimmed.match(/^([A-Za-z0-9_:@-]+)\s*:/)
+      if (!match?.[1]) continue
+      keys.push(match[1])
+    }
+    return Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b))
+  }
+
   const countInlineSequenceEntries = (inlineValue) => {
     const trimmed = normalizeString(inlineValue)
     if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return null
@@ -89,14 +105,60 @@ export const inspectSharedDocumentStructure = (args = {}) => {
     return inner.split(',').map((part) => normalizeString(part)).filter(Boolean).length
   }
 
+  const cleanYamlScalar = (value) => {
+    const trimmed = normalizeString(value)
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      return trimmed.slice(1, -1)
+    }
+    return trimmed
+  }
+
+  const extractInlineSequenceValues = (inlineValue) => {
+    const trimmed = normalizeString(inlineValue)
+    if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return null
+    const inner = trimmed.slice(1, -1).trim()
+    if (!inner) return []
+    return inner.split(',').map(part => cleanYamlScalar(part)).filter(Boolean)
+  }
+
+  const extractYamlSequenceValues = (text, key) => {
+    const block = extractYamlBlock(text, key)
+    if (!block) return []
+    if (block.inlineValue) return extractInlineSequenceValues(block.inlineValue) || []
+    const values = []
+    const itemIndent = block.indent + 2
+    for (const line of block.blockLines) {
+      const trimmed = normalizeString(line)
+      if (readIndent(line) !== itemIndent) continue
+      if (!trimmed.startsWith('- ')) continue
+      values.push(cleanYamlScalar(trimmed.slice(2)))
+    }
+    return values
+  }
+
+  const extractTopLevelScalarValue = (frontmatter, key) => {
+    const lines = splitLines(frontmatter)
+    const expectedPrefix = `${key}:`
+    for (const line of lines) {
+      const trimmed = normalizeString(line)
+      if (!trimmed.startsWith(expectedPrefix)) continue
+      return cleanYamlScalar(trimmed.slice(expectedPrefix.length))
+    }
+    return null
+  }
+
   const countYamlSequenceEntries = (text, key) => {
     const block = extractYamlBlock(text, key)
     if (!block) return null
     if (block.inlineValue) return countInlineSequenceEntries(block.inlineValue)
     let count = 0
+    const itemIndent = block.indent + 2
     for (const line of block.blockLines) {
       if (!normalizeString(line)) continue
-      if (readIndent(line) <= block.indent) continue
+      if (readIndent(line) !== itemIndent) continue
       if (/^\s*-\s+/.test(line)) count += 1
     }
     return count
@@ -122,6 +184,11 @@ export const inspectSharedDocumentStructure = (args = {}) => {
   const topLevelKeys = parsed ? extractTopLevelFrontmatterKeys(parsed.frontmatter) : []
   const flowBlock = parsed ? extractYamlBlock(parsed.frontmatter, 'flow') : null
   const flowKeys = flowBlock ? extractNestedYamlKeys(flowBlock.blockText) : []
+  const mainPanelIntegrationsDemoBlock = parsed ? extractYamlBlock(parsed.frontmatter, 'main_panel_integrations_demo') : null
+  const superAgentHarnessDemoBlock = parsed ? extractYamlBlock(parsed.frontmatter, 'superagent_harness_demo') : null
+  const superAgentRuntimeSurfacesBlock = superAgentHarnessDemoBlock
+    ? extractYamlBlock(superAgentHarnessDemoBlock.blockText, 'runtime_surfaces')
+    : null
   const forbiddenGroupingAliasSet = new Set(['kg:subgraphs', 'clusters', 'groups', 'layers'])
   const forbiddenGroupingAliases = Array.from(
     new Set([...topLevelKeys, ...flowKeys].filter((key) => forbiddenGroupingAliasSet.has(key))),
@@ -135,6 +202,36 @@ export const inspectSharedDocumentStructure = (args = {}) => {
     lineCount: markdown ? splitLines(markdown).length : 0,
     hasFrontmatter: Boolean(parsed),
     topLevelKeys,
+    frontmatterScalars: parsed
+      ? {
+          kgCanvasRenderMode: extractTopLevelScalarValue(parsed.frontmatter, 'kgCanvasRenderMode'),
+          kgCanvas2dRenderer: extractTopLevelScalarValue(parsed.frontmatter, 'kgCanvas2dRenderer'),
+          deployed_api_claim: extractTopLevelScalarValue(parsed.frontmatter, 'deployed_api_claim'),
+        }
+      : {},
+    mainPanelIntegrationsDemo: mainPanelIntegrationsDemoBlock
+      ? {
+          present: true,
+          mainPanelEntries: extractYamlSequenceValues(mainPanelIntegrationsDemoBlock.blockText, 'main_panel_entries'),
+          providerIds: extractYamlSequenceValues(mainPanelIntegrationsDemoBlock.blockText, 'provider_ids'),
+          providerLabels: extractYamlSequenceValues(mainPanelIntegrationsDemoBlock.blockText, 'provider_labels'),
+          taskCapabilities: extractYamlSequenceValues(mainPanelIntegrationsDemoBlock.blockText, 'task_capabilities'),
+          taskLevels: extractYamlSequenceValues(mainPanelIntegrationsDemoBlock.blockText, 'task_levels'),
+          integrationOpenTab: extractTopLevelScalarValue(mainPanelIntegrationsDemoBlock.blockText, 'integration_open_tab'),
+          canvas2dRenderer: extractTopLevelScalarValue(mainPanelIntegrationsDemoBlock.blockText, 'canvas_2d_renderer'),
+          sourceFile: extractTopLevelScalarValue(mainPanelIntegrationsDemoBlock.blockText, 'source_file'),
+        }
+      : { present: false },
+    superAgentHarnessDemo: superAgentHarnessDemoBlock
+      ? {
+          present: true,
+          taskCapabilities: extractYamlSequenceValues(superAgentHarnessDemoBlock.blockText, 'task_capabilities'),
+          taskLevels: extractYamlSequenceValues(superAgentHarnessDemoBlock.blockText, 'task_levels'),
+          runtimeSurfaces: superAgentRuntimeSurfacesBlock
+            ? extractDirectYamlKeys(superAgentRuntimeSurfacesBlock.blockText)
+            : [],
+        }
+      : { present: false },
     hasFlowBlock: Boolean(flowBlock),
     flowKeys,
     flowNodeCount: flowBlock ? countYamlSequenceEntries(flowBlock.blockText, 'nodes') : null,

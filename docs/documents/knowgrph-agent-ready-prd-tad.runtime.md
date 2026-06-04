@@ -70,6 +70,25 @@ flowchart LR
   I --> J["applyComposedGraphFromSourceFiles()"]
 ```
 
+### Local SuperAgent harness contract
+
+```mermaid
+flowchart LR
+  A["/goal or local MCP client"] --> B["npm run goal:run / knowgrph.superagent.run"]
+  B --> C["SuperAgentHarness"]
+  C --> D["AgentContract roles"]
+  C --> E["ToolRegistry"]
+  E --> F["Source Files / rich media / optional provider adapters"]
+  C --> G["state.json + trace.jsonl + proof manifest"]
+  G --> H["review and validation"]
+```
+
+The local SuperAgent harness is source-owned and DeerFlow-inspired only at the
+concept level: message gateway, memory, tools, skills, subagents, sandboxed
+workspace artifacts, and long-horizon runs. It must not be documented as a
+deployed Pages/WebMCP mutation service, must not copy DeerFlow code or
+architecture, and must keep graph commits on existing review-first KGC owners.
+
 ### Browser E2E pipeline contract
 
 ```mermaid
@@ -220,6 +239,8 @@ runtime agent surface must converge on the same document identity and pipeline m
 - no mutation tools in browser WebMCP
 - no discovery metadata advertising tools that are not executable
 - no root-level discovery drift that conflicts with `/knowgrph/` as the service homepage
+- no deployed-route claim for the local SuperAgent harness unless a source-owned Pages/Worker route and live validation exist
+- no copied DeerFlow architecture, provider-specific renderer, parser, memory, or graph-apply stack
 ### Workspace and Markdown guardrails
 
 - no alternate agent-only Markdown export path

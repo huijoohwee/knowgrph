@@ -18,7 +18,8 @@ import {
   resolveWorkspaceSourceFileInlineText,
   upsertWorkspaceEntryInlineText,
 } from '@/features/workspace-fs/workspaceInlineText'
-
+import { recordDocumentVersionSnapshot } from '@/features/document-versioning/documentVersioning'
+import { preferCanonicalYamlFrontmatterFencedText } from '@/lib/markdown/frontmatter'
 
 export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
   activeDocumentKey: string
@@ -204,20 +205,36 @@ export const writeWorkspaceFileAndSync = async (args: {
   setGraphRagWorkflowJsonText?: (text: string) => void
   resetParsedState: boolean
 }): Promise<void> => {
+  const lastLoaded = args.lastLoadedRef.current
+  const textToWrite = lastLoaded && lastLoaded.path === args.path
+    ? preferCanonicalYamlFrontmatterFencedText({
+        candidateText: args.text,
+        canonicalText: lastLoaded.text,
+      })
+    : args.text
   if (args.skipWrite !== true) {
     const fs = await args.getFs()
-    await fs.writeFileText(args.path, args.text)
+    await fs.writeFileText(args.path, textToWrite)
   }
-  syncWorkspaceTextState(args)
+  recordDocumentVersionSnapshot({
+    path: args.path,
+    text: textToWrite,
+    label: args.resetParsedState ? 'Save' : 'Autosave',
+    source: 'editorWorkspace',
+  })
+  syncWorkspaceTextState({
+    ...args,
+    text: textToWrite,
+  })
   updateExistingWorkspaceSourceFile({
     path: args.path,
-    text: args.text,
+    text: textToWrite,
     resetParsedState: args.resetParsedState,
   })
   if (typeof args.setGraphRagWorkflowJsonText === 'function') {
     applyWorkspaceSpecialFileEffects({
       path: args.path,
-      text: args.text,
+      text: textToWrite,
       setGraphRagWorkflowJsonText: args.setGraphRagWorkflowJsonText,
     })
   }
@@ -237,7 +254,12 @@ export const resolveAuthoritativeWorkspaceText = async (args: {
     lastLoaded.path === args.path &&
     lastLoaded.text !== args.activeTextRef.current
   )
-  if (isDirty) return String(args.activeTextRef.current || '')
+  if (isDirty) {
+    return preferCanonicalYamlFrontmatterFencedText({
+      candidateText: String(args.activeTextRef.current || ''),
+      canonicalText: String(lastLoaded?.text || ''),
+    })
+  }
   if (lastLoaded && lastLoaded.path === args.path && typeof lastLoaded.text === 'string' && lastLoaded.text.trim()) {
     return lastLoaded.text
   }

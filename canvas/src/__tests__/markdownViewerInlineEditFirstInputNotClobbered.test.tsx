@@ -38,7 +38,7 @@ const setCaretToEnd = (dom: Window, el: HTMLElement) => {
 }
 
 export async function testMarkdownViewerInlineEditFirstInputIsNotClobberedByInitialization() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     ensureRangeRect(dom)
     const container = dom.window.document.getElementById('root')

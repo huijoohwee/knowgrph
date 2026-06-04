@@ -73,10 +73,10 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
   return (
     <section className="h-full flex flex-col" aria-label="Design panel">
       <header className={cn(uiToolbarRowScrollClassName, 'justify-between gap-2 w-full select-none', UI_THEME_TOKENS.panel.divider)}>
-        <div className="flex min-w-0 items-center gap-2 px-1 py-1">
-          <div className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Design</div>
-          {lastLabel ? <div className={cn('min-w-0 truncate text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{lastLabel}</div> : null}
-        </div>
+        <section className="flex min-w-0 items-center gap-2 px-1 py-1">
+          <section className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Design</section>
+          {lastLabel ? <section className={cn('min-w-0 truncate text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{lastLabel}</section> : null}
+        </section>
         <nav className={`${uiToolbarRowScrollClassName} gap-1`} aria-label="Design panel controls">
           <button
             type="button"

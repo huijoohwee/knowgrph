@@ -145,8 +145,8 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   useContainerHeight?: boolean
 }) {
   const { geojsonText, datasetId, featureCollection = null, className, heightPx = 320, useContainerHeight = false } = args
-  const rootRef = React.useRef<HTMLDivElement | null>(null)
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const rootRef = React.useRef<HTMLElement | null>(null)
+  const containerRef = React.useRef<HTMLElement | null>(null)
   const [shouldLoadMap, setShouldLoadMap] = React.useState(false)
   const [isInView, setIsInView] = React.useState(true)
   const [mapEverEnabled, setMapEverEnabled] = React.useState(false)
@@ -364,29 +364,29 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   const hasInputText = React.useMemo(() => Boolean(parsed.normalizedText), [parsed.normalizedText])
 
   return (
-    <div ref={el => {
+    <section ref={el => {
       rootRef.current = el
     }} className={`relative ${className || ''}`} style={{ height: rootHeight, minHeight: rootMinHeight }}>
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <section className="absolute inset-0 z-0 pointer-events-none">
         <GeoGraticuleSvg height={rootHeight} className="w-full" />
         {parsed.featureCollection ? <GeoJsonSvgPreview fc={parsed.featureCollection} color={svgColor} height={rootHeight} className="w-full" /> : null}
-      </div>
-      <div ref={el => {
+      </section>
+      <section ref={el => {
         containerRef.current = el
       }} data-testid="geojson-map-container" className="absolute inset-0 z-10" style={containerGridStyle} />
       {overlayMessage && (
-        <div
+        <section
           data-testid="geojson-map-overlay"
           className={geoJsonOverlayBadgeClassName}
         >
           {overlayMessage}
-        </div>
+        </section>
       )}
       {!overlayMessage && hasInputText && !parsed.featureCollection ? (
-        <div className={geoJsonOverlayBadgeClassName}>
+        <section className={geoJsonOverlayBadgeClassName}>
           Invalid GeoJSON
-        </div>
+        </section>
       ) : null}
-    </div>
+    </section>
   )
 }

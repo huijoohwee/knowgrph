@@ -49,11 +49,12 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
 
-### Renderer Mode Matrix (2D: D3 Graph/Flowchart/Flow Canvas/Animatic/Storyboard/Design/Flow Editor; 3D; Voxel)
+### Renderer Mode Matrix (2D: D3 Graph/Flowchart/GitGraph/Flow Canvas/Animatic/Storyboard/Design/Flow Editor; 3D; Voxel)
 
 - **Shared derivation SSOT**:
   - All renderers (2D D3 Graph/Flowchart/Flow Canvas/Animatic/Storyboard/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
   - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
+  - GitGraph is a diagram-code renderer: it reuses active document/frontmatter Mermaid code authority, the shared Mermaid SVG cache, the shared D3 viewport controller, and the shared FloatingPanel shell for source-file command CRUD, but does not expand GitGraph commands into GraphData topology or mutate the display-graph pipeline.
 - **Frontmatter Mode On/Off**:
   - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes). Flow Editor uses a frontmatter-only derived view: keyword/table/composed-source derivations are disabled while Flow/Flow Editor frontmatter-only policy is active so other document modes/renderers cannot interfere with Flow Editor graph state.
   - If `flow` block metadata exists, flow-derived nodes/connections are the canonical parser input for renderer surfaces; parser wiring must not merge legacy top-level `edges` into the rendered graph.
@@ -93,6 +94,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Directive: For `frontmatter-flow`, renderer-specific defaults must yield to `metadata.frontmatterFlowSettings.edgeType` and `direction` so Flow and Flow Editor stay visually aligned without separate parsing logic.
 - Parsing source (neutral): `frontmatter-flow` graph inputs may come from YAML frontmatter or an explicit Markdown-body `flow:` block (terminated by a Markdown `---` divider); renderers must not depend on filename heuristics or document-mode state to decide which flow graph to render.
 - Animatic renderer contract: `kgCanvas2dRenderer: "animatic"` reuses the same canonical `flow:` frontmatter graph authoring surface as `kgCanvas2dRenderer: "flowEditor"` and may add `timeline.beats.*` timing metadata beside that shared graph contract; runtime beat/timeline mutations must commit through shared graph owners (`updateGraphMetadata` for `frontmatterMeta.timeline.*`, `updateNode` for node `params.beat_ref`) instead of renderer-local markdown string rewrites, and renderer switches and toolbar menu labels must derive from shared renderer helpers instead of duplicated inline renderer tables.
+- GitGraph renderer contract: `kgCanvas2dRenderer: "gitGraph"` reuses YAML frontmatter `mermaid: |` as its diagram-code SSOT. It accepts Mermaid `gitGraph` / `gitGraph:` declarations, preserves optional Mermaid config headers, renders through the shared Mermaid SVG cache, adapts the SVG into the shared D3 pan/zoom/fit pipeline with isolated keyed zoom state, and routes create/update/delete command controls through `GitGraphFloatingPanelView` inside the shared FloatingPanel shell. Command edits commit back to the active Markdown/Source Files text. It stays diagram-only so GitGraph branch/commit commands are not parsed as Flowchart `MermaidNode` topology.
 - Frontmatter contract split: canonical authored docs and templates keep `flow:` in plain YAML scalars, arrays, and objects, while normalized `{key, type, value}` wrappers stay limited to E2E validation fixtures that audit ingestion -> parsing -> rendering on Canvas. In those fixtures, Flow Editor treats `key` / `portKey` as the semantic handle and treats `handles.source` / `handles.target` only as membership declarations.
 - Flow Editor initialization fixtures must keep the explicit Canvas View preset in frontmatter (`kgCanvasSurfaceMode`, `kgCanvasRenderMode`, `kgCanvas2dRenderer`, `kgDocumentSemanticMode`, `kgFrontmatterModeEnabled`, `kgMultiDimTableModeEnabled`, `kgDocumentStructureBaselineLock`) so Source Files switching lands deterministically without stale renderer carryover.
 - Animatic runtime owners: renderer id and surface SSOT live in `canvas/src/lib/config.render.ts`, animatic surface mounting lives in `canvas/src/components/CanvasViewport.tsx`, runtime mutation owners live in `canvas/src/components/AnimaticCanvas.tsx` (`updateGraphMetadata` for timeline metadata, `updateNode` for beat-linked node movement), shared frontmatter graph writeback lives in `canvas/src/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync.ts`, low-level `serializeAnimaticTimelineMarkdownWith*` helpers in `canvas/src/components/AnimaticCanvas/animaticTimeline.ts` are serializer utilities for tests/tooling only and not runtime owners, and the mounted validation entry stays `npm run validate:animatic-interactions` -> `canvas/scripts/validate_animatic_timeline_interactions.py`.
@@ -137,7 +139,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Key tooltips follow Role → Actions → Outcome.
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).
 
-- Flow Editor supports an in-canvas Node Quick Editor overlay (semantic HTML) for fast field edits and validation.
+- Flow Editor supports an in-canvas Flow Editor widget overlay (semantic HTML) for fast field edits and validation.
   - Reuses the host FloatingPanel shell patterns (pin/unpin, pinned drag adjusts anchor offsets collectively, detached drag when unpinned, minimize/restore + SSOT opacity).
   - Zoom/pan positioning updates are applied via rAF-batched DOM style updates (no editor-form rerender on zoom commits).
   - Key/type/value field rows stay inline-editable. If a field row and an input/output port normalize to the same schema path, the port handle is rendered on that editable row and the duplicate read-only port row is suppressed.
@@ -197,6 +199,8 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - 2D Flow renderer entry: `canvas/src/components/FlowCanvas.tsx`
   - 2D Storyboard renderer entry: `canvas/src/components/StoryboardCanvas.tsx`
   - 2D Design renderer entry: `canvas/src/components/DesignCanvas.tsx`
+  - 2D GitGraph renderer entry: `canvas/src/components/MermaidGitGraphCanvas.tsx`
+  - SVG diagram viewport adapter: `canvas/src/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime.ts`
   - 2D Flow Editor (draft + commit) entry: `canvas/src/components/FlowEditorCanvas.tsx`
   - 3D renderer entry: `canvas/src/features/three/ThreeGraph.tsx`
   - Geospatial overlay host: `gympgrph` host surface mounted only when Geospatial Mode is enabled.
@@ -251,6 +255,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 #### Flow/Flow Editor Parity with Baseline
 - Flow and Flow Editor do not run D3 forces but must reuse the same SSOT inputs as D3: visibility filter, collective fit geometry, and zoom behavior. Initial view honors the same bounds guards and idempotent init policy.
 - When the Document Structure baseline lock is active, Flow and Flow Editor must disable auto zoom modes and maintain parity with the D3 baseline; switching between 2D variants restores each variant’s own zoom state via isolated view keys. See [autoZoom2dPolicy.ts](../../canvas/src/features/zoom/autoZoom2dPolicy.ts) and [FlowCanvas tests](../../canvas/src/__tests__/flowCanvasIntegration.test.ts#L143-L184).
+- Radial schema enforcement may demote renderer modes that do not own radial/flow layout, but it must preserve Flow Editor. Flow Editor handles its own layout, pin/unpin, pan, and zoom contract on the shared 2D surface and must not be coerced back to D3 by schema-level renderer normalization.
 
 ### 2D Flowchart Layout (Super-Groups)
 
@@ -371,7 +376,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **Port clearance**: collision extents include port handle offset/size so handles don’t visually overlap.
 - **Sizing SSOT**: default rect sizing derives from schema node radius (no minimap-driven sizing side-effects).
 - **Flow parity**: the 2D Flow renderer must (1) route endpoints to per-edge handles only when Port Handles are enabled, (2) distribute handle positions along the correct axis (`LR`: along node height, `TB`: along node width), and (3) optionally draw handle glyphs using the same port-handle config knobs.
-- **Flow Editor KTV parity**: Node Quick Editor port buttons use the same structural port keys as Flow endpoints. KTV row consolidation changes only the editor DOM shape; it must not rewrite `flow:sourcePortKey`, `flow:targetPortKey`, `sourceHandle`, `targetHandle`, or connected-value schema paths.
+- **Flow Editor KTV parity**: Flow Editor widget port buttons use the same structural port keys as Flow endpoints. KTV row consolidation changes only the editor DOM shape; it must not rewrite `flow:sourcePortKey`, `flow:targetPortKey`, `sourceHandle`, `targetHandle`, or connected-value schema paths.
 - **Edge routing parity**: Flow edge routing is schema-driven via `schema.layout.flow.edges.routing`, avoids node/group obstacles to reduce spaghetti, and ignores obstacles that contain the edge endpoints (so endpoint nodes/groups never block their own routes). Obstacles are built once per draw to avoid E×N recomputation.
 - **Underlay parity**: edge visibility beneath group fills is schema-driven via `schema.layout.flow.edges.underlay.groupFadeAlpha` and should match D3’s group fill semantics.
 - **Nested group visibility**: group stroke/opacity should scale by outer depth consistently across D3 and Flow via `schema.layout.groups.depthStyle`.

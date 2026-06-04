@@ -61,15 +61,15 @@ export function TraversalSequenceSection({
     lastTraversal && lastTraversal.mode === 'generic' ? lastTraversal : null
 
   return (
-    <div className={traversalSectionPanelClassName}>
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex flex-col">
+    <section className={traversalSectionPanelClassName}>
+      <section className="flex items-center justify-between mb-1">
+        <section className="flex flex-col">
           <Tooltip
             content={TRAVERSAL_SEQUENCE_TOOLTIP}
             maxWidthPx={260}
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
-            <div
+            <section
               className={[
                 `flex items-center gap-1 font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`,
                 uiPanelKeyValueTextSizeClass,
@@ -77,10 +77,10 @@ export function TraversalSequenceSection({
               ].join(' ')}
             >
               <span>{UI_COPY.orchestratorTraversalSequenceTitle}</span>
-            </div>
+            </section>
           </Tooltip>
           {lastTraversal && (
-            <div
+            <section
               className={[
                 UI_THEME_TOKENS.text.tertiary,
                 uiPanelKeyValueTextSizeClass,
@@ -90,9 +90,9 @@ export function TraversalSequenceSection({
               {lastTraversal.mode === 'graphRag'
                 ? TRAVERSAL_SEQUENCE_MODE_LABEL_GRAPH_RAG
                 : TRAVERSAL_SEQUENCE_MODE_LABEL_GENERIC}
-            </div>
+            </section>
           )}
-        </div>
+        </section>
         <IconButton
           className="App-toolbar__btn flex items-center justify-center"
           title={
@@ -110,10 +110,10 @@ export function TraversalSequenceSection({
             aria-hidden="true"
           />
         </IconButton>
-      </div>
+      </section>
       {!lastTraversal && traversalExpanded && null}
       {lastTraversal && traversalExpanded && (
-        <div
+        <section
           className={[
             `${UI_THEME_TOKENS.text.secondary} space-y-1`,
             uiPanelKeyValueTextSizeClass,
@@ -162,10 +162,10 @@ export function TraversalSequenceSection({
           {genericTraversal && (
             <GenericTraversalDetails lastTraversal={genericTraversal} />
           )}
-        </div>
+        </section>
       )}
       {previewEdgeIds.length > 0 && (
-        <div
+        <section
           className={[
             `mt-1 ${UI_THEME_TOKENS.text.tertiary}`,
             uiPanelKeyValueTextSizeClass,
@@ -176,9 +176,9 @@ export function TraversalSequenceSection({
         <span className={uiPanelMonospaceTextClass}>{previewEdgeIds.length}</span>
         {' '}
         {UI_COPY.orchestratorTraversalSequencePreviewingSuffix}
-      </div>
+      </section>
     )}
-  </div>
+  </section>
   )
 }
 
@@ -192,7 +192,7 @@ function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps
   )
   if (lastTraversal.mode !== 'generic') return null
   return (
-    <div className="space-y-1">
+    <section className="space-y-1">
       <SimpleKeyValueRow
         density="compact"
         label={<span className={UI_THEME_TOKENS.text.tertiary}>{UI_COPY.orchestratorTraversalGenericStartNodeLabel}</span>}
@@ -219,6 +219,6 @@ function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps
           </span>
         </SimpleKeyValueRow>
       )}
-    </div>
+    </section>
   )
 }

@@ -53,13 +53,13 @@ function ToastCard({
       )}
       role={toast.kind === 'error' ? 'alert' : 'status'}
     >
-      <div className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 py-2">
+      <section className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 py-2">
         <Icon className={cn('w-4 h-4 mt-0.5', toast.busy ? 'animate-spin' : '')} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-        <div className="min-w-0">
-          <div className="whitespace-pre-wrap break-words text-xs leading-5">{message}</div>
+        <section className="min-w-0">
+          <section className="whitespace-pre-wrap break-words text-xs leading-5">{message}</section>
           <UiActionButtons actions={toast.actions} className="mt-2" />
-        </div>
-        <div className="mt-0.5 flex items-center gap-1 pointer-events-auto">
+        </section>
+        <section className="mt-0.5 flex items-center gap-1 pointer-events-auto">
           <button
             type="button"
             className={cn(
@@ -87,8 +87,8 @@ function ToastCard({
               <X className="w-4 h-4" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </button>
           ) : null}
-        </div>
-      </div>
+        </section>
+      </section>
     </aside>
   )
 }

@@ -193,7 +193,7 @@ export async function testWorkspaceExternalValidationCsvImportShowsJsonPanePrevi
   const validationCsvPath = readExternalValidationCsvPath()
   if (!validationCsvPath) return
 
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     resetWorkspaceFsForTests()
@@ -388,7 +388,7 @@ export async function testWorkspaceExternalValidationCsvImportShowsJsonPanePrevi
 }
 
 export async function testMarkdownWorkspaceCsvImportUsesViewerPaneWithoutJsonDocument() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     useGraphStore.getState().resetAll()
@@ -481,7 +481,7 @@ export async function testMarkdownWorkspaceCsvImportUsesViewerPaneWithoutJsonDoc
 }
 
 export async function testMarkdownWorkspaceCsvRefreshProjectsJsonAndMarkdownPanesFromSourceText() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     useGraphStore.getState().resetAll()
@@ -587,7 +587,7 @@ export async function testMarkdownWorkspaceCsvRefreshProjectsJsonAndMarkdownPane
 }
 
 export async function testMarkdownWorkspaceLargeCsvJsonPreviewRendersViewerPane() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     useGraphStore.getState().resetAll()

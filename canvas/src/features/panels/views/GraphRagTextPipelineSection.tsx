@@ -96,7 +96,7 @@ export default function GraphRagTextPipelineSection() {
             ? rec.subwords
             : []
       return (
-        <div className="flex flex-wrap gap-1">
+        <section className="flex flex-wrap gap-1">
           {list.slice(0, 64).map((t, i) => (
             <span
               key={`${t}-${i}`}
@@ -105,55 +105,55 @@ export default function GraphRagTextPipelineSection() {
               {t}
             </span>
           ))}
-        </div>
+        </section>
       )
     }
     if (Array.isArray(rec.entities)) {
       const entities = rec.entities.filter(isRecord).slice(0, 32) as Array<Record<string, unknown>>
       return (
-        <div className="space-y-1">
+        <section className="space-y-1">
           {entities.map((e, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <section key={i} className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 text-xs">
                 {String((e as { text?: unknown }).text ?? '')}
               </span>
               <span className={`text-[10px] font-mono ${UI_THEME_TOKENS.text.tertiary}`}>
                 {String((e as { label?: unknown }).label ?? '')}
               </span>
-            </div>
+            </section>
           ))}
-        </div>
+        </section>
       )
     }
     if (Array.isArray(rec.triples) && rec.triples.every(x => typeof x === 'string')) {
       const triples = rec.triples as string[]
       return (
-        <div className="space-y-1">
+        <section className="space-y-1">
           {triples.slice(0, 24).map((t, i) => (
-            <div
+            <section
               key={i}
               className={`text-xs font-mono ${UI_THEME_TOKENS.code.text} ${UI_THEME_TOKENS.code.bg} border ${UI_THEME_TOKENS.code.border} rounded px-2 py-1`}
             >
               {t}
-            </div>
+            </section>
           ))}
-        </div>
+        </section>
       )
     }
     if (isStringArray(rec.nodes)) {
       return (
-        <div className="space-y-2">
-          <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+        <section className="space-y-2">
+          <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
             Nodes: {rec.nodes.length} · Edges: {String(rec.edges ?? '')} · Communities: {String(rec.communities ?? '')}
-          </div>
-          <div className="flex flex-wrap gap-1">
+          </section>
+          <section className="flex flex-wrap gap-1">
             {rec.nodes.slice(0, 48).map((n, i) => (
               <span key={`${n}-${i}`} className={tokenChipClassName}>
                 {n}
               </span>
             ))}
-          </div>
-        </div>
+          </section>
+        </section>
       )
     }
     return (
@@ -164,7 +164,7 @@ export default function GraphRagTextPipelineSection() {
   }
 
   const header = (
-    <div className="flex items-center gap-2">
+    <section className="flex items-center gap-2">
       <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary}`}>
         {UI_COPY.graphragTextPipelineBadge}
       </span>
@@ -173,7 +173,7 @@ export default function GraphRagTextPipelineSection() {
           {UI_COPY.graphragTextPipelineTitle}
         </span>
       </Tooltip>
-    </div>
+    </section>
   )
 
   const lib = current.library || {}
@@ -181,8 +181,8 @@ export default function GraphRagTextPipelineSection() {
 
   return (
     <CollapsibleSection title={header} collapsed={collapsed} onToggle={setCollapsed}>
-      <div className={['mt-2 space-y-2', uiPanelKeyValueTextSizeClass, uiPanelTextFontClass].join(' ')}>
-        <div className="flex flex-wrap gap-1">
+      <section className={['mt-2 space-y-2', uiPanelKeyValueTextSizeClass, uiPanelTextFontClass].join(' ')}>
+        <section className="flex flex-wrap gap-1">
           {stages.map((s, i) => (
             <button
               key={s.id}
@@ -198,10 +198,10 @@ export default function GraphRagTextPipelineSection() {
               {i + 1}. {s.name}
             </button>
           ))}
-        </div>
+        </section>
 
         {isGraphRag && (
-          <div className="flex flex-wrap items-center gap-3 text-xs">
+          <section className="flex flex-wrap items-center gap-3 text-xs">
             <span className={`${UI_THEME_TOKENS.text.tertiary} font-semibold`}>Context-Aware Analytics</span>
             <label className="inline-flex items-center gap-2">
               <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
@@ -241,33 +241,33 @@ export default function GraphRagTextPipelineSection() {
             >
               Recompute
             </button>
-          </div>
+          </section>
         )}
 
-        <div className="grid md:grid-cols-2 gap-3">
-          <div className={`${stagePanelClassName} space-y-2`}>
-            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+        <section className="grid md:grid-cols-2 gap-3">
+          <section className={`${stagePanelClassName} space-y-2`}>
+            <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
               <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>{current.name}</span>
               {current.metrics && typeof current.metrics.latency_ms === 'number' && (
                 <span className={`ml-2 text-[10px] font-mono ${UI_THEME_TOKENS.text.tertiary}`}>
                   {Math.round(current.metrics.latency_ms)}ms
                 </span>
               )}
-            </div>
-            <div className={codePanelClassName}>
+            </section>
+            <section className={codePanelClassName}>
               <pre className={`text-xs font-mono whitespace-pre-wrap break-words ${UI_THEME_TOKENS.code.text}`}>
                 {current.code}
               </pre>
-            </div>
-            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-              <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Input</div>
-              <div className={`mt-1 ${UI_THEME_TOKENS.text.primary} whitespace-pre-wrap break-words`}>
+            </section>
+            <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <section className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Input</section>
+              <section className={`mt-1 ${UI_THEME_TOKENS.text.primary} whitespace-pre-wrap break-words`}>
                 {current.input}
-              </div>
-            </div>
-            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-              <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Library</div>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
+              </section>
+            </section>
+            <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <section className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Library</section>
+              <section className="mt-1 flex flex-wrap items-center gap-2">
                 <span className={tokenChipClassName}>
                   {String(lib.name || '')}
                 </span>
@@ -281,15 +281,15 @@ export default function GraphRagTextPipelineSection() {
                     {String(lib.license)}
                   </span>
                 )}
-              </div>
-            </div>
-          </div>
-          <div className={stagePanelClassName}>
-            <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary} mb-2`}>Output</div>
+              </section>
+            </section>
+          </section>
+          <section className={stagePanelClassName}>
+            <section className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary} mb-2`}>Output</section>
             {renderOutput(current.output)}
-          </div>
-        </div>
-      </div>
+          </section>
+        </section>
+      </section>
     </CollapsibleSection>
   )
 }

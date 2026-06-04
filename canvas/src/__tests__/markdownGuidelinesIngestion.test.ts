@@ -126,7 +126,7 @@ export async function testGuidelinesMarkdownHighlightGuardWithLargeGraph() {
     const state = useGraphStore.getState()
     state.setGraphData(graphData as never)
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -153,7 +153,7 @@ export async function testGuidelinesMarkdownHighlightGuardWithLargeGraph() {
       )
     await tick()
 
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('guidelines markdown preview root not found')
     }
@@ -224,7 +224,7 @@ export async function testGuidelinesMarkdownHighlightGuardWithSmallGraph() {
     const state = useGraphStore.getState()
     state.setGraphData(graphData as never)
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -251,7 +251,7 @@ export async function testGuidelinesMarkdownHighlightGuardWithSmallGraph() {
       )
     await tick()
 
-    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('guidelines markdown preview root not found for small graph')
     }

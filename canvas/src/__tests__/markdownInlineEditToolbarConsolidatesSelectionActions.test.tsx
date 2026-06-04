@@ -38,7 +38,7 @@ const findButtonByExactText = (rootEl: HTMLElement, label: string): HTMLButtonEl
 }
 
 export async function testInlineEditToolbarMoreMenuIncludesSelectionActionsAndNoDuplicateBubble() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   ensureRangeRect(dom)
   const doc = dom.window.document
   const container = doc.getElementById('root')

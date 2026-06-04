@@ -4,6 +4,7 @@ import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { extractYamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { recordDocumentVersionSnapshot } from '@/features/document-versioning/documentVersioning'
 import yaml from 'js-yaml'
 import {
   normalizeComposedSourcePath,
@@ -377,9 +378,20 @@ export function findSourceFileForMarkdownDocument(state: GraphState, name: strin
   })
 }
 
-export function writeWorkspaceSourceTextIfPresent(file: GraphState['sourceFiles'][number], text: string): void {
+export function writeWorkspaceSourceTextIfPresent(
+  file: GraphState['sourceFiles'][number],
+  text: string,
+  label = 'Source file update',
+  source: 'sourceFiles' | 'gitGraph' = 'sourceFiles',
+): void {
   const workspacePath = normalizeComposedSourcePath(readComposedSourceFilePath(file))
   if (!workspacePath) return
+  recordDocumentVersionSnapshot({
+    path: workspacePath,
+    text,
+    label,
+    source,
+  })
   void getWorkspaceFs()
     .then(fs => fs.writeFileText(workspacePath as any, text))
     .catch(() => void 0)
@@ -449,15 +461,23 @@ export function writeActiveMarkdownDocumentTextIfPresent(args: {
   state: GraphState
   sourceFiles: GraphState['sourceFiles']
   text: string
+  label?: string
+  source?: 'sourceFiles' | 'gitGraph'
 }): void {
   const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
   if (activeFileMatch?.file) {
-    writeWorkspaceSourceTextIfPresent(activeFileMatch.file, args.text)
+    writeWorkspaceSourceTextIfPresent(activeFileMatch.file, args.text, args.label || 'Source file update', args.source || 'sourceFiles')
     return
   }
   const activePath = normalizeComposedSourcePath(String(args.state.markdownDocumentName || '').trim())
   if (!activePath) return
   if (!isMarkdownLikeFileName(activePath)) return
+  recordDocumentVersionSnapshot({
+    path: activePath,
+    text: args.text,
+    label: args.label || 'Markdown document update',
+    source: args.source || 'sourceFiles',
+  })
   void getWorkspaceFs()
     .then(fs => fs.writeFileText(activePath as any, args.text))
     .catch(() => void 0)

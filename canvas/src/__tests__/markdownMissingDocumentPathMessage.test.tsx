@@ -24,7 +24,7 @@ export async function testMarkdownViewerShowsMissingDocumentPathMessage() {
 
     const doc = dom.window.document
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -41,7 +41,7 @@ export async function testMarkdownViewerShowsMissingDocumentPathMessage() {
 
     root.render(
       React.createElement(MarkdownViewerPane, {
-        viewerRef: React.createRef<HTMLDivElement>(),
+        viewerRef: React.createRef<HTMLElement>(),
         handleViewerScroll: () => void 0,
         markdownPreviewText: '',
         previewBasePath: '',

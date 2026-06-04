@@ -1,7 +1,7 @@
-# Knowgrph Flow Editor Node Quick Editor Document
+# Knowgrph Flow Editor Widget Document
 
-**Context**: Flow Editor 2D renderer node editing
-**Intent**: Provide a fast in-canvas edit surface for selected nodes without opening full inspectors
+**Context**: Flow Editor 2D renderer widget editing
+**Intent**: Provide a fast in-canvas widget surface for selected nodes without opening full inspectors
 **Directive**: Reuse SSOT UI tokens (typography, icon sizing, opacity) and persist only canonical LS keys from `canvas/src/lib/config.ls.ts`
 
 ---
@@ -21,8 +21,8 @@
 ## Supported Behaviors (MVP)
 
 - **Pin/Unpin**: pin locks the overlay to node-anchored positioning with an adjustable anchor offset; unpin detaches (floating) and enables header drag, persisting a viewport position.
-- **Containment envelopes**: layer/subgraph/cluster/group borders in Flow Editor must use a containment-safe AABB union (`explicit bounds ∪ computed member footprint`) so initialized quick-editor-heavy node sets do not render outside group borders on first paint.
-- **Pinned panel extents**: containment AABBs must also include zoom-aware pinned quick-editor panel world extents (actual panel box) for member nodes so group borders, edge blockers, and label avoidance remain consistent at every zoom level.
+- **Containment envelopes**: layer/subgraph/cluster/group borders in Flow Editor must use a containment-safe AABB union (`explicit bounds ∪ computed member footprint`) so initialized widget-heavy node sets do not render outside group borders on first paint.
+- **Pinned panel extents**: containment AABBs must also include zoom-aware pinned widget panel world extents (actual panel box) for member nodes so group borders, edge blockers, and label avoidance remain consistent at every zoom level.
 - **Drag**: when unpinned (detached), header drag moves the overlay freely in the viewport (ignores pointerdown on interactive elements); when pinned, header drag adjusts the anchor offset so overlays and edges follow the pointer without bounce.
 - **Pinned multi-drag**: dragging a pinned overlay applies the same offset to all pinned overlays in the open list to preserve relative layout.
 - **Minimize/Restore**: collapses the editor body to header-only.
@@ -30,7 +30,7 @@
 - **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`. In Flow Editor, overlay wheel-ignore must not be able to block wheel zoom if the top-most element under the pointer is still the canvas.
 - **Toolbar actions**: open selected node in Sidepane, enable Handles for all inputs, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates). The toolbar hides on unselect or outside click.
 - **Baseline lock**: enable-handles action is gated when Document Structure baseline lock is enabled.
-- **Multi-node overlays**: multiple Node Quick Editors may be open at the same time; overlays must remain visible and operable without DOM id collisions.
+- **Multi-node overlays**: multiple Flow Editor widgets may be open at the same time; overlays must remain visible and operable without DOM id collisions.
 - **AI profile awareness**: Flow Editor Manager should surface the active official AI profile (BytePlus/OpenAI/local), region, and model through the shared chat settings path and link back to MainPanel Settings `chat` search instead of duplicating provider controls.
 
 ### Multi-node layout (detached)
@@ -42,9 +42,9 @@
 
 ## Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
 
-- **Open state SSOT**: `openQuickEditorNodeIds` is stored in shared graph view state, not local component state.
-- **Canvas + Table parity**: Flow Editor canvas and Graph Table Inspector render the same Node Quick Editor panel when a node id is in the open list.
-- **Editor Workspace codes**: Editor Workspace surfaces Node Quick Editor as bundle codes inside the Markdown editor/viewer (JSON/Markdown), without mounting a second quick-editor panel.
+- **Open state SSOT**: `openWidgetNodeIds` is stored in shared graph view state, not local component state.
+- **Canvas + Table parity**: Flow Editor canvas and Graph Table Inspector render the same Flow Editor widget panel when a node id is in the open list.
+- **Editor Workspace codes**: Editor Workspace surfaces Flow Editor widget as bundle codes inside the Markdown editor/viewer (JSON/Markdown), without mounting a second widget panel.
 - **Prune on data change**: when `GraphData` changes, prune the open list to ids that still exist.
 
 ## Performance Invariants
@@ -63,7 +63,7 @@
 ## Edge Rendering (Flow Editor)
 
 - Flow Editor must reuse the native Flow renderer edge drawing (routing + style) for port-bound edges; avoid a second overlay-only edge rendering path that can drift.
-- When Node Quick Editors are open, edges remain visible in the Flow renderer; the Quick Editor contributes the port-dot interaction surface.
+- When Flow Editor widgets are open, edges remain visible in the Flow renderer; the Widget contributes the port-dot interaction surface.
 
 ---
 
@@ -72,27 +72,27 @@
 - The overlay is **screen-space UI**, but it **scales** with the canvas zoom so it remains readable and consistent with user expectations in flow editors.
 - Scale is computed from the schema zoom extent (`minK/maxK`) and current zoom `k`, then applied via CSS `transform` (translate + scale) to keep updates on the compositor path.
 - **Macro view rule**: at **max zoom-out** and **max zoom-in**, the panel stays **small** (same size at both extremes) so the user can keep a wide overview.
-- SSOT implementation lives in `canvas/src/components/FlowEditor/nodeQuickEditorZoom.ts` and must be reused by any future quick-editor overlays.
-- Default detached placement SSOT lives in `canvas/src/components/FlowEditor/nodeQuickEditorLayout.ts`.
+- SSOT implementation lives in `canvas/src/lib/canvas/overlayWidgetZoom.ts` and must be reused by any future widget overlays.
+- Default detached placement SSOT lives in `canvas/src/components/FlowEditor/widgetLayout.ts`.
 
 ---
 
 ## Port Handles (Flow Editor)
 
 - Port Handles are toggled via `schema.behavior.portHandles.enabled`.
-- Node Quick Editor “Enable Handles for All Inputs” sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` so Flow nodes without edges still render default in/out handles (visual + routing parity, bounded work).
+- Flow Editor widget “Enable Handles for All Inputs” sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` so Flow nodes without edges still render default in/out handles (visual + routing parity, bounded work).
 - Shared gating helper is `isPortHandlesShowAllInputsEnabled(schema)` so Flow scene-building and UI actions cannot drift.
-- For `metadata.kind=frontmatter-flow` overlays, quick-editor handle rendering must stay strict and flow-derived: use declared flow handles plus edge/registry-derived typed ports only, and do not synthesize fallback default handles.
+- For `metadata.kind=frontmatter-flow` overlays, widget handle rendering must stay strict and flow-derived: use declared flow handles plus edge/registry-derived typed ports only, and do not synthesize fallback default handles.
 - Frontmatter-flow overlay contracts must not render absent hardcoded ports (for example `compute` or `data`) unless those keys are explicitly present on the node properties.
-- **Envelope-driven rows**: for flow blocks that wrap node fields as `{key,type,value}`, quick-editor rows must render only declared fields (no synthetic key/type fallback) and map them to real node properties (`handles → frontmatter:handles`, `data → properties.data`, `compute → properties.flow:compute`).
-- **KTV row/port merge**: when an authored `{key,type,value}` field row and a functional input/output port resolve to the same normalized schema path, the quick editor renders one inline-editable KTV row and attaches the port handle to that row. It must not render a second read-only row for the same semantic key.
+- **Envelope-driven rows**: for flow blocks that wrap node fields as `{key,type,value}`, widget rows must render only declared fields (no synthetic key/type fallback) and map them to real node properties (`handles → frontmatter:handles`, `data → properties.data`, `compute → properties.flow:compute`).
+- **KTV row/port merge**: when an authored `{key,type,value}` field row and a functional input/output port resolve to the same normalized schema path, the widget renders one inline-editable KTV row and attaches the port handle to that row. It must not render a second read-only row for the same semantic key.
 - **Semantic key ownership**: `handles.source` and `handles.target` declare port membership only. Edge creation, connected-value lookup, DOM control ids, and accessible port labels use the field `key` / `portKey` as the semantic handle, never `handles.source`, `handles.target`, or a renderer-local alias.
-- **Inline envelope tolerance**: parser normalization must accept node field lines using `key:{...}` (no space after `:`) and treat them the same as `key: {...}` so declared flow nodes keep their quick-editor form and handle contracts.
+- **Inline envelope tolerance**: parser normalization must accept node field lines using `key:{...}` (no space after `:`) and treat them the same as `key: {...}` so declared flow nodes keep their widget form and handle contracts.
 - **Declared data only**: frontmatter-flow node normalization must omit `data` when it is not declared by author input; do not materialize synthetic `{}` placeholders.
 
 ### Schema Field Ports (Database-schema-node style)
 
-- If a node carries `node.properties['schema:fields']` (array of strings or `{id|title,type}` objects), the Node Quick Editor renders a **schema field list** and places **row-aligned input/output port dots** that intersect the panel border line; in/out dots appear for every key row to keep the port grid continuous.
+- If a node carries `node.properties['schema:fields']` (array of strings or `{id|title,type}` objects), the Flow Editor widget renders a **schema field list** and places **row-aligned input/output port dots** that intersect the panel border line; in/out dots appear for every key row to keep the port grid continuous.
 - The schema field surface is an inline **schema table editor** (semantic `table/thead/tbody/tr/th/td`), allowing users to add/remove fields and edit field name + type without leaving the canvas.
 - When a schema field is renamed, any port-bound edges attached to that field must be rewritten to the new port key (`field:<nextId>`) and `edge.properties['flow:displayLabel']` must be recomputed to match.
 - When creating edges in Flow Editor, edges may bind to specific ports using:
@@ -105,43 +105,43 @@
   - Schema field type compatibility when both sides provide `type`
 - Flow scene building attaches edge endpoints to these handle ids (falling back to `edge.id` when absent) and handle computation generates stable `field:<id>` handles so routing + port markers remain deterministic.
 - Optional UI label override for port-bound edges: `edge.properties['flow:displayLabel']` (e.g., `warehouse_id → id`).
-- When the Node Quick Editor is open, the selected node’s native FlowCanvas port handles are hidden to avoid duplicate “detached” dots; the quick editor is the active port UI surface.
+- When the Flow Editor widget is open, the selected node’s native FlowCanvas port handles are hidden to avoid duplicate “detached” dots; the widget is the active port UI surface.
 
 ### Edge Creation Paths
 
 - Flow Editor canvas handle drags create edges; when a port dot is the source/target, edges set `edge.properties['flow:sourcePortKey']` / `edge.properties['flow:targetPortKey']` (else fall back to `edge.id`).
-- Node Quick Editor port dots are the edge-creation surface for the selected node while the overlay is open.
+- Flow Editor widget port dots are the edge-creation surface for the selected node while the overlay is open.
 - Port-bound edges may set `edge.properties['flow:displayLabel']` to surface a stable UI label (e.g., `sourceKey → targetKey`).
 
 ### Registry-Driven Forms (Flow Editor Manager)
 
-- When a matching **enabled** entry exists in the Node Quick Editor Registry (Flow Editor Manager), the Node Quick Editor renders an additional **Registry** section for the selected node type.
+- When a matching **enabled** entry exists in the Widget Registry (Flow Editor Manager), the Flow Editor widget renders an additional **Registry** section for the selected node type.
 - Registry fields read/write values via `schemaPath` (defaulting to `properties.<fieldKey>` when omitted).
 - Registry ports render as clickable in/out ports and create edges bound via `flow:sourcePortKey` / `flow:targetPortKey`.
 - Registry ports that share the normalized schema path of a visible registry field attach to the editable field row and suppress the duplicate standalone port-value row. Standalone read-only port rows remain valid only for ports with no visible matching field row.
-- Optional per-field/per-port visibility: `isHidden: true` hides the field/port from the Node Quick Editor UI and suppresses Flow port handles.
+- Optional per-field/per-port visibility: `isHidden: true` hides the field/port from the Flow Editor widget UI and suppresses Flow port handles.
 - Optional per-node overrides:
-  - `node.properties['flow:quickEditorTypeId']`
-  - `node.properties['flow:quickEditorFormId']`
-- The mapping selector stays visible even when the quick editor fields are hidden; clearing the selection removes the override keys.
+  - `node.properties['flow:widgetTypeId']`
+  - `node.properties['flow:widgetFormId']`
+- The mapping selector stays visible even when the widget fields are hidden; clearing the selection removes the override keys.
 - The Smart Fields section includes a registry selector filtered to enabled mappings for the node type; selection updates the two override keys and emits a lightweight toast with the mapping label for visual confirmation.
 
 ### Mapping Editor (Flow Editor Manager)
 
 - Mapping rows render in a schema-like table with **Key / Type / JSON Key / Direction** columns (SSOT typography + tokens).
-- Direction options are `Default` (show input + output in Quick Editor), `input` (input-only), and `output` (output-only); values persist in registry entries.
+- Direction options are `Default` (show input + output in Widget), `input` (input-only), and `output` (output-only); values persist in registry entries.
 - Apply/Reset in the MainPanel header gates persistence; Apply is enabled only when edits are dirty.
 - The editor header owns the Add Row action; avoid nested section headers in the editor body.
 
 ---
 
-## In-Editor Dataflow (Connected Inputs → Quick Editor)
+## In-Editor Dataflow (Connected Inputs → Widget)
 
 - **Goal**: allow a node editor to reflect upstream values in real time, without copying external Flow libraries.
 - **Inputs**: edges bound to ports via `edge.properties['flow:sourcePortKey']` / `edge.properties['flow:targetPortKey']`.
 - **Port schemaPath**: registry `ports[].schemaPath` defines how a port reads/writes values on the node shape (defaults to `properties.<portKey>`).
 - **Compute model (MVP)**:
-  - For each node open in the Node Quick Editor overlay, compute a `connectedValuesBySchemaPath` map.
+  - For each node open in the Flow Editor widget overlay, compute a `connectedValuesBySchemaPath` map.
   - The compute path is shared across Flow Editor and Table Inspector so connected-value semantics do not drift across modes.
   - For each connected input port, the UI surfaces a **Connected:** hint next to the mapped field and provides an **Apply** action.
   - Applying writes the value into `node.properties` at the field schemaPath (using object-path setters), making the value explicit and exportable.
@@ -167,9 +167,10 @@
 
 ### Template And Validation Invariants
 
-- Runnable Flow Editor templates must declare the canvas landing in frontmatter: `kgCanvasSurfaceMode: "2d"`, `kgCanvasRenderMode: "2d"`, `kgCanvas2dRenderer: "flowEditor"`, `kgDocumentSemanticMode: "document"`, `kgFrontmatterModeEnabled: true`, `kgMultiDimTableModeEnabled: false`, and `kgDocumentStructureBaselineLock: false`.
+- Runnable Flow Editor templates must declare the canvas landing in frontmatter: `kgCanvasSurfaceMode: "2d"`, `kgCanvasRenderMode: "2d"`, `kgCanvas2dRenderer: "flowEditor"`, `kgDocumentSemanticMode: "document"`, `kgFrontmatterModeEnabled: true`, an explicit `kgMultiDimTableModeEnabled` value, and `kgDocumentStructureBaselineLock: false`.
+- Use `kgMultiDimTableModeEnabled: false` for simple widget seeds. Use `kgMultiDimTableModeEnabled: true` with `kgWorkflowManagerModeEnabled: true` only when the document intentionally exposes Workflow Manager / Multi-dimensional Table companion views while Flow Editor remains the renderer authority.
 - Template authors should use plain YAML `flow:` blocks with `handles`, `"flow:portTypes"`, `sourceHandle`, and `targetHandle`. Use normalized `{key,type,value}` field envelopes only in parser/render validation fixtures.
-- The Quick Editor must read row identity from normalized schema path + semantic key, not visible label text. Repeated labels such as `Value` are allowed only when their control ids, accessible names, and port handles remain unique.
+- The Widget must read row identity from normalized schema path + semantic key, not visible label text. Repeated labels such as `Value` are allowed only when their control ids, accessible names, and port handles remain unique.
 - Validation must prove the full Source Files -> Markdown parser -> Flow Editor -> Rich Media Panel chain when a template includes panel outputs. A passing parse without Flow Editor surface proof is not enough for renderer changes.
 - A publish-side template is valid only when parser warnings are zero, declared ports have matching `flow:portTypes`, and Rich Media Panel endpoints render through shared panel state rather than local preview branches.
 
@@ -181,26 +182,26 @@
 
 ---
 
-## Import / Export JSON Contract (Node Quick Editor Bundle)
+## Import / Export JSON Contract (Widget Bundle)
 
 ### Canonical Bundle Shape
 
-- **Kind**: `kg:flow:nodeQuickEditorBundle`
+- **Kind**: `kg:flow:widgetBundle`
 - **Version**: `1`
 - **Purpose**: a project-agnostic JSON envelope that can carry:
-  - a Node Quick Editor registry snapshot (`registry`)
+  - a Flow Editor widget registry snapshot (`registry`)
   - an optional graph payload (`graph`) for import→render round-trips
 
 ```json
 {
-  "kind": "kg:flow:nodeQuickEditorBundle",
+  "kind": "kg:flow:widgetBundle",
   "version": 1,
   "registry": [
     {
-      "id": "qer-VideoGeneration-default-videoGeneration",
+      "id": "widget-VideoGeneration-default-videoGeneration",
       "isEnabled": true,
       "nodeTypeId": "VideoGeneration",
-      "quickEditorTypeId": "default",
+      "widgetTypeId": "default",
       "formId": "videoGeneration",
       "fields": [{ "fieldKey": "prompt", "fieldType": "textarea", "schemaPath": "properties.prompt", "isHidden": false }],
       "ports": [{ "portKey": "videoUrl", "direction": "output", "isHidden": false }],
@@ -216,24 +217,24 @@
 
 ### Import → Render Wiring
 
-- On import, parsers may emit registry entries into `GraphData.metadata['flow:nodeQuickEditorRegistry']`.
-- The graph commit path reads this metadata and applies it via the store action `setNodeQuickEditorRegistry(...)` (validated + normalized), enabling immediate Node Quick Editor rendering for matching `node.type`.
+- On import, parsers may emit registry entries into `GraphData.metadata['flow:widgetRegistry']`.
+- The graph commit path reads this metadata and applies it via the store action `setWidgetRegistry(...)` (validated + normalized), enabling immediate Flow Editor widget rendering for matching `node.type`.
 - The JSON import UX auto-switches to **Canvas → 2D → Flow Editor** when this metadata key is present so the imported workflow opens in an editor-first surface.
 
 ### Supported Import Shapes (Project-Agnostic)
 
-- **Node Quick Editor bundle**: `kg:flow:nodeQuickEditorBundle` (registry + optional graph payload).
+- **Flow Editor widget bundle**: `kg:flow:widgetBundle` (registry + optional graph payload).
 - **AI-Flow processor list**: array of processors that can be normalized into:
   - `GraphData.nodes[]` for processors
-  - `GraphData.metadata['flow:nodeQuickEditorRegistry']` for per-processor quick editor fields/ports
-- **ComfyUI workflow**: workflow JSON normalized into a minimal `VideoGeneration` graph plus a default registry entry for immediate Quick Editor rendering.
+  - `GraphData.metadata['flow:widgetRegistry']` for per-processor widget fields/ports
+- **ComfyUI workflow**: workflow JSON normalized into a minimal `VideoGeneration` graph plus a default registry entry for immediate Widget rendering.
 
 ### Export Surface
 
 - Flow Editor Manager exports either:
   - the selected mapping (preferred), or
   - all mappings (fallback)
-  as a `kg:flow:nodeQuickEditorBundle` JSON.
+  as a `kg:flow:widgetBundle` JSON.
 - Flow Editor Inspector exports a full workflow bundle (draft graph + current registry snapshot).
 - Flow Editor Inspector “Run” exports a per-node bundle (subgraph around the node + matching registry entries).
 
@@ -247,19 +248,19 @@
 
 ## Workflow Editor-like Drag-and-Drop (Palette → Canvas)
 
-- **Surface**: Flow Editor Manager (MainPanel) exposes a **Node Quick Editor palette** sidebar.
+- **Surface**: Flow Editor Manager (MainPanel) exposes a **Flow Editor widget palette** sidebar.
 - **Drag payload SSOT**:
-  - `kind='kg:flow:nodeQuickEditorDrag'`
+  - `kind='kg:flow:widgetDrag'`
   - `version=1`
-  - `mime='application/x-kg-flow-node-quick-editor'`
+  - `mime='application/x-kg-flow-widget'`
 - **Drop target**: Flow Editor canvas accepts drops and creates a new node at the drop location (world coordinates).
 - **Node binding**: created nodes set the per-node override keys so the registry entry is selected deterministically:
-  - `node.properties['flow:quickEditorTypeId']=<entry.quickEditorTypeId>`
-  - `node.properties['flow:quickEditorFormId']=<entry.formId>`
+  - `node.properties['flow:widgetTypeId']=<entry.widgetTypeId>`
+  - `node.properties['flow:widgetFormId']=<entry.formId>`
 
-### Manager Shortcut (Add From Quick Editor)
+### Manager Shortcut (Add From Widget)
 
-- Flow Editor Manager provides an "Add from Quick Editor" action that seeds a new registry mapping using the currently selected node type and the Node Quick Editor smart fields schema paths.
+- Flow Editor Manager provides an "Add from Widget" action that seeds a new registry mapping using the currently selected node type and the Flow Editor widget smart fields schema paths.
 
 ## Loop Node Semantics (Flow Editor)
 
@@ -271,11 +272,16 @@
 ## Persistence (SSOT)
 
 - All persistence keys are defined in `LS_KEYS` in `canvas/src/lib/config.ls.ts`:
-  - `LS_KEYS.flowNodeQuickEditorPinned`
-  - `LS_KEYS.flowNodeQuickEditorMinimized`
-  - `LS_KEYS.flowNodeQuickEditorHideFields`
-  - `LS_KEYS.flowNodeQuickEditorTopPx`
-  - `LS_KEYS.flowNodeQuickEditorLeftPx`
+  - `LS_KEYS.flowWidgetPinnedByNodeId`
+  - `LS_KEYS.flowWidgetPinnedSemanticsVersion`
+  - `LS_KEYS.flowWidgetMinimized`
+  - `LS_KEYS.flowWidgetHideFields`
+  - `LS_KEYS.flowWidgetPosByNodeId`
+  - `LS_KEYS.flowWidgetWorldPosByNodeId`
+  - `LS_KEYS.flowWidgetPinnedByGraphMetaKey`
+  - `LS_KEYS.flowWidgetPosByGraphMetaKey`
+  - `LS_KEYS.flowWidgetWorldPosByGraphMetaKey`
+  - `LS_KEYS.flowEditorManagerWidgetRegistry`
 
 ---
 

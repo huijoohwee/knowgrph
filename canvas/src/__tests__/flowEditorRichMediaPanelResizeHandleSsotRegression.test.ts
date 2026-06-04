@@ -39,8 +39,8 @@ export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   if (!text.includes("position: flowEditorInteractionMode ? 'absolute' : 'relative'")) {
     throw new Error('expected shared Rich Media Panel root frame to establish the resize-anchor containing block')
   }
-  if (text.includes('{showPanelMarkdownPreview ? (\n          <div') || text.includes(') : isEmptyPanel ? (\n          <div') || text.includes(') : panelIsLoading ? (\n          <div')) {
-    throw new Error('expected shared Rich Media Panel body render states to forbid generic div surfaces')
+  if (text.includes('{showPanelMarkdownPreview ? (\n          <section') || text.includes(') : isEmptyPanel ? (\n          <section') || text.includes(') : panelIsLoading ? (\n          <section')) {
+    throw new Error('expected shared Rich Media Panel body render states to forbid generic HTML division element surfaces')
   }
   const bodyStart = text.indexOf("'kg-mediaBody'")
   const resizeHandle = text.indexOf('const resizeHandle = installResize ? (')

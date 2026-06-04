@@ -44,7 +44,7 @@ function ThemeModeToggle() {
   return (
     <section aria-label={UI_LABELS.theme} className="flex items-center gap-2">
       <span className={cn('text-xs', UI_THEME_TOKENS.text.secondary)}>{UI_LABELS.theme}</span>
-      <div className={cn('flex items-center gap-1 p-1 rounded-lg border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}>
+      <section className={cn('flex items-center gap-1 p-1 rounded-lg border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}>
         <button type="button" className={itemClass(themeMode === 'system')} onClick={() => onSet('system')}>
           {UI_LABELS.themeSystem}
         </button>
@@ -54,7 +54,7 @@ function ThemeModeToggle() {
         <button type="button" className={itemClass(themeMode === 'dark')} onClick={() => onSet('dark')}>
           {UI_LABELS.themeDark}
         </button>
-      </div>
+      </section>
     </section>
   )
 }
@@ -71,16 +71,16 @@ export function DesignSystemPanel({
   return (
     <article className={cn('h-full min-h-0 flex flex-col', UI_THEME_TOKENS.text.primary)} aria-label={UI_LABELS.designSystem}>
       <header className={cn('flex items-center justify-between gap-3 px-3 py-2 border-b', UI_THEME_TOKENS.panel.divider)}>
-        <div className="min-w-0">
+        <section className="min-w-0">
           <h2 className="m-0 text-sm font-semibold">{UI_LABELS.designSystem}</h2>
           <p className={cn('m-0 text-xs', UI_THEME_TOKENS.text.secondary)}>
             Local SSOT tokens + utilities for Workspace, viewers, and data tables.
           </p>
-        </div>
+        </section>
         <ThemeModeToggle />
       </header>
 
-      <div className="min-h-0 flex-1 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 p-3">
+      <section className="min-h-0 flex-1 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 p-3">
         <nav aria-label="Design system navigation" className={cn('h-fit', UI_SURFACE_CARD)}>
           <ul className="m-0 p-2 list-none flex flex-col gap-1">
             {NAV_ITEMS.map(item => {
@@ -110,7 +110,7 @@ export function DesignSystemPanel({
         <main className="min-w-0 min-h-0 overflow-auto" aria-label="Design system content">
           {children}
         </main>
-      </div>
+      </section>
     </article>
   )
 }

@@ -122,13 +122,13 @@ export function GraphRagWorkflowIndexingSection({
       onToggle={onToggleIndexingCollapsed}
       stickyOffsetClassName="top-6"
     >
-      <div
+      <section
         className={[
           'space-y-1',
           sectionTextClassName,
         ].join(' ')}
       >
-        <div className="space-y-0.5">
+        <section className="space-y-0.5">
           <KeyTypeValueRow
             layout="keyIconValue"
             keyNode={(
@@ -452,8 +452,8 @@ export function GraphRagWorkflowIndexingSection({
             )}
             typeNode={null}
             valueNode={(
-              <div className="space-y-1 w-full">
-                <div className="flex items-center justify-start">
+              <section className="space-y-1 w-full">
+                <section className="flex items-center justify-start">
                   <button
                     type="button"
                     className={[
@@ -471,13 +471,13 @@ export function GraphRagWorkflowIndexingSection({
                   >
                     {UI_COPY.graphRagOpenOrchestratorIgnorePathsButtonLabel}
                   </button>
-                </div>
-              </div>
+                </section>
+              </section>
             )}
             align="start"
           />
-        </div>
-      </div>
+        </section>
+      </section>
     </CollapsibleSection>
   )
 }

@@ -33,6 +33,11 @@ export const STRIPE_MCP_DEFAULT_STARTUP_TIMEOUT_MS = 60000
 
 export const STRIPE_MCP_DEFAULT_REQUIRE_CONFIRMATION = true
 
+export const STRIPE_MCP_PAYMENT_READINESS_POLICY = [
+  'accept payment checkout handoff',
+  'Payment-mutating MCP tools stay behind human confirmation and least-privilege authorization.',
+].join('; ')
+
 export const STRIPE_MCP_PAYMENT_TOOL_NAMES = [
   'create_payment_link',
   'create_product',

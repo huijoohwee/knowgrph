@@ -11,6 +11,7 @@ from .superagent_contracts import (
     RICH_MEDIA_PANEL_EDGE_LANES,
     RICH_MEDIA_PANEL_EDGE_IDS,
     RICH_MEDIA_SURFACE_ROUTE,
+    SUPERAGENT_TASK_CAPABILITIES,
 )
 from .superagent_plan import build_plan
 from .superagent_responsive import build_responsive_verification_checks, responsive_evidence_from_checks
@@ -25,7 +26,7 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
 
     artifacts = state.get("artifacts") if isinstance(state.get("artifacts"), list) else []
     artifact_kinds = {str(a.get("kind")) for a in artifacts if isinstance(a, dict)}
-    for kind in ["brief", "text", "image", "video", "canvas", "workspace"]:
+    for kind in ["brief", "skill", "research", "code", "sandbox", "text", "image", "video", "canvas", "workspace"]:
         checks.append({"id": f"artifact:{kind}", "passed": kind in artifact_kinds, "detail": f"{kind} artifact recorded"})
 
     nodes = graph.get("nodes") if isinstance(graph.get("nodes"), list) else []
@@ -37,6 +38,9 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
         if isinstance(n, dict) and isinstance(n.get("properties"), dict)
     }
     checks.append({"id": "canvas:has_text_node", "passed": "TextGeneration" in node_types, "detail": "text node present"})
+    checks.append({"id": "canvas:has_skill_node", "passed": "SkillSelector" in node_types, "detail": "skill selector node present"})
+    checks.append({"id": "canvas:has_research_node", "passed": "ResearchAgent" in node_types, "detail": "research node present"})
+    checks.append({"id": "canvas:has_code_node", "passed": "CodeWorker" in node_types, "detail": "code node present"})
     checks.append({"id": "canvas:has_image_node", "passed": "ImageGeneration" in node_types, "detail": "image node present"})
     checks.append({"id": "canvas:has_video_node", "passed": "VideoGeneration" in node_types, "detail": "video node present"})
     checks.append({"id": "canvas:has_rich_media_panel", "passed": "RichMediaPanel" in node_types, "detail": "Rich Media Panel node present"})
@@ -60,6 +64,15 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
             "detail": sorted(panel_targets),
         }
     )
+    graph_meta = graph.get("metadata") if isinstance(graph.get("metadata"), dict) else {}
+    capabilities = graph_meta.get("capabilities") if isinstance(graph_meta.get("capabilities"), list) else []
+    checks.append(
+        {
+            "id": "harness:research_code_create_capabilities",
+            "passed": set(SUPERAGENT_TASK_CAPABILITIES).issubset({str(item) for item in capabilities}),
+            "detail": capabilities,
+        }
+    )
     checks.append(
         {
             "id": "surface:route",
@@ -67,7 +80,6 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
             "detail": RICH_MEDIA_SURFACE_ROUTE,
         }
     )
-    graph_meta = graph.get("metadata") if isinstance(graph.get("metadata"), dict) else {}
     layout_meta = graph_meta.get("layout") if isinstance(graph_meta.get("layout"), dict) else {}
     frame = layout_meta.get("frame") if isinstance(layout_meta.get("frame"), dict) else {}
     required_layout_node_ids = ["text-plan", "image-reference", "video-storyboard", "rich-media-panel"]
@@ -189,11 +201,18 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
     workspace_tokens = [
         'kgCanvas2dRenderer: "flowEditor"',
         "TextGeneration",
+        "SkillSelector",
+        "ResearchAgent",
+        "CodeWorker",
         "ImageGeneration",
         "VideoGeneration",
         "RichMediaPanel",
         "flow:widgetFormId",
         "richMediaPanel",
+        "kgSuperAgentCapabilities:",
+        "kgSuperAgentTaskLevels:",
+        "kgSuperAgentMessageGateway:",
+        "kgSuperAgentSandbox:",
         "kgSuperAgentLayout:",
         "frontmatterFlowSettings:",
         "balancedViewportPreset: widgetFrontmatter",
@@ -215,6 +234,22 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
         }
     )
     checks.extend(build_responsive_verification_checks(layout_meta, workspace_text))
+
+    observations = state.get("memory", {}).get("observations", {}) if isinstance(state.get("memory"), dict) else {}
+    code_observation = observations.get("code_sandbox") if isinstance(observations.get("code_sandbox"), dict) else {}
+    code_payload = code_observation.get("code") if isinstance(code_observation.get("code"), dict) else {}
+    sandbox_payload = code_payload.get("sandbox") if isinstance(code_payload.get("sandbox"), dict) else {}
+    checks.append(
+        {
+            "id": "sandbox:generated_code_passed",
+            "passed": bool(sandbox_payload.get("passed")) and int(sandbox_payload.get("returncode") or 0) == 0,
+            "detail": {
+                "code_path": code_payload.get("path"),
+                "sandbox_result_path": code_payload.get("sandbox_result_path"),
+                "returncode": sandbox_payload.get("returncode"),
+            },
+        }
+    )
 
     trace_path = os.path.join(str(payload["output_dir"]), "trace.jsonl")
     trace_events = read_trace_events(trace_path)

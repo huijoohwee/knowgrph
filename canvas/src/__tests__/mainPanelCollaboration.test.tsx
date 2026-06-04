@@ -495,7 +495,7 @@ export async function testMainPanelCollaborationViewRendersPeerOwnershipRoster()
     store.setFollowPeerId('guest-remote-02')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(root, React.createElement(CollaborationView, { searchQuery: '' }), { window: dom.window, frames: 3 })
@@ -561,7 +561,7 @@ export async function testMainPanelCollaborationViewShowsRemoveActionOnlyForOwne
     ])
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(root, React.createElement(CollaborationView, { searchQuery: '' }), { window: dom.window, frames: 3 })
@@ -599,7 +599,7 @@ export async function testMainPanelCollaborationViewStabilizesRegisteredActions(
 
     useGraphStore.getState().resetAll()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(
@@ -643,7 +643,7 @@ export async function testP2PCollaborationRuntimeRelaysRosterPresenceAndDocument
     ;(globalThis as typeof globalThis & { RTCPeerConnection?: unknown }).RTCPeerConnection = MockRTCPeerConnection as unknown as typeof RTCPeerConnection
 
     useGraphStore.getState().resetAll()
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(
@@ -770,7 +770,7 @@ export async function testP2PCollaborationRuntimeRemovesDisconnectedPeerAndClear
     ;(globalThis as typeof globalThis & { RTCPeerConnection?: unknown }).RTCPeerConnection = MockRTCPeerConnection as unknown as typeof RTCPeerConnection
 
     useGraphStore.getState().resetAll()
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(
@@ -848,7 +848,7 @@ export async function testP2PCollaborationRuntimeFollowModeRevealsOnlyTargetedPe
     ;(globalThis as typeof globalThis & { RTCPeerConnection?: unknown }).RTCPeerConnection = MockRTCPeerConnection as unknown as typeof RTCPeerConnection
 
     useGraphStore.getState().resetAll()
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(
@@ -960,7 +960,7 @@ export async function testP2PCollaborationRuntimeOwnerRemovalKeepsSessionAliveAn
     ;(globalThis as typeof globalThis & { RTCPeerConnection?: unknown }).RTCPeerConnection = MockRTCPeerConnection as unknown as typeof RTCPeerConnection
 
     useGraphStore.getState().resetAll()
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(
@@ -1066,7 +1066,7 @@ export async function testP2PCollaborationRuntimeGuestResetsWhenOwnerDisconnects
     ;(globalThis as typeof globalThis & { RTCPeerConnection?: unknown }).RTCPeerConnection = MockRTCPeerConnection as unknown as typeof RTCPeerConnection
 
     useGraphStore.getState().resetAll()
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(
@@ -1141,7 +1141,7 @@ export async function testP2PCollaborationRuntimePreservesPendingHostInviteAcros
 
     useGraphStore.getState().resetAll()
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 

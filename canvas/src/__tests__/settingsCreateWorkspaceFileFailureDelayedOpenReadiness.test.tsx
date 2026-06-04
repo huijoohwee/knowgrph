@@ -85,15 +85,15 @@ function SettingsCreateWorkspaceFileFailureDelayedOpenHarness(props: {
   })
 
   return (
-    <div>
-      <div data-draft-knowgrph-storage-mode={String(values.chatKnowgrphStorageMode || '')} />
-      <div data-draft-history-storage-mode={String(values.chatHistoryStorageMode || '')} />
-      <div data-draft-knowgrph-cloud-url={String(values.chatKnowgrphCloudUrl || '')} />
-      <div data-draft-history-cloud-url={String(values.chatHistoryCloudUrl || '')} />
-      <div data-draft-knowgrph-workspace-path={String(values.chatKnowgrphWorkspacePath || '')} />
-      <div data-draft-history-workspace-path={String(values.chatHistoryWorkspacePath || '')} />
-      <div data-knowgrph-status={String(knowgrphPathStatus || '')} />
-      <div data-history-status={String(chatHistoryPathStatus || '')} />
+    <section>
+      <section data-draft-knowgrph-storage-mode={String(values.chatKnowgrphStorageMode || '')} />
+      <section data-draft-history-storage-mode={String(values.chatHistoryStorageMode || '')} />
+      <section data-draft-knowgrph-cloud-url={String(values.chatKnowgrphCloudUrl || '')} />
+      <section data-draft-history-cloud-url={String(values.chatHistoryCloudUrl || '')} />
+      <section data-draft-knowgrph-workspace-path={String(values.chatKnowgrphWorkspacePath || '')} />
+      <section data-draft-history-workspace-path={String(values.chatHistoryWorkspacePath || '')} />
+      <section data-knowgrph-status={String(knowgrphPathStatus || '')} />
+      <section data-history-status={String(chatHistoryPathStatus || '')} />
       <button
         type="button"
         onClick={() => void createAndSelectKnowgrphFile()}
@@ -106,7 +106,7 @@ function SettingsCreateWorkspaceFileFailureDelayedOpenHarness(props: {
       >
         Create Delayed-Open Failure History File
       </button>
-    </div>
+    </section>
   )
 }
 
@@ -142,8 +142,8 @@ export async function testSettingsCreateFileFailureSkipsDelayedOpenAndKeepsCommi
     useMarkdownExplorerStore.getState().setActivePath(PREVIOUS_ACTIVE_PATH)
 
     const doc = dom.window.document
-    const settingsContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const settingsContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(settingsContainer)
     doc.body.appendChild(chatContainer)
     settingsRoot = createRoot(settingsContainer as unknown as HTMLElement)

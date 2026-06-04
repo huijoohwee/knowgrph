@@ -110,7 +110,7 @@ export function AutoHeightMiniBarChart({
   containerClassName?: string
   scrollToKey?: string | null
 }) {
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const containerRef = React.useRef<HTMLElement | null>(null)
   const [height, setHeight] = React.useState(() => Math.max(1, Math.floor(minHeight)))
 
   React.useLayoutEffect(() => {
@@ -160,7 +160,7 @@ export function AutoHeightMiniBarChart({
   }, [data, scrollToKey, width])
 
   return (
-    <div
+    <section
       ref={containerRef}
       className={containerClassName}
       style={{ minHeight: Math.max(1, Math.floor(minHeight)) }}
@@ -173,7 +173,7 @@ export function AutoHeightMiniBarChart({
         defaultBarColor={defaultBarColor}
         logicalWidth={logicalWidth}
       />
-    </div>
+    </section>
   )
 }
 

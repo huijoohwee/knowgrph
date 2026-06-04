@@ -6,13 +6,20 @@ import {
   CHAT_AGNES_ENDPOINT_URL,
   CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
+  CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
+  CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
   CHAT_MIROMIND_BASE,
   CHAT_MIROMIND_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
+  CHAT_QWEN_BASE,
+  CHAT_QWEN_ENDPOINT_URL,
+  CHAT_QWEN_MODEL_OPTIONS,
   CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_GOOGLE_CLOUD,
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
+  CHAT_PROVIDER_QWEN,
   buildChatProxyHeaders,
   getChatModelOptions,
   getChatProviderLabel,
@@ -74,6 +81,32 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   const agnesRegion = getChatProviderRegionLabel(CHAT_PROVIDER_AGNES, CHAT_AGNES_ENDPOINT_URL)
   const agnesLabel = getChatProviderLabel(CHAT_PROVIDER_AGNES)
   const agnesModelOptions = getChatModelOptions(CHAT_PROVIDER_AGNES)
+  const qwenHeaders = buildChatProxyHeaders({
+    provider: CHAT_PROVIDER_QWEN,
+    apiKey: 'qwen-secret',
+    endpointUrl: CHAT_QWEN_ENDPOINT_URL,
+    clientRequestId: 'kg-qwen-test-123',
+  })
+  const qwenRequest = resolveChatEndpointForRequest(CHAT_QWEN_ENDPOINT_URL)
+  const qwenBaseRequest = resolveChatEndpointForRequest(`${CHAT_QWEN_BASE}/compatible-mode/v1`)
+  const qwenProxyBaseRequest = resolveChatEndpointForRequest('/__chat_proxy/compatible-mode/v1')
+  const qwenModels = resolveChatEndpointForModels(CHAT_QWEN_ENDPOINT_URL)
+  const qwenBaseModels = resolveChatEndpointForModels(`${CHAT_QWEN_BASE}/compatible-mode/v1`)
+  const qwenRegion = getChatProviderRegionLabel(CHAT_PROVIDER_QWEN, CHAT_QWEN_ENDPOINT_URL)
+  const qwenLabel = getChatProviderLabel(CHAT_PROVIDER_QWEN)
+  const qwenModelOptions = getChatModelOptions(CHAT_PROVIDER_QWEN)
+  const googleCloudHeaders = buildChatProxyHeaders({
+    provider: CHAT_PROVIDER_GOOGLE_CLOUD,
+    apiKey: 'google-cloud-token',
+    endpointUrl: CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
+    clientRequestId: 'kg-google-cloud-test-123',
+  })
+  const googleCloudRequest = resolveChatEndpointForRequest(CHAT_GOOGLE_CLOUD_ENDPOINT_URL)
+  const googleCloudBaseRequest = resolveChatEndpointForRequest(CHAT_GOOGLE_CLOUD_ENDPOINT_URL.replace('/chat/completions', ''))
+  const googleCloudModels = resolveChatEndpointForModels(CHAT_GOOGLE_CLOUD_ENDPOINT_URL)
+  const googleCloudRegion = getChatProviderRegionLabel(CHAT_PROVIDER_GOOGLE_CLOUD, CHAT_GOOGLE_CLOUD_ENDPOINT_URL)
+  const googleCloudLabel = getChatProviderLabel(CHAT_PROVIDER_GOOGLE_CLOUD)
+  const googleCloudModelOptions = getChatModelOptions(CHAT_PROVIDER_GOOGLE_CLOUD)
   const openAiRequest = resolveChatEndpointForRequest(CHAT_OPENAI_ENDPOINT_URL)
   const bytePlusRegion = getChatProviderRegionLabel(CHAT_PROVIDER_BYTEPLUS, CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL)
   const openAiLabel = getChatProviderLabel(CHAT_PROVIDER_OPENAI)
@@ -120,6 +153,30 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesHeaders['X-Client-Request-Id'] !== 'kg-agnes-test-123') {
     throw new Error(`expected Agnes client request id header, got ${JSON.stringify(agnesHeaders)}`)
   }
+  if (qwenHeaders['X-KG-Chat-Provider'] !== CHAT_PROVIDER_QWEN) {
+    throw new Error(`expected Qwen provider header, got ${JSON.stringify(qwenHeaders)}`)
+  }
+  if (qwenHeaders['X-KG-Chat-Upstream'] !== CHAT_QWEN_BASE) {
+    throw new Error(`expected Qwen upstream header, got ${JSON.stringify(qwenHeaders)}`)
+  }
+  if (qwenHeaders['X-KG-Chat-Api-Key'] !== 'qwen-secret') {
+    throw new Error(`expected Qwen API key header, got ${JSON.stringify(qwenHeaders)}`)
+  }
+  if (qwenHeaders['X-Client-Request-Id'] !== 'kg-qwen-test-123') {
+    throw new Error(`expected Qwen client request id header, got ${JSON.stringify(qwenHeaders)}`)
+  }
+  if (googleCloudHeaders['X-KG-Chat-Provider'] !== CHAT_PROVIDER_GOOGLE_CLOUD) {
+    throw new Error(`expected Google Cloud provider header, got ${JSON.stringify(googleCloudHeaders)}`)
+  }
+  if (googleCloudHeaders['X-KG-Chat-Upstream'] !== 'https://us-central1-aiplatform.googleapis.com') {
+    throw new Error(`expected Google Cloud upstream header, got ${JSON.stringify(googleCloudHeaders)}`)
+  }
+  if (googleCloudHeaders['X-KG-Chat-Api-Key'] !== 'google-cloud-token') {
+    throw new Error(`expected Google Cloud access token header, got ${JSON.stringify(googleCloudHeaders)}`)
+  }
+  if (googleCloudHeaders['X-Client-Request-Id'] !== 'kg-google-cloud-test-123') {
+    throw new Error(`expected Google Cloud client request id header, got ${JSON.stringify(googleCloudHeaders)}`)
+  }
   if (miromindRequest !== '/__chat_proxy/v1/chat/completions') {
     throw new Error(`unexpected MiroMind request path: ${JSON.stringify(miromindRequest)}`)
   }
@@ -138,6 +195,30 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesModels !== '/__chat_proxy/v1/models') {
     throw new Error(`unexpected Agnes models path: ${JSON.stringify(agnesModels)}`)
   }
+  if (qwenRequest !== '/__chat_proxy/compatible-mode/v1/chat/completions') {
+    throw new Error(`unexpected Qwen request path: ${JSON.stringify(qwenRequest)}`)
+  }
+  if (qwenBaseRequest !== '/__chat_proxy/compatible-mode/v1/chat/completions') {
+    throw new Error(`unexpected Qwen base request path: ${JSON.stringify(qwenBaseRequest)}`)
+  }
+  if (qwenProxyBaseRequest !== '/__chat_proxy/compatible-mode/v1/chat/completions') {
+    throw new Error(`unexpected Qwen proxy base request path: ${JSON.stringify(qwenProxyBaseRequest)}`)
+  }
+  if (qwenModels !== '/__chat_proxy/compatible-mode/v1/models') {
+    throw new Error(`unexpected Qwen models path: ${JSON.stringify(qwenModels)}`)
+  }
+  if (qwenBaseModels !== '/__chat_proxy/compatible-mode/v1/models') {
+    throw new Error(`unexpected Qwen base models path: ${JSON.stringify(qwenBaseModels)}`)
+  }
+  if (googleCloudRequest !== '/__chat_proxy/v1/projects/PROJECT_ID/locations/us-central1/endpoints/openapi/chat/completions') {
+    throw new Error(`unexpected Google Cloud request path: ${JSON.stringify(googleCloudRequest)}`)
+  }
+  if (googleCloudBaseRequest !== '/__chat_proxy/v1/projects/PROJECT_ID/locations/us-central1/endpoints/openapi/chat/completions') {
+    throw new Error(`unexpected Google Cloud base request path: ${JSON.stringify(googleCloudBaseRequest)}`)
+  }
+  if (googleCloudModels !== '/__chat_proxy/v1/projects/PROJECT_ID/locations/us-central1/endpoints/openapi/models') {
+    throw new Error(`unexpected Google Cloud models path: ${JSON.stringify(googleCloudModels)}`)
+  }
   if (openAiRequest !== '/__chat_proxy/v1/responses') {
     throw new Error(`unexpected OpenAI request path: ${JSON.stringify(openAiRequest)}`)
   }
@@ -150,6 +231,12 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesRegion !== 'Global') {
     throw new Error(`unexpected Agnes region label: ${JSON.stringify(agnesRegion)}`)
   }
+  if (qwenRegion !== 'Singapore') {
+    throw new Error(`unexpected Qwen region label: ${JSON.stringify(qwenRegion)}`)
+  }
+  if (googleCloudRegion !== 'US-Central1') {
+    throw new Error(`unexpected Google Cloud region label: ${JSON.stringify(googleCloudRegion)}`)
+  }
   if (openAiLabel !== 'OpenAI') {
     throw new Error(`unexpected OpenAI label: ${JSON.stringify(openAiLabel)}`)
   }
@@ -158,6 +245,12 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   }
   if (agnesLabel !== 'Agnes AI API') {
     throw new Error(`unexpected Agnes label: ${JSON.stringify(agnesLabel)}`)
+  }
+  if (qwenLabel !== 'Qwen API') {
+    throw new Error(`unexpected Qwen label: ${JSON.stringify(qwenLabel)}`)
+  }
+  if (googleCloudLabel !== 'Google Cloud Vertex AI') {
+    throw new Error(`unexpected Google Cloud label: ${JSON.stringify(googleCloudLabel)}`)
   }
   if (
     miromindModelOptions[0] !== 'mirothinker-1-7-deepresearch-mini'
@@ -168,6 +261,19 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesModelOptions[0] !== 'agnes-2.0-flash' || agnesModelOptions.length !== 1) {
     throw new Error(`unexpected Agnes model options: ${JSON.stringify(agnesModelOptions)}`)
   }
+  if (
+    qwenModelOptions[0] !== CHAT_QWEN_MODEL_OPTIONS[0]
+    || !qwenModelOptions.includes('qwen3-max')
+    || !qwenModelOptions.includes('qwen-flash')
+  ) {
+    throw new Error(`unexpected Qwen model options: ${JSON.stringify(qwenModelOptions)}`)
+  }
+  if (
+    googleCloudModelOptions[0] !== CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0]
+    || !googleCloudModelOptions.includes('google/gemini-1.5-flash-001')
+  ) {
+    throw new Error(`unexpected Google Cloud model options: ${JSON.stringify(googleCloudModelOptions)}`)
+  }
 }
 
 export function testSharedChatModelCatalogReusesMainPanelIntegrationsOptions() {
@@ -177,6 +283,10 @@ export function testSharedChatModelCatalogReusesMainPanelIntegrationsOptions() {
     'gpt-5.4-mini',
     'gpt-5.4',
     'gpt-5.5',
+    'qwen-plus',
+    'qwen3-max',
+    'qwen-flash',
+    'google/gemini-2.0-flash-001',
     'dreamina-seedance-2-0-fast-260128',
     'dreamina-seedance-2-0-260128',
     'qwen/qwen3.5-9b@q4_k_m',
@@ -202,11 +312,23 @@ export function testBytePlusProxyRewritesLegacyRunAllPaths() {
   }
   const source = readFileSync(viteConfigPath, 'utf8')
   const expectedSnippets = [
-    "bytePlusUpstreamSelected ? '/api/v3/chat/completions' : '/v1/chat/completions'",
+    'suffix = bytePlusUpstreamSelected',
+    "? '/api/v3/chat/completions'",
+    ': qwenUpstreamSelected',
+    "? '/compatible-mode/v1/chat/completions'",
+    ": '/v1/chat/completions'",
     "if (suffix === '/api/v3' || suffix === '/api/v3/') suffix = '/api/v3/chat/completions'",
     "if (suffix === '/v1/models' || suffix === '/v1/models/' || suffix === '/models' || suffix === '/models/') suffix = '/api/v3/models'",
     "if (suffix === '/images/generations' || suffix === '/images/generations/') suffix = '/api/v3/images/generations'",
     "if (suffix.startsWith('/contents/generations/tasks')) suffix = `/api/v3${suffix}`",
+    "const qwenProviderSelected = providerHeader === 'qwen'",
+    "const googleCloudProviderSelected = providerHeader === 'google-cloud'",
+    'process.env.DASHSCOPE_API_KEY',
+    'process.env.GOOGLE_CLOUD_ACCESS_TOKEN',
+    'requiresGoogleCloudKey',
+    "if (suffix === '/compatible-mode/v1' || suffix === '/compatible-mode/v1/') suffix = '/compatible-mode/v1/chat/completions'",
+    "if (suffix === '/v1/models' || suffix === '/v1/models/' || suffix === '/models' || suffix === '/models/') suffix = '/compatible-mode/v1/models'",
+    'endpoints/openapi/chat/completions',
   ]
   const missing = expectedSnippets.filter(snippet => !source.includes(snippet))
   if (missing.length) {

@@ -443,11 +443,11 @@ export function StrybldrFloatingPanelView() {
   return (
     <section className="h-full flex flex-col" aria-label="Strybldr panel">
       <header className={cn('flex items-center justify-between gap-2 px-1 py-1', UI_THEME_TOKENS.panel.divider)}>
-        <div className="flex min-w-0 items-center gap-2">
+        <section className="flex min-w-0 items-center gap-2">
           <Film className="h-4 w-4 shrink-0" strokeWidth={1.7} aria-hidden={true} />
-          <div className="min-w-0 text-xs font-semibold">Strybldr</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
+          <section className="min-w-0 text-xs font-semibold">Strybldr</section>
+        </section>
+        <section className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
@@ -482,22 +482,22 @@ export function StrybldrFloatingPanelView() {
           >
             {videoRunning ? <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={1.7} aria-hidden={true} /> : <Clapperboard className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />}
           </button>
-        </div>
+        </section>
       </header>
       <section className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 pb-2">
         {board.totalCards < 1 ? (
-          <div className={cn('py-3 text-xs', UI_THEME_TOKENS.text.secondary)}>No Strybldr graph loaded.</div>
+          <section className={cn('py-3 text-xs', UI_THEME_TOKENS.text.secondary)}>No Strybldr graph loaded.</section>
         ) : (
-          <div className="space-y-2 py-1">
+          <section className="space-y-2 py-1">
             {storytreeCards.length > 0 ? (
               <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr storytree workflow">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 text-xs font-semibold">Storytree workflow</div>
+                <section className="flex items-center justify-between gap-2">
+                  <section className="min-w-0 text-xs font-semibold">Storytree workflow</section>
                   <span className={cn('rounded px-2 py-0.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary)}>
                     {visibleStorytreeCards.length}/{storytreeCards.length}
                   </span>
-                </div>
-                <div className="flex gap-1 overflow-x-auto pb-1" aria-label="Strybldr storytree filters">
+                </section>
+                <section className="flex gap-1 overflow-x-auto pb-1" aria-label="Strybldr storytree filters">
                   {STRYTREE_PANEL_FILTERS.map(filter => (
                     <button
                       key={filter.id}
@@ -514,7 +514,7 @@ export function StrybldrFloatingPanelView() {
                       {filter.label}
                     </button>
                   ))}
-                </div>
+                </section>
                 {selectedStorytreeCard ? (
                   <>
                     <select
@@ -529,7 +529,7 @@ export function StrybldrFloatingPanelView() {
                         </option>
                       ))}
                     </select>
-                    <div className="grid grid-cols-4 gap-1">
+                    <section className="grid grid-cols-4 gap-1">
                       <button
                         type="button"
                         className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
@@ -569,7 +569,7 @@ export function StrybldrFloatingPanelView() {
                         <Wand2 className="h-3.5 w-3.5" aria-hidden={true} />
                         Draft
                       </button>
-                    </div>
+                    </section>
                   </>
                 ) : (
                   <p className={cn('m-0 text-xs', UI_THEME_TOKENS.text.secondary)}>No Storytree cards match this filter.</p>
@@ -578,7 +578,7 @@ export function StrybldrFloatingPanelView() {
             ) : null}
             {selectedCard ? (
               <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr card editor">
-                <div className="flex items-center gap-2">
+                <section className="flex items-center gap-2">
                   <select
                     className={cn('min-w-0 flex-1 rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
                     value={selectedCard.id}
@@ -599,9 +599,9 @@ export function StrybldrFloatingPanelView() {
                   >
                     <Check className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />
                   </button>
-                </div>
+                </section>
                 <label className="block">
-                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Title</div>
+                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Title</section>
                   <input
                     className={cn('mt-1 w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
                     value={draft.title}
@@ -610,7 +610,7 @@ export function StrybldrFloatingPanelView() {
                   />
                 </label>
                 <label className="block">
-                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Summary</div>
+                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Summary</section>
                   <textarea
                     className={cn('mt-1 min-h-14 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
                     value={draft.summary}
@@ -619,7 +619,7 @@ export function StrybldrFloatingPanelView() {
                   />
                 </label>
                 <label className="block">
-                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Action</div>
+                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Action</section>
                   <textarea
                     className={cn('mt-1 min-h-12 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
                     value={draft.action}
@@ -628,7 +628,7 @@ export function StrybldrFloatingPanelView() {
                   />
                 </label>
                 <label className="block">
-                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Prompt</div>
+                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Prompt</section>
                   <textarea
                     className={cn('mt-1 min-h-14 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
                     value={draft.prompt}
@@ -637,7 +637,7 @@ export function StrybldrFloatingPanelView() {
                   />
                 </label>
                 <label className="block">
-                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Order</div>
+                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Order</section>
                   <input
                     type="number"
                     className={cn('mt-1 w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
@@ -650,19 +650,19 @@ export function StrybldrFloatingPanelView() {
             ) : null}
             {board.lanes.map(lane => (
               <section key={lane.id} className="space-y-1" aria-label={lane.label}>
-                <div className={cn('text-[11px] font-semibold uppercase tracking-normal', UI_THEME_TOKENS.text.tertiary)}>
+                <section className={cn('text-[11px] font-semibold uppercase tracking-normal', UI_THEME_TOKENS.text.tertiary)}>
                   {lane.label}
-                </div>
+                </section>
                 {lane.cards.map(card => (
                   <article key={card.id} className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg, card.id === selectedCard?.id ? 'ring-1 ring-blue-500/50' : null)}>
-                    <div className="min-w-0 text-xs font-semibold">{card.title}</div>
+                    <section className="min-w-0 text-xs font-semibold">{card.title}</section>
                     {card.summary ? <p className={cn('mt-1 text-xs', UI_THEME_TOKENS.text.secondary)}>{card.summary}</p> : null}
                     {card.prompt ? <p className={cn('mt-1 text-[11px]', UI_THEME_TOKENS.text.tertiary)}>{card.prompt}</p> : null}
                   </article>
                 ))}
               </section>
             ))}
-          </div>
+          </section>
         )}
       </section>
     </section>

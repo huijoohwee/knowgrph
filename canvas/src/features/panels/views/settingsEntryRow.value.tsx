@@ -58,10 +58,10 @@ export function buildSettingsEntryValueNode({
 
   return assistNodes.length > 0
     ? (
-      <div className="space-y-1">
+      <section className="space-y-1">
         {inputNode}
-        <div className="flex flex-wrap items-center gap-1">{assistNodes}</div>
-      </div>
+        <section className="flex flex-wrap items-center gap-1">{assistNodes}</section>
+      </section>
     )
     : inputNode
 }

@@ -9,10 +9,8 @@ import {
 } from "./knowgrph-agent-ready-shared.mjs";
 
 const ROOT_DESCRIPTION = "Agent-actionable chat-to-canvas knowledge graph workspace";
-const LEGACY_ROOT_DESCRIPTION_PATTERN = new RegExp(
-  ["Agent-readable", "knowledge", "graph", "workspace"].join("\\s+") + "\\.?",
-  "g",
-);
+const ROOT_MOUNT_MARKUP = '<main id="root"></main>';
+const ROOT_MOUNT_PATTERN = /<(?:main|div)\s+id=["']root["']\s*><\/(?:main|div)>/i;
 
 const extractWebMcpScript = (html) => {
   const scriptPattern = /<script>([\s\S]*?)<\/script>/g;
@@ -37,6 +35,9 @@ const injectIntoHead = (html, markup) =>
     ? String(html || "").replace("</head>", `${markup}</head>`)
     : `${String(html || "")}${markup}`;
 
+const canonicalizeRootMount = (html) =>
+  String(html || "").replace(ROOT_MOUNT_PATTERN, ROOT_MOUNT_MARKUP);
+
 const rootVisibleFallbackMarkup = () => `<main id="knowgrph-root-fallback" data-knowgrph-root-fallback="visible" aria-label="Knowgrph root alias" style="position:fixed;inset:0;z-index:2147483000;display:grid;place-content:center;gap:1rem;padding:2rem;box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#101820;color:#f4f7fb;text-align:center">
       <h1 style="margin:0;font-size:clamp(2.25rem,8vw,5.5rem);line-height:1;font-weight:760">Knowgrph</h1>
       <p style="margin:0 auto;max-width:42rem;font-size:clamp(1rem,2.2vw,1.35rem);line-height:1.55;color:#d6e1ea">${ROOT_DESCRIPTION}</p>
@@ -59,11 +60,10 @@ const rootVisibleFallbackMarkup = () => `<main id="knowgrph-root-fallback" data-
     </script>`;
 
 const injectRootVisibleFallback = (html) => {
-  const next = String(html || "");
+  const next = canonicalizeRootMount(html);
   if (/<main\s+id=["']knowgrph-root-fallback["']/i.test(next)) return next;
-  const rootPattern = /<div\s+id=["']root["']\s*><\/div>/i;
-  if (rootPattern.test(next)) {
-    return next.replace(rootPattern, (root) => `${root}\n    ${rootVisibleFallbackMarkup()}`);
+  if (next.includes(ROOT_MOUNT_MARKUP)) {
+    return next.replace(ROOT_MOUNT_MARKUP, `${ROOT_MOUNT_MARKUP}\n    ${rootVisibleFallbackMarkup()}`);
   }
   if (next.includes("</body>")) {
     return next.replace("</body>", `    ${rootVisibleFallbackMarkup()}\n  </body>`);
@@ -72,8 +72,7 @@ const injectRootVisibleFallback = (html) => {
 };
 
 const rewriteRootAppHtml = (html) => {
-  let next = String(html || "")
-    .replace(LEGACY_ROOT_DESCRIPTION_PATTERN, ROOT_DESCRIPTION);
+  let next = canonicalizeRootMount(html);
 
   if (/<meta\s+name=["']description["'][^>]*>/i.test(next)) {
     next = next.replace(
@@ -107,7 +106,7 @@ const loadKnowgrphAppShell = async (request) => {
   const response = await fetch(appUrl, { headers: { accept: "text/html" } });
   if (!response.ok) return null;
   const html = rewriteRootAppHtml(await response.text());
-  if (!html.includes("<div id=\"root\"></div>") || !html.includes(`${APP_BASE_PATH}/assets/`)) {
+  if (!html.includes(ROOT_MOUNT_MARKUP) || !html.includes(`${APP_BASE_PATH}/assets/`)) {
     return null;
   }
   return new Response(html, {
@@ -127,7 +126,7 @@ const rootHtmlResponse = (webMcpScript = "") =>
     ${webMcpScript ? `<script>${webMcpScript}</script>` : ""}
   </head>
   <body>
-    <div id="root"></div>
+    <main id="root"></main>
     ${rootVisibleFallbackMarkup()}
   </body>
 </html>`, {

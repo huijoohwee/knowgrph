@@ -1,5 +1,17 @@
 import { UI_THEME_TOKENS } from './themeTokens.js'
 
+export type KtvHeaderLabels = Readonly<{
+  keyLabel: string
+  typeLabel: string
+  valueLabel: string
+}>
+
+export const KTV_DEFAULT_HEADER_LABELS: KtvHeaderLabels = {
+  keyLabel: 'Key',
+  typeLabel: 'Type',
+  valueLabel: 'Value',
+}
+
 export const KTV_ROW_TEXT_CELL_CLASS_NAME = 'flex min-w-0 max-w-full overflow-hidden'
 export const KTV_ROW_LABEL_CELL_CLASS_NAME = `${KTV_ROW_TEXT_CELL_CLASS_NAME} text-ellipsis whitespace-nowrap`
 export const KTV_ROW_VALUE_CELL_CLASS_NAME = `${KTV_ROW_TEXT_CELL_CLASS_NAME} self-stretch px-2 gap-2 justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`

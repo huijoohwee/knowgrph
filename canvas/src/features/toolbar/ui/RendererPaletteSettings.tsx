@@ -31,8 +31,8 @@ export function RendererPaletteSettings() {
   const edgeTypes = ['critical', 'neutral'] as const;
 
   return (
-    <div className="grid grid-cols-1 gap-1">
-      <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+    <section className="grid grid-cols-1 gap-1">
+      <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
         <Tooltip
           content={RENDERER_PALETTE_LIFECYCLE_TOOLTIP}
           maxWidthPx={260}
@@ -43,7 +43,7 @@ export function RendererPaletteSettings() {
             Lifecycle palette: Blue core ideas, Yellow hypotheses, Green execution, Orange pivots, Red alerts.
           </span>
         </Tooltip>
-      </div>
+      </section>
       {nodeTypes.map((type) => (
         <KeyTypeValueRow
           key={`node-${type}`}
@@ -70,7 +70,7 @@ export function RendererPaletteSettings() {
                 contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full"
               >
-                <div className={UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME}>
+                <section className={UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME}>
                   <input
                     type="color"
                     className={`${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
@@ -86,7 +86,7 @@ export function RendererPaletteSettings() {
                     onChange={(next) => handleUpdatePaletteColor('node', type, next)}
                     placeholder={MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]}
                   />
-                </div>
+                </section>
               </Tooltip>
             </RightAlignedValueCell>
           }
@@ -119,7 +119,7 @@ export function RendererPaletteSettings() {
                 contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full"
               >
-                <div className={UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME}>
+                <section className={UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME}>
                   <input
                     type="color"
                     className={`${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
@@ -135,12 +135,12 @@ export function RendererPaletteSettings() {
                     onChange={(next) => handleUpdatePaletteColor('edge', type, next)}
                     placeholder={MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]}
                   />
-                </div>
+                </section>
               </Tooltip>
             </RightAlignedValueCell>
           }
         />
       ))}
-    </div>
+    </section>
   );
 }

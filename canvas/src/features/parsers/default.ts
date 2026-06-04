@@ -11,7 +11,6 @@ import { buildMarkdownJsonLd } from './markdownJsonLd'
 import { tryParseMarkdownFrontmatterFlowGraph } from './markdownFrontmatterFlowGraph'
 import { tryParseMarkdownPanelFlowGraph } from './markdownPanelFlowGraph'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
-import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermaidFrontmatterGeometry'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
@@ -29,6 +28,15 @@ import {
   mergeKgcSemanticGraphIntoGraphData,
   parseKgcSemanticGraphFromMarkdown,
 } from './kgcSemanticGraph'
+
+let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
+
+const loadMermaidFrontmatterGeometryModule = (): Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> => {
+  if (!mermaidFrontmatterGeometryModulePromise) {
+    mermaidFrontmatterGeometryModulePromise = import('@/lib/mermaid/mermaidFrontmatterGeometry')
+  }
+  return mermaidFrontmatterGeometryModulePromise
+}
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -349,6 +357,7 @@ const markdownSpec: ParserSpec = {
     }
     if (containsFrontmatterMermaid(raw)) {
       try {
+        const { applyMermaidFrontmatterGeometryToGraphData } = await loadMermaidFrontmatterGeometryModule()
         graphData = await applyMermaidFrontmatterGeometryToGraphData(graphData)
       } catch {
         void 0

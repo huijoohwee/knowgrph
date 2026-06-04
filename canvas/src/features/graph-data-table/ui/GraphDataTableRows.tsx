@@ -196,7 +196,7 @@ export function GraphDataTableRows({
                 className={`${bodyCellBaseClassName} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.table.textSecondary}`}
                 colSpan={showFrozen ? restColSpan : effectiveColumnCount - 1}
               >
-                <div className="flex flex-nowrap items-center gap-x-3 overflow-hidden whitespace-nowrap">
+                <section className="flex flex-nowrap items-center gap-x-3 overflow-hidden whitespace-nowrap">
                   <span>
                     {item.count.toLocaleString()}{' '}
                     {item.count === 1
@@ -220,7 +220,7 @@ export function GraphDataTableRows({
                     </span>
                   ))}
                   {item.numericSummaries.length > 0 && (
-                    <div className="ml-auto flex items-center">
+                    <section className="ml-auto flex items-center">
                       {aggregateVizMode === 'radial' && (
                         <AggregateRowVisualization
                           numericSummaries={item.numericSummaries}
@@ -262,9 +262,9 @@ export function GraphDataTableRows({
                         {aggregateVizMode === 'bars' && UI_COPY.graphDataTableAggregateChartToggleBars}
                         {aggregateVizMode === 'sparkline' && UI_COPY.graphDataTableAggregateChartToggleSparkline}
                       </button>
-                    </div>
+                    </section>
                   )}
-                </div>
+                </section>
               </td>
             </tr>
           )
@@ -356,7 +356,7 @@ export function GraphDataTableRows({
         className={`group p-0 ${borderClass} border-r ${UI_THEME_TOKENS.table.cellBorder} sticky left-0 z-10 ${indexColumnWidthClassName} ${UI_THEME_TOKENS.table.headerBg} ${uiPanelKeyValueTextSizeClass} font-normal ${UI_THEME_TOKENS.table.textSecondary} text-center align-top`}
         data-row-index={rowIndex}
       >
-              <div className="relative flex items-center justify-center h-8">
+              <section className="relative flex items-center justify-center h-8">
                 {scopeBorderColor ? (
                   <svg
                     aria-hidden="true"
@@ -381,7 +381,7 @@ export function GraphDataTableRows({
                   }}
                   onClick={event => event.stopPropagation()}
                 />
-              </div>
+              </section>
             </th>
             {orderedVisibleColumnKeys.map(columnKey => (
               <BodyCell

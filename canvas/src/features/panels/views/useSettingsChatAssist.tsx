@@ -8,6 +8,8 @@ import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
   CHAT_MIROMIND_MODEL_OPTIONS,
+  CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
+  CHAT_QWEN_MODEL_OPTIONS,
   CHAT_DEFAULT_PROVIDER,
   CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_LOCAL_MODEL_OPTIONS,
@@ -15,8 +17,10 @@ import {
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_LM_STUDIO,
   CHAT_PROVIDER_AGNES,
+  CHAT_PROVIDER_GOOGLE_CLOUD,
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
+  CHAT_PROVIDER_QWEN,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
   getDefaultChatModelForProvider,
@@ -30,6 +34,10 @@ import {
   clearLocalSettingsChatReadinessSurfaceSnapshot,
   publishLocalSettingsChatReadinessSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import {
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS,
+} from '@/features/agent-ready/mainPanelSuperAgentIntegrationContract'
 import { CHAT_KTV_ROW_KEYS } from './settingsView.constants'
 
 type UseSettingsChatAssistArgs = {
@@ -68,7 +76,7 @@ export function useSettingsChatAssist({
     setValues(prev => ({ ...prev, integrationConfigsJson: next }))
   }, [dirtyRef, setValues, values.integrationConfigsJson])
 
-  const applyChatPreset = React.useCallback((preset: 'byteplus-sg' | 'byteplus-eu' | 'miromind' | 'agnes' | 'openai' | 'local') => {
+  const applyChatPreset = React.useCallback((preset: 'byteplus-sg' | 'byteplus-eu' | 'miromind' | 'agnes' | 'qwen' | 'google-cloud' | 'openai' | 'local') => {
     const patch: Record<string, string> =
       preset === 'byteplus-sg'
         ? {
@@ -93,6 +101,18 @@ export function useSettingsChatAssist({
                 chatProvider: CHAT_PROVIDER_AGNES,
                 chatEndpointUrl: CHAT_AGNES_ENDPOINT_URL,
                 chatModel: CHAT_AGNES_MODEL_OPTIONS[0],
+              }
+          : preset === 'qwen'
+            ? {
+                chatProvider: CHAT_PROVIDER_QWEN,
+                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_QWEN),
+                chatModel: CHAT_QWEN_MODEL_OPTIONS[0],
+              }
+          : preset === 'google-cloud'
+            ? {
+                chatProvider: CHAT_PROVIDER_GOOGLE_CLOUD,
+                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_GOOGLE_CLOUD),
+                chatModel: CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0],
               }
           : preset === 'openai'
             ? {
@@ -200,13 +220,15 @@ export function useSettingsChatAssist({
     })
   }, [discoveredChatModels, values.chatModel, values.chatProvider])
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     publishLocalSettingsChatReadinessSurfaceSnapshot({
       normalizedChatProvider,
       chatEndpointUrl: String(values.chatEndpointUrl || '').trim(),
       chatModel: String(values.chatModel || '').trim(),
       chatAuthMode: String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged',
       chatContextScope: String(values.chatContextScope || '').trim() || 'hybrid',
+      integrationProviderIds: [...KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS],
+      integrationProviderLabels: [...KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS],
       integrationEnabled: chatIntegration.enabled === true,
       integrationOpenTab: String(chatIntegration.openTab || '').trim(),
       pixverseVideoEnabled: pixverseVideoIntegration.enabled === true,
@@ -323,6 +345,36 @@ export function useSettingsChatAssist({
           }}
         >
           Agnes
+        </button>,
+        <button
+          key="chat-provider-qwen"
+          type="button"
+          className={
+            normalizedChatProvider === CHAT_PROVIDER_QWEN
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('qwen')
+          }}
+        >
+          Qwen
+        </button>,
+        <button
+          key="chat-provider-google-cloud"
+          type="button"
+          className={
+            normalizedChatProvider === CHAT_PROVIDER_GOOGLE_CLOUD
+              ? activeSectionActionClassName
+              : sectionActionClassName
+          }
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('google-cloud')
+          }}
+        >
+          Google Cloud
         </button>,
         <button
           key="chat-provider-openai"
@@ -536,15 +588,6 @@ export function useSettingsChatAssist({
           </span>,
         )
       }
-      if (chatModelSuggestions.length > 0) {
-        nodes.push(
-          <datalist key="chat-model-options" id="settings-chat-model-options">
-            {chatModelSuggestions.map(option => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>,
-        )
-      }
       return nodes
     }
     return []
@@ -569,5 +612,6 @@ export function useSettingsChatAssist({
 
   return {
     buildChatAssistNodes,
+    chatModelSuggestions,
   }
 }

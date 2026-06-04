@@ -255,8 +255,8 @@ export default function GraphFieldsView({
       className="min-h-full flex flex-col overflow-visible"
       data-kg-anchor={UI_ANCHORS.graphFields}
     >
-      <div className="min-h-0">
-        <div className="min-h-0 min-w-0 grid grid-cols-3 gap-2">
+      <section className="min-h-0">
+        <section className="min-h-0 min-w-0 grid grid-cols-3 gap-2">
           <section className="col-span-2 min-h-0 overflow-auto">
             <GraphFieldsListPanel
             graphData={graphData}
@@ -289,8 +289,8 @@ export default function GraphFieldsView({
             onStatusChange={onStatusChange}
             />
           </section>
-        </div>
-      </div>
+        </section>
+      </section>
     </article>
   )
 

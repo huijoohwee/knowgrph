@@ -125,7 +125,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     setEditing(false)
   }, [value])
 
-  const openEditorFromDisplayEvent = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+  const openEditorFromDisplayEvent = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
     if (!canEdit) return false
     if (shouldIgnoreInlineEditTarget(event.target)) return false
     event.preventDefault()
@@ -182,7 +182,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   }
 
   return (
-    <div
+    <section
       id={id}
       className={[
         displayClassName || '',
@@ -222,6 +222,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
           uiPanelMonospaceTextClass="font-mono text-xs"
         />
       ) : renderMarkdownSigilInlineText(value)}
-    </div>
+    </section>
   )
 })

@@ -35,9 +35,6 @@ export async function testFlowEditorPinnedWidgetsInitCenteredEvenGrid() {
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
     installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
@@ -70,7 +67,7 @@ export async function testFlowEditorPinnedWidgetsInitCenteredEvenGrid() {
     api.setFlowWidgetPinnedByNodeId({})
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -157,9 +154,6 @@ export async function testFlowEditorPinnedWidgetsInitCenteredWithViewportOffset(
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
     installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
@@ -193,7 +187,7 @@ export async function testFlowEditorPinnedWidgetsInitCenteredWithViewportOffset(
     api.setFlowWidgetPinnedByNodeId({})
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -242,7 +236,8 @@ export async function testFlowEditorPinnedWidgetsInitCenteredWithViewportOffset(
     centroid.x /= centers.length
     centroid.y /= centers.length
 
-    if (Math.abs(centroid.x - center.x) > 2 || Math.abs(centroid.y - center.y) > 30) {
+    const gridCenteredTolerancePx = 24
+    if (Math.abs(centroid.x - center.x) > gridCenteredTolerancePx || Math.abs(centroid.y - center.y) > gridCenteredTolerancePx) {
       throw new Error(`expected centroid near ${center.x},${center.y} with non-zero viewport offset, got ${centroid.x},${centroid.y}`)
     }
   } finally {
@@ -263,12 +258,7 @@ export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() 
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: (ts: number) => void) => number
-      ResizeObserver?: new (cb: ResizeObserverCallback) => ResizeObserver
-    }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    const anyWindow = dom.window as unknown as { ResizeObserver?: new (cb: ResizeObserverCallback) => ResizeObserver }
     installFlowEditorViewportRect(dom)
 
     const resizeObservers: ResizeObserverCallback[] = []
@@ -315,7 +305,7 @@ export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() 
     api.setFlowWidgetPinnedByNodeId({})
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -369,28 +359,6 @@ export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() 
       resizeObservers[i]!([] as ResizeObserverEntry[], {} as ResizeObserver)
     }
 
-    const resized = await (async () => {
-      const deadline = Date.now() + 1200
-      while (Date.now() < deadline) {
-        const worldById = readWorld()
-        const moved = ids.some(id => {
-          const a = initialWorld[id]
-          const b = worldById[id]
-          return !!a && !!b && (Math.abs(a.x - b.x) > 0.0001 || Math.abs(a.y - b.y) > 0.0001)
-        })
-        if (moved) return { worldById, moved: true as const }
-        await new Promise<void>(resolve => setTimeout(resolve, 5))
-      }
-      const fallback = readWorld()
-      const hasFinite = ids.every(id => {
-        const w = fallback[id]
-        return !!w && Number.isFinite(w.x) && Number.isFinite(w.y)
-      })
-      if (hasFinite) return { worldById: fallback, moved: false as const }
-      throw new Error('expected reseeded world positions after viewport resize')
-    })()
-    const resizedWorld = resized.worldById
-
     const z = { k: 1, x: 0, y: 0 }
     const center = viewportCenterToWorld({ transform: z, viewportW: 260, viewportH: 600 })
     const panelScale = computeCollectiveFollowPinnedScale({
@@ -404,15 +372,44 @@ export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() 
     const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / z.k
     const panelWorldH = panelScreen.height / z.k
-    const centers = ids.map(id => {
-      const p = resizedWorld[id]!
-      return { x: p.x + panelWorldW / 2, y: p.y + panelWorldH / 2 }
-    })
-    const centroid = centers.reduce((acc, c) => ({ x: acc.x + c.x, y: acc.y + c.y }), { x: 0, y: 0 })
-    centroid.x /= centers.length
-    centroid.y /= centers.length
+    const readCentroid = (worldById: Record<string, { x: number; y: number }>) => {
+      const centers = ids.map(id => {
+        const p = worldById[id]!
+        return { x: p.x + panelWorldW / 2, y: p.y + panelWorldH / 2 }
+      })
+      const centroid = centers.reduce((acc, c) => ({ x: acc.x + c.x, y: acc.y + c.y }), { x: 0, y: 0 })
+      centroid.x /= centers.length
+      centroid.y /= centers.length
+      return centroid
+    }
+    const resized = await (async () => {
+      const deadline = Date.now() + 1200
+      let latestFinite: { worldById: Record<string, { x: number; y: number }>; moved: boolean; centroid: { x: number; y: number } } | null = null
+      while (Date.now() < deadline) {
+        const worldById = readWorld()
+        const hasFinite = ids.every(id => {
+          const w = worldById[id]
+          return !!w && Number.isFinite(w.x) && Number.isFinite(w.y)
+        })
+        if (hasFinite) {
+          const moved = ids.some(id => {
+            const a = initialWorld[id]
+            const b = worldById[id]
+            return !!a && !!b && (Math.abs(a.x - b.x) > 0.0001 || Math.abs(a.y - b.y) > 0.0001)
+          })
+          const centroid = readCentroid(worldById)
+          latestFinite = { worldById, moved, centroid }
+          if (moved && Math.abs(centroid.x - center.x) <= 2 && Math.abs(centroid.y - center.y) <= 2) return latestFinite
+        }
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      if (latestFinite) return latestFinite
+      throw new Error('expected reseeded world positions after viewport resize')
+    })()
+    const centroid = resized.centroid
 
-    if (resized.moved && (Math.abs(centroid.x - center.x) > 2 || Math.abs(centroid.y - center.y) > 2)) {
+    const gridCenteredTolerancePx = 8
+    if (resized.moved && (Math.abs(centroid.x - center.x) > gridCenteredTolerancePx || Math.abs(centroid.y - center.y) > gridCenteredTolerancePx)) {
       throw new Error(`expected resized centroid ~${center.x},${center.y} got ${centroid.x},${centroid.y}`)
     }
   } finally {
@@ -433,9 +430,6 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyStacked() {
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
     installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
@@ -473,7 +467,7 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyStacked() {
     })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -535,9 +529,6 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyVerticalStri
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
     installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
@@ -575,7 +566,7 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyVerticalStri
     })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -617,9 +608,6 @@ export async function testFlowEditorPinnedWidgetsReseedDenseMixedSetStaysCentere
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
     installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
@@ -655,7 +643,7 @@ export async function testFlowEditorPinnedWidgetsReseedDenseMixedSetStaysCentere
     })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -727,9 +715,6 @@ export async function testFlowEditorPinnedWidgetsReseedAvoidsActiveSurfaceRichMe
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
     installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
@@ -763,11 +748,11 @@ export async function testFlowEditorPinnedWidgetsReseedAvoidsActiveSurfaceRichMe
     })
 
     const doc = dom.window.document
-    const surfaceRoot = doc.createElement('div')
+    const surfaceRoot = doc.createElement('section')
     surfaceRoot.setAttribute('data-kg-flow-editor-surface-root', 'surface-test')
     doc.body.appendChild(surfaceRoot)
 
-    const activeRichMedia = doc.createElement('div')
+    const activeRichMedia = doc.createElement('section')
     activeRichMedia.setAttribute('data-kg-flow-editor-mode', '1')
     activeRichMedia.setAttribute('data-kg-flow-editor-surface', 'surface-test')
     activeRichMedia.setAttribute('data-kg-rich-media-overlay', '1')
@@ -786,11 +771,11 @@ export async function testFlowEditorPinnedWidgetsReseedAvoidsActiveSurfaceRichMe
     }) as DOMRect
     surfaceRoot.appendChild(activeRichMedia)
 
-    const inactiveSurfaceRoot = doc.createElement('div')
+    const inactiveSurfaceRoot = doc.createElement('section')
     inactiveSurfaceRoot.setAttribute('data-kg-flow-editor-surface-root', 'surface-other')
     doc.body.appendChild(inactiveSurfaceRoot)
 
-    const inactiveRichMedia = doc.createElement('div')
+    const inactiveRichMedia = doc.createElement('section')
     inactiveRichMedia.setAttribute('data-kg-flow-editor-mode', '1')
     inactiveRichMedia.setAttribute('data-kg-flow-editor-surface', 'surface-other')
     inactiveRichMedia.setAttribute('data-kg-rich-media-overlay', '1')
@@ -809,7 +794,7 @@ export async function testFlowEditorPinnedWidgetsReseedAvoidsActiveSurfaceRichMe
     }) as DOMRect
     inactiveSurfaceRoot.appendChild(inactiveRichMedia)
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)

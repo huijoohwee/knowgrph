@@ -16,7 +16,7 @@ export function MarkdownExplorerSection(props: {
   const panelTypography = usePanelTypography()
 
   const onKeyDown = React.useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         setCollapsed(!collapsed)
@@ -43,7 +43,7 @@ export function MarkdownExplorerSection(props: {
           type="button"
           className="flex items-center gap-1 min-w-0 flex-1"
           onClick={() => setCollapsed(!collapsed)}
-          onKeyDown={e => onKeyDown(e as unknown as React.KeyboardEvent<HTMLDivElement>)}
+          onKeyDown={e => onKeyDown(e as unknown as React.KeyboardEvent<HTMLElement>)}
           aria-expanded={!collapsed}
         >
           {collapsed ? <ChevronRight className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} /> : <ChevronDown className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} />}

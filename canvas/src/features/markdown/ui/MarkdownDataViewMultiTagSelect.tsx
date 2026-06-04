@@ -164,7 +164,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
         </form>
       </header>
 
-      <div className={['my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
+      <section className={['my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
 
       <p className={['m-0 text-[11px]', UI_THEME_TOKENS.text.tertiary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.multiTagHelperText}</p>
 
@@ -189,7 +189,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
           const active = selectedSet.has(t.toLowerCase())
           return (
             <li key={t} className="list-none">
-              <div className={['w-full', UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-1.5 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+              <section className={['w-full', UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-1.5 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
                 <button
                   type="button"
                   className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} flex-1 gap-2 text-left`}
@@ -209,7 +209,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
                 >
                   <MoreHorizontal className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                 </button>
-              </div>
+              </section>
             </li>
           )
         })}

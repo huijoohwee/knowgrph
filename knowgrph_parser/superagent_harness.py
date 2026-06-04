@@ -305,6 +305,9 @@ class SuperAgentHarness:
             "output_dir": self.output_dir,
             "artifacts_dir": self.artifacts_dir,
             "state": self.state,
+            "tool_count": len(self.registry.describe()),
+            "tool_inventory": self.registry.describe(),
+            "goal_text": self.goal_text,
         }
         if task.tool_name == "workspace.inspect":
             return {
@@ -312,8 +315,24 @@ class SuperAgentHarness:
                 "input_path": self.input_path or str(self.state.get("run", {}).get("input_path") or ""),
                 "goal_text": self.goal_text,
             }
-        if task.tool_name == "text.generate.mock":
+        if task.tool_name == "research.scout":
             return {**common, "inspection": memory.get("inspect_goal") or {}}
+        if task.tool_name == "skill.select":
+            return {**common, "inspection": memory.get("inspect_goal") or {}}
+        if task.tool_name == "code.write_and_run":
+            return {
+                **common,
+                "inspection": memory.get("inspect_goal") or {},
+                "research_result": memory.get("research_goal") or {},
+            }
+        if task.tool_name == "text.generate.mock":
+            return {
+                **common,
+                "inspection": memory.get("inspect_goal") or {},
+                "skill_result": memory.get("select_skills") or {},
+                "research_result": memory.get("research_goal") or {},
+                "code_result": memory.get("code_sandbox") or {},
+            }
         if task.tool_name == "image.generate.mock":
             return {**common, "text_plan": memory.get("generate_text") or {}}
         if task.tool_name in {"video.generate.mock", "video.generate.pixverse"}:
@@ -326,6 +345,9 @@ class SuperAgentHarness:
             return {
                 **common,
                 "inspection": memory.get("inspect_goal") or {},
+                "skill_result": memory.get("select_skills") or {},
+                "research_result": memory.get("research_goal") or {},
+                "code_result": memory.get("code_sandbox") or {},
                 "text_plan": memory.get("generate_text") or {},
                 "image_result": memory.get("generate_image") or {},
                 "video_result": memory.get("generate_video") or {},

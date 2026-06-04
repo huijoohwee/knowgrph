@@ -108,7 +108,12 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   ) {
     throw new Error('expected Source Files active-path materialization to apply the selected document/frontmatter to Canvas while the Editor Workspace is open')
   }
-  if (!documentActionsText.includes('function buildPendingMarkdownDocumentGraph(') || !documentActionsText.includes("context === 'frontmatter-flow'") || !documentActionsText.includes('canvasWorkspacePreset: preset')) {
+  if (
+    !documentActionsText.includes('function buildPendingMarkdownDocumentGraph(') ||
+    !documentActionsText.includes("context === 'frontmatter-flow'") ||
+    !documentActionsText.includes('canvasWorkspacePreset: buildCanvasWorkspacePresetMetadata(preset)') ||
+    documentActionsText.includes('canvasWorkspacePreset: preset')
+  ) {
     throw new Error('expected Source Files Canvas switching to clear stale graph data with a selected-document pending graph keyed by the active file and parsed YAML/frontmatter preset when present')
   }
   if (
@@ -290,7 +295,7 @@ export function testSourceFilesActiveGraphRejectsUnownedCanvasGraphForSelectedFi
 export function testSourceFilesActiveWorkspaceReapplyAllowsEditorWorkspaceCanvasPane() {
   const shouldApply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
     activePath: '/docs/knowgrph-design-demo.md',
-    markdownDocumentName: 'docs/knowgrph-xr-demo.md',
+    markdownDocumentName: 'docs/model-asset-source.md',
     markdownDocumentText: '---\nkgCanvasSurfaceMode: "xr"\n---\n# XR',
     markdownDocumentApplyViewPreset: true,
   })
@@ -300,8 +305,10 @@ export function testSourceFilesActiveWorkspaceReapplyAllowsEditorWorkspaceCanvas
 }
 
 export async function testSourceFilesModelAssetSwitchUsesFileTypeFallbackCanvasPreset() {
+  const modelAssetPath = '/docs/model-asset-source.glb'
+  const modelAssetName = 'docs/model-asset-source.glb'
   const resolvedText = await readWorkspaceActiveDocumentResolvedText({
-    activePath: '/docs/knowgrph-xr-demo.glb',
+    activePath: modelAssetPath,
     currentText: 'glTF\u0002\u0000\u0000\u0000',
     fs: {
       readFileText: async () => '',
@@ -315,7 +322,7 @@ export async function testSourceFilesModelAssetSwitchUsesFileTypeFallbackCanvasP
   useGraphStore.getState().setCanvasRenderMode('2d')
   useGraphStore.getState().setCanvas2dRenderer('d3')
   const applied = await useGraphStore.getState().setActiveMarkdownDocument({
-    name: 'docs/knowgrph-xr-demo.glb',
+    name: modelAssetName,
     text: resolvedText,
     autoEnableFrontmatter: true,
     applyViewPreset: true,
@@ -330,7 +337,7 @@ export async function testSourceFilesModelAssetSwitchUsesFileTypeFallbackCanvasP
   if (state.canvasRenderMode !== '3d' || state.canvas3dMode !== 'xr') {
     throw new Error(`expected GLB Source Files switch to apply XR Canvas preset, got ${state.canvasRenderMode}/${state.canvas3dMode}`)
   }
-  if (state.markdownDocumentName !== 'docs/knowgrph-xr-demo.glb' || state.markdownDocumentText !== resolvedText) {
+  if (state.markdownDocumentName !== modelAssetName || state.markdownDocumentText !== resolvedText) {
     throw new Error('expected active markdown document to reflect selected GLB fallback manifest')
   }
 }

@@ -7,15 +7,15 @@ export async function testMarkdownPreviewRendersArticleGridAndDisablesWrapForAsc
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
     const markdownText = [
       '<article class="grid grid-cols-2 gap-4">',
-      '  <div>Left</div>',
-      '  <div>Right</div>',
+      '  <section>Left</section>',
+      '  <section>Right</section>',
       '</article>',
       '',
       '```',

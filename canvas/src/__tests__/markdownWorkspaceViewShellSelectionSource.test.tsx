@@ -10,7 +10,7 @@ const tick = async () => {
 }
 
 export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSelectionAuthority() {
-  const harness = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const harness = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
@@ -114,7 +114,7 @@ export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSel
 }
 
 export async function testMarkdownWorkspaceViewShellKeepsYoutubeFormatOutOfSourceFileRow() {
-  const harness = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const harness = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
@@ -177,7 +177,7 @@ export async function testMarkdownWorkspaceViewShellKeepsYoutubeFormatOutOfSourc
 }
 
 export async function testMarkdownWorkspaceViewShellShowsFrontmatterWarningBadgeForMalformedFileRow() {
-  const harness = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const harness = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
@@ -253,7 +253,7 @@ export async function testMarkdownWorkspaceViewShellShowsFrontmatterWarningBadge
 }
 
 export async function testMarkdownWorkspaceViewShellSuppressesYamlBadgeForLiveStreamingTraceRow() {
-  const harness = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const harness = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
 
   try {

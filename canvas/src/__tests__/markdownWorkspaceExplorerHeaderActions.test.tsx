@@ -5,7 +5,7 @@ import { MarkdownWorkspaceExplorerHeaderActions } from '@/features/markdown-work
 
 export async function testMarkdownWorkspaceExplorerHeaderActionsComposeSharedToolbarActions() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const calls: string[] = []

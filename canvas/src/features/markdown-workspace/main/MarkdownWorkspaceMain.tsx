@@ -98,6 +98,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const setWorkspaceCanvasPaneOpen = useGraphStore(s => s.setWorkspaceCanvasPaneOpen)
+  const bottomSurfaceCollapsed = useGraphStore(s => s.bottomSurfaceCollapsed)
+  const bottomSurfaceTab = useGraphStore(s => s.bottomSurfaceTab)
+  const setBottomSurfaceCollapsed = useGraphStore(s => s.setBottomSurfaceCollapsed)
+  const setBottomSurfaceTab = useGraphStore(s => s.setBottomSurfaceTab)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const graphData = useGraphStore(s => s.graphData)
@@ -508,21 +512,36 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const frontmatterWarningSummary = frontmatterWarnings[0] || ''
   const frontmatterWarningCount = frontmatterWarnings.length
   const frontmatterNotice = frontmatterWarningSummary ? (
-    <div
+    <section
       className={`rounded border px-3 py-2 text-xs leading-5 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.status.warning}`}
       role="status"
       aria-label="Frontmatter warning"
     >
-      <div className="font-medium">Frontmatter warning</div>
-      <div className="whitespace-pre-wrap break-words">{frontmatterWarningSummary}</div>
+      <section className="font-medium">Frontmatter warning</section>
+      <section className="whitespace-pre-wrap break-words">{frontmatterWarningSummary}</section>
       {frontmatterWarningCount > 1 ? (
-        <div className={`mt-1 ${UI_THEME_TOKENS.text.secondary}`}>
+        <section className={`mt-1 ${UI_THEME_TOKENS.text.secondary}`}>
           {`${frontmatterWarningCount - 1} more warning${frontmatterWarningCount - 1 === 1 ? '' : 's'}`}
-        </div>
+        </section>
       ) : null}
-    </div>
+    </section>
   ) : null
-  const documentNotice = frontmatterNotice
+  const documentNotice = frontmatterNotice ? (
+    <section className="space-y-2">
+      {frontmatterNotice}
+    </section>
+  ) : null
+  const documentVersionGitGraphOpen = bottomSurfaceTab === 'gitGraph' && bottomSurfaceCollapsed !== true
+  const setDocumentVersionGitGraphOpen = React.useCallback((next: boolean) => {
+    if (next) {
+      setBottomSurfaceTab('gitGraph')
+      setBottomSurfaceCollapsed(false)
+      return
+    }
+    if (bottomSurfaceTab === 'gitGraph') {
+      setBottomSurfaceCollapsed(true)
+    }
+  }, [bottomSurfaceTab, setBottomSurfaceCollapsed, setBottomSurfaceTab])
   const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)
   const deferredEditableMarkdownText = React.useDeferredValue(editableMarkdownText)
   const jsonEditorText = React.useMemo(() => {
@@ -800,7 +819,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const binaryPane = modelAsset?.format === 'glb' ? (
     <section className={`flex-1 min-h-0 min-w-0 overflow-auto p-3 ${panelTypography.panelTextClass}`} aria-label="Binary GLB Model">
-      <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+      <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
         <h2 className={panelTypography.keyLabelClass}>Binary GLB</h2>
         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           <dt className={UI_THEME_TOKENS.text.secondary}>Name</dt>
@@ -820,7 +839,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             </>
           ) : null}
         </dl>
-      </div>
+      </section>
     </section>
   ) : null
 
@@ -979,6 +998,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         setMarkdownWordWrap,
         markdownTextHighlight,
         setMarkdownTextHighlight,
+        documentVersionGitGraphOpen,
+        setDocumentVersionGitGraphOpen,
         viewerKind,
         viewerMode,
         setViewerMode: handleSetViewerMode,

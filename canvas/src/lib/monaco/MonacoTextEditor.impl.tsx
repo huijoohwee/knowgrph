@@ -93,7 +93,7 @@ export type MonacoTextEditorProps = {
 
 type MonacoApi = typeof import('monaco-editor/esm/vs/editor/editor.api')
 
-type MonacoCapabilitySettings = {
+export type MonacoCapabilitySettings = {
   monacoLanguageJsonEnabled: boolean
   monacoLanguageJsonLoadMode: 'lazy' | 'eager'
   monacoLanguageSqlEnabled: boolean
@@ -176,7 +176,7 @@ type MonacoCapabilitySettings = {
   monacoMouseWheelScrollSensitivityEnabled: boolean
 }
 
-const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
+export const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
   const normalized = String(language || '').trim().toLowerCase()
   if (!normalized) return 'plaintext'
   if (normalized === 'json' && !settings.monacoLanguageJsonEnabled) return 'plaintext'
@@ -185,7 +185,7 @@ const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapab
   return normalized
 }
 
-const loadMonacoLanguageContribution = async (language: string): Promise<void> => {
+export const loadMonacoLanguageContribution = async (language: string): Promise<void> => {
   const normalized = String(language || '').trim().toLowerCase()
   if (normalized === 'markdown') {
     await import('monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution')
@@ -204,7 +204,7 @@ const loadMonacoLanguageContribution = async (language: string): Promise<void> =
   }
 }
 
-const preloadEagerMonacoLanguageContributions = async (settings: MonacoCapabilitySettings): Promise<void> => {
+export const preloadEagerMonacoLanguageContributions = async (settings: MonacoCapabilitySettings): Promise<void> => {
   const tasks: Promise<void>[] = []
   if (settings.monacoLanguageJsonEnabled && settings.monacoLanguageJsonLoadMode === 'eager') tasks.push(loadMonacoLanguageContribution('json'))
   if (settings.monacoLanguageSqlEnabled && settings.monacoLanguageSqlLoadMode === 'eager') tasks.push(loadMonacoLanguageContribution('sql'))
@@ -213,7 +213,7 @@ const preloadEagerMonacoLanguageContributions = async (settings: MonacoCapabilit
   await Promise.all(tasks)
 }
 
-const loadOptionalMonacoContributions = async (settings: MonacoCapabilitySettings): Promise<void> => {
+export const loadOptionalMonacoContributions = async (settings: MonacoCapabilitySettings): Promise<void> => {
   const tasks: Promise<unknown>[] = []
   if (settings.monacoCodeLensEnabled) {
     tasks.push(import('monaco-editor/esm/vs/editor/contrib/codelens/browser/codelensController'))
@@ -228,7 +228,7 @@ const loadOptionalMonacoContributions = async (settings: MonacoCapabilitySetting
   await Promise.all(tasks)
 }
 
-const buildMonacoEditorOptions = (
+export const buildMonacoEditorOptions = (
   settings: MonacoCapabilitySettings,
   args: {
     readOnly: boolean
@@ -338,37 +338,8 @@ const buildMonacoEditorOptions = (
   },
 })
 
-export function MonacoTextEditor(props: MonacoTextEditorProps) {
-  const {
-    value,
-    onChange,
-    language,
-    uri,
-    themeMode,
-    wordWrap,
-    readOnly,
-    hideLongHtmlBlocks,
-    paddingTopPx,
-    paddingBottomPx,
-    forceLineNumberColumn,
-    className,
-    textareaClassName,
-    ariaLabel,
-    onContextMenuSelection,
-    onContextMenu,
-    onDoubleClickSelection,
-    onDoubleClickLine,
-    onDoubleClickSelectionOffsets,
-    onSelectionChangeOffsets,
-    onScroll,
-    editorRef,
-    onBlur,
-    onFocus,
-    onHandle,
-    flashLine,
-    flashDurationMs = 1000,
-  } = props
-  const monacoSettings = useGraphStore(
+export function useMonacoCapabilitySettings(): MonacoCapabilitySettings {
+  return useGraphStore(
     useShallow(s => ({
       monacoLanguageJsonEnabled: s.monacoLanguageJsonEnabled,
       monacoLanguageJsonLoadMode: s.monacoLanguageJsonLoadMode,
@@ -452,6 +423,39 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       monacoMouseWheelScrollSensitivityEnabled: s.monacoMouseWheelScrollSensitivityEnabled,
     })),
   )
+}
+
+export function MonacoTextEditor(props: MonacoTextEditorProps) {
+  const {
+    value,
+    onChange,
+    language,
+    uri,
+    themeMode,
+    wordWrap,
+    readOnly,
+    hideLongHtmlBlocks,
+    paddingTopPx,
+    paddingBottomPx,
+    forceLineNumberColumn,
+    className,
+    textareaClassName,
+    ariaLabel,
+    onContextMenuSelection,
+    onContextMenu,
+    onDoubleClickSelection,
+    onDoubleClickLine,
+    onDoubleClickSelectionOffsets,
+    onSelectionChangeOffsets,
+    onScroll,
+    editorRef,
+    onBlur,
+    onFocus,
+    onHandle,
+    flashLine,
+    flashDurationMs = 1000,
+  } = props
+  const monacoSettings = useMonacoCapabilitySettings()
 
   const hostRef = React.useRef<HTMLElement | null>(null)
   const textareaElRef = React.useRef<HTMLTextAreaElement | null>(null)

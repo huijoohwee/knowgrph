@@ -24,6 +24,8 @@
 
 **Composition Invariant**: Any change to `sourceFiles` (add/remove/clear/toggle/parsed hash updates) must trigger a recomposition via `applyComposedGraphFromSourceFiles()` so the active `graphData` and all graph-tied touchpoints (canvas, Graph Data Table) stay consistent. When Source Files becomes empty, the composed `graphData` must become empty as well (no stale rows).
 
+**Document Versioning Rule**: Editor Workspace saves, Source Files writeback, and GitGraph CRUD must record bounded local document snapshots via the shared document-versioning utility. Source Files exposes per-file version counts, Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in GitGraph view after `[ ] Markdown`, and that bottom panel exposes the GitGraph icon immediately to the right of the Timeline icon. MainPanel History does not own a document-version Docs surface.
+
 **Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
 
 **GitHub Repo URL Rule**: When Import URL receives a GitHub repository URL (e.g. `https://github.com/<owner>/<repo>`), it must:
@@ -160,6 +162,8 @@ sequenceDiagram
   - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads initialization-file source text from `huijoohwee/docs`, materializes the canonical files into the workspace root, and keeps seed ordering deterministic.
 - **Source Files Runtime Bootstrap (Knowgrph)**:
   - `knowgrph/canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx` coalesces seed-sync, rematerialization, and storage bridge scheduling through request-owned helpers to keep Source Files, Workspace, and Storage in sync on the same tick.
+- **Document Versioning (Knowgrph)**:
+  - `knowgrph/canvas/src/features/document-versioning/documentVersioning.ts` owns bounded local snapshots, git-style diffs, and GitGraph history code shared by Editor Workspace, Source Files, GitGraph CRUD, and the Timeline bottom panel GitGraph view.
 - **Curation UI (Singabldr)**:
   - `singabldr/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders an Explorer-like sidebar (Source Files + Outline + Backlinks).
   - `knowgrph/canvas/src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` wires selection and active workspace path to `setMarkdownDocument(...)`.
@@ -181,6 +185,7 @@ sequenceDiagram
 | Workspace FS | Change events | `workspaceFsEvents.ts` | Built |
 | Workspace FS | Bootstrap startup | `sourceFilesBootstrapStartup.ts` | Built |
 | SF ↔ Storage | Runtime bootstrap | `SourceFilesPersistenceBootstrap.tsx` | Built |
+| Document versions | Snapshot/diff/GitGraph utility | `documentVersioning.ts` | Built |
 | Curation UI | Explorer sidebar | `MarkdownPanelLayout.tsx` (Singabldr) | Built |
 | Curation UI | Workspace runtime | `MarkdownWorkspaceRuntime.impl.tsx` | Built |
 | Curation UI | Toolbar ingest controls | `MarkdownWorkspaceToolbar.tsx` | Built |

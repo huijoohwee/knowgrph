@@ -511,7 +511,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container)
 
@@ -657,7 +657,7 @@ export async function testUseFloatingPanelChatSubmitDelegatesToCoordinatorOnce()
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     dom.window.document.body.appendChild(container)
     root = createRoot(container)
     const args = buildSubmitArgsFixture({

@@ -92,10 +92,10 @@ export function RadarGalaxyRendererSettings() {
 
   return (
     <CollapsibleSection title="Radar Galaxy" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className={uiToolbarSettingsPanelBodyClassName}>
-        <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+      <section className={uiToolbarSettingsPanelBodyClassName}>
+        <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Controls hub-spoke force distances, curved flow arrows, and repulsion for JSON-imported radar maps.
-        </div>
+        </section>
         <ResponsiveControlRow label="Orbit animate" valueClassName={UI_RESPONSIVE_CONTROL_TOGGLE_GROUP_END_CLASSNAME}>
           <input
             type="checkbox"
@@ -225,7 +225,7 @@ export function RadarGalaxyRendererSettings() {
           step={1}
           onChange={v => setForce('radarHubCharge', v)}
         />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

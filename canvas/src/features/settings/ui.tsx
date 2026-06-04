@@ -16,23 +16,19 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
+const PANEL_VALUE_INPUT_REQUIRED_CLASS_NAME = 'w-full min-w-0 max-w-full h-6'
+
 const normalizePanelValueInputClassName = (
   className: string,
   alignment: 'left' | 'right' = 'right',
 ) => {
   const alignmentClass = alignment === 'left' ? 'text-left' : 'text-right'
+  const requiredTokens = PANEL_VALUE_INPUT_REQUIRED_CLASS_NAME.split(/\s+/)
+  const requiredTokenSet = new Set(requiredTokens)
   const tokens = className
     .split(/\s+/)
-    .filter(token => token && token !== 'text-left' && token !== 'text-right')
-  const tokenSet = new Set(tokens)
-  for (const requiredToken of ['w-full', 'min-w-0', 'max-w-full']) {
-    if (!tokenSet.has(requiredToken)) {
-      tokens.push(requiredToken)
-      tokenSet.add(requiredToken)
-    }
-  }
-  tokens.push(alignmentClass)
-  return tokens.join(' ')
+    .filter(token => token && token !== 'text-left' && token !== 'text-right' && !requiredTokenSet.has(token))
+  return [...requiredTokens, ...tokens, alignmentClass].join(' ')
 }
 
 export const renderSettingInput = (
@@ -121,7 +117,7 @@ export const renderSettingInput = (
         : `${previewBase} ${UI_THEME_TOKENS.text.secondary} ${appliedClass}`
     const previewLabel = key === 'uiIconColorClass' ? 'Aa' : 'Hover'
     return (
-      <div className="flex w-full min-w-0 items-center gap-2">
+      <section className="flex w-full min-w-0 items-center gap-2">
         <PlainTextInputEditor value={previewLabel} readOnly className={previewClass} />
         <PlainTextInputEditor
           value={str}
@@ -132,7 +128,7 @@ export const renderSettingInput = (
           className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
-      </div>
+      </section>
     )
   }
   if (key === 'uiIconButtonPaddingClass') {
@@ -146,10 +142,10 @@ export const renderSettingInput = (
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex w-full min-w-0 items-center gap-2">
-        <div className={previewClass}>
+      <section className="flex w-full min-w-0 items-center gap-2">
+        <section className={previewClass}>
           <SettingsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
-        </div>
+        </section>
         <PlainTextInputEditor
           value={str}
           onChange={next => {
@@ -159,7 +155,7 @@ export const renderSettingInput = (
           className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
-      </div>
+      </section>
     )
   }
   if (key === 'uiIconPillClass') {
@@ -173,11 +169,11 @@ export const renderSettingInput = (
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex w-full min-w-0 items-center gap-2">
-        <div className={previewClass}>
+      <section className="flex w-full min-w-0 items-center gap-2">
+        <section className={previewClass}>
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Scope</span>
-        </div>
+        </section>
         <PlainTextInputEditor
           value={str}
           onChange={next => {
@@ -187,7 +183,7 @@ export const renderSettingInput = (
           className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={pillBaseClass}
         />
-      </div>
+      </section>
     )
   }
   if (key === 'uiIconPillLegendTextSizeClass' || key === 'uiIconPillBadgeTextSizeClass') {
@@ -211,9 +207,9 @@ export const renderSettingInput = (
           })
         : ''
     return (
-      <div className="flex w-full min-w-0 items-center gap-2">
+      <section className="flex w-full min-w-0 items-center gap-2">
         {key === 'uiIconPillLegendTextSizeClass' ? (
-          <div className={`${uiToolbarRowScrollClassName} gap-1`}>
+          <section className={`${uiToolbarRowScrollClassName} gap-1`}>
             <span className={legendPreviewClass}>
               <ScopeIcon scope="node" className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
               <span>Base</span>
@@ -250,13 +246,13 @@ export const renderSettingInput = (
               </svg>
               <span>Visibility</span>
             </span>
-          </div>
+          </section>
         ) : (
-          <div className={`${uiToolbarRowScrollClassName} gap-1`}>
+          <section className={`${uiToolbarRowScrollClassName} gap-1`}>
             <span className={badgePreviewClass}>
               <span>Base</span>
             </span>
-          </div>
+          </section>
         )}
         <PlainTextInputEditor
           value={str}
@@ -267,7 +263,7 @@ export const renderSettingInput = (
           className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
-      </div>
+      </section>
     )
   }
   if (key === 'uiIconBadgeChipClass') {
@@ -281,11 +277,11 @@ export const renderSettingInput = (
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex w-full min-w-0 items-center gap-2">
-        <div className={previewClass}>
+      <section className="flex w-full min-w-0 items-center gap-2">
+        <section className={previewClass}>
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Badge</span>
-        </div>
+        </section>
         <PlainTextInputEditor
           value={str}
           onChange={next => {
@@ -295,7 +291,7 @@ export const renderSettingInput = (
           className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
-      </div>
+      </section>
     )
   }
   if (key === 'uiIconBadgeChipTextSizeClass') {
@@ -310,11 +306,11 @@ export const renderSettingInput = (
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex w-full min-w-0 items-center gap-2">
-        <div className={previewClass}>
+      <section className="flex w-full min-w-0 items-center gap-2">
+        <section className={previewClass}>
           <TagIcon className="w-3 h-3" aria-hidden="true" />
           <span>Badge</span>
-        </div>
+        </section>
         <PlainTextInputEditor
           value={str}
           onChange={next => {
@@ -324,7 +320,7 @@ export const renderSettingInput = (
           className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
-      </div>
+      </section>
     )
   }
   if (key in colorKeyDefaults) {
@@ -336,7 +332,7 @@ export const renderSettingInput = (
         ? normalized
         : '#000000'
     return (
-      <div className="flex w-full min-w-0 items-center gap-2">
+      <section className="flex w-full min-w-0 items-center gap-2">
         <input
           type="color"
           value={colorValue}
@@ -356,7 +352,7 @@ export const renderSettingInput = (
           className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={fallback}
         />
-      </div>
+      </section>
     )
   }
   if (key === 'chatAuthMode') {

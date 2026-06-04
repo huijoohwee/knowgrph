@@ -70,7 +70,7 @@ export function MarkdownDataViewAddColumnMenu(props: {
           />
         </li>
         <li className="list-none px-1 pb-2">
-          <div className={['block text-[10px] mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Type</div>
+          <section className={['block text-[10px] mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Type</section>
           <details className="relative">
             <summary
               className={[

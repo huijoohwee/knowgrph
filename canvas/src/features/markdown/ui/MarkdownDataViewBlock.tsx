@@ -434,7 +434,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
         openSettingsPanel={openViewSettingsPanel}
       />
 
-      <div className={UI_THEME_TOKENS.panel.bg}>
+      <section className={UI_THEME_TOKENS.panel.bg}>
         {viewerMode === 'kanban' ? (
           <MarkdownDataViewKanbanView
             view={displayedView}
@@ -460,7 +460,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
             onSetColumnSort={handleSetColumnSort}
           />
         )}
-      </div>
+      </section>
     </article>
   )
 })

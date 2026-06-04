@@ -40,7 +40,7 @@ export async function testMarkdownPresentationFragmentsAdvanceWithinSlide() {
     ]
     const markdownText = markdownLines.join('\n')
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -71,7 +71,7 @@ export async function testMarkdownPresentationFragmentsAdvanceWithinSlide() {
     await tick()
     await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
 
-    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown presentation root not found')
     }
@@ -151,7 +151,7 @@ export async function testMarkdownPresentationFragmentOrderingByIndexAndVClickAt
     ]
     const markdownText = markdownLines.join('\n')
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -181,7 +181,7 @@ export async function testMarkdownPresentationFragmentOrderingByIndexAndVClickAt
       )
     await tick()
 
-    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown presentation root not found')
     }
@@ -270,7 +270,7 @@ export async function testMarkdownPresentationVClickAndVMarkVisibilityAcrossStep
     ]
     const markdownText = markdownLines.join('\n')
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -300,7 +300,7 @@ export async function testMarkdownPresentationVClickAndVMarkVisibilityAcrossStep
       )
     await tick()
 
-    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown presentation root not found')
     }
@@ -391,7 +391,7 @@ export async function testMarkdownPresentationVClickAndVMarkVisibilityFromSlideD
     const markdownText = ['---', 'fragments:', '  enabled: true', '  steps: 2', '---', '', excerpt, ''].join('\n')
     const docPath = resolveMarkdownSlideDemoPath() ?? 'markdown-slide-demo.md'
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -429,7 +429,7 @@ export async function testMarkdownPresentationVClickAndVMarkVisibilityFromSlideD
 
     const pressNext = () => api.next()
 
-    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown presentation root not found')
     }
@@ -500,7 +500,7 @@ export async function testMarkdownPresentationSpeakerNotesToggle() {
     ]
     const markdownText = markdownLines.join('\n')
 
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -530,7 +530,7 @@ export async function testMarkdownPresentationSpeakerNotesToggle() {
       )
     await tick()
 
-    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
+    const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLElement | null
     if (!rootEl) {
       throw new Error('markdown presentation root not found')
     }
@@ -551,7 +551,7 @@ export async function testMarkdownPresentationSpeakerNotesToggle() {
     dom.window.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'n', bubbles: true }))
     await tick()
 
-    const notesAfter = doc.querySelector('[data-testid="markdown-presentation-notes"]') as HTMLDivElement | null
+    const notesAfter = doc.querySelector('[data-testid="markdown-presentation-notes"]') as HTMLElement | null
     if (!notesAfter) {
       throw new Error('expected notes panel to be present after toggling')
     }

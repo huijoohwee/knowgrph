@@ -40,7 +40,7 @@ const installInlineExecCommandStub = (
 }
 
 export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlMode() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -161,7 +161,7 @@ export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlM
 }
 
 export async function testMarkdownViewerInlineEditToolbarTextColorMenuKeepsEditorAliveAcrossDelayedSecondClick() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -280,7 +280,7 @@ export async function testMarkdownViewerInlineEditToolbarTextColorMenuKeepsEdito
 }
 
 export async function testMarkdownViewerInlineEditToolbarBoldRestoresCachedHtmlSelection() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -391,7 +391,7 @@ export async function testMarkdownViewerInlineEditToolbarBoldRestoresCachedHtmlS
 }
 
 export async function testMarkdownViewerInlineEditToolbarUnderlineCommitsHtmlMarkdown() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -508,7 +508,7 @@ export async function testMarkdownViewerInlineEditToolbarUnderlineCommitsHtmlMar
 }
 
 export async function testMarkdownViewerInlineEditToolbarTextColorCommitsSigilMarkdown() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -632,7 +632,7 @@ export async function testMarkdownViewerInlineEditToolbarTextColorCommitsSigilMa
 }
 
 export async function testMarkdownViewerInlineEditToolbarTextColorOverlappingExistingHighlightCommitsWithoutLiteralSigils() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -770,7 +770,7 @@ export async function testMarkdownViewerInlineEditToolbarTextColorOverlappingExi
 }
 
 export async function testMarkdownViewerInlineEditExistingUnderlineCaretDoesNotLiteralizeHtml() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -877,7 +877,7 @@ export async function testMarkdownViewerInlineEditExistingUnderlineCaretDoesNotL
 }
 
 export async function testMarkdownViewerInlineEditAppliedUnderlineCaretDoesNotLiteralizeHtml() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     try {
       const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -998,7 +998,7 @@ export async function testMarkdownViewerInlineEditAppliedUnderlineCaretDoesNotLi
 }
 
 export async function testMarkdownViewerInlineEditShowsSigilColorAsStyledTextNotCode() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')

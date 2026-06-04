@@ -8,15 +8,7 @@ import {
 
 export const BYTEPLUS_SHARED_TEXT_API_DOC_AREA = 'BytePlus Shared + Text API'
 
-export function getBytePlusSharedTextApiRowAnchorId(rowKey: string): string {
-  const normalized = String(rowKey || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `byteplus-chat-api-row-${normalized || 'entry'}`
-}
-
+export { getBytePlusSharedTextApiRowAnchorId } from './chatApiDocAnchors'
 export { resolveBytePlusTextWidgetSharedTextApiRowKey }
 
 export type VirtualSettingsEntry = {

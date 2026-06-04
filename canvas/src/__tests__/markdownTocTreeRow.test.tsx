@@ -5,7 +5,7 @@ import { MarkdownTocTreeRow } from '@/features/markdown-workspace/MarkdownTocTre
 
 export async function testMarkdownTocTreeRowUsesSharedExplorerTocShell() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   let rowClicks = 0

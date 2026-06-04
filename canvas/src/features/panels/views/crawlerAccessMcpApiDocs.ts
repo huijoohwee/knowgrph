@@ -169,7 +169,7 @@ const CRAWLER_ACCESS_MCP_DOC_ROWS: ReadonlyArray<CrawlerAccessMcpDocRow> = [
   {
     key: 'guard.read_only_source_files',
     typeLabel: 'guard',
-    value: 'read_only_d1_doc_view',
+    value: 'read-only Source Files over D1 document rows and doc-view URLs',
     responsibility: 'Read-only guard aligned to knowgrph-crawler-prd-tad.md.',
     searchHints: ['read-only Source Files', 'D1 documents', 'doc-view', 'no writes'],
   },

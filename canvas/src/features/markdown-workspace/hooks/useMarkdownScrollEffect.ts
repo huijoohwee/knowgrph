@@ -8,7 +8,7 @@ type UseMarkdownScrollEffectProps = {
   setPendingScrollLine: (line: number | null) => void
   markdownLayoutMode: MarkdownLayoutMode
   editorTextAreaRef: React.RefObject<MonacoTextEditorHandle | null>
-  viewerRef: React.RefObject<HTMLDivElement>
+  viewerRef: React.RefObject<HTMLElement>
 }
 
 export function useMarkdownScrollEffect(props: UseMarkdownScrollEffectProps) {

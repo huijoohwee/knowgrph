@@ -4,6 +4,7 @@ export type MarkdownSourceFileListItemLike = {
   id: string
   name: string
   active?: boolean
+  versionCount?: number
 }
 
 export type MarkdownSourceFileTreeNode = {
@@ -14,6 +15,7 @@ export type MarkdownSourceFileTreeNode = {
   depth: number
   fileId?: string
   active?: boolean
+  versionCount?: number
   children?: MarkdownSourceFileTreeNode[]
 }
 
@@ -25,6 +27,7 @@ export type VisibleMarkdownSourceFileTreeNode = {
   depth: number
   fileId?: string
   active?: boolean
+  versionCount?: number
   hasChildren?: boolean
 }
 
@@ -91,6 +94,7 @@ export function buildMarkdownSourceFileTree(
       depth: parts.length,
       fileId: String(sourceFile.id || ''),
       active: !!sourceFile.active,
+      versionCount: Math.max(0, Math.floor(Number(sourceFile.versionCount || 0))),
     })
   }
 
@@ -116,6 +120,7 @@ export function flattenVisibleMarkdownSourceFileTree(args: {
         depth: child.depth,
         fileId: child.fileId,
         active: child.active,
+        versionCount: child.versionCount,
         hasChildren,
       })
       if (isFolder && args.expandedPaths.has(String(child.path || MARKDOWN_SOURCE_FOLDER_ROOT_PATH))) {

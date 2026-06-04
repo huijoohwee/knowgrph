@@ -81,16 +81,16 @@ export function HelpKtvRows({
   children,
   className,
   ...divProps
-}: React.HTMLAttributes<HTMLDivElement> & {
+}: React.HTMLAttributes<HTMLElement> & {
   children: React.ReactNode
 }) {
   return (
-    <div
+    <section
       {...divProps}
       className={['space-y-0.5', className || ''].filter(Boolean).join(' ')}
     >
       {children}
-    </div>
+    </section>
   )
 }
 
@@ -102,7 +102,7 @@ export function HelpKtvValueStack({
   className?: string
 }) {
   return (
-    <div
+    <section
       className={[
         'flex min-w-0 max-w-full flex-col items-start gap-0.5 text-left leading-snug sm:items-end sm:text-right',
         className || '',
@@ -111,7 +111,7 @@ export function HelpKtvValueStack({
         .join(' ')}
     >
       {children}
-    </div>
+    </section>
   )
 }
 

@@ -34,7 +34,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   return (
     <section className={cn('p-4', UI_SURFACE_CARD)}>
       <h3 className="m-0 text-sm font-semibold">{title}</h3>
-      <div className="mt-3">{children}</div>
+      <section className="mt-3">{children}</section>
     </section>
   )
 }
@@ -46,7 +46,7 @@ export default function DesignSystemHub() {
   return (
     <article className="flex flex-col gap-4" aria-label="Design system hub">
       <Card title="Quick start">
-        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Quick start tabs">
+        <section className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Quick start tabs">
           {TABS.map(t => {
             const active = t.key === tab
             return (
@@ -67,9 +67,9 @@ export default function DesignSystemHub() {
               </button>
             )
           })}
-        </div>
+        </section>
 
-        <div className="mt-3">
+        <section className="mt-3">
           <h4 className={cn('m-0 text-sm font-semibold', UI_THEME_TOKENS.text.primary)}>{content.title}</h4>
           <p className={cn('mt-2 mb-0 text-sm', UI_THEME_TOKENS.text.secondary)}>{content.snippet}</p>
           <ul className={cn('mt-3 mb-0 pl-5 text-sm', UI_THEME_TOKENS.text.secondary)}>
@@ -77,7 +77,7 @@ export default function DesignSystemHub() {
               <li key={p}>{p}</li>
             ))}
           </ul>
-        </div>
+        </section>
       </Card>
 
       <Card title="SSOT rules">

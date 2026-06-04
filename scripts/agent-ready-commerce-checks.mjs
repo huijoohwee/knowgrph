@@ -1,5 +1,6 @@
 import {
   AGENTIC_COMMERCE_API_VERSION,
+  AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS,
   AGENTIC_COMMERCE_ROUTE_PATHS,
 } from '../grph-shared/dist/payments/agenticCommerceSsot.js'
 
@@ -17,6 +18,29 @@ const readPaymentRequiredHeader = (response) => {
   } catch {
     return null
   }
+}
+
+const normalizeAddress = (value) => String(value || '').trim().toLowerCase()
+
+export const assertAuthoritativeX402PaymentRequired = (payload, context = 'x402 payment requirement') => {
+  if (payload?.x402Version !== 2) {
+    throw new Error(`${context} must use x402Version=2.`)
+  }
+  const matchingRequirement = Array.isArray(payload.accepts)
+    ? payload.accepts.find((entry) => (
+      entry?.scheme === 'exact'
+      && /^0x[0-9a-fA-F]{40}$/.test(String(entry.payTo || ''))
+      && /^0x[0-9a-fA-F]{40}$/.test(String(entry.asset || ''))
+      && String(entry.network || '').trim().length > 0
+    ))
+    : null
+  if (!matchingRequirement) {
+    throw new Error(`${context} must expose exact-scheme network, ERC-20 asset, and EVM payTo requirements.`)
+  }
+  if (normalizeAddress(matchingRequirement.payTo) === normalizeAddress(AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS)) {
+    throw new Error(`${context} uses the deterministic fallback payTo address; configure X402_PAY_TO_ADDRESS in knowgrph-payment Worker [vars] and deploy before treating x402 as production-ready.`)
+  }
+  return true
 }
 
 export const buildAgentReadyCommerceChecks = ({ originUrl }) => [
@@ -75,9 +99,7 @@ export const buildAgentReadyCommerceChecks = ({ originUrl }) => [
       return response.status === 402
         && response.headers.get('content-type')?.includes('application/json')
         && Boolean(response.headers.get('payment-required'))
-        && payload.x402Version === 2
-        && Array.isArray(payload.accepts)
-        && payload.accepts.some((entry) => entry?.scheme === 'exact' && entry?.payTo && entry?.asset && entry?.network)
+        && assertAuthoritativeX402PaymentRequired(payload, 'commerce x402 paid-resource probe')
     },
   },
   {
@@ -87,8 +109,7 @@ export const buildAgentReadyCommerceChecks = ({ originUrl }) => [
     assert: async (response) => {
       const payload = readPaymentRequiredHeader(response)
       return response.status === 402
-        && payload?.x402Version === 2
-        && payload.accepts?.some((entry) => entry?.scheme === 'exact' && entry?.payTo && entry?.asset && entry?.network)
+        && assertAuthoritativeX402PaymentRequired(payload, 'commerce x402 API-root probe')
     },
   },
 ]

@@ -69,7 +69,7 @@ export default function FieldLocalSchemaRowsEditor({
           layout="keyValue"
         />
       </header>
-      <div className="max-h-72 overflow-auto">
+      <section className="max-h-72 overflow-auto">
         {localSchemaRows.map((row, index) => {
           const trimmedKey = String(row.key || '').trim()
           const sampleValue =
@@ -169,7 +169,7 @@ export default function FieldLocalSchemaRowsEditor({
               align="center"
               className="px-2"
               keyNode={
-                <div className="flex items-center gap-1 min-w-0">
+                <section className="flex items-center gap-1 min-w-0">
                   {localSchemaFacet === 'localRules' ? (
                     <span className={keyLabelClassName}>Rule {index + 1}</span>
                   ) : (
@@ -262,7 +262,7 @@ export default function FieldLocalSchemaRowsEditor({
                   >
                     {UI_LABELS.delete}
                   </button>
-                </div>
+                </section>
               }
               valueNode={
                 <RightAlignedValueCell className="gap-1">
@@ -281,7 +281,7 @@ export default function FieldLocalSchemaRowsEditor({
                     }
                   />
                   {hasAnySuggestions ? (
-                    <div className={suggestionTextClassName}>
+                    <section className={suggestionTextClassName}>
                       <span>Suggestions:</span>
                       {hasDefaultSuggestion ? (
                         <button
@@ -311,7 +311,7 @@ export default function FieldLocalSchemaRowsEditor({
                           Use sample
                         </button>
                       ) : null}
-                    </div>
+                    </section>
                   ) : null}
                 </RightAlignedValueCell>
               }
@@ -325,8 +325,8 @@ export default function FieldLocalSchemaRowsEditor({
             ))}
           </datalist>
         ) : null}
-      </div>
-      <div className={`border-t ${sectionDividerClassName} px-2 py-1.5 flex justify-between items-center`}>
+      </section>
+      <section className={`border-t ${sectionDividerClassName} px-2 py-1.5 flex justify-between items-center`}>
         <button
           type="button"
           onClick={() => {
@@ -355,7 +355,7 @@ export default function FieldLocalSchemaRowsEditor({
         >
           {localSchemaFacet === 'localRules' ? 'Add rule' : 'Add key'}
         </button>
-      </div>
+      </section>
     </section>
   )
 }

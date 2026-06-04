@@ -66,7 +66,7 @@ const openEditorAtLine = async (dom: any, line: number) => {
 }
 
 export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInlineCodeAndListMarkers() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -165,7 +165,7 @@ export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInl
 }
 
 export async function testMarkdownViewerInlineEditTaskListCompactBracketSyntaxParsesAndCommits() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -225,7 +225,7 @@ export async function testMarkdownViewerInlineEditTaskListCompactBracketSyntaxPa
 }
 
 export async function testMarkdownViewerInlineEditMultilineListParagraphKeepsUnderlineRendered() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -297,7 +297,7 @@ export async function testMarkdownViewerInlineEditMultilineListParagraphKeepsUnd
 }
 
 export async function testMarkdownViewerInlineEditTaskRowKeepsUnderlineRendered() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -369,7 +369,7 @@ export async function testMarkdownViewerInlineEditTaskRowKeepsUnderlineRendered(
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteBlankLinesPreserveQuotePrefixes() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -421,7 +421,7 @@ export async function testMarkdownViewerInlineEditBlockquoteBlankLinesPreserveQu
 }
 
 export async function testMarkdownViewerInlineEditCalloutThreeBlankLinesKeepsUneditedQuoteRows() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -484,7 +484,7 @@ export async function testMarkdownViewerInlineEditCalloutThreeBlankLinesKeepsUne
 }
 
 export async function testMarkdownViewerInlineEditCalloutThreeContentLinesEditOneKeepsOtherContentLines() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -559,7 +559,7 @@ export async function testMarkdownViewerInlineEditCalloutThreeContentLinesEditOn
 }
 
 export async function testMarkdownViewerInlineEditCalloutClickBlurWithoutEditDoesNotMutate() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -626,7 +626,7 @@ export async function testMarkdownViewerInlineEditCalloutClickBlurWithoutEditDoe
 }
 
 export async function testMarkdownViewerInlineEditAdmonitionCalloutBodyOpenKeepsPerLineParity() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -690,7 +690,7 @@ export async function testMarkdownViewerInlineEditAdmonitionCalloutBodyOpenKeeps
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteTrailingBlankLineDoesNotCollapseRows() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -753,7 +753,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTrailingBlankLineDoe
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteTypographyKeepsUiFontClass() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -804,7 +804,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTypographyKeepsUiFon
 }
 
 export async function testMarkdownViewerInlineEditRuntimeParityProbeReportsMismatch() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -854,7 +854,7 @@ export async function testMarkdownViewerInlineEditRuntimeParityProbeReportsMisma
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteRangeClampsToContiguousQuoteLines() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -922,7 +922,7 @@ export async function testMarkdownViewerInlineEditBlockquoteRangeClampsToContigu
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteTrailingNewlineDoesNotCreateExtraRow() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -975,7 +975,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTrailingNewlineDoesN
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteMultiLineOpenDoesNotAddTrailingRow() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -1024,7 +1024,7 @@ export async function testMarkdownViewerInlineEditBlockquoteMultiLineOpenDoesNot
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteMultiLineWithSourceTrailingNewlineOpenDoesNotAddTrailingRow() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -1073,7 +1073,7 @@ export async function testMarkdownViewerInlineEditBlockquoteMultiLineWithSourceT
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteTrimsTrailingEmptyInlineWrapperRow() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -1124,7 +1124,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTrimsTrailingEmptyIn
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledOpenBlurDoesNotMutate() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -1189,7 +1189,7 @@ export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledOpenBl
 }
 
 export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledTrailingNewlineDoesNotMutate() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot
@@ -1253,7 +1253,7 @@ export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledTraili
 }
 
 export async function testMarkdownViewerInlineEditAdmonitionCalloutRangeClampsToContiguousQuoteLines() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
     const createRoot = reactDomClient.createRoot

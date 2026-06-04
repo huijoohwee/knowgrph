@@ -13,12 +13,17 @@ import {
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
   CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+  readFlowEditorElementSurfaceId,
   readCanvasOverlayPinnedState,
   resolveFlowEditorOverlayProxyTarget,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import {
+  readFlowEditorScreenAuthorityPanSnapshot,
+  shouldUseFlowEditorScreenAuthorityCollectivePan,
+  type FlowEditorScreenAuthorityPanSnapshot,
+} from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import { UI_SELECTORS } from '@/lib/config'
-import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
+import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import { readFlowPanInteractionSpeed } from '@/components/FlowCanvas/interactions/dragSession'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
@@ -56,6 +61,8 @@ export function bindFlowNativeInteractionListeners(args: {
         startTx: number
         startTy: number
         interactionSpeed: number
+        useFlowEditorScreenAuthorityPan: boolean
+        flowEditorScreenAuthorityPan: FlowEditorScreenAuthorityPanSnapshot | null
       } = null
 
   const spacePanProxyTargetSelector = [CANVAS_OVERLAY_PROXY_ROOT_SELECTOR, UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
@@ -91,11 +98,8 @@ export function bindFlowNativeInteractionListeners(args: {
   const onWindowPointerDownCapture = (e: PointerEvent) => {
     if (!ctx.args.active) return
     const st = useGraphStore.getState()
-    if (!isFlowEditorFrontmatterDocumentModeRequested({
-      canvas2dRenderer: String(st.canvas2dRenderer || ''),
-      frontmatterModeEnabled: st.frontmatterModeEnabled === true,
-      documentSemanticMode: String(st.documentSemanticMode || ''),
-    })) return
+    const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)
+    if (!flowEditorOverlayInteractionMode) return
     if (e.pointerType === 'touch') return
     if (proxyPanPointerId != null) return
     if (pendingProxyPan != null) return
@@ -110,9 +114,41 @@ export function bindFlowNativeInteractionListeners(args: {
     const preset = ctx.getPreset()
     const storeStateAtDown = st
     const panInteractionSpeed = readFlowPanInteractionSpeed(storeStateAtDown)
+    const readProxyPanScreenAuthority = (): {
+      useFlowEditorScreenAuthorityPan: boolean
+      flowEditorScreenAuthorityPan: FlowEditorScreenAuthorityPanSnapshot | null
+    } => {
+      const useFlowEditorScreenAuthorityPan = shouldUseFlowEditorScreenAuthorityCollectivePan(storeStateAtDown)
+      return {
+        useFlowEditorScreenAuthorityPan,
+        flowEditorScreenAuthorityPan: useFlowEditorScreenAuthorityPan
+          ? readFlowEditorScreenAuthorityPanSnapshot({
+            flowEditorSurfaceId: ctx.args.flowEditorSurfaceId || readFlowEditorElementSurfaceId(canvasEl),
+            transform: runtime.transform,
+          })
+          : null,
+      }
+    }
     const button = typeof e.button === 'number' ? e.button : 0
     const shiftKey = e.shiftKey === true
     const spacePanHeld = isSpacePanHeld()
+    const pointerMode2d = String(storeStateAtDown.canvasPointerMode2d || '')
+    const pointerModePan = pointerMode2d === 'pan'
+    const allowPan = shouldAllowPanDragForPointerEvent({
+      preset,
+      eventType: 'pointerdown',
+      button,
+      shiftKey,
+      spacePanHeld,
+      pointerMode2d,
+    })
+    const selectionDrag = pointerModePan ? false : shouldStartSelectionDragForPreset({
+      preset,
+      button,
+      shiftKey,
+      spacePanHeld,
+      selectionOnDrag: ctx.args.selectionOnDrag,
+    })
 
     const resolved = resolveFlowEditorOverlayProxyTarget({
       target: targetEl,
@@ -123,23 +159,41 @@ export function bindFlowNativeInteractionListeners(args: {
     const overlayResizeHandle =
       resolved.kind === 'overlay' && resolved.targetEl.closest(CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR)
 
-    const overlayDragHandle = resolved.kind === 'overlay' && overlayPinnedToNode && resolved.targetEl.closest(CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR)
+    const overlayDragHandle = resolved.kind === 'overlay' && resolved.targetEl.closest(CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR)
 
     const overlayRootIsRichMedia =
       resolved.kind === 'overlay'
       && (typeof resolved.overlayRoot.matches === 'function')
       && resolved.overlayRoot.matches(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+    const overlayBodyViewportPan =
+      resolved.kind === 'overlay'
+      && button === 0
+      && spacePanHeld !== true
+      && e.altKey !== true
+      && !overlayResizeHandle
+      && !overlayDragHandle
+      && resolved.isInteractive !== true
+    const overlayViewportPanIntent = allowPan || overlayBodyViewportPan
+    const overlaySelectionDrag = overlayBodyViewportPan ? false : selectionDrag
 
     try {
+      const overlaySurfaceId =
+        resolved.kind === 'overlay'
+          ? String(resolved.overlayRoot.dataset.kgFlowEditorSurface || '').trim()
+          : ''
       __flowCanvasDebug.lastOverlayProxyPointerDown = [
         `kind=${resolved.kind}`,
+        `activeSurface=${String(ctx.args.flowEditorSurfaceId || '').trim() || '-'}`,
+        `overlaySurface=${overlaySurfaceId || '-'}`,
         `pinned=${overlayPinnedToNode ? 1 : 0}`,
         `dragHandle=${overlayDragHandle ? 1 : 0}`,
         `resizeHandle=${overlayResizeHandle ? 1 : 0}`,
         `richMedia=${overlayRootIsRichMedia ? 1 : 0}`,
+        `bodyPan=${overlayBodyViewportPan ? 1 : 0}`,
         `button=${button}`,
         `space=${spacePanHeld ? 1 : 0}`,
       ].join('|')
+      syncFlowCanvasDebugWindow()
     } catch {
       void 0
     }
@@ -147,8 +201,11 @@ export function bindFlowNativeInteractionListeners(args: {
     // Resize handles are always local owner interactions. Never let window-capture proxy steal them.
     if (overlayResizeHandle) return
 
+    if (overlayBodyViewportPan && flowEditorOverlayInteractionMode) return
+
+    if (resolved.kind === 'overlay' && !overlayPinnedToNode && overlayDragHandle && button === 0 && spacePanHeld !== true) return
     if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true && !overlayDragHandle) return
-    if (resolved.kind === 'overlay' && !overlayPinnedToNode && button === 0 && spacePanHeld !== true) return
+    if (resolved.kind === 'overlay' && !overlayPinnedToNode && button === 0 && spacePanHeld !== true && (overlayViewportPanIntent !== true || overlaySelectionDrag === true)) return
 
     if (resolved.kind === 'overlay' && overlayPinnedToNode && button === 0 && spacePanHeld !== true && e.altKey !== true && overlayDragHandle) {
       if (overlayRootIsRichMedia) return
@@ -172,20 +229,13 @@ export function bindFlowNativeInteractionListeners(args: {
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
         interactionSpeed: panInteractionSpeed,
+        ...readProxyPanScreenAuthority(),
       }
       return
     }
 
     if (resolved.kind === 'overlay' && overlayPinnedToNode && button === 0 && spacePanHeld !== true && e.altKey !== true) {
-      const allowPan = shouldAllowPanDragForPointerEvent({ preset, eventType: 'pointerdown', button, shiftKey, spacePanHeld })
-      const selectionDrag = shouldStartSelectionDragForPreset({
-        preset,
-        button,
-        shiftKey,
-        spacePanHeld,
-        selectionOnDrag: ctx.args.selectionOnDrag,
-      })
-      if (!allowPan || selectionDrag) return
+      if (!overlayViewportPanIntent || overlaySelectionDrag) return
 
       ctx.viewportWheelController.destroy()
       cancelFlowZoomRequestAnim(runtime)
@@ -207,19 +257,12 @@ export function bindFlowNativeInteractionListeners(args: {
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
         interactionSpeed: panInteractionSpeed,
+        ...readProxyPanScreenAuthority(),
       }
       return
     }
 
-    const allowPan = shouldAllowPanDragForPointerEvent({ preset, eventType: 'pointerdown', button, shiftKey, spacePanHeld })
-    const selectionDrag = shouldStartSelectionDragForPreset({
-      preset,
-      button,
-      shiftKey,
-      spacePanHeld,
-      selectionOnDrag: ctx.args.selectionOnDrag,
-    })
-    if (!allowPan || selectionDrag) return
+    if (!overlayViewportPanIntent || overlaySelectionDrag) return
     if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true) return
 
     ctx.viewportWheelController.destroy()
@@ -242,6 +285,7 @@ export function bindFlowNativeInteractionListeners(args: {
       startTx: runtime.transform.x,
       startTy: runtime.transform.y,
       interactionSpeed: panInteractionSpeed,
+      ...readProxyPanScreenAuthority(),
     }
   }
 
@@ -301,6 +345,8 @@ export function bindFlowNativeInteractionListeners(args: {
       startTy: pending.startTy,
       interactionSpeed: pending.interactionSpeed,
       pointerId: pending.pointerId,
+      useFlowEditorScreenAuthorityPan: pending.useFlowEditorScreenAuthorityPan,
+      flowEditorScreenAuthorityPan: pending.flowEditorScreenAuthorityPan,
     }
     proxyPanPointerId = pending.pointerId
     try {

@@ -326,16 +326,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().floatingPanelWidthRatio,
     write: (v) => s().setFloatingPanelWidthRatio(Number(v)),
     docKey: 'floatingPanelWidthRatio',
-    default: () => 0.25,
-  },
-  {
-    key: 'floatingPanelHeightRatio',
-    type: 'number',
-    source: 'localStorage',
-    read: () => s().floatingPanelHeightRatio,
-    write: (v) => s().setFloatingPanelHeightRatio(Number(v)),
-    docKey: 'floatingPanelHeightRatio',
-    default: () => 0.5,
+    default: () => 0.3,
   },
   {
     key: 'floatingPanelZIndex',

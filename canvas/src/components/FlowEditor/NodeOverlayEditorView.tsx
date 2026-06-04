@@ -219,8 +219,8 @@ export function NodeOverlayEditorView(args: {
         setToolbarVisible(true)
       }}
     >
-      <div className="relative">
-        <div
+      <section className="relative">
+        <section
           className={
             isRichMediaPanelWidget
               ? `absolute z-10 ${pointerPolicy.toolbarPointerEventsClassName}`
@@ -269,9 +269,9 @@ export function NodeOverlayEditorView(args: {
             onConvertToLoopNode={onConvertToLoopNode}
             onUpdateKvEntry={onUpdateKvEntry}
           />
-        </div>
+        </section>
 
-        <div className={pointerPolicy.panelPointerEventsClassName}>
+        <section className={pointerPolicy.panelPointerEventsClassName}>
           <NodeOverlayEditorPanel
             active={active}
             node={node}
@@ -310,8 +310,8 @@ export function NodeOverlayEditorView(args: {
             onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
             onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
           />
-        </div>
-      </div>
+        </section>
+      </section>
     </aside>
   )
 }

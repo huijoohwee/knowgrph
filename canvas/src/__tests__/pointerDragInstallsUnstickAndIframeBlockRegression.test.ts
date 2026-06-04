@@ -6,7 +6,7 @@ export async function testPointerDragInstallsUnstickAndTogglesIframeBlockClass()
   delete g.__kgPointerDragUnstickInstalled
   delete g.__kgActivePointerDragByKey
 
-  const bootstrap = initJsdomHarness('<!doctype html><html><body><div id="t"></div></body></html>')
+  const bootstrap = initJsdomHarness('<!doctype html><html><body><section id="t"></section></body></html>')
   try {
     const el = bootstrap.dom.window.document.getElementById('t') as unknown as Element
     const ev = {

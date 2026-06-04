@@ -437,6 +437,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
         setActiveMarkdownDocument: args.setActiveMarkdownDocument,
         name: applyArgs.activeDocumentKey,
         text: applyArgs.text,
+        canonicalMarkdownText: args.markdownDocumentText,
         sourceUrl: applyArgs.sourceUrl,
         autoEnableFrontmatter: true,
         applyViewPreset: true,
@@ -602,6 +603,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeDocumentSourceUrl,
     activeText: args.activeText,
     activeTextOwnedByActivePath: !!(args.activePath && args.lastLoadedRef.current?.path === args.activePath),
+    canonicalMarkdownText: args.markdownDocumentText,
     setActiveMarkdownDocument: args.setActiveMarkdownDocument,
     paused: args.viewerInlineEditActive,
   })

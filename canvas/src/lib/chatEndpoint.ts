@@ -13,6 +13,14 @@ export const CHAT_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 export const CHAT_OPENAI_HOST = 'api.openai.com'
 export const CHAT_MIROMIND_HOST = 'api.miromind.ai'
 export const CHAT_AGNES_HOST = 'apihub.agnes-ai.com'
+export const CHAT_QWEN_SINGAPORE_HOST = 'dashscope-intl.aliyuncs.com'
+export const CHAT_QWEN_US_VIRGINIA_HOST = 'dashscope-us.aliyuncs.com'
+export const CHAT_QWEN_CHINA_BEIJING_HOST = 'dashscope.aliyuncs.com'
+export const CHAT_QWEN_HONG_KONG_HOST = 'cn-hongkong.dashscope.aliyuncs.com'
+export const CHAT_GOOGLE_CLOUD_GLOBAL_HOST = 'aiplatform.googleapis.com'
+export const CHAT_GOOGLE_CLOUD_US_CENTRAL1_HOST = 'us-central1-aiplatform.googleapis.com'
+export const CHAT_GOOGLE_CLOUD_EUROPE_WEST4_HOST = 'europe-west4-aiplatform.googleapis.com'
+export const CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST = 'asia-southeast1-aiplatform.googleapis.com'
 export const CHAT_DEERFLOW_LOCAL_HOST = 'localhost'
 export const CHAT_GEMINI_HOST = 'generativelanguage.googleapis.com'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_BASE = `https://${CHAT_BYTEPLUS_AP_SOUTHEAST_HOST}`
@@ -20,24 +28,54 @@ export const CHAT_BYTEPLUS_EU_WEST_BASE = `https://${CHAT_BYTEPLUS_EU_WEST_HOST}
 export const CHAT_OPENAI_BASE = `https://${CHAT_OPENAI_HOST}`
 export const CHAT_MIROMIND_BASE = `https://${CHAT_MIROMIND_HOST}`
 export const CHAT_AGNES_BASE = `https://${CHAT_AGNES_HOST}`
+export const CHAT_QWEN_BASE = `https://${CHAT_QWEN_SINGAPORE_HOST}`
+export const CHAT_QWEN_US_VIRGINIA_BASE = `https://${CHAT_QWEN_US_VIRGINIA_HOST}`
+export const CHAT_QWEN_CHINA_BEIJING_BASE = `https://${CHAT_QWEN_CHINA_BEIJING_HOST}`
+export const CHAT_QWEN_HONG_KONG_BASE = `https://${CHAT_QWEN_HONG_KONG_HOST}`
+export const CHAT_GOOGLE_CLOUD_GLOBAL_BASE = `https://${CHAT_GOOGLE_CLOUD_GLOBAL_HOST}`
+export const CHAT_GOOGLE_CLOUD_US_CENTRAL1_BASE = `https://${CHAT_GOOGLE_CLOUD_US_CENTRAL1_HOST}`
+export const CHAT_GOOGLE_CLOUD_EUROPE_WEST4_BASE = `https://${CHAT_GOOGLE_CLOUD_EUROPE_WEST4_HOST}`
+export const CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_BASE = `https://${CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST}`
 export const CHAT_DEERFLOW_LOCAL_BASE = 'http://localhost:8001'
 export const CHAT_GEMINI_BASE = `https://${CHAT_GEMINI_HOST}`
 export const CHAT_GEMINI_VIDEOS_PATH = '/v1beta/models/{model}:predictLongRunning'
 export const CHAT_GEMINI_OPENAI_CHAT_PATH = '/v1beta/openai/chat/completions'
+export const CHAT_GOOGLE_CLOUD_PROJECT_PLACEHOLDER = 'PROJECT_ID'
+export const CHAT_GOOGLE_CLOUD_LOCATION_DEFAULT = 'us-central1'
+export const CHAT_GOOGLE_CLOUD_OPENAPI_CHAT_COMPLETIONS_PATH = `/v1/projects/${CHAT_GOOGLE_CLOUD_PROJECT_PLACEHOLDER}/locations/${CHAT_GOOGLE_CLOUD_LOCATION_DEFAULT}/endpoints/openapi/chat/completions`
+export const CHAT_QWEN_COMPATIBLE_MODE_PATH = '/compatible-mode/v1'
+export const CHAT_QWEN_CHAT_COMPLETIONS_PATH = `${CHAT_QWEN_COMPATIBLE_MODE_PATH}/chat/completions`
+export const CHAT_QWEN_MODELS_PATH = `${CHAT_QWEN_COMPATIBLE_MODE_PATH}/models`
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL = `${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
 export const CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL = `${CHAT_BYTEPLUS_EU_WEST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
 export const CHAT_OPENAI_ENDPOINT_URL = `${CHAT_OPENAI_BASE}${CHAT_OPENAI_RESPONSES_PATH}`
 export const CHAT_MIROMIND_ENDPOINT_URL = `${CHAT_MIROMIND_BASE}${CHAT_COMPLETIONS_PATH}`
 export const CHAT_AGNES_ENDPOINT_URL = `${CHAT_AGNES_BASE}${CHAT_COMPLETIONS_PATH}`
+export const CHAT_QWEN_ENDPOINT_URL = `${CHAT_QWEN_BASE}${CHAT_QWEN_CHAT_COMPLETIONS_PATH}`
+export const CHAT_QWEN_ENDPOINT_OPTIONS = [
+  CHAT_QWEN_ENDPOINT_URL,
+  `${CHAT_QWEN_US_VIRGINIA_BASE}${CHAT_QWEN_CHAT_COMPLETIONS_PATH}`,
+  `${CHAT_QWEN_CHINA_BEIJING_BASE}${CHAT_QWEN_CHAT_COMPLETIONS_PATH}`,
+  `${CHAT_QWEN_HONG_KONG_BASE}${CHAT_QWEN_CHAT_COMPLETIONS_PATH}`,
+] as const
+export const CHAT_GOOGLE_CLOUD_ENDPOINT_URL = `${CHAT_GOOGLE_CLOUD_US_CENTRAL1_BASE}${CHAT_GOOGLE_CLOUD_OPENAPI_CHAT_COMPLETIONS_PATH}`
+export const CHAT_GOOGLE_CLOUD_ENDPOINT_OPTIONS = [
+  CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
+  `${CHAT_GOOGLE_CLOUD_GLOBAL_BASE}/v1/projects/${CHAT_GOOGLE_CLOUD_PROJECT_PLACEHOLDER}/locations/global/endpoints/openapi/chat/completions`,
+  `${CHAT_GOOGLE_CLOUD_EUROPE_WEST4_BASE}/v1/projects/${CHAT_GOOGLE_CLOUD_PROJECT_PLACEHOLDER}/locations/europe-west4/endpoints/openapi/chat/completions`,
+  `${CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_BASE}/v1/projects/${CHAT_GOOGLE_CLOUD_PROJECT_PLACEHOLDER}/locations/asia-southeast1/endpoints/openapi/chat/completions`,
+] as const
 export const CHAT_DEERFLOW_ENDPOINT_URL = `${CHAT_DEERFLOW_LOCAL_BASE}${CHAT_DEERFLOW_CHAT_COMPLETIONS_PATH}`
 export const CHAT_PROVIDER_OPENAI = 'openai'
 export const CHAT_PROVIDER_MIROMIND = 'miromind'
 export const CHAT_PROVIDER_AGNES = 'agnes-ai'
+export const CHAT_PROVIDER_QWEN = 'qwen'
+export const CHAT_PROVIDER_GOOGLE_CLOUD = 'google-cloud'
 export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_DEERFLOW = 'deerflow'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
 export const CHAT_PROVIDER_GEMINI = 'gemini'
-export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_AGNES, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_GEMINI] as const
+export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_AGNES, CHAT_PROVIDER_QWEN, CHAT_PROVIDER_GOOGLE_CLOUD, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_GEMINI] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
 export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-mini-260215'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-4-0-250828'
@@ -67,6 +105,27 @@ export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
 export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5'] as const
 export const CHAT_MIROMIND_MODEL_OPTIONS = ['mirothinker-1-7-deepresearch-mini', 'mirothinker-1-7-deepresearch'] as const
 export const CHAT_AGNES_MODEL_OPTIONS = ['agnes-2.0-flash'] as const
+export const CHAT_QWEN_MODEL_OPTIONS = [
+  'qwen-plus',
+  'qwen-plus-latest',
+  'qwen3-max',
+  'qwen3-max-preview',
+  'qwen-flash',
+  'qwen3-next-80b-a3b-instruct',
+  'qwen3-next-80b-a3b-thinking',
+  'qwen3-235b-a22b-instruct-2507',
+  'qwen3-235b-a22b-thinking-2507',
+  'qwen3-32b',
+  'qwen3-14b',
+  'qwen3-8b',
+] as const
+export const CHAT_GOOGLE_CLOUD_MODEL_OPTIONS = [
+  'google/gemini-2.0-flash-001',
+  'google/gemini-1.5-flash-001',
+  'google/gemini-1.5-pro-001',
+  'google/gemini-2.5-flash-preview-09-2025',
+  'google/gemini-2.5-flash-lite-preview-09-2025',
+] as const
 export const CHAT_DEERFLOW_MODEL_OPTIONS = CHAT_OPENAI_MODEL_OPTIONS
 export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
 export const CHAT_GEMINI_VIDEO_MODEL_DEFAULT = 'veo-3.1-generate-preview'
@@ -96,6 +155,8 @@ const CHAT_SHARED_MODEL_CATALOG_OPTIONS = [
   ...CHAT_OPENAI_MODEL_OPTIONS,
   ...CHAT_MIROMIND_MODEL_OPTIONS,
   ...CHAT_AGNES_MODEL_OPTIONS,
+  ...CHAT_QWEN_MODEL_OPTIONS,
+  ...CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
   ...CHAT_BYTEPLUS_MODEL_OPTIONS,
   ...CHAT_LOCAL_MODEL_OPTIONS,
 ] as const
@@ -113,6 +174,8 @@ const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_DEERFLOW]: 'DeerFlow Gateway',
   [CHAT_PROVIDER_MIROMIND]: 'MiroMind API',
   [CHAT_PROVIDER_AGNES]: 'Agnes AI API',
+  [CHAT_PROVIDER_QWEN]: 'Qwen API',
+  [CHAT_PROVIDER_GOOGLE_CLOUD]: 'Google Cloud Vertex AI',
   [CHAT_PROVIDER_OPENAI]: 'OpenAI',
   [CHAT_PROVIDER_LM_STUDIO]: 'Local Gateway',
   [CHAT_PROVIDER_GEMINI]: 'Google Gemini',
@@ -123,6 +186,8 @@ export const chatProviderRequiresApiKey = (provider: unknown): boolean => {
   return normalizedProvider === CHAT_PROVIDER_OPENAI
     || normalizedProvider === CHAT_PROVIDER_MIROMIND
     || normalizedProvider === CHAT_PROVIDER_AGNES
+    || normalizedProvider === CHAT_PROVIDER_QWEN
+    || normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD
     || normalizedProvider === CHAT_PROVIDER_BYTEPLUS
     || normalizedProvider === CHAT_PROVIDER_GEMINI
 }
@@ -152,6 +217,22 @@ const isTrustedAgnesHost = (hostname: string): boolean => {
   return host === CHAT_AGNES_HOST
 }
 
+const isTrustedQwenHost = (hostname: string): boolean => {
+  const host = String(hostname || '').toLowerCase()
+  return host === CHAT_QWEN_SINGAPORE_HOST
+    || host === CHAT_QWEN_US_VIRGINIA_HOST
+    || host === CHAT_QWEN_CHINA_BEIJING_HOST
+    || host === CHAT_QWEN_HONG_KONG_HOST
+}
+
+const isTrustedGoogleCloudHost = (hostname: string): boolean => {
+  const host = String(hostname || '').toLowerCase()
+  return host === CHAT_GOOGLE_CLOUD_GLOBAL_HOST
+    || host === CHAT_GOOGLE_CLOUD_US_CENTRAL1_HOST
+    || host === CHAT_GOOGLE_CLOUD_EUROPE_WEST4_HOST
+    || host === CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST
+}
+
 const isTrustedBytePlusHost = (hostname: string): boolean => {
   const host = String(hostname || '').toLowerCase()
   return host === CHAT_BYTEPLUS_AP_SOUTHEAST_HOST || host === CHAT_BYTEPLUS_EU_WEST_HOST
@@ -168,6 +249,8 @@ const getProviderDefaultUpstreamBase = (provider: unknown): string | null => {
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_LOCAL_BASE
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return CHAT_MIROMIND_BASE
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return CHAT_AGNES_BASE
+  if (normalizedProvider === CHAT_PROVIDER_QWEN) return CHAT_QWEN_BASE
+  if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) return CHAT_GOOGLE_CLOUD_US_CENTRAL1_BASE
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_BASE
   if (normalizedProvider === CHAT_PROVIDER_GEMINI) return CHAT_GEMINI_BASE
   return null
@@ -179,6 +262,8 @@ const getProviderDefaultEndpointUrl = (provider: unknown): string => {
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return CHAT_MIROMIND_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return CHAT_AGNES_ENDPOINT_URL
+  if (normalizedProvider === CHAT_PROVIDER_QWEN) return CHAT_QWEN_ENDPOINT_URL
+  if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) return CHAT_GOOGLE_CLOUD_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_GEMINI) return `${CHAT_GEMINI_BASE}${CHAT_GEMINI_OPENAI_CHAT_PATH}`
   return `${CHAT_PROXY_PATH_PREFIX}${CHAT_COMPLETIONS_PATH}`
@@ -212,9 +297,54 @@ const normalizeBytePlusBaseRequestPath = (path: string): string => {
   return raw
 }
 
+const normalizeQwenBaseRequestPath = (path: string): string => {
+  const raw = String(path || '').trim()
+  if (!raw) return raw
+  const splitAt = raw.search(/[?#]/)
+  const pathname = splitAt >= 0 ? raw.slice(0, splitAt) : raw
+  const suffix = splitAt >= 0 ? raw.slice(splitAt) : ''
+  if (pathname === '/' || pathname === '') {
+    return `${CHAT_QWEN_CHAT_COMPLETIONS_PATH}${suffix}`
+  }
+  if (/\/compatible-mode\/v1\/?$/i.test(pathname)) {
+    return `${pathname.replace(/\/compatible-mode\/v1\/?$/i, CHAT_QWEN_CHAT_COMPLETIONS_PATH)}${suffix}`
+  }
+  return raw
+}
+
+const normalizeGoogleCloudBaseRequestPath = (path: string): string => {
+  const raw = String(path || '').trim()
+  if (!raw) return raw
+  const splitAt = raw.search(/[?#]/)
+  const pathname = splitAt >= 0 ? raw.slice(0, splitAt) : raw
+  const suffix = splitAt >= 0 ? raw.slice(splitAt) : ''
+  if (pathname === '/' || pathname === '') {
+    return `${CHAT_GOOGLE_CLOUD_OPENAPI_CHAT_COMPLETIONS_PATH}${suffix}`
+  }
+  if (/\/v1\/projects\/[^/]+\/locations\/[^/]+\/endpoints\/openapi\/?$/i.test(pathname)) {
+    return `${pathname.replace(/\/?$/i, '/chat/completions')}${suffix}`
+  }
+  return raw
+}
+
+const normalizeKnownBaseRequestPath = (path: string): string =>
+  normalizeGoogleCloudBaseRequestPath(normalizeQwenBaseRequestPath(normalizeBytePlusBaseRequestPath(path)))
+
 const replaceCompletionsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/compatible-mode\/v1\/?$/i.test(normalized)) {
+    return normalized.replace(/\/compatible-mode\/v1\/?$/i, CHAT_QWEN_MODELS_PATH)
+  }
+  if (/\/compatible-mode\/v1\/chat\/completions\/?$/i.test(normalized)) {
+    return normalized.replace(/\/compatible-mode\/v1\/chat\/completions\/?$/i, CHAT_QWEN_MODELS_PATH)
+  }
+  if (/\/endpoints\/openapi\/chat\/completions\/?$/i.test(normalized)) {
+    return normalized.replace(/\/chat\/completions\/?$/i, '/models')
+  }
+  if (/\/endpoints\/openapi\/?$/i.test(normalized)) {
+    return normalized.replace(/\/?$/i, '/models')
+  }
   if (/\/api\/v3\/?$/i.test(normalized)) {
     return normalized.replace(/\/api\/v3\/?$/i, '/api/v3/models')
   }
@@ -236,6 +366,18 @@ const replaceCompletionsPath = (path: string): string => {
 const toModelsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/compatible-mode\/v1\/?$/i.test(normalized)) {
+    return normalized.replace(/\/compatible-mode\/v1\/?$/i, CHAT_QWEN_MODELS_PATH)
+  }
+  if (/\/compatible-mode\/v1\/chat\/completions\/?$/i.test(normalized)) {
+    return normalized.replace(/\/compatible-mode\/v1\/chat\/completions\/?$/i, CHAT_QWEN_MODELS_PATH)
+  }
+  if (/\/endpoints\/openapi\/chat\/completions\/?$/i.test(normalized)) {
+    return normalized.replace(/\/chat\/completions\/?$/i, '/models')
+  }
+  if (/\/endpoints\/openapi\/?$/i.test(normalized)) {
+    return normalized.replace(/\/?$/i, '/models')
+  }
   if (/\/api\/v3\/?$/i.test(normalized)) {
     return normalized.replace(/\/api\/v3\/?$/i, '/api/v3/models')
   }
@@ -284,6 +426,8 @@ export function normalizeChatProviderId(value: unknown): ChatProviderId {
   if (raw === CHAT_PROVIDER_DEERFLOW || raw === 'deer-flow' || raw === 'deerflow-gateway') return CHAT_PROVIDER_DEERFLOW
   if (raw === CHAT_PROVIDER_MIROMIND || raw === 'miro-mind' || raw === 'miromind-api') return CHAT_PROVIDER_MIROMIND
   if (raw === CHAT_PROVIDER_AGNES || raw === 'agnes' || raw === 'agnes-ai-api') return CHAT_PROVIDER_AGNES
+  if (raw === CHAT_PROVIDER_QWEN || raw === 'dashscope' || raw === 'model-studio' || raw === 'modelstudio' || raw === 'qwen-api' || raw === 'qwen-modelstudio' || raw === 'alibaba-qwen') return CHAT_PROVIDER_QWEN
+  if (raw === CHAT_PROVIDER_GOOGLE_CLOUD || raw === 'google cloud' || raw === 'googlecloud' || raw === 'gcp' || raw === 'vertex' || raw === 'vertex-ai' || raw === 'vertexai' || raw === 'google-vertex' || raw === 'google-vertex-ai') return CHAT_PROVIDER_GOOGLE_CLOUD
   if (raw === CHAT_PROVIDER_OPENAI) return CHAT_PROVIDER_OPENAI
   if (raw === CHAT_PROVIDER_LM_STUDIO) return CHAT_PROVIDER_LM_STUDIO
   if (raw === CHAT_PROVIDER_GEMINI || raw === 'google-gemini' || raw === 'google') return CHAT_PROVIDER_GEMINI
@@ -296,6 +440,8 @@ export function getChatModelOptions(provider: unknown): readonly string[] {
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return CHAT_MIROMIND_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return CHAT_AGNES_MODEL_OPTIONS
+  if (normalizedProvider === CHAT_PROVIDER_QWEN) return CHAT_QWEN_MODEL_OPTIONS
+  if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) return CHAT_GOOGLE_CLOUD_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return CHAT_LOCAL_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_GEMINI) return CHAT_GEMINI_MODEL_OPTIONS
   return CHAT_OPENAI_MODEL_OPTIONS
@@ -331,6 +477,21 @@ export function getChatProviderRegionLabel(provider: unknown, endpointUrl?: unkn
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return 'Global'
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return 'Global'
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return 'Local'
+  if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) {
+    const upstream = resolveChatUpstreamBaseForProxy(endpointUrl, normalizedProvider)
+    const host = (() => {
+      if (!upstream) return ''
+      try {
+        return new URL(upstream).hostname
+      } catch {
+        return ''
+      }
+    })()
+    if (host === CHAT_GOOGLE_CLOUD_GLOBAL_HOST) return 'Global'
+    if (host === CHAT_GOOGLE_CLOUD_EUROPE_WEST4_HOST) return 'Europe-West4'
+    if (host === CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST) return 'Asia-Southeast1'
+    return 'US-Central1'
+  }
   if (normalizedProvider === CHAT_PROVIDER_GEMINI) return 'Global'
   const upstream = resolveChatUpstreamBaseForProxy(endpointUrl, normalizedProvider)
   const host = (() => {
@@ -341,6 +502,12 @@ export function getChatProviderRegionLabel(provider: unknown, endpointUrl?: unkn
       return ''
     }
   })()
+  if (normalizedProvider === CHAT_PROVIDER_QWEN) {
+    if (host === CHAT_QWEN_US_VIRGINIA_HOST) return 'US-Virginia'
+    if (host === CHAT_QWEN_CHINA_BEIJING_HOST) return 'China-Beijing'
+    if (host === CHAT_QWEN_HONG_KONG_HOST) return 'Hong-Kong'
+    return 'Singapore'
+  }
   if (host === CHAT_BYTEPLUS_EU_WEST_HOST) return 'EU-West-1'
   return 'AP-Southeast-1'
 }
@@ -420,7 +587,13 @@ export function normalizeChatEndpointUrlInput(value: unknown, provider?: unknown
   if (!absolute) return getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedQwenHost(parsed.hostname) || isTrustedGoogleCloudHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
+      if (isTrustedQwenHost(parsed.hostname)) {
+        parsed.pathname = normalizeQwenBaseRequestPath(parsed.pathname)
+      }
+      if (isTrustedGoogleCloudHost(parsed.hostname)) {
+        parsed.pathname = normalizeGoogleCloudBaseRequestPath(parsed.pathname)
+      }
       return parsed.toString()
     }
   } catch {
@@ -434,21 +607,27 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   if (!raw) return null
   if (raw.startsWith('/')) {
     if (raw.startsWith(CHAT_PROXY_PATH_PREFIX)) {
-      return `${CHAT_PROXY_PATH_PREFIX}${normalizeBytePlusBaseRequestPath(stripProxyPrefix(raw))}`
+      return `${CHAT_PROXY_PATH_PREFIX}${normalizeKnownBaseRequestPath(stripProxyPrefix(raw))}`
     }
-    return `${CHAT_PROXY_PATH_PREFIX}${normalizeBytePlusBaseRequestPath(raw.startsWith('/') ? raw : `/${raw}`)}`
+    return `${CHAT_PROXY_PATH_PREFIX}${normalizeKnownBaseRequestPath(raw.startsWith('/') ? raw : `/${raw}`)}`
   }
   const absolute = coerceHttpUrl(raw)
   if (!absolute) return null
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedQwenHost(parsed.hostname) || isTrustedGoogleCloudHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
       if (isTrustedBytePlusHost(parsed.hostname)) {
         if (parsed.pathname === '/' || parsed.pathname === '') {
           parsed.pathname = CHAT_BYTEPLUS_COMPLETIONS_PATH
         } else {
           parsed.pathname = normalizeBytePlusBaseRequestPath(parsed.pathname)
         }
+      }
+      if (isTrustedQwenHost(parsed.hostname)) {
+        parsed.pathname = normalizeQwenBaseRequestPath(parsed.pathname)
+      }
+      if (isTrustedGoogleCloudHost(parsed.hostname)) {
+        parsed.pathname = normalizeGoogleCloudBaseRequestPath(parsed.pathname)
       }
       if (isTrustedMiroMindHost(parsed.hostname) && (parsed.pathname === '/' || parsed.pathname === '')) {
         parsed.pathname = CHAT_COMPLETIONS_PATH
@@ -513,6 +692,12 @@ export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknow
     if (normalizedProvider === CHAT_PROVIDER_AGNES) {
       return isTrustedAgnesHost(parsed.hostname) ? parsed.origin : null
     }
+    if (normalizedProvider === CHAT_PROVIDER_QWEN) {
+      return isTrustedQwenHost(parsed.hostname) ? parsed.origin : null
+    }
+    if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) {
+      return isTrustedGoogleCloudHost(parsed.hostname) ? parsed.origin : null
+    }
     if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) {
       return isLocalHost(parsed.hostname) ? parsed.origin : null
     }
@@ -565,6 +750,12 @@ export function getChatRecommendedModelHint(provider: unknown): string {
   }
   if (normalizedProvider === CHAT_PROVIDER_AGNES) {
     return `Use ${CHAT_AGNES_MODEL_OPTIONS[0]}; requests stay on the shared chat-completions transport and stream SSE JSON chunks through the canonical markdown/frontmatter pipeline.`
+  }
+  if (normalizedProvider === CHAT_PROVIDER_QWEN) {
+    return `Use ${CHAT_QWEN_MODEL_OPTIONS[0]}, ${CHAT_QWEN_MODEL_OPTIONS[2]}, or ${CHAT_QWEN_MODEL_OPTIONS[4]}; Qwen runs through Alibaba Cloud Model Studio's OpenAI-compatible chat-completions endpoint.`
+  }
+  if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) {
+    return `Use ${CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0]} or another google/gemini model id; Google Cloud runs through Vertex AI's OpenAI-compatible endpoints/openapi chat-completions endpoint.`
   }
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
     return 'Use an OpenAI model id and keep API keys server-routed through the proxy.'

@@ -37,7 +37,6 @@ const escapeCssAttrValue = (value: string): string => {
 }
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
-const WORKSPACE_LEFT_PANE_SELECTOR = '[data-kg-workspace-left-pane="1"]'
 
 export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   if (typeof document === 'undefined') return null
@@ -135,42 +134,19 @@ export function resolveFlowEditorVisibleViewport(args: {
   if (!(surfaceRoot instanceof HTMLElement)) return fallback
   const rect = surfaceRoot.getBoundingClientRect()
   if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.right) || !Number.isFinite(rect.bottom)) return fallback
-  const surfaceOffsetLeft = Number(rect.left)
-  const surfaceOffsetTop = Number(rect.top)
   const top = 0
   const left = 0
   const right = Math.max(left + 1, Math.min(args.viewportW, Math.floor(rect.width)))
   const bottom = Math.max(top + 1, Math.min(args.viewportH, Math.floor(rect.height)))
-  const paneEls = Array.from(document.querySelectorAll(WORKSPACE_LEFT_PANE_SELECTOR))
-    .filter((el): el is HTMLElement => el instanceof HTMLElement)
-  let maxPaneRight = Number.NEGATIVE_INFINITY
-  for (let i = 0; i < paneEls.length; i += 1) {
-    const paneRect = paneEls[i]!.getBoundingClientRect()
-    if (!Number.isFinite(paneRect.left) || !Number.isFinite(paneRect.right) || !Number.isFinite(paneRect.top) || !Number.isFinite(paneRect.bottom)) continue
-    const paneLeft = Math.max(left, Math.min(right, paneRect.left - surfaceOffsetLeft))
-    const paneRight = Math.max(left, Math.min(right, paneRect.right - surfaceOffsetLeft))
-    const paneTop = Math.max(top, Math.min(bottom, paneRect.top - surfaceOffsetTop))
-    const paneBottom = Math.max(top, Math.min(bottom, paneRect.bottom - surfaceOffsetTop))
-    if (paneRight <= left || paneLeft >= right) continue
-    if (paneBottom <= top || paneTop >= bottom) continue
-    maxPaneRight = Math.max(maxPaneRight, paneRight)
-  }
-  let visibleLeft = left
-  const rightCanvasStrip = Number.isFinite(maxPaneRight) ? right - maxPaneRight : right
-  const shouldSubtractPaneOverlap =
-    Number.isFinite(maxPaneRight)
-    && rightCanvasStrip > 0
-  if (shouldSubtractPaneOverlap) {
-    visibleLeft = Math.max(visibleLeft, maxPaneRight)
-  }
+  // Editor Workspace is an overlay, not a Flow Editor layout constraint.
   return {
-    left: visibleLeft,
+    left,
     top,
     right,
     bottom,
-    width: Math.max(1, right - visibleLeft),
+    width: Math.max(1, right - left),
     height: Math.max(1, bottom - top),
-    centerX: (visibleLeft + right) / 2,
+    centerX: (left + right) / 2,
     centerY: (top + bottom) / 2,
   }
 }

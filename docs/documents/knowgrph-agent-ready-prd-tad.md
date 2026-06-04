@@ -39,7 +39,9 @@ This document replaces two stale narratives at once:
 In the current repo, Knowgrph already ships the service-homepage agent-readiness surface on
 `https://airvio.co/knowgrph/`, plus a separate in-browser MainPanel -> FloatingPanel Chat -> KGC
 -> Canvas pipeline that is richer than the deployed read-only MCP surface but is not yet exposed
-as a first-class MCP tool chain.
+as a first-class MCP tool chain. It also ships a local long-horizon SuperAgent harness through
+`knowgrph_parser`, `npm run goal:run`, and local MCP `knowgrph.superagent.run`; that local harness
+is not a deployed public mutation tool.
 
 The active work is therefore not "add the first agent-ready surface." The active work is:
 
@@ -55,6 +57,8 @@ The active work is therefore not "add the first agent-ready surface." The active
   instead of parallel configuration systems
 - document the existing FloatingPanel Chat -> LLM output -> YAML frontmatter -> Canvas graph
   pipeline as the only valid upstream path for future MCP-aligned pipeline work
+- document the native local SuperAgent harness as a source-owned CLI/local-MCP execution surface,
+  inspired by DeerFlow primitives but not copied from DeerFlow and not deployed through Pages MCP
 - prevent drift between browser WebMCP, HTTP MCP, MainPanel surfaces, chat submit helpers, canvas
   parsing, storage routes, and publish sync
 - forbid stale architecture claims that the full remote MCP pipeline, auth, monetization, or graph
@@ -178,6 +182,7 @@ Knowgrph does not currently aim to:
 | Default workspace markdown doc route | Implemented | `cloudflare/workers/knowgrph-storage/index.ts` | Published default workspace only |
 | Source Files index and `llms.txt` | Implemented | `cloudflare/workers/knowgrph-storage/crawler.ts` | Service doc remains intentionally compact |
 | Crawler-visible Markdown pane path | Implemented | `cloudflare/workers/knowgrph-storage/crawler.ts` + `cloudflare/workers/knowgrph-storage/index.ts` | Agents read published Editor Workspace Markdown through D1-backed Source Files index and doc-view routes, not from repo-local docs directories |
+| Local long-horizon SuperAgent harness | Implemented locally | `knowgrph_parser/superagent_harness.py`, `knowgrph_parser/superagent_plan.py`, `knowgrph_parser/superagent_tools.py`, `mcp/server.js`, `mcp/local-tool-contract.js` | CLI/local MCP only; not a deployed Pages/WebMCP mutation service; DeerFlow is conceptual inspiration only |
 | Publish sync and Pages control-file hygiene | Implemented | `scripts/sync-pages-knowgrph.mjs` | Must keep mirror non-authoritative |
 | PWA base-path correctness | Implemented | `canvas/index.html` and Pages root config | Must keep `%BASE_URL%manifest.webmanifest` invariant |
 | Full remote MCP pipeline platform from the separate MCP service PRD/TAD | Planned extension | `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md` | Must not be documented here as already shipped on the Pages agent-ready surface |

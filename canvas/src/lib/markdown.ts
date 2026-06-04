@@ -34,14 +34,16 @@ export const splitMarkdownLines = (raw: string): string[] =>
     .replace(/\r/g, '\n')
     .split('\n')
 
+const isYamlFrontmatterFenceLine = (line: string): boolean => /^---\s*$/.test(String(line || ''))
+
 export const parseMarkdownFrontmatter = (
   lines: string[],
 ): MarkdownFrontmatterParseResult => {
   if (!lines.length) return { meta: {}, startIndex: 0, warnings: [] }
-  if ((lines[0] || '').trim() !== '---') return { meta: {}, startIndex: 0, warnings: [] }
+  if (!isYamlFrontmatterFenceLine(lines[0] || '')) return { meta: {}, startIndex: 0, warnings: [] }
   let endIndex = -1
   for (let i = 1; i < lines.length; i += 1) {
-    if ((lines[i] || '').trim() === '---') {
+    if (isYamlFrontmatterFenceLine(lines[i] || '')) {
       endIndex = i
       break
     }

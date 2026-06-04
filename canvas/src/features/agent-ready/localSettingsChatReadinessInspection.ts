@@ -1,6 +1,21 @@
 import type { LocalSettingsChatReadinessSurfaceSnapshot } from './browserLocalSurfaceSnapshots'
+import {
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS,
+} from './mainPanelSuperAgentIntegrationContract'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
+const normalizeStringList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const entry of value) {
+    const normalized = normalizeString(entry)
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    out.push(normalized)
+  }
+  return out
+}
 
 export const inspectLocalSettingsChatReadiness = (
   snapshot: (LocalSettingsChatReadinessSurfaceSnapshot & { updatedAtMs?: number }) | null,
@@ -12,6 +27,7 @@ export const inspectLocalSettingsChatReadiness = (
       message: 'SettingsView chat readiness is not currently mounted in the local Knowgrph browser runtime.',
     }
   }
+  const configuredProviderIds = normalizeStringList(snapshot.integrationProviderIds)
   return {
     available: true,
     sourceKind: 'browser-local-settings-chat-readiness',
@@ -20,6 +36,13 @@ export const inspectLocalSettingsChatReadiness = (
       endpointUrl: snapshot.chatEndpointUrl,
       model: snapshot.chatModel,
       authMode: snapshot.chatAuthMode,
+    },
+    providerCoverage: {
+      availableProviderIds: configuredProviderIds.length > 0
+        ? configuredProviderIds
+        : normalizeStringList([snapshot.normalizedChatProvider]),
+      availableProviderLabels: normalizeStringList(snapshot.integrationProviderLabels),
+      superAgentProviderIds: [...KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS],
     },
     routing: {
       contextScope: snapshot.chatContextScope,

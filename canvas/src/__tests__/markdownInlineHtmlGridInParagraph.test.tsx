@@ -7,15 +7,15 @@ export async function testMarkdownPreviewRendersInlineHtmlGridInsideParagraph() 
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
     const markdownText = [
-      'Grid: <div class="grid-cols-2 gap-4"><div>Left</div><div>Right</div></div>',
+      'Grid: <section class="grid-cols-2 gap-4"><section>Left</section><section>Right</section></section>',
       '',
-      'Columns: <div style="column-count:2;column-gap:16px"><div>ColA</div><div>ColB</div></div>',
+      'Columns: <section style="column-count:2;column-gap:16px"><section>ColA</section><section>ColB</section></section>',
       '',
     ].join('\n')
 

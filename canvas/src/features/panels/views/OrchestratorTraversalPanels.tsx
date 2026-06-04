@@ -91,8 +91,8 @@ function GraphRagPathTraverseHelperSection({
   if (!graphRagPathHelper) return null
 
   return (
-    <div className={helperPanelClassName}>
-      <div
+    <section className={helperPanelClassName}>
+      <section
         className={[
           `font-semibold uppercase tracking-wide ${helperTitleClassName} mb-1`,
           uiPanelKeyValueTextSizeClass,
@@ -100,8 +100,8 @@ function GraphRagPathTraverseHelperSection({
         ].join(' ')}
       >
         {UI_COPY.orchestratorGraphRagPathTraverseHelperTitle}
-      </div>
-      <div className="space-y-1">
+      </section>
+      <section className="space-y-1">
         <KeyTypeValueRow
           layout="keyIconValue"
           keyNode={(
@@ -109,7 +109,7 @@ function GraphRagPathTraverseHelperSection({
           )}
           typeNode={null}
           valueNode={(
-            <div className="flex flex-wrap items-center gap-1">
+            <section className="flex flex-wrap items-center gap-1">
               <button
                 type="button"
                 className={[
@@ -165,7 +165,7 @@ function GraphRagPathTraverseHelperSection({
                   {UI_COPY.orchestratorPlayGraphRagTraversalButtonLabel}
                 </button>
               </Tooltip>
-            </div>
+            </section>
           )}
         />
         <KeyTypeValueRow
@@ -176,7 +176,7 @@ function GraphRagPathTraverseHelperSection({
           )}
           typeNode={null}
           valueNode={(
-            <div
+            <section
               className={[
                 'flex flex-wrap gap-1',
                 helperValueTextClassName,
@@ -200,12 +200,12 @@ function GraphRagPathTraverseHelperSection({
                   )
                 },
               )}
-            </div>
+            </section>
           )}
           align="start"
         />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 
@@ -246,8 +246,8 @@ function DuckDbQueryPresetsSection({
   if (!activePreset) return null
 
   return (
-    <div className={helperPanelClassName}>
-      <div
+    <section className={helperPanelClassName}>
+      <section
         className={[
           `font-semibold uppercase tracking-wide ${helperTitleClassName} mb-1`,
           uiPanelKeyValueTextSizeClass,
@@ -261,8 +261,8 @@ function DuckDbQueryPresetsSection({
         >
           <span>{UI_COPY.orchestratorDuckDbQueryPresetsTitle}</span>
         </Tooltip>
-      </div>
-      <div className="space-y-1">
+      </section>
+      <section className="space-y-1">
         <KeyTypeValueRow
           layout="keyIconValue"
           keyNode={(
@@ -277,8 +277,8 @@ function DuckDbQueryPresetsSection({
           )}
           typeNode={null}
           valueNode={(
-            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 w-full">
-              <div className="flex items-center gap-1 w-full sm:w-auto">
+            <section className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 w-full">
+              <section className="flex items-center gap-1 w-full sm:w-auto">
                 <Tooltip
                   content={UI_COPY.orchestratorDuckDbPresetSelectTooltip}
                   maxWidthPx={260}
@@ -319,8 +319,8 @@ function DuckDbQueryPresetsSection({
                     {UI_COPY.orchestratorDuckDbSeedTraversalButtonLabel}
                   </button>
                 )}
-              </div>
-              <div className="flex items-center gap-1 w-full sm:w-auto">
+              </section>
+              <section className="flex items-center gap-1 w-full sm:w-auto">
                 <button
                   type="button"
                   className={[
@@ -342,7 +342,7 @@ function DuckDbQueryPresetsSection({
                   {UI_COPY.orchestratorDuckDbCopySqlButtonLabel}
                 </button>
                 {activePreset.directionModes && activePreset.directionModes.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1">
+                  <section className="flex flex-wrap items-center gap-1">
                     <span
                       className={[
                         helperLabelClassName,
@@ -383,10 +383,10 @@ function DuckDbQueryPresetsSection({
                         </button>
                       )
                     })}
-                  </div>
+                  </section>
                 )}
-              </div>
-            </div>
+              </section>
+            </section>
           )}
         />
         <KeyTypeValueRow
@@ -408,7 +408,7 @@ function DuckDbQueryPresetsSection({
               maxWidthPx={260}
               contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             >
-              <div
+              <section
                 className={[
                   helperBodyTextClassName,
                   uiPanelKeyValueTextSizeClass,
@@ -416,7 +416,7 @@ function DuckDbQueryPresetsSection({
                 ].join(' ')}
               >
                 {activePreset.description}
-              </div>
+              </section>
             </Tooltip>
           )}
           align="start"
@@ -441,7 +441,7 @@ function DuckDbQueryPresetsSection({
               contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="w-full"
             >
-              <div className={`${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden ${UI_THEME_TOKENS.input.bg}`}>
+              <section className={`${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden ${UI_THEME_TOKENS.input.bg}`}>
                 <MonacoTextEditor
                   value={editableSqlById[activePresetId] || activePreset.sql}
                   onChange={(value) => {
@@ -456,13 +456,13 @@ function DuckDbQueryPresetsSection({
                   wordWrap={false}
                   className={`w-full h-full ${uiPanelMonospaceTextClass}`}
                 />
-              </div>
+              </section>
             </Tooltip>
           )}
           align="start"
         />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 

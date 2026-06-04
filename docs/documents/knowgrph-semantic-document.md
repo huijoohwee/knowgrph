@@ -35,6 +35,12 @@
 
 ---
 
+## Semantic HTML Content Contract
+
+Generated knowgrph content HTML must expose meaningful containers for agent and MCP parsing. Content/document exporters and rich-media inline `srcdoc` builders normalize generic HTML division element wrappers into semantic containers (`main`, `section`, `article`, `nav`, `aside`, `header`, `footer`) through the shared headless semantic-HTML helper. UI-only layout chrome can keep local presentation wrappers, but content payloads that agents read or edit must not emit generic HTML division element tags.
+
+---
+
 ## Semantic Layer Architecture
 
 **Processing Stack**: Markdown Blocks → TokenLinker → EdgeElevator → PatternMiner → Centrality/Clusters (Communities)

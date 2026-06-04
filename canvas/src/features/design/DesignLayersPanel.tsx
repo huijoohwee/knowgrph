@@ -154,19 +154,19 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
-        <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
+      <section className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
+        <section className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
           <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{UI_LABELS.layerMode}</span>
-        </div>
+        </section>
         <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Switch to Design renderer to view layers.</p>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
-      <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
+    <section className={cn(UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME, UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
+      <section className={cn(UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME, UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
         <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{UI_LABELS.layerMode}</span>
         <span className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>
@@ -212,7 +212,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
         >
           <Focus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         </button>
-      </div>
+      </section>
 
       <label className={UI_RESPONSIVE_DESIGN_PANEL_SEARCH_BLOCK_CLASSNAME} aria-label="Layers search">
         <span className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>{UI_LABELS.search}</span>
@@ -227,7 +227,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
         </span>
       </label>
 
-      <div aria-label="Layers list">
+      <section aria-label="Layers list">
         {filtered.length === 0 ? (
           <span className={cn(UI_RESPONSIVE_DESIGN_PANEL_EMPTY_ROW_CLASSNAME, 'text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No layers match.</span>
         ) : (
@@ -238,7 +238,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
               const label = readMarkdownSigilDisplayText(n.label)
               return (
                 <li key={n.id} className={cn('border-b last:border-b-0', UI_THEME_TOKENS.panel.border)}>
-                  <div className={cn(UI_RESPONSIVE_DESIGN_PANEL_LIST_ROW_CLASSNAME, selected ? 'bg-blue-50 dark:bg-blue-900/20' : '')}>
+                  <section className={cn(UI_RESPONSIVE_DESIGN_PANEL_LIST_ROW_CLASSNAME, selected ? 'bg-blue-50 dark:bg-blue-900/20' : '')}>
                     <button
                       type="button"
                       className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg, 'p-1.5')}
@@ -296,13 +296,13 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
                         <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
                       </button>
                     </span>
-                  </div>
+                  </section>
                 </li>
               )
             })}
           </ul>
         )}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

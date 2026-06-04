@@ -32,7 +32,7 @@ export async function testMermaidRenderErrorUsesToastAndDoesNotRenderInlineBelow
       anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -113,7 +113,7 @@ export async function testMermaidSvgErrorPayloadUsesToastAndNoInlineRender() {
       anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -196,7 +196,7 @@ export async function testMermaidNormalizesLegacyClickSyntaxForHref() {
       anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -252,7 +252,7 @@ export async function testMermaidCleansUpOrphanRenderContainerOnFailure() {
     registerLayoutLoaders: () => void 0,
     initialize: () => void 0,
     render: async (id: string) => {
-      const wrapper = dom.window.document.createElement('div')
+      const wrapper = dom.window.document.createElement('section')
       wrapper.id = `d${id}`
       const svg = dom.window.document.createElementNS('http://www.w3.org/2000/svg', 'svg')
       svg.setAttribute('id', id)
@@ -275,7 +275,7 @@ export async function testMermaidCleansUpOrphanRenderContainerOnFailure() {
       anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -347,7 +347,7 @@ export async function testMermaidSuppressesDuplicateToastsAcrossRapidSwitching()
       anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)

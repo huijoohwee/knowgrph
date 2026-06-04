@@ -5,7 +5,7 @@ import { MarkdownFileTreeRowButton } from '@/features/markdown-workspace/Markdow
 
 export async function testMarkdownFileTreeRowButtonReusesSharedRowShell() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   let clicks = 0

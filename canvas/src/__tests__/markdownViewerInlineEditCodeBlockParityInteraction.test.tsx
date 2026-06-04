@@ -32,7 +32,7 @@ const withOpts = (sourceLines: string[], overrides: Record<string, unknown>) => 
 })
 
 export async function testMarkdownViewerInlineEditCodeBlockKeepsSurfaceLayoutParity() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -103,7 +103,7 @@ export async function testMarkdownViewerInlineEditCodeBlockKeepsSurfaceLayoutPar
 }
 
 export async function testMarkdownViewerInlineEditAsciiCodeBlockKeepsCompactTypographyParity() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -163,7 +163,7 @@ export async function testMarkdownViewerInlineEditAsciiCodeBlockKeepsCompactTypo
 }
 
 export async function testMarkdownViewerInlineEditCodeBlockGutterLayoutKeepsSpacingParity() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -228,7 +228,7 @@ export async function testMarkdownViewerInlineEditCodeBlockGutterLayoutKeepsSpac
 }
 
 export async function testMarkdownViewerCodeFenceToggleWordWrapUpdatesReadAndEditSurface() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -299,7 +299,7 @@ export async function testMarkdownViewerCodeFenceToggleWordWrapUpdatesReadAndEdi
 }
 
 export async function testMarkdownViewerCodeFenceToggleWordWrapOffDisablesWrapInEditSurface() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -369,7 +369,7 @@ export async function testMarkdownViewerCodeFenceToggleWordWrapOffDisablesWrapIn
 }
 
 export async function testMarkdownViewerCodeFenceEditOpenDoesNotInjectSyntheticBottomGap() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -425,7 +425,7 @@ export async function testMarkdownViewerCodeFenceEditOpenDoesNotInjectSyntheticB
 }
 
 export async function testMarkdownViewerCodeFenceSingleClickOpensCaretNearClickPosition() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -487,7 +487,7 @@ export async function testMarkdownViewerCodeFenceSingleClickOpensCaretNearClickP
 }
 
 export async function testMarkdownViewerCodeFenceSingleClickRespectsVerticalLinePosition() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -544,7 +544,7 @@ export async function testMarkdownViewerCodeFenceSingleClickRespectsVerticalLine
 }
 
 export async function testMarkdownViewerCodeFenceToggleWordWrapDoesNotOpenInlineEditor() {
-  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')

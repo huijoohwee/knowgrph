@@ -22,8 +22,8 @@ export function ToolbarHistoryArea({
   }
 
   return (
-    <div className={uiToolbarAreaInsetStackClassName}>
-      <div className={uiToolbarAreaActionRowClassName}>
+    <section className={uiToolbarAreaInsetStackClassName}>
+      <section className={uiToolbarAreaActionRowClassName}>
         <button
           type="button"
           className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -34,7 +34,7 @@ export function ToolbarHistoryArea({
         >
           {EXPORT_UI_LABELS.exportHistoryJsonLd}
         </button>
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

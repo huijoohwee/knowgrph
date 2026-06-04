@@ -2,6 +2,7 @@ export type MarkdownSourceFileListItem = {
   id: string
   name: string
   active?: boolean
+  versionCount?: number
 }
 
 export type MarkdownSourceFilesPanelIntegration = {

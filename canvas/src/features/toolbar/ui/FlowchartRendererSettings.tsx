@@ -364,17 +364,17 @@ export function FlowchartRendererSettings() {
 
   return (
     <CollapsibleSection title="Flowchart" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div
+      <section
         className={uiToolbarSettingsPanelBodyClassName}
         style={safeAreaAware ? { paddingBottom: 'max(var(--kg-toolbar-settings-panel-body-padding-block), env(safe-area-inset-bottom))' } : undefined}
       >
-        <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+        <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Maps the selected flowchart source into the existing 2D Flowchart scene without file-specific assumptions.
-        </div>
+        </section>
         {preferStackedControls ? (
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             Mobile runtime stacks controls at {compactControlsBreakpointPx}px and keeps safe-area spacing {safeAreaAware ? 'on' : 'off'}.
-          </div>
+          </section>
         ) : null}
         <SelectRow
           label="Data source"
@@ -398,12 +398,12 @@ export function FlowchartRendererSettings() {
           />
         ) : null}
         {dataSource === 'api' && featuredPresetSummaries.length > 0 ? (
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             Best exact-match families: {featuredPresetSummaries.map(item => `${item.title} (${item.label})`).join(' | ')}
-          </div>
+          </section>
         ) : null}
         {dataSource === 'api' && featuredPresetSummaries.length > 0 ? (
-          <div className={compactButtonGroupClass}>
+          <section className={compactButtonGroupClass}>
             {featuredPresetSummaries.map(item => (
               <button
                 key={item.id}
@@ -422,7 +422,7 @@ export function FlowchartRendererSettings() {
                 {item.title}
               </button>
             ))}
-          </div>
+          </section>
         ) : null}
         {dataSource === 'api' && builderPreset && builderParamKeys.map(paramKey => {
           const options = Array.isArray(builderPreset.published_param_options?.[paramKey]) ? builderPreset.published_param_options?.[paramKey] || [] : []
@@ -446,19 +446,19 @@ export function FlowchartRendererSettings() {
           )
         })}
         {dataSource === 'api' && builderPreset ? (
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             {matchingPublishedRun
               ? `Builder match: ${matchingPublishedRun.title || matchingPublishedRun.id}`
               : 'Builder match: no exact published run for the current preset and published-safe values.'}
-          </div>
+          </section>
         ) : null}
         {dataSource === 'api' && currentPresetRuns.length > 1 ? (
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             Quick exact runs for this preset
-          </div>
+          </section>
         ) : null}
         {dataSource === 'api' && currentPresetRuns.length > 1 ? (
-          <div className={compactButtonGroupClass}>
+          <section className={compactButtonGroupClass}>
             {currentPresetRuns.slice(0, 6).map(run => (
               <button
                 key={run.id}
@@ -473,10 +473,10 @@ export function FlowchartRendererSettings() {
                 {run.title || run.id}
               </button>
             ))}
-          </div>
+          </section>
         ) : null}
         {dataSource === 'api' && matchingPublishedRun && matchingPublishedRun.id !== effectiveApiRunId ? (
-          <div className={compactControls ? 'flex' : 'flex justify-end'}>
+          <section className={compactControls ? 'flex' : 'flex justify-end'}>
             <button
               type="button"
               className={`App-toolbar__btn ${UI_RESPONSIVE_CONTROL_TOUCH_TARGET_CLASSNAME} text-xs border ${compactControls ? 'w-full justify-center' : ''} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
@@ -484,7 +484,7 @@ export function FlowchartRendererSettings() {
             >
               Use builder match
             </button>
-          </div>
+          </section>
         ) : null}
         {dataSource === 'api' && apiRuns.length > 0 ? (
           <SelectRow
@@ -497,14 +497,14 @@ export function FlowchartRendererSettings() {
           />
         ) : null}
         {dataSource === 'api' && activeRunSummary ? (
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             Selected run summary: {activeRunSummary}
-          </div>
+          </section>
         ) : null}
         {dataSource === 'api' && apiRuns.length > 0 ? (
-          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
             {apiRuns.find(item => item.id === effectiveApiRunId)?.label || ''}
-          </div>
+          </section>
         ) : null}
         <NumberRow
           label="Poll interval (s)"
@@ -515,7 +515,7 @@ export function FlowchartRendererSettings() {
           onChange={setPollIntervalSec}
           compact={compactControls}
         />
-        <div className={`pt-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>Metric mapping</div>
+        <section className={`pt-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>Metric mapping</section>
         <SelectRow
           label="Node size"
           value={nodeSizeMetric}
@@ -564,11 +564,11 @@ export function FlowchartRendererSettings() {
           onChange={v => setEdgeOpacityMetric(v === 'none' ? 'none' : 'strength')}
           compact={compactControls}
         />
-        <div className={`pt-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>Labels</div>
+        <section className={`pt-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>Labels</section>
         <ToggleRow label="Specificity badges" value={showBadges} onChange={setShowBadges} compact={compactControls} />
         <ToggleRow label="Gap score in label" value={showGapScore} onChange={setShowGapScore} compact={compactControls} />
         <ToggleRow label="Cluster gap ratio" value={showClusterGap} onChange={setShowClusterGap} compact={compactControls} />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

@@ -1,6 +1,14 @@
 import { BROWSER_API_TOOL } from "./browser-api-runtime.js";
+import {
+  KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
+  KNOWGRPH_AGENT_READY_TOOL_IDS,
+  buildKnowgrphAgentReadyToolContracts,
+} from "../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES as SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
-import { buildKnowgrphMcpAppsToolMeta } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
+import {
+  buildKnowgrphMcpAppsToolMeta,
+  buildKnowgrphMcpNoauthSecuritySchemes,
+} from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
@@ -19,15 +27,81 @@ const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
   },
 });
 
+const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
+  defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
+}).filter((tool) =>
+  [
+    KNOWGRPH_AGENT_READY_TOOL_IDS.search,
+    KNOWGRPH_AGENT_READY_TOOL_IDS.fetch,
+  ].includes(tool.name)
+);
+
+const READ_ONLY_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: true,
+});
+
+const LOCAL_PROCESS_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: false,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: false,
+});
+
+const LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: false,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: true,
+});
+
+const BROWSER_API_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: false,
+  destructiveHint: false,
+  openWorldHint: true,
+  idempotentHint: false,
+});
+
+const cloneAnnotations = (annotations) => ({ ...(annotations || READ_ONLY_TOOL_ANNOTATIONS) });
+const withLocalMcpDescriptorDefaults = (tool, annotations = READ_ONLY_TOOL_ANNOTATIONS) => ({
+  ...tool,
+  securitySchemes: Array.isArray(tool.securitySchemes) && tool.securitySchemes.length
+    ? tool.securitySchemes
+    : buildKnowgrphMcpNoauthSecuritySchemes(),
+  annotations: tool.annotations && typeof tool.annotations === "object"
+    ? { ...tool.annotations }
+    : cloneAnnotations(annotations),
+});
+
+const buildLocalPublishedSourceToolDefinition = (toolName) => {
+  const tool = PUBLISHED_SOURCE_TOOL_CONTRACTS.find((entry) => entry.name === toolName);
+  if (!tool) {
+    throw new Error(`Missing shared published Source Files tool contract: ${toolName}`);
+  }
+  return withLocalMcpDescriptorDefaults({
+    name: tool.name,
+    title: tool.title,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    outputSchema: tool.outputSchema,
+    securitySchemes: tool.securitySchemes,
+    annotations: tool.annotations,
+  });
+};
+
 export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
   const defaultUiHost = String(args.defaultUiHost || "127.0.0.1").trim() || "127.0.0.1";
   const defaultUiPort = Number(args.defaultUiPort || 5173);
 
   return [
-    {
+    buildLocalPublishedSourceToolDefinition(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search),
+    buildLocalPublishedSourceToolDefinition(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch),
+    withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch,
       description:
-        "Launch the Knowgrph Canvas UI (Vite dev server) and return a URL pre-configured for Canvas / Workspace Editor / Geospatial mode.",
+        "Use this when a local MCP host needs to launch the Knowgrph Canvas UI (Vite dev server) and return a URL pre-configured for Canvas / Workspace Editor / Geospatial mode.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -53,20 +127,20 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           },
         },
       },
-    },
-    {
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiStop,
-      description: "Stop the running Knowgrph Canvas dev server (if started by knowgrph.ui.launch).",
+      description: "Use this when a local MCP host needs to stop the running Knowgrph Canvas dev server if it was started by knowgrph.ui.launch.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
         properties: {},
       },
-    },
-    {
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline,
       description:
-        "Run the Knowgrph pipeline (GraphData -> A0 CSV/JSON-LD + codebase index artifacts).",
+        "Use this when a local MCP host needs to run the Knowgrph pipeline (GraphData -> A0 CSV/JSON-LD + codebase index artifacts).",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -92,11 +166,11 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           },
         },
       },
-    },
-    {
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline,
       description:
-        "Run the GraphRAG pipeline wrapper (attempts `graphrag index`, then emits GraphData + A0 exports).",
+        "Use this when a local MCP host needs to run the GraphRAG pipeline wrapper (attempts `graphrag index`, then emits GraphData + A0 exports).",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -108,11 +182,11 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           timeoutMs: { type: "number", description: "Optional timeout in milliseconds." },
         },
       },
-    },
-    {
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
       description:
-        "Run the Codex-compatible super-agent harness for rich media canvas generation with deterministic mock media providers.",
+        "Use this when a local MCP host needs to run the Codex-compatible long-horizon SuperAgent harness for research, code, and create tasks across quick_triage, bounded_compile, deep_research, and parallel_build levels with native memory, skill selection, sandbox artifacts, subagent contracts, and provider-neutral media outputs.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -132,6 +206,12 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           runId: {
             type: "string",
             description: "Optional stable run id.",
+          },
+          providerMode: {
+            type: "string",
+            enum: ["mock", "pixverse"],
+            default: "mock",
+            description: "Optional media provider mode. mock is deterministic; pixverse uses local PixVerse MCP with mock fallback.",
           },
           resume: {
             type: "boolean",
@@ -157,12 +237,13 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           },
         },
       },
-    },
-    BROWSER_API_TOOL,
-    {
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults(BROWSER_API_TOOL, BROWSER_API_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
       description:
-        "List the canonical Knowgrph vdeoxpln registry with semantic keys, source owners, tool projections, and optional generated skill markdown.",
+        "Use this when a local MCP host needs to list the canonical Knowgrph vdeoxpln registry with semantic keys, source owners, tool projections, and optional generated skill markdown.",
+      securitySchemes: buildKnowgrphMcpNoauthSecuritySchemes(),
       _meta: buildKnowgrphMcpAppsToolMeta(),
       outputSchema: VDEOXPLN_LIST_OUTPUT_SCHEMA,
       inputSchema: {
@@ -220,6 +301,6 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           },
         },
       },
-    },
+    }, READ_ONLY_TOOL_ANNOTATIONS),
   ];
 };

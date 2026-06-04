@@ -9,6 +9,8 @@ import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { MIROMIND_API_DOC_AREA, MIROMIND_API_DOCS_URL } from './miromindApiDocs'
 import { AGNES_API_DOC_AREA, AGNES_API_DOCS_URL } from './agnesApiDocs'
+import { QWEN_API_DOC_AREA, QWEN_API_DOCS_URL } from './qwenApiDocs'
+import { GOOGLE_CLOUD_API_DOC_AREA, GOOGLE_CLOUD_API_DOCS_URL } from './googleCloudApiDocs'
 import { BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA, BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusImageGenerationSsot'
 import { BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA, BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusVideoGenerationSsot'
 import { GEMINI_VIDEO_GENERATION_API_DOC_AREA, GEMINI_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/geminiVideoGenerationSsot'
@@ -17,16 +19,48 @@ import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } fro
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
+import { OPENAI_MCP_DOC_AREA, OPENAI_MCP_DOCS_URL } from './openaiMcpApiDocs'
 import { EXA_MCP_DOC_AREA, EXA_MCP_DOCS_URL } from './exaMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA, PIXVERSE_MCP_DOCS_URL } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA, MIROMIND_MCP_DOCS_URL } from './miromindMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
 import { STRIPE_MCP_DOCS_URL } from 'grph-shared/payments/stripeMcpSsot'
+import { KTV_DEFAULT_HEADER_LABELS, type KtvHeaderLabels } from 'grph-shared/ui/keyTypeValueRows'
 
 export const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
 export const ACTIVE_WORKSPACE_SYNC_MAX_ATTEMPTS = 8
 export const ACTIVE_WORKSPACE_SYNC_RETRY_MS = 250
+
+export type SettingsViewMode = 'all' | 'integrations' | 'payments' | 'maps' | 'mcp'
+
+export type SettingsKtvHeaderLabels = KtvHeaderLabels
+
+export type SettingsViewModeConfig = Readonly<{
+  ktvHeaderLabels: SettingsKtvHeaderLabels
+}>
+
+export const SETTINGS_DEFAULT_KTV_HEADER_LABELS: SettingsKtvHeaderLabels = KTV_DEFAULT_HEADER_LABELS
+
+export const SETTINGS_MCP_KTV_HEADER_LABELS: SettingsKtvHeaderLabels = {
+  ...SETTINGS_DEFAULT_KTV_HEADER_LABELS,
+  valueLabel: SETTINGS_DEFAULT_KTV_HEADER_LABELS.valueLabel,
+}
+
+export const SETTINGS_VIEW_MODE_CONFIG_BY_MODE: Readonly<Record<SettingsViewMode, SettingsViewModeConfig>> = {
+  all: { ktvHeaderLabels: SETTINGS_DEFAULT_KTV_HEADER_LABELS },
+  integrations: { ktvHeaderLabels: SETTINGS_DEFAULT_KTV_HEADER_LABELS },
+  payments: { ktvHeaderLabels: SETTINGS_DEFAULT_KTV_HEADER_LABELS },
+  maps: { ktvHeaderLabels: SETTINGS_DEFAULT_KTV_HEADER_LABELS },
+  mcp: { ktvHeaderLabels: SETTINGS_MCP_KTV_HEADER_LABELS },
+}
+
+export function resolveSettingsKtvHeaderLabels(mode: SettingsViewMode): SettingsKtvHeaderLabels {
+  return (
+    SETTINGS_VIEW_MODE_CONFIG_BY_MODE[mode]
+    || SETTINGS_VIEW_MODE_CONFIG_BY_MODE.all
+  ).ktvHeaderLabels
+}
 
 export type SectionMeta = Readonly<{
   docsUrl?: string
@@ -84,6 +118,18 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
     panelLabel: 'Open FloatingPanel Chat UI (Agnes)',
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },
+  [QWEN_API_DOC_AREA]: {
+    docsUrl: QWEN_API_DOCS_URL,
+    docsLabel: 'Open Qwen OpenAI-Compatible Chat Docs',
+    panelLabel: 'Open FloatingPanel Chat UI (Qwen)',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [GOOGLE_CLOUD_API_DOC_AREA]: {
+    docsUrl: GOOGLE_CLOUD_API_DOCS_URL,
+    docsLabel: 'Open Google Cloud Vertex AI Chat Docs',
+    panelLabel: 'Open FloatingPanel Chat UI (Google Cloud)',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
   [BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA]: {
     docsUrl: BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL,
     docsLabel: 'Open BytePlus Video Generation API Docs',
@@ -114,6 +160,12 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [API_NATIVE_BROWSER_MCP_DOC_AREA]: {
     docsUrl: 'https://github.com/unbrowse-ai/unbrowse',
     docsLabel: 'Open API-Native Browser MCP Reference',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [OPENAI_MCP_DOC_AREA]: {
+    docsUrl: OPENAI_MCP_DOCS_URL,
+    docsLabel: 'Open OpenAI MCP Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },

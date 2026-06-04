@@ -35,15 +35,15 @@ export default function SerializationSection({
   const editorShellClassName = `w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden ${UI_THEME_TOKENS.panel.bg}`
 
   return (
-    <div className="space-y-3">
-      <div className={sectionHeadingClassName}>Serialization</div>
+    <section className="space-y-3">
+      <section className={sectionHeadingClassName}>Serialization</section>
       <Subsection title="Serialization">
-        <div className="space-y-2">
-          <div>
-            <div className={fieldLabelClassName}>
+        <section className="space-y-2">
+          <section>
+            <section className={fieldLabelClassName}>
               Predicates by Edge Label
-            </div>
-            <div className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_COMPACT_EDITOR_CLASSNAME}`}>
+            </section>
+            <section className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_COMPACT_EDITOR_CLASSNAME}`}>
               <MonacoTextEditor
                 value={predicatesText}
                 onChange={setPredicatesText}
@@ -62,18 +62,18 @@ export default function SerializationSection({
                   setSerializationError(error)
                 }}
               />
-            </div>
+            </section>
             {serializationError && (
-              <div className={`mt-1 ${uiPanelMicroLabelTextSizeClass} text-red-600`}>
+              <section className={`mt-1 ${uiPanelMicroLabelTextSizeClass} text-red-600`}>
                 {serializationError}
-              </div>
+              </section>
             )}
-          </div>
-          <div>
-            <div className={fieldLabelClassName}>
+          </section>
+          <section>
+            <section className={fieldLabelClassName}>
               Types by Node
-            </div>
-            <div className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_COMPACT_EDITOR_CLASSNAME}`}>
+            </section>
+            <section className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_COMPACT_EDITOR_CLASSNAME}`}>
               <MonacoTextEditor
                 value={typesText}
                 onChange={setTypesText}
@@ -92,18 +92,18 @@ export default function SerializationSection({
                   setSerializationError(error)
                 }}
               />
-            </div>
+            </section>
             {serializationError && (
-              <div className={`mt-1 ${uiPanelMicroLabelTextSizeClass} text-red-600`}>
+              <section className={`mt-1 ${uiPanelMicroLabelTextSizeClass} text-red-600`}>
                 {serializationError}
-              </div>
+              </section>
             )}
-          </div>
-          <div>
-            <div className={fieldLabelClassName}>
+          </section>
+          <section>
+            <section className={fieldLabelClassName}>
               JSON-LD Context
-            </div>
-            <div className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_EDITOR_CLASSNAME}`}>
+            </section>
+            <section className={`${editorShellClassName} ${UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_EDITOR_CLASSNAME}`}>
               <MonacoTextEditor
                 value={contextText}
                 onChange={setContextText}
@@ -124,15 +124,15 @@ export default function SerializationSection({
                   setSerializationError(error)
                 }}
               />
-            </div>
+            </section>
             {serializationError && (
-              <div className={`mt-1 ${uiPanelMicroLabelTextSizeClass} text-red-600`}>
+              <section className={`mt-1 ${uiPanelMicroLabelTextSizeClass} text-red-600`}>
                 {serializationError}
-              </div>
+              </section>
             )}
-          </div>
-        </div>
+          </section>
+        </section>
       </Subsection>
-    </div>
+    </section>
   )
 }

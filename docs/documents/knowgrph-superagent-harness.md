@@ -1,19 +1,75 @@
 # Knowgrph Super-Agent Harness
 
+## Document Purpose
+
+This is the source-side SSOT for Knowgrph's local long-horizon SuperAgent harness.
+It records the runnable `knowgrph_parser` harness, its local MCP entrypoint, and
+the guardrails for using external SuperAgent references without copying them.
+
+Knowgrph may use [bytedance/deer-flow](https://github.com/bytedance/deer-flow)
+as a conceptual reference for long-horizon harness primitives: message gateway,
+tools, skills, memory, subagents, sandboxed workspaces, and minutes-to-hours
+runs. That reference is inspiration only. Knowgrph must not copy Deer Flow code,
+clone its architecture, add provider-specific renderer branches, or introduce
+downstream alias stacks that bypass the existing Source Files, Flow Editor, MCP,
+chat, rich-media, and KGC owners.
+
 This document describes the Codex-compatible harness implemented by:
 
 ```bash
 python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example
 ```
 
-The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts scenes from neutral frontmatter or markdown body text, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The shipped video path now supports either deterministic mock output or local PixVerse MCP execution behind the same typed tool registry without changing the run loop.
+The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts source evidence from neutral frontmatter or markdown body text, selects registry-backed capability lanes and frontmatter skill hints through `skill.select`, writes a research pack, creates and executes deterministic code inside a bounded local sandbox artifact directory, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The shipped video path now supports either deterministic mock output or local PixVerse MCP execution behind the same typed tool registry without changing the run loop.
+
+For research-code-create work, this harness is the local artifact loop and Codex
+goal bridge, not a deployed public mutation API. Research and review-heavy
+graph work stays with `canvas/src/features/research-agent/researchThesisContract.ts`;
+code-oriented work stays with Codex and repo-local validation; created media
+artifacts stay with the typed tool registry, Source Files workspace artifacts,
+and shared Rich Media Panel owners.
+
+## Native Long-Horizon Contract
+
+| Primitive | Knowgrph owner | Boundary |
+|---|---|---|
+| Message gateway | `/goal`, `npm run goal:run`, local MCP `knowgrph.superagent.run`, MainPanel/FloatingPanel handoff docs | Local/dev only unless a separate deploy proof exists. |
+| Memory | `state.json`, `trace.jsonl`, `goal.json`, recovery events, observations, source hashes, review audits | Persist run memory as artifacts; do not create unowned global memory files. |
+| Tools | `superagent_tools.py`, `superagent_pixverse.py`, local MCP tool contract, Source Files, rich-media runtime | Register typed tools once; do not fork renderer/provider-specific tool stacks. |
+| Skills | `skill.select`, current tool registry, optional frontmatter skill hints | Select progressively by task need; do not bulk-copy external skill packs or pin repo-path catalogs. |
+| Subagents | Role-scoped `AgentContract` entries for planner, research, code, text, image, video, canvas, verifier, and synthesizer workers | Keep scoped context, tools, completion signal, and artifact responsibility explicit. |
+| Sandbox/workspace | Per-run output directory under `data/outputs/*` or caller-provided output path; generated code executes with `python` argv, bounded timeout, and no shell invocation | Keep uploads/workspace/outputs separated; do not hardcode absolute repo paths. |
+| Review gate | verifier, proof manifest, final report, research-agent review audit, KGC apply owner | Accepted artifacts and graph candidates only; no unreviewed active-graph mutation. |
+
+## Research-Code-Create Scope
+
+- Research: `research.scout` compiles source refs, source hashes, frontmatter
+  evidence, body evidence, and a research-pack markdown/json artifact before
+  media or canvas creation.
+- Skills: `skill.select` chooses registry-backed capability lanes and optional
+  frontmatter skill hints before research/code/create execution and records
+  selected-skill markdown/json
+  artifacts.
+- Code: `code.write_and_run` writes deterministic code into the run artifact
+  tree and executes it inside a bounded local sandbox directory, recording the
+  code file, stdout/stderr, return code, and sandbox result artifact.
+- Create: generate Text, Image, Video, Chart, and Rich Media Panel artifacts
+  through the typed local harness and shared media owners.
+- Long horizon: keep every run bounded by explicit step, retry, wall-clock,
+  tool, and review limits; resumability is checkpointed through state and trace
+  artifacts.
+- Task levels: the local harness declares `quick_triage`, `bounded_compile`,
+  `deep_research`, and `parallel_build` levels in the proof manifest and
+  generated workspace metadata. Those levels describe bounded run depth and
+  coordination style; the capabilities remain `research`, `code`, and
+  `create`.
 
 ## Module Ownership
 
 - `superagent_harness.py`: run loop, state transitions, CLI facade, and public imports.
 - `superagent_contracts.py`: dataclasses, error taxonomy, layout constants, registry, and trace writer.
-- `superagent_plan.py`: agent contracts, task plan, and goal parsing.
-- `superagent_tools.py`: workspace, text, image, video, canvas, and report tools.
+- `superagent_plan.py`: agent contracts, task plan, and goal parsing; current task order is `inspect_goal -> select_skills -> research_goal -> code_sandbox -> generate_text -> generate_image -> generate_video -> compose_canvas -> verify_outputs -> synthesize_report`.
+- `superagent_tools.py`: workspace, skill, research, code/sandbox, text, image, video, canvas, and report tools.
 - `superagent_pixverse.py`: local PixVerse MCP stdio adapter, bounded polling, upload-safe reference-image handling, constrained `fusion_video` composition, automated local uploaded-media handoff, optional bounded `extend_video` chaining, optional `lip_sync_video` and `sound_effect_video` post-processing, and fallback-safe live video orchestration.
 - `superagent_verifier.py`: deterministic artifact, graph, layout, trace, and provenance checks.
 - `superagent_renderers.py`: markdown, SVG, HTML, canvas graph, workspace, and report rendering helpers.
@@ -25,7 +81,7 @@ The canvas worker now emits both a standalone graph artifact and a Knowgrph work
 MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges
 ```
 
-That workspace document uses frontmatter-flow metadata with `TextGeneration`, `ImageGeneration`, `VideoGeneration`, and `RichMediaPanel` nodes, plus the canonical widget form ids, port handles, mobile-first responsive proof metadata, balanced 16:9 layout metadata, and edge route hints required by the editor widget surface and the Rich Media Panel render surface.
+That workspace document uses frontmatter-flow metadata with harness capabilities plus `TextGeneration`, `ImageGeneration`, `VideoGeneration`, and `RichMediaPanel` nodes, while the proof graph records `SkillSelector`, `ResearchAgent`, and `CodeWorker` lanes. The workspace artifact keeps canonical widget form ids, port handles, mobile-first responsive proof metadata, balanced 16:9 layout metadata, and edge route hints required by the editor widget surface and the Rich Media Panel render surface.
 
 ## Runtime Concepts
 
@@ -33,8 +89,8 @@ That workspace document uses frontmatter-flow metadata with `TextGeneration`, `I
 - `Run`: persisted in `state.json` with status, timestamps, budget, active plan, completed tasks, verification, and artifacts.
 - `Step`: every task attempt is recorded with input summary, output summary, status, and error metadata.
 - `Tool`: registered with required inputs, timeout metadata, retryability, and structured observations.
-- `Agent`: each task is assigned to a role such as planner, text worker, image worker, video worker, canvas worker, verifier, or synthesizer.
-- `Artifact`: text, image, video, canvas, trace, and report files are recorded with source step provenance.
+- `Agent`: each task is assigned to a role such as planner, research worker, code worker, text worker, image worker, video worker, canvas worker, verifier, or synthesizer.
+- `Artifact`: brief, skill, research, code, sandbox, text, image, video, canvas, workspace, trace, proof, and report files are recorded with source step provenance.
 - `Judge`: deterministic validation checks artifact existence, graph topology, trace completeness, and provenance.
 - `Recovery`: retryable errors are bounded, logged as `recovery.retry`, and checkpointed.
 
@@ -48,6 +104,12 @@ A completed run writes:
 - `final-report.md`
 - `harness-proof.json`
 - `artifacts/input/brief.md`
+- `artifacts/skills/selected-skills.json`
+- `artifacts/skills/selected-skills.md`
+- `artifacts/research/research-pack.json`
+- `artifacts/research/research-pack.md`
+- `artifacts/code/generated_summary.py`
+- `artifacts/sandbox/sandbox-result.json`
 - `artifacts/text/scene-plan.md`
 - `artifacts/image/reference-frame.svg`
 - `artifacts/video/storyboard-video.html`

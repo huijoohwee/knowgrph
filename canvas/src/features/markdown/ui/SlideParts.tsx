@@ -57,7 +57,7 @@ export function SlideHeader(props: SlideHeaderProps) {
       <header
         className={`${headerPositionClass} h-10 px-8 flex justify-between items-center ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.panel.bg}/95 border-b ${UI_THEME_TOKENS.panel.border} z-20 ${uiPanelTextFontClass}`}
       >
-        <div className={`min-w-0 flex items-center gap-4 ${absoluteClampClass}`}>
+        <section className={`min-w-0 flex items-center gap-4 ${absoluteClampClass}`}>
           {heading ? (
             <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
               {heading}
@@ -67,12 +67,12 @@ export function SlideHeader(props: SlideHeaderProps) {
               {meta.meeting}
             </span>
           ) : null}
-        </div>
-        <div className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
+        </section>
+        <section className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
           <span className={`${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.tertiary} tabular-nums`}>
             {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
           </span>
-        </div>
+        </section>
       </header>
     )
   }
@@ -89,13 +89,13 @@ export function SlideHeader(props: SlideHeaderProps) {
         UI_THEME_TOKENS.panel.border,
       ].join(' ')}
     >
-      <div className="flex gap-3 min-w-0">
+      <section className="flex gap-3 min-w-0">
         {heading ? <span className="truncate">{heading}</span> : null}
         {!heading && meta.meeting ? <span className="truncate">{meta.meeting}</span> : null}
-      </div>
-      <div className={`${uiPanelMonospaceTextClass} opacity-60`}>
+      </section>
+      <section className={`${uiPanelMonospaceTextClass} opacity-60`}>
         {page} / {total}
-      </div>
+      </section>
     </header>
   )
 }
@@ -145,7 +145,7 @@ export function SlideFooter(props: SlideFooterProps) {
       <footer
         className={`${footerPositionClass} h-10 px-4 flex justify-between items-center ${absoluteFooterClampClass} ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
       >
-        <div className={`min-w-0 flex items-center gap-4 ${absoluteFooterClampClass}`}>
+        <section className={`min-w-0 flex items-center gap-4 ${absoluteFooterClampClass}`}>
           {meta.meeting && (
             <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
               {meta.meeting}
@@ -156,8 +156,8 @@ export function SlideFooter(props: SlideFooterProps) {
               {meta.authors.join(', ')}
             </span>
           )}
-        </div>
-        <div className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
+        </section>
+        <section className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
           {(meta.institution || meta.venue) && (
             <span className={`hidden md:inline-block font-medium ${UI_THEME_TOKENS.text.primary} ${UI_RESPONSIVE_MARKDOWN_PRESENTATION_META_TEXT_CLASSNAME}`}>
               {[meta.institution, meta.venue].filter(Boolean).join(' · ')}
@@ -166,7 +166,7 @@ export function SlideFooter(props: SlideFooterProps) {
           <span className={`${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.tertiary} tabular-nums`}>
             {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
           </span>
-        </div>
+        </section>
       </footer>
     )
   }
@@ -183,13 +183,13 @@ export function SlideFooter(props: SlideFooterProps) {
         UI_THEME_TOKENS.panel.border,
       ].join(' ')}
     >
-      <div className="flex gap-3 min-w-0">
+      <section className="flex gap-3 min-w-0">
         {!!meta.meeting && <span className="truncate">{meta.meeting}</span>}
         {!!meta.venue && <span className="truncate">{meta.venue}</span>}
         {!!meta.institution && <span className="truncate">{meta.institution}</span>}
         {!!meta.date && <span className="truncate">{meta.date}</span>}
-      </div>
-      <div className="flex gap-3 min-w-0">
+      </section>
+      <section className="flex gap-3 min-w-0">
         {meta.authors.length > 0 && <span className="truncate">{meta.authors.join(', ')}</span>}
         {!!meta.url && (
           <a
@@ -201,10 +201,10 @@ export function SlideFooter(props: SlideFooterProps) {
             {meta.url.replace(/^https?:\/\//, '')}
           </a>
         )}
-      </div>
-      <div className={`${uiPanelMonospaceTextClass} opacity-60 shrink-0`}>
+      </section>
+      <section className={`${uiPanelMonospaceTextClass} opacity-60 shrink-0`}>
         {page} / {total}
-      </div>
+      </section>
     </footer>
   )
 }

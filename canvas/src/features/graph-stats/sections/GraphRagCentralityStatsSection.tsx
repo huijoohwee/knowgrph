@@ -140,8 +140,8 @@ export default function GraphRagCentralityStatsSection({
 
   return (
     <CollapsibleSection title="Context-Aware Analytics">
-      <div className={['mt-2 space-y-3', ui.uiPanelKeyValueTextSizeClass, ui.uiPanelTextFontClass].join(' ')}>
-        <div className="flex flex-wrap items-center gap-2">
+      <section className={['mt-2 space-y-3', ui.uiPanelKeyValueTextSizeClass, ui.uiPanelTextFontClass].join(' ')}>
+        <section className="flex flex-wrap items-center gap-2">
           <label className="inline-flex items-center gap-2">
             <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
             <span>HITS (Hubs/Authorities)</span>
@@ -183,79 +183,79 @@ export default function GraphRagCentralityStatsSection({
           >
             Recompute
           </button>
-        </div>
+        </section>
 
         {selected && (
-          <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-2`}>
-            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Selected Node</div>
-            <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">
-              <div className={UI_THEME_TOKENS.text.tertiary}>Label</div>
-              <div className={UI_THEME_TOKENS.text.primary}>{selected.label}</div>
-              <div className={UI_THEME_TOKENS.text.tertiary}>keyword:frequency</div>
-              <div className={UI_THEME_TOKENS.text.primary}>{selected.freq}</div>
+          <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-2`}>
+            <section className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Selected Node</section>
+            <section className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">
+              <section className={UI_THEME_TOKENS.text.tertiary}>Label</section>
+              <section className={UI_THEME_TOKENS.text.primary}>{selected.label}</section>
+              <section className={UI_THEME_TOKENS.text.tertiary}>keyword:frequency</section>
+              <section className={UI_THEME_TOKENS.text.primary}>{selected.freq}</section>
               {cfg.pagerank && (
                 <>
-                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:pagerank</div>
-                  <div className={UI_THEME_TOKENS.text.primary}>{selected.pagerank.toFixed(3)}</div>
+                  <section className={UI_THEME_TOKENS.text.tertiary}>graphrag:pagerank</section>
+                  <section className={UI_THEME_TOKENS.text.primary}>{selected.pagerank.toFixed(3)}</section>
                 </>
               )}
               {cfg.hits && (
                 <>
-                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:authorities</div>
-                  <div className={UI_THEME_TOKENS.text.primary}>{selected.authorities.toFixed(3)}</div>
-                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:hubs</div>
-                  <div className={UI_THEME_TOKENS.text.primary}>{selected.hubs.toFixed(3)}</div>
+                  <section className={UI_THEME_TOKENS.text.tertiary}>graphrag:authorities</section>
+                  <section className={UI_THEME_TOKENS.text.primary}>{selected.authorities.toFixed(3)}</section>
+                  <section className={UI_THEME_TOKENS.text.tertiary}>graphrag:hubs</section>
+                  <section className={UI_THEME_TOKENS.text.primary}>{selected.hubs.toFixed(3)}</section>
                 </>
               )}
               {cfg.closeness && (
                 <>
-                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:closeness</div>
-                  <div className={UI_THEME_TOKENS.text.primary}>{selected.closeness.toFixed(3)}</div>
+                  <section className={UI_THEME_TOKENS.text.tertiary}>graphrag:closeness</section>
+                  <section className={UI_THEME_TOKENS.text.primary}>{selected.closeness.toFixed(3)}</section>
                 </>
               )}
               {cfg.betweenness && (
                 <>
-                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:betweenness</div>
-                  <div className={UI_THEME_TOKENS.text.primary}>{selected.betweenness.toFixed(3)}</div>
+                  <section className={UI_THEME_TOKENS.text.tertiary}>graphrag:betweenness</section>
+                  <section className={UI_THEME_TOKENS.text.primary}>{selected.betweenness.toFixed(3)}</section>
                 </>
               )}
-            </div>
-          </div>
+            </section>
+          </section>
         )}
 
         {cfg.pagerank && prTop.length > 0 && (
-          <div className="space-y-1">
-            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top PageRank</div>
+          <section className="space-y-1">
+            <section className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top PageRank</section>
             <AutoHeightMiniBarChart
               data={makeChart(prTop, 'pagerank')}
               defaultBarColor={neutralBarColor}
               containerClassName="h-12"
             />
-          </div>
+          </section>
         )}
 
         {cfg.hits && authTop.length > 0 && (
-          <div className="space-y-1">
-            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top Authorities</div>
+          <section className="space-y-1">
+            <section className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top Authorities</section>
             <AutoHeightMiniBarChart
               data={makeChart(authTop, 'authorities')}
               defaultBarColor={neutralBarColor}
               containerClassName="h-12"
             />
-          </div>
+          </section>
         )}
 
         {cfg.closeness && closeTop.length > 0 && (
-          <div className="space-y-1">
-            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top Closeness</div>
+          <section className="space-y-1">
+            <section className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top Closeness</section>
             <AutoHeightMiniBarChart
               data={makeChart(closeTop, 'closeness')}
               defaultBarColor={neutralBarColor}
               containerClassName="h-12"
             />
-          </div>
+          </section>
         )}
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

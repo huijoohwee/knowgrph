@@ -44,10 +44,11 @@ type WebMcpTool = {
   title?: string
   description: string
   inputSchema: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+  securitySchemes?: Array<Record<string, unknown>>
   execute: (input?: WebMcpToolInput) => Promise<unknown>
-  annotations?: {
-    readOnlyHint?: boolean
-  }
+  annotations?: Record<string, unknown>
+  _meta?: Record<string, unknown>
 }
 
 type ModelContextLike = {
@@ -64,9 +65,10 @@ type AgentReadyToolContract = {
   title: string
   description: string
   inputSchema: Record<string, unknown>
-  annotations?: {
-    readOnlyHint?: boolean
-  }
+  outputSchema?: Record<string, unknown>
+  securitySchemes?: Array<Record<string, unknown>>
+  annotations?: Record<string, unknown>
+  _meta?: Record<string, unknown>
 }
 
 type ModelContextRegistrationState = {
@@ -95,6 +97,8 @@ const findWebToolContract = (name: string): AgentReadyToolContract => {
   return contract
 }
 
+const SEARCH_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.search)
+const FETCH_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.fetch)
 const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles)
 const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile)
 const READ_SHARED_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument)
@@ -112,6 +116,8 @@ const INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT = findWebToolContract(KNOW
 const INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport)
 const INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot)
 const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
+const SEARCH_TOOL_NAME = SEARCH_TOOL_CONTRACT.webName
+const FETCH_TOOL_NAME = FETCH_TOOL_CONTRACT.webName
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const READ_SHARED_DOCUMENT_TOOL_NAME = READ_SHARED_DOCUMENT_TOOL_CONTRACT.webName
@@ -219,6 +225,8 @@ const buildAgentSurfaceInspection = () =>
 
 const PUBLISHED_WEB_MCP_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors({
   toolNames: {
+    search: SEARCH_TOOL_NAME,
+    fetch: FETCH_TOOL_NAME,
     listSourceFiles: SOURCE_FILES_TOOL_NAME,
     readSourceFile: READ_SOURCE_FILE_TOOL_NAME,
     readSharedDocument: READ_SHARED_DOCUMENT_TOOL_NAME,
@@ -226,6 +234,7 @@ const PUBLISHED_WEB_MCP_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors(
     inspectAgentSurface: INSPECT_AGENT_SURFACE_TOOL_NAME,
   },
   defaultWorkspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  publicBaseUrl: readWebMcpStorageBaseUrl() || readWebMcpDocumentBaseUrl() || WEB_MCP_DEFAULT_STORAGE_BASE_URL,
   buildStorageDocPath,
   fetchSourceFilesIndexResponse: () =>
     fetch(buildWebMcpStorageRequestUrl(buildKnowgrphStorageSourceFilesIndexPath()), {
@@ -244,6 +253,26 @@ const PUBLISHED_WEB_MCP_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors(
     }),
   inspectSharedDocumentStructure,
   buildAgentSurfaceInspection,
+})
+
+const buildSearchTool = (): WebMcpTool => ({
+  name: SEARCH_TOOL_NAME,
+  title: SEARCH_TOOL_CONTRACT.title,
+  description: SEARCH_TOOL_CONTRACT.description,
+  inputSchema: SEARCH_TOOL_CONTRACT.inputSchema,
+  outputSchema: SEARCH_TOOL_CONTRACT.outputSchema,
+  annotations: SEARCH_TOOL_CONTRACT.annotations,
+  execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[SEARCH_TOOL_NAME],
+})
+
+const buildFetchTool = (): WebMcpTool => ({
+  name: FETCH_TOOL_NAME,
+  title: FETCH_TOOL_CONTRACT.title,
+  description: FETCH_TOOL_CONTRACT.description,
+  inputSchema: FETCH_TOOL_CONTRACT.inputSchema,
+  outputSchema: FETCH_TOOL_CONTRACT.outputSchema,
+  annotations: FETCH_TOOL_CONTRACT.annotations,
+  execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[FETCH_TOOL_NAME],
 })
 
 const buildSourceFilesTool = (): WebMcpTool => ({
@@ -496,6 +525,8 @@ const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
 })
 
 const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.search]: buildSearchTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.fetch]: buildFetchTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles]: buildSourceFilesTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile]: buildReadSourceFileTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument]: buildReadSharedDocumentTool,
@@ -515,12 +546,24 @@ const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface]: buildInspectAgentSurfaceTool,
 }
 
+const applySharedDescriptorFields = (
+  tool: WebMcpTool,
+  contract: AgentReadyToolContract,
+): WebMcpTool => ({
+  ...tool,
+  ...(Array.isArray(contract.securitySchemes) && contract.securitySchemes.length
+    ? { securitySchemes: contract.securitySchemes }
+    : {}),
+  ...(contract.outputSchema ? { outputSchema: contract.outputSchema } : {}),
+  ...(contract._meta ? { _meta: contract._meta } : {}),
+})
+
 const WEB_MCP_TOOLS = WEB_MCP_TOOL_CONTRACTS.map((contract) => {
   const buildTool = WEB_MCP_TOOL_BUILDERS[contract.name]
   if (typeof buildTool !== 'function') {
     throw new Error(`missing Knowgrph browser WebMCP tool builder: ${contract.name}`)
   }
-  return buildTool()
+  return applySharedDescriptorFields(buildTool(), contract)
 })
 const webMcpLifecycle = createWebMcpLifecycleController({
   root: globalThis as typeof globalThis & { navigator?: WebMcpNavigator; window?: { navigator?: WebMcpNavigator } },

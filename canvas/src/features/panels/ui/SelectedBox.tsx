@@ -21,23 +21,23 @@ function SelectedBoxImpl({ name, idText, lines = [], statusOk, statusMsg, counts
   const displayName = (name || '').trim() ? name : 'None'
   const failText = `Fail${(statusMsg || '').trim() ? ` — ${statusMsg}` : ''}`
   return (
-    <div
+    <section
       className={`mb-2 rounded border px-2 py-1 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary} ${className || ''}`}
     >
-      <div><span className="font-semibold">Selected:</span> {displayName}{(idText || '').trim() ? ` (${idText})` : ''}</div>
+      <section><span className="font-semibold">Selected:</span> {displayName}{(idText || '').trim() ? ` (${idText})` : ''}</section>
       {typeof countsText === 'string' && countsText.trim() && (
-        <div className="mt-1">{countsText}</div>
+        <section className="mt-1">{countsText}</section>
       )}
       {lines.map((ln, idx) => (
-        <div key={idx}>{ln}</div>
+        <section key={idx}>{ln}</section>
       ))}
       {statusOk === true && (
-        <div className="mt-1 inline-flex items-center text-green-600"><CheckCircle className={`${iconSizeClass} mr-1`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />{statusMsg || 'Success'}</div>
+        <section className="mt-1 inline-flex items-center text-green-600"><CheckCircle className={`${iconSizeClass} mr-1`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />{statusMsg || 'Success'}</section>
       )}
       {statusOk === false && (
-        <div className="mt-1 inline-flex items-center text-red-600"><XCircle className={`${iconSizeClass} mr-1`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />{failText}</div>
+        <section className="mt-1 inline-flex items-center text-red-600"><XCircle className={`${iconSizeClass} mr-1`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />{failText}</section>
       )}
-    </div>
+    </section>
   )
 }
 

@@ -1,9 +1,12 @@
 import {
   KNOWGRPH_AGENT_SURFACE_OUTPUT_SCHEMA,
+  buildKnowgrphMcpNoauthSecuritySchemes,
   buildKnowgrphMcpAppsToolMeta,
 } from './mcpAppsReadyContract.mjs'
 
 export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
+  search: 'search',
+  fetch: 'fetch',
   listSourceFiles: 'list_source_files',
   readSourceFile: 'read_source_file',
   readSharedDocument: 'read_shared_document',
@@ -24,8 +27,60 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
 })
 
 export const KNOWGRPH_AGENT_READY_WEB_MCP_NAMESPACE = 'knowgrph'
+export const KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID = 'kgws:canonical-docs'
 
-const READ_ONLY_TOOL_ANNOTATIONS = Object.freeze({ readOnlyHint: true })
+const buildReadOnlyToolAnnotations = () => Object.freeze({
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: true,
+})
+const READ_ONLY_TOOL_ANNOTATIONS = buildReadOnlyToolAnnotations()
+
+const SEARCH_OUTPUT_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: true,
+  required: ['ids', 'results'],
+  properties: {
+    ids: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['id', 'title', 'url'],
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          url: { type: 'string' },
+          snippet: { type: 'string' },
+          workspaceId: { type: 'string' },
+          canonicalPath: { type: 'string' },
+        },
+      },
+    },
+  },
+})
+
+const FETCH_OUTPUT_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: true,
+  required: ['id', 'title', 'content', 'text', 'url'],
+  properties: {
+    id: { type: 'string' },
+    title: { type: 'string' },
+    content: { type: 'string' },
+    text: { type: 'string' },
+    url: { type: 'string' },
+    metadata: {
+      type: 'object',
+      additionalProperties: true,
+    },
+  },
+})
 
 export const buildKnowgrphWebMcpToolName = (
   toolName,
@@ -37,10 +92,43 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
   const includeBrowserOnlyTools = args.includeBrowserOnlyTools === true
   const contracts = [
     {
+      name: KNOWGRPH_AGENT_READY_TOOL_IDS.search,
+      webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.search),
+      title: 'Search Knowgrph Source Files',
+      description: 'Use this when an MCP host needs to search published Knowgrph Source Files and return stable document IDs for the `fetch` tool. Call this first for OpenAI Deep Research-style retrieval, Claude, Qwen Code, Kimi CLI, BytePlus ModelArk, and generic MCP clients.',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: {
+          query: { type: 'string' },
+          limit: { type: 'number', default: 10 },
+        },
+      },
+      outputSchema: SEARCH_OUTPUT_SCHEMA,
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+    },
+    {
+      name: KNOWGRPH_AGENT_READY_TOOL_IDS.fetch,
+      webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.fetch),
+      title: 'Fetch Knowgrph Source File',
+      description: 'Use this when an MCP host needs the complete published Knowgrph Source File for an ID returned by `search`. Returns markdown as both `content` and `text` for OpenAI, Claude, Qwen Code, Kimi CLI, BytePlus ModelArk, and generic MCP clients.',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+        },
+      },
+      outputSchema: FETCH_OUTPUT_SCHEMA,
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+    },
+    {
       name: KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles,
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles),
       title: 'List Source Files',
-      description: 'List published Knowgrph Source Files.',
+      description: 'Use this when an MCP host needs the published Knowgrph Source Files index as markdown.',
       inputSchema: { type: 'object', additionalProperties: false, properties: {} },
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
     },
@@ -48,7 +136,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       name: KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile,
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile),
       title: 'Read Source File',
-      description: 'Read published Knowgrph Editor Workspace markdown content. Defaults to the canonical docs workspace when workspaceId is omitted.',
+      description: 'Use this when an MCP host knows a published Knowgrph canonical path and needs that Editor Workspace markdown content. Defaults to the canonical docs workspace when workspaceId is omitted.',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
@@ -64,7 +152,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       name: KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument,
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument),
       title: 'Read Shared Document',
-      description: 'Read published Knowgrph markdown content from a share token or public Knowgrph share/document URL.',
+      description: 'Use this when an MCP host has a Knowgrph share token or public Knowgrph share/document URL and needs the published markdown content.',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
@@ -80,7 +168,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure,
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure),
       title: 'Inspect Shared Document Structure',
-      description: 'Inspect published Knowgrph shared-document frontmatter and body structure from a share token or public Knowgrph share/document URL.',
+      description: 'Use this when an MCP host has a Knowgrph share token or public Knowgrph share/document URL and needs frontmatter/body structure without mutating the document.',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
@@ -183,12 +271,17 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface,
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface),
       title: 'Inspect Agent Surface',
-      description: 'Inspect the deployed Knowgrph agent-ready discovery surface, including health, OpenAPI, MCP, and skill metadata.',
+      description: 'Use this when an MCP Apps-capable host or generic MCP client needs to inspect Knowgrph agent-ready discovery, MCP Apps readiness, OpenAPI, and skill metadata.',
       inputSchema: { type: 'object', additionalProperties: false, properties: {} },
       outputSchema: KNOWGRPH_AGENT_SURFACE_OUTPUT_SCHEMA,
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
       _meta: buildKnowgrphMcpAppsToolMeta(),
     },
   ]
-  return contracts
+  return contracts.map((contract) => ({
+    ...contract,
+    securitySchemes: Array.isArray(contract.securitySchemes) && contract.securitySchemes.length
+      ? contract.securitySchemes
+      : buildKnowgrphMcpNoauthSecuritySchemes(),
+  }))
 }

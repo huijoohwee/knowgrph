@@ -4,11 +4,11 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { startMarkdownPanelOverlayLoop2d } from '@/features/markdown-edgeless/markdownPanelOverlayLoop2d'
 
 export async function testMarkdownPanelOverlayUsesWorldSizeAndScaleForCardLayout() {
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
-    const el = dom.window.document.createElement('div')
+    const el = dom.window.document.createElement('section')
     root.appendChild(el)
 
     const loop = startMarkdownPanelOverlayLoop2d({

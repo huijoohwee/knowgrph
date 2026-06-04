@@ -124,45 +124,45 @@ export function FieldGraphLayersSection({
   }
 
   return (
-    <div className={panelClassName}>
-      <div className={headingClassName}>
+    <section className={panelClassName}>
+      <section className={headingClassName}>
         Cluster layer styling
-      </div>
+      </section>
       {disabled ? (
-        <div className={helperTextClassName}>
+        <section className={helperTextClassName}>
           Select a node property field to configure cluster layer styling.
-        </div>
+        </section>
       ) : (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="min-w-0">
-              <div className={labelClassName}>
+        <section className="space-y-2">
+          <section className="grid grid-cols-2 gap-2">
+            <section className="min-w-0">
+              <section className={labelClassName}>
                 Fill color
-              </div>
+              </section>
               <PlainTextInputEditor
                 defaultValue={fillValue}
                 onBlur={e => updateStyle({ fill: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
                 disabled={disabled}
               />
-            </div>
-            <div className="min-w-0">
-              <div className={labelClassName}>
+            </section>
+            <section className="min-w-0">
+              <section className={labelClassName}>
                 Stroke color
-              </div>
+              </section>
               <PlainTextInputEditor
                 defaultValue={strokeValue}
                 onBlur={e => updateStyle({ stroke: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
                 disabled={disabled}
               />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="min-w-0">
-              <div className={labelClassName}>
+            </section>
+          </section>
+          <section className="grid grid-cols-3 gap-2">
+            <section className="min-w-0">
+              <section className={labelClassName}>
                 Fill opacity
-              </div>
+              </section>
               <input
                 type="number"
                 min={0}
@@ -177,11 +177,11 @@ export function FieldGraphLayersSection({
                 className={uiPanelKeyValueInputClass}
                 disabled={disabled}
               />
-            </div>
-            <div className="min-w-0">
-              <div className={labelClassName}>
+            </section>
+            <section className="min-w-0">
+              <section className={labelClassName}>
                 Stroke width
-              </div>
+              </section>
               <input
                 type="number"
                 min={0}
@@ -196,22 +196,22 @@ export function FieldGraphLayersSection({
                 className={uiPanelKeyValueInputClass}
                 disabled={disabled}
               />
-            </div>
-            <div className="min-w-0">
-              <div className={labelClassName}>
+            </section>
+            <section className="min-w-0">
+              <section className={labelClassName}>
                 Dash pattern
-              </div>
+              </section>
               <PlainTextInputEditor
                 defaultValue={dashValue}
                 onBlur={e => updateStyle({ dash: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
                 disabled={disabled}
               />
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -309,40 +309,40 @@ export function GraphLayerMetadataPresetsSection({
   const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
 
   return (
-    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
-      <div className={headingClassName}>
+    <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
+      <section className={headingClassName}>
         Cluster layer defaults
-      </div>
-      <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+      </section>
+      <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
         Configure default fill, stroke, opacity, and dash used by cluster layers in both 2D and 3D views. Field-level overrides live in the schema extras panel.
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+      </section>
+      <section className="grid grid-cols-2 gap-2">
+        <section className="min-w-0">
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill color
-          </div>
+          </section>
           <PlainTextInputEditor
             defaultValue={fillValue}
             onBlur={e => updateDefaultStyle({ fill: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
-        <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+        </section>
+        <section className="min-w-0">
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default stroke color
-          </div>
+          </section>
           <PlainTextInputEditor
             defaultValue={strokeValue}
             onBlur={e => updateDefaultStyle({ stroke: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+        </section>
+      </section>
+      <section className="grid grid-cols-3 gap-2">
+        <section className="min-w-0">
+          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill opacity
-          </div>
+          </section>
           <input
             type="number"
             min={0}
@@ -356,11 +356,11 @@ export function GraphLayerMetadataPresetsSection({
             }}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
-        <div className="min-w-0">
-          <div className={labelClassName}>
+        </section>
+        <section className="min-w-0">
+          <section className={labelClassName}>
             Default stroke width
-          </div>
+          </section>
           <input
             type="number"
             min={0}
@@ -374,27 +374,27 @@ export function GraphLayerMetadataPresetsSection({
             }}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
-        <div className="min-w-0">
-          <div className={labelClassName}>
+        </section>
+        <section className="min-w-0">
+          <section className={labelClassName}>
             Default dash pattern
-          </div>
+          </section>
           <PlainTextInputEditor
             defaultValue={dashValue}
             onBlur={e => updateDefaultStyle({ dash: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
-      </div>
-      <div className={`border-t ${UI_THEME_TOKENS.panel.divider} pt-3 mt-2 space-y-2`}>
-        <div className={headingClassName}>
+        </section>
+      </section>
+      <section className={`border-t ${UI_THEME_TOKENS.panel.divider} pt-3 mt-2 space-y-2`}>
+        <section className={headingClassName}>
           Metadata
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="min-w-0">
-            <div className={labelClassName}>
+        </section>
+        <section className="grid grid-cols-2 gap-2">
+          <section className="min-w-0">
+            <section className={labelClassName}>
               Grouping logic
-            </div>
+            </section>
             <PlainTextInputEditor
               defaultValue={groupingLogicValue}
               onBlur={e => {
@@ -403,11 +403,11 @@ export function GraphLayerMetadataPresetsSection({
               }}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
-          <div className="min-w-0">
-            <div className={labelClassName}>
+          </section>
+          <section className="min-w-0">
+            <section className={labelClassName}>
               Layer
-            </div>
+            </section>
             <input
               type="number"
               defaultValue={layerValue}
@@ -420,13 +420,13 @@ export function GraphLayerMetadataPresetsSection({
               }}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="min-w-0">
-            <div className={labelClassName}>
+          </section>
+        </section>
+        <section className="grid grid-cols-2 gap-2">
+          <section className="min-w-0">
+            <section className={labelClassName}>
               Label
-            </div>
+            </section>
             <PlainTextInputEditor
               defaultValue={labelValue}
               onBlur={e => {
@@ -435,11 +435,11 @@ export function GraphLayerMetadataPresetsSection({
               }}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
-          <div className="min-w-0">
-            <div className={labelClassName}>
+          </section>
+          <section className="min-w-0">
+            <section className={labelClassName}>
               Tooltip
-            </div>
+            </section>
             <PlainTextInputEditor
               defaultValue={tooltipValue}
               onBlur={e => {
@@ -448,12 +448,12 @@ export function GraphLayerMetadataPresetsSection({
               }}
               className={uiPanelKeyValueInputClass}
             />
-          </div>
-        </div>
-        <div className="min-w-0">
-          <div className={labelClassName}>
+          </section>
+        </section>
+        <section className="min-w-0">
+          <section className={labelClassName}>
             Schema styling entrypoint
-          </div>
+          </section>
           <PlainTextInputEditor
             defaultValue={schemaEntrypointValue}
             onBlur={e => {
@@ -462,8 +462,8 @@ export function GraphLayerMetadataPresetsSection({
             }}
             className={uiPanelKeyValueInputClass}
           />
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </section>
   )
 }

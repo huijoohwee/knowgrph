@@ -469,11 +469,11 @@ export const BodyCell = React.memo(function BodyCell({
             filteredValues.length === 0 ? (
               ''
             ) : (
-              <div className="flex flex-nowrap gap-1 overflow-hidden whitespace-nowrap">
+              <section className="flex flex-nowrap gap-1 overflow-hidden whitespace-nowrap">
                 {filteredValues.map((value, i) => (
                   <DataViewTagChip key={`${value}-${i}`} value={value} />
                 ))}
-              </div>
+              </section>
             )
           ) : filteredSingleValue ? (
             <DataViewTagChip value={filteredSingleValue} />

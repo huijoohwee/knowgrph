@@ -11,8 +11,8 @@ import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/Markd
 import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 
 type MarkdownViewerPaneProps = {
-  viewerRef: React.RefObject<HTMLDivElement>
-  handleViewerScroll: (event: React.UIEvent<HTMLDivElement>) => void
+  viewerRef: React.RefObject<HTMLElement>
+  handleViewerScroll: (event: React.UIEvent<HTMLElement>) => void
   markdownPreviewText: string
   previewBasePath: string
   highlightedLineRange: { start: number; end: number } | null

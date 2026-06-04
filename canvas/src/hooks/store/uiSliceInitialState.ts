@@ -2,7 +2,7 @@
 import type { StoreApi } from 'zustand'
 import type { GraphState } from '@/hooks/store/types'
 import { LS_KEYS } from '@/lib/config.ls.keys'
-import { getLocalStorage, lsSetBool, lsSetFloat, lsSetJson } from '@/lib/persistence'
+import { getLocalStorage, lsRemove, lsSetBool, lsSetFloat, lsSetJson } from '@/lib/persistence'
 import { getInitialLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
 import { GRABMAPS_DEFAULT_DIRECTIONS_URL, GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
@@ -51,6 +51,11 @@ import { createPdfImportInitialState } from './uiSlicePdfImportInitialState'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
+const clearPersistedStripeCheckoutUrl = (): string => {
+  lsRemove(LS_KEYS.paymentsStripeCheckoutUrl)
+  return ''
+}
+
 export const createUiInitialState = (
   set: SetGraph,
   readers: UiStorageReaders,
@@ -87,12 +92,21 @@ export const createUiInitialState = (
           || view === 'chat'
           || view === 'geo'
           || view === 'renderer'
+          || view === 'gitGraph'
           || view === 'strybldr'
           || view === 'graphTraversal'
             ? view
             : 'propsPanel'
         if (state.floatingPanelView === next) return {}
         return { floatingPanelView: next } as Partial<GraphState>
+      }),
+
+    gitGraphSelectedCommandLineIndex: null,
+    setGitGraphSelectedCommandLineIndex: (lineIndex: number | null) =>
+      set(state => {
+        const next = typeof lineIndex === 'number' && Number.isFinite(lineIndex) ? Math.max(0, Math.floor(lineIndex)) : null
+        if (state.gitGraphSelectedCommandLineIndex === next) return {}
+        return { gitGraphSelectedCommandLineIndex: next } as Partial<GraphState>
       }),
 
     workspaceViewMode: initialWorkspaceViewMode,
@@ -144,16 +158,12 @@ export const createUiInitialState = (
         return { paymentsStripePaywallEnabled: next } as Partial<GraphState>
       }),
 
-    paymentsStripeCheckoutUrl: lsJson<string>(
-      LS_KEYS.paymentsStripeCheckoutUrl,
-      '',
-      value => (typeof value === 'string' ? value : ''),
-    ),
+    paymentsStripeCheckoutUrl: clearPersistedStripeCheckoutUrl(),
     setPaymentsStripeCheckoutUrl: (url: string) =>
       set(state => {
         const next = String(url || '').trim()
+        lsRemove(LS_KEYS.paymentsStripeCheckoutUrl)
         if (state.paymentsStripeCheckoutUrl === next) return {}
-        lsSetJson(LS_KEYS.paymentsStripeCheckoutUrl, next)
         return { paymentsStripeCheckoutUrl: next } as Partial<GraphState>
       }),
 

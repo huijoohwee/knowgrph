@@ -4,7 +4,7 @@ import type { MarkdownSelectionToolbarState } from '@/features/markdown/ui/Markd
 import { cancelCoalescedTask, scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
 
 type UseMarkdownPreviewEventsProps = {
-  rootElRef: React.MutableRefObject<HTMLDivElement | null>
+  rootElRef: React.MutableRefObject<HTMLElement | null>
   handleShowOnCanvas: (startLine: number, endLine: number) => void
   setSelectionToolbar: (state: MarkdownSelectionToolbarState | null) => void
 }
@@ -19,7 +19,7 @@ export function useMarkdownPreviewEvents({
   const lastToolbarEmitRef = React.useRef<{ signature: string; atMs: number } | null>(null)
   const selectionScheduleKeyRef = React.useRef(`markdown-preview:selection:${++markdownPreviewSelectionScheduleSeq}`)
   const pendingSelectionArgsRef = React.useRef<{
-    rootEl: HTMLDivElement
+    rootEl: HTMLElement
     eventTarget: EventTarget | null
     clientX?: number
     clientY?: number
@@ -50,7 +50,7 @@ export function useMarkdownPreviewEvents({
   }, [setSelectionToolbar])
 
   const resolveSelectionToolbarState = React.useCallback((args: {
-    rootEl: HTMLDivElement
+    rootEl: HTMLElement
     eventTarget: EventTarget | null
     clientX?: number
     clientY?: number
@@ -105,7 +105,7 @@ export function useMarkdownPreviewEvents({
   }, [])
 
   const scheduleSelectionToolbarResolve = React.useCallback((args: {
-    rootEl: HTMLDivElement
+    rootEl: HTMLElement
     eventTarget: EventTarget | null
     clientX?: number
     clientY?: number
@@ -130,16 +130,16 @@ export function useMarkdownPreviewEvents({
   }, [])
 
   const handleDoubleClick = React.useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const rootEl = (e.currentTarget as HTMLDivElement) || rootElRef.current
+    (e: React.MouseEvent<HTMLElement>) => {
+      const rootEl = (e.currentTarget as HTMLElement) || rootElRef.current
       if (!rootEl) return
     },
     [rootElRef],
   )
 
   const handleMouseUp = React.useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const rootEl = (e.currentTarget as HTMLDivElement) || rootElRef.current
+    (e: React.MouseEvent<HTMLElement>) => {
+      const rootEl = (e.currentTarget as HTMLElement) || rootElRef.current
       if (!rootEl) return
       const target = e.target as HTMLElement | null
       const isMediaBlock = !!target?.closest('figure')
@@ -157,7 +157,7 @@ export function useMarkdownPreviewEvents({
   )
 
   const handleClick = React.useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: React.MouseEvent<HTMLElement>) => {
       if (!rootElRef.current) return
 
       if (e.metaKey) {
@@ -172,8 +172,8 @@ export function useMarkdownPreviewEvents({
     [handleShowOnCanvas, rootElRef],
   )
 
-  const handleContextMenu = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rootEl = (e.currentTarget as HTMLDivElement) || rootElRef.current
+  const handleContextMenu = React.useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const rootEl = (e.currentTarget as HTMLElement) || rootElRef.current
     if (!rootEl) return
     e.preventDefault()
     scheduleSelectionToolbarResolve({

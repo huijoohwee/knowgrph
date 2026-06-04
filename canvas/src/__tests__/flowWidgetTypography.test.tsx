@@ -28,7 +28,7 @@ export async function testFlowWidgetTypographyInheritsPanelSettings() {
     api.setZoomState({ k: 1, x: 0, y: 0 })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)

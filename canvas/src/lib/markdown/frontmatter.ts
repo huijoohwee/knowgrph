@@ -51,6 +51,33 @@ export function extractYamlFrontmatterBlock(rawText: string): YamlFrontmatterBlo
   }
 }
 
+function normalizeFrontmatterFenceComparisonText(rawText: string): string {
+  return String(rawText || '').replace(/\r\n?/g, '\n').replace(/\s+$/, '')
+}
+
+function stripYamlFrontmatterFencesForComparison(rawText: string): string | null {
+  const text = String(rawText || '')
+  const block = extractYamlFrontmatterBlock(text)
+  if (!block) return null
+  return `${block.yamlText}${text.slice(block.rawBlock.length)}`
+}
+
+export function preferCanonicalYamlFrontmatterFencedText(args: {
+  candidateText: string
+  canonicalText: string
+}): string {
+  const candidateText = String(args.candidateText || '')
+  const canonicalText = String(args.canonicalText || '')
+  if (!candidateText || candidateText === canonicalText) return candidateText
+  if (!canonicalText || extractYamlFrontmatterHeaderBlock(candidateText)) return candidateText
+
+  const canonicalWithoutFences = stripYamlFrontmatterFencesForComparison(canonicalText)
+  if (canonicalWithoutFences == null) return candidateText
+  return normalizeFrontmatterFenceComparisonText(candidateText) === normalizeFrontmatterFenceComparisonText(canonicalWithoutFences)
+    ? canonicalText
+    : candidateText
+}
+
 export function isFrontmatterOnlyDoc(rawText: string): boolean {
   const block = extractYamlFrontmatterBlock(rawText)
   if (!block) return false
@@ -224,6 +251,14 @@ export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWo
   const block = extractYamlFrontmatterHeaderBlock(rawText)
   if (!block) return null
   return parseCanvasWorkspaceFrontmatterPresetBlock(block)
+}
+
+export function readYamlFrontmatterMermaidCode(rawText: string): string {
+  const block = extractYamlFrontmatterHeaderBlock(rawText)
+  if (!block) return ''
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(block.rawBlock))
+  const meta = isPlainObject(parsed.meta) ? parsed.meta : null
+  return typeof meta?.mermaid === 'string' ? String(meta.mermaid || '').trim() : ''
 }
 
 export type WebpageViewMode = 'markdown' | 'json' | 'html'

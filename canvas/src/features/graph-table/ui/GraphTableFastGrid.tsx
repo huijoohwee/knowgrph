@@ -53,7 +53,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const viewportRef = useRef<HTMLElement | null>(null)
   const [viewportClientHeight, setViewportClientHeight] = useState(0)
-  const headerScrollableContentRef = useRef<HTMLDivElement | null>(null)
+  const headerScrollableContentRef = useRef<HTMLElement | null>(null)
   const headerRafRef = useRef<number | null>(null)
   const selectAllRef = useRef<HTMLInputElement | null>(null)
   const [viewportClientWidth, setViewportClientWidth] = useState(0)
@@ -529,33 +529,33 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
 
       <section className={`absolute inset-0 z-20 pointer-events-none ${UI_THEME_TOKENS.text.primary}`} aria-hidden="true">
         {model.layout.scrollable.length <= 0 && props.columns.length > 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="rounded border px-3 py-2 bg-[var(--kg-panel-bg)] text-[color:var(--kg-text-secondary)] text-xs shadow-sm">
+          <section className="absolute inset-0 flex items-center justify-center">
+            <section className="rounded border px-3 py-2 bg-[var(--kg-panel-bg)] text-[color:var(--kg-text-secondary)] text-xs shadow-sm">
               All columns hidden
-            </div>
-          </div>
+            </section>
+          </section>
         ) : null}
         {domOverlayCells.map(it => {
           if (it.kind === 'group') {
             return (
-              <div
+              <section
                 key={it.key}
                 style={{ left: it.left, top: it.top, width: it.width, height: it.height, position: 'absolute' }}
                 className={`${UI_THEME_TOKENS.text.secondary} font-semibold px-2 flex items-center`}
               >
                 <span className="truncate">{it.text}</span>
-              </div>
+              </section>
             )
           }
           const toneClass = it.tone === 'secondary' ? UI_THEME_TOKENS.text.secondary : UI_THEME_TOKENS.text.primary
           return (
-            <div
+            <section
               key={it.key}
               style={{ left: it.left, top: it.top, width: it.width, height: it.height, position: 'absolute' }}
               className={`px-2 flex items-center ${toneClass}`}
             >
               <span className="truncate">{it.text}</span>
-            </div>
+            </section>
           )
         })}
       </section>

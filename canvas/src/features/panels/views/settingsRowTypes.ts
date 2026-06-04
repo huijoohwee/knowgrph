@@ -23,12 +23,10 @@ export type SettingsRowStatusState = {
   isCheckingDeerFlowHealth: boolean
   isCheckingGrabMapsHealth: boolean
   isCheckingHealth: boolean
-  isGeneratingStripeCheckout: boolean
   isUpdatingChatHistoryPath: boolean
   isUpdatingKnowgrphPath: boolean
   knowgrphPathStatus: string | null
   normalizedChatProvider: string
-  stripeCheckoutStatus: string | null
 }
 
 export type SettingsRowRefs = {
@@ -57,9 +55,7 @@ export type SettingsRowActions = {
   pushUiToast: (toast: SettingsToastPayload) => void
   renderInput: (key: string, type: string, writable: boolean, options?: string[], displayValueOverride?: string | number | boolean) => React.ReactNode
   setChatHistoryPathStatus: React.Dispatch<React.SetStateAction<string | null>>
-  setIsGeneratingStripeCheckout: React.Dispatch<React.SetStateAction<boolean>>
   setKnowgrphPathStatus: React.Dispatch<React.SetStateAction<string | null>>
-  setStripeCheckoutStatus: React.Dispatch<React.SetStateAction<string | null>>
   setValues: React.Dispatch<React.SetStateAction<Record<string, string | number | boolean>>>
 }
 

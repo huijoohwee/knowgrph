@@ -16,7 +16,7 @@ export async function testWorkspaceImportUrlImportRejectsUnrecoveredHydrationShe
     '<script>window.__APP_STATE__={}</script>',
     '</head>',
     '<body>',
-    '<div id="root"></div>',
+    '<section id="root"></section>',
     '<script src="/assets/app.js"></script>',
     '</body>',
     '</html>',

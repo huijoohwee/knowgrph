@@ -354,7 +354,7 @@ export default function RenderSettingsSection({
     (copyKey: keyof typeof RENDER_PANEL_SECTION_COPY) => {
       const copy = RENDER_PANEL_SECTION_COPY[copyKey]
       const titleContent = (
-        <div className="flex flex-col">
+        <section className="flex flex-col">
           <span className="inline-flex items-center gap-2">
             {copy.badge && (
               <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary}`}>
@@ -370,7 +370,7 @@ export default function RenderSettingsSection({
               {copy.descriptionShort}
             </span>
           )}
-        </div>
+        </section>
       )
       if (!copy.tooltip) return titleContent
       return (
@@ -387,9 +387,9 @@ export default function RenderSettingsSection({
   )
 
   return (
-    <div>
+    <section>
       {schemaBadges.length > 0 && (
-        <div
+        <section
           className={[
             `mb-2 flex flex-wrap gap-1 ${UI_THEME_TOKENS.text.primary}`,
             uiPanelKeyValueTextSizeClass,
@@ -404,7 +404,7 @@ export default function RenderSettingsSection({
               {badge === 'required' ? 'R' : badge === 'unique' ? 'U' : badge}
             </span>
           ))}
-        </div>
+        </section>
       )}
       <CollapsibleSection
         title={renderSectionTitle('presetsAndTuning')}
@@ -413,12 +413,12 @@ export default function RenderSettingsSection({
         collapsed={presetsCollapsed}
         onToggle={onTogglePresets}
       >
-        <div className="mt-2 space-y-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+        <section className="mt-2 space-y-2">
+          <section className="grid grid-cols-2 gap-3">
+            <section className="flex items-center justify-between gap-2">
+              <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Render Mode
-              </div>
+              </section>
               <select
                 className={uiPanelKeyValueInputClass}
                 value={canvasRenderMode}
@@ -430,11 +430,11 @@ export default function RenderSettingsSection({
                 <option value="2d">2d</option>
                 <option value="3d">3d</option>
               </select>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+            </section>
+            <section className="flex items-center justify-between gap-2">
+              <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Viewport Controls
-              </div>
+              </section>
               <select
                 className={uiPanelKeyValueInputClass}
                 value={viewportControlsPreset || 'map'}
@@ -446,11 +446,11 @@ export default function RenderSettingsSection({
                 <option value="map">map</option>
                 <option value="design">design</option>
               </select>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+            </section>
+            <section className="flex items-center justify-between gap-2">
+              <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 3D Mode
-              </div>
+              </section>
               <select
                 className={uiPanelKeyValueInputClass}
                 value={canvas3dMode}
@@ -467,11 +467,11 @@ export default function RenderSettingsSection({
                 <option value="xr">xr</option>
                 <option value="voxel" disabled={!voxelApplicable}>voxel</option>
               </select>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+            </section>
+            <section className="flex items-center justify-between gap-2">
+              <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Selection Mode
-              </div>
+              </section>
               <select
                 className={uiPanelKeyValueInputClass}
                 value={(schema.behavior?.selectMode ?? 'single') as GraphSelectMode}
@@ -487,11 +487,11 @@ export default function RenderSettingsSection({
                 <option value="multi">multi</option>
                 <option value="lasso">lasso</option>
               </select>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+            </section>
+            <section className="flex items-center justify-between gap-2">
+              <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Create Mode
-              </div>
+              </section>
               <select
                 className={uiPanelKeyValueInputClass}
                 value={(schema.behavior?.createMode ?? 'shift-drag') as GraphCreateMode}
@@ -509,11 +509,11 @@ export default function RenderSettingsSection({
                 <option value="click-source-target">click-source-target</option>
                 <option value="panel-only">panel-only</option>
               </select>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+            </section>
+            <section className="flex items-center justify-between gap-2">
+              <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Preset
-              </div>
+              </section>
               <button
                 type="button"
                 className={[
@@ -525,13 +525,13 @@ export default function RenderSettingsSection({
               >
                 Presentation 3D
               </button>
-            </div>
-          </div>
-          <div className="pt-1">
-            <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
+            </section>
+          </section>
+          <section className="pt-1">
+            <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
               2D layout
-            </div>
-            <div className="mt-1 grid grid-cols-1 gap-1">
+            </section>
+            <section className="mt-1 grid grid-cols-1 gap-1">
               <KeyTypeValueRow
                 layout="keyValue"
                 density="compact"
@@ -734,9 +734,9 @@ export default function RenderSettingsSection({
                   </RightAlignedValueCell>
                 )}
               />
-            </div>
-          </div>
-        </div>
+            </section>
+          </section>
+        </section>
         <RenderPresetSection
           schema={schema}
           setSchema={setSchema}
@@ -762,7 +762,7 @@ export default function RenderSettingsSection({
         collapsed={codebaseIndexCollapsed}
         onToggle={onToggleCodebaseIndex}
       >
-        <div
+        <section
           className={[
             `flex items-center gap-2 ${UI_THEME_TOKENS.text.tertiary}`,
             uiPanelKeyValueTextSizeClass,
@@ -785,8 +785,8 @@ export default function RenderSettingsSection({
               {pipelineStatus}
             </span>
           )}
-        </div>
+        </section>
       </CollapsibleSection>
-    </div>
+    </section>
   )
 }

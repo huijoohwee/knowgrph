@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  FLOATING_PANEL_CANVAS_RIGHT_INSET_CSS,
+  FLOATING_PANEL_CANVAS_TOP_INSET_CSS,
+  FLOATING_PANEL_DEFAULT_HEIGHT_FALLBACK_PX,
+  FLOATING_PANEL_DEFAULT_WIDTH_FALLBACK_PX,
+} from '@/lib/ui/floatingPanelGeometry'
 
 type ToolMenuDragPosition = {
   top: number
@@ -32,8 +38,8 @@ export function useToolMenuState() {
     if (typeof window === 'undefined') return pos
     const el = toolMenuCardRef.current
     const rect = el ? el.getBoundingClientRect() : null
-    const w = rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : 320
-    const h = rect && Number.isFinite(rect.height) && rect.height > 0 ? rect.height : 420
+    const w = rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : FLOATING_PANEL_DEFAULT_WIDTH_FALLBACK_PX
+    const h = rect && Number.isFinite(rect.height) && rect.height > 0 ? rect.height : FLOATING_PANEL_DEFAULT_HEIGHT_FALLBACK_PX
     const viewport = { width: window.innerWidth, height: window.innerHeight }
     const fullyClamp = window.matchMedia?.('(pointer: coarse), (max-width: 768px)').matches || w >= viewport.width
     if (fullyClamp) {
@@ -81,8 +87,8 @@ export function useToolMenuState() {
           const dy = mv.clientY - state.startY
           scheduler.schedule(
             clampToolMenuPos({
-            top: state.startTop + dy,
-            left: state.startLeft + dx,
+              top: state.startTop + dy,
+              left: state.startLeft + dx,
             }),
           )
         },
@@ -99,39 +105,6 @@ export function useToolMenuState() {
     [clampToolMenuPos],
   )
 
-  const toolbarOffsetPx = UI_LAYOUT.toolbarOffsetPx
-
-  const getToolbarBottomPx = useCallback((): number => {
-    if (typeof document === 'undefined') return toolbarOffsetPx
-    const toolbar = document.querySelector('.App-toolbar')
-    return toolbar instanceof HTMLElement ? toolbar.getBoundingClientRect().bottom : toolbarOffsetPx
-  }, [toolbarOffsetPx])
-
-  const getDefaultToolMenuPos = useCallback((): ToolMenuDragPosition => {
-    if (typeof window === 'undefined') {
-      return { top: toolbarOffsetPx * 2, left: 16 }
-    }
-
-    const measuredWidth = toolMenuCardRef.current?.getBoundingClientRect().width
-    const width = Number.isFinite(measuredWidth) && measuredWidth ? measuredWidth : 320
-    const toolbarBottom = getToolbarBottomPx()
-    const top = toolbarBottom + 36
-    const left = window.innerWidth - 72 - width
-
-    return { top, left }
-  }, [getToolbarBottomPx, toolbarOffsetPx])
-
-  useEffect(() => {
-    if (!isToolMenuOpen) return
-    if (toolMenuDragPos) return
-    if (typeof window === 'undefined') return
-    const scheduler = createRafOnceScheduler(() => {
-      setToolMenuDragPos(clampToolMenuPos(getDefaultToolMenuPos()))
-    })
-    scheduler.schedule()
-    return () => scheduler.cancel()
-  }, [clampToolMenuPos, getDefaultToolMenuPos, isToolMenuOpen, toolMenuDragPos])
-
   useEffect(() => {
     if (!isToolMenuOpen) return
     if (!toolMenuDragPos) return
@@ -147,11 +120,10 @@ export function useToolMenuState() {
 
   const toolMenuCardStyle = useMemo(() => {
     if (!toolMenuDragPos) {
-      const pos = clampToolMenuPos(getDefaultToolMenuPos())
       return {
         position: 'absolute' as const,
-        top: pos.top,
-        left: pos.left,
+        top: FLOATING_PANEL_CANVAS_TOP_INSET_CSS,
+        right: FLOATING_PANEL_CANVAS_RIGHT_INSET_CSS,
       }
     }
     return {
@@ -159,7 +131,7 @@ export function useToolMenuState() {
       top: toolMenuDragPos.top,
       left: toolMenuDragPos.left,
     }
-  }, [clampToolMenuPos, getDefaultToolMenuPos, toolMenuDragPos])
+  }, [toolMenuDragPos])
 
   const closeToolMenu = useCallback(() => {
     setFloatingPanelOpen(false)

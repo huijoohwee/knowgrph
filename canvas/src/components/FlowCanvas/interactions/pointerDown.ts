@@ -14,6 +14,11 @@ import { lockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
+import { readFlowEditorElementSurfaceId } from '@/lib/canvas/flow-editor-overlay-proxy'
+import {
+  readFlowEditorScreenAuthorityPanSnapshot,
+  shouldUseFlowEditorScreenAuthorityCollectivePan,
+} from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import { readFlowPanInteractionSpeed, readFlowPinchZoomSessionSettings } from '@/components/FlowCanvas/interactions/dragSession'
 import {
   isPanDragButton,
@@ -63,14 +68,17 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
     const pointerId = e.pointerId
 
     const spacePanHeld = isSpacePanHeld()
+    const pointerMode2d = String(storeStateAtDown.canvasPointerMode2d || '')
+    const pointerModePan = pointerMode2d === 'pan'
     const allowPan = shouldAllowPanDragForPointerEvent({
       preset,
       eventType: 'pointerdown',
       button: e.button,
       shiftKey: e.shiftKey === true,
       spacePanHeld,
+      pointerMode2d,
     })
-    const selectionDrag = shouldStartSelectionDragForPreset({
+    const selectionDrag = pointerModePan ? false : shouldStartSelectionDragForPreset({
       preset,
       button: e.button,
       shiftKey: e.shiftKey === true,
@@ -92,6 +100,27 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         void 0
       }
       ctx.args.dragRef.current = next
+    }
+
+    const createPanDrag = (): Extract<NonNullable<FlowCanvasDrag>, { type: 'pan' }> => {
+      const startTransform = runtime.transform || d3.zoomIdentity
+      const useFlowEditorScreenAuthorityPan = shouldUseFlowEditorScreenAuthorityCollectivePan(storeStateAtDown)
+      return {
+        type: 'pan',
+        startSx: sx,
+        startSy: sy,
+        startTx: startTransform.x,
+        startTy: startTransform.y,
+        interactionSpeed: panInteractionSpeed,
+        pointerId,
+        useFlowEditorScreenAuthorityPan,
+        flowEditorScreenAuthorityPan: useFlowEditorScreenAuthorityPan
+          ? readFlowEditorScreenAuthorityPanSnapshot({
+            flowEditorSurfaceId: ctx.args.flowEditorSurfaceId || readFlowEditorElementSurfaceId(canvasEl),
+            transform: startTransform,
+          })
+          : null,
+      }
     }
 
     if (e.pointerType === 'touch') {
@@ -119,15 +148,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
     }
 
     if (spacePanHeld === true && e.button === 0 && allowPan === true && selectionDrag !== true) {
-      startDrag({
-        type: 'pan',
-        startSx: sx,
-        startSy: sy,
-        startTx: runtime.transform.x,
-        startTy: runtime.transform.y,
-        interactionSpeed: panInteractionSpeed,
-        pointerId,
-      })
+      startDrag(createPanDrag())
       return
     }
 
@@ -158,15 +179,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
         ctx.args.requestCommit()
         if (allowPan === true && selectionDrag !== true) {
-          startDrag({
-            type: 'pan',
-            startSx: sx,
-            startSy: sy,
-            startTx: runtime.transform.x,
-            startTy: runtime.transform.y,
-            interactionSpeed: panInteractionSpeed,
-            pointerId,
-          })
+          startDrag(createPanDrag())
         }
         return
       }
@@ -247,15 +260,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         state.setSelectionSource('canvas')
         state.selectEdge(null)
         state.selectGroup(groupHit)
-        startDrag({
-          type: 'pan',
-          startSx: sx,
-          startSy: sy,
-          startTx: runtime.transform.x,
-          startTy: runtime.transform.y,
-          interactionSpeed: panInteractionSpeed,
-          pointerId,
-        })
+        startDrag(createPanDrag())
         return
       }
 
@@ -337,15 +342,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       if (!allowDrag) {
         ctx.args.setSelectionBox(null)
         if (allowPan === true && selectionDrag !== true) {
-          startDrag({
-            type: 'pan',
-            startSx: sx,
-            startSy: sy,
-            startTx: runtime.transform.x,
-            startTy: runtime.transform.y,
-            interactionSpeed: panInteractionSpeed,
-            pointerId,
-          })
+          startDrag(createPanDrag())
         }
         return
       }
@@ -442,27 +439,11 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
     }
 
     if (e.pointerType === 'touch') {
-      startDrag({
-        type: 'pan',
-        startSx: sx,
-        startSy: sy,
-        startTx: runtime.transform.x,
-        startTy: runtime.transform.y,
-        interactionSpeed: panInteractionSpeed,
-        pointerId,
-      })
+      startDrag(createPanDrag())
       return
     }
 
     if (allowPan !== true || selectionDrag === true) return
-    startDrag({
-      type: 'pan',
-      startSx: sx,
-      startSy: sy,
-      startTx: runtime.transform.x,
-      startTy: runtime.transform.y,
-      interactionSpeed: panInteractionSpeed,
-      pointerId,
-    })
+    startDrag(createPanDrag())
   }
 }

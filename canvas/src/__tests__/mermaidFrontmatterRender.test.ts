@@ -9,6 +9,9 @@ import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 import { getEdgeBaseStroke, getEdgeLabelColor, getEdgeStrokeWidth, getNodeLabelColor } from '@/components/GraphCanvas/helpers'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
+import { resolveCanvas2dRendererId } from '@/lib/config.render'
+import { readFrontmatterMermaidCode } from '@/lib/mermaid/mermaidFrontmatterCode'
+import { resolveMermaidGitGraphCode } from '@/lib/mermaid/mermaidGitGraph'
 
 export const testMermaidFrontmatterModeKeepsMermaidNodesAndGroups = async () => {
   const md = [
@@ -63,6 +66,83 @@ export const testMermaidFrontmatterModeKeepsMermaidNodesAndGroups = async () => 
   if (!groups) throw new Error('expected groups derivation')
   const hasGroupA = (groups.allGroups || []).some(g => String((g as { label?: unknown }).label || '').includes('Group A'))
   if (!hasGroupA) throw new Error('expected Mermaid subgraph to produce a group')
+}
+
+export const testMermaidFrontmatterGitGraphPreservesDiagramWithoutFlowchartTopology = async () => {
+  const md = [
+    '---',
+    'kgCanvas2dRenderer: "gitGraph"',
+    'kgCanvasRenderMode: "2d"',
+    'mermaid: |',
+    '  ---',
+    '  config:',
+    '    theme: base',
+    '  ---',
+    '  gitGraph:',
+    '    commit id:"root" tag:"v1"',
+    '    branch feature',
+    '    checkout feature',
+    '    commit id:"feature-a" type:HIGHLIGHT',
+    '    checkout main',
+    '    merge feature',
+    '---',
+    '',
+    '# Git history',
+  ].join('\n')
+
+  const res = await loadGraphDataFromTextViaParser('inline-gitgraph.md', md, { applyToStore: false })
+  if (!res?.graphData) throw new Error('expected graphData')
+  const nodes = Array.isArray(res.graphData.nodes) ? res.graphData.nodes : []
+  const diagram = nodes.find(n => String(n.type || '') === 'MermaidDiagram') || null
+  if (!diagram) throw new Error('expected GitGraph MermaidDiagram node')
+  const diagramKind = String((diagram.properties || {}).diagramKind || '')
+  if (diagramKind !== 'gitgraph') {
+    throw new Error(`expected GitGraph diagramKind, got ${diagramKind}`)
+  }
+  const flowchartNode = nodes.find(n => String(n.type || '') === 'MermaidNode') || null
+  if (flowchartNode) {
+    throw new Error('expected GitGraph parser to avoid Flowchart MermaidNode topology')
+  }
+  const resolved = resolveCanvas2dRendererId('GitGraph')
+  if (resolved !== 'gitGraph') {
+    throw new Error(`expected GitGraph renderer alias to resolve, got ${String(resolved || '')}`)
+  }
+}
+
+export const testFrontmatterFlowGitGraphRendererCanReadMermaidMetadata = async () => {
+  const md = [
+    '---',
+    'kgCanvas2dRenderer: "gitGraph"',
+    'kgFrontmatterModeEnabled: true',
+    'mermaid: |',
+    '  gitGraph',
+    '    commit id:"root"',
+    '    branch feature',
+    '    checkout feature',
+    '    commit id:"feature-a"',
+    'flow:',
+    '  nodes:',
+    '    - id: {key: id, type: string, value: "root"}',
+    '      type: {key: type, type: string, value: "commit"}',
+    '      label: {key: label, type: string, value: "Root"}',
+    '---',
+    '',
+    '# GitGraph Flow',
+  ].join('\n')
+
+  const res = await loadGraphDataFromTextViaParser('inline-gitgraph-flow.md', md, { applyToStore: false })
+  if (!res?.graphData) throw new Error('expected graphData')
+  if (String(res.graphData.context || '') !== 'frontmatter-flow') {
+    throw new Error(`expected frontmatter-flow graph, got ${String(res.graphData.context || '')}`)
+  }
+  const code = readFrontmatterMermaidCode(res.graphData)
+  if (!code.includes('gitGraph')) {
+    throw new Error('expected frontmatter-flow metadata to preserve GitGraph Mermaid code')
+  }
+  const gitGraphCode = resolveMermaidGitGraphCode([code])
+  if (!gitGraphCode.includes('commit id:"root"')) {
+    throw new Error('expected GitGraph renderer code resolver to read frontmatter-flow Mermaid metadata')
+  }
 }
 
 const resolveMermaidDocCandidates = (): string[] => {

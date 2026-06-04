@@ -82,9 +82,9 @@ const GeoPanelTypeIconRenderContext = React.createContext<GeoPanelTypeIconRender
 
 function GeoPanelValueCell({ children, className }: GeoPanelValueCellProps): React.ReactElement {
   return (
-    <div className={[geospatialPanelValueCellClassName, className || ''].filter(Boolean).join(' ')}>
+    <span className={[geospatialPanelValueCellClassName, className || ''].filter(Boolean).join(' ')}>
       {children}
-    </div>
+    </span>
   )
 }
 
@@ -141,10 +141,10 @@ function GeoPanelSection(props: GeoPanelSectionProps): React.ReactElement {
   const { title, panelTypography, children } = props
   return (
     <section className="space-y-0.5" aria-label={`Geo ${title}`}>
-      <div className={['px-1 pt-2 pb-1 font-semibold', panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+      <h3 className={['px-1 pt-2 pb-1 font-semibold', panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
         {title}
-      </div>
-      <div className="space-y-0.5">{children}</div>
+      </h3>
+      <section className="space-y-0.5" aria-label={`${title} settings`}>{children}</section>
     </section>
   )
 }

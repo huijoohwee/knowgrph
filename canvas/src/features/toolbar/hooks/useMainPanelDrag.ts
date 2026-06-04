@@ -24,7 +24,7 @@ export function useMainPanelDrag() {
   const [mainPanelRequestedAnchorId, setMainPanelRequestedAnchorId] = useState('');
   const [mainPanelRequestedAnchorSeq, setMainPanelRequestedAnchorSeq] = useState(0);
   const [mainPanelRequestedWorkflowManagerTab, setMainPanelRequestedWorkflowManagerTab] = useState<WorkflowManagerTabKey>('graph');
-  const mainPanelCardRef = useRef<HTMLDivElement>(null);
+  const mainPanelCardRef = useRef<HTMLElement>(null);
   const mainPanelDragStateRef = useRef<{
     startX: number;
     startY: number;

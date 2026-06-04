@@ -31,8 +31,8 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
     return UI_THEME_TOKENS.status.neutral
   }, [ok])
   return (
-    <div className="min-w-0 max-w-full overflow-hidden">
-      <div
+    <section className="min-w-0 max-w-full overflow-hidden">
+      <section
         className={`${uiIconPillClass} ${UI_RESPONSIVE_STATUS_BADGE_CLASSNAME} inline-flex h-[var(--kg-status-pill-height,24px)] max-w-full items-center justify-center gap-1 overflow-hidden box-border px-2 text-xs ${classes}`}
       >
         {ok === true ? (
@@ -46,9 +46,9 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
             · {details}
           </span>
         ) : null}
-      </div>
+      </section>
       {below && details ? (
-        <div
+        <section
           className={[
             'mt-1',
             'min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
@@ -57,9 +57,9 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
           ].join(' ')}
         >
           {details}
-        </div>
+        </section>
       ) : null}
-    </div>
+    </section>
   )
 })
 

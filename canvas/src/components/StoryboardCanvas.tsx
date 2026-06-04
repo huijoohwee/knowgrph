@@ -126,7 +126,7 @@ function StorytreeEdgeConnector(props: {
   const sourceTitle = readMarkdownSigilDisplayText(props.sourceTitle)
   const targetTitle = readMarkdownSigilDisplayText(props.targetTitle)
   return (
-    <div
+    <section
       className="relative mb-2 flex min-h-8 items-center"
       style={{ paddingLeft: `${indentPx}px` }}
       aria-label={`Storytree edge ${sourceTitle} to ${targetTitle}`}
@@ -134,8 +134,8 @@ function StorytreeEdgeConnector(props: {
       data-kg-storytree-edge-source={props.sourceId}
       data-kg-storytree-edge-target={props.targetId}
     >
-      <div className="pointer-events-none absolute bottom-0 top-0 w-px bg-black/15" style={{ left: `${indentPx + 8}px` }} aria-hidden="true" />
-      <div className="pointer-events-none absolute h-px w-7 bg-black/15" style={{ left: `${indentPx + 8}px`, top: '50%' }} aria-hidden="true" />
+      <section className="pointer-events-none absolute bottom-0 top-0 w-px bg-black/15" style={{ left: `${indentPx + 8}px` }} aria-hidden="true" />
+      <section className="pointer-events-none absolute h-px w-7 bg-black/15" style={{ left: `${indentPx + 8}px`, top: '50%' }} aria-hidden="true" />
       <span className="ml-8 inline-flex max-w-full items-center gap-1 rounded-full border border-black/10 bg-black/[0.025] px-2 py-1 text-[10px] text-black/55">
         <span className="h-1.5 w-1.5 rounded-full bg-black/35" aria-hidden="true" />
         <span className="truncate">{sourceTitle}</span>
@@ -143,7 +143,7 @@ function StorytreeEdgeConnector(props: {
         <span className="truncate">{targetTitle}</span>
         <span className="rounded bg-black/5 px-1">{displayLabel}</span>
       </span>
-    </div>
+    </section>
   )
 }
 
@@ -190,9 +190,9 @@ function StoryboardDetailRow(props: {
   const displayValue = readMarkdownSigilDisplayText(props.value)
   if (!displayValue && !props.canEdit) return null
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-black/5 bg-black/[0.025] px-2.5 py-2">
+    <section className="flex items-start gap-2 rounded-lg border border-black/5 bg-black/[0.025] px-2.5 py-2">
       <span className={['mt-0.5 shrink-0', UI_THEME_TOKENS.text.tertiary].join(' ')}>{props.icon}</span>
-      <div className="min-w-0 flex-1">
+      <section className="min-w-0 flex-1">
         <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {props.label}
         </p>
@@ -208,8 +208,8 @@ function StoryboardDetailRow(props: {
           displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
           editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
         />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 
@@ -221,18 +221,18 @@ function StoryboardReferenceStrip(props: {
   const visible = props.references.slice(0, 3)
   return (
     <section className="rounded-lg border border-black/5 bg-black/[0.025] px-2.5 py-2" aria-label="Reference pack">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <section className="mb-2 flex items-center justify-between gap-2">
+        <section className="flex items-center gap-2">
           <ImageIcon className={['h-3.5 w-3.5 shrink-0', UI_THEME_TOKENS.text.tertiary].join(' ')} aria-hidden="true" />
           <span className={['text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
             Reference Pack
           </span>
-        </div>
+        </section>
         <span className={['inline-flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {props.references.length}
         </span>
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      </section>
+      <section className="flex gap-2 overflow-x-auto pb-1">
         {visible.map((reference, index) => {
           const key = `${props.cardId}:reference:${index}`
           if (reference.kind === 'image' || reference.kind === 'svg') {
@@ -279,7 +279,7 @@ function StoryboardReferenceStrip(props: {
             </a>
           )
         })}
-      </div>
+      </section>
     </section>
   )
 }
@@ -654,19 +654,19 @@ export default function StoryboardCanvas({
   return (
     <section className={['relative flex h-full w-full flex-col overflow-hidden', UI_THEME_TOKENS.panel.bg].join(' ')} aria-label="Storyboard canvas">
       <header className={['flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3', UI_THEME_TOKENS.panel.border].join(' ')}>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+        <section className="min-w-0">
+          <section className="flex items-center gap-2">
             <PanelsTopLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
             <h2 className={['m-0 text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>Storyboard</h2>
             <span className={['inline-flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
               {board.totalCards}
             </span>
-          </div>
+          </section>
           <p className={['m-0 mt-1 text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
             Native storyboard board derived from the active graph and shaped with the shared kanban system.
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+        </section>
+        <section className="flex flex-wrap items-center gap-2">
           <span className={['inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
             <Hash className="h-3 w-3" aria-hidden="true" />
             {laneCount} lanes
@@ -682,7 +682,7 @@ export default function StoryboardCanvas({
           <span className={['hidden text-[10px] sm:inline font-mono', UI_THEME_TOKENS.text.tertiary].join(' ')} title={board.semanticKey}>
             {board.semanticKey ? board.semanticKey.slice(0, 10) : 'empty'}
           </span>
-        </div>
+        </section>
       </header>
 
       {board.totalCards > 0 ? (
@@ -717,7 +717,7 @@ export default function StoryboardCanvas({
               ))}
             </svg>
           ) : null}
-          <div className="relative z-10 flex h-full min-w-fit items-start gap-4">
+          <section className="relative z-10 flex h-full min-w-fit items-start gap-4">
             {visibleLanes.map(lane => (
               (() => {
                 const laneDropProps = storyboardDrag.createLaneDropProps(lane.id)
@@ -746,20 +746,20 @@ export default function StoryboardCanvas({
                 {...laneDropProps}
               >
                 <header className={['sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-3 py-3 backdrop-blur-sm', UI_THEME_TOKENS.panel.divider, UI_THEME_TOKENS.kanban.groupBg].join(' ')}>
-                  <div className="min-w-0">
+                  <section className="min-w-0">
                     <h3 className={['m-0 text-sm font-medium truncate', UI_THEME_TOKENS.text.primary].join(' ')} title={readMarkdownSigilDisplayText(lane.label)}>
                       {renderMarkdownSigilInlineText(lane.label)}
                     </h3>
                     <p className={['m-0 mt-1 text-[11px]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                       {lane.cards.length} storyboard cards
                     </p>
-                  </div>
+                  </section>
                   <span className={['inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
                     {lane.cards.length}
                   </span>
                 </header>
                 {lane.id === 'Storytree' ? (
-                  <div className={['flex gap-1 overflow-x-auto border-b px-3 py-2', UI_THEME_TOKENS.panel.divider].join(' ')} aria-label="Storytree filters">
+                  <section className={['flex gap-1 overflow-x-auto border-b px-3 py-2', UI_THEME_TOKENS.panel.divider].join(' ')} aria-label="Storytree filters">
                     {STORYTREE_FILTERS.map(filter => (
                       <button
                         key={filter.id}
@@ -780,7 +780,7 @@ export default function StoryboardCanvas({
                         {filter.label}
                       </button>
                     ))}
-                  </div>
+                  </section>
                 ) : null}
 
                 <ol
@@ -897,20 +897,20 @@ export default function StoryboardCanvas({
                               })}
                             />
                           ) : null}
-                          <div className="block w-full cursor-pointer text-left">
-                            <div
+                          <section className="block w-full cursor-pointer text-left">
+                            <section
                               data-kg-kanban-card-drag-region="1"
                               className="border-b border-black/5 px-3 py-2.5 cursor-grab active:cursor-grabbing select-none"
                             >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <div className="mb-2 flex items-center gap-2">
+                              <section className="flex items-start justify-between gap-3">
+                                <section className="min-w-0 flex-1">
+                                  <section className="mb-2 flex items-center gap-2">
                                     <span className={`${UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME} inline-flex items-center justify-center rounded-md border border-black/10 bg-black/[0.03] px-2 py-1 text-[10px] font-semibold text-black/70`}>
                                       {displayIndex}
                                     </span>
                                     <DataViewTagChip value={card.typeLabel} />
                                     <DataViewStatusChip value={card.lane} checked={selected} hideIcon />
-                                  </div>
+                                  </section>
                                   <CardInlineTextEditor
                                     value={card.title}
                                     ariaLabel={`Storyboard title for ${card.id}`}
@@ -927,28 +927,28 @@ export default function StoryboardCanvas({
                                       {renderMarkdownSigilInlineText(card.slugline)}
                                     </p>
                                   ) : null}
-                                </div>
+                                </section>
                                 {displayMedia?.kind === 'video' ? (
                                   <Video className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
                                 ) : displayMedia ? (
                                   <ImageIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
                                 ) : null}
-                              </div>
-                            </div>
+                              </section>
+                            </section>
 
-                            <div
+                            <section
                               data-kg-kanban-card-drag-region="1"
                               className={['aspect-[16/9] overflow-hidden border-b border-black/5 cursor-grab active:cursor-grabbing select-none', selected ? 'bg-black/10' : 'bg-black/5'].join(' ')}
                             >
                               <StoryboardMediaPreview title={displayTitle} href={card.href} media={displayMedia} />
-                            </div>
+                            </section>
 
-                            <div
+                            <section
                               data-kg-kanban-card-drag-region="1"
                               className="space-y-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none"
                             >
                               {summaryEntry || typeof updateNode === 'function' ? (
-                                <div>
+                                <section>
                                   <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                     {summaryEntry?.label || 'Summary'}
                                   </p>
@@ -971,7 +971,7 @@ export default function StoryboardCanvas({
                                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
                                     editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                                   />
-                                </div>
+                                </section>
                               ) : null}
 
                               <StoryboardDetailRow
@@ -1005,12 +1005,12 @@ export default function StoryboardCanvas({
 
                               {isStorytreeBranch ? (
                                 <section className="rounded-xl border border-black/5 bg-black/[0.025] p-2.5" aria-label="Storytree workflow">
-                                  <div className="mb-2 flex flex-wrap items-center gap-1">
+                                  <section className="mb-2 flex flex-wrap items-center gap-1">
                                     <DataViewTagChip value={storytreeStatus || 'storytree'} />
                                     <DataViewTagChip value={accessState} />
                                     {Number.isFinite(unlockPriceCredits) && unlockPriceCredits > 0 ? <DataViewTagChip value={`${unlockPriceCredits} credits`} /> : null}
-                                  </div>
-                                  <div className="grid grid-cols-4 gap-1.5">
+                                  </section>
+                                  <section className="grid grid-cols-4 gap-1.5">
                                     <button
                                       type="button"
                                       className={[UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
@@ -1062,18 +1062,18 @@ export default function StoryboardCanvas({
                                       <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
                                       Draft
                                     </button>
-                                  </div>
+                                  </section>
                                 </section>
                               ) : null}
 
                               {isForkCompareCandidate ? (
                                 <section className="rounded-xl border border-emerald-900/10 bg-emerald-50/40 p-2.5" aria-label="ForkCompare scorecard">
-                                  <div className="mb-2 flex flex-wrap items-center gap-1">
+                                  <section className="mb-2 flex flex-wrap items-center gap-1">
                                     <DataViewTagChip value={candidateStatus || 'candidate'} />
                                     <DataViewTagChip value={candidateModeration} />
                                     <DataViewTagChip value={`${Math.round(Math.max(0, Math.min(1, candidateContinuity)) * 100)}% continuity`} />
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                                  </section>
+                                  <section className="grid grid-cols-2 gap-1.5 text-[11px]">
                                     <span className={['rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
                                       {candidateCreditCost} credits
                                     </span>
@@ -1086,7 +1086,7 @@ export default function StoryboardCanvas({
                                     <span className={['rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
                                       {candidateFallback}
                                     </span>
-                                  </div>
+                                  </section>
                                   <button
                                     type="button"
                                     className={[
@@ -1109,15 +1109,15 @@ export default function StoryboardCanvas({
 
                               {card.prompt || card.style || card.references.length > 0 ? (
                                 <section className="rounded-xl border border-black/5 bg-black/[0.025] p-2.5" aria-label="Visual brief">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
+                                  <section className="flex items-center justify-between gap-2">
+                                    <section className="flex items-center gap-2">
                                       <Sparkles className={['h-3.5 w-3.5 shrink-0', UI_THEME_TOKENS.text.tertiary].join(' ')} aria-hidden="true" />
                                       <span className={['text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                         Visual Brief
                                       </span>
-                                    </div>
+                                    </section>
                                     {card.style ? <DataViewTagChip value={card.style} /> : null}
-                                  </div>
+                                  </section>
                                   {card.prompt ? (
                                     <CardInlineTextEditor
                                       value={card.prompt}
@@ -1139,7 +1139,7 @@ export default function StoryboardCanvas({
                                       editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                                     />
                                   ) : null}
-                                  <div className="mt-2 flex items-center gap-2">
+                                  <section className="mt-2 flex items-center gap-2">
                                     {card.references.length > 0 ? (
                                       <span className={['inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
                                         <ImageIcon className="h-3 w-3" aria-hidden="true" />
@@ -1165,32 +1165,32 @@ export default function StoryboardCanvas({
                                         Open brief
                                       </a>
                                     ) : null}
-                                  </div>
+                                  </section>
                                 </section>
                               ) : null}
 
                               <StoryboardReferenceStrip cardId={card.id} references={card.references} />
 
                               {card.tags.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
+                                <section className="flex flex-wrap gap-1">
                                   {card.tags.slice(0, 4).map(tag => (
                                     <DataViewTagChip key={`${card.id}:tag:${tag}`} value={tag} />
                                   ))}
-                                </div>
+                                </section>
                               ) : null}
 
                               {card.meta.length > 0 ? (
-                                <div className={['flex flex-wrap gap-1 text-[11px]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
+                                <section className={['flex flex-wrap gap-1 text-[11px]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                   {card.meta.map(item => (
                                     <span key={`${card.id}:meta:${item}`} className={['rounded px-2 py-1', UI_THEME_TOKENS.badge.chip].join(' ')}>
                                       {item}
                                     </span>
                                   ))}
-                                </div>
+                                </section>
                               ) : null}
 
                               {card.href ? (
-                                <div className="flex items-center justify-end">
+                                <section className="flex items-center justify-end">
                                   <a
                                     href={card.href}
                                     target="_blank"
@@ -1208,10 +1208,10 @@ export default function StoryboardCanvas({
                                     <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                     <span className="truncate">Open source</span>
                                   </a>
-                                </div>
+                                </section>
                               ) : null}
-                            </div>
-                          </div>
+                            </section>
+                          </section>
                         </article>
                       </li>
                     )
@@ -1226,17 +1226,17 @@ export default function StoryboardCanvas({
                 )
               })()
             ))}
-          </div>
+          </section>
         </section>
       ) : (
         <section className="flex flex-1 items-center justify-center p-6" aria-label="Storyboard empty state">
-          <div className="max-w-md text-center">
+          <section className="max-w-md text-center">
             <PanelsTopLeft className="mx-auto h-8 w-8" aria-hidden="true" />
             <h3 className={['mb-2 mt-3 text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>No storyboard cards yet</h3>
             <p className={['m-0 text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>
               Add scene-like nodes, stage fields, summaries, script beats, prompts, or media references to project the active graph into storyboard lanes.
             </p>
-          </div>
+          </section>
         </section>
       )}
     </section>

@@ -1,12 +1,12 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'gitGraph', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'strybldr', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -35,6 +35,15 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuDescription: 'Bipartite flow',
     menuBadges: ['Block', 'Voxel'],
     aliases: ['d3flowchart'],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
+  gitGraph: {
+    surfaceId: 'gitGraph',
+    registryLabel: 'GitGraph',
+    menuLabel: 'Git',
+    menuDescription: 'Mermaid GitGraph',
+    menuBadges: ['Mermaid', 'History'],
+    aliases: ['git', 'gitgraph', 'mermaidgitgraph'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   flow: {
@@ -163,6 +172,10 @@ export const isFlowchartCanvas2dRenderer = (id: Canvas2dRendererId | null | unde
   return id === 'flowchart'
 }
 
+export const isGitGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'gitGraph'
+}
+
 export const isFlowCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'flow' || id === 'flowEditor'
 }
@@ -205,7 +218,7 @@ export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined):
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isGitGraphCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const

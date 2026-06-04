@@ -37,6 +37,11 @@ implementation exposes DNS-AID, Auth.md, OAuth/OIDC metadata, root and app-scope
 artifacts, Markdown negotiation, read-only HTTP MCP, browser-visible WebMCP, and root Commerce
 discovery without moving authority out of the `knowgrph` repository.
 
+The repo also ships a local long-horizon SuperAgent harness for research/code/create artifact runs.
+That harness is available through `python3 -m knowgrph_parser superagent`, `npm run goal:run`, and
+local MCP `knowgrph.superagent.run`. It is source-owned and DeerFlow-inspired only at the concept
+level; it is not a deployed public Pages/WebMCP mutation service.
+
 The shipped browser and deployed surfaces intentionally differ by trust boundary:
 
 - deployed Pages HTTP/HTML fallback exposes the five published read-only tools that can execute
@@ -47,6 +52,8 @@ The shipped browser and deployed surfaces intentionally differ by trust boundary
   Payments retained only as a subsection
 - FloatingPanel Chat remains the single LLM output -> Markdown YAML frontmatter -> Canvas pipeline
 - `flow.subgraphs` is the only canonical grouping authoring surface for graph-producing Markdown
+- local SuperAgent execution remains CLI/local-MCP only unless a future source-owned deployed route
+  and live validation prove otherwise
 
 The document is a living PRD/TAD companion. It records the current implemented baseline, the
 acceptance conditions that prove it, and the guardrails that prevent stale downstream patches,
@@ -94,6 +101,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 - Markdown negotiation for root, service homepage, and published document routes
 - read-only HTTP MCP on `/knowgrph/mcp`
 - browser WebMCP runtime and Pages HTML fallback WebMCP
+- local CLI/local-MCP SuperAgent harness documentation and source-owner linkage
 - root Commerce discovery for ACP, UCP, MPP, and x402
 - MainPanel `mcp` / `integrations` / `commerce` -> FloatingPanel Chat -> KGC Markdown -> Canvas apply path
 - generated production mirror sync and Cloudflare Pages deployment validation
@@ -108,6 +116,8 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 - a second Commerce or payment worker stack
 - a second LLM Markdown-to-Canvas graph pipeline
 - legacy grouping aliases such as `kg:subgraphs`, `clusters`, `groups`, or `layers`
+- a deployed mutating SuperAgent route without a source-owned Pages/Worker owner and live validation
+- copied DeerFlow code, copied DeerFlow architecture, or DeerFlow-owned renderer/parser/graph apply stacks
 
 ## User Stories And Acceptance
 

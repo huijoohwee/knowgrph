@@ -58,7 +58,6 @@ This root document exists as the auto-generated settings registry table surface 
 | `uiIconAnimationEnabled` | boolean | store |  |  |
 | `themeMode` | string | store | `kg:ui:themeMode` | `ui.theme` |
 | `floatingPanelWidthRatio` | number | localStorage | `kg:ui:floatingPanelWidthRatio` | `ui.floatingPanel` |
-| `floatingPanelHeightRatio` | number | localStorage | `kg:ui:floatingPanelHeightRatio` | `ui.floatingPanel` |
 | `floatingPanelZIndex` | number | localStorage | `kg:ui:floatingPanelZIndex` | `ui.floatingPanel` |
 | `enableLaunchSpotlight` | boolean | store |  |  |
 | `spotlight.margin` | number | store |  |  |

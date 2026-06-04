@@ -17,6 +17,10 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const toolbarToolMenuText = readFileSync(resolve(root, 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8')
   const uiCopyText = readFileSync(resolve(root, 'lib', 'config-copy', 'uiCopy.ts'), 'utf8')
   const rendererRegistryText = readFileSync(resolve(root, 'lib', 'renderer', 'canvas2dRendererRegistry.ts'), 'utf8')
+  const gitGraphCanvasText = readFileSync(resolve(root, 'components', 'MermaidGitGraphCanvas.tsx'), 'utf8')
+  const gitGraphFloatingPanelText = readFileSync(resolve(root, 'features', 'gitgraph', 'GitGraphFloatingPanelView.tsx'), 'utf8')
+  const gitGraphDocumentHookText = readFileSync(resolve(root, 'features', 'gitgraph', 'useMermaidGitGraphDocument.ts'), 'utf8')
+  const svgSurfaceZoomRuntimeText = readFileSync(resolve(root, 'components', 'GraphCanvas', 'hooks', 'useSvgSurfaceZoomRuntime.ts'), 'utf8')
 
   if (!renderConfigText.includes('export const getCanvas2dSurfaceId')) {
     throw new Error('expected shared renderer surface helper in config.render')
@@ -39,8 +43,107 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!renderConfigText.includes('export const isFlowEditorCanvas2dRenderer')) {
     throw new Error('expected shared Flow Editor renderer helper in config.render')
   }
+  if (!renderConfigText.includes('gitGraph') || !renderConfigText.includes('export const isGitGraphCanvas2dRenderer')) {
+    throw new Error('expected GitGraph renderer to be registered through shared renderer config')
+  }
   if (!canvasViewportText.includes('getCanvas2dSurfaceId(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport to derive the active 2D surface from the shared renderer surface helper')
+  }
+  if (!canvasViewportText.includes("import('@/components/MermaidGitGraphCanvas')") || !canvasViewportText.includes("active2dSurface === 'gitGraph'")) {
+    throw new Error('expected CanvasViewport to mount GitGraph through the shared 2D surface branch')
+  }
+  if (!gitGraphCanvasText.includes('useSvgSurfaceZoomRuntime({') || !gitGraphCanvasText.includes('data-kg-gitgraph-interactive="1"')) {
+    throw new Error('expected GitGraph renderer to delegate interaction to the shared SVG surface zoom runtime')
+  }
+  if (!gitGraphCanvasText.includes('selectedElementLabel: selectedCommandLabel') || !gitGraphCanvasText.includes('onSelectedElementLabelChange: handleSelectedElementLabelChange')) {
+    throw new Error('expected GitGraph FloatingPanel selection to flow through the shared SVG surface runtime')
+  }
+  if (!svgSurfaceZoomRuntimeText.includes('readSelectedElementLabel?:') || !svgSurfaceZoomRuntimeText.includes('readSelectedElementLabel?.({ svgEl: args.svgEl, target, candidate })')) {
+    throw new Error('expected shared SVG surface runtime to expose neutral clicked-element label resolution')
+  }
+  if (!svgSurfaceZoomRuntimeText.includes('resolveSelectedElementByLabel?:') || !svgSurfaceZoomRuntimeText.includes('readSelectedElementPeers?:')) {
+    throw new Error('expected shared SVG surface runtime to let renderers keep related selected SVG parts undimmed')
+  }
+  if (
+    !gitGraphCanvasText.includes('resolveGitGraphSvgElementLabel') ||
+    !gitGraphCanvasText.includes('readGitGraphSvgElementLabelCandidates') ||
+    !gitGraphCanvasText.includes('findGitGraphCommandForExactLabel') ||
+    !gitGraphCanvasText.includes('resolveGitGraphSelectedSvgElementByLabel') ||
+    !gitGraphCanvasText.includes('readGitGraphSelectedSvgElementPeers') ||
+    !gitGraphCanvasText.includes("setFloatingPanelView('gitGraph')")
+  ) {
+    throw new Error('expected GitGraph canvas-to-row selection to resolve SVG labels through parsed commands and open the shared FloatingPanel')
+  }
+  if (
+    !gitGraphFloatingPanelText.includes('data-kg-gitgraph-command-line') ||
+    !gitGraphFloatingPanelText.includes("scrollIntoView({ block: 'center' })") ||
+    !gitGraphFloatingPanelText.includes('ring-2')
+  ) {
+    throw new Error('expected GitGraph FloatingPanel rows to highlight and scroll to canvas-selected commands')
+  }
+  if (!gitGraphCanvasText.includes('[data-kg-svg-dimmed="1"]')) {
+    throw new Error('expected GitGraph canvas to render shared SVG selection dimming markers')
+  }
+  if (gitGraphCanvasText.includes('[data-kg-svg-selected="1"]') || gitGraphCanvasText.includes('stroke: var(--kg-canvas-accent)') || gitGraphCanvasText.includes('paint-order: stroke')) {
+    throw new Error('expected GitGraph row-to-canvas selection to avoid selected-SVG highlight styling while preserving dimming')
+  }
+  if (gitGraphCanvasText.includes('CardInlineTextEditor') || gitGraphCanvasText.includes('data-kg-gitgraph-crud-panel="1"')) {
+    throw new Error('expected GitGraph canvas to stay SVG-only after command CRUD consolidation into FloatingPanel')
+  }
+  if (!gitGraphFloatingPanelText.includes('CardInlineTextEditor') || !gitGraphFloatingPanelText.includes('data-kg-gitgraph-floating-panel="1"')) {
+    throw new Error('expected GitGraph FloatingPanel view to reuse the shared inline editor owner')
+  }
+  if (!gitGraphDocumentHookText.includes('replaceMermaidGitGraphCodeInMarkdown') || !gitGraphDocumentHookText.includes('writeWorkspaceSourceTextIfPresent')) {
+    throw new Error('expected GitGraph interactive CRUD to write through shared source-text owners')
+  }
+  const gitGraphMarkdownSourceIndex = gitGraphDocumentHookText.indexOf('readYamlFrontmatterMermaidCode(markdownDocumentText || \'\')')
+  const gitGraphParsedSourceIndex = gitGraphDocumentHookText.indexOf('readFrontmatterMermaidCode(graphData)')
+  if (gitGraphMarkdownSourceIndex < 0 || gitGraphParsedSourceIndex < 0 || gitGraphMarkdownSourceIndex > gitGraphParsedSourceIndex) {
+    throw new Error('expected GitGraph renderer to prefer live Markdown frontmatter over stale parsed graph metadata')
+  }
+  if (
+    gitGraphCanvasText.includes('window.prompt(') ||
+    gitGraphFloatingPanelText.includes('window.prompt(') ||
+    gitGraphDocumentHookText.includes('localStorage.setItem(')
+  ) {
+    throw new Error('expected GitGraph interactive CRUD to avoid prompt/local renderer storage patches')
+  }
+  for (const token of [
+    "import { createZoom } from '@/components/GraphCanvas/zoom'",
+    "import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'",
+    "import { fitAllTransform } from '@/components/GraphCanvas/fit'",
+    'useAutoZoomModes2d({',
+    'buildActive2dZoomViewKey({',
+    'commitZoomTransformToStore({',
+    'createRafLatestScheduler',
+    'pickZoomStateForView({',
+    'pickInitialZoomTransform({',
+    'data-kg-svg-zoom-content',
+    'data-kg-svg-viewport-hitbox',
+    'data-kg-svg-selected',
+    'data-kg-svg-dimmed',
+    'data-kg-svg-has-selection',
+    'setSelectedElementByLabel',
+    'findSvgSelectionCandidateByLabel',
+    'updateSvgSelectionDimming',
+    'resolveSelectedElementByLabel',
+    'readSelectedElementPeers',
+    'buildSvgSurfaceGraphData({',
+  ]) {
+    if (!svgSurfaceZoomRuntimeText.includes(token)) {
+      throw new Error(`expected SVG surface zoom runtime to reuse shared D3 viewport owner: ${token}`)
+    }
+  }
+  if (
+    gitGraphCanvasText.includes('ref={svgHostRef}\n          className="absolute inset-0 h-full w-full overflow-auto"') ||
+    gitGraphCanvasText.includes('ref={svgHostRef}\n          className="absolute inset-0 h-full w-full overflow-scroll"')
+  ) {
+    throw new Error('expected GitGraph renderer to avoid scroll-only interaction after shared zoom runtime adoption')
+  }
+  for (const staleToken of ['knowgrph-gitgraph-demo', 'source_md', 'e2e_proof']) {
+    if (gitGraphCanvasText.includes(staleToken) || svgSurfaceZoomRuntimeText.includes(staleToken)) {
+      throw new Error('expected GitGraph interactive runtime to stay project- and file-agnostic')
+    }
   }
   if (!canvasViewportText.includes('supportsCanvas2dMinimap(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport minimap gating to use the shared helper')
@@ -92,6 +195,9 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   }
   if (!uiCopyText.includes('2D Renderer: Flow Canvas')) {
     throw new Error('expected Flow renderer to be labeled as 2D Renderer: Flow Canvas')
+  }
+  if (!uiCopyText.includes('2D Renderer: GitGraph')) {
+    throw new Error('expected GitGraph renderer to be labeled as 2D Renderer: GitGraph')
   }
   if (!uiCopyText.includes('2D Renderer: Storyboard')) {
     throw new Error('expected Storyboard renderer to be labeled as 2D Renderer: Storyboard')

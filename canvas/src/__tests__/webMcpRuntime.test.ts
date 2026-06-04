@@ -23,7 +23,10 @@ type RegisteredTool = {
   name: string
   title?: string; description?: string
   inputSchema?: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+  securitySchemes?: Array<Record<string, unknown>>
   annotations?: Record<string, unknown>
+  _meta?: Record<string, unknown>
   execute: (input?: Record<string, unknown>) => Promise<unknown>
 }
 
@@ -57,8 +60,17 @@ const assertWebMcpRuntimeToolParity = (tools: RegisteredTool[], label: string): 
     if (JSON.stringify(registeredTool.inputSchema) !== JSON.stringify(contract.inputSchema)) {
       throw new Error(`expected ${label} inputSchema parity for ${contract.webName}`)
     }
+    if (JSON.stringify(registeredTool.outputSchema || null) !== JSON.stringify(contract.outputSchema || null)) {
+      throw new Error(`expected ${label} outputSchema parity for ${contract.webName}`)
+    }
+    if (JSON.stringify(registeredTool.securitySchemes || null) !== JSON.stringify(contract.securitySchemes || null)) {
+      throw new Error(`expected ${label} securitySchemes parity for ${contract.webName}`)
+    }
     if (JSON.stringify(registeredTool.annotations || null) !== JSON.stringify(contract.annotations || null)) {
       throw new Error(`expected ${label} annotations parity for ${contract.webName}`)
+    }
+    if (JSON.stringify(registeredTool._meta || null) !== JSON.stringify(contract._meta || null)) {
+      throw new Error(`expected ${label} _meta parity for ${contract.webName}`)
     }
   }
 }

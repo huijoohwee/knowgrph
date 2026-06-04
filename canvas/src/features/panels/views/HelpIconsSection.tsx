@@ -100,7 +100,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
   );
 
   return (
-    <div data-kg-anchor={UI_ANCHORS.graphFieldsIcons}>
+    <section data-kg-anchor={UI_ANCHORS.graphFieldsIcons}>
       <CollapsibleSection
         title={HELP_STEP_COPY.icons.title}
         collapsed={collapsed}
@@ -108,9 +108,9 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
         id={UI_ANCHORS.graphFieldsIcons}
       >
         {HELP_STEP_COPY.icons.descriptionShort && (
-          <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
+          <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
             {HELP_STEP_COPY.icons.descriptionShort}
-          </div>
+          </section>
         )}
         <HelpKtvRows className="mb-2">
           <HelpKtvRow
@@ -170,6 +170,6 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
           ))}
         </HelpKtvRows>
       </CollapsibleSection>
-    </div>
+    </section>
   );
 }

@@ -194,10 +194,10 @@ export function Canvas3dModeSelect({
         setCanvasRenderMode('3d')
       }}
       renderButtonContent={activeOption => (
-        <div className="flex items-center gap-1">
+        <section className="flex items-center gap-1">
           <activeOption.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
           <span className="text-xs">{activeOption.label}</span>
-        </div>
+        </section>
       )}
       renderOptionContent={option => (
         <>

@@ -36,8 +36,8 @@ export function ToolbarValidationArea({
   }
 
   return (
-    <div className={uiToolbarAreaStackClassName}>
-      <div className={uiToolbarAreaWrapActionRowClassName}>
+    <section className={uiToolbarAreaStackClassName}>
+      <section className={uiToolbarAreaWrapActionRowClassName}>
         <button
           type="button"
           className={neutralToolbarButtonClassName}
@@ -58,8 +58,8 @@ export function ToolbarValidationArea({
         >
           {EXPORT_UI_LABELS.exportValidationMarkdown}
         </button>
-      </div>
-      <div className={uiToolbarAreaWrapActionRowClassName}>
+      </section>
+      <section className={uiToolbarAreaWrapActionRowClassName}>
         <button
           type="button"
           className={`${neutralToolbarButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
@@ -86,7 +86,7 @@ export function ToolbarValidationArea({
         >
           {EXPORT_UI_LABELS.exportSelectionValidationMarkdown}
         </button>
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

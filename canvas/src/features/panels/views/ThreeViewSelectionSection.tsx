@@ -34,7 +34,7 @@ export default function ThreeViewSelectionSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Selected Node Glow</span>}
@@ -122,7 +122,7 @@ export default function ThreeViewSelectionSection({
             </>
           )}
         />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

@@ -63,7 +63,7 @@ type MarkdownPreviewProps = {
   previewOverlayScope?: 'viewport' | 'container'
   previewOverlayPortalTarget?: HTMLElement | null
   previewScrollable?: boolean
-  onScroll?: (event: React.UIEvent<HTMLDivElement>) => void
+  onScroll?: (event: React.UIEvent<HTMLElement>) => void
   onSlidesReordered?: (nextOrder: number[]) => void
   onPreviewClick?: (line: number) => void
   tokens?: TokenWithLines[]
@@ -107,7 +107,7 @@ type MarkdownPreviewProps = {
   markdownCardPreviewMode?: boolean
 }
 
-const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
+const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(function MarkdownPreview(
   {
     markdownText,
     activeDocumentPath,
@@ -173,11 +173,11 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   const { flashSelectionId, flashAlpha } = useSelectionFlash(selectionId)
   const rootThemeMode = useRootThemeMode()
 
-  const rootElRef = React.useRef<HTMLDivElement | null>(null)
-  const setRootRef = React.useCallback((el: HTMLDivElement | null) => {
+  const rootElRef = React.useRef<HTMLElement | null>(null)
+  const setRootRef = React.useCallback((el: HTMLElement | null) => {
     rootElRef.current = el
     if (typeof ref === 'function') ref(el)
-    else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = el
+    else if (ref) (ref as React.MutableRefObject<HTMLElement | null>).current = el
   }, [ref])
 
   const { tokens, meta: cachedHeadMeta, startLineOffset } = useMarkdownPreviewLexedMarkdown(

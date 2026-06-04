@@ -5,7 +5,7 @@ import { MarkdownSourceFilesTreeRow } from '@/features/markdown/ui/MarkdownSourc
 
 export async function testMarkdownSourceFilesTreeRowCentralizesSourcePanelRowUi() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const selectedFolders: string[] = []

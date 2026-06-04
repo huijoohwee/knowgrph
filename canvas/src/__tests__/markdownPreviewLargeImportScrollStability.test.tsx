@@ -46,7 +46,7 @@ const buildLargeImportedMarkdown = (): string => {
 export async function testLargeImportedMarkdownKeepsContentAfterScroll() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     const doc = dom.window.document
@@ -92,7 +92,7 @@ export async function testLargeImportedMarkdownKeepsContentAfterScroll() {
       await tick(dom)
     })
 
-    const previewRoot = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const previewRoot = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null
     if (!previewRoot) throw new Error('expected markdown preview root')
     if (previewRoot.getAttribute('data-kg-large-markdown-viewer') !== '1') {
       throw new Error('expected imported source to use large-document viewer mode')

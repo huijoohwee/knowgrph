@@ -133,7 +133,7 @@ export const HeaderCell = React.memo(function HeaderCell({
         if (detailsRef.current) detailsRef.current.open = true
       }}
     >
-      <div
+      <section
         className="h-full flex items-center justify-between gap-2 px-2 group cursor-grab active:cursor-grabbing touch-none select-none"
         onClick={event => {
           const target = event.target
@@ -150,7 +150,7 @@ export const HeaderCell = React.memo(function HeaderCell({
           onReorderPointerDown(event, columnKey)
         }}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <section className="flex items-center gap-2 min-w-0">
           {stickyClass ? <Lock className={`w-3 h-3 shrink-0 ${UI_THEME_TOKENS.icon.color}`} aria-hidden="true" /> : null}
           {Icon ? <Icon className={`w-3 h-3 shrink-0 ${UI_THEME_TOKENS.icon.color}`} aria-hidden="true" /> : null}
 
@@ -244,12 +244,12 @@ export const HeaderCell = React.memo(function HeaderCell({
               </li>
             </menu>
           </details>
-        </div>
+        </section>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <section className="flex items-center gap-1 shrink-0">
           {isSorted ? <span className={`${UI_THEME_TOKENS.table.textSecondary} text-[10px]`}>{sortDir === 'asc' ? 'A→Z' : 'Z→A'}</span> : null}
           {isGroupable ? <span className={`rounded ${UI_THEME_TOKENS.badge.chip} px-1 ${UI_THEME_TOKENS.table.textSecondary}`}>group</span> : null}
-        </div>
+        </section>
 
         <span
           className="absolute inset-y-0 right-0 w-1 cursor-col-resize kg-col-resize"
@@ -266,7 +266,7 @@ export const HeaderCell = React.memo(function HeaderCell({
             onColumnResizePointerDown(event, { columnKey, width })
           }}
         />
-      </div>
+      </section>
       {showFrozenResizeHandle && (
         <FrozenAreaResizeHandle
           onPointerDown={event => {

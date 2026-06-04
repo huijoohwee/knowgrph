@@ -27,9 +27,9 @@ export function ToolbarParserArea({
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
   return (
-    <div className={uiToolbarAreaStackClassName}>
+    <section className={uiToolbarAreaStackClassName}>
       {isExportMenuOpen && (
-        <div className={uiToolbarAreaCompactActionRowClassName}>
+        <section className={uiToolbarAreaCompactActionRowClassName}>
           {(['json', 'yaml', 'text'] as const).map(lang => {
             const label =
               lang === 'json'
@@ -58,11 +58,11 @@ export function ToolbarParserArea({
               </button>
             )
           })}
-        </div>
+        </section>
       )}
-      <div className={uiToolbarAreaActionRowClassName}>
+      <section className={uiToolbarAreaActionRowClassName}>
         <StatusBadge label={UI_LABELS.parser} ok={parserLoadOk} msg={parserLoadMsg} />
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }

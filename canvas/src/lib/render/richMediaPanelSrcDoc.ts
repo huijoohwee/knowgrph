@@ -1,6 +1,7 @@
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { normalizeSemanticHtmlContainers } from '@/lib/html/semanticHtml'
 import { resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 
 export const RICH_MEDIA_PANEL_SRCDOC_ATTR = 'data-kg-rich-media-panel-srcdoc'
@@ -21,8 +22,8 @@ function escapeHtmlText(raw: unknown): string {
 
 function buildRichMediaPanelSrcDocResetStyle(): string {
   const text = resolveCssVarWithKgFallback('--kg-text-primary')
-  const topLevelFrameSelector = 'body>:is(main,section,article,div):first-child'
-  const nestedRootFrameSelector = 'body>:is(main,section,article,div):first-child>:is(main,section,article,div):first-child'
+  const topLevelFrameSelector = 'body>:is(main,section,article):first-child'
+  const nestedRootFrameSelector = 'body>:is(main,section,article):first-child>:is(main,section,article):first-child'
   const flattenFrameStyle = 'display:block!important;width:100%!important;max-width:none!important;min-width:0!important;min-height:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important'
   return [
     `<style id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}">`,
@@ -121,12 +122,13 @@ export function normalizeRichMediaPanelInlineSrcDoc(args: {
   const srcDoc = typeof args.srcDoc === 'string' ? args.srcDoc.trim() : ''
   if (!srcDoc) return ''
   const title = String(args.title || '').trim() || 'Rich Media Panel'
-  const srcDocHash = hashStringToHexCached('rich-media-panel-srcdoc', srcDoc)
-  const cacheKey = hashSignatureParts(['rich-media-panel-srcdoc', title, srcDoc.length, srcDocHash])
+  const semanticSrcDoc = normalizeSemanticHtmlContainers(srcDoc)
+  const srcDocHash = hashStringToHexCached('rich-media-panel-srcdoc', semanticSrcDoc)
+  const cacheKey = hashSignatureParts(['rich-media-panel-srcdoc', title, semanticSrcDoc.length, srcDocHash])
   const cached = richMediaPanelSrcDocCache.get(cacheKey)
   if (cached) return cached
   const normalized = injectStyleIntoDocument({
-    srcDoc,
+    srcDoc: semanticSrcDoc,
     title,
     style: buildRichMediaPanelSrcDocResetStyle(),
   })

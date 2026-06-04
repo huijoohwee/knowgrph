@@ -74,8 +74,8 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   const content = typeof overrideText === 'string' ? overrideText : message.content
   const isUser = message.role === 'user'
   return (
-    <div className="flex">
-      <div
+    <section className="flex">
+      <section
         className={[
           'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words leading-relaxed border',
           uiPanelTextFontClass,
@@ -88,8 +88,8 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         {message.role === 'assistant'
           ? renderMessageWithWorkspaceLinks(content, onOpenWorkspacePath)
           : content}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 })
 
@@ -116,10 +116,10 @@ export function FloatingPanelChatMessagesSection({
 }: MessagesSectionProps) {
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+      <section className="flex items-center justify-between">
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {UI_COPY.chatHistoryCountStatus(messages.length)}
-        </div>
+        </section>
         <button
           type="button"
           className={`App-toolbar__btn ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
@@ -137,12 +137,12 @@ export function FloatingPanelChatMessagesSection({
         >
           {UI_LABELS.clear}
         </button>
-      </div>
+      </section>
 
       {messages.length === 0 && (
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {UI_COPY.chatEmptyStateHelp}
-        </div>
+        </section>
       )}
 
       {messages.map(m => {
@@ -212,15 +212,15 @@ export function FloatingPanelChatFooter({
   onNewChat,
 }: FooterProps) {
   return (
-    <div className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
+    <section className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
       {errorText && (
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-red-700 dark:text-red-400'].join(' ')}>
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-red-700 dark:text-red-400'].join(' ')}>
           {errorText}
-        </div>
+        </section>
       )}
 
       {connectivity !== 'unknown' && (
-        <div
+        <section
           className={[
             uiPanelTextFontClass,
             uiPanelMicroLabelTextSizeClass,
@@ -228,13 +228,13 @@ export function FloatingPanelChatFooter({
           ].join(' ')}
         >
           {connectivity === 'ok' ? UI_COPY.chatEndpointOkStatus : connectivityDetail || UI_COPY.chatEndpointUnreachableStatus}
-        </div>
+        </section>
       )}
       {modelOptions.length > 0 && (
-        <div className="flex items-center justify-between gap-2">
-          <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+        <section className="flex items-center justify-between gap-2">
+          <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
             {UI_COPY.chatModelSelectLabel}
-          </div>
+          </section>
           <select
             value={modelId}
             onChange={e => {
@@ -251,31 +251,31 @@ export function FloatingPanelChatFooter({
               </option>
             ))}
           </select>
-        </div>
+        </section>
       )}
       {streamingReasoningPreview ? (
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {streamingReasoningPreview}
-        </div>
+        </section>
       ) : null}
       {streamingUsageSummary ? (
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {streamingUsageSummary}
-        </div>
+        </section>
       ) : null}
       {streamingFinishReason ? (
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           Finish: {streamingFinishReason}
-        </div>
+        </section>
       ) : null}
       {writingWorkspaceFileLabel && (
-        <div className={getUiSectionStatusChipClassName('info', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass].join(' '))}>
+        <section className={getUiSectionStatusChipClassName('info', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass].join(' '))}>
           {writingWorkspaceFileLabel}
-        </div>
+        </section>
       )}
 
       <form onSubmit={onSubmit} className="space-y-2">
-        <div className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+        <section className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
           <PlainTextInputEditor
             value={input}
             onChange={setInput}
@@ -283,15 +283,15 @@ export function FloatingPanelChatFooter({
             className="w-full h-full border-0 rounded-none bg-transparent"
             inputClassName={uiPanelTextFontClass}
           />
-        </div>
+        </section>
 
-        <div className={`flex items-center ${currentNode ? 'justify-between' : 'justify-end'}`}>
+        <section className={`flex items-center ${currentNode ? 'justify-between' : 'justify-end'}`}>
           {currentNode ? (
-            <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+            <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
               {UI_COPY.chatUsingSelectedNodeContextStatus(currentNode.label, currentNode.type)}
-            </div>
+            </section>
           ) : null}
-          <div className="flex items-center gap-2">
+          <section className="flex items-center gap-2">
             {showNewChatButton && (
               <button
                 type="button"
@@ -318,9 +318,9 @@ export function FloatingPanelChatFooter({
             >
               {isLoading ? UI_COPY.chatSendingButtonLabel : UI_COPY.chatSendButtonLabel}
             </button>
-          </div>
-        </div>
+          </section>
+        </section>
       </form>
-    </div>
+    </section>
   )
 }

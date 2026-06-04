@@ -70,18 +70,18 @@ https://www.citriniresearch.com/p/2028gic
 
 - [ ]
 ```
-# 2D Renderer (Design) 
- ## ENHANCE HTML/CSS/JS hydration/DOM/heuristics -> 2D Renderer (Design) PIPELINE 
-- refer to Penpot (upstream), ENHANCE penpot-like functionalities for webpage UI components & layout; 
- - ALIGN 2D Renderer (D3, Flow, Flow Editor) with 2D Renderer (Design) ENSURE consistency across modes/layouts; 
- - ENFORCE high UI wireframe layout fidelity with `https://astro.build/`  ; 
- - ENHANCE heuristics processing of patterns; 
- - ADHERE to universal, neutrality, url-agnostic (i.e. URLs only for validation; not customized for individual url/hardcoded into system); 
- - ENHANCE “section synthesis” for webpage→wireframe layout; repeated grids/lists become a stable “section” container even when the DOM lacks a clean wrapper; 
- - ENHACE over-inclusion reduction so the Design renderer wireframe converges toward the meaningful layout blocks; 
- - ENHANCE pruning rule to drop textless, undecorated wrappers with many children when they’re just “layout glue” while preserving major sections; (header/nav/hero/cards) and interactive/media nodes; 
- - ENHANCE “small noisy leaf suppression” rule: drop leaf DIV/SPAN nodes under a size threshold unless they’re interactive/media or have decoration; 
- - FINETUNE the child-count threshold and class/“sibling overlap / stacking cleanup” patterns; 
+# 2D Renderer (Design)
+ ## ENHANCE HTML/CSS/JS hydration/DOM/heuristics -> 2D Renderer (Design) PIPELINE
+- refer to Penpot (upstream), ENHANCE penpot-like functionalities for webpage UI components & layout;
+ - ALIGN 2D Renderer (D3, Flow, Flow Editor) with 2D Renderer (Design) ENSURE consistency across modes/layouts;
+ - ENFORCE high UI wireframe layout fidelity with `https://astro.build/`  ;
+ - ENHANCE heuristics processing of patterns;
+ - ADHERE to universal, neutrality, url-agnostic (i.e. URLs only for validation; not customized for individual url/hardcoded into system);
+ - ENHANCE “section synthesis” for webpage→wireframe layout; repeated grids/lists become a stable “section” container even when the DOM lacks a clean wrapper;
+ - ENHACE over-inclusion reduction so the Design renderer wireframe converges toward the meaningful layout blocks;
+ - ENHANCE pruning rule to drop textless, undecorated wrappers with many children when they’re just “layout glue” while preserving major sections; (header/nav/hero/cards) and interactive/media nodes;
+ - ENHANCE “small noisy leaf suppression” rule: drop leaf DIV/SPAN nodes under a size threshold unless they’re interactive/media or have decoration;
+ - FINETUNE the child-count threshold and class/“sibling overlap / stacking cleanup” patterns;
  - FORBID re-computation, re-rendering, infinite loop, conflicting, legacy/stale codes
  ```
 
@@ -104,43 +104,43 @@ update to demo; FORBID duplicate content
 #### 2026-02-22
 
 ```
-# ENHANCE End-to-End native local in-repo Import → Render PIPELINE  
-- ENHANCE importing, indexing, loading, and rendering pipeline performance   
-- Implement broad and targeted searches cross-repo (hooks, workers, parser pipeline, schema/scene/view derivations, and any use of timing metrics).   
-- Refactor debounce, worker, and performance‑instrumentation patterns used for parsing and derivation.   
-- Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges   
- 
-## **TODO: ENHANCE 2D Renderer (Design)**
- - native in-repo develop & enhance, FORBID hardcode/external dependency to Penpot upstream repo 
+# ENHANCE End-to-End native local in-repo Import → Render PIPELINE�
+- ENHANCE importing, indexing, loading, and rendering pipeline performance �
+- Implement broad and targeted searches cross-repo (hooks, workers, parser pipeline, schema/scene/view derivations, and any use of timing metrics). �
+- Refactor debounce, worker, and performance‑instrumentation patterns used for parsing and derivation. �
+- Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges �
 
-## ENFORCE Layout & Initialization alignment/consistency/sync in the infinite canvas viewport 
-- CENTRALIZE, REUSE, ENHANCE initialization logic to center and evenly distribute collective (NOT individual) GRAPHS 
-- Add post‑computation layout collective fit;  
-- AVOID/FORBID chaotic clustering, excessive void spaces, mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:  
-      
- ### TOUCHPOINTS  
- - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview  
-    
- ### MODES/LAYOUTS  
- - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)  
-      
- ### ZOOMS  
- - Pin to View, Fit to View, Fit to Screen, Zoom to Selection  
-      
- ### GRAPHS 
- - **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text  
- - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs  
-      
- ## Code Maintenance  
- - COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`  
- - COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT  
- - REMOVE, PREVENT, RESOLVE, FORBID cross‑repo conflicts/duplicates/stale/interference across layers/modes  
- - CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom)  
- - OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-computation, re-rendering  
- - USE semantic HTML; forbid generic `<div>`  
- - UPDATE unified setting to MainPanel Settings schema  
- - TEST/VALIDATE only bounded diffs; FORBID indefinite runs  
-      
+## **TODO: ENHANCE 2D Renderer (Design)**
+ - native in-repo develop & enhance, FORBID hardcode/external dependency to Penpot upstream repo
+
+## ENFORCE Layout & Initialization alignment/consistency/sync in the infinite canvas viewport
+- CENTRALIZE, REUSE, ENHANCE initialization logic to center and evenly distribute collective (NOT individual) GRAPHS
+- Add post‑computation layout collective fit;�
+- AVOID/FORBID chaotic clustering, excessive void spaces, mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:�
+    �
+ ### TOUCHPOINTS�
+ - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview�
+  �
+ ### MODES/LAYOUTS�
+ - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)�
+    �
+ ### ZOOMS�
+ - Pin to View, Fit to View, Fit to Screen, Zoom to Selection�
+    �
+ ### GRAPHS
+ - **GRAPHS Elements:** nodes, Flow Editor widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text�
+ - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs�
+    �
+ ## Code Maintenance�
+ - COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`�
+ - COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT�
+ - REMOVE, PREVENT, RESOLVE, FORBID cross‑repo conflicts/duplicates/stale/interference across layers/modes�
+ - CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom)�
+ - OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-computation, re-rendering�
+ - USE semantic HTML; forbid generic HTML division element�
+ - UPDATE unified setting to MainPanel Settings schema�
+ - TEST/VALIDATE only bounded diffs; FORBID indefinite runs�
+    �
  ## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
  ```
 
@@ -153,46 +153,46 @@ update to demo; FORBID duplicate content
 
 - []
 ```
-# ENHANCE End-to-End native local in-repo Import → Render PIPELINE 
-- ENHANCE importing, indexing, loading, and rendering pipeline performance  
-- Implement broad and targeted searches cross-repo (hooks, workers, parser pipeline, schema/scene/view derivations, and any use of `performance.now` or timing metrics).  
-- Refactor debounce, worker, and performance‑instrumentation patterns used for parsing and derivation.  
+# ENHANCE End-to-End native local in-repo Import → Render PIPELINE
+- ENHANCE importing, indexing, loading, and rendering pipeline performance
+- Implement broad and targeted searches cross-repo (hooks, workers, parser pipeline, schema/scene/view derivations, and any use of `performance.now` or timing metrics).
+- Refactor debounce, worker, and performance‑instrumentation patterns used for parsing and derivation.
 
 ## 2D Renderer D3 – Keyword Mode
-- Refactor 2D Renderer D3 Keyword Mode to share and reuse common functionality, behaviors, and utilities from Document Structure Mode.  
-- Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges.  
+- Refactor 2D Renderer D3 Keyword Mode to share and reuse common functionality, behaviors, and utilities from Document Structure Mode.
+- Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges.
 
 ### Layout & Initialization
-- Implement initialization logic to center and evenly distribute Nodes, Clusters, and Edges in the viewport (avoid clustering or void spaces).  
-- Add post‑computation collective fit to layout and prevent uncontrolled expansion.  
+- Implement initialization logic to center and evenly distribute Nodes, Clusters, and Edges in the viewport (avoid clustering or void spaces).
+- Add post‑computation collective fit to layout and prevent uncontrolled expansion.
 
-## ANCHOR on Document Structure Mode (default) BASELINE, 
-ENFORCE GRAPHS/content alignment/consistency/sync, 
-FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across: 
-    
-### TOUCHPOINTS 
-- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview 
-  
-### MODES/LAYOUTS 
-- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout) 
-    
-### ZOOMS 
-- Pin to View, Fit to View, Fit to Screen, Zoom to Selection 
-    
-## ALIGN Semantic Definition 
-- **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text 
-- **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs 
-    
-## Code Maintenance 
-- COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}` 
-- COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT 
-- REMOVE, PREVENT, RESOLVE, FORBID cross‑repo conflicts/duplicates/stale/interference across layers/modes 
-- CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom) 
-- OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-computation, re-rendering 
-- USE semantic HTML; forbid generic `<div>` 
-- UPDATE unified setting to MainPanel Settings schema 
-- TEST/VALIDATE only bounded diffs; FORBID indefinite runs 
-    
+## ANCHOR on Document Structure Mode (default) BASELINE,
+ENFORCE GRAPHS/content alignment/consistency/sync,
+FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
+
+### TOUCHPOINTS
+- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview
+
+### MODES/LAYOUTS
+- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
+
+### ZOOMS
+- Pin to View, Fit to View, Fit to Screen, Zoom to Selection
+
+## ALIGN Semantic Definition
+- **GRAPHS Elements:** nodes, Flow Editor widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
+- **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs
+
+## Code Maintenance
+- COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`
+- COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT
+- REMOVE, PREVENT, RESOLVE, FORBID cross‑repo conflicts/duplicates/stale/interference across layers/modes
+- CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom)
+- OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-computation, re-rendering
+- USE semantic HTML; forbid generic HTML division element
+- UPDATE unified setting to MainPanel Settings schema
+- TEST/VALIDATE only bounded diffs; FORBID indefinite runs
+
 ## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
 ```
 
@@ -202,51 +202,51 @@ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 
 - [ ] single SSOT “capability map” (URL import → conversion → artifact storage → explorer/tree → render modes)
 
-- [ ] 
+- [ ]
 ```
 ```
 
-- [ ] 
+- [ ]
 
 ```
-# ENHANCE End-to-End native local in-repo Import URL (website, including webpages in tree/sitemap view) → Render PIPELINE with **sandboxed srcdoc iframes** 
-- adhere to generic, universal, neutrality, project-agnostic parsing of Website/Webpage (NOT custom made to process only any individual specific Website/Webpage); 
+# ENHANCE End-to-End native local in-repo Import URL (website, including webpages in tree/sitemap view) → Render PIPELINE with **sandboxed srcdoc iframes**
+- adhere to generic, universal, neutrality, project-agnostic parsing of Website/Webpage (NOT custom made to process only any individual specific Website/Webpage);
 
 ## ENFORCE Mode Contract alignment in editor/viewer across Markdown/JSON/HTML/Wireframe Mode
-- SHARE/REUSE Component Categorization Tokens (NAV/CTA/PRICE/TIME, etc.) across all Mode Contracts; 
+- SHARE/REUSE Component Categorization Tokens (NAV/CTA/PRICE/TIME, etc.) across all Mode Contracts;
 - SHARE/REUSE generic signal extraction logic (no site-specific branching)
 
 #### `wireframe-enhanced` Editor output
-ENHANCE generator to match fixture's detailed structure: extend sections with Header Navigation tables, Hero breakdown, per-feature "Section Statistics", Template Showcase ASCII grid with multi-row cells, richer content, exact template names grid, and table—all driven by extracted signals and enhanced upstream markdown with additional DOM heuristics: 
+ENHANCE generator to match fixture's detailed structure: extend sections with Header Navigation tables, Hero breakdown, per-feature "Section Statistics", Template Showcase ASCII grid with multi-row cells, richer content, exact template names grid, and table—all driven by extracted signals and enhanced upstream markdown with additional DOM heuristics:
 (test; FORBID hardcoded URL→fixture mapping and FORBID absolute sandbox paths; keep regression fixtures under `canvas/src/__tests__/fixtures/`)
 
-## ANCHOR on Document Structure Mode (default) BASELINE, 
-ENFORCE GRAPHS/content alignment/consistency/sync, 
-FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across: 
-    
-### TOUCHPOINTS 
-- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview 
-  
-### MODES/LAYOUTS 
-- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout) 
-    
-### ZOOMS 
-- Pin to View, Fit to View, Fit to Screen, Zoom to Selection 
-    
-## ALIGN Semantic Definition 
-- **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text 
-- **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs 
-    
-## Code Maintenance 
-- COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}` 
-- COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT 
-- REMOVE, PREVENT & RESOLVE cross‑repo conflicts/duplicates/stale/interference across layers/modes 
-- CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom) 
-- OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-rendering 
-- USE semantic HTML; forbid generic `<div>` 
-- UPDATE unified setting to MainPanel Settings schema 
-- TEST/VALIDATE only bounded diffs; FORBID indefinite runs 
-    
+## ANCHOR on Document Structure Mode (default) BASELINE,
+ENFORCE GRAPHS/content alignment/consistency/sync,
+FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
+
+### TOUCHPOINTS
+- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview
+
+### MODES/LAYOUTS
+- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
+
+### ZOOMS
+- Pin to View, Fit to View, Fit to Screen, Zoom to Selection
+
+## ALIGN Semantic Definition
+- **GRAPHS Elements:** nodes, Flow Editor widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
+- **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs
+
+## Code Maintenance
+- COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`
+- COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT
+- REMOVE, PREVENT & RESOLVE cross‑repo conflicts/duplicates/stale/interference across layers/modes
+- CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom)
+- OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-rendering
+- USE semantic HTML; forbid generic HTML division element
+- UPDATE unified setting to MainPanel Settings schema
+- TEST/VALIDATE only bounded diffs; FORBID indefinite runs
+
 ## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
 ```
 
@@ -256,7 +256,7 @@ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 
 #### 2026-02-11
 
-- default state unpin, layout not messy, 
+- default state unpin, layout not messy,
 - ENFORCE colission avoidance pin/unpin
 
 - produce a short “current switching matrix” (what combinations are valid/disabled today: baseline lock, geospatial on/off, 2d/3d, 2d renderer d3/flow) using the exact guards in the referenced files—still without code changes
@@ -265,13 +265,13 @@ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 ```
 # "SOURCE FILES" shows & allows user select/switch:
 - text-only: default
-- image-heavy: when select, show image; fix; now broken; FORBID Editor produces giant base64 strings; 
+- image-heavy: when select, show image; fix; now broken; FORBID Editor produces giant base64 strings;
 - scan/OCR
 ```
 
 - [X] PDF -> MD Conversion Mode
 ```
-# "SOURCE FILES" 
+# "SOURCE FILES"
 ## right-side-of file-name shows & allows user select/switch (NOT right side of the Source Files header)
 - text-only: default; fix; SHOULD SHOW Markdown (fix; now shows JSON);
 - image-heavy: when select, Viewer shows image (fix; now broken);
@@ -361,7 +361,7 @@ surveyed the knowgrph repo end-to-end (Python parser + Canvas UI) and the pipeli
 
 #### 2026-01-20
 
-- [] Plug-in: Geo 
+- [] Plug-in: Geo
 modular, plug-in
 
 - [] Trip planning use case
@@ -403,9 +403,9 @@ modular, plug-in
 codeblock in table rendering;
 
 
-  - [] 
+  - []
 
-text, `<br/>`, 
+text, `<br/>`,
 subgraph/graph layers centroid nodes, 95%;
 
 presentation framework that supports fragment stepping:
@@ -415,7 +415,7 @@ Markdown Viewer/Markdown Presentation inline content yellow sticky note box;
 example:
 ```
 <h2>Speaker Notes (partially supported)</h2>
-<div class="sticky-note">NOTE: Renderer partially supports this section</div>
+<section class="sticky-note">NOTE: Renderer partially supports this section</section>
 ```
 
 #### 2026-01-15
@@ -445,9 +445,9 @@ https://cs.brown.edu/people/jcmace/d3/graph.html?id=small.json
 - Add semantic parsing mode as default; provide document‑structure parsing mode as fallback.
 
 #### 2026-01-06
-- Showcase public demo repo; keep implementation private.  
-  - Evaluate Git subtree split/CI/CD automation.  
-  - Provide demo repo with simplified interactive version; enable instant run on FOSS hosting without installation.  
+- Showcase public demo repo; keep implementation private.
+  - Evaluate Git subtree split/CI/CD automation.
+  - Provide demo repo with simplified interactive version; enable instant run on FOSS hosting without installation.
 
 - Unify multiple documents at orchestration stage; current markdown import supports single document only.
 
@@ -458,15 +458,15 @@ https://cs.brown.edu/people/jcmace/d3/graph.html?id=small.json
 - [] implement FOSS alternative to https://github.com/hoochanlon/awesome_cn_stopwords.git
 
 #### 2026-01-06
-- Support HTML import for extended format coverage.  
+- Support HTML import for extended format coverage.
 
 - Render images as panel‑like rectangular media panel nodes (default if available); link images as fallback.
 
 ---
 
-- Maintain functionality with neutral, config‑driven approach.  
-- Implement generic heuristic for normalization.  
-- Make patterns configurable for adaptability.  
+- Maintain functionality with neutral, config‑driven approach.
+- Implement generic heuristic for normalization.
+- Make patterns configurable for adaptability.
 
 ---
 

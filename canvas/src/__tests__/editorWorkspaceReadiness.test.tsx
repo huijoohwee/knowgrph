@@ -47,7 +47,7 @@ const buildWorkspaceProps = (overrides: Partial<React.ComponentProps<typeof Mark
 export async function testMarkdownWorkspaceMainPublishesLiveEditorWorkspaceInspectionState() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -146,7 +146,7 @@ export async function testMarkdownWorkspaceMainPublishesLiveEditorWorkspaceInspe
 export async function testMarkdownWorkspaceMainShowsFrontmatterWarningsInActiveDocumentSurface() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -214,7 +214,7 @@ export async function testMarkdownWorkspaceMainShowsFrontmatterWarningsInActiveD
 export async function testMarkdownWorkspaceMainSuppressesTransientFrontmatterWarningsDuringStreamingTrace() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
-  const container = doc.createElement('div')
+  const container = doc.createElement('section')
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 

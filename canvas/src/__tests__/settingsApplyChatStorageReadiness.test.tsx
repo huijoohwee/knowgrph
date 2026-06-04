@@ -61,9 +61,9 @@ function SettingsStorageApplyHarness(props: {
   })
 
   return (
-    <div>
-      <div data-draft-storage-target={String(values.chatStorageTarget || '')} />
-      <div data-draft-chat-history-path={String(values.chatHistoryWorkspacePath || '')} />
+    <section>
+      <section data-draft-storage-target={String(values.chatStorageTarget || '')} />
+      <section data-draft-chat-history-path={String(values.chatHistoryWorkspacePath || '')} />
       <button
         type="button"
         onClick={() => patchChatValues({ chatStorageTarget: 'chatHistory' })}
@@ -76,7 +76,7 @@ function SettingsStorageApplyHarness(props: {
       >
         Use Active Chat History File
       </button>
-    </div>
+    </section>
   )
 }
 
@@ -107,8 +107,8 @@ export async function testSettingsApplyCommitsChatStorageTargetAndWorkspacePathI
     useMarkdownExplorerStore.getState().setActivePath(nextHistoryPath)
 
     const doc = dom.window.document
-    const settingsContainer = doc.createElement('div')
-    const chatContainer = doc.createElement('div')
+    const settingsContainer = doc.createElement('section')
+    const chatContainer = doc.createElement('section')
     doc.body.appendChild(settingsContainer)
     doc.body.appendChild(chatContainer)
     settingsRoot = createRoot(settingsContainer as unknown as HTMLElement)

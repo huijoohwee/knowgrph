@@ -246,24 +246,24 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   if (!hasSlides) {
     return (
       <section className={`w-full h-full flex items-center justify-center px-8 py-10 ${UI_THEME_TOKENS.panel.bg}`} aria-label="Presentation Empty State">
-        <div
+        <section
           className={[
             `inline-flex flex-col items-center justify-center rounded-md border border-dashed border-blue-200/80 ${UI_THEME_TOKENS.panel.overlayBg} px-4 py-3 text-center text-xs ${UI_THEME_TOKENS.text.secondary}`,
             uiPanelTextFontClass,
           ].join(' ')}
         >
-          <div className="flex items-center gap-2">
-            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
+          <section className="flex items-center gap-2">
+            <section className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
               <LayoutPanelTop className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden={true} />
-            </div>
-            <div className="font-medium text-blue-700">
+            </section>
+            <section className="font-medium text-blue-700">
               {UI_COPY.markdownPresentationEmptyTitle}
-            </div>
-          </div>
-          <div className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>
+            </section>
+          </section>
+          <section className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>
             {UI_COPY.markdownPresentationEmptyBody}
-          </div>
-        </div>
+          </section>
+        </section>
       </section>
     )
   }
@@ -479,26 +479,26 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     const rightTokens = twoColumnTokens.right
     if (!leftTokens.length && !rightTokens.length) return null
     return (
-      <div
+      <section
         className={[
           markdownSlidePreviewShellClassName,
           slideClassPreview,
         ].filter(Boolean).join(' ')}
         style={slideStylePreview}
       >
-        <div className="w-full h-full grid grid-cols-2 gap-2">
-          <div className="w-full h-full px-2 py-2 overflow-hidden">
+        <section className="w-full h-full grid grid-cols-2 gap-2">
+          <section className="w-full h-full px-2 py-2 overflow-hidden">
             <MarkdownTokenRenderer
               {...buildTokenRendererProps(leftTokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
             />
-          </div>
-          <div className="w-full h-full px-2 py-2 overflow-hidden">
+          </section>
+          <section className="w-full h-full px-2 py-2 overflow-hidden">
             <MarkdownTokenRenderer
               {...buildTokenRendererProps(rightTokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
             />
-          </div>
-        </div>
-      </div>
+          </section>
+        </section>
+      </section>
     )
   }
   const slideOuterClassPreview =
@@ -514,20 +514,20 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     : lexMarkdownContent(text, Math.max(0, (slide.startLine || 1) - 1)).tokens
   if (!tokens || !tokens.length) return null
   return (
-    <div
+    <section
       className={[
         markdownSlidePreviewShellClassName,
         slideClassPreview,
       ].filter(Boolean).join(' ')}
       style={slideStylePreview}
     >
-      <div className={slideOuterClassPreview}>
-        <div className={slideContentClassPreview}>
+      <section className={slideOuterClassPreview}>
+        <section className={slideContentClassPreview}>
           <MarkdownTokenRenderer
             {...buildTokenRendererProps(tokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
           />
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </section>
   )
 }

@@ -398,22 +398,22 @@ This semantic structure ensures better compatibility with screen readers and sea
 ## Two-Column Layout: HTML (structural only)
 
 ```html
-<div class="two-column">
-<div>
+<section class="two-column">
+<section>
 
 **Left column:**
 - Content A
 - Content B
 
-</div>
-<div>
+</section>
+<section>
 
 **Right column:**
 - Content C
 - Content D
 
-</div>
-</div>
+</section>
+</section>
 ```
 
 **Requires CSS:** `.two-column { display: grid; grid-template-columns: 1fr 1fr; }`

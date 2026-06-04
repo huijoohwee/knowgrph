@@ -74,16 +74,16 @@ export function ResponsiveControlRow({
   const alignClassName = align === 'start' ? 'items-start' : 'items-center'
 
   return (
-    <div className={`flex ${UI_RESPONSIVE_CONTROL_ROW_CLASSNAME} ${compact ? 'flex-col' : `flex-row ${alignClassName}`} ${rowClassName || ''}`}>
+    <section className={`flex ${UI_RESPONSIVE_CONTROL_ROW_CLASSNAME} ${compact ? 'flex-col' : `flex-row ${alignClassName}`} ${rowClassName || ''}`}>
       <label
         className={`${widthClassName} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary} ${labelClassName || ''}`}
       >
         {label}
       </label>
-      <div className={`${widthClassName} min-w-0 ${valueClassName || ''}`}>
+      <section className={`${widthClassName} min-w-0 ${valueClassName || ''}`}>
         {children}
-      </div>
-    </div>
+      </section>
+    </section>
   )
 }
 

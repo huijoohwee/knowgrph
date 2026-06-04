@@ -22,7 +22,7 @@ const CommerceRouteReadiness = () => (
     aria-label="Commerce readiness"
     data-kg-commerce-readiness-key={AGENTIC_COMMERCE_MAIN_PANEL_READINESS.semanticKey}
   >
-    <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    <section className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {AGENTIC_COMMERCE_MAIN_PANEL_READINESS.sections.map(section => (
         <section
           key={section.id}
@@ -32,18 +32,18 @@ const CommerceRouteReadiness = () => (
           <h3 className={`truncate text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>{section.title}</h3>
           <dl className="mt-2 space-y-1">
             {section.rows.map(row => (
-              <div
+              <section
                 key={row.semanticKey}
                 className="grid min-w-0 grid-cols-[minmax(5rem,0.35fr)_minmax(0,1fr)] gap-2"
               >
                 <dt className={`truncate text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>{row.label}</dt>
                 <dd className={`min-w-0 truncate text-right font-mono text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>{row.value}</dd>
-              </div>
+              </section>
             ))}
           </dl>
         </section>
       ))}
-    </div>
+    </section>
   </section>
 )
 

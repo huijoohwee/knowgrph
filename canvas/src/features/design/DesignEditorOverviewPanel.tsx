@@ -151,18 +151,18 @@ export function DesignEditorOverviewPanel(props: {
       </nav>
 
       <section className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Design editor state">
-        <div className={statClass}>
-          <div className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Mode</div>
-          <div className={cn('mt-0.5 truncate font-mono text-[11px]', UI_THEME_TOKENS.text.primary)}>
+        <section className={statClass}>
+          <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Mode</section>
+          <section className={cn('mt-0.5 truncate font-mono text-[11px]', UI_THEME_TOKENS.text.primary)}>
             {props.active ? 'design' : 'inactive'}
-          </div>
-        </div>
-        <div className={statClass}>
-          <div className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Selected</div>
-          <div className={cn('mt-0.5 truncate font-mono text-[11px]', UI_THEME_TOKENS.text.primary)}>{selectedCount}</div>
-        </div>
-        <div className={statClass}>
-          <div className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Layers</div>
+          </section>
+        </section>
+        <section className={statClass}>
+          <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Selected</section>
+          <section className={cn('mt-0.5 truncate font-mono text-[11px]', UI_THEME_TOKENS.text.primary)}>{selectedCount}</section>
+        </section>
+        <section className={statClass}>
+          <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Layers</section>
           <button
             type="button"
             className={cn('mt-0.5 flex max-w-full items-center gap-1 truncate font-mono text-[11px]', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
@@ -172,18 +172,18 @@ export function DesignEditorOverviewPanel(props: {
             <Layers className="h-3 w-3 shrink-0" strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
             <span className="truncate">{layerCount}</span>
           </button>
-        </div>
-        <div className={statClass}>
-          <div className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Snap</div>
-          <div className={cn('mt-0.5 truncate font-mono text-[11px]', snapGrid.enabled ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.tertiary)}>
+        </section>
+        <section className={statClass}>
+          <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Snap</section>
+          <section className={cn('mt-0.5 truncate font-mono text-[11px]', snapGrid.enabled ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.tertiary)}>
             {snapGrid.enabled ? 'on' : 'off'}
-          </div>
-        </div>
+          </section>
+        </section>
       </section>
 
       <section className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} aria-label="Design tokens state">
         <header className={cn(uiToolbarRowScrollClassName, 'justify-between gap-2')}>
-          <div className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Tokens</div>
+          <section className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Tokens</section>
           <button
             type="button"
             className={cn('App-toolbar__btn', UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME, 'gap-1', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg, panelTypography.microLabelClass)}
@@ -201,10 +201,10 @@ export function DesignEditorOverviewPanel(props: {
             ['Spacing', tokenSummary.spacingEntries.length],
             ['Types', tokenSummary.typeEntries.length],
           ].map(([label, value]) => (
-            <div key={String(label)} className={cn('rounded border px-2 py-1', UI_THEME_TOKENS.panel.border)}>
+            <section key={String(label)} className={cn('rounded border px-2 py-1', UI_THEME_TOKENS.panel.border)}>
               <dt className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{label}</dt>
               <dd className={cn('m-0 mt-0.5 font-mono text-[11px]', UI_THEME_TOKENS.text.primary)}>{value}</dd>
-            </div>
+            </section>
           ))}
         </dl>
       </section>

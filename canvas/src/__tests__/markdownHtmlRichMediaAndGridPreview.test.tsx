@@ -12,16 +12,16 @@ export async function testMarkdownPreviewRendersHtmlVideoAutoplayAndGridSpans() 
     state.setRichMediaPanelMode('embed')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
     const markdownText = [
       '<article class="grid grid-cols-3 gap-4">',
-      '  <div class="col-span-2">Left</div>',
-      '  <div>Right</div>',
-      '  <div class="col-span-full">Bottom</div>',
+      '  <section class="col-span-2">Left</section>',
+      '  <section>Right</section>',
+      '  <section class="col-span-full">Bottom</section>',
       '</article>',
       '',
       '<video autoplay muted loop playsinline poster="poster.png" class="w-[500px]">',

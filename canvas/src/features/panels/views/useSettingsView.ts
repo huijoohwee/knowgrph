@@ -11,12 +11,18 @@ import { UI_ANCHORS } from '@/lib/config'
 import {
   CHAT_AGNES_MODEL_OPTIONS,
   CHAT_DEERFLOW_MODEL_OPTIONS,
+  CHAT_GOOGLE_CLOUD_ENDPOINT_OPTIONS,
+  CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
   CHAT_MIROMIND_MODEL_OPTIONS,
+  CHAT_QWEN_ENDPOINT_OPTIONS,
+  CHAT_QWEN_MODEL_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_DEERFLOW,
   CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_GOOGLE_CLOUD,
   CHAT_PROVIDER_MIROMIND,
+  CHAT_PROVIDER_QWEN,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
   normalizeChatProviderId,
@@ -39,14 +45,6 @@ const INTEGRATION_GEMINI_VIDEO_ASPECT_RATIO_OPTIONS = ['16:9', '9:16'] as const
 const INTEGRATION_GEMINI_VIDEO_RESOLUTION_OPTIONS = ['720p', '1080p', '4k'] as const
 const INTEGRATION_GEMINI_VIDEO_DURATION_OPTIONS = ['4', '6', '8'] as const
 const INTEGRATION_GEMINI_VIDEO_PERSON_GENERATION_OPTIONS = ['allow_all', 'allow_adult', 'dont_allow'] as const
-const INTEGRATION_OPENAI_IMAGES_MODEL_OPTIONS = ['gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini', 'dall-e-3', 'dall-e-2'] as const
-const INTEGRATION_OPENAI_IMAGES_SIZE_OPTIONS = ['auto', '1024x1024', '1536x1024', '1024x1536', '256x256', '512x512', '1792x1024', '1024x1792'] as const
-const INTEGRATION_OPENAI_IMAGES_QUALITY_OPTIONS = ['auto', 'low', 'medium', 'high', 'standard', 'hd'] as const
-const INTEGRATION_OPENAI_IMAGES_BACKGROUND_OPTIONS = ['auto', 'transparent', 'opaque'] as const
-const INTEGRATION_OPENAI_IMAGES_OUTPUT_FORMAT_OPTIONS = ['png', 'jpeg', 'webp'] as const
-const INTEGRATION_OPENAI_IMAGES_RESPONSE_FORMAT_OPTIONS = ['url', 'b64_json'] as const
-const INTEGRATION_OPENAI_IMAGES_MODERATION_OPTIONS = ['auto', 'low'] as const
-const INTEGRATION_OPENAI_IMAGES_STYLE_OPTIONS = ['vivid', 'natural'] as const
 import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
 import {
   BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
@@ -78,6 +76,16 @@ import {
   AGNES_API_DOC_ENTRIES,
   getAgnesApiRowAnchorId,
 } from './agnesApiDocs'
+import {
+  QWEN_API_DOC_AREA,
+  QWEN_API_DOC_ENTRIES,
+  getQwenApiRowAnchorId,
+} from './qwenApiDocs'
+import {
+  GOOGLE_CLOUD_API_DOC_AREA,
+  GOOGLE_CLOUD_API_DOC_ENTRIES,
+  getGoogleCloudApiRowAnchorId,
+} from './googleCloudApiDocs'
 import {
   STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
   getStripePaymentApiRowAnchorId,
@@ -131,13 +139,14 @@ import {
   SETTINGS_REGISTRY_BY_KEY,
   type SettingsEntry,
 } from './useSettingsView.helpers'
+import type { SettingsViewMode } from './settingsView.constants'
 
 const getSettingsSearchHints = (key: string): string[] => {
   if (key === 'chatContextScope') {
     return ['chat ai assistant context scope selection workspace hybrid']
   }
   if (key === 'chatProvider' || key === 'chatAuthMode' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
-    return ['chat ai agnes byteplus modelark miromind openai official provider endpoint api key byok server-managed auth mode model multi-modal multimodal run image video generation deep research reasoning']
+    return ['chat ai agnes byteplus dashscope google cloud gcp vertex ai gemini modelark model studio miromind openai qwen official provider endpoint api key byok server-managed auth mode model multi-modal multimodal run image video generation deep research reasoning']
   }
   if (key === 'byteplusVideoModel') {
     return ['byteplus video generation api model byteplusVideoApi.model bytedance dreamina seedance video widget integrations default']
@@ -168,6 +177,8 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...PIXVERSE_VIDEO_GENERATION_API_DOC_ENTRIES,
   ...MIROMIND_API_DOC_ENTRIES,
   ...AGNES_API_DOC_ENTRIES,
+  ...QWEN_API_DOC_ENTRIES,
+  ...GOOGLE_CLOUD_API_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
   ...OPENAI_IMAGES_API_REQUEST_DOC_ENTRIES,
   ...DEERFLOW_API_REQUEST_DOC_ENTRIES,
@@ -195,6 +206,12 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       read: () => 'openai',
     }
   }
+  if (String(entry.meta.key || '').trim() === 'openaiImageApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => 'openai',
+    }
+  }
   if (String(entry.meta.key || '').trim() === 'byteplusApi.provider') {
     return {
       ...entry.meta,
@@ -217,6 +234,18 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
     return {
       ...entry.meta,
       read: () => CHAT_PROVIDER_AGNES,
+    }
+  }
+  if (String(entry.meta.key || '').trim() === 'qwenApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => CHAT_PROVIDER_QWEN,
+    }
+  }
+  if (String(entry.meta.key || '').trim() === 'googleCloudApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => CHAT_PROVIDER_GOOGLE_CLOUD,
     }
   }
   if (String(entry.meta.key || '').trim() === 'byteplusApi.model') {
@@ -248,6 +277,30 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       return {
         ...mappedMeta,
         options: [...CHAT_AGNES_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'qwenApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...CHAT_QWEN_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'qwenApi.endpoint_url') {
+      return {
+        ...mappedMeta,
+        options: [...CHAT_QWEN_ENDPOINT_OPTIONS],
+      }
+    }
+    if (rowKey === 'googleCloudApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...CHAT_GOOGLE_CLOUD_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'googleCloudApi.endpoint_url') {
+      return {
+        ...mappedMeta,
+        options: [...CHAT_GOOGLE_CLOUD_ENDPOINT_OPTIONS],
       }
     }
     if (rowKey === 'openaiApi.reasoning_effort' || rowKey === 'deerflowApi.reasoning_effort') {
@@ -352,54 +405,6 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
         options: [...INTEGRATION_GEMINI_VIDEO_PERSON_GENERATION_OPTIONS],
       }
     }
-    if (rowKey === 'openaiImagesApi.model') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_MODEL_OPTIONS],
-      }
-    }
-    if (rowKey === 'openaiImagesApi.size') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_SIZE_OPTIONS],
-      }
-    }
-    if (rowKey === 'openaiImagesApi.quality') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_QUALITY_OPTIONS],
-      }
-    }
-    if (rowKey === 'openaiImagesApi.background') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_BACKGROUND_OPTIONS],
-      }
-    }
-    if (rowKey === 'openaiImagesApi.output_format') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_OUTPUT_FORMAT_OPTIONS],
-      }
-    }
-    if (rowKey === 'openaiImagesApi.response_format') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_RESPONSE_FORMAT_OPTIONS],
-      }
-    }
-    if (rowKey === 'openaiImagesApi.moderation') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_MODERATION_OPTIONS],
-      }
-    }
-    if (rowKey === 'openaiImagesApi.style') {
-      return {
-        ...mappedMeta,
-        options: [...INTEGRATION_OPENAI_IMAGES_STYLE_OPTIONS],
-      }
-    }
     if (mappedMeta.type !== 'json') return mappedMeta
     const ownerRowKeys = entry.valueKey ? INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY[entry.valueKey] : undefined
     if (!ownerRowKeys || ownerRowKeys.has(entry.meta.key)) return mappedMeta
@@ -483,7 +488,7 @@ export function useSettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations' | 'payments' | 'maps' | 'mcp'
+  mode?: SettingsViewMode
   paymentsProviderId?: string
 }) {
   const shouldHideSetting = React.useCallback((key: string, area?: string) => {
@@ -956,6 +961,34 @@ export function useSettingsView({
     }),
     [values],
   )
+  const normalizedMiroMindValues = React.useMemo(
+    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
+      providerFamily: 'miromind',
+      properties: values as Record<string, unknown>,
+    }),
+    [values],
+  )
+  const normalizedAgnesValues = React.useMemo(
+    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
+      providerFamily: 'agnes',
+      properties: values as Record<string, unknown>,
+    }),
+    [values],
+  )
+  const normalizedQwenValues = React.useMemo(
+    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
+      providerFamily: 'qwen',
+      properties: values as Record<string, unknown>,
+    }),
+    [values],
+  )
+  const normalizedGoogleCloudValues = React.useMemo(
+    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
+      providerFamily: 'google-cloud',
+      properties: values as Record<string, unknown>,
+    }),
+    [values],
+  )
 
   const renderInput = (
     key: string,
@@ -1008,7 +1041,15 @@ export function useSettingsView({
             ? normalizedOpenAiValues
             : area === DEERFLOW_API_DOC_AREA
               ? normalizedDeerFlowValues
-            : values
+              : area === MIROMIND_API_DOC_AREA
+                ? normalizedMiroMindValues
+                : area === AGNES_API_DOC_AREA
+                  ? normalizedAgnesValues
+                : area === QWEN_API_DOC_AREA
+                  ? normalizedQwenValues
+                  : area === GOOGLE_CLOUD_API_DOC_AREA
+                    ? normalizedGoogleCloudValues
+                    : values
       const anchorId =
         area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
           ? getBytePlusSharedTextApiRowAnchorId(entry.meta.key)
@@ -1024,6 +1065,10 @@ export function useSettingsView({
             ? getMiroMindApiRowAnchorId(entry.meta.key)
           : area === AGNES_API_DOC_AREA
             ? getAgnesApiRowAnchorId(entry.meta.key)
+          : area === QWEN_API_DOC_AREA
+            ? getQwenApiRowAnchorId(entry.meta.key)
+          : area === GOOGLE_CLOUD_API_DOC_AREA
+            ? getGoogleCloudApiRowAnchorId(entry.meta.key)
           : area === OPENAI_CHAT_API_DOC_AREA
             ? getOpenAiChatApiRowAnchorId(entry.meta.key)
             : area === OPENAI_IMAGES_API_DOC_AREA
@@ -1133,7 +1178,7 @@ export function useSettingsView({
 
     const providerArea = resolvePaymentsProviderSpec(paymentsProviderId).areaLabel
     return filteredByMode.filter(entry => normalizeSettingsAreaLabel(entry.details.area) === providerArea)
-  }, [flow, mode, normalizedBytePlusValues, normalizedDeerFlowValues, normalizedOpenAiValues, paymentsProviderId, shouldHideSetting, values])
+  }, [flow, mode, normalizedAgnesValues, normalizedBytePlusValues, normalizedDeerFlowValues, normalizedGoogleCloudValues, normalizedMiroMindValues, normalizedOpenAiValues, normalizedQwenValues, paymentsProviderId, shouldHideSetting, values])
 
   const normalizedQuery = React.useMemo(() => normalizeText(searchQuery).trim(), [searchQuery])
   const filtered = React.useMemo(
@@ -1184,13 +1229,23 @@ export function useSettingsView({
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === AGNES_API_DOC_AREA,
         },
         {
+          title: QWEN_API_DOC_AREA,
+          searchIndex: normalizeText('Qwen API Alibaba Cloud Model Studio DashScope OpenAI-compatible chat completions qwen-plus qwen3-max qwen-flash floatingpanel chat markdown yaml frontmatter source files flow editor'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === QWEN_API_DOC_AREA,
+        },
+        {
+          title: GOOGLE_CLOUD_API_DOC_AREA,
+          searchIndex: normalizeText('Google Cloud Vertex AI API GCP Gemini OpenAI-compatible chat completions endpoints openapi google/gemini floatingpanel chat markdown yaml frontmatter source files flow editor'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === GOOGLE_CLOUD_API_DOC_AREA,
+        },
+        {
           title: OPENAI_CHAT_API_DOC_AREA,
           searchIndex: normalizeText('OpenAI Chat API Responses FloatingPanel Props Panel OpenAI Text Widget text generation'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_CHAT_API_DOC_AREA,
         },
         {
           title: OPENAI_IMAGES_API_DOC_AREA,
-          searchIndex: normalizeText('OpenAI Images API FloatingPanel Props Panel OpenAI Image Widget image generation'),
+          searchIndex: normalizeText('OpenAI Images API FloatingPanel Props Panel OpenAI Image Widget image generation openaiImageApi model prompt size output_format'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_IMAGES_API_DOC_AREA,
         },
         {

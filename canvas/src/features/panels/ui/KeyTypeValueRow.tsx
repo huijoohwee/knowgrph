@@ -8,6 +8,7 @@ import {
   KTV_KEY_ICON_VALUE_GRID_CLASS_NAME,
   KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME,
   KTV_KEY_VALUE_GRID_CLASS_NAME,
+  KTV_DEFAULT_HEADER_LABELS,
   KTV_ROW_LABEL_CELL_CLASS_NAME,
   KTV_ROW_TEXT_CELL_CLASS_NAME,
   KTV_ROW_VALUE_CELL_CLASS_NAME,
@@ -230,9 +231,9 @@ export function KeyTypeValueRow({
 }
 
 export function KeyTypeValueHeader({
-  keyLabel = 'Key',
-  typeLabel = 'Type',
-  valueLabel = 'Value',
+  keyLabel = KTV_DEFAULT_HEADER_LABELS.keyLabel,
+  typeLabel = KTV_DEFAULT_HEADER_LABELS.typeLabel,
+  valueLabel = KTV_DEFAULT_HEADER_LABELS.valueLabel,
   actions,
   stickyOffsetClassName = 'top-0',
   className,
@@ -249,20 +250,20 @@ export function KeyTypeValueHeader({
 
   return (
     <header className={rootClassName}>
-      <div className={`grid min-h-8 w-full ${KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME} items-center gap-x-2 gap-y-0 py-0`}>
-        <div className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${KTV_HEADER_LABEL_CLASS_NAME}`}>
+      <section className={`grid min-h-8 w-full ${KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME} items-center gap-x-2 gap-y-0 py-0`}>
+        <section className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${KTV_HEADER_LABEL_CLASS_NAME}`}>
           {renderedKeyLabel}
-        </div>
-        <div className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center justify-start gap-1 sm:justify-end ${KTV_HEADER_LABEL_CLASS_NAME}`}>
+        </section>
+        <section className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center justify-start gap-1 sm:justify-end ${KTV_HEADER_LABEL_CLASS_NAME}`}>
           {renderedTypeLabel}
-        </div>
-        <div className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center ${KTV_HEADER_LABEL_CLASS_NAME}`}>
-          <div className="flex w-full min-w-0 items-center justify-start gap-1 overflow-hidden sm:justify-end">
+        </section>
+        <section className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center ${KTV_HEADER_LABEL_CLASS_NAME}`}>
+          <section className="flex w-full min-w-0 items-center justify-start gap-1 overflow-hidden sm:justify-end">
             <span className="min-w-0 truncate">{renderedValueLabel}</span>
             {actions ? <span className="flex shrink-0 items-center">{actions}</span> : null}
-          </div>
-        </div>
-      </div>
+          </section>
+        </section>
+      </section>
     </header>
   )
 }
@@ -308,9 +309,9 @@ export function RightAlignedValueCell({ children, className }: RightAlignedValue
     .filter(Boolean)
     .join(' ')
   return (
-    <div className={rootClassName}>
+    <section className={rootClassName}>
       {children}
-    </div>
+    </section>
   )
 }
 

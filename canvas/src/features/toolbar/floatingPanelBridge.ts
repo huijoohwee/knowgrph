@@ -1,15 +1,7 @@
 import type { PropsPanelOpenEventDetail, FloatingPanelOpenEventDetail } from '@/features/canvas/utils'
+import type { FloatingPanelView } from '@/hooks/store/store-types/graph-state-chat-import'
 
-export type FloatingPanelRequestedView =
-  | 'propsPanel'
-  | 'view'
-  | 'interaction'
-  | 'design'
-  | 'chat'
-  | 'geo'
-  | 'renderer'
-  | 'strybldr'
-  | 'graphTraversal'
+export type FloatingPanelRequestedView = FloatingPanelView
 
 type FloatingPanelBridge = {
   openPropsPanel: (detail?: PropsPanelOpenEventDetail) => void

@@ -1,6 +1,3 @@
-import fs from 'node:fs'
-import path from 'node:path'
-
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
@@ -12,30 +9,37 @@ import {
 import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildRichMediaPanelOverlayState, buildRichMediaPanelPreviewSpec } from '@/lib/render/richMediaSsot'
-
-const RESEARCH_AGENT_DEMO_BASENAME = 'knowgrph-research-agent-demo.md'
-const RESEARCH_AGENT_DEMO_NODE_COUNT = 16
-const RESEARCH_AGENT_DEMO_EDGE_COUNT = 13
-
-function resolveResearchAgentDemoPath(): string {
-  return path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', RESEARCH_AGENT_DEMO_BASENAME)
-}
-
-function readResearchAgentDemoText(): string {
-  const demoPath = resolveResearchAgentDemoPath()
-  if (!fs.existsSync(demoPath)) {
-    throw new Error(`expected research agent demo markdown at ${demoPath}`)
-  }
-  const text = fs.readFileSync(demoPath, 'utf8')
-  if (!text.trim()) throw new Error(`expected research agent demo markdown at ${demoPath} to be non-empty`)
-  return text
-}
+import {
+  KNOWGRPH_SUPERAGENT_CANVAS_RENDERER,
+  KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
+  KNOWGRPH_SUPERAGENT_INTEGRATION_EDGE_TYPE,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS,
+  KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS,
+  KNOWGRPH_SUPERAGENT_PROVIDER_NODE_IDS,
+  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME,
+  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_WORKSPACE_PATH,
+  KNOWGRPH_SUPERAGENT_REVIEW_EDGE_ID,
+  KNOWGRPH_SUPERAGENT_RICH_MEDIA_OUTPUT_NODE_IDS,
+  KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_EDGE_TYPE,
+  KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS,
+  KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_TYPE,
+  KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS,
+  KNOWGRPH_SUPERAGENT_SUBAGENT_EDGE_TYPE,
+  KNOWGRPH_SUPERAGENT_SUBAGENT_IDS,
+  KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS,
+  KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_TYPE,
+  KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES,
+  KNOWGRPH_SUPERAGENT_TASK_LEVELS,
+} from '@/features/agent-ready/mainPanelSuperAgentIntegrationContract'
+import { inspectSharedDocumentStructure } from '@/features/agent-ready/sharedDocumentStructureInspection.mjs'
+import { readResearchAgentDemoText } from './helpers/researchAgentDemoFixture'
 
 export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   const demoText = readResearchAgentDemoText()
-  const workspacePath = `/docs/${RESEARCH_AGENT_DEMO_BASENAME}`
+  const workspacePath = KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_WORKSPACE_PATH
   const sourcePath = resolveWorkspaceSourcePathKey(workspacePath)
-  if (sourcePath !== `workspace:${workspacePath}`) {
+  if (sourcePath !== KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE) {
     throw new Error(`expected docs mirror source path, got ${sourcePath}`)
   }
 
@@ -45,7 +49,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
       kind: 'file',
       path: workspacePath,
       parentPath: '/docs',
-      name: RESEARCH_AGENT_DEMO_BASENAME,
+      name: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME,
       text: demoText,
       updatedAtMs: 1,
     }],
@@ -62,7 +66,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
     throw new Error('expected docs-mirror Source Files ingestion to preserve research demo text')
   }
 
-  const parsed = await loadGraphDataFromTextViaParser(RESEARCH_AGENT_DEMO_BASENAME, demoText, {
+  const parsed = await loadGraphDataFromTextViaParser(KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME, demoText, {
     applyToStore: false,
     syncMarkdownDocument: false,
   })
@@ -70,11 +74,17 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   if (parsed.parserId !== 'markdown') throw new Error(`expected markdown parser, got ${String(parsed.parserId || '')}`)
   if ((parsed.warnings || []).length > 0) throw new Error(`expected no parser warnings, got ${(parsed.warnings || []).join(' | ')}`)
   if (String(parsed.graphData.context || '') !== 'frontmatter-flow') throw new Error('expected frontmatter-flow graph context')
-  if ((parsed.graphData.nodes || []).length !== RESEARCH_AGENT_DEMO_NODE_COUNT) {
-    throw new Error(`expected ${RESEARCH_AGENT_DEMO_NODE_COUNT} research demo nodes, got ${(parsed.graphData.nodes || []).length}`)
+  const documentStructure = inspectSharedDocumentStructure({
+    canonicalPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+    markdown: demoText,
+  })
+  const parsedNodeCount = (parsed.graphData.nodes || []).length
+  const parsedEdgeCount = (parsed.graphData.edges || []).length
+  if (documentStructure.flowNodeCount !== parsedNodeCount) {
+    throw new Error(`expected parser node count to match frontmatter flow node count, structure=${documentStructure.flowNodeCount} parsed=${parsedNodeCount}`)
   }
-  if ((parsed.graphData.edges || []).length !== RESEARCH_AGENT_DEMO_EDGE_COUNT) {
-    throw new Error(`expected ${RESEARCH_AGENT_DEMO_EDGE_COUNT} research demo edges, got ${(parsed.graphData.edges || []).length}`)
+  if (documentStructure.flowConnectionCount !== parsedEdgeCount) {
+    throw new Error(`expected parser edge count to match frontmatter flow edge count, structure=${documentStructure.flowConnectionCount} parsed=${parsedEdgeCount}`)
   }
 
   const meta = (parsed.graphData.metadata || {}) as Record<string, unknown>
@@ -89,6 +99,108 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   const researchDemo = (frontmatterMeta.research_thesis_demo || {}) as Record<string, unknown>
   if (!String(researchDemo.run_id || '').startsWith('kgra_run_')) {
     throw new Error(`expected semantic research run id, got ${String(researchDemo.run_id || '')}`)
+  }
+  const superAgentDemo = (frontmatterMeta.superagent_harness_demo || {}) as Record<string, unknown>
+  const mainPanelIntegrationsDemo = (frontmatterMeta.main_panel_integrations_demo || {}) as Record<string, unknown>
+  if (String(mainPanelIntegrationsDemo.schema_version || '') !== 'knowgrph-mainpanel-superagent-integrations-demo/v1') {
+    throw new Error(`expected MainPanel SuperAgent integrations demo metadata, got ${JSON.stringify(mainPanelIntegrationsDemo)}`)
+  }
+  if (String(mainPanelIntegrationsDemo.source_file || '') !== KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE) {
+    throw new Error(`expected workspace-relative research demo source file, got ${String(mainPanelIntegrationsDemo.source_file || '')}`)
+  }
+  const mainPanelEntries = new Set(Array.isArray(mainPanelIntegrationsDemo.main_panel_entries) ? mainPanelIntegrationsDemo.main_panel_entries.map(String) : [])
+  for (const entryTab of KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS) {
+    if (!mainPanelEntries.has(entryTab)) {
+      throw new Error(`expected MainPanel entry metadata to include ${entryTab}, got ${JSON.stringify([...mainPanelEntries])}`)
+    }
+  }
+  if (String(mainPanelIntegrationsDemo.integration_open_tab || '') !== 'chat') {
+    throw new Error(`expected MainPanel Integrations/MCP -> chat routing metadata, got ${JSON.stringify(mainPanelIntegrationsDemo)}`)
+  }
+  if (String(mainPanelIntegrationsDemo.canvas_2d_renderer || '') !== KNOWGRPH_SUPERAGENT_CANVAS_RENDERER) {
+    throw new Error(`expected MainPanel demo to target Flow Editor rendering, got ${String(mainPanelIntegrationsDemo.canvas_2d_renderer || '')}`)
+  }
+  const providerIds = new Set(Array.isArray(mainPanelIntegrationsDemo.provider_ids) ? mainPanelIntegrationsDemo.provider_ids.map(String) : [])
+  for (const providerId of KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS) {
+    if (!providerIds.has(providerId)) {
+      throw new Error(`expected MainPanel demo provider coverage to include ${providerId}, got ${JSON.stringify([...providerIds])}`)
+    }
+  }
+  const superAgentCapabilities = new Set(Array.isArray(superAgentDemo.task_capabilities) ? superAgentDemo.task_capabilities.map(String) : [])
+  for (const capability of KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES) {
+    if (!superAgentCapabilities.has(capability)) {
+      throw new Error(`expected SuperAgent demo capability ${capability}, got ${JSON.stringify([...superAgentCapabilities])}`)
+    }
+  }
+  const superAgentLevels = new Set(Array.isArray(superAgentDemo.task_levels) ? superAgentDemo.task_levels.map(String) : [])
+  for (const level of KNOWGRPH_SUPERAGENT_TASK_LEVELS) {
+    if (!superAgentLevels.has(level)) {
+      throw new Error(`expected SuperAgent demo task level ${level}, got ${JSON.stringify([...superAgentLevels])}`)
+    }
+  }
+
+  const requireNode = (id: string, expectedType: string) => {
+    const node = (parsed.graphData?.nodes || []).find(candidate => String(candidate.id || '') === id) || null
+    if (!node) throw new Error(`expected research demo node ${id}`)
+    if (String(node.type || '') !== expectedType) {
+      throw new Error(`expected node ${id} type ${expectedType}, got ${String(node.type || '')}`)
+    }
+    return node
+  }
+  for (const providerId of KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS) {
+    const nodeId = KNOWGRPH_SUPERAGENT_PROVIDER_NODE_IDS[providerId]
+    const node = requireNode(nodeId, 'integration')
+    const props = (node.properties || {}) as Record<string, unknown>
+    if (String(props['integration:providerId'] || '') !== providerId) {
+      throw new Error(`expected ${nodeId} to preserve provider id ${providerId}, got ${JSON.stringify(props)}`)
+    }
+  }
+  requireNode(KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID, 'agent')
+  const declaredRuntimeSurfaces = new Set(
+    Array.isArray(documentStructure.superAgentHarnessDemo?.runtimeSurfaces)
+      ? documentStructure.superAgentHarnessDemo.runtimeSurfaces.map(String)
+      : [],
+  )
+  for (const runtimeSurface of KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS) {
+    if (!declaredRuntimeSurfaces.has(runtimeSurface)) {
+      throw new Error(`expected SuperAgent runtime surface ${runtimeSurface}, got ${JSON.stringify([...declaredRuntimeSurfaces])}`)
+    }
+    const nodeId = KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS[runtimeSurface]
+    const node = requireNode(nodeId, KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_TYPE)
+    const props = (node.properties || {}) as Record<string, unknown>
+    if (String(props['kgSuperAgent:surfaceKey'] || '') !== runtimeSurface) {
+      throw new Error(`expected runtime surface node ${nodeId} to preserve surface key ${runtimeSurface}, got ${JSON.stringify(props)}`)
+    }
+    const edge = (parsed.graphData.edges || []).find(candidate => (
+      String(candidate.type || '') === KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_EDGE_TYPE
+      && String(candidate.source || '') === KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID
+      && String(candidate.target || '') === nodeId
+    )) || null
+    if (!edge) {
+      throw new Error(`expected typed SuperAgent runtime surface edge from harness to ${nodeId}`)
+    }
+  }
+  for (const subagentId of KNOWGRPH_SUPERAGENT_SUBAGENT_IDS) {
+    const nodeId = KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS[subagentId]
+    const node = requireNode(nodeId, KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_TYPE)
+    const props = (node.properties || {}) as Record<string, unknown>
+    if (String(props['kgSuperAgent:subagentId'] || '') !== subagentId) {
+      throw new Error(`expected subagent node ${nodeId} to preserve subagent id ${subagentId}, got ${JSON.stringify(props)}`)
+    }
+    const edge = (parsed.graphData.edges || []).find(candidate => (
+      String(candidate.type || '') === KNOWGRPH_SUPERAGENT_SUBAGENT_EDGE_TYPE
+      && String(candidate.source || '') === KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS.subagents
+      && String(candidate.target || '') === nodeId
+    )) || null
+    if (!edge) {
+      throw new Error(`expected typed SuperAgent subagent edge from runtime subagents surface to ${nodeId}`)
+    }
+  }
+  if ((parsed.graphData.edges || []).filter(edge => String(edge.type || '') === KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_EDGE_TYPE).length !== KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS.length) {
+    throw new Error('expected typed runtime surface edges for every declared SuperAgent runtime surface')
+  }
+  if ((parsed.graphData.edges || []).filter(edge => String(edge.type || '') === KNOWGRPH_SUPERAGENT_SUBAGENT_EDGE_TYPE).length !== KNOWGRPH_SUPERAGENT_SUBAGENT_IDS.length) {
+    throw new Error('expected typed subagent edges for every declared SuperAgent subagent')
   }
 
   const evidenceEdge = (parsed.graphData.edges || []).find(edge => String(edge.id || '') === 'edge_source_market_to_claim') || null
@@ -125,8 +237,14 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   if (chartPanel.preview.kind !== 'iframe' || !String(chartPanel.preview.srcDoc || '').includes('Research agent guardrail chart')) {
     throw new Error('expected chart Rich Media Panel to render outputSrcDoc through shared iframe preview')
   }
-  if ((parsed.graphData.edges || []).filter(edge => String(edge.type || '').startsWith('rich_media_')).length !== 3) {
-    throw new Error('expected three typed rich-media edges for text, image, and chart outputs')
+  if ((parsed.graphData.edges || []).filter(edge => String(edge.type || '').startsWith('rich_media_')).length !== KNOWGRPH_SUPERAGENT_RICH_MEDIA_OUTPUT_NODE_IDS.length) {
+    throw new Error('expected typed rich-media edges for every declared text/image/chart output')
+  }
+  if ((parsed.graphData.edges || []).filter(edge => String(edge.type || '') === KNOWGRPH_SUPERAGENT_INTEGRATION_EDGE_TYPE).length !== KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS.length) {
+    throw new Error('expected provider integration edges into the SuperAgent harness')
+  }
+  if (!(parsed.graphData.edges || []).some(edge => String(edge.id || '') === KNOWGRPH_SUPERAGENT_REVIEW_EDGE_ID)) {
+    throw new Error('expected SuperAgent harness to route into review before apply')
   }
 
   const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
@@ -138,7 +256,15 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
       .map(entry => String((entry as Record<string, unknown>)?.formId || ''))
       .filter(Boolean),
   )
-  for (const formId of ['fm:claim_market_need', 'fm:monitoring_spec', 'fm:kgc_apply_owner']) {
+  for (const formId of [
+    'fm:integration_openai',
+    'fm:kgra_superagent_harness',
+    'fm:kgra_runtime_message_gateway',
+    'fm:kgra_subagent_source_scout',
+    'fm:claim_market_need',
+    'fm:monitoring_spec',
+    'fm:kgc_apply_owner',
+  ]) {
     if (!registryFormIds.has(formId)) {
       throw new Error(`expected typed research demo registry to include ${formId}`)
     }
@@ -161,10 +287,10 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
     widgetRegistry: registry as never,
   })
   const scene = runtime.scene as { nodes?: unknown[]; edges?: unknown[] } | null
-  if (!scene || !Array.isArray(scene.nodes) || scene.nodes.length !== RESEARCH_AGENT_DEMO_NODE_COUNT) {
-    throw new Error(`expected Flow native scene to contain ${RESEARCH_AGENT_DEMO_NODE_COUNT} nodes, got ${scene?.nodes?.length || 0}`)
+  if (!scene || !Array.isArray(scene.nodes) || scene.nodes.length !== parsedNodeCount) {
+    throw new Error(`expected Flow native scene to contain parsed research demo nodes, parsed=${parsedNodeCount} scene=${scene?.nodes?.length || 0}`)
   }
-  if (!Array.isArray(scene.edges) || scene.edges.length !== RESEARCH_AGENT_DEMO_EDGE_COUNT) {
-    throw new Error(`expected Flow native scene to contain ${RESEARCH_AGENT_DEMO_EDGE_COUNT} edges, got ${scene.edges?.length || 0}`)
+  if (!Array.isArray(scene.edges) || scene.edges.length !== parsedEdgeCount) {
+    throw new Error(`expected Flow native scene to contain parsed research demo edges, parsed=${parsedEdgeCount} scene=${scene.edges?.length || 0}`)
   }
 }

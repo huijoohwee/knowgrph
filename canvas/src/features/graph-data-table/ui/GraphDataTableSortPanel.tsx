@@ -64,13 +64,13 @@ export function SortPanel({
   return (
     <section className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}>
       <header className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
-        <div className="font-medium">{panelTitle}</div>
+        <section className="font-medium">{panelTitle}</section>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
           {UI_LABELS.close}
         </button>
       </header>
-      <div className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
-        <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
+      <section className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
+        <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
           <input
             id="auto-sort-checkbox"
             type="checkbox"
@@ -81,17 +81,17 @@ export function SortPanel({
           <label htmlFor="auto-sort-checkbox" className={`select-none ${UI_THEME_TOKENS.text.secondary}`}>
             {UI_COPY.graphDataTableAutoSortWhileEditingLabel}
           </label>
-        </div>
+        </section>
         <button type="button" className={secondaryButtonClassName} onClick={resetSortRules}>
           {UI_LABELS.reset}
         </button>
-      </div>
-      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SCROLL_STACK_CLASSNAME}>
+      </section>
+      <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SCROLL_STACK_CLASSNAME}>
         {sortRules.length === 0 ? (
-          <div className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphDataTableSortingByIdFallbackLabel}</div>
+          <section className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphDataTableSortingByIdFallbackLabel}</section>
         ) : (
           sortRules.map(rule => (
-            <div key={rule.id} className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
+            <section key={rule.id} className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
               <FilterCombobox
                 value={rule.key}
                 options={columnOptions}
@@ -116,16 +116,16 @@ export function SortPanel({
               >
                 <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
               </button>
-            </div>
+            </section>
           ))
         )}
-      </div>
-      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FOOTER_ROW_CLASSNAME}>
+      </section>
+      <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_FOOTER_ROW_CLASSNAME}>
         <button type="button" className={secondaryButtonClassName} onClick={addSortRule}>
           <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
           {UI_COPY.graphDataTableAddSortLabel}
         </button>
-      </div>
+      </section>
     </section>
   )
 }

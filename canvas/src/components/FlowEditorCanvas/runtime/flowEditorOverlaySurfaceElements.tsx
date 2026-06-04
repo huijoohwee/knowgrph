@@ -4,7 +4,7 @@ import {
   FlowEditorWidgetOverlay,
   type ToolMode,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { resolveNodeWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { resolveWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
@@ -221,7 +221,7 @@ export function buildOverlayEditorElements(args: {
             registry: args.widgetRegistry,
             graphMetaKind: overlayGraphMetaKind,
           })
-          const widgetIdentity = resolveNodeWidgetIdentity({ node: renderNode, registryEntry: resolvedWidgetRegistryEntry })
+          const widgetIdentity = resolveWidgetIdentity({ node: renderNode, registryEntry: resolvedWidgetRegistryEntry })
           const searchQuery = [
             String(resolvedWidgetRegistryEntry?.id || '').trim(),
             String(renderNode.type || '').trim(),

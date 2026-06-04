@@ -88,6 +88,7 @@ export const UI_LABELS = {
   sidebar: 'Sidebar',
   propsPanel: 'Props Panel',
   geo: 'Geo',
+  gitGraph: 'GitGraph',
   samples: 'Samples',
   close: 'Close',
   save: 'Save',
@@ -253,7 +254,7 @@ export const ZERO_TO_ONE_GRAPH_TRAVERSAL_LABEL = 'Zero-to-one graph traversal';
 
 export const HTML_IMPORT_GUARDS = {
   viteDevIndexMarkers: [
-    '<div id="root"></div>',
+    '<section id="root"></section>',
     'src="/src/main.tsx"',
     'src="/@vite/client"',
     '"/@react-refresh"',

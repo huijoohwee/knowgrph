@@ -17,11 +17,11 @@ function ParserTable({ data }: { data: GraphData | null }) {
   const stripeRowClassName = (index: number) =>
     index % 2 === 0 ? UI_THEME_TOKENS.panel.headerBg : ''
   return (
-    <div className="mt-2">
-      <div className="flex gap-2 mb-2">
+    <section className="mt-2">
+      <section className="flex gap-2 mb-2">
         <button className={tabButtonClassName(tab === 'nodes')} onClick={() => setTab('nodes')}>Nodes</button>
         <button className={tabButtonClassName(tab === 'edges')} onClick={() => setTab('edges')}>Edges</button>
-      </div>
+      </section>
       {tab === 'nodes' ? (
         <table className="w-full text-xs">
           <thead><tr><th className="text-left px-2 py-1">id</th><th className="text-left px-2 py-1">label</th><th className="text-left px-2 py-1">type</th></tr></thead>
@@ -50,7 +50,7 @@ function ParserTable({ data }: { data: GraphData | null }) {
           </tbody>
         </table>
       )}
-    </div>
+    </section>
   )
 }
 

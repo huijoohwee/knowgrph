@@ -31,7 +31,7 @@ export default function WidgetRegistryTable({
   const selected = String(selectedId || '').trim()
 
   return (
-    <div className="h-full min-h-0 overflow-auto">
+    <section className="h-full min-h-0 overflow-auto">
       <table className="w-full border-collapse">
         <thead className="sticky top-0 z-10">
           <tr className={cn(UI_THEME_TOKENS.panel.bg, `border-b ${UI_THEME_TOKENS.panel.border}`)}>
@@ -81,19 +81,19 @@ export default function WidgetRegistryTable({
                   />
                 </td>
                 <td className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_TABLE_CELL_CLASSNAME, 'text-sm', UI_THEME_TOKENS.text.primary)}>
-                  <div className={UI_RESPONSIVE_FLOW_MANAGER_TABLE_NODE_TEXT_CLASSNAME} title={e.nodeTypeId}>
+                  <section className={UI_RESPONSIVE_FLOW_MANAGER_TABLE_NODE_TEXT_CLASSNAME} title={e.nodeTypeId}>
                     {e.nodeTypeId}
-                  </div>
+                  </section>
                 </td>
                 <td className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_TABLE_CELL_CLASSNAME, 'text-sm', UI_THEME_TOKENS.text.secondary)}>
-                  <div className={UI_RESPONSIVE_FLOW_MANAGER_TABLE_EDITOR_TEXT_CLASSNAME} title={e.widgetTypeId}>
+                  <section className={UI_RESPONSIVE_FLOW_MANAGER_TABLE_EDITOR_TEXT_CLASSNAME} title={e.widgetTypeId}>
                     {e.widgetTypeId}
-                  </div>
+                  </section>
                 </td>
                 <td className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_TABLE_CELL_CLASSNAME, 'text-sm', UI_THEME_TOKENS.text.secondary)}>
-                  <div className={cn(UI_RESPONSIVE_FLOW_MANAGER_TABLE_FORM_TEXT_CLASSNAME, panelTypography.monospaceTextClass)} title={e.formId}>
+                  <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_TABLE_FORM_TEXT_CLASSNAME, panelTypography.monospaceTextClass)} title={e.formId}>
                     {e.formId}
-                  </div>
+                  </section>
                 </td>
                 <td className={cn(UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_TABLE_CELL_CLASSNAME, 'text-sm', UI_THEME_TOKENS.text.secondary)}>
                   {Array.isArray(e.fields) ? e.fields.length : 0}
@@ -117,6 +117,6 @@ export default function WidgetRegistryTable({
           )}
         </tbody>
       </table>
-    </div>
+    </section>
   )
 }

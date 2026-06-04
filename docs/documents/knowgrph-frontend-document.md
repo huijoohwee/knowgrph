@@ -156,6 +156,8 @@ selection_state:
 **Panel Organization**: Main panel (workflow, schema, settings), bottom surface (quick stats/history), Floating panels (props, orchestrator, renderer), and shared workspace surfaces (markdown workspace, Graph Data Table, editor workspace) with independent state slices.
 
 - Floating Panel (tool menu) hosts the Props/Inspector/etc views.
+- Floating Panel default geometry is top-right canvas aligned through `floatingPanelGeometry.ts`; its default width is 20% wider (`0.3` viewport ratio / `21.6rem` minimum), and its right inset reuses the same canvas edge-gap token as the toolbar top inset. GitGraph command CRUD is hosted as the `gitGraph` FloatingPanel view instead of a duplicate canvas-local command panel.
+- Document versioning records bounded local snapshots from Editor Workspace saves, Source Files writeback, and GitGraph CRUD through `documentVersioning.ts`; Source Files rows expose version counts, Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in GitGraph view after `[ ] Markdown`, and the bottom panel exposes GitGraph immediately to the right of the Timeline icon. MainPanel History does not own a document-version Docs surface.
 - Interaction controls for infinite-canvas workflows live in a dedicated **Interaction** floating panel that is positioned adjacent to the Floating Panel when the Props view is active.
 - Forbid any legacy “Arrange” panels (canvas overlays, editor tabs, or floating panels) that duplicate Interaction/Arrange actions.
 - Shared panel activation events, default panel sizing, and panel-role ownership must live under `canvas/src/features/panels/*`; forbid a parallel `features/bottom-panel/*` helper namespace or duplicate bottom-surface ownership labels in shared config.

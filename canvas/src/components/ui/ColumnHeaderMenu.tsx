@@ -107,9 +107,9 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
             <span className={[UI_RESPONSIVE_COLUMN_HEADER_TYPE_VALUE_CLASSNAME, UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{props.typeValueLabel}</span>
             <ChevronDown className={[icon14, 'transition-transform', isTypeOpen ? 'rotate-180' : ''].join(' ')} aria-hidden="true" />
           </summary>
-          <div id={typeMenuId} className="kg-column-header-children kg-click-expand-menu-children mt-1">
+          <section id={typeMenuId} className="kg-column-header-children kg-click-expand-menu-children mt-1">
             {props.renderTypeMenu({ closeMenu: props.closeMenu })}
-          </div>
+          </section>
         </details>
       </li>
 
@@ -166,7 +166,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
                   >
                     <ArrowLeft className={icon14} aria-hidden="true" />
                   </button>
-                  <div className={['min-w-0 font-medium text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Filter</div>
+                  <section className={['min-w-0 font-medium text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Filter</section>
                 </header>
 
                 <fieldset className="border-0 p-0 m-0 space-y-2">
@@ -195,7 +195,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
                     />
                   </label>
 
-                  <div className="flex items-center justify-end gap-2 pt-1">
+                  <section className="flex items-center justify-end gap-2 pt-1">
                     <button
                       type="button"
                       className={[UI_RESPONSIVE_COLUMN_HEADER_FILTER_ACTION_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
@@ -215,7 +215,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
                     >
                       Apply
                     </button>
-                  </div>
+                  </section>
                 </fieldset>
               </section>
             )}

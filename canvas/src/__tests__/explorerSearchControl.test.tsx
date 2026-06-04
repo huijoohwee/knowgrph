@@ -5,7 +5,7 @@ import { ExplorerSearchControl } from '@/features/markdown-workspace/ExplorerSea
 
 export async function testExplorerSearchControlTogglesAndClearsSearch() {
   const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('div')
+  const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   let searchValue = ''

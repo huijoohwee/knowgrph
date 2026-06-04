@@ -52,7 +52,7 @@ const MARKDOWN_MERMAID_DEFER_DOC_CHARS = 90_000
 const MARKDOWN_MERMAID_DEFER_IDLE_MS = 180
 
 export type MarkdownPreviewViewerProps = {
-  rootRef: (el: HTMLDivElement | null) => void
+  rootRef: (el: HTMLElement | null) => void
   tokens: TokenWithLines[]
   activeDocumentPath: string
   highlightedLineRange: HighlightedLineRange
@@ -76,10 +76,10 @@ export type MarkdownPreviewViewerProps = {
   frontmatterMeta?: Record<string, unknown> | null
   codeAnnotations?: Record<string, string> | null
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
-  onScroll?: (event: React.UIEvent<HTMLDivElement>) => void
-  onContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void
-  onClick: (event: React.MouseEvent<HTMLDivElement>) => void
-  onMouseUp?: (event: React.MouseEvent<HTMLDivElement>) => void
+  onScroll?: (event: React.UIEvent<HTMLElement>) => void
+  onContextMenu: (event: React.MouseEvent<HTMLElement>) => void
+  onClick: (event: React.MouseEvent<HTMLElement>) => void
+  onMouseUp?: (event: React.MouseEvent<HTMLElement>) => void
   selectionToolbar?: React.ReactNode
   showSidebar?: boolean
   onToggleSidebar?: (show: boolean) => void
@@ -97,7 +97,7 @@ export type MarkdownPreviewViewerProps = {
     position: 'before' | 'after',
   ) => void
   onReplaceLineRange?: (args: { startLine: number; endLine: number; replacementLines: string[] }) => void
-  onDoubleClick?: (event: React.MouseEvent<HTMLDivElement>) => void
+  onDoubleClick?: (event: React.MouseEvent<HTMLElement>) => void
   annotateDisplayMode?: 'inline' | 'beside' | 'render'
   flashLine?: number | null
   contentClassName?: string
@@ -287,9 +287,9 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   const isRenderMode = annotateDisplayMode === 'render'
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
 
-  const scrollRootRef = React.useRef<HTMLDivElement | null>(null)
+  const scrollRootRef = React.useRef<HTMLElement | null>(null)
   const handleScrollRootRef = React.useCallback(
-    (el: HTMLDivElement | null) => {
+    (el: HTMLElement | null) => {
       scrollRootRef.current = el
       rootRef(el)
     },
@@ -419,7 +419,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   )
 
   const handleClickWithWikiLinks = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
+    (event: React.MouseEvent<HTMLElement>) => {
       try {
         const target = event.target as Element | null
         const variableRef = target ? target.closest('[data-kg-var-key]') as HTMLElement | null : null

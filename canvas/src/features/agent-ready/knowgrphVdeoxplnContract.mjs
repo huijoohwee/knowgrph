@@ -1,4 +1,5 @@
 import {
+  KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from "./knowgrphAgentReadyToolContract.mjs";
@@ -7,6 +8,8 @@ import { hashSignatureParts } from "../../../../grph-shared/dist/hash/signature.
 export const KNOWGRPH_VDEOXPLN_CONTRACT_VERSION = "knowgrph-vdeoxpln/v0.1";
 
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
+  search: KNOWGRPH_AGENT_READY_TOOL_IDS.search,
+  fetch: KNOWGRPH_AGENT_READY_TOOL_IDS.fetch,
   uiLaunch: "knowgrph.ui.launch",
   uiStop: "knowgrph.ui.stop",
   pipeline: "knowgrph.pipeline",
@@ -67,12 +70,12 @@ export const buildKnowgrphVdeoxplnSemanticKey = (scope, parts) => {
 };
 
 const buildPublishedToolNames = () =>
-  buildKnowgrphAgentReadyToolContracts({ defaultWorkspaceId: "kgws:canonical-docs" })
+  buildKnowgrphAgentReadyToolContracts({ defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID })
     .map((tool) => tool.name);
 
 const buildBrowserToolNames = () =>
   buildKnowgrphAgentReadyToolContracts({
-    defaultWorkspaceId: "kgws:canonical-docs",
+    defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
     includeBrowserOnlyTools: true,
   }).map((tool) => tool.name);
 
@@ -101,7 +104,11 @@ const RAW_VDEOXPLN = Object.freeze([
         KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure,
       ],
       browserLocal: [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot],
-      local: [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList],
+      local: [
+        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search,
+        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch,
+        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
+      ],
     },
     workflow: [
       "Resolve source identity from storage, share token, or canonical path.",
@@ -196,6 +203,8 @@ const RAW_VDEOXPLN = Object.freeze([
       published: [],
       browserLocal: [],
       local: [
+        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search,
+        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch,
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch,
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiStop,
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline,

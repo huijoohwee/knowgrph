@@ -2502,13 +2502,13 @@
     [data-kg-floating-panel-root="true"]:not(.App-toolbar) {
       --kg-floating-tool-menu-bottom-offset: var(--kg-mobile-bottom-dock-clearance);
       top: auto !important;
-      left: calc(var(--kg-safe-left) + 0.5rem) !important;
-      right: calc(var(--kg-safe-right) + 0.5rem);
+      left: calc(var(--kg-safe-left) + var(--kg-canvas-viewport-edge-gap)) !important;
+      right: calc(var(--kg-safe-right) + var(--kg-canvas-viewport-edge-gap));
       bottom: calc(var(--kg-safe-bottom) + var(--kg-floating-tool-menu-bottom-offset));
       width: auto !important;
-      max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem) !important;
-      height: min(72dvh, calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - var(--kg-floating-tool-menu-bottom-offset) - 1rem)) !important;
-      max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - var(--kg-floating-tool-menu-bottom-offset) - 1rem) !important;
+      max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - var(--kg-canvas-viewport-edge-gap) - var(--kg-canvas-viewport-edge-gap)) !important;
+      height: min(72dvh, calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - var(--kg-floating-tool-menu-bottom-offset) - var(--kg-canvas-viewport-edge-gap) - var(--kg-canvas-viewport-edge-gap))) !important;
+      max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - var(--kg-floating-tool-menu-bottom-offset) - var(--kg-canvas-viewport-edge-gap) - var(--kg-canvas-viewport-edge-gap)) !important;
     }
 
     .kg-import-url-actions,

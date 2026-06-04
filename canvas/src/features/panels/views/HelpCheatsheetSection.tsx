@@ -114,9 +114,9 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
       onToggle={onToggle}
     >
       {HELP_STEP_COPY.cheatsheet.descriptionShort && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
+        <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
           {HELP_STEP_COPY.cheatsheet.descriptionShort}
-        </div>
+        </section>
       )}
       <HelpKtvRows>
         {behaviorRows.map(row => {

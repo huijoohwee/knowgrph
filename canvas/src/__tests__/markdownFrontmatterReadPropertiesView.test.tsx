@@ -13,7 +13,7 @@ const tick = async () => {
 export async function testMarkdownFrontmatterReadRendersClickablePropertyChips() {
   const previousFrontmatterMode = !!useGraphStore.getState().frontmatterModeEnabled
   useGraphStore.setState({ frontmatterModeEnabled: true } as never)
-  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   let root: ReturnType<typeof createRoot> | null = null
   try {
     const container = dom.window.document.getElementById('root')

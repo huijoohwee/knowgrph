@@ -44,7 +44,7 @@ export async function testPreviewGalleryArrowMovesThirdSlideAboveSecond() {
   const { dom, restore } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -102,7 +102,7 @@ export async function testPreviewGalleryDragMovesThirdSlideAboveSecond() {
   const { dom, restore } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -166,7 +166,7 @@ export async function testPreviewGalleryDragMovesFirstSlideBelowThird() {
   const { dom, restore } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -230,7 +230,7 @@ export async function testPreviewGalleryDragMovesFirstSlideToLastInLongerList() 
   const { dom, restore } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
@@ -296,7 +296,7 @@ export async function testPreviewGalleryDragMovesLastSlideToFirstInLongerList() 
   const { dom, restore } = initJsdomHarness()
   try {
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)

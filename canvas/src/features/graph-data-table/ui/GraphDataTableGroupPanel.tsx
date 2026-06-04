@@ -73,15 +73,15 @@ export function GroupPanel({
       className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_TABLE_NARROW_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}
       aria-label="Group Panel"
     >
-      <div className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
-        <div className="font-medium">{panelTitle}</div>
+      <section className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
+        <section className="font-medium">{panelTitle}</section>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
           {UI_LABELS.close}
         </button>
-      </div>
-      <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPACIOUS_SCROLL_STACK_CLASSNAME}>
-        <div className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
-          <div className={UI_THEME_TOKENS.text.secondary}>{UI_COPY.graphDataTableGroupRowsByLabel}</div>
+      </section>
+      <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPACIOUS_SCROLL_STACK_CLASSNAME}>
+        <section className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
+          <section className={UI_THEME_TOKENS.text.secondary}>{UI_COPY.graphDataTableGroupRowsByLabel}</section>
           <button
             type="button"
             className={`${secondaryButtonClassName} ${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME}`}
@@ -91,8 +91,8 @@ export function GroupPanel({
             <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
             {UI_LABELS.clear}
           </button>
-        </div>
-        <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_STACK_CLASSNAME}>
+        </section>
+        <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_STACK_CLASSNAME}>
           <button
             type="button"
             className={`${panelChoiceBaseClassName} ${
@@ -116,11 +116,11 @@ export function GroupPanel({
               </span>
             </button>
           ))}
-        </div>
-        <div className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_DIVIDER_STACK_CLASSNAME} ${UI_THEME_TOKENS.panel.divider}`}>
-          <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME}>
-            <div className={`${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.graphDataTableAggregateNumericFieldsLabel}</div>
-            <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
+        </section>
+        <section className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_DIVIDER_STACK_CLASSNAME} ${UI_THEME_TOKENS.panel.divider}`}>
+          <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME}>
+            <section className={`${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.graphDataTableAggregateNumericFieldsLabel}</section>
+            <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
               <label className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME} ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
@@ -157,9 +157,9 @@ export function GroupPanel({
                 />
                 <span>Treat Target as numeric</span>
               </label>
-            </div>
-          </div>
-          <div className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_WRAP_ROW_CLASSNAME}>
+            </section>
+          </section>
+          <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_WRAP_ROW_CLASSNAME}>
             {aggregatePanelColumnKeys.map(key => {
               const isActive = aggregateKeys.includes(key)
               const label = columnLabelByKey.get(key) ?? key
@@ -182,9 +182,9 @@ export function GroupPanel({
                 </button>
               )
             })}
-          </div>
-        </div>
-      </div>
+          </section>
+        </section>
+      </section>
     </section>
   )
 }

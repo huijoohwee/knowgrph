@@ -51,7 +51,7 @@ export async function testFlowWidgetUnpinnedReusesCanvasZoomMovement() {
     const startViewportW = 600
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -163,7 +163,7 @@ export async function testFlowWidgetUnpinnedReusesCanvasPanMovement() {
     api.setFlowWidgetPosByNodeId({ n1: { top: 160, left: 220 } })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -252,7 +252,7 @@ export async function testFlowWidgetUnpinnedInteractionFrameRefreshesLiveTransfo
     let liveTransform = { k: 1, x: 0, y: 0 }
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -342,7 +342,7 @@ export async function testFlowWidgetUnpinnedReusesPinnedScaleBehavior() {
     api.setFlowWidgetPosByNodeId({ n1: { top: 120, left: 220 } })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -433,7 +433,7 @@ export async function testFlowWidgetUnpinnedMaxZoomOutKeepsLayoutWithoutViewport
     api.setFlowWidgetPosByNodeId({ n1: { top: 120, left: 220 } })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -523,7 +523,7 @@ export async function testFlowWidgetFloatingScreenPlacementAllowsOffscreenWithou
       flowWidgetPosByNodeIdByGraphMetaKey: { [graphKey]: { n1: { top: 760, left: -420 } } },
     })
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     container.id = 'root'
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -608,7 +608,7 @@ export async function testFrontmatterWidgetStoredWorldPlacementAllowsOffscreenWi
       flowWidgetWorldPosByNodeIdByGraphMetaKey: { [graphKey]: { n1: { x: -3600, y: 840 } } },
     })
 
-    const container = dom.window.document.createElement('div')
+    const container = dom.window.document.createElement('section')
     container.id = 'root'
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -690,7 +690,7 @@ export async function testFrontmatterWidgetUnpinKeepsCurrentScreenPlacement() {
     api.setFlowWidgetWorldPosByNodeId({ n1: { x: 40, y: 50 } })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
@@ -798,7 +798,7 @@ export async function testFrontmatterWidgetPinKeepsCurrentScreenPlacement() {
     api.setFlowWidgetPosByNodeId({ n1: { top: 200, left: 130 } })
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)

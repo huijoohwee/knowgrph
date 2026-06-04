@@ -42,7 +42,7 @@ export default function ThreeViewStarfieldSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Starfield</span>}
@@ -142,7 +142,7 @@ export default function ThreeViewStarfieldSection({
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Starfield Color</span>}
           valueNode={(
-            <div className="flex items-center gap-2">
+            <section className="flex items-center gap-2">
               <input
                 type="color"
                 className={colorPickerClassName}
@@ -164,10 +164,10 @@ export default function ThreeViewStarfieldSection({
                 onChange={next => setThreeConfig({ starfieldColor: next })}
                 placeholder="#facc15"
               />
-            </div>
+            </section>
           )}
         />
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

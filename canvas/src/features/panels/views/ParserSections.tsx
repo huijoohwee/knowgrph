@@ -61,26 +61,26 @@ export function ParserSelectionSection({
   const info = (
     <>
       {!hasSelectedSpec && parserMessage && (
-        <div className={`text-xs mb-2 px-2 py-1 rounded border ${UI_THEME_TOKENS.status.warning}`}>
+        <section className={`text-xs mb-2 px-2 py-1 rounded border ${UI_THEME_TOKENS.status.warning}`}>
           {parserMessage}
-        </div>
+        </section>
       )}
-      {warningText && <div className="text-xs text-amber-700">{warningText}</div>}
+      {warningText && <section className="text-xs text-amber-700">{warningText}</section>}
     </>
   )
 
   if (embedded) {
     return (
-      <div className="mt-1">
-        <div className="mt-2">{info}</div>
-      </div>
+      <section className="mt-1">
+        <section className="mt-2">{info}</section>
+      </section>
     )
   }
 
   return (
     <CollapsibleSection
       title={
-        <div className="flex flex-col">
+        <section className="flex flex-col">
           <span className="inline-flex items-center gap-2">
             <span className={badgeClassName}>
               {copy.badge}
@@ -106,7 +106,7 @@ export function ParserSelectionSection({
               {copy.descriptionShort}
             </span>
           )}
-        </div>
+        </section>
       }
       collapsed={parsersCollapsed}
       onToggle={v => onParsersCollapsedChange(v)}
@@ -209,11 +209,11 @@ export function ParserDataSection({
 
   const content = (
     <>
-      <div className="mt-2">
-        <div className={bodyTextClassName}>
+      <section className="mt-2">
+        <section className={bodyTextClassName}>
           {showMetrics && (
             <>
-              <div>
+              <section>
                 Metrics:
                 {' '}
                 {validation.metrics.nodeCount}
@@ -261,11 +261,11 @@ export function ParserDataSection({
                     edges without label
                   </>
                 )}
-              </div>
+              </section>
               {(Object.keys(validation.metrics.nodeTypeCounts || {}).length > 0 ||
                 Object.keys(validation.metrics.edgeLabelCounts || {}).length > 0 ||
                 (validation.metrics.degreeHistogram || []).length > 0) && (
-                <div>
+                <section>
                   Distribution:
                   {' '}
                   {Object.keys(validation.metrics.nodeTypeCounts || {}).length}
@@ -291,13 +291,13 @@ export function ParserDataSection({
                       </>
                     )
                   })()}
-                </div>
+                </section>
               )}
             </>
           )}
           {jsonLdMapping && (
-            <div className={`mt-1 space-y-0.5 ${UI_THEME_TOKENS.text.secondary}`}>
-              <div>
+            <section className={`mt-1 space-y-0.5 ${UI_THEME_TOKENS.text.secondary}`}>
+              <section>
                 JSON-LD graph mapping:
                 {' '}
                 {jsonLdMapping.nodeCount}
@@ -307,13 +307,13 @@ export function ParserDataSection({
                 {jsonLdMapping.edgeCount}
                 {' '}
                 edges
-              </div>
+              </section>
               {jsonLdMapping.edgeProps.length > 0 && (
-                <div className="space-y-0.5">
-                  <div>
+                <section className="space-y-0.5">
+                  <section>
                     Edge properties from @context (@id):
-                  </div>
-                  <div className="flex flex-wrap gap-1">
+                  </section>
+                  <section className="flex flex-wrap gap-1">
                     {jsonLdMapping.edgeProps.map(key => {
                       const checked = jsonLdMapping.selectedEdgeProps.includes(key)
                       const baseClass = `focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`
@@ -342,31 +342,31 @@ export function ParserDataSection({
                         </button>
                       )
                     })}
-                  </div>
-                </div>
+                  </section>
+                </section>
               )}
               {jsonLdMapping.sampleNodes.length > 0 && (
-                <div>
+                <section>
                   Sample node mapping:
                   {' '}
                   {jsonLdMapping.sampleNodes
                     .map(sample => `${sample.id} ⟶ type=${sample.type}, label=${sample.label}`)
                     .join(' · ')}
-                </div>
+                </section>
               )}
                   {jsonLdMapping.edgeProps.length > 0 && (
                 <>
-                  <div className={`mt-0.5 ${tertiaryTextClassName}`}>
+                  <section className={`mt-0.5 ${tertiaryTextClassName}`}>
                     {PARSER_JSONLD_EDGE_MAPPING_PIPELINE_DESCRIPTION}
-                  </div>
-                  <div className={`mt-0.5 ${tertiaryTextClassName}`}>
+                  </section>
+                  <section className={`mt-0.5 ${tertiaryTextClassName}`}>
                     {ORCHESTRATOR_AGENTIC_COPY.schemaLabel}
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {AGENTIC_RAG_SCHEMA_URL}
                     </span>
-                  </div>
-                  <div className={tertiaryTextClassName}>
+                  </section>
+                  <section className={tertiaryTextClassName}>
                     <span
                       className={getPillClass('badge', {
                         baseClass:
@@ -394,36 +394,36 @@ export function ParserDataSection({
                         {agenticContext.isCanonicalMatch === false && ' (differs)'}
                       </>
                     )}
-                  </div>
-                  <div className={tertiaryTextClassName}>
+                  </section>
+                  <section className={tertiaryTextClassName}>
                     {ORCHESTRATOR_AGENTIC_COPY.graphRagPathIriLabel}
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {AGENTIC_RAG_GRAPH_RAG_PATH_IRI}
                     </span>
-                  </div>
-                  <div className={tertiaryTextClassName}>
+                  </section>
+                  <section className={tertiaryTextClassName}>
                     Node type IRI:
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {AGENTIC_RAG_NODE_TYPE_IRI}
                     </span>
-                  </div>
-                  <div className={tertiaryTextClassName}>
+                  </section>
+                  <section className={tertiaryTextClassName}>
                     Edge type IRI:
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {AGENTIC_RAG_EDGE_TYPE_IRI}
                     </span>
-                  </div>
+                  </section>
                 </>
               )}
-            </div>
+            </section>
           )}
           {(validation.errors.length > 0 || validation.warnings.length > 0) && (
-            <div className="space-y-0.5">
+            <section className="space-y-0.5">
               {validation.errors.length > 0 && (
-                <div
+                <section
                   className={[
                     uiPanelKeyValueTextSizeClass,
                     uiPanelTextFontClass,
@@ -434,10 +434,10 @@ export function ParserDataSection({
                   {' '}
                   {validation.errors.slice(0, 3).join('; ')}
                   {validation.errors.length > 3 && '; …'}
-                </div>
+                </section>
               )}
               {validation.warnings.length > 0 && (
-                <div
+                <section
                   className={[
                     uiPanelKeyValueTextSizeClass,
                     uiPanelTextFontClass,
@@ -448,23 +448,23 @@ export function ParserDataSection({
                   {' '}
                   {validation.warnings.slice(0, 3).join('; ')}
                   {validation.warnings.length > 3 && '; …'}
-                </div>
+                </section>
               )}
-            </div>
+            </section>
           )}
-        </div>
-      </div>
+        </section>
+      </section>
     </>
   )
 
   if (embedded) {
-    return <div className="mt-1">{content}</div>
+    return <section className="mt-1">{content}</section>
   }
 
   return (
     <CollapsibleSection
       title={
-        <div className="flex flex-col">
+        <section className="flex flex-col">
           <span className="inline-flex items-center gap-2">
             <span className={badgeClassName}>
               {copy.badge}
@@ -490,7 +490,7 @@ export function ParserDataSection({
               {copy.descriptionShort}
             </span>
           )}
-        </div>
+        </section>
       }
       collapsed={inputCollapsed}
       onToggle={v => onInputCollapsedChange(v)}
