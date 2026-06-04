@@ -131,32 +131,20 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const runtimeSeedText = readFileSync(runtimeSeedPath, 'utf8')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) {')
+  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlockedForSeed) {')
   const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
-  const worldSeedWriteIndex = runtimeText.indexOf('buildWorkspaceBlockedFlowWidgetSeedPatch', worldSeedGuardIndex)
+  const worldSeedWriteIndex = runtimeText.indexOf('if (changedScreenPos) st.setFlowWidgetPosByNodeId(nextScreenPos)', worldSeedGuardIndex)
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
-    throw new Error('expected pinned widget auto-seed world-position persistence to stay blocked unless missing seeds or non-viewport drift require first-frame recovery')
+    throw new Error('expected pinned widget auto-seed to skip all widget geometry writes while Workspace/Indexing mutation guard is active')
   }
-  if (worldSeedKeyWriteIndex < 0 || worldSeedGuardIndex > worldSeedKeyWriteIndex || worldSeedKeyWriteIndex > worldSeedWriteIndex) {
-    throw new Error('expected pinned widget auto-seed key to be committed only after Workspace/Indexing mutation guard')
+  if (worldSeedKeyWriteIndex >= 0 && worldSeedGuardIndex < worldSeedKeyWriteIndex && worldSeedKeyWriteIndex < worldSeedWriteIndex) {
+    throw new Error('expected pinned widget auto-seed key not to be committed while Workspace/Indexing mutation guard is active')
   }
-  if (!runtimeText.includes('const hasMissingWorldSeeds = pendingRaw.length > 0')) {
-    throw new Error('expected pinned widget auto-seed guard to treat missing world seeds as a first-frame recovery exception')
+  if (!runtimeText.includes("reason: 'workspace-blocked-skipping-flow-widget-seed-write'")) {
+    throw new Error('expected pinned widget auto-seed to trace read-only workspace-blocked seed skips')
   }
-  if (!runtimeText.includes('const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed || layoutRebalanceRequested')) {
-    throw new Error('expected pinned widget auto-seed guard to classify overlap/scene-empty recovery as drift reseed candidates without viewport offscreen recovery')
-  }
-  if (!runtimeText.includes('if (workspaceMutationBlockedForSeed) {')) {
-    throw new Error('expected pinned widget auto-seed to route workspace-blocked writes through an explicit in-memory branch')
-  }
-  if (!runtimeSeedText.includes('flowWidgetWorldPosByNodeId: args.nextWorld')) {
-    throw new Error('expected pinned widget auto-seed workspace-blocked branch to apply non-persistent in-memory world positions')
-  }
-  if (!runtimeSeedText.includes('buildGraphMetaKeyIgnoringPending(args.graphDataForSeeding || args.prevState.graphData || null)')) {
-    throw new Error('expected pinned widget auto-seed workspace-blocked branch to resolve active graph meta key for in-memory world SSOT sync')
-  }
-  if (!runtimeSeedText.includes('flowWidgetWorldPosByNodeIdByGraphMetaKey: { ...worldByKey, [graphKey]: args.nextWorld }')) {
-    throw new Error('expected pinned widget auto-seed workspace-blocked branch to update graph-keyed world SSOT in memory')
+  if (runtimeText.includes('buildWorkspaceBlockedFlowWidgetSeedPatch') || runtimeSeedText.includes('buildWorkspaceBlockedFlowWidgetSeedPatch')) {
+    throw new Error('expected pinned widget auto-seed to remove the stale workspace-blocked in-memory mutation branch')
   }
   if (!runtimeText.includes('syncFlowWidgetScreenAuthorityPosition({') || !runtimeSeedText.includes('shouldUseFlowEditorWidgetFloatingScreenAuthority({')) {
     throw new Error('expected pinned widget auto-seed to sync screen-authority positions with centered world seeds through the shared authority helper')
@@ -178,13 +166,11 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (runtimeText.includes('shouldReseedFrontmatterScreenAuthorityCollective({') || runtimeText.includes('resolveOffscreenPinnedFlowWidgetIds({')) {
     throw new Error('expected pinned widget auto-seed to forbid viewport/offscreen reseed triggers in infinite-canvas mode')
   }
-  if (!runtimeText.includes('const allowPersistedViewportOffsetSeed =')
-    || !runtimeText.includes('!workspaceMutationBlockedForSeed')
-    || !runtimeText.includes('const persistedZoomForSeed =')) {
-    throw new Error('expected pinned widget auto-seed to gate persisted zoom-offset fallback while Workspace overlay/indexing mutation guard is active')
+  if (runtimeText.includes('const allowPersistedViewportOffsetSeed =') || runtimeText.includes('const persistedZoomForSeed =')) {
+    throw new Error('expected pinned widget auto-seed to avoid workspace-blocked persisted zoom branches after the read-only guard')
   }
-  if (!runtimeText.includes('(allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)')) {
-    throw new Error('expected pinned widget auto-seed zoom source to gate persisted viewport-offset seed by workspace mutation guard')
+  if (!runtimeText.includes('(persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)')) {
+    throw new Error('expected pinned widget auto-seed zoom source to stay independent from Workspace overlay toggles after the read-only guard')
   }
   if (!runtimeText.includes('const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${visibleViewport.left},${visibleViewport.top},${visibleViewport.width}x${visibleViewport.height}|${bucketSignature}`')) {
     throw new Error('expected pinned widget auto-seed layout signature to include shared visible viewport geometry without Editor Workspace pane authority')
@@ -203,9 +189,9 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   if (!runtimeText.includes('const shouldUseNeutralSeedZoomForFrontmatterInit =')
     || !runtimeText.includes('const isFirstFrontmatterInitSeed = isFrontmatterFlow && seededPinnedWidgetWorldPosKeyRef.current.length === 0')
-    || !runtimeText.includes('!persistedHasViewportOffset\n        || (isFrontmatterFlow && workspaceMutationBlockedForSeed)')
-    || !runtimeText.includes('|| (isFrontmatterFlow && workspaceMutationBlockedForSeed)')) {
-    throw new Error('expected frontmatter-flow init seeding to force neutral zoom on first seed pass when pending widget seeds exist, independent of stale live default checks')
+    || !runtimeText.includes('!persistedHasViewportOffset')
+    || !runtimeText.includes('&& isFirstFrontmatterInitSeed')) {
+    throw new Error('expected frontmatter-flow init seeding to force neutral zoom only on the first non-workspace-blocked seed pass')
   }
   if (!runtimeText.includes("reason: 'scene-empty-workspace-blocked-awaiting-live-transform'")) {
     throw new Error('expected pinned widget auto-seed to gate workspace-blocked empty-scene frontmatter placement until post-init layout')

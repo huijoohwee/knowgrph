@@ -1,7 +1,10 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createPublishedDocIdentityResolver, encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
-import { buildAgentSurfaceInspectionPayload } from '@/features/agent-ready/agentSurfaceInspection.mjs'
 import { buildKnowgrphAgentReadyToolContracts } from '@/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
+import {
+  buildExpectedMockAgentSurfaceInspection,
+  createMockResponse,
+} from '@/__tests__/helpers/webMcpRuntimeFixture'
 import { webMcpScript } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
 
 type RegisteredTool = {
@@ -18,118 +21,6 @@ type RegisteredTool = {
 
 const readWebMcpContextState = (document: Document): string =>
   String(document.documentElement.dataset.kgWebmcpContext || '')
-
-const MOCK_SHARED_DOCUMENT_MARKDOWN = `---
-flow:
-  nodes:
-    - id: start
-      label: Start
-    - id: end
-      label: End
-  connections:
-    - source: start
-      target: end
-  subgraphs:
-    - id: lane-main
-      label: Main
----
-
-# Shared Doc
-
-## Overview
-`
-
-const createMockResponse = (url: string): Response =>
-  ({
-    ok: true,
-    status: 200,
-    text: async () => (
-      url.includes('/api/storage/doc-default/')
-        || url.includes('/api/storage/doc/')
-        ? MOCK_SHARED_DOCUMENT_MARKDOWN
-        : '# mock markdown'
-    ),
-    json: async () => ({
-      url,
-      ok: true,
-      capabilities: { tools: [{ name: 'list_source_files' }] },
-      status: 'pass',
-      service: 'knowgrph-agent-ready-pages',
-      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${url}/skill.md`, sha256: 'sha' }],
-      openapi: '3.1.0',
-      paths: { '/knowgrph/health': { get: {} } },
-    }),
-  }) as Response
-
-const buildExpectedMockAgentSurfaceInspection = (baseUrl: string) =>
-  buildAgentSurfaceInspectionPayload({
-    baseUrl,
-    health: {
-      url: `${baseUrl}/health`,
-      ok: true,
-      capabilities: { tools: [{ name: 'list_source_files' }] },
-      status: 'pass',
-      service: 'knowgrph-agent-ready-pages',
-      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/health/skill.md`, sha256: 'sha' }],
-      openapi: '3.1.0',
-      paths: { '/knowgrph/health': { get: {} } },
-    },
-    apiCatalog: {
-      url: `${baseUrl}/.well-known/api-catalog`,
-      ok: true,
-      capabilities: { tools: [{ name: 'list_source_files' }] },
-      status: 'pass',
-      service: 'knowgrph-agent-ready-pages',
-      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/api-catalog/skill.md`, sha256: 'sha' }],
-      openapi: '3.1.0',
-      paths: { '/knowgrph/health': { get: {} } },
-    },
-    openApi: {
-      url: `${baseUrl}/.well-known/openapi.json`,
-      ok: true,
-      capabilities: { tools: [{ name: 'list_source_files' }] },
-      status: 'pass',
-      service: 'knowgrph-agent-ready-pages',
-      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/openapi.json/skill.md`, sha256: 'sha' }],
-      openapi: '3.1.0',
-      paths: { '/knowgrph/health': { get: {} } },
-    },
-    mcpServerCard: {
-      url: `${baseUrl}/.well-known/mcp/server-card.json`,
-      ok: true,
-      capabilities: { tools: [{ name: 'list_source_files' }] },
-      status: 'pass',
-      service: 'knowgrph-agent-ready-pages',
-      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/mcp/server-card.json/skill.md`, sha256: 'sha' }],
-      openapi: '3.1.0',
-      paths: { '/knowgrph/health': { get: {} } },
-    },
-    agentCard: {
-      url: `${baseUrl}/.well-known/agent-card.json`,
-      ok: true,
-      capabilities: { tools: [{ name: 'list_source_files' }] },
-      status: 'pass',
-      service: 'knowgrph-agent-ready-pages',
-      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/agent-card.json/skill.md`, sha256: 'sha' }],
-      openapi: '3.1.0',
-      paths: { '/knowgrph/health': { get: {} } },
-    },
-    agentSkills: {
-      url: `${baseUrl}/.well-known/agent-skills/index.json`,
-      ok: true,
-      capabilities: { tools: [{ name: 'list_source_files' }] },
-      status: 'pass',
-      service: 'knowgrph-agent-ready-pages',
-      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/agent-skills/index.json/skill.md`, sha256: 'sha' }],
-      openapi: '3.1.0',
-      paths: { '/knowgrph/health': { get: {} } },
-    },
-    commerce: {
-      acpDiscovery: { url: `${new URL(`${baseUrl}/`).origin}/.well-known/acp.json`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/.well-known/acp.json/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
-      ucpProfile: { url: `${new URL(`${baseUrl}/`).origin}/.well-known/ucp`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/.well-known/ucp/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
-      mppOpenApi: { url: `${new URL(`${baseUrl}/`).origin}/openapi.json`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/openapi.json/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
-    },
-  })
 
 export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOriginStoragePaths(): Promise<void> {
   const previousFetch = globalThis.fetch

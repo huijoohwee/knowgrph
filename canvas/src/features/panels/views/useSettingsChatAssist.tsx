@@ -1,29 +1,9 @@
 import React from 'react'
 import { loadAvailableModelIds } from '@/features/chat/FloatingPanelChat.helpers'
 import {
-  CHAT_AGNES_ENDPOINT_URL,
-  CHAT_AGNES_MODEL_OPTIONS,
-  CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
-  CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
   CHAT_DEFAULT_ENDPOINT_URL,
-  CHAT_DEFAULT_MODEL,
-  CHAT_MIROMIND_MODEL_OPTIONS,
-  CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
-  CHAT_QWEN_MODEL_OPTIONS,
   CHAT_DEFAULT_PROVIDER,
-  CHAT_LOCAL_DEFAULT_MODEL,
-  CHAT_LOCAL_MODEL_OPTIONS,
-  CHAT_OPENAI_MODEL_OPTIONS,
-  CHAT_PROVIDER_BYTEPLUS,
-  CHAT_PROVIDER_LM_STUDIO,
-  CHAT_PROVIDER_AGNES,
-  CHAT_PROVIDER_GOOGLE_CLOUD,
-  CHAT_PROVIDER_MIROMIND,
-  CHAT_PROVIDER_OPENAI,
-  CHAT_PROVIDER_QWEN,
   buildChatProxyHeaders,
-  getChatDefaultEndpointUrlForProvider,
-  getDefaultChatModelForProvider,
   getSharedChatModelSuggestionOptions,
   resolveChatEndpointForModels,
 } from '@/lib/chatEndpoint'
@@ -62,11 +42,6 @@ export function useSettingsChatAssist({
     [values.chatProvider],
   )
 
-  const patchChatValues = React.useCallback((patch: Record<string, string>) => {
-    Object.keys(patch).forEach(key => dirtyRef.current.add(key))
-    setValues(prev => ({ ...prev, ...patch }))
-  }, [dirtyRef, setValues])
-
   const patchIntegrationJson = React.useCallback((updater: (current: ReturnType<typeof parseIntegrationConfigsJson>) => ReturnType<typeof parseIntegrationConfigsJson>) => {
     const current = parseIntegrationConfigsJson(
       typeof values.integrationConfigsJson === 'string' ? values.integrationConfigsJson : null,
@@ -75,62 +50,6 @@ export function useSettingsChatAssist({
     dirtyRef.current.add('integrationConfigsJson')
     setValues(prev => ({ ...prev, integrationConfigsJson: next }))
   }, [dirtyRef, setValues, values.integrationConfigsJson])
-
-  const applyChatPreset = React.useCallback((preset: 'byteplus-sg' | 'byteplus-eu' | 'miromind' | 'agnes' | 'qwen' | 'google-cloud' | 'openai' | 'local') => {
-    const patch: Record<string, string> =
-      preset === 'byteplus-sg'
-        ? {
-            chatProvider: CHAT_PROVIDER_BYTEPLUS,
-            chatEndpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
-            chatModel: getDefaultChatModelForProvider(CHAT_PROVIDER_BYTEPLUS),
-          }
-        : preset === 'byteplus-eu'
-          ? {
-              chatProvider: CHAT_PROVIDER_BYTEPLUS,
-              chatEndpointUrl: CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
-              chatModel: getDefaultChatModelForProvider(CHAT_PROVIDER_BYTEPLUS),
-            }
-          : preset === 'miromind'
-            ? {
-                chatProvider: CHAT_PROVIDER_MIROMIND,
-                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_MIROMIND),
-                chatModel: CHAT_MIROMIND_MODEL_OPTIONS[0],
-              }
-          : preset === 'agnes'
-            ? {
-                chatProvider: CHAT_PROVIDER_AGNES,
-                chatEndpointUrl: CHAT_AGNES_ENDPOINT_URL,
-                chatModel: CHAT_AGNES_MODEL_OPTIONS[0],
-              }
-          : preset === 'qwen'
-            ? {
-                chatProvider: CHAT_PROVIDER_QWEN,
-                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_QWEN),
-                chatModel: CHAT_QWEN_MODEL_OPTIONS[0],
-              }
-          : preset === 'google-cloud'
-            ? {
-                chatProvider: CHAT_PROVIDER_GOOGLE_CLOUD,
-                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_GOOGLE_CLOUD),
-                chatModel: CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0],
-              }
-          : preset === 'openai'
-            ? {
-                chatProvider: CHAT_PROVIDER_OPENAI,
-                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_OPENAI),
-                chatModel: CHAT_DEFAULT_MODEL || CHAT_OPENAI_MODEL_OPTIONS[0],
-              }
-            : {
-                chatProvider: CHAT_PROVIDER_LM_STUDIO,
-                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_LM_STUDIO),
-                chatModel: CHAT_LOCAL_DEFAULT_MODEL,
-              }
-    patchChatValues(patch)
-  }, [patchChatValues])
-
-  const applyChatContextScope = React.useCallback((scope: 'selection' | 'workspace' | 'hybrid') => {
-    patchChatValues({ chatContextScope: scope })
-  }, [patchChatValues])
 
   const setChatIntegrationEnabled = React.useCallback((enabled: boolean) => {
     patchIntegrationJson(current => ({
@@ -166,12 +85,10 @@ export function useSettingsChatAssist({
   }, [patchIntegrationJson])
 
   const formatIntegrationJson = React.useCallback(() => {
-    const formatted = JSON.stringify(
+    const formatted = stringifyIntegrationConfigs(
       parseIntegrationConfigsJson(
         typeof values.integrationConfigsJson === 'string' ? values.integrationConfigsJson : null,
       ),
-      null,
-      2,
     )
     dirtyRef.current.add('integrationConfigsJson')
     setValues(prev => ({ ...prev, integrationConfigsJson: formatted }))
@@ -239,9 +156,6 @@ export function useSettingsChatAssist({
       discoveredChatModelCount: discoveredChatModels.length,
       suggestedChatModelCount: chatModelSuggestions.length,
     })
-    return () => {
-      clearLocalSettingsChatReadinessSurfaceSnapshot()
-    }
   }, [
     chatIntegration.enabled,
     chatIntegration.openTab,
@@ -258,6 +172,12 @@ export function useSettingsChatAssist({
     values.chatEndpointUrl,
     values.chatModel,
   ])
+
+  React.useEffect(() => {
+    return () => {
+      clearLocalSettingsChatReadinessSurfaceSnapshot()
+    }
+  }, [])
 
   const buildChatAssistNodes = React.useCallback((rowKey: string): React.ReactNode[] => {
     const sectionActionClassName = getUiSectionActionClassName('primary')
@@ -285,165 +205,10 @@ export function useSettingsChatAssist({
       ]
     }
     if (rowKey === CHAT_KTV_ROW_KEYS.provider) {
-      return [
-        <button
-          key="chat-provider-byteplus-sg"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL.replace('https://', ''))
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('byteplus-sg')
-          }}
-        >
-          BytePlus SG
-        </button>,
-        <button
-          key="chat-provider-byteplus-eu"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL.replace('https://', ''))
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('byteplus-eu')
-          }}
-        >
-          BytePlus EU
-        </button>,
-        <button
-          key="chat-provider-miromind"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_MIROMIND
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('miromind')
-          }}
-        >
-          MiroMind
-        </button>,
-        <button
-          key="chat-provider-agnes"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_AGNES
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('agnes')
-          }}
-        >
-          Agnes
-        </button>,
-        <button
-          key="chat-provider-qwen"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_QWEN
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('qwen')
-          }}
-        >
-          Qwen
-        </button>,
-        <button
-          key="chat-provider-google-cloud"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_GOOGLE_CLOUD
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('google-cloud')
-          }}
-        >
-          Google Cloud
-        </button>,
-        <button
-          key="chat-provider-openai"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_OPENAI
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('openai')
-          }}
-        >
-          OpenAI
-        </button>,
-        <button
-          key="chat-provider-local"
-          type="button"
-          className={
-            normalizedChatProvider === CHAT_PROVIDER_LM_STUDIO
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            applyChatPreset('local')
-          }}
-        >
-          Local
-        </button>,
-      ]
+      return []
     }
     if (rowKey === CHAT_KTV_ROW_KEYS.contextScope) {
-      return [
-        <button
-          key="chat-context-selection"
-          type="button"
-          className={sectionActionClassName}
-          onClick={e => {
-            e.stopPropagation()
-            applyChatContextScope('selection')
-          }}
-        >
-          Selection
-        </button>,
-        <button
-          key="chat-context-workspace"
-          type="button"
-          className={sectionActionClassName}
-          onClick={e => {
-            e.stopPropagation()
-            applyChatContextScope('workspace')
-          }}
-        >
-          Workspace
-        </button>,
-        <button
-          key="chat-context-hybrid"
-          type="button"
-          className={activeSectionActionClassName}
-          onClick={e => {
-            e.stopPropagation()
-            applyChatContextScope('hybrid')
-          }}
-        >
-          Hybrid
-        </button>,
-      ]
+      return []
     }
     if (rowKey === CHAT_KTV_ROW_KEYS.routing) {
       return [
@@ -592,8 +357,6 @@ export function useSettingsChatAssist({
     }
     return []
   }, [
-    applyChatContextScope,
-    applyChatPreset,
     chatIntegration.enabled,
     chatModelSuggestions,
     chatModelsStatus,

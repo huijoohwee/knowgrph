@@ -14,6 +14,8 @@ import { FlowEditorMappingSettingsPanel } from '@/features/flow-editor-manager/F
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 
+export const FLOW_EDITOR_MAPPING_LAYOUT_CLASS_NAME = 'kg-flow-editor-mapping-layout'
+
 export function FlowEditorMappingTabLayout(props: {
   panelTypographyMicroLabelClass: string
   enabledOnly: boolean
@@ -106,7 +108,7 @@ export function FlowEditorMappingTabLayout(props: {
       </header>
 
       <section className="flex-1 min-h-0 overflow-hidden" aria-label="Mapping content">
-        <section className="h-full min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_520px]" aria-label="Mapping layout">
+        <section className={FLOW_EDITOR_MAPPING_LAYOUT_CLASS_NAME} aria-label="Mapping layout">
           <section className="min-h-0 overflow-hidden" aria-label="Mapping list">
             <WidgetRegistryTable
               entries={props.filtered}

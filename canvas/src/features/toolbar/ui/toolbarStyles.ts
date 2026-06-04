@@ -47,6 +47,8 @@ export const uiToolbarRowScrollJustifyBetweenClassName = `${uiToolbarRowScrollCl
 
 export const uiToolbarRowScrollListClassName = `${uiToolbarRowScrollClassName} list-none m-0 p-0`
 
+export const uiToolbarColumnMenuListClassName = 'm-0 p-0 list-none flex flex-col gap-1'
+
 export const uiToolbarResponsiveRowScrollClassName = 'kg-responsive-row-scroll'
 
 export const uiToolbarTouchRowScrollClassName = 'App-toolbar--touch-scroll App-toolbar--touch-row-scroll'

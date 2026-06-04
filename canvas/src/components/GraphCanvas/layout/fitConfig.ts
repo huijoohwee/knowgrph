@@ -58,6 +58,6 @@ export function readFitAllOptions(args: {
     maxScaleHardCap: DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
     schema,
     nodePadding: nodePaddingEffective,
-    includeGroupsBounds: true,
+    includeGroupsBounds: args.intent !== 'fitSelection',
   }
 }

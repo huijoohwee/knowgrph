@@ -10,6 +10,13 @@ import type {
 } from '@/features/graph-table/ui/graphTableViewState'
 import { makeOffsets } from '@/features/graph-table/ui/fast-grid/fastGridMath'
 import { getCellText, type GridColumnMeta, type GridDisplayRow, type GridLayout } from '@/features/graph-table/ui/fast-grid/canvasGridRender'
+import {
+  GRAPH_TABLE_DATA_COLUMN_DEFAULT_WIDTH_PX,
+  GRAPH_TABLE_DATA_COLUMN_MAX_WIDTH_PX,
+  GRAPH_TABLE_DATA_COLUMN_MIN_WIDTH_PX,
+  GRAPH_TABLE_ORDER_COLUMN_WIDTH_PX,
+  GRAPH_TABLE_SELECT_COLUMN_WIDTH_PX,
+} from '@/features/graph-table/ui/graphTableResponsiveMetrics'
 
 const normalize = (value: unknown): string => String(value ?? '').toLowerCase()
 
@@ -61,12 +68,15 @@ export function useGraphTableGridModel(args: {
 
   const columns: GridColumnMeta[] = useMemo(() => {
     const pinned: GridColumnMeta[] = [
-      { kind: 'select', id: '__select', title: '', width: 44, pinned: true, editable: false },
-      { kind: 'order', id: '__order', title: '#', width: 72, pinned: true, editable: false },
+      { kind: 'select', id: '__select', title: '', width: GRAPH_TABLE_SELECT_COLUMN_WIDTH_PX, pinned: true, editable: false },
+      { kind: 'order', id: '__order', title: '#', width: GRAPH_TABLE_ORDER_COLUMN_WIDTH_PX, pinned: true, editable: false },
     ]
     const dynamic: GridColumnMeta[] = visibleDataColumns.map(c => {
       const widthRaw = args.columnWidthsPxById[c.columnId]
-      const width = Math.max(80, Math.min(720, Math.round(typeof widthRaw === 'number' ? widthRaw : 180)))
+      const width = Math.max(
+        GRAPH_TABLE_DATA_COLUMN_MIN_WIDTH_PX,
+        Math.min(GRAPH_TABLE_DATA_COLUMN_MAX_WIDTH_PX, Math.round(typeof widthRaw === 'number' ? widthRaw : GRAPH_TABLE_DATA_COLUMN_DEFAULT_WIDTH_PX)),
+      )
       const editable = c.columnId !== 'id'
       return { kind: 'data', id: c.columnId, title: c.name, width, pinned: false, editable, dataKind: c.kind }
     })

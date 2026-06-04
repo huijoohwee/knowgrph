@@ -1,5 +1,6 @@
 import React from 'react'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
+import { CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
 
 export type MarkdownScrollSyncConfig = {
   editorTextAreaRef: React.RefObject<MonacoTextEditorHandle | null>
@@ -260,7 +261,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
                   hasClass('MediaWrapper') ||
                   hasClass('aspect-video') ||
                   hasClass('markdown-media') ||
-                  hasClass('max-w-xl')
+                  hasClass(CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME)
                 const isTable =
                   hasClass('MarkdownTable') ||
                   hasClass('min-w-full') ||

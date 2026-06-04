@@ -19,9 +19,16 @@ Expected result:
 - A JSON bundle may be a `kg:flow:widgetBundle` (kind/version guarded) that carries:
   - a Flow Editor widget registry snapshot (`registry[]`)
   - a workflow graph payload (`graph`)
-- A Markdown document may carry a frontmatter or body `flow:` graph with the same port-bound edge semantics.
+- A runnable Markdown document carries its `flow:` graph in the opening YAML frontmatter block with the same port-bound edge semantics.
 - Flow Editor renders the workflow graph using the native Flow renderer.
 - Flow Editor widgets can be opened concurrently; pinned header drag updates anchor offsets collectively, while detached overlays are draggable and must not overlap by default.
+
+## Markdown Frontmatter And Body Contract
+
+- Frontmatter is the machine SSOT for renderer presets, `socket_types`, `workflow_sections`, `flow.nodes`, `flow.edges`, widget fields, and reusable node summaries.
+- The body is a human projection for workflow explanation, validation evidence, and inspection instructions. It may reference node ids, edge ids, and field paths in prose or tables, but it must not re-author them.
+- Normalized E2E fixtures may attach `kgc:readingSummary` to node records when KGC-readable summaries are needed. Do not add a body-side `## KGC Reading Layer`, line-start `@node:...`, or line-start `@edge:...` section to mirror frontmatter.
+- A Markdown artifact with metadata after a closed frontmatter block is malformed for this pipeline; repair the source document instead of relying on parser recovery.
 
 ## Long-Horizon SuperAgent Template Boundary
 
@@ -35,6 +42,14 @@ Rich-media outputs from the harness stay ordinary Flow Editor fields:
 - Image output binds to `imageUrl`.
 - Chart or HTML output binds to `outputSrcDoc`.
 - `outputSrcDoc` remains the render authority when helper text and inline HTML coexist.
+- Completed Text Widget and Video Transcriber runs persist final Markdown text as one sibling workspace artifact through the shared text-run artifact helper. Completed Image Generation and Video Generation runs persist the generated binary plus one editable Markdown manifest through the shared rich-media artifact helper. Text artifacts and media manifests register in Source Files passively without graph recomposition.
+
+The Dev-source swarm prediction baseline follows the same rule. `SwarmPrediction`
+is a Flow Editor widget node, not a renderer fork: seed signals, optional agent
+population JSON, and optional intervention JSON enter through declared schema
+paths; the deterministic bounded engine emits `output`, `outputSrcDoc`,
+`imageUrl`, `eventLogJson`, and `metricsJson`; Rich Media Panel consumes those
+fields through the existing connected-value and media-state owners.
 
 ---
 
@@ -109,7 +124,12 @@ Key implementation:
 - Branching is value-driven: `null` / `undefined` output values are stop signals and must not be forwarded into downstream connected values.
 - Long directed acyclic graphs should evaluate in topological order. Cyclic or partially cyclic graphs may iterate to a stable value key, bounded by graph size, without fixed demo-specific caps.
 - Cache keys must use shared graph semantic keys/signatures and registry shape, not filenames, source URLs, or example ids.
-- Rich Media Panel nodes are ordinary flow endpoints. Text output binds to `output`, image output binds to `imageUrl`, and chart/HTML output binds to `outputSrcDoc`; when `output` and `outputSrcDoc` coexist, shared Rich Media Panel preview state treats `outputSrcDoc` as the render authority and helper text as metadata.
+- Rich Media Panel nodes are ordinary flow endpoints. Text output binds to `output`, image output binds to `imageUrl`, audio output binds to `audioUrl`, and chart/HTML output binds to `outputSrcDoc`; when `output` and `outputSrcDoc` coexist, shared Rich Media Panel preview state treats `outputSrcDoc` as the render authority and helper text as metadata.
+- Swarm prediction nodes are ordinary flow endpoints. They must use the canonical `SwarmPrediction` type and plain schema paths (`properties.seedSignalsJson`, `properties.agentPopulationJson`, `properties.interventionsJson`, `properties.output`, `properties.outputSrcDoc`, `properties.imageUrl`, `properties.eventLogJson`, `properties.metricsJson`) instead of introducing a simulator-specific graph, renderer, or port alias stack.
+- Generated response text fields (`output`, `result`, `response`, `transcript`, `outputText`, `output_text`) project into the shared editable Card/Storyboard Output row. Audio media (`audioUrl`, `audio`, `audio_url`, inferred audio resources, or `<audio>` tags) renders through the same `getNodeMediaSpec()` -> `CardMediaPreview` -> Rich Media Panel / overlay / HTML export owners.
+- MCP-style chat `response.structuredContent`, literal MCP `result.structuredContent`, and structured `result.content[]` text-part records normalize upstream from fallback text, literal MCP results, or accepted KGC frontmatter into Flow Editor widget nodes plus document-scoped widget registry entries when `widgets[]` declares canonical widget form/type metadata, and into Rich Media Panel flow endpoints otherwise; literal MCP results that already extract to a renderable structured surface finalize through the submit validation owner without KGC retry or synthetic KGC text. Plain scalar records, exact typed `{key,type,value}` envelopes, and `properties[]` KTV rows converge before projection. Declared widget records may preserve safe `flow:compute` data so `computeFlowConnectedValuesBySchemaPath()` can derive output ports from incoming handle values after workspace apply, and the shared Flow Editor workflow run path writes those computed output schema paths locally before any provider TextGeneration branch. Inline edits of projected card/panel outputs reuse the shared card patch/updateNode path and keep flattened output fields plus any native `properties` mirror aligned before frontmatter writeback. Accepted KGC documents with `widget_bundle.graph.nodes_ref` append those response node ids there so Flow Editor opens them through the existing overlay SSOT.
+- MCP-style chat structured-content `edges[]` preserve authored record-to-record or delivery graph relationships by resolving structured-content aliases to canonical node ids and carrying source/target handle keys into frontmatter-flow edges; those same handles are the dataflow path used by shared connected-value recomputation and Flow Editor run-all planning.
+- Text/transcript widget output persistence is owned by `writeTextWidgetRunOutputArtifact()` plus `applyWorkspaceImportToCanvas({ applyToGraph: false })`. Image/video widget output persistence is owned by `writeRichMediaWidgetRunOutputArtifact()`, which keeps the binary artifact path and registers an editable Markdown manifest in Source Files. Flow Editor and Rich Media Panel patches carry the resulting workspace `outputPath` / `outputManifestPath`; they must not create renderer-local workspace writers or graph-apply aliases.
 - Flow Editor templates must prefer plain YAML for normal authoring. The normalized `{key,type,value}` envelope is valid only for validation fixtures that intentionally prove parser fidelity, inline KTV editing, and semantic port preservation.
 
 ### Flow Editor widgets
@@ -150,12 +170,13 @@ Flow Editor + overlay wiring:
 | Layer | Required proof | Failure to block |
 |---|---|---|
 | Ingestion | Source Files/docs mirror exposes the Markdown as `workspace:/docs/<file>.md` without forcing it enabled before selection. | Hidden backfill, stale fallback, or file-name special-casing. |
-| Parsing | Markdown parser returns `context=frontmatter-flow`, expected node/edge counts, and zero warnings. | Missing `flow:portTypes`, synthetic handles, malformed YAML, or divergent body/frontmatter connections. |
+| Parsing | Markdown parser returns `context=frontmatter-flow`, expected node/edge counts, and zero warnings. | Missing `flow:portTypes`, synthetic handles, malformed YAML, body `flow:` mirrors, or body-side `@node:` / `@edge:` KGC reading layers. |
 | Port contract | Authored `key` / `portKey`, `sourceHandle`, `targetHandle`, `flow:sourcePortKey`, and `flow:targetPortKey` survive without alias remaps. | Rewriting semantic ports to `handles.source`, `handles.target`, row labels, or demo ids. |
 | Computing | `computeFlowConnectedValuesBySchemaPath()` propagates values and respects null stop signals through the shared graph/registry readers. | Renderer-local recomputation, unbounded iteration, or GraphData mutation during compute. |
 | KTV editing | Matching field + port schema paths render as one editable row with row-attached handle. | Duplicate read-only rows, unwritable `Value`, or focus collisions from repeated labels. |
 | Rendering | Flow Editor mounts `data-kg-flow-editor-surface-root`; Rich Media Panel previews resolve through shared panel/media state. | Panel-local preview branches, stale `srcDoc`, missing SVG/image output, or edge drift after scroll/zoom. |
 | Harness metadata | `superagent_harness_template` parses as frontmatter metadata while graph counts and Flow Editor renderer ownership remain stable. | Treating harness metadata as a second parser, renderer, provider, or graph apply stack. |
+| Swarm prediction | `SwarmPrediction` runs stay deterministic, bounded, replayable, and rich-media-compatible through ordinary widget registry schema paths. | Provider calls, renderer-local recomputation, unbounded ticks, or copied external-project surface tokens. |
 | Browser | Local docs-mirror smoke selects the publish doc and samples stable DOM contracts. | Settled-only proof that ignores mid-load blank/seepage states. |
 
 Focused test families:
@@ -164,7 +185,9 @@ Focused test families:
 - `baseline.flowEditor.frontmatterFlow.*` for renderer isolation, widget overlay identity, edge anchoring, and contract rows.
 - `flow.compute.inline.*` for safe inline compute readers and neutral compute context.
 - `flow.dataflow.connectedValues.*` for bounded propagation, transforms, null-stop branching, long DAGs, and runtime validation hardcode guards.
+- `swarmPredictionEngine.*` for deterministic replay, run bounds, Flow Editor widget outputs, shared semantic keys, and the no-copy external-inspiration boundary.
 - Publish-demo E2E tests should resolve the file from `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs` through the docs mirror path, but they must not backfill or rewrite that external file when it is absent.
+- Publish-demo syntax guards should reject body-side `## KGC Reading Layer`, line-start `@node:`, line-start `@edge:`, and body `flow:` mirrors for frontmatter-driven Flow Editor documents.
 
 ---
 
@@ -190,7 +213,7 @@ Template `flow:` blocks should include:
 - `socket_types` for every custom semantic edge type used by the template.
 - Node `handles` declaring target/source membership and matching `"flow:portTypes"` entries for typed connection validation.
 - Edges with explicit `sourceHandle` and `targetHandle` when a concrete field endpoint exists.
-- Rich Media Panel endpoint nodes for rendered outputs instead of sidecar preview instructions.
+- Declared Flow Editor widget nodes with document-scoped registry entries for interactive generated outputs, and Rich Media Panel endpoint nodes for neutral rendered outputs instead of sidecar preview instructions.
 - Optional `superagent_harness_template` metadata for long-horizon harness planning; it is not graph authoring data.
 - If `superagent_harness_template` is present, it must name native Knowgrph owners and the no-copy DeerFlow inspiration boundary.
 

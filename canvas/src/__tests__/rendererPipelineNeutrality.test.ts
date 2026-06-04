@@ -10,8 +10,10 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const animaticTimelineModelText = readFileSync(resolve(root, 'components', 'AnimaticCanvas', 'useAnimaticTimelineModel.ts'), 'utf8')
   const responsiveToolbarCssText = readFileSync(resolve(root, 'styles', 'responsive-toolbar.css'), 'utf8')
   const toolbarRendererViewText = readFileSync(resolve(root, 'features', 'toolbar', 'ToolbarToolMenuRendererView.tsx'), 'utf8')
+  const rendererGraphTopologySummaryText = readFileSync(resolve(root, 'features', 'toolbar', 'ui', 'RendererGraphTopologySummary.tsx'), 'utf8')
   const threeControlsText = readFileSync(resolve(root, 'features', 'three', 'Controls.tsx'), 'utf8')
   const minimapText = readFileSync(resolve(root, 'features', 'minimap', 'Minimap.tsx'), 'utf8')
+  const minimapFlowEditorOverlayProjectionText = readFileSync(resolve(root, 'features', 'minimap', 'flowEditorOverlayProjection.ts'), 'utf8')
   const canvasSyncRuntimeText = readFileSync(resolve(root, 'features', 'canvas', 'CanvasSyncRuntime.tsx'), 'utf8')
   const canvasPreviewSyncInboundText = readFileSync(resolve(root, 'features', 'canvas', 'canvasPreviewSyncInbound.ts'), 'utf8')
   const toolbarToolMenuText = readFileSync(resolve(root, 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8')
@@ -92,6 +94,12 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   }
   if (!gitGraphFloatingPanelText.includes('CardInlineTextEditor') || !gitGraphFloatingPanelText.includes('data-kg-gitgraph-floating-panel="1"')) {
     throw new Error('expected GitGraph FloatingPanel view to reuse the shared inline editor owner')
+  }
+  if (!gitGraphFloatingPanelText.includes("GITGRAPH_CREATE_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-2 gap-1 px-1 sm:grid-cols-4'")) {
+    throw new Error('expected GitGraph create actions to use a mobile-first responsive grid owner')
+  }
+  if (gitGraphFloatingPanelText.includes('grid grid-cols-4 gap-1 px-1')) {
+    throw new Error('expected GitGraph create actions to avoid a fixed four-column mobile grid literal')
   }
   if (!gitGraphDocumentHookText.includes('replaceMermaidGitGraphCodeInMarkdown') || !gitGraphDocumentHookText.includes('writeWorkspaceSourceTextIfPresent')) {
     throw new Error('expected GitGraph interactive CRUD to write through shared source-text owners')
@@ -178,10 +186,19 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!toolbarRendererViewText.includes('isD3Like2dRenderer(canvas2dRenderer)')) {
     throw new Error('expected renderer settings panel to reuse the shared D3-like helper')
   }
+  if (!rendererGraphTopologySummaryText.includes("RENDERER_GRAPH_TOPOLOGY_STATS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 text-xs sm:grid-cols-2'")) {
+    throw new Error('expected renderer topology stats to use a mobile-first responsive grid owner')
+  }
+  if (rendererGraphTopologySummaryText.includes('grid grid-cols-2 gap-x-3 gap-y-1 text-xs')) {
+    throw new Error('expected renderer topology stats to avoid fixed mobile two-column grid literals')
+  }
   if (!threeControlsText.includes('isD3Like2dRenderer(canvas2dRenderer)')) {
     throw new Error('expected Three controls bridge to reuse the shared D3-like helper')
   }
-  if (!minimapText.includes('isFlowEditorCanvas2dRenderer(canvas2dRenderer)')) {
+  if (
+    !minimapText.includes('buildMinimapFlowEditorOverlaySubset({') ||
+    !minimapFlowEditorOverlayProjectionText.includes('isFlowEditorCanvas2dRenderer(args.canvas2dRenderer)')
+  ) {
     throw new Error('expected minimap overlay subset logic to reuse the shared Flow Editor helper')
   }
   if (!canvasSyncRuntimeText.includes('applyCanvasPreviewSyncPayload')) {

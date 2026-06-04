@@ -1,5 +1,6 @@
 import { buildResolvableVarKeySet, validateChatMarkdown } from '../chatMarkdownValidation'
 import { isKgcStructuredMarkdown } from '../chatHistoryWorkspace'
+import { extractChatResponseStructuredSurface } from '../chatResponseStructuredContent'
 import { extractKgcBlockFromAssistantText } from '../FloatingPanelChat.helpers'
 import { buildCorrectionPrompt } from './floatingPanelChatCorrectionPrompt'
 import type { JSONValue } from '@/lib/graph/types'
@@ -12,6 +13,7 @@ export type ChatKnowgrphAttemptValidationState = {
   failedMessage: string | null
   correctionPromptPreview: string | null
   hasStructuredKgc: boolean
+  hasStructuredResponseSurface: boolean
   hasYamlFrontmatter: boolean
   validatedKgcLength: number
 }
@@ -38,6 +40,7 @@ const buildValidationState = (args: {
   failedMessage?: string | null
   correctionPromptPreview?: string | null
   candidateKgc?: string | null
+  hasStructuredResponseSurface?: boolean
   validatedKgc?: string | null
 }): ChatKnowgrphAttemptValidationState => {
   const candidateKgc = String(args.candidateKgc || '').trim()
@@ -50,6 +53,7 @@ const buildValidationState = (args: {
     failedMessage: args.failedMessage || null,
     correctionPromptPreview: args.correctionPromptPreview || null,
     hasStructuredKgc: Boolean(candidateKgc),
+    hasStructuredResponseSurface: args.hasStructuredResponseSurface === true,
     hasYamlFrontmatter: candidateKgc.startsWith('---\n'),
     validatedKgcLength: validatedKgc.length,
   }
@@ -81,6 +85,21 @@ export const resolveChatKnowgrphAttempt = (args: {
   })
   const hasRetryRemaining = args.attempt < args.maxValidationAttempts
   if (!kgc) {
+    const structuredSurface = extractChatResponseStructuredSurface(assistantText)
+    if (structuredSurface) {
+      return {
+        kind: 'final',
+        finalAssistantText: assistantText,
+        validatedKgc: null,
+        status: 'ok',
+        validation: buildValidationState({
+          stage: 'validated',
+          attempt: args.attempt,
+          maxAttempts: args.maxValidationAttempts,
+          hasStructuredResponseSurface: true,
+        }),
+      }
+    }
     const message = 'Previous answer did not include a parseable standalone KGC document. Return exactly one complete KGC markdown document.'
     if (hasRetryRemaining) {
       return {

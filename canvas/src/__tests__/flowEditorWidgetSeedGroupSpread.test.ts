@@ -1,4 +1,6 @@
 import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 export function testFlowEditorWidgetSeedGroupSpreadAvoidsStackingInTinyBounds() {
   const ids = ['n1', 'n2', 'n3', 'n4']
@@ -199,5 +201,15 @@ export function testFlowEditorWidgetSeedGroupSpreadSupportsPreferredSingleRowFro
   }
   if (!(staggeredByX[0]!.y < staggeredByX[1]!.y && staggeredByX[1]!.y < staggeredByX[2]!.y)) {
     throw new Error(`expected preferred single-row stagger to keep a readable left-to-right vertical cascade, got ${JSON.stringify(staggeredByX.map(entry => ({ id: entry.id, x: entry.x, y: entry.y })))}`)
+  }
+}
+
+export function testFlowEditorWidgetSeedGroupSpreadUsesSharedCentroidHelper() {
+  const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'seedGroupSpread.ts'), 'utf8')
+  if (!text.includes("import { centerLayoutRectsByCentroid } from '@/lib/canvas/layoutCentroid'")) {
+    throw new Error('expected widget seed spread planner to reuse the shared bounded-centroid layout helper')
+  }
+  if (text.includes('resolveCenteredShift') || text.includes('function resolveFlowEditorCollectiveCenterShift')) {
+    throw new Error('expected widget seed spread planner to avoid local centroid-shift aliases')
   }
 }

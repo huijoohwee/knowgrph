@@ -53,6 +53,7 @@ import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
 import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/flowEditor/frontmatterCollectiveLayout'
+import { mergeWidgetRegistryEntries, readAuthoredWidgetRegistryEntries } from '@/features/parsers/markdownFrontmatterFlowGraph.widgetRegistry'
 
 function guessJsonTypeLabel(value: unknown): string {
   if (value == null) return 'null'
@@ -962,11 +963,8 @@ function enrichSourceFrontmatterMetaFromRawLines(args: {
 
 function readWidgetBundleNodeTypeId(formIdRaw: unknown): string {
   const formId = asString(formIdRaw)
-  if (formId === 'textGeneration') return FLOW_TEXT_GENERATION_NODE_TYPE_ID
-  if (formId === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_TEXT_GENERATION_NODE_TYPE_ID
-  if (formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) return FLOW_TEXT_GENERATION_NODE_TYPE_ID
-  if (formId === 'imageGeneration') return FLOW_IMAGE_GENERATION_NODE_TYPE_ID
-  if (formId === 'videoGeneration') return FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+  if (formId === 'textGeneration' || formId === FLOW_VIDEO_SCRIPT_FORM_ID || formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) return FLOW_TEXT_GENERATION_NODE_TYPE_ID
+  if (formId === 'imageGeneration' || formId === 'videoGeneration') return formId === 'imageGeneration' ? FLOW_IMAGE_GENERATION_NODE_TYPE_ID : FLOW_VIDEO_GENERATION_NODE_TYPE_ID
   if (formId === 'richMediaPanel') return FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   if (formId === 'videoTranscriber') return FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID
   return 'Node'
@@ -1276,13 +1274,14 @@ export function tryParseMarkdownFrontmatterFlowGraph(
       ...buildConnectionWarnings({ meta: { ...metaRecord, nodes: normalized.nodes }, socketTypes, declared: connParsed.declared }),
     ]
     const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
+    const registry = mergeWidgetRegistryEntries(readAuthoredWidgetRegistryEntries(metaRecord), normalized.registry)
     const metadata = buildFrontmatterFlowMetadata({
       sourceLayerHash,
       frontmatterMeta,
       socketTypes,
       flowSettings,
       annotations: { refs: [], nodeIds: [], edgeIds: [], clusterIds: [] },
-      registry: normalized.registry,
+      registry,
       subgraphs: [],
     })
 
@@ -1481,13 +1480,14 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     ...collectNodePositionWarnings(rawNodes),
   ]
   const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
+  const registry = mergeWidgetRegistryEntries(readAuthoredWidgetRegistryEntries(metaRecord), normalized.registry)
   const metadata = buildFrontmatterFlowMetadata({
     sourceLayerHash,
     frontmatterMeta: sourceFrontmatterMeta,
     socketTypes,
     flowSettings,
     annotations,
-    registry: normalized.registry,
+    registry,
     subgraphs,
   })
   const graphData: GraphData = {

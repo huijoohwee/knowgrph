@@ -1,7 +1,7 @@
 import React from 'react'
 import { AnchorOverlay } from '@/lib/ui/overlay'
 import { UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
-import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 
 type VariableMode = 'ref' | 'create' | 'update' | 'fallback' | 'delete'
@@ -56,7 +56,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     <>
       {!props.editDisableRichUi && props.slashMenu.show ? (
         <AnchorOverlay anchorRef={props.slashAnchorRef} open={props.slashMenu.show} align="bottom-left" className={props.floatingMenuLeftW220ClassName}>
-          <menu className="list-none m-0 p-0" aria-label="Slash commands" onMouseDownCapture={props.onToolbarInteract}>
+          <menu className={UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME} aria-label="Slash commands" onMouseDownCapture={props.onToolbarInteract}>
             <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyDraftAction('heading2'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Heading</button></li>
             <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyDraftAction('bulletList'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Bulleted list</button></li>
             <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyDraftAction('numberedList'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Numbered list</button></li>
@@ -70,7 +70,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       {!props.editDisableRichUi && props.variableMenu.show ? (
         <AnchorOverlay anchorRef={props.variableAnchorRef} open={props.variableMenu.show} align="bottom-left" className={props.floatingMenuLeftW220ClassName}>
           <section ref={props.variableMenuRef} aria-label="Variable toolbar" onMouseDownCapture={props.onVariableMenuMouseDownCapture}>
-            <menu className={`${uiToolbarRowScrollClassName} list-none m-0 p-0 gap-1 mb-2`}>
+            <menu className={`${uiToolbarRowScrollListClassName} gap-1 mb-2`}>
               <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.setVariableMenu(prev => ({ ...prev, mode: 'ref' }))}>Browse</button></li>
               <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.setVariableMenu(prev => ({ ...prev, mode: 'create' }))}>New Variable</button></li>
               <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.setVariableMenu(prev => ({ ...prev, mode: 'update' }))}>Edit Key</button></li>
@@ -84,7 +84,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
               <input className={`${props.floatingPopoverInputClassName} mt-2`} placeholder="fallback key or value" value={props.variableMenu.fallbackInput} onChange={(event) => props.setVariableMenu(prev => ({ ...prev, fallbackInput: event.target.value }))} />
             ) : null}
             {props.variableSuggestions.length > 0 ? (
-              <menu className={`list-none m-0 p-0 mt-2 ${UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME}`}>
+              <menu className={`mt-2 ${UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME}`}>
                 {props.variableSuggestions.map(suggestion => (
                   <li key={suggestion.key} className="list-none">
                     <button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.setVariableMenu(prev => ({ ...prev, keyInput: suggestion.key, query: suggestion.key }))}>
@@ -94,7 +94,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
                 ))}
               </menu>
             ) : null}
-            <menu className={`${uiToolbarRowScrollClassName} list-none m-0 p-0 mt-2 gap-2`}>
+            <menu className={`${uiToolbarRowScrollListClassName} mt-2 gap-2`}>
               <li className="list-none">
                 <button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => {
                   const forcedKey = props.variableMenu.mode === 'ref' ? (props.variableSuggestions[0]?.key || props.variableMenu.keyInput || props.variableMenu.query) : undefined
@@ -125,7 +125,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
                 onChange={(event) => props.onLinkHrefChange(event.target.value)}
                 onKeyDown={props.onLinkInputKeyDown}
               />
-              <menu className={`${uiToolbarRowScrollClassName} mt-2 gap-2 list-none m-0 p-0`}>
+              <menu className={`${uiToolbarRowScrollListClassName} mt-2 gap-2`}>
                 <button type="submit" className={props.floatingBubbleButtonClassName}>Apply Link</button>
                 <button type="button" className={props.floatingBubbleButtonClassName} onClick={props.onLinkCancel}>Cancel</button>
               </menu>

@@ -12,6 +12,7 @@ import { Z_INDEX_TOAST } from '@/lib/ui/zIndex'
 
 const TOAST_TOP_PX = 56
 const EMPTY_TOASTS: UiToast[] = []
+export const TOAST_ROW_GRID_CLASS_NAME = 'kg-toast-row-grid'
 
 const getKindClasses = (kind: UiToastKind): string => {
   if (kind === 'success') return UI_THEME_TOKENS.status.success
@@ -53,7 +54,7 @@ function ToastCard({
       )}
       role={toast.kind === 'error' ? 'alert' : 'status'}
     >
-      <section className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 py-2">
+      <section className={TOAST_ROW_GRID_CLASS_NAME}>
         <Icon className={cn('w-4 h-4 mt-0.5', toast.busy ? 'animate-spin' : '')} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         <section className="min-w-0">
           <section className="whitespace-pre-wrap break-words text-xs leading-5">{message}</section>

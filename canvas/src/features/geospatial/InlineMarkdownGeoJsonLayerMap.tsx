@@ -6,6 +6,7 @@ import {
 import { geoGraticule10, geoMercator, geoPath } from 'd3'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_PASSIVE_BASE_LAYER_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import type { MarkdownGeoParsedFeatureCollection } from './markdownGeoParseContract'
 import { resolveMarkdownGeoTextParseResult } from './markdownGeoParse'
 
@@ -367,7 +368,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     <section ref={el => {
       rootRef.current = el
     }} className={`relative ${className || ''}`} style={{ height: rootHeight, minHeight: rootMinHeight }}>
-      <section className="absolute inset-0 z-0 pointer-events-none">
+      <section className={UI_RESPONSIVE_PASSIVE_BASE_LAYER_SURFACE_CLASSNAME}>
         <GeoGraticuleSvg height={rootHeight} className="w-full" />
         {parsed.featureCollection ? <GeoJsonSvgPreview fc={parsed.featureCollection} color={svgColor} height={rootHeight} className="w-full" /> : null}
       </section>

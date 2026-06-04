@@ -68,7 +68,7 @@ export function testNonBytePlusProviderOptionsStayMinimal() {
   const options = buildProviderChatRequestOptions({
     provider: CHAT_PROVIDER_OPENAI,
     endpointUrl: '/v1/chat/completions',
-    chatModel: 'gpt-5.4-nano',
+    chatModel: 'gpt-5-nano',
     chatTemperature: 0.5,
     chatServiceTier: 'default',
     chatStream: false,
@@ -114,7 +114,7 @@ export function testOpenAiProviderOptionsUseResponsesSurface() {
   const options = buildProviderChatRequestOptions({
     provider: CHAT_PROVIDER_OPENAI,
     endpointUrl: '/v1/responses',
-    chatModel: 'gpt-5.4-nano',
+    chatModel: 'gpt-5-nano',
     chatTemperature: 0.5,
     chatServiceTier: 'auto',
     chatStream: true,

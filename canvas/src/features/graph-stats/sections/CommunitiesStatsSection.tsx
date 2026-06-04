@@ -8,9 +8,12 @@ import { UI_COPY } from '@/lib/config'
 import type { SelectionSnapshot, StatsCommunity, StatsUiClasses, TokenCount } from '@/features/graph-stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { STATS_MINI_CHART_MIN_HEIGHT_PX } from '@/features/graph-stats/statsMiniChart'
 import {
   UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME,
   UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME,
+  UI_RESPONSIVE_STATS_TOKEN_LIST_PANEL_CLASSNAME,
   UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 
@@ -216,7 +219,7 @@ export default function CommunitiesStatsSection({
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
-                `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-y-auto`,
+                `${UI_RESPONSIVE_STATS_TOKEN_LIST_PANEL_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
               ].join(' ')}
             >
               {(() => {
@@ -313,8 +316,8 @@ export default function CommunitiesStatsSection({
           {!chartCollapsed && (
             <section className="px-3 py-2">
               <AutoHeightMiniBarChart
-                containerClassName="overflow-x-auto h-16"
-                minHeight={64}
+                containerClassName={UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME}
+                minHeight={STATS_MINI_CHART_MIN_HEIGHT_PX}
                 width={getStatsChartWidthPx(communities.length)}
                 logicalWidth={getStatsChartWidthPx(communities.length)}
                 scrollToKey={scrollToCommunityKey}
@@ -353,8 +356,8 @@ export default function CommunitiesStatsSection({
                         Top tokens for {c.name}
                       </section>
                       <AutoHeightMiniBarChart
-                        containerClassName="mt-1 overflow-x-auto h-16"
-                        minHeight={64}
+                        containerClassName={`mt-1 ${UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME}`}
+                        minHeight={STATS_MINI_CHART_MIN_HEIGHT_PX}
                         width={w}
                         logicalWidth={w}
                         defaultBarColor={neutralBarColor}

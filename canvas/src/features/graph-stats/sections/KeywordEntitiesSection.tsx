@@ -4,7 +4,8 @@ import { AutoHeightMiniBarChart } from '@/features/panels/views/DatasetInspector
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { StatsUiClasses } from '@/features/graph-stats/types'
-import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { STATS_MINI_CHART_MIN_HEIGHT_PX } from '@/features/graph-stats/statsMiniChart'
+import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME, UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type KeywordNodeRow = {
   id: string
@@ -58,8 +59,8 @@ export default function KeywordEntitiesSection({
           </section>
           {!chartCollapsed && (
             <AutoHeightMiniBarChart
-              containerClassName="overflow-x-auto h-16 mt-2"
-              minHeight={64}
+              containerClassName={`${UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME} mt-2`}
+              minHeight={STATS_MINI_CHART_MIN_HEIGHT_PX}
               width={Math.max(160, keywordNodes.length * 6)}
               logicalWidth={Math.max(160, keywordNodes.length * 6)}
               scrollToKey={scrollToId}

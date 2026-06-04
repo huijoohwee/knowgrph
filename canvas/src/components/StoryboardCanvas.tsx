@@ -14,11 +14,13 @@ import {
   PanelsTopLeft,
   Sparkles,
   Video,
+  Volume2,
   Wand2,
 } from 'lucide-react'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { DataViewStatusChip, DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -27,11 +29,13 @@ import {
   STORYBOARD_ACTION_PROPERTY_KEYS,
   STORYBOARD_DIALOGUE_PROPERTY_KEYS,
   STORYBOARD_EMPTY_LANE,
+  STORYBOARD_OUTPUT_PROPERTY_KEYS,
   STORYBOARD_PROMPT_PROPERTY_KEYS,
   STORYBOARD_SUMMARY_PROPERTY_KEYS,
   type StoryboardCardModel,
   type StoryboardCardReference,
 } from '@/components/StoryboardCanvas/storyboardModel'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
 import { isKanbanMoveNoOp, buildKanbanDropOutcomeText } from '@/features/markdown/ui/kanban/kanbanMoveOutcomes'
@@ -60,10 +64,7 @@ import {
   unlockStrytreeNodeAction,
 } from '@/features/strybldr/strytreeWorkflow'
 
-type StoryboardDisplayMedia = {
-  kind: 'image' | 'svg' | 'video' | 'iframe'
-  url: string
-}
+type StoryboardDisplayMedia = { kind: 'image' | 'svg' | 'video' | 'audio' | 'iframe'; url: string; srcDoc?: string }
 
 type StoryboardRenderedEdge = {
   id: string
@@ -80,6 +81,10 @@ type StoryboardEdgeLayer = {
 }
 
 const STORYBOARD_RENDERED_EDGE_LABELS = new Set(['parent_node_id', 'rootBranch', 'candidateOption', 'candidateScorecard', 'publishedCandidate'])
+const EMPTY_STORYBOARD_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
+const STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4'
+const STORYBOARD_SCORECARD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 text-[11px] sm:grid-cols-2'
+const STORYBOARD_CANONICAL_TEXT_FIELDS = { summary: { aliasKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS, canonicalKey: 'summary' }, output: { aliasKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS, canonicalKey: 'output' }, action: { aliasKeys: STORYBOARD_ACTION_PROPERTY_KEYS, canonicalKey: 'action' }, dialogue: { aliasKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS, canonicalKey: 'dialogue' } } as const
 
 const STORYTREE_FILTERS = [
   { id: 'all', label: 'All' },
@@ -163,11 +168,12 @@ function StoryboardMediaPreview(props: {
   media: StoryboardDisplayMedia | null
 }) {
   const { title, href, media } = props
-  const interactive = media?.kind === 'video' || media?.kind === 'iframe'
+  const interactive = media?.kind === 'video' || media?.kind === 'audio' || media?.kind === 'iframe'
   return (
     <CardMediaPreview
       kind={media?.kind || null}
       url={media?.url || ''}
+      srcDoc={media?.srcDoc || undefined}
       title={title}
       href={href}
       interactive={interactive}
@@ -290,7 +296,7 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { graphRevision, selectedNodeId, selectNode, updateNode, setGraphDataPreservingLayout, addHistory, upsertUiToast, dismissUiToast } = useGraphStore(
+  const { graphRevision, selectedNodeId, selectNode, updateNode, setGraphDataPreservingLayout, addHistory, upsertUiToast, dismissUiToast, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
     useShallow(s => ({
       graphRevision: s.graphDataRevision || 0,
       selectedNodeId: String(s.selectedNodeId || '').trim(),
@@ -300,6 +306,9 @@ export default function StoryboardCanvas({
       addHistory: s.addHistory,
       upsertUiToast: s.upsertUiToast,
       dismissUiToast: s.dismissUiToast,
+      documentWidgetRegistry: Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
+      effectiveWidgetRegistry: Array.isArray(s.effectiveWidgetRegistry) ? s.effectiveWidgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
+      baseWidgetRegistry: Array.isArray(s.widgetRegistry) ? s.widgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
     })),
   )
   const boardScrollRef = React.useRef<HTMLElement>(null)
@@ -307,12 +316,8 @@ export default function StoryboardCanvas({
   const cardElementsRef = React.useRef(new Map<string, HTMLElement>())
   const [storyboardEdgeLayer, setStoryboardEdgeLayer] = React.useState<StoryboardEdgeLayer>({ width: 0, height: 0, edges: [] })
   const [storytreeFilter, setStorytreeFilter] = React.useState<string>('all')
-  const board = React.useMemo(() => {
-    return buildStoryboardBoardModel({
-      graphData,
-      graphRevision,
-    })
-  }, [graphData, graphRevision])
+  const widgetRegistry = React.useMemo(() => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry }), [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry])
+  const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }), [graphData, graphRevision, widgetRegistry])
   const rowIdToLaneKey = React.useMemo(() => {
     const map = new Map<string, string>()
     for (const lane of board.lanes) {
@@ -802,10 +807,27 @@ export default function StoryboardCanvas({
                     const displayMedia = resolveStoryboardDisplayMedia(card)
                     const cardParagraphEntries = buildCardParagraphEntries([
                       { id: 'summary', label: 'Summary', value: card.summary },
+                      { id: 'output', label: 'Output', value: card.output },
                       { id: 'action', label: 'Action', value: card.action },
                       { id: 'dialogue', label: 'Dialogue', value: card.dialogue },
                     ])
                     const summaryEntry = cardParagraphEntries.find(entry => entry.id === 'summary') || null
+                    const outputEntry = cardParagraphEntries.find(entry => entry.id === 'output') || null
+                    const canEditCard = typeof updateNode === 'function'
+                    const commitCardProperty = (fieldId: keyof typeof STORYBOARD_CANONICAL_TEXT_FIELDS) => (nextValue: string) => {
+                      const field = STORYBOARD_CANONICAL_TEXT_FIELDS[fieldId]
+                      updateStoryboardCanonicalProperty({
+                        cardId: card.id,
+                        aliasKeys: field.aliasKeys,
+                        canonicalKey: field.canonicalKey,
+                        nextValue,
+                      })
+                    }
+                    const detailRows = [
+                      { fieldId: 'output', icon: <FileText className="h-3.5 w-3.5" aria-hidden="true" />, label: 'Output', value: card.output || outputEntry?.value || '' },
+                      { fieldId: 'action', icon: <FileText className="h-3.5 w-3.5" aria-hidden="true" />, label: 'Action', value: card.action },
+                      { fieldId: 'dialogue', icon: <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />, label: 'Dialogue', value: card.dialogue },
+                    ] as const
                     const cardDragProps = storyboardDrag.createCardDragProps({ rowId: card.id, groupKey: lane.id })
                     const cardDragVisualState = getKanbanCardDragVisualState({
                       hasActiveDrag: storyboardDrag.draggingRowId !== null,
@@ -915,7 +937,7 @@ export default function StoryboardCanvas({
                                     value={card.title}
                                     ariaLabel={`Storyboard title for ${card.id}`}
                                     placeholder="Add title"
-                                    canEdit={typeof updateNode === 'function'}
+                                    canEdit={canEditCard}
                                     onCommit={nextValue => {
                                       updateStoryboardTitle(card.id, nextValue)
                                     }}
@@ -930,6 +952,8 @@ export default function StoryboardCanvas({
                                 </section>
                                 {displayMedia?.kind === 'video' ? (
                                   <Video className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+                                ) : displayMedia?.kind === 'audio' ? (
+                                  <Volume2 className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
                                 ) : displayMedia ? (
                                   <ImageIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
                                 ) : null}
@@ -947,7 +971,7 @@ export default function StoryboardCanvas({
                               data-kg-kanban-card-drag-region="1"
                               className="space-y-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none"
                             >
-                              {summaryEntry || typeof updateNode === 'function' ? (
+                              {summaryEntry || canEditCard ? (
                                 <section>
                                   <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                     {summaryEntry?.label || 'Summary'}
@@ -956,52 +980,27 @@ export default function StoryboardCanvas({
                                     value={summaryEntry?.value || ''}
                                     ariaLabel={`Summary for ${card.id}`}
                                     placeholder="Add summary"
-                                    canEdit={typeof updateNode === 'function'}
+                                    canEdit={canEditCard}
                                     multiline
                                     markdownPreview="auto"
                                     rows={3}
-                                    onCommit={nextValue => {
-                                      updateStoryboardCanonicalProperty({
-                                        cardId: card.id,
-                                        aliasKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS,
-                                        canonicalKey: 'summary',
-                                        nextValue,
-                                      })
-                                    }}
+                                    onCommit={commitCardProperty('summary')}
                                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
                                     editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
                                   />
                                 </section>
                               ) : null}
 
-                              <StoryboardDetailRow
-                                icon={<FileText className="h-3.5 w-3.5" aria-hidden="true" />}
-                                label="Action"
-                                value={card.action}
-                                canEdit={typeof updateNode === 'function'}
-                                onCommit={nextValue => {
-                                  updateStoryboardCanonicalProperty({
-                                    cardId: card.id,
-                                    aliasKeys: STORYBOARD_ACTION_PROPERTY_KEYS,
-                                    canonicalKey: 'action',
-                                    nextValue,
-                                  })
-                                }}
-                              />
-                              <StoryboardDetailRow
-                                icon={<MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />}
-                                label="Dialogue"
-                                value={card.dialogue}
-                                canEdit={typeof updateNode === 'function'}
-                                onCommit={nextValue => {
-                                  updateStoryboardCanonicalProperty({
-                                    cardId: card.id,
-                                    aliasKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS,
-                                    canonicalKey: 'dialogue',
-                                    nextValue,
-                                  })
-                                }}
-                              />
+                              {detailRows.map(row => (
+                                <StoryboardDetailRow
+                                  key={row.fieldId}
+                                  icon={row.icon}
+                                  label={row.label}
+                                  value={row.value}
+                                  canEdit={canEditCard}
+                                  onCommit={commitCardProperty(row.fieldId)}
+                                />
+                              ))}
 
                               {isStorytreeBranch ? (
                                 <section className="rounded-xl border border-black/5 bg-black/[0.025] p-2.5" aria-label="Storytree workflow">
@@ -1010,7 +1009,7 @@ export default function StoryboardCanvas({
                                     <DataViewTagChip value={accessState} />
                                     {Number.isFinite(unlockPriceCredits) && unlockPriceCredits > 0 ? <DataViewTagChip value={`${unlockPriceCredits} credits`} /> : null}
                                   </section>
-                                  <section className="grid grid-cols-4 gap-1.5">
+                                  <section className={STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME}>
                                     <button
                                       type="button"
                                       className={[UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
@@ -1073,7 +1072,7 @@ export default function StoryboardCanvas({
                                     <DataViewTagChip value={candidateModeration} />
                                     <DataViewTagChip value={`${Math.round(Math.max(0, Math.min(1, candidateContinuity)) * 100)}% continuity`} />
                                   </section>
-                                  <section className="grid grid-cols-2 gap-1.5 text-[11px]">
+                                  <section className={STORYBOARD_SCORECARD_GRID_CLASS_NAME}>
                                     <span className={['rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
                                       {candidateCreditCost} credits
                                     </span>

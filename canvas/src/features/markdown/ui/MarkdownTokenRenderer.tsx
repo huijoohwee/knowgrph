@@ -73,6 +73,10 @@ export type MarkdownTokenRendererProps = {
   markdownCardPreviewMode?: boolean
 }
 
+export const MARKDOWN_IMAGE_GRID_BASE_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 items-start'
+export const resolveMarkdownImageGridColumnClassName = (imageCount: number): string =>
+  imageCount >= 6 ? 'sm:grid-cols-3 lg:grid-cols-4' : imageCount >= 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2'
+
 const CODEBLOCK_BOX_DRAWING_RE = /[┌┐└┘┬┴┼│─╔╗╚╝╦╩╬║═]/
 
 const shouldDisableCodeWrap = (t: TokenWithLines): boolean => {
@@ -328,8 +332,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
         if (images.length >= 2) {
           const last = consumed[consumed.length - 1]
           const gridKey = `${activeDocumentPath}:imageGrid:${t.startLine}:${last.endLine || last.startLine || t.startLine}:${i}`
-          const gridColsClass =
-            images.length >= 6 ? 'sm:grid-cols-3 lg:grid-cols-4' : images.length >= 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2'
+          const gridColsClass = resolveMarkdownImageGridColumnClassName(images.length)
           out.push(
             <MarkdownBlockContainer
               key={gridKey}
@@ -341,7 +344,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               endLine={last.endLine || last.startLine || t.startLine}
               data-kg-image-grid="1"
             >
-              <section className={['grid grid-cols-1', gridColsClass, 'gap-3 items-start'].filter(Boolean).join(' ')}>
+              <section className={[MARKDOWN_IMAGE_GRID_BASE_CLASS_NAME, gridColsClass].filter(Boolean).join(' ')}>
                 {images.map((img, k) => {
                   const resolved = isSafeMediaSrc(img.href) ? resolveHref(img.href, opts.activeDocumentPath) : ''
                   const src = resolved ? applyMediaProxySrc(resolved) : ''

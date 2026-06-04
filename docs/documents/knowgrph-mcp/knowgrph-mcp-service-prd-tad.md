@@ -4,7 +4,7 @@ id: md:knowgrph-mcp-service-prd-tad
 author: joohwee
 date: 2026-05-20
 updated: 2026-06-04
-version: 0.4.21
+version: 0.4.22
 status: accepted-implemented-baseline
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
@@ -22,6 +22,13 @@ linkedDocs:
   - "{{md:knowgrph-llm-prompt-contract-prd-tad}}"
   - "{{md:kgc-ai-pipeline-prd-tad}}"
 changelog:
+  - version: 0.4.22
+    date: 2026-06-04
+    summary: >
+      Aligned the browser-local FloatingPanel Chat -> Canvas pipeline with
+      literal MCP structured responses that finalize without KGC retry, land in
+      Editor Workspace, and render widgets, media panels, cards, inline compute,
+      and edges through shared frontmatter-flow owners.
   - version: 0.4.21
     date: 2026-06-04
     summary: >
@@ -86,7 +93,7 @@ changelog:
     summary: >
       Promoted the document identity from a planning artifact to an accepted
       implemented-baseline contract. The shipped stdio, Pages/browser WebMCP,
-      MainPanel shell, and FloatingPanel Chat -> KGC -> Canvas owners remain
+      MainPanel shell, and FloatingPanel Chat -> KGC/MCP structured response -> Editor Workspace -> Canvas owners remain
       implementation truth; richer remote Worker MCP remains planned and must
       reuse those owners before it can be documented as shipped.
   - version: 0.4.14
@@ -94,7 +101,7 @@ changelog:
     summary: >
       Added browser-local `inspect_local_settings_chat_readiness` plus chat
       pipeline validation/finalize/apply diagnostics so WebMCP covers the real
-      Settings -> FloatingPanel Chat -> YAML frontmatter -> Canvas readiness
+      Settings -> FloatingPanel Chat -> YAML frontmatter or MCP structured response -> Editor Workspace -> Canvas readiness
       seams without adding a second mutating MCP pipeline.
   - version: 0.4.13
     date: 2026-05-23
@@ -199,7 +206,7 @@ Knowgrph should evolve toward a richer MCP platform, but only by:
 - keeping MainPanel `mcp` and `integrations` as thin shells over shared settings and chat-routing owners
 - documenting the local long-horizon SuperAgent harness as CLI/local-MCP execution through `knowgrph_parser` and `knowgrph.superagent.run`, with `research.scout`, `code.write_and_run`, bounded sandbox artifacts, and `providerMode` selection, not as a deployed Pages/WebMCP mutation service
 - treating DeerFlow as conceptual inspiration for message gateway, memory, tools, skills, subagents, sandboxed workspace artifacts, and minutes-to-hours runs without copying DeerFlow code or architecture
-- reusing the shipped FloatingPanel Chat -> KGC validation -> Canvas apply helpers instead of introducing a second MCP-only graph pipeline
+- reusing the shipped FloatingPanel Chat -> KGC or literal MCP structured-surface validation -> Canvas apply helpers instead of introducing a second MCP-only graph pipeline
 - keeping `flow.subgraphs` as the sole upstream grouping authoring surface
 - separating shipped implementation from planned remote-service work at every layer, document, and deploy description
 
@@ -214,7 +221,7 @@ Knowgrph already exposes useful MCP-ready surfaces, but they are fragmented:
 1. `mcp/server.js` is useful for local power users and automation, but it is stdio-only and local-root scoped.
 2. `/knowgrph/mcp` and browser WebMCP are deployed and agent-ready, but intentionally limited to read-only published-document tools.
 3. MCP Apps-ready behavior now exists across Pages HTTP MCP and local stdio MCP, including app resources, Source Files resource templates, prompt templates, and `mcpAppsServerReadiness`.
-4. MainPanel `mcp` and `integrations` already guide users toward MCP and integration readiness, yet the MCP docs underdescribe how those surfaces feed the richer FloatingPanel Chat -> KGC -> Canvas pipeline.
+4. MainPanel `mcp` and `integrations` already guide users toward MCP and integration readiness, yet the MCP docs underdescribe how those surfaces feed the richer FloatingPanel Chat -> KGC or literal MCP structured response -> Editor Workspace -> Canvas pipeline.
 5. Older MCP drafts blur the line between what is shipped and what is still planned, which risks duplicate architecture, stale code planning, and downstream patching.
 
 ### Desired Outcome
@@ -225,7 +232,7 @@ Future MCP work must unify these surfaces into one consistent story:
 - Pages/browser MCP remains the public read-only discovery and published-doc surface
 - MCP Apps-ready support remains a native in-repo tool/resource contract centered on `ui://knowgrph/agent-ready`, `text/html;profile=mcp-app`, tool `_meta.ui.resourceUri`, `outputSchema`, `structuredContent`, and text fallback
 - MainPanel `mcp` and `integrations` remain the UX bridge into MCP-aware settings, readiness, and chat orchestration
-- any richer remote MCP service wraps the same upstream chat, validation, workspace, parser, and canvas owners that already materialize structured KGC Markdown into nodes, edges, subgraphs, groups, and cluster projections
+- any richer remote MCP service wraps the same upstream chat, validation, workspace, parser, and canvas owners that already materialize structured KGC Markdown or literal MCP structured responses into widgets, media panels, cards, compute outputs, edges, subgraphs, groups, and cluster projections
 
 ---
 
@@ -236,7 +243,7 @@ Future MCP work must unify these surfaces into one consistent story:
 Knowgrph MCP must:
 
 - expose truthful shipped MCP surfaces without conflating them with planned remote services
-- support seamless E2E flow across MainPanel `mcp` and MainPanel `integrations` -> FloatingPanel Chat UI -> LLM output -> YAML frontmatter -> Canvas nodes / edges / subgraphs / groups / clusters
+- support seamless E2E flow across MainPanel `mcp` and MainPanel `integrations` -> FloatingPanel Chat UI -> LLM output -> YAML frontmatter or literal MCP structured content -> Editor Workspace -> Canvas widgets / media panels / cards / compute outputs / edges / subgraphs / groups / clusters
 - keep one canonical KGC contract where output starts at YAML frontmatter and `flow.subgraphs` is the only upstream grouping authoring surface
 - keep one canonical graph-apply path through existing chat finalize and parser/store actions
 - preserve zero- or near-zero fixed-cost deployment bias for remote surfaces
@@ -257,7 +264,7 @@ This document does not claim that the following are already implemented:
 - **Persona A - Local MCP power user**: runs `mcp/server.js` from Claude Code, Cursor, or another local MCP host to search/fetch published Source Files, launch the UI, run parser pipelines, run the superagent harness, or drive the browser API bridge.
 - **Persona B - Published-doc agent**: connects to deployed Pages/browser agent-ready surfaces to discover `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`; when MCP Apps is available, it can also fetch the predeclared `ui://knowgrph/agent-ready` resource and render the server-readiness view backed by `inspect_agent_surface.structuredContent.mcpAppsServerReadiness`; when running inside the full app runtime it can additionally inspect Settings chat readiness with `knowgrph.inspect_local_settings_chat_readiness`, the active MainPanel state with `knowgrph.inspect_local_mainpanel_state`, the active Editor Workspace and Markdown pane state with `knowgrph.inspect_local_editor_workspace_state`, the active FloatingPanel chat pipeline state with `knowgrph.inspect_local_chat_pipeline_state`, the combined MainPanel -> Chat -> Markdown/frontmatter -> Canvas readiness path with `knowgrph.inspect_local_mainpanel_chat_canvas_pipeline`, the active local workspace document with `knowgrph.inspect_local_workspace_document`, the active local canvas with `knowgrph.inspect_local_canvas_topology`, the active local canvas snapshot with `knowgrph.inspect_local_canvas_snapshot`, the active local 3d camera pose with `knowgrph.inspect_local_3d_camera_pose`, the active local 3d layout positions with `knowgrph.inspect_local_3d_layout_positions`, the active local 2d zoom viewport with `knowgrph.inspect_local_2d_zoom_viewport`, and the active local Source Files snapshot with `knowgrph.inspect_local_source_files_snapshot`.
 - **Persona C - MainPanel operator**: configures MCP, integrations, provider presets, and chat routing through shared MainPanel settings.
-- **Persona D - FloatingPanel Chat user**: asks the LLM to generate canonical KGC Markdown and expects the result to materialize on the Canvas without a second manual import path.
+- **Persona D - FloatingPanel Chat user**: asks the LLM to generate canonical KGC Markdown or a literal MCP structured response and expects the result to land in Editor Workspace and materialize on the Canvas without a second manual import path.
 - **Persona E - Future remote MCP client**: should eventually trigger selected richer flows remotely, but only through thin adapters over existing browser/local owners.
 
 ### User Journeys
@@ -295,9 +302,9 @@ This document does not claim that the following are already implemented:
 | Stage | Action | Touchpoint | Current owner | Gap |
 |---|---|---|---|---|
 | Stream | Assistant draft streams | chat streaming helper | `floatingPanelChatStreaming.ts` | Not yet formalized as transport-agnostic contract |
-| Validate | KGC is recovered and validated | KGC retry + validation helpers | `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Older docs described parallel pipelines |
-| Finalize | KGC persists to workspace | finalize helper | `useFinalizeAssistantSuccess.ts` | Must remain canonical write path |
-| Apply | Canvas graph materializes | parser/store apply chain | `chatKgcCanvasApply.ts` -> `setActiveMarkdownDocument()` -> frontmatter-flow parser | Remote MCP future must wrap, not fork |
+| Validate | KGC is recovered/validated or renderable MCP `structuredContent` is accepted | KGC retry + validation helpers | `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts`, `chatResponseStructuredContent.ts` | Older docs described parallel pipelines |
+| Finalize | KGC or projected MCP response persists to workspace | finalize helper | `useFinalizeAssistantSuccess.ts` | Must remain canonical write path |
+| Apply | Canvas graph materializes | parser/store apply chain | `chatKgcCanvasApply.ts` -> `applyWorkspaceImportToCanvas()` -> `setActiveMarkdownDocument()` -> frontmatter-flow parser | Remote MCP future must wrap, not fork |
 
 ### Epics And Stories
 
@@ -313,7 +320,7 @@ This document does not claim that the following are already implemented:
 
 #### Epic MCP-3 - E2E Pipeline Reuse
 
-- **PRD-MCP3-S1**: As a FloatingPanel Chat user, I want future MCP-aligned workflows to reuse the existing chat submit, KGC validation, and canvas apply pipeline so that LLM output reaches Canvas through the same validated path.
+- **PRD-MCP3-S1**: As a FloatingPanel Chat user, I want future MCP-aligned workflows to reuse the existing chat submit, KGC or literal MCP structured-surface validation, and canvas apply pipeline so that LLM output reaches Canvas through the same validated path.
 - **PRD-MCP3-S2**: As a maintainer, I want `flow.subgraphs` documented as the sole upstream grouping authoring surface so that no MCP layer reintroduces `clusters`, `groups`, `layers`, or `kg:subgraphs` as parallel authoring channels.
 
 #### Epic MCP-4 - Future Remote MCP Direction
@@ -363,7 +370,7 @@ This document does not claim that the following are already implemented:
 
 #### PRD-MCP3-S2 - Grouping SSOT
 
-**Given** a canonical KGC Markdown document,  
+**Given** a canonical KGC Markdown document or literal MCP structured response,
 **When** it is accepted for canvas apply,  
 **Then** `flow.subgraphs` is the only upstream grouping authoring surface and parallel grouping aliases are rejected or normalized upstream before graph apply.
 
@@ -431,7 +438,7 @@ This document does not claim that the following are already implemented:
 | FloatingPanel chat shell | `canvas/src/features/chat/FloatingPanelChat.tsx` | Shipped | interactive chat UI |
 | Chat submit shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Shipped | thin shell |
 | Chat coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Shipped | request/stream/retry/finalize |
-| KGC validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | Shipped | frontmatter-first, canonical grouping |
+| KGC and MCP structured-surface validation | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + `canvas/src/features/chat/chatResponseStructuredContent.ts` | Shipped | frontmatter-first canonical grouping or renderable literal MCP `structuredContent` |
 | KGC recovery | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | Shipped | wrapper salvage, alias stripping |
 | Chat finalize -> canvas bridge | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `chatKgcCanvasApply.ts` | Shipped | canonical workspace write then graph apply |
 | Structured Markdown parse priority | `canvas/src/features/parsers/default.ts` | Shipped | frontmatter-flow first |
@@ -498,7 +505,7 @@ This document does not claim that the following are already implemented:
 - Chat readiness owner: `useSettingsChatAssist.tsx`.
 - Submit owner: `useFloatingPanelChatSubmit.ts` -> `floatingPanelChatSubmitCoordinator.ts`.
 - Validation owner: `floatingPanelChatKgcAttempt.ts` + `chatMarkdownValidation.ts` + shared KGC recovery helpers.
-- Apply owner: `useFinalizeAssistantSuccess.ts` -> `applyChatKgcWorkspaceDocumentToCanvas()` -> `setActiveMarkdownDocument({ applyToGraph: true })`.
+- Apply owner: `useFinalizeAssistantSuccess.ts` -> `applyChatKgcWorkspaceDocumentToCanvas()` -> `applyWorkspaceImportToCanvas()` -> `setActiveMarkdownDocument({ applyToGraph: true })`.
 - Parse owner: `tryParseMarkdownFrontmatterFlowGraph()` and related compose helpers.
 
 ### Forbidden Architecture
@@ -508,7 +515,7 @@ The following are forbidden until the repo gains real upstream owners for them:
 - claiming a remote Worker MCP gateway or pipeline-worker module is already implemented when its files do not exist
 - copying upstream MCP Apps example servers or widgets into this repo instead of extending the native shared MCP Apps-ready contract
 - creating a second MainPanel MCP configuration stack outside `SettingsView` and `useSettingsChatAssist()`
-- creating a second LLM output -> Markdown -> Canvas path outside the current chat submit, validation, finalize, parser, and apply chain
+- creating a second LLM output -> Markdown or MCP structured response -> Editor Workspace -> Canvas path outside the current chat submit, validation, finalize, parser, and apply chain
 - using `clusters`, `groups`, `layers`, or `kg:subgraphs` as upstream grouping authoring channels alongside canonical `flow.subgraphs`
 - treating downstream parser compatibility such as `frontmatter:chatKnowgrphRelaxed` as an upstream authoring contract
 - treating the prod mirror as deploy authority instead of `knowgrph` source + publish sync + `huijoohwee` root control files
@@ -524,7 +531,7 @@ The next remote MCP layer is planned but not implemented. When it is implemented
 | Auth | add explicit remote auth only for future remote tools | rewriting or weakening shipped read-only Pages/browser flows |
 | Published-doc reads | reuse existing storage worker and route contract | new ad hoc document fetchers |
 | Chat orchestration | wrap `useSettingsChatAssist`-owned routing semantics and existing chat submit helpers | new MCP-only provider config or submit loop |
-| KGC validation | reuse shared recovery + validation rules | accepting prose wrappers or parallel grouping aliases downstream |
+| KGC/MCP response validation | reuse shared recovery, validation, and structured-content extraction rules | accepting prose wrappers, parallel grouping aliases, or synthetic KGC downstream |
 | Canvas apply | reuse existing graph apply boundary and parser owners | new serializer/importer that bypasses `setActiveMarkdownDocument()` |
 | Group rendering | keep subgraphs as source, rendered groups as projection | writing rendered group state as a second source of truth |
 
@@ -576,7 +583,7 @@ flowchart LR
 - [x] Documents MainPanel `mcp` and `integrations` as thin `SettingsView` shells
 - [x] Documents `useSettingsChatAssist.tsx` as the shared chat readiness owner
 - [x] Documents `useFloatingPanelChatSubmit.ts` as a thin shell over the coordinator/helper stack
-- [x] Documents canonical KGC validation and recovery before canvas apply
+- [x] Documents canonical KGC validation, literal MCP structured-surface acceptance, and recovery before canvas apply
 - [x] Documents the shipped MCP Apps resource, Source Files resource template, MIME type, extension capability, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored no-auth security schemes, read-only annotations, data-first `search`/`fetch`, prompt/resource handlers, and server-readiness payload
 - [x] Documents `flow.subgraphs` as the sole upstream grouping authoring surface
 - [x] Forbids stale remote Worker module claims and duplicate graph pipelines
@@ -585,4 +592,4 @@ flowchart LR
 
 ---
 
-*Document ID: `md:knowgrph-mcp-service-prd-tad` · Version: 0.4.21 · Updated: 2026-06-04*
+*Document ID: `md:knowgrph-mcp-service-prd-tad` · Version: 0.4.22 · Updated: 2026-06-04*

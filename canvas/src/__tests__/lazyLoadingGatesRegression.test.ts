@@ -421,6 +421,24 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (canvasPageText.includes("import { CanvasQueryBootstrapRuntime, shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'")) {
     throw new Error('expected Canvas page to avoid eagerly importing CanvasQueryBootstrapRuntime into the default route-shell boot path')
   }
+  if (canvasPageText.includes("from '@/features/canvas/CanvasQueryBootstrapRuntime'")) {
+    throw new Error('expected Canvas page query helpers to stay split from the lazy CanvasQueryBootstrapRuntime module graph')
+  }
+  if (!canvasPageText.includes("import { shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/canvasQueryBootstrapSearch'")) {
+    throw new Error('expected Canvas page to import query helper from the small canvasQueryBootstrapSearch module')
+  }
+  if (canvasPageText.includes("import { CanvasViewport } from '@/components/CanvasViewport'")) {
+    throw new Error('expected Canvas page to lazy-load CanvasViewport instead of carrying renderer-selection imports in the route entry')
+  }
+  if (!canvasPageText.includes('const CanvasViewportLazy = React.lazy')) {
+    throw new Error('expected Canvas page to lazy-load CanvasViewport from the route shell')
+  }
+  if (canvasPageText.includes("import { runGlobalInteractionCleanup } from '@/lib/canvas/interaction-recovery'")) {
+    throw new Error('expected Canvas page to load interaction recovery only when the workspace overlay opens')
+  }
+  if (!canvasPageText.includes("import('@/lib/canvas/interaction-recovery')")) {
+    throw new Error('expected Canvas page workspace-overlay cleanup to use a deferred interaction recovery import')
+  }
   if (!canvasPageText.includes('const CanvasQueryBootstrapRuntimeLazy = React.lazy')) {
     throw new Error('expected Canvas page to lazy-load CanvasQueryBootstrapRuntime only when URL search params are present')
   }

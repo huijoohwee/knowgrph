@@ -24,6 +24,7 @@ const tokenChipClassName = `px-2 py-0.5 rounded ${UI_THEME_TOKENS.button.neutral
 const analyticsButtonClassName = `px-2 py-0.5 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const stagePanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
 const codePanelClassName = `rounded border ${UI_THEME_TOKENS.code.border} ${UI_THEME_TOKENS.code.bg} p-2`
+export const GRAPH_RAG_TEXT_PIPELINE_STAGE_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2'
 
 const getStagesFromGraphMeta = (graphData: unknown): StageView[] => {
   if (!graphData || typeof graphData !== 'object' || Array.isArray(graphData)) return []
@@ -244,7 +245,7 @@ export default function GraphRagTextPipelineSection() {
           </section>
         )}
 
-        <section className="grid md:grid-cols-2 gap-3">
+        <section className={GRAPH_RAG_TEXT_PIPELINE_STAGE_GRID_CLASS_NAME}>
           <section className={`${stagePanelClassName} space-y-2`}>
             <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
               <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>{current.name}</span>

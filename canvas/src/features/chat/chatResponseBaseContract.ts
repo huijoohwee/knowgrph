@@ -14,6 +14,7 @@ export const CHAT_RESPONSE_BASE_PARAMETER_KEYS = [
   'runtime',          // typed inline mappings: entry, exit, sandbox, trace, maxRetry
   'pipeline',         // ordered traversal; all fifteen step dimensions per entry
   'flow_editor',      // computing graph: nodes (typed mappings) + labelled edges
+  'structuredContent',// MCP-shaped render payload: widgets, panels, cards, media, nodes, edges
   'table',            // row/column projections: Pipeline, Node Reference, Goals, etc.
   'assumptions',      // stated assumptions from context — never inferred silently
   'open_questions',   // OQ base set; domain extensions appended from OQ-08 onward
@@ -26,6 +27,7 @@ export const CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC = [
   'graph_refs',       // @node:id + @edge: sigils cited in prose
   'workspace_refs',   // linked document references
   'flow_editor',      // node / edge summary (no full typed mappings)
+  'structuredContent',// MCP-shaped render payload for shared Canvas materialization
   'table',            // row/column records
   'assumptions',      // stated assumptions
   'open_questions',   // open items that need resolution
@@ -69,6 +71,9 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   'When the user request is non-empty, avoid placeholder-only lines in the body.',
   'When the request contains a long directive list, synthesize it into concise context-responsive prose instead of echoing the full request verbatim.',
   'Keep the body centered on the user request and deliverable; do not spend body prose explaining the canvas, pipeline, or template itself unless the request explicitly asks for that explanation.',
+  'Keep the response headless and renderer-neutral: author portable frontmatter plus Markdown data, never surface-specific UI instructions.',
+  'Declare text, image, audio, video, card, widget, and edge semantics as data so Editor Workspace, Flow Editor, Storyboard, Rich Media Panels, Cards, and Edges can render and inline-edit through shared owners.',
+  'When the answer is not already a complete KGC document but includes renderable or interactive output, mirror MCP tool-result semantics in `response.structuredContent`: text lives in output/result/response/transcript fields; media lives in imageUrl/videoUrl/audioUrl/outputSrcDoc fields; panels/cards/media/nodes are neutral render records; widgets may be neutral render records or declared Flow Editor widget records with nodeTypeId/formId/widgetTypeId/prompt; optional safe `flow:compute` data may derive output ports from incoming handles; edges are structural source/target/handle records. Plain fields are preferred; Knowgrph typed {key,type,value} envelopes and properties[] rows are accepted when preserving frontmatter-native data.',
   'Every streamed chunk must stay relevant to the active query; do not drift into canned examples, stock business cases, or unrelated template prose.',
   'Do not widen a narrow request into a stock "PRD + TAD", "monetization pipeline", or similarly prepackaged deliverable unless the request explicitly asks for that deliverable shape.',
   'If you mention a share URL or report URL, it must be generated or explicitly referenced by the current request/stream; never emit example, placeholder, or fixture URLs.',
@@ -494,6 +499,7 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
   '· Use ## headings and - bullets for structure; no manual line-break layout.',
   '· Fenced code blocks: always include a language tag.',
   '· Structured metadata: ONE fenced yaml block with root key response:.',
+  '· For renderable or interactive output, the yaml block MUST include `response.structuredContent` shaped like an MCP tool result: arrays named widgets, panels, cards, media, or nodes; each item may carry id, label, kind, output, imageUrl, videoUrl, audioUrl, outputSrcDoc; declared widgets may also carry nodeTypeId, formId, widgetTypeId, prompt, sourceHandle, targetHandle, and optional safe `flow:compute` data for inline port-derived output; optional edges carry source, target, sourceHandle, targetHandle, label. Plain fields are preferred, and typed {key,type,value} envelopes or properties[] rows are normalized by the shared frontmatter-value path.',
   '· Include one markdown link to the current KGC storage document when available.',
   '',
 
@@ -514,7 +520,7 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
 
   // ── RESPONSE YAML BLOCK ───────────────────────────────────────────────────
   'RESPONSE: YAML BLOCK — include when the request is non-trivial:',
-  `Keys: ${['intent','domain_vars','context_scope','graph_refs','workspace_refs','flow_editor','table','assumptions','open_questions'].map(k => `\`${k}\``).join(', ')}.`,
+  `Keys: ${['intent','domain_vars','context_scope','graph_refs','workspace_refs','flow_editor','structuredContent','table','assumptions','open_questions'].map(k => `\`${k}\``).join(', ')}.`,
   '',
   '· intent: one-sentence parse of what the user is trying to accomplish.',
   '· domain_vars: {{key}} → resolved value for Tier B keys present in context.',
@@ -526,6 +532,13 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
   '· flow_editor: summarize nodes (phase, actor, handles, kanban) + edges (@edge: sigils).',
   '  Canonical base node IDs: n-trigger, n-pack, n-process, n-validate, n-deliver.',
   '  Domain variants rename these after forking. FORBIDDEN: position: on any node.',
+  '· structuredContent: MCP-aligned tool result payload for Canvas materialization.',
+  '  Use neutral fields only: widgets/panels/cards/media/nodes arrays plus edges array.',
+  '  Render fields: output/result/response/transcript, imageUrl, videoUrl, audioUrl, outputSrcDoc.',
+  '  Declared widget forms may include nodeTypeId/formId/widgetTypeId/prompt and handle keys; undeclared panels/cards/media/nodes remain neutral Rich Media Panel endpoints.',
+  '  Dynamic inline compute is data, not UI glue: a declared widget may carry safe `flow:compute` that reads incoming handle keys from `inputs` and returns output-port values for the shared Flow Editor dataflow runtime.',
+  '  Plain scalar fields are preferred; when KGC-native typed envelopes are necessary, use exact {key,type,value} or properties[] rows with the same neutral keys.',
+  '  Do not name renderer-local components or instruct UI placement; shared Flow Editor and Rich Media owners materialize it.',
   '· table: row/column-ready records. Never leave empty cells — use TBD or —.',
   '  Multi-select: `["A","B"]`. Confidence: low | medium | high only (V-07).',
   '· assumptions: what you are inferring that the user did not state.',

@@ -1,0 +1,39 @@
+.kg-card-markdown-preview-media-frame {
+  --kg-card-markdown-preview-media-frame-max-width: 36rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--kg-card-markdown-preview-media-frame-max-width);
+  min-width: 0;
+}
+
+.kg-card-markdown-preview-media-embed-frame {
+  --kg-card-markdown-preview-media-frame-max-width: 36rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--kg-card-markdown-preview-media-frame-max-width);
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+}
+
+.kg-card-markdown-preview-media-audio {
+  --kg-card-markdown-preview-media-audio-max-width: 36rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--kg-card-markdown-preview-media-audio-max-width);
+  min-width: 0;
+}
+
+.kg-card-markdown-preview-media-audio--wide {
+  --kg-card-markdown-preview-media-audio-max-width: 42rem;
+}
+
+.kg-card-markdown-preview-media-error-frame {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  max-width: var(--kg-card-markdown-preview-media-frame-max-width, 36rem);
+  min-height: 8rem;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+}

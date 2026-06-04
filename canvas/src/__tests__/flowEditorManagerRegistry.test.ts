@@ -283,7 +283,7 @@ export function testFlowEditorManagerSeedsDeerFlowTextRegistryEntry() {
     properties: {
       chatProvider: 'openai',
       chatEndpointUrl: 'https://api.openai.com/v1/responses',
-      chatModel: 'gpt-5.4-nano',
+      chatModel: 'gpt-5-nano',
     },
   })
   if (String(normalized.chatProvider || '') !== CHAT_PROVIDER_DEERFLOW) {
@@ -477,7 +477,7 @@ export function testFlowEditorManagerNormalizesBytePlusTextWidgetProviderDefault
     properties: {
       chatProvider: 'openai',
       chatEndpointUrl: 'https://api.openai.com/v1/responses',
-      chatModel: 'gpt-5.4-nano',
+      chatModel: 'gpt-5-nano',
       prompt: 'hello',
     },
   })

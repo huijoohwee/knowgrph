@@ -23,6 +23,8 @@ export {
 } from './markdownSlideVisuals'
 
 const markdownSlidePreviewShellClassName = `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`
+export const MARKDOWN_PRESENTATION_TWO_COLUMN_GRID_CLASS_NAME = 'w-full h-full grid min-w-0 grid-cols-2 gap-8'
+export const MARKDOWN_PRESENTATION_PREVIEW_TWO_COLUMN_GRID_CLASS_NAME = 'w-full h-full grid min-w-0 grid-cols-2 gap-2'
 
 const getSlidePrimaryHeading = (slideText: string): string => {
   const lines = splitMarkdownLines(slideText)
@@ -319,7 +321,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
 
   if (layout === 'two-cols' && twoColumnTokens) {
     content = (
-      <section className="w-full h-full grid grid-cols-2 gap-8" aria-label="Slide Columns">
+      <section className={MARKDOWN_PRESENTATION_TWO_COLUMN_GRID_CLASS_NAME} aria-label="Slide Columns">
         <section
           className={`w-full h-full px-8 ${isFlowChrome ? 'py-6 overflow-visible' : isAbsoluteChrome ? 'pt-6 pb-6 overflow-auto' : 'pt-10 pb-14 overflow-auto'}`}
           aria-label="Slide Left Column"
@@ -486,7 +488,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
         ].filter(Boolean).join(' ')}
         style={slideStylePreview}
       >
-        <section className="w-full h-full grid grid-cols-2 gap-2">
+        <section className={MARKDOWN_PRESENTATION_PREVIEW_TWO_COLUMN_GRID_CLASS_NAME}>
           <section className="w-full h-full px-2 py-2 overflow-hidden">
             <MarkdownTokenRenderer
               {...buildTokenRendererProps(leftTokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}

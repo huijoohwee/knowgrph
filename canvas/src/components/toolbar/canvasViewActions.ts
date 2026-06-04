@@ -19,6 +19,7 @@ import {
   isFrontmatterOnlyCanvas2dRenderer,
   isFrontmatterOnlyPolicyActive,
   isTableGraphCanvas2dRenderer,
+  supportsCanvas2dMinimap,
 } from '@/lib/config.render'
 import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 
@@ -35,6 +36,7 @@ type CanvasViewActionParams = {
   multiDimTableModeEnabled: boolean
   renderMediaAsNodes: boolean
   timelineEnabled: boolean
+  minimapCollapsed?: boolean
   schema: GraphSchema
   setCanvas2dRenderer: (id: Canvas2dRendererId) => void
   setCanvasRenderMode: (mode: '2d' | '3d') => void
@@ -43,6 +45,7 @@ type CanvasViewActionParams = {
   setBehavior?: (behavior: Partial<GraphSchema['behavior']>) => void
   setRenderMediaAsNodes: (enabled: boolean) => void
   setTimelineEnabled: (enabled: boolean) => void
+  setMinimapCollapsed?: (collapsed: boolean) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
@@ -94,6 +97,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     multiDimTableModeEnabled,
     renderMediaAsNodes,
     timelineEnabled,
+    minimapCollapsed = false,
     schema,
     setCanvas2dRenderer,
     setCanvasRenderMode,
@@ -102,6 +106,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setBehavior,
     setRenderMediaAsNodes,
     setTimelineEnabled,
+    setMinimapCollapsed,
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
     setMultiDimTableModeEnabled,
@@ -267,6 +272,11 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     if (geospatialEnabled) return
     const nextEnabled = !resolveTimelineEnabled(timelineEnabled)
     if (resolveTimelineEnabled(timelineEnabled) !== nextEnabled) setTimelineEnabled(nextEnabled)
+    return
+  }
+  if (id === 'control:minimap') {
+    if (geospatialEnabled || canvasRenderMode !== '2d' || !supportsCanvas2dMinimap(canvas2dRenderer)) return
+    setMinimapCollapsed?.(!minimapCollapsed)
     return
   }
   if (id === 'control:nodeShape') {

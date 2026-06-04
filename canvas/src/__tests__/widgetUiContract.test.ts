@@ -46,7 +46,7 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   if (form.includes('{entry.widgetTypeId}') || form.includes('{entry.formId}') || form.includes('· {entry.formId}')) {
     throw new Error('Expected Widget Type and Form ID to be hidden from Widget UI labels')
   }
-  if (!form.includes("'py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden'") || !form.includes("'px-3'")) {
+  if (!form.includes('UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME') || !form.includes("'py-0'") || !form.includes("'px-3'")) {
     throw new Error('Expected Widget form to keep zero top/bottom padding while retaining horizontal gutter padding')
   }
 

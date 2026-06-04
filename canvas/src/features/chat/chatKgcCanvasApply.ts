@@ -1,4 +1,5 @@
 import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/workspaceImport'
+import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { normalizeWorkspacePath, workspaceBasename, workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -11,6 +12,14 @@ export async function applyChatKgcWorkspaceDocumentToCanvas(path: string): Promi
   await fs.ensureSeed()
   const text = String((await fs.readFileText(workspacePath)) || '')
   if (!shouldApplyImportedCanvasDocumentToGraph({ path: workspacePath, text })) return false
+  await applyWorkspaceImportToCanvas({
+    fs,
+    createdPaths: [workspacePath],
+    opts: {
+      applyToGraph: true,
+      skipComposedGraphApply: true,
+    },
+  })
   const name = workspaceDocumentKey(workspacePath) || workspaceBasename(workspacePath) || workspacePath
   return await useGraphStore.getState().setActiveMarkdownDocument({
     name,

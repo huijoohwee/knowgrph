@@ -1,0 +1,9 @@
+.kg-markdown-slides-sidebar {
+  width: min(var(--kg-markdown-slides-sidebar-width, 16rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+  inline-size: min(var(--kg-markdown-slides-sidebar-width, 16rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+  max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+  max-inline-size: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+  min-width: min(var(--kg-markdown-slides-sidebar-min-width, 12rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+  min-inline-size: min(var(--kg-markdown-slides-sidebar-min-width, 12rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+  box-sizing: border-box;
+}

@@ -7,29 +7,16 @@ import {
 } from '@/lib/config.flow-editor'
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { downloadBlob, saveBlobWithPicker } from '@/lib/graph/save'
-import type {
-  GeneratedBinaryAsset,
-  RunGenerationConfig,
-} from './byteplusRunGeneration'
-import {
-  CHAT_PROVIDER_DEERFLOW,
-  CHAT_PROVIDER_GEMINI,
-  normalizeChatProviderId,
-} from '@/lib/chatEndpoint'
-import {
-  generateRunImageWithBytePlus,
-  generateRunVideoWithBytePlus,
-} from './byteplusRunGeneration'
-import {
-  generateRunImageWithDeerFlow,
-  generateRunVideoWithDeerFlow,
-} from './deerflowRunGeneration'
+import type { GeneratedBinaryAsset, RunGenerationConfig } from './byteplusRunGeneration'
+import { CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_GEMINI, normalizeChatProviderId } from '@/lib/chatEndpoint'
+import { generateRunImageWithBytePlus, generateRunVideoWithBytePlus } from './byteplusRunGeneration'
+import { generateRunImageWithDeerFlow, generateRunVideoWithDeerFlow } from './deerflowRunGeneration'
 import { generateRunVideoWithGemini } from './geminiRunGeneration'
-import {
-  resolveWorkspaceSiblingArtifactPath,
-  writeWorkspaceBlobArtifactAtPath,
-} from './chatHistoryWorkspace.output'
+import { resolveWorkspaceSiblingArtifactPath, writeWorkspaceBlobArtifactAtPath, writeWorkspaceTextArtifactAtPath } from './chatHistoryWorkspace.output'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
+import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import type { WorkspaceFs } from '@/features/workspace-fs/types'
 
 export type RichMediaWidgetKind = 'image' | 'video'
 
@@ -63,6 +50,7 @@ export type RichMediaWidgetRunResult = {
   kind: RichMediaWidgetKind
   asset: GeneratedBinaryAsset
   outputPath: string | null
+  outputManifestPath: string | null
 }
 
 const DEFAULT_IMAGE_PROMPT = 'Generate an image responsive to the active request.'
@@ -148,15 +136,19 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   const next = { ...(properties || {}) }
   delete next.imageUrl
   delete next.videoUrl
+  delete next.audioUrl
   delete next.image_url
   delete next.video_url
+  delete next.audio_url
   delete next.image
   delete next.video
+  delete next.audio
   delete next.mediaUrl
   delete next.media_url
   delete next.mediaKind
   delete next.media_kind
   delete next.outputPath
+  delete next.outputManifestPath
   delete next.output
   delete next.outputMimeType
   delete next.outputModel
@@ -173,23 +165,29 @@ export const buildRichMediaWidgetOutputPatch = (args: {
   kind: RichMediaWidgetKind
   asset: GeneratedBinaryAsset
   outputPath: string | null
+  outputManifestPath?: string | null
 }): Record<string, unknown> => {
   const isImage = args.kind === 'image'
   return {
     imageUrl: isImage ? args.asset.renderUrl : undefined,
     videoUrl: isImage ? undefined : args.asset.renderUrl,
+    audioUrl: undefined,
     image_url: undefined,
     video_url: undefined,
+    audio_url: undefined,
     image: undefined,
     video: undefined,
+    audio: undefined,
     mediaUrl: undefined,
     media_url: undefined,
     mediaKind: undefined,
     media_kind: undefined,
     outputPath: args.outputPath || undefined,
+    outputManifestPath: args.outputManifestPath || undefined,
     outputMimeType: cleanString(args.asset.blob.type) || undefined,
     outputModel: cleanString(args.asset.model) || undefined,
     outputSourceUrl: cleanString(args.asset.sourceUrl) || undefined,
+    outputSavedName: args.outputPath ? args.outputPath.split('/').filter(Boolean).pop() || undefined : undefined,
     lastRunAt: new Date().toISOString(),
   }
 }
@@ -198,15 +196,17 @@ export const buildTextWidgetOutputPatch = (args: {
   output: string
   title?: unknown
   model?: unknown
+  outputPath?: string | null
 }): Record<string, unknown> => {
   const output = String(args.output || '')
+  const outputPath = cleanString(args.outputPath)
   return {
     output,
-    outputPath: undefined,
+    outputPath: outputPath || undefined,
     outputMimeType: 'text/markdown; charset=utf-8',
     outputModel: cleanString(args.model) || undefined,
     outputSourceUrl: undefined,
-    outputSavedName: undefined,
+    outputSavedName: outputPath ? outputPath.split('/').filter(Boolean).pop() || undefined : undefined,
     outputSrcDoc: buildTextWidgetOutputSrcDoc({
       title: args.title,
       text: output,
@@ -298,13 +298,15 @@ export const buildRichMediaWidgetRunRequest = (args: {
 const buildSuggestedArtifactFileName = (args: {
   workspacePath?: string | null
   node: GraphNode
-  kind: RichMediaWidgetKind
+  kind: string
   extension: string
+  variant?: string | null
 }): string => {
   const workspaceBase = cleanString(args.workspacePath).split('/').pop() || ''
   const workspaceStem = workspaceBase.replace(/\.[^.]+$/, '')
   const nodeStem = sanitizeFileNameStem(cleanString(args.node.label) || cleanString(args.node.id) || args.kind)
-  const stem = sanitizeFileNameStem([workspaceStem, nodeStem].filter(Boolean).join('-')) || `${args.kind}-asset`
+  const variantStem = sanitizeFileNameStem(cleanString(args.variant))
+  const stem = sanitizeFileNameStem([workspaceStem, nodeStem, variantStem].filter(Boolean).join('-')) || `${args.kind}-asset`
   return `${stem}.${args.extension}`
 }
 
@@ -339,6 +341,148 @@ const persistGeneratedAsset = async (args: {
   })
   if (!saved) downloadBlob(args.asset.blob, suggestedName)
   return null
+}
+
+const escapeMarkdownTableCell = (value: unknown): string => {
+  return String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\|/g, '\\|')
+    .replace(/\n+/g, '<br>')
+    .trim()
+}
+
+const escapeMarkdownAltText = (value: unknown): string => {
+  return String(value ?? '')
+    .replace(/[\[\]\n\r]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const buildGeneratedMediaManifestMarkdown = (args: {
+  node: GraphNode
+  kind: RichMediaWidgetKind
+  outputPath: string
+  asset: GeneratedBinaryAsset
+}): string => {
+  const title = cleanString(args.node.label) || cleanString(args.node.id) || `${args.kind} output`
+  const savedName = args.outputPath.split('/').filter(Boolean).pop() || args.outputPath
+  const relativeAssetPath = savedName ? `./${savedName}` : args.outputPath
+  const mimeType = cleanString(args.asset.blob.type) || (args.kind === 'video' ? 'video/mp4' : 'image/png')
+  const rawRows: Array<[string, unknown]> = [
+    ['kind', args.kind],
+    ['artifactPath', relativeAssetPath],
+    ['mimeType', mimeType],
+    ['model', cleanString(args.asset.model)],
+    ['sourceUrl', cleanString(args.asset.sourceUrl)],
+  ]
+  const rows = rawRows.filter(([, value]) => cleanString(value))
+  const dataTable = rows.length
+    ? [
+        '| key | value |',
+        '| --- | --- |',
+        ...rows.map(([key, value]) => `| ${escapeMarkdownTableCell(key)} | ${escapeMarkdownTableCell(value)} |`),
+      ].join('\n')
+    : ''
+  const mediaBlock = args.kind === 'video'
+    ? `<video controls src="${relativeAssetPath}"></video>`
+    : `![${escapeMarkdownAltText(title)}](${relativeAssetPath})`
+  return [
+    `# ${title} ${args.kind === 'video' ? 'Video' : 'Image'} Output`,
+    dataTable,
+    mediaBlock,
+  ].filter(section => String(section || '').trim()).join('\n\n')
+}
+
+export const writeRichMediaWidgetRunOutputArtifact = async (args: {
+  workspacePath?: string | null
+  node: GraphNode
+  kind: RichMediaWidgetKind
+  extension: string
+  asset: GeneratedBinaryAsset
+  fs?: WorkspaceFs | null
+}): Promise<{ outputPath: string | null; outputManifestPath: string | null }> => {
+  const outputPath = await persistGeneratedAsset({
+    workspacePath: args.workspacePath,
+    node: args.node,
+    kind: args.kind,
+    extension: args.extension,
+    asset: args.asset,
+  })
+  if (!outputPath) return { outputPath, outputManifestPath: null }
+  const manifestName = buildSuggestedArtifactFileName({
+    workspacePath: args.workspacePath,
+    node: args.node,
+    kind: 'media',
+    extension: 'md',
+    variant: `${args.kind}-output`,
+  })
+  const manifestPath = resolveWorkspaceSiblingArtifactPath({
+    workspacePath: args.workspacePath,
+    fileName: manifestName,
+  })
+  if (!manifestPath) return { outputPath, outputManifestPath: null }
+  const outputManifestPath = await writeWorkspaceTextArtifactAtPath({
+    absolutePath: manifestPath,
+    text: buildGeneratedMediaManifestMarkdown({
+      node: args.node,
+      kind: args.kind,
+      outputPath,
+      asset: args.asset,
+    }),
+    fs: args.fs,
+  })
+  if (!outputManifestPath) return { outputPath, outputManifestPath: null }
+  try {
+    const fs = args.fs || await getWorkspaceFs()
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: [outputManifestPath],
+      opts: { applyToGraph: false },
+    })
+  } catch {
+    void 0
+  }
+  return { outputPath, outputManifestPath }
+}
+
+export const writeTextWidgetRunOutputArtifact = async (args: {
+  workspacePath?: string | null
+  node: GraphNode
+  output: string
+  variant?: string | null
+  fs?: WorkspaceFs | null
+}): Promise<string | null> => {
+  const output = String(args.output || '')
+  if (!output.trim()) return null
+  const suggestedName = buildSuggestedArtifactFileName({
+    workspacePath: args.workspacePath,
+    node: args.node,
+    kind: 'text',
+    extension: 'md',
+    variant: args.variant || 'output',
+  })
+  const siblingPath = resolveWorkspaceSiblingArtifactPath({
+    workspacePath: args.workspacePath,
+    fileName: suggestedName,
+  })
+  if (!siblingPath) return null
+  const outputPath = await writeWorkspaceTextArtifactAtPath({
+    absolutePath: siblingPath,
+    text: output,
+    fs: args.fs,
+  })
+  if (!outputPath) return null
+  try {
+    const fs = args.fs || await getWorkspaceFs()
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: [outputPath],
+      opts: { applyToGraph: false },
+    })
+  } catch {
+    void 0
+  }
+  return outputPath
 }
 
 export const runRichMediaWidgetGeneration = async (args: {
@@ -438,7 +582,7 @@ export const runRichMediaWidgetGeneration = async (args: {
   })()
   const resolvedAsset = await asset
   if (!resolvedAsset) return null
-  const outputPath = await persistGeneratedAsset({
+  const outputArtifact = await writeRichMediaWidgetRunOutputArtifact({
     workspacePath: args.workspacePath,
     node: args.node,
     kind: request.kind,
@@ -448,6 +592,7 @@ export const runRichMediaWidgetGeneration = async (args: {
   return {
     kind: request.kind,
     asset: resolvedAsset,
-    outputPath,
+    outputPath: outputArtifact.outputPath,
+    outputManifestPath: outputArtifact.outputManifestPath,
   }
 }

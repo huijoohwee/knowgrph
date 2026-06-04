@@ -8,9 +8,12 @@ import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByGraphLayerRow } from '@/features/graph-stats/types'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { STATS_MINI_CHART_MIN_HEIGHT_PX } from '@/features/graph-stats/statsMiniChart'
 import {
   UI_RESPONSIVE_COMPACT_INLINE_CHIP_CLASSNAME,
   UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME,
+  UI_RESPONSIVE_STATS_TOKEN_LIST_PANEL_CLASSNAME,
   UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 
@@ -24,7 +27,7 @@ const statsTokenIncludedClassName = `bg-blue-50 ${UI_THEME_TOKENS.text.primary} 
 const statsTokenExcludedClassName = `bg-red-50 ${UI_THEME_TOKENS.text.tertiary} border-red-200 line-through dark:bg-red-900/20 dark:text-red-200 dark:border-red-800`
 const statsTokenInactiveIncludedClassName = `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.input.border}`
 const statsPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
-const statsSubpanelClassName = `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-y-auto`
+const statsSubpanelClassName = `${UI_RESPONSIVE_STATS_TOKEN_LIST_PANEL_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
 
 export default function GraphLayerWordFrequenciesSection({
   ui,
@@ -322,8 +325,8 @@ export default function GraphLayerWordFrequenciesSection({
             {!chartCollapsed && (
               <section className="mt-2">
                 <AutoHeightMiniBarChart
-                  containerClassName="overflow-x-auto h-16"
-                  minHeight={64}
+                  containerClassName={UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME}
+                  minHeight={STATS_MINI_CHART_MIN_HEIGHT_PX}
                   width={getStatsChartWidthPx(tokensByGraphLayer.length)}
                   logicalWidth={getStatsChartWidthPx(tokensByGraphLayer.length)}
                   scrollToKey={scrollToGraphLayerId}
@@ -366,8 +369,8 @@ export default function GraphLayerWordFrequenciesSection({
                         Top tokens for {row!.label}
                       </section>
                       <AutoHeightMiniBarChart
-                        containerClassName="mt-1 overflow-x-auto h-16"
-                        minHeight={64}
+                        containerClassName={`mt-1 ${UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME}`}
+                        minHeight={STATS_MINI_CHART_MIN_HEIGHT_PX}
                         width={w}
                         logicalWidth={w}
                         defaultBarColor={neutralBarColor}

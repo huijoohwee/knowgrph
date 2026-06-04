@@ -376,16 +376,6 @@ export default function AnimaticCanvas({
         .join(' '),
     [isTouchLaneViewport],
   )
-  const laneInlineScrollStyle = React.useMemo<React.CSSProperties | undefined>(
-    () =>
-      isTouchLaneViewport
-        ? {
-            touchAction: 'pan-x manipulation',
-          }
-        : undefined,
-    [isTouchLaneViewport],
-  )
-
   React.useEffect(() => {
     timingOverridesRef.current = timingOverrides
   }, [timingOverrides])
@@ -1621,7 +1611,6 @@ export default function AnimaticCanvas({
               aria-checked={runtimeAutoScrollEnabled}
               className={runtimeAutoScrollEnabled ? 'ant-switch ant-switch-checked' : 'ant-switch'}
               ant-click-animating="true"
-              style={{ marginBottom: 20 }}
               onClick={() => setRuntimeAutoScrollEnabled(current => !current)}
             >
               <section className="ant-switch-handle"></section>
@@ -1926,7 +1915,7 @@ export default function AnimaticCanvas({
                       {lane.label}
                     </section>
                     {selectedLaneId === lane.id ? (
-                      <section className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
+                      <section className={`${laneInlineScrollClassName} shrink-0`}>
                         {SELECTED_LANE_HINTS.map(hint => (
                           <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
                             {hint.label}
@@ -2091,7 +2080,6 @@ export default function AnimaticCanvas({
                       >
                         <section
                           className={`absolute inset-x-1.5 top-1 z-30 ${laneInlineScrollClassName} justify-end opacity-0 transition group-hover/beat:opacity-100 group-focus-within/beat:opacity-100`}
-                          style={laneInlineScrollStyle}
                         >
                           <IconButton
                             title={`Insert beat before ${beat.label}`}
@@ -2261,7 +2249,6 @@ export default function AnimaticCanvas({
                         />
                         <section
                           className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5 text-slate-400`}
-                          style={laneInlineScrollStyle}
                         >
                           <span>
                             {timelineModel.usesAbsoluteTiming
@@ -2275,7 +2262,6 @@ export default function AnimaticCanvas({
                         {beatLaneSummary.length > 0 ? (
                           <section
                             className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5`}
-                            style={laneInlineScrollStyle}
                           >
                             {visibleBeatLaneSummary.map(({ laneId, count }) => (
                               <button
@@ -2328,7 +2314,6 @@ export default function AnimaticCanvas({
                         {beat.tags.length > 0 ? (
                           <section
                             className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5`}
-                            style={laneInlineScrollStyle}
                           >
                             {beat.tags.slice(0, 3).map(tag => (
                               <span
@@ -2352,7 +2337,6 @@ export default function AnimaticCanvas({
                         {isActiveBeat ? (
                           <section
                             className={`relative z-10 ${laneInlineScrollClassName} text-[9px] text-cyan-100`}
-                            style={laneInlineScrollStyle}
                           >
                             {SELECTED_BEAT_HINTS.map(hint => (
                               <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
@@ -2488,11 +2472,10 @@ export default function AnimaticCanvas({
                               <section className={`timeline-editor-action-effect ${actionEffectClassName}`} aria-label={`${lane.label} action ${item.title}`}>
                                 <section
                                   className={`${laneInlineScrollClassName} min-w-0 w-full justify-center px-2 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}
-                                  style={laneInlineScrollStyle}
                                 >
                                   <span className={`${actionEffectClassName}-text min-w-0 truncate text-[9px] leading-3.5 font-normal`}>{item.title}</span>
                                   {selectedItemNodeId === item.nodeId ? (
-                                    <section className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
+                                    <section className={`${laneInlineScrollClassName} shrink-0`}>
                                       {SELECTED_ITEM_HINTS.map(hint => (
                                         <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
                                           {hint.label}

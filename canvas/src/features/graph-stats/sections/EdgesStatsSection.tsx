@@ -9,7 +9,9 @@ import { formatNumber, getEdgeCooccurrenceForStats, getEdgeWeightForStats } from
 import type { SelectionSnapshot, StatsEdge, StatsUiClasses, TokenCount } from '@/features/graph-stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
-import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { STATS_MINI_CHART_MIN_HEIGHT_PX } from '@/features/graph-stats/statsMiniChart'
+import { GRAPH_STATS_METRIC_GRID_CLASS_NAME } from '@/features/graph-stats/graphStatsResponsiveClasses'
+import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME, UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export default function EdgesStatsSection({
   ui,
@@ -80,7 +82,7 @@ export default function EdgesStatsSection({
             id: <span className={uiPanelMonospaceTextClass}>{String(selectedEdge.id)}</span> · label:{' '}
             <span className={uiPanelMonospaceTextClass}>{getEdgeLabelForDisplay(selectedEdge) || ''}</span>
           </section>
-          <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'mt-2 grid grid-cols-2 gap-2', UI_THEME_TOKENS.text.primary].join(' ')}>
+          <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'mt-2', GRAPH_STATS_METRIC_GRID_CLASS_NAME, UI_THEME_TOKENS.text.primary].join(' ')}>
             <section className="flex flex-col">
               <span className={['uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                 {similarityMetricLabel} weight
@@ -156,8 +158,8 @@ export default function EdgesStatsSection({
               }}
             >
               <AutoHeightMiniBarChart
-                containerClassName="overflow-x-auto h-16"
-                minHeight={64}
+                containerClassName={UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME}
+                minHeight={STATS_MINI_CHART_MIN_HEIGHT_PX}
                 width={getStatsChartWidthPx(topSemanticEdges.length)}
                 logicalWidth={getStatsChartWidthPx(topSemanticEdges.length)}
                 scrollToKey={scrollToEdgeId}
@@ -199,8 +201,8 @@ export default function EdgesStatsSection({
                 Top tokens (edge endpoints)
               </section>
               <AutoHeightMiniBarChart
-                containerClassName="mt-1 overflow-x-auto h-16"
-                minHeight={64}
+                containerClassName={`mt-1 ${UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME}`}
+                minHeight={STATS_MINI_CHART_MIN_HEIGHT_PX}
                 width={Math.max(140, selectedEdgeTokenCounts.length * 12)}
                 logicalWidth={Math.max(140, selectedEdgeTokenCounts.length * 12)}
                 defaultBarColor={neutralBarColor}

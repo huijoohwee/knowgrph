@@ -9,6 +9,8 @@ export const RESEARCH_THESIS_KGC_APPLY_OWNER = 'canvas/src/features/chat/chatKgc
 
 export const RESEARCH_THESIS_SOURCE_OWNER_PATHS = [
   'canvas/src/features/research-agent/researchThesisContract.ts',
+  'canvas/src/features/research-agent/researchCompilerPanelModel.ts',
+  'canvas/src/features/panels/views/ResearchCompilerView.tsx',
   'canvas/src/features/research-agent/researchThesisTypes.ts',
   'cloudflare/workers/knowgrph-research/index.ts',
   'canvas/src/features/queryable-corpus/corpusGraph.ts',

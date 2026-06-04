@@ -1,4 +1,5 @@
 import type { WidgetRegistryField, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { CHAT_DEFAULT_MODEL, CHAT_OPENAI_MODEL_OPTIONS } from '@/lib/chatEndpoint'
 
 export type OpenAiApiDocRow = {
   key: string
@@ -25,12 +26,11 @@ type WidgetRowBinding = {
   field?: WidgetRegistryField
 }
 
-const OPENAI_TEXT_WIDGET_MODEL_OPTIONS: WidgetRegistryFieldOption[] = [
-  { label: 'gpt-5.4-nano (Default)', value: 'gpt-5.4-nano' },
-  { label: 'gpt-5.4-mini', value: 'gpt-5.4-mini' },
-  { label: 'gpt-5.4', value: 'gpt-5.4' },
-  { label: 'gpt-5.5', value: 'gpt-5.5' },
-]
+const OPENAI_TEXT_WIDGET_MODEL_OPTIONS: WidgetRegistryFieldOption[] = CHAT_OPENAI_MODEL_OPTIONS.map((value, index) => ({
+  label: index === 0 ? `${value} (Default)` : value,
+  value,
+}))
+const OPENAI_TEXT_WIDGET_MODEL_VALUE = `Required. ${CHAT_OPENAI_MODEL_OPTIONS.join(' | ')}.`
 
 const OPENAI_REASONING_EFFORT_OPTIONS: WidgetRegistryFieldOption[] = [
   { label: 'minimal', value: 'minimal' },
@@ -263,7 +263,7 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
   'openaiApi.model': {
     key: 'model',
     typeLabel: 'enum',
-    value: 'Required. gpt-5.4-nano | gpt-5.4-mini | gpt-5.4 | gpt-5.5.',
+    value: OPENAI_TEXT_WIDGET_MODEL_VALUE,
     valueKey: 'chatModel',
     responsibility: 'Model resolver -> choose the target Responses model -> keep global defaults, workflow registry drafts, and widget overrides on the same execution model.',
     searchHints: ['model required responses api'],
@@ -479,7 +479,7 @@ export const OPENAI_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     contractionNote: 'No key narrows execution to server-managed auth only.',
   },
   model: {
-    defaultValue: 'gpt-5.4-nano',
+    defaultValue: CHAT_DEFAULT_MODEL,
     expansionNote: 'More capable models expand depth, latency, and cost tradeoffs.',
     contractionNote: 'One default model narrows execution variance.',
   },

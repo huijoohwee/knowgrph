@@ -10,8 +10,8 @@ Knowgrph now ships a hardened, implementation-accurate agent-ready surface acros
 - implementation-accurate MCP and agent-ready PRD/TAD documentation
 
 This rollout keeps the existing MainPanel `mcp` / `integrations` -> FloatingPanel Chat ->
-Markdown YAML frontmatter -> Canvas pipeline as the canonical upstream flow. No second MCP-only
-graph pipeline was introduced.
+YAML frontmatter or MCP structured response -> Editor Workspace -> Canvas pipeline as the
+canonical upstream flow. No second MCP-only graph pipeline was introduced.
 
 ## Shipped Contract
 
@@ -108,7 +108,7 @@ Expected result:
 
 - Do not add write-capable tools to browser WebMCP or Pages HTTP MCP without explicit auth and
   workspace-write design
-- Do not fork a second LLM output -> Markdown -> Canvas pipeline outside the existing chat submit,
-  validation, finalize, parser, and apply chain
+- Do not fork a second LLM output -> Markdown or MCP structured response -> Editor Workspace ->
+  Canvas pipeline outside the existing chat submit, validation, finalize, parser, and apply chain
 - Do not reintroduce parallel grouping authoring aliases beside canonical `flow.subgraphs`
 - Do not treat the publish mirror as a source-authoritative implementation surface

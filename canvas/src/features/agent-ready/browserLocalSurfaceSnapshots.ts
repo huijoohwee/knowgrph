@@ -81,6 +81,7 @@ export type LocalChatPipelineKgcValidationSnapshot = {
   failedMessage: string | null
   correctionPromptPreview: string | null
   hasStructuredKgc: boolean
+  hasStructuredResponseSurface: boolean
   hasYamlFrontmatter: boolean
   validatedKgcLength: number
 }
@@ -161,6 +162,7 @@ const DEFAULT_LOCAL_CHAT_PIPELINE_KGC_VALIDATION_SNAPSHOT: LocalChatPipelineKgcV
   failedMessage: null,
   correctionPromptPreview: null,
   hasStructuredKgc: false,
+  hasStructuredResponseSurface: false,
   hasYamlFrontmatter: false,
   validatedKgcLength: 0,
 })

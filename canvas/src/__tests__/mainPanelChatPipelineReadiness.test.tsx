@@ -1,27 +1,22 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Simulate } from 'react-dom/test-utils'
 import FloatingPanelChat from '@/features/chat/FloatingPanelChat'
 import {
   readLocalChatPipelineSurfaceSnapshot,
   resetBrowserLocalSurfaceSnapshotsForTests,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { inspectLocalChatPipelineState } from '@/features/agent-ready/localChatPipelineStateInspection'
-import { CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
+import { CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
 import { useSettingsChatAssist } from '@/features/panels/views/useSettingsChatAssist'
 import { useSettingsSync } from '@/features/panels/views/useSettingsSync'
 import { CHAT_KTV_ROW_KEYS } from '@/features/panels/views/settingsView.constants'
+import { renderSettingInput } from '@/features/settings/ui'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
-
-const findButtonByLabel = (container: HTMLElement, label: string): HTMLButtonElement => {
-  const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
-  const match = buttons.find(button => String(button.textContent || '').includes(label))
-  if (!match) throw new Error(`expected button with label ${JSON.stringify(label)}`)
-  return match
-}
 
 export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspection() {
   const storage = new MemoryStorage()
@@ -71,7 +66,17 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
       })
       return (
         <section>
-          <section data-row="provider">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.provider)}</section>
+          <section data-row="provider">
+            {renderSettingInput(
+              'chatProvider',
+              'string',
+              true,
+              values,
+              setValues,
+              dirtyRef,
+              [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_LM_STUDIO],
+            )}
+          </section>
           <section data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</section>
         </section>
       )
@@ -102,12 +107,16 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
     }
 
     const providerRow = mainPanelContainer.querySelector('[data-row="provider"]') as HTMLElement | null
-    if (!providerRow) {
-      throw new Error(`expected settings harness provider row, got ${JSON.stringify(mainPanelContainer.textContent || '')}`)
+    const providerSelect = providerRow?.querySelector('select') as HTMLSelectElement | null
+    if (!providerSelect) {
+      throw new Error(`expected chatProvider Value dropdown, got ${JSON.stringify(providerRow?.textContent || '')}`)
     }
 
     await act(async () => {
-      findButtonByLabel(providerRow, 'Local').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLSelectElement.prototype, 'value')?.set
+      if (!valueSetter) throw new Error('expected DOM select value setter')
+      valueSetter.call(providerSelect, CHAT_PROVIDER_LM_STUDIO)
+      Simulate.change(providerSelect)
       await waitForFrames(dom.window as unknown as Window, 3)
     })
     await act(async () => {

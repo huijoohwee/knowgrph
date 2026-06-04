@@ -33,8 +33,8 @@ import {
   VOXEL_IDLE_ROTATE_SPEED_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 import ThreeSizingAndWidthControls from '@/features/panels/views/shared/ThreeSizingAndWidthControls'
+import { THREE_VIEW_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/threeViewResponsiveClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-
 const keyLabelClassName = UI_THEME_TOKENS.text.primary
 const valueLabelClassName = UI_THEME_TOKENS.text.secondary
 const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
@@ -67,7 +67,7 @@ export default function ThreeViewLayoutSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <section className="grid grid-cols-2 gap-3">
+      <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Node Motion</span>}

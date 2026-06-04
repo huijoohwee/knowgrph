@@ -3,7 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, LS_KEYS } from '@/lib/config'
 import { CHAT_INPUT_APPEND_EVENT } from '@/features/canvas/utils'
 import { getLocalStorage, lsSetJson, readJsonFromStorage, writeJsonToStorage } from '@/lib/persistence'
-import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
+import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
@@ -86,7 +86,7 @@ export default function FloatingPanelChat() {
   const chatGraphSummaryMaxTokens = useGraphStore(s => s.chatGraphSummaryMaxTokens)
   const chatGuidelineDigestMaxTokens = useGraphStore(s => s.chatGuidelineDigestMaxTokens)
   const chatSystemPrompt = useGraphStore(s => s.chatSystemPrompt)
-  const chatContextScope = useGraphStore(s => s.chatContextScope || 'workspace')
+  const chatContextScope = useGraphStore(s => s.chatContextScope || 'hybrid')
   const setChatModel = useGraphStore(s => s.setChatModel)
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
@@ -576,7 +576,7 @@ export default function FloatingPanelChat() {
     chatGraphSummaryMaxTokens,
     chatGuidelineDigestMaxTokens,
     chatSystemPrompt,
-    chatContextScope: (chatContextScope === 'selection' || chatContextScope === 'hybrid') ? chatContextScope : 'workspace',
+    chatContextScope: (chatContextScope === 'selection' || chatContextScope === 'workspace') ? chatContextScope : 'hybrid',
     chatStorageTarget,
     chatLocalStorageRootPath,
     chatKnowgrphWorkspacePath,
@@ -657,7 +657,7 @@ export default function FloatingPanelChat() {
 
   return (
     <section className="h-full flex flex-col">
-      <section ref={scrollRef} className={`${FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
+      <section ref={scrollRef} className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
         <FloatingPanelChatMessagesSection
           messages={messages}
           isLoading={isLoading}

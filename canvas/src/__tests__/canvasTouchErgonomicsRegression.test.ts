@@ -334,10 +334,10 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const importUrlPromptText = readUtf8(path.resolve(root, 'src/features/toolbar/ImportUrlPrompt.tsx'))
   const cssText = readUtf8(path.resolve(root, 'src/index.css'))
   const responsiveToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-toolbar.css'))
+  const responsiveCanvasToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-canvas-toolbar.css'))
   const strybldrTimelineBottomPanelText = readUtf8(path.resolve(root, 'src/features/strybldr/StrybldrTimelineBottomPanel.tsx'))
-
-  if (!toolbarText.includes("touchAction: 'pan-x manipulation'")) {
-    throw new Error('expected toolbar to allow horizontal touch scrolling without shrinking tap targets')
+  if (!responsiveToolbarCssText.includes('touch-action: pan-x') || responsiveToolbarCssText.includes('touch-action: pan-x manipulation') || toolbarText.includes("touchAction: 'pan-x manipulation'")) {
+    throw new Error('expected toolbar touch scrolling behavior to live in shared CSS with a valid pan-x touch-action instead of Toolbar inline style')
   }
   if (!toolbarText.includes("uiToolbarTouchRowScrollClassName")) {
     throw new Error('expected toolbar to opt into the shared touch row-scroll SSOT on narrow or coarse viewports')
@@ -596,7 +596,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !responsiveElementClassesText.includes('UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
-    !responsiveElementClassesText.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') ||
+    !responsiveElementClassesText.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') || !responsiveElementClassesText.includes('UI_RESPONSIVE_PANEL_TABLE_ICON_ACTION_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_CONTROL_ROW_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_SPLIT_CONTROL_HALF_CLASSNAME') ||
@@ -1125,7 +1125,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     [toolMenuText, designFloatingPanelText].some(text => text.includes('menuWidthClass="w-56"')) ||
     ![mainPanelFlowEditorManagerHeaderText, flowEditorSpecificationTabText].every(text => text.includes('UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     [mainPanelFlowEditorManagerHeaderText, flowEditorSpecificationTabText].some(text => text.includes('menuWidthClass="w-44"')) ||
-    !historyViewText.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME') ||
+    (historyViewText.includes('ToolbarDropdownSelect') && !historyViewText.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     !historyViewText.includes('UI_RESPONSIVE_HISTORY_RECENT_FILE_LOCATION_CLASSNAME') ||
     historyViewText.includes('menuWidthClass="w-40"') ||
     historyViewText.includes('max-w-[200px]') ||
@@ -1565,11 +1565,11 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected schema serialization editor heights to live in shared responsive owner classes')
   }
   if (
-    !floatingPanelChatSectionsText.includes('UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME') ||
-    !grabMapsDiscoveryWidgetSectionText.includes('UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME') ||
-    [floatingPanelChatSectionsText, grabMapsDiscoveryWidgetSectionText].some(text => text.includes('h-[88px]'))
+    !floatingPanelChatSectionsText.includes('UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME') || !floatingPanelChatSectionsText.includes('UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME') ||
+    !responsiveToolbarCssText.includes('.kg-floating-chat-message-bubble') || !grabMapsDiscoveryWidgetSectionText.includes('UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME') ||
+    floatingPanelChatSectionsText.includes('max-w-[85%]') || [floatingPanelChatSectionsText, grabMapsDiscoveryWidgetSectionText].some(text => text.includes('h-[88px]'))
   ) {
-    throw new Error('expected chat and discovery multiline text input editor heights to live in the shared responsive owner class')
+    throw new Error('expected chat message bubble width and chat/discovery multiline text input editor heights to live in shared responsive owner classes')
   }
   if (
     !floatingPanelChatSectionsText.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
@@ -1583,11 +1583,11 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected compact panel field input sizing to live in the shared responsive owner class')
   }
   if (
-    !nodeOverlayEditorSchemaTableText.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') ||
-    !responsiveToolbarCssText.includes('.kg-responsive-panel-table-field-input') ||
+    !nodeOverlayEditorSchemaTableText.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') || !nodeOverlayEditorSchemaTableText.includes('UI_RESPONSIVE_PANEL_TABLE_ICON_ACTION_CLASSNAME') ||
+    !responsiveToolbarCssText.includes('.kg-responsive-panel-table-field-input') || !responsiveToolbarCssText.includes('.kg-responsive-panel-table-icon-action') ||
     !responsiveToolbarCssText.includes('--kg-responsive-panel-table-field-input-height') ||
     !responsiveToolbarCssText.includes('--kg-responsive-panel-table-field-input-padding-inline') ||
-    nodeOverlayEditorSchemaTableText.includes(stalePanelTableFieldInputSizingClass())
+    nodeOverlayEditorSchemaTableText.includes(stalePanelTableFieldInputSizingClass()) || nodeOverlayEditorSchemaTableText.includes("style={{ width: '32px', height: '32px' }}")
   ) {
     throw new Error('expected panel table field input sizing to live in the shared responsive owner class')
   }
@@ -1750,9 +1750,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
       graphStatsCentralitySectionText,
       datasetInspectorSectionText,
     ].some(text => text.includes(staleCompactControlPaddingClass())) ||
-    datasetInspectorSectionText.includes(staleCompactChipPaddingClass())
+    datasetInspectorSectionText.includes(staleCompactChipPaddingClass()) || !datasetInspectorSectionText.includes("DATASET_INSPECTOR_STATS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3'") || datasetInspectorSectionText.includes('grid grid-cols-3 gap-2')
   ) {
-    throw new Error('expected compact inline control and chip padding to live in shared responsive owner classes')
+    throw new Error('expected compact inline controls, chips, and Dataset Inspector stats grid to live in responsive owner classes')
   }
   if (
     !markdownFileTreeRowButtonText.includes('UI_RESPONSIVE_COMPACT_LIST_ROW_CLASSNAME') ||
@@ -2121,7 +2121,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_MENU_PANEL_CLASSNAME') ||
     !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_FRAME_CLASSNAME') ||
     !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME') ||
-    !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME') ||
+    !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME') || !markdownDataViewTableViewText.includes('MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS') ||
     !markdownDataViewKanbanCardText.includes('UI_RESPONSIVE_DATA_VIEW_COMPACT_MENU_PANEL_CLASSNAME') ||
     !markdownDataViewKanbanCardText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
     !markdownDataViewKanbanGroupText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
@@ -2161,7 +2161,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     ) ||
     markdownDataViewTableViewText.includes('max-h-[70vh]') ||
     markdownDataViewTableViewText.includes('max-w-[24rem]') ||
-    markdownDataViewTableViewText.includes('w-24 max-w-[55%]') ||
+    markdownDataViewTableViewText.includes('w-24 max-w-[55%]') || markdownDataViewTableViewText.includes('min-h-[1lh]') ||
     workspaceDataViewSettingsPropertiesText.includes('h-[2px]') ||
     workspaceDataViewSettingsPropertiesText.includes(staleDataViewPropertyRowPaddingClass()) ||
     workspaceDataViewHeaderText.includes(staleDataViewSearchFormSizingClass())
@@ -2258,14 +2258,14 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !geoJsonGeoPanelRendererText.includes('UI_RESPONSIVE_MARKDOWN_GEO_PANEL_EMPTY_CLASSNAME') ||
     !geoJsonGeoPanelRendererText.includes('UI_RESPONSIVE_MARKDOWN_GEO_PANEL_FRAME_CLASSNAME') ||
     !geoJsonGeoPanelRendererText.includes('UI_RESPONSIVE_MARKDOWN_GEO_PANEL_PRESENTATION_FRAME_CLASSNAME') ||
-    geoJsonGeoPanelRendererText.includes('h-[120px]') ||
+    geoJsonGeoPanelRendererText.includes('w-[min(1200px') || geoJsonGeoPanelRendererText.includes('h-[min(720px') || geoJsonGeoPanelRendererText.includes('h-[120px]') ||
     geoJsonGeoPanelRendererText.includes('h-[320px]') ||
     geoJsonGeoPanelRendererText.includes('h-[420px]')
   ) {
     throw new Error('expected markdown GeoJSON preview frames to use shared responsive viewport-safe height owners instead of local fixed height literals')
   }
-  if (!markdownInlineMenusText.includes('uiToolbarRowScrollClassName') || markdownInlineMenusText.includes('flex flex-wrap gap-1')) {
-    throw new Error('expected inline markdown bubble menus to scroll on one toolbar-owned row')
+  if (!markdownInlineMenusText.includes('uiToolbarRowScrollListClassName') || markdownInlineMenusText.includes('flex flex-wrap gap-1')) {
+    throw new Error('expected inline markdown bubble menus to scroll on one toolbar-owned reset list row')
   }
   if (
     !markdownBubbleToolbarText.includes('allowOverflowVisible') ||
@@ -2274,7 +2274,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !markdownBubbleToolbarText.includes('uiToolbarTouchRowScrollClassName') ||
     !markdownBubbleToolbarText.includes('UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME') ||
     !markdownBubbleToolbarText.includes('markdownBubbleToolbarIconClassName') ||
-    !markdownBubbleToolbarText.includes("touchAction: 'pan-x manipulation'") ||
+    !responsiveToolbarCssText.includes('touch-action: pan-x') || markdownBubbleToolbarText.includes("touchAction: 'pan-x") ||
     markdownBubbleToolbarText.includes('flex flex-wrap items-center gap-1') ||
     markdownBubbleToolbarText.includes('w-3 h-3') ||
     markdownBubbleToolbarText.includes('h-3 w-3')
@@ -2294,7 +2294,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!markdownInlineMenusText.includes('UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME') || markdownInlineMenusText.includes('max-h-24')) {
     throw new Error('expected Markdown inline suggestion menus to use the shared responsive menu-list owner')
   }
-  if (!responsiveToolbarCssText.includes('.App-toolbar--touch-row-scroll') || responsiveToolbarCssText.includes('.App-toolbar--touch-wrap')) {
+  if (!responsiveToolbarCssText.includes('.App-toolbar--touch-row-scroll') || !responsiveToolbarCssText.includes('width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)') || responsiveToolbarCssText.includes('.App-toolbar--touch-wrap') || toolbarText.includes("width: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)'")) {
     throw new Error('expected toolbar mobile row-scroll behavior to stay centralized in shared CSS without stale wrap classes')
   }
   if (!responsiveToolbarCssText.includes('scroll-snap-type: x proximity') || !responsiveToolbarCssText.includes('scroll-snap-align: center')) {
@@ -2328,14 +2328,14 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-toolbar-row') || !responsiveToolbarCssText.includes('background: var(--kg-panel-bg)') || !responsiveToolbarCssText.includes('border-top: 1px solid var(--kg-border)')) {
     throw new Error('expected Editor Workspace mobile toolbar dock to reuse existing panel theme tokens instead of overlaying editor content')
   }
-  if (!canvasText.includes('kg-workspace-overlay-canvas-toolbar')) {
+  if (!canvasText.includes('UI_RESPONSIVE_CANVAS_WORKSPACE_TOOLBAR_DOCK_CLASSNAME')) {
     throw new Error('expected editor-mode canvas toolbar to use a dedicated responsive dock class')
   }
   if (
     !cssText.includes('--kg-canvas-viewport-edge-gap: 0.5rem') ||
-    !canvasText.includes('var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap)') ||
-    !responsiveToolbarCssText.includes('var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap)') ||
-    !strybldrTimelineBottomPanelText.includes('var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap)')
+    !responsiveCanvasToolbarCssText.includes('var(--kg-safe-top) + var(--kg-canvas-viewport-edge-gap)') ||
+    !responsiveCanvasToolbarCssText.includes('var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap)') || !responsiveCanvasToolbarCssText.includes('.kg-canvas-bottom-panel') ||
+    !strybldrTimelineBottomPanelText.includes('UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME') || strybldrTimelineBottomPanelText.includes("bottom: 'calc(var(--kg-safe-bottom)") || strybldrTimelineBottomPanelText.includes("width: 'min(calc(100% - 1.5rem")
   ) {
     throw new Error('expected Canvas Toolbar and Timeline bottom panel viewport-edge spacing to share the same CSS token')
   }
@@ -2396,19 +2396,19 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-collapsible-toolbar-overflow-items .kg-row-scroll') || !responsiveToolbarCssText.includes('min-inline-size: 0')) {
     throw new Error('expected collapsed toolbar same-row scroll containers to stay bounded by the shared overflow shell')
   }
-  if (!responsiveToolbarCssText.includes('.kg-workspace-overlay-canvas-toolbar')) {
+  if (!responsiveCanvasToolbarCssText.includes('.kg-workspace-overlay-canvas-toolbar')) {
     throw new Error('expected editor-mode canvas toolbar mobile dock to stay centralized in shared CSS')
   }
-  if (!canvasText.includes('kg-canvas-toolbar-dock') || !responsiveToolbarCssText.includes('.kg-canvas-toolbar-dock')) {
+  if (!responsiveCanvasToolbarCssText.includes('.kg-canvas-toolbar-dock')) {
     throw new Error('expected primary canvas toolbar to share the mobile thumb-reachable dock owner')
   }
   if (!detailsMenuText.includes('clampOverlayTopLeftFullyInViewport') || !detailsMenuText.includes('viewportHeight')) {
     throw new Error('expected shared details menus to clamp portal placement against full viewport bounds')
   }
-  if (!anchorOverlayText.includes('useState<HTMLElement | null>(() => createPortalRoot())') || !anchorOverlayText.includes('resolveOverlayVerticalTop')) {
+  if (!anchorOverlayText.includes('useBodyPortalRoot(open, { createBeforeOpen: true })') || !anchorOverlayText.includes('resolveOverlayVerticalTop')) {
     throw new Error('expected shared dropdown overlays to render from the first open and use viewport-aware vertical placement')
   }
-  if (!anchorOverlayText.includes('allowOverflowVisible') || !anchorOverlayText.includes("overflow: allowOverflowVisible ? 'visible' : 'auto'")) {
+  if (!anchorOverlayText.includes('allowOverflowVisible') || !anchorOverlayText.includes("overflow: allowOverflowVisible ? 'visible' : undefined")) {
     throw new Error('expected shared AnchorOverlay to support visible-overflow menus when floating selection toolbars expand outside the root panel')
   }
   if (!anchorOverlayText.includes('kg-anchor-overlay') || !detailsMenuText.includes('kg-details-menu-portal') || !responsiveToolbarCssText.includes('.kg-anchor-overlay')) {
@@ -2426,10 +2426,10 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!overlayPlacementText.includes('spaceBelow') || !overlayPlacementText.includes('spaceAbove') || !overlayPlacementText.includes('scrollHeight')) {
     throw new Error('expected overlay placement helper to measure real menu height and flip away from clipped viewport edges')
   }
-  if (!detailsMenuText.includes('maxHeight') || !detailsMenuText.includes('overscrollBehavior')) {
-    throw new Error('expected shared details menus to cap height and scroll inside the mobile viewport')
+  if (detailsMenuText.includes('maxHeight') || detailsMenuText.includes('overscrollBehavior') || detailsMenuText.includes('WebkitOverflowScrolling') || anchorOverlayText.includes("maxWidth: 'calc(100vw") || anchorOverlayText.includes("maxHeight: 'var(--kg-overlay-max-height") || anchorOverlayText.includes('WebkitOverflowScrolling')) {
+    throw new Error('expected shared overlay menus to leave viewport max sizing and scroll policy in shared CSS')
   }
-  if (!anchorOverlayText.includes('var(--kg-overlay-max-height') || !detailsMenuText.includes('var(--kg-overlay-max-height')) {
+  if (anchorOverlayText.includes('var(--kg-overlay-max-height') || detailsMenuText.includes('var(--kg-overlay-max-height') || !responsiveToolbarCssText.includes('max-height: var(--kg-overlay-max-height)')) {
     throw new Error('expected shared overlay portals to reuse the mobile bottom-dock-aware max-height token')
   }
   if (!responsiveToolbarCssText.includes('--kg-mobile-bottom-dock-clearance') || !responsiveToolbarCssText.includes('--kg-overlay-max-height')) {

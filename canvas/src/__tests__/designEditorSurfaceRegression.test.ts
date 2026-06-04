@@ -15,8 +15,15 @@ export function testDesignRendererMountsEditorChromeAndTokensPanel() {
 
 export function testDesignEditorChromeUsesExistingStoreActions() {
   const chrome = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'DesignCanvasEditorChrome.tsx'), 'utf8')
+  const responsiveCss = readFileSync(resolve(process.cwd(), 'src', 'styles', 'responsive-toolbar.css'), 'utf8')
   for (const snippet of ['setCanvasPointerMode2d', 'undoDesignHistory', 'redoDesignHistory', 'dispatchRuntimeFitToViewSoon']) {
     if (!chrome.includes(snippet)) throw new Error(`expected Design editor chrome to reuse existing action: ${snippet}`)
+  }
+  if (!chrome.includes('UI_RESPONSIVE_DESIGN_CANVAS_EDITOR_CHROME_CLASSNAME') || chrome.includes('top-[calc(var(--kg-safe-top)+6.75rem)]')) {
+    throw new Error('expected Design editor chrome geometry to use the shared responsive class owner')
+  }
+  if (!responsiveCss.includes('.kg-design-canvas-editor-chrome') || !responsiveCss.includes('--kg-design-canvas-editor-chrome-top-offset') || !responsiveCss.includes('--kg-canvas-viewport-edge-gap')) {
+    throw new Error('expected Design editor chrome offset to be tokenized and mobile safe-area aware in shared CSS')
   }
 }
 

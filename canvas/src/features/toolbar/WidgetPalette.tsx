@@ -26,6 +26,7 @@ import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelM
 import { getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { uiToolbarColumnMenuListClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function defaultLabelForEntry(entry: WidgetRegistryEntry): string {
   return getWidgetRegistryEntryLabel({
@@ -58,7 +59,7 @@ export default function WidgetPalette(args: {
         </p>
       </header>
       <nav className="min-h-0 overflow-auto p-2" aria-label="Palette items">
-        <menu className="m-0 p-0 list-none flex flex-col gap-1" aria-label="Widget entries">
+        <menu className={uiToolbarColumnMenuListClassName} aria-label="Widget entries">
           {entries.length === 0 ? (
             <li className={`px-2 py-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>No enabled entries.</li>
           ) : (

@@ -14,6 +14,7 @@ import {
   UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import {
+  CHAT_DEFAULT_MODEL,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_PROVIDER_OPENAI,
   buildChatProxyHeaders,
@@ -279,7 +280,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
     () => (selectedDiscoveryNode?.properties || null) as Record<string, unknown> | null,
     [selectedDiscoveryNode],
   )
-  const modelId = readString(settingsValues['maps.grabmaps.mcp.discovery.chatModel'], 'gpt-5.4-nano')
+  const modelId = readString(settingsValues['maps.grabmaps.mcp.discovery.chatModel'], CHAT_DEFAULT_MODEL)
 
   const runDiscovery = React.useCallback(async () => {
     const trimmedQuery = queryText.trim()

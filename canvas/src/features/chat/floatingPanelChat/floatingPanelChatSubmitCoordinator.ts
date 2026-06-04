@@ -144,6 +144,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       failedMessage: null,
       correctionPromptPreview: null,
       hasStructuredKgc: false,
+      hasStructuredResponseSurface: false,
       hasYamlFrontmatter: false,
       validatedKgcLength: 0,
     })

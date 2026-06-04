@@ -52,12 +52,12 @@ export function testTextWidgetOutputSrcDocEscapesRawHtmlWhileRenderingMarkdown()
 export function testMarkdownViewerDocumentNormalizesGenericDivContainers() {
   const srcDoc = buildTextWidgetOutputSrcDoc({
     title: 'Semantic HTML guard',
-    text: ['A generic HTML division element should stay readable as text:', '', '<section><span>Plain text</span></section>'].join('\n'),
+    text: ['A generic HTML division element should stay readable as text:', '', '<div><span>Plain text</span></div>'].join('\n'),
   })
-  if (/<section\b|<\/div>/i.test(srcDoc)) {
+  if (/<div\b|<\/div>/i.test(srcDoc)) {
     throw new Error(`expected generated markdown viewer srcDoc to avoid generic HTML division element tags, got: ${srcDoc}`)
   }
-  if (!srcDoc.includes('&lt;div&gt;')) {
+  if (!srcDoc.includes('&lt;div&gt;&lt;span&gt;Plain text&lt;/span&gt;&lt;/div&gt;')) {
     throw new Error('expected raw markdown div text to remain escaped and visible')
   }
   if (!srcDoc.includes('<main>') || !srcDoc.includes('<section data-kg-rich-media-markdown-srcdoc="1">')) {

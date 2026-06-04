@@ -2,6 +2,8 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { readOverlayElementSize, resolveOverlayVerticalTop } from '@/lib/ui/overlayPlacement'
+import { refreshOverlayPositionAfterMount, useOverlayRepositionObservers } from '@/lib/ui/overlayReposition'
+import { buildNonBlockingPortalLayerStyle, withInteractivePortalContentStyle } from '@/lib/ui/overlayPortalStyle'
 import { Z_INDEX_MENU } from '@/lib/ui/zIndex'
 
 export type DetailsMenuApi = {
@@ -76,11 +78,6 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     const next: React.CSSProperties = {
       position: 'fixed',
       width: 'max-content',
-      maxWidth: 'calc(100vw - var(--kg-safe-left, 0px) - var(--kg-safe-right, 0px) - 1rem)',
-      maxHeight: 'var(--kg-overlay-max-height, calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 1rem))',
-      overflow: 'auto',
-      overscrollBehavior: 'contain',
-      WebkitOverflowScrolling: 'touch',
     }
     if (viewportWidth > 0 && viewportHeight > 0) {
       const clamped = clampOverlayTopLeftFullyInViewport({
@@ -100,7 +97,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     }
     setPortalStyle(prev => {
       if (!prev) return next
-      if (prev.top === next.top && prev.left === next.left && prev.maxWidth === next.maxWidth && prev.maxHeight === next.maxHeight) return prev
+      if (prev.top === next.top && prev.left === next.left) return prev
       return next
     })
   }, [props.portalGapPx, props.portalPlacement])
@@ -174,28 +171,11 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     }
   }, [close, isOpen, props.portal, updatePortalPosition])
 
-  React.useEffect(() => {
-    if (!props.portal || !isOpen) return
-    const root = portalRootRef.current
-    if (!root) return
-    updatePortalPosition()
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => updatePortalPosition())
-    observer.observe(root)
-    const child = root.firstElementChild
-    if (child instanceof HTMLElement) observer.observe(child)
-    return () => observer.disconnect()
-  }, [isOpen, props.portal, updatePortalPosition])
-
-  React.useEffect(() => {
-    if (!props.portal || !isOpen) return
-    const root = portalRootRef.current
-    if (!root) return
-    if (typeof MutationObserver === 'undefined') return
-    const observer = new MutationObserver(() => updatePortalPosition())
-    observer.observe(root, { attributes: true, childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [isOpen, props.portal, updatePortalPosition])
+  useOverlayRepositionObservers({
+    open: props.portal === true && isOpen,
+    rootRef: portalRootRef,
+    updatePosition: updatePortalPosition,
+  })
 
   const triggerClickCapture = props.shouldToggleFromSummaryEvent
     ? (e: React.MouseEvent<HTMLElement>) => {
@@ -234,6 +214,30 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       {props.portal ? null : menu}
     </section>
   )
+  const portalMenu =
+    props.portal && isOpen && menu && portalStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <section style={buildNonBlockingPortalLayerStyle(Z_INDEX_MENU)}>
+            <section
+              ref={el => {
+                portalRootRef.current = el
+                if (!el) return
+                refreshOverlayPositionAfterMount(updatePortalPosition)
+              }}
+              style={withInteractivePortalContentStyle(portalStyle)}
+              className="kg-details-menu-portal"
+              data-kg-details-menu-portal="true"
+              onPointerDownCapture={props.onMenuPointerDownCapture}
+              onMouseDownCapture={props.onMenuMouseDownCapture}
+              onPointerUpCapture={props.onMenuPointerUpCapture}
+              onMouseUpCapture={props.onMenuMouseUpCapture}
+            >
+              {menu}
+            </section>
+          </section>,
+          document.body,
+        )
+      : null
 
   return usesSummaryTrigger ? (
     <details
@@ -249,35 +253,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
         {props.summary}
       </summary>
       {inlineMenu}
-      {props.portal && isOpen && menu && portalStyle
-        ? createPortal(
-            <section style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
-              <section
-                ref={el => {
-                  portalRootRef.current = el
-                  if (!el) return
-                  updatePortalPosition()
-                  if (typeof window.requestAnimationFrame === 'function') {
-                    window.requestAnimationFrame(() => {
-                      updatePortalPosition()
-                      window.requestAnimationFrame(updatePortalPosition)
-                    })
-                  }
-                }}
-                style={{ ...portalStyle, pointerEvents: 'auto' }}
-                className="kg-details-menu-portal"
-                data-kg-details-menu-portal="true"
-                onPointerDownCapture={props.onMenuPointerDownCapture}
-                onMouseDownCapture={props.onMenuMouseDownCapture}
-                onPointerUpCapture={props.onMenuPointerUpCapture}
-                onMouseUpCapture={props.onMenuMouseUpCapture}
-              >
-                {menu}
-              </section>
-            </section>,
-            document.body,
-          )
-        : null}
+      {portalMenu}
     </details>
   ) : (
     <section
@@ -290,35 +266,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
         {props.summary}
       </button>
       {inlineMenu}
-      {props.portal && isOpen && menu && portalStyle
-        ? createPortal(
-            <section style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
-              <section
-                ref={el => {
-                  portalRootRef.current = el
-                  if (!el) return
-                  updatePortalPosition()
-                  if (typeof window.requestAnimationFrame === 'function') {
-                    window.requestAnimationFrame(() => {
-                      updatePortalPosition()
-                      window.requestAnimationFrame(updatePortalPosition)
-                    })
-                  }
-                }}
-                style={{ ...portalStyle, pointerEvents: 'auto' }}
-                className="kg-details-menu-portal"
-                data-kg-details-menu-portal="true"
-                onPointerDownCapture={props.onMenuPointerDownCapture}
-                onMouseDownCapture={props.onMenuMouseDownCapture}
-                onPointerUpCapture={props.onMenuPointerUpCapture}
-                onMouseUpCapture={props.onMenuMouseUpCapture}
-              >
-                {menu}
-              </section>
-            </section>,
-            document.body,
-          )
-        : null}
+      {portalMenu}
     </section>
   )
 })

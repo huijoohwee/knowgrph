@@ -200,7 +200,7 @@ export function useFlowEditorWidgetDropBridge(args: {
         })
       }
       if (entry.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-        Object.assign(properties, { output: '', imageUrl: '', videoUrl: '', outputSrcDoc: '' })
+        Object.assign(properties, { output: '', imageUrl: '', videoUrl: '', audioUrl: '', outputSrcDoc: '' })
       }
       if (entry.nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) {
         Object.assign(properties, { sourceUrl: '', languageHint: '', output: '' })

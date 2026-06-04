@@ -1,6 +1,6 @@
 import React from 'react'
 import * as d3 from 'd3'
-
+import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/FlowCanvas/shared'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
@@ -20,7 +20,6 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { Z_INDEX_GRAPH_MEDIA_LAYER, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 import {
   commitRichMediaPanelChange,
-  coerceRichMediaPanelSizePx,
   normalizeRichMediaPanelDensity,
   resolveRichMediaPanelInteractive,
 } from '@/lib/render/richMediaSsot'
@@ -41,11 +40,11 @@ import {
   type MediaPanelCssMetrics,
 } from '@/lib/render/mediaPanelLayout'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
-import { MEDIA_PANEL_LAYOUT_FRAME_16X9 } from '@/lib/render/mediaPanelSpec'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
+import { clampMediaLayoutViewportToFrame16x9, coerceRichMediaPanelSizeForLayoutViewport, resolveFlowCanvasMediaLayoutViewport } from '@/components/FlowCanvas/flowCanvasMediaLayoutViewport'
 
 function escapeSelectorAttrValue(value: string): string {
   const text = String(value || '')
@@ -56,13 +55,6 @@ function escapeSelectorAttrValue(value: string): string {
 function readMediaLayoutMeasureKey(value: unknown): string {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) ? String(Math.round(n)) : ''
-}
-
-function clampViewportToLayoutFrame16x9(viewportW: number, viewportH: number): { width: number; height: number } {
-  return {
-    width: Math.max(1, Math.min(Number(viewportW) || 1, MEDIA_PANEL_LAYOUT_FRAME_16X9.width)),
-    height: Math.max(1, Math.min(Number(viewportH) || 1, MEDIA_PANEL_LAYOUT_FRAME_16X9.height)),
-  }
 }
 
 function readGraphDataNodeProperties(graphData: GraphData | null | undefined, nodeId: string): Record<string, unknown> | null {
@@ -103,6 +95,7 @@ function readMediaLayoutNodePropsSignature(
       typeof props.output === 'string' && props.output.trim() ? 'text' : '',
       typeof props.imageUrl === 'string' && props.imageUrl.trim() ? 'image' : '',
       typeof props.videoUrl === 'string' && props.videoUrl.trim() ? 'video' : '',
+      typeof props.audioUrl === 'string' && props.audioUrl.trim() ? 'audio' : '',
       typeof props.outputPath === 'string' && props.outputPath.trim() ? String(props.outputPath).trim() : '',
       String(props.richMediaActiveTab || '').trim(),
     ].join(':'))
@@ -358,6 +351,12 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaViewportMargins.right,
     mediaViewportMargins.top,
   ])
+  const readMediaLayoutViewport = React.useCallback(() => resolveFlowCanvasMediaLayoutViewport({
+    canvas2dRenderer,
+    flowEditorSurfaceId: flowEditorOverlaySurfaceId,
+    viewportW,
+    viewportH,
+  }), [canvas2dRenderer, flowEditorOverlaySurfaceId, viewportH, viewportW])
   const mediaLayoutPropsSignature = React.useMemo(
     () => readMediaLayoutNodePropsSignature(mediaLayoutItemIds, sceneGraphData),
     [mediaLayoutItemIds, sceneGraphData],
@@ -417,7 +416,7 @@ export default function FlowCanvasMediaOverlays(args: {
     flowEditorZoomBaselineKRef.current = null
   }, [canvas2dRenderer, flowEditorSurfaceId, mediaLayoutItemIdsKey])
   const computeOverlaySizingScale = React.useCallback((zoomK: number, itemCount: number, panelW: number, panelH: number) => {
-    const layoutViewport = clampViewportToLayoutFrame16x9(viewportW, viewportH)
+    const layoutViewport = clampMediaLayoutViewportToFrame16x9(readMediaLayoutViewport())
     const sizingZoomK = (() => {
       if (canvas2dRenderer !== 'flowEditor') return zoomK
       const safeZoomK = Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
@@ -445,7 +444,7 @@ export default function FlowCanvasMediaOverlays(args: {
       hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
       fitToViewport: canvas2dRenderer === 'flowEditor' ? false : undefined,
     })
-  }, [canvas2dRenderer, viewportH, viewportW])
+  }, [canvas2dRenderer, readMediaLayoutViewport])
 
   const writeRichMediaResizeTrace = React.useCallback((parts: Array<string | number>) => {
     try {
@@ -624,6 +623,7 @@ export default function FlowCanvasMediaOverlays(args: {
     onInteractionFrame?.()
   }, [
     active,
+    canvas2dRenderer,
     workspaceOverlayOpenKey,
     flowEditorFrontmatterDocumentModeRequested,
     flowEditorFrontmatterInteractionMode,
@@ -651,6 +651,7 @@ export default function FlowCanvasMediaOverlays(args: {
       density,
       viewportW,
       viewportH,
+      readLayoutViewport: readMediaLayoutViewport,
       readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity,
       computeSizingZoomK: zoomK => computeOverlaySizingScale(
         zoomK,
@@ -658,19 +659,13 @@ export default function FlowCanvasMediaOverlays(args: {
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width,
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height,
       ),
+      scaleLayoutOnZoom: canvas2dRenderer === 'flowEditor',
       getPanelSizeForId: id => {
         if (!richMediaInfiniteCanvasMode) return null
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
         if (override) {
           writeRichMediaResizeTrace(['phase=layout-override', `id=${id}`, `w=${override.w}`, `h=${override.h}`])
-          const coerced = coerceRichMediaPanelSizePx({
-            width: override.w,
-            height: override.h,
-            viewportW,
-            viewportH,
-            minWidthPx: 220,
-            minHeightPx: 160,
-          })
+          const coerced = coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport, width: override.w, height: override.h, minWidthPx: 220, minHeightPx: 160 })
           return { w: coerced.width, h: coerced.height }
         }
         const props = sceneNodePropsByIdRef.current.get(id) || null
@@ -678,14 +673,7 @@ export default function FlowCanvasMediaOverlays(args: {
         if (!stableSize) return null
         const zoomK = typeof runtimeRef.current?.transform?.k === 'number' && runtimeRef.current.transform.k > 0 ? runtimeRef.current.transform.k : 1
         const scale = computeOverlaySizingScale(zoomK, stableMediaLayoutItems.length, stableSize.w, stableSize.h)
-        const coerced = coerceRichMediaPanelSizePx({
-          width: stableSize.w * scale,
-          height: stableSize.h * scale,
-          viewportW,
-          viewportH,
-          minWidthPx: 220,
-          minHeightPx: 160,
-        })
+        const coerced = coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport, width: stableSize.w * scale, height: stableSize.h * scale, minWidthPx: 220, minHeightPx: 160 })
         return { w: coerced.width, h: coerced.height }
       },
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
@@ -732,6 +720,7 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaLayoutItemsKey,
     mediaPanelDensity,
     computeOverlaySizingScale,
+    readMediaLayoutViewport,
     writeRichMediaResizeTrace,
     queryActiveFlowEditorOverlays,
     runtimeRef,
@@ -750,7 +739,7 @@ export default function FlowCanvasMediaOverlays(args: {
   return (
     <section
       aria-label="Flow media overlay"
-      className="absolute inset-0 pointer-events-none"
+      className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME}
       style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
     >
       {mediaNodes.map((node, index) => {

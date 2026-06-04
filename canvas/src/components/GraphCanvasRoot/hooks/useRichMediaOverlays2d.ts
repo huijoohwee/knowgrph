@@ -293,6 +293,7 @@ export function useRichMediaOverlays2d(args: {
       iframeCount: inventory.iframeCount,
       imageCount: inventory.imageCount,
       videoCount: inventory.videoCount,
+      audioCount: inventory.audioCount,
       svgCount: inventory.svgCount,
       overlayPoolSize: mediaOverlayNodes.length,
       overlayIds: mediaOverlayNodes.slice(0, 6).map(n => n.id),

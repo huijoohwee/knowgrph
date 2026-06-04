@@ -6,13 +6,13 @@ import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/us
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
 import IconButton from '@/components/IconButton'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
-import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { FloatingPanelView } from '@/hooks/store/store-types/graph-state-chat-import'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
+  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
   UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
   UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME,
@@ -221,7 +221,7 @@ const GeoView = React.memo(function GeoView(props: {
               </section>
             }
           >
-            <section className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+            <section className={UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME}>
               <GeospatialPanelHostLazy
                 active
                 showDatasetsManager={false}
@@ -475,7 +475,7 @@ export function ToolbarToolMenu({
     'mt-1',
     FLOATING_PANEL_FULL_HEIGHT_VIEWS.has(floatingPanelView)
       ? 'flex-1 min-h-0 overflow-hidden'
-      : FLOATING_PANEL_SCROLL_CLASSNAME,
+      : UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
     uiPanelTextFontClass,
     uiPanelKeyValueTextSizeClass,
     UI_THEME_TOKENS.text.primary,
@@ -682,7 +682,7 @@ export function ToolbarToolMenu({
                   <section className={cn('text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary)}>Interaction</section>
                 </header>
                 <section
-                  className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', uiPanelTextFontClass, uiPanelKeyValueTextSizeClass)}
+                  className={cn(UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, 'mt-1', uiPanelTextFontClass, uiPanelKeyValueTextSizeClass)}
                   aria-label="Interaction panel content"
                 >
                   <section className="px-1 pb-2">

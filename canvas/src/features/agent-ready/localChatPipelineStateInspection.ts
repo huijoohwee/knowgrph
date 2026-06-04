@@ -66,6 +66,7 @@ export const inspectLocalChatPipelineState = (
       failedMessage: snapshot.kgcValidation?.failedMessage || null,
       correctionPromptPreview: snapshot.kgcValidation?.correctionPromptPreview || null,
       hasStructuredKgc: snapshot.kgcValidation?.hasStructuredKgc === true,
+      hasStructuredResponseSurface: snapshot.kgcValidation?.hasStructuredResponseSurface === true,
       hasYamlFrontmatter: snapshot.kgcValidation?.hasYamlFrontmatter === true,
       validatedKgcLength: snapshot.kgcValidation?.validatedKgcLength || 0,
     },

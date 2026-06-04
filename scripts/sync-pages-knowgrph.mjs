@@ -16,6 +16,7 @@ const githubRoot = path.resolve(knowgrphRoot, '..')
 const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
 const targetDir = path.resolve(githubRoot, 'huijoohwee', 'content', 'knowgrph')
 const publicRouteDir = path.resolve(githubRoot, 'huijoohwee', 'knowgrph')
+const grphSharedRoot = path.resolve(knowgrphRoot, 'grph-shared')
 const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
 const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
@@ -41,7 +42,7 @@ const agentReadyDiscoveryTarget = path.resolve(
 const agentReadyCommerceTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-commerce.mjs')
 const agentReadyCommerceX402RouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'api', 'payments', 'commerce', 'x402.js')
 const agentReadyCommerceX402RouteBody = `import { buildKnowgrphX402PaymentRequiredResponse } from "../../../knowgrph/knowgrph-agent-ready-commerce.mjs";\n\nexport async function onRequest(context) {\n  return buildKnowgrphX402PaymentRequiredResponse(context.request, context.env || {});\n}\n`
-const agentReadyRuntimeCopies = [[agentReadyCommerceSource, agentReadyCommerceTarget], ...['dist/payments/agenticCommerceSsot.js', 'dist/payments/stripePaymentSsot.js', 'dist/hash/signature.js', 'dist/hash/stringHash.js'].map(rel => [path.resolve(knowgrphRoot, 'grph-shared', rel), path.resolve(githubRoot, 'huijoohwee', 'grph-shared', rel)])]
+const agentReadyRuntimeSharedEntries = ['dist/payments/agenticCommerceSsot.js']
 const videoFrameSharedProviderSource = path.resolve(knowgrphRoot, 'grph-shared', 'dist', 'rich-media', 'providers.js')
 const videoFrameSharedProviderTarget = path.resolve(githubRoot, 'huijoohwee', 'grph-shared', 'dist', 'rich-media', 'providers.js')
 const rootAgentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph-agent-ready-shared.mjs')
@@ -297,6 +298,44 @@ const existsDir = async (dir) => {
 
 const toPosixRel = (rootDir, absolutePath) => path.relative(rootDir, absolutePath).split(path.sep).filter(Boolean).join('/')
 
+const localJsImportSpecifiers = (body) => {
+  const specifiers = []
+  const importRegex = /\b(?:import|export)\s+(?:[^'"]*?\s+from\s+)?["'](\.[^"']+\.js)["']|import\(\s*["'](\.[^"']+\.js)["']\s*\)/g
+  for (const match of body.matchAll(importRegex)) {
+    specifiers.push(match[1] || match[2])
+  }
+  return specifiers
+}
+
+const collectGrphSharedRuntimeCopies = async (entryRelativePaths) => {
+  const seen = new Set()
+  const queue = [...entryRelativePaths]
+  while (queue.length > 0) {
+    const rel = queue.shift()
+    if (!rel || seen.has(rel)) continue
+    if (!rel.startsWith('dist/') || !rel.endsWith('.js')) {
+      throw new Error(`Shared runtime entry must be a dist JS file: ${rel}`)
+    }
+    seen.add(rel)
+    const sourcePath = path.resolve(grphSharedRoot, rel)
+    const sourceBody = await fs.readFile(sourcePath, 'utf8')
+    for (const specifier of localJsImportSpecifiers(sourceBody)) {
+      const dependencyPath = path.resolve(path.dirname(sourcePath), specifier)
+      const dependencyRel = toPosixRel(grphSharedRoot, dependencyPath)
+      if (dependencyRel.startsWith('../') || !dependencyRel.startsWith('dist/') || !dependencyRel.endsWith('.js')) {
+        throw new Error(`Unsupported grph-shared runtime import ${specifier} from ${rel}`)
+      }
+      if (!seen.has(dependencyRel)) queue.push(dependencyRel)
+    }
+  }
+  return [...seen]
+    .sort((a, b) => a.localeCompare(b))
+    .map(rel => [
+      path.resolve(grphSharedRoot, rel),
+      path.resolve(githubRoot, 'huijoohwee', 'grph-shared', rel),
+    ])
+}
+
 const isAllowedRelativePath = (rel) => {
   if (!rel) return true
   if (blockedRelativeFiles.has(rel)) return false
@@ -418,6 +457,11 @@ const fileExists = async (filePath) => {
     return false
   }
 }
+
+const agentReadyRuntimeCopies = [
+  [agentReadyCommerceSource, agentReadyCommerceTarget],
+  ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
+]
 
 const removeEmptyDirs = async (rootDir) => {
   const walk = async (dir) => {
@@ -600,6 +644,10 @@ const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunct
 const youtubeTranscriptFunctionNeedsUpdate = await plainFileNeedsUpdate(youtubeTranscriptFunctionSource, youtubeTranscriptFunctionTarget)
 const videoFrameFunctionNeedsUpdate = await plainFileNeedsUpdate(videoFrameFunctionSource, videoFrameFunctionTarget)
 const videoFrameSharedProviderNeedsUpdate = await plainFileNeedsUpdate(videoFrameSharedProviderSource, videoFrameSharedProviderTarget)
+const agentReadyRuntimeFilesToCopy = []
+for (const [src, dst] of agentReadyRuntimeCopies) {
+  if (await plainFileNeedsUpdate(src, dst)) agentReadyRuntimeFilesToCopy.push([src, dst])
+}
 const agentReadyDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDocRouteTarget)
 const agentReadyDefaultDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDefaultDocRouteTarget)
 const agentReadyShareRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyShareRouteTarget)
@@ -646,6 +694,7 @@ if (checkMode) {
     youtubeTranscriptFunctionNeedsUpdate ||
     videoFrameFunctionNeedsUpdate ||
     videoFrameSharedProviderNeedsUpdate ||
+    agentReadyRuntimeFilesToCopy.length > 0 ||
     agentReadyDocRouteNeedsUpdate ||
     agentReadyDefaultDocRouteNeedsUpdate ||
     agentReadyShareRouteNeedsUpdate ||
@@ -698,6 +747,11 @@ if (checkMode) {
     if (youtubeTranscriptFunctionNeedsUpdate) console.error('  - YouTube transcript Pages Function is out of sync')
     if (videoFrameFunctionNeedsUpdate) console.error('  - Video frame Pages Function is out of sync')
     if (videoFrameSharedProviderNeedsUpdate) console.error('  - Video frame shared provider helper is out of sync')
+    if (agentReadyRuntimeFilesToCopy.length > 0) {
+      console.error(`  - Knowgrph agent-ready runtime files needing sync (${agentReadyRuntimeFilesToCopy.length}):`)
+      for (const [, dst] of agentReadyRuntimeFilesToCopy.slice(0, 20)) console.error(`  - ${toPosixRel(githubRoot, dst)}`)
+      if (agentReadyRuntimeFilesToCopy.length > 20) console.error(`  - ... ${agentReadyRuntimeFilesToCopy.length - 20} more`)
+    }
     if (agentReadyDocRouteNeedsUpdate) console.error('  - Knowgrph shared-doc Pages Function is out of sync')
     if (agentReadyDefaultDocRouteNeedsUpdate) console.error('  - Knowgrph default shared-doc Pages Function is out of sync')
     if (agentReadyShareRouteNeedsUpdate) console.error('  - Knowgrph opaque share Pages Function is out of sync')
@@ -794,8 +848,10 @@ if (checkMode) {
   if (agentReadyDiscoveryNeedsUpdate) {
     await copyPlainFile(agentReadyDiscoverySource, agentReadyDiscoveryTarget)
   }
-  for (const [src, dst] of agentReadyRuntimeCopies) {
+  let agentReadyRuntimeUpdated = 0
+  for (const [src, dst] of agentReadyRuntimeFilesToCopy) {
     await copyPlainFile(src, dst)
+    agentReadyRuntimeUpdated += 1
   }
   if (videoFrameSharedProviderNeedsUpdate) {
     await copyPlainFile(videoFrameSharedProviderSource, videoFrameSharedProviderTarget)
@@ -863,6 +919,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyPromptContractUpdated=${agentReadyPromptContractNeedsUpdate ? 'yes' : 'no'}, agentReadyResourceContractUpdated=${agentReadyResourceContractNeedsUpdate ? 'yes' : 'no'}, mcpAppsReadyContractUpdated=${mcpAppsReadyContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnContractUpdated=${vdeoxplnContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated}, obsoleteGeneratedMirrorFilesRemoved=${obsoleteGeneratedMirrorFilesRemoved})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyRuntimeUpdated=${agentReadyRuntimeUpdated}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyPromptContractUpdated=${agentReadyPromptContractNeedsUpdate ? 'yes' : 'no'}, agentReadyResourceContractUpdated=${agentReadyResourceContractNeedsUpdate ? 'yes' : 'no'}, mcpAppsReadyContractUpdated=${mcpAppsReadyContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnContractUpdated=${vdeoxplnContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated}, obsoleteGeneratedMirrorFilesRemoved=${obsoleteGeneratedMirrorFilesRemoved})`,
   )
 }

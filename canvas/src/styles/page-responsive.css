@@ -1,0 +1,69 @@
+.kg-contracts-diagnostics-page-content {
+  --kg-contracts-diagnostics-page-content-width: 64rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--kg-contracts-diagnostics-page-content-width);
+  margin-inline: auto;
+  padding: 2rem 1.5rem;
+}
+
+.kg-pdf-document-viewer-header-row {
+  --kg-pdf-document-viewer-content-width: 72rem;
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  max-width: var(--kg-pdf-document-viewer-content-width);
+  margin-inline: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.kg-pdf-document-viewer-grid {
+  --kg-pdf-document-viewer-content-width: 72rem;
+  --kg-pdf-document-viewer-toc-width: 18rem;
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  max-width: var(--kg-pdf-document-viewer-content-width);
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.kg-pdf-document-viewer-toc,
+.kg-pdf-document-viewer-document-pane {
+  min-width: 0;
+}
+
+.kg-pdf-document-viewer-document-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kg-pdf-document-viewer-reading-container,
+.kg-pdf-document-viewer-paged-container {
+  box-sizing: border-box;
+  padding: 1.5rem;
+}
+
+.kg-pdf-document-viewer-reading-container {
+  --kg-pdf-document-viewer-reading-width: 48rem;
+  max-width: var(--kg-pdf-document-viewer-reading-width);
+  margin-inline: auto;
+}
+
+@media (max-width: 40rem) {
+  .kg-pdf-document-viewer-header-row {
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 64rem) {
+  .kg-pdf-document-viewer-grid {
+    grid-template-columns: minmax(0, var(--kg-pdf-document-viewer-toc-width)) minmax(0, 1fr);
+  }
+}

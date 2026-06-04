@@ -6,6 +6,7 @@ import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
 import { useGraphRagTextCentralityConfig } from '@/features/graphrag/hooks/useGraphRagTextCentralityConfig'
 import type { StatsUiClasses } from '@/features/graph-stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { GRAPH_STATS_DETAIL_GRID_CLASS_NAME } from '@/features/graph-stats/graphStatsResponsiveClasses'
 import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const statsSelectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
@@ -188,7 +189,7 @@ export default function GraphRagCentralityStatsSection({
         {selected && (
           <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-2`}>
             <section className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Selected Node</section>
-            <section className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">
+            <section className={`mt-1 ${GRAPH_STATS_DETAIL_GRID_CLASS_NAME}`}>
               <section className={UI_THEME_TOKENS.text.tertiary}>Label</section>
               <section className={UI_THEME_TOKENS.text.primary}>{selected.label}</section>
               <section className={UI_THEME_TOKENS.text.tertiary}>keyword:frequency</section>

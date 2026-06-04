@@ -103,11 +103,11 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   if (!canvasPageText.includes('isMarkdownWorkspaceDocumentSwitchPending({')) {
     throw new Error('Expected Canvas page toolbar handoff to reuse the shared markdown workspace pending-state helper')
   }
-  if (!canvasPageText.includes('Switching document:')) {
-    throw new Error('Expected Canvas page to replace stale toolbar controls with a switching-document placeholder during source-file handoff')
+  if (!canvasPageText.includes('Switching document:') || !canvasPageText.includes(') : null}\n                    <React.Suspense fallback={null}>') || !canvasPageText.includes(') : null}\n                          <React.Suspense fallback={null}>')) {
+    throw new Error('Expected Canvas page to show a switching-document placeholder without unmounting toolbar-owned floating panels during source-file handoff')
   }
   const canvasViewportText = readUtf8(path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'))
-  if (!canvasViewportText.includes('documentSwitchPending ? (')) {
+  if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterFlowEditorSurfaceActive') || !canvasViewportText.includes('documentSwitchBlocksCanvas ? (')) {
     throw new Error('Expected Canvas viewport to render a switching-document placeholder while the active document handoff is pending')
   }
   if (!canvasViewportText.includes('Preparing canvas view...')) {

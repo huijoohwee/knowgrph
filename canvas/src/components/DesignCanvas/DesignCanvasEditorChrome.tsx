@@ -7,6 +7,7 @@ import { dispatchRuntimeFitToViewSoon } from '@/lib/canvas/runtimeZoomDispatch'
 import {
   UI_RESPONSIVE_CANVAS_STATUS_ROW_CLASSNAME,
   UI_RESPONSIVE_CANVAS_TOOL_ACTION_CLASSNAME,
+  UI_RESPONSIVE_DESIGN_CANVAS_EDITOR_CHROME_CLASSNAME,
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -55,7 +56,7 @@ export function DesignCanvasEditorChrome(props: {
   const mode = canvasPointerMode2d === 'pan' ? 'Pan' : 'Select'
 
   return (
-    <section className="pointer-events-none absolute inset-x-2 top-[calc(var(--kg-safe-top)+6.75rem)] z-30 flex min-w-0 items-start gap-2" aria-label="Design editor chrome">
+    <section className={UI_RESPONSIVE_DESIGN_CANVAS_EDITOR_CHROME_CLASSNAME} aria-label="Design editor chrome">
       <nav
         className={cn('pointer-events-auto flex shrink-0 flex-col gap-1 rounded border p-1 shadow-sm', UI_THEME_TOKENS.panel.overlayBg, UI_THEME_TOKENS.panel.border)}
         aria-label="Design tools"

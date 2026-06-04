@@ -1,5 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
+import { CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
 import { normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
 import {
   GRABMAPS_DEFAULT_DIRECTIONS_URL,
@@ -207,8 +208,8 @@ export const uiGrabMapsSettingsRegistry: SettingMeta[] = [
   localStringSetting({
     key: 'maps.grabmaps.mcp.discovery.chatModel',
     storageKey: LS_KEYS.grabMapsMcpDiscoveryChatModel,
-    defaultValue: 'gpt-5.4-nano',
-    options: ['gpt-5.4-nano'],
+    defaultValue: CHAT_DEFAULT_MODEL,
+    options: [CHAT_DEFAULT_MODEL],
     docKey: 'maps.grabmaps.mcp.discovery.chatModel',
   }),
   localStringSetting({

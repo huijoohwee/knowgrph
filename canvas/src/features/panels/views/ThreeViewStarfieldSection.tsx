@@ -9,6 +9,7 @@ import {
   STARFIELD_BRIGHTNESS_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { THREE_VIEW_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/threeViewResponsiveClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME,
@@ -42,7 +43,7 @@ export default function ThreeViewStarfieldSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <section className="grid grid-cols-2 gap-3">
+      <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Starfield</span>}

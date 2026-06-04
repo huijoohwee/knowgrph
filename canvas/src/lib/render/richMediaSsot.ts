@@ -28,6 +28,7 @@ export { getRichMediaPanelNodeLabel, isRichMediaPanelNode, resolvePreferredRichM
 export type RichMediaDisplayMode = 'circle-only' | 'panel-only'
 export type RichMediaPanelDensity = 'default' | 'compact'
 export type RichMediaPanelMode = 'snapshot' | 'embed'
+type RichMediaDirectPreviewKind = 'image' | 'video' | 'audio'
 export type RichMediaPanelChange = {
   activeTab: RichMediaPanelOverlayState['activeTab']
   freezeConnectedOutput: boolean
@@ -35,14 +36,7 @@ export type RichMediaPanelChange = {
 }
 export type RichMediaPanelPreviewSpec =
   | {
-      kind: 'image'
-      url: string
-      openUrl?: string
-      srcDoc?: undefined
-      interactive: boolean
-    }
-  | {
-      kind: 'video'
+      kind: RichMediaDirectPreviewKind
       url: string
       openUrl?: string
       srcDoc?: undefined
@@ -113,7 +107,7 @@ export function normalizeRichMediaPanelMode(value: unknown): RichMediaPanelMode 
 
 export function normalizeRichMediaPanelTab(value: unknown): RichMediaPanelTab {
   const raw = String(value || '').trim().toLowerCase()
-  return raw === 'text' || raw === 'image' || raw === 'video' || raw === 'poi' || raw === 'auto'
+  return raw === 'text' || raw === 'image' || raw === 'video' || raw === 'audio' || raw === 'poi' || raw === 'auto'
     ? raw as RichMediaPanelTab
     : 'auto'
 }
@@ -123,6 +117,7 @@ export function resolveRichMediaPanelSelectedTab(args: {
   hasText?: unknown
   hasImage?: unknown
   hasVideo?: unknown
+  hasAudio?: unknown
   hasPoi?: unknown
   renderKind?: unknown
   hasRenderableUrl?: unknown
@@ -133,15 +128,18 @@ export function resolveRichMediaPanelSelectedTab(args: {
   const hasText = args.hasText === true
   const hasImage = args.hasImage === true
   const hasVideo = args.hasVideo === true
+  const hasAudio = args.hasAudio === true
   const hasPoi = args.hasPoi === true
   const renderKind = String(args.renderKind || '').trim().toLowerCase()
   const hasRenderableUrl = args.hasRenderableUrl === true
   const hasInlineSrcDoc = args.hasInlineSrcDoc === true
   if (renderKind === 'video') return 'video'
+  if (renderKind === 'audio') return 'audio'
   if (renderKind === 'image' || renderKind === 'svg') return 'image'
   if (renderKind === 'iframe' && !hasRenderableUrl && hasPoi && hasInlineSrcDoc) return 'poi'
   if (renderKind === 'iframe' && !hasRenderableUrl) return 'text'
   if (hasVideo) return 'video'
+  if (hasAudio) return 'audio'
   if (hasImage) return 'image'
   if (hasPoi) return 'poi'
   if (hasText) return 'text'
@@ -174,8 +172,9 @@ export function buildRichMediaPanelPreviewSpec(args: {
   const props = (renderNode.properties || {}) as Record<string, unknown>
   const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
   const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
+  const rawAudioUrl = typeof props.audioUrl === 'string' ? props.audioUrl.trim() : ''
   const rawMediaUrl = typeof props.media_url === 'string' ? props.media_url.trim() : ''
-  const rawOpenUrl = rawImageUrl || rawVideoUrl || rawMediaUrl
+  const rawOpenUrl = rawImageUrl || rawVideoUrl || rawAudioUrl || rawMediaUrl
   const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
   const outputSrcDoc = normalizeRichMediaPanelInlineSrcDoc({
     srcDoc: rawOutputSrcDoc,
@@ -187,26 +186,24 @@ export function buildRichMediaPanelPreviewSpec(args: {
     hasText: panel.hasText,
     hasImage: panel.hasImage,
     hasVideo: panel.hasVideo,
+    hasAudio: panel.hasAudio,
     hasPoi: panel.hasPoi,
     renderKind: renderSpec?.kind,
     hasRenderableUrl: !!String(renderSpec?.url || '').trim(),
     hasInlineSrcDoc: !!String(renderSpec?.srcDoc || rawOutputSrcDoc || '').trim(),
   }) || 'text'
-  if (selectedTab === 'video') {
+  if (selectedTab === 'video' || selectedTab === 'image') {
+    const selectedUrl = selectedTab === 'video' ? rawVideoUrl : rawImageUrl
     return {
-      kind: 'video',
-      url: rawVideoUrl || String(renderSpec?.url || ''),
-      openUrl: rawVideoUrl || rawOpenUrl || String(renderSpec?.url || ''),
-      interactive: renderSpec?.interactive !== false,
+      kind: selectedTab,
+      url: selectedUrl || String(renderSpec?.url || ''),
+      openUrl: selectedUrl || rawOpenUrl || String(renderSpec?.url || ''),
+      interactive: selectedTab === 'video' ? renderSpec?.interactive !== false : renderSpec?.interactive === true,
     }
   }
-  if (selectedTab === 'image') {
-    return {
-      kind: 'image',
-      url: rawImageUrl || String(renderSpec?.url || ''),
-      openUrl: rawImageUrl || rawOpenUrl || String(renderSpec?.url || ''),
-      interactive: renderSpec?.interactive === true,
-    }
+  if (selectedTab === 'audio' || renderSpec?.kind === 'audio') {
+    const url = String(rawAudioUrl || renderSpec?.url || rawMediaUrl || '').trim()
+    return { kind: 'audio', url, openUrl: rawAudioUrl || rawOpenUrl || url, interactive: renderSpec?.interactive !== false }
   }
   return {
     kind: 'iframe',
@@ -496,7 +493,7 @@ export function commitRichMediaPanelChange(args: {
   if (!nodeId || !next) return
   const nextTab = String(next.activeTab || 'auto').trim().toLowerCase()
   const activeTab =
-    nextTab === 'text' || nextTab === 'image' || nextTab === 'video' || nextTab === 'poi' || nextTab === 'auto'
+    nextTab === 'text' || nextTab === 'image' || nextTab === 'video' || nextTab === 'audio' || nextTab === 'poi' || nextTab === 'auto'
       ? nextTab
       : 'auto'
   args.updateNode(nodeId, {
@@ -514,6 +511,7 @@ export function getRichMediaPanelMediaSelectorOptions(): ReadonlyArray<{ value: 
     { value: 'text', label: 'Markdown Editor/Viewer' },
     { value: 'image', label: 'Image Viewer' },
     { value: 'video', label: 'Video Viewer' },
+    { value: 'audio', label: 'Audio Player' },
     { value: 'poi', label: 'POI Viewer' },
   ] as const
 }

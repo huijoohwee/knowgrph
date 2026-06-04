@@ -27,6 +27,7 @@ export type CanvasViewOptionId =
   | 'control:nodeShape'
   | 'control:clusterShape'
   | 'control:portHandles'
+  | 'control:minimap'
   | 'control:grid'
   | 'control:timeline'
   | 'view:geospatial'
@@ -64,6 +65,7 @@ export type CanvasViewModelState = {
   multiDimTableModeEnabled: boolean
   renderMediaAsNodes: boolean
   timelineEnabled: boolean
+  minimapCollapsed?: boolean
   geospatialEnabled: boolean
   layoutMode?: string
   schema: GraphSchema

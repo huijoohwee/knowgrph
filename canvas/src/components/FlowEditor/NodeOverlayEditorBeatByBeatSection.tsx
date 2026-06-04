@@ -5,6 +5,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { pad2, parseBeatIndexFromNodeId, readBeatRefFromParams } from '@/components/FlowEditor/beatByBeat'
+import { FLOW_WIDGET_BEAT_WIRING_COLUMN_STYLES, FLOW_WIDGET_BEAT_WIRING_ROW_LAYOUT } from '@/components/FlowEditor/nodeOverlayEditorTableLayout'
 
 function readEdgePortKey(edge: GraphEdge, key: string): string {
   const props = (edge.properties || {}) as Record<string, unknown>
@@ -267,12 +268,9 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
       <section className="min-w-0 mt-3" aria-label="Port handles wiring this beat">
         <section className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Port handles wiring this beat</section>
         <section className="-mx-3 mt-2">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse table-fixed" data-kg-flow-widget-wiring-row-layout={FLOW_WIDGET_BEAT_WIRING_ROW_LAYOUT}>
             <colgroup>
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '44%' }} />
-              <col style={{ width: '34%' }} />
-              <col style={{ width: '10%' }} />
+              {FLOW_WIDGET_BEAT_WIRING_COLUMN_STYLES.map((style, idx) => <col key={idx} style={style} />)}
             </colgroup>
             <thead className={UI_THEME_TOKENS.table.headerBg}>
               <tr>

@@ -511,12 +511,12 @@ export const createUiInitialState = (
     ),
     chatContextScope: lsJson<'selection' | 'workspace' | 'hybrid'>(
       LS_KEYS.chatContextScope,
-      'workspace',
+      'hybrid',
       value => {
         const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
         if (raw === 'selection') return 'selection'
-        if (raw === 'hybrid') return 'hybrid'
-        return 'workspace'
+        if (raw === 'workspace') return 'workspace'
+        return 'hybrid'
       },
     ),
     integrationConfigsJson: lsJson<string>(

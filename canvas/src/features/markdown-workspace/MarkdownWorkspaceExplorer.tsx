@@ -8,6 +8,7 @@ import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceBacklink } from '@/features/workspace-fs/types'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME, UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { MarkdownWorkspaceBacklinksList } from './MarkdownWorkspaceBacklinksList'
@@ -146,7 +147,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
       aria-label="Markdown Explorer"
     >
       <header
-        className={`kg-toolbar ${uiToolbarRowScrollJustifyBetweenClassName} min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] gap-2 px-2 py-0 border-b ${UI_THEME_TOKENS.panel.border}`}
+        className={`${UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME} ${uiToolbarRowScrollJustifyBetweenClassName} gap-2 px-2 py-0 border-b ${UI_THEME_TOKENS.panel.border}`}
         aria-label="Explorer header"
       >
         <section className="min-w-0 max-w-full flex-1 flex items-center gap-2 overflow-hidden" aria-label="Explorer title">
@@ -160,7 +161,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         />
       </header>
 
-      <section className="flex-1 min-h-0 overflow-auto" aria-label="Explorer content">
+      <section className={`${UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME} flex-1 min-h-0`} aria-label="Explorer content">
         <MarkdownExplorerSection
           title="Source Files"
           collapsed={sourceFilesCollapsed}

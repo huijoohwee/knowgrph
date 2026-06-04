@@ -259,6 +259,11 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
     ) {
       throw new Error(`Expected retry recovery finalize flow to apply the canonical KGC document to the active canvas state, got ${JSON.stringify({ markdownDocumentName: graphState.markdownDocumentName, markdownDocumentText: graphState.markdownDocumentText?.slice(0, 40) || '' })}`)
     }
+    const sourcePath = 'workspace:/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md'
+    const sourceFile = graphState.sourceFiles.find(file => String(file?.source?.path || '') === sourcePath) || null
+    if (!sourceFile || sourceFile.enabled !== true || sourceFile.status !== 'parsed' || !sourceFile.parsedGraphData) {
+      throw new Error(`Expected retry recovery finalize flow to land the canonical KGC document in parsed Source Files for shared renderers, got ${JSON.stringify(graphState.sourceFiles.map(file => ({ name: file.name, source: file.source?.path, enabled: file.enabled, status: file.status, parsed: Boolean(file.parsedGraphData) })))}`)
+    }
   } finally {
     if (root) {
       await unmountReactRoot(root, { window: dom.window as unknown as Window })

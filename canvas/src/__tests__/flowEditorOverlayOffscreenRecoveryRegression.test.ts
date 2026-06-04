@@ -216,11 +216,11 @@ export function testFlowEditorRuntimeSceneUsesNeutralSeedZoomForWorkspaceBlocked
   if (!text.includes('const workspaceMutationBlockedForSeed = isWorkspaceGraphMutationBlocked(st)')) {
     throw new Error('expected Flow Editor runtime scene seeding to derive a single workspace-blocked guard for frontmatter landing')
   }
-  if (!text.includes('|| (isFrontmatterFlow && workspaceMutationBlockedForSeed)')) {
-    throw new Error('expected Flow Editor runtime scene seeding to force neutral viewport bounds while frontmatter landing is workspace-blocked')
+  if (!text.includes("reason: 'workspace-blocked-skipping-flow-widget-seed-write'")) {
+    throw new Error('expected Flow Editor runtime scene seeding to skip widget seed writes while frontmatter landing is workspace-blocked')
   }
-  if (!text.includes('const allowPersistedViewportOffsetSeed = !workspaceMutationBlockedForSeed')) {
-    throw new Error('expected Flow Editor runtime scene seeding to reject persisted viewport-offset seed bounds while workspace landing is blocked')
+  if (text.includes('const allowPersistedViewportOffsetSeed =') || text.includes('const persistedZoomForSeed =')) {
+    throw new Error('expected Flow Editor runtime scene seeding to avoid stale workspace-blocked persisted-zoom branches')
   }
   if (!text.includes('const visibleViewport = getVisibleViewport()')) {
     throw new Error('expected Flow Editor runtime scene seeding to derive a pane-aware visible viewport before sizing the frontmatter collective')

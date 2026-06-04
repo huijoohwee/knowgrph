@@ -26,7 +26,8 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
-import { UI_RESPONSIVE_GRAPH_TABLE_CODE_EDITOR_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_GRAPH_TABLE_CODE_EDITOR_CLASSNAME, UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { GRAPH_TABLE_INSPECTOR_DETAIL_GRID_CLASS_NAME } from './graphTableResponsiveMetrics'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
@@ -394,7 +395,7 @@ export function GraphTableInspector({
       ) : null}
 
       <FieldsTag
-        className={scrollMode === 'internal' ? 'flex-1 min-h-0 overflow-auto' : undefined}
+        className={scrollMode === 'internal' ? `${UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME} flex-1 min-h-0` : undefined}
         aria-label="Record fields"
       >
         {isEmpty ? (
@@ -490,7 +491,7 @@ export function GraphTableInspector({
                 </section>
               </section>
             ) : null}
-          <dl className="px-3 py-2 grid min-w-0 max-w-full grid-cols-[minmax(0,120px)_minmax(0,1fr)] gap-x-2 gap-y-2 items-center overflow-hidden">
+          <dl className={GRAPH_TABLE_INSPECTOR_DETAIL_GRID_CLASS_NAME}>
             {ordered.map(col => {
               const value = (row.data || {})[col.columnId]
               const raw = value == null ? '' : String(value)

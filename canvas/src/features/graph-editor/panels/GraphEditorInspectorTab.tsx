@@ -8,6 +8,7 @@ import { readSubgraphs, subgraphGroupId, writeSubgraphs } from '@/lib/graph/subg
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readGroupBoundsOverrideSource } from '@/lib/canvas/groupBoundsOverrides'
 import { resetGroupBoundsOverrideInStore } from '@/lib/canvas/groupBoundsOverridesStore'
+import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
 
 export function GraphEditorInspectorTab() {
   const {
@@ -145,7 +146,7 @@ export function GraphEditorInspectorTab() {
             aria-label="Edge label"
           />
         </label>
-        <section className="grid grid-cols-2 gap-2">
+        <TwoColumnEditorGrid>
           <section>
             <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Source</section>
             <section className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.source)}</section>
@@ -154,7 +155,7 @@ export function GraphEditorInspectorTab() {
             <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Target</section>
             <section className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.target)}</section>
           </section>
-        </section>
+        </TwoColumnEditorGrid>
       </section>
     )
   }

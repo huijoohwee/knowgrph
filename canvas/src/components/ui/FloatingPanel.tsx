@@ -2,8 +2,6 @@ import React from 'react'
 
 type FloatingPanelTag = 'div' | 'section' | 'aside' | 'nav' | 'article'
 
-export const FLOATING_PANEL_SCROLL_CLASSNAME = 'flex-1 min-h-0 overflow-y-auto overflow-x-hidden'
-
 export type FloatingPanelProps = {
   as?: FloatingPanelTag
   ariaLabel: string

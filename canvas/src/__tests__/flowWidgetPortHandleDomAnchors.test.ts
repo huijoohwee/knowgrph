@@ -231,7 +231,7 @@ export const testTextWidgetCellsStayLocallyEditable = async () => {
         chatProvider: 'openai',
         prompt: 'hello',
         chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
-        chatModel: 'gpt-5.4-nano',
+        chatModel: 'gpt-5-nano',
         chatTopP: 0.7,
       },
       registryEntry: {
@@ -358,7 +358,7 @@ export const testOpenAiTextWidgetCellsStayLocallyEditable = async () => {
         chatProvider: 'openai',
         prompt: 'hello',
         chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
-        chatModel: 'gpt-5.4-nano',
+        chatModel: 'gpt-5-nano',
         chatTopP: 0.7,
       },
       registryEntry: {
@@ -396,7 +396,7 @@ export const testOpenAiTextWidgetCellsStayLocallyEditable = async () => {
   }
 
   await changeControlValue(promptInput, 'updated openai prompt')
-  await changeControlValue(modelInput, 'gpt-5.4-mini')
+  await changeControlValue(modelInput, 'gpt-5-mini')
   await changeControlValue(topPInput, '0.4')
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
@@ -685,7 +685,7 @@ export const testBytePlusTextWidgetLocalOverridesStayEditable = async () => {
   const storeApi = useGraphStore.getState()
   storeApi.setChatProvider('openai')
   storeApi.setChatEndpointUrl(CHAT_OPENAI_ENDPOINT_URL)
-  storeApi.setChatModel('gpt-5.4-nano')
+  storeApi.setChatModel('gpt-5-nano')
 
   root.render(
     React.createElement(NodeOverlayEditorRegistrySection, {
@@ -755,7 +755,7 @@ export const testOpenAiTextWidgetPortHandleLinksToOpenAiIntegrations = async () 
   const storeApi = useGraphStore.getState()
   storeApi.setChatProvider('openai')
   storeApi.setChatEndpointUrl(CHAT_OPENAI_ENDPOINT_URL)
-  storeApi.setChatModel('gpt-5.4-nano')
+  storeApi.setChatModel('gpt-5-nano')
 
   const events: Array<{ searchQuery?: string; anchorId?: string }> = []
   const eventWindow = dom.window as Window & typeof globalThis
@@ -772,7 +772,7 @@ export const testOpenAiTextWidgetPortHandleLinksToOpenAiIntegrations = async () 
         chatProvider: 'openai',
         prompt: 'hello',
         chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
-        chatModel: 'gpt-5.4-nano',
+        chatModel: 'gpt-5-nano',
       },
       registryEntry: {
         id: 'text-widget-openai',

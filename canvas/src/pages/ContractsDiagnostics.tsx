@@ -7,6 +7,8 @@ import { CANVAS_2D_RENDERER_ORDER } from '@/lib/renderer/canvas2dRendererRegistr
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { buildDocumentKey, buildDocumentRef } from '@/lib/persistence/perDocumentUiState'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_COMPACT_VIEWPORT_SCROLL_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { CONTRACTS_DIAGNOSTICS_PAGE_CONTENT_CLASS_NAME } from '@/pages/pageResponsiveClasses'
 
 function downloadJson(filename: string, value: unknown) {
   const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' })
@@ -131,7 +133,7 @@ export default function ContractsDiagnostics() {
 
   return (
     <main className={`min-h-screen bg-[var(--kg-canvas-bg)] ${UI_THEME_TOKENS.text.primary}`} aria-label="Contracts & Diagnostics">
-      <section className="mx-auto w-full max-w-5xl px-6 py-8">
+      <section className={CONTRACTS_DIAGNOSTICS_PAGE_CONTENT_CLASS_NAME}>
         <header className="flex items-center justify-between gap-4">
           <section>
             <h1 className="text-lg font-semibold">Contracts & Diagnostics</h1>
@@ -181,7 +183,7 @@ export default function ContractsDiagnostics() {
 
         <section className="mt-4 rounded-lg border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-4">
           <h2 className="text-sm font-semibold">Full Snapshot</h2>
-          <pre className={`mt-2 max-h-[60vh] overflow-auto rounded-md bg-black/10 p-3 text-[11px] leading-relaxed ${UI_THEME_TOKENS.text.secondary}`}>
+          <pre className={`mt-2 ${UI_RESPONSIVE_COMPACT_VIEWPORT_SCROLL_PANEL_CLASSNAME} rounded-md bg-black/10 p-3 text-[11px] leading-relaxed ${UI_THEME_TOKENS.text.secondary}`}>
             {JSON.stringify({ contract, diagnostics }, null, 2)}
           </pre>
         </section>

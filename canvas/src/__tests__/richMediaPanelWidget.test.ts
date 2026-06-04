@@ -108,10 +108,10 @@ async function assertOutputSrcDocPanelsReuseSharedPreview(args: {
     if (!previewSrcDoc.includes('padding:0!important')) {
       throw new Error(`expected outputSrcDoc panel ${panelId} to remove duplicate generated frame padding through the shared reset style`)
     }
-    if (!previewSrcDoc.includes('body>:is(main,section,article,div):first-child')) {
+    if (!previewSrcDoc.includes('body>:is(main,section,article):first-child')) {
       throw new Error(`expected outputSrcDoc panel ${panelId} to flatten top-level frame wrappers through the shared reset style`)
     }
-    if (!previewSrcDoc.includes('body>:is(main,section,article,div):first-child>:is(main,section,article,div):first-child')) {
+    if (!previewSrcDoc.includes('body>:is(main,section,article):first-child>:is(main,section,article):first-child')) {
       throw new Error(`expected outputSrcDoc panel ${panelId} to flatten nested root frame wrappers through the shared reset style`)
     }
 
@@ -598,7 +598,7 @@ export function testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle() {
   if (!normalized.includes('body>:is(main,section,article):first-child>:is(main,section,article):first-child')) {
     throw new Error('expected refreshed Rich Media Panel srcdoc reset to flatten nested semantic frame wrappers')
   }
-  if (/<section\b|<\/div>/i.test(normalized)) {
+  if (/<div\b|<\/div>/i.test(normalized)) {
     throw new Error(`expected Rich Media Panel srcdoc normalization to replace generic HTML division element containers, got: ${normalized}`)
   }
   if (normalized.includes('body>:is(main,section,article,div)')) {
@@ -911,10 +911,10 @@ export function testRichMediaPanelRegistryPortsExposeWidgetConnectionHandles() {
   const inIds = new Set((handles.in || []).map(handle => handle.id))
   const outIds = new Set((handles.out || []).map(handle => handle.id))
 
-  ;['in:output', 'in:imageUrl', 'in:videoUrl', 'in:outputSrcDoc'].forEach(id => {
+  ;['in:output', 'in:imageUrl', 'in:videoUrl', 'in:audioUrl', 'in:outputSrcDoc'].forEach(id => {
     if (!inIds.has(id as never)) throw new Error(`expected rich media panel input handle ${id}`)
   })
-  ;['out:output', 'out:imageUrl', 'out:videoUrl', 'out:outputSrcDoc'].forEach(id => {
+  ;['out:output', 'out:imageUrl', 'out:videoUrl', 'out:audioUrl', 'out:outputSrcDoc'].forEach(id => {
     if (!outIds.has(id as never)) throw new Error(`expected rich media panel output handle ${id}`)
   })
 }

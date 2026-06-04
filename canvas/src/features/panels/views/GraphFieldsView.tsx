@@ -17,6 +17,11 @@ import { normalized } from '@/features/panels/utils/json'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import {
+  GRAPH_FIELDS_MAIN_LIST_PANE_CLASS_NAME,
+  GRAPH_FIELDS_MAIN_SETTINGS_PANE_CLASS_NAME,
+  GRAPH_FIELDS_MAIN_SPLIT_GRID_CLASS_NAME,
+} from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -256,8 +261,8 @@ export default function GraphFieldsView({
       data-kg-anchor={UI_ANCHORS.graphFields}
     >
       <section className="min-h-0">
-        <section className="min-h-0 min-w-0 grid grid-cols-3 gap-2">
-          <section className="col-span-2 min-h-0 overflow-auto">
+        <section className={GRAPH_FIELDS_MAIN_SPLIT_GRID_CLASS_NAME}>
+          <section className={GRAPH_FIELDS_MAIN_LIST_PANE_CLASS_NAME}>
             <GraphFieldsListPanel
             graphData={graphData}
             graphDataRevision={graphDataRevision}
@@ -276,7 +281,7 @@ export default function GraphFieldsView({
             onStatusChange={onStatusChange}
             />
           </section>
-          <section ref={fieldSettingsPaneRef} className="col-span-1 min-h-0 overflow-auto">
+          <section ref={fieldSettingsPaneRef} className={GRAPH_FIELDS_MAIN_SETTINGS_PANE_CLASS_NAME}>
             <FieldSettingsPanel
             graphData={graphData}
             selectedField={selectedField}

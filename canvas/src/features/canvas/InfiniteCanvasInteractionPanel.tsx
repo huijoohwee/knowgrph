@@ -10,6 +10,7 @@ import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 import { DEFAULT_PHYSICS2D_TUNING, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
+import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
 
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
@@ -263,7 +264,7 @@ export function InfiniteCanvasInteractionPanel() {
               />
             </section>
           </section>
-          <section className="grid grid-cols-2 gap-2">
+          <TwoColumnEditorGrid>
             <button
               type="button"
               className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasPointerMode2d !== 'pan' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -280,7 +281,7 @@ export function InfiniteCanvasInteractionPanel() {
             >
               Pan
             </button>
-          </section>
+          </TwoColumnEditorGrid>
 
           <label className={`block text-xs ${UI_THEME_TOKENS.text.secondary}`}>
             Layout

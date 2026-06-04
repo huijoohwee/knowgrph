@@ -4,9 +4,12 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW } from '@/lib/chatEndpoint'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
-import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY } from 'grph-shared/payments/stripePaymentSsot'
-import { UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME,
+  KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME,
+  KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME,
+} from '@/features/panels/ui/KeyTypeValueRow'
 
 type SettingsSpecialValueNodeProps = {
   area: string
@@ -41,9 +44,9 @@ type SettingsSpecialValueNodeProps = {
   values: Record<string, string | number | boolean>
 }
 
-const specialValueRowClassName = `${uiToolbarRowScrollClassName} gap-1.5`
-const specialValueInputShellClassName = `${UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME} overflow-hidden`
-const specialValueStatusShellClassName = 'min-w-0 max-w-full overflow-hidden'
+const specialValueRowClassName = KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME
+const specialValueInputShellClassName = KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME
+const specialValueStatusShellClassName = KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME
 
 export function shouldRenderSettingsSpecialValueNode({
   area,

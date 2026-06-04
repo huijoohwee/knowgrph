@@ -6,6 +6,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import {
+  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
   UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME,
   UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME,
   UI_RESPONSIVE_FLOW_MANAGER_ACTION_GROUP_CLASSNAME,
@@ -69,7 +70,7 @@ export function FlowEditorMappingSettingsPanel(props: {
 
   return (
     <section className="h-full min-h-0 flex flex-col overflow-hidden" aria-label="Edit mapping">
-      <section className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" aria-label="Mapping editor">
+      <section className={UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} aria-label="Mapping editor">
         {mode === 'none' ? (
           <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
             Select a mapping to edit.

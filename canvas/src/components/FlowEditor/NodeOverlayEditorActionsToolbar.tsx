@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Copy, Eraser, ExternalLink, GitMerge, HelpCircle, Images, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
+import { uiToolbarColumnMenuListClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { unwrapUserProvidedText } from '@/lib/url'
 
 export type NodeOverlayEditorActionsToolbarProps = {
@@ -378,7 +379,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         onClose={() => setMediaSelectorOpen(false)}
       >
         <section className={`${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded p-2 shadow-sm`}>
-          <menu className="m-0 p-0 list-none flex flex-col gap-1" aria-label={RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL}>
+          <menu className={uiToolbarColumnMenuListClassName} aria-label={RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL}>
             {mediaSelectorOptions.map(option => {
               const selected = option.value === richMediaMediaSelector?.selectedMode
               return (

@@ -1,0 +1,10 @@
+.kg-toast-row-grid {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  grid-template-columns: minmax(0, var(--kg-toast-status-column-width, 1rem)) minmax(0, 1fr) auto;
+  column-gap: 0.5rem;
+  align-items: start;
+  padding: 0.5rem 0.75rem;
+}

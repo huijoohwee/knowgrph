@@ -1831,7 +1831,7 @@ export async function testAgenticCommerceBearerTokenProtectsDbBackedRoutes() {
 
 export function testAgenticCommerceWorkerUsesSharedSemanticKeyHelper() {
   const workerText = readFileSync(resolve(process.cwd(), '../cloudflare/workers/knowgrph-payment/agenticCommerce.ts'), 'utf8')
-  const sharedText = readFileSync(resolve(process.cwd(), '../grph-shared/src/payments/agenticCommerceSsot.ts'), 'utf8')
+  const sharedText = readFileSync(resolve(process.cwd(), '../grph-shared/src/payments/agenticCommerceSemanticKey.ts'), 'utf8')
   if (!workerText.includes('buildAgenticCommerceSemanticKey')) {
     throw new Error('expected commerce worker to use the shared agentic commerce semantic-key helper')
   }

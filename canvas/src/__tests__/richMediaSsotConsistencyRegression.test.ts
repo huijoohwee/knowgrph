@@ -39,12 +39,16 @@ export function testRichMediaSsotConsistencyRegression() {
   if (normalizeRichMediaPanelTab('VIDEO') !== 'video') {
     throw new Error('expected Rich Media panel tab SSOT to normalize case-insensitive tab values')
   }
+  if (normalizeRichMediaPanelTab('AUDIO') !== 'audio') {
+    throw new Error('expected Rich Media panel tab SSOT to normalize audio tab values')
+  }
   if (
     resolveRichMediaPanelSelectedTab({
       activeTab: 'auto',
       hasText: true,
       hasImage: false,
       hasVideo: false,
+      hasAudio: false,
       hasPoi: false,
       renderKind: 'iframe',
       hasRenderableUrl: false,
@@ -91,6 +95,10 @@ export function testRichMediaSsotConsistencyRegression() {
   const staticVideoPanel = buildStaticRichMediaPanelOverlayState({ renderKind: 'video' })
   if (staticVideoPanel.activeTab !== 'video' || staticVideoPanel.hasVideo !== true || staticVideoPanel.isLoading !== false) {
     throw new Error('expected static Rich Media panel builder to derive canonical video state without local ad hoc fields')
+  }
+  const staticAudioPanel = buildStaticRichMediaPanelOverlayState({ renderKind: 'audio' })
+  if (staticAudioPanel.activeTab !== 'audio' || staticAudioPanel.hasAudio !== true || staticAudioPanel.isLoading !== false) {
+    throw new Error('expected static Rich Media panel builder to derive canonical audio state without local ad hoc fields')
   }
   const staticTextPanel = buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: 'hello' })
   if (staticTextPanel.activeTab !== 'text' || staticTextPanel.hasText !== true || staticTextPanel.loadingLabel !== '') {
@@ -150,6 +158,8 @@ export function testRichMediaSsotConsistencyRegression() {
   const flowCanvasGraphStateText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts'), 'utf8')
   const flowCanvasMediaOverlayText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
   const flowEditorCanvasText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx'), 'utf8')
+  const flowEditorFormText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx'), 'utf8')
+  const flowEditorPanelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx'), 'utf8')
   const flowEditorCanvasSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx'), 'utf8')
   const flowEditorOverlaySurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'), 'utf8')
   const d3HookText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts'), 'utf8')
@@ -168,6 +178,8 @@ export function testRichMediaSsotConsistencyRegression() {
   const sharedWebpageSnapshotLogicText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageSnapshotShared.ts'), 'utf8')
   const asyncGuardsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'async', 'asyncGuards.ts'), 'utf8')
   const asyncEffectRunnerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'async', 'asyncEffectRunner.ts'), 'utf8')
+  const responsiveElementClassesText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'ui', 'responsiveElementClasses.ts'), 'utf8')
+  const responsiveToolbarCssText = readFileSync(resolve(process.cwd(), 'src', 'styles', 'responsive-toolbar.css'), 'utf8')
   const progressTickerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'progress', 'progressTicker.ts'), 'utf8')
   const markdownWorkspaceStatusTransitionsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceStatusTransitions.ts'), 'utf8')
   const markdownWorkspaceRuntimeStatusText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntimeStatus.ts'), 'utf8')
@@ -185,6 +197,7 @@ export function testRichMediaSsotConsistencyRegression() {
   const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
   const previewPanelText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx'), 'utf8')
   const threeText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'useThreeRichMediaOverlayController.tsx'), 'utf8')
+  const panelFrameText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'ui', 'panelFrame.ts'), 'utf8')
 
   if (
     !flowCanvasGraphStateText.includes('listDisplayRichMediaOverlayNodes')
@@ -201,6 +214,12 @@ export function testRichMediaSsotConsistencyRegression() {
   }
   if (!flowCanvasGraphStateText.includes('buildRichMediaPanelOverlayExcludeNodeIdSet({')) {
     throw new Error('expected FlowCanvas to reuse the upstream Rich Media panel overlay exclusion helper')
+  }
+  if (!panelFrameText.includes('PANEL_FRAME_EMBEDDED_SURFACE_STYLE') || !panelFrameText.includes("boxShadow: 'none'")) {
+    throw new Error('expected panelFrame to own embedded Rich Media full-surface styling')
+  }
+  for (const surfaceText of [flowEditorFormText, flowEditorPanelText, markdownDesignOverlayText, previewPanelText]) {
+    if (surfaceText.includes("style={{ width: '100%', height: '100%', boxShadow: 'none' }}")) throw new Error('expected embedded Rich Media surfaces to reuse PANEL_FRAME_EMBEDDED_SURFACE_STYLE')
   }
   if (!flowCanvasGraphStateText.includes('excludeRichMediaOverlayNodeIds?: string[]')) {
     throw new Error('expected FlowCanvas to accept explicit Rich Media overlay exclusion ids from Flow Editor')
@@ -278,6 +297,34 @@ export function testRichMediaSsotConsistencyRegression() {
   }
   if (!sharedWebpageSnapshotSurfaceText.includes('export function SharedWebpageSnapshotSurface(')) {
     throw new Error('expected webpage snapshot card rendering to be centralized in one shared snapshot surface helper upstream')
+  }
+  if (!responsiveElementClassesText.includes('UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME') || !responsiveElementClassesText.includes('UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME') || !responsiveToolbarCssText.includes('.kg-webpage-snapshot-overlay-badge') || !sharedWebpageSnapshotSurfaceText.includes('UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME') || !sharedWebpageSnapshotSurfaceText.includes('UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME') || !markdownMediaUiText.includes('UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME') || !markdownMediaUiText.includes('UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME') || [sharedWebpageSnapshotSurfaceText, markdownMediaUiText].some(text => text.includes("maxWidth: 'min(520px, 92%)'") || text.includes('className="absolute inset-0 pointer-events-none"'))) {
+    throw new Error('expected webpage snapshot overlay badge width to live in the shared responsive owner instead of inline card-local styles')
+  }
+  const webpageSnapshotMediaClassIds = [
+    'UI_RESPONSIVE_WEBPAGE_SNAPSHOT_PREVIEW_MEDIA_CLASSNAME',
+    'UI_RESPONSIVE_WEBPAGE_SNAPSHOT_FAVICON_MEDIA_CLASSNAME',
+    'UI_RESPONSIVE_WEBPAGE_SNAPSHOT_HOST_ICON_MEDIA_CLASSNAME',
+    'UI_RESPONSIVE_WEBPAGE_SNAPSHOT_MEDIA_BACKDROP_CLASSNAME',
+    'UI_RESPONSIVE_WEBPAGE_SNAPSHOT_EMPTY_MEDIA_CLASSNAME',
+  ]
+  const webpageSnapshotInlineStyleFragments = [
+    "objectFit: 'contain'",
+    "objectFit: 'cover'",
+    "padding: '18%'",
+    'linear-gradient(135deg',
+    'absolute inset-0 bg-black/5',
+  ]
+  if (
+    !responsiveElementClassesText.includes('UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME') ||
+    webpageSnapshotMediaClassIds.some(classId => !responsiveElementClassesText.includes(classId) || !sharedWebpageSnapshotSurfaceText.includes(classId)) ||
+    !sharedWebpageSnapshotSurfaceText.includes('UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME') ||
+    !markdownMediaUiText.includes('UI_RESPONSIVE_WEBPAGE_SNAPSHOT_PREVIEW_MEDIA_CLASSNAME') ||
+    !responsiveToolbarCssText.includes('.kg-webpage-snapshot-media') ||
+    !responsiveToolbarCssText.includes('.kg-webpage-snapshot-media-backdrop') ||
+    webpageSnapshotInlineStyleFragments.some(fragment => [sharedWebpageSnapshotSurfaceText, markdownMediaUiText].some(text => text.includes(fragment)))
+  ) {
+    throw new Error('expected webpage snapshot media fit, padding, opacity, and backdrop styles to live in the shared responsive owner instead of inline card-local styles')
   }
   if (!sharedWebpageSnapshotLogicText.includes('export async function probeWebpageLayoutSnapshot(')) {
     throw new Error('expected webpage layout snapshot probing/parsing to be centralized in one shared upstream helper')

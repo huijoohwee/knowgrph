@@ -1,6 +1,14 @@
 import React from 'react'
 import PlainMermaidDiagram from '@/features/markdown/ui/PlainMermaidDiagram'
 import { formatTimestamp } from '@/features/panels/utils/time'
+import {
+  UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME,
+  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME,
+  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_CLASSNAME,
+  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_IDLE_CLASSNAME,
+  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME,
+  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   buildDocumentVersionGitGraphRows,
@@ -145,11 +153,11 @@ export function DocumentVersionGitGraphPanel({
         <span className={UI_THEME_TOKENS.text.tertiary}>{formatTimestamp(selectedSummary.latest.timestamp)}</span>
       </header>
       <section
-        className={compact ? 'max-h-32 min-h-[4rem] shrink-0 overflow-auto' : 'max-h-56 min-h-[5rem] shrink-0 overflow-auto'}
+        className={compact ? UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME : UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME}
         data-kg-document-version-gitgraph-viewport="1"
       >
         <section
-          className="relative min-h-[4rem]"
+          className={UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME}
           role="group"
           aria-label="Document version GitGraph"
           onClick={handleGraphSurfaceClick}
@@ -167,10 +175,8 @@ export function DocumentVersionGitGraphPanel({
                   key={row.entry.id}
                   type="button"
                   className={[
-                    'pointer-events-auto absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border transition',
-                    selected
-                      ? 'border-blue-600 bg-blue-500/20 shadow-[0_0_0_3px_rgba(59,130,246,0.18)]'
-                      : 'border-transparent bg-transparent hover:border-blue-500/70 hover:bg-blue-500/10',
+                    UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_CLASSNAME,
+                    selected ? UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME : UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_IDLE_CLASSNAME,
                   ].join(' ')}
                   style={{
                     left: `${resolveGitGraphNodePositionPercent(index, gitGraphRows.length)}%`,

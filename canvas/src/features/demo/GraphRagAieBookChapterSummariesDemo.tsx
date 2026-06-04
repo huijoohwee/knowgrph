@@ -12,6 +12,11 @@ const ICONS = {
 } as const
 
 const getArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
+export const AIE_BOOK_DEMO_CONTENT_CLASS_NAME = 'kg-aie-book-demo-content'
+export const AIE_BOOK_CHAPTER_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3'
+export const AIE_BOOK_STAGE_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2'
+export const AIE_BOOK_GRAPH_STATS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 text-center sm:grid-cols-3'
+export const AIE_BOOK_INSIGHTS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-4 text-sm md:grid-cols-2'
 
 const GraphRagAieBookChapterSummariesDemo = () => {
   const [step, setStep] = useState(0)
@@ -39,7 +44,7 @@ const GraphRagAieBookChapterSummariesDemo = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 p-8">
-      <section className="max-w-6xl mx-auto">
+      <section className={AIE_BOOK_DEMO_CONTENT_CLASS_NAME}>
         <section className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
           <section className="flex items-center gap-3 mb-2">
             <BookOpen className="w-10 h-10 text-indigo-400" />
@@ -49,7 +54,7 @@ const GraphRagAieBookChapterSummariesDemo = () => {
 
           <section className="mb-6 bg-black/30 rounded-xl p-4 border border-white/10">
             <label className="text-sm font-medium text-indigo-300 mb-2 block">Select Chapter:</label>
-            <section className="grid grid-cols-3 gap-3">
+            <section className={AIE_BOOK_CHAPTER_GRID_CLASS_NAME}>
               {(
                 Object.entries(AIE_BOOK_CHAPTER_SNIPPETS) as Array<
                   [AieBookChapterId, (typeof AIE_BOOK_CHAPTER_SNIPPETS)[AieBookChapterId]]
@@ -87,7 +92,7 @@ const GraphRagAieBookChapterSummariesDemo = () => {
             ))}
           </section>
 
-          <section className="grid md:grid-cols-2 gap-6">
+          <section className={AIE_BOOK_STAGE_GRID_CLASS_NAME}>
             <section className="bg-black/30 rounded-xl p-6 border border-white/10">
               <section className="flex items-center gap-2 mb-4">
                 <Icon className="w-6 h-6 text-indigo-400" />
@@ -185,7 +190,7 @@ const GraphRagAieBookChapterSummariesDemo = () => {
 
                 {currentStep?.id === 'graphConstruct' && (
                   <section className="space-y-3">
-                    <section className="grid grid-cols-3 gap-3 text-center">
+                    <section className={AIE_BOOK_GRAPH_STATS_GRID_CLASS_NAME}>
                       <section className="bg-indigo-500/20 p-3 rounded-lg">
                         <section className="text-2xl font-bold text-white">{graphNodes.length}</section>
                         <section className="text-xs text-indigo-200">Nodes</section>
@@ -217,7 +222,7 @@ const GraphRagAieBookChapterSummariesDemo = () => {
 
           <section className="mt-8 bg-gradient-to-r from-indigo-900/40 to-purple-900/40 rounded-xl p-6 border border-indigo-500/30">
             <h3 className="text-lg font-bold text-white mb-3">Insights from {chapter.title}</h3>
-            <section className="grid md:grid-cols-2 gap-4 text-sm">
+            <section className={AIE_BOOK_INSIGHTS_GRID_CLASS_NAME}>
               <section className="bg-black/20 p-3 rounded-lg">
                 <section className="text-indigo-300 font-medium mb-1">Entities (sample)</section>
                 <section className="text-white/80">
@@ -249,4 +254,3 @@ const GraphRagAieBookChapterSummariesDemo = () => {
 }
 
 export default GraphRagAieBookChapterSummariesDemo
-

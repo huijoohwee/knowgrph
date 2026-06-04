@@ -15,8 +15,10 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
+import { renderChatContextScopeSettingInput, renderChatModelSettingInput, renderChatProviderSettingInput } from '@/features/settings/chatProviderSettingInput'
 
 const PANEL_VALUE_INPUT_REQUIRED_CLASS_NAME = 'w-full min-w-0 max-w-full h-6'
+export const SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME = 'flex w-full min-w-0 items-center gap-2'
 
 const normalizePanelValueInputClassName = (
   className: string,
@@ -63,13 +65,7 @@ export const renderSettingInput = (
       ? normalizePanelValueInputClassName(rawPanelInputClass)
       : normalizePanelValueInputClassName(PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass)
   const uiPanelKeyValueInputLeftClass = normalizePanelValueInputClassName(uiPanelKeyValueInputClass, 'left')
-  const uiPanelKeyValueTextareaClass = [
-    ...uiPanelKeyValueInputClass.split(/\s+/).filter(token => token && token !== 'h-6' && token !== 'text-left' && token !== 'text-right'),
-    'py-1',
-    'text-left',
-    'font-mono',
-    'text-xs',
-  ].join(' ')
+  const uiPanelKeyValueTextareaClass = `${uiPanelKeyValueInputClass.split(/\s+/).filter(token => token && token !== 'h-6' && token !== 'text-left' && token !== 'text-right').join(' ')} py-1 text-left font-mono text-xs`
   const iconSizeClass = getIconSizeClass(values.uiIconScale === 'compact' ? 'compact' : 'default')
   const iconStrokeWidth =
     typeof values.uiIconStrokeWidth === 'number' && Number.isFinite(values.uiIconStrokeWidth)
@@ -117,7 +113,7 @@ export const renderSettingInput = (
         : `${previewBase} ${UI_THEME_TOKENS.text.secondary} ${appliedClass}`
     const previewLabel = key === 'uiIconColorClass' ? 'Aa' : 'Hover'
     return (
-      <section className="flex w-full min-w-0 items-center gap-2">
+      <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
         <PlainTextInputEditor value={previewLabel} readOnly className={previewClass} />
         <PlainTextInputEditor
           value={str}
@@ -135,14 +131,9 @@ export const renderSettingInput = (
     const str = String(v || '')
     const placeholder = UI_THEME_TOKENS.button.padding
     const appliedClass = str.trim().length > 0 ? str : placeholder
-    const previewClass = [
-      `${UI_RESPONSIVE_COLOR_SWATCH_DASHED_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} text-xs`,
-      appliedClass,
-    ]
-      .filter(Boolean)
-      .join(' ')
+    const previewClass = `${UI_RESPONSIVE_COLOR_SWATCH_DASHED_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} text-xs ${appliedClass}`
     return (
-      <section className="flex w-full min-w-0 items-center gap-2">
+      <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
         <section className={previewClass}>
           <SettingsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
         </section>
@@ -162,14 +153,9 @@ export const renderSettingInput = (
     const str = String(v || '')
     const placeholder = pillBaseClass
     const appliedClass = str.trim().length > 0 ? str : placeholder
-    const previewClass = [
-      appliedClass,
-      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center gap-1 h-6 box-border text-xs`,
-    ]
-      .filter(Boolean)
-      .join(' ')
+    const previewClass = `${appliedClass} ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center gap-1 h-6 box-border text-xs`
     return (
-      <section className="flex w-full min-w-0 items-center gap-2">
+      <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
         <section className={previewClass}>
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Scope</span>
@@ -207,7 +193,7 @@ export const renderSettingInput = (
           })
         : ''
     return (
-      <section className="flex w-full min-w-0 items-center gap-2">
+      <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
         {key === 'uiIconPillLegendTextSizeClass' ? (
           <section className={`${uiToolbarRowScrollClassName} gap-1`}>
             <span className={legendPreviewClass}>
@@ -270,14 +256,9 @@ export const renderSettingInput = (
     const str = String(v || '')
     const placeholder = UI_RESPONSIVE_BADGE_CHIP_DEFAULT_CLASSNAME
     const appliedClass = str.trim().length > 0 ? str : placeholder
-    const previewClass = [
-      appliedClass,
-      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} ${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} justify-center gap-1 h-6 box-border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} text-[9px]`,
-    ]
-      .filter(Boolean)
-      .join(' ')
+    const previewClass = `${appliedClass} ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} ${UI_RESPONSIVE_BADGE_CHIP_CLASSNAME} justify-center gap-1 h-6 box-border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} text-[9px]`
     return (
-      <section className="flex w-full min-w-0 items-center gap-2">
+      <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
         <section className={previewClass}>
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Badge</span>
@@ -298,15 +279,9 @@ export const renderSettingInput = (
     const str = String(v || '')
     const placeholder = 'text-[9px]'
     const appliedClass = str.trim().length > 0 ? str : placeholder
-    const previewClass = [
-      badgeChipBaseClass,
-      appliedClass,
-      `gap-1 h-6 box-border ${UI_THEME_TOKENS.text.primary}`,
-    ]
-      .filter(Boolean)
-      .join(' ')
+    const previewClass = `${badgeChipBaseClass} ${appliedClass} gap-1 h-6 box-border ${UI_THEME_TOKENS.text.primary}`
     return (
-      <section className="flex w-full min-w-0 items-center gap-2">
+      <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
         <section className={previewClass}>
           <TagIcon className="w-3 h-3" aria-hidden="true" />
           <span>Badge</span>
@@ -332,7 +307,7 @@ export const renderSettingInput = (
         ? normalized
         : '#000000'
     return (
-      <section className="flex w-full min-w-0 items-center gap-2">
+      <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
         <input
           type="color"
           value={colorValue}
@@ -406,12 +381,20 @@ export const renderSettingInput = (
     )
   }
 
+  const chatProviderInput = renderChatProviderSettingInput({ className: uiPanelKeyValueInputClass, dirtyRef, keyName: key, options, setValues, value: v })
+  if (chatProviderInput) return chatProviderInput
+
+  const chatModelInput = renderChatModelSettingInput({ className: uiPanelKeyValueInputLeftClass, dirtyRef, keyName: key, options, setValues, value: v, values })
+  if (chatModelInput) return chatModelInput
+
+  const chatContextScopeInput = renderChatContextScopeSettingInput({ className: uiPanelKeyValueInputLeftClass, dirtyRef, keyName: key, setValues, value: v })
+  if (chatContextScopeInput) return chatContextScopeInput
+
   if (key === 'chatModel') {
     const str = String(v ?? '')
     return (
       <PlainTextInputEditor
         value={str}
-        list="settings-chat-model-options"
         spellCheck={false}
         onChange={next => {
           dirtyRef.current.add(key)
@@ -500,24 +483,33 @@ export const renderSettingInput = (
       />
     )
   }
-  if (key === 'chatSystemPrompt' || key === 'integrationConfigsJson') {
+  if (key === 'integrationConfigsJson') {
     const str = String(v ?? '')
-    const rows = key === 'integrationConfigsJson' ? 6 : 4
-    const editorFrameClassName =
-      key === 'integrationConfigsJson'
-        ? UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME
-        : UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME
     return (
       <PlainTextInputEditor
-        multiline
-        rows={rows}
         value={str}
         spellCheck={false}
         onChange={next => {
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`${uiPanelKeyValueTextareaClass} ${editorFrameClassName}`}
+        className={uiPanelKeyValueInputLeftClass}
+      />
+    )
+  }
+  if (key === 'chatSystemPrompt') {
+    const str = String(v ?? '')
+    return (
+      <PlainTextInputEditor
+        multiline
+        rows={4}
+        value={str}
+        spellCheck={false}
+        onChange={next => {
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={`${uiPanelKeyValueTextareaClass} ${UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME}`}
       />
     )
   }

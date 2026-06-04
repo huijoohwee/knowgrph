@@ -1,10 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom } from '@/lib/canvas/overlayWidgetZoom'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
-import { computeTransformScaleAboutScreenPoint, screenToWorld } from '@/lib/zoom/viewport'
+import { computeTransformScaleAboutViewportFrameCenter, screenToWorld } from '@/lib/zoom/viewport'
 
 function readSourceFilesUnder(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
@@ -18,6 +18,12 @@ function readSourceFilesUnder(dir: string): string[] {
     if (/\.[cm]?[tj]sx?$/.test(entry.name)) files.push(full)
   }
   return files
+}
+
+function assertTextIncludes(text: string, snippets: string[], message: string) {
+  for (const snippet of snippets) {
+    if (!text.includes(snippet)) throw new Error(`${message}: ${snippet}`)
+  }
 }
 
 export function testFlowEditorWidgetCollectiveScaleDoesNotReverseZoomDirection() {
@@ -210,12 +216,42 @@ export function testFlowEditorLiveCollectiveScaleFollowsZoomWithoutViewportFitCl
     throw new Error('expected Flow Editor widget zoom to avoid stale neutral-scale screen-authority gating')
   }
   const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
-  if (!mediaText.includes("fitToViewport: canvas2dRenderer === 'flowEditor' ? false : undefined")) {
-    throw new Error('expected rich-media zoom follow mode to stay scoped to Flow Editor and avoid Flow Canvas seepage')
-  }
-  if (!mediaText.includes('computeCollectiveFollowZoomK({')) {
-    throw new Error('expected rich-media Flow Editor overlays to reuse baseline-normalized zoom follow mode')
-  }
+  const mediaViewportText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'flowCanvasMediaLayoutViewport.ts'), 'utf8')
+  assertTextIncludes(mediaText, [
+    "fitToViewport: canvas2dRenderer === 'flowEditor' ? false : undefined",
+    'computeCollectiveFollowZoomK({',
+    'const readMediaLayoutViewport = React.useCallback',
+    'readLayoutViewport: readMediaLayoutViewport',
+    'coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport',
+  ], 'expected rich-media Flow Editor overlays to use the shared visible viewport zoom owner')
+  assertTextIncludes(mediaViewportText, ['resolveFlowEditorVisibleViewport({'], 'expected rich-media Flow Editor overlays to reuse the widget visible viewport owner')
+
+  const mediaLoopText = fs.readFileSync(path.join(srcRoot, 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts'), 'utf8')
+  assertTextIncludes(mediaLoopText, [
+    'readLayoutViewport?: (() => MediaOverlayLayoutViewport | null) | null',
+    'viewportW: layoutViewport.width',
+    'viewportH: layoutViewport.height',
+    'left: layoutViewport.left + cell.left',
+    'top: layoutViewport.top + cell.top',
+  ], 'expected shared media overlay loop to honor the active layout viewport')
+}
+
+export function testFlowEditorToolbarExposesRuntimeZoomActions() {
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const toolbarText = fs.readFileSync(path.join(srcRoot, 'components', 'Toolbar.tsx'), 'utf8')
+  assertTextIncludes(toolbarText, [
+    'RotateCcw, ZoomIn, ZoomOut',
+    'const handleToolbarZoomIn = React.useCallback',
+    "useGraphStore.getState().requestZoom('in')",
+    'const handleToolbarZoomOut = React.useCallback',
+    "useGraphStore.getState().requestZoom('out')",
+    'const handleToolbarZoomReset = React.useCallback',
+    "useGraphStore.getState().requestZoom('reset')",
+    'title={UI_LABELS.zoomIn}',
+    'title={UI_LABELS.zoomOut}',
+    'title={UI_LABELS.reset}',
+    '<ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />',
+  ], 'expected toolbar Zoom owner to expose direct runtime zoom actions and keep mode selection')
 }
 
 export function testFlowEditorRichMediaZoomCoercionMaintainsIndividualAspectRatio() {
@@ -248,10 +284,9 @@ export function testFlowEditorZoomInOutUsesVisibleCanvasCenterAsContextualAnchor
   const applyZoomPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts')
   const applyZoomText = fs.readFileSync(applyZoomPath, 'utf8')
   for (const snippet of [
-    'computeTransformScaleAboutScreenPoint',
+    'computeTransformScaleAboutViewportFrameCenter',
     'const isFlowEditorContextualZoomRequest =',
-    'focalX: visibleViewport.centerX',
-    'focalY: visibleViewport.centerY',
+    'viewport: visibleViewport',
     'const shouldRecenterFlowEditorCollectiveAfterZoom =',
     'const resolved = isFlowEditorFitLikeRequest && flowEditorOverlayFitResolved',
   ]) {
@@ -263,10 +298,9 @@ export function testFlowEditorZoomInOutUsesVisibleCanvasCenterAsContextualAnchor
   const current = { k: 0.8, x: -120, y: 36 }
   const focal = { x: 612, y: 360 }
   const beforeWorld = screenToWorld({ transform: current, sx: focal.x, sy: focal.y })
-  const next = computeTransformScaleAboutScreenPoint({
+  const next = computeTransformScaleAboutViewportFrameCenter({
     transform: current,
-    focalX: focal.x,
-    focalY: focal.y,
+    viewport: { centerX: focal.x, centerY: focal.y },
     nextK: 1.25,
   })
   const afterWorld = screenToWorld({ transform: next, sx: focal.x, sy: focal.y })
@@ -335,22 +369,30 @@ export function testFlowCanvasZoomHelpersStayRendererNeutral() {
   }
 }
 
-export function testFlowEditorOverlayZoomKeepsWidgetAndRichMediaCentersStable() {
+export function testFlowEditorOverlayZoomUsesProportionalScreenProjection() {
   const placementPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const runtimeScenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const mediaLoopPath = path.resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
+  const mediaOverlaysPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const placementText = fs.readFileSync(placementPath, 'utf8')
   const runtimeSceneText = fs.readFileSync(runtimeScenePath, 'utf8')
   const mediaLoopText = fs.readFileSync(mediaLoopPath, 'utf8')
+  const mediaOverlaysText = fs.readFileSync(mediaOverlaysPath, 'utf8')
 
   if (placementText.includes('stabilizePinnedWorldPosForZoom')
     || placementText.includes('resolvePinnedZoomCenterPreservingPlacement')
     || placementText.includes('liveZoomCenterPreservingPlacement')) {
-    throw new Error('expected pinned widget zoom to resize from stable world positions without mutating layout to preserve individual screen centers')
+    throw new Error('expected pinned widget zoom to render from stable world positions instead of mutating layout to chase screen centers')
   }
   if (!placementText.includes(': { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }')) {
     throw new Error('expected pinned widget placement to render directly from stable world positions during zoom')
   }
+  assertTextIncludes(placementText, [
+    'screenAuthorityLayoutZoomBaseRef',
+    'projectCollectiveScreenLayoutForZoom({',
+    'anchorX: screenAuthorityViewportLeft + screenAuthorityViewportWidth / 2',
+    'anchorY: screenAuthorityViewportTop + screenAuthorityViewportHeight / 2',
+  ], 'expected frontmatter screen-authority widgets to project around the visible viewport center while zooming')
   if (!runtimeSceneText.includes("if (bucketId === viewportBucketId) return `${bucketId}:visible-viewport`")) {
     throw new Error('expected flow editor runtime scene to keep viewport auto-seed signatures stable across zoom changes')
   }
@@ -360,12 +402,8 @@ export function testFlowEditorOverlayZoomKeepsWidgetAndRichMediaCentersStable() 
   if (!mediaLoopText.includes('const scaleChanged = !!lastTransform && Math.abs(lastTransform.k - rawK) > 1e-6')) {
     throw new Error('expected rich media overlay layout loop to detect zoom-scale changes separately from pan changes')
   }
-  if (!mediaLoopText.includes('const previousBox = lastAppliedBoxById.get(id) || null')) {
-    throw new Error('expected rich media overlay layout loop to reuse the last applied screen box while zooming')
-  }
-  if (!mediaLoopText.includes('cx: previousBox.left + previousBox.w / 2')) {
-    throw new Error('expected rich media overlay layout loop to preserve overlay centers across zoom changes')
-  }
+  assertTextIncludes(mediaLoopText, ['scaleLayoutOnZoom?: boolean', 'zoomLayoutBaseBoxById', 'projectCollectiveScreenLayoutForZoom({'], 'expected rich media overlay layout loop to support proportional zoom layout projection')
+  assertTextIncludes(mediaOverlaysText, ["scaleLayoutOnZoom: canvas2dRenderer === 'flowEditor'"], 'expected Flow Editor rich-media overlays to opt into proportional zoom layout projection')
 }
 
 type ProbeRect = {
@@ -391,24 +429,28 @@ function measureCollectiveMetrics(rects: ProbeRect[]) {
   return { centroidX: centroid.x, centroidY: centroid.y, avgRadius }
 }
 
-function preserveScreenCentersAcrossZoom(args: {
+function projectScreenLayoutAcrossZoom(args: {
   previousRects: ProbeRect[]
   nextWidth: number
   nextHeight: number
+  anchorX: number
+  anchorY: number
 }): ProbeRect[] {
   return args.previousRects.map(rect => {
-    const centerX = rect.left + rect.width / 2
-    const centerY = rect.top + rect.height / 2
-    return {
-      left: centerX - args.nextWidth / 2,
-      top: centerY - args.nextHeight / 2,
-      width: args.nextWidth,
-      height: args.nextHeight,
-    }
+    const baseScale = rect.width / Math.max(1, args.nextWidth)
+    const pos = projectCollectiveScreenLayoutForZoom({
+      base: { left: rect.left, top: rect.top, scale: baseScale },
+      scale: 1,
+      anchorX: args.anchorX,
+      anchorY: args.anchorY,
+      baseWidth: args.nextWidth,
+      baseHeight: args.nextHeight,
+    })
+    return { left: pos.left, top: pos.top, width: args.nextWidth, height: args.nextHeight }
   })
 }
 
-export function testFlowEditorOverlayMetricProbeStaysStableAcrossZoom() {
+export function testFlowEditorOverlayMetricProbeScalesProportionallyAcrossZoom() {
   const centers = [
     { x: 520, y: 320 },
     { x: 760, y: 320 },
@@ -417,30 +459,11 @@ export function testFlowEditorOverlayMetricProbeStaysStableAcrossZoom() {
     { x: 880, y: 560 },
     { x: 1120, y: 560 },
   ]
-  const widgetNeutralScale = computeCollectiveFollowPinnedScale({
-    zoomK: 1,
-    viewportW: 1920,
-    viewportH: 1080,
-    count: centers.length,
-    baseWidth: 360,
-    baseHeight: 520,
-  })
-  const widgetZoomOutScale = computeCollectiveFollowPinnedScale({
-    zoomK: 0.5,
-    viewportW: 1920,
-    viewportH: 1080,
-    count: centers.length,
-    baseWidth: 360,
-    baseHeight: 520,
-  })
-  const widgetZoomInScale = computeCollectiveFollowPinnedScale({
-    zoomK: 2,
-    viewportW: 1920,
-    viewportH: 1080,
-    count: centers.length,
-    baseWidth: 360,
-    baseHeight: 520,
-  })
+  const anchor = { x: 960, y: 540 }
+  const readWidgetScale = (zoomK: number) => computeCollectiveFollowPinnedScale({ zoomK, viewportW: 1920, viewportH: 1080, count: centers.length, baseWidth: 360, baseHeight: 520 })
+  const widgetNeutralScale = readWidgetScale(1)
+  const widgetZoomOutScale = readWidgetScale(0.5)
+  const widgetZoomInScale = readWidgetScale(2)
   const widgetNeutralSize = computeWidgetScaledSize(widgetNeutralScale)
   const widgetNeutralRects = centers.map(center => ({
     left: center.x - widgetNeutralSize.width / 2,
@@ -450,16 +473,8 @@ export function testFlowEditorOverlayMetricProbeStaysStableAcrossZoom() {
   }))
   const widgetZoomOutSize = computeWidgetScaledSize(widgetZoomOutScale)
   const widgetZoomInSize = computeWidgetScaledSize(widgetZoomInScale)
-  const widgetZoomOutRects = preserveScreenCentersAcrossZoom({
-    previousRects: widgetNeutralRects,
-    nextWidth: widgetZoomOutSize.width,
-    nextHeight: widgetZoomOutSize.height,
-  })
-  const widgetZoomInRects = preserveScreenCentersAcrossZoom({
-    previousRects: widgetNeutralRects,
-    nextWidth: widgetZoomInSize.width,
-    nextHeight: widgetZoomInSize.height,
-  })
+  const widgetZoomOutRects = projectScreenLayoutAcrossZoom({ previousRects: widgetNeutralRects, nextWidth: widgetZoomOutSize.width, nextHeight: widgetZoomOutSize.height, anchorX: anchor.x, anchorY: anchor.y })
+  const widgetZoomInRects = projectScreenLayoutAcrossZoom({ previousRects: widgetNeutralRects, nextWidth: widgetZoomInSize.width, nextHeight: widgetZoomInSize.height, anchorX: anchor.x, anchorY: anchor.y })
 
   const richSizingConfig = {
     widthRatio: 0.2,
@@ -467,46 +482,18 @@ export function testFlowEditorOverlayMetricProbeStaysStableAcrossZoom() {
     widthMaxPx: 360,
     quantizeStepPx: 16,
   }
-  const richNeutral = computeMediaOverlaySizing({
-    density: 'default',
-    viewportW: 1920,
-    viewportH: 1080,
-    zoomK: widgetNeutralScale,
-    itemCount: centers.length,
-    config: richSizingConfig,
-  })
-  const richZoomOut = computeMediaOverlaySizing({
-    density: 'default',
-    viewportW: 1920,
-    viewportH: 1080,
-    zoomK: widgetZoomOutScale,
-    itemCount: centers.length,
-    config: richSizingConfig,
-  })
-  const richZoomIn = computeMediaOverlaySizing({
-    density: 'default',
-    viewportW: 1920,
-    viewportH: 1080,
-    zoomK: widgetZoomInScale,
-    itemCount: centers.length,
-    config: richSizingConfig,
-  })
+  const readRichSizing = (zoomK: number) => computeMediaOverlaySizing({ density: 'default', viewportW: 1920, viewportH: 1080, zoomK, itemCount: centers.length, config: richSizingConfig })
+  const richNeutral = readRichSizing(widgetNeutralScale)
+  const richZoomOut = readRichSizing(widgetZoomOutScale)
+  const richZoomIn = readRichSizing(widgetZoomInScale)
   const richNeutralRects = centers.map(center => ({
     left: center.x - richNeutral.panelW / 2,
     top: center.y - richNeutral.panelH / 2,
     width: richNeutral.panelW,
     height: richNeutral.panelH,
   }))
-  const richZoomOutRects = preserveScreenCentersAcrossZoom({
-    previousRects: richNeutralRects,
-    nextWidth: richZoomOut.panelW,
-    nextHeight: richZoomOut.panelH,
-  })
-  const richZoomInRects = preserveScreenCentersAcrossZoom({
-    previousRects: richNeutralRects,
-    nextWidth: richZoomIn.panelW,
-    nextHeight: richZoomIn.panelH,
-  })
+  const richZoomOutRects = projectScreenLayoutAcrossZoom({ previousRects: richNeutralRects, nextWidth: richZoomOut.panelW, nextHeight: richZoomOut.panelH, anchorX: anchor.x, anchorY: anchor.y })
+  const richZoomInRects = projectScreenLayoutAcrossZoom({ previousRects: richNeutralRects, nextWidth: richZoomIn.panelW, nextHeight: richZoomIn.panelH, anchorX: anchor.x, anchorY: anchor.y })
 
   const widgetNeutralMetrics = measureCollectiveMetrics(widgetNeutralRects)
   const widgetZoomOutMetrics = measureCollectiveMetrics(widgetZoomOutRects)
@@ -515,23 +502,19 @@ export function testFlowEditorOverlayMetricProbeStaysStableAcrossZoom() {
   const richZoomOutMetrics = measureCollectiveMetrics(richZoomOutRects)
   const richZoomInMetrics = measureCollectiveMetrics(richZoomInRects)
 
-  const epsilon = 0.0001
-  if (Math.abs(widgetZoomOutMetrics.centroidX - widgetNeutralMetrics.centroidX) > epsilon || Math.abs(widgetZoomOutMetrics.centroidY - widgetNeutralMetrics.centroidY) > epsilon) {
-    throw new Error(`expected widget zoom-out centroid stability, neutral=${widgetNeutralMetrics.centroidX},${widgetNeutralMetrics.centroidY} out=${widgetZoomOutMetrics.centroidX},${widgetZoomOutMetrics.centroidY}`)
+  const assertScaledRadius = (label: string, actual: number, expected: number) => {
+    if (Math.abs(actual - expected) > 0.001) {
+      throw new Error(`expected ${label} average radius to scale with panel size, actual=${actual} expected=${expected}`)
+    }
   }
-  if (Math.abs(widgetZoomInMetrics.centroidX - widgetNeutralMetrics.centroidX) > epsilon || Math.abs(widgetZoomInMetrics.centroidY - widgetNeutralMetrics.centroidY) > epsilon) {
-    throw new Error(`expected widget zoom-in centroid stability, neutral=${widgetNeutralMetrics.centroidX},${widgetNeutralMetrics.centroidY} in=${widgetZoomInMetrics.centroidX},${widgetZoomInMetrics.centroidY}`)
+  assertScaledRadius('widget zoom-out', widgetZoomOutMetrics.avgRadius, widgetNeutralMetrics.avgRadius * (widgetZoomOutSize.width / widgetNeutralSize.width))
+  assertScaledRadius('widget zoom-in', widgetZoomInMetrics.avgRadius, widgetNeutralMetrics.avgRadius * (widgetZoomInSize.width / widgetNeutralSize.width))
+  assertScaledRadius('rich-media zoom-out', richZoomOutMetrics.avgRadius, richNeutralMetrics.avgRadius * (richZoomOut.panelW / richNeutral.panelW))
+  assertScaledRadius('rich-media zoom-in', richZoomInMetrics.avgRadius, richNeutralMetrics.avgRadius * (richZoomIn.panelW / richNeutral.panelW))
+  if (!(widgetZoomOutMetrics.avgRadius < widgetNeutralMetrics.avgRadius && widgetZoomInMetrics.avgRadius > widgetNeutralMetrics.avgRadius)) {
+    throw new Error(`expected widget layout to contract on zoom-out and expand on zoom-in, out=${widgetZoomOutMetrics.avgRadius} neutral=${widgetNeutralMetrics.avgRadius} in=${widgetZoomInMetrics.avgRadius}`)
   }
-  if (Math.abs(widgetZoomOutMetrics.avgRadius - widgetNeutralMetrics.avgRadius) > epsilon || Math.abs(widgetZoomInMetrics.avgRadius - widgetNeutralMetrics.avgRadius) > epsilon) {
-    throw new Error(`expected widget average radius stability across zoom, out=${widgetZoomOutMetrics.avgRadius} neutral=${widgetNeutralMetrics.avgRadius} in=${widgetZoomInMetrics.avgRadius}`)
-  }
-  if (Math.abs(richZoomOutMetrics.centroidX - richNeutralMetrics.centroidX) > epsilon || Math.abs(richZoomOutMetrics.centroidY - richNeutralMetrics.centroidY) > epsilon) {
-    throw new Error(`expected rich-media zoom-out centroid stability, neutral=${richNeutralMetrics.centroidX},${richNeutralMetrics.centroidY} out=${richZoomOutMetrics.centroidX},${richZoomOutMetrics.centroidY}`)
-  }
-  if (Math.abs(richZoomInMetrics.centroidX - richNeutralMetrics.centroidX) > epsilon || Math.abs(richZoomInMetrics.centroidY - richNeutralMetrics.centroidY) > epsilon) {
-    throw new Error(`expected rich-media zoom-in centroid stability, neutral=${richNeutralMetrics.centroidX},${richNeutralMetrics.centroidY} in=${richZoomInMetrics.centroidX},${richZoomInMetrics.centroidY}`)
-  }
-  if (Math.abs(richZoomOutMetrics.avgRadius - richNeutralMetrics.avgRadius) > epsilon || Math.abs(richZoomInMetrics.avgRadius - richNeutralMetrics.avgRadius) > epsilon) {
-    throw new Error(`expected rich-media average radius stability across zoom, out=${richZoomOutMetrics.avgRadius} neutral=${richNeutralMetrics.avgRadius} in=${richZoomInMetrics.avgRadius}`)
+  if (!(richZoomOutMetrics.avgRadius <= richNeutralMetrics.avgRadius && richZoomInMetrics.avgRadius >= richNeutralMetrics.avgRadius)) {
+    throw new Error(`expected rich-media layout to not diverge on zoom-out or collide on zoom-in, out=${richZoomOutMetrics.avgRadius} neutral=${richNeutralMetrics.avgRadius} in=${richZoomInMetrics.avgRadius}`)
   }
 }

@@ -1,6 +1,9 @@
 import React from 'react'
 
-import { UI_RESPONSIVE_PANEL_HEADER_SECONDARY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
+  UI_RESPONSIVE_PANEL_HEADER_SECONDARY_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
@@ -57,7 +60,7 @@ export function MainPanelSettingsPanelShell(props: {
       </header>
       <section
         className={cn(
-          `flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2 ${UI_THEME_TOKENS.panel.bg}`,
+          `${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} py-2 ${UI_THEME_TOKENS.panel.bg}`,
           bodyClassName,
         )}
       >

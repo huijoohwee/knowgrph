@@ -17,6 +17,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphData } from '@/lib/graph/types'
 import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { normalizeSemanticHighlightColor } from '@/lib/ui/semanticHighlight'
+import { GRAPH_STATS_KEYWORD_CONTROL_GRID_CLASS_NAME } from '@/features/graph-stats/graphStatsResponsiveClasses'
 
 export default function GraphStatsPanel() {
   const semanticMode = useGraphStore(s => (s.documentSemanticMode || 'document') as 'document' | 'keyword')
@@ -232,7 +233,7 @@ export default function GraphStatsPanel() {
             <section className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>
               Tune keyword extraction and graph caps. Changes apply immediately.
             </section>
-            <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <section className={GRAPH_STATS_KEYWORD_CONTROL_GRID_CLASS_NAME}>
               <section className="space-y-1">
                 <section className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-[color:var(--kg-text-secondary)]'].join(' ')}>Source max lines</section>
                 <input

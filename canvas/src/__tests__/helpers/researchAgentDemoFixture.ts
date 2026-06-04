@@ -1,6 +1,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME } from '@/features/agent-ready/mainPanelSuperAgentIntegrationContract'
+
+export type ResearchAgentDemoFixture = {
+  path: string
+  basename: string
+  workspacePath: string
+  sourceFile: string
+  text: string
+}
+
+const DOCS_WORKSPACE_ROOT = '/docs'
+
+const RESEARCH_AGENT_DEMO_SIGNATURES = [
+  'knowgrph-mainpanel-superagent-integrations-demo/v1',
+  'superagent_harness_demo',
+  'kgra_superagent_harness',
+] as const
 
 const findKnowgrphRoot = (startDir: string): string => {
   let current = path.resolve(startDir)
@@ -18,28 +33,62 @@ const findKnowgrphRoot = (startDir: string): string => {
   return path.resolve(startDir)
 }
 
+const listMarkdownFiles = (rootPath: string): string[] => {
+  if (!fs.existsSync(rootPath)) return []
+  const entries = fs.readdirSync(rootPath, { withFileTypes: true })
+  return entries.flatMap(entry => {
+    const nextPath = path.join(rootPath, entry.name)
+    if (entry.isDirectory()) return listMarkdownFiles(nextPath)
+    return entry.isFile() && nextPath.endsWith('.md') ? [nextPath] : []
+  })
+}
+
+const textMatchesResearchAgentDemo = (text: string): boolean => {
+  return RESEARCH_AGENT_DEMO_SIGNATURES.every(signature => text.includes(signature))
+}
+
+const findSemanticResearchAgentDemoPath = (rootPath: string): string | null => {
+  for (const candidate of listMarkdownFiles(rootPath)) {
+    const text = fs.readFileSync(candidate, 'utf8')
+    if (textMatchesResearchAgentDemo(text)) return candidate
+  }
+  return null
+}
+
 export function resolveResearchAgentDemoPath(startDir = process.cwd()): string {
   const explicitPath = String(process.env.KNOWGRPH_RESEARCH_AGENT_DEMO_PATH || '').trim()
   if (explicitPath) return path.resolve(explicitPath)
 
   const knowgrphRoot = findKnowgrphRoot(startDir)
   const publishedDocsRoot = String(process.env.KNOWGRPH_PUBLISHED_DOCS_ROOT || '').trim()
-  const candidates = [
-    publishedDocsRoot ? path.resolve(publishedDocsRoot, KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME) : '',
-    path.resolve(knowgrphRoot, '..', 'huijoohwee', 'docs', KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME),
-    path.resolve(knowgrphRoot, 'docs', 'documents', KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME),
+  const searchRoots = [
+    publishedDocsRoot ? path.resolve(publishedDocsRoot) : '',
+    path.resolve(knowgrphRoot, '..', 'huijoohwee', 'docs'),
+    path.resolve(knowgrphRoot, 'docs', 'documents'),
   ].filter(Boolean)
 
-  const found = candidates.find(candidate => fs.existsSync(candidate))
-  return found || candidates[0] || path.resolve(startDir, KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME)
+  for (const rootPath of searchRoots) {
+    const found = findSemanticResearchAgentDemoPath(rootPath)
+    if (found) return found
+  }
+
+  throw new Error(`expected a markdown demo with signatures ${RESEARCH_AGENT_DEMO_SIGNATURES.join(', ')} under ${searchRoots.join(', ') || startDir}`)
 }
 
-export function readResearchAgentDemoText(): string {
+export function readResearchAgentDemoFixture(): ResearchAgentDemoFixture {
   const demoPath = resolveResearchAgentDemoPath()
-  if (!fs.existsSync(demoPath)) {
-    throw new Error(`expected research agent demo markdown at ${demoPath}`)
-  }
   const text = fs.readFileSync(demoPath, 'utf8')
   if (!text.trim()) throw new Error(`expected research agent demo markdown at ${demoPath} to be non-empty`)
-  return text
+  if (!textMatchesResearchAgentDemo(text)) {
+    throw new Error(`expected research agent demo markdown at ${demoPath} to expose the semantic demo signatures`)
+  }
+  const basename = path.basename(demoPath)
+  const workspacePath = `${DOCS_WORKSPACE_ROOT}/${basename}`
+  return {
+    path: demoPath,
+    basename,
+    workspacePath,
+    sourceFile: `workspace:${workspacePath}`,
+    text,
+  }
 }

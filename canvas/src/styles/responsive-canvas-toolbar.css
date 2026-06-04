@@ -1,0 +1,79 @@
+.kg-canvas-page-surface {
+  min-inline-size: 0;
+}
+
+.kg-canvas-toolbar-dock,
+.kg-workspace-overlay-canvas-toolbar {
+  max-width: 100%;
+  max-inline-size: 100%;
+}
+
+.kg-canvas-toolbar-dock {
+  inset-block-start: 0;
+  inset-inline: 0;
+  align-items: center;
+  justify-content: center;
+  padding-block-start: calc(var(--kg-safe-top) + var(--kg-canvas-viewport-edge-gap));
+  padding-block-end: 0.5rem;
+}
+
+.kg-workspace-overlay-canvas-toolbar {
+  inset-block-start: calc(var(--kg-safe-top) + var(--kg-canvas-viewport-edge-gap));
+  inset-inline-start: calc(var(--kg-safe-left) + var(--kg-canvas-viewport-edge-gap));
+  inset-inline-end: calc(var(--kg-safe-right) + var(--kg-canvas-viewport-edge-gap));
+  align-items: flex-start;
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+.kg-canvas-toolbar-dock-content {
+  max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+  max-inline-size: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+  min-inline-size: 0;
+  overflow: visible;
+}
+
+.kg-canvas-toolbar-dock-content > .App-toolbar--touch-scroll {
+  max-width: 100%;
+  max-inline-size: 100%;
+}
+
+.kg-canvas-bottom-panel {
+  width: min(calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 42rem);
+}
+
+.kg-canvas-bottom-panel--pinned {
+  inset-block-end: calc(var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.kg-canvas-minimap-overlay {
+  inset-inline-start: 0.75rem;
+  inset-block-end: var(--kg-canvas-minimap-full-bottom-clearance, calc(var(--kg-control-height, 28px) + 1.5rem));
+}
+
+.kg-canvas-minimap-overlay--pane {
+  inset-block-end: calc(var(--kg-safe-bottom) + 0.75rem);
+}
+
+.kg-canvas-document-switch-notice {
+  max-width: 100%;
+  max-inline-size: 100%;
+  padding-inline: 0.75rem;
+  padding-block: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse), (max-width: 768px) {
+  .kg-canvas-toolbar-dock,
+  .kg-workspace-overlay-canvas-toolbar {
+    inset-block-start: auto;
+    inset-block-end: calc(var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap));
+    align-items: flex-end;
+    padding-block-start: 0;
+    padding-block-end: 0;
+  }
+}

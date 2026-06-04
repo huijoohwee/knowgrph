@@ -20,26 +20,10 @@ const waitForBodyLink = async (container: HTMLElement, win: Window, url: string,
 
 const resetRichMediaPanelTestStoreState = () => {
   const state = useGraphStore.getState()
-  try {
-    state.setWorkspaceViewMode('canvas')
-  } catch {
-    void 0
-  }
-  try {
-    state.setWorkspaceCanvasPaneOpen(false)
-  } catch {
-    void 0
-  }
-  try {
-    state.setRichMediaPanelMode('snapshot')
-  } catch {
-    void 0
-  }
-  try {
-    state.setInfiniteCanvasInteractionMode('static')
-  } catch {
-    void 0
-  }
+  try { state.setWorkspaceViewMode('canvas') } catch { void 0 }
+  try { state.setWorkspaceCanvasPaneOpen(false) } catch { void 0 }
+  try { state.setRichMediaPanelMode('snapshot') } catch { void 0 }
+  try { state.setInfiniteCanvasInteractionMode('static') } catch { void 0 }
 }
 
 const dispatchPanelPointerEvent = (
@@ -809,6 +793,7 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
           hasText: true,
           hasImage: false,
           hasVideo: false,
+          hasAudio: false,
           hasPoi: false,
           text: '',
           connectedText: [
@@ -952,6 +937,7 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
           hasText: true,
           hasImage: false,
           hasVideo: false,
+          hasAudio: false,
           hasPoi: false,
           text: '',
           connectedText: 'Connected panel text',
@@ -1020,6 +1006,7 @@ export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
           hasText: true,
           hasImage: false,
           hasVideo: false,
+          hasAudio: false,
           hasPoi: false,
           text: '',
           connectedText: [

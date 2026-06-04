@@ -17,13 +17,14 @@ import {
   getWidgetRegistryEntryLabel,
   listVisibleWidgetRegistryPortsForPropsEditor,
 } from '@/features/flow-editor-manager/registryTemplates'
+import { normalizeWidgetFieldSchemaPath } from '@/features/flow-editor-manager/widgetFieldMutation'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
-import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'
 
 type DomGlobalSnapshot = Partial<Pick<
   typeof globalThis,
@@ -128,15 +129,9 @@ function assertFrontmatterBuiltInWidgetIdentityPattern(args: {
   if (widgetIdentityInput.value !== expectedIdentityLabel) {
     throw new Error(`expected canonical Widget identity ${JSON.stringify(expectedIdentityLabel)}, got ${JSON.stringify(widgetIdentityInput.value)}`)
   }
-  if (args.host.querySelector('section[aria-label="Flow Envelope"]')) {
-    throw new Error('expected built-in frontmatter widget to avoid duplicate flow-envelope rows')
-  }
-  if (args.host.querySelector('section[aria-label="Flow Handles"]')) {
-    throw new Error('expected built-in frontmatter widget to avoid duplicate flow-handle rows')
-  }
-  if (args.host.querySelector('section[aria-label="Widget Registry"] thead')) {
-    throw new Error('expected built-in frontmatter widget registry to reuse props-panel table rows without Key/Type/Value header row')
-  }
+  if (args.host.querySelector('section[aria-label="Flow Envelope"]')) throw new Error('expected built-in frontmatter widget to avoid duplicate flow-envelope rows')
+  if (args.host.querySelector('section[aria-label="Flow Handles"]')) throw new Error('expected built-in frontmatter widget to avoid duplicate flow-handle rows')
+  if (args.host.querySelector('section[aria-label="Widget Registry"] thead')) throw new Error('expected built-in frontmatter widget registry to reuse props-panel table rows without Key/Type/Value header row')
   ;['Key', 'Type', 'Value'].forEach(token => {
     const headerCell = args.host.querySelector(`section[aria-label="Widget Registry"] thead td`)
     if (headerCell && args.host.textContent?.includes(token)) {
@@ -146,10 +141,12 @@ function assertFrontmatterBuiltInWidgetIdentityPattern(args: {
   const renderedLabels = Array.from(
     args.host.querySelectorAll('section[aria-label="Widget"] label, section[aria-label="Widget Registry"] label'),
   ).map(label => label.textContent?.trim() || '').filter(Boolean)
+  const fieldSchemaPaths = new Set(args.registryEntry.fields.map(field => normalizeWidgetFieldSchemaPath(field.schemaPath, field.fieldKey)).filter(Boolean))
   const expectedOrderedLabels = [
     'Widget',
     ...args.registryEntry.fields.map(field => String(field.label || '').trim()).filter(Boolean),
     ...listVisibleWidgetRegistryPortsForPropsEditor({ registryEntry: args.registryEntry })
+      .filter(port => !fieldSchemaPaths.has(normalizeWidgetFieldSchemaPath(port.schemaPath, port.portKey)))
       .map(port => String(port.portKey || '').trim())
       .filter(Boolean),
   ]

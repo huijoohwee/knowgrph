@@ -14,9 +14,13 @@ import { getCellTextByKind } from '@/features/graph-table/ui/fast-grid/canvasGri
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME, UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import {
+  GRAPH_TABLE_ORDER_COLUMN_WIDTH_PX,
+  GRAPH_TABLE_SELECT_COLUMN_WIDTH_PX,
+} from '@/features/graph-table/ui/graphTableResponsiveMetrics'
 
 export const GraphTableDomTableView = React.memo(function GraphTableDomTableView(props: {
   tableId: GraphTableId
@@ -51,14 +55,16 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
   })
 
   const dataCols = React.useMemo(() => model.columns.filter(c => c.kind === 'data'), [model.columns])
+  const selectColumnWidth = model.columns.find(c => c.kind === 'select')?.width ?? GRAPH_TABLE_SELECT_COLUMN_WIDTH_PX
+  const orderColumnWidth = model.columns.find(c => c.kind === 'order')?.width ?? GRAPH_TABLE_ORDER_COLUMN_WIDTH_PX
   const selectedSet = React.useMemo(() => new Set(props.selectedRowIds), [props.selectedRowIds])
 
   return (
-    <section className="flex-1 min-h-0 min-w-0 max-w-full overflow-auto" aria-label={`${props.tableId} dom table`}>
+    <section className={`${UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME} flex-1 min-h-0 min-w-0 max-w-full`} aria-label={`${props.tableId} dom table`}>
       <table className="min-w-full border-separate border-spacing-0">
         <thead className="sticky top-0 z-10">
           <tr className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.cellBorder}`}>
-            <th className={`sticky left-0 z-20 border-b border-r ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`} style={{ width: 44 }}>
+            <th className={`sticky left-0 z-20 border-b border-r ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`} style={{ width: selectColumnWidth }}>
               <input
                 type="checkbox"
                 aria-label={model.allSelected ? 'Deselect all rows' : 'Select all rows'}
@@ -71,7 +77,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
             </th>
             <th
               className={`sticky ${UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME} z-20 border-b border-r px-2 text-left ${props.panelTypography?.microLabelClass || ''} ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
-              style={{ width: 72 }}
+              style={{ width: orderColumnWidth }}
             >
               #
             </th>

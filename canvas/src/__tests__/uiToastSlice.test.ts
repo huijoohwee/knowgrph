@@ -78,9 +78,26 @@ export function testUiToastBusyFlagResetsOnUpsert() {
 export function testToastHostRendersBusySpinnerIcon() {
   const p = resolve(process.cwd(), 'src', 'components', 'ui', 'ToastHost.tsx')
   const text = readFileSync(p, 'utf8')
+  const stylesText = readFileSync(resolve(process.cwd(), 'src', 'styles', 'toast-responsive.css'), 'utf8')
+  const indexCssText = readFileSync(resolve(process.cwd(), 'src', 'index.css'), 'utf8')
   if (!text.includes('LoaderCircle')) throw new Error('expected busy toasts to use a spinner icon')
   if (!text.includes('toast.busy ? LoaderCircle')) throw new Error('expected toast busy flag to select the spinner')
   if (!text.includes('animate-spin')) throw new Error('expected busy toast spinner to animate')
+  if (!text.includes("export const TOAST_ROW_GRID_CLASS_NAME = 'kg-toast-row-grid'")) {
+    throw new Error('expected ToastHost to expose the toast row responsive owner')
+  }
+  if (!text.includes('className={TOAST_ROW_GRID_CLASS_NAME}')) {
+    throw new Error('expected toast rows to reuse the responsive row owner')
+  }
+  if (text.includes('grid grid-cols-[16px_minmax(0,1fr)_auto]')) {
+    throw new Error('expected ToastHost to avoid inline arbitrary row grid sizing')
+  }
+  if (!indexCssText.includes("@import './styles/toast-responsive.css';")) {
+    throw new Error('expected app CSS to import the toast responsive owner stylesheet')
+  }
+  if (!stylesText.includes('.kg-toast-row-grid') || !stylesText.includes('--kg-toast-status-column-width')) {
+    throw new Error('expected toast row responsive CSS to own the bounded status column')
+  }
 }
 
 export function testToastHostSchedulesPruneFromNextExpiryInsteadOfPolling() {

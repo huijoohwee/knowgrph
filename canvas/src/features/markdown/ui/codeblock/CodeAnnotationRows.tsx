@@ -3,6 +3,10 @@ import { Columns, Eye, LayoutPanelTop } from 'lucide-react'
 import type { AnnotatedCodeRow } from '@/features/markdown/ui/markdownAnnotatedCode'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { HighlightedCode } from './HighlightedCode'
+import {
+  MARKDOWN_CODE_ANNOTATION_BESIDE_PANEL_CLASS_NAME,
+  MARKDOWN_CODE_ANNOTATION_PANEL_CLASS_NAME,
+} from './markdownCodeAnnotationResponsiveClasses'
 
 export type AnnotateDisplayMode = 'inline' | 'beside' | 'render'
 
@@ -82,7 +86,7 @@ export const AnnotatedRow = React.memo(function AnnotatedRow({
   ].filter(Boolean).join(' ')
   const annotationBlockClassName = [
     `flex-shrink-0 p-4 ${UI_THEME_TOKENS.panel.headerBg} text-xs ${UI_THEME_TOKENS.text.secondary}`,
-    isBeside ? 'w-full lg:w-72 border-t lg:border-t-0 lg:border-l ' : 'w-full ',
+    isBeside ? `${MARKDOWN_CODE_ANNOTATION_BESIDE_PANEL_CLASS_NAME} border-t lg:border-t-0 lg:border-l` : MARKDOWN_CODE_ANNOTATION_PANEL_CLASS_NAME,
     UI_THEME_TOKENS.panel.divider,
   ].join(' ')
   const rowClassName = [

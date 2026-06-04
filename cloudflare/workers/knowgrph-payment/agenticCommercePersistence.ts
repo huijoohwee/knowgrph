@@ -2,7 +2,7 @@ import { buildAgenticCommerceSemanticKey } from '../../../grph-shared/src/paymen
 import { execute, queryFirst, type D1DatabaseLike } from '../shared/d1'
 
 export type AgenticCommerceSessionStatus = 'open' | 'pending_onchain' | 'complete' | 'cancelled' | 'payment_failed'
-export type AgenticCommercePaymentRail = 'fiat' | 'erc20'
+export type AgenticCommercePaymentRail = 'fiat' | 'erc20' | 'solana_pay'
 export type OpenboxAction = 'authorized' | 'manual_review' | 'blocked'
 
 export type AgenticCommerceRiskSignal = {

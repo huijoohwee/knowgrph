@@ -2,9 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { isMainPanelVirtualSettingConfigDefault } from '@/features/panels/mainPanelVirtualSettings'
 
-const readUtf8 = (absPath: string): string => {
-  return fs.readFileSync(absPath, { encoding: 'utf8' })
-}
+const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 
 export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const root = process.cwd()
@@ -52,13 +50,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const helpSections = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpSections.tsx'))
   const helpView = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpView.tsx'))
   const helpKtvLayout = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpKtvLayout.tsx'))
-  const helpViewSectionFileNames = [
-    'HelpShortcutsSection.tsx',
-    'HelpCheatsheetSection.tsx',
-    'HelpPanelTourSection.tsx',
-    'HelpWorkflowLinksSection.tsx',
-    'HelpIconsSection.tsx',
-  ]
+  const helpViewSectionFileNames = ['HelpShortcutsSection.tsx', 'HelpCheatsheetSection.tsx', 'HelpPanelTourSection.tsx', 'HelpWorkflowLinksSection.tsx', 'HelpIconsSection.tsx']
   const helpViewSectionTexts = helpViewSectionFileNames.map(fileName => [
     fileName,
     readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName)),
@@ -67,13 +59,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const fieldSettingsPanel = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'FieldSettingsPanel.tsx'))
   const graphFieldsListPanel = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'GraphFieldsListPanel.tsx'))
   const fieldSamplesPanel = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'FieldSamplesPanel.tsx'))
-  const graphFieldSettingSectionTexts = [
-    'DefaultValueSection.tsx',
-    'CurrencySection.tsx',
-    'DecimalPlacesSection.tsx',
-    'UrlProtocolSection.tsx',
-    'SelectOptionsSection.tsx',
-  ].map(fileName => [
+  const graphFieldSettingSectionTexts = ['DefaultValueSection.tsx', 'CurrencySection.tsx', 'DecimalPlacesSection.tsx', 'UrlProtocolSection.tsx', 'SelectOptionsSection.tsx'].map(fileName => [
     fileName,
     readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', fileName)),
   ] as const)
@@ -82,17 +68,10 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const widgetPalette = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'WidgetPalette.tsx'))
   const floatingPanelChat = readUtf8(path.resolve(root, 'src', 'features', 'chat', 'FloatingPanelChat.tsx'))
   const floatingPanelChatSections = readUtf8(path.resolve(root, 'src', 'features', 'chat', 'FloatingPanelChatSections.tsx'))
-  const mainPanelDocMappedValueSources = [
-    'agnesApiDocs.ts',
-    'miromindApiDocs.ts',
-    'pixverseMcpApiDocs.ts',
-    'stripeMcpApiDocs.ts',
-    'stripePaymentApiDocs.ts',
-    'crawlerAccessMcpApiDocs.ts',
-    'miromindMcpApiDocs.ts',
-  ].map(fileName => readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName)))
+  const mainPanelDocMappedValueSources = ['agnesApiDocs.ts', 'miromindApiDocs.ts', 'pixverseMcpApiDocs.ts', 'stripeMcpApiDocs.ts', 'stripePaymentApiDocs.ts', 'crawlerAccessMcpApiDocs.ts', 'miromindMcpApiDocs.ts'].map(fileName => readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName)))
   const graphStatsPanel = readUtf8(path.resolve(root, 'src', 'features', 'graph-stats', 'GraphStatsPanel.tsx'))
   const settingsUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'ui.tsx'))
+  const settingsChatProviderInput = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'chatProviderSettingInput.tsx'))
   const settingsRegistry = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'registry.ts'))
   const settingsRegistryOpenAiMcp = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'registry-openai-mcp.ts'))
   const settingsRegistryUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'registry-ui.ui.ts'))
@@ -101,18 +80,14 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const uiSliceCoreActions = readUtf8(path.resolve(root, 'src', 'hooks', 'store', 'uiSliceCoreActions.ts'))
   const renderSettingsSection = readUtf8(path.resolve(root, 'src', 'lib', 'panels', 'views', 'RenderSettingsSection.impl.tsx'))
   const rendererPaletteSettings = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'ui', 'RendererPaletteSettings.tsx'))
+  const rendererHoverSettings = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'ui', 'RendererHoverSettings.tsx'))
+  const threeViewLayoutSection = readUtf8(path.resolve(root, 'src', 'lib', 'panels', 'views', 'ThreeViewLayoutSection.impl.tsx'))
   const aiKgLayersSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'AiKgLayersSection.tsx'))
   const graphRagWorkflowSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphRagWorkflowSection.tsx'))
   const graphRagWorkflowIndexingSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphRagWorkflowIndexingSection.tsx'))
   const threeViewTuningSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewTuningSection.tsx'))
   const schemaEditorUiClasses = readUtf8(path.resolve(root, 'src', 'features', 'schema-editor', 'useSchemaEditorUiClasses.ts'))
-  const graphFieldSharedInputClassSectionTexts = [
-    'DefaultValueSection.tsx',
-    'FieldStylesSection.tsx',
-    'FieldGraphLayersSection.tsx',
-    'FieldEndpointsAndCardinalitySection.tsx',
-    'FieldLayoutSection.tsx',
-  ].map(fileName => [
+  const graphFieldSharedInputClassSectionTexts = ['DefaultValueSection.tsx', 'FieldStylesSection.tsx', 'FieldGraphLayersSection.tsx', 'FieldEndpointsAndCardinalitySection.tsx', 'FieldLayoutSection.tsx'].map(fileName => [
     fileName,
     readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', fileName)),
   ] as const)
@@ -188,12 +163,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   if (!keyTypeValueRow.includes("from 'grph-shared/ui/keyTypeValueRows'")) {
     throw new Error('Expected KeyTypeValueRow to import the shared KTV row class contract')
   }
-  for (const exportedClassName of [
-    'KTV_ROW_TEXT_CELL_CLASS_NAME',
-    'KTV_ROW_LABEL_CELL_CLASS_NAME',
-    'KTV_ROW_VALUE_CELL_CLASS_NAME',
-    'KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME',
-  ]) {
+  for (const exportedClassName of ['KTV_ROW_TEXT_CELL_CLASS_NAME', 'KTV_ROW_LABEL_CELL_CLASS_NAME', 'KTV_ROW_VALUE_CELL_CLASS_NAME', 'KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME']) {
     if (!sharedKtvRows.includes(`export const ${exportedClassName}`)) {
       throw new Error(`Expected shared KTV rows module to export ${exportedClassName}`)
     }
@@ -202,8 +172,20 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   if (valueCellUses < 5) {
     throw new Error('Expected all KeyTypeValueRow layouts to reuse the shared value-cell class')
   }
-  if (!keyTypeValueRow.includes('items-center overflow-hidden justify-start sm:justify-end')) {
-    throw new Error('Expected RightAlignedValueCell to keep the same responsive value alignment')
+  for (const sharedValueRowExport of ['KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME', 'KTV_VALUE_ROW_SCROLL_CLASS_NAME', 'KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME', 'KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME', 'KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME']) {
+    if (!keyTypeValueRow.includes(`export const ${sharedValueRowExport}`)) {
+      throw new Error(`Expected KeyTypeValueRow to export shared ${sharedValueRowExport}`)
+    }
+  }
+  if (
+    !keyTypeValueRow.includes("from '@/features/toolbar/ui/toolbarStyles'")
+    || !keyTypeValueRow.includes('uiToolbarRowScrollClassName')
+    || !keyTypeValueRow.includes('${KTV_ROW_VALUE_CELL_CLASS_NAME} ${KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME}')
+  ) {
+    throw new Error('Expected KeyTypeValueRow Value cells to own the shared horizontal row-scroll utility')
+  }
+  if (!keyTypeValueRow.includes("const rootClassName = [KTV_VALUE_ROW_SCROLL_CLASS_NAME, className || '']")) {
+    throw new Error('Expected RightAlignedValueCell to reuse the shared horizontal KTV Value row utility')
   }
   if (
     !sharedKtvRows.includes('self-stretch px-2')
@@ -222,12 +204,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     ['settingsRowTypes.ts', settingsRowTypes],
     ['SettingsSpecialValueNode.tsx', settingsSpecialValueNode],
   ] as const) {
-    for (const staleStripeCheckoutState of [
-      'isGeneratingStripeCheckout',
-      'setIsGeneratingStripeCheckout',
-      'stripeCheckoutStatus',
-      'setStripeCheckoutStatus',
-    ]) {
+    for (const staleStripeCheckoutState of ['isGeneratingStripeCheckout', 'setIsGeneratingStripeCheckout', 'stripeCheckoutStatus', 'setStripeCheckoutStatus']) {
       if (source.includes(staleStripeCheckoutState)) {
         throw new Error(`Expected ${fileName} to remove stale settings-level Stripe checkout state ${staleStripeCheckoutState}`)
       }
@@ -250,28 +227,12 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   ) {
     throw new Error('Expected all MainPanel doc-mapped Value cells to resolve through editable neutral virtual settings')
   }
-  for (const proseDefault of [
-    'Required. Image generation prompt text.',
-    'Required. Video generation prompt text. Max 1024 tokens. Supports audio prompts.',
-    'States that Qwen reuses the canonical Knowgrph chat request message assembly.',
-    'Documents the optional provider request field without creating a second MainPanel-to-canvas pipeline.',
-    'Pins Google Cloud to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.',
-    'Multi-scene plans derive transition-aware prompts and a synthesized last-frame upload so PixVerse transition_video can connect scenes without introducing a second canvas schema.',
-  ]) {
+  for (const proseDefault of ['Required. Image generation prompt text.', 'Required. Video generation prompt text. Max 1024 tokens. Supports audio prompts.', 'States that Qwen reuses the canonical Knowgrph chat request message assembly.', 'Documents the optional provider request field without creating a second MainPanel-to-canvas pipeline.', 'Pins Google Cloud to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.', 'Multi-scene plans derive transition-aware prompts and a synthesized last-frame upload so PixVerse transition_video can connect scenes without introducing a second canvas schema.']) {
     if (isMainPanelVirtualSettingConfigDefault(proseDefault)) {
       throw new Error(`Expected prose virtual default to be rejected before it reaches a KTV Value cell: ${proseDefault}`)
     }
   }
-  for (const configDefault of [
-    'frontmatter_kgc_markdown',
-    'delta.content',
-    'delta.reasoning_steps',
-    'Singapore',
-    'google-cloud',
-    'PROJECT_ID',
-    'pixverse',
-    'v5',
-  ]) {
+  for (const configDefault of ['frontmatter_kgc_markdown', 'delta.content', 'delta.reasoning_steps', 'Singapore', 'google-cloud', 'PROJECT_ID', 'pixverse', 'v5']) {
     if (!isMainPanelVirtualSettingConfigDefault(configDefault)) {
       throw new Error(`Expected concise config literal to remain usable as a KTV Value default: ${configDefault}`)
     }
@@ -803,22 +764,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   if (!mainPanelWorkflowLinksDoc.includes('| Key | Type | Value | Details |')) {
     throw new Error('Expected editable MainPanel workflow-link descriptions doc to use a KTV table')
   }
-  for (const workflowLinkKey of [
-    'workflow.open',
-    'pipeline.ingestValidate',
-    'pipeline.renderInspect',
-    'pipeline.agenticReasoning',
-    'cluster.layers',
-    'agentic.labels',
-    'markdown.entryPoints',
-    'workflow.entry.mainPanel',
-    'workflow.entry.bottomPanel',
-    'workflow.entry.workspace',
-    'graphrag.metadata',
-    'graphrag.canvasEntry',
-    'graphrag.markdownPipeline',
-    'graphrag.storesWorkflow',
-  ]) {
+  for (const workflowLinkKey of ['workflow.open', 'pipeline.ingestValidate', 'pipeline.renderInspect', 'pipeline.agenticReasoning', 'cluster.layers', 'agentic.labels', 'markdown.entryPoints', 'workflow.entry.mainPanel', 'workflow.entry.bottomPanel', 'workflow.entry.workspace', 'graphrag.metadata', 'graphrag.canvasEntry', 'graphrag.markdownPipeline', 'graphrag.storesWorkflow']) {
     if (!mainPanelWorkflowLinksDoc.includes(`| ${workflowLinkKey} |`)) {
       throw new Error(`Expected editable MainPanel workflow-link descriptions doc to include ${workflowLinkKey}`)
     }
@@ -968,9 +914,62 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   ) {
     throw new Error('Expected Settings value editors to share responsive value alignment')
   }
+  if (
+    !settingsEntryRowValue.includes("from '@/features/panels/ui/KeyTypeValueRow'")
+    || !settingsEntryRowValue.includes('KTV_VALUE_ROW_SCROLL_CLASS_NAME')
+    || !settingsEntryRowValue.includes('KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME')
+    || settingsEntryRowValue.includes("from '@/features/toolbar/ui/toolbarStyles'")
+    || settingsEntryRowValue.includes('UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME')
+    || settingsEntryRowValue.includes('space-y-1')
+  ) {
+    throw new Error('Expected Settings value assist controls to reuse the shared horizontal KTV Value row utilities')
+  }
+  if (
+    !settingsSpecialValueNode.includes("from '@/features/panels/ui/KeyTypeValueRow'")
+    || !settingsSpecialValueNode.includes('KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME')
+    || !settingsSpecialValueNode.includes('KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME')
+    || !settingsSpecialValueNode.includes('KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME')
+    || settingsSpecialValueNode.includes("from '@/features/toolbar/ui/toolbarStyles'")
+    || settingsSpecialValueNode.includes('UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME')
+  ) {
+    throw new Error('Expected special Settings value rows to reuse shared horizontal KTV Value row utilities')
+  }
+  for (const [fileName, source] of [
+    ['RenderSettingsSection.impl.tsx', renderSettingsSection],
+    ['RendererPaletteSettings.tsx', rendererPaletteSettings],
+    ['RendererHoverSettings.tsx', rendererHoverSettings],
+    ['ThreeViewLayoutSection.impl.tsx', threeViewLayoutSection],
+  ] as const) {
+    if (!source.includes('KeyTypeValueRow') || (fileName === 'ThreeViewLayoutSection.impl.tsx' && !source.includes('THREE_VIEW_FIELD_GRID_CLASS_NAME')) || (fileName === 'RenderSettingsSection.impl.tsx' && !source.includes('RENDER_SETTINGS_PRESETS_GRID_CLASS_NAME')) || source.includes('grid grid-cols-2 gap-3')) {
+      throw new Error(`Expected FloatingPanel KTV surface ${fileName} to inherit shared KTV rows and responsive grid owners`)
+    }
+  }
+  for (const [fileName, source] of [
+    ['RenderSettingsSection.impl.tsx', renderSettingsSection],
+    ['RendererPaletteSettings.tsx', rendererPaletteSettings],
+  ] as const) {
+    if (!source.includes('RightAlignedValueCell')) {
+      throw new Error(`Expected FloatingPanel editable KTV surface ${fileName} to use the shared right-aligned Value row`)
+    }
+  }
 
   if (!settingsUi.includes('normalizePanelValueInputClassName') || !settingsUi.includes('uiPanelKeyValueInputLeftClass')) {
     throw new Error('Expected settings inputs to derive visual variants from uiPanelKeyValueInputClass')
+  }
+  if (
+    !settingsUi.includes("if (key === 'integrationConfigsJson')")
+    || settingsUi.includes("key === 'chatSystemPrompt' || key === 'integrationConfigsJson'")
+    || settingsUi.includes("key === 'integrationConfigsJson' ? 6 : 4")
+  ) {
+    throw new Error('Expected integrationConfigsJson to render as a compact one-row Value input, not a multiline editor')
+  }
+  if (
+    !settingsChatProviderInput.includes('resolveChatModelIdForProvider')
+    || !settingsChatProviderInput.includes('args.values.chatProvider')
+    || settingsChatProviderInput.includes('[selected, ...args.options]')
+    || settingsChatProviderInput.includes('[resolved, ...args.options]')
+  ) {
+    throw new Error('Expected chatModel dropdowns to normalize stale provider models without prepending duplicate legacy options')
   }
   if (settingsUi.includes('className={`w-full h-6 px-2 text-sm border') || settingsUi.includes('className={`w-full min-w-0 max-w-full h-6 px-2 text-sm border')) {
     throw new Error('Expected settings input branches to avoid local KTV input class redefinitions')

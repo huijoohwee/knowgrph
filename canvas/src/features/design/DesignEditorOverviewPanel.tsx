@@ -15,6 +15,8 @@ import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { summarizeDesignTokens } from '@/features/design/designTokenSummary'
 
+export const DESIGN_EDITOR_OVERVIEW_METRIC_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4'
+
 export function DesignEditorOverviewPanel(props: {
   active: boolean
   onOpenLayers?: () => void
@@ -150,7 +152,7 @@ export function DesignEditorOverviewPanel(props: {
         </button>
       </nav>
 
-      <section className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Design editor state">
+      <section className={DESIGN_EDITOR_OVERVIEW_METRIC_GRID_CLASS_NAME} aria-label="Design editor state">
         <section className={statClass}>
           <section className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Mode</section>
           <section className={cn('mt-0.5 truncate font-mono text-[11px]', UI_THEME_TOKENS.text.primary)}>
@@ -194,7 +196,7 @@ export function DesignEditorOverviewPanel(props: {
             <span className="hidden sm:inline">Open</span>
           </button>
         </header>
-        <dl className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+        <dl className={`mt-2 ${DESIGN_EDITOR_OVERVIEW_METRIC_GRID_CLASS_NAME}`}>
           {[
             ['Colors', tokenSummary.colorEntries.length],
             ['Typography', tokenSummary.typographyEntries.length],

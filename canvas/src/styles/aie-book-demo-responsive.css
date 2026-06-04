@@ -1,0 +1,7 @@
+.kg-aie-book-demo-content {
+  --kg-aie-book-demo-content-width: 72rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--kg-aie-book-demo-content-width);
+  margin-inline: auto;
+}

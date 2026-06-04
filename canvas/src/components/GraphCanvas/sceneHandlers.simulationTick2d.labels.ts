@@ -9,6 +9,7 @@ import { aabbOverlaps, aabbOverlapsAny } from '@/lib/ui/labels/aabb'
 import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/collision/relaxRunner'
 import { computeGroupLabelRelaxTuning2d, type Physics2dTuning } from '@/lib/graph/physics2dTuning'
 import { isWordCloudLabelNode2d, readNodeLabelFontSize2d, readNodeLabelRotation2d } from '@/components/GraphCanvas/labelLayout2d'
+import { resolveContextualZoomDetail } from '@/lib/zoom/viewport'
 
 export type LabelRelaxState2d = {
   groupLabelNudgeById: Map<string, { dx: number; dy: number }>
@@ -478,8 +479,10 @@ export function renderLabels2d(args: {
   }
 
   if (edgeLabelSel) {
-    const hideBelow = schema.performance?.lod?.hideLabelsBelowScale ?? 0
-    const hideEdgeLabels = hideBelow > 0 && d3.zoomTransform(svgEl).k < hideBelow
+    const hideEdgeLabels = resolveContextualZoomDetail({
+      k: d3.zoomTransform(svgEl).k,
+      contentThreshold: schema.performance?.lod?.hideLabelsBelowScale ?? 0,
+    }).hidden
     if (hideEdgeLabels) {
       edgeLabelSel.each(function () {
         const el = this as SVGTextElement

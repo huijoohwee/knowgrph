@@ -10,6 +10,8 @@ import {
   type GrabMapsDiscoverySettingsValues,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
+export const GRABMAPS_DISCOVERY_SETTINGS_GRID_CLASS_NAME = 'kg-grabmaps-discovery-settings-grid'
+
 function getDiscoverySettingTypeLabel(settingKey: string): string {
   const spec = GRABMAPS_DISCOVERY_SETTING_SPECS[settingKey as keyof typeof GRABMAPS_DISCOVERY_SETTING_SPECS]
   if (!spec) return 'string'
@@ -26,7 +28,7 @@ export function GrabMapsDiscoverySettingsGrid(props: {
 }) {
   return (
     <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
-      <section className={`grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+      <section className={`${GRABMAPS_DISCOVERY_SETTINGS_GRID_CLASS_NAME} ${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
         <span>Key</span>
         <span>Type</span>
         <span>Value</span>
@@ -44,7 +46,7 @@ export function GrabMapsDiscoverySettingsGrid(props: {
             writeGrabMapsDiscoverySettingsValues(patched)
           }
           return (
-            <section key={field.propertyKey} className="grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 items-center">
+            <section key={field.propertyKey} className={`${GRABMAPS_DISCOVERY_SETTINGS_GRID_CLASS_NAME} items-center`}>
               <span className={`${props.uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} truncate`} title={settingKey}>
                 {settingKey}
               </span>

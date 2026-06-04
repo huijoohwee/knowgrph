@@ -3,6 +3,7 @@ import {
   buildAgenticCommerceSemanticKey,
   type AgenticCommerceEnvLike,
 } from '../../../grph-shared/src/payments/agenticCommerceSsot'
+import { AGENTIC_COMMERCE_SOLANA_PAY_KEY } from '../../../grph-shared/src/payments/agenticCommerceSolanaPaySsot'
 import { STRIPE_CHECKOUT_METADATA_AGENTIC_COMMERCE_SESSION_ID } from '../../../grph-shared/src/payments/stripePaymentSsot'
 import type { D1DatabaseLike } from '../shared/d1'
 import {
@@ -36,10 +37,11 @@ const buildProof = (args: {
     args.txHash || '',
     args.attestationUid || '',
   ])}`
-  const canvasNode = args.session.payment_rail === 'erc20'
+  const canvasNode = args.session.payment_rail === 'erc20' || args.session.payment_rail === AGENTIC_COMMERCE_SOLANA_PAY_KEY
     ? {
         type: '@node:proof',
         session_id: args.session.id,
+        payment_rail: args.session.payment_rail,
         tx_hash: args.txHash || null,
         attestation_uid: args.attestationUid || null,
       }

@@ -15,6 +15,10 @@ import {
   type AgenticCommerceEnvLike,
 } from '../../../grph-shared/src/payments/agenticCommerceSsot'
 import type { StripeCheckoutSessionCreatePayload } from '../../../grph-shared/src/payments/stripePaymentSsot'
+import {
+  AGENTIC_COMMERCE_SOLANA_PAY_KEY,
+  AGENTIC_COMMERCE_SOLANA_PAY_SETTLE_PATH,
+} from '../../../grph-shared/src/payments/agenticCommerceSolanaPaySsot'
 import type { D1DatabaseLike } from '../shared/d1'
 import {
   asRecord,
@@ -36,21 +40,27 @@ import {
   type AgenticCommerceSessionWrite,
 } from './agenticCommercePersistence'
 import {
-  attestWeb3Settlement,
   authorizeStripeDelegatePayment,
-  confirmWeb3Transfer,
   ingestOpenboxProof,
 } from './agenticCommerceIntegrations'
 import { settleAgenticCommerceSession } from './agenticCommerceSettlement'
 import { handleAgenticCommerceX402Route } from './agenticCommerceX402'
+import {
+  buildAgenticCommerceSolanaPaySessionResponse,
+  readAgenticCommerceSolanaPaySessionResponse,
+} from './agenticCommerceSolanaPay'
+import {
+  handleAgenticCommerceSolanaPaySettle,
+  handleAgenticCommerceWeb3Settle,
+  settleAgenticCommerceSolanaPaySession,
+} from './agenticCommerceOnchainRoutes'
+import { errorJson, json, readRequestJson, type HeadersRecord } from './agenticCommerceHttp'
 import {
   createStripeHostedCheckoutSessionForWorker,
   expireStripeHostedCheckoutSessionForWorker,
 } from './payments'
 
 export { settleAgenticCommerceSessionFromStripeSession } from './agenticCommerceSettlement'
-
-type HeadersRecord = Record<string, string>
 
 type ParsedSessionRoute =
   | { kind: 'collection' }
@@ -62,27 +72,6 @@ type AgenticCommerceStripeCheckoutResponse = {
   url: string
   status: string
   payment_status: string
-}
-
-const json = (status: number, body: unknown, corsHeaders: HeadersRecord): Response =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      ...corsHeaders,
-    },
-  })
-
-const errorJson = (status: number, error: string, corsHeaders: HeadersRecord): Response =>
-  json(status, { ok: false, apiVersion: AGENTIC_COMMERCE_API_VERSION, error }, corsHeaders)
-
-const readRequestJson = async (request: Request): Promise<unknown> => {
-  try {
-    return await request.json()
-  } catch {
-    return null
-  }
 }
 
 const readCheckoutBaseUrl = (env: AgenticCommerceEnvLike, request: Request): string =>
@@ -118,6 +107,7 @@ const readPaymentRail = (payload: Record<string, unknown>): AgenticCommercePayme
   const web3 = readWeb3Extension(payload)
   const web3Method = web3 ? readRecordString(web3, 'payment_method').toLowerCase() : ''
   const rail = readRecordString(payload, 'payment_rail').toLowerCase()
+  if (web3Method === AGENTIC_COMMERCE_SOLANA_PAY_KEY || rail === AGENTIC_COMMERCE_SOLANA_PAY_KEY) return AGENTIC_COMMERCE_SOLANA_PAY_KEY
   return web3Method === 'erc20' || rail === 'erc20' ? 'erc20' : 'fiat'
 }
 
@@ -180,7 +170,12 @@ const readStoredStripeCheckoutResponse = (row: AgenticCommerceSessionRow): Agent
 const mapSessionRowForResponse = (row: AgenticCommerceSessionRow) => {
   const mapped = mapSessionRow(row)
   const stripeCheckout = readStoredStripeCheckoutResponse(row)
-  return stripeCheckout ? { ...mapped, [AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY]: stripeCheckout } : mapped
+  const solanaPay = readAgenticCommerceSolanaPaySessionResponse(row)
+  return {
+    ...mapped,
+    ...(stripeCheckout ? { [AGENTIC_COMMERCE_STRIPE_CHECKOUT_KEY]: stripeCheckout } : {}),
+    ...(solanaPay ? { [AGENTIC_COMMERCE_SOLANA_PAY_KEY]: solanaPay } : {}),
+  }
 }
 
 const readRequestedStripeCheckoutPayload = (
@@ -217,8 +212,16 @@ const buildSessionCreateWrite = (
   const headerIdempotencyKey = request.headers.get('idempotency-key') || request.headers.get('Idempotency-Key')
   const idempotencyKey = String(payload.idempotency_key || headerIdempotencyKey || payloadHash).trim()
   const sessionId = `acp_${buildAgenticCommerceSemanticKey('checkout-session', [sellerId, idempotencyKey, payloadHash])}`
-  const depositAddress = paymentRail === 'erc20' ? buildAgenticCommerceDepositAddress(env, sessionId) : null
-  const status: AgenticCommerceSessionStatus = paymentRail === 'erc20' ? 'pending_onchain' : 'open'
+  const solanaPay = paymentRail === AGENTIC_COMMERCE_SOLANA_PAY_KEY
+    ? buildAgenticCommerceSolanaPaySessionResponse(env, { id: sessionId, amountTotal, currency })
+    : null
+  if (solanaPay && solanaPay.ok !== true) return { ok: false, error: solanaPay.error }
+  const depositAddress = paymentRail === 'erc20'
+    ? buildAgenticCommerceDepositAddress(env, sessionId)
+    : (solanaPay?.ok === true ? solanaPay.recipient : null)
+  const status: AgenticCommerceSessionStatus = paymentRail === 'erc20' || paymentRail === AGENTIC_COMMERCE_SOLANA_PAY_KEY
+    ? 'pending_onchain'
+    : 'open'
   const baseResponse = {
     id: sessionId,
     seller_id: sellerId,
@@ -234,6 +237,7 @@ const buildSessionCreateWrite = (
     updated_at: nowIso,
     completed_at: null,
     cancelled_at: null,
+    ...(solanaPay?.ok === true ? { [AGENTIC_COMMERCE_SOLANA_PAY_KEY]: solanaPay.solanaPay } : {}),
   }
   return {
     ok: true,
@@ -346,6 +350,18 @@ const handleCreateSession = async (
         tool: 'knowgrph.commerce.stripe_checkout_session',
         session_id: parsed.session.id,
         provider: 'stripe',
+      },
+      createdAt: nowIso,
+    })
+  }
+  if (parsed.session.paymentRail === AGENTIC_COMMERCE_SOLANA_PAY_KEY) {
+    await writeTraceEvent(db, {
+      sessionId: parsed.session.id,
+      eventType: 'knowgrph.commerce.solana_pay_request',
+      payload: {
+        tool: 'knowgrph.commerce.solana_pay_request',
+        session_id: parsed.session.id,
+        provider: AGENTIC_COMMERCE_SOLANA_PAY_KEY,
       },
       createdAt: nowIso,
     })
@@ -483,6 +499,9 @@ const handleCompleteSession = async (
     return errorJson(409, 'Hosted Stripe ACP checkout sessions complete only from verified Stripe webhook or status refresh.', corsHeaders)
   }
   const payload = asRecord(await readRequestJson(request)) || {}
+  if (session.payment_rail === AGENTIC_COMMERCE_SOLANA_PAY_KEY && session.status !== 'complete') {
+    return settleAgenticCommerceSolanaPaySession(env, db, session, payload, corsHeaders)
+  }
   const vaultToken = readRecordString(payload, 'vault_token') || readRecordString(payload, 'payment_token') || readRecordString(payload, 'shared_payment_token')
   if (session.payment_rail === 'fiat' && session.status !== 'complete' && !vaultToken) {
     return errorJson(422, 'vault_token is required to complete a fiat ACP checkout session.', corsHeaders)
@@ -567,60 +586,6 @@ const handleCancelSession = async (
   }, corsHeaders)
 }
 
-const handleWeb3Settle = async (
-  request: Request,
-  env: AgenticCommerceEnvLike,
-  db: D1DatabaseLike,
-  corsHeaders: HeadersRecord,
-): Promise<Response> => {
-  const payload = asRecord(await readRequestJson(request)) || {}
-  const sessionId = readRecordString(payload, 'session_id')
-  const txHash = readRecordString(payload, 'tx_hash')
-  if (!sessionId) return errorJson(400, 'session_id is required.', corsHeaders)
-  if (!txHash) return errorJson(400, 'tx_hash is required.', corsHeaders)
-  const session = await readSession(db, sessionId)
-  if (!session) return errorJson(404, 'ACP checkout session not found.', corsHeaders)
-  if (session.payment_rail !== 'erc20') return errorJson(422, 'Web3 settlement requires an ERC-20 ACP session.', corsHeaders)
-  const confirmation = await confirmWeb3Transfer(env, session, txHash)
-  if (!confirmation.ok) return errorJson(confirmation.status, confirmation.error, corsHeaders)
-  const confirmedAt = new Date().toISOString()
-  await writeTraceEvent(db, {
-    sessionId,
-    eventType: 'knowgrph.commerce.web3_confirm',
-    payload: {
-      tool: 'knowgrph.commerce.web3_confirm',
-      session_id: sessionId,
-      tx_hash: txHash,
-      details: confirmation.details || null,
-    },
-    createdAt: confirmedAt,
-  })
-  const attestation = await attestWeb3Settlement(env, session, txHash)
-  if (!attestation.ok) return errorJson(attestation.status, attestation.error, corsHeaders)
-  await writeTraceEvent(db, {
-    sessionId,
-    eventType: 'knowgrph.commerce.attest',
-    payload: {
-      tool: 'knowgrph.commerce.attest',
-      session_id: sessionId,
-      tx_hash: txHash,
-      attestation_uid: attestation.attestationUid,
-    },
-    createdAt: new Date().toISOString(),
-  })
-  const settled = await settleAgenticCommerceSession(db, env, sessionId, {
-    txHash,
-    attestationUid: attestation.attestationUid || null,
-  })
-  if (!settled) return errorJson(404, 'ACP checkout session not found.', corsHeaders)
-  return json(200, {
-    ok: true,
-    apiVersion: AGENTIC_COMMERCE_API_VERSION,
-    session: settled.session,
-    proof: settled.proof,
-  }, corsHeaders)
-}
-
 const handleCommerceWebhook = async (
   request: Request,
   env: AgenticCommerceEnvLike,
@@ -630,6 +595,11 @@ const handleCommerceWebhook = async (
   const payload = asRecord(await readRequestJson(request))
   const sessionId = payload ? readRecordString(payload, 'session_id') : ''
   if (!sessionId) return errorJson(400, 'session_id is required.', corsHeaders)
+  const session = await readSession(db, sessionId)
+  if (!session) return errorJson(404, 'ACP checkout session not found.', corsHeaders)
+  if (session.payment_rail === AGENTIC_COMMERCE_SOLANA_PAY_KEY) {
+    return errorJson(409, 'Solana Pay sessions settle only through verified Solana Pay signature routes.', corsHeaders)
+  }
   const settled = await settleAgenticCommerceSession(db, env, sessionId, {
     txHash: payload ? readRecordString(payload, 'tx_hash') || null : null,
     attestationUid: payload ? readRecordString(payload, 'attestation_uid') || null : null,
@@ -652,6 +622,7 @@ export const isAgenticCommerceRoute = (pathname: string): boolean => (
   || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact
   || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest
   || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle
+  || pathname === AGENTIC_COMMERCE_SOLANA_PAY_SETTLE_PATH
   || parseSessionRoute(pathname) !== null
 )
 
@@ -690,7 +661,10 @@ export const handleAgenticCommerceRoute = async (
     return handleOpenboxIngest(request, env, db, corsHeaders)
   }
   if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle && request.method === 'POST') {
-    return handleWeb3Settle(request, env, db, corsHeaders)
+    return handleAgenticCommerceWeb3Settle(request, env, db, corsHeaders)
+  }
+  if (pathname === AGENTIC_COMMERCE_SOLANA_PAY_SETTLE_PATH && request.method === 'POST') {
+    return handleAgenticCommerceSolanaPaySettle(request, env, db, corsHeaders)
   }
   if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceWebhook && request.method === 'POST') {
     return handleCommerceWebhook(request, env, db, corsHeaders)

@@ -6,6 +6,7 @@ import { resolveDataViewChipClass } from './MarkdownDataViewChips'
 import { toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
 import {
   UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_OPTION_MENU_LIST_CLASSNAME,
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_MENU_ROW_CLASSNAME,
@@ -168,7 +169,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
 
       <p className={['m-0 text-[11px]', UI_THEME_TOKENS.text.tertiary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.multiTagHelperText}</p>
 
-      <menu className="mt-2 m-0 p-0 list-none max-h-44 overflow-auto" aria-label="Tag options">
+      <menu className={`${UI_RESPONSIVE_DATA_VIEW_OPTION_MENU_LIST_CLASSNAME} mt-2`} aria-label="Tag options">
         {createCandidate ? (
           <li className="list-none">
             <button

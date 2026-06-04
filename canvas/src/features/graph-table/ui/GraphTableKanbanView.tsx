@@ -363,7 +363,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                 }
                 laneScrollElementsRef.current.delete(lane.id)
               }}
-              className={`${UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME} flex-1 min-h-0 overflow-y-auto list-none m-0 p-2 flex flex-col gap-2`}
+              className={`${UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME} flex-1 min-h-0`}
               aria-label={`${readMarkdownSigilDisplayText(lane.label)} cards`}
             >
               {lane.rows.map(row => {

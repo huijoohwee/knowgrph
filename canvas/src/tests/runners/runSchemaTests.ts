@@ -4,6 +4,7 @@ const modSchema = () => import('@/__tests__/schema.test')
 const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
+const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
 const modXrAssetConversion = () => import('@/__tests__/xrAssetConversionHarness.test')
 const modPmfVoxelImport = () => import('@/__tests__/pmfVoxelImport.test')
 const modPmfVoxelVisibility = () => import('@/__tests__/pmfVoxelVisibility.test')
@@ -153,6 +154,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.viewSelection.mobileFirstGroupedOrder', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewMenuKeepsMobileFirstGroupedOrder()
+  })
+  await execTest(results, 'canvas.viewSelection.timelineDisplayControl', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testCanvasViewTimelineToggleUsesSharedViewModeOption()
+  })
+  await execTest(results, 'canvas.viewSelection.minimapDisplayControl', async () => {
+    const mod = await modCanvasViewDisplayControls()
+    await mod.testCanvasViewMinimapToggleUsesDisplayControlOption()
   })
   await execTest(results, 'canvas.viewSelection.rendererActivates2dSurface', async () => {
     const mod = await modCanvas3dMode()

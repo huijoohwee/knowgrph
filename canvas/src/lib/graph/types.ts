@@ -37,7 +37,7 @@ export interface AgenticRagGeo {
   lng: number;
 }
 
-export type AgenticRagMediaKind = 'image' | 'svg' | 'video' | 'iframe';
+export type AgenticRagMediaKind = 'image' | 'svg' | 'video' | 'audio' | 'iframe';
 
 export type AgenticRagMediaUrl = Brand<string, 'AgenticRagMediaUrl'>;
 

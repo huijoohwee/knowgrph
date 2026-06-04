@@ -238,7 +238,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
               }}
             >
               {isDragOver ? (
-                <section className={`${UI_RESPONSIVE_DATA_VIEW_REORDER_INDICATOR_CLASSNAME} absolute left-2 right-2 bottom-0`} style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
+                <section className={UI_RESPONSIVE_DATA_VIEW_REORDER_INDICATOR_CLASSNAME} style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
               ) : null}
 
               <section className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>

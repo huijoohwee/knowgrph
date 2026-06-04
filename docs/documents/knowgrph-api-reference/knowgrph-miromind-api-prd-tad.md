@@ -239,7 +239,9 @@ Explicitly excluded now:
 | Transport | shared chat request sender | streaming HTTP response |
 | Validation / recovery | `chatMarkdownValidation.ts` + KGC retry helpers | canonical KGC markdown candidate |
 | Finalize / persist | `useFinalizeAssistantSuccess.ts` | saved `kgc_*.md` workspace document |
-| Canvas apply | `chatKgcCanvasApply.ts` -> `setActiveMarkdownDocument()` | frontmatter preset apply + markdown-to-graph apply |
+| Canvas apply | `chatKgcCanvasApply.ts` -> `applyWorkspaceImportToCanvas()` -> `setActiveMarkdownDocument()` | Source Files materialization + frontmatter preset apply + markdown-to-graph apply |
+| Flow Editor text/transcript run | `useFlowEditorWorkflowActions.ts` -> `writeTextWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | passive sibling workspace Markdown artifact plus shared widget/Rich Media Panel `outputPath` |
+| Flow Editor image/video run | `useFlowEditorWorkflowActions.ts` -> `writeRichMediaWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | generated binary sibling artifact plus passive editable Markdown manifest and shared widget/Rich Media Panel `outputPath` / `outputManifestPath` |
 | View/render | toolbar view state + renderer/frontmatter owners | provider-neutral canvas projections |
 
 ## 13. Owner Map
@@ -346,6 +348,8 @@ Required invariants:
 - No wrapper prose before or after the document.
 - One saved canonical `kgc_*.md` document remains the artifact that Workspace and Canvas follow.
 - Graph-application payload equals the saved markdown document, not a derived provider payload.
+- The saved document lands in Source Files before active-document apply so Flow Editor, Storyboard, Rich Media Panels, Cards, Widgets, and Edges read the same renderer-neutral data.
+- Flow Editor text/transcript widget runs that have an active workspace document persist one sibling Markdown artifact and register it in Source Files passively. Flow Editor image/video widget runs persist the binary artifact plus one editable Markdown manifest and register that manifest in Source Files passively; provider output must not bypass the shared widget or Rich Media Panel patch owners.
 
 ### 17.2 Provenance handling
 
@@ -371,7 +375,8 @@ It must not introduce:
 | Validation gate | same KGC structural rules apply regardless of provider |
 | Frontmatter parsing | same shared YAML/frontmatter parser remains authoritative |
 | Canvas preset apply | same preset fields drive surface mode, render mode, and 2D renderer |
-| Graph apply | same markdown-to-graph path runs through active markdown document actions |
+| Graph apply | same workspace import and markdown-to-graph path runs through Source Files and active markdown document actions |
+| Widget run artifacts | same workspace artifact writers and passive Source Files registration path persist completed text/transcript outputs plus image/video manifests |
 | Renderer behavior | D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, Design, Flow Editor remain view projections only |
 
 ## 19. MainPanel MCP Alignment

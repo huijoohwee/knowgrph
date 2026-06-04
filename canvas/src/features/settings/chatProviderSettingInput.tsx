@@ -1,0 +1,114 @@
+import React from 'react'
+import { CHAT_CONTEXT_SCOPE_OPTIONS, normalizeChatContextScopeOption } from '@/features/settings/chatContextScopeOptions'
+import { normalizeChatProviderId, resolveChatModelIdForProvider } from '@/lib/chatEndpoint'
+import { resolveChatProviderSelectionValues } from '@/lib/chatProviderSelection'
+
+type SettingsValues = Record<string, string | number | boolean>
+
+export const renderChatProviderSettingInput = (args: {
+  className: string
+  dirtyRef: React.MutableRefObject<Set<string>>
+  keyName: string
+  options?: string[]
+  setValues: React.Dispatch<React.SetStateAction<SettingsValues>>
+  value: unknown
+}) => {
+  if (args.keyName !== 'chatProvider' || !Array.isArray(args.options) || args.options.length === 0) {
+    return null
+  }
+
+  const normalized = normalizeChatProviderId(String(args.value ?? '').trim())
+  const selectedValue = args.options.includes(normalized) ? normalized : args.options[0] || ''
+
+  return (
+    <select
+      value={selectedValue}
+      onChange={event => {
+        const selected = String(event.target.value || '').trim()
+        args.dirtyRef.current.add('chatProvider')
+        args.dirtyRef.current.add('chatEndpointUrl')
+        args.dirtyRef.current.add('chatModel')
+        args.setValues(prev => ({
+          ...prev,
+          ...resolveChatProviderSelectionValues({
+            currentEndpointUrl: prev.chatEndpointUrl,
+            currentModel: prev.chatModel,
+            currentProvider: prev.chatProvider,
+            provider: selected,
+          }),
+        }))
+      }}
+      className={args.className}
+    >
+      {args.options.map(option => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+export const renderChatModelSettingInput = (args: {
+  className: string
+  dirtyRef: React.MutableRefObject<Set<string>>
+  keyName: string
+  options?: string[]
+  setValues: React.Dispatch<React.SetStateAction<SettingsValues>>
+  value: unknown
+  values: SettingsValues
+}) => {
+  if (args.keyName !== 'chatModel' || !Array.isArray(args.options) || args.options.length === 0) {
+    return null
+  }
+  const selected = String(args.value ?? '').trim()
+  const provider = normalizeChatProviderId(args.values.chatProvider)
+  const resolved = resolveChatModelIdForProvider(selected, provider, { preserveUnknownCustomModel: true })
+  const normalized = args.options.includes(resolved) ? resolved : args.options[0] || ''
+  return (
+    <select
+      value={normalized}
+      onChange={event => {
+        const next = String(event.target.value || '').trim()
+        args.dirtyRef.current.add('chatModel')
+        args.setValues(prev => ({ ...prev, chatModel: next }))
+      }}
+      className={args.className}
+    >
+      {args.options.map(option => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+export const renderChatContextScopeSettingInput = (args: {
+  className: string
+  dirtyRef: React.MutableRefObject<Set<string>>
+  keyName: string
+  setValues: React.Dispatch<React.SetStateAction<SettingsValues>>
+  value: unknown
+}) => {
+  if (args.keyName !== 'chatContextScope') return null
+  const normalized = normalizeChatContextScopeOption(args.value)
+  return (
+    <select
+      value={normalized}
+      onChange={event => {
+        const value = event.target.value
+        const selected = value === 'selection' || value === 'workspace' ? value : 'hybrid'
+        args.dirtyRef.current.add('chatContextScope')
+        args.setValues(prev => ({ ...prev, chatContextScope: selected }))
+      }}
+      className={args.className}
+    >
+      {CHAT_CONTEXT_SCOPE_OPTIONS.map(option => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  )
+}

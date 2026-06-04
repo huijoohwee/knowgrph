@@ -4,6 +4,11 @@ export const CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME = 'overflow-y-auto overflow-
 export const CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME = 'm-0'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME = 'max-w-full h-auto object-contain'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME = 'bg-transparent'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-frame'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-embed-frame'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME = 'kg-card-markdown-preview-media-audio'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_WIDE_AUDIO_CLASS_NAME = 'kg-card-markdown-preview-media-audio kg-card-markdown-preview-media-audio--wide'
+export const CARD_MARKDOWN_PREVIEW_MEDIA_ERROR_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-error-frame'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME = `w-full h-full overflow-hidden relative ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
 export const CARD_MARKDOWN_PREVIEW_CODE_CHROME_CLASS_NAME =
   'bg-[color:var(--kg-code-bg)] text-[color:var(--kg-code-text)]'

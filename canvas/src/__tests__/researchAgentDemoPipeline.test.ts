@@ -16,9 +16,6 @@ import {
   KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS,
   KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS,
   KNOWGRPH_SUPERAGENT_PROVIDER_NODE_IDS,
-  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME,
-  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
-  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_WORKSPACE_PATH,
   KNOWGRPH_SUPERAGENT_REVIEW_EDGE_ID,
   KNOWGRPH_SUPERAGENT_RICH_MEDIA_OUTPUT_NODE_IDS,
   KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_EDGE_TYPE,
@@ -29,17 +26,34 @@ import {
   KNOWGRPH_SUPERAGENT_SUBAGENT_IDS,
   KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS,
   KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_TYPE,
+  KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_EDGE_ID,
+  KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_EDGE_TYPE,
+  KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID,
+  KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_EDGE_TYPES,
+  KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS,
   KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES,
   KNOWGRPH_SUPERAGENT_TASK_LEVELS,
 } from '@/features/agent-ready/mainPanelSuperAgentIntegrationContract'
 import { inspectSharedDocumentStructure } from '@/features/agent-ready/sharedDocumentStructureInspection.mjs'
-import { readResearchAgentDemoText } from './helpers/researchAgentDemoFixture'
+import { SWARM_PREDICTION_SCHEMA_VERSION } from '@/features/swarm-prediction/swarmPredictionEngine'
+import {
+  FLOW_SWARM_PREDICTION_FORM_ID,
+  FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
+import { readResearchAgentDemoFixture } from './helpers/researchAgentDemoFixture'
 
 export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
-  const demoText = readResearchAgentDemoText()
-  const workspacePath = KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_WORKSPACE_PATH
+  const demoFixture = readResearchAgentDemoFixture()
+  const demoText = demoFixture.text
+  if (/(^|\n)## KGC Reading Layer\b/.test(demoText)) {
+    throw new Error('expected KGC reading layer to live in frontmatter node properties, not a parallel body section')
+  }
+  if (/(^|\n)@(?:node|edge):/.test(demoText)) {
+    throw new Error('expected research demo body to avoid parallel @node/@edge reading layer sigils')
+  }
+  const workspacePath = demoFixture.workspacePath
   const sourcePath = resolveWorkspaceSourcePathKey(workspacePath)
-  if (sourcePath !== KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE) {
+  if (sourcePath !== demoFixture.sourceFile) {
     throw new Error(`expected docs mirror source path, got ${sourcePath}`)
   }
 
@@ -49,7 +63,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
       kind: 'file',
       path: workspacePath,
       parentPath: '/docs',
-      name: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME,
+      name: demoFixture.basename,
       text: demoText,
       updatedAtMs: 1,
     }],
@@ -66,7 +80,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
     throw new Error('expected docs-mirror Source Files ingestion to preserve research demo text')
   }
 
-  const parsed = await loadGraphDataFromTextViaParser(KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME, demoText, {
+  const parsed = await loadGraphDataFromTextViaParser(demoFixture.basename, demoText, {
     applyToStore: false,
     syncMarkdownDocument: false,
   })
@@ -75,7 +89,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   if ((parsed.warnings || []).length > 0) throw new Error(`expected no parser warnings, got ${(parsed.warnings || []).join(' | ')}`)
   if (String(parsed.graphData.context || '') !== 'frontmatter-flow') throw new Error('expected frontmatter-flow graph context')
   const documentStructure = inspectSharedDocumentStructure({
-    canonicalPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+    canonicalPath: demoFixture.sourceFile,
     markdown: demoText,
   })
   const parsedNodeCount = (parsed.graphData.nodes || []).length
@@ -105,7 +119,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   if (String(mainPanelIntegrationsDemo.schema_version || '') !== 'knowgrph-mainpanel-superagent-integrations-demo/v1') {
     throw new Error(`expected MainPanel SuperAgent integrations demo metadata, got ${JSON.stringify(mainPanelIntegrationsDemo)}`)
   }
-  if (String(mainPanelIntegrationsDemo.source_file || '') !== KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE) {
+  if (String(mainPanelIntegrationsDemo.source_file || '') !== demoFixture.sourceFile) {
     throw new Error(`expected workspace-relative research demo source file, got ${String(mainPanelIntegrationsDemo.source_file || '')}`)
   }
   const mainPanelEntries = new Set(Array.isArray(mainPanelIntegrationsDemo.main_panel_entries) ? mainPanelIntegrationsDemo.main_panel_entries.map(String) : [])
@@ -138,6 +152,42 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
       throw new Error(`expected SuperAgent demo task level ${level}, got ${JSON.stringify([...superAgentLevels])}`)
     }
   }
+  const swarmPredictionDemo = (frontmatterMeta.swarm_prediction_demo || {}) as Record<string, unknown>
+  if (String(swarmPredictionDemo.schema_version || '') !== SWARM_PREDICTION_SCHEMA_VERSION) {
+    throw new Error(`expected swarm prediction demo metadata, got ${JSON.stringify(swarmPredictionDemo)}`)
+  }
+  if (String(swarmPredictionDemo.source_node_id || '') !== KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID) {
+    throw new Error(`expected swarm prediction source node id, got ${String(swarmPredictionDemo.source_node_id || '')}`)
+  }
+  if (String(swarmPredictionDemo.mode || '') !== 'offline-deterministic-bounded') {
+    throw new Error(`expected deterministic bounded swarm mode, got ${String(swarmPredictionDemo.mode || '')}`)
+  }
+  if (swarmPredictionDemo.active_graph_mutated !== false) {
+    throw new Error('expected swarm prediction demo to remain review-gated without active graph mutation')
+  }
+  const swarmDemoOutputs = (swarmPredictionDemo.outputs || {}) as Record<string, unknown>
+  for (const [outputKey, expectedTarget] of Object.entries({
+    text: `${KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS[0]}.output`,
+    image: `${KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS[1]}.imageUrl`,
+    chart: `${KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS[2]}.outputSrcDoc`,
+    event_log: `${KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID}.eventLogJson`,
+    metrics: `${KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID}.metricsJson`,
+  })) {
+    if (String(swarmDemoOutputs[outputKey] || '') !== expectedTarget) {
+      throw new Error(`expected swarm output ${outputKey} -> ${expectedTarget}, got ${JSON.stringify(swarmDemoOutputs)}`)
+    }
+  }
+  const externalInspiration = Array.isArray(frontmatterMeta.external_inspiration)
+    ? frontmatterMeta.external_inspiration as Record<string, unknown>[]
+    : []
+  const swarmInspiration = externalInspiration.find(entry => String(entry.name || '') === '666ghj/MiroFish') || null
+  if (!swarmInspiration) throw new Error('expected MiroFish to remain an explicit conceptual-only inspiration boundary')
+  const swarmCopyPolicy = String(swarmInspiration.copy_policy || '')
+  for (const requiredPolicyToken of ['forbid copied code', 'copied prompts', 'copied fixtures', 'copied architecture']) {
+    if (!swarmCopyPolicy.includes(requiredPolicyToken)) {
+      throw new Error(`expected swarm copy policy to include ${requiredPolicyToken}, got ${swarmCopyPolicy}`)
+    }
+  }
 
   const requireNode = (id: string, expectedType: string) => {
     const node = (parsed.graphData?.nodes || []).find(candidate => String(candidate.id || '') === id) || null
@@ -146,6 +196,14 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
       throw new Error(`expected node ${id} type ${expectedType}, got ${String(node.type || '')}`)
     }
     return node
+  }
+  const requireKgcReadingSummary = (id: string, expectedFragment: string) => {
+    const node = (parsed.graphData.nodes || []).find(candidate => String(candidate.id || '') === id) || null
+    if (!node) throw new Error(`expected KGC summary owner node ${id}`)
+    const props = (node.properties || {}) as Record<string, unknown>
+    if (!String(props['kgc:readingSummary'] || '').includes(expectedFragment)) {
+      throw new Error(`expected node ${id} to own KGC reading summary in frontmatter properties, got ${JSON.stringify(props)}`)
+    }
   }
   for (const providerId of KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS) {
     const nodeId = KNOWGRPH_SUPERAGENT_PROVIDER_NODE_IDS[providerId]
@@ -156,6 +214,31 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
     }
   }
   requireNode(KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID, 'agent')
+  requireKgcReadingSummary(KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID, 'swarm simulation task slices')
+  const swarmPredictionNode = requireNode(KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID, FLOW_SWARM_PREDICTION_NODE_TYPE_ID)
+  const swarmPredictionProps = (swarmPredictionNode.properties || {}) as Record<string, unknown>
+  requireKgcReadingSummary(KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID, 'bounded deterministic world simulation')
+  if (String(swarmPredictionProps.scenarioTitle || '') !== 'Singapore SME launch thesis world simulation') {
+    throw new Error(`expected swarm prediction scenario title, got ${JSON.stringify(swarmPredictionProps)}`)
+  }
+  if (Number(swarmPredictionProps.predictionScore) <= 0 || Number(swarmPredictionProps.confidenceScore) <= 0) {
+    throw new Error(`expected numeric swarm prediction scores, got ${JSON.stringify(swarmPredictionProps)}`)
+  }
+  if (!String(swarmPredictionProps.output || '').includes('Swarm prediction report')) {
+    throw new Error('expected SwarmPrediction node to preserve markdown report output')
+  }
+  if (!String(swarmPredictionProps.imageUrl || '').startsWith('data:image/svg+xml')) {
+    throw new Error('expected SwarmPrediction node to preserve chart image data URL')
+  }
+  if (!String(swarmPredictionProps.outputSrcDoc || '').includes('Swarm prediction world simulation')) {
+    throw new Error('expected SwarmPrediction node to preserve HTML prediction chart')
+  }
+  if (!String(swarmPredictionProps.eventLogJson || '').includes('forecast_recorded')) {
+    throw new Error('expected SwarmPrediction node to preserve replay event log')
+  }
+  if (!String(swarmPredictionProps.metricsJson || '').includes('"predictionScore"')) {
+    throw new Error('expected SwarmPrediction node to preserve metrics JSON')
+  }
   const declaredRuntimeSurfaces = new Set(
     Array.isArray(documentStructure.superAgentHarnessDemo?.runtimeSurfaces)
       ? documentStructure.superAgentHarnessDemo.runtimeSurfaces.map(String)
@@ -202,6 +285,24 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   if ((parsed.graphData.edges || []).filter(edge => String(edge.type || '') === KNOWGRPH_SUPERAGENT_SUBAGENT_EDGE_TYPE).length !== KNOWGRPH_SUPERAGENT_SUBAGENT_IDS.length) {
     throw new Error('expected typed subagent edges for every declared SuperAgent subagent')
   }
+  const swarmSeedEdge = (parsed.graphData.edges || []).find(edge => String(edge.id || '') === KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_EDGE_ID) || null
+  if (!swarmSeedEdge) throw new Error('expected SuperAgent harness to seed swarm prediction world simulation')
+  if (
+    String(swarmSeedEdge.type || '') !== KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_EDGE_TYPE
+    || String(swarmSeedEdge.source || '') !== KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID
+    || String(swarmSeedEdge.target || '') !== KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID
+  ) {
+    throw new Error(`expected typed swarm seed edge from harness to swarm node, got ${JSON.stringify(swarmSeedEdge)}`)
+  }
+  for (const edgeType of KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_EDGE_TYPES) {
+    const matchingEdges = (parsed.graphData.edges || []).filter(edge => (
+      String(edge.type || '') === edgeType
+      && String(edge.source || '') === KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID
+    ))
+    if (matchingEdges.length !== 1) {
+      throw new Error(`expected one typed swarm output edge for ${edgeType}, got ${matchingEdges.length}`)
+    }
+  }
 
   const evidenceEdge = (parsed.graphData.edges || []).find(edge => String(edge.id || '') === 'edge_source_market_to_claim') || null
   if (!evidenceEdge) throw new Error('expected source-to-claim evidence edge')
@@ -226,6 +327,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
     return { node, panel, preview }
   }
   const textPanel = readPanelPreview('panel_text_research_brief')
+  requireKgcReadingSummary('panel_text_research_brief', 'staged research brief')
   if (textPanel.panel.activeTab !== 'text' || textPanel.preview.kind !== 'iframe' || !String(textPanel.preview.srcDoc || '').includes('Review brief')) {
     throw new Error('expected text Rich Media Panel to render review brief output through iframe srcDoc')
   }
@@ -236,6 +338,18 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
   const chartPanel = readPanelPreview('panel_chart_guardrails')
   if (chartPanel.preview.kind !== 'iframe' || !String(chartPanel.preview.srcDoc || '').includes('Research agent guardrail chart')) {
     throw new Error('expected chart Rich Media Panel to render outputSrcDoc through shared iframe preview')
+  }
+  const swarmTextPanel = readPanelPreview(KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS[0])
+  if (swarmTextPanel.panel.activeTab !== 'text' || swarmTextPanel.preview.kind !== 'iframe' || !String(swarmTextPanel.preview.srcDoc || '').includes('Swarm report')) {
+    throw new Error('expected swarm text Rich Media Panel to render markdown report output')
+  }
+  const swarmImagePanel = readPanelPreview(KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS[1])
+  if (swarmImagePanel.panel.activeTab !== 'image' || swarmImagePanel.preview.kind !== 'image' || !String(swarmImagePanel.preview.url || '').startsWith('data:image/svg+xml')) {
+    throw new Error('expected swarm image Rich Media Panel to render world-state SVG image')
+  }
+  const swarmChartPanel = readPanelPreview(KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS[2])
+  if (swarmChartPanel.preview.kind !== 'iframe' || !String(swarmChartPanel.preview.srcDoc || '').includes('Swarm prediction world simulation')) {
+    throw new Error('expected swarm chart Rich Media Panel to render outputSrcDoc through shared iframe preview')
   }
   if ((parsed.graphData.edges || []).filter(edge => String(edge.type || '').startsWith('rich_media_')).length !== KNOWGRPH_SUPERAGENT_RICH_MEDIA_OUTPUT_NODE_IDS.length) {
     throw new Error('expected typed rich-media edges for every declared text/image/chart output')
@@ -264,6 +378,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
     'fm:claim_market_need',
     'fm:monitoring_spec',
     'fm:kgc_apply_owner',
+    FLOW_SWARM_PREDICTION_FORM_ID,
   ]) {
     if (!registryFormIds.has(formId)) {
       throw new Error(`expected typed research demo registry to include ${formId}`)

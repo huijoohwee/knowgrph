@@ -54,11 +54,18 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   min-height: 24px;
   height: 24px;
   color: rgb(0 0 0 / 0.85);
   font-size: 14px;
   line-height: 22px;
+}
+
+.timeline-player .timeline-rate-select {
+  width: min(var(--kg-timeline-rate-select-width, 5.625rem), 100%);
+  inline-size: min(var(--kg-timeline-rate-select-width, 5.625rem), 100%);
+  max-width: 100%;
 }
 
 .timeline-player .ant-select-selection-native {

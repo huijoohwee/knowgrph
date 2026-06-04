@@ -1,7 +1,11 @@
-import { hashSignatureParts } from '../hash/signature.js'
 import { STRIPE_PAYMENT_ROUTE_PATHS } from './stripePaymentSsot.js'
+import { buildAgenticCommerceSemanticKey } from './agenticCommerceSemanticKey.js'
+import {
+  AGENTIC_COMMERCE_SOLANA_PAY_KEY,
+  AGENTIC_COMMERCE_SOLANA_PAY_SETTLE_PATH,
+} from './agenticCommerceSolanaPaySsot.js'
 
-type SignaturePrimitive = string | number | boolean | null | undefined
+export { buildAgenticCommerceSemanticKey } from './agenticCommerceSemanticKey.js'
 
 export type AgenticCommerceMainPanelReadinessRow = {
   id: string
@@ -53,6 +57,7 @@ export const AGENTIC_COMMERCE_ROUTE_PATHS = {
   commerceTraceArtifact: '/api/payments/commerce/trace.jsonl',
   openboxIngest: '/api/payments/commerce/openbox/ingest',
   web3Settle: '/api/payments/commerce/web3/settle',
+  solanaPaySettle: AGENTIC_COMMERCE_SOLANA_PAY_SETTLE_PATH,
 } as const
 
 export const AGENTIC_COMMERCE_X402_ROUTE_PATHS = [
@@ -130,11 +135,6 @@ export const normalizeAgenticCommerceAmount = (value: unknown): number => {
   const amount = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0
 }
-
-export const buildAgenticCommerceSemanticKey = (
-  scope: string,
-  parts: SignaturePrimitive[],
-): string => hashSignatureParts(['agentic-commerce', scope, ...parts])
 
 const normalizeAgenticCommerceBaseUrl = (value: string): string =>
   String(value || '').trim().replace(/\/+$/g, '')
@@ -238,19 +238,9 @@ export const buildAgenticCommerceMainPanelReadiness = (): AgenticCommerceMainPan
       ),
     ]),
     buildAgenticCommerceMainPanelReadinessSection('web3', 'Web3', [
-      buildAgenticCommerceMainPanelReadinessRow(
-        'web3',
-        'settle',
-        'Settle',
-        AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle,
-      ),
-      buildAgenticCommerceMainPanelReadinessRow(
-        'web3',
-        'signals',
-        'Signals',
-        'Base RPC confirmation + EAS attestation',
-        null,
-      ),
+      buildAgenticCommerceMainPanelReadinessRow('web3', 'settle', 'Settle', AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle),
+      buildAgenticCommerceMainPanelReadinessRow('web3', 'solana-pay-settle', 'Solana Pay settle', AGENTIC_COMMERCE_ROUTE_PATHS.solanaPaySettle),
+      buildAgenticCommerceMainPanelReadinessRow('web3', 'signals', 'Signals', 'Base RPC + Solana RPC confirmation', null),
     ]),
     buildAgenticCommerceMainPanelReadinessSection('governance', 'Governance', [
       buildAgenticCommerceMainPanelReadinessRow(
@@ -327,7 +317,7 @@ export const buildAgenticCommerceAcpConfig = (args: {
 }) => {
   const base = args.checkoutBaseUrl.replace(/\/+$/g, '')
   const paymentMethods = args.web3Enabled
-    ? ['stripe_delegate_token', 'erc20']
+    ? ['stripe_delegate_token', 'erc20', AGENTIC_COMMERCE_SOLANA_PAY_KEY]
     : ['stripe_delegate_token']
   return {
     protocol: 'acp',
@@ -441,6 +431,7 @@ export const buildAgenticCommerceUcpProfile = (args: {
     proof: buildAgenticCommerceUrl(base, AGENTIC_COMMERCE_ROUTE_PATHS.commerceProofArtifact),
     trace: buildAgenticCommerceUrl(base, AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact),
     x402_payment_required: buildAgenticCommerceUrl(base, AGENTIC_COMMERCE_ROUTE_PATHS.x402PaymentRequired),
+    solana_pay_settle: buildAgenticCommerceUrl(base, AGENTIC_COMMERCE_ROUTE_PATHS.solanaPaySettle),
   }
   const commerceCapabilities = {
     checkout_sessions: true,
@@ -448,26 +439,13 @@ export const buildAgenticCommerceUcpProfile = (args: {
     proof_artifacts: true,
     risk_signals: true,
     web3_settlement: args.web3Enabled,
+    solana_pay: args.web3Enabled,
   }
   const ucpServices = {
-    'dev.ucp.shopping': [
-      {
-        version: AGENTIC_COMMERCE_UCP_VERSION,
-        spec: AGENTIC_COMMERCE_UCP_SPEC_URL,
-        transport: 'rest',
-        endpoint: endpoints.api,
-        schema: 'https://ucp.dev/2026-04-08/services/shopping/rest.openapi.json',
-      },
-    ],
+    'dev.ucp.shopping': [{ version: AGENTIC_COMMERCE_UCP_VERSION, spec: AGENTIC_COMMERCE_UCP_SPEC_URL, transport: 'rest', endpoint: endpoints.api, schema: 'https://ucp.dev/2026-04-08/services/shopping/rest.openapi.json' }],
   }
   const ucpCapabilities = {
-    'dev.ucp.shopping.checkout': [
-      {
-        version: AGENTIC_COMMERCE_UCP_VERSION,
-        spec: 'https://ucp.dev/2026-04-08/specification/checkout/',
-        schema: 'https://ucp.dev/2026-04-08/schemas/shopping/checkout.json',
-      },
-    ],
+    'dev.ucp.shopping.checkout': [{ version: AGENTIC_COMMERCE_UCP_VERSION, spec: 'https://ucp.dev/2026-04-08/specification/checkout/', schema: 'https://ucp.dev/2026-04-08/schemas/shopping/checkout.json' }],
   }
   return {
     ucp: {
@@ -493,6 +471,7 @@ export const buildAgenticCommerceUcpProfile = (args: {
         endpoints: {
           x402: endpoints.x402_payment_required,
           checkout_sessions: endpoints.checkout_sessions,
+          solana_pay_settle: endpoints.solana_pay_settle,
           proof: endpoints.proof,
           trace: endpoints.trace,
         },
@@ -548,6 +527,23 @@ export const buildAgenticCommerceMppOpenApi = (args: {
           },
           responses: {
             201: { description: 'Checkout session created' },
+          },
+        },
+      },
+      [AGENTIC_COMMERCE_ROUTE_PATHS.solanaPaySettle]: {
+        post: {
+          operationId: 'settleKnowgrphSolanaPayCheckoutSession',
+          summary: 'Settle an agentic commerce checkout session from a verified Solana Pay transaction signature.',
+          'x-payment-info': {
+            intent: 'settlement',
+            method: AGENTIC_COMMERCE_SOLANA_PAY_KEY,
+            amount: 'dynamic',
+            currency: 'request.currency',
+          },
+          responses: {
+            200: { description: 'Solana Pay session settled' },
+            409: { description: 'Solana Pay transaction is not confirmed yet' },
+            422: { description: 'Solana Pay transaction does not match the session' },
           },
         },
       },

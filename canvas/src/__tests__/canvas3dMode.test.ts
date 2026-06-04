@@ -14,7 +14,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const BLOCK_SCHEMA = {
+export const BLOCK_SCHEMA = {
   layout: { mode: 'block' },
   behavior: {
     allowEdgeCreation: true,
@@ -618,8 +618,8 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     throw new Error('Expected Display Controls to own Grid and Timeline toggles')
   }
   const childIds = displayControls.children?.map(child => child.id).join('|')
-  if (childIds !== 'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:grid|control:timeline') {
-    throw new Error(`Expected Timeline to sit beside Grid in Display Controls, got ${childIds}`)
+  if (childIds !== 'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:minimap|control:grid|control:timeline') {
+    throw new Error(`Expected Minimap, Grid, and Timeline to sit beside each other in Display Controls, got ${childIds}`)
   }
   if (timelineToggle.children?.length) {
     throw new Error('Expected Timeline to reuse Grid-style single toggle semantics, not On/Off submenu children')

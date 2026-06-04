@@ -19,7 +19,7 @@ import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/reg
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 
-export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video'
+export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
 
 export type { RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 
@@ -165,6 +165,9 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
     typeof props.imageUrl === 'string' ||
     typeof props.video === 'string' ||
     typeof props.videoUrl === 'string' ||
+    typeof props.audio === 'string' ||
+    typeof props.audioUrl === 'string' ||
+    typeof props.audio_url === 'string' ||
     typeof props.media === 'string'
   if (hasExplicit) score += 100
 
@@ -173,12 +176,12 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
   if (typeRaw === 'richmediapanel' || typeRaw === 'rich media panel') {
     score += 160
   }
-  if (typeRaw === 'image' || typeRaw === 'video' || typeRaw === 'iframe' || typeRaw === 'webpageelement' || typeRaw === 'link') {
+  if (typeRaw === 'image' || typeRaw === 'video' || typeRaw === 'audio' || typeRaw === 'iframe' || typeRaw === 'webpageelement' || typeRaw === 'link') {
     score += 20
   }
 
   const domTag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag']).trim().toUpperCase() : ''
-  if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'IFRAME' || domTag === 'SVG') score += 20
+  if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'AUDIO' || domTag === 'IFRAME' || domTag === 'SVG') score += 20
 
   const url = String(spec.url || '').toLowerCase()
   if (url.includes('mmbiz.qpic.cn') || url.includes('wx_fmt=')) score += 220
@@ -186,6 +189,7 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
   const kind = String(spec.kind || '').toLowerCase()
   if (kind === 'image' || kind === 'svg') score += 10
   else if (kind === 'video') score += 8
+  else if (kind === 'audio') score += 7
   else if (kind === 'iframe') score += 6
 
   return score
@@ -197,7 +201,7 @@ function hasMeaningfulRichMediaPanelOverlayContent(candidate: Candidate): boolea
   if (String(candidate.openUrl || '').trim()) return true
   if (String(candidate.srcDoc || '').trim()) return true
   if (candidate.panel.activeTab !== 'auto') return true
-  if (candidate.panel.hasImage || candidate.panel.hasVideo || candidate.panel.hasText) return true
+  if (candidate.panel.hasImage || candidate.panel.hasVideo || candidate.panel.hasAudio || candidate.panel.hasText) return true
   if (candidate.panel.isLoading) return true
   return false
 }
@@ -217,10 +221,12 @@ function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
   if (!candidate.panel) return 0
   let score = 0
   if (candidate.panel.activeTab === 'video') score += 160
+  else if (candidate.panel.activeTab === 'audio') score += 150
   else if (candidate.panel.activeTab === 'image') score += 140
   else if (candidate.panel.activeTab === 'text') score += 120
   else if (candidate.panel.activeTab === 'poi') score += 80
   if (candidate.panel.hasVideo) score += 140
+  if (candidate.panel.hasAudio) score += 130
   if (candidate.panel.hasImage) score += 120
   if (candidate.panel.hasText) score += 100
   if (candidate.panel.isLoading) score += 80
@@ -237,6 +243,7 @@ function buildRichMediaPanelFallbackSpec(panel: RichMediaPanelOverlayState | und
   if (!panel) return null
   if (panel.activeTab === 'image') return { kind: 'image', url: '', interactive: false }
   if (panel.activeTab === 'video') return { kind: 'video', url: '', interactive: false }
+  if (panel.activeTab === 'audio') return { kind: 'audio', url: '', interactive: false }
   if (panel.activeTab === 'text' || panel.activeTab === 'poi') return { kind: 'iframe', url: '', interactive: false }
   return null
 }
@@ -254,7 +261,7 @@ export function listMediaOverlayNodes(args: {
   if (!args.enabled) return []
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   const poolMax = Number.isFinite(args.poolMax) ? Math.max(0, Math.floor(args.poolMax)) : 0
-  const kinds = new Set<MediaOverlayKind>((args.kinds || ['iframe', 'image', 'svg', 'video']) as MediaOverlayKind[])
+  const kinds = new Set<MediaOverlayKind>((args.kinds || ['iframe', 'image', 'svg', 'video', 'audio']) as MediaOverlayKind[])
   if (poolMax <= 0) return []
   const preferred = (args.preferredNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
   const preferredSet = preferred.length ? new Set(preferred) : null

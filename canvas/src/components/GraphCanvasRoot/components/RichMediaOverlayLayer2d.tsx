@@ -12,7 +12,7 @@ import {
   readRichMediaPanelFrameMetrics,
   type MediaPanelCssMetrics,
 } from '@/lib/render/mediaPanelLayout'
-
+import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 type RichMediaResizeState = {
   id: string
   pointerId: number
@@ -155,11 +155,11 @@ export function RichMediaOverlayLayer2d(props: {
   return (
     <section
       aria-label="D3 rich media overlay"
-      className="absolute inset-0 pointer-events-none"
+      className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME}
       style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
     >
       {mediaOverlayNodes.map(n => {
-        const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' ? n.kind : undefined
+        const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' ? n.kind : undefined
         return (
           <RichMediaPanel
             key={n.id}

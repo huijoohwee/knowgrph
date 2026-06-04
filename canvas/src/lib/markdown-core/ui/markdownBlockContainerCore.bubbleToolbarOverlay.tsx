@@ -235,7 +235,6 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
         onMouseDownCapture={handleToolbarMouseDownCapture}
         onPointerUpCapture={handleToolbarInteractionEndCapture}
         onMouseUpCapture={handleToolbarInteractionEndCapture}
-        style={isTouchToolbarViewport ? { touchAction: 'pan-x manipulation' } : undefined}
       >
         {renderToolbarMenu({
           key: 'heading',

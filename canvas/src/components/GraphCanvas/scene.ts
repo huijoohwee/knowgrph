@@ -44,6 +44,7 @@ import {
   resetGraphCanvasUserInteracted,
 } from '@/components/GraphCanvas/userInteractionFlag'
 import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
+import { resolveContextualZoomDetail } from '@/lib/zoom/viewport'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -744,9 +745,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     }
   }
   if (labelsSelRef.current) {
-    const hideBelow = schema.performance?.lod?.hideLabelsBelowScale ?? 0
     const k = d3.zoomTransform(svgEl).k || 1
-    const hidden = hideBelow > 0 && k < hideBelow
+    const hidden = resolveContextualZoomDetail({ k, contentThreshold: schema.performance?.lod?.hideLabelsBelowScale ?? 0 }).hidden
     labelsSelRef.current.attr('data-zoom-lod-hidden', hidden ? '1' : '0')
   }
 

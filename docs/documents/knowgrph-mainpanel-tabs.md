@@ -11,6 +11,7 @@ Keep `Key` aligned to `MainPanelTabKey`. Keep `Type` aligned to the shared MainP
 | mcp | mainPanel.mcp | MCP readiness | Review MCP readiness, local setup notes, and tool-provider routing. |
 | maps | mainPanel.maps | Geospatial setup | Configure geospatial providers, map APIs, directions, and discovery defaults. |
 | commerce | mainPanel.commerce | Commerce readiness | Review commerce readiness, checkout diagnostics, proofs, and payment traces. |
+| research | mainPanel.research | Thesis compiler | Compile selected Source Files into reviewable thesis candidates. |
 | design | mainPanel.design | Design inspection | Inspect design surfaces, DOM layers, tokens, and visual structure. |
 | workflowManager | mainPanel.workflowManager | Workflow registry | Manage workflow registry, graph fields, mappings, and pipeline controls. |
 | dashboard | mainPanel.dashboard | Runtime summary | Review runtime status, graph stats, and quick operational summaries. |

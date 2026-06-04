@@ -1,6 +1,6 @@
 import React from 'react'
 import { emitMainPanelOpen, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panels/utils/useMainPanelRect'
-import { QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY, QUERY_PARAM_OPEN_EDITOR_WORKSPACE, QUERY_PARAM_OPEN_MAIN_PANEL, QUERY_PARAM_SHARE, QUERY_PARAM_SHARE_TITLE, QUERY_PARAM_SHARE_TEXT, QUERY_PARAM_SHARE_URL } from '@/lib/routing/queryParams'
+import { QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY, QUERY_PARAM_OPEN_MAIN_PANEL, QUERY_PARAM_SHARE, QUERY_PARAM_SHARE_TEXT, QUERY_PARAM_SHARE_TITLE, QUERY_PARAM_SHARE_URL, QUERY_PARAM_WORKSPACE_COMMAND } from '@/lib/routing/queryParams'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyGraphDataCanonicalBootstrap } from '@/features/parsers/applyGraphDataCanonicalBootstrap'
 
@@ -26,11 +26,38 @@ const buildDevFlowEditorGeometryGraph = () => ({
   metadata: { kind: 'test', source: 'devFlowEditorGeometry' },
 })
 
-export const shouldOpenEditorWorkspaceFromSearch = (search: string): boolean => {
-  const raw = String(search || '')
-  if (!raw) return false
-  const params = new URLSearchParams(raw)
-  return String(params.get(QUERY_PARAM_OPEN_EDITOR_WORKSPACE) || '').trim().length > 0
+type WorkspaceCommandQueryPayload = {
+  id?: unknown
+  action?: unknown
+  args?: unknown
+}
+
+const isLocalWorkspaceCommandQueryAllowed = (): boolean => {
+  const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
+  if (anyImportMeta.env?.DEV) return true
+  if (typeof window === 'undefined') return false
+  const host = String(window.location?.hostname || '').trim().toLowerCase()
+  return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
+}
+
+const decodeBase64UrlText = (raw: string): string => {
+  const normalized = String(raw || '').trim().replace(/-/g, '+').replace(/_/g, '/')
+  if (!normalized) return ''
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+const parseWorkspaceCommandQueryPayload = (raw: string): WorkspaceCommandQueryPayload | null => {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) return null
+  const text = trimmed.startsWith('{') ? trimmed : decodeBase64UrlText(trimmed)
+  const parsed = JSON.parse(text)
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? parsed as WorkspaceCommandQueryPayload
+    : null
 }
 
 type MainPanelOpenReadyWindow = Window & {
@@ -43,12 +70,67 @@ export function CanvasQueryBootstrapRuntime(props: {
   const { search } = props
   const openedMainPanelFromQueryRef = React.useRef(false)
   const appliedDevFlowEditorGeometryRef = React.useRef(false)
+  const handledWorkspaceCommandRef = React.useRef('')
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
   const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled)
   const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
   const setOpenWidgetNodeIds = useGraphStore(s => s.setOpenWidgetNodeIds)
+
+  React.useEffect(() => {
+    const raw = String(search || '')
+    if (!raw) return
+    const params = new URLSearchParams(raw)
+    const commandRaw = String(params.get(QUERY_PARAM_WORKSPACE_COMMAND) || '').trim()
+    if (!commandRaw || handledWorkspaceCommandRef.current === commandRaw) return
+    handledWorkspaceCommandRef.current = commandRaw
+    if (!isLocalWorkspaceCommandQueryAllowed()) return
+    const commandIdFallback = `workspace-query-${Date.now()}`
+    try {
+      params.delete(QUERY_PARAM_WORKSPACE_COMMAND)
+      const next = params.toString()
+      const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
+      window.history.replaceState(null, '', nextUrl)
+    } catch {
+      void 0
+    }
+    void (async () => {
+      const {
+        createWorkspaceRuntimeCommand,
+        publishWorkspaceRuntimeCommandResult,
+        summarizeWorkspaceRuntimeCommandResult,
+      } = await import('@/features/agent-ready/workspaceRuntimeCommand')
+      const payload = parseWorkspaceCommandQueryPayload(commandRaw)
+      const id = String(payload?.id || '').trim() || commandIdFallback
+      const action = String(payload?.action || '').trim()
+      const command = createWorkspaceRuntimeCommand()
+      try {
+        const result = action === 'readState'
+          ? command.readState()
+          : action === 'applyMarkdownDocument'
+            ? await command.applyMarkdownDocument((payload?.args || {}) as never)
+            : action === 'applyChatAssistantResponse'
+              ? await command.applyChatAssistantResponse((payload?.args || {}) as never)
+              : (() => { throw new Error(`Unsupported workspace command query action: ${action || 'unknown'}`) })()
+        publishWorkspaceRuntimeCommandResult({ id, ok: true, result: summarizeWorkspaceRuntimeCommandResult(result) })
+      } catch (error) {
+        publishWorkspaceRuntimeCommandResult({
+          id,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error || 'Workspace command query failed'),
+        })
+      }
+    })().catch(error => {
+      void import('@/features/agent-ready/workspaceRuntimeCommand').then(mod => {
+        mod.publishWorkspaceRuntimeCommandResult({
+          id: commandIdFallback,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error || 'Workspace command query failed'),
+        })
+      })
+    })
+  }, [search])
 
   React.useEffect(() => {
     if (appliedDevFlowEditorGeometryRef.current) return

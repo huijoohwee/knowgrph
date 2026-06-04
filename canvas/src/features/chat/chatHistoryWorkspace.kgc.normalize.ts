@@ -168,6 +168,36 @@ const containsHeading = (body: string, heading: string): boolean => {
   return String(body || '').includes(heading)
 }
 
+const MCP_STRUCTURED_RESPONSE_HEADING = '### MCP Structured Response Projection'
+const COMPUTE_MAPPING_HEADING = '### Compute Inline Mapping Spec'
+
+const extractMcpStructuredResponseProjectionBlock = (body: string): string => {
+  const lines = String(body || '').replace(/\r\n/g, '\n').split('\n')
+  const start = lines.findIndex(line => String(line || '').trim() === MCP_STRUCTURED_RESPONSE_HEADING)
+  if (start < 0) return ''
+  let end = lines.length
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = String(lines[index] || '').trim()
+    if (/^#{1,3}\s+/.test(line)) {
+      end = index
+      break
+    }
+  }
+  return lines.slice(start, end).join('\n').trim()
+}
+
+const preserveMcpStructuredResponseProjectionBlock = (args: {
+  originalBody: string
+  nextBody: string
+}): string => {
+  const block = extractMcpStructuredResponseProjectionBlock(args.originalBody)
+  const nextBody = String(args.nextBody || '').replace(/\r\n/g, '\n').trim()
+  if (!block || nextBody.includes(MCP_STRUCTURED_RESPONSE_HEADING)) return nextBody
+  const marker = `\n${COMPUTE_MAPPING_HEADING}`
+  if (nextBody.includes(marker)) return nextBody.replace(marker, `\n${block}\n${marker}`)
+  return `${nextBody.trimEnd()}\n\n${block}`.trim()
+}
+
 const shouldRegenerateQueryResponsiveFrontmatter = (args: {
   frontmatter: string
   requestText: string
@@ -330,6 +360,10 @@ export const enforceKgcQueryResponsiveContent = (args: {
     nextBody = replaceExactLine(nextBody, '## {{doc_type}}', `## ${artifactDocType}`)
     nextBody = replaceExactLine(nextBody, '## Chat Response', `## ${artifactDocType}`)
   }
+  nextBody = preserveMcpStructuredResponseProjectionBlock({
+    originalBody: parsed.body,
+    nextBody,
+  })
 
   return ['---', nextFrontmatter.trimEnd(), '---', nextBody].join('\n').trimEnd() + '\n'
 }

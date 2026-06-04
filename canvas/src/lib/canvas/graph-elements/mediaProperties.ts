@@ -1,6 +1,6 @@
 import { coerceMediaUrl } from '@/lib/url'
 
-export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'iframe'] as const
+export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'audio', 'iframe'] as const
 export type NodeMediaKind = typeof NODE_MEDIA_KINDS[number]
 export const DEFAULT_NODE_MEDIA_KIND: NodeMediaKind = NODE_MEDIA_KINDS[0]
 
@@ -44,6 +44,7 @@ export function buildAliasedMediaProperties(args: {
   })
   next.media = url
   if (args.kind === 'video') next.video = url
+  else if (args.kind === 'audio') next.audio = url
   else if (args.kind === 'iframe') next.iframe_url = url
   else next.image = url
   return {

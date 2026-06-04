@@ -595,7 +595,7 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!workflowWritebackText.includes("lastRunAt: args.loading === true ? new Date().toISOString() : nodeProps.lastRunAt")) {
     throw new Error('expected shared workflow loading-state helper to stamp lastRunAt so initialization does not masquerade as an active run')
   }
-  if (!text.includes('const publishTextRunOutput = (outputText: string, loading: boolean) => {')) {
+  if (!text.includes('const publishTextRunOutput = (outputText: string, loading: boolean, outputPath?: string | null) => {')) {
     throw new Error('expected TextGeneration run path to centralize streamed/final output publishing in one SSOT helper')
   }
   if (!text.includes('const runProvider = normalizedProvider || store.chatProvider')) {

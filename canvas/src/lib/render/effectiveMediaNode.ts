@@ -10,6 +10,7 @@ const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([
   'properties.outputSrcDoc',
   'properties.imageUrl',
   'properties.videoUrl',
+  'properties.audioUrl',
 ])
 export const RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY = '__kg:richMediaConnectedRenderPaths' as const
 
@@ -39,6 +40,7 @@ function clearRichMediaRenderChannel(args: {
   properties: Record<string, unknown>
   renderPath: string
   preserveOutput?: boolean
+  preserveOutputSrcDoc?: boolean
 }): Record<string, unknown> {
   const next = { ...args.properties }
   if (args.renderPath === 'properties.imageUrl') {
@@ -51,13 +53,26 @@ function clearRichMediaRenderChannel(args: {
     delete next.videoUrl
     return next
   }
+  if (args.renderPath === 'properties.audioUrl') {
+    delete next.audio
+    delete next.audioUrl
+    delete next.audio_url
+    return next
+  }
   if (args.renderPath === 'properties.output' || args.renderPath === 'properties.outputSrcDoc') {
-    if (args.preserveOutput === true) return next
     delete next.image
     delete next.imageUrl
     delete next.video
     delete next.videoUrl
-    delete next.output
+    delete next.audio
+    delete next.audioUrl
+    delete next.audio_url
+    if (args.renderPath === 'properties.output') {
+      delete next.output
+      if (args.preserveOutputSrcDoc !== true) delete next.outputSrcDoc
+      return next
+    }
+    if (args.preserveOutput !== true) delete next.output
     delete next.outputSrcDoc
     return next
   }
@@ -83,6 +98,9 @@ function baseRenderNodeSignature(node: GraphNode): string {
       imageUrl: props.imageUrl,
       video: props.video,
       videoUrl: props.videoUrl,
+      audio: props.audio,
+      audioUrl: props.audioUrl,
+      audio_url: props.audio_url,
       media: props.media,
       src: props.src,
       url: props.url,
@@ -185,6 +203,18 @@ export function applyConnectedValuesToNodeForRender(args: {
       const rec = connectedValuesBySchemaPath[path]
       return rec ? hasRenderableConnectedValue(rec.value) : false
     })
+  const incomingRichMediaRenderPaths = new Set<string>()
+  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    for (const [path, connected] of Object.entries(connectedValuesBySchemaPath)) {
+      const normalizedPath = String(path || '').trim()
+      if (!normalizedPath || !connected || !hasRenderableConnectedValue(connected.value)) continue
+      const renderPath = resolveRichMediaConnectedRenderSchemaPath({
+        schemaPath: normalizedPath,
+        connectedValue: connected,
+      })
+      if (renderPath) incomingRichMediaRenderPaths.add(renderPath)
+    }
+  }
 
   if (richMediaPanelHasConnectedRenderValue) {
     next = {
@@ -217,7 +247,8 @@ export function applyConnectedValuesToNodeForRender(args: {
         properties: clearRichMediaRenderChannel({
           properties: (next.properties || {}) as Record<string, unknown>,
           renderPath,
-          preserveOutput: freezeConnectedOutputActive,
+          preserveOutput: freezeConnectedOutputActive || incomingRichMediaRenderPaths.has('properties.output'),
+          preserveOutputSrcDoc: incomingRichMediaRenderPaths.has('properties.outputSrcDoc'),
         }),
       } as GraphNode
     }

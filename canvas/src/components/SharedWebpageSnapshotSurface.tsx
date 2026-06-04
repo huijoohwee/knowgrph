@@ -2,6 +2,16 @@ import React from 'react'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
 import { pickWebpageSnapshotRects } from 'grph-shared/rich-media/webpageSnapshot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_FAVICON_MEDIA_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_HOST_ICON_MEDIA_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_MEDIA_BACKDROP_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_EMPTY_MEDIA_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_PREVIEW_MEDIA_CLASSNAME,
+  UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME,
+  UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 
 type SharedWebpageSnapshotSurfaceProps = {
   url: string
@@ -36,7 +46,7 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
   const viewportW = typeof props.snap?.meta?.viewport?.w === 'number' ? props.snap.meta.viewport.w : 1100
   const viewportH = typeof props.snap?.meta?.viewport?.h === 'number' ? props.snap.meta.viewport.h : 720
   const rects = props.snap ? pickWebpageSnapshotRects(props.snap) : []
-  const overlayBadgeClassName = `rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
+  const overlayBadgeClassName = `${UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
 
   return (
     <section className={props.className} style={props.style} data-kg-webpage-snapshot="1" data-src={props.url}>
@@ -52,29 +62,26 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
             alt={props.titleLabel}
             loading="lazy"
             decoding="async"
-            className="absolute inset-0 w-full h-full"
-            style={{ objectFit: 'cover', filter: 'saturate(1.05) contrast(1.02)' }}
+            className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_PREVIEW_MEDIA_CLASSNAME}
           />
         ) : props.faviconSrc ? (
-          <section className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10))' }}>
+          <section className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_MEDIA_BACKDROP_CLASSNAME}>
             <img
               src={props.faviconSrc}
               alt=""
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'contain', padding: '18%', opacity: 0.6, filter: 'saturate(1.05) contrast(1.02)' }}
+              className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_FAVICON_MEDIA_CLASSNAME}
             />
           </section>
         ) : props.hostIconSrc ? (
-          <section className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10))' }}>
+          <section className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_MEDIA_BACKDROP_CLASSNAME}>
             <img
               src={props.hostIconSrc}
               alt=""
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'contain', padding: '18%', opacity: 0.65, filter: 'saturate(1.05) contrast(1.02)' }}
+              className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_HOST_ICON_MEDIA_CLASSNAME}
             />
           </section>
         ) : null}
@@ -82,7 +89,7 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
           <svg
             viewBox={`0 0 ${Math.max(1, viewportW)} ${Math.max(1, viewportH)}`}
             preserveAspectRatio="xMidYMid meet"
-            className="absolute inset-0 w-full h-full"
+            className={UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME}
             aria-label={props.title || props.url}
             role="img"
           >
@@ -113,10 +120,10 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
             ))}
           </svg>
         ) : (
-          <section className="absolute inset-0 bg-black/5" />
+          <section className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_EMPTY_MEDIA_CLASSNAME} />
         )}
-        <section aria-hidden={true} className="absolute inset-0 pointer-events-none">
-          <section className={overlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
+        <section aria-hidden={true} className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME}>
+          <section className={overlayBadgeClassName}>
             <section className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{props.titleLabel}</section>
             <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{props.hostLabel}</section>
           </section>

@@ -2,9 +2,9 @@
 schema: kgc-computing-flow/v1
 doc_id: knowgrph-research-agent-prd-tad
 doc_type: prd-tad
-version: 0.4.2
+version: 0.5.0
 status: dev-source-implemented-no-deploy
-updated: 2026-06-04
+updated: 2026-06-05
 repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
 repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
 deploy_url: airvio.co/knowgrph
@@ -14,7 +14,7 @@ deploy_url: airvio.co/knowgrph
 
 ## Document Purpose
 
-This document is the product and technical contract for the implemented dev-source research-thesis baseline. It does not claim a deployed Cloudflare runtime. The dev repo now contains a native headless research-thesis harness, optional Cloudflare Worker source, a D1 migration, and regression tests for manifest creation, evidence labeling, budget/cache guardrails, staged candidate graph deltas, and review audit handoff.
+This document is the product and technical contract for the implemented dev-source research-thesis baseline. It does not claim a deployed Cloudflare runtime. The dev repo now contains a native headless research-thesis harness, a visible MainPanel Research compiler/review surface, optional Cloudflare Worker source, D1/R2 persistence source, an injectable KV summary-cache adapter, and regression tests for manifest creation, evidence labeling, budget/cache guardrails, staged candidate graph deltas, review audit handoff, artifact persistence, and source-owner wiring.
 
 The implemented baseline is **Investment Research Logic Engine**: a review-first compiler that converts a user's investment story, source corpus, and assumptions into a typed thesis specification. The output is not a free-form report. It is a traceable claim graph with evidence links, logic edges, assumptions, counter-arguments, risk triggers, monitoring metrics, and a commit-ready KGC delta that the user must review before it changes the active graph.
 
@@ -27,7 +27,9 @@ The implemented adjacent surfaces are:
 | Agent-ready WebMCP/runtime readiness | `docs/documents/knowgrph-agent-ready-prd-tad.md` |
 | DeerFlow local gateway provider | `docs/documents/knowgrph-deerflow/knowgrph-deerflow-prd-tad.md` |
 | Long-horizon SuperAgent harness | `docs/documents/knowgrph-superagent-harness.md` |
+| Swarm prediction baseline | `docs/documents/knowgrph-swarm-prediction-engine-prd-tad.md` |
 | Research-thesis harness | `canvas/src/features/research-agent/researchThesisContract.ts` |
+| Research compiler UI | `canvas/src/features/panels/views/ResearchCompilerView.tsx` plus `canvas/src/features/research-agent/researchCompilerPanelModel.ts` |
 | Research Worker source | `cloudflare/workers/knowgrph-research/index.ts` |
 
 Any future research-agent work must reuse those owners where behavior already exists. It must not introduce a competing graph schema, duplicate source-file ingestion path, local-only patch stack, or second chat-to-canvas application pipeline.
@@ -38,6 +40,19 @@ sandboxed workspace artifacts, and minutes-to-hours task handling. It must not
 copy Deer Flow code, clone Deer Flow architecture, or move research-agent graph
 mutation outside the review-first KGC apply owner.
 
+## Markdown Demo Artifact Contract
+
+The publish-side research-agent demo is a frontmatter-first Flow Editor artifact. Its opening YAML frontmatter block is the machine SSOT for renderer presets, integration metadata, SuperAgent harness metadata, swarm prediction metadata, workflow sections, socket types, `flow.nodes`, and `flow.edges`.
+
+The Markdown body is for human review: purpose, demo scope, tables, validation evidence, and Knowgrph inspection steps. It must not carry a parallel graph or KGC reading layer. Reusable machine-readable node summaries belong on the owning frontmatter node record as `kgc:readingSummary`; graph relationships remain in `flow.edges`.
+
+Forbidden body mirrors for this demo family:
+
+- a second YAML-like metadata block after the closing frontmatter delimiter
+- body `flow:` / `nodes:` / `edges:` declarations
+- `## KGC Reading Layer`
+- line-start `@node:...` or `@edge:...` declarations that duplicate frontmatter nodes or edges
+
 ## Implemented Dev-Source Baseline
 
 | Capability | Implemented owner | Proof |
@@ -47,10 +62,12 @@ mutation outside the review-first KGC apply owner.
 | Evidence ledger | `canvas/src/features/research-agent/researchThesisContract.ts` | Ledger labels claims as `sourced`, `assumption`, `calculated`, `contradicted`, or `open_question`. |
 | Candidate graph delta | `canvas/src/features/research-agent/researchThesisContract.ts` | Candidate graph metadata sets `active_graph_mutated: false` and names the existing KGC apply owner. |
 | Review audit | `canvas/src/features/research-agent/researchThesisContract.ts` | Accepted and rejected candidate ids are recorded; only accepted candidates enter the staged accepted delta. |
+| Visible compiler/review surface | `canvas/src/features/panels/views/ResearchCompilerView.tsx` plus `MainPanel` Research tab | `researchAgent.ui.sourceFileBackedReviewSurface` proves Source Files selection builds a compiler request and staged review audit; `researchAgent.ui.mainPanelSharedOwners` proves the visible tab/view uses Source Files, the shared headless harness, and the existing KGC apply owner. |
+| Token/cost/artifact persistence | `cloudflare/workers/knowgrph-research/index.ts`, `cloudflare/d1/migrations/0005_research_thesis.sql`, `cloudflare/workers/knowgrph-research/wrangler.toml` | `researchThesisWorker.test.ts` proves status responses persist source summaries, evidence ledger rows, cost logs, R2 artifact pointers, and injected KV source-hash cache reuse without hardcoded namespace ids. |
 | Long-horizon harness envelope | `docs/documents/knowgrph-superagent-harness.md` plus `knowgrph_parser/superagent_harness.py` | The research demo carries `superagent_harness_demo` metadata for research/code/create orchestration while the active graph remains staged until review. |
-| Demo ingestion/parsing/rendering guard | Existing docs-mirror Source Files merge, Markdown frontmatter Flow parser, Flow native scene builder, and MainPanel pipeline inspector | `researchAgent.demo.ingestParseRender` proves the publish-side research demo ingests as `workspace:/docs/knowgrph-research-agent-demo.md`, parses warning-clean, preserves `deployed_api_claim: false`, renders the shared MainPanel provider contract into the SuperAgent gateway, parses every runtime surface and subagent as typed Flow nodes/edges, and builds a Flow scene whose node/edge counts match the parsed frontmatter instead of fixture literals. `agentReady.localMainPanelChatCanvasPipeline.renderedMcpResearchAgentDemoSuperAgentFlowEditor` renders MainPanel MCP with configurable OpenAI MCP KTV rows and proves the same parsed demo reaches MCP -> FloatingPanel Chat -> Markdown frontmatter -> Flow Editor canvas topology with message gateway, sandbox, memory, tools, skills, and subagent nodes present in the active render graph; `agentReady.localMainPanelChatCanvasPipeline.researchAgentDemoSuperAgentFlowEditor` keeps the semantic MainPanel Integrations and MCP entry-tab contract dynamic across parsed node and edge counts. |
+| Demo ingestion/parsing/rendering guard | Existing docs-mirror Source Files merge, Markdown frontmatter Flow parser, Flow native scene builder, and MainPanel pipeline inspector | `researchAgent.demo.ingestParseRender` proves the publish-side research demo is resolved by semantic frontmatter signatures, ingests through the matching `workspace:/docs/<resolved markdown file>` source, parses warning-clean, preserves `deployed_api_claim: false`, renders the shared MainPanel provider contract into the SuperAgent gateway, parses every runtime surface and subagent as typed Flow nodes/edges, and builds a Flow scene whose node/edge counts match the parsed frontmatter instead of fixture literals. `agentReady.localMainPanelChatCanvasPipeline.renderedMcpResearchAgentDemoSuperAgentFlowEditor` renders MainPanel MCP with configurable OpenAI MCP KTV rows and proves the same parsed demo reaches MCP -> FloatingPanel Chat -> Markdown frontmatter -> Flow Editor canvas topology with message gateway, sandbox, memory, tools, skills, and subagent nodes present in the active render graph; `agentReady.localMainPanelChatCanvasPipeline.researchAgentDemoSuperAgentFlowEditor` keeps the semantic MainPanel Integrations and MCP entry-tab contract dynamic across parsed node and edge counts. |
 | Optional Worker source | `cloudflare/workers/knowgrph-research/index.ts` | `researchThesisWorker.test.ts` covers compile/status/candidates/commit routes and queue message processing with an in-memory dev store. |
-| D1 run table | `cloudflare/d1/migrations/0005_research_thesis.sql` | Migration defines `research_thesis_runs` for manifest/spec/delta/audit rows. |
+| D1 run table | `cloudflare/d1/migrations/0005_research_thesis.sql` | Migration defines `research_thesis_runs` for manifest, source summary, spec, evidence ledger, delta, audit, cost log, artifact pointer, and status rows. |
 
 The Cloudflare route source exists in Dev but has not been deployed to Prod or Cloudflare in this implementation pass. Until a deploy is explicitly requested and validated, `/api/research/*` must not be presented as a live `airvio.co` capability.
 
@@ -60,9 +77,11 @@ The Cloudflare route source exists in Dev but has not been deployed to Prod or C
 |------------|--------|----------|
 | Research seeding from external sources | Implemented as selected source refs in the headless harness | Reuses selected Source Files / queryable-corpus style refs; no second ingestion stack. |
 | Canvas-side reasoner suggestions | Implemented as a staged candidate graph delta | Candidate graph state is separate from active graph state until review. |
+| Visible compiler surface | Implemented as MainPanel Research tab | Reads existing Source Files from `useGraphStore`, builds requests through `researchCompilerPanelModel.ts`, and runs the shared headless harness. |
+| Visible review surface | Implemented as staged candidate review in MainPanel Research tab | Accepted/rejected candidate ids build a review audit naming `chatKgcCanvasApply.ts`; active graph mutation remains false. |
 | Session skill loop | Implemented locally for the shared SuperAgent artifact loop; research-specific skill mutation remains gated | `knowgrph_parser` records role-scoped agent contracts, run memory, trace, and artifacts; no write path may create independent global memory files without source-owner tests. |
-| Scenario simulator | Not implemented | No simulator runtime or scenario-diff overlay is active. |
-| Cloudflare research Worker | Source implemented, not deployed | Worker routes and queue handler exist in Dev; no Cloudflare live-route claim until deploy validation exists. |
+| Scenario simulator | Implemented as adjacent Dev-source swarm prediction baseline | `canvas/src/features/swarm-prediction/swarmPredictionEngine.ts` produces deterministic bounded world state, event log, metrics, and rich-media outputs; no research-specific scenario-diff overlay or active-graph mutation is active. |
+| Cloudflare research Worker | Source implemented, not deployed | Worker routes, queue handler, D1 row shape, R2 artifact pointers, and an injectable KV summary-cache adapter exist in Dev; no Cloudflare live-route claim until deploy validation exists. |
 
 ## Product Add-On
 
@@ -330,14 +349,14 @@ flowchart LR
 
 | Layer | Component | Responsibility | Owner |
 |---|---|---|---|
-| UI | Research Compiler Panel | Select sources, set budget, start run, show status. | Not yet surfaced; headless owner is `canvas/src/features/research-agent/researchThesisContract.ts` |
-| UI | Candidate Thesis Graph Overlay | Render staged claims/edges and accept/reject actions. | Headless staged delta implemented by `researchThesisContract.ts`; visible overlay remains future UI work |
+| UI | Research Compiler Panel | Select sources, set budget, start run, show status. | `canvas/src/features/panels/views/ResearchCompilerView.tsx` backed by `researchCompilerPanelModel.ts` and `researchThesisContract.ts` |
+| UI | Candidate Thesis Graph Review | Render staged claims/edges and accept/reject actions. | `ResearchCompilerView.tsx` builds review audits through `buildResearchThesisReviewAudit`; active graph mutation remains gated by `chatKgcCanvasApply.ts` |
 | API | Research Compiler Worker | Validate requests, create run manifest, enqueue jobs, serve status. | `cloudflare/workers/knowgrph-research/index.ts` |
 | Async | Queue Consumer | Execute bounded compile steps and write artifacts. | `cloudflare/workers/knowgrph-research/index.ts` via `queue()` handler |
 | AI | Thesis Spec Harness | Validate input/output schemas and emit token/cost logs. | `canvas/src/features/research-agent/researchThesisContract.ts` |
-| Data | D1 | Run status, source refs, cost logs, audit records, accepted/rejected candidates. | `cloudflare/d1/migrations/0005_research_thesis.sql` |
+| Data | D1 | Run status, source refs, source summaries, cost logs, artifact pointers, audit records, accepted/rejected candidates. | `cloudflare/d1/migrations/0005_research_thesis.sql` |
 | Data | R2 | Source summaries, thesis specs, raw validation artifacts. | `cloudflare/workers/knowgrph-research/wrangler.toml` binding source |
-| Data | KV | Budget flags, source-hash cache, lightweight run locks. | Optional future binding; current dev baseline keeps cache injectable and test-local |
+| Data | KV | Source-hash summary cache and future budget flags/run locks when a real namespace is provisioned for deployment. | `cloudflare/workers/knowgrph-research/index.ts` optional binding adapter; no fake namespace id is checked into Dev source |
 | Retrieval | Optional vector index | Reuse only when existing corpus retrieval needs semantic similarity at scale. | Cloudflare Vectorize, optional |
 
 ### Proposed API Contracts
@@ -419,22 +438,22 @@ memory directory, or graph apply path.
 | Retrieval | Existing queryable corpus first; optional Vectorize later | Local embeddings cache | Avoid new vector dependency until corpus scale justifies it. |
 | Model provider | Existing model settings through harness | Local/offline mock provider for CI | Keeps provider replaceable and testable. |
 
-## Remaining Activation Requirements
+## Dev-Source Activation Evidence
 
-Before this document can claim live deployed implementation, the work must add or verify:
+Before this document can claim live deployed implementation, the Cloudflare deployment row remains pending. The Dev-source implementation evidence is:
 
-| Contract | Required proof |
-|----------|----------------|
-| Input selection | Visible UI reuse of existing Import URL, Source Files, or queryable corpus selection owners. |
-| Planning | Bounded plan generation with deterministic inputs and no repeated recomputation loop beyond the current offline harness. |
-| Source retrieval | Source-file-aware fetch/import ownership with visible provenance in the final UI. |
-| KGC extraction | Reuse KGC semantic parser/query helpers and existing graph apply semantics for visible commit. |
-| Review UI | A visible review surface that separates candidate primitives from committed graph data. |
-| Published demo runtime | Dev-source proof that the generated publish doc ingests through Source Files, parses to a warning-clean frontmatter Flow graph, and renders as a Flow scene. |
-| Persistence | No independent memory or skill files unless a canonical source owner and cleanup policy exist. |
-| Cloudflare deployment | Worker route validation once the user explicitly requests Prod/Cloudflare deploy. |
-| Token economics | Per-stage cost logs, cache hit rate, and configured caps are persisted with each run. |
-| Validation | Unit tests, docs/source-owner guard, hygiene check, TypeScript, and focused workflow smoke. |
+| Contract | Dev-source proof |
+|----------|------------------|
+| Input selection | MainPanel Research tab reuses existing Source Files state via `useGraphStore`; `researchCompilerPanelModel.ts` converts selected files into compiler source refs. |
+| Planning | The compiler is deterministic and bounded by max source files, source windows, compile iterations, verification fan-out, wall-clock budget metadata, input tokens, and output tokens. |
+| Source retrieval | Source-file provenance remains visible through canonical Source Files paths in the compile request, manifest, evidence rows, and UI source list. |
+| KGC extraction | Candidate deltas and review audits name `canvas/src/features/chat/chatKgcCanvasApply.ts`; the Research UI does not introduce a second graph mutation path. |
+| Review UI | MainPanel Research tab renders staged candidate claims, accepted/rejected ids, accepted delta counts, and `active_graph_mutated: false`. |
+| Published demo runtime | `researchAgent.demo.ingestParseRender` plus MainPanel pipeline tests prove semantic publish-demo resolution, Source Files ingestion, warning-clean frontmatter parsing, and Flow scene rendering. |
+| Persistence | Worker source writes manifest, source summaries, thesis spec, evidence ledger, candidate delta, cost log, and review audit artifacts; no independent memory or skill directory is created. |
+| Cloudflare deployment | Deferred until the user explicitly requests Prod/Cloudflare deploy; no live `airvio.co` route claim is made here. |
+| Token economics | Cost logs, cache hits, source-hash reuse, configured caps, and artifact pointers persist with each Worker run row in Dev source/tests. |
+| Validation | Focused unit tests, docs/source-owner guards, TypeScript, and scoped workflow checks remain the Dev-source acceptance surface. |
 
 ## Technical Direction
 
@@ -501,13 +520,15 @@ An active implementation should be built as an extension of current source owner
 
 ## Acceptance Gate
 
-This document stays at `dev-source-implemented-no-deploy` until:
+This document stays at `dev-source-implemented-no-deploy` until Cloudflare deployment is explicitly requested and live route validation passes. The Dev-source gate is:
 
 1. Source owners exist for retrieval, planning, candidate generation, review, and commit.
 2. The implementation reuses current Import URL, Source Files, queryable corpus, KGC semantic, and chat-to-canvas owners where applicable.
 3. Tests guard the source-owner map and reject duplicate ingestion or graph-apply paths.
 4. The generated research demo has docs-mirror ingestion, frontmatter parser, and Flow rendering proof without a file-specific parser path.
-5. The thesis spec harness has input/output schema tests, offline/mock-provider tests, and token-budget tests.
-6. The real workflow passes focused unit tests, `npm run hygiene:check`, TypeScript, and any required Cloudflare smoke.
+5. The thesis spec harness has input/output schema tests, offline/mock-provider tests, token-budget tests, and KV cache-reuse tests.
+6. The MainPanel Research tab provides visible Source Files selection and staged review audit proof without unreviewed active graph mutation.
+7. The Worker source persists D1 rows, R2 artifact pointers, cost logs, evidence ledgers, and review audits in Dev tests.
+8. The real workflow passes focused unit tests, `npm run hygiene:check`, TypeScript, and any required Cloudflare smoke once deployment is in scope.
 
 Until Prod/Cloudflare deploy is explicitly requested and validated, the research-agent route remains Dev-source only and must not be presented as a shipped live feature in UI, docs, tests, or deployment notes.

@@ -106,10 +106,11 @@ flowchart LR
   K --> L["useFinalizeAssistantSuccess()"]
   L --> M["Workspace FS run manifest"]
   L --> N["applyChatKgcWorkspaceDocumentToCanvas()"]
-  N --> O["setActiveMarkdownDocument(applyToGraph)"]
-  O --> P["tryParseMarkdownFrontmatterFlowGraph()"]
-  P --> Q["merge edges + subgraphs + clusters"]
-  Q --> R["Canvas groups / clusters / edges"]
+  N --> O["applyWorkspaceImportToCanvas()"]
+  O --> P["setActiveMarkdownDocument(applyToGraph)"]
+  P --> Q["tryParseMarkdownFrontmatterFlowGraph()"]
+  Q --> R["merge edges + subgraphs + clusters"]
+  R --> S["Canvas groups / clusters / edges"]
 ```
 
 ### Architectural rule
@@ -131,7 +132,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - canonical source-backed run manifest where Chat-to-Canvas vdeoxpln execution writes a KGC
   companion artifact through Workspace FS
 - canonical graph-apply path where finalized KGC Markdown reaches Canvas through
-  `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
+  `applyChatKgcWorkspaceDocumentToCanvas()`, `applyWorkspaceImportToCanvas()`, and `setActiveMarkdownDocument({ applyToGraph: true })`
 
 ## Route Contract
 | Route | Method | Response |
@@ -283,8 +284,8 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] MainPanel `integrations` and MainPanel `mcp` both mount `SettingsView` specializations instead of separate routing stacks
 - [x] chat routing and presets stay owned by `useSettingsChatAssist.tsx` and shared open-panel helpers
 - [x] `useFloatingPanelChatSubmit()` remains a thin shell over the submit coordinator/helper stack
-- [x] KGC validation rejects wrapper prose before frontmatter and rejects parallel grouping aliases outside `flow.subgraphs`
-- [x] finalized KGC workspace documents apply to Canvas through `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
+- [x] KGC validation rejects wrapper prose before frontmatter, literal MCP structured-surface acceptance rejects non-renderable output, and parallel grouping aliases outside `flow.subgraphs` stay rejected upstream
+- [x] finalized KGC workspace documents apply to Canvas through `applyChatKgcWorkspaceDocumentToCanvas()`, `applyWorkspaceImportToCanvas()`, and `setActiveMarkdownDocument({ applyToGraph: true })`
 - [x] `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown
 - [x] default published workspace markdown is readable without explicit `workspaceId`
 - [x] crawler-visible Markdown-pane content resolves from the D1-backed storage worker doc-view
@@ -303,4 +304,4 @@ runtime agent surface must converge on the same document identity and pipeline m
    `cd /Users/huijoohwee/Documents/GitHub/huijoohwee && npx wrangler pages deploy . --project-name=joohwee --branch=main --commit-dirty=true`
 5. Re-run live checks against `https://airvio.co/knowgrph/`
 
-*Document version: 1.27.5 - Root WebMCP scanning is stable without meta-refresh navigation, and the live external scan passes with five unique published WebMCP tools; DNS-AID, Auth.md, and MainPanel -> FloatingPanel Chat -> KGC -> Canvas ownership contracts stay unchanged - 2026-05-29*
+*Document version: 1.27.5 - Root WebMCP scanning is stable without meta-refresh navigation, and the live external scan passes with five unique published WebMCP tools; DNS-AID, Auth.md, and MainPanel -> FloatingPanel Chat -> KGC or MCP structured response -> Editor Workspace -> Canvas ownership contracts stay unchanged - 2026-05-29*

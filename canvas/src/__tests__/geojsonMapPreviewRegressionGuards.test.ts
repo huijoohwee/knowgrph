@@ -130,6 +130,9 @@ export function testInlineMarkdownGeoJsonMapReusesSharedBasemapHook() {
   if (text.includes('createMapLibreMapWithBasemap')) {
     throw new Error('Expected InlineMarkdownGeoJsonLayerMap to not use createMapLibreMapWithBasemap()')
   }
+  if (!text.includes('UI_RESPONSIVE_PASSIVE_BASE_LAYER_SURFACE_CLASSNAME') || text.includes('className="absolute inset-0 z-0 pointer-events-none"')) {
+    throw new Error('Expected InlineMarkdownGeoJsonLayerMap to reuse the shared passive base-layer surface class')
+  }
 }
 
 export function testInlineMarkdownGeoJsonMapAvoidsLiveGeoJsonMapLibreSources() {

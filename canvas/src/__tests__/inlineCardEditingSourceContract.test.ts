@@ -40,6 +40,7 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
 
   for (const snippet of [
     'GRAPH_NODE_CARD_TEXT_FIELDS',
+    'GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS',
     'buildGraphNodeCanonicalTextPatch',
     'readGraphNodeCardTitle',
   ]) {
@@ -58,9 +59,11 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   for (const snippet of [
     'updateStoryboardCanonicalProperty',
     'STORYBOARD_SUMMARY_PROPERTY_KEYS',
+    'STORYBOARD_OUTPUT_PROPERTY_KEYS',
     'STORYBOARD_ACTION_PROPERTY_KEYS',
     'STORYBOARD_DIALOGUE_PROPERTY_KEYS',
     "canonicalKey: 'summary'",
+    "canonicalKey: 'output'",
     "canonicalKey: 'action'",
     "canonicalKey: 'dialogue'",
   ]) {

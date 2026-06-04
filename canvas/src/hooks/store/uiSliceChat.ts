@@ -7,14 +7,15 @@ import {
   CHAT_DEFAULT_ENDPOINT_URL,
   normalizeChatEndpointUrlInput,
   CHAT_DEFAULT_PROVIDER,
-  normalizeChatModelIdForProvider,
-  normalizeChatProviderId,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
+  normalizeChatProviderId,
   getChatModelOptions,
   getDefaultChatModelForProvider,
+  resolveChatModelIdForProvider,
 } from '@/lib/chatEndpoint'
+import { resolveChatProviderSelectionValues } from '@/lib/chatProviderSelection'
 import {
   CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
   normalizeChatLocalStorageRootPath,
@@ -82,7 +83,7 @@ export const createInitialChatUiContext = (readers: UiStorageReaders) => {
   const storedChatProvider = lsJson<string>(LS_KEYS.chatProvider, CHAT_DEFAULT_PROVIDER, value => normalizeChatProviderId(value))
   const storedChatModel = lsJson<string | null>(LS_KEYS.chatModel, null, value => (typeof value === 'string' ? value : null))
   const normalizedStoredProvider = normalizeChatProviderId(storedChatProvider)
-  const normalizedStoredModel = normalizeChatModelIdForProvider(storedChatModel, normalizedStoredProvider)
+  const normalizedStoredModel = resolveChatModelIdForProvider(storedChatModel, normalizedStoredProvider, { preserveUnknownCustomModel: true })
   const shouldMigrateLegacyProviderDefault = normalizedStoredProvider !== CHAT_DEFAULT_PROVIDER && !normalizedStoredModel && getChatModelOptions(normalizedStoredProvider).length === 0
   const initialChatProvider = shouldMigrateLegacyProviderDefault ? CHAT_DEFAULT_PROVIDER : normalizedStoredProvider
   const initialChatAuthMode = lsJson<'serverManaged' | 'byok'>(LS_KEYS.chatAuthMode, 'serverManaged', value => (value === 'byok' ? 'byok' : 'serverManaged'))
@@ -94,7 +95,11 @@ export const createInitialChatUiContext = (readers: UiStorageReaders) => {
     const shouldKeepCustomEndpoint = !!raw && raw !== CHAT_DEFAULT_ENDPOINT_URL && raw !== CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL && raw !== CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL && raw !== CHAT_OPENAI_ENDPOINT_URL
     return shouldKeepCustomEndpoint ? normalizeChatEndpointUrlInput(raw, initialChatProvider) : normalizeChatEndpointUrlInput(null, initialChatProvider)
   })
-  const initialChatModel = normalizeChatModelIdForProvider(shouldMigrateLegacyProviderDefault ? null : storedChatModel, initialChatProvider) || getDefaultChatModelForProvider(initialChatProvider)
+  const initialChatModel = resolveChatModelIdForProvider(
+    shouldMigrateLegacyProviderDefault ? null : storedChatModel,
+    initialChatProvider,
+    { preserveUnknownCustomModel: true },
+  ) || getDefaultChatModelForProvider(initialChatProvider)
   return { initialChatProvider, initialChatAuthMode, initialChatEndpointUrl, initialChatModel }
 }
 
@@ -115,25 +120,17 @@ export const createUiChatActions = (set: SetGraph)=> ({
       }),
     setChatProvider: (provider: string) =>
       set(state => {
-        const normalizedProvider = normalizeChatProviderId(provider)
-        if (state.chatProvider === normalizedProvider) return {}
-        const nextModel = normalizeChatModelIdForProvider(state.chatModel, normalizedProvider)
-        const prevEndpoint = String(state.chatEndpointUrl || '').trim()
-        const prevProviderDefault = normalizeChatEndpointUrlInput(null, state.chatProvider)
-        const shouldResetEndpoint =
-          !prevEndpoint ||
-          prevEndpoint === prevProviderDefault ||
-          prevEndpoint === CHAT_DEFAULT_ENDPOINT_URL ||
-          prevEndpoint === CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL ||
-          prevEndpoint === CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL ||
-          prevEndpoint === CHAT_OPENAI_ENDPOINT_URL
-        const nextEndpoint = shouldResetEndpoint
-          ? normalizeChatEndpointUrlInput(null, normalizedProvider)
-          : normalizeChatEndpointUrlInput(prevEndpoint, normalizedProvider)
+        const next = resolveChatProviderSelectionValues({
+          currentEndpointUrl: state.chatEndpointUrl,
+          currentModel: state.chatModel,
+          currentProvider: state.chatProvider,
+          provider,
+        })
+        if (state.chatProvider === next.chatProvider) return {}
         return {
-          chatProvider: lsSetJson(LS_KEYS.chatProvider, normalizedProvider),
-          chatModel: lsSetJson(LS_KEYS.chatModel, nextModel),
-          chatEndpointUrl: lsSetJson(LS_KEYS.chatEndpointUrl, nextEndpoint),
+          chatProvider: lsSetJson(LS_KEYS.chatProvider, next.chatProvider),
+          chatModel: lsSetJson(LS_KEYS.chatModel, next.chatModel),
+          chatEndpointUrl: lsSetJson(LS_KEYS.chatEndpointUrl, next.chatEndpointUrl),
         }
       }),
     setChatApiKey: (apiKey: string | null) =>
@@ -164,7 +161,7 @@ export const createUiChatActions = (set: SetGraph)=> ({
         return {
           chatModel: lsSetJson(
             LS_KEYS.chatModel,
-            normalizeChatModelIdForProvider(model, nextProvider),
+            resolveChatModelIdForProvider(model, nextProvider, { preserveUnknownCustomModel: true }),
           ),
         }
       }),
@@ -377,7 +374,7 @@ export const createUiChatActions = (set: SetGraph)=> ({
       set({
         chatContextScope: lsSetJson(
           LS_KEYS.chatContextScope,
-          scope === 'selection' || scope === 'hybrid' ? scope : 'workspace',
+          scope === 'selection' || scope === 'workspace' ? scope : 'hybrid',
         ),
       }),
     setIntegrationConfigsJson: (v: string | null) =>

@@ -23,10 +23,13 @@ export function testGraphTableWorkspaceGatesPersistedCollectionSubscriptionsByAc
 export function testWorkspaceOpenCanvasToolbarDoesNotCoverEditorPaneControls() {
   const p = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('className="kg-workspace-overlay-canvas-toolbar')) {
-    throw new Error('expected workspace-open canvas toolbar to remain identifiable at its shared owner')
+  if (!text.includes('UI_RESPONSIVE_CANVAS_WORKSPACE_TOOLBAR_DOCK_CLASSNAME')) {
+    throw new Error('expected workspace-open canvas toolbar to use its shared responsive dock owner')
   }
-  if (!text.includes('style={{ left: workspacePaneBoundaryCss }}')) {
-    throw new Error('expected workspace-open canvas toolbar to start at the workspace pane boundary instead of covering editor controls')
+  if (
+    !text.includes('style={workspaceToolbarBoundaryStyle}') ||
+    !text.includes('canvasToolbarDockSpansViewport ? undefined : { left: workspacePaneBoundaryCss }')
+  ) {
+    throw new Error('expected workspace-open canvas toolbar to keep the desktop pane boundary and span the mobile viewport')
   }
 }

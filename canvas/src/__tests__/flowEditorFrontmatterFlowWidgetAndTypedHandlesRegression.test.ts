@@ -766,20 +766,19 @@ export function testFrontmatterFlowContractFormatsHandlesAsSemanticPortKeys() {
   }
 }
 
-export function testWidgetKvTableMaintainsFiveColumnLayoutAndValueContainment() {
+export function testWidgetKvTableMaintainsPortKeyValuePortLayoutAndValueContainment() {
   const kvTablePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorKvTable.tsx')
   const text = readFileSync(kvTablePath, 'utf8')
-  if (!text.includes("<col style={{ width: '29%' }} />")) {
-    throw new Error('expected KV table key column width contract')
+  const layoutText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorTableLayout.ts'), 'utf8')
+  if (!text.includes('data-kg-flow-widget-kv-row-layout={FLOW_WIDGET_KV_ROW_LAYOUT}') || !text.includes('FLOW_WIDGET_KV_KEY_COLUMN_STYLE') || !text.includes('FLOW_WIDGET_KV_VALUE_COLUMN_STYLE')) throw new Error('expected KV table to declare the port | key | value | port layout contract through the shared table layout owner')
+  if (!layoutText.includes("FLOW_WIDGET_KV_ROW_LAYOUT = 'port-key-value-port'") || !layoutText.includes("FLOW_WIDGET_KV_KEY_COLUMN_STYLE = { width: '34%' }") || !layoutText.includes("FLOW_WIDGET_KV_VALUE_COLUMN_STYLE = { width: '64%' }")) throw new Error('expected shared table layout owner to preserve KTV key/value column widths')
+  const beatText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorBeatByBeatSection.tsx'), 'utf8')
+  if (!beatText.includes('data-kg-flow-widget-wiring-row-layout={FLOW_WIDGET_BEAT_WIRING_ROW_LAYOUT}') || !beatText.includes('FLOW_WIDGET_BEAT_WIRING_COLUMN_STYLES.map')) throw new Error('expected beat-by-beat wiring table to reuse the shared Flow Editor table layout owner')
+  if (['flowWidgetTypeLabel', 'row.typeNode', 'onTypeClick', 'NodeOverlayEditorTypePill', 'FieldTypeBadgeIcon'].some(snippet => text.includes(snippet))) {
+    throw new Error('expected KV table to remove the rendered Type column and Flow Editor-local Type icon rendering')
   }
-  if (!text.includes("<col style={{ width: '10%' }} />")) {
-    throw new Error('expected KV table type column width contract')
-  }
-  if (!text.includes("<col style={{ width: '59%' }} />")) {
-    throw new Error('expected KV table value column width contract')
-  }
-  if (!text.includes("className={cn('px-3 py-2 align-top overflow-hidden'")) {
-    throw new Error('expected KV table value column to enforce overflow containment')
+  if (!text.includes("className={cn('px-3 py-2 align-top overflow-hidden', UI_THEME_TOKENS.text.primary") || !text.includes('[&_label]:text-ellipsis') || !text.includes('[&_span]:text-ellipsis') || !text.includes("className={cn('px-3 py-2 align-top overflow-hidden', UI_THEME_TOKENS.text.secondary")) {
+    throw new Error('expected KV table key/value columns to enforce overflow containment and shared ellipsis handling')
   }
   if (!text.includes('<section className="w-full min-w-0">{row.valueNode}</section>')) {
     throw new Error('expected KV table value node wrapper to enforce min-width alignment stability')
@@ -818,19 +817,19 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('formatFlowHandleAccessibleName({')) {
     throw new Error('expected widget registry port rows to use shared accessible names when repeated port keys exist')
   }
-  if (!text.includes('<span>{portKeyLabel}</span>')) {
+  if (!text.includes('<span>{model.portKeyLabel}</span>')) {
     throw new Error('expected widget registry port key column to show semantic KTV port keys without direction suffixes')
   }
-  if (!text.includes("<span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{schemaPath || portKey}</span>")) {
+  if (!text.includes("<span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{model.schemaPath || model.portKey}</span>")) {
     throw new Error('expected widget registry port key column to keep schema path or concrete port key as secondary text')
   }
-  if (!text.includes('typeNode: <NodeOverlayEditorTypePill text={handleType} />')) {
-    throw new Error('expected widget registry port type column to render in/out direction')
+  if (text.includes('NodeOverlayEditorTypePill') || text.includes('typeNode') || text.includes('handleType')) {
+    throw new Error('expected widget registry port rows to follow the shared port | key | value | port layout without Type icons')
   }
   if (!text.includes('<PlainTextInputEditor')) {
     throw new Error('expected widget registry port value column to reuse shared text-input typography')
   }
-  if (!text.includes('const portValueText = readWidgetFieldValueText({') || !text.includes('value={portValueText}')) {
+  if (!text.includes('portValueText: readWidgetFieldValueText({') || !text.includes('value={model.portValueText}')) {
     throw new Error('expected widget registry port value column to read schema-path values through the shared widget helper')
   }
   if (text.includes('value={portKey}')) {

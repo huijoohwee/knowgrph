@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils'
 
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 
+export const DESIGN_DOM_INSPECT_ROW_GRID_CLASS_NAME = 'kg-design-dom-inspect-row-grid'
+
 const coerceString = (v: unknown): string => (typeof v === 'string' ? v : String(v || '')).trim()
 
 function readMetaString(node: GraphNode, key: string): string {
@@ -38,7 +40,7 @@ function KeyValueRow(props: { k: string; v: string | number | null }) {
   const v = props.v
   const value = v == null ? '' : String(v)
   return (
-    <section className="grid grid-cols-[110px_1fr] gap-2 py-1">
+    <section className={DESIGN_DOM_INSPECT_ROW_GRID_CLASS_NAME}>
       <section className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>{props.k}</section>
       <section className={cn('text-xs font-mono break-words', UI_THEME_TOKENS.text.primary)}>{value || '—'}</section>
     </section>

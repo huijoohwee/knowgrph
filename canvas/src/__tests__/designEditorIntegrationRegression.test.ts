@@ -31,9 +31,16 @@ export function testDesignEditorOverviewIsSharedByDesignSurfaces() {
   const floatingPanel = read('src/features/design/DesignFloatingPanelView.tsx')
   const overview = read('src/features/design/DesignEditorOverviewPanel.tsx')
   const helper = read('src/features/design/designEditorLaunchState.ts')
+  const metricGridLiteral = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4'
 
   if (!floatingPanel.includes('DesignEditorOverviewPanel') || !floatingPanel.includes("id: 'overview'")) {
     throw new Error('expected Design surfaces to expose the shared editor overview tab')
+  }
+  if (!overview.includes(`DESIGN_EDITOR_OVERVIEW_METRIC_GRID_CLASS_NAME = '${metricGridLiteral}'`)) {
+    throw new Error('expected Design overview metric grids to use one shared mobile-first responsive owner')
+  }
+  if (overview.includes('grid grid-cols-2 gap-2 md:grid-cols-4')) {
+    throw new Error('expected Design overview metric grids to stay free of fixed mobile two-column literals')
   }
   for (const snippet of ['summarizeDesignTokens', 'dispatchRuntimeFitToViewSoon', 'activateDesignEditorSurface']) {
     if (!overview.includes(snippet)) throw new Error(`expected Design overview to reuse shared editor capability: ${snippet}`)

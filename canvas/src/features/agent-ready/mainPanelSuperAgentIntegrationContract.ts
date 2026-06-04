@@ -19,14 +19,6 @@ export const KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS = [
   'mcp',
 ] as const
 
-export const KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME = 'knowgrph-research-agent-demo.md'
-
-export const KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_WORKSPACE_PATH =
-  `/docs/${KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME}` as const
-
-export const KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE =
-  `workspace:${KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_WORKSPACE_PATH}` as const
-
 export const KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SHARE_URL = '/knowgrph/share/knowgrph-research-agent-demo'
 
 export const KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS = [
@@ -68,6 +60,24 @@ export const KNOWGRPH_SUPERAGENT_RICH_MEDIA_OUTPUT_NODE_IDS = [
   'panel_text_research_brief',
   'panel_image_evidence_map',
   'panel_chart_guardrails',
+] as const
+
+export const KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_NODE_ID = 'swarm_prediction_world' as const
+
+export const KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_EDGE_ID = 'edge_superagent_to_swarm_prediction' as const
+
+export const KNOWGRPH_SUPERAGENT_SWARM_PREDICTION_EDGE_TYPE = 'swarm_seed_signal' as const
+
+export const KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_OUTPUT_NODE_IDS = [
+  'panel_swarm_text_report',
+  'panel_swarm_world_image',
+  'panel_swarm_prediction_chart',
+] as const
+
+export const KNOWGRPH_SUPERAGENT_SWARM_RICH_MEDIA_EDGE_TYPES = [
+  'swarm_prediction_report_signal',
+  'swarm_world_image_signal',
+  'swarm_prediction_chart_html',
 ] as const
 
 export const KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS = [

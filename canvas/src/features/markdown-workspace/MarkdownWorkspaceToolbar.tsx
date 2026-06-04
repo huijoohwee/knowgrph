@@ -287,7 +287,7 @@ export function MarkdownWorkspaceToolbar({
   const showDocumentVersionGitGraphToggle = typeof setDocumentVersionGitGraphOpen === 'function'
 
   return (
-      <WorkspaceHeaderRow className="kg-markdown-workspace-toolbar-row kg-toolbar min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
+      <WorkspaceHeaderRow className="kg-markdown-workspace-toolbar-row !py-0" ariaLabel="Markdown toolbar row">
         {webpageSignalsNode ? (
           <span className="flex min-w-0 max-w-full items-center overflow-hidden">
             <span className="sr-only">Workspace editor</span>

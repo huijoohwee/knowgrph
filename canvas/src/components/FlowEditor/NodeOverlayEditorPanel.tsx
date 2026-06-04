@@ -29,6 +29,7 @@ import {
 import {
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
+import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
@@ -249,7 +250,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             flowEditorInteractionMode={true}
             flowEditorFrontmatterDocumentMode={isFrontmatterFlow}
             onInlineContentSize={handleRichMediaContentSize}
-            style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+            style={PANEL_FRAME_EMBEDDED_SURFACE_STYLE}
           />
         </section>
       ) : !minimized && (

@@ -1030,7 +1030,7 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
   }
 }
 
-export async function testVideoDemoSourceFilesRuntimeScreenAuthorityIgnoresCanvasZoomProjection() {
+export async function testVideoDemoSourceFilesRuntimeScreenAuthorityProjectsZoomLayout() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -1124,53 +1124,49 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityIgnoresCanva
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
 
-    const before = await waitForFlowEditorWidgetTransformSpread({
-      doc,
-      minCount: Math.min(eligibleWidgetIds.length, 24),
-      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
-      minSpanW: targetViewport.width * 0.45,
-      minSpanH: targetViewport.height * 0.35,
-      label: 'before-canvas-zoom',
-    })
+    const before = await waitForFlowEditorWidgetTransformSpread({ doc, minCount: Math.min(eligibleWidgetIds.length, 24), minUniqueBins: Math.min(eligibleWidgetIds.length, 18), minSpanW: targetViewport.width * 0.45, minSpanH: targetViewport.height * 0.35, label: 'before-canvas-zoom' })
     const beforeById = new Map(before.map(entry => [entry.id, entry]))
+    const readWidgetPlacementState = () => {
+      const state = useGraphStore.getState()
+      return JSON.stringify({ screen: state.flowWidgetPosByNodeId, screenByKey: state.flowWidgetPosByNodeIdByGraphMetaKey, world: state.flowWidgetWorldPosByNodeId, worldByKey: state.flowWidgetWorldPosByNodeIdByGraphMetaKey })
+    }
+    const beforeWidgetPlacementState = readWidgetPlacementState()
+    const readTransformMetrics = (entries: FlowEditorWidgetTransformEntry[]) => {
+      const centers = entries.map(entry => ({ x: entry.left + (360 * entry.scale) / 2, y: entry.top + (520 * entry.scale) / 2 }))
+      const centroid = centers.reduce((acc, center) => ({ x: acc.x + center.x, y: acc.y + center.y }), { x: 0, y: 0 })
+      centroid.x /= Math.max(1, centers.length)
+      centroid.y /= Math.max(1, centers.length)
+      return { scale: entries.reduce((sum, entry) => sum + entry.scale, 0) / Math.max(1, entries.length), radius: centers.reduce((sum, center) => sum + Math.hypot(center.x - centroid.x, center.y - centroid.y), 0) / Math.max(1, centers.length) }
+    }
+    const beforeMetrics = readTransformMetrics(before)
 
-    useGraphStore.getState().setZoomState({ k: 0.236057, x: 1471.46, y: 867.365 })
-    dom.window.dispatchEvent(new dom.window.Event('resize'))
-    for (let i = 0; i < 6; i += 1) await waitForRuntimeTick()
-
-    const after = readFlowEditorWidgetTransformEntries(doc)
-    const moved: Array<{ id: string; before: { scale: number; left: number; top: number }; after: { scale: number; left: number; top: number } }> = []
-    for (let i = 0; i < after.length; i += 1) {
-      const next = after[i]!
+    useGraphStore.getState().requestZoom('in')
+    let after = readFlowEditorWidgetTransformEntries(doc)
+    for (let i = 0; i < 24; i += 1) {
+      await waitForRuntimeTick()
+      after = readFlowEditorWidgetTransformEntries(doc)
+      if (Math.abs(readTransformMetrics(after).scale - beforeMetrics.scale) > 0.001) break
+    }
+    const changed = after.flatMap(next => {
       const prev = beforeById.get(next.id)
-      if (!prev) continue
+      if (!prev) return []
       const movedPosition = Math.abs(prev.left - next.left) > 0.5 || Math.abs(prev.top - next.top) > 0.5
-      const mutatedScale = Math.abs(prev.scale - next.scale) > 0.0001
-      if (movedPosition || mutatedScale) moved.push({ id: next.id, before: prev, after: next })
-    }
-    if (moved.length > 0) {
-      throw new Error(`expected frontmatter screen-authority widget transforms to ignore Flow Canvas zoom projection; moved=${JSON.stringify(moved.slice(0, 8))}`)
-    }
-    const afterSpread = await waitForFlowEditorWidgetTransformSpread({
-      doc,
-      minCount: Math.min(eligibleWidgetIds.length, 24),
-      minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
-      minSpanW: targetViewport.width * 0.45,
-      minSpanH: targetViewport.height * 0.35,
-      label: 'after-canvas-zoom',
+      const changedScale = Math.abs(prev.scale - next.scale) > 0.0001
+      return movedPosition || changedScale ? [{ id: next.id, before: prev, after: next }] : []
     })
+    if (changed.length === 0) throw new Error('expected frontmatter screen-authority widget transforms to project visible layout while zooming')
+    const afterMetrics = readTransformMetrics(after)
+    const scaleDelta = afterMetrics.scale - beforeMetrics.scale
+    const radiusDelta = afterMetrics.radius - beforeMetrics.radius
+    if (Math.abs(scaleDelta) > 0.001 && Math.sign(radiusDelta) !== Math.sign(scaleDelta)) {
+      throw new Error(`expected screen-authority zoom layout radius to follow scale direction, before=${JSON.stringify(beforeMetrics)} after=${JSON.stringify(afterMetrics)} changed=${JSON.stringify(changed.slice(0, 8))}`)
+    }
+    if (readWidgetPlacementState() !== beforeWidgetPlacementState) throw new Error('expected screen-authority zoom projection to avoid mutating stored widget placement state')
+    const afterSpread = await waitForFlowEditorWidgetTransformSpread({ doc, minCount: Math.min(eligibleWidgetIds.length, 24), minUniqueBins: Math.min(eligibleWidgetIds.length, 18), minSpanW: targetViewport.width * 0.45, minSpanH: targetViewport.height * 0.35, label: 'after-canvas-zoom' })
     assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: `expected screen-authority zoom isolation to keep Flow Editor widget state graph-owned (${afterSpread.length} overlays)` })
   } finally {
-    try {
-      restoreElementRect?.()
-    } catch {
-      void 0
-    }
-    try {
-      await unmountFlowEditorCanvasRuntime(root)
-    } catch {
-      void 0
-    }
+    try { restoreElementRect?.() } catch { void 0 }
+    try { await unmountFlowEditorCanvasRuntime(root) } catch { void 0 }
     restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()

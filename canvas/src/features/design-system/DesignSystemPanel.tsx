@@ -6,6 +6,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_FOCUS_RING, UI_SURFACE_CARD } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { UI_LABELS } from '@/lib/config'
+import { DESIGN_SYSTEM_SHELL_GRID_CLASS_NAME } from '@/features/design-system/designSystemResponsiveClasses'
 
 type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -80,7 +81,7 @@ export function DesignSystemPanel({
         <ThemeModeToggle />
       </header>
 
-      <section className="min-h-0 flex-1 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 p-3">
+      <section className={DESIGN_SYSTEM_SHELL_GRID_CLASS_NAME}>
         <nav aria-label="Design system navigation" className={cn('h-fit', UI_SURFACE_CARD)}>
           <ul className="m-0 p-2 list-none flex flex-col gap-1">
             {NAV_ITEMS.map(item => {
@@ -114,4 +115,3 @@ export function DesignSystemPanel({
     </article>
   )
 }
-

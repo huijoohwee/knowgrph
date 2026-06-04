@@ -1,14 +1,16 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
+import { isPlainObject } from '@/lib/graph/value'
 
 export const GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS = ['title', 'name', 'heading', 'scene', 'shot'] as const
 export const GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS = ['summary', 'description', 'caption', 'content', 'text', 'note', 'notes'] as const
 export const GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS = ['action', 'direction', 'beats', 'blocking', 'instructions', 'steps', 'workflow', 'task'] as const
 export const GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS = ['dialogue', 'voiceover', 'vo', 'quote', 'line', 'speakerLine', 'speaker_line', 'narration', 'narrationText', 'voiceOver'] as const
 export const GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS = ['prompt', 'imagePrompt', 'visualPrompt', 'brief', 'visualBrief', 'visual_brief', 'artDirection'] as const
+export const GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS = ['output', 'result', 'response', 'transcript', 'outputText', 'output_text'] as const
 
 type GraphNodeProperties = Record<string, JSONValue>
 
-export type GraphNodeCardTextFieldId = 'summary' | 'action' | 'dialogue' | 'prompt'
+export type GraphNodeCardTextFieldId = 'summary' | 'output' | 'action' | 'dialogue' | 'prompt'
 
 export type GraphNodeCardTextFieldSpec = {
   id: GraphNodeCardTextFieldId
@@ -25,6 +27,13 @@ export const GRAPH_NODE_CARD_TEXT_FIELDS: readonly GraphNodeCardTextFieldSpec[] 
     canonicalKey: 'summary',
     aliasKeys: GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
     placeholder: 'Add summary',
+  },
+  {
+    id: 'output',
+    label: 'Output',
+    canonicalKey: 'output',
+    aliasKeys: GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS,
+    placeholder: 'Add output',
   },
   {
     id: 'action',
@@ -93,8 +102,18 @@ export function buildGraphNodeCanonicalTextPatch(args: {
   nextValue: string
 }): Record<string, unknown> {
   const nextProperties: Record<string, unknown> = { ...args.currentProperties }
+  const nestedProperties = isPlainObject(nextProperties.properties)
+    ? { ...nextProperties.properties }
+    : null
   for (const key of args.aliasKeys) delete nextProperties[key]
+  if (nestedProperties) {
+    for (const key of args.aliasKeys) delete nestedProperties[key]
+  }
   const normalizedValue = normalizeCardText(args.nextValue)
-  if (normalizedValue) nextProperties[args.canonicalKey] = normalizedValue
+  if (normalizedValue) {
+    nextProperties[args.canonicalKey] = normalizedValue
+    if (nestedProperties) nestedProperties[args.canonicalKey] = normalizedValue
+  }
+  if (nestedProperties) nextProperties.properties = nestedProperties
   return nextProperties
 }

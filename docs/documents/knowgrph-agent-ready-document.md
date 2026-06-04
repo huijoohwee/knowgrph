@@ -50,7 +50,7 @@ The shipped browser and deployed surfaces intentionally differ by trust boundary
 - MainPanel `mcp` and `integrations` remain thin shells over shared `SettingsView` ownership
 - MainPanel `commerce` is the canonical operator surface for agent-buyable workflows, with
   Payments retained only as a subsection
-- FloatingPanel Chat remains the single LLM output -> Markdown YAML frontmatter -> Canvas pipeline
+- FloatingPanel Chat remains the single LLM output -> YAML frontmatter Markdown or MCP structured response -> Editor Workspace -> Canvas pipeline
 - `flow.subgraphs` is the only canonical grouping authoring surface for graph-producing Markdown
 - local SuperAgent execution remains CLI/local-MCP only unless a future source-owned deployed route
   and live validation prove otherwise
@@ -127,7 +127,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 | PRD-AR-02 | As an agent registration client, I want Auth.md and agent auth metadata so registration is machine-discoverable. | Given root discovery, when `/auth.md` and OAuth metadata are fetched, then Markdown auth instructions and `agent_auth` metadata are present. | `npm run auth-md:check` exits 0 with 5/5 checks passing. |
 | PRD-AR-03 | As an MCP client, I want a read-only published document surface so I can list and read public Knowgrph content. | Given `/knowgrph/mcp`, when `initialize`, `tools/list`, and supported `tools/call` requests run, then public Source Files and shared-document reads resolve. | `KNOWGRPH_AGENT_READY_BASE_URL=https://airvio.co/knowgrph npm run agent-ready:check` exits 0. |
 | PRD-AR-04 | As a browser agent, I want WebMCP in the loaded page so I can inspect the deployed surface without scraping. | Given root or `/knowgrph/` HTML, when scanner execution evaluates the page, then model-context tools are visible and no meta refresh destroys the context. | External agent-ready WebMCP scan returns `pass` with five published tools. |
-| PRD-AR-05 | As a knowledge worker, I want MainPanel MCP and integrations actions to route into the existing chat/canvas pipeline. | Given a MainPanel assist action, when FloatingPanel Chat emits LLM output, then KGC Markdown validates from YAML frontmatter and applies through Canvas owners. | Source owners remain `SettingsView`, `useFloatingPanelChatSubmit`, KGC validation, and `applyChatKgcWorkspaceDocumentToCanvas`; no duplicate pipeline is introduced. |
+| PRD-AR-05 | As a knowledge worker, I want MainPanel MCP and integrations actions to route into the existing chat/canvas pipeline. | Given a MainPanel assist action, when FloatingPanel Chat emits LLM output, then KGC Markdown validates from YAML frontmatter or literal MCP `structuredContent` validates as a renderable structured surface before Editor Workspace and Canvas apply. | Source owners remain `SettingsView`, `useFloatingPanelChatSubmit`, KGC/MCP structured-surface validation, `chatResponseStructuredContent`, and `applyChatKgcWorkspaceDocumentToCanvas`; no duplicate pipeline is introduced. |
 | PRD-AR-06 | As maintainer, I want deployment to stay source-owned so production cannot drift from Dev. | Given Dev changes, when build/sync/deploy runs, then prod mirror assets match the generated artifact and live `/knowgrph/` serves that artifact. | `npm run pages:build-sync`, `npm run pages:check-sync`, deploy, and live asset hash comparison pass. |
 | PRD-AR-07 | As a commerce-capable agent, I want payment and checkout discovery before creating a checkout session. | Given the root origin, when Commerce discovery routes are fetched, then ACP, UCP, MPP, and x402 metadata expose protocol, service, capability, endpoint, and payable-operation data. | `agent-ready:check` commerce probes pass and external scan reports `commerce.acp`, `commerce.ucp`, `commerce.mpp`, and `commerce.x402` as `pass`. |
 
@@ -225,8 +225,8 @@ flowchart LR
   Assist --> Chat["FloatingPanel Chat"]
   Chat --> Submit["useFloatingPanelChatSubmit + coordinator"]
   Submit --> LLM["LLM output"]
-  LLM --> KGC["Markdown YAML frontmatter"]
-  KGC --> Validate["KGC validation and recovery"]
+  LLM --> Response["YAML frontmatter or MCP structured response"]
+  Response --> Validate["KGC or MCP structured-surface validation"]
   Validate --> Finalize["Finalize assistant success"]
   Finalize --> Apply["applyChatKgcWorkspaceDocumentToCanvas"]
   Apply --> Canvas["Canvas graph pipeline"]
@@ -282,7 +282,7 @@ and the prod mirror remains a downstream artifact rather than a hand-edited sour
 | DNS-AID record contract and live check | `scripts/dns-aid-records.mjs`, `scripts/check-dns-aid-cloudflare.mjs` | Implemented |
 | DNS-AID publish tooling | `scripts/publish-dns-aid-cloudflare.mjs` | Implemented |
 | MainPanel MCP/integrations shells | `MainPanel.tsx`, `McpHubView.tsx`, `IntegrationsHubView.tsx`, `SettingsView.tsx` | Implemented |
-| Chat submit and KGC pipeline | `useFloatingPanelChatSubmit.ts`, submit coordinator helpers, KGC validation, Canvas apply bridge | Implemented |
+| Chat submit and response validation pipeline | `useFloatingPanelChatSubmit.ts`, submit coordinator helpers, KGC validation, `chatResponseStructuredContent`, Canvas apply bridge | Implemented |
 | Prod mirror sync | `scripts/sync-pages-knowgrph.mjs` | Implemented |
 
 ## Data Flow
@@ -294,8 +294,8 @@ and the prod mirror remains a downstream artifact rather than a hand-edited sour
 | Commerce discover | root Pages function | ACP, UCP, MPP, and x402 probes | commerce protocol JSON and HTTP 402 payment metadata | Cloudflare Pages artifact / payment Worker | commerce checks fail closed on missing protocol fields, service lists, schemas, or payment-required metadata |
 | MCP read | Pages MCP transport | JSON-RPC | read-only tool results | storage worker / D1-backed public docs | tool errors return structured JSON-RPC errors |
 | Browser context | WebMCP lifecycle | page runtime context | model-context tools | in-memory browser runtime | bounded late binding and readable fallback context |
-| Chat output | FloatingPanel Chat | user prompt + selected context | Markdown with YAML frontmatter | workspace / chat history | KGC recovery validates or rejects malformed output |
-| Canvas apply | KGC parser and graph bridge | frontmatter flow markdown | canvas nodes, edges, subgraphs | graph store / workspace state | parser rejects non-canonical grouping aliases |
+| Chat output | FloatingPanel Chat | user prompt + selected context | Markdown with YAML frontmatter or literal MCP `structuredContent` | workspace / chat history | KGC recovery validates malformed Markdown; structured-surface acceptance rejects non-renderable MCP output |
+| Canvas apply | KGC parser and graph bridge | frontmatter flow markdown or projected MCP structured surface | canvas nodes, edges, widgets, cards, rich media panels, subgraphs | graph store / workspace state | parser rejects non-canonical grouping aliases and graph apply stays source-owned |
 
 ## Quality Attributes
 
@@ -315,7 +315,7 @@ Discovery endpoints are deterministic and spend zero LLM tokens. The only LLM-be
 document is the FloatingPanel Chat pipeline. It must remain a harnessed path:
 
 ```text
-User/context -> Chat submit coordinator -> LLM -> KGC validation -> Canvas apply
+User/context -> Chat submit coordinator -> LLM -> KGC or MCP structured-surface validation -> Editor Workspace -> Canvas apply
 ```
 
 Harness requirements:

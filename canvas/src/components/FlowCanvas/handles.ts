@@ -273,12 +273,14 @@ export function computeFlowHandlesByNode(args: {
     const activeTab = String(props?.richMediaActiveTab || '').trim()
     const preferredKeys =
       activeTab === 'text'
-        ? ['output', 'outputSrcDoc', 'imageUrl', 'videoUrl']
+        ? ['output', 'outputSrcDoc', 'imageUrl', 'videoUrl', 'audioUrl']
         : activeTab === 'image'
-          ? ['imageUrl', 'output', 'outputSrcDoc', 'videoUrl']
+          ? ['imageUrl', 'output', 'outputSrcDoc', 'videoUrl', 'audioUrl']
           : activeTab === 'video'
-            ? ['videoUrl', 'imageUrl', 'outputSrcDoc', 'output']
-            : []
+            ? ['videoUrl', 'imageUrl', 'audioUrl', 'outputSrcDoc', 'output']
+            : activeTab === 'audio'
+              ? ['audioUrl', 'videoUrl', 'imageUrl', 'outputSrcDoc', 'output']
+              : []
     if (preferredKeys.length === 0 || handles.length <= 1) return handles
     const handleById = new Map(handles.map(handle => [handle.id, handle] as const))
     const ordered = preferredKeys

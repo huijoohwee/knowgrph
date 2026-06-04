@@ -1,5 +1,5 @@
 import React from 'react'
-import { ExternalLink, Image as ImageIcon } from 'lucide-react'
+import { ExternalLink, Image as ImageIcon, Volume2 } from 'lucide-react'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
@@ -88,6 +88,15 @@ function getCardMediaSkeletonBlocks(variant: CardMediaSkeletonVariant, labelWidt
       { width: '58%', height: 10, radius: 999 },
     ]
   }
+  if (variant === 'audio') {
+    return [
+      { width: labelWidth, height: 12, radius: 999 },
+      { width: '100%', height: 18, radius: 999 },
+      { width: '82%', height: 18, radius: 999 },
+      { width: '100%', height: 44, radius: 14 },
+      { width: '46%', height: 10, radius: 999 },
+    ]
+  }
   return [
     { width: labelWidth, height: 12, radius: 999 },
     { width: '100%', height: '100%', minHeight: 112, flex: 1, radius: 14 },
@@ -123,6 +132,14 @@ function getCardMediaEmptyBlocks(variant: CardMediaPlaceholderVariant): Readonly
       { width: '40%', height: 8, radius: 999 },
     ]
   }
+  if (variant === 'audio') {
+    return [
+      { width: '36%', height: 12, radius: 999 },
+      { width: '92%', height: 18, radius: 999 },
+      { width: '100%', height: 44, radius: 14 },
+      { width: '52%', height: 8, radius: 999 },
+    ]
+  }
   return [
     { width: '42%', height: 12, radius: 999 },
     { width: '100%', minHeight: 76, flex: 1, radius: 14 },
@@ -135,6 +152,7 @@ function getCardMediaEmptyStatusLabel(variant: CardMediaPlaceholderVariant) {
   if (variant === 'text') return 'Waiting for text content'
   if (variant === 'image') return 'Waiting for image content'
   if (variant === 'video') return 'Waiting for video content'
+  if (variant === 'audio') return 'Waiting for audio content'
   return 'Waiting for rich media content'
 }
 
@@ -296,6 +314,7 @@ export function CardMediaEmptyPlaceholder({
 export function CardMediaPreview({
   kind,
   url,
+  srcDoc,
   title,
   href,
   interactive = false,
@@ -318,6 +337,7 @@ export function CardMediaPreview({
 }: {
   kind: CardMediaKind | null | undefined
   url: string
+  srcDoc?: string
   title: string
   href?: string
   interactive?: boolean
@@ -339,6 +359,7 @@ export function CardMediaPreview({
   onError?: () => void
 }) {
   const mediaUrl = normalizeCardMediaUrl(url)
+  const mediaSrcDoc = typeof srcDoc === 'string' ? srcDoc.trim() : ''
   const fallbackHref = normalizeCardMediaUrl(href)
   const rootClassName = ['h-full w-full', className].filter(Boolean).join(' ')
   const mediaPointerStyle: React.CSSProperties = {
@@ -423,25 +444,66 @@ export function CardMediaPreview({
     )
   }
 
-  if (kind === 'iframe' && mediaUrl) {
+  if (kind === 'audio' && mediaUrl) {
+    return (
+      <section
+        className={[
+          'flex h-full w-full select-none flex-col items-center justify-center gap-3',
+          mediaClassName,
+        ].filter(Boolean).join(' ')}
+        data-kg-card-media-kind="audio"
+        data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
+        style={{
+          background: 'rgba(2, 6, 23, 0.06)',
+          padding: 12,
+          ...mediaPointerStyle,
+          ...(mediaStyle || null),
+        }}
+        {...mediaEventProps}
+      >
+        <Volume2 className="h-5 w-5 shrink-0 text-black/55" aria-hidden="true" />
+        <audio
+          src={proxyImageLike ? applyImageLikeProxySrc(mediaUrl) : mediaUrl}
+          className="w-full max-w-full"
+          controls
+          preload="metadata"
+          draggable={false}
+          onLoadedMetadata={() => onReady?.()}
+          onCanPlay={() => onReady?.()}
+          onError={() => onError?.()}
+          style={mediaPointerStyle}
+        />
+      </section>
+    )
+  }
+
+  if (kind === 'iframe' && (mediaUrl || mediaSrcDoc)) {
     const embed = resolveIframeEmbed({
       url: mediaUrl,
       embedMode: iframeEmbedMode === 'direct' || iframeEmbedMode === 'proxy' ? iframeEmbedMode : undefined,
       scriptPolicy: iframeScriptPolicy || (interactive ? 'allow' : undefined),
     })
+    const sandbox = mediaSrcDoc
+      ? (iframeScriptPolicy === 'allow' || interactive
+          ? 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox'
+          : '')
+      : embed.sandbox
     return (
       <iframe
-        src={embed.iframeSrc}
+        src={mediaSrcDoc ? undefined : embed.iframeSrc}
+        srcDoc={mediaSrcDoc || undefined}
         title={title}
         className={['block h-full w-full select-none border-0', mediaClassName].filter(Boolean).join(' ')}
         allow={CARD_MEDIA_IFRAME_ALLOW}
         allowFullScreen
-        sandbox={embed.sandbox}
+        sandbox={sandbox}
         referrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
         loading="lazy"
         data-kg-card-media-iframe="1"
         data-kg-card-media-kind="iframe"
         data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-card-media-srcdoc={mediaSrcDoc ? '1' : undefined}
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
         onLoad={() => onReady?.()}
         style={{

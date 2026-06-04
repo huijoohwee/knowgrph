@@ -1,0 +1,1 @@
+export const STATS_MINI_CHART_MIN_HEIGHT_PX = 64

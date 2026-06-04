@@ -88,19 +88,18 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
     || !overlayPlacementRuntimeText.includes('zoomK: frontmatterPanelScaleZoomK')) {
     throw new Error('expected frontmatter placement to keep screen-position authority while letting shared viewport zoom drive baseline-normalized visual scale')
   }
-  if (overlayPlacementRuntimeText.includes('frontmatterScreenAuthorityViewportAnchorRef')
-    || overlayPlacementRuntimeText.includes('useFrontmatterViewportProjection')
-    || overlayPlacementRuntimeText.includes('frontmatterViewportAdjustedPos')
-    || overlayPlacementRuntimeText.includes('frontmatterViewportScale')) {
-    throw new Error('expected frontmatter screen-authority placement to forbid Flow Canvas viewport projection from mutating widget positions or size')
+  if (!overlayPlacementRuntimeText.includes('screenAuthorityLayoutZoomBaseRef')
+    || !overlayPlacementRuntimeText.includes('projectCollectiveScreenLayoutForZoom({')
+    || !overlayPlacementRuntimeText.includes('screenAuthorityLayoutZoomBaseRef.current = {')) {
+    throw new Error('expected frontmatter screen-authority placement to project visible zoom layout from a non-mutating screen-layout baseline')
   }
   if (!overlayPlacementRuntimeText.includes('const pos = posBaseForViewport')
     || !overlayPlacementRuntimeText.includes('const effectivePanelScale = panelScale')) {
-    throw new Error('expected frontmatter screen-authority placement to keep stable screen-space position and scale from its own placement owner')
+    throw new Error('expected frontmatter screen-authority placement to keep scale and projected screen position inside its placement owner')
   }
   if (!overlayPlacementRuntimeText.includes('const frontmatterScreenAuthority = isFrontmatterManagedOverlayNode(graphMetaKind, nodeRef.current) && floatingUsesScreenAuthority')
     || !overlayPlacementRuntimeText.includes('if (frontmatterScreenAuthority && sameScale && !pinnedDragOverrideRef.current) return')) {
-    throw new Error('expected frontmatter screen-authority zoom subscriptions to ignore canvas zoom churn instead of reprojecting the grid')
+    throw new Error('expected frontmatter screen-authority zoom subscriptions to skip only same-scale churn while allowing proportional zoom projection')
   }
   if (!overlayPlacementRuntimeText.includes('initialFrontmatterManagedNode')
     || !overlayPlacementRuntimeText.includes('&& lastAppliedRef.current')

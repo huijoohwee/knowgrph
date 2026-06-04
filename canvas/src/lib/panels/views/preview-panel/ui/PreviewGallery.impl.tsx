@@ -13,7 +13,7 @@ import { reorderList } from '@/lib/reorder'
 
 const previewGalleryMoveButtonClassName = `text-[11px] ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg} rounded px-1`
 const previewGalleryActiveBadgeClassName = `px-1 py-0.5 rounded ${UI_INTENT_TOKENS.primary.bg} text-[9px] font-medium ${UI_INTENT_TOKENS.primary.text} uppercase tracking-wide`
-
+export const PREVIEW_GALLERY_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2'
 export type PreviewGalleryItem = {
   id: string
   label: string
@@ -160,7 +160,7 @@ export default function PreviewGallery({
           Drag or use arrows to reorder
         </p>
       </header>
-      <ul className={isGridLayout ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-3'}>
+      <ul className={isGridLayout ? PREVIEW_GALLERY_GRID_CLASS_NAME : 'space-y-3'}>
         {!isGridLayout && items.length > 0 && draggingId ? (
           <li
             className={`h-6 flex items-center justify-center ${UI_COLOR_PRIMARY_BLUE_BG} border-y-2 cursor-move transition-colors rounded`}

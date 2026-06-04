@@ -1,9 +1,18 @@
-import { computeGraphBounds } from '@/features/minimap/math'
+import {
+  MINIMAP_EDGE_LIMIT_DEFAULT,
+  MINIMAP_GRAPH_PAD_DEFAULT,
+  MINIMAP_HEIGHT,
+  MINIMAP_NODE_LIMIT_DEFAULT,
+  MINIMAP_NODE_SIZE_DEFAULT,
+  MINIMAP_WIDTH,
+  computeGraphBounds,
+  computeMinimapProjection,
+} from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { requestFromSingletonWorker } from '@/lib/workers/singletonWorkerClient'
 
-type NodeLite = Pick<GraphNode, 'id' | 'x' | 'y'>
+type NodeLite = Pick<GraphNode, 'id' | 'x' | 'y'> & { width?: number; height?: number }
 type EdgeLite = Pick<GraphEdge, 'id' | 'source' | 'target'>
 
 export type MinimapPreviewBounds = {
@@ -95,17 +104,15 @@ function computeMinimapPreviewSync(
 ): MinimapPreviewData {
   const N = Array.isArray(nodes) ? nodes : []
   const E = Array.isArray(edges) ? edges : []
-  const pad = typeof opts?.pad === 'number' ? opts.pad : 20
-  const miniW = typeof opts?.miniW === 'number' ? opts.miniW : 160
-  const miniH = typeof opts?.miniH === 'number' ? opts.miniH : 120
+  const pad = typeof opts?.pad === 'number' ? opts.pad : MINIMAP_GRAPH_PAD_DEFAULT
+  const miniW = typeof opts?.miniW === 'number' ? opts.miniW : MINIMAP_WIDTH
+  const miniH = typeof opts?.miniH === 'number' ? opts.miniH : MINIMAP_HEIGHT
   const bounds = opts?.boundsOverride || computeGraphBounds(N, pad)
-  const scaleX = miniW / Math.max(1, bounds.width)
-  const scaleY = miniH / Math.max(1, bounds.height)
-  const sx = Math.min(scaleX, scaleY)
-  const EDGE_LIMIT = typeof opts?.edgeLimit === 'number' ? opts.edgeLimit : 20000
+  const { sx } = computeMinimapProjection(bounds, { w: miniW, h: miniH })
+  const EDGE_LIMIT = typeof opts?.edgeLimit === 'number' ? opts.edgeLimit : MINIMAP_EDGE_LIMIT_DEFAULT
   const edgesPath = E.length > EDGE_LIMIT ? '' : buildEdgesPathD(N, E, bounds, sx, opts?.graphId)
-  const NODE_LIMIT = typeof opts?.nodeLimit === 'number' ? opts.nodeLimit : 25000
-  const nodesPath = buildNodesPathD(sampleNodesForMinimap(N, NODE_LIMIT), bounds, sx, 3, opts?.graphId)
+  const NODE_LIMIT = typeof opts?.nodeLimit === 'number' ? opts.nodeLimit : MINIMAP_NODE_LIMIT_DEFAULT
+  const nodesPath = buildNodesPathD(sampleNodesForMinimap(N, NODE_LIMIT), bounds, sx, MINIMAP_NODE_SIZE_DEFAULT, opts?.graphId)
   return { nodesPath, edgesPath, sx, bounds }
 }
 
@@ -125,13 +132,13 @@ export function computeMinimapPreviewInWorker(
 
     const N = Array.isArray(nodes) ? nodes : []
     const E = Array.isArray(edges) ? edges : []
-    const EDGE_LIMIT = typeof opts?.edgeLimit === 'number' ? opts.edgeLimit : 20000
+    const EDGE_LIMIT = typeof opts?.edgeLimit === 'number' ? opts.edgeLimit : MINIMAP_EDGE_LIMIT_DEFAULT
     const edgesToSend = E.length > EDGE_LIMIT ? [] : E
-    const NODE_LIMIT = typeof opts?.nodeLimit === 'number' ? opts.nodeLimit : 25000
+    const NODE_LIMIT = typeof opts?.nodeLimit === 'number' ? opts.nodeLimit : MINIMAP_NODE_LIMIT_DEFAULT
     const sampledNodes = sampleNodesForMinimap(N, NODE_LIMIT)
     const endpointNodes = edgesToSend.length > 0 ? collectNodesForEdgeEndpoints(N, edgesToSend) : []
     const nodesToSend = mergeNodesById(sampledNodes, endpointNodes)
-    const pad = typeof opts?.pad === 'number' ? opts.pad : 20
+    const pad = typeof opts?.pad === 'number' ? opts.pad : MINIMAP_GRAPH_PAD_DEFAULT
     const boundsOverride = opts?.boundsOverride || computeGraphBounds(N, pad)
 
     return requestFromSingletonWorker<MinimapPreviewData | null>({

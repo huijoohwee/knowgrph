@@ -19,6 +19,8 @@ import { drawGrid, getCellText, getCellTextByKind, hitTest, readGridTheme, type 
 import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useGraphTableGridModel'
 import { DateCellEditor, type DateCellEditorState } from '@/features/graph-table/ui/fast-grid/DateCellEditor'
 import { GraphTableFastGridHeader } from '@/features/graph-table/ui/GraphTableFastGridHeader'
+import { GRAPH_TABLE_GRID_SPACER_STYLE } from '@/features/graph-table/ui/graphTableResponsiveMetrics'
+import { UI_RESPONSIVE_PASSIVE_BASE_LAYER_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type GraphTableFastGridProps = {
   tableId: GraphTableId
@@ -386,7 +388,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
     >
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 z-0 pointer-events-none"
+        className={UI_RESPONSIVE_PASSIVE_BASE_LAYER_SURFACE_CLASSNAME}
         aria-label="Grid canvas"
       />
       <GraphTableFastGridHeader
@@ -523,7 +525,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
           ref={el => {
             spacerRef.current = el
           }}
-          style={{ width: 1, height: 1 }}
+          style={GRAPH_TABLE_GRID_SPACER_STYLE}
         />
       </section>
 

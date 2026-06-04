@@ -24,6 +24,7 @@ import { NewFieldForm } from './NewFieldForm'
 import { useGraphFieldsFiltering } from '@/features/panels/views/graph-fields/hooks/useGraphFieldsFiltering'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
+  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_PANEL_STRIP_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_LIST_ROW_CLASSNAME,
@@ -255,7 +256,7 @@ export function GraphFieldsListPanelBody({
         />
       ) : null}
 
-      <section className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <section className={UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME}>
         {(() => {
           const isOnlyVisibleColumn = visibleGraphFieldColumnCount <= 1
 

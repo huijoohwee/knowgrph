@@ -1,5 +1,5 @@
 import React from 'react'
-
+import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import FlowCanvas from '@/components/FlowCanvas'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
@@ -269,7 +269,7 @@ export default function FlowEditorCanvasSurface(props: {
       {(props.overlayOnlyActive || props.hasOverlayEditors) && (
         <svg
           ref={props.overlayEdgesSvgRef}
-          className="absolute inset-0 pointer-events-none"
+          className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME}
           style={{
             zIndex: Z_INDEX_GRAPH_OVERLAY_EDGES,
             color: 'var(--kg-canvas-edge-stroke, #9ca3af)',

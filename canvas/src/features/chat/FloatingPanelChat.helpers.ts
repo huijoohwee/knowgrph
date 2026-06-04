@@ -95,7 +95,7 @@ export const buildProviderChatRequestOptions = (args: {
   chatToolChoiceJson: unknown
 }): Record<string, unknown> => {
   const modelId = typeof args.chatModel === 'string' ? args.chatModel.trim() : ''
-  const isGpt5Model = modelId ? /^gpt-5(\.|$)/i.test(modelId) : false
+  const isGpt5Model = modelId ? /^gpt-5(?:[.-]|$)/i.test(modelId) : false
   const provider = normalizeChatProviderId(args.provider)
   const shouldSendTemperature = provider !== CHAT_PROVIDER_OPENAI ? true : !isGpt5Model
   const shouldSendTopP = provider !== CHAT_PROVIDER_OPENAI ? true : !isGpt5Model

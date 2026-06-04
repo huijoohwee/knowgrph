@@ -8,6 +8,7 @@ import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { getIconSizeClass } from '@/lib/ui'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import {
+  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
@@ -195,7 +196,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
           menuWidthClass={UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
         />
       </header>
-      <section className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTypography.panelTextClass)}>
+      <section className={cn(UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, 'mt-1', panelTypography.panelTextClass)}>
         {tab === 'overview' && (
           <DesignEditorOverviewPanel
             active={active}

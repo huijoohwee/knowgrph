@@ -62,7 +62,7 @@ export function GraphTableWorkspaceHeader(props: {
 }) {
   return (
     <WorkspaceHeader ariaLabel={MARKDOWN_DATA_VIEW_COPY.headerAriaLabel} border="divider">
-      <WorkspaceHeaderRow className="kg-graph-table-header kg-toolbar min-h-[var(--kg-control-height,28px)] py-0" ariaLabel={MARKDOWN_DATA_VIEW_COPY.headerRowAriaLabel}>
+      <WorkspaceHeaderRow className="kg-graph-table-header py-0" ariaLabel={MARKDOWN_DATA_VIEW_COPY.headerRowAriaLabel}>
         <section className={`kg-graph-table-nav kg-toolbar ${uiToolbarRowScrollClassName} gap-2`} aria-label={MARKDOWN_DATA_VIEW_COPY.navigationAriaLabel}>
           <span className="sr-only">{UI_LABELS.graphDataTable}</span>
 

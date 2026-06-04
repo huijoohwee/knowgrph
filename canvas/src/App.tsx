@@ -37,13 +37,22 @@ export default function App() {
     let storageHandler: ((e: StorageEvent) => void) | null = null
 
     const handle = scheduleIdle(() => {
+      void import('@/features/agent-ready/workspaceRuntimeCommand')
+        .then(workspaceRuntimeModule => {
+          if (cancelled) return
+          cleanupWorkspaceRuntime = workspaceRuntimeModule.installWorkspaceRuntimeCommand()
+        })
+        .catch(error => {
+          if (cancelled) return
+          console.warn('[knowgrph] workspace runtime command unavailable', error)
+        })
+
       void Promise.all([
         import('@/lib/canvas/interaction-user-select'),
         import('@/lib/canvas/interaction-recovery'),
         import('@/lib/canvas/space-pan'),
         import('@/lib/ui/tokens-ssot'),
         import('@/features/integrations/command'),
-        import('@/features/agent-ready/workspaceRuntimeCommand'),
         import('@/features/spotlight/storage'),
         import('@/lib/persistence'),
         import('@/lib/ui/theme'),
@@ -55,7 +64,6 @@ export default function App() {
           spacePanModule,
           tokensModule,
           integrationsModule,
-          workspaceRuntimeModule,
           spotlightStorageModule,
           persistenceModule,
           themeModule,
@@ -68,7 +76,6 @@ export default function App() {
           interactionRecoveryModule.installGlobalInteractionRecovery()
           tokensModule.ensureKgTokensInstalled()
           cleanupIntegration = integrationsModule.installIntegrationUtilityCommand()
-          cleanupWorkspaceRuntime = workspaceRuntimeModule.installWorkspaceRuntimeCommand()
 
           const storage = persistenceModule.getLocalStorage()
           spotlightStorageModule.clearOnboardingSpotlight(storage)

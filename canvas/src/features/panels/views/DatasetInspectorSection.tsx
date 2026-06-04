@@ -26,9 +26,11 @@ import {
   UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME,
   UI_RESPONSIVE_MICRO_INLINE_CHIP_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
+import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
 
 const EMPTY_STRING_ARRAY: string[] = []
 const datasetToggleShellClassName = `inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`
+export const DATASET_INSPECTOR_STATS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3'
 
 interface DatasetStats {
   nodeCount: number
@@ -177,7 +179,7 @@ export default function DatasetInspectorSection({
       ) : (
         <section
           className={[
-            'grid grid-cols-3 gap-2',
+            DATASET_INSPECTOR_STATS_GRID_CLASS_NAME,
             UI_THEME_TOKENS.text.primary,
             uiPanelKeyValueTextSizeClass,
             uiPanelTextFontClass,
@@ -253,7 +255,7 @@ export default function DatasetInspectorSection({
                 </section>
               </section>
             )}
-            <section className="mt-2 grid grid-cols-2 gap-2">
+            <TwoColumnEditorGrid className="mt-2">
               <section className="flex flex-col gap-1">
                 <span
                   className={[
@@ -302,7 +304,7 @@ export default function DatasetInspectorSection({
                 </span>
                 <DatasetPathViz graph={effectiveGraph} />
               </section>
-            </section>
+            </TwoColumnEditorGrid>
           </>
         )}
       {contextComparison && (

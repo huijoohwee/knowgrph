@@ -33,7 +33,10 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 import { readStandaloneParagraphUrlToken } from './standaloneMediaBudget'
-import { CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
+import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 import { normalizeMarkdownLocalProxyUrl } from '@/lib/markdown-core/ui/mediaProxyUrl'
 const extractLinkText = (token: Token): string => {
   const p = token as unknown as TokensParagraph
@@ -605,15 +608,12 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     }
     if (standaloneMedia.kind === 'audio') {
       const src = applyMediaProxySrc(resolved)
+      const audioClassName = opts.markdownCardPreviewMode === true
+        ? `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
+        : `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} rounded border ${UI_THEME_TOKENS.panel.border}`
       return renderStandaloneMedia(
         'audio',
-        <audio
-          controls
-          src={src || undefined}
-          className={opts.markdownCardPreviewMode === true
-            ? `w-full max-w-xl ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
-            : `w-full max-w-xl rounded border ${UI_THEME_TOKENS.panel.border}`}
-        />,
+        <audio controls src={src || undefined} className={audioClassName} />,
       )
     }
   }

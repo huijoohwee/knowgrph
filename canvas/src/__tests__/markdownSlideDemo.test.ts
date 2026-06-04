@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import {
   extractAttr,
@@ -11,6 +13,10 @@ import { readMarkdownSlideDemo } from '@/tests/lib/markdownSlideDemo'
 import { slugify } from 'grph-shared/markdown/slugify'
 
 export function testMarkdownSlideDemoParsesMediaAndGeo() {
+  const presentationSource = readFileSync(resolve(process.cwd(), 'src/features/markdown/ui/markdownPresentationSlides.tsx'), 'utf8')
+  if (!presentationSource.includes("MARKDOWN_PRESENTATION_TWO_COLUMN_GRID_CLASS_NAME = 'w-full h-full grid min-w-0 grid-cols-2 gap-8'") || !presentationSource.includes("MARKDOWN_PRESENTATION_PREVIEW_TWO_COLUMN_GRID_CLASS_NAME = 'w-full h-full grid min-w-0 grid-cols-2 gap-2'") || presentationSource.includes('w-full h-full grid grid-cols-2 gap-8') || presentationSource.includes('w-full h-full grid grid-cols-2 gap-2')) {
+    throw new Error('expected markdown presentation two-column slide layouts to use named fixed-format grid owners')
+  }
   const text = readMarkdownSlideDemo()
   if (!text) return
   const { tokens } = lexMarkdown(text)

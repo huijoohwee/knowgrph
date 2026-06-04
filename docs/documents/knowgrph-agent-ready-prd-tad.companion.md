@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-companion
-version: 1.27.5
+version: 1.27.6
 status: implemented
 created: 2026-05-21
-updated: 2026-05-29
+updated: 2026-06-04
 author: airvio / joohwee
 domain: knowgrph
 parent: docs/documents/knowgrph-agent-ready-prd-tad.md
@@ -38,9 +38,9 @@ frontmatter_contract: required
 | Chat routing and integration assist helpers | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/panels/views/settingsView.constants.ts` | Owns presets, context scope, integration enablement, and open-chat handoff |
 | FloatingPanel chat UI | `canvas/src/features/chat/FloatingPanelChat.tsx` | Owns interactive chat experience inside the floating panel |
 | Chat submit shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Must remain a thin shell over centralized submit helpers |
-| Chat submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Owns request lifecycle, streaming, retry, KGC validation, and finalize sequencing |
-| KGC recovery and validation | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` | Owns wrapper salvage, frontmatter-first enforcement, and grouping-surface validation |
-| Chat finalize and canvas bridge | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Owns canonical workspace persistence then canvas apply |
+| Chat submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Owns request lifecycle, streaming, retry, KGC validation, MCP structured-surface acceptance, and finalize sequencing |
+| KGC/MCP response validation | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + `canvas/src/features/chat/chatResponseStructuredContent.ts` | Owns wrapper salvage, frontmatter-first enforcement, literal MCP `structuredContent` extraction, and grouping-surface validation |
+| Chat finalize and canvas bridge | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Owns canonical workspace persistence for KGC or projected MCP structured responses, then canvas apply |
 | Storage route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Owns workspace id constant and route builders |
 | Storage worker doc routes | `cloudflare/workers/knowgrph-storage/index.ts` | Serves `/api/storage/doc-default/*` and `/api/storage/doc/*` |
 | Storage worker crawler index | `cloudflare/workers/knowgrph-storage/crawler.ts` | Lists D1-backed published Source Files and points crawlers at doc-view routes for Markdown-pane content |
@@ -54,7 +54,7 @@ frontmatter_contract: required
 | Workspace to Source Files merge | `canvas/src/features/workspace-fs/syncToSourceFiles.ts` | `mergeWorkspaceEntriesIntoSourceFiles()` is canonical |
 | Active-path Source Files materialization | `canvas/src/features/source-files/sourceFilesRuntimeMaterialization.ts` | `materializeActiveWorkspaceEntryIntoSourceFiles()` is canonical |
 | Source Files graph compose/apply | `canvas/src/features/source-files/applyComposedGraphFromSourceFiles.ts` | Explicit graph-owner path only |
-| Structured Markdown parse priority | `canvas/src/features/parsers/default.ts` | `tryParseMarkdownFrontmatterFlowGraph()` stays first for canonical KGC Markdown |
+| Structured Markdown parse priority | `canvas/src/features/parsers/default.ts` | `tryParseMarkdownFrontmatterFlowGraph()` stays first for canonical KGC Markdown and projected MCP structured responses |
 | Frontmatter-flow graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + companion helpers | Owns edge merge, subgraph merge, cluster merge, and metadata projection |
 | Canvas subgraph/group projection | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | Rendered groups derive from canonical subgraph metadata; they are not a second authoring channel |
 | Publish sync | `scripts/sync-pages-knowgrph.mjs` | Mirrors app build and generates root control surfaces |
@@ -78,9 +78,9 @@ The following are explicitly non-authoritative and must not be used to justify n
 - any claim that the apex root homepage `/` is the Knowgrph service homepage
 - any parallel MainPanel MCP configuration system that bypasses `SettingsView`,
   `useSettingsChatAssist()`, or the existing open-panel helpers
-- any second LLM output -> Markdown -> Canvas graph pipeline that bypasses
-  `useFloatingPanelChatSubmit()`, the submit coordinator helpers, KGC recovery/validation, or
-  `applyChatKgcWorkspaceDocumentToCanvas()`
+- any second LLM output -> Markdown or MCP structured response -> Editor Workspace -> Canvas graph
+  pipeline that bypasses `useFloatingPanelChatSubmit()`, the submit coordinator helpers,
+  KGC/MCP structured-surface validation, or `applyChatKgcWorkspaceDocumentToCanvas()`
 - any grouping authoring alias besides canonical `flow.subgraphs`, including `kg:subgraphs`,
   `clusters`, `groups`, or `layers` as a parallel upstream source
 - any Node/Express, PostgreSQL/Redis, Kubernetes, GraphQL, WebSocket, Durable Object, or server
@@ -419,35 +419,41 @@ source-files, and Markdown SSOT so agents do not see a stale or alternate docume
 - if browser-local active-workspace reads are added later, they must be explicitly scoped as
   runtime-local and must not be confused with published Cloudflare document reads
 
-### R6b: FloatingPanel Chat -> KGC -> Canvas Pipeline Alignment
+### R6b: FloatingPanel Chat -> KGC Or MCP Structured Response -> Editor Workspace -> Canvas Pipeline Alignment
 
 #### Requirement
 
 As a maintainer, I want future MCP readiness to extend the existing in-browser chat pipeline from
-MainPanel settings to FloatingPanel Chat to canonical KGC Markdown to Canvas graph apply so we do
-not create a second LLM-to-graph architecture.
+MainPanel settings to FloatingPanel Chat to canonical KGC Markdown or literal MCP structured
+responses to Editor Workspace and Canvas graph apply so we do not create a second LLM-to-graph
+architecture.
 
 #### Implemented acceptance
 
 - `useFloatingPanelChatSubmit()` stays a thin shell that delegates lifecycle work to the submit helper
   stack
 - `floatingPanelChatSubmitCoordinator.ts` owns draft bootstrap, request context, transport retry,
-  response streaming, KGC validation/retry, and finalize sequencing
+  response streaming, KGC validation/retry, literal MCP structured-surface acceptance, and finalize
+  sequencing
 - `chatMarkdownValidation.ts` enforces frontmatter-first output, canonical frontmatter shape, and
   `flow.subgraphs` as the sole grouping surface
+- `chatResponseStructuredContent.ts` extracts renderable literal MCP `structuredContent` so Widgets,
+  Rich Media Panels, Cards, media, inline compute, and edges can land without synthetic KGC backfill
 - KGC recovery helpers salvage wrapped responses upstream before validation retry instead of adding
   downstream parser aliases
-- `useFinalizeAssistantSuccess.ts` persists the canonical workspace KGC document and then calls
-  `applyChatKgcWorkspaceDocumentToCanvas()`
-- `setActiveMarkdownDocument({ applyToGraph: true })` remains the graph-apply gateway
+- `useFinalizeAssistantSuccess.ts` persists the canonical workspace KGC document or projected MCP
+  structured response and then calls `applyChatKgcWorkspaceDocumentToCanvas()`
+- `applyWorkspaceImportToCanvas()` materializes the saved document in Source Files before
+  `setActiveMarkdownDocument({ applyToGraph: true })` remains the graph-apply gateway
 - `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown
+  and projected MCP structured responses
 - frontmatter-flow composition merges edges, subgraphs, and cluster-derived groups before Canvas
   projection
 
 #### Enhancement target
 
 - if a future WebMCP or HTTP MCP tool can trigger this pipeline, it must call the existing submit,
-  validation, finalize, and canvas-apply helpers or equally thin adapters
+  KGC/MCP structured-surface validation, finalize, and canvas-apply helpers or equally thin adapters
 - do not introduce a second serializer, second grouping contract, second graph-apply path, or
   MCP-only Markdown template that diverges from the current chat pipeline
 

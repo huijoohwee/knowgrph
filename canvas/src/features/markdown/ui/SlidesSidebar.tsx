@@ -5,6 +5,7 @@ import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import IconButton from '@/components/IconButton'
 import { MarkdownSidebarFrame } from './MarkdownSidebarFrame'
+import { MARKDOWN_SLIDES_SIDEBAR_CLASS_NAME } from './markdownPresentationResponsiveClasses'
 
 type SlidesSidebarProps = {
   as?: 'aside' | 'section'
@@ -43,7 +44,7 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
     renderSlidePreview,
     onSlideDoubleClick,
     onSlideContextMenu,
-    width = 'w-64',
+    width = MARKDOWN_SLIDES_SIDEBAR_CLASS_NAME,
     layout = 'list',
   } = props
 

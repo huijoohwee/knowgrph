@@ -1,5 +1,5 @@
 import React from 'react'
-
+import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import type { GraphEdge } from '@/lib/graph/types'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -310,7 +310,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   if (!hasAny) return null
 
   return (
-    <nav className="absolute inset-0 pointer-events-none" aria-label="Node port handles">
+    <nav className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME} aria-label="Node port handles">
       <section className={cn('absolute inset-y-0 left-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
         {(handles.in || []).map((h, idx) => (
           <Dot key={h.id} handleId={h.id} dir="in" idx={idx} topPct={h.topPct} />

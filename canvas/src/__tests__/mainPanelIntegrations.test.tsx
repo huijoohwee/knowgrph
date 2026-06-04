@@ -65,6 +65,17 @@ const unmountAndFlush = async (root: ReturnType<typeof createRoot> | null) => {
   await unmountReactRoot(root, win ? { window: win } : undefined)
 }
 
+const getSelectOptionValues = (select: HTMLSelectElement): string[] =>
+  Array.from(select.options).map(option => option.value).filter(Boolean)
+
+const findModelSelectsWithOption = (container: Element, optionValue: string): HTMLSelectElement[] => (
+  Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
+).filter(select => getSelectOptionValues(select).includes(optionValue))
+
+const hasSelectOption = (container: Element, optionValue: string): boolean =>
+  (Array.from(container.querySelectorAll('select')) as HTMLSelectElement[])
+    .some(select => getSelectOptionValues(select).includes(optionValue))
+
 export async function testIntegrationsHubReusesSettingsEntryList() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -320,6 +331,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
 
     const api = useGraphStore.getState()
     api.resetAll()
+    api.setChatContextScope('hybrid')
     api.setIntegrationConfigsJson(
       JSON.stringify({
         aiChat: { enabled: true, provider: 'native', openTab: 'chat' },
@@ -366,6 +378,57 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
         throw new Error(`expected chat settings controls to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
+    const contextRow = (Array.from(container.querySelectorAll('dl')) as HTMLElement[])
+      .find(row => String(row.children[0]?.textContent || '').trim() === 'chatContextScope')
+    if (!contextRow) {
+      throw new Error(`expected integrations search to render chatContextScope KTV row, got ${JSON.stringify(text)}`)
+    }
+    const contextValueCell = contextRow.children[2] as HTMLElement | undefined
+    const contextSelect = contextValueCell?.querySelector('select') as HTMLSelectElement | null
+    if (!contextValueCell || !contextSelect) {
+      throw new Error(`expected chatContextScope Value column to render a dropdown, got ${JSON.stringify(contextRow.textContent || '')}`)
+    }
+    if (contextSelect.value !== 'hybrid') {
+      throw new Error(`expected chatContextScope default dropdown value to be hybrid, got ${JSON.stringify(contextSelect.value)}`)
+    }
+    const contextOptionLabels = Array.from(contextSelect.options).map(option => String(option.textContent || '').trim())
+    ;[
+      'Selection + Workspace (Default)',
+      'Canvas Selection',
+      'Workspace Source Files',
+    ].forEach(label => {
+      if (!contextOptionLabels.includes(label)) {
+        throw new Error(`expected chatContextScope dropdown to include ${JSON.stringify(label)}, got ${JSON.stringify(contextOptionLabels)}`)
+      }
+    })
+    const legacyActionLabels = (Array.from(contextRow.querySelectorAll('button')) as HTMLButtonElement[])
+      .map(button => String(button.textContent || '').trim())
+      .filter(label => label === 'Selection' || label === 'Workspace' || label === 'Hybrid')
+    if (legacyActionLabels.length > 0) {
+      throw new Error(`expected chatContextScope row to omit duplicate legacy action buttons, got ${JSON.stringify(legacyActionLabels)}`)
+    }
+    const integrationConfigsRow = (Array.from(container.querySelectorAll('dl')) as HTMLElement[])
+      .find(row => String(row.children[0]?.textContent || '').trim() === 'integrationConfigsJson')
+    if (!integrationConfigsRow) {
+      throw new Error(`expected integrations search to render integrationConfigsJson KTV row, got ${JSON.stringify(text)}`)
+    }
+    if (integrationConfigsRow.children.length !== 3) {
+      throw new Error(`expected integrationConfigsJson to stay one Key/Type/Value row, got ${integrationConfigsRow.children.length} cells`)
+    }
+    const integrationConfigsValueCell = integrationConfigsRow.children[2] as HTMLElement | undefined
+    const integrationConfigsInput = integrationConfigsValueCell?.querySelector('input') as HTMLInputElement | null
+    if (!integrationConfigsValueCell || !integrationConfigsInput) {
+      throw new Error(`expected integrationConfigsJson Value cell to render one-line input, got ${JSON.stringify(integrationConfigsRow.textContent || '')}`)
+    }
+    if (integrationConfigsValueCell.querySelector('textarea')) {
+      throw new Error('expected integrationConfigsJson Value cell to avoid multiline textarea expansion')
+    }
+    if (!integrationConfigsValueCell.querySelector('.kg-row-scroll')) {
+      throw new Error(`expected integrationConfigsJson Value cell to reuse existing horizontal row scrolling, got ${JSON.stringify(integrationConfigsValueCell.getAttribute('class') || '')}`)
+    }
+    if (String(integrationConfigsInput.value || '').includes('\n')) {
+      throw new Error('expected integrationConfigsJson Value input to stay compact without embedded newlines')
+    }
   } finally {
     try {
       await unmountAndFlush(root)
@@ -405,24 +468,20 @@ export async function testMainPanelRequestedIntegrationsSearchPreservesCustomMod
       6,
     )
 
-    const modelDatalistInputs = Array.from(
-      container.querySelectorAll<HTMLInputElement>('input[list="settings-chat-model-options"]'),
-    )
-    if (modelDatalistInputs.length === 0) {
-      throw new Error('expected chat model datalist input to render')
+    const modelSelects = findModelSelectsWithOption(container, CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT)
+    if (modelSelects.length < 2) {
+      throw new Error(`expected chat model rows to render visible model dropdowns, got ${modelSelects.length}`)
     }
-    const datalist = container.querySelector('#settings-chat-model-options')
-    const optionValues = Array.from(datalist?.querySelectorAll('option') || [])
-      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
-    if (modelDatalistInputs.length < 2) {
-      throw new Error(`expected BytePlus API model row to reuse chatModel editor surface, got ${modelDatalistInputs.length} model inputs`)
+    const optionValues = new Set(modelSelects.flatMap(select => getSelectOptionValues(select)))
+    if (!modelSelects.some(select => select.value === 'custom/provider-model')) {
+      throw new Error('expected visible chat model dropdown to preserve custom current model value')
     }
     ;[
       ...CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
       CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
     ].forEach(value => {
-      if (!optionValues.includes(value)) {
-        throw new Error(`expected chat model datalist to include ${value}`)
+      if (!optionValues.has(value)) {
+        throw new Error(`expected chat model dropdown to include ${value}`)
       }
     })
   } finally {
@@ -1282,7 +1341,7 @@ export async function testMainPanelBytePlusModelRowNormalizesAwayOpenAiValueLeak
     const api = useGraphStore.getState()
     api.resetAll()
     api.setChatProvider('openai')
-    api.setChatModel('gpt-5.4-nano')
+    api.setChatModel('gpt-5-nano')
 
     const doc = dom.window.document
     const container = doc.createElement('section')
@@ -1298,18 +1357,18 @@ export async function testMainPanelBytePlusModelRowNormalizesAwayOpenAiValueLeak
       6,
     )
 
-    const modelInputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[list="settings-chat-model-options"]'))
-    if (modelInputs.length !== 1) {
-      throw new Error(`expected filtered BytePlus API model search to render one shared model editor, got ${modelInputs.length} model inputs`)
+    const modelSelects = findModelSelectsWithOption(container, CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT)
+    if (modelSelects.length !== 1) {
+      throw new Error(`expected filtered BytePlus API model search to render one shared model dropdown, got ${modelSelects.length}`)
     }
-    const bytePlusModelInput = modelInputs[0] as HTMLInputElement | undefined
-    if (!bytePlusModelInput) {
-      throw new Error('expected BytePlus API model input to exist')
+    const bytePlusModelSelect = modelSelects[0] as HTMLSelectElement | undefined
+    if (!bytePlusModelSelect) {
+      throw new Error('expected BytePlus API model dropdown to exist')
     }
-    if (bytePlusModelInput.value !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT) {
-      throw new Error(`expected byteplusApi.model row to normalize to ${CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT}, got ${JSON.stringify(bytePlusModelInput.value)}`)
+    if (bytePlusModelSelect.value !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT) {
+      throw new Error(`expected byteplusApi.model row to normalize to ${CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT}, got ${JSON.stringify(bytePlusModelSelect.value)}`)
     }
-    if (String(bytePlusModelInput.value) === 'gpt-5.4-nano') {
+    if (String(bytePlusModelSelect.value) === 'gpt-5-nano') {
       throw new Error('expected byteplusApi.model row to avoid leaking the active OpenAI model value')
     }
   } finally {
@@ -1869,39 +1928,20 @@ export async function testMainPanelRequestedIntegrationsSearchShowsMiroMindApiCo
         throw new Error(`expected MiroMind integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
-    const datalist = container.querySelector('#settings-chat-model-options')
-    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
-      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
-    ;[
-      CHAT_MIROMIND_MODEL_OPTIONS[0],
-      CHAT_MIROMIND_MODEL_OPTIONS[1],
-    ].forEach(value => {
-      if (!datalistOptions.includes(value)) {
-        throw new Error(`expected MiroMind model Value cell to expose shared configurable model option ${JSON.stringify(value)}`)
-      }
-    })
-    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
-    const modelInput = modelInputs
-      .find(input => input.value === CHAT_MIROMIND_MODEL_OPTIONS[0])
-    if (!modelInput) {
-      throw new Error(`expected MiroMind model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
+    const modelSelects = findModelSelectsWithOption(container, CHAT_MIROMIND_MODEL_OPTIONS[0])
+    const modelSelect = modelSelects.find(select => getSelectOptionValues(select).includes(CHAT_MIROMIND_MODEL_OPTIONS[1]))
+    if (!modelSelect) {
+      throw new Error(`expected MiroMind model Value cell to render visible model dropdown, got ${JSON.stringify(container.textContent || '')}`)
     }
-    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
-    const hasSelectOption = (value: string): boolean => {
-      for (const select of selects) {
-        for (let index = 0; index < select.options.length; index += 1) {
-          const option = select.options.item(index) as HTMLOptionElement | null
-          if (option?.value === value) return true
-        }
-      }
-      return false
+    if (modelSelect.value !== CHAT_MIROMIND_MODEL_OPTIONS[0]) {
+      throw new Error(`expected MiroMind model dropdown to default to ${JSON.stringify(CHAT_MIROMIND_MODEL_OPTIONS[0])}, got ${JSON.stringify(modelSelect.value)}`)
     }
     ;[
       'serverManaged',
       'byok',
       'delta.reasoning_steps',
     ].forEach(value => {
-      if (!hasSelectOption(value)) {
+      if (!hasSelectOption(container, value)) {
         throw new Error(`expected MiroMind Value cells to expose configurable option ${JSON.stringify(value)}`)
       }
     })
@@ -1962,27 +2002,12 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAgnesApiConfi
         throw new Error(`expected Agnes integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
-    const datalist = container.querySelector('#settings-chat-model-options')
-    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
-      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
-    if (!datalistOptions.includes(CHAT_AGNES_MODEL_OPTIONS[0])) {
-      throw new Error(`expected Agnes model Value cell to expose shared configurable model option ${JSON.stringify(CHAT_AGNES_MODEL_OPTIONS[0])}`)
+    const modelSelect = findModelSelectsWithOption(container, CHAT_AGNES_MODEL_OPTIONS[0])[0]
+    if (!modelSelect) {
+      throw new Error(`expected Agnes model Value cell to render visible model dropdown, got ${JSON.stringify(container.textContent || '')}`)
     }
-    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
-    const modelInput = modelInputs
-      .find(input => input.value === CHAT_AGNES_MODEL_OPTIONS[0])
-    if (!modelInput) {
-      throw new Error(`expected Agnes model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
-    }
-    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
-    const hasSelectOption = (value: string): boolean => {
-      for (const select of selects) {
-        for (let index = 0; index < select.options.length; index += 1) {
-          const option = select.options.item(index) as HTMLOptionElement | null
-          if (option?.value === value) return true
-        }
-      }
-      return false
+    if (modelSelect.value !== CHAT_AGNES_MODEL_OPTIONS[0]) {
+      throw new Error(`expected Agnes model dropdown to default to ${JSON.stringify(CHAT_AGNES_MODEL_OPTIONS[0])}, got ${JSON.stringify(modelSelect.value)}`)
     }
     ;[
       'serverManaged',
@@ -1990,7 +2015,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAgnesApiConfi
       'delta.content',
       'frontmatter_kgc_markdown',
     ].forEach(value => {
-      if (!hasSelectOption(value)) {
+      if (!hasSelectOption(container, value)) {
         throw new Error(`expected Agnes Value cells to expose configurable option ${JSON.stringify(value)}`)
       }
     })
@@ -2053,38 +2078,18 @@ export async function testMainPanelRequestedIntegrationsSearchShowsQwenApiConfig
         throw new Error(`expected Qwen integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
-    const datalist = container.querySelector('#settings-chat-model-options')
-    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
-      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
-    ;[
-      CHAT_QWEN_MODEL_OPTIONS[0],
-      'qwen3-max',
-      'qwen-flash',
-    ].forEach(value => {
-      if (!datalistOptions.includes(value)) {
-        throw new Error(`expected Qwen model Value cell to expose shared configurable model option ${JSON.stringify(value)}`)
-      }
-    })
-    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
-    const modelInput = modelInputs
-      .find(input => input.value === CHAT_QWEN_MODEL_OPTIONS[0])
-    if (!modelInput) {
-      throw new Error(`expected Qwen model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
+    const modelSelect = findModelSelectsWithOption(container, CHAT_QWEN_MODEL_OPTIONS[0])
+      .find(select => getSelectOptionValues(select).includes('qwen3-max') && getSelectOptionValues(select).includes('qwen-flash'))
+    if (!modelSelect) {
+      throw new Error(`expected Qwen model Value cell to render visible model dropdown, got ${JSON.stringify(container.textContent || '')}`)
+    }
+    if (modelSelect.value !== CHAT_QWEN_MODEL_OPTIONS[0]) {
+      throw new Error(`expected Qwen model dropdown to default to ${JSON.stringify(CHAT_QWEN_MODEL_OPTIONS[0])}, got ${JSON.stringify(modelSelect.value)}`)
     }
     const endpointControls = Array.from(container.querySelectorAll('input, select')) as Array<HTMLInputElement | HTMLSelectElement>
     const endpointControl = endpointControls.find(control => control.value === CHAT_QWEN_ENDPOINT_URL)
     if (!endpointControl) {
       throw new Error(`expected Qwen endpoint Value cell to expose configurable endpoint ${JSON.stringify(CHAT_QWEN_ENDPOINT_URL)}`)
-    }
-    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
-    const hasSelectOption = (value: string): boolean => {
-      for (const select of selects) {
-        for (let index = 0; index < select.options.length; index += 1) {
-          const option = select.options.item(index) as HTMLOptionElement | null
-          if (option?.value === value) return true
-        }
-      }
-      return false
     }
     ;[
       'serverManaged',
@@ -2093,7 +2098,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsQwenApiConfig
       'Singapore',
       'frontmatter_kgc_markdown',
     ].forEach(value => {
-      if (!hasSelectOption(value)) {
+      if (!hasSelectOption(container, value)) {
         throw new Error(`expected Qwen Value cells to expose configurable option ${JSON.stringify(value)}`)
       }
     })
@@ -2166,37 +2171,18 @@ export async function testMainPanelRequestedIntegrationsSearchShowsGoogleCloudAp
         throw new Error(`expected Google Cloud integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
-    const datalist = container.querySelector('#settings-chat-model-options')
-    const datalistOptions = Array.from(datalist?.querySelectorAll('option') || [])
-      .map(option => (option as HTMLOptionElement).getAttribute('value') || '')
-    ;[
-      CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0],
-      'google/gemini-1.5-flash-001',
-    ].forEach(value => {
-      if (!datalistOptions.includes(value)) {
-        throw new Error(`expected Google Cloud model Value cell to expose shared configurable model option ${JSON.stringify(value)}`)
-      }
-    })
-    const modelInputs = Array.from(container.querySelectorAll('input[list="settings-chat-model-options"]')) as HTMLInputElement[]
-    const modelInput = modelInputs
-      .find(input => input.value === CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0])
-    if (!modelInput) {
-      throw new Error(`expected Google Cloud model Value cell to render shared configurable chatModel input, got ${JSON.stringify(container.textContent || '')}`)
+    const modelSelect = findModelSelectsWithOption(container, CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0])
+      .find(select => getSelectOptionValues(select).includes('google/gemini-1.5-flash-001'))
+    if (!modelSelect) {
+      throw new Error(`expected Google Cloud model Value cell to render visible model dropdown, got ${JSON.stringify(container.textContent || '')}`)
+    }
+    if (modelSelect.value !== CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0]) {
+      throw new Error(`expected Google Cloud model dropdown to default to ${JSON.stringify(CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0])}, got ${JSON.stringify(modelSelect.value)}`)
     }
     const endpointControls = Array.from(container.querySelectorAll('input, select')) as Array<HTMLInputElement | HTMLSelectElement>
     const endpointControl = endpointControls.find(control => control.value === CHAT_GOOGLE_CLOUD_ENDPOINT_URL)
     if (!endpointControl) {
       throw new Error(`expected Google Cloud endpoint Value cell to expose configurable endpoint ${JSON.stringify(CHAT_GOOGLE_CLOUD_ENDPOINT_URL)}`)
-    }
-    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
-    const hasSelectOption = (value: string): boolean => {
-      for (const select of selects) {
-        for (let index = 0; index < select.options.length; index += 1) {
-          const option = select.options.item(index) as HTMLOptionElement | null
-          if (option?.value === value) return true
-        }
-      }
-      return false
     }
     ;[
       'serverManaged',
@@ -2205,7 +2191,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsGoogleCloudAp
       'global',
       'frontmatter_kgc_markdown',
     ].forEach(value => {
-      if (!hasSelectOption(value)) {
+      if (!hasSelectOption(container, value)) {
         throw new Error(`expected Google Cloud Value cells to expose configurable option ${JSON.stringify(value)}`)
       }
     })

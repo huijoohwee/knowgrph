@@ -1,3 +1,5 @@
+import { centerLayoutRectsByCentroid } from '@/lib/canvas/layoutCentroid'
+
 export const BALANCED_OVERLAY_SPREAD_TARGET_ASPECT = 16 / 9
 export type BalancedSpreadViewportPreset = 'widgetCanvas' | 'widgetFrontmatter' | 'richMedia'
 const BALANCED_SPREAD_BASE_GAP_MIN_PX = 12
@@ -393,43 +395,34 @@ function recenterBalancedSpreadCells(args: {
   const snap = (v: number) => Math.round(v / snapPx) * snapPx
   const footprintW = Math.max(1, args.footprintW)
   const footprintH = Math.max(1, args.footprintH)
-  let minLeft = Number.POSITIVE_INFINITY
-  let minTop = Number.POSITIVE_INFINITY
-  let maxRight = Number.NEGATIVE_INFINITY
-  let maxBottom = Number.NEGATIVE_INFINITY
-  let sumCenterX = 0
-  let sumCenterY = 0
-  for (let i = 0; i < cells.length; i += 1) {
-    const cell = cells[i]!
-    minLeft = Math.min(minLeft, cell.left)
-    minTop = Math.min(minTop, cell.top)
-    maxRight = Math.max(maxRight, cell.left + footprintW)
-    maxBottom = Math.max(maxBottom, cell.top + footprintH)
-    sumCenterX += cell.left + footprintW / 2
-    sumCenterY += cell.top + footprintH / 2
-  }
-  const usableCenterX = args.marginLeftPx + Math.max(1, args.viewportW - args.marginLeftPx - args.marginRightPx) / 2
-  const usableCenterY = args.marginTopPx + Math.max(1, args.viewportH - args.marginTopPx - args.marginBottomPx) / 2
-  const currentCenterX = sumCenterX / cells.length
-  const currentCenterY = sumCenterY / cells.length
-  const minDx = args.marginLeftPx - minLeft
-  const maxDx = args.viewportW - args.marginRightPx - maxRight
-  const minDy = args.marginTopPx - minTop
-  const maxDy = args.viewportH - args.marginBottomPx - maxBottom
-  const shiftX = snap(clamp(usableCenterX - currentCenterX, minDx, maxDx))
-  const shiftY = snap(clamp(usableCenterY - currentCenterY, minDy, maxDy))
-  const shiftedCells = cells.map(cell => ({
-    ...cell,
-    left: snap(cell.left + shiftX),
-    top: snap(cell.top + shiftY),
+  const centered = centerLayoutRectsByCentroid({
+    items: cells.map(cell => ({
+      ...cell,
+      width: footprintW,
+      height: footprintH,
+    })),
+    bounds: {
+      minX: args.marginLeftPx,
+      minY: args.marginTopPx,
+      maxX: args.viewportW - args.marginRightPx,
+      maxY: args.viewportH - args.marginBottomPx,
+    },
+    snap,
+  })
+  const shiftedCells = centered.items.map(cell => ({
+    left: cell.left,
+    top: cell.top,
+    row: cell.row,
+    col: cell.col,
   }))
+  const metrics = centered.centeredMetrics
   return {
     cells: shiftedCells,
     bbox: {
-      minLeft: snap(minLeft + shiftX),
-      minTop: snap(minTop + shiftY),
-      maxRight: snap(maxRight + shiftX),
-      maxBottom: snap(maxBottom + shiftY),
+      minLeft: snap(metrics?.minLeft ?? 0),
+      minTop: snap(metrics?.minTop ?? 0),
+      maxRight: snap(metrics?.maxRight ?? 0),
+      maxBottom: snap(metrics?.maxBottom ?? 0),
     },
   }
 }

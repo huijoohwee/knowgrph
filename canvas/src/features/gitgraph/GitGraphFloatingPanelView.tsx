@@ -20,6 +20,7 @@ const GITGRAPH_COMMAND_LABELS: Record<MermaidGitGraphAddKind, string> = {
   merge: 'Merge',
   'cherry-pick': 'Cherry-pick',
 }
+export const GITGRAPH_CREATE_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-2 gap-1 px-1 sm:grid-cols-4'
 
 const buildCommandDescription = (command: MermaidGitGraphCommand | null): string => {
   if (!command) return 'No command selected'
@@ -128,7 +129,7 @@ export function GitGraphFloatingPanelView() {
           <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </header>
-      <section className="grid grid-cols-4 gap-1 px-1" data-kg-gitgraph-create-actions="1">
+      <section className={GITGRAPH_CREATE_ACTION_GRID_CLASS_NAME} data-kg-gitgraph-create-actions="1">
         <button
           type="button"
           className={cn('App-toolbar__btn justify-center', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}

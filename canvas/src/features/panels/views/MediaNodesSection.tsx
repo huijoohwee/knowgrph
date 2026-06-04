@@ -19,6 +19,7 @@ import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const mediaStatsPanelClassName = `mt-2 border ${UI_THEME_TOKENS.table.cellBorder} rounded ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-auto`
 const mediaToggleShellClassName = `inline-flex rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.button.neutralSubtle}`
+export const MEDIA_NODES_STATS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5'
 
 export default function MediaNodesSection({
   toolbarAligned = false,
@@ -64,6 +65,7 @@ export default function MediaNodesSection({
   const totalCount = inventory.totalCount
   const imageCount = inventory.imageLikeCount
   const videoCount = inventory.videoCount
+  const audioCount = inventory.audioCount
   const iframeCount = inventory.iframeCount
 
   const iframeHostsRaw = String(IFRAME_ALLOWED_HOSTS || '').trim()
@@ -138,7 +140,7 @@ export default function MediaNodesSection({
         <section className="space-y-2">
           <section
             className={[
-              'grid grid-cols-4 gap-2',
+              MEDIA_NODES_STATS_GRID_CLASS_NAME,
               UI_THEME_TOKENS.text.primary,
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
@@ -155,6 +157,10 @@ export default function MediaNodesSection({
             <section className="flex flex-col">
               <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Video</span>
               <span className="font-semibold">{String(videoCount)}</span>
+            </section>
+            <section className="flex flex-col">
+              <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Audio</span>
+              <span className="font-semibold">{String(audioCount)}</span>
             </section>
             <section className="flex flex-col">
               <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>IFrame</span>

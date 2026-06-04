@@ -240,7 +240,7 @@ export function computePanelRect(args: {
   cy: number
   w: number
   h: number
-  clamp?: { viewportW: number; viewportH: number; margin: number }
+  clamp?: { viewportW: number; viewportH: number; margin: number; left?: number; top?: number }
 }): { left: number; top: number; w: number; h: number } {
   const w = Math.max(1, Number(args.w) || 1)
   const h = Math.max(1, Number(args.h) || 1)
@@ -251,8 +251,10 @@ export function computePanelRect(args: {
     const vw = Math.max(1, Number(clamp.viewportW) || 1)
     const vh = Math.max(1, Number(clamp.viewportH) || 1)
     const m = Math.max(0, Number(clamp.margin) || 0)
-    left = Math.max(m, Math.min(vw - m - w, left))
-    top = Math.max(m, Math.min(vh - m - h, top))
+    const originLeft = Number.isFinite(clamp.left) ? Number(clamp.left) : 0
+    const originTop = Number.isFinite(clamp.top) ? Number(clamp.top) : 0
+    left = Math.max(originLeft + m, Math.min(originLeft + vw - m - w, left))
+    top = Math.max(originTop + m, Math.min(originTop + vh - m - h, top))
   }
   return { left, top, w, h }
 }

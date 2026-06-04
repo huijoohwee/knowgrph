@@ -11,7 +11,10 @@ import {
 } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
+  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
@@ -49,12 +52,11 @@ import {
   formatFlowHandleKtvKeyLabel,
   formatFlowHandleSemanticKey,
   readFlowHandlePath,
-  readFlowHandleTypeLabel,
 } from '@/lib/graph/flowHandlePresentation'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
-import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
+import { NodeOverlayEditorKvTable, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
@@ -74,6 +76,7 @@ import {
   buildRichMediaPanelPreviewSpec,
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
+import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 
 const EMPTY_GRAPH_EDGES: ReadonlyArray<GraphEdge> = []
 
@@ -377,11 +380,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       UI_THEME_TOKENS.input.text,
     )
   }, [keyValueInputClass, monospaceTextClass, textSizeClass])
-  const renderKvTypeBox = React.useCallback((value: string) => {
-    const text = String(value || '').trim()
-    if (!text) return null
-    return <NodeOverlayEditorTypePill text={text} />
-  }, [])
   const frontmatterWidgetRegistrySection = React.useMemo(
     () => resolveFrontmatterWidgetRegistrySectionState({
       node: nodeHelperSnapshot,
@@ -613,7 +611,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {keyLabel}
             </label>
           ),
-          typeNode: renderKvTypeBox(rowSpec.typeLabel),
           valueNode: (
             <PlainTextInputEditor
               id={inputId}
@@ -641,7 +638,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     monospaceTextClass,
     propertiesSnapshot,
     renderFrontmatterPortButton,
-    renderKvTypeBox,
     textSizeClass,
   ])
   const frontmatterFieldPortNodesBySchemaPath = React.useMemo(() => {
@@ -677,7 +673,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {rowSpec.fieldKey}
             </label>
           ),
-          typeNode: renderKvTypeBox(rowSpec.typeLabel),
           valueNode: (
             <FlowEditorInlineValueEditor
               id={inputId}
@@ -716,7 +711,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {rowSpec.fieldKey}
             </label>
           ),
-          typeNode: renderKvTypeBox(rowSpec.typeLabel),
           valueNode: (
             <FlowEditorInlineValueEditor
               id={inputId}
@@ -744,7 +738,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             {rowSpec.fieldKey}
           </label>
         ),
-        typeNode: renderKvTypeBox(rowSpec.typeLabel),
         valueNode: (
           <FlowEditorInlineValueEditor
             id={inputId}
@@ -782,13 +775,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     onPatchProperties,
     onSetProperties,
     propertiesSnapshot,
-    renderKvTypeBox,
   ])
 
   return (
     <form
       className={cn(
-        'py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden',
+        UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
+        'py-0',
         'px-3',
         panelTextClass,
       )}
@@ -809,7 +802,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               rowKey: 'node-label',
               labelId: `${idBase}-kv-node-label`,
               keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.label}>label</label>,
-              typeNode: renderKvTypeBox('string'),
               valueNode: (
                 <input
                   ref={labelInputRef}
@@ -869,7 +861,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             flowEditorInteractionMode={true}
             flowEditorFrontmatterDocumentMode={isFrontmatterFlow}
             onInlineContentSize={handleRichMediaContentSize}
-            style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+            style={PANEL_FRAME_EMBEDDED_SURFACE_STYLE}
           />
         </section>
       )}
@@ -907,7 +899,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     ? compactPreviewView.mediaAlt
                     : String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())
                 }
-                interactive={compactPreviewView.kind === 'video'}
+                interactive={compactPreviewView.kind === 'video' || compactPreviewView.kind === 'audio'}
                 fit="contain"
                 className="block h-48 w-full"
                 mediaClassName="block h-48 w-full"
@@ -957,7 +949,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               rowKey: 'mapping-registry',
               labelId: `${idBase}-kv-mapping-registry`,
               keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.registrySelect}>{UI_LABELS.flowWidget}</label>,
-              typeNode: <NodeOverlayEditorTypePill text="mapping" />,
               valueNode: (
                 <select
                   id={ids.registrySelect}
@@ -1038,7 +1029,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     {UI_LABELS.flowWidget}
                   </label>
                 ),
-                typeNode: <NodeOverlayEditorTypePill text="mapping" />,
                 valueNode: (
                   <PlainTextInputEditor
                     id={`${idBase}-frontmatter-widget-identity`}

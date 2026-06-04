@@ -5,7 +5,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { summarizeDesignTokens, type DesignTokenSummaryEntry } from '@/features/design/designTokenSummary'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
-import { UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_DESIGN_PANEL_TOKEN_LIST_CLASSNAME,
+  UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 
 function TokenRow({ entry, color }: { entry: DesignTokenSummaryEntry; color?: boolean }) {
@@ -34,7 +37,7 @@ function TokenSection(props: { title: string; entries: DesignTokenSummaryEntry[]
         <span className={cn('font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{props.entries.length}</span>
       </header>
       {props.entries.length > 0 ? (
-        <ul className="m-0 max-h-36 list-none overflow-y-auto p-0">
+        <ul className={UI_RESPONSIVE_DESIGN_PANEL_TOKEN_LIST_CLASSNAME}>
           {props.entries.map(entry => (
             <TokenRow key={entry.value} entry={entry} color={props.color} />
           ))}

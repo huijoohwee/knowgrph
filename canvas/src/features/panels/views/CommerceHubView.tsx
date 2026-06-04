@@ -16,13 +16,17 @@ type CommerceHubActions = {
   allCollapsed?: boolean
 }
 
+export const COMMERCE_ROUTE_READINESS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3'
+
+export const COMMERCE_ROUTE_READINESS_ROW_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[minmax(5rem,0.35fr)_minmax(0,1fr)] sm:gap-2'
+
 const CommerceRouteReadiness = () => (
   <section
     className="mb-3 min-w-0"
     aria-label="Commerce readiness"
     data-kg-commerce-readiness-key={AGENTIC_COMMERCE_MAIN_PANEL_READINESS.semanticKey}
   >
-    <section className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    <section className={COMMERCE_ROUTE_READINESS_GRID_CLASS_NAME}>
       {AGENTIC_COMMERCE_MAIN_PANEL_READINESS.sections.map(section => (
         <section
           key={section.id}
@@ -34,7 +38,7 @@ const CommerceRouteReadiness = () => (
             {section.rows.map(row => (
               <section
                 key={row.semanticKey}
-                className="grid min-w-0 grid-cols-[minmax(5rem,0.35fr)_minmax(0,1fr)] gap-2"
+                className={COMMERCE_ROUTE_READINESS_ROW_GRID_CLASS_NAME}
               >
                 <dt className={`truncate text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>{row.label}</dt>
                 <dd className={`min-w-0 truncate text-right font-mono text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>{row.value}</dd>

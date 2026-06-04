@@ -6,6 +6,7 @@ export type MainPanelTabKey =
   | 'mcp'
   | 'maps'
   | 'commerce'
+  | 'research'
   | 'design'
   | 'workflowManager'
   | 'help'
@@ -57,6 +58,13 @@ const MAIN_PANEL_TAB_METADATA: MainPanelTabMeta[] = [
     searchable: true,
     searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
     footerLabel: UI_LABELS.commerce,
+  },
+  {
+    key: 'research',
+    label: 'Research',
+    searchable: true,
+    searchPlaceholder: UI_LABELS.search,
+    footerLabel: 'Research',
   },
   {
     key: 'design',

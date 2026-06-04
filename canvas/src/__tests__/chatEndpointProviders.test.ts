@@ -14,6 +14,7 @@ import {
   CHAT_QWEN_BASE,
   CHAT_QWEN_ENDPOINT_URL,
   CHAT_QWEN_MODEL_OPTIONS,
+  CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_GOOGLE_CLOUD,
@@ -25,6 +26,7 @@ import {
   getChatProviderLabel,
   getChatProviderRegionLabel,
   getSharedChatModelCatalogOptions,
+  resolveChatModelIdForProvider,
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
@@ -279,10 +281,10 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
 export function testSharedChatModelCatalogReusesMainPanelIntegrationsOptions() {
   const sharedOptions = getSharedChatModelCatalogOptions(CHAT_PROVIDER_OPENAI)
   const expectedOptions = [
-    'gpt-5.4-nano',
-    'gpt-5.4-mini',
-    'gpt-5.4',
-    'gpt-5.5',
+    CHAT_OPENAI_MODEL_OPTIONS[0],
+    CHAT_OPENAI_MODEL_OPTIONS[1],
+    CHAT_OPENAI_MODEL_OPTIONS[2],
+    CHAT_OPENAI_MODEL_OPTIONS[4],
     'qwen-plus',
     'qwen3-max',
     'qwen-flash',
@@ -296,8 +298,25 @@ export function testSharedChatModelCatalogReusesMainPanelIntegrationsOptions() {
       throw new Error(`expected shared chat model catalog to include ${value}, got ${JSON.stringify(sharedOptions)}`)
     }
   })
-  if (sharedOptions[0] !== 'gpt-5.4-nano') {
+  if (sharedOptions[0] !== CHAT_OPENAI_MODEL_OPTIONS[0]) {
     throw new Error(`expected provider-preferred catalog ordering, got ${JSON.stringify(sharedOptions.slice(0, 4))}`)
+  }
+}
+
+export function testOpenAiResolverDropsUnknownNativeModelIds() {
+  const staleNativeModel = ['gpt', '5.4', 'nano'].join('-')
+  const resolved = resolveChatModelIdForProvider(staleNativeModel, CHAT_PROVIDER_OPENAI, { preserveUnknownCustomModel: true })
+  if (resolved !== CHAT_OPENAI_MODEL_OPTIONS[0]) {
+    throw new Error(`expected stale native OpenAI model to normalize to ${CHAT_OPENAI_MODEL_OPTIONS[0]}, got ${JSON.stringify(resolved)}`)
+  }
+  const qwenResolved = resolveChatModelIdForProvider(staleNativeModel, CHAT_PROVIDER_QWEN, { preserveUnknownCustomModel: true })
+  if (qwenResolved !== CHAT_QWEN_MODEL_OPTIONS[0]) {
+    throw new Error(`expected stale native OpenAI model to normalize to ${CHAT_QWEN_MODEL_OPTIONS[0]} under Qwen, got ${JSON.stringify(qwenResolved)}`)
+  }
+  const customModel = 'ft:custom-model'
+  const customResolved = resolveChatModelIdForProvider(customModel, CHAT_PROVIDER_OPENAI, { preserveUnknownCustomModel: true })
+  if (customResolved !== customModel) {
+    throw new Error(`expected custom OpenAI model to stay configurable, got ${JSON.stringify(customResolved)}`)
   }
 }
 

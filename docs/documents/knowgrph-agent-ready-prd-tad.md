@@ -38,7 +38,7 @@ This document replaces two stale narratives at once:
 
 In the current repo, Knowgrph already ships the service-homepage agent-readiness surface on
 `https://airvio.co/knowgrph/`, plus a separate in-browser MainPanel -> FloatingPanel Chat -> KGC
--> Canvas pipeline that is richer than the deployed read-only MCP surface but is not yet exposed
+or literal MCP structured response -> Editor Workspace -> Canvas pipeline that is richer than the deployed read-only MCP surface but is not yet exposed
 as a first-class MCP tool chain. It also ships a local long-horizon SuperAgent harness through
 `knowgrph_parser`, `npm run goal:run`, and local MCP `knowgrph.superagent.run`; that local harness
 is not a deployed public mutation tool.
@@ -55,7 +55,7 @@ The active work is therefore not "add the first agent-ready surface." The active
   routes that derive from the Editor Workspace Markdown pane
 - document MainPanel `mcp` and `integrations` as thin shells over shared `SettingsView` ownership
   instead of parallel configuration systems
-- document the existing FloatingPanel Chat -> LLM output -> YAML frontmatter -> Canvas graph
+- document the existing FloatingPanel Chat -> LLM output -> YAML frontmatter or literal MCP structured content -> Editor Workspace -> Canvas graph
   pipeline as the only valid upstream path for future MCP-aligned pipeline work
 - document the native local SuperAgent harness as a source-owned CLI/local-MCP execution surface,
   inspired by DeerFlow primitives but not copied from DeerFlow and not deployed through Pages MCP
@@ -126,7 +126,7 @@ Knowgrph must:
 - keep MainPanel `commerce` aligned to the shared Agentic Commerce route and semantic-key owner
   instead of duplicating payment, Web3, governance, proof, or trace readiness in the browser UI
 - preserve one canonical document identity and path contract across Editor Workspace, Source Files,
-  FloatingPanel Chat, frontmatter validation, canvas parsing, storage routes, and agent surfaces
+  FloatingPanel Chat, frontmatter or structured-surface validation, canvas parsing, storage routes, and agent surfaces
 - preserve one canonical KGC contract where the LLM output starts at YAML frontmatter and uses
   `flow.subgraphs` as the sole grouping authoring surface
 - prevent stale or conflicting Cloudflare control surfaces, mirror-owned route logic, apex-root PWA
@@ -172,8 +172,8 @@ Knowgrph does not currently aim to:
 | MainPanel Commerce hub | Implemented | `grph-shared/src/payments/agenticCommerceSsot.ts` + `canvas/src/features/panels/views/CommerceHubView.tsx` | Commerce is the canonical payment/agent-buyable operator surface; route readiness is read from `AGENTIC_COMMERCE_MAIN_PANEL_READINESS`, keyed by `buildAgenticCommerceMainPanelReadiness`, and published to browser-local agent inspection |
 | Chat integration routing and presets | Implemented | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/panels/views/settingsView.constants.ts` | Future MCP deep links must reuse the same chat routing, model, and open-panel helpers |
 | FloatingPanel chat submit pipeline | Implemented | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` + coordinator helpers | Browser-local today; not yet exposed as a first-class WebMCP or HTTP MCP tool chain |
-| KGC validation and recovery | Implemented | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + recovery helpers | Wrapper prose and parallel grouping aliases are rejected or stripped upstream before canvas apply |
-| Chat finalize -> canvas apply | Implemented | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Writes canonical workspace KGC first, then applies to graph through existing store actions |
+| KGC and literal MCP structured-surface validation | Implemented | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + recovery helpers | Wrapper prose and parallel grouping aliases are rejected or stripped upstream; renderable literal MCP `structuredContent` finalizes without KGC retry |
+| Chat finalize -> canvas apply | Implemented | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Writes canonical workspace KGC or projected MCP structured response first, then applies to graph through existing store actions |
 | Frontmatter-flow parse priority and graph composition | Implemented | `canvas/src/features/parsers/default.ts` + `canvas/src/features/parsers/markdownFrontmatterFlowGraph.*` | `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown |
 | Subgraph/group projection | Implemented | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | `flow.subgraphs` remains the sole authoring surface; rendered groups are downstream projection only |
 | API catalog | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | `status` relation now targets `/knowgrph/health` |
@@ -204,7 +204,8 @@ readiness surface that the operator sees.
 and `commerce` as the valid browser-local entry surfaces for the E2E readiness path. The tool does
 not claim that Commerce mutates payments through WebMCP or HTTP MCP. It only exposes read-only
 Commerce readiness next to Settings chat readiness, mounted Editor Workspace state, FloatingPanel
-Chat state, workspace frontmatter/KGC validation, and active Canvas topology.
+Chat state, workspace frontmatter/KGC or MCP structured-surface validation, and active Canvas
+topology.
 
 `agentReady.localMainPanelChatCanvasPipeline.entryTabs` verifies the three valid entry tabs
 against the same ready FloatingPanel Chat, workspace, and Canvas fixture. The companion

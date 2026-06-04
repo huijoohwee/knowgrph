@@ -11,14 +11,7 @@ import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 import { buildCardMarkdownPreviewText } from '@/lib/cards/cardMarkdownPreviewUtils'
-import {
-  deriveMarkdownDesignLayout,
-  patchMarkdownDesignLayoutPositions,
-  patchMarkdownDesignLayoutRects,
-  MARKDOWN_DESIGN_LAYOUT,
-  type MarkdownDesignBlock,
-  type MarkdownDesignLayout,
-} from '@/features/markdown-edgeless/markdownDesignLayout'
+import { deriveMarkdownDesignLayout, patchMarkdownDesignLayoutPositions, patchMarkdownDesignLayoutRects, MARKDOWN_DESIGN_LAYOUT, type MarkdownDesignBlock, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { startMarkdownPanelOverlayLoop2d } from '@/features/markdown-edgeless/markdownPanelOverlayLoop2d'
 import { readOverlaySizingConfigForDensity, readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 import {
@@ -27,6 +20,7 @@ import {
   readRichMediaPanelFrameMetrics,
   type MediaPanelCssMetrics,
 } from '@/lib/render/mediaPanelLayout'
+import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
 type MarkdownDesignOverlayProps = {
@@ -640,7 +634,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
                 onPreviewClick?.(b.startLine)
               }}
               panel={buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: snippet })}
-              style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+              style={PANEL_FRAME_EMBEDDED_SURFACE_STYLE}
             />
           </section>
         )

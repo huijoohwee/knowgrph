@@ -2,21 +2,10 @@ import {
   computeBalancedSpreadGridForTargetAspect,
   computeBalancedSpreadLayout,
 } from '@/lib/ui/overlayBalancedSpread'
+import { centerLayoutRectsByCentroid } from '@/lib/canvas/layoutCentroid'
 
 export type WidgetSeedBounds = { minX: number; minY: number; maxX: number; maxY: number }
 export type BalancedSpreadSeedCell = { left: number; top: number; row: number; col: number }
-
-const resolveCenteredShift = (args: {
-  preferredShift: number
-  minShift: number
-  maxShift: number
-}): number => {
-  const preferred = Number.isFinite(args.preferredShift) ? args.preferredShift : 0
-  const min = Number.isFinite(args.minShift) ? args.minShift : 0
-  const max = Number.isFinite(args.maxShift) ? args.maxShift : 0
-  if (min > max) return preferred
-  return Math.max(min, Math.min(max, preferred))
-}
 
 export function applyPreferredSeedLayoutCells(args: {
   cells: BalancedSpreadSeedCell[]
@@ -192,51 +181,23 @@ export function placeWidgetsCenteredInGroupBounds(args: {
   const panelW = Math.max(1, cellW - gapWorld)
   const panelH = Math.max(1, cellH - gapWorld)
   if (layout.cells.length > 0) {
-    const currentCenter = layout.cells.reduce(
-      (acc, cell) => ({
-        x: acc.x + cell.left + panelW / 2,
-        y: acc.y + cell.top + panelH / 2,
-      }),
-      { x: 0, y: 0 },
-    )
-    currentCenter.x /= layout.cells.length
-    currentCenter.y /= layout.cells.length
-    const targetCenter = {
-      x: boundW / 2,
-      y: boundH / 2,
-    }
-    let minLeft = Number.POSITIVE_INFINITY
-    let minTop = Number.POSITIVE_INFINITY
-    let maxRight = Number.NEGATIVE_INFINITY
-    let maxBottom = Number.NEGATIVE_INFINITY
-    for (let i = 0; i < layout.cells.length; i += 1) {
-      const cell = layout.cells[i]!
-      minLeft = Math.min(minLeft, cell.left)
-      minTop = Math.min(minTop, cell.top)
-      maxRight = Math.max(maxRight, cell.left + panelW)
-      maxBottom = Math.max(maxBottom, cell.top + panelH)
-    }
-    const preferredShiftX = targetCenter.x - currentCenter.x
-    const preferredShiftY = targetCenter.y - currentCenter.y
-    const minDx = Number.isFinite(minLeft) ? -minLeft : 0
-    const maxDx = Number.isFinite(maxRight) ? boundW - maxRight : 0
-    const minDy = Number.isFinite(minTop) ? -minTop : 0
-    const maxDy = Number.isFinite(maxBottom) ? boundH - maxBottom : 0
-    const shiftX = resolveCenteredShift({ preferredShift: preferredShiftX, minShift: minDx, maxShift: maxDx })
-    const shiftY = resolveCenteredShift({ preferredShift: preferredShiftY, minShift: minDy, maxShift: maxDy })
-    if (Math.abs(shiftX) > 0.001 || Math.abs(shiftY) > 0.001) {
+    const centered = centerLayoutRectsByCentroid({
+      items: layout.cells.map(cell => ({
+        ...cell,
+        width: panelW,
+        height: panelH,
+      })),
+      bounds: { minX: 0, minY: 0, maxX: boundW, maxY: boundH },
+    })
+    if (Math.abs(centered.shiftX) > 0.001 || Math.abs(centered.shiftY) > 0.001) {
       layout = {
         ...layout,
-        cells: layout.cells.map(cell => ({
-          ...cell,
-          left: cell.left + shiftX,
-          top: cell.top + shiftY,
-        })),
+        cells: centered.items.map(cell => ({ left: cell.left, top: cell.top, row: cell.row, col: cell.col })),
       }
     }
   }
 
-  const out: Array<{ id: string; x: number; y: number }> = []
+  let out: Array<{ id: string; x: number; y: number }> = []
   for (let i = 0; i < ids.length; i += 1) {
     const cell = layout.cells[i]
     if (!cell) break
@@ -247,37 +208,18 @@ export function placeWidgetsCenteredInGroupBounds(args: {
     })
   }
   if (out.length > 0) {
-    let minLeft = Number.POSITIVE_INFINITY
-    let minTop = Number.POSITIVE_INFINITY
-    let maxRight = Number.NEGATIVE_INFINITY
-    let maxBottom = Number.NEGATIVE_INFINITY
-    let centroidX = 0
-    let centroidY = 0
-    for (let i = 0; i < out.length; i += 1) {
-      const item = out[i]!
-      minLeft = Math.min(minLeft, item.x)
-      minTop = Math.min(minTop, item.y)
-      maxRight = Math.max(maxRight, item.x + panelW)
-      maxBottom = Math.max(maxBottom, item.y + panelH)
-      centroidX += item.x + panelW / 2
-      centroidY += item.y + panelH / 2
-    }
-    centroidX /= out.length
-    centroidY /= out.length
-    const shiftX = resolveCenteredShift({
-      preferredShift: (minX + boundW / 2) - centroidX,
-      minShift: Number.isFinite(minLeft) ? minX - minLeft : 0,
-      maxShift: Number.isFinite(maxRight) ? maxX - maxRight : 0,
+    const centered = centerLayoutRectsByCentroid({
+      items: out.map(item => ({
+        id: item.id,
+        left: item.x,
+        top: item.y,
+        width: panelW,
+        height: panelH,
+      })),
+      bounds: { minX, minY, maxX, maxY },
     })
-    const shiftY = resolveCenteredShift({
-      preferredShift: (minY + boundH / 2) - centroidY,
-      minShift: Number.isFinite(minTop) ? minY - minTop : 0,
-      maxShift: Number.isFinite(maxBottom) ? maxY - maxBottom : 0,
-    })
-    if (Math.abs(shiftX) > 0.0001 || Math.abs(shiftY) > 0.0001) {
-      for (let i = 0; i < out.length; i += 1) {
-        out[i] = { ...out[i]!, x: out[i]!.x + shiftX, y: out[i]!.y + shiftY }
-      }
+    if (Math.abs(centered.shiftX) > 0.0001 || Math.abs(centered.shiftY) > 0.0001) {
+      out = centered.items.map(item => ({ id: item.id, x: args.snapWorld(item.left), y: args.snapWorld(item.top) }))
     }
   }
   return out

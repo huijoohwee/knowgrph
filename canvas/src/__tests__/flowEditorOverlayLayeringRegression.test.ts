@@ -160,13 +160,13 @@ export function testGraphRichMediaOverlayLayersUseSharedLowZIndex() {
   if (flowMediaText.includes('2200') || flowMediaText.includes('1400')) {
     throw new Error('Expected Flow rich media overlays to avoid high per-item z-index hardcodes')
   }
-  if (!flowMediaText.includes('Z_INDEX_GRAPH_MEDIA_LAYER') || !flowMediaText.includes('Z_INDEX_GRAPH_OVERLAY_SELECTED')) {
+  if (!flowMediaText.includes('Z_INDEX_GRAPH_MEDIA_LAYER') || !flowMediaText.includes('Z_INDEX_GRAPH_OVERLAY_SELECTED') || !flowMediaText.includes('UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME')) {
     throw new Error('Expected Flow rich media overlays to reuse shared graph overlay z-index SSOT')
   }
   if (d3MediaText.includes('z-[80]')) {
     throw new Error('Expected D3 rich media overlays to avoid hardcoded z-[80] layer value')
   }
-  if (!d3MediaText.includes('Z_INDEX_GRAPH_MEDIA_LAYER')) {
+  if (!d3MediaText.includes('Z_INDEX_GRAPH_MEDIA_LAYER') || !d3MediaText.includes('UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME')) {
     throw new Error('Expected D3 rich media overlays to reuse shared graph overlay z-index SSOT')
   }
 }

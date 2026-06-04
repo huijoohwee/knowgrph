@@ -7,9 +7,7 @@ import {
   KNOWGRPH_SUPERAGENT_MAIN_PANEL_ENTRY_TABS,
   KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS,
   KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS,
-  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME,
   KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SHARE_URL,
-  KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
   KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
   KNOWGRPH_SUPERAGENT_REVIEW_EDGE_ID,
   KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS,
@@ -35,7 +33,7 @@ import {
 } from '@/tests/lib/reactRootHarness'
 import { AGENTIC_COMMERCE_MAIN_PANEL_READINESS } from 'grph-shared/payments/agenticCommerceSsot'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
-import { readResearchAgentDemoText } from './helpers/researchAgentDemoFixture'
+import { readResearchAgentDemoFixture } from './helpers/researchAgentDemoFixture'
 import {
   READY_CHAT_PIPELINE,
   READY_EDITOR_WORKSPACE,
@@ -220,8 +218,9 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
 }
 
 export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryForResearchAgentDemoSuperAgentFlowEditor() {
-  const demoText = readResearchAgentDemoText()
-  const parsed = await loadGraphDataFromTextViaParser(KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME, demoText, {
+  const demoFixture = readResearchAgentDemoFixture()
+  const demoText = demoFixture.text
+  const parsed = await loadGraphDataFromTextViaParser(demoFixture.basename, demoText, {
     applyToStore: false,
     syncMarkdownDocument: false,
   })
@@ -294,27 +293,27 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryFo
       settingsChatReadinessSnapshot,
       editorWorkspaceSnapshot: {
         ...READY_EDITOR_WORKSPACE,
-        activeDocumentKey: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        activeDocumentKey: demoFixture.sourceFile,
         liveMarkdownText: demoText,
         persistedMarkdownText: demoText,
-        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        markdownDocumentName: demoFixture.sourceFile,
       } as LocalEditorWorkspaceSurfaceSnapshot,
       chatPipelineSnapshot: {
         ...READY_CHAT_PIPELINE,
         chatProviderSummary: KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS.join(' / '),
-        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        markdownDocumentName: demoFixture.sourceFile,
         selectedNodeId: KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
-        streamFollowPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        streamFollowPath: demoFixture.sourceFile,
         kgcValidation: {
           ...READY_CHAT_PIPELINE.kgcValidation!,
           validatedKgcLength: demoText.length,
         },
         finalize: {
           ...READY_CHAT_PIPELINE.finalize!,
-          persistedKnowgrphPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+          persistedKnowgrphPath: demoFixture.sourceFile,
         },
       },
-      markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+      markdownDocumentName: demoFixture.sourceFile,
       markdownDocumentText: demoText,
       markdownDocumentSourceUrl: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SHARE_URL,
       graphData: parsed.graphData,
@@ -398,8 +397,9 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryFo
 }
 
 export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoSuperAgentFlowEditor() {
-  const demoText = readResearchAgentDemoText()
-  const parsed = await loadGraphDataFromTextViaParser(KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_BASENAME, demoText, {
+  const demoFixture = readResearchAgentDemoFixture()
+  const demoText = demoFixture.text
+  const parsed = await loadGraphDataFromTextViaParser(demoFixture.basename, demoText, {
     applyToStore: false,
     syncMarkdownDocument: false,
   })
@@ -415,27 +415,27 @@ export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoS
       settingsChatReadinessSnapshot: READY_SETTINGS_CHAT,
       editorWorkspaceSnapshot: {
         ...READY_EDITOR_WORKSPACE,
-        activeDocumentKey: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        activeDocumentKey: demoFixture.sourceFile,
         liveMarkdownText: demoText,
         persistedMarkdownText: demoText,
-        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        markdownDocumentName: demoFixture.sourceFile,
       } as LocalEditorWorkspaceSurfaceSnapshot,
       chatPipelineSnapshot: {
         ...READY_CHAT_PIPELINE,
         chatProviderSummary: KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS.join(' / '),
-        markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        markdownDocumentName: demoFixture.sourceFile,
         selectedNodeId: KNOWGRPH_SUPERAGENT_HARNESS_NODE_ID,
-        streamFollowPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+        streamFollowPath: demoFixture.sourceFile,
         kgcValidation: {
           ...READY_CHAT_PIPELINE.kgcValidation!,
           validatedKgcLength: demoText.length,
         },
         finalize: {
           ...READY_CHAT_PIPELINE.finalize!,
-          persistedKnowgrphPath: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+          persistedKnowgrphPath: demoFixture.sourceFile,
         },
       },
-      markdownDocumentName: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SOURCE_FILE,
+      markdownDocumentName: demoFixture.sourceFile,
       markdownDocumentText: demoText,
       markdownDocumentSourceUrl: KNOWGRPH_SUPERAGENT_RESEARCH_DEMO_SHARE_URL,
       graphData: parsed.graphData,

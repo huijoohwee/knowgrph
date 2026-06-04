@@ -13,6 +13,7 @@ import {
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
+import { readFlowEditorWidgetGeometryStateSignature } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeWidgetState'
 
 type Ctx2d = Partial<CanvasRenderingContext2D>
 
@@ -43,7 +44,6 @@ const installDomStubs = (dom: JSDOM) => {
   __flowCanvasDebug.lastBuiltSceneNodeCount = 0
   __flowCanvasDebug.lastBuiltSceneKey = ''
   __flowCanvasDebug.lastZoomViewKey = ''
-
   const g = globalThis as unknown as {
     window?: unknown
     document?: unknown
@@ -52,15 +52,14 @@ const installDomStubs = (dom: JSDOM) => {
     requestAnimationFrame?: unknown
     cancelAnimationFrame?: unknown
   }
-
   g.window = dom.window
   g.document = dom.window.document
+  Object.assign(g, { Element: dom.window.Element, HTMLElement: dom.window.HTMLElement, SVGElement: dom.window.SVGElement })
   try {
     Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true })
   } catch {
     void 0
   }
-
   const anyWindow = dom.window as unknown as {
     ResizeObserver?: unknown
     requestAnimationFrame?: unknown
@@ -644,7 +643,7 @@ export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable 
     const beforeSceneSignature = readFlowSceneSignature(runtime)
     const beforePositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
     const beforeGraphData = JSON.stringify(useGraphStore.getState().graphData)
-
+    const beforeFlowWidgetGeometry = readFlowEditorWidgetGeometryStateSignature(useGraphStore.getState())
     dispatchFlowCanvasPointerEvent(canvas, dom.window, 'pointerdown', { pointerId: 31, button: 1, clientX: 220, clientY: 180, buttons: 4 })
     dispatchFlowCanvasPointerEvent(canvas, dom.window, 'pointermove', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 4 })
     dispatchFlowCanvasPointerEvent(dom.window, dom.window, 'pointermove', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 4 })
@@ -679,15 +678,16 @@ export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable 
 
     const afterPositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
     const afterGraphData = JSON.stringify(useGraphStore.getState().graphData)
+    const afterFlowWidgetGeometry = readFlowEditorWidgetGeometryStateSignature(useGraphStore.getState())
     const afterSceneSignature = readFlowSceneSignature(runtime)
     const afterSceneKey = String(__flowCanvasDebug.lastBuiltSceneKey || '')
-
     if (afterPositions !== beforePositions) {
       throw new Error(`expected Flow Editor drag/zoom/workspace toggle to avoid layout-position writes, before=${beforePositions} after=${afterPositions}`)
     }
     if (afterGraphData !== beforeGraphData) {
       throw new Error('expected Flow Editor drag/zoom/workspace toggle to avoid mutating graph data for collective elements')
     }
+    if (afterFlowWidgetGeometry !== beforeFlowWidgetGeometry) throw new Error(`expected Flow Editor drag/zoom/workspace toggle to avoid mutating widget geometry state, before=${beforeFlowWidgetGeometry} after=${afterFlowWidgetGeometry}`)
     if (afterSceneSignature !== beforeSceneSignature) {
       throw new Error(`expected Flow Editor drag/zoom/workspace toggle to preserve collective scene layout, before=${beforeSceneSignature} after=${afterSceneSignature}`)
     }

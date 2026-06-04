@@ -14,6 +14,7 @@ import {
   MARKDOWN_CODE_FENCE_LINE_ROW_HEIGHT_CLASS,
   MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS,
 } from '@/features/markdown/ui/markdownEditSurfaceLayout'
+import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type HljsApi = import('highlight.js').HLJSApi
 
@@ -88,7 +89,7 @@ export const HighlightedCode = React.memo(function HighlightedCode({
   return (
     <section className="relative">
       {highlightLines ? (
-        <span className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <span className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME} aria-hidden="true">
           {code.split('\n').map((_, i) => (
             <span
               key={i}

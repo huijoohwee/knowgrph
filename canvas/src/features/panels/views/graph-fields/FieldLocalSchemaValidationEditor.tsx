@@ -4,6 +4,7 @@ import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphField
 import { UI_COPY } from '@/lib/config.copy'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { GRAPH_FIELDS_DENSE_FIELD_GRID_CLASS_NAME, GRAPH_FIELDS_DENSE_TRIPLE_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
 import {
   UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_VALIDATION_EDITOR_CLASSNAME,
@@ -163,7 +164,7 @@ export default function FieldLocalSchemaValidationEditor({
         <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary} mb-1`}>
           {UI_COPY.validationRequiredFieldsTitle}
         </section>
-        <section className="grid grid-cols-3 gap-1">
+        <section className={GRAPH_FIELDS_DENSE_TRIPLE_FIELD_GRID_CLASS_NAME}>
           {validationPropertyNames.length === 0 ? (
             <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
               No properties for this owner.
@@ -229,7 +230,7 @@ export default function FieldLocalSchemaValidationEditor({
         <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary} mb-1`}>
           {UI_COPY.validationPropertyTypesTitle}
         </section>
-        <section className="grid grid-cols-2 gap-1">
+        <section className={GRAPH_FIELDS_DENSE_FIELD_GRID_CLASS_NAME}>
           {validationPropertyNames.map(p => (
             <section
               key={p}

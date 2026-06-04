@@ -46,13 +46,15 @@ import {
   PANEL_FRAME_ROOT_STYLE,
 } from '@/lib/ui/panelFrame'
 
+type RichMediaKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
+
 export type RichMediaPanelProps = {
   overlayId?: string
   title: string
   url: string
   srcDoc?: string
   openUrl?: string
-  kind?: 'iframe' | 'image' | 'svg' | 'video'
+  kind?: RichMediaKind
   interactive?: boolean
   hideUntilReady?: boolean
   headerPassthrough?: boolean
@@ -90,6 +92,7 @@ export type RichMediaPanelProps = {
     hasText: boolean
     hasImage: boolean
     hasVideo: boolean
+    hasAudio?: boolean
     hasPoi: boolean
     text: string
     connectedText: string
@@ -229,7 +232,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const resizeHandlePlacement = props.resizeHandlePlacement === 'external' ? 'external' : 'root'
   const scrollOwner = props.scrollOwner === 'panel' ? 'panel' : 'media'
   const onInlineContentSize = props.onInlineContentSize
-  const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
+  const kind: RichMediaKind = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' || props.kind === 'audio' ? props.kind : 'iframe'
   const rawUrl = String(props.url || '').trim()
   const openUrl = String(props.openUrl || '').trim() || rawUrl
   const safeOpenUrl = React.useMemo(() => {
@@ -346,6 +349,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     hasText: panel?.hasText === true,
     hasImage: panel?.hasImage === true,
     hasVideo: panel?.hasVideo === true,
+    hasAudio: panel?.hasAudio === true,
     hasPoi: panelHasPoi,
     renderKind: kind,
     hasRenderableUrl: !!rawUrl,
@@ -425,7 +429,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const showPanelMarkdownPreview = Boolean(showPanelTextSurface && !showPanelInlineTextEditor && panelDisplayText.trim())
   const hasDirectRenderableUrl = !!rawUrl
   const isTextPanelEmpty = kind === 'iframe' && !hasDirectRenderableUrl && !effectiveInlineSrcDoc && !showPanelTextSurface
-  const isStaticMediaPanelEmpty = (kind === 'image' || kind === 'svg' || kind === 'video') && !hasDirectRenderableUrl
+  const isStaticMediaPanelEmpty = (kind === 'image' || kind === 'svg' || kind === 'video' || kind === 'audio') && !hasDirectRenderableUrl
   const isEmptyPanel = isTextPanelEmpty || isStaticMediaPanelEmpty
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || flowEditorInteractionMode === true || isFlowEditorRenderer === true
@@ -487,7 +491,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const contentInteractive =
     (preferEmbed || playableCardMedia || (props.interactive !== false && !isSnapshotIframe && !isSnapshotVideo && !isSnapshotStaticMedia))
     && (!hideUntilReady || ready)
-  const canClickToOpen = !headerPassthrough && kind !== 'video' && kind !== 'image' && kind !== 'svg' && !contentInteractive && !!safeOpenUrl
+  const canClickToOpen = !headerPassthrough && kind !== 'video' && kind !== 'audio' && kind !== 'image' && kind !== 'svg' && !contentInteractive && !!safeOpenUrl
   const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen
 
   const setRefs = React.useCallback((el: HTMLElement | null) => {
@@ -711,16 +715,20 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const panelIsLoading = panel?.isLoading === true
   const panelLoadingLabel = String(panel?.loadingLabel || '').trim() || 'Generating output...'
   const loadingSkeletonVariant: CardMediaSkeletonVariant =
-    panelSelectedTab === 'text' ? 'text' : (kind === 'image' || kind === 'video' ? kind : 'iframe')
+    panelSelectedTab === 'text' ? 'text' : (kind === 'image' || kind === 'video' || kind === 'audio' ? kind : 'iframe')
   const expectedEmptyPlaceholderVariant: CardMediaPlaceholderVariant =
-    panelSelectedTab === 'text' || panelSelectedTab === 'image' || panelSelectedTab === 'video'
+    panelSelectedTab === 'text' || panelSelectedTab === 'image' || panelSelectedTab === 'video' || panelSelectedTab === 'audio'
       ? panelSelectedTab
+      : kind === 'audio'
+        ? 'audio'
       : panel
-        ? panel.hasImage && !panel.hasText && !panel.hasVideo
+        ? panel.hasImage && !panel.hasText && !panel.hasVideo && !panel.hasAudio
           ? 'image'
-          : panel.hasVideo && !panel.hasText && !panel.hasImage
+          : panel.hasVideo && !panel.hasText && !panel.hasImage && !panel.hasAudio
             ? 'video'
-            : panel.hasText && !panel.hasImage && !panel.hasVideo
+            : panel.hasAudio && !panel.hasText && !panel.hasImage && !panel.hasVideo
+              ? 'audio'
+              : panel.hasText && !panel.hasImage && !panel.hasVideo && !panel.hasAudio
               ? 'text'
               : 'undefined'
         : 'undefined'
@@ -788,6 +796,12 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
     touchAction: 'auto',
   }), [allowPanelContentPointerEvents, forwardingEnabled])
+  const buildDirectMediaStyle = (display: 'block' | 'flex', background: string): React.CSSProperties => ({
+    display, width: '100%', height: '100%', border: 0,
+    borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+    background, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+    pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
+  })
   const inlineSrcDocSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
     ...iframeSurfaceStyle,
     borderRadius: 0,
@@ -1014,29 +1028,19 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             onLoad={() => setReady(true)}
           />
         )
-      ) : kind === 'video' ? (
+      ) : kind === 'video' || kind === 'audio' ? (
         <CardMediaPreview
-          kind="video"
+          kind={kind}
           url={mediaSrc}
           title={title}
           interactive={contentInteractive}
           fit="contain"
-          videoControls
+          videoControls={kind === 'video' ? true : undefined}
           onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)
           }}
-          mediaStyle={{
-            display: 'block',
-            width: '100%',
-            height: '100%',
-            border: 0,
-            borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-            background: 'rgba(2, 6, 23, 0.72)',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
-          }}
+          mediaStyle={buildDirectMediaStyle(kind === 'video' ? 'block' : 'flex', kind === 'video' ? 'rgba(2, 6, 23, 0.72)' : 'rgba(15, 23, 42, 0.06)')}
         />
       ) : (
         <CardMediaPreview
@@ -1049,17 +1053,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)
           }}
-          mediaStyle={{
-            display: 'block',
-            width: '100%',
-            height: '100%',
-            border: 0,
-            borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-            background: 'rgba(15, 23, 42, 0.06)',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
-          }}
+          mediaStyle={buildDirectMediaStyle('block', 'rgba(15, 23, 42, 0.06)')}
         />
       )}
     </>

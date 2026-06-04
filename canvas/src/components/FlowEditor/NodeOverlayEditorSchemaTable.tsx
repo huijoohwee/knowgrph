@@ -6,7 +6,10 @@ import type { SchemaFieldSpec } from '@/lib/graph/flowPorts'
 import { buildSchemaFieldPortKey } from '@/lib/graph/flowPorts'
 import { formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_PANEL_TABLE_ICON_ACTION_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { Trash2 } from 'lucide-react'
 import { patchAtIndex } from 'grph-shared/array/patchArrayItem'
@@ -299,12 +302,12 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                   <button
                     type="button"
                     className={cn(
-                      'inline-flex items-center justify-center rounded-md border',
+                      UI_RESPONSIVE_PANEL_TABLE_ICON_ACTION_CLASSNAME,
+                      'rounded-md border',
                       UI_THEME_TOKENS.panel.border,
                       UI_THEME_TOKENS.button.hoverBg,
                       UI_THEME_TOKENS.button.text,
                     )}
-                    style={{ width: '32px', height: '32px' }}
                     title={UI_LABELS.flowWidgetSchemaRemoveField}
                     aria-label={UI_LABELS.flowWidgetSchemaRemoveField}
                     onClick={() => removeField(rowIndex)}

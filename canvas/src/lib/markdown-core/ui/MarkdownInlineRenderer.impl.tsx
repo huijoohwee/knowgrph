@@ -43,6 +43,7 @@ import { renderInlineMediaWithDownload } from './MarkdownInlineMediaDownload'
 import { YouTubeTimestampPreviewLink } from './MarkdownYouTubeTimestampPreviewLink'
 import { normalizeSvgDataUriForImg } from './markdownSvgDataUri'
 import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
@@ -548,19 +549,15 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         })
       }
       if (isAudio && src && isSafeMediaSrc(src)) {
+        const audioClassName = cardPreviewMode
+          ? `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
+          : `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} rounded border ${UI_THEME_TOKENS.panel.border}`
         return (
           <audio
             key={key}
             controls
-          src={src || undefined}
-          className={[
-              cardPreviewMode
-                ? `w-full max-w-xl ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
-                : 'w-full max-w-xl rounded border',
-              cardPreviewMode ? '' : UI_THEME_TOKENS.panel.border,
-            ]
-              .filter(Boolean)
-              .join(' ')}
+            src={src || undefined}
+            className={audioClassName}
           />
         )
       }

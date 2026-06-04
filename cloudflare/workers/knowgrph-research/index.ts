@@ -2,20 +2,43 @@ import {
   compileResearchThesisSpec,
   buildResearchThesisReviewAudit,
   preflightResearchThesisCompileRequest,
+  sha256TextHash,
   type ResearchThesisCompileRequest,
   type ResearchThesisCandidateGraphDelta,
+  type ResearchThesisCostLog,
+  type ResearchThesisEvidenceLedgerRow,
   type ResearchThesisReviewAudit,
   type ResearchThesisRunManifest,
+  type ResearchThesisSourceSummary,
   type ResearchThesisSpec,
 } from '../../../canvas/src/features/research-agent/researchThesisContract'
+
+type ResearchWorkerArtifactKind =
+  | 'manifest'
+  | 'source_summaries'
+  | 'thesis_spec'
+  | 'evidence_ledger'
+  | 'candidate_delta'
+  | 'cost_log'
+  | 'review_audit'
+
+type ResearchWorkerArtifactPointer = {
+  kind: ResearchWorkerArtifactKind
+  key: string
+  storage: 'r2' | 'local-dev'
+}
 
 type ResearchWorkerRunRow = {
   runId: string
   status: 'queued' | 'ready' | 'failed' | 'committed'
   manifest: ResearchThesisRunManifest
+  sourceSummaries?: ResearchThesisSourceSummary[] | null
   spec?: ResearchThesisSpec | null
+  evidenceLedger?: ResearchThesisEvidenceLedgerRow[] | null
   candidateDelta?: ResearchThesisCandidateGraphDelta | null
   audit?: ResearchThesisReviewAudit | null
+  costLog?: ResearchThesisCostLog | null
+  artifactPointers?: ResearchWorkerArtifactPointer[] | null
   error?: string | null
   createdAt: string
   updatedAt: string
@@ -67,6 +90,8 @@ const noContent = (): Response => new Response(null, { status: 204, headers: COR
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
+const RESEARCH_SUMMARY_CACHE_PREFIX = 'research-thesis-summary:'
+
 const readJsonBody = async (request: Request): Promise<Record<string, unknown> | null> => {
   try {
     const parsed = await request.json()
@@ -98,9 +123,13 @@ const rowToRun = (row: Record<string, unknown> | null): ResearchWorkerRunRow | n
     runId: normalizeString(row.run_id),
     status: normalizeString(row.status) as ResearchWorkerRunRow['status'],
     manifest,
+    sourceSummaries: parse<ResearchThesisSourceSummary[]>(row.source_summaries_json),
     spec: parse<ResearchThesisSpec>(row.spec_json),
+    evidenceLedger: parse<ResearchThesisEvidenceLedgerRow[]>(row.evidence_ledger_json),
     candidateDelta: parse<ResearchThesisCandidateGraphDelta>(row.candidate_delta_json),
     audit: parse<ResearchThesisReviewAudit>(row.audit_json),
+    costLog: parse<ResearchThesisCostLog>(row.cost_log_json),
+    artifactPointers: parse<ResearchWorkerArtifactPointer[]>(row.artifact_pointers_json),
     error: normalizeString(row.error_message) || null,
     createdAt: normalizeString(row.created_at),
     updatedAt: normalizeString(row.updated_at),
@@ -117,24 +146,33 @@ const putRun = async (env: ResearchWorkerEnv, row: ResearchWorkerRunRow): Promis
   if (!db) throw new Error('missing Cloudflare D1 binding DB')
   await db.prepare(
     `INSERT INTO research_thesis_runs (
-       run_id, status, manifest_json, spec_json, candidate_delta_json, audit_json,
-       error_message, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       run_id, status, manifest_json, source_summaries_json, spec_json,
+       evidence_ledger_json, candidate_delta_json, audit_json, cost_log_json,
+       artifact_pointers_json, error_message, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(run_id) DO UPDATE SET
        status = excluded.status,
        manifest_json = excluded.manifest_json,
+       source_summaries_json = excluded.source_summaries_json,
        spec_json = excluded.spec_json,
+       evidence_ledger_json = excluded.evidence_ledger_json,
        candidate_delta_json = excluded.candidate_delta_json,
        audit_json = excluded.audit_json,
+       cost_log_json = excluded.cost_log_json,
+       artifact_pointers_json = excluded.artifact_pointers_json,
        error_message = excluded.error_message,
        updated_at = excluded.updated_at`,
   ).bind(
     row.runId,
     row.status,
     JSON.stringify(row.manifest),
+    row.sourceSummaries ? JSON.stringify(row.sourceSummaries) : null,
     row.spec ? JSON.stringify(row.spec) : null,
+    row.evidenceLedger ? JSON.stringify(row.evidenceLedger) : null,
     row.candidateDelta ? JSON.stringify(row.candidateDelta) : null,
     row.audit ? JSON.stringify(row.audit) : null,
+    row.costLog ? JSON.stringify(row.costLog) : null,
+    row.artifactPointers ? JSON.stringify(row.artifactPointers) : null,
     row.error || null,
     row.createdAt,
     row.updatedAt,
@@ -147,22 +185,65 @@ const getRun = async (env: ResearchWorkerEnv, runId: string): Promise<ResearchWo
   const db = readDb(env)
   if (!db) throw new Error('missing Cloudflare D1 binding DB')
   const row = await db.prepare(
-    `SELECT run_id, status, manifest_json, spec_json, candidate_delta_json, audit_json,
-            error_message, created_at, updated_at
+    `SELECT run_id, status, manifest_json, source_summaries_json, spec_json,
+            evidence_ledger_json, candidate_delta_json, audit_json, cost_log_json,
+            artifact_pointers_json, error_message, created_at, updated_at
      FROM research_thesis_runs
      WHERE run_id = ?`,
   ).bind(runId).first?.<Record<string, unknown>>()
   return rowToRun(row || null)
 }
 
-const putArtifact = async (env: ResearchWorkerEnv, key: string, value: unknown): Promise<void> => {
+const putArtifact = async (
+  env: ResearchWorkerEnv,
+  kind: ResearchWorkerArtifactKind,
+  key: string,
+  value: unknown,
+): Promise<ResearchWorkerArtifactPointer> => {
   const bucket = env.RESEARCH_THESIS_ARTIFACTS
-  if (!bucket || typeof bucket.put !== 'function') return
-  await bucket.put(key, JSON.stringify(value), { httpMetadata: { contentType: 'application/json' } })
+  if (bucket && typeof bucket.put === 'function') {
+    await bucket.put(key, JSON.stringify(value), { httpMetadata: { contentType: 'application/json' } })
+    return { kind, key, storage: 'r2' }
+  }
+  return { kind, key, storage: 'local-dev' }
+}
+
+const buildWorkerSummaryCache = async (
+  env: ResearchWorkerEnv,
+  request: ResearchThesisCompileRequest,
+): Promise<{ cache: Map<string, ResearchThesisSourceSummary>; persist: (summaries: ResearchThesisSourceSummary[]) => Promise<void> }> => {
+  const cache = new Map<string, ResearchThesisSourceSummary>()
+  const kv = env.RESEARCH_THESIS_CACHE
+  const sources = Array.isArray(request.sources) ? request.sources : []
+  if (kv && typeof kv.get === 'function') {
+    for (const source of sources) {
+      const text = String(source?.text || '')
+      const contentHash = normalizeString(source?.contentHash) || await sha256TextHash(text)
+      if (!contentHash) continue
+      const raw = await kv.get(`${RESEARCH_SUMMARY_CACHE_PREFIX}${contentHash}`)
+      if (!raw) continue
+      try {
+        const parsed = JSON.parse(raw) as ResearchThesisSourceSummary
+        if (parsed && typeof parsed === 'object') cache.set(contentHash, parsed)
+      } catch {
+        void 0
+      }
+    }
+  }
+  return {
+    cache,
+    persist: async summaries => {
+      if (!kv || typeof kv.put !== 'function') return
+      await Promise.all(summaries.map(summary => (
+        kv.put(`${RESEARCH_SUMMARY_CACHE_PREFIX}${summary.content_hash}`, JSON.stringify({ ...summary, cache_hit: false }))
+      )))
+    },
+  }
 }
 
 const processCompile = async (env: ResearchWorkerEnv, request: ResearchThesisCompileRequest): Promise<ResearchWorkerRunRow> => {
-  const result = await compileResearchThesisSpec(request)
+  const summaryCache = await buildWorkerSummaryCache(env, request)
+  const result = await compileResearchThesisSpec(request, { summaryCache: summaryCache.cache })
   const nowIso = new Date().toISOString()
   if (result.ok === false) {
     const preflight = await preflightResearchThesisCompileRequest(request)
@@ -182,6 +263,10 @@ const processCompile = async (env: ResearchWorkerEnv, request: ResearchThesisCom
       runId: fallbackRunId,
       status: 'failed',
       manifest: fallbackManifest,
+      costLog: result.cost_log,
+      artifactPointers: [
+        await putArtifact(env, 'cost_log', `${fallbackRunId}/cost-log.json`, result.cost_log),
+      ],
       error: result.error.message,
       createdAt: fallbackManifest.created_at,
       updatedAt: nowIso,
@@ -189,20 +274,30 @@ const processCompile = async (env: ResearchWorkerEnv, request: ResearchThesisCom
     await putRun(env, row)
     return row
   }
+  await summaryCache.persist(result.source_summaries)
+  const artifactPointers = [
+    await putArtifact(env, 'manifest', `${result.manifest.run_id}/manifest.json`, result.manifest),
+    await putArtifact(env, 'source_summaries', `${result.manifest.run_id}/source-summaries.json`, result.source_summaries),
+    await putArtifact(env, 'thesis_spec', `${result.manifest.run_id}/thesis-spec.json`, result.spec),
+    await putArtifact(env, 'evidence_ledger', `${result.manifest.run_id}/evidence-ledger.json`, result.evidence_ledger),
+    await putArtifact(env, 'candidate_delta', `${result.manifest.run_id}/candidate-delta.json`, result.candidate_delta),
+    await putArtifact(env, 'cost_log', `${result.manifest.run_id}/cost-log.json`, result.cost_log),
+  ]
   const row: ResearchWorkerRunRow = {
     runId: result.manifest.run_id,
     status: 'ready',
     manifest: result.manifest,
+    sourceSummaries: result.source_summaries,
     spec: result.spec,
+    evidenceLedger: result.evidence_ledger,
     candidateDelta: result.candidate_delta,
+    costLog: result.cost_log,
+    artifactPointers,
     error: null,
     createdAt: result.manifest.created_at,
     updatedAt: nowIso,
   }
   await putRun(env, row)
-  await putArtifact(env, `${row.runId}/manifest.json`, row.manifest)
-  await putArtifact(env, `${row.runId}/thesis-spec.json`, row.spec)
-  await putArtifact(env, `${row.runId}/candidate-delta.json`, row.candidateDelta)
   return row
 }
 
@@ -257,14 +352,15 @@ const commitRun = async (request: Request, env: ResearchWorkerEnv, runId: string
     acceptedCandidateIds,
     rejectedCandidateIds,
   })
+  const auditArtifactPointer = await putArtifact(env, 'review_audit', `${row.runId}/review-audit.json`, audit)
   const nextRow: ResearchWorkerRunRow = {
     ...row,
     status: 'committed',
     audit,
+    artifactPointers: [...(row.artifactPointers || []), auditArtifactPointer],
     updatedAt: new Date().toISOString(),
   }
   await putRun(env, nextRow)
-  await putArtifact(env, `${row.runId}/review-audit.json`, audit)
   return json(200, { ok: true, run_id: row.runId, audit })
 }
 
@@ -287,9 +383,13 @@ const handleResearchRequest = async (request: Request, env: ResearchWorkerEnv): 
     run_id: runId,
     status: row.status,
     manifest: row.manifest,
+    source_summaries: row.sourceSummaries || null,
     spec: row.spec || null,
+    evidence_ledger: row.evidenceLedger || null,
     candidate_delta: row.candidateDelta || null,
     audit: row.audit || null,
+    cost_log: row.costLog || null,
+    artifact_pointers: row.artifactPointers || null,
     error: row.error || null,
   })
 }

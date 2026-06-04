@@ -1,0 +1,11 @@
+.kg-preview-panel-media-frame {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  inline-size: 100%;
+  max-width: min(var(--kg-preview-panel-media-frame-max-width, 56rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1.5rem));
+  max-inline-size: min(var(--kg-preview-panel-media-frame-max-width, 56rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1.5rem));
+  min-width: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}

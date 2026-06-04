@@ -35,6 +35,7 @@ import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS } from './markdownEditSurfaceLayout'
 
 type MarkdownDataViewTableViewProps = {
   view: MarkdownDataView
@@ -561,7 +562,7 @@ const InlineTextCellEditor = React.memo(function InlineTextCellEditor(props: {
       suppressContentEditableWarning
       role="textbox"
       aria-label={ariaLabel}
-      className={['inline-block w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none', textClassName].join(' ')}
+      className={['inline-block w-full', MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS, 'whitespace-pre-wrap break-words outline-none', textClassName].join(' ')}
       onClick={e => e.stopPropagation()}
       onInput={() => {}}
       onBlur={commit}

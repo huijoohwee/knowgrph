@@ -2,7 +2,7 @@ import { parseCanonicalNodeIds } from '@/lib/graph/canonicalNodeIds'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
-export type FlowEditorWorkflowOutputLoadingKind = 'text' | 'image' | 'video'
+export type FlowEditorWorkflowOutputLoadingKind = 'text' | 'image' | 'video' | 'audio'
 
 export function areFlowEditorWorkflowRecordValuesEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)])

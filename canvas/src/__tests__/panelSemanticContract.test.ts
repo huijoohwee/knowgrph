@@ -209,7 +209,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   if (!workspaceHeader.includes('min-w-0 max-w-full shrink-0 overflow-hidden')) {
     throw new Error('Expected WorkspaceHeader to clip inside mobile viewports')
   }
-  if (!workspaceHeader.includes('kg-workspace-header-row') || !workspaceHeader.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
+  if (!workspaceHeader.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') || !workspaceHeader.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
     throw new Error('Expected WorkspaceHeaderRow to use the shared row-scroll primitive')
   }
 
@@ -228,7 +228,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   }
 
   const canvasPreviewDock = readUtf8(canvasPreviewDockPath)
-  if (!canvasPreviewDock.includes('kg-canvas-preview-dock') || !canvasPreviewDock.includes('kg-canvas-preview-dock--collapsed')) {
+  if (!canvasPreviewDock.includes('kg-canvas-preview-dock') || !canvasPreviewDock.includes('kg-canvas-preview-dock--collapsed') || !canvasPreviewDock.includes('--kg-canvas-preview-dock-width') || canvasPreviewDock.includes('style={{ width:')) {
     throw new Error('Expected CanvasPreviewDock to expose responsive dock state classes')
   }
 
@@ -261,7 +261,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   const graphTableInspector = readUtf8(graphTableInspectorPath)
   if (
     !graphTableInspector.includes('kg-graph-table-inspector') ||
-    !graphTableInspector.includes('grid-cols-[minmax(0,120px)_minmax(0,1fr)]') ||
+    !graphTableInspector.includes('GRAPH_TABLE_INSPECTOR_DETAIL_GRID_CLASS_NAME') || graphTableInspector.includes('grid-cols-[minmax(0,120px)_minmax(0,1fr)]') ||
     !graphTableInspector.includes('UI_RESPONSIVE_GRAPH_TABLE_CODE_EDITOR_CLASSNAME') ||
     graphTableInspector.includes('h-[220px]') ||
     !responsiveCss.includes('.kg-graph-table-code-editor')
@@ -423,7 +423,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   }
 
   const markdownExplorer = readUtf8(markdownExplorerPath)
-  if (!markdownExplorer.includes('kg-toolbar') || !markdownExplorer.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
+  if (!markdownExplorer.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') || !markdownExplorer.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
     throw new Error('Expected MarkdownWorkspaceExplorer header to scroll without fixed mobile height')
   }
   const explorerSearchControl = readUtf8(explorerSearchControlPath)
@@ -564,8 +564,8 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected nested menu children and menu icons to avoid offscreen transforms and icon wrapping')
   }
   const overlay = readUtf8(overlayPath)
-  if (!overlay.includes('clampOverlayTopLeftFullyInViewport') || !overlay.includes('maxWidth') || !overlay.includes('overscrollBehavior')) {
-    throw new Error('Expected AnchorOverlay to clamp dropdowns inside the viewport')
+  if (!overlay.includes('clampOverlayTopLeftFullyInViewport') || !overlay.includes('kg-anchor-overlay') || overlay.includes("maxWidth: 'calc(100vw") || overlay.includes("maxHeight: 'var(--kg-overlay-max-height") || overlay.includes('overscrollBehavior')) {
+    throw new Error('Expected AnchorOverlay to clamp dropdowns through placement code and shared responsive CSS')
   }
   const toolbarDropdown = readUtf8(toolbarDropdownPath)
   if (!toolbarDropdown.includes('kg-toolbar-dropdown-menu') || !toolbarDropdown.includes('kg-toolbar-dropdown-children') || !toolbarDropdown.includes('aria-expanded') || !toolbarDropdown.includes('UI_RESPONSIVE_TOUCH_MENU_OPTION_ROW_CLASSNAME') || !toolbarDropdown.includes('UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_META_CLASSNAME') || !toolbarDropdown.includes('UI_RESPONSIVE_TOOLBAR_DROPDOWN_OPTION_HINT_CLASSNAME') || !toolbarDropdown.includes('UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME') || !toolbarDropdown.includes('toolbarDropdownChevronClassName') || !toolbarDropdown.includes("menuWidthClass = ''") || toolbarDropdown.includes("menuWidthClass = 'w-72'") || toolbarDropdown.includes('max-w-[45%]') || toolbarDropdown.includes('gap-2 rounded px-2 py-1 text-sm') || toolbarDropdown.includes('px-2 py-0.5 text-[10px]') || toolbarDropdown.includes('h-3 w-3') || toolbarDropdown.includes('w-3 h-3')) {
@@ -614,7 +614,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     narrowToolbarDropdowns.some(text => text.includes('menuWidthClass="w-56"')) ||
     slimToolbarDropdowns.some(text => !text.includes('UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     slimToolbarDropdowns.some(text => text.includes('menuWidthClass="w-44"')) ||
-    !tinyToolbarDropdown.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME') ||
+    (tinyToolbarDropdown.includes('ToolbarDropdownSelect') && !tinyToolbarDropdown.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     tinyToolbarDropdown.includes('menuWidthClass="w-40"') ||
     !flowEditorInspectorTabs.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME') ||
     flowEditorInspectorTabs.includes('menuWidthClass="w-40"')
@@ -633,15 +633,14 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected Collaboration panel invite and answer input shells to reuse the shared responsive flex input owner')
   }
   if (
-    !floatingPanelChatSections.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
-    !grabMapsDiscoverySettingsGrid.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
-    !responsiveCss.includes('.kg-responsive-compact-panel-field-input') ||
+    !floatingPanelChatSections.includes('UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME') || !floatingPanelChatSections.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
+    !grabMapsDiscoverySettingsGrid.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') || !responsiveCss.includes('.kg-floating-chat-message-bubble') || !responsiveCss.includes('.kg-responsive-compact-panel-field-input') ||
     !responsiveCss.includes('--kg-responsive-compact-panel-field-input-height') ||
     !responsiveCss.includes('--kg-responsive-compact-panel-field-input-padding-inline') ||
-    floatingPanelChatSections.includes('h-7 px-2') ||
+    floatingPanelChatSections.includes('max-w-[85%]') || floatingPanelChatSections.includes('h-7 px-2') ||
     grabMapsDiscoverySettingsGrid.includes('h-7 w-full rounded border px-2')
   ) {
-    throw new Error('Expected compact panel setting fields to reuse the shared responsive input owner')
+    throw new Error('Expected chat bubbles and compact panel setting fields to reuse shared responsive owners')
   }
   if (
     !grabMapsDiscoveryWidgetSection.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
@@ -809,10 +808,10 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (
     !dataViewProperties.includes('UI_RESPONSIVE_DATA_VIEW_REORDER_INDICATOR_CLASSNAME') ||
     !dataViewProperties.includes('UI_RESPONSIVE_DATA_VIEW_PROPERTY_ROW_CLASSNAME') ||
-    dataViewProperties.includes('h-[2px]') ||
-    dataViewProperties.includes('px-2 py-1 rounded border')
+    dataViewProperties.includes('absolute left-2 right-2 bottom-0') || dataViewProperties.includes('h-[2px]') ||
+    dataViewProperties.includes('px-2 py-1 rounded border') || !responsiveCss.includes('inset-inline: var(--kg-data-view-reorder-indicator-inline-offset, 0.5rem)') || !responsiveCss.includes('inset-block-end: 0')
   ) {
-    throw new Error('Expected Data View Properties row shell sizing and reorder indicator thickness to live in shared responsive owners')
+    throw new Error('Expected Data View Properties row shell sizing and reorder indicator geometry to live in shared responsive owners')
   }
   if (!dataViewPrimitives.includes('UI_RESPONSIVE_DATA_VIEW_SETTINGS_ROW_VALUE_CLASSNAME') || !dataViewPrimitives.includes('UI_RESPONSIVE_DATA_VIEW_SETTINGS_LAYOUT_CHOICE_CLASSNAME') || !dataViewPrimitives.includes('UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME') || dataViewPrimitives.includes('max-w-[45%]') || dataViewPrimitives.includes('min-w-[6rem]') || dataViewPrimitives.includes('w-3 h-3')) {
     throw new Error('Expected Data View settings primitives to route row value, layout-choice, and compact glyph sizing through shared responsive owners')

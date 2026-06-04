@@ -45,6 +45,7 @@ import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMedia
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildStaticRichMediaPanelOverlayState, commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const previewPlaceholderClassName = `flex-1 w-full flex items-center justify-center rounded ${UI_THEME_TOKENS.button.neutralMuted} text-[10px] ${UI_THEME_TOKENS.text.secondary} px-2 text-center`
@@ -52,7 +53,9 @@ const previewEmptyStateClassName = `w-full h-full flex items-center justify-cent
 const previewActionButtonClassName = `text-xs px-3 py-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const previewPanelHeaderClassName = `shrink-0 border-b ${UI_THEME_TOKENS.panel.divider} bg-[color:var(--kg-panel-bg)]/60`
 const previewMetaBadgeClassName = `absolute right-1 top-1 rounded bg-[color:var(--kg-panel-bg)]/80 dark:bg-black/80 ${UI_THEME_TOKENS.text.primary} px-1 py-0.5 text-[9px] border ${UI_THEME_TOKENS.panel.border}`
-
+export const PREVIEW_PANEL_MEDIA_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'
+export const PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME = `kg-preview-panel-media-frame rounded border ${UI_THEME_TOKENS.panel.border}`
+const PREVIEW_PANEL_EMBED_FRAME_CLASS_NAME = `${PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME} bg-black/5`
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
 )
@@ -175,7 +178,7 @@ export default function PreviewPanelView() {
     return cleaned
   }
 
-  type MediaKind = 'mermaid' | 'image' | 'video' | 'iframe' | 'youtube' | 'vimeo' | 'webpage' | 'tweet'
+  type MediaKind = 'mermaid' | 'image' | 'video' | 'audio' | 'iframe' | 'youtube' | 'vimeo' | 'webpage' | 'tweet'
 
   type MediaSource = 'markdown' | 'graph'
 
@@ -204,6 +207,19 @@ export default function PreviewPanelView() {
       /^data:image\//i.test(href) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(href)
     const looksAudioUrl = (href: string) =>
       /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(href)
+    const pushHtmlMediaItem = (kind: 'iframe' | 'video' | 'audio', srcRaw: string | null, startLine: number) => {
+      if (!srcRaw || !isSafeHref(srcRaw) || !isSafeMediaSrc(srcRaw)) return
+      const src = resolveHref(srcRaw, docPath)
+      list.push({
+        key: buildMarkdownPreviewMediaKey(kind, startLine, srcRaw),
+        kind,
+        source: 'markdown',
+        startLine,
+        label: `${kind === 'iframe' ? 'Embedded content' : kind === 'video' ? 'Video' : 'Audio'} ${list.length + 1}`,
+        src,
+        openUrl: src,
+      })
+    }
 
     if (frontmatterMermaid) {
       const diagrams = frontmatterMermaidDiagrams
@@ -252,58 +268,19 @@ export default function PreviewPanelView() {
       if (tt.type === 'html') {
         const html = String((t as unknown as TokensHTML).text || '').trim()
 
-        if (looksLikeSingleTagBlock(html, 'iframe')) {
-          const srcRaw = extractAttr(html, 'src') || extractAttr(html, 'data-src')
-          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-            const src = resolveHref(srcRaw, docPath)
-            const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
-            list.push({
-              key,
-              kind: 'iframe',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `Embedded content ${list.length + 1}`,
-              src,
-              openUrl: src,
-            })
-          }
+        if (looksLikeSingleTagBlock(html, 'iframe') || looksLikeSingleTagBlock(html, 'embed') || looksLikeSingleTagBlock(html, 'object')) {
+          const isIframe = looksLikeSingleTagBlock(html, 'iframe')
+          const srcRaw = isIframe
+            ? extractAttr(html, 'src') || extractAttr(html, 'data-src')
+            : extractAttr(html, 'src') || extractAttr(html, 'data') || extractAttr(html, 'data-src')
+          pushHtmlMediaItem('iframe', srcRaw, t.startLine)
           continue
         }
 
-        if (looksLikeSingleTagBlock(html, 'embed') || looksLikeSingleTagBlock(html, 'object')) {
-          const srcRaw =
-            extractAttr(html, 'src') || extractAttr(html, 'data') || extractAttr(html, 'data-src')
-          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-            const src = resolveHref(srcRaw, docPath)
-            const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
-            list.push({
-              key,
-              kind: 'iframe',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `Embedded content ${list.length + 1}`,
-              src,
-              openUrl: src,
-            })
-          }
-          continue
-        }
-
-        if (looksLikeSingleTagBlock(html, 'video')) {
+        if (looksLikeSingleTagBlock(html, 'video') || looksLikeSingleTagBlock(html, 'audio')) {
+          const kind = looksLikeSingleTagBlock(html, 'video') ? 'video' : 'audio'
           const srcRaw = extractAttr(html, 'src') || extractAttr(html, 'data-src')
-          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-            const src = resolveHref(srcRaw, docPath)
-            const key = buildMarkdownPreviewMediaKey('video', t.startLine, srcRaw)
-            list.push({
-              key,
-              kind: 'video',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `Video ${list.length + 1}`,
-              src,
-              openUrl: src,
-            })
-          }
+          pushHtmlMediaItem(kind, srcRaw, t.startLine)
           continue
         }
 
@@ -450,14 +427,19 @@ export default function PreviewPanelView() {
             !looksAudioUrl(hrefRaw)
           const src = resolveHref(treatAsWebpage ? normalizedHref : hrefRaw, docPath)
           const idHint = `${hrefRaw}#${j}`
-          const kind: MediaKind = treatAsWebpage ? 'webpage' : 'image'
+          const kind: MediaKind = treatAsWebpage
+            ? 'webpage'
+            : altNorm.startsWith('audio') || looksAudioUrl(hrefRaw)
+              ? 'audio'
+              : 'image'
           const key = buildMarkdownPreviewMediaKey(kind, t.startLine, idHint)
+          const fallbackLabel = kind === 'audio' ? `Audio ${list.length + 1}` : treatAsWebpage ? `Webpage ${list.length + 1}` : `Image ${list.length + 1}`
           list.push({
             key,
             kind,
             source: 'markdown',
             startLine: t.startLine,
-            label: alt || (treatAsWebpage ? `Webpage ${list.length + 1}` : `Image ${list.length + 1}`),
+            label: alt || fallbackLabel,
             src,
             openUrl: hrefRaw,
             alt,
@@ -498,8 +480,7 @@ export default function PreviewPanelView() {
         const node = graphLookup?.nodeById.get(nodeId) || null
         const baseLabel = String(node?.label || nodeId).trim()
         const label = String(item.title || '').trim() || (baseLabel ? `Node media: ${baseLabel}` : 'Node media')
-        const kind: MediaKind =
-          item.kind === 'svg' ? 'image' : item.kind === 'video' ? 'video' : item.kind === 'iframe' ? 'iframe' : 'image'
+        const kind: MediaKind = item.kind === 'svg' ? 'image' : item.kind === 'video' || item.kind === 'audio' || item.kind === 'iframe' ? item.kind : 'image'
         const openUrl = String(item.openUrl || item.url || '').trim()
         const key = `graph-node-media:${nodeId}:${kind}:${openUrl || src || 'srcdoc'}`
         list.push({
@@ -625,28 +606,15 @@ export default function PreviewPanelView() {
       )
     }
 
-    const isRichMediaPanelKind =
-      activeMedia.kind === 'image'
-      || activeMedia.kind === 'video'
-      || activeMedia.kind === 'iframe'
-      || activeMedia.kind === 'youtube'
-      || activeMedia.kind === 'vimeo'
-      || activeMedia.kind === 'webpage'
-      || activeMedia.kind === 'tweet'
+    const isRichMediaPanelKind = activeMedia.kind !== 'mermaid'
 
     if (isRichMediaPanelKind) {
-      const richMediaKind = activeMedia.kind === 'image'
-        ? 'image'
-        : activeMedia.kind === 'video'
-          ? 'video'
-          : 'iframe'
+      const richMediaKind = activeMedia.kind === 'image' || activeMedia.kind === 'video' || activeMedia.kind === 'audio' ? activeMedia.kind : 'iframe'
       const richMediaTitle = activeMedia.panelTitle || activeMedia.alt || activeMedia.label
       const richMediaOpenUrl = activeMedia.openUrl || activeMedia.src
       const richMediaNeedsExplicitLoad = richMediaKind === 'iframe' && !String(activeMedia.srcDoc || '').trim()
       const richMediaLoaded = !richMediaNeedsExplicitLoad || loadedEmbedKey === activeMedia.key
-      const frameClass = richMediaKind === 'iframe'
-        ? `aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`
-        : `aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`
+      const frameClass = richMediaKind === 'iframe' ? PREVIEW_PANEL_EMBED_FRAME_CLASS_NAME : PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME
       return (
         <section className="w-full h-full flex items-center justify-center">
           <section className={frameClass}>
@@ -667,7 +635,7 @@ export default function PreviewPanelView() {
                     updateNode: (id, patch) => updateNode(id, patch as Partial<import('@/lib/graph/types').GraphNode>),
                   })
                 }}
-                style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+                style={PANEL_FRAME_EMBEDDED_SURFACE_STYLE}
               />
             ) : (
               <section className="w-full h-full flex items-center justify-center">
@@ -713,7 +681,7 @@ export default function PreviewPanelView() {
               </section>
               {mediaItems.length > 0 ? (
                 <section className="px-3 pb-3">
-                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  <section className={PREVIEW_PANEL_MEDIA_GRID_CLASS_NAME}>
                     {mediaItems.map(item => {
                       const isActiveMermaid =
                         hasMermaidFocus &&
@@ -758,7 +726,7 @@ export default function PreviewPanelView() {
             <section className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg}`}>
               {hasMermaidFocus ? (
                 <section className="w-full h-full flex items-center justify-center">
-                  <section className="aspect-video w-full max-w-4xl">
+                  <section className={PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME}>
                     <section className="w-full h-full overflow-auto">
                       {splitMermaidIntoDiagrams(mermaidFocusCode).map((code, i) => (
                         <React.Suspense key={i} fallback={null}>

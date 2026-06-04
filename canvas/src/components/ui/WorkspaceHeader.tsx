@@ -1,5 +1,6 @@
 import React from 'react'
 import { uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type WorkspaceHeaderBorder = 'border' | 'divider'
@@ -20,7 +21,7 @@ export function WorkspaceHeader(props: {
 
 export function WorkspaceHeaderRow(props: { ariaLabel?: string; className?: string; children: React.ReactNode }) {
   return (
-    <section className={['kg-workspace-header-row', uiToolbarRowScrollJustifyBetweenClassName, 'gap-1', props.className || ''].join(' ').trim()} aria-label={props.ariaLabel}>
+    <section className={[UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME, uiToolbarRowScrollJustifyBetweenClassName, 'gap-1', props.className || ''].join(' ').trim()} aria-label={props.ariaLabel}>
       {props.children}
     </section>
   )

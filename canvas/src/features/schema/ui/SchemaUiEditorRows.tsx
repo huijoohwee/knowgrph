@@ -16,6 +16,11 @@ const schemaInputClassName = `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} roun
 const schemaActionButtonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonMutedClassName}`
 const schemaLabelClassName = `text-xs ${UI_THEME_TOKENS.text.secondary} mb-1`
 const schemaValueTextClassName = `text-xs ${UI_THEME_TOKENS.text.primary}`
+export const SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME = 'flex min-h-0 flex-col'
+export const SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME = 'w-full flex-1 min-h-0'
+export const SCHEMA_UI_REQUIRED_FIELDS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3'
+export const SCHEMA_UI_PROPERTY_TYPE_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-2'
+export const SCHEMA_UI_LAYOUT_CONTROL_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4'
 
 function SchemaSubstepHeader({ title, label }: { title: string; label?: string }) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
@@ -117,7 +122,7 @@ export function SchemaUiMetadataContextRow({
   )
   return (
     <TwoColumnEditorGrid className="mt-2">
-      <section className="flex min-h-0 flex-col">
+      <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
         <SchemaSubstepHeader title="Metadata" label="Metadata" />
         <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           Shared provenance and RAG configuration belong here, not in per-type properties.
@@ -125,11 +130,11 @@ export function SchemaUiMetadataContextRow({
         <MarkdownStructuredTextEditor
           value={metadataText}
           onChange={v => setMetadataText(v)}
-          className="w-full flex-1 min-h-0"
+          className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
           language="json"
         />
       </section>
-      <section className="flex min-h-0 flex-col">
+      <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
         <SchemaSubstepHeader title="Context" label="Context" />
         <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           JSON-LD context for schema serialization.
@@ -137,7 +142,7 @@ export function SchemaUiMetadataContextRow({
         <MarkdownStructuredTextEditor
           value={contextText}
           onChange={v => setContextText(v)}
-          className="w-full flex-1 min-h-0"
+          className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
           language="json"
         />
       </section>
@@ -156,16 +161,16 @@ export function SchemaUiTemplatePropsRow({
   )
   return (
     <TwoColumnEditorGrid className="flex-1 min-h-0">
-      <section className="flex min-h-0 flex-col">
+      <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
         <SchemaSubstepHeader title="Template" label="Template" />
         <MarkdownStructuredTextEditor
           value={templateText}
           onChange={v => setTemplateText(v)}
-          className="w-full flex-1 min-h-0"
+          className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
           language="json"
         />
       </section>
-      <section className="flex min-h-0 flex-col">
+      <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
         <SchemaSubstepHeader title="Properties" label="Properties" />
         <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           For shared schemas, keep provenance and RAG configuration in top-level metadata or context,
@@ -174,7 +179,7 @@ export function SchemaUiTemplatePropsRow({
         <MarkdownStructuredTextEditor
           value={propsText}
           onChange={v => setPropsText(v)}
-          className="w-full flex-1 min-h-0"
+          className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
           language="json"
         />
       </section>
@@ -224,11 +229,11 @@ export function SchemaUiValidationRulesRow({
   )
   return (
     <TwoColumnEditorGrid className="mt-2">
-      <section className="flex min-h-0 flex-col">
+      <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
         <SchemaSubstepHeader title="Validation" label="Validation" />
         <section className="mb-2">
           <section className={schemaLabelClassName}>{UI_COPY.validationRequiredFieldsTitle}</section>
-          <section className="grid grid-cols-3 gap-1">
+          <section className={SCHEMA_UI_REQUIRED_FIELDS_GRID_CLASS_NAME}>
             {propertyNames.length === 0 && <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>(no properties)</section>}
             {propertyNames.map(p => (
               <label key={p} className="flex items-center gap-1 text-xs">
@@ -249,7 +254,7 @@ export function SchemaUiValidationRulesRow({
         </section>
         <section className="mb-2">
           <section className={schemaLabelClassName}>{UI_COPY.validationPropertyTypesTitle}</section>
-          <section className="grid grid-cols-2 gap-1">
+          <section className={SCHEMA_UI_PROPERTY_TYPE_GRID_CLASS_NAME}>
             {propertyNames.map(p => (
               <section key={p} className="flex items-center gap-1">
                 <span className={`${schemaValueTextClassName} ${UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME}`}>{p}</span>
@@ -339,11 +344,11 @@ export function SchemaUiValidationRulesRow({
         <MarkdownStructuredTextEditor
           value={validationText}
           onChange={v => setValidationText(v)}
-          className="w-full flex-1 min-h-0"
+          className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
           language="json"
         />
       </section>
-      <section className="flex min-h-0 flex-col">
+      <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
         <SchemaSubstepHeader title={rulesTitle ?? 'Rules'} label={rulesTitle ?? 'Rules'} />
         {rulesHelperText ? (
           <section className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
@@ -353,7 +358,7 @@ export function SchemaUiValidationRulesRow({
         <MarkdownStructuredTextEditor
           value={rulesText}
           onChange={v => setRulesText(v)}
-          className="w-full flex-1 min-h-0"
+          className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
           language="json"
         />
       </section>
@@ -431,7 +436,7 @@ export function SchemaUiLayoutSection({
   return (
     <section className="mt-2">
       <SchemaSubstepHeader title="Layout" label="Layout" />
-      <section className="grid grid-cols-4 gap-2">
+      <section className={SCHEMA_UI_LAYOUT_CONTROL_GRID_CLASS_NAME}>
         <section className="flex flex-col">
           <label className={schemaLabelClassName}>Charge</label>
           <input
@@ -486,21 +491,21 @@ export function SchemaUiLayoutSection({
         </section>
       </section>
       <TwoColumnEditorGrid className="mt-2">
-        <section className="flex min-h-0 flex-col">
+        <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
           <section className="text-xs font-medium mb-1">Link Distance by Label</section>
           <MarkdownStructuredTextEditor
             value={linkDistanceText}
             onChange={v => setLinkDistanceText(v)}
-            className="w-full flex-1 min-h-0"
+            className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
             language="json"
           />
         </section>
-        <section className="flex min-h-0 flex-col">
+        <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>
           <section className="text-xs font-medium mb-1">Collision Radius by Node Type</section>
           <MarkdownStructuredTextEditor
             value={collisionByTypeText}
             onChange={v => setCollisionByTypeText(v)}
-            className="w-full flex-1 min-h-0"
+            className={SCHEMA_UI_STRUCTURED_TEXT_EDITOR_CLASS_NAME}
             language="json"
           />
         </section>

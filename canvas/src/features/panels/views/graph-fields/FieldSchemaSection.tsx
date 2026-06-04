@@ -3,6 +3,7 @@ import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { GraphField, GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { GRAPH_FIELDS_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
 
 function inferPropertyTypeFromFieldType(
   fieldType: GraphFieldSettingsResolved['fieldType'],
@@ -81,7 +82,7 @@ export default function FieldSchemaSection({
         Schema
       </section>
 
-      <section className="grid grid-cols-2 gap-3">
+      <section className={GRAPH_FIELDS_FIELD_GRID_CLASS_NAME}>
         <section className="min-w-0">
           <label className={labelClassName}>
             {ownerLabel}

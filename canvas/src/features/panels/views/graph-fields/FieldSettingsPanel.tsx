@@ -43,6 +43,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { uiToolbarButtonNeutralClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { GRAPH_FIELDS_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
 import {
   UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_DESCRIPTION_EDITOR_CLASSNAME,
@@ -350,7 +351,7 @@ export default function FieldSettingsPanel({
               className="p-3 space-y-3"
             >
                 <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
-                <section className="grid grid-cols-2 gap-3">
+                <section className={GRAPH_FIELDS_FIELD_GRID_CLASS_NAME}>
                   <section className="min-w-0">
                     <label className={`block ${fieldLabelClassName}`} htmlFor="graph-fields-display-name">
                       {UI_LABELS.name}

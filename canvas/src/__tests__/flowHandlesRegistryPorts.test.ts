@@ -91,10 +91,12 @@ export const testFlowHandlesRebalanceRichMediaPanelPortsByActiveTab = () => {
         { portKey: 'output', direction: 'input' as const },
         { portKey: 'imageUrl', direction: 'input' as const },
         { portKey: 'videoUrl', direction: 'input' as const },
+        { portKey: 'audioUrl', direction: 'input' as const },
         { portKey: 'outputSrcDoc', direction: 'input' as const },
         { portKey: 'output', direction: 'output' as const },
         { portKey: 'imageUrl', direction: 'output' as const },
         { portKey: 'videoUrl', direction: 'output' as const },
+        { portKey: 'audioUrl', direction: 'output' as const },
         { portKey: 'outputSrcDoc', direction: 'output' as const },
       ],
       updatedAt: '2026-02-01T00:00:00.000Z',
@@ -113,5 +115,19 @@ export const testFlowHandlesRebalanceRichMediaPanelPortsByActiveTab = () => {
   }
   if (handles.out[0]?.id !== 'out:videoUrl') {
     throw new Error(`expected video tab output handles to prioritize out:videoUrl, got ${handles.out.map(h => h.id).join(',')}`)
+  }
+
+  const audioByNode = computeFlowHandlesByNode({
+    nodes: [{ id: 'panel-audio', type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, properties: { richMediaActiveTab: 'audio' } }],
+    edges: [],
+    widgetRegistry: registry,
+  })
+  const audioHandles = audioByNode['panel-audio']
+  if (!audioHandles) throw new Error('expected handles for audio rich media panel')
+  if (audioHandles.in[0]?.id !== 'in:audioUrl') {
+    throw new Error(`expected audio tab input handles to prioritize in:audioUrl, got ${audioHandles.in.map(h => h.id).join(',')}`)
+  }
+  if (audioHandles.out[0]?.id !== 'out:audioUrl') {
+    throw new Error(`expected audio tab output handles to prioritize out:audioUrl, got ${audioHandles.out.map(h => h.id).join(',')}`)
   }
 }

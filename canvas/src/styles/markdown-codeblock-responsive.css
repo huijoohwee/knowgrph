@@ -1,0 +1,16 @@
+.kg-markdown-code-annotation-panel {
+  width: 100%;
+  inline-size: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  .kg-markdown-code-annotation-panel--beside {
+    width: min(var(--kg-markdown-code-annotation-panel-width, 18rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+    inline-size: min(var(--kg-markdown-code-annotation-panel-width, 18rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+    max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+    max-inline-size: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+  }
+}

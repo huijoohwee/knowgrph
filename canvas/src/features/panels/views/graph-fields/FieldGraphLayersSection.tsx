@@ -4,6 +4,7 @@ import type { JSONValue } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME, GRAPH_FIELDS_TRIPLE_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type GraphLayerStyleMeta = {
@@ -134,7 +135,7 @@ export function FieldGraphLayersSection({
         </section>
       ) : (
         <section className="space-y-2">
-          <section className="grid grid-cols-2 gap-2">
+          <section className={GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME}>
             <section className="min-w-0">
               <section className={labelClassName}>
                 Fill color
@@ -158,7 +159,7 @@ export function FieldGraphLayersSection({
               />
             </section>
           </section>
-          <section className="grid grid-cols-3 gap-2">
+          <section className={GRAPH_FIELDS_TRIPLE_FIELD_GRID_CLASS_NAME}>
             <section className="min-w-0">
               <section className={labelClassName}>
                 Fill opacity
@@ -316,7 +317,7 @@ export function GraphLayerMetadataPresetsSection({
       <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
         Configure default fill, stroke, opacity, and dash used by cluster layers in both 2D and 3D views. Field-level overrides live in the schema extras panel.
       </section>
-      <section className="grid grid-cols-2 gap-2">
+      <section className={GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME}>
         <section className="min-w-0">
           <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill color
@@ -338,7 +339,7 @@ export function GraphLayerMetadataPresetsSection({
           />
         </section>
       </section>
-      <section className="grid grid-cols-3 gap-2">
+      <section className={GRAPH_FIELDS_TRIPLE_FIELD_GRID_CLASS_NAME}>
         <section className="min-w-0">
           <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill opacity
@@ -390,7 +391,7 @@ export function GraphLayerMetadataPresetsSection({
         <section className={headingClassName}>
           Metadata
         </section>
-        <section className="grid grid-cols-2 gap-2">
+        <section className={GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME}>
           <section className="min-w-0">
             <section className={labelClassName}>
               Grouping logic
@@ -422,7 +423,7 @@ export function GraphLayerMetadataPresetsSection({
             />
           </section>
         </section>
-        <section className="grid grid-cols-2 gap-2">
+        <section className={GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME}>
           <section className="min-w-0">
             <section className={labelClassName}>
               Label

@@ -1,0 +1,8 @@
+export const GRAPH_FIELDS_FIELD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2'
+export const GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2'
+export const GRAPH_FIELDS_DENSE_FIELD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-2'
+export const GRAPH_FIELDS_TRIPLE_FIELD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3'
+export const GRAPH_FIELDS_DENSE_TRIPLE_FIELD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3'
+export const GRAPH_FIELDS_MAIN_SPLIT_GRID_CLASS_NAME = 'grid min-h-0 min-w-0 grid-cols-1 gap-2 lg:grid-cols-3'
+export const GRAPH_FIELDS_MAIN_LIST_PANE_CLASS_NAME = 'min-h-0 min-w-0 overflow-auto lg:col-span-2'
+export const GRAPH_FIELDS_MAIN_SETTINGS_PANE_CLASS_NAME = 'min-h-0 min-w-0 overflow-auto lg:col-span-1'

@@ -54,6 +54,8 @@ export const UI_RESPONSIVE_BLOCK_MENU_ROW_CLASSNAME = `kg-menu-row w-full ${UI_R
 
 export const UI_RESPONSIVE_LABEL_ROW_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1 text-xs select-none`
 
+export const UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME = 'kg-workspace-header-row kg-toolbar'
+
 export const UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME = 'kg-content-start-padding'
 
 export const UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME = 'kg-content-start-offset'
@@ -62,9 +64,46 @@ export const UI_RESPONSIVE_CONTENT_START_OFFSET_BEFORE_CLASSNAME = 'kg-content-s
 
 export const UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME = 'kg-safe-viewport-panel'
 
+export const UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME = 'kg-responsive-viewport-scroll-panel overflow-auto'
+
+export const UI_RESPONSIVE_COMPACT_VIEWPORT_SCROLL_PANEL_CLASSNAME = 'kg-responsive-viewport-scroll-panel kg-responsive-viewport-scroll-panel--compact overflow-auto'
+
+export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME = 'kg-document-version-gitgraph-viewport shrink-0 overflow-auto'
+
+export const UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME = 'kg-document-version-gitgraph-viewport kg-document-version-gitgraph-viewport--compact shrink-0 overflow-auto'
+
+export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME = 'kg-document-version-gitgraph-surface relative'
+
+export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_CLASSNAME = 'pointer-events-auto absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border transition'
+
+export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME = 'border-blue-600 bg-blue-500/20 shadow-[0_0_0_3px_rgba(59,130,246,0.18)]'
+
+export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_IDLE_CLASSNAME = 'border-transparent bg-transparent hover:border-blue-500/70 hover:bg-blue-500/10'
+
 export const UI_RESPONSIVE_SIDE_PANEL_CLASSNAME = 'kg-responsive-side-panel'
 
 export const UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME = 'kg-floating-panel-subpanel'
+
+export const UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME = 'flex-1 min-h-0 overflow-y-auto overflow-x-hidden'
+
+export const UI_RESPONSIVE_CANVAS_PAGE_SURFACE_CLASSNAME = 'kg-canvas-page-surface relative flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden'
+
+export const UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME = 'absolute inset-0 pointer-events-none'
+
+export const UI_RESPONSIVE_PASSIVE_BASE_LAYER_SURFACE_CLASSNAME =
+  `${UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME} z-0`
+
+export const UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CLASSNAME = 'kg-canvas-toolbar-dock absolute z-[200] flex min-w-0 bg-transparent pointer-events-none'
+
+export const UI_RESPONSIVE_CANVAS_WORKSPACE_TOOLBAR_DOCK_CLASSNAME = 'kg-workspace-overlay-canvas-toolbar absolute z-[200] flex min-w-0 bg-transparent'
+
+export const UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CONTENT_CLASSNAME = 'kg-canvas-toolbar-dock-content pointer-events-auto min-w-0 max-w-full'
+
+export const UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME = 'kg-canvas-bottom-panel'
+
+export const UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME = 'kg-canvas-minimap-overlay'
+
+export const UI_RESPONSIVE_CANVAS_DOCUMENT_SWITCH_NOTICE_CLASSNAME = 'kg-canvas-document-switch-notice rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] text-sm text-[var(--kg-text-secondary)] shadow-sm'
 
 export const UI_RESPONSIVE_CANVAS_STATUS_ROW_CLASSNAME = 'kg-canvas-status-row'
 
@@ -75,6 +114,23 @@ export const UI_RESPONSIVE_CANVAS_TOOL_ACTION_CLASSNAME = 'kg-canvas-tool-action
 export const UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME = 'kg-anchor-preview-overlay'
 
 export const UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_BODY_CLASSNAME = 'kg-anchor-preview-overlay-body'
+
+export const UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME = 'kg-webpage-snapshot-overlay-badge'
+
+export const UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME = 'absolute inset-0 w-full h-full'
+
+export const UI_RESPONSIVE_WEBPAGE_SNAPSHOT_PREVIEW_MEDIA_CLASSNAME =
+  `kg-webpage-snapshot-media kg-webpage-snapshot-media--preview ${UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME}`
+
+export const UI_RESPONSIVE_WEBPAGE_SNAPSHOT_FAVICON_MEDIA_CLASSNAME =
+  `kg-webpage-snapshot-media kg-webpage-snapshot-media--favicon ${UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME}`
+
+export const UI_RESPONSIVE_WEBPAGE_SNAPSHOT_HOST_ICON_MEDIA_CLASSNAME =
+  `kg-webpage-snapshot-media kg-webpage-snapshot-media--host-icon ${UI_RESPONSIVE_FILL_MEDIA_SURFACE_CLASSNAME}`
+
+export const UI_RESPONSIVE_WEBPAGE_SNAPSHOT_MEDIA_BACKDROP_CLASSNAME = 'kg-webpage-snapshot-media-backdrop absolute inset-0'
+
+export const UI_RESPONSIVE_WEBPAGE_SNAPSHOT_EMPTY_MEDIA_CLASSNAME = 'kg-webpage-snapshot-empty-media absolute inset-0 bg-black/5'
 
 export const UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME = 'kg-media-overlay-action kg-media-overlay-action--sm'
 
@@ -226,9 +282,11 @@ export const UI_RESPONSIVE_TYPE_MENU_PANEL_CLASSNAME = 'kg-type-menu'
 
 export const UI_RESPONSIVE_DATA_VIEW_FILTER_MENU_PANEL_CLASSNAME = 'kg-data-view-filter-menu'
 
+export const UI_RESPONSIVE_DATA_VIEW_OPTION_MENU_LIST_CLASSNAME = 'kg-data-view-option-menu-list m-0 list-none overflow-auto p-0'
+
 export const UI_RESPONSIVE_DATA_VIEW_KANBAN_GROUP_CLASSNAME = 'kg-data-view-kanban-group'
 
-export const UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME = 'kg-data-view-kanban-card-list'
+export const UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME = 'kg-data-view-kanban-card-list flex flex-col gap-2 list-none m-0 overflow-y-auto p-2'
 
 export const UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME = 'kg-data-view-kanban-status-row'
 
@@ -256,7 +314,7 @@ export const UI_RESPONSIVE_MARKDOWN_SAFE_HTML_EMBED_FRAME_CLASSNAME = 'kg-markdo
 
 export const UI_RESPONSIVE_MARKDOWN_SAFE_HTML_PRESENTATION_EMBED_FRAME_CLASSNAME = 'kg-markdown-safe-html-embed-frame kg-markdown-safe-html-embed-frame--presentation'
 
-export const UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME = 'kg-markdown-inline-menu-list'
+export const UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME = 'kg-markdown-inline-menu-list list-none m-0 p-0'
 
 export const UI_RESPONSIVE_MARKDOWN_PRESENTATION_META_TEXT_CLASSNAME = 'kg-markdown-presentation-meta-text'
 
@@ -271,6 +329,8 @@ export const UI_RESPONSIVE_WIDE_DIALOG_MESSAGE_CLASSNAME = 'kg-responsive-wide-d
 export const UI_RESPONSIVE_MAIN_PANEL_OPEN_CARD_CLASSNAME = 'kg-main-panel-card kg-main-panel-card--open'
 
 export const UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME = 'kg-main-panel-card kg-main-panel-card--collapsed'
+
+export const UI_RESPONSIVE_MAIN_PANEL_MOBILE_SHEET_CLASSNAME = 'kg-main-panel-mobile-sheet absolute pointer-events-auto'
 
 export const UI_RESPONSIVE_FLOATING_NOTICE_CARD_CLASSNAME = 'kg-responsive-floating-notice-card'
 
@@ -324,6 +384,8 @@ export const UI_RESPONSIVE_SCHEMA_EDITOR_SERIALIZATION_EDITOR_CLASSNAME = 'kg-sc
 
 export const UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME = 'kg-multiline-text-input-editor'
 
+export const UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME = 'kg-floating-chat-message-bubble rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words leading-relaxed border'
+
 export const UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME = 'kg-schema-property-name'
 
 export const UI_RESPONSIVE_SCHEMA_RULES_TEXT_EDITOR_CLASSNAME = 'kg-schema-rules-text-editor'
@@ -343,6 +405,10 @@ export const UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_TOKEN_CLASSNAME = 'kg-graph-rag-wo
 export const UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_COMPACT_TOKEN_CLASSNAME = 'kg-graph-rag-workflow-token kg-graph-rag-workflow-token--compact'
 
 export const UI_RESPONSIVE_STATS_TOKEN_CHART_SLOT_CLASSNAME = 'kg-stats-token-chart-slot'
+
+export const UI_RESPONSIVE_STATS_MINI_CHART_SCROLL_CLASSNAME = 'kg-stats-mini-chart-scroll'
+
+export const UI_RESPONSIVE_STATS_TOKEN_LIST_PANEL_CLASSNAME = 'kg-stats-token-list-panel w-full overflow-y-auto'
 
 export const UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME = 'kg-compact-inline-control'
 
@@ -396,6 +462,8 @@ export const UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME = 'kg-responsive-
 
 export const UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME = 'kg-responsive-panel-table-field-input'
 
+export const UI_RESPONSIVE_PANEL_TABLE_ICON_ACTION_CLASSNAME = 'kg-responsive-panel-table-icon-action inline-flex items-center justify-center'
+
 export const UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME = 'kg-responsive-panel-inline-field'
 
 export const UI_RESPONSIVE_CONTROL_ROW_CLASSNAME = 'kg-responsive-control-row'
@@ -448,6 +516,8 @@ export const UI_RESPONSIVE_WIDE_PANEL_HEADER_SECONDARY_CLASSNAME = 'kg-responsiv
 
 export const UI_RESPONSIVE_DESIGN_PANEL_HEADER_ROW_CLASSNAME = 'kg-design-panel-header-row flex items-center'
 
+export const UI_RESPONSIVE_DESIGN_CANVAS_EDITOR_CHROME_CLASSNAME = 'kg-design-canvas-editor-chrome pointer-events-none absolute z-30 flex min-w-0 items-start gap-2'
+
 export const UI_RESPONSIVE_DESIGN_PANEL_SEARCH_BLOCK_CLASSNAME = 'kg-design-panel-search-block block'
 
 export const UI_RESPONSIVE_DESIGN_PANEL_SEARCH_FIELD_CLASSNAME = 'kg-design-panel-search-field flex items-center rounded border'
@@ -457,6 +527,8 @@ export const UI_RESPONSIVE_DESIGN_PANEL_CONTENT_CLASSNAME = 'kg-design-panel-con
 export const UI_RESPONSIVE_DESIGN_PANEL_EMPTY_ROW_CLASSNAME = 'kg-design-panel-empty-row block'
 
 export const UI_RESPONSIVE_DESIGN_PANEL_LIST_ROW_CLASSNAME = 'kg-design-panel-list-row flex items-center'
+
+export const UI_RESPONSIVE_DESIGN_PANEL_TOKEN_LIST_CLASSNAME = 'kg-design-panel-token-list m-0 list-none overflow-y-auto p-0'
 
 export const UI_RESPONSIVE_DESIGN_PANEL_TREE_ROW_CLASSNAME = 'kg-design-panel-tree-row flex items-center'
 

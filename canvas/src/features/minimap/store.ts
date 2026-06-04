@@ -1,4 +1,13 @@
-import { computeGraphBounds, MINIMAP_HEIGHT, MINIMAP_WIDTH } from '@/features/minimap/math'
+import {
+  MINIMAP_EDGE_LIMIT_DEFAULT,
+  MINIMAP_GRAPH_PAD_DEFAULT,
+  MINIMAP_HEIGHT,
+  MINIMAP_NODE_LIMIT_DEFAULT,
+  MINIMAP_NODE_SIZE_DEFAULT,
+  MINIMAP_WIDTH,
+  computeGraphBounds,
+  computeMinimapProjection,
+} from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 import { computeMinimapPreviewInWorker } from '@/features/minimap/workerClient'
 import type { GraphState } from '@/hooks/useGraphStore'
@@ -8,8 +17,8 @@ import type { StoreApi } from 'zustand'
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
-const EDGE_LIMIT = 20000
-const NODE_LIMIT = 25000
+const EDGE_LIMIT = MINIMAP_EDGE_LIMIT_DEFAULT
+const NODE_LIMIT = MINIMAP_NODE_LIMIT_DEFAULT
 
 function sampleNodes<T>(nodes: T[], limit: number): T[] {
   const max = Math.max(0, Math.floor(limit))
@@ -50,14 +59,12 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
     const { graphData, graphId } = get()
     const nodesAll = (graphData?.nodes || []) as GraphNode[]
     const edgesAll = (graphData?.edges || []) as GraphEdge[]
-    const bounds = computeGraphBounds(nodesAll, 20)
+    const bounds = computeGraphBounds(nodesAll, MINIMAP_GRAPH_PAD_DEFAULT)
     const miniW = MINIMAP_WIDTH
     const miniH = MINIMAP_HEIGHT
-    const scaleX = miniW / Math.max(1, bounds.width)
-    const scaleY = miniH / Math.max(1, bounds.height)
-    const sx = Math.min(scaleX, scaleY)
+    const { sx } = computeMinimapProjection(bounds, { w: miniW, h: miniH })
     const edgesPath = edgesAll.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodesAll, edgesAll, bounds, sx, graphId ?? '')
-    const nodesPath = buildNodesPathD(sampleNodes(nodesAll, NODE_LIMIT), bounds, sx, 3, graphId ?? '')
+    const nodesPath = buildNodesPathD(sampleNodes(nodesAll, NODE_LIMIT), bounds, sx, MINIMAP_NODE_SIZE_DEFAULT, graphId ?? '')
     set({ minimapPreview: { nodesPath, edgesPath, sx, bounds } })
     set({ lifecycleStage: 'minimapQuick' })
   },
@@ -78,7 +85,7 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
         nodes,
         edges,
         {
-          pad: 20,
+          pad: MINIMAP_GRAPH_PAD_DEFAULT,
           miniW: MINIMAP_WIDTH,
           miniH: MINIMAP_HEIGHT,
           edgeLimit: EDGE_LIMIT,
@@ -97,14 +104,12 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
           set({ lifecycleStage: 'minimapAsync' })
           return
         }
-        const bounds = computeGraphBounds(nodes, 20)
+        const bounds = computeGraphBounds(nodes, MINIMAP_GRAPH_PAD_DEFAULT)
         const miniW = MINIMAP_WIDTH
         const miniH = MINIMAP_HEIGHT
-        const scaleX = miniW / Math.max(1, bounds.width)
-        const scaleY = miniH / Math.max(1, bounds.height)
-        const sx = Math.min(scaleX, scaleY)
+        const { sx } = computeMinimapProjection(bounds, { w: miniW, h: miniH })
         const edgesPath = edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodes, edges, bounds, sx, graphId ?? '')
-        const nodesPath = buildNodesPathD(sampleNodes(nodes, NODE_LIMIT), bounds, sx, 3, graphId ?? '')
+        const nodesPath = buildNodesPathD(sampleNodes(nodes, NODE_LIMIT), bounds, sx, MINIMAP_NODE_SIZE_DEFAULT, graphId ?? '')
         set({ minimapPreview: { nodesPath, edgesPath, sx, bounds } })
         set({ lifecycleStage: 'minimapAsync' })
       })

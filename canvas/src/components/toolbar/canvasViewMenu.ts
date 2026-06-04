@@ -7,6 +7,7 @@ import {
   getCanvas2dRendererMenuDescription,
   getCanvas2dRendererMenuLabel,
   isD3Like2dRenderer,
+  supportsCanvas2dMinimap,
 } from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
 import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
@@ -68,6 +69,8 @@ export const buildCanvasViewOptions = (
 ): CanvasViewOption[] => {
   const animationApplicable = isAnimationApplicable(state)
   const timelineEnabled = resolveTimelineEnabled(state.timelineEnabled)
+  const minimapSupported = state.canvasRenderMode === '2d' && supportsCanvas2dMinimap(state.canvas2dRenderer)
+  const minimapVisible = minimapSupported && state.minimapCollapsed !== true
   const nodeShapeMode = state.schema.behavior?.nodeShapeMode
   const nodeShapeIcon =
     nodeShapeMode === 'rect'
@@ -347,6 +350,24 @@ export const buildCanvasViewOptions = (
           label: 'Ports',
           Icon: Share2,
           isActive: state.schema.behavior?.portHandles?.enabled === true,
+        },
+        {
+          id: 'control:minimap',
+          title: 'Minimap',
+          label: 'Minimap',
+          Icon: Map,
+          isActive: minimapVisible,
+          disabled: state.geospatialEnabled || !minimapSupported,
+          disabledReason: state.geospatialEnabled
+            ? 'Disabled in Geospatial Mode'
+            : !minimapSupported
+              ? 'Current renderer does not support Minimap'
+              : undefined,
+          enableHint: state.geospatialEnabled
+            ? 'Switch to Document Mode to enable'
+            : !minimapSupported
+              ? 'Switch to a minimap-capable 2D renderer'
+              : undefined,
         },
         {
           id: 'control:grid',

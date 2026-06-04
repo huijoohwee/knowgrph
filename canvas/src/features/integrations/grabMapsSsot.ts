@@ -1,6 +1,7 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { WidgetRegistryField, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { VirtualSettingsEntry } from '@/features/panels/views/byteplusSharedTextApiDocs'
+import { CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
 import {
   GRABMAPS_DOC_ROWS,
   MAPS_GEO_DOC_AREA,
@@ -113,7 +114,7 @@ export const GRABMAPS_DISCOVERY_FIELD_META: ReadonlyArray<GrabMapsDiscoveryField
     mapsRowKey: 'maps.grabmaps.mcp.discovery.chat_model',
     label: 'Discovery Chat Model',
     fieldType: 'select',
-    options: [{ value: 'gpt-5.4-nano', label: 'gpt-5.4-nano' }],
+    options: [{ value: CHAT_DEFAULT_MODEL, label: CHAT_DEFAULT_MODEL }],
   },
   {
     propertyKey: 'searchQuery',
@@ -211,8 +212,8 @@ export const GRABMAPS_DISCOVERY_FIELD_META: ReadonlyArray<GrabMapsDiscoveryField
 export const GRABMAPS_DISCOVERY_SETTING_SPECS: Readonly<Record<DiscoverySettingKey, GrabMapsDiscoverySettingSpec>> = {
   'maps.grabmaps.mcp.discovery.chatModel': {
     valueType: 'string',
-    defaultValue: 'gpt-5.4-nano',
-    options: ['gpt-5.4-nano'],
+    defaultValue: CHAT_DEFAULT_MODEL,
+    options: [CHAT_DEFAULT_MODEL],
   },
   'maps.grabmaps.mcp.searchPlaces.query': {
     valueType: 'string',

@@ -3,10 +3,10 @@ title: Knowgrph LLM Prompt Contract PRD-TAD (Implemented E2E)
 id: knowgrph-llm-prompt-contract-prd-tad
 schema: kgc-computing-flow/v1
 doc_type: prd-tad
-version: 0.3.4
+version: 0.3.14
 status: Accepted and implemented
 created: 2026-05-21
-updated: 2026-05-29
+updated: 2026-06-04
 author: "@airvio"
 repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
 repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
@@ -20,6 +20,7 @@ related_docs:
   - canvas/src/features/parsers/kgcSemanticGraph.ts
   - canvas/src/lib/graph/kgcSemanticQuery.ts
   - canvas/src/features/workspace-fs/applyWorkspaceImportToCanvas.ts
+  - canvas/src/features/chat/chatResponseStructuredContent.ts
 epics:
   - PRD-E1: MainPanel And FloatingPanel Chat Integration
   - PRD-E2: KGC Prompt Contract Hardening
@@ -56,6 +57,36 @@ changelog:
   - version: 0.3.4
     date: 2026-05-29
     summary: Documents the typed KGC semantic graph parser and query helpers as implemented parser owners for inline `@node:type:id` and `@edge:predicate:source->target` sigils, with no legacy untyped remap.
+  - version: 0.3.5
+    date: 2026-06-04
+    summary: Adds the shared generated-output and audio media rendering contract so headless chat and Flow Editor responses land in editable Card/Storyboard rows and render audio through existing card, panel, overlay, inventory, importer, and HTML export owners.
+  - version: 0.3.6
+    date: 2026-06-04
+    summary: Adds MCP-shaped chat structured-content projection so standard, recovered, or already-accepted FloatingPanel Chat KGC responses can materialize widgets, panels, cards, media, and authored edges as canonical Rich Media Panel nodes and frontmatter-flow edges.
+  - version: 0.3.7
+    date: 2026-06-04
+    summary: Keeps accepted-KGC widget-bundle overlay metadata aligned by appending projected MCP-shaped response node ids to existing `widget_bundle.graph.nodes_ref` before parser and Flow Editor rendering.
+  - version: 0.3.8
+    date: 2026-06-04
+    summary: Normalizes Knowgrph-native typed `{key,type,value}` envelopes and `properties[]` KTV rows inside MCP-shaped chat structured-content records before projecting Rich Media Panel nodes and edges.
+  - version: 0.3.9
+    date: 2026-06-04
+    summary: Preserves declared Flow Editor widget forms from MCP-shaped chat structured-content `widgets[]` records as real widget nodes with widget ports, while undeclared panels/cards/media/nodes remain Rich Media Panel endpoints.
+  - version: 0.3.10
+    date: 2026-06-04
+    summary: Adds document-scoped `flow:widgetRegistry` projection and parser merge support so declared chat widget records resolve through Flow Editor widget registry owners without relying on user-local registry state.
+  - version: 0.3.11
+    date: 2026-06-04
+    summary: Makes MCP-shaped chat structured content explicitly compute-aware by preserving safe `flow:compute` widget data, dataflow handle edges, shared connected-value recomputation, and Flow Editor run-all eligibility through the workspace apply path.
+  - version: 0.3.12
+    date: 2026-06-04
+    summary: Documents shared inline-edit writeback for projected MCP response output fields, including flattened field and native `properties` mirror alignment through the card patch/updateNode owner.
+  - version: 0.3.13
+    date: 2026-06-04
+    summary: Documents provider-free Flow Editor workflow execution for authored `flow:compute` nodes so MCP-projected compute widgets write output through shared workflow writeback before TextGeneration provider dispatch.
+  - version: 0.3.14
+    date: 2026-06-04
+    summary: Documents submit-path acceptance for literal MCP structured results that already contain a renderable structured surface, finalizing without KGC retry or synthetic KGC text.
 ---
 
 # Knowgrph - LLM Prompt Contract PRD-TAD (Implemented E2E)
@@ -76,13 +107,15 @@ The current repo already has a working upstream path for chat-generated structur
 4. `floatingPanelChatSubmitCoordinator.ts` owns the async submit lifecycle by composing dedicated helpers for draft bootstrap, request assembly, provider transport fallback, streaming draft writes, and KGC retry/validation.
 5. The streaming helpers capture raw SSE JSON chunks, keep the editor on the live `kgc-trace_<session>.md` draft, and persist timestamped `chat-stream-log_*`, `chat-stream-report*`, and dereferenced share/report markdown artifacts in the same workspace session folder.
 6. `useFinalizeAssistantSuccess` writes the canonical `kgc_<session>.md` workspace document from that folder and calls `applyChatKgcWorkspaceDocumentToCanvas()`.
-7. `applyChatKgcWorkspaceDocumentToCanvas()` loads the saved Markdown into `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`.
+7. `applyChatKgcWorkspaceDocumentToCanvas()` materializes the saved Markdown through `applyWorkspaceImportToCanvas()` for Source Files, then loads it into `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`.
 8. The Markdown parser prefers `tryParseMarkdownFrontmatterFlowGraph()` before generic Markdown or JSON-LD parsing.
 9. Typed KGC semantic sigils are parsed by `parseKgcSemanticGraphFromMarkdown()` and merged through the shared Markdown parser without replacing frontmatter-flow ownership.
 10. Frontmatter-flow metadata becomes `GraphData` with `context: 'frontmatter-flow'`.
 11. `flow.subgraphs` are normalized into `kg:subgraphs`, then `readSubgraphs()` and `deriveGraphGroups()` project them into rendered groups and cluster underlays.
 
 This document enhances that existing path. It does not invent a second one.
+
+When a standard, recovered, literal MCP, or already-accepted KGC chat answer includes structured content as `response.structuredContent`, `result.structuredContent`, or a structured block inside `result.content[]` text parts, the same path converts declared `widgets[]` form records into real Flow Editor widget nodes with document-scoped `flow:widgetRegistry` entries, and converts undeclared widgets, panels, cards, media, nodes, and authored edges into canonical frontmatter-flow Rich Media Panel endpoints and edges before workspace apply. Literal MCP results that already extract to a renderable structured surface are accepted by the submit validation owner and finalize without retrying for a KGC block or synthesizing KGC text. Plain scalar records, exact typed `{key,type,value}` envelopes, and `properties[]` KTV rows normalize to the same record shape. Declared widget records may also carry safe `flow:compute` data that reads incoming handle keys from `inputs` and emits output-port values through `computeFlowConnectedValuesBySchemaPath()`, so inline compute and live dataflow stay on the shared Flow Editor runtime; Flow Editor workflow execution resolves those computed output schema paths and writes them through the shared workflow writeback helper before any provider TextGeneration branch. Projected output fields stay inline-editable through the shared card patch/updateNode path, which keeps flattened fields and any native `properties` mirror aligned before frontmatter writeback. If an accepted KGC already uses `widget_bundle.graph.nodes_ref`, projection extends that upstream overlay list so Flow Editor opens the generated response widgets without a renderer-local exception.
 
 ---
 
@@ -96,15 +129,17 @@ This document enhances that existing path. It does not invent a second one.
 | Floating chat mount | FloatingPanel toolbar view switch | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx`, `canvas/src/components/ui/FloatingPanel.tsx` | FloatingPanel mounts `FloatingPanelChatLazy` when the chat panel is selected. |
 | Chat UI | Floating panel chat feature | `canvas/src/features/chat/FloatingPanelChat.tsx` | FloatingPanelChat is the active runtime owner for LLM chat UI state and graph/workspace context reads. |
 | System prompt contract | Base chat response contracts | `canvas/src/features/chat/chatResponseBaseContract.ts` | `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT` is the current chatKnowgrph KGC contract owner. |
+| Chat structured-content projection | MCP-shaped chat response materializer | `canvas/src/features/chat/chatResponseStructuredContent.ts`, `canvas/src/features/chat/chatResponseStructuredContentProjector.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.baseFallback.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.build.ts`, `canvas/src/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope.ts`, `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts`, `canvas/src/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs.ts` | Extracts `response.structuredContent`, literal MCP `result.structuredContent`, and structured `result.content[]` text blocks from standard, recovered, literal MCP, or accepted KGC assistant YAML/JSON/frontmatter, normalizes plain fields plus typed KTV envelopes, projects declared widget forms as real Flow Editor widget nodes with document-scoped widget registry entries, preserves safe `flow:compute` widget data for the shared connected-value runtime and provider-free workflow-run output writeback, and projects neutral render records into Rich Media Panel endpoints, canonical `flow.edges`, and existing `widget_bundle.graph.nodes_ref` before parser/canvas apply. |
 | Submit hook shell | Submit hook shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Thin hook shell that resolves endpoint guards, initializes optimistic state, and delegates the async submit lifecycle. |
 | Submit preflight | Preflight helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitPreflight.ts` | Owns endpoint/model guards, optimistic message setup, cache updates, and trace-draft bootstrap. |
 | Submit coordinator | Submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Owns the async submit lifecycle and composes request-build, transport, streaming, KGC retry/validation, and terminal state helpers. |
 | Request build and transport | Submit request and transport helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitTransport.ts` | Builds packed context and payload messages, resolves token-limit strategy, retries transport safely, and falls back models upstream. |
-| Streaming and KGC retry | Streaming, recovery, validation, and stream artifacts | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts`, `canvas/src/features/chat/chatMarkdownValidation.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts`, `canvas/src/features/chat/chatStreamArtifacts.ts` | Parses raw SSE chunks into live drafts, canonical KGC candidates, session stream artifacts, and correction-prompt retries without downstream reinterpretation. |
-| Final persistence and apply | Finalize success runtime | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | Writes the canonical KGC workspace file and applies it to canvas through the workspace-document path. |
-| Workspace KGC apply | Chat KGC canvas bridge | `canvas/src/features/chat/chatKgcCanvasApply.ts` | Applies saved Markdown by reusing `setActiveMarkdownDocument`, not by local graph patching. |
+| Streaming and KGC retry | Streaming, recovery, validation, and stream artifacts | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts`, `canvas/src/features/chat/chatMarkdownValidation.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts`, `canvas/src/features/chat/chatStreamArtifacts.ts` | Parses raw SSE chunks into live drafts, canonical KGC candidates, literal MCP structured-surface acceptances, session stream artifacts, and correction-prompt retries without downstream reinterpretation. |
+| Final persistence and apply | Finalize success runtime | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | Writes the canonical KGC workspace file, follows it in Editor Workspace, and applies it through the workspace-document path. |
+| Workspace KGC apply | Chat KGC canvas bridge + workspace import owner | `canvas/src/features/chat/chatKgcCanvasApply.ts`, `canvas/src/features/workspace-fs/applyWorkspaceImportToCanvas.ts` | Materializes the saved Markdown into Source Files, then reuses `setActiveMarkdownDocument`, not local graph patching. |
+| Flow Editor widget run output | Shared widget run artifact owner | `canvas/src/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions.ts`, `canvas/src/features/chat/richMediaRun.ts`, `canvas/src/features/chat/chatHistoryWorkspace.output.ts`, `canvas/src/features/workspace-fs/applyWorkspaceImportToCanvas.ts` | Persists final text/transcript output as sibling workspace Markdown, persists image/video binaries with editable Markdown manifests, routes audio media URLs through shared card/panel/output owners, passively registers text and media manifests in Source Files, and carries workspace paths through widgets and Rich Media Panels. |
 | Markdown parse priority | Default parser pipeline | `canvas/src/features/parsers/default.ts` | `tryParseMarkdownFrontmatterFlowGraph()` runs before generic Markdown/JSON-LD parsing. |
-| Frontmatter-flow parse | Frontmatter-flow parser core | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` plus supporting parser modules | Parses YAML frontmatter or body `flow:` blocks, nodes, edges, subgraphs, clusters, and metadata. |
+| Frontmatter-flow parse | Frontmatter-flow parser core | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` plus supporting parser modules | Parses canonical YAML frontmatter `flow:` blocks, nodes, edges, subgraphs, clusters, and metadata. Body text is a human projection or typed KGC semantic-reference surface, not a second Flow Editor topology layer. |
 | Typed KGC semantic graph | KGC semantic parser and query helpers | `canvas/src/features/parsers/kgcSemanticGraph.ts`, `canvas/src/lib/graph/kgcSemanticQuery.ts`, `canvas/src/hooks/active-graph-data/workspaceStructuredGraph.ts` | Parses typed inline `@node:type:id` / `@edge:predicate:source->target` sigils, emits semantic-keyed GraphData, and keeps untyped legacy references out of the graph. |
 | Interactive import replay | Workspace import path | `canvas/src/features/workspace-fs/applyWorkspaceImportToCanvas.ts`, `canvas/src/features/parsers/frontmatterFlowImportMode.ts`, `canvas/src/features/parsers/applyGraphDataCanonicalBootstrap.ts` | Applies graph data and view presets through canonical import helpers. |
 | Group and cluster render | Group derivation and rendering | `canvas/src/lib/graph/subgraphs.ts`, `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | `kg:subgraphs` is the group SSOT; rendered group IDs are `subgraph:${id}`. |
@@ -336,23 +371,45 @@ then it MUST persist the canonical KGC workspace file and call `applyChatKgcWork
 **PRD-E3-AC3**  
 Given `applyChatKgcWorkspaceDocumentToCanvas()` is called,  
 when the workspace document is eligible for graph application,  
-then the apply path MUST reuse `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })` and MUST NOT patch graph state directly from raw assistant text.
+then the apply path MUST first materialize the saved document through `applyWorkspaceImportToCanvas()` for Source Files and shared renderers, then reuse `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`, and MUST NOT patch graph state directly from raw assistant text.
 
 **PRD-E3-AC4**  
 Given the provider emits raw SSE JSON chunks or cited share/report URLs,  
 when the shared streaming and finalize lifecycle runs,  
 then it MUST persist session-folder stream artifacts and dereferenced markdown artifacts on the same workspace path without adding a second fetch or graph-apply runtime.
 
-**PRD-E3-AC5**  
-Given the first returned KGC Markdown fails structural validation,  
-when retry budget remains,  
+**PRD-E3-AC5**
+Given the first returned KGC Markdown fails structural validation,
+when retry budget remains,
 then `floatingPanelChatSubmitCoordinator.ts` with `floatingPanelChatKgcAttempt.ts` MUST build a correction prompt from the first validation error and retry the same upstream contract instead of switching to a parallel fallback architecture.
+
+**PRD-E3-AC6**
+Given a Flow Editor Text Widget or Video Transcriber Widget completes with final Markdown text,
+when an active workspace document path exists,
+then the run MUST persist one sibling workspace Markdown artifact through `writeTextWidgetRunOutputArtifact()`, register that artifact through `applyWorkspaceImportToCanvas({ applyToGraph: false })`, and pass the resulting `outputPath` through shared widget and Rich Media Panel output patches.
+
+**PRD-E3-AC7**
+Given a Flow Editor Image Generation or Video Generation Widget completes with a generated binary asset,
+when an active workspace document path exists,
+then the run MUST persist the generated binary sibling artifact, persist one editable Markdown manifest through `writeRichMediaWidgetRunOutputArtifact()`, register that manifest through `applyWorkspaceImportToCanvas({ applyToGraph: false })`, and pass both `outputPath` and `outputManifestPath` through shared widget and Rich Media Panel output patches.
+
+**PRD-E3-AC8**
+Given a chat or Flow Editor response includes generated output text and audio media URL fields,
+when the response is parsed into graph nodes or Flow Editor widgets,
+then output/result/response/transcript text MUST appear in the shared editable Card and Storyboard Output row, while audioUrl/audio/audio_url/inferred audio resources MUST render through shared CardMediaPreview, Rich Media Panel, overlay, inventory, importer, and HTML export owners.
+
+**PRD-E3-AC9**
+Given a FloatingPanel Chat response includes MCP-style `response.structuredContent`, literal MCP `result.structuredContent`, or structured `result.content[]` widgets, panels, cards, media, nodes, or edges,
+when KGC persistence normalizes a standard, recovered, or accepted assistant response,
+then `floatingPanelChatKgcAttempt.ts` MUST accept a renderable literal MCP structured surface without retrying for KGC or synthesizing KGC text, and `chatResponseStructuredContent.ts` MUST normalize plain scalar fields, exact typed `{key,type,value}` envelopes, and `properties[]` KTV rows into the same neutral record shape, MUST preserve declared `widgets[]` form records as canonical Flow Editor widget nodes with widget form metadata, document-scoped widget registry entries, widget source/target handles, and safe `flow:compute` data when authored, MUST project undeclared widget/panel/card/media/node records into canonical KGC `flow.nodes` and `flow.edges` as Rich Media Panel endpoints with `output`, `imageUrl`, `videoUrl`, `audioUrl`, or `outputSrcDoc` fields, MUST preserve handle-bearing authored edges between structured-content records or from `n-deliver`, MUST let shared connected-value computation drive downstream panels and run-all eligibility after workspace apply, MUST execute authored `flow:compute` nodes through provider-free shared workflow writeback before TextGeneration provider dispatch, and MUST append projected node ids to an existing `widget_bundle.graph.nodes_ref` without renderer-local graph patching.
 
 #### Success metric
 
 - One canonical saved KGC document per chat turn.
 - One trace companion path per KGC session timestamp.
 - One timestamped workspace session folder for stream logs, stream reports, and dereferenced share/report artifacts.
+- One passive sibling workspace artifact or manifest for each completed Flow Editor text, transcript, image, or video run that has an active workspace document.
+- MCP-style chat structured-content records parse into declared Flow Editor widget nodes and document-scoped registry entries when form metadata is present, editable Rich Media Panel endpoint nodes otherwise, default delivery edges, authored record-to-record edges, and existing widget-bundle overlay refs through the normalized KGC document, not a provider-specific renderer branch.
 - No direct raw-text-to-graph patch path exists outside workspace-document apply.
 
 ---
@@ -371,7 +428,7 @@ when it contains frontmatter-flow graph content,
 then `default.ts` MUST prefer `tryParseMarkdownFrontmatterFlowGraph()` before generic Markdown or JSON-LD parsing.
 
 **PRD-E4-AC2**  
-Given a KGC document contains a YAML frontmatter `flow:` block or body `flow:` block,  
+Given a KGC document contains a YAML frontmatter `flow:` block,
 when `tryParseMarkdownFrontmatterFlowGraph()` parses it,  
 then it MUST return `GraphData` with `context: 'frontmatter-flow'`, normalized nodes, normalized edges, and metadata built by the frontmatter-flow compose helpers.
 
@@ -442,6 +499,7 @@ The prompt contract MUST produce Markdown that is simultaneously:
 - valid as a standalone KGC workspace document
 - structurally parseable by the current frontmatter-flow parser path
 - request-shaped instead of template-cloned
+- headless and renderer-neutral so Editor Workspace, Flow Editor, Storyboard, Rich Media Panels, Cards, Widgets, and Edges render the same saved data through shared owners
 - compatible with group, cluster, and canvas import semantics already present in-repo
 - resistant to stale labels, duplicated sections, hardcodes, and parallel grouping aliases
 
@@ -519,5 +577,5 @@ See continuation in `knowgrph-llm-prompt-contract-prd-tad.companion.md` for:
 ---
 
 *Document ID: `knowgrph-llm-prompt-contract-prd-tad`*  
-*Version: `0.3.4`*  
-*Updated: `2026-05-29`*
+*Version: `0.3.14`*
+*Updated: `2026-06-04`*

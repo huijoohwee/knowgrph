@@ -3,6 +3,7 @@ import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { formatDateDraftFromCellValue, normalizeDateDraftToValue } from '@/features/graph-table/ui/fast-grid/dateCellValue'
+import { GRAPH_TABLE_DATE_PICKER_STYLE } from '@/features/graph-table/ui/graphTableResponsiveMetrics'
 
 function addMonths(d: Date, delta: number): Date {
   const next = new Date(d.getTime())
@@ -210,7 +211,7 @@ export function DateCellEditor(props: {
           role="dialog"
           aria-label="Date picker"
           className={`absolute left-0 mt-1 rounded border shadow-lg ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
-          style={{ width: 260 }}
+          style={GRAPH_TABLE_DATE_PICKER_STYLE}
           onPointerDown={e => {
             e.preventDefault()
           }}

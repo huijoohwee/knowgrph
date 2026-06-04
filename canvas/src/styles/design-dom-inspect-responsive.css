@@ -1,0 +1,14 @@
+.kg-design-dom-inspect-row-grid {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  padding-block: 0.25rem;
+}
+
+@media (min-width: 640px) {
+  .kg-design-dom-inspect-row-grid {
+    grid-template-columns: minmax(0, min(var(--kg-design-dom-inspect-label-width, 6.875rem), 40vw)) minmax(0, 1fr);
+  }
+}

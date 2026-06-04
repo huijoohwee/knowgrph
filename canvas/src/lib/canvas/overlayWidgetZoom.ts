@@ -61,6 +61,31 @@ export function computeWidgetScaledSize(scale: number): { width: number; height:
   }
 }
 
+export function projectCollectiveScreenLayoutForZoom(args: {
+  base: { left: number; top: number; scale: number }
+  scale: number
+  anchorX: number
+  anchorY: number
+  baseWidth: number
+  baseHeight: number
+}): { left: number; top: number } {
+  const baseScale = Number.isFinite(args.base.scale) && args.base.scale > 0 ? args.base.scale : 1
+  const nextScale = Number.isFinite(args.scale) && args.scale > 0 ? args.scale : baseScale
+  const baseWidth = Math.max(1, Number(args.baseWidth) || 1)
+  const baseHeight = Math.max(1, Number(args.baseHeight) || 1)
+  const anchorX = Number.isFinite(args.anchorX) ? args.anchorX : 0
+  const anchorY = Number.isFinite(args.anchorY) ? args.anchorY : 0
+  const ratio = nextScale / Math.max(0.001, baseScale)
+  const baseCenterX = args.base.left + (baseWidth * baseScale) / 2
+  const baseCenterY = args.base.top + (baseHeight * baseScale) / 2
+  const nextCenterX = anchorX + (baseCenterX - anchorX) * ratio
+  const nextCenterY = anchorY + (baseCenterY - anchorY) * ratio
+  return {
+    left: nextCenterX - (baseWidth * nextScale) / 2,
+    top: nextCenterY - (baseHeight * nextScale) / 2,
+  }
+}
+
 export function computeCollectiveFollowZoomK(args: {
   zoomK: number
   baselineZoomK?: number | null

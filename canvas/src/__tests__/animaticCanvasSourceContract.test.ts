@@ -5,6 +5,7 @@ const normalizeSpace = (value: string): string => String(value || '').replace(/\
 
 export function testAnimaticCanvasRetainsNativeRunnerAutoScrollSwitchContract() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
+  const cssText = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.css'), 'utf8')
   const orderedSnippets = [
     '<section className="player-config">',
     'type="button"',
@@ -12,7 +13,6 @@ export function testAnimaticCanvasRetainsNativeRunnerAutoScrollSwitchContract() 
     'aria-checked={runtimeAutoScrollEnabled}',
     "className={runtimeAutoScrollEnabled ? 'ant-switch ant-switch-checked' : 'ant-switch'}",
     'ant-click-animating="true"',
-    'style={{ marginBottom: 20 }}',
     '<section className="ant-switch-handle"></section>',
     '<span className="ant-switch-inner">Enable Runtime Auto Scroll</span>',
     '<section className="ant-click-animating-node"></section>',
@@ -31,12 +31,16 @@ export function testAnimaticCanvasRetainsNativeRunnerAutoScrollSwitchContract() 
     }
     previousIndex = nextIndex
   }
+  if (!cssText.includes('--kg-animatic-switch-block-end-gap') || !cssText.includes('margin-bottom: var(--kg-animatic-switch-block-end-gap, 20px);') || text.includes('style={{ marginBottom: 20 }}')) {
+    throw new Error('expected AnimaticCanvas runner switch spacing to live in AnimaticCanvas.css instead of inline component styles')
+  }
 }
 
 export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
   const transportText = readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'TimelineTransportControls.tsx'), 'utf8')
   const transportUtilsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'timelineTransport.ts'), 'utf8')
+  const responsiveToolbarText = readFileSync(resolve(process.cwd(), 'src', 'styles', 'responsive-toolbar.css'), 'utf8')
   const sharedTransportText = [text, transportText, transportUtilsText].join('\n')
   for (const snippet of [
     'const SCALE_ROW_HEIGHT_PX = 32',
@@ -64,7 +68,6 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     "backgroundPositionX: `0px, ${timelineModel.scaleConfig.startLeft}px`",
     "backgroundSize: `${timelineModel.scaleConfig.startLeft}px, ${timelineModel.scaleConfig.scaleWidth}px`",
     'paddingLeft: timelineModel.scaleConfig.startLeft',
-    "touchAction: 'pan-x manipulation'",
     '<section className="timeline-player">',
     'className="play-control"',
     "aria-label={playing ? 'Pause playback' : 'Start playback'}",
@@ -156,6 +159,9 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
       throw new Error(`expected AnimaticCanvas player shell to avoid local-only meta chrome snippet: ${forbiddenSnippet}`)
     }
   }
+  if (text.includes("touchAction: 'pan-x") || !responsiveToolbarText.includes('touch-action: pan-x')) {
+    throw new Error('expected Animatic timeline row scrolling touch behavior to stay in the shared toolbar row-scroll CSS owner')
+  }
 }
 
 export function testAnimaticCanvasDoesNotImportVendorTimelineEditor() {
@@ -205,7 +211,7 @@ export function testAnimaticCanvasReusesSharedToolbarIconButtons() {
 
 export function testAnimaticCanvasSurfacesBeatSummaryAndTagsInTimelineCards() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
-  for (const snippet of ['BEAT_HEADER_HEIGHT_PX = 72', 'buildBeatLaneSummary', 'handleFocusLaneFromBeatCard', 'highlightedLaneShortcutId === lane.id', 'beatLaneSummary.length > 0 ? (', 'LANE_LABEL[laneId]', 'beat.summary ? (', 'beat.tags.length > 0 ? (', 'beat.tags.slice(0, 3)', '+{beat.tags.length - 3}', 'SELECTED_BEAT_HINTS', 'laneInlineScrollClassName', 'laneInlineScrollStyle', "title: 'Rename beat (L)'", "title: 'Duplicate beat (D)'"]) {
+  for (const snippet of ['BEAT_HEADER_HEIGHT_PX = 72', 'buildBeatLaneSummary', 'handleFocusLaneFromBeatCard', 'highlightedLaneShortcutId === lane.id', 'beatLaneSummary.length > 0 ? (', 'LANE_LABEL[laneId]', 'beat.summary || isActiveBeat ? (', 'beat.tags.length > 0 ? (', 'beat.tags.slice(0, 3)', '+{beat.tags.length - 3}', 'SELECTED_BEAT_HINTS', 'laneInlineScrollClassName', "title: 'Rename beat (L)'", "title: 'Duplicate beat (D)'"]) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimaticCanvas beat cards to surface metadata snippet: ${snippet}`)
     }
@@ -245,6 +251,8 @@ export function testAnimaticCanvasAvoidsFixtureOnlyTimelineRows() {
 
 export function testAnimaticCanvasRegistersNativeTimelineHotkeys() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
+  const transportText = readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'TimelineTransportControls.tsx'), 'utf8')
+  const sharedTimelineText = [text, transportText].join('\n')
   for (const snippet of [
     "from '@/components/AnimaticCanvas/animaticKeyboard'",
     'resolveAnimaticTimelineHotkeyAction(event)',
@@ -294,7 +302,6 @@ export function testAnimaticCanvasRegistersNativeTimelineHotkeys() {
     'TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME',
     'SELECTED_LANE_HINTS.map(hint => (',
     'laneInlineScrollClassName',
-    'laneInlineScrollStyle',
     'title={hint.title}',
     "if (event.key === 'ArrowUp')",
     "if (event.key === 'ArrowDown')",
@@ -330,7 +337,6 @@ export function testAnimaticCanvasRegistersNativeTimelineHotkeys() {
     'SELECTED_ITEM_HINTS',
     'SELECTED_ITEM_HINTS.map(hint => (',
     'laneInlineScrollClassName',
-    'laneInlineScrollStyle',
     "label: ','",
     "label: '.'",
     'beatOptionRefs',
@@ -349,7 +355,7 @@ export function testAnimaticCanvasRegistersNativeTimelineHotkeys() {
     "title: 'Duplicate beat (D)'",
     "title: 'Split beat (S)'",
   ]) {
-    if (!text.includes(snippet)) {
+    if (!sharedTimelineText.includes(snippet)) {
       throw new Error(`expected AnimaticCanvas to retain native hotkey contract snippet: ${snippet}`)
     }
   }

@@ -1,4 +1,3 @@
-import { isLikelyImageUrl } from '@/lib/url'
 import {
   buildBilibiliEmbedUrl,
   buildTwitterEmbedUrl,
@@ -6,8 +5,9 @@ import {
   buildYouTubeEmbedUrl,
   buildYouTubeThumbnailUrl,
 } from 'grph-shared/rich-media/providers'
+import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 
-export type UrlMediaKind = 'image' | 'svg' | 'video' | 'iframe'
+export type UrlMediaKind = 'image' | 'svg' | 'video' | 'audio' | 'iframe'
 
 export type RenderableMediaResource = {
   kind: UrlMediaKind
@@ -16,8 +16,6 @@ export type RenderableMediaResource = {
   thumbnailUrl?: string | null
 }
 
-const VIDEO_EXT_RE = /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i
-const SVG_EXT_RE = /\.svg(\?|#|$)/i
 const IFRAME_EXT_RE = /\.(html?|pdf)(\?|#|$)/i
 
 function readCanonicalResourcePath(rawUrl: string): string {
@@ -37,8 +35,8 @@ function readCanonicalResourcePath(rawUrl: string): string {
 export function inferMediaKindFromResourceUrl(rawUrl: string): UrlMediaKind | null {
   const url = readCanonicalResourcePath(rawUrl)
   if (!url) return null
-  if (isLikelyImageUrl(url)) return SVG_EXT_RE.test(url) ? 'svg' : 'image'
-  if (VIDEO_EXT_RE.test(url)) return 'video'
+  const inferredKind = inferMediaKindFromUrl(url)
+  if (inferredKind) return inferredKind
   if (IFRAME_EXT_RE.test(url)) return 'iframe'
   if (buildRenderableIframeUrl(url)) return 'iframe'
   return null

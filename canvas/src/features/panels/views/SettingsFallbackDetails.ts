@@ -817,7 +817,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   chatModel: { area: 'Chat', responsibility: 'Chat model name (OpenAI-compatible)' },
   chatTemperature: { area: 'Chat', responsibility: 'Chat completion temperature' },
   chatSystemPrompt: { area: 'Chat', responsibility: 'Optional system prompt for Chat' },
-  chatContextScope: { area: 'Chat', responsibility: 'Chat context scope for selection, workspace, or hybrid AI prompts' },
+  chatContextScope: { area: 'Chat', responsibility: 'Chat context scope for Selection + Workspace, Canvas Selection, or Workspace Source Files AI prompts' },
   integrationConfigsJson: { area: 'Integrations', responsibility: 'JSON settings for AI chat routing and simulation command defaults' },
   CLICK_URL: { area: 'Config Constants', responsibility: 'Toolbar badge click URL' },
   PUBLIC_FALLBACK_JSON: { area: 'Dataset Loading', responsibility: 'Fallback dataset path' },

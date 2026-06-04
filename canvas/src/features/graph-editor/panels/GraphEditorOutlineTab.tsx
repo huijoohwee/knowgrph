@@ -5,6 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphData } from '@/lib/graph/types'
 import { createSubgraph, readSubgraphs, removeSubgraph, subgraphGroupId, updateSubgraph, writeSubgraphs, type UserSubgraph } from '@/lib/graph/subgraphs'
+import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
 
 const toggleInSet = (set: Set<string>, id: string): Set<string> => {
   const next = new Set(set)
@@ -168,7 +169,7 @@ export function GraphEditorOutlineTab() {
                     </button>
                   </section>
 
-                  <section className="mt-2 grid grid-cols-2 gap-2">
+                  <TwoColumnEditorGrid className="mt-2">
                     <label className="block">
                       <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</section>
                       <input
@@ -196,7 +197,7 @@ export function GraphEditorOutlineTab() {
                           ))}
                       </select>
                     </label>
-                  </section>
+                  </TwoColumnEditorGrid>
 
                   <section className="mt-2 flex items-center justify-between gap-2">
                     <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{sg.memberNodeIds.length} nodes</section>
@@ -274,4 +275,3 @@ export function GraphEditorOutlineTab() {
     </section>
   )
 }
-

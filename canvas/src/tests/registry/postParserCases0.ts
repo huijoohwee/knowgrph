@@ -502,7 +502,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["chat.providers.byteplusHeaders","@/__tests__/chatEndpointProviders.test","testBytePlusProviderBuildsOfficialProxyHeaders"],
   ["chat.providers.officialEndpointProxyPaths","@/__tests__/chatEndpointProviders.test","testOfficialEndpointsNormalizeToProxyPaths"],
   ["chat.providers.sharedModelCatalog.reusesMainPanelIntegrations","@/__tests__/chatEndpointProviders.test","testSharedChatModelCatalogReusesMainPanelIntegrationsOptions"],
-  ["chat.providers.byteplusProxyRunAllCompat","@/__tests__/chatEndpointProviders.test","testBytePlusProxyRewritesLegacyRunAllPaths"],
+  ["chat.providers.byteplusProxyRunAllCompat","@/__tests__/chatEndpointProviders.test","testBytePlusProxyRewritesLegacyRunAllPaths"], ["ui.mainPanel.requestedIntegrationsSearch.dropdownValuesEditableAndUnduplicated","@/__tests__/mainPanelIntegrationsChatProviderDropdown.test","testMainPanelRequestedIntegrationsDropdownValuesStayEditableAndUnduplicated"],
   ["ui.typography.mainPanel.usesUiSettings","@/__tests__/mainPanelTypography.test","testMainPanelTypographyUsesUiSettings"],
   ["ui.mainPanel.requestedSettingsSearch.usesTabMetadata","@/__tests__/mainPanelTypography.test","testMainPanelRequestedSettingsSearchUsesTabMetadata"],
   ["ui.mainPanel.requestedCommerceSearch.usesTabMetadata","@/__tests__/mainPanelTypography.test","testMainPanelRequestedCommerceSearchUsesTabMetadata"],

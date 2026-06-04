@@ -6,6 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_SELECTORS } from '@/lib/config'
 import { WORKSPACE_LEFT_PANE_SELECTOR } from '@/lib/canvas/viewportMeasureElement'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -273,17 +274,12 @@ export function StrybldrTimelineBottomPanel({
   const panelStyle = pinned
     ? {
         position: 'absolute' as const,
-        left: '50%',
-        bottom: 'calc(var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap))',
-        transform: 'translateX(-50%)',
-        width: 'min(calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 42rem)',
         ...panelHeightStyle,
       }
     : {
         position: 'absolute' as const,
         top: panelPosition.top,
         left: panelPosition.left,
-        width: 'min(calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 42rem)',
         ...panelHeightStyle,
       }
 
@@ -308,6 +304,8 @@ export function StrybldrTimelineBottomPanel({
           ariaExpanded={!minimized}
           className={cn(
             'pointer-events-auto ModalContainer flex min-h-0 flex-col overflow-hidden p-0',
+            UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME,
+            pinned && 'kg-canvas-bottom-panel--pinned',
             UI_THEME_TOKENS.panel.bg,
             UI_THEME_TOKENS.text.primary,
           )}

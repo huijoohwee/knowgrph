@@ -5,9 +5,8 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import IconButton from '@/components/IconButton'
-import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { LS_KEYS } from '@/lib/config'
 import { UI_LABELS } from '@/lib/config'
+import { useMinimapCollapsed } from '@/features/minimap/minimapVisibility'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { defaultSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
@@ -21,32 +20,35 @@ import { computeLayoutDatasetKey, buildLayoutPositionCacheKey, buildLayoutViewKe
 import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import {
-  computeViewRect,
+  computeMinimapProjection,
+  computeMinimapViewportWorldRect,
   computeGraphBounds,
   computeTransformFromViewTopLeft,
   computeTransformFromCenter,
   clampZoomScale,
+  projectMinimapPointToWorld,
+  projectWorldRectToMinimap,
+  unionMinimapBoundsWithRect,
+  MINIMAP_EDGE_LIMIT_DEFAULT,
+  MINIMAP_GRAPH_PAD_DEFAULT,
   MINIMAP_WIDTH,
   MINIMAP_HEIGHT,
+  MINIMAP_NEIGHBOR_NODE_SIZE_DEFAULT,
+  MINIMAP_NODE_SIZE_DEFAULT,
+  MINIMAP_OVERLAY_NODE_SIZE_DEFAULT,
+  MINIMAP_SELECTED_NODE_SIZE_DEFAULT,
 } from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
-import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
-import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
-import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
-import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
-import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { buildMinimapFlowEditorOverlayNodeById, buildMinimapFlowEditorOverlaySubset } from '@/features/minimap/flowEditorOverlayProjection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
+import { resolveContextualZoomDetail } from '@/lib/zoom/viewport'
 
 type ZoomT = { k: number; x: number; y: number };
 
-type Highlight = {
-  selNodes: GraphNode[];
-  nbrNodes: GraphNode[];
-  selEdges: GraphEdge[];
-};
+type Highlight = { selNodes: GraphNode[]; nbrNodes: GraphNode[]; selEdges: GraphEdge[] };
 
 type ZoomTransform = ZoomT;
 
@@ -55,7 +57,7 @@ const requestZoomTransform = (t: ZoomTransform) => {
 }
 
 function Minimap() {
-  const [minimapCollapsed, setMinimapCollapsed] = usePersistedBoolean(LS_KEYS.minimapCollapsed, false)
+  const [minimapCollapsed, setMinimapCollapsed] = useMinimapCollapsed()
   const rawGraphData = useGraphStore(s => s.graphData)
   const activeGraphData = useActiveGraphRenderData(true)
   const graphData = activeGraphData || rawGraphData
@@ -63,7 +65,6 @@ function Minimap() {
   const canvasDims = useGraphStore(s => s.canvasDims)
   const miniW = MINIMAP_WIDTH
   const miniH = MINIMAP_HEIGHT
-  const zoomStateByKey = useGraphStore(s => s.zoomStateByKey)
   const { canvasRenderMode, canvas2dRenderer, documentSemanticMode, multiDimTableModeEnabled, frontmatterModeEnabled, documentStructureBaselineLock, renderMediaAsNodes, mediaPanelDensity, collapsedGroupIds, designRendererWebpageLayoutKey, infiniteCanvasInteractionMode } = useGraphStore(
     useShallow(s => ({
       canvasRenderMode: s.canvasRenderMode,
@@ -135,10 +136,10 @@ function Minimap() {
     schema,
   ])
 
-  const zoomState = React.useMemo(() => {
+  const zoomState = useGraphStore(React.useCallback(s => {
     if (!zoomViewKey) return null
-    return zoomStateByKey?.[zoomViewKey] ?? null
-  }, [zoomStateByKey, zoomViewKey])
+    return s.zoomStateByKey?.[zoomViewKey] ?? null
+  }, [zoomViewKey]))
 
   const zoomStateRef = React.useRef<ZoomTransform | null>(zoomState ? { k: zoomState.k, x: zoomState.x, y: zoomState.y } : null)
   React.useEffect(() => {
@@ -235,154 +236,71 @@ function Minimap() {
     sceneGraphData,
     schema,
   ]);
-  const edges = React.useMemo(
-    () => (Array.isArray(sceneGraphData?.edges) ? (sceneGraphData!.edges as GraphEdge[]) : []),
-    [sceneGraphData],
-  );
+  const edges = React.useMemo(() => (Array.isArray(sceneGraphData?.edges) ? (sceneGraphData!.edges as GraphEdge[]) : []), [sceneGraphData]);
+
+  const flowEditorOverlayNodeById = React.useMemo(() => {
+    return buildMinimapFlowEditorOverlayNodeById({ canvas2dRenderer, nodes })
+  }, [canvas2dRenderer, nodes])
 
   const flowEditorOverlaySubset = React.useMemo(() => {
-    const isFlowEditor = isFlowEditorCanvas2dRenderer(canvas2dRenderer)
-    const ids = Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds.map(v => String(v || '').trim()).filter(Boolean) : []
-    if (!isFlowEditor || ids.length === 0) return null
-    const zoom = zoomState || { k: 1, x: 0, y: 0 }
-    const k = typeof zoom.k === 'number' && Number.isFinite(zoom.k) && zoom.k > 0 ? zoom.k : 1
-    const tx = typeof zoom.x === 'number' && Number.isFinite(zoom.x) ? zoom.x : 0
-    const ty = typeof zoom.y === 'number' && Number.isFinite(zoom.y) ? zoom.y : 0
-    const overlayNodeLookup = getCachedGraphLookup({
-      cacheScope: 'minimap-flow-editor-overlay-subset',
-      graphData: { type: 'application/json', nodes, edges: [] },
-      graphSemanticKey: buildScopedGraphSemanticKey('minimap-flow-editor-overlay-subset', {
-        graphData: { type: 'application/json', nodes, edges: [] },
-        graphSemanticKey: nodes.map(node => {
-          const id = String(node?.id || '').trim()
-          const type = String(node?.type || '').trim()
-          const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : 0
-          const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : 0
-          return `${id}:${type}:${Math.round(x * 10)}:${Math.round(y * 10)}`
-        }).join('\n'),
-      }),
+    return buildMinimapFlowEditorOverlaySubset({
+      canvas2dRenderer,
+      canvasDims,
+      edges,
+      flowEditorOverlayNodeById,
+      flowWidgetPinnedByNodeId,
+      flowWidgetPosByNodeId,
+      flowWidgetWorldPosByNodeId,
+      openWidgetNodeIds,
+      schema,
+      zoomState,
     })
-    const nodeById = overlayNodeLookup?.nodeById || new Map<string, GraphNode>()
-    const pinnedById = flowWidgetPinnedByNodeId || {}
-    const posById = flowWidgetPosByNodeId || {}
-    const worldById = flowWidgetWorldPosByNodeId || {}
-    const port = schema?.behavior?.portHandles || null
-    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
-    const portSizePx =
-      typeof (port as { size?: unknown } | null)?.size === 'number' && Number.isFinite((port as { size: number }).size)
-        ? Math.max(0, (port as { size: number }).size)
-        : 4
-    const portOffsetPx =
-      typeof (port as { offset?: unknown } | null)?.offset === 'number' && Number.isFinite((port as { offset: number }).offset)
-        ? Math.max(0, (port as { offset: number }).offset)
-        : 2
-    const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
-    const [schemaMinK, schemaMaxK] = readZoomScaleExtent(schema || defaultSchema)
-    const extent = { minK: Math.min(schemaMinK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK: schemaMaxK }
-
-    const overlayNodes: GraphNode[] = []
-    const idSet = new Set(ids)
-    for (let stackIndex = 0; stackIndex < ids.length; stackIndex += 1) {
-      const id = ids[stackIndex]!
-      const node = nodeById.get(id)
-      if (!node) continue
-      const pinnedInCanvas = typeof pinnedById[id] === 'boolean' ? pinnedById[id] : true
-      const floating = !pinnedInCanvas
-      const panelScale = computeWidgetScale(k, extent, { mode: 'pinnedInCanvas' })
-      const wPx = WIDGET_BASE_SIZE.width * panelScale
-      const hPx = WIDGET_BASE_SIZE.height * panelScale
-      const stackCol = stackIndex % 3
-      const stackRow = Math.floor(stackIndex / 3)
-      const stackTopPx = stackIndex <= 0 ? 0 : stackRow * 54 + stackCol * 8
-      const stackLeftPx = stackIndex <= 0 ? 0 : stackCol * 54
-      const leftTopPx = (() => {
-        if (floating) {
-          const stored = posById[id]
-          const fallback = computeDefaultWidgetFloatingPos({ stackIndex, viewportW: canvasDims.w, viewportH: canvasDims.h })
-          const left = stored && typeof stored.left === 'number' && Number.isFinite(stored.left) ? stored.left : fallback.left
-          const top = stored && typeof stored.top === 'number' && Number.isFinite(stored.top) ? stored.top : fallback.top
-          return { left, top }
-        }
-        const stored = worldById[id] as { x?: unknown; y?: unknown } | null
-        const x = typeof stored?.x === 'number' && Number.isFinite(stored.x) ? (stored.x as number) : null
-        const y = typeof stored?.y === 'number' && Number.isFinite(stored.y) ? (stored.y as number) : null
-        if (x != null && y != null) {
-          return { left: tx + x * k, top: ty + y * k }
-        }
-        const nx = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
-        const ny = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
-        const nodeLeftPx = tx + nx * k
-        const nodeTopPx = ty + ny * k
-        const anchoredLeftPx = nodeLeftPx + DEFAULT_FLOW_NODE_WIDTH_PX * k + 16 + portExtraPadScreenPx
-        const anchoredTopPx = nodeTopPx - 12
-        return {
-          left: anchoredLeftPx + stackLeftPx,
-          top: anchoredTopPx + stackTopPx,
-        }
-      })()
-      const cxWorld = (leftTopPx.left + wPx / 2 - tx) / k
-      const cyWorld = (leftTopPx.top + hPx / 2 - ty) / k
-      overlayNodes.push({
-        id: `__qe:${id}`,
-        type: 'FlowWidget' as unknown as string,
-        x: cxWorld,
-        y: cyWorld,
-        label: '',
-      } as unknown as GraphNode)
-    }
-
-    const overlayEdges: GraphEdge[] = []
-    for (let i = 0; i < edges.length; i += 1) {
-      const e = edges[i]
-      const s = String(e?.source || '').trim()
-      const t = String(e?.target || '').trim()
-      if (!s || !t) continue
-      if (!idSet.has(s) || !idSet.has(t)) continue
-      overlayEdges.push({
-        ...e,
-        source: `__qe:${s}`,
-        target: `__qe:${t}`,
-      })
-    }
-
-    return { nodes: overlayNodes, edges: overlayEdges }
   }, [
     canvas2dRenderer,
     canvasDims.h,
     canvasDims.w,
     edges,
+    flowEditorOverlayNodeById,
     flowWidgetPinnedByNodeId,
     flowWidgetPosByNodeId,
     flowWidgetWorldPosByNodeId,
-    nodes,
     openWidgetNodeIds,
     schema,
     zoomState,
   ])
 
-  const nodesForBounds = flowEditorOverlaySubset ? [...nodes, ...flowEditorOverlaySubset.nodes] : nodes
-  const graphBounds = flowEditorOverlaySubset ? computeGraphBounds(nodesForBounds, 20) : (preview?.bounds ?? computeGraphBounds(nodes, 20));
+  const hasFlowEditorOverlaySubset = flowEditorOverlaySubset != null
+  const baseGraphBounds = React.useMemo(
+    () => (
+      hasFlowEditorOverlaySubset
+        ? computeGraphBounds(nodes, MINIMAP_GRAPH_PAD_DEFAULT)
+        : (preview?.bounds ?? computeGraphBounds(nodes, MINIMAP_GRAPH_PAD_DEFAULT))
+    ),
+    [hasFlowEditorOverlaySubset, nodes, preview?.bounds],
+  )
+  const flowEditorOverlayBounds = React.useMemo(
+    () => (flowEditorOverlaySubset ? computeGraphBounds(flowEditorOverlaySubset.nodes, MINIMAP_GRAPH_PAD_DEFAULT) : null),
+    [flowEditorOverlaySubset],
+  )
+  const graphBounds = React.useMemo(() => {
+    if (!flowEditorOverlayBounds) return baseGraphBounds
+    return unionMinimapBoundsWithRect(baseGraphBounds, {
+      x: flowEditorOverlayBounds.minX,
+      y: flowEditorOverlayBounds.minY,
+      w: flowEditorOverlayBounds.width,
+      h: flowEditorOverlayBounds.height,
+    })
+  }, [baseGraphBounds, flowEditorOverlayBounds])
   const viewRectWorld = React.useMemo(() => {
     const z = zoomState || { k: 1, x: 0, y: 0 };
-    return computeViewRect(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, z.x, z.y, 1);
+    return computeMinimapViewportWorldRect(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, z.x, z.y);
   }, [canvasDims, zoomState]);
-  const bounds = React.useMemo(() => {
-    const vrMinX = viewRectWorld.x;
-    const vrMinY = viewRectWorld.y;
-    const vrMaxX = viewRectWorld.x + viewRectWorld.w;
-    const vrMaxY = viewRectWorld.y + viewRectWorld.h;
-    const minX = Math.min(graphBounds.minX, vrMinX);
-    const minY = Math.min(graphBounds.minY, vrMinY);
-    const maxX = Math.max(graphBounds.maxX, vrMaxX);
-    const maxY = Math.max(graphBounds.maxY, vrMaxY);
-    const width = Math.max(1, maxX - minX);
-    const height = Math.max(1, maxY - minY);
-    return { minX, minY, maxX, maxY, width, height };
-  }, [graphBounds.maxX, graphBounds.maxY, graphBounds.minX, graphBounds.minY, viewRectWorld.h, viewRectWorld.w, viewRectWorld.x, viewRectWorld.y]);
+  const bounds = React.useMemo(
+    () => unionMinimapBoundsWithRect(graphBounds, viewRectWorld),
+    [graphBounds, viewRectWorld],
+  );
   const sx = React.useMemo(() => {
-    const scaleX = miniW / Math.max(1, bounds.width);
-    const scaleY = miniH / Math.max(1, bounds.height);
-    return Math.min(scaleX, scaleY);
+    return computeMinimapProjection(bounds, { w: miniW, h: miniH }).sx;
   }, [bounds.height, bounds.width, miniH, miniW]);
 
   const canUsePreview = React.useMemo(() => {
@@ -401,14 +319,14 @@ function Minimap() {
     );
   }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, canvas2dRenderer, flowEditorOverlaySubset, graphData, infiniteCanvasInteractionMode, preview?.bounds, rawGraphData, usesDerivedSceneGraph]);
 
-  const EDGE_LIMIT = 20000;
+  const EDGE_LIMIT = MINIMAP_EDGE_LIMIT_DEFAULT;
   const edgesPathD = React.useMemo(() => {
     if (canUsePreview && preview?.edgesPath) return preview.edgesPath as string;
     return edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodes, edges, bounds, sx, graphId ?? '');
   }, [canUsePreview, nodes, edges, bounds, sx, preview?.edgesPath, graphId]);
   const nodesPathD = React.useMemo(() => {
     if (canUsePreview && preview?.nodesPath) return preview.nodesPath as string;
-    return buildNodesPathD(nodes, bounds, sx, 3, graphId ?? '');
+    return buildNodesPathD(nodes, bounds, sx, MINIMAP_NODE_SIZE_DEFAULT, graphId ?? '');
   }, [canUsePreview, nodes, bounds, sx, preview?.nodesPath, graphId]);
 
   const overlayEdgesPathD = React.useMemo(() => {
@@ -419,7 +337,7 @@ function Minimap() {
   const overlayNodesPathD = React.useMemo(() => {
     const overlay = flowEditorOverlaySubset
     if (!overlay) return ''
-    return buildNodesPathD(overlay.nodes, bounds, sx, 2, `qe:${graphId ?? ''}`)
+    return buildNodesPathD(overlay.nodes, bounds, sx, MINIMAP_OVERLAY_NODE_SIZE_DEFAULT, `qe:${graphId ?? ''}`)
   }, [bounds, flowEditorOverlaySubset, graphId, sx])
 
   const highlight: Highlight = React.useMemo(() => {
@@ -452,11 +370,11 @@ function Minimap() {
   }, [selectedNodeId, selectedEdgeId, nodes, edges]);
 
   const selNodesPathD = React.useMemo(
-    () => (highlight.selNodes.length ? buildNodesPathD(highlight.selNodes, bounds, sx, 4, graphId ?? '') : ''),
+    () => (highlight.selNodes.length ? buildNodesPathD(highlight.selNodes, bounds, sx, MINIMAP_SELECTED_NODE_SIZE_DEFAULT, graphId ?? '') : ''),
     [highlight.selNodes, bounds, sx, graphId]
   );
   const nbrNodesPathD = React.useMemo(
-    () => (highlight.nbrNodes.length ? buildNodesPathD(highlight.nbrNodes, bounds, sx, 3, graphId ?? '') : ''),
+    () => (highlight.nbrNodes.length ? buildNodesPathD(highlight.nbrNodes, bounds, sx, MINIMAP_NEIGHBOR_NODE_SIZE_DEFAULT, graphId ?? '') : ''),
     [highlight.nbrNodes, bounds, sx, graphId]
   );
   const selEdgesPathD = React.useMemo(
@@ -468,18 +386,16 @@ function Minimap() {
     return { x: viewRectWorld.x, y: viewRectWorld.y, w: viewRectWorld.w, h: viewRectWorld.h };
   }, [viewRectWorld.h, viewRectWorld.w, viewRectWorld.x, viewRectWorld.y]);
 
-  const viewRect = React.useMemo(() => ({
-    x: (viewRectRaw.x - bounds.minX) * sx,
-    y: (viewRectRaw.y - bounds.minY) * sx,
-    w: viewRectRaw.w * sx,
-    h: viewRectRaw.h * sx,
-  }), [viewRectRaw, bounds, sx]);
+  const viewRect = React.useMemo(
+    () => projectWorldRectToMinimap(viewRectRaw, bounds, sx),
+    [viewRectRaw, bounds, sx],
+  );
 
   const centerThreshold = React.useMemo(() => {
     const minSide = Math.min(viewRect.w, viewRect.h);
     const base = Math.max(4, minSide * 0.06);
-    const k = zoomState?.k ?? 1;
-    const scale = k < 0.3 ? (0.3 / Math.max(k, 0.1)) : 1;
+    const zoomDetail = resolveContextualZoomDetail({ k: zoomState?.k ?? 1, contentThreshold: 0.3 })
+    const scale = zoomDetail.showContent ? 1 : (zoomDetail.threshold / Math.max(zoomDetail.k, 0.1));
     return Math.min(14, base * scale);
   }, [viewRect, zoomState]);
 
@@ -490,8 +406,7 @@ function Minimap() {
     const rect = (e.target as SVGElement).closest('svg')!.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const cx = mx / sx + bounds.minX;
-    const cy = my / sx + bounds.minY;
+    const { x: cx, y: cy } = projectMinimapPointToWorld({ x: mx, y: my }, bounds, sx);
     const z: ZoomT = zoomState || { k: 1, x: 0, y: 0 };
     const k = z.k || 1;
     const x = -cx * k + (canvasDims.w / 2);
@@ -505,8 +420,7 @@ function Minimap() {
     const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const ux = mx / sx + bounds.minX;
-    const uy = my / sx + bounds.minY;
+    const { x: ux, y: uy } = projectMinimapPointToWorld({ x: mx, y: my }, bounds, sx);
     const z: ZoomT = zoomState || { k: 1, x: 0, y: 0 };
     const k0 = z.k || 1;
     const factor = Math.pow(1.2, -e.deltaY / 100);
@@ -578,8 +492,7 @@ function Minimap() {
         if (hasPos) {
           const mx = up.clientX - (rect as DOMRect).left;
           const my = up.clientY - (rect as DOMRect).top;
-          const ux = mx / sx + bounds.minX;
-          const uy = my / sx + bounds.minY;
+          const { x: ux, y: uy } = projectMinimapPointToWorld({ x: mx, y: my }, bounds, sx);
           const vw = Math.max(1, canvasDims.w);
           const vh = Math.max(1, canvasDims.h);
           const kk = clampZoomScale(k, minScale, maxScale)

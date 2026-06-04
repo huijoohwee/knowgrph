@@ -6,7 +6,7 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 **Intent**
 - keep shipped MCP surfaces truthful
 - keep one canonical architecture contract
-- keep MainPanel -> FloatingPanel Chat -> YAML frontmatter -> Canvas flow implementation-accurate
+- keep MainPanel -> FloatingPanel Chat -> YAML frontmatter or MCP structured response -> Editor Workspace -> Canvas flow implementation-accurate
 - forbid stale/conflicting MCP narratives
 
 ---
@@ -22,7 +22,7 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 | Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | shared seven-tool WebMCP injection on `/knowgrph` HTML routes; `inspect_agent_surface` reads structured content through `/knowgrph/mcp` |
 | Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with descriptor-complete shared tools, `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, and browser-local E2E readiness inspectors |
 | MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
-| FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown -> Canvas apply path |
+| FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown or literal MCP structured response -> Editor Workspace -> Canvas apply path |
 | Remote Worker MCP platform | Planned extension | none in repo yet | must not be documented as implemented |
 
 ---
@@ -34,10 +34,11 @@ The current shipped MCP-aware path is:
 1. MainPanel `mcp` or `integrations`
 2. shared settings and chat readiness
 3. FloatingPanel Chat submit helpers
-4. KGC recovery and validation
+4. KGC recovery/validation or literal MCP structured-surface acceptance
 5. canonical workspace finalize
 6. `applyChatKgcWorkspaceDocumentToCanvas()`
-7. `setActiveMarkdownDocument({ applyToGraph: true })`
+7. `applyWorkspaceImportToCanvas()`
+8. `setActiveMarkdownDocument({ applyToGraph: true })`
 8. frontmatter-flow parsing and downstream subgraph/group/cluster projection
 
 Guardrails:

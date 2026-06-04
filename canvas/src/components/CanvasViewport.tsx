@@ -8,6 +8,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
 import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
@@ -198,8 +199,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             ) : null}
             {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
               <aside
-                className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 ${workspaceEditorOverlayOpen ? 'z-[420]' : 'z-[201]'} pointer-events-auto`}
-                style={layout === 'pane' ? { bottom: 'calc(var(--kg-safe-bottom) + 0.75rem)' } : { bottom: 'calc(40px + 12px)' }}
+                className={`${layout === 'pane' ? 'absolute kg-canvas-minimap-overlay--pane' : 'fixed'} ${UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME} ${workspaceEditorOverlayOpen ? 'z-[420]' : 'z-[201]'} pointer-events-auto`}
                 aria-label="Minimap Overlay"
               >
                 <MinimapLazy />

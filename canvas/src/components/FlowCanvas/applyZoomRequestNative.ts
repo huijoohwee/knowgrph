@@ -19,7 +19,7 @@ import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
-import { computeTransformScaleAboutScreenPoint } from '@/lib/zoom/viewport'
+import { computeTransformScaleAboutViewportFrameCenter, normalizeViewportFrame } from '@/lib/zoom/viewport'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanvas/flowEditorOverlayRecenter'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
@@ -115,16 +115,7 @@ export function resolveFlowEditorVisibleViewport(args: {
   viewportW: number
   viewportH: number
 }) {
-  const fallback = {
-    left: 0,
-    top: 0,
-    right: args.viewportW,
-    bottom: args.viewportH,
-    width: args.viewportW,
-    height: args.viewportH,
-    centerX: args.viewportW / 2,
-    centerY: args.viewportH / 2,
-  }
+  const fallback = normalizeViewportFrame({ viewportW: args.viewportW, viewportH: args.viewportH })
   if (typeof document === 'undefined') return fallback
   const surfaceId = String(args.flowEditorSurfaceId || '').trim()
   if (!surfaceId) return fallback
@@ -139,16 +130,14 @@ export function resolveFlowEditorVisibleViewport(args: {
   const right = Math.max(left + 1, Math.min(args.viewportW, Math.floor(rect.width)))
   const bottom = Math.max(top + 1, Math.min(args.viewportH, Math.floor(rect.height)))
   // Editor Workspace is an overlay, not a Flow Editor layout constraint.
-  return {
+  return normalizeViewportFrame({
+    viewportW: args.viewportW,
+    viewportH: args.viewportH,
     left,
     top,
-    right,
-    bottom,
     width: Math.max(1, right - left),
     height: Math.max(1, bottom - top),
-    centerX: (left + right) / 2,
-    centerY: (top + bottom) / 2,
-  }
+  })
 }
 
 export function recenterVisibleFlowEditorOverlayCentroid(args: {
@@ -494,10 +483,9 @@ export const applyZoomRequestNative = (args: {
       ? (() => {
           const nextK = flowEditorContextualZoomBase.nextTransform.k
           if (!Number.isFinite(nextK) || nextK <= 0) return null
-          const scaled = computeTransformScaleAboutScreenPoint({
+          const scaled = computeTransformScaleAboutViewportFrameCenter({
             transform: t0,
-            focalX: visibleViewport.centerX,
-            focalY: visibleViewport.centerY,
+            viewport: visibleViewport,
             nextK,
           })
           return {

@@ -12,6 +12,7 @@ import { buildCanvasViewOptions, getCanvasViewRendererOptions, getCanvasViewTrig
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_EXTRA_WIDE_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { useMinimapCollapsed } from '@/features/minimap/minimapVisibility'
 
 type Canvas2dRendererSelectProps = {
   iconSizeClass: string
@@ -28,6 +29,7 @@ export function Canvas2dRendererSelect({
   geospatialEnabled,
   onOpenGeospatialMode,
 }: Canvas2dRendererSelectProps) {
+  const [minimapCollapsed, setMinimapCollapsed] = useMinimapCollapsed()
   const state = useGraphStore(
     useShallow(s => ({
       canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
@@ -114,6 +116,7 @@ export function Canvas2dRendererSelect({
         multiDimTableModeEnabled: state.multiDimTableModeEnabled,
         renderMediaAsNodes: state.renderMediaAsNodes,
         timelineEnabled: state.timelineEnabled,
+        minimapCollapsed,
         geospatialEnabled,
         layoutMode: state.layoutMode,
         schema: state.schema,
@@ -126,6 +129,7 @@ export function Canvas2dRendererSelect({
       frontmatterOnlyAllowed,
       geospatialEnabled,
       isD3Like2dLayoutToggle,
+      minimapCollapsed,
       state.canvas2dRenderer,
       state.canvas3dMode,
       state.canvasRenderMode,
@@ -166,6 +170,7 @@ export function Canvas2dRendererSelect({
           multiDimTableModeEnabled: state.multiDimTableModeEnabled,
           renderMediaAsNodes: state.renderMediaAsNodes,
           timelineEnabled: state.timelineEnabled,
+          minimapCollapsed,
           schema: state.schema,
           setCanvas2dRenderer: state.setCanvas2dRenderer,
           setCanvasRenderMode: state.setCanvasRenderMode,
@@ -174,6 +179,7 @@ export function Canvas2dRendererSelect({
           setBehavior: state.setBehavior,
           setRenderMediaAsNodes: state.setRenderMediaAsNodes,
           setTimelineEnabled: state.setTimelineEnabled,
+          setMinimapCollapsed,
           setDocumentSemanticMode: state.setDocumentSemanticMode,
           setFrontmatterModeEnabled: state.setFrontmatterModeEnabled,
           setMultiDimTableModeEnabled: state.setMultiDimTableModeEnabled,

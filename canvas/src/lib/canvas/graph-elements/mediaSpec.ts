@@ -37,6 +37,7 @@ export type NodeMediaInventory = {
   imageCount: number
   imageLikeCount: number
   videoCount: number
+  audioCount: number
   iframeCount: number
   svgCount: number
 }
@@ -57,18 +58,12 @@ function extractMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: stri
   const normalized = fixBrokenMarkdownImageSyntax(raw).text
   const trimmed = normalized.trim()
 
-  const iframeMatch = trimmed.match(/<iframe\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i)
-  if (iframeMatch) {
-    const u = String(iframeMatch[1] || iframeMatch[2] || iframeMatch[3] || '').trim()
-    const resolved = normalizeExternalUrl(u)
-    if (resolved) return { kind: 'iframe', url: resolved }
-  }
-
-  const videoMatch = trimmed.match(/<video\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i)
-  if (videoMatch) {
-    const u = String(videoMatch[1] || videoMatch[2] || videoMatch[3] || '').trim()
-    const resolved = normalizeExternalUrl(u)
-    if (resolved) return { kind: 'video', url: resolved }
+  for (const kind of ['iframe', 'video', 'audio'] as const) {
+    const match = trimmed.match(new RegExp(`<${kind}\\b[^>]*\\bsrc\\s*=\\s*(?:"([^"]+)"|'([^']+)'|([^\\s>]+))`, 'i'))
+    if (match) {
+      const resolved = normalizeExternalUrl(String(match[1] || match[2] || match[3] || '').trim())
+      if (resolved) return { kind, url: resolved }
+    }
   }
 
   const imgStandalone = trimmed.match(/^!\[[^\]]*\]\(([^)]+)\)\s*$/)
@@ -93,6 +88,7 @@ function extractMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: stri
       if (bili) return { kind: 'iframe', url: bili }
       const inferred = inferMediaKindFromResourceUrl(resolved)
       if (inferred === 'video') return { kind: 'video', url: resolved }
+      if (inferred === 'audio') return { kind: 'audio', url: resolved }
       if (inferred === 'svg') return { kind: 'svg', url: resolved }
       if (inferred === 'image') return { kind: 'image', url: resolved }
       return { kind: 'iframe', url: resolved }
@@ -111,6 +107,7 @@ function extractMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: stri
     if (!resolved) return null
     const inferred = inferMediaKindFromResourceUrl(resolved)
     if (inferred === 'video') return { kind: 'video', url: resolved }
+    if (inferred === 'audio') return { kind: 'audio', url: resolved }
     if (inferred === 'svg') return { kind: 'svg', url: resolved }
     if (inferred === 'image') return { kind: 'image', url: resolved }
     return { kind: 'iframe', url: resolved }
@@ -246,6 +243,9 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props.imageUrl,
     props.video,
     props.videoUrl,
+    props.audio,
+    props.audioUrl,
+    props.audio_url,
     props.media,
     props.url,
     props.src,
@@ -274,7 +274,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       ? props.mediaKind.trim().toLowerCase()
       : ''
   const kindForced: NodeMediaKind | null =
-    kindRaw === 'iframe' || kindRaw === 'video' || kindRaw === 'image' || kindRaw === 'svg' ? (kindRaw as NodeMediaKind) : null
+    kindRaw === 'iframe' || kindRaw === 'video' || kindRaw === 'audio' || kindRaw === 'image' || kindRaw === 'svg' ? (kindRaw as NodeMediaKind) : null
 
   const iframeUrl = coerceMediaUrl((props as Record<string, unknown>).iframe_url)
   const mediaUrl = coerceMediaUrl((props as Record<string, unknown>).media_url)
@@ -283,6 +283,9 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const imageUrlCamel = coerceMediaUrl((props as Record<string, unknown>).imageUrl)
   const videoUrl = coerceMediaUrl((props as Record<string, unknown>).video)
   const videoUrlCamel = coerceMediaUrl((props as Record<string, unknown>).videoUrl)
+  const audioUrl = coerceMediaUrl((props as Record<string, unknown>).audio)
+  const audioUrlCamel = coerceMediaUrl((props as Record<string, unknown>).audioUrl)
+  const audioUrlSnake = coerceMediaUrl((props as Record<string, unknown>).audio_url)
   const generic = coerceMediaUrl((props as Record<string, unknown>).media)
   const srcUrl = coerceMediaUrl((props as Record<string, unknown>).src)
   const linkUrl = coerceMediaUrl((props as Record<string, unknown>).url)
@@ -339,6 +342,9 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     || imageUrlCamel
     || videoUrl
     || videoUrlCamel
+    || audioUrl
+    || audioUrlCamel
+    || audioUrlSnake
     || generic
     || srcUrl
     || (inferredLinkKind || inferLinkAsIframe ? linkUrl : null)
@@ -369,12 +375,16 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
 
   if (isRichMediaPanel) {
-    const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text' || richMediaActiveTab === 'poi'
+    const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'audio' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text' || richMediaActiveTab === 'poi'
       ? richMediaActiveTab
       : ''
     if (!selected && connectedRenderPathSet?.has('properties.videoUrl')) {
       const chosen = videoUrl || videoUrlCamel
       if (chosen) return { kind: 'video', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
+    }
+    if (!selected && connectedRenderPathSet?.has('properties.audioUrl')) {
+      const chosen = audioUrl || audioUrlCamel || audioUrlSnake
+      if (chosen) return { kind: 'audio', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
     }
     if (!selected && connectedRenderPathSet?.has('properties.imageUrl')) {
       const chosen = imageUrl || imageUrlCamel
@@ -383,6 +393,10 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     if (selected === 'video') {
       const chosen = videoUrl || videoUrlCamel
       if (chosen) return { kind: 'video', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
+    }
+    if (selected === 'audio') {
+      const chosen = audioUrl || audioUrlCamel || audioUrlSnake
+      if (chosen) return { kind: 'audio', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
     }
     if (selected === 'image') {
       const chosen = imageUrl || imageUrlCamel
@@ -394,19 +408,24 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     if (
       !selected
       && connectedRenderPathSet?.has('properties.output')
-      && !(connectedRenderPathSet.has('properties.videoUrl') || connectedRenderPathSet.has('properties.imageUrl'))
+      && !(connectedRenderPathSet.has('properties.videoUrl') || connectedRenderPathSet.has('properties.audioUrl') || connectedRenderPathSet.has('properties.imageUrl'))
     ) {
       return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
     }
-    if (!selected && (outputSrcDoc || outputText.trim()) && !(videoUrl || videoUrlCamel || imageUrl || imageUrlCamel || getMarkdownMediaOnce()?.url)) {
+    if (
+      !selected
+      && (outputSrcDoc || outputText.trim())
+      && !(videoUrl || videoUrlCamel || audioUrl || audioUrlCamel || audioUrlSnake || imageUrl || imageUrlCamel || getMarkdownMediaOnce()?.url)
+    ) {
       return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
     }
     if (selected === 'video') return { kind: 'video', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
+    if (selected === 'audio') return { kind: 'audio', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
     if (selected === 'image') return { kind: 'image', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
   }
   const domMediaUrl = (() => {
     if (!domTag) return ''
-    if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'IFRAME' || domTag === 'SVG') return domSrc
+    if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'AUDIO' || domTag === 'IFRAME' || domTag === 'SVG') return domSrc
     return ''
   })()
 
@@ -415,11 +434,13 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       ? 'iframe'
       : domTag === 'VIDEO'
         ? 'video'
-        : domTag === 'SVG'
-          ? 'svg'
-          : domTag === 'IMG'
-            ? 'image'
-            : null
+        : domTag === 'AUDIO'
+          ? 'audio'
+          : domTag === 'SVG'
+            ? 'svg'
+            : domTag === 'IMG'
+              ? 'image'
+              : null
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
   if (!resolvedUrl) {
@@ -444,8 +465,10 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     ? kindForced
     : iframeUrl
       ? 'iframe'
-      : (videoUrl || videoUrlCamel)
-        ? 'video'
+    : (videoUrl || videoUrlCamel)
+      ? 'video'
+      : (audioUrl || audioUrlCamel || audioUrlSnake)
+        ? 'audio'
         : domKindForced
           ? domKindForced
           : inferredLinkKind
@@ -454,7 +477,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
               ? 'iframe'
               : (getMarkdownMediaOnce()?.kind || ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind))
 
-  const interactive = explicitInteractive != null ? explicitInteractive : kind === 'video' || kind === 'iframe'
+  const interactive = explicitInteractive != null ? explicitInteractive : kind === 'video' || kind === 'audio' || kind === 'iframe'
 
   if (kind === 'iframe') {
     const normalized = normalizeIframeUrl(resolvedUrl)
@@ -505,15 +528,7 @@ export function buildNodeMediaInventory(
   options?: { maxRows?: number; limitStatsToRows?: boolean },
 ): NodeMediaInventory {
   if (!Array.isArray(nodes) || nodes.length <= 0) {
-    return {
-      rows: [],
-      totalCount: 0,
-      imageCount: 0,
-      imageLikeCount: 0,
-      videoCount: 0,
-      iframeCount: 0,
-      svgCount: 0,
-    }
+    return { rows: [], totalCount: 0, imageCount: 0, imageLikeCount: 0, videoCount: 0, audioCount: 0, iframeCount: 0, svgCount: 0 }
   }
 
   const maxRowsRaw = options?.maxRows
@@ -527,6 +542,7 @@ export function buildNodeMediaInventory(
   let imageCount = 0
   let imageLikeCount = 0
   let videoCount = 0
+  let audioCount = 0
   let iframeCount = 0
   let svgCount = 0
 
@@ -556,6 +572,10 @@ export function buildNodeMediaInventory(
       videoCount += 1
       continue
     }
+    if (spec.kind === 'audio') {
+      audioCount += 1
+      continue
+    }
     if (spec.kind === 'svg') {
       svgCount += 1
       imageLikeCount += 1
@@ -567,13 +587,5 @@ export function buildNodeMediaInventory(
     }
   }
 
-  return {
-    rows,
-    totalCount,
-    imageCount,
-    imageLikeCount,
-    videoCount,
-    iframeCount,
-    svgCount,
-  }
+  return { rows, totalCount, imageCount, imageLikeCount, videoCount, audioCount, iframeCount, svgCount }
 }

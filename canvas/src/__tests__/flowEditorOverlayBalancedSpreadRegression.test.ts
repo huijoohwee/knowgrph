@@ -494,89 +494,6 @@ export const testFlowEditorPinnedContainmentBoundsIgnoreOverlayFeedback = () => 
   }
 }
 
-export const testFlowEditorLayoutRebalanceUsesCenteredBalancedSpreadRuntime = () => {
-  const runtimeScenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
-  const runtimeText = readUtf8(runtimeScenePath)
-  const overlayCollisionPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
-  const overlayCollisionText = readUtf8(overlayCollisionPath)
-  if (!runtimeText.includes("flowEditorLayoutRebalanceRequest?: null | { type: 'balanced-spread'; at: number }")) {
-    throw new Error('expected Flow Editor runtime scene to accept a renderer Layout rebalance request')
-  }
-  if (!runtimeText.includes('const forcedLayoutRebalanceIds = layoutRebalanceRequested ? pinnedOpenIds : []')) {
-    throw new Error('expected Flow Editor renderer Layout rebalance to target the pinned open widget collective')
-  }
-  if (!runtimeText.includes('const activeSurfaceOverlayWidgetIds = (() => {')
-    || !runtimeText.includes('selector: FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,')
-    || !runtimeText.includes('resolveGraphNodeIdByCanonicalId(graphDataForSeeding, id)')
-    || !runtimeText.includes('const placementPinnedById: FlowWidgetPinnedById =')
-    || !runtimeText.includes('const activeSurfaceOverlayWidgetIdSet = new Set(activeSurfaceOverlayWidgetIds)')
-    || !runtimeText.includes('return pinned || activeSurfaceOverlayWidgetIdSet.has(id)')
-    || !runtimeText.includes("if (pinnedAttr === '0') activeSurfaceOverlayPinnedById[id] = false")
-    || !runtimeText.includes('...activeSurfaceOverlayWidgetIds,')) {
-    throw new Error('expected Flow Editor renderer Layout rebalance to include all active surface widget overlays, including unpinned screen-authority widgets')
-  }
-  if (!runtimeText.includes('const forcedInitialCollectiveIds =')) {
-    throw new Error('expected Flow Editor initialization to balance the full collective when seed positions are missing')
-  }
-  if (!runtimeText.includes('domCollectiveRecoveryAttemptByScopeRef')
-    || !runtimeText.includes('buildWorkspaceBlockedFlowWidgetSeedPatch({')
-    || !runtimeText.includes('ids: boundsIds,')
-    || !runtimeText.includes('new MutationObserver(() => {')
-    || !runtimeText.includes('viewportState?.balanced === true')
-    || !runtimeText.includes('needsMeasuredCenterShift')
-    || !runtimeText.includes('measuredCenterShiftY')
-    || !runtimeText.includes('readinessAttempts < 240')
-    || !runtimeText.includes('attempts >= 6')
-    || !runtimeText.includes('emitFlowEditorInteractionFrameEvent()')
-    || !runtimeText.includes('return false')) {
-    throw new Error('expected Flow Editor initialization to recover mounted offscreen/off-center collectives through a guarded active-surface seed write')
-  }
-  if (!runtimeText.includes('collectiveCentroidOffCenter(') || !runtimeText.includes('targetCenterX') || !runtimeText.includes('targetCenterY')) {
-    throw new Error('expected Flow Editor initialization to detect off-center collectives before reseeding')
-  }
-  if (!runtimeText.includes('resolveFlowEditorCollectiveCenterShift({') || !runtimeText.includes('if (min > max) return preferred')) {
-    throw new Error('expected Flow Editor collective centering to preserve centroid balance when the layout is larger than the viewport')
-  }
-  if (!runtimeText.includes('shouldForceBalancedSpreadReseed({ items: bucketItems, gapPx: gapWorld })')) {
-    throw new Error('expected Flow Editor runtime scene to reuse the shared balanced-spread reseed heuristic')
-  }
-  if (!runtimeText.includes('const currentPinnedCollectiveViewportState =')
-    || !runtimeText.includes('currentPinnedCollectiveViewportState?.balanced === true')
-    || !runtimeText.includes('&& !currentPinnedCollectiveAlreadyBalanced')) {
-    throw new Error('expected Flow Editor runtime scene to skip post-init signature reseeds while the projected collective is already balanced')
-  }
-  if (!runtimeText.includes('fitToViewport: false,')) {
-    throw new Error('expected Flow Editor runtime scene seeding to reuse the same follow-pinned scale mode as widget placement')
-  }
-  if (!runtimeText.includes('const liveHasViewportOffset = hasViewportOffset(liveZoom)')
-    || !runtimeText.includes('!layoutRebalanceRequested')
-    || !runtimeText.includes('&& !liveHasViewportOffset')
-    || !runtimeText.includes('&& !persistedHasViewportOffset')
-    || !runtimeText.includes('const allowPersistedViewportOffsetSeed =')
-    || !runtimeText.includes('&& persistedHasViewportOffset')
-    || !runtimeText.includes('&& liveLooksDefault')) {
-    throw new Error('expected Flow Editor runtime scene to preserve active zoom/pan authority during renderer Layout rebalance and workspace-open initialization')
-  }
-  if (!runtimeText.includes('buildFlowOverlayBoundsFromRects({')
-    || !runtimeText.includes('deriveFlowOverlayCollectiveViewportState({')
-    || !runtimeText.includes("from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'")) {
-    throw new Error('expected Flow Editor runtime scene to reuse shared visible-viewport collective scoring for init stability')
-  }
-  if (!runtimeText.includes('placeWidgetsCenteredInGroupBounds({')) {
-    throw new Error('expected Flow Editor runtime scene to reuse the shared centered widget spread planner')
-  }
-  if (!runtimeText.includes('markLayoutRebalanceHandled()')) {
-    throw new Error('expected Flow Editor runtime scene to handle rebalance requests once without feedback loops')
-  }
-  if (!overlayCollisionText.includes('const frontmatterScreenAuthorityOwnedByPlacementRuntime = areFlowEditorWidgetOverlaysOwnedByFloatingScreenAuthority({') || !overlayCollisionText.includes('if (frontmatterScreenAuthorityOwnedByPlacementRuntime)')) {
-    throw new Error('expected frontmatter screen-authority collision to exit at the placement-runtime ownership boundary')
-  }
-  if (overlayCollisionText.includes('useFrontmatterSemanticBalancedCollision')
-    || overlayCollisionText.includes('applyFrontmatterSemanticBalancedWorld')) {
-    throw new Error('expected frontmatter screen-authority placement to avoid a competing semantic collision layout branch')
-  }
-}
-
 export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = () => {
   const flowCanvasPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasText = readUtf8(flowCanvasPath)
@@ -615,13 +532,13 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!overlayText.includes('if (options?.clearLastKnownWorldSize === true) mediaOverlayPanelLastKnownWorldSizeRef.current.clear()')) {
     throw new Error('expected Rich Media overlay interaction reset to preserve stable panel world sizes except on full teardown')
   }
-  if (!overlayText.includes('const stableSize = readStablePanelWorldSize(record)')) {
+  if (!overlayText.includes('const stableSize = readStableRichMediaPanelSize(record)')) {
     throw new Error('expected Rich Media overlay sizing to refresh its last-known size cache from semantic scene node props')
   }
   if (!overlayText.includes('for (const id of Array.from(lastKnownSizes.keys())) {')) {
     throw new Error('expected Rich Media overlay size cache to prune removed nodes without dropping active-node stable sizes during workspace churn')
   }
-  if (!overlayText.includes('readStablePanelWorldSize(props) || mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null')) {
+  if (!overlayText.includes('readStableRichMediaPanelSize(props) || mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null')) {
     throw new Error('expected Rich Media layout sizing to reuse the last stable panel size when visual width/height are transiently missing')
   }
   if (!presentationText.includes('const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())')) {

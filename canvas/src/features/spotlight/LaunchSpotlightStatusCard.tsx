@@ -20,6 +20,7 @@ import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
+import { LAUNCH_SPOTLIGHT_VIEWPORT_STATUS_GRID_CLASS_NAME } from '@/features/spotlight/launchSpotlightResponsiveClasses'
 
 type FlowWidgetTraceEntry = {
   ts?: number
@@ -440,7 +441,7 @@ export function LaunchSpotlightStatusCard({
                     <h3 className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
                       Viewport
                     </h3>
-                    <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
+                    <dl className={LAUNCH_SPOTLIGHT_VIEWPORT_STATUS_GRID_CLASS_NAME}>
                       <dt className="font-semibold">Zoom</dt>
                       <dd className="font-mono">{formatZoomPercent(zoomState?.k)}</dd>
                       <dt className="font-semibold">Pan</dt>

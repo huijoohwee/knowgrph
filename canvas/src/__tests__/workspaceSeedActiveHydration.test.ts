@@ -305,6 +305,7 @@ export async function testWorkspaceSeedProviderIncompleteSourceFilesStorageFallb
 
 export async function testWorkspaceSeedProviderConfiguredDocsRootPrecedesStorageFallback() {
   const capturedUrls: string[] = []
+  const docsRootRelPath = 'configured-docs-root-demo.md'
   await withFetchAndEnv({
     VITE_KNOWGRPH_STORAGE_BASE_URL: 'https://storage.example.test',
     VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT: '/virtual/workspace/docs',
@@ -315,7 +316,7 @@ export async function testWorkspaceSeedProviderConfiguredDocsRootPrecedesStorage
       return new Response(JSON.stringify({
         ok: true,
         files: [{
-          relPath: 'knowgrph-research-agent-demo.md',
+          relPath: docsRootRelPath,
           text: '# local docs mirror demo',
           updatedAtMs: 1710000009000,
         }],
@@ -354,7 +355,7 @@ export async function testWorkspaceSeedProviderConfiguredDocsRootPrecedesStorage
       store.setLocalMarkdownSelectedFolderPath('/virtual/workspace/docs')
       store.setSourceFiles([])
       const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
-      if (mirrored.length !== 1 || mirrored[0]?.relPath !== 'knowgrph-research-agent-demo.md') {
+      if (mirrored.length !== 1 || mirrored[0]?.relPath !== docsRootRelPath) {
         throw new Error(`expected configured docs root to seed the mirror before storage fallback, got ${JSON.stringify(mirrored)}`)
       }
       if (capturedUrls[0] !== '/__kg_fs_list') {

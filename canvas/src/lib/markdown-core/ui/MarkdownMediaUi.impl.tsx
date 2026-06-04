@@ -11,12 +11,21 @@ import { getWebpageFallbackInfo } from 'grph-shared/rich-media/webpageFallback'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_ERROR_FRAME_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_EMPTY_MEDIA_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME,
+  UI_RESPONSIVE_WEBPAGE_SNAPSHOT_PREVIEW_MEDIA_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { buildWebpageLayoutCacheKey, getMarkdownWebpageSnapshotPreset } from '@/lib/websites/webpageLayoutPresets'
 import {
   isNoiseProneWebpagePreviewHost,
@@ -120,7 +129,7 @@ export const MediaIframe = React.memo(function MediaIframe({
 
   return (
     <section
-      className={containerClassName || (presentationMode ? 'aspect-video w-full' : 'aspect-video w-full max-w-xl')}
+      className={containerClassName || (presentationMode ? 'aspect-video w-full' : CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME)}
       style={containerStyle}
     >
       {loaded ? (
@@ -235,7 +244,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   const [thumb, setThumb] = React.useState<string>(
     () => immediateOrExplicitFallbackThumbnailSrc,
   )
-  const snapshotOverlayBadgeClassName = `absolute left-2 bottom-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
+  const snapshotOverlayBadgeClassName = `absolute left-2 bottom-2 ${UI_RESPONSIVE_WEBPAGE_SNAPSHOT_OVERLAY_BADGE_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
 
   React.useEffect(() => {
     let cancelled = false
@@ -255,7 +264,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   if (!normalizedUrl) return <MediaErrorPlaceholder alt={title} />
 
   return (
-    <section className={presentationMode ? 'w-full' : 'w-full max-w-xl'} data-kg-video-snapshot="1" data-src={normalizedUrl}>
+    <section className={presentationMode ? 'w-full' : CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME} data-kg-video-snapshot="1" data-src={normalizedUrl}>
       <a className="sr-only" href={normalizedUrl} target="_blank" rel="noreferrer">
         {normalizedUrl}
       </a>
@@ -280,17 +289,16 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
               alt={fallbackInfo.titleLabel}
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'cover', filter: 'saturate(1.05) contrast(1.02)' }}
+              className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_PREVIEW_MEDIA_CLASSNAME}
               onError={() => {
                 setThumb(prev => (youtubeFallbackThumbnailSrc && prev !== youtubeFallbackThumbnailSrc ? youtubeFallbackThumbnailSrc : ''))
               }}
             />
           ) : (
-            <section className="absolute inset-0 bg-black/5" />
+            <section className={UI_RESPONSIVE_WEBPAGE_SNAPSHOT_EMPTY_MEDIA_CLASSNAME} />
           )}
-          <section aria-hidden={true} className="absolute inset-0 pointer-events-none">
-            <section className={snapshotOverlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
+          <section aria-hidden={true} className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME}>
+            <section className={snapshotOverlayBadgeClassName}>
               <section className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{fallbackInfo.titleLabel}</section>
               <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{fallbackInfo.hostLabel}</section>
             </section>
@@ -382,7 +390,7 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
 
   return (
     <section
-      className={presentationMode ? 'w-full' : 'w-full max-w-xl'}
+      className={presentationMode ? 'w-full' : CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME}
       data-kg-webpage-snapshot="1"
       data-src={normalizedUrl}
     >
@@ -513,7 +521,7 @@ const MediaErrorPlaceholder = ({ alt }: { alt?: string }) => {
   const prefix = UI_COPY.markdownMediaErrorPrefix
   const label = alt ? `${prefix}: ${alt}` : prefix
   return (
-    <section className="flex items-center justify-center w-full max-w-xl h-32 rounded border border-dashed border-red-300 bg-red-50 text-[11px] text-red-700 px-3 text-center">
+    <section className={`${CARD_MARKDOWN_PREVIEW_MEDIA_ERROR_FRAME_CLASS_NAME} rounded border border-dashed border-red-300 bg-red-50 text-[11px] text-red-700 px-3 text-center`}>
       <span>{label}</span>
     </section>
   )

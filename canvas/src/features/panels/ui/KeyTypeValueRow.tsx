@@ -15,6 +15,8 @@ import {
 } from 'grph-shared/ui/keyTypeValueRows'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const renderPanelTextNode = (node: React.ReactNode): React.ReactNode => {
   return typeof node === 'string' ? renderMarkdownSigilInlineText(node) : node
@@ -77,6 +79,11 @@ export const KTV_STATUS_TEXT_SIZE_CLASS_NAME = 'text-xs'
 export const KTV_HEADER_LABEL_CLASS_NAME = `${KTV_HEADER_LABEL_TEXT_SIZE_CLASS_NAME} font-semibold ${UI_THEME_TOKENS.text.secondary}`
 export const KTV_SECTION_TITLE_CLASS_NAME = `${KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME} font-semibold ${UI_THEME_TOKENS.text.primary}`
 export const KTV_STATUS_TEXT_CLASS_NAME = `${KTV_STATUS_TEXT_SIZE_CLASS_NAME} font-normal ${UI_THEME_TOKENS.text.secondary}`
+export const KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME = uiToolbarRowScrollClassName
+export const KTV_VALUE_ROW_SCROLL_CLASS_NAME = `${uiToolbarRowScrollClassName} w-full min-w-0 max-w-full gap-1 justify-start sm:justify-end`
+export const KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME = `${uiToolbarRowScrollClassName} w-full min-w-0 max-w-full gap-1.5 justify-start sm:justify-end`
+export const KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME = `${UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME} overflow-hidden`
+export const KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME = 'min-w-0 max-w-full overflow-hidden'
 
 export function shouldFlushKeyTypeValueSectionTop(index: number): boolean {
   return index === 0
@@ -136,7 +143,7 @@ export function KeyTypeValueRow({
         <dd className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
           {renderedTypeNode}
         </dd>
-        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-stretch`}>
+        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} ${KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME} items-stretch`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -165,7 +172,7 @@ export function KeyTypeValueRow({
         <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
           {renderedTypeNode}
         </dd>
-        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center`}>
+        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} ${KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME} items-center`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -191,7 +198,7 @@ export function KeyTypeValueRow({
         <dt className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {renderedKeyNode}
         </dt>
-        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center`}>
+        <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} ${KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME} items-center`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -223,7 +230,7 @@ export function KeyTypeValueRow({
       <dd className={`${KTV_ROW_LABEL_CELL_CLASS_NAME} items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
         {renderedTypeNode}
       </dd>
-      <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center`}>
+      <dd className={`${KTV_ROW_VALUE_CELL_CLASS_NAME} ${KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME} items-center`}>
         {renderedValueNode}
       </dd>
     </dl>
@@ -305,7 +312,7 @@ export function SimpleKeyValueRow({
 }
 
 export function RightAlignedValueCell({ children, className }: RightAlignedValueCellProps) {
-  const rootClassName = ['flex w-full min-w-0 max-w-full items-center overflow-hidden justify-start sm:justify-end', className || '']
+  const rootClassName = [KTV_VALUE_ROW_SCROLL_CLASS_NAME, className || '']
     .filter(Boolean)
     .join(' ')
   return (

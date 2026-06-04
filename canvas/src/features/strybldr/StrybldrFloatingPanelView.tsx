@@ -3,10 +3,7 @@ import { Check, Clapperboard, Film, Heart, LocateFixed, Lock, Play, RefreshCw, W
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import {
-  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
-  UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
-} from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { JSONValue } from '@/lib/graph/types'
@@ -40,7 +37,7 @@ const STRYTREE_PANEL_FILTERS = [
   { id: 'draft', label: 'Draft' },
   { id: 'dropped', label: 'Dropped' },
 ] as const
-
+export const STRYBLDR_STORYTREE_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-2 gap-1 sm:grid-cols-4'
 const readStrybldrSourceUnitIds = (graphData: ReturnType<typeof useGraphStore.getState>['graphData']): string[] => {
   const out: string[] = []
   const seen = new Set<string>()
@@ -484,7 +481,7 @@ export function StrybldrFloatingPanelView() {
           </button>
         </section>
       </header>
-      <section className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 pb-2">
+      <section className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} px-1 pb-2`}>
         {board.totalCards < 1 ? (
           <section className={cn('py-3 text-xs', UI_THEME_TOKENS.text.secondary)}>No Strybldr graph loaded.</section>
         ) : (
@@ -529,7 +526,7 @@ export function StrybldrFloatingPanelView() {
                         </option>
                       ))}
                     </select>
-                    <section className="grid grid-cols-4 gap-1">
+                    <section className={STRYBLDR_STORYTREE_ACTION_GRID_CLASS_NAME}>
                       <button
                         type="button"
                         className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex items-center justify-center gap-1 rounded border text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}

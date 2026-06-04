@@ -621,8 +621,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!editSurfaceLayoutText.includes('[&_div]:font-inherit') || !editSurfaceLayoutText.includes('[&_div]:text-inherit')) {
     throw new Error('expected quote-like inline editor div rows to inherit read-surface typography without mutation')
   }
-  if (!editSurfaceLayoutText.includes('min-h-[1lh]')) {
-    throw new Error('expected quote-like inline editor root to keep at least one line-height to preserve first-line/last-line vertical parity')
+  if (!editSurfaceLayoutText.includes("MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS = 'min-h-[1lh]'") || !editSurfaceLayoutText.includes('`${MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS} leading-normal`')) {
+    throw new Error('expected inline editor min-line height to stay centralized while preserving first-line/last-line vertical parity')
   }
   if (!editSurfaceLayoutText.includes('leading-normal')) {
     throw new Error('expected quote-like inline editor root to enforce leading-normal for blank-line vertical spacing parity')

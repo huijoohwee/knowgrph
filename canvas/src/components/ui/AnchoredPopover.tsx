@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { resolveOverlayVerticalTop } from '@/lib/ui/overlayPlacement'
+import { useBodyPortalRoot } from '@/lib/ui/overlayPortalRoot'
+import { buildNonBlockingPortalLayerStyle, withInteractivePortalContentStyle } from '@/lib/ui/overlayPortalStyle'
 import { Z_INDEX_MENU } from '@/lib/ui/zIndex'
 
 export type AnchoredPopoverPlacement = 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end'
@@ -24,7 +26,7 @@ export type AnchoredPopoverProps = {
 export const AnchoredPopover = React.memo(function AnchoredPopover(props: AnchoredPopoverProps) {
   const rootRef = React.useRef<HTMLElement | null>(null)
   const [style, setStyle] = React.useState<React.CSSProperties | null>(null)
-  const [portalHost, setPortalHost] = React.useState<HTMLElement | null>(null)
+  const portalHost = useBodyPortalRoot(props.open)
 
   const updatePosition = React.useCallback(() => {
     const anchor = props.anchorEl
@@ -83,29 +85,6 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
       return next
     })
   }, [props.anchorEl, props.gapPx, props.maxHeightPx, props.maxWidthPx, props.minWidthPx, props.placement])
-
-  React.useEffect(() => {
-    if (!props.open) {
-      setPortalHost(null)
-      return
-    }
-    if (typeof document === 'undefined') return
-    const host = document.createElement('section')
-    try {
-      document.body.appendChild(host)
-    } catch {
-      return
-    }
-    setPortalHost(host)
-    return () => {
-      setPortalHost(null)
-      try {
-        if (host.parentNode) host.parentNode.removeChild(host)
-      } catch {
-        void 0
-      }
-    }
-  }, [props.open])
 
   React.useEffect(() => {
     if (!props.open) return
@@ -174,12 +153,12 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
   const zIndex = typeof props.zIndex === 'number' ? props.zIndex : Z_INDEX_MENU
 
   return createPortal(
-    <section style={{ position: 'fixed', inset: 0, zIndex, pointerEvents: 'none', isolation: 'isolate' }}>
+    <section style={buildNonBlockingPortalLayerStyle(zIndex)}>
       <section
         ref={el => {
           rootRef.current = el
         }}
-        style={{ ...style, pointerEvents: 'auto' }}
+        style={withInteractivePortalContentStyle(style)}
         className="kg-anchored-popover"
         role="dialog"
         aria-label={props.ariaLabel}

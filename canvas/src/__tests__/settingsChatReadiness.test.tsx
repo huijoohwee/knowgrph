@@ -1,5 +1,6 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Simulate } from 'react-dom/test-utils'
 import {
   CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_PROVIDER_LM_STUDIO,
@@ -13,6 +14,7 @@ import {
 import { inspectLocalSettingsChatReadiness } from '@/features/agent-ready/localSettingsChatReadinessInspection'
 import { useSettingsChatAssist } from '@/features/panels/views/useSettingsChatAssist'
 import { CHAT_KTV_ROW_KEYS } from '@/features/panels/views/settingsView.constants'
+import { renderSettingInput } from '@/features/settings/ui'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -94,7 +96,17 @@ export async function testUseSettingsChatAssistPublishesLiveWebMcpReadinessState
       })
       return (
         <section>
-          <section data-row="provider">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.provider)}</section>
+          <section data-row="provider">
+            {renderSettingInput(
+              'chatProvider',
+              'string',
+              true,
+              values,
+              setValues,
+              dirtyRef,
+              [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_LM_STUDIO],
+            )}
+          </section>
           <section data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</section>
           <section data-row="routing">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.routing)}</section>
           <section data-row="model">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.model)}</section>
@@ -118,13 +130,21 @@ export async function testUseSettingsChatAssistPublishesLiveWebMcpReadinessState
     ) {
       throw new Error(`expected initial Settings readiness state to reflect the mounted OpenAI configuration, got ${JSON.stringify(initialInspection)}`)
     }
+    const contextRow = container.querySelector('[data-row="context"]') as HTMLElement | null
+    if (contextRow && String(contextRow.textContent || '').trim()) {
+      throw new Error(`expected chatContextScope assist row to stay empty because the Value dropdown owns scope selection, got ${JSON.stringify(contextRow.textContent || '')}`)
+    }
+    const providerRow = container.querySelector('[data-row="provider"]') as HTMLElement | null
+    const providerSelect = providerRow?.querySelector('select') as HTMLSelectElement | null
+    if (!providerSelect) {
+      throw new Error(`expected chatProvider Value dropdown, got ${JSON.stringify(providerRow?.textContent || '')}`)
+    }
 
     await act(async () => {
-      findButtonByLabel(container, 'Local').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-      await waitForFrames(dom.window as unknown as Window, 2)
-    })
-    await act(async () => {
-      findButtonByLabel(container, 'Workspace').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLSelectElement.prototype, 'value')?.set
+      if (!valueSetter) throw new Error('expected DOM select value setter')
+      valueSetter.call(providerSelect, CHAT_PROVIDER_LM_STUDIO)
+      Simulate.change(providerSelect)
       await waitForFrames(dom.window as unknown as Window, 2)
     })
     await act(async () => {
@@ -141,7 +161,7 @@ export async function testUseSettingsChatAssistPublishesLiveWebMcpReadinessState
     if (
       refreshingInspection.provider.id !== CHAT_PROVIDER_LM_STUDIO ||
       refreshingInspection.provider.model !== CHAT_LOCAL_DEFAULT_MODEL ||
-      refreshingInspection.routing.contextScope !== 'workspace' ||
+      refreshingInspection.routing.contextScope !== 'selection' ||
       refreshingInspection.routing.integrationEnabled !== true
     ) {
       throw new Error(`expected Settings readiness snapshot to update after live provider/routing changes, got ${JSON.stringify(refreshingInspection)}`)

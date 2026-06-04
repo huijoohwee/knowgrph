@@ -7,6 +7,7 @@ import {
   UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_OWNER_VALUE_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
+import { GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type FieldEndpointsAndCardinalitySectionProps = {
@@ -102,7 +103,7 @@ export default function FieldEndpointsAndCardinalitySection({
               <section className={sectionLabelClassName}>
                 {UI_COPY.endpointMatrixHeader}
               </section>
-              <section className="grid grid-cols-2 gap-2">
+              <section className={GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME}>
                 <section className="min-w-0">
                   <label className={fieldLabelClassName} htmlFor="graph-fields-endpoint-sources">
                     {UI_COPY.sourcesPlaceholder}

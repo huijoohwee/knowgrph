@@ -1,4 +1,4 @@
-export type HtmlMediaTag = 'iframe' | 'video' | 'img' | 'embed' | 'object'
+export type HtmlMediaTag = 'iframe' | 'video' | 'audio' | 'img' | 'embed' | 'object'
 
 export function looksLikeSingleTagBlock(html: string, tag: HtmlMediaTag): boolean {
   const raw = String(html || '').trim()

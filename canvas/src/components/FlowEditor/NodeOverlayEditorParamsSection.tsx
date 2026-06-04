@@ -3,7 +3,7 @@ import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
+import { NodeOverlayEditorKvTable } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import {
   UI_RESPONSIVE_PANEL_CODE_EDITOR_TALL_FRAME_CLASSNAME,
@@ -89,7 +89,6 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
                 {UI_LABELS.flowWidgetParamsJsonLabel}
               </label>
             ),
-            typeNode: <NodeOverlayEditorTypePill text="json" />,
             valueNode: (
               <section className="w-full">
                 <PlainTextInputEditor

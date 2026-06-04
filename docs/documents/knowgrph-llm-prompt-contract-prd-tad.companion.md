@@ -77,14 +77,14 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 
 #### TAD-C05 - Finalize / Persist / Apply
 
-- Owner: `useFinalizeAssistantSuccess.ts` plus `chatKgcCanvasApply.ts`.
+- Owner: `useFinalizeAssistantSuccess.ts` plus `chatKgcCanvasApply.ts` and `applyWorkspaceImportToCanvas.ts`.
 - Responsibility:
   - append canonical workspace document
   - normalize canonical KGC path
   - follow workspace path
   - persist stream-log, stream-report, and dereferenced markdown artifacts in the same session folder
   - call `applyChatKgcWorkspaceDocumentToCanvas()`
-- Constraint: canvas application must reuse `setActiveMarkdownDocument()`.
+- Constraint: canvas application must materialize the saved document through Source Files with `applyWorkspaceImportToCanvas()` before reusing `setActiveMarkdownDocument()`.
 
 #### TAD-C06 - KGC Workspace Path Contract
 
@@ -108,7 +108,7 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 
 - Owner: `markdownFrontmatterFlowGraph.core.ts` and its parser modules.
 - Responsibility:
-  - parse YAML-frontmatter and body `flow:` variants
+  - parse canonical YAML-frontmatter `flow:` documents
   - normalize nodes, edges, connections, socket types, clusters, and subgraphs
   - emit `GraphData` with `context: 'frontmatter-flow'`
 - Constraint: grouping and graph semantics are normalized here once.

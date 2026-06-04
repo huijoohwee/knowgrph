@@ -5,6 +5,7 @@ import type { GraphNode } from '@/lib/graph/types'
 import { getUiSectionStatusChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
+  UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
   UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME,
   UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
@@ -77,7 +78,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
     <section className="flex">
       <section
         className={[
-          'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words leading-relaxed border',
+          UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
           uiPanelTextFontClass,
           uiPanelKeyValueTextSizeClass,
           isUser

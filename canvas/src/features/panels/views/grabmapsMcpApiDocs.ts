@@ -2,6 +2,7 @@ import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from '@/features/integrations/grabMapsSsot'
+import { CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
 import {
   GRABMAPS_DEFAULT_MCP_ARGS_JSON,
   GRABMAPS_DEFAULT_MCP_COMMAND,
@@ -71,8 +72,8 @@ const GRABMAPS_MCP_DOC_ROWS: ReadonlyArray<GrabMapsMcpDocRow> = [
     typeLabel: 'string',
     valueKey: 'maps.grabmaps.mcp.discovery.chatModel',
     responsibility: 'Model id used by the GrabMaps Chat Discovery Widget to plan natural-language searches.',
-    tooltipDefaultValue: 'gpt-5.4-nano',
-    searchHints: ['discovery', 'chat model', 'gpt-5.4-nano'],
+    tooltipDefaultValue: CHAT_DEFAULT_MODEL,
+    searchHints: ['discovery', 'chat model', CHAT_DEFAULT_MODEL],
   },
   {
     key: 'search_places.query',

@@ -14,6 +14,7 @@ import {
   PARTICLE_SPEED_TOOLTIP,
   SELECTED_EDGE_WIDTH_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
+import { THREE_VIEW_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/threeViewResponsiveClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ThreeViewLinksSectionProps {
@@ -41,7 +42,7 @@ export default function ThreeViewLinksSection({
       headerClassName="px-0"
       stickyOffsetClassName="top-6"
     >
-      <section className="grid grid-cols-2 gap-3">
+      <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
         <KeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Arrow Length</span>}

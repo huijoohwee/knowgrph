@@ -15,6 +15,7 @@ const E2E_VIDEO_DOC_PATHS = [
 const STORYBOARD_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-demo.md')
 const STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-product-ui-demo.md')
 const STORYBOARD_NEUTRAL_CONTRACT_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-neutral-schema-contract-demo.md')
+const FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-flow-editor-computing-flow-template.md')
 const APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS = [
   STORYBOARD_TYPED_WRAPPER_DOC_PATH,
   STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH,
@@ -50,6 +51,11 @@ const REQUIRED_STORYBOARD_TYPED_FIXTURE_PRESET: Record<string, string | boolean>
 }
 
 type PlainRecord = Record<string, unknown>
+type PublishedFlowEditorDocContract = {
+  filePath: string | null
+  requiredSummaries: ReadonlyArray<readonly [string, string]>
+  optional: boolean
+}
 
 const listMarkdownFiles = (rootPath: string): string[] => {
   const entries = fs.readdirSync(rootPath, { withFileTypes: true })
@@ -63,6 +69,19 @@ const listMarkdownFiles = (rootPath: string): string[] => {
 const readUtf8 = (filePath: string): string => fs.readFileSync(filePath, 'utf8')
 
 const toRepoRelativePath = (filePath: string): string => path.relative(GITHUB_ROOT, filePath)
+
+const resolveMarkdownDocBySemanticFragments = (
+  requiredFragments: readonly string[],
+  args: { optional?: boolean } = {},
+): string | null => {
+  const candidates = listMarkdownFiles(HUIJOOHWEE_DOCS_ROOT)
+  const found = candidates.find(filePath => {
+    const text = readUtf8(filePath)
+    return requiredFragments.every(fragment => text.includes(fragment))
+  })
+  if (found || args.optional) return found || null
+  throw new Error(`Expected huijoohwee docs to contain a markdown document with semantic fragments: ${requiredFragments.join(', ')}`)
+}
 
 const isPlainRecord = (value: unknown): value is PlainRecord => {
   return value != null && typeof value === 'object' && !Array.isArray(value)
@@ -78,6 +97,22 @@ const extractFrontmatterYamlText = (markdownText: string, filePath: string): str
     throw new Error(`Expected ${toRepoRelativePath(filePath)} to close its YAML frontmatter block with ---`)
   }
   return text.slice(4, endMarkerIndex)
+}
+
+const readFrontmatterParts = (filePath: string): { yamlText: string; bodyText: string; delimiterCount: number } => {
+  const text = readUtf8(filePath)
+  if (!text.startsWith('---\n')) {
+    throw new Error(`Expected ${toRepoRelativePath(filePath)} to start with a YAML frontmatter block`)
+  }
+  const endMarkerIndex = text.indexOf('\n---\n', 4)
+  if (endMarkerIndex < 0) {
+    throw new Error(`Expected ${toRepoRelativePath(filePath)} to close its YAML frontmatter block with ---`)
+  }
+  return {
+    yamlText: text.slice(4, endMarkerIndex),
+    bodyText: text.slice(endMarkerIndex + '\n---\n'.length),
+    delimiterCount: (text.match(/^---$/gm) || []).length,
+  }
 }
 
 const readFrontmatterRecord = (filePath: string): PlainRecord => {
@@ -333,5 +368,91 @@ export function testGuidelinesDescribeCanonicalAndNormalizedFrontmatterContracts
   ]
   if (missing.length > 0) {
     throw new Error(`Expected guidelines to describe canonical authoring and normalized E2E frontmatter contracts:\n${missing.join('\n')}`)
+  }
+}
+
+export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
+  const contracts: PublishedFlowEditorDocContract[] = [
+    {
+      filePath: resolveMarkdownDocBySemanticFragments([
+        'knowgrph-mainpanel-superagent-integrations-demo/v1',
+        'kgra_superagent_harness',
+        'swarm_prediction_world',
+        'panel_text_research_brief',
+      ]),
+      requiredSummaries: [
+        ['kgra_superagent_harness', 'swarm simulation task slices'],
+        ['swarm_prediction_world', 'bounded deterministic world simulation'],
+        ['panel_text_research_brief', 'staged research brief'],
+      ],
+      optional: false,
+    },
+    {
+      filePath: FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH,
+      requiredSummaries: [
+        ['integration_openai', 'template SuperAgent gateway'],
+        ['compute_summary', 'semantic ports'],
+        ['panel_chart_output', 'outputSrcDoc field'],
+      ],
+      optional: false,
+    },
+    {
+      filePath: resolveMarkdownDocBySemanticFragments([
+        'horizon, portfolio weights',
+        'typed compute function',
+        'iframe srcdoc',
+        'panel_chart_output',
+      ], { optional: true }),
+      requiredSummaries: [
+        ['source_input', 'horizon, portfolio weights'],
+        ['compute_summary', 'typed compute function'],
+        ['panel_chart_output', 'iframe srcdoc'],
+      ],
+      optional: true,
+    },
+  ]
+  const violations: string[] = []
+
+  for (const contract of contracts) {
+    if (!contract.filePath) continue
+    if (contract.optional && !fs.existsSync(contract.filePath)) continue
+    const { yamlText, bodyText, delimiterCount } = readFrontmatterParts(contract.filePath)
+    if (delimiterCount !== 2) {
+      violations.push(`${toRepoRelativePath(contract.filePath)} expected exactly one opening YAML frontmatter block`)
+    }
+    if (/(^|\n)## KGC Reading Layer\b/.test(bodyText)) {
+      violations.push(`${toRepoRelativePath(contract.filePath)} must not keep a body-side KGC Reading Layer`)
+    }
+    if (/(^|\n)@(?:node|edge):/.test(bodyText)) {
+      violations.push(`${toRepoRelativePath(contract.filePath)} must not keep body-side @node/@edge graph mirrors`)
+    }
+    if (/(^|\n)flow:\s*(\n|$)/.test(bodyText)) {
+      violations.push(`${toRepoRelativePath(contract.filePath)} must not keep body-side flow: graph mirrors`)
+    }
+
+    const meta = parseYaml(yamlText)
+    if (!isPlainRecord(meta) || !isPlainRecord(meta.flow) || !Array.isArray(meta.flow.nodes)) {
+      violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter.flow.nodes to own Flow Editor nodes`)
+      continue
+    }
+    for (const [nodeId, expectedFragment] of contract.requiredSummaries) {
+      const node = meta.flow.nodes.find(candidate => {
+        if (!isPlainRecord(candidate)) return false
+        const idField = candidate.id
+        return isPlainRecord(idField) && idField.value === nodeId
+      })
+      if (!isPlainRecord(node)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter node ${nodeId}`)
+        continue
+      }
+      const summary = node['kgc:readingSummary']
+      if (!isPlainRecord(summary) || !String(summary.value || '').includes(expectedFragment)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${nodeId} to own kgc:readingSummary containing ${JSON.stringify(expectedFragment)}`)
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(`Expected published Flow Editor docs to keep frontmatter as the machine SSOT:\n${violations.join('\n')}`)
   }
 }

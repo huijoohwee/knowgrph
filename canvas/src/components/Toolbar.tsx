@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play, Download } from 'lucide-react';
+import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play, Download, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
 import { UI_LABELS, UI_COPY } from '@/lib/config';
@@ -18,6 +18,7 @@ import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/c
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 import {
   UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME,
+  UI_RESPONSIVE_MAIN_PANEL_MOBILE_SHEET_CLASSNAME,
   UI_RESPONSIVE_MAIN_PANEL_OPEN_CARD_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 
@@ -80,6 +81,27 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
   const runAllFloatingPanelTab = getToolbarRunAllFloatingPanelTab(canvas2dRenderer)
   const runAllFloatingPanelConsumerMounted = !!runAllFloatingPanelTab && floatingPanelOpen === true && floatingPanelView === runAllFloatingPanelTab
+  const handleToolbarZoomIn = React.useCallback(() => {
+    if (onZoomIn) {
+      onZoomIn()
+      return
+    }
+    useGraphStore.getState().requestZoom('in')
+  }, [onZoomIn])
+  const handleToolbarZoomOut = React.useCallback(() => {
+    if (onZoomOut) {
+      onZoomOut()
+      return
+    }
+    useGraphStore.getState().requestZoom('out')
+  }, [onZoomOut])
+  const handleToolbarZoomReset = React.useCallback(() => {
+    if (onReset) {
+      onReset()
+      return
+    }
+    useGraphStore.getState().requestZoom('reset')
+  }, [onReset])
 
   useEffect(() => {
     const root = document.documentElement
@@ -95,22 +117,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const isNarrowViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const effectiveMainPanelPinned = isNarrowViewport ? true : mainPanelPinned
   const effectiveMainPanelCollapsed = isNarrowViewport ? false : mainPanelCollapsed
-  const navStyle: React.CSSProperties | undefined =
-    isNarrowViewport
-	      ? {
-	          width: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
-	          maxWidth: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
-	          flexWrap: 'nowrap',
-	          justifyContent: 'flex-start',
-	          alignContent: 'center',
-	          overflowX: 'auto',
-	          overflowY: 'hidden',
-	          overscrollBehaviorX: 'contain',
-	          overscrollBehaviorY: 'none',
-	          WebkitOverflowScrolling: 'touch',
-          touchAction: 'pan-x manipulation',
-        }
-      : undefined
 
   useEffect(() => {
     if (!isMainPanelOpen) return
@@ -128,10 +134,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 	      ref={toolbarNavRef}
 	      className={`${navClassBase} ${isNarrowViewport ? uiToolbarTouchRowScrollClassName : ''}`}
       role="navigation"
-      aria-label="Main Toolbar"
-      data-kg-canvas-wheel-ignore="true"
-      style={navStyle}
-    >
+	      aria-label="Main Toolbar"
+	      data-kg-canvas-wheel-ignore="true"
+	    >
       <React.Suspense fallback={null}>
         <ToolbarMenuLauncherLazy
           onOpenMainPanel={openMainPanel}
@@ -185,7 +190,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
               />
               <section
                 ref={mainPanelCardRef}
-                className="absolute left-2 right-2 top-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] bottom-[calc(var(--kg-safe-bottom)+var(--kg-canvas-viewport-edge-gap))] pointer-events-auto"
+                className={UI_RESPONSIVE_MAIN_PANEL_MOBILE_SHEET_CLASSNAME}
               >
                 <React.Suspense fallback={null}>
                   <MainPanelLazy
@@ -282,6 +287,33 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className="App-toolbar__btn"
+        title={UI_LABELS.zoomIn}
+        tooltipContent={UI_LABELS.zoomIn}
+        onClick={handleToolbarZoomIn}
+        showTooltip
+      >
+        <ZoomIn className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className="App-toolbar__btn"
+        title={UI_LABELS.zoomOut}
+        tooltipContent={UI_LABELS.zoomOut}
+        onClick={handleToolbarZoomOut}
+        showTooltip
+      >
+        <ZoomOut className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className="App-toolbar__btn"
+        title={UI_LABELS.reset}
+        tooltipContent={UI_LABELS.reset}
+        onClick={handleToolbarZoomReset}
+        showTooltip
+      >
+        <RotateCcw className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />
       <hr className="App-toolbar__divider" aria-hidden="true" />

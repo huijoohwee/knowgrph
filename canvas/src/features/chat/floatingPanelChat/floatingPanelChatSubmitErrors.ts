@@ -3,6 +3,7 @@ import { UI_COPY } from '@/lib/config'
 import { getChatProviderLabel } from '@/lib/chatEndpoint'
 import { CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR } from './floatingPanelChatStreaming'
 import { CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR } from './floatingPanelChatSubmitCoordinator'
+import { CHAT_SUBMIT_TRANSPORT_TIMEOUT_ERROR } from './floatingPanelChatSubmitTransport'
 import { dismissPendingSubmitAssistant, finalizeSubmitTerminalState } from './floatingPanelChatSubmitLifecycle'
 
 export const resolveSubmitRuntimeFriendlyMessage = (args: {
@@ -20,6 +21,9 @@ export const resolveSubmitRuntimeFriendlyMessage = (args: {
     lowered.includes('connection refused')
   if (raw.includes(CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR)) {
     return UI_COPY.chatSubmitPreparationTimeoutError(getChatProviderLabel(args.chatProvider || 'openai'))
+  }
+  if (raw.includes(CHAT_SUBMIT_TRANSPORT_TIMEOUT_ERROR)) {
+    return UI_COPY.chatSubmitTransportTimeoutError(getChatProviderLabel(args.chatProvider || 'openai'))
   }
   if (raw.includes(CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR)) {
     return UI_COPY.chatStreamFirstChunkTimeoutError(getChatProviderLabel(args.chatProvider || 'openai'))

@@ -3,7 +3,7 @@ import React from 'react'
 import { Check } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
-import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_DATA_VIEW_OPTION_MENU_LIST_CLASSNAME, UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 const normalizeText = (raw: string): string => {
@@ -101,7 +101,7 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
         />
       </form>
 
-      <menu className="mt-2 m-0 p-0 list-none max-h-44 overflow-auto" aria-label="Options">
+      <menu className={`${UI_RESPONSIVE_DATA_VIEW_OPTION_MENU_LIST_CLASSNAME} mt-2`} aria-label="Options">
         <li className="list-none">
           <button
             type="button"

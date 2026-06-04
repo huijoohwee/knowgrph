@@ -6,9 +6,15 @@ import {
 } from '@/lib/graph/mediaUrlKind'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
+import { computeRichMediaOverlayConnectedValuesByNodeId } from '@/lib/render/richMediaSsot'
+import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import {
   GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
   GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS,
   GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
   GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
   GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS,
@@ -20,11 +26,12 @@ const STORYBOARD_NODE_TYPE_RE = /\b(scene|shot|frame|panel|story|beat|sequence)\
 const LANE_PROPERTY_KEYS = ['status', 'stage', 'column', 'lane', 'phase', 'track', 'swimlane', 'group', 'bucket', 'category', 'columnKey'] as const
 export const STORYBOARD_TITLE_PROPERTY_KEYS = GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS
 export const STORYBOARD_SUMMARY_PROPERTY_KEYS = GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS
+export const STORYBOARD_OUTPUT_PROPERTY_KEYS = GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS
 const ORDER_PROPERTY_KEYS = ['order', 'sort', 'sequence', 'sceneOrder', 'shotOrder', 'index', 'rank'] as const
 const INDEX_PROPERTY_KEYS = ['frame', 'frameNumber', 'sceneNumber', 'shotNumber', 'panelNumber', 'number', 'index', 'step', 'stepNumber', 'sequenceNumber', 'position', 'ordinal'] as const
 const TAG_PROPERTY_KEYS = ['tags', 'keywords'] as const
 const META_PROPERTY_KEYS = ['owner', 'priority'] as const
-const MEDIA_PROPERTY_KEYS = ['renderUrl', 'embedUrl', 'media_url', 'mediaUrl', 'image', 'imageUrl', 'video', 'videoUrl', 'src', 'url'] as const
+const MEDIA_PROPERTY_KEYS = ['renderUrl', 'embedUrl', 'media_url', 'mediaUrl', 'image', 'imageUrl', 'video', 'videoUrl', 'audio', 'audioUrl', 'audio_url', 'src', 'url'] as const
 const LINK_PROPERTY_KEYS = ['url', 'href', 'link', 'sourceUrl', 'source_url', 'briefUrl', 'assetUrl', 'documentUrl'] as const
 const THUMBNAIL_PROPERTY_KEYS = ['thumbnailUrl', 'thumbnail_url', 'posterUrl', 'poster_url', 'poster', 'coverUrl', 'cover_url'] as const
 const SLUGLINE_PROPERTY_KEYS = ['slugline'] as const
@@ -41,6 +48,7 @@ type GraphNodeProperties = Record<string, JSONValue>
 export type StoryboardCardMedia = {
   kind: UrlMediaKind
   url: string
+  srcDoc?: string
   sourceUrl: string
   thumbnailUrl?: string | null
 }
@@ -54,6 +62,7 @@ export type StoryboardCardModel = {
   id: string
   title: string
   summary: string
+  output: string
   lane: string
   lanePropertyKey: string
   typeLabel: string
@@ -173,6 +182,7 @@ const readDeclaredMediaKind = (properties: GraphNodeProperties): UrlMediaKind | 
   const mimeHint = readString(properties.mimeHint).toLowerCase()
   if (mediaKind === 'image' || mimeHint.startsWith('image/')) return mimeHint.includes('svg') ? 'svg' : 'image'
   if (mediaKind === 'video' || mimeHint.startsWith('video/')) return 'video'
+  if (mediaKind === 'audio' || mimeHint.startsWith('audio/')) return 'audio'
   return null
 }
 
@@ -195,6 +205,19 @@ const readPropertyLists = (properties: GraphNodeProperties, keys: readonly strin
 }
 
 const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): StoryboardCardMedia | null => {
+  const outputSrcDoc = typeof properties.outputSrcDoc === 'string' ? properties.outputSrcDoc.trim() : ''
+  if (outputSrcDoc) {
+    return {
+      kind: 'iframe',
+      url: '',
+      srcDoc: normalizeRichMediaPanelInlineSrcDoc({
+        srcDoc: outputSrcDoc,
+        title: node.label || node.id || 'Storyboard card',
+      }),
+      sourceUrl: '',
+      thumbnailUrl: null,
+    }
+  }
   const declaredKind = readDeclaredMediaKind(properties)
   const explicitThumbnailUrl = readFirstPropertyString(properties, THUMBNAIL_PROPERTY_KEYS)
   for (const key of MEDIA_PROPERTY_KEYS) {
@@ -292,6 +315,10 @@ const readCardSummary = (properties: GraphNodeProperties): string => {
   return readFirstPropertyString(properties, STORYBOARD_SUMMARY_PROPERTY_KEYS)
 }
 
+const readCardOutput = (properties: GraphNodeProperties): string => {
+  return readFirstPropertyString(properties, STORYBOARD_OUTPUT_PROPERTY_KEYS)
+}
+
 const readCardSlugline = (properties: GraphNodeProperties): string => {
   const explicit = readFirstPropertyString(properties, SLUGLINE_PROPERTY_KEYS)
   if (explicit) return explicit
@@ -330,6 +357,7 @@ const computeCandidateScore = (args: {
   node: GraphNode
   lane: string
   summary: string
+  output: string
   slugline: string
   action: string
   dialogue: string
@@ -343,6 +371,7 @@ const computeCandidateScore = (args: {
   let score = 0
   if (args.media) score += 4
   if (args.summary) score += 2
+  if (args.output) score += 2
   if (args.slugline) score += 1
   if (args.action) score += 2
   if (args.dialogue) score += 2
@@ -363,6 +392,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardMode
   const references = readStoryboardReferences(properties, media)
   const lane = readLaneLabel(node, properties)
   const summary = readCardSummary(properties)
+  const output = readCardOutput(properties)
   const slugline = readCardSlugline(properties)
   const action = readCardAction(properties)
   const dialogue = readCardDialogue(properties)
@@ -376,6 +406,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardMode
     id: readString(node.id) || `node-${inputIndex}`,
     title: readCardTitle(node, properties),
     summary,
+    output,
     lane,
     lanePropertyKey: readLanePropertyKey(properties),
     typeLabel,
@@ -396,6 +427,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardMode
       node,
       lane,
       summary,
+      output,
       slugline,
       action,
       dialogue,
@@ -432,10 +464,43 @@ export const buildStoryboardSemanticKey = (args: { graphData: GraphData | null; 
   })
 }
 
-export const buildStoryboardBoardModel = (args: { graphData: GraphData | null; graphRevision: number }): StoryboardBoardModel => {
+function resolveStoryboardRenderNode(args: {
+  node: GraphNode
+  connectedValuesByNodeId?: ReadonlyMap<string, FlowConnectedValuesBySchemaPath> | null
+}): GraphNode {
+  const id = readString(args.node.id)
+  if (!id) return args.node
+  const connectedValuesBySchemaPath = args.connectedValuesByNodeId?.get(id)
+  if (!connectedValuesBySchemaPath) return args.node
+  return applyConnectedValuesToNodeForRender({
+    node: args.node,
+    connectedValuesBySchemaPath,
+  })
+}
+
+export const buildStoryboardBoardModel = (args: {
+  graphData: GraphData | null
+  graphRevision: number
+  widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
+  connectedValuesByNodeId?: ReadonlyMap<string, FlowConnectedValuesBySchemaPath> | null
+}): StoryboardBoardModel => {
   const semanticKey = buildStoryboardSemanticKey(args)
   const nodes = Array.isArray(args.graphData?.nodes) ? args.graphData.nodes : []
-  const allCards = nodes.map((node, index) => buildCardModel(node, index))
+  const connectedValuesByNodeId = args.connectedValuesByNodeId || (
+    args.widgetRegistry
+      ? computeRichMediaOverlayConnectedValuesByNodeId({
+          graphData: args.graphData,
+          registry: args.widgetRegistry,
+          graphRevision: args.graphRevision,
+          graphSemanticKey: semanticKey,
+          includeMediaSpecNodes: true,
+        })
+      : null
+  )
+  const allCards = nodes.map((node, index) => buildCardModel(
+    resolveStoryboardRenderNode({ node, connectedValuesByNodeId }),
+    index,
+  ))
   const cards = selectRenderableCards(allCards)
   const lanesById = new Map<string, StoryboardLaneModel>()
   for (const card of cards) {

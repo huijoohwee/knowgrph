@@ -1,4 +1,50 @@
 import { coerceHttpUrl } from '@/lib/url'
+import {
+  CHAT_AGNES_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
+  CHAT_DEERFLOW_MODEL_OPTIONS,
+  CHAT_DEFAULT_MODEL,
+  CHAT_GEMINI_MODEL_OPTIONS,
+  CHAT_GEMINI_TEXT_MODEL_DEFAULT,
+  CHAT_GEMINI_VIDEO_MODEL_DEFAULT,
+  CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
+  CHAT_LOCAL_DEFAULT_MODEL,
+  CHAT_LOCAL_MODEL_OPTIONS,
+  CHAT_MIROMIND_MODEL_OPTIONS,
+  CHAT_MODEL_ALIASES,
+  CHAT_OPENAI_MODEL_OPTIONS,
+  CHAT_QWEN_MODEL_OPTIONS,
+  CHAT_SHARED_MODEL_CATALOG_OPTIONS,
+} from '@/lib/chatEndpointModels'
+export {
+  CHAT_AGNES_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
+  CHAT_DEERFLOW_MODEL_OPTIONS,
+  CHAT_DEFAULT_MODEL,
+  CHAT_GEMINI_MODEL_OPTIONS,
+  CHAT_GEMINI_TEXT_MODEL_DEFAULT,
+  CHAT_GEMINI_TEXT_MODEL_OPTIONS,
+  CHAT_GEMINI_VIDEO_MODEL_DEFAULT,
+  CHAT_GEMINI_VIDEO_MODEL_OPTIONS,
+  CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
+  CHAT_LOCAL_DEFAULT_MODEL,
+  CHAT_LOCAL_MODEL_OPTIONS,
+  CHAT_MIROMIND_MODEL_OPTIONS,
+  CHAT_OPENAI_MODEL_OPTIONS,
+  CHAT_QWEN_MODEL_OPTIONS,
+} from '@/lib/chatEndpointModels'
 
 export const CHAT_PROXY_PATH_PREFIX = '/__chat_proxy'
 export const CHAT_BINARY_DOWNLOAD_PROXY_PATH = '/__chat_asset_proxy'
@@ -77,98 +123,8 @@ export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
 export const CHAT_PROVIDER_GEMINI = 'gemini'
 export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_AGNES, CHAT_PROVIDER_QWEN, CHAT_PROVIDER_GOOGLE_CLOUD, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_GEMINI] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
-export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-mini-260215'
-export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-4-0-250828'
-export const CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS = [
-  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-  'seedream-4-5-251128',
-  'seedream-5-0-260128',
-] as const
-export const CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT = 'seedance-1-0-pro-fast-251015'
-export const CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS = [
-  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
-  'seedance-1-5-pro-251215',
-  'dreamina-seedance-2-0-fast-260128',
-  'dreamina-seedance-2-0-260128',
-] as const
-export const CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS = [
-  CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
-  'seed-2-0-lite-260228',
-  'seed-2-0-pro-260328',
-  'seed-1-8-251228',
-] as const
-export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
-  ...CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS,
-  ...CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
-  ...CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
-] as const
-export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5'] as const
-export const CHAT_MIROMIND_MODEL_OPTIONS = ['mirothinker-1-7-deepresearch-mini', 'mirothinker-1-7-deepresearch'] as const
-export const CHAT_AGNES_MODEL_OPTIONS = ['agnes-2.0-flash'] as const
-export const CHAT_QWEN_MODEL_OPTIONS = [
-  'qwen-plus',
-  'qwen-plus-latest',
-  'qwen3-max',
-  'qwen3-max-preview',
-  'qwen-flash',
-  'qwen3-next-80b-a3b-instruct',
-  'qwen3-next-80b-a3b-thinking',
-  'qwen3-235b-a22b-instruct-2507',
-  'qwen3-235b-a22b-thinking-2507',
-  'qwen3-32b',
-  'qwen3-14b',
-  'qwen3-8b',
-] as const
-export const CHAT_GOOGLE_CLOUD_MODEL_OPTIONS = [
-  'google/gemini-2.0-flash-001',
-  'google/gemini-1.5-flash-001',
-  'google/gemini-1.5-pro-001',
-  'google/gemini-2.5-flash-preview-09-2025',
-  'google/gemini-2.5-flash-lite-preview-09-2025',
-] as const
-export const CHAT_DEERFLOW_MODEL_OPTIONS = CHAT_OPENAI_MODEL_OPTIONS
-export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
-export const CHAT_GEMINI_VIDEO_MODEL_DEFAULT = 'veo-3.1-generate-preview'
-export const CHAT_GEMINI_VIDEO_MODEL_OPTIONS = [
-  CHAT_GEMINI_VIDEO_MODEL_DEFAULT,
-  'veo-3.1-fast-generate-preview',
-  'veo-3.1-lite-generate-preview',
-  'veo-3.0-generate-001',
-  'veo-2.0-generate-001',
-] as const
-export const CHAT_GEMINI_TEXT_MODEL_DEFAULT = 'gemini-3-flash-preview'
-export const CHAT_GEMINI_TEXT_MODEL_OPTIONS = [
-  CHAT_GEMINI_TEXT_MODEL_DEFAULT,
-  'gemini-3.1-pro-preview',
-  'gemini-3.1-flash-lite-preview',
-  'gemini-2.5-flash',
-] as const
-export const CHAT_GEMINI_MODEL_OPTIONS = [
-  ...CHAT_GEMINI_TEXT_MODEL_OPTIONS,
-  ...CHAT_GEMINI_VIDEO_MODEL_OPTIONS,
-] as const
 export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
-export const CHAT_DEFAULT_MODEL = CHAT_OPENAI_MODEL_OPTIONS[0]
 export const CHAT_DEFAULT_ENDPOINT_URL = CHAT_OPENAI_ENDPOINT_URL
-export const CHAT_LOCAL_DEFAULT_MODEL = CHAT_LOCAL_MODEL_OPTIONS[0]
-const CHAT_SHARED_MODEL_CATALOG_OPTIONS = [
-  ...CHAT_OPENAI_MODEL_OPTIONS,
-  ...CHAT_MIROMIND_MODEL_OPTIONS,
-  ...CHAT_AGNES_MODEL_OPTIONS,
-  ...CHAT_QWEN_MODEL_OPTIONS,
-  ...CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
-  ...CHAT_BYTEPLUS_MODEL_OPTIONS,
-  ...CHAT_LOCAL_MODEL_OPTIONS,
-] as const
-const CHAT_MODEL_ALIASES: Record<string, string> = {
-  'gpt-5.4 nano': 'gpt-5.4-nano',
-  'gpt-5.4 mini': 'gpt-5.4-mini',
-  'gpt-5.4': 'gpt-5.4',
-  'gpt-5.5': 'gpt-5.5',
-  'seedream-4.0': 'seedream-4-0-250828',
-  'seedream-4.5': 'seedream-4-5-251128',
-  'seedream-5.0': 'seedream-5-0-260128',
-}
 const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_BYTEPLUS]: 'BytePlus ModelArk',
   [CHAT_PROVIDER_DEERFLOW]: 'DeerFlow Gateway',
@@ -575,6 +531,36 @@ export function normalizeChatModelIdForProvider(value: unknown, provider: unknow
   if (!raw) return getDefaultChatModelForProvider(normalizedProvider)
   const alias = CHAT_MODEL_ALIASES[raw.toLowerCase()]
   return alias || raw
+}
+
+export function isKnownChatModelIdForDifferentProvider(value: unknown, provider: unknown): boolean {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return false
+  const normalizedProvider = normalizeChatProviderId(provider)
+  const normalizedModel = normalizeChatModelIdForProvider(raw, normalizedProvider)
+  return CHAT_PROVIDER_OPTIONS.some(optionProvider => optionProvider !== normalizedProvider && getChatModelOptions(optionProvider).includes(normalizedModel))
+}
+
+const isUnknownNativeOpenAiModelId = (value: unknown): boolean => {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  return Boolean(raw && /^gpt-/i.test(raw) && !getChatModelOptions(CHAT_PROVIDER_OPENAI).includes(raw))
+}
+
+export function resolveChatModelIdForProvider(value: unknown, provider: unknown, args?: { preserveUnknownCustomModel?: boolean }): string {
+  const normalizedProvider = normalizeChatProviderId(provider)
+  const normalizedModel = normalizeChatModelIdForProvider(value, normalizedProvider)
+  const providerModels = getChatModelOptions(normalizedProvider)
+  if (providerModels.includes(normalizedModel)) return normalizedModel
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (
+    args?.preserveUnknownCustomModel
+    && raw
+    && !isKnownChatModelIdForDifferentProvider(normalizedModel, normalizedProvider)
+    && !isUnknownNativeOpenAiModelId(normalizedModel)
+  ) {
+    return normalizedModel
+  }
+  return getDefaultChatModelForProvider(normalizedProvider)
 }
 
 export function normalizeChatEndpointUrlInput(value: unknown, provider?: unknown): string {

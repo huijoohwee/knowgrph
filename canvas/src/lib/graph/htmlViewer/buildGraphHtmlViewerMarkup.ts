@@ -28,7 +28,7 @@ type HtmlViewerMediaNode = {
   url: string
   openUrl?: string
   interactive: boolean
-  kind: 'iframe' | 'image' | 'svg' | 'video'
+  kind: 'iframe' | 'image' | 'svg' | 'video' | 'audio'
 }
 
 type HtmlViewerMarkdownSeed = {
@@ -70,7 +70,7 @@ const readRichMediaPanelTitle = (el: Element): string => {
   const titledFrame = el.querySelector('iframe[title]') as HTMLElement | null
   const frameTitle = String(titledFrame?.getAttribute('title') || '').trim()
   if (frameTitle) return frameTitle
-  const titledMedia = el.querySelector('video[title],img[alt]') as HTMLElement | null
+  const titledMedia = el.querySelector('video[title],audio[title],img[alt]') as HTMLElement | null
   const mediaTitle = String(
     titledMedia?.getAttribute('title') || titledMedia?.getAttribute('alt') || '',
   ).trim()
@@ -102,7 +102,7 @@ const canonicalizeMarkdownOverlayElement = (el: Element, args: { id: string; anc
 
 const inferMediaKind = (rawUrl: string): HtmlViewerMediaNode['kind'] => {
   const inferred = inferMediaKindFromUrl(rawUrl)
-  if (inferred === 'image' || inferred === 'svg' || inferred === 'video') return inferred
+  if (inferred === 'image' || inferred === 'svg' || inferred === 'video' || inferred === 'audio') return inferred
   const u = String(rawUrl || '').trim().toLowerCase()
   if (!u) return 'iframe'
   if (
@@ -552,7 +552,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
         const url = readAttr(tag, 'data-kg-url') || readAttr(tag, 'data-kg-open-url')
         if (!url) continue
         const kindRaw = readAttr(tag, 'data-kg-kind').toLowerCase()
-        const kind = kindRaw === 'image' || kindRaw === 'svg' || kindRaw === 'video' || kindRaw === 'iframe'
+        const kind = kindRaw === 'image' || kindRaw === 'svg' || kindRaw === 'video' || kindRaw === 'audio' || kindRaw === 'iframe'
           ? (kindRaw as HtmlViewerMediaNode['kind'])
           : inferMediaKind(url)
         mediaNodes.push({
@@ -613,12 +613,12 @@ export async function buildGraphHtmlViewerMarkup(args: {
         if (!id) continue
         const urlAttr = String(el.getAttribute('data-kg-url') || '').trim()
         const openUrlAttr = String(el.getAttribute('data-kg-open-url') || '').trim()
-        const mediaEl = el.querySelector('iframe[src],img[src],video[src],source[src]') as Element | null
+        const mediaEl = el.querySelector('iframe[src],img[src],video[src],audio[src],source[src]') as Element | null
         const srcUrl = mediaEl ? String(mediaEl.getAttribute('src') || '').trim() : ''
         const url = urlAttr || srcUrl || openUrlAttr
         if (!url) continue
         const kindAttr = String(el.getAttribute('data-kg-kind') || '').trim().toLowerCase()
-        const kind = kindAttr === 'image' || kindAttr === 'svg' || kindAttr === 'video' || kindAttr === 'iframe'
+        const kind = kindAttr === 'image' || kindAttr === 'svg' || kindAttr === 'video' || kindAttr === 'audio' || kindAttr === 'iframe'
           ? (kindAttr as HtmlViewerMediaNode['kind'])
           : inferMediaKind(url)
         const title = readRichMediaPanelTitle(el) || id
@@ -767,7 +767,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
       const url = unwrapStandaloneProxyUrl(url0)
       const openUrl = unwrapStandaloneProxyUrl(String(n.openUrl || url || '').trim())
       const relPath = decodeRepoFileUrlToRelPath(url)
-      const canInlineRemote = args.inlineRemoteMediaAssets === true && (n.kind === 'image' || n.kind === 'svg' || n.kind === 'video')
+      const canInlineRemote = args.inlineRemoteMediaAssets === true && (n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio')
 
       const inlined = canInlineRemote
         ? await inlineStandaloneAssetUrlToDataUrl(url0 || url, { maxBytes: MAX_BYTES, allowRemote: true })
@@ -1122,7 +1122,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     #kg-overlay{position:fixed;inset:0;pointer-events:none}
     .kg-media{position:absolute;left:0;top:0;box-sizing:border-box;overflow:hidden;contain:layout paint;isolation:isolate;border-radius:var(--kg-media-panel-radius, 10px);border:var(--kg-media-panel-border-w, 1px) solid var(--kg-border);background:var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92)));box-shadow:0 10px 30px rgba(0,0,0,0.18);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:left, top, transform, width, height;display:flex;flex-direction:column;pointer-events:auto}
     .kg-mediaBody{flex:1;padding:var(--kg-media-panel-padding, 6px);box-sizing:border-box;min-height:0;position:relative}
-    .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
+    .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video,.kg-mediaBody audio{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
     [data-kg-rich-media-floating-toolbar="1"]{position:absolute;top:50%;left:100%;margin-left:12px;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;pointer-events:auto;z-index:10}
     [data-kg-rich-media-open-source="1"]{border:1px solid var(--kg-border);background:var(--kg-panel-bg);color:var(--kg-text);border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer;min-width:32px;min-height:32px;line-height:1.2;box-shadow:0 10px 30px rgba(0,0,0,0.12)}
     [data-kg-rich-media-open-source="1"]:hover{background:rgba(0,0,0,0.04)}

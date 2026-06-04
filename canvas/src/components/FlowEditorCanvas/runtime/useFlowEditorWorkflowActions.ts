@@ -7,18 +7,19 @@ import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/feat
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { UI_COPY, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
+import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/file'
 import { FLOW_RUN_ALL_PHASES } from '@/lib/flowEditor/runAllSequenceSsot'
 import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration } from '@/features/chat/richMediaRun'
+import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
 import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
 import { getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/flow-editor-manager/registryTemplates'
+import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
 import {
   getCachedFlowEditorWorkflowNodeResolutionContext,
   getCachedFlowEditorWorkflowRunPlan,
@@ -29,7 +30,10 @@ import {
   applyFlowEditorWorkflowRichMediaPanelDraftPatch,
   ensureFlowEditorWorkflowRichMediaPanelNodeId,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRichMediaPanel'
-import { resolveFlowEditorWorkflowConnectedValuesInput } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
+import {
+  buildFlowEditorInlineComputeOutputPatch,
+  resolveFlowEditorWorkflowConnectedValuesInput,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
 import {
   setFlowEditorWorkflowRunLoadingStateForKnownNodeIds,
   updateFlowEditorWorkflowOutputForKnownNodeIds,
@@ -176,7 +180,7 @@ export function useFlowEditorWorkflowActions(args: {
         })
       }
 
-      const setRunLoadingStateForKnownNodeIds = (loadingArgs: { loading: boolean; kind?: 'text' | 'image' | 'video' }) => {
+      const setRunLoadingStateForKnownNodeIds = (loadingArgs: { loading: boolean; kind?: 'text' | 'image' | 'video' | 'audio' }) => {
         setFlowEditorWorkflowRunLoadingStateForKnownNodeIds({
           nodeIds: workflowWritebackNodeIds,
           fallbackNode: node,
@@ -191,7 +195,37 @@ export function useFlowEditorWorkflowActions(args: {
         })
       }
 
-      const publishTextRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; outputText: string; title: string; model?: unknown; sourceUrl?: string; loading?: boolean }) => {
+      const rawNodeProperties = (node.properties || {}) as Record<string, unknown>
+      if (typeof rawNodeProperties['flow:compute'] === 'string' && rawNodeProperties['flow:compute'].trim()) {
+        const inlineRegistryEntry = resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })
+        const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({
+          context: workflowNodeResolutionContext,
+          graphForRun,
+          writableNodeId,
+          registry: args.widgetRegistry,
+        })
+        const connectedValuesBySchemaPath = connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId) || null
+        const nextInlinePatch = buildFlowEditorInlineComputeOutputPatch({
+          node,
+          registryEntry: inlineRegistryEntry,
+          connectedValuesBySchemaPath,
+          currentProperties: rawNodeProperties,
+        })
+        if (!nextInlinePatch) {
+          args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorRunFailedToast, ttlMs: 2600 })
+          return
+        }
+        updateRunOutputForKnownNodeIds(nodeProps => buildFlowEditorInlineComputeOutputPatch({
+          node: { ...node, properties: nodeProps as never },
+          registryEntry: inlineRegistryEntry,
+          connectedValuesBySchemaPath,
+          currentProperties: nodeProps,
+        }) || nodeProps)
+        args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Ran inline compute.', ttlMs: 2200 })
+        return
+      }
+
+      const publishTextRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; outputText: string; title: string; model?: unknown; sourceUrl?: string; outputPath?: string | null; loading?: boolean }) => {
         const panelNodeId = ensureFlowEditorWorkflowRichMediaPanelNodeId({
           context: workflowNodeResolutionContext,
           graphForRun,
@@ -203,7 +237,7 @@ export function useFlowEditorWorkflowActions(args: {
         if (!panelNodeId) return
         const patch: Record<string, unknown> = {
           ...clearRichMediaOutputProperties({}),
-          ...buildTextWidgetOutputPatch({ output: String(panelArgs.outputText || ''), title: panelArgs.title, model: panelArgs.model }),
+          ...buildTextWidgetOutputPatch({ output: String(panelArgs.outputText || ''), title: panelArgs.title, model: panelArgs.model, outputPath: panelArgs.outputPath }),
           richMediaActiveTab: 'text',
           outputLoading: panelArgs.loading === true ? true : undefined,
           outputLoadingKind: panelArgs.loading === true ? 'text' : undefined,
@@ -247,15 +281,64 @@ export function useFlowEditorWorkflowActions(args: {
           const nodeTitle = node.label || FLOW_VIDEO_TRANSCRIBER_NODE_LABEL
           const resolvedSourceUrl = String(converted.sourceUrl || sourceUrlRaw).trim() || sourceUrlRaw
           const outputText = String(converted.markdown || '')
+          const outputPath = await writeTextWidgetRunOutputArtifact({
+            workspacePath: activeWorkspacePath || null,
+            node,
+            output: outputText,
+            variant: 'transcript',
+          })
           updateRunOutputForKnownNodeIds(nodeProps => ({
             ...clearRichMediaOutputProperties(nodeProps),
             sourceUrl: resolvedSourceUrl,
             ...(langRaw ? { languageHint: langRaw } : { languageHint: '' }),
-            ...buildTextWidgetOutputPatch({ output: outputText, title: nodeTitle, model: 'youtube' }),
+            ...buildTextWidgetOutputPatch({ output: outputText, title: nodeTitle, model: 'youtube', outputPath }),
             outputSourceUrl: resolvedSourceUrl,
           }))
-          publishTextRunOutputToRichMediaPanel({ anchorNode: node, outputText, title: nodeTitle, model: 'youtube', sourceUrl: resolvedSourceUrl, loading: false })
+          publishTextRunOutputToRichMediaPanel({ anchorNode: node, outputText, title: nodeTitle, model: 'youtube', sourceUrl: resolvedSourceUrl, outputPath, loading: false })
           args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Transcribed video transcript.', ttlMs: 2400 })
+        } finally {
+          setRunLoadingStateForKnownNodeIds({ loading: false })
+        }
+        return
+      }
+
+      if (String(node.type || '').trim() === FLOW_SWARM_PREDICTION_NODE_TYPE_ID) {
+        const rawProperties = (node.properties || {}) as Record<string, unknown>
+        const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({
+          context: workflowNodeResolutionContext,
+          graphForRun,
+          writableNodeId,
+          registry: args.widgetRegistry,
+        })
+        const connectedValuesBySchemaPath = connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId)
+        const readConnectedProperty = (schemaPath: string, propertyKey: string): unknown => {
+          const connected = connectedValuesBySchemaPath?.[schemaPath]?.value
+          return typeof connected === 'undefined' || connected === null ? rawProperties[propertyKey] : connected
+        }
+        setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
+        try {
+          const outputProperties = runSwarmPredictionWidgetProperties({
+            ...rawProperties,
+            scenarioTitle: readConnectedProperty('properties.scenarioTitle', 'scenarioTitle'),
+            seedSignalsJson: readConnectedProperty('properties.seedSignalsJson', 'seedSignalsJson'),
+            agentPopulationJson: readConnectedProperty('properties.agentPopulationJson', 'agentPopulationJson'),
+            interventionsJson: readConnectedProperty('properties.interventionsJson', 'interventionsJson'),
+          })
+          updateRunOutputForKnownNodeIds(nodeProps => ({
+            ...clearRichMediaOutputProperties(nodeProps),
+            output: outputProperties.output,
+            outputSrcDoc: outputProperties.outputSrcDoc,
+            imageUrl: outputProperties.imageUrl,
+            predictionScore: outputProperties.predictionScore,
+            confidenceScore: outputProperties.confidenceScore,
+            eventLogJson: outputProperties.eventLogJson,
+            metricsJson: outputProperties.metricsJson,
+            swarmPredictionRunId: outputProperties.swarmPredictionRunId,
+            outputMimeType: 'text/markdown; charset=utf-8',
+            outputModel: 'knowgrph-swarm-prediction',
+            lastRunAt: new Date().toISOString(),
+          }))
+          args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Ran swarm prediction.', ttlMs: 2400 })
         } finally {
           setRunLoadingStateForKnownNodeIds({ loading: false })
         }
@@ -290,7 +373,7 @@ export function useFlowEditorWorkflowActions(args: {
           }
           updateRunOutputForKnownNodeIds(nodeProps => ({
             ...clearRichMediaOutputProperties(nodeProps),
-            ...buildRichMediaWidgetOutputPatch({ kind: richMediaResult.kind, asset: richMediaResult.asset, outputPath: richMediaResult.outputPath }),
+            ...buildRichMediaWidgetOutputPatch({ kind: richMediaResult.kind, asset: richMediaResult.asset, outputPath: richMediaResult.outputPath, outputManifestPath: richMediaResult.outputManifestPath }),
           }))
           const generatedName = richMediaResult.outputPath ? richMediaResult.outputPath.split('/').pop() : richMediaResult.kind === 'video' ? 'video output' : 'image output'
           args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: `Generated ${generatedName}.`, ttlMs: 2400 })
@@ -349,16 +432,22 @@ export function useFlowEditorWorkflowActions(args: {
           updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: true, outputLoadingKind: 'text', lastRunAt: new Date().toISOString() }))
         }
         let lastPublishedText = ''
-        const publishTextRunOutput = (outputText: string, loading: boolean) => {
+        const publishTextRunOutput = (outputText: string, loading: boolean, outputPath?: string | null) => {
           const nextOutput = String(outputText || '')
           if (mirrorTextOutputToRichMediaPanel) {
-            updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: loading === true ? true : undefined, outputLoadingKind: loading === true ? 'text' : undefined, lastRunAt: loading === true ? new Date().toISOString() : undefined }))
-            publishTextRunOutputToRichMediaPanel({ anchorNode: node, outputText: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || useGraphStore.getState().chatModel, loading })
+            updateRunOutputForKnownNodeIds(nodeProps => ({
+              ...clearRichMediaOutputProperties(nodeProps),
+              ...(loading === true ? {} : buildTextWidgetOutputPatch({ output: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || store.chatModel, outputPath })),
+              outputLoading: loading === true ? true : undefined,
+              outputLoadingKind: loading === true ? 'text' : undefined,
+              lastRunAt: loading === true ? new Date().toISOString() : undefined,
+            }))
+            publishTextRunOutputToRichMediaPanel({ anchorNode: node, outputText: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || useGraphStore.getState().chatModel, outputPath, loading })
             return
           }
           updateRunOutputForKnownNodeIds(nodeProps => ({
             ...clearRichMediaOutputProperties(nodeProps),
-            ...buildTextWidgetOutputPatch({ output: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || store.chatModel }),
+            ...buildTextWidgetOutputPatch({ output: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || store.chatModel, outputPath }),
             outputLoading: loading === true ? true : undefined,
             outputLoadingKind: loading === true ? 'text' : undefined,
           }))
@@ -404,7 +493,13 @@ export function useFlowEditorWorkflowActions(args: {
             args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorRunFailedToast, ttlMs: 2600 })
             return
           }
-          publishTextRunOutput(result, false)
+          const outputPath = await writeTextWidgetRunOutputArtifact({
+            workspacePath: activeWorkspacePath || null,
+            node,
+            output: result,
+            variant: 'text-output',
+          })
+          publishTextRunOutput(result, false, outputPath)
           args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Generated text output.', ttlMs: 2400 })
         } finally {
           setRunLoadingStateForKnownNodeIds({ loading: false })

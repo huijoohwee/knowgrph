@@ -46,7 +46,7 @@ const safeStr = (v: unknown): string => String(v ?? '').trim()
 
 const applyAliasedMediaProperties = (args: {
   properties: Record<string, JSONValue>
-  kind: 'image' | 'video' | 'iframe'
+  kind: 'image' | 'video' | 'audio' | 'iframe'
   url: string
   interactive?: boolean
 }): void => {
@@ -58,9 +58,8 @@ const applyAliasedMediaProperties = (args: {
   }) as Record<string, JSONValue>
   Object.assign(args.properties, next)
   args.properties.media = args.url as unknown as JSONValue
-  if (args.kind === 'video') args.properties.video = args.url as unknown as JSONValue
-  else if (args.kind === 'iframe') args.properties.iframe_url = args.url as unknown as JSONValue
-  else args.properties.image = args.url as unknown as JSONValue
+  const aliasKey = args.kind === 'video' ? 'video' : args.kind === 'audio' ? 'audio' : args.kind === 'iframe' ? 'iframe_url' : 'image'
+  args.properties[aliasKey] = args.url as unknown as JSONValue
 }
 
 const basenameFromUrl = (raw: string): string => {
@@ -87,7 +86,7 @@ const isInteractiveTag = (tag: string): boolean => {
 
 const isMediaTag = (tag: string): boolean => {
   const t = String(tag || '').toUpperCase()
-  return t === 'IMG' || t === 'SVG' || t === 'VIDEO' || t === 'CANVAS' || t === 'IFRAME'
+  return t === 'IMG' || t === 'SVG' || t === 'VIDEO' || t === 'AUDIO' || t === 'CANVAS' || t === 'IFRAME'
 }
 
 const isContainerTag = (tag: string): boolean => {
@@ -1738,8 +1737,8 @@ export function convertWebpageLayoutToGraphData(
     const normalizedSrc = isWeChatHotlinkProtectedAssetUrl(normalizedSrc0) ? buildWebpageAssetPathProxyUrl(normalizedSrc0) : normalizedSrc0
     if (tag === 'IMG' && normalizedSrc) {
       applyAliasedMediaProperties({ properties, kind: 'image', url: normalizedSrc })
-    } else if (tag === 'VIDEO' && normalizedSrc) {
-      applyAliasedMediaProperties({ properties, kind: 'video', url: normalizedSrc, interactive: true })
+    } else if ((tag === 'VIDEO' || tag === 'AUDIO') && normalizedSrc) {
+      applyAliasedMediaProperties({ properties, kind: tag === 'VIDEO' ? 'video' : 'audio', url: normalizedSrc, interactive: true })
     } else if (tag === 'IFRAME' && normalizedSrc) {
       applyAliasedMediaProperties({ properties, kind: 'iframe', url: normalizedSrc, interactive: true })
     }

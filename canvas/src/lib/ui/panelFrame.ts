@@ -86,3 +86,9 @@ export const PANEL_FRAME_FLOATING_BODY_STYLE: CssStyle = {
   ...PANEL_FRAME_BODY_STYLE,
   width: '100%',
 }
+
+export const PANEL_FRAME_EMBEDDED_SURFACE_STYLE: CssStyle = {
+  width: '100%',
+  height: '100%',
+  boxShadow: 'none',
+}

@@ -4,6 +4,8 @@ import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTab
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_WIDE_AUDIO_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
@@ -316,7 +318,7 @@ export const renderSafeHtmlBlockImpl = (
           return <source key={`${key}-src-${i}`} src={deps.applyMediaProxySrc(deps.resolveHref(rawSrc, opts.activeDocumentPath))} type={typeRaw && typeRaw.length <= 80 ? typeRaw : undefined} />
         }).filter(Boolean)
         if (tag === 'audio') {
-          return <audio key={key} controls src={src} className={['w-full max-w-2xl', safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>{renderedSources as unknown as React.ReactNode}</audio>
+          return <audio key={key} controls src={src} className={[CARD_MARKDOWN_PREVIEW_MEDIA_WIDE_AUDIO_CLASS_NAME, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>{renderedSources as unknown as React.ReactNode}</audio>
         }
         const posterRaw = el.getAttribute('poster') || el.getAttribute('data-poster') || ''
         const poster = posterRaw && deps.isSafeHref(posterRaw) && deps.isSafeMediaSrc(posterRaw) ? deps.applyMediaProxySrc(deps.resolveHref(posterRaw, opts.activeDocumentPath)) : undefined
@@ -352,7 +354,7 @@ export const renderSafeHtmlBlockImpl = (
         if (srcRaw && deps.isSafeHref(srcRaw) && deps.isSafeMediaSrc(srcRaw)) {
           const src = deps.resolveHref(srcRaw, opts.activeDocumentPath)
           return (
-            <section key={key} className={opts.markdownPresentationMode ? 'aspect-video w-full' : 'aspect-video w-full max-w-xl'}>
+            <section key={key} className={opts.markdownPresentationMode ? 'aspect-video w-full' : CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME}>
               <CardMediaPreview
                 kind="iframe"
                 url={src}

@@ -34,6 +34,12 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   if (source.includes('{...storyboardDrag.createCardDragProps({ rowId: card.id, groupKey: lane.id })}')) {
     throw new Error('expected StoryboardCanvas to avoid per-subsection drag-owner duplication and keep one shared drag owner on the card shell')
   }
+  if (!source.includes("STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4'") || !source.includes("STORYBOARD_SCORECARD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 text-[11px] sm:grid-cols-2'")) {
+    throw new Error('expected StoryboardCanvas storytree and scorecard grids to use mobile-first responsive owners')
+  }
+  if (source.includes('grid grid-cols-4 gap-1.5') || source.includes('grid grid-cols-2 gap-1.5 text-[11px]')) {
+    throw new Error('expected StoryboardCanvas to avoid fixed mobile storytree and scorecard grid literals')
+  }
   for (const forbidden of ['boords', 'peacock.boords.com', 'app.boords.com']) {
     if (source.toLowerCase().includes(forbidden)) {
       throw new Error(`expected StoryboardCanvas to avoid copied vendor reference: ${forbidden}`)

@@ -7,10 +7,10 @@ import {
   buildGenerateVideoRegistryDraft,
   buildBytePlusVideoScriptRegistryDraft,
   buildOpenAiVideoScriptRegistryDraft,
-  buildRichMediaPanelRegistryDraft,
   buildVideoTranscriberRegistryDraft,
   buildTextGenerationRegistryDraft,
 } from '@/features/flow-editor-manager/registryTemplates'
+import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'
 import {
   buildGrabMapsDiscoveryRegistryDraft,
   FLOW_GRABMAPS_DISCOVERY_FORM_ID,

@@ -13,11 +13,39 @@ import {
   isHorizontalOverlayStrip,
   isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
+import { projectCollectiveScreenLayoutForZoom } from '@/lib/canvas/overlayWidgetZoom'
 export type MediaOverlayLayoutItem = { id: string }
 
 export type MediaOverlayLayoutLoop = {
   schedule: () => void
   stop: () => void
+}
+
+export type MediaOverlayLayoutViewport = {
+  left?: number
+  top?: number
+  width: number
+  height: number
+}
+
+function resolveMediaOverlayLayoutViewport(args: {
+  viewportW: number
+  viewportH: number
+  readLayoutViewport?: (() => MediaOverlayLayoutViewport | null) | null
+}): Required<MediaOverlayLayoutViewport> {
+  const raw = typeof args.readLayoutViewport === 'function' ? args.readLayoutViewport() : null
+  const width = Number.isFinite(raw?.width) && Number(raw?.width) > 0
+    ? Number(raw?.width)
+    : Math.max(1, Number(args.viewportW) || 1)
+  const height = Number.isFinite(raw?.height) && Number(raw?.height) > 0
+    ? Number(raw?.height)
+    : Math.max(1, Number(args.viewportH) || 1)
+  return {
+    left: Number.isFinite(raw?.left) ? Number(raw?.left) : 0,
+    top: Number.isFinite(raw?.top) ? Number(raw?.top) : 0,
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+  }
 }
 
 export function startMediaOverlayLayoutLoop2d(args: {
@@ -28,6 +56,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   density: MediaPanelDensity
   viewportW: number
   viewportH: number
+  readLayoutViewport?: (() => MediaOverlayLayoutViewport | null) | null
   schema?: GraphSchema | null
   collision?: {
     enabled?: boolean
@@ -41,6 +70,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   } | null
   readTransform: () => d3.ZoomTransform | null
   computeSizingZoomK?: (zoomK: number) => number
+  scaleLayoutOnZoom?: boolean
   getPanelSizeForId?: (id: string) => { w: number; h: number } | null
   getElementForId: (id: string) => HTMLElement | null
   getNodeWorldCenterForId: (id: string) => { x: number; y: number } | null
@@ -61,6 +91,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let collectiveCenterWarmupAttempts = 0
   const lastWorldCenterById = new Map<string, { x: number; y: number }>()
   const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number }>()
+  const zoomLayoutBaseBoxById = new Map<string, { left: number; top: number; w: number; h: number; scale: number }>()
   let scheduleCollectiveLayoutUpdate: () => void = () => void 0
 
   const quantizePanelPos = (v: number) => {
@@ -77,12 +108,17 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const scaleChanged = !!lastTransform && Math.abs(lastTransform.k - rawK) > 1e-6
     lastTransform = { k: rawK, x: rawX, y: rawY }
     const k = typeof args.computeSizingZoomK === 'function' ? args.computeSizingZoomK(rawK) : rawK
+    const layoutViewport = resolveMediaOverlayLayoutViewport({
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+      readLayoutViewport: args.readLayoutViewport,
+    })
 
     const density = args.density === 'compact' ? 'compact' : 'default'
     const sizing = computeMediaOverlaySizing({
       density,
-      viewportW: args.viewportW,
-      viewportH: args.viewportH,
+      viewportW: layoutViewport.width,
+      viewportH: layoutViewport.height,
       zoomK: k,
       itemCount: args.items.length,
       config: args.sizingConfig,
@@ -113,8 +149,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
       bottom: clampMarginBottom,
     }
     const spreadMargins = computeBalancedSpreadViewportMargins({
-      viewportW: args.viewportW,
-      viewportH: args.viewportH,
+      viewportW: layoutViewport.width,
+      viewportH: layoutViewport.height,
       preset: 'richMedia',
       minLeftPx: clampMarginLeft,
       minRightPx: clampMarginRight,
@@ -123,8 +159,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
     })
     const clamp = args.clampToViewport
       ? {
-          viewportW: args.viewportW,
-          viewportH: args.viewportH,
+          left: layoutViewport.left,
+          top: layoutViewport.top,
+          viewportW: layoutViewport.width,
+          viewportH: layoutViewport.height,
           margin: 0,
           marginLeft: clampMargins.left,
           marginRight: clampMargins.right,
@@ -158,7 +196,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       if (!center) {
         missingCenterIds.push(id)
         if (manualPlacement && viewportClampEnabled && args.items.length > 1) {
-          preferred.push({ id, left: 0, top: 0, w, h, el })
+          preferred.push({ id, left: layoutViewport.left, top: layoutViewport.top, w, h, el })
           fallbackPreferredCount += 1
         }
         continue
@@ -168,12 +206,35 @@ export function startMediaOverlayLayoutLoop2d(args: {
       if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
 
       const previousBox = lastAppliedBoxById.get(id) || null
-      const preferredCenter = scaleChanged && previousBox
-        ? {
-            cx: previousBox.left + previousBox.w / 2,
-            cy: previousBox.top + previousBox.h / 2,
-          }
-        : { cx, cy }
+      const projectedZoomBox = scaleChanged && args.scaleLayoutOnZoom === true && previousBox
+        ? (() => {
+            const existingBase = zoomLayoutBaseBoxById.get(id) || null
+            const base = existingBase || {
+              left: previousBox.left,
+              top: previousBox.top,
+              w: previousBox.w,
+              h: previousBox.h,
+              scale: 1,
+            }
+            if (!existingBase) zoomLayoutBaseBoxById.set(id, base)
+            return projectCollectiveScreenLayoutForZoom({
+              base: { left: base.left, top: base.top, scale: base.scale },
+              scale: w / Math.max(1, base.w),
+              anchorX: layoutViewport.left + layoutViewport.width / 2,
+              anchorY: layoutViewport.top + layoutViewport.height / 2,
+              baseWidth: base.w,
+              baseHeight: base.h,
+            })
+          })()
+        : null
+      const preferredCenter = projectedZoomBox
+        ? { cx: projectedZoomBox.left + w / 2, cy: projectedZoomBox.top + h / 2 }
+        : scaleChanged && previousBox
+          ? {
+              cx: previousBox.left + previousBox.w / 2,
+              cy: previousBox.top + previousBox.h / 2,
+            }
+          : { cx, cy }
       const rect = computePanelRect({ cx: preferredCenter.cx, cy: preferredCenter.cy, w, h, clamp })
       preferred.push({ id, left: quantizePanelPos(rect.left), top: quantizePanelPos(rect.top), w, h, el })
     }
@@ -217,14 +278,12 @@ export function startMediaOverlayLayoutLoop2d(args: {
 
     const clampWithMargin = (pos: { left: number; top: number }, size: { w: number; h: number }) => {
       if (!viewportClampEnabled) return pos
-      const vw = Math.max(1, Number(args.viewportW) || 1)
-      const vh = Math.max(1, Number(args.viewportH) || 1)
       const w = Math.max(1, Number(size.w) || 1)
       const h = Math.max(1, Number(size.h) || 1)
-      const leftMin = clampMargins.left
-      const leftMax = Math.max(leftMin, vw - clampMargins.right - w)
-      const topMin = clampMargins.top
-      const topMax = Math.max(topMin, vh - clampMargins.bottom - h)
+      const leftMin = layoutViewport.left + clampMargins.left
+      const leftMax = Math.max(leftMin, layoutViewport.left + layoutViewport.width - clampMargins.right - w)
+      const topMin = layoutViewport.top + clampMargins.top
+      const topMax = Math.max(topMin, layoutViewport.top + layoutViewport.height - clampMargins.bottom - h)
       const left = Math.max(leftMin, Math.min(leftMax, pos.left))
       const top = Math.max(topMin, Math.min(topMax, pos.top))
       return { left, top }
@@ -286,8 +345,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
           const avgH = Math.max(1, sumH / Math.max(1, preferred.length))
           const layout = computeBalancedSpreadLayout({
             count: preferred.length,
-            viewportW: args.viewportW,
-            viewportH: args.viewportH,
+            viewportW: layoutViewport.width,
+            viewportH: layoutViewport.height,
             cellW: Math.max(1, avgW + gapPx),
             cellH: Math.max(1, avgH + gapPx),
             gapPx,
@@ -301,7 +360,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
           const ordered = [...preferred].sort((a, b) => a.id.localeCompare(b.id))
           return ordered.map((item, index) => {
             const cell = layout.cells[index]
-            return cell ? { id: item.id, left: cell.left, top: cell.top, w: item.w, h: item.h } : { id: item.id, left: item.left, top: item.top, w: item.w, h: item.h }
+            return cell
+              ? { id: item.id, left: layoutViewport.left + cell.left, top: layoutViewport.top + cell.top, w: item.w, h: item.h }
+              : { id: item.id, left: item.left, top: item.top, w: item.w, h: item.h }
           })
         })()
         const seedItems = verticalSeed || preferred.map(p => ({ id: p.id, left: p.left, top: p.top, w: p.w, h: p.h }))
@@ -318,9 +379,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
           if (typeof args.collision?.maxAnchorShiftPx === 'number' && Number.isFinite(args.collision.maxAnchorShiftPx)) {
             return Math.max(40, args.collision.maxAnchorShiftPx)
           }
-          const fallback = computeOverlayMaxAnchorShiftPx(args.viewportW, args.viewportH)
+          const fallback = computeOverlayMaxAnchorShiftPx(layoutViewport.width, layoutViewport.height)
           if (!manualPlacement) return fallback
-          const manualCap = Math.max(80, Math.round(Math.min(args.viewportW, args.viewportH) * 0.22))
+          const manualCap = Math.max(80, Math.round(Math.min(layoutViewport.width, layoutViewport.height) * 0.22))
           return Math.min(fallback, manualCap)
         })()
         const maxSpeedPxPerStep =
@@ -365,6 +426,15 @@ export function startMediaOverlayLayoutLoop2d(args: {
         applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: 'block' })
         lastAppliedBoxById.set(p.id, nextBox)
       }
+      if (args.scaleLayoutOnZoom === true && !scaleChanged) {
+        zoomLayoutBaseBoxById.set(p.id, {
+          left: nextBox.left,
+          top: nextBox.top,
+          w: nextBox.w,
+          h: nextBox.h,
+          scale: 1,
+        })
+      }
       try {
         ;(p.el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
       } catch {
@@ -377,6 +447,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
     }
     for (const id of Array.from(lastAppliedBoxById.keys())) {
       if (!keepIds.has(id)) lastAppliedBoxById.delete(id)
+    }
+    for (const id of Array.from(zoomLayoutBaseBoxById.keys())) {
+      if (!keepIds.has(id)) zoomLayoutBaseBoxById.delete(id)
     }
   }
 

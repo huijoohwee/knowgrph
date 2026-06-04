@@ -201,3 +201,36 @@ export function testBuildWidgetCompactPreviewViewModelProvidesSharedTextAndImage
     throw new Error(`expected image preview alt text to fall back to node id, got ${JSON.stringify(imageView)}`)
   }
 }
+
+export function testResolveWidgetCompactPreviewSupportsAudioOutputs() {
+  const registryEntry: WidgetRegistryEntry = {
+    ...BASE_REGISTRY_ENTRY,
+    id: 'audio-widget',
+    fields: [
+      { fieldKey: 'audioUrl', fieldType: 'text', schemaPath: 'properties.audioUrl' },
+    ],
+    ports: [
+      { portKey: 'audioUrl', direction: 'output', schemaPath: 'properties.audioUrl' },
+    ],
+  }
+  const preview = resolveWidgetCompactPreview({
+    node: {
+      id: 'audio-widget',
+      type: 'AudioGeneration',
+      properties: {
+        audioUrl: 'https://example.com/generated.mp3',
+      },
+    } as never,
+    registryEntry,
+  })
+  if (!preview || preview.kind !== 'audio' || preview.schemaPath !== 'properties.audioUrl') {
+    throw new Error(`expected compact preview helper to resolve audio output, got ${JSON.stringify(preview)}`)
+  }
+  const view = buildWidgetCompactPreviewViewModel({
+    preview,
+    node: { id: 'audio-widget', label: 'Audio Widget' } as never,
+  })
+  if (!view || view.kind !== 'audio' || view.mediaUrl !== 'https://example.com/generated.mp3') {
+    throw new Error(`expected compact preview view model to preserve audio media state, got ${JSON.stringify(view)}`)
+  }
+}

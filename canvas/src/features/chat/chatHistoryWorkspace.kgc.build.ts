@@ -1,8 +1,10 @@
 import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
 import { ensureKgcBaseTemplateRequiredBodyScaffold } from './chatHistoryWorkspace.kgc.bodyScaffold'
+import { splitLeadingFrontmatterAndBody } from './chatKgcFrontmatter'
 import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
 import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
 import { enforceKgcQueryResponsiveContent } from './chatHistoryWorkspace.kgc.normalize'
+import { extractChatResponseStructuredSurface, projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContent'
 
 type KgcStorageNormalizeArgs = {
   timestampMs: number
@@ -31,16 +33,30 @@ const wrapFence = (content: string, lang: string): string => {
   return [`${ticks}${safeLang}`, safe, ticks].join('\n')
 }
 
+const projectStructuredContentIntoKgcMarkdown = (markdown: string): string => {
+  const parsed = splitLeadingFrontmatterAndBody(markdown)
+  if (!parsed) return markdown
+  const surface = extractChatResponseStructuredSurface(markdown)
+  if (!surface) return markdown
+  const frontmatter = projectChatResponseStructuredSurfaceIntoKgcFrontmatter({
+    frontmatter: parsed.frontmatter,
+    surface,
+  })
+  if (frontmatter === parsed.frontmatter) return markdown
+  return ['---', frontmatter.trimEnd(), '---', parsed.body.trim()].join('\n').trimEnd() + '\n'
+}
+
 export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArgs): string => {
   const raw = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
   const recovered = recoverStructuredKgcAssistantPayload(raw)
   const kgc = typeof recovered.kgc === 'string' ? recovered.kgc.trim() : ''
   if (kgc && isKgcStructuredMarkdown(kgc)) {
-    return enforceKgcQueryResponsiveContent({
+    const queryResponsive = enforceKgcQueryResponsiveContent({
       markdown: kgc,
       requestText: args.requestText,
       workspacePath: args.workspacePath,
     })
+    return projectStructuredContentIntoKgcMarkdown(queryResponsive)
   }
   const fileName = String(args.workspacePath || '').split('/').filter(Boolean).slice(-1)[0] || ''
   const fallback = buildDeterministicBaseTemplateKgcTurn({

@@ -164,6 +164,8 @@ export const UI_COPY = {
   chatResponseMissingContentError: 'Chat response did not include content.',
   chatSubmitPreparationTimeoutError: (providerLabel: string) =>
     `${providerLabel} got stuck while preparing the chat request. Start a fresh chat session or retry after workspace activity settles.`,
+  chatSubmitTransportTimeoutError: (providerLabel: string) =>
+    `${providerLabel} did not return a chat response before the request timeout. Check the API key, endpoint, proxy routing, or local gateway and try again.`,
   chatStreamFirstChunkTimeoutError: (providerLabel: string) =>
     `${providerLabel} did not produce any stream output. Check the API key, endpoint, or provider-specific request options and try again.`,
   chatEndpointOkStatus: 'Chat endpoint responded successfully.',

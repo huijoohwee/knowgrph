@@ -1,0 +1,10 @@
+.kg-graph-table-inspector-detail-grid {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, min(var(--kg-graph-table-inspector-label-width, 7.5rem), 40vw)) minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+  overflow: hidden;
+  padding: 0.5rem 0.75rem;
+}

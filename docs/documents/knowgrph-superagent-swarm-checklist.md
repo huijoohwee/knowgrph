@@ -25,8 +25,10 @@ and `code.write_and_run` proving skill/research/code lanes before media
 creation. The declared task-depth levels are `quick_triage`, `bounded_compile`,
 `deep_research`, and `parallel_build`; those levels describe run depth and
 coordination style, while the task capabilities remain `research`, `code`, and
-`create`. It does not claim a deployed public mutating SuperAgent service, and
-it is not a Level 3 swarm-intelligence simulation.
+`create`. The repo also now contains a Dev-source Level 3 swarm prediction
+baseline through `canvas/src/features/swarm-prediction/swarmPredictionEngine.ts`
+and its Flow Editor widget registry contract. These local capabilities do not
+claim a deployed public mutating SuperAgent or swarm service.
 
 This document is a **repo-level** checklist to distinguish:
 
@@ -216,10 +218,13 @@ Based on current repo state:
     and generated artifacts.
   - Memory and trace: run observations, retry/recovery events, artifact
     provenance, and trace event counts.
-- `knowgrph` is not Level 3 swarm intelligence:
-  - no many-agent simulation engine
-  - no world-state schema
-  - no replayable simulation event log for emergent multi-agent behavior
+- `knowgrph` now has a Dev-source Level 3 swarm prediction baseline:
+  - simulation engine: `canvas/src/features/swarm-prediction/swarmPredictionEngine.ts`
+  - report/chart rendering: `canvas/src/features/swarm-prediction/swarmPredictionRender.ts`
+  - Flow Editor widget contract: `canvas/src/features/swarm-prediction/swarmPredictionWidget.ts`
+  - validation: `canvas/src/__tests__/swarmPredictionEngine.test.ts`
+  - PRD/TAD: `docs/documents/knowgrph-swarm-prediction-engine-prd-tad.md`
 
-So: **it meets Level 2 local SuperAgent harness for repo-owned runs, but not
-Level 3 swarm intelligence and not a deployed public mutating agent service**.
+So: **it meets Level 2 local SuperAgent harness for repo-owned runs and has a
+Dev-source Level 3 swarm prediction simulation baseline, but it still does not
+claim a deployed public mutating agent or swarm service**.

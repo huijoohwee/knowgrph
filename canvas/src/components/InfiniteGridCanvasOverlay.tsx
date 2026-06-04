@@ -1,5 +1,6 @@
 import React from 'react'
 import { drawInfiniteGrid } from '@/lib/canvas/infiniteGrid'
+import { CANVAS_PASSIVE_OVERLAY_CLASS } from '@/lib/canvas/surface'
 import { readRootCssStateKey, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 import { readCanvasGridStrokeFallbacks } from '@/lib/canvas/canvasGridPaint'
 
@@ -177,8 +178,7 @@ export function InfiniteGridCanvasOverlay(props: {
     <canvas
       ref={canvasRef}
       aria-hidden={true}
-      className={props.className || 'absolute inset-0 z-0 pointer-events-none'}
-      style={{ width: '100%', height: '100%' }}
+      className={props.className || CANVAS_PASSIVE_OVERLAY_CLASS}
     />
   )
 }

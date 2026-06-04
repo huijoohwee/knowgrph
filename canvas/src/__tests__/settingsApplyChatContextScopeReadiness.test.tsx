@@ -1,5 +1,6 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Simulate } from 'react-dom/test-utils'
 import FloatingPanelChat from '@/features/chat/FloatingPanelChat'
 import {
   readLocalChatPipelineSurfaceSnapshot,
@@ -11,7 +12,7 @@ import { inspectLocalSettingsChatReadiness } from '@/features/agent-ready/localS
 import { useSettingsChatAssist } from '@/features/panels/views/useSettingsChatAssist'
 import { useSettingsSync } from '@/features/panels/views/useSettingsSync'
 import { useSettingsView } from '@/features/panels/views/useSettingsView'
-import { CHAT_KTV_ROW_KEYS } from '@/features/panels/views/settingsView.constants'
+import { renderSettingInput } from '@/features/settings/ui'
 import { DEFAULT_PAYMENT_PROVIDER_ID } from '@/features/payments/providers'
 import { CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -20,16 +21,15 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 
+const CHAT_CONTEXT_SCOPE_LABELS = [
+  'Selection + Workspace (Default)',
+  'Canvas Selection',
+  'Workspace Source Files',
+]
+
 type RegisteredSettingsActions = {
   apply: () => void
   reset: () => void
-}
-
-const findButtonByLabel = (container: HTMLElement, label: string): HTMLButtonElement => {
-  const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
-  const match = buttons.find(button => String(button.textContent || '').includes(label))
-  if (!match) throw new Error(`expected button with label ${JSON.stringify(label)}`)
-  return match
 }
 
 function SettingsApplyHarness(props: {
@@ -49,8 +49,7 @@ function SettingsApplyHarness(props: {
   })
 
   useSettingsSync({ dirtyRef, setValues, values })
-
-  const { buildChatAssistNodes } = useSettingsChatAssist({
+  useSettingsChatAssist({
     dirtyRef,
     openLocalChatApiKeyEntry: () => {},
     setValues,
@@ -59,7 +58,17 @@ function SettingsApplyHarness(props: {
 
   return (
     <section>
-      <section data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</section>
+      <section data-row="context">
+        {renderSettingInput(
+          'chatContextScope',
+          'string',
+          true,
+          values,
+          setValues,
+          dirtyRef,
+          ['hybrid', 'selection', 'workspace'],
+        )}
+      </section>
     </section>
   )
 }
@@ -126,9 +135,25 @@ export async function testSettingsApplyCommitsChatContextScopeIntoFloatingChatPi
     if (!contextRow) {
       throw new Error(`expected settings harness context row, got ${JSON.stringify(settingsContainer.textContent || '')}`)
     }
+    const contextSelect = contextRow.querySelector('select') as HTMLSelectElement | null
+    if (!contextSelect) {
+      throw new Error(`expected chatContextScope Value dropdown, got ${JSON.stringify(contextRow.textContent || '')}`)
+    }
+    const optionLabels = Array.from(contextSelect.options).map(option => String(option.textContent || '').trim())
+    CHAT_CONTEXT_SCOPE_LABELS.forEach(label => {
+      if (!optionLabels.includes(label)) {
+        throw new Error(`expected chatContextScope dropdown to include ${JSON.stringify(label)}, got ${JSON.stringify(optionLabels)}`)
+      }
+    })
+    if (contextSelect.value !== 'selection') {
+      throw new Error(`expected seeded chatContextScope dropdown value to be selection, got ${JSON.stringify(contextSelect.value)}`)
+    }
 
     await act(async () => {
-      findButtonByLabel(contextRow, 'Workspace').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLSelectElement.prototype, 'value')?.set
+      if (!valueSetter) throw new Error('expected DOM select value setter')
+      valueSetter.call(contextSelect, 'workspace')
+      Simulate.change(contextSelect)
       await waitForFrames(dom.window as unknown as Window, 3)
     })
 

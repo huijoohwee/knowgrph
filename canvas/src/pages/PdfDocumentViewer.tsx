@@ -6,6 +6,15 @@ import { fetchPdfWorkspaceDoc, getDefaultWorkspaceOutputDirRel } from '@/lib/pdf
 import { resolveAnchorIdAfterSwitch } from '@/lib/pdf/pdfWorkspaceAnchors'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { parseMarkdownBlocks, parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  PDF_DOCUMENT_VIEWER_DOCUMENT_PANE_CLASS_NAME,
+  PDF_DOCUMENT_VIEWER_GRID_CLASS_NAME,
+  PDF_DOCUMENT_VIEWER_HEADER_ROW_CLASS_NAME,
+  PDF_DOCUMENT_VIEWER_PAGED_CONTAINER_CLASS_NAME,
+  PDF_DOCUMENT_VIEWER_READING_CONTAINER_CLASS_NAME,
+  PDF_DOCUMENT_VIEWER_TOC_CLASS_NAME,
+} from '@/pages/pageResponsiveClasses'
 
 type LayoutPreset = 'reading' | 'paged'
 
@@ -170,7 +179,7 @@ export default function PdfDocumentViewer() {
   return (
     <main className={`h-full w-full ${UI_THEME_TOKENS.text.primary}`} aria-label="PDF Document Viewer">
       <header className={`w-full border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`} aria-label="Viewer header">
-        <section className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between" aria-label="Header row">
+        <section className={PDF_DOCUMENT_VIEWER_HEADER_ROW_CLASS_NAME} aria-label="Header row">
           <section className="min-w-0" aria-label="Header title">
             <h1 className="text-sm font-semibold truncate" aria-label="Document title">
               {title}
@@ -202,13 +211,13 @@ export default function PdfDocumentViewer() {
         </section>
       </header>
 
-      <section className="max-w-6xl mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4" aria-label="Viewer Grid">
-        <aside className={`lg:col-span-3 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`} aria-label="TOC">
+      <section className={PDF_DOCUMENT_VIEWER_GRID_CLASS_NAME} aria-label="Viewer Grid">
+        <aside className={`${PDF_DOCUMENT_VIEWER_TOC_CLASS_NAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`} aria-label="TOC">
           <header className="flex items-center justify-between" aria-label="TOC Header">
             <h2 className="text-xs font-semibold">Outline</h2>
             <span className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>{toc.length}</span>
           </header>
-          <nav className="mt-2 max-h-[70vh] overflow-auto" aria-label="TOC entries">
+          <nav className={`mt-2 ${UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME}`} aria-label="TOC entries">
             {toc.length === 0 ? (
               <p className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>No headings.</p>
             ) : (
@@ -237,7 +246,7 @@ export default function PdfDocumentViewer() {
           </nav>
         </aside>
 
-        <section className="lg:col-span-9 space-y-3" aria-label="Document Pane">
+        <section className={PDF_DOCUMENT_VIEWER_DOCUMENT_PANE_CLASS_NAME} aria-label="Document Pane">
           <header className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`} aria-label="Viewer Toolbar">
             <form className="flex flex-wrap items-center gap-2" aria-label="Viewer Controls">
               <label className={`text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="layoutSel">
@@ -301,7 +310,7 @@ export default function PdfDocumentViewer() {
             aria-label="Rendered Markdown"
           >
             <section
-              className={layout === 'reading' ? 'max-w-3xl mx-auto px-6 py-6' : 'px-6 py-6'}
+              className={layout === 'reading' ? PDF_DOCUMENT_VIEWER_READING_CONTAINER_CLASS_NAME : PDF_DOCUMENT_VIEWER_PAGED_CONTAINER_CLASS_NAME}
               style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
               aria-label="Markdown Container"
             >

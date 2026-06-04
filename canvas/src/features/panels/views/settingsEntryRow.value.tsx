@@ -1,5 +1,9 @@
 import React from 'react'
 import { SettingsSpecialValueNode, shouldRenderSettingsSpecialValueNode } from './SettingsSpecialValueNode'
+import {
+  KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME,
+  KTV_VALUE_ROW_SCROLL_CLASS_NAME,
+} from '@/features/panels/ui/KeyTypeValueRow'
 import type { SettingsEntry } from './useSettingsView.helpers'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
 
@@ -58,9 +62,9 @@ export function buildSettingsEntryValueNode({
 
   return assistNodes.length > 0
     ? (
-      <section className="space-y-1">
-        {inputNode}
-        <section className="flex flex-wrap items-center gap-1">{assistNodes}</section>
+      <section className={KTV_VALUE_ROW_SCROLL_CLASS_NAME}>
+        <section className={KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME}>{inputNode}</section>
+        {assistNodes}
       </section>
     )
     : inputNode

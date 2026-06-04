@@ -60,6 +60,10 @@ export const FLOW_TEXT_GENERATION_NODE_TYPE_ID = 'TextGeneration' as const
 export const FLOW_TEXT_GENERATION_NODE_LABEL = 'Text Widget' as const
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
 export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'BytePlus Video Widget' as const
+export const FLOW_SWARM_PREDICTION_NODE_TYPE_ID = 'SwarmPrediction' as const
+export const FLOW_SWARM_PREDICTION_NODE_LABEL = 'Swarm Prediction Engine' as const
+export const FLOW_SWARM_PREDICTION_WIDGET_TYPE_ID = 'default' as const
+export const FLOW_SWARM_PREDICTION_FORM_ID = 'swarmPrediction' as const
 
 export const FLOW_VIDEO_SCRIPT_FORM_ID = 'videoScript' as const
 export const FLOW_VIDEO_SCRIPT_WIDGET_LABEL = 'BytePlus Video Script Widget' as const

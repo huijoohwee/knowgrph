@@ -156,7 +156,7 @@ export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponses
         provider: 'openai',
         endpointUrl: 'https://api.openai.com/v1/responses',
         apiKey: '',
-        chatModel: 'gpt-5.4-nano',
+        chatModel: 'gpt-5-nano',
       },
       prompt: 'Generate markdown',
       options: {
@@ -257,7 +257,7 @@ export async function testGenerateRunMarkdownWithProviderStreamsOpenAiResponsesT
         provider: 'openai',
         endpointUrl: 'https://api.openai.com/v1/responses',
         apiKey: '',
-        chatModel: 'gpt-5.4-nano',
+        chatModel: 'gpt-5-nano',
       },
       prompt: 'Generate markdown',
       options: {

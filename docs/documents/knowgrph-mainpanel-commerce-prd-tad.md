@@ -2,14 +2,14 @@
 title: "Knowgrph MainPanel Commerce - PRD & TAD"
 doc_type: "PRD+TAD"
 doc_id: "KGC-MP-COMMERCE-001"
-version: "1.0.3"
+version: "1.0.4"
 status: "Accepted and implemented"
 date: "2026-06-04"
 authors: ["airvio"]
 schema: "kgc-computing-flow/v1"
 lang: "en-US"
 frontmatter_contract: "required"
-tags: ["mainpanel", "commerce", "payments", "agentic-commerce", "stripe", "web3", "openbox"]
+tags: ["mainpanel", "commerce", "payments", "agentic-commerce", "stripe", "web3", "solana-pay", "openbox"]
 ---
 
 # Knowgrph MainPanel Commerce PRD/TAD
@@ -18,7 +18,7 @@ tags: ["mainpanel", "commerce", "payments", "agentic-commerce", "stripe", "web3"
 
 Accepted and implemented.
 
-This document defines the MainPanel Commerce surface for the implemented Agentic Commerce Protocol, hosted Stripe Checkout, Stripe delegate payment, Web3 settlement, OpenBOX governance, proof artifact, and trace artifact paths.
+This document defines the MainPanel Commerce surface for the implemented Agentic Commerce Protocol, hosted Stripe Checkout, Stripe delegate payment, Web3 settlement, Solana Pay settlement, OpenBOX governance, proof artifact, and trace artifact paths.
 
 ## Recommendation
 
@@ -39,7 +39,7 @@ In scope:
 - ACP configuration and endpoint readiness
 - Checkout session lifecycle diagnostics
 - Stripe delegate payment readiness
-- Web3 payment readiness through Base RPC and EAS attestation
+- Web3 payment readiness through Base RPC, EAS attestation, and Solana Pay RPC validation
 - OpenBOX risk and proof-ingest readiness
 - D1-backed proof and trace artifact inspection
 - Worker route health for Dev -> Prod -> Cloudflare parity
@@ -65,7 +65,7 @@ As a Knowgrph operator, I want one Commerce tab in MainPanel so I can verify sel
 | MC-AC1 | MainPanel exposes one canonical Commerce tab for commerce/payment operations. |
 | MC-AC2 | Commerce reuses the existing settings/rendering owners instead of creating a parallel panel framework. |
 | MC-AC3 | Commerce groups Stripe payment config under `Payments`, not as the whole top-level tab identity. |
-| MC-AC4 | Commerce shows ACP config, checkout sessions, Stripe, Web3, OpenBOX, proofs, and trace readiness as sections. |
+| MC-AC4 | Commerce shows ACP config, checkout sessions, Stripe, Web3, Solana Pay, OpenBOX, proofs, and trace readiness as sections. |
 | MC-AC5 | Commerce links to live worker routes without hardcoded repo-local or project-specific URLs; route paths come from shared SSOT helpers. |
 | MC-AC6 | Commerce does not introduce backfill fixtures, fake chain confirmations, or duplicate artifact writers. |
 | MC-AC7 | Focused tests prove that `commerce` exists once and `payments` does not remain a top-level tab key. |
@@ -78,7 +78,7 @@ As a Knowgrph operator, I want one Commerce tab in MainPanel so I can verify sel
 | Overview | ACP seller config, worker route health, D1 readiness, deploy context | `grph-shared/src/payments/agenticCommerceSsot.ts`, payment Worker |
 | Sessions | Create/get/cancel/complete diagnostics and idempotency checks | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` |
 | Payments | Hosted Stripe Checkout, Stripe delegate payment, server-managed key readiness, and remote D1 payment schema readiness | existing payments settings/docs owners |
-| Web3 | Base RPC confirmation, deposit address, EAS attestation readiness | `agenticCommerceIntegrations.ts` |
+| Web3 | Base RPC confirmation, Solana Pay transfer-reference confirmation, deposit address, and EAS attestation readiness | `agenticCommerceIntegrations.ts`, `agenticCommerceSolanaPay.ts` |
 | Governance | OpenBOX risk API and proof ingest readiness | `agenticCommerceIntegrations.ts` |
 | Proofs | `harness-proof.json` and `trace.jsonl` inspection | `agenticCommercePersistence.ts`, artifact routes |
 
@@ -118,6 +118,7 @@ Commerce consumes route metadata from shared owners:
 | Stripe readiness gate | Worker secret names, visible Worker vars including checkout mode and return origin, remote D1 payment tables, required webhook-processing columns, and bounded optional hosted Checkout create-and-expire smoke | `STRIPE_PAYMENT_READINESS_CHECK_SUMMARY`, `payment:stripe:readiness` |
 | Combined payment readiness | Final post-config payment readiness wrapper for Stripe plus x402 gates | `payment:readiness`, `payment:stripe:readiness`, `payment:x402:readiness` |
 | Web3 settlement | Web3 settlement route | `AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle` |
+| Solana Pay settlement | Solana Pay signature settlement route; verifies RPC transaction reference, recipient, amount, optional SPL token mint, and memo before proof emission | `AGENTIC_COMMERCE_ROUTE_PATHS.solanaPaySettle`, `SOLANA_PAY_RECIPIENT`, `SOLANA_PAY_SPL_TOKEN`, `SOLANA_PAY_RPC_URL` |
 | OpenBOX ingest | OpenBOX ingest route | `AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest` |
 | Proof artifact | Commerce proof artifact route | `AGENTIC_COMMERCE_ROUTE_PATHS.commerceProofArtifact` |
 | Trace artifact | Commerce trace artifact route | `AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact` |
@@ -148,6 +149,7 @@ browser-local agent inspection reads the same readiness snapshot instead of rebu
 | Reuse shared icon metadata | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Commerce icon metadata is added through the MainPanel icon SSOT. |
 | Guard against duplicate tabs | `canvas/src/__tests__/mainPanelCommerce.test.tsx` | Tests assert Commerce renders and Payments is not a top-level tab. |
 | Surface Stripe readiness gate | `stripePaymentApiDocs.ts`, `stripePaymentSsot.ts` | Commerce renders `stripeApi.worker.d1_migrations` and `stripeApi.worker.readiness_gate`, including Worker secrets, visible Worker vars, checkout mode and return origin not hidden as secrets, remote D1 payment tables, required webhook-processing columns, and bounded optional live Checkout create-and-expire smoke. |
+| Surface Solana Pay readiness | `agenticCommerceSolanaPay.ts`, `agenticCommerceSolanaPaySsot.ts` | Commerce readiness includes the Solana Pay settle route while checkout creation returns a generated `solana:` transfer URL and reference from the shared semantic-key owner. |
 | Keep Dev -> Prod -> Cloudflare deploy path intact | `scripts/build-pages-functions-worker.mjs`, Pages sync/deploy scripts | Pages functions worker is built before deploy so commerce UI and API routes stay published together. |
 
 ## Validation Contract
@@ -156,6 +158,7 @@ browser-local agent inspection reads the same readiness snapshot instead of rebu
 |---|---|---|
 | MainPanel Commerce focused tests | `npm --prefix canvas run test:ci:unit -- "ui.mainPanel.commerce"` | Commerce tab exists, renders route readiness, and excludes top-level Payments. |
 | Stripe payment focused tests | `npm --prefix canvas run test:ci:unit -- "payments.stripe"` | Commerce Stripe rows, hosted Checkout, status refresh, config helper, readiness helper, and remote D1 table/column schema checks pass. |
+| Solana Pay focused tests | `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.solanaPay"` | Solana Pay checkout URL/reference generation, RPC-backed settlement, and generic-webhook bypass rejection pass. |
 | MainPanel entry-tab inspector | `npm --prefix canvas run test:ci:unit -- "agentReady.localMainPanelChatCanvasPipeline"` | MCP, Integrations, and Commerce all pass the same E2E readiness fixture; stale Payments is reported as an issue. |
 | MainPanel hub regression | `npm --prefix canvas run test:ci:unit -- "ui.mainPanel.commerceHub"` | Commerce hub keeps shared MainPanel controls stable. |
 | WebMCP E2E readiness | `npm --prefix canvas run test:ci:unit -- "agentReady.webMcpRuntime.lateBinding.sameOriginStoragePaths"` | Browser-local pipeline inspection exposes Commerce readiness with the shared semantic key. |
@@ -169,7 +172,8 @@ browser-local agent inspection reads the same readiness snapshot instead of rebu
 - Do not add compatibility remapping for old tab labels unless a current source owner requires it for a persisted setting key.
 - Do not hardcode `airvio.co`, repo paths, seller IDs, or Cloudflare project names in UI logic.
 - Do not recalculate proof state in the UI; read artifacts from the Worker/D1-backed routes.
-- Do not reimplement Stripe, Base RPC, EAS, or OpenBOX clients in the browser.
+- Do not reimplement Stripe, Base RPC, Solana RPC, EAS, or OpenBOX clients in the browser.
+- Do not let the generic commerce webhook settle Solana Pay sessions; Solana Pay settlement must verify the transaction signature through the Worker route.
 
 ## Traceability
 

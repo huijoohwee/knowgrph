@@ -2,29 +2,38 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useLocation } from 'react-router-dom'
-import { CanvasViewport } from '@/components/CanvasViewport'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { CanvasSyncRuntime } from '@/features/canvas/CanvasSyncRuntime'
 import { CanvasHotkeysRuntime } from '@/features/canvas/CanvasHotkeysRuntime'
 import { useCanvasWorkspacePaneRuntime } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
 import { dispatchRuntimeZoomAction } from '@/lib/canvas/runtimeZoomDispatch'
 import { useCanvasGeospatialRuntime } from '@/features/canvas/useCanvasGeospatialRuntime'
-import { shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'
+import { shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/canvasQueryBootstrapSearch'
 import { parseDocDeepLink } from '@/features/canvas/canvasDocDeepLink'
 import { CanvasRootRuntime } from '@/features/canvas/CanvasRootRuntime'
 import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbeddedPreviewRuntime'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '@/lib/routing/queryParams'
-import { runGlobalInteractionCleanup } from '@/lib/canvas/interaction-recovery'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { workspaceBasename } from '@/features/workspace-fs/path'
 import { isMarkdownWorkspaceDocumentSwitchPending } from '@/lib/markdown-workspace-runtime/markdownWorkspaceDocumentSwitch'
 import { WORKSPACE_EDITOR_CANVAS_GUTTER_CSS } from '@/features/workspace-table/workspaceViewCanvasDefaults'
+import {
+  UI_RESPONSIVE_CANVAS_DOCUMENT_SWITCH_NOTICE_CLASSNAME,
+  UI_RESPONSIVE_CANVAS_PAGE_SURFACE_CLASSNAME,
+  UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CLASSNAME,
+  UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CONTENT_CLASSNAME,
+  UI_RESPONSIVE_CANVAS_WORKSPACE_TOOLBAR_DOCK_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
+const CanvasViewportLazy = React.lazy(() =>
+  import('@/components/CanvasViewport').then(mod => ({ default: mod.CanvasViewport })),
+)
 const EmbeddedEditorShellLazy = React.lazy(() =>
   import('@/components/EmbeddedEditorShell').then(mod => ({ default: mod.EmbeddedEditorShell })),
 )
@@ -107,10 +116,21 @@ export default function CanvasPage() {
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceCanvasPaneVisible = workspaceEditorOverlayOpen && workspaceCanvasPaneOpen
   const workspacePaneBoundaryCss = `min(${workspacePreviewWidthPx}px, calc(100% - ${WORKSPACE_EDITOR_CANVAS_GUTTER_CSS}))`
+  const canvasToolbarDockSpansViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
+  const workspaceToolbarBoundaryStyle = React.useMemo<React.CSSProperties | undefined>(
+    () => canvasToolbarDockSpansViewport ? undefined : { left: workspacePaneBoundaryCss },
+    [canvasToolbarDockSpansViewport, workspacePaneBoundaryCss],
+  )
 
   React.useEffect(() => {
     if (!workspaceEditorOverlayOpen) return
-    runGlobalInteractionCleanup({ resetViewportControllers: false })
+    void import('@/lib/canvas/interaction-recovery')
+      .then(mod => {
+        mod.runGlobalInteractionCleanup({ resetViewportControllers: false })
+      })
+      .catch(() => {
+        void 0
+      })
   }, [workspaceEditorOverlayOpen])
 
   const { canvasRenderMode, canvas3dMode, canvas2dRenderer } = useGraphStore(
@@ -206,19 +226,21 @@ export default function CanvasPage() {
       ) : null}
       <CanvasStartupRuntimes />
       <section
-        className="relative flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
+        className={`${UI_RESPONSIVE_CANVAS_PAGE_SURFACE_CLASSNAME} bg-[var(--kg-canvas-bg)] transition-colors duration-300`}
         aria-label="Knowgrph Canvas"
       >
         {isEmbeddedPreview ? (
           <main className="flex-1 relative overflow-hidden" aria-label="Canvas Preview Only">
-            <CanvasViewport
-              variant="embeddedPreview"
-              geospatialModeEnabled={geospatialModeEnabled}
-              workspaceEditorOverlayOpen={false}
-              canvasRenderMode={canvasRenderMode}
-              canvas3dMode={canvas3dMode}
-              canvas2dRenderer={canvas2dRenderer}
-            />
+            <React.Suspense fallback={null}>
+              <CanvasViewportLazy
+                variant="embeddedPreview"
+                geospatialModeEnabled={geospatialModeEnabled}
+                workspaceEditorOverlayOpen={false}
+                canvasRenderMode={canvasRenderMode}
+                canvas3dMode={canvas3dMode}
+                canvas2dRenderer={canvas2dRenderer}
+              />
+            </React.Suspense>
           </main>
         ) : (
           <>
@@ -230,24 +252,23 @@ export default function CanvasPage() {
                 onPointerDown={() => setToolbarHeaderElevated(true)}
               >
                 <nav
-                  className="kg-workspace-overlay-canvas-toolbar absolute top-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] left-[calc(var(--kg-safe-left)+var(--kg-canvas-viewport-edge-gap))] right-[calc(var(--kg-safe-right)+var(--kg-canvas-viewport-edge-gap))] z-[200] flex min-w-0 items-start justify-end overflow-visible bg-transparent"
-                  style={{ left: workspacePaneBoundaryCss }}
+                  className={UI_RESPONSIVE_CANVAS_WORKSPACE_TOOLBAR_DOCK_CLASSNAME}
+                  style={workspaceToolbarBoundaryStyle}
                   aria-label="Canvas Toolbar"
                   role="navigation"
                 >
-                  <section className="pointer-events-auto min-w-0 max-w-full">
+                  <section className={UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CONTENT_CLASSNAME}>
                     {workspaceDocumentSwitchPending ? (
                       <section
-                        className="rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-sm text-[var(--kg-text-secondary)] shadow-sm"
+                        className={UI_RESPONSIVE_CANVAS_DOCUMENT_SWITCH_NOTICE_CLASSNAME}
                         aria-label={switchingDocumentLabel}
                       >
                         {switchingDocumentLabel}
                       </section>
-                    ) : (
-                      <React.Suspense fallback={null}>
-                        <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                      </React.Suspense>
-                    )}
+                    ) : null}
+                    <React.Suspense fallback={null}>
+                      <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                    </React.Suspense>
                   </section>
                 </nav>
               </header>
@@ -266,37 +287,38 @@ export default function CanvasPage() {
                   >
                     {!workspaceEditorOverlayOpen ? (
                       <nav
-                        className="kg-canvas-toolbar-dock absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] pb-2 bg-transparent pointer-events-none"
+                        className={UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CLASSNAME}
                         aria-label="Canvas Toolbar"
                         role="navigation"
                       >
-                        <section className="pointer-events-auto">
+                        <section className={UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CONTENT_CLASSNAME}>
                           {workspaceDocumentSwitchPending ? (
                             <section
-                              className="rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-sm text-[var(--kg-text-secondary)] shadow-sm"
+                              className={UI_RESPONSIVE_CANVAS_DOCUMENT_SWITCH_NOTICE_CLASSNAME}
                               aria-label={switchingDocumentLabel}
                             >
                               {switchingDocumentLabel}
                             </section>
-                          ) : (
-                            <React.Suspense fallback={null}>
-                              <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                            </React.Suspense>
-                          )}
+                          ) : null}
+                          <React.Suspense fallback={null}>
+                            <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                          </React.Suspense>
                         </section>
                       </nav>
                     ) : null}
-                    <CanvasViewport
-                      variant="workspace"
-                      layout="full"
-                      geospatialModeEnabled={geospatialModeEnabled}
-                      workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
-                      canvasRenderMode={canvasRenderMode}
-                      canvas3dMode={canvas3dMode}
-                      canvas2dRenderer={canvas2dRenderer}
-                      documentSwitchPending={workspaceDocumentSwitchPending}
-                      documentSwitchPendingLabel={switchingDocumentLabel}
-                    />
+                    <React.Suspense fallback={null}>
+                      <CanvasViewportLazy
+                        variant="workspace"
+                        layout="full"
+                        geospatialModeEnabled={geospatialModeEnabled}
+                        workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
+                        canvasRenderMode={canvasRenderMode}
+                        canvas3dMode={canvas3dMode}
+                        canvas2dRenderer={canvas2dRenderer}
+                        documentSwitchPending={workspaceDocumentSwitchPending}
+                        documentSwitchPendingLabel={switchingDocumentLabel}
+                      />
+                    </React.Suspense>
                   </section>
 
                   {workspaceEditorOverlayOpen ? (

@@ -16,7 +16,7 @@ import { isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
 import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { UI_RESPONSIVE_BADGE_CHIP_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
-
+export const RENDER_SETTINGS_PRESETS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2'
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
 type GraphCreateMode = NonNullable<GraphBehavior['createMode']>
 
@@ -414,7 +414,7 @@ export default function RenderSettingsSection({
         onToggle={onTogglePresets}
       >
         <section className="mt-2 space-y-2">
-          <section className="grid grid-cols-2 gap-3">
+          <section className={RENDER_SETTINGS_PRESETS_GRID_CLASS_NAME}>
             <section className="flex items-center justify-between gap-2">
               <section className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Render Mode

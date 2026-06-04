@@ -1,5 +1,6 @@
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { toKgcOutputWorkspacePath } from './chatHistoryWorkspace.paths'
 
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
@@ -101,8 +102,8 @@ const mirrorWorkspaceFileBlobToHostFs = async (args: { absolutePath: string; blo
   }
 }
 
-const ensureWorkspaceTextFile = async (workspacePath: string, text: string): Promise<void> => {
-  const fs = await getWorkspaceFs()
+const ensureWorkspaceTextFile = async (workspacePath: string, text: string, fsOverride?: WorkspaceFs | null): Promise<void> => {
+  const fs = fsOverride || await getWorkspaceFs()
   await fs.ensureSeed()
   const normalized = normalizeWorkspacePath(workspacePath)
   const existing = await fs.readFileText(normalized)
@@ -133,12 +134,13 @@ export const resolveWorkspaceSiblingArtifactPath = (args: {
 export const writeWorkspaceTextArtifactAtPath = async (args: {
   absolutePath: string | null | undefined
   text: string
+  fs?: WorkspaceFs | null
 }): Promise<string | null> => {
   const outputPath = normalizeWorkspacePath(String(args.absolutePath || '').trim())
   if (!outputPath) return null
   const text = String(args.text || '')
   try {
-    await ensureWorkspaceTextFile(outputPath, text)
+    await ensureWorkspaceTextFile(outputPath, text, args.fs)
   } catch {
     void 0
   }

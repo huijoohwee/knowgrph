@@ -282,7 +282,7 @@ export function GeoJsonGeoPanelRenderer(props: {
               scope={opts.previewOverlayScope}
               portalTarget={opts.previewOverlayPortalTarget}
             >
-              <section className="w-[min(1200px,calc(100vw_-_40px))] h-[min(720px,calc(100vh_-_80px))]">
+              <section className="w-full h-full">
                 {mapNode ? (
                   <section className="w-full h-full">{mapNode}</section>
                 ) : (

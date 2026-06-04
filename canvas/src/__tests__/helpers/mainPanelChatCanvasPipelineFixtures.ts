@@ -103,6 +103,7 @@ export const READY_CHAT_PIPELINE: LocalChatPipelineSurfaceSnapshot = {
     failedMessage: null,
     correctionPromptPreview: null,
     hasStructuredKgc: true,
+    hasStructuredResponseSurface: false,
     hasYamlFrontmatter: true,
     validatedKgcLength: READY_MARKDOWN.length,
   },

@@ -46,12 +46,16 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   if (!wheelText.includes('if (shouldKeepWidgetInnerPanelWheel(e) && !explicitOverlayZoomIntent) return')) {
     throw new Error('expected handleWheel to keep ordinary inner scroll local while allowing explicit overlay zoom')
   }
-  if (!wheelText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
-    throw new Error('expected FlowCanvas wheel proxy to reuse shared frontmatter-document mode gate SSOT')
+  const screenAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'screenAuthorityCollectivePan.ts')
+  const screenAuthorityText = readFileSync(screenAuthorityPath, 'utf8')
+  if (!wheelText.includes("import { shouldUseFlowEditorScreenAuthorityCollectivePan } from '@/lib/flowEditor/screenAuthorityCollectivePan'")
+    || !wheelText.includes('const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)')) {
+    throw new Error('expected FlowCanvas wheel proxy to use the shared Flow Editor screen-authority predicate')
   }
-  if (!wheelText.includes('const flowEditorOverlayInteractionMode =')
-    || !wheelText.includes('isFlowEditor\n      || isFlowEditorFrontmatterDocumentModeRequested')) {
-    throw new Error('expected FlowCanvas wheel proxy to activate for the Flow Editor renderer, not frontmatter-only documents')
+  if (!screenAuthorityText.includes('isFlowEditorFrontmatterDocumentModeRequested')
+    || !screenAuthorityText.includes("canvas2dRenderer === 'flowEditor'")
+    || !screenAuthorityText.includes('|| isFlowEditorFrontmatterDocumentModeRequested({')) {
+    throw new Error('expected the shared Flow Editor screen-authority predicate to own the frontmatter-document mode gate')
   }
   if (!wheelText.includes('flowEditorSurfaceId: ctx.args.flowEditorSurfaceId')) {
     throw new Error('expected FlowCanvas wheel proxy to forward the active Flow Editor surface identity into shared overlay proxy resolution')

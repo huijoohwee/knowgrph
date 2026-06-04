@@ -2,9 +2,13 @@ CREATE TABLE IF NOT EXISTS research_thesis_runs (
   run_id TEXT PRIMARY KEY,
   status TEXT NOT NULL,
   manifest_json TEXT NOT NULL,
+  source_summaries_json TEXT,
   spec_json TEXT,
+  evidence_ledger_json TEXT,
   candidate_delta_json TEXT,
   audit_json TEXT,
+  cost_log_json TEXT,
+  artifact_pointers_json TEXT,
   error_message TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL

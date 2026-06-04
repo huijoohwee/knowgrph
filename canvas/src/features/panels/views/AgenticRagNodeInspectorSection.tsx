@@ -19,6 +19,8 @@ import {
 } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
+const AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-2'
+
 interface AgenticRagNodeInspectorSectionProps {
   selectedAgenticNode: AgenticRagNodeView | null
   agenticCopyStatus: string | null
@@ -102,7 +104,7 @@ export function AgenticRagNodeInspectorSection({
       )}
       {selectedAgenticNode && (
         <section className={inspectorBodyClassName}>
-          <section className="grid grid-cols-2 gap-1">
+          <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             <SimpleKeyValueRow
               density="compact"
               label={<span className={inspectorLabelClassName}>Id</span>}
@@ -120,7 +122,7 @@ export function AgenticRagNodeInspectorSection({
               </span>
             </SimpleKeyValueRow>
           </section>
-          <section className="grid grid-cols-2 gap-1">
+          <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             {selectedAgenticNode.chunkText && (
               <SimpleKeyValueRow
                 density="compact"
@@ -175,7 +177,7 @@ export function AgenticRagNodeInspectorSection({
             )}
           </section>
           {selectedAgenticNode.provenance && (
-            <section className="grid grid-cols-2 gap-1">
+            <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
               {Object.entries(selectedAgenticNode.provenance).map(([key, value]) => {
                 return (
                   <SimpleKeyValueRow
@@ -196,7 +198,7 @@ export function AgenticRagNodeInspectorSection({
               })}
             </section>
           )}
-          <section className="grid grid-cols-2 gap-1">
+          <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             {selectedAgenticNode.graphRAGPath && (
               <SimpleKeyValueRow
                 density="compact"
@@ -314,7 +316,7 @@ export function AgenticRagNodeInspectorSection({
               </>
             )}
           </section>
-          <section className="grid grid-cols-2 gap-1">
+          <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             <SimpleKeyValueRow
               density="compact"
               align="start"

@@ -9,6 +9,20 @@ export type FlowWidgetWorldPosById = Record<string, { x: number; y: number }>
 export type FlowWidgetScreenPosById = Record<string, { top: number; left: number }>
 export type FlowWidgetPinnedById = Record<string, boolean>
 
+export function readFlowEditorWidgetGeometryStateSignature(state: {
+  flowWidgetPosByNodeId?: unknown
+  flowWidgetPosByNodeIdByGraphMetaKey?: unknown
+  flowWidgetWorldPosByNodeId?: unknown
+  flowWidgetWorldPosByNodeIdByGraphMetaKey?: unknown
+}): string {
+  return JSON.stringify({
+    pos: state.flowWidgetPosByNodeId || {},
+    posByGraphMetaKey: state.flowWidgetPosByNodeIdByGraphMetaKey || {},
+    world: state.flowWidgetWorldPosByNodeId || {},
+    worldByGraphMetaKey: state.flowWidgetWorldPosByNodeIdByGraphMetaKey || {},
+  })
+}
+
 export function useFlowEditorWidgetStateDependencyCounts() {
   const state = useGraphStore(useShallow(s => ({
     graphData: s.graphData,

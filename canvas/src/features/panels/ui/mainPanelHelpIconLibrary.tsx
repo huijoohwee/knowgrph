@@ -48,6 +48,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'mainPanel.mcp',
   'mainPanel.maps',
   'mainPanel.commerce',
+  'mainPanel.research',
   'mainPanel.design',
   'mainPanel.workflowManager',
   'mainPanel.dashboard',
@@ -263,6 +264,7 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Commerce',
     Icon: CreditCard,
   },
+  'mainPanel.research': { category: 'MainPanel surface', label: 'Research', Icon: BarChart3 },
   'mainPanel.design': {
     category: 'MainPanel surface',
     label: 'Design',
@@ -441,6 +443,7 @@ export const MAIN_PANEL_TAB_TYPE_ICON_KEY_BY_TAB = {
   mcp: 'mainPanel.mcp',
   maps: 'mainPanel.maps',
   commerce: 'mainPanel.commerce',
+  research: 'mainPanel.research',
   design: 'mainPanel.design',
   workflowManager: 'mainPanel.workflowManager',
   dashboard: 'mainPanel.dashboard',

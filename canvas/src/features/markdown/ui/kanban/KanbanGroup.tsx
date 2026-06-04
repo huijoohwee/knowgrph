@@ -143,7 +143,7 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
         </header>
 
         {expanded ? (
-          <ol ref={props.laneScrollRef} className={`${UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME} p-2 space-y-2 list-none m-0 overflow-y-auto`} aria-label={`Cards in ${props.group.key}`}>
+          <ol ref={props.laneScrollRef} className={UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME} aria-label={`Cards in ${props.group.key}`}>
             {props.group.rows.map(row => {
               const title = String(row.cells[props.titleIndex] ?? '')
               const groupValue = String(row.cells[props.groupByIndex] ?? '').trim() || props.group.key

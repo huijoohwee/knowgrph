@@ -1,0 +1,13 @@
+.kg-grabmaps-discovery-settings-grid {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .kg-grabmaps-discovery-settings-grid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr) minmax(0, 1.6fr);
+  }
+}

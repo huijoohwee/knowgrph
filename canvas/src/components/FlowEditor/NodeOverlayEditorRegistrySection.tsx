@@ -3,10 +3,10 @@ import React from 'react'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import type { WidgetRegistryEntry, WidgetRegistryFieldOption, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getObjectPath } from '@/lib/data/objectPath'
-import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
+import { NodeOverlayEditorKvTable, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { formatFlowHandleAccessibleName, formatFlowHandleKtvKeyLabel, formatFlowHandleSemanticKey, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleAccessibleName, formatFlowHandleKtvKeyLabel, formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
@@ -44,7 +44,6 @@ type RegistryPortRowModel = {
   normalizedSchemaPath: string
   portValueId: string
   handlePath: ReturnType<typeof readFlowHandlePath>
-  handleType: ReturnType<typeof readFlowHandleTypeLabel>
   portKeyLabel: string
   aria: string
   mainPanelLink: ReturnType<typeof resolveWidgetRegistryMainPanelLink>
@@ -218,7 +217,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           : `port-${p.direction}-${portKey}`,
       )
       const handlePath = readFlowHandlePath(isIn ? 'in' : 'out')
-      const handleType = readFlowHandleTypeLabel(isIn ? 'in' : 'out')
       const handleSemanticKey = formatFlowHandleSemanticKey({ dir: isIn ? 'in' : 'out', portKey })
       const portKeyLabel = formatFlowHandleKtvKeyLabel({ dir: isIn ? 'in' : 'out', portKey }) || handleSemanticKey || portKey
       const aria = formatFlowHandleAccessibleName({
@@ -237,7 +235,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         normalizedSchemaPath,
         portValueId,
         handlePath,
-        handleType,
         portKeyLabel,
         aria,
         mainPanelLink: resolveWidgetRegistryMainPanelLink({
@@ -362,7 +359,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       </label>
     )
 
-    const typeNode = <NodeOverlayEditorTypePill text={fieldType || 'text'} />
     const mergedPortNodes = path ? mergedRegistryPortNodesBySchemaPath.get(path) : undefined
     const mergedPortRowProps: Pick<NodeOverlayEditorKvRow, 'inPortNode' | 'outPortNode'> = {
       inPortNode: mergedPortNodes?.inPortNode,
@@ -376,7 +372,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         rowKey,
         labelId,
         keyNode,
-        typeNode,
         valueNode: (
           <PlainTextInputEditor
             id={id}
@@ -430,7 +425,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         rowKey,
         labelId,
         keyNode,
-        typeNode,
         valueNode: (
           <section className="w-full">
             <section className="flex items-center">
@@ -452,7 +446,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         rowKey,
         labelId,
         keyNode,
-        typeNode,
         valueNode: (
           <section className="w-full">
             <select
@@ -502,7 +495,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         rowKey,
         labelId,
         keyNode,
-        typeNode,
         valueNode: (
           <section className="w-full">
             <FlowEditorInlineValueEditor
@@ -541,7 +533,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         rowKey,
         labelId,
         keyNode,
-        typeNode,
         valueNode: (
           <section className="w-full">
             <JsonLikeValueEditor
@@ -573,7 +564,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       rowKey,
       labelId,
       keyNode,
-      typeNode,
       valueNode: (
         <section className="w-full">
           <FlowEditorInlineValueEditor
@@ -617,7 +607,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{model.schemaPath || model.portKey}</span>
           </label>
         ),
-        typeNode: <NodeOverlayEditorTypePill text={model.handleType} />,
         valueNode: (
           <PlainTextInputEditor
             id={model.portValueId}

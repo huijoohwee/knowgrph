@@ -4,6 +4,8 @@ import {
   sanitizeScalar,
 } from './chatKgcRequestProfile'
 import { toKgcOutputWorkspacePath } from './chatHistoryWorkspace.paths'
+import { buildChatResponseStructuredSurfaceBlock } from './chatHistoryWorkspace.kgc.structuredSurfaceBlock'
+import { extractChatResponseStructuredSurface, projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContent'
 
 type BaseFallbackArgs = {
   timestampMs: number
@@ -344,6 +346,7 @@ const buildBody = (args: {
   assistantText: string
   profile: ReturnType<typeof analyzeKgcRequest>
   fileName: string
+  responseSurfaceBlock?: string
 }): string => {
   const requestSummary = buildRequestSummary(args.profile) || sanitizeRequestIntent(args.requestText, 260) || 'Current request'
   const assistantSignal = summariseAssistantSignal(args.assistantText)
@@ -423,7 +426,6 @@ const buildBody = (args: {
       '',
     ].join('\n')
     : ''
-
   return [
     '# {{product}} · AI Pipeline',
     '',
@@ -595,6 +597,7 @@ const buildBody = (args: {
     dataFlowBlock.trimEnd(),
     monetizationBlock.trimEnd(),
     integrationsBlock.trimEnd(),
+    (args.responseSurfaceBlock || '').trimEnd(),
     assistantSignal
       ? `Recovered partial assistant signal is kept only as context for regeneration: ${assistantSignal}.\n`
       : '',
@@ -1181,19 +1184,13 @@ const buildFrontmatter = (args: {
     '    - {id: e5, source: n-validate, sourceHandle: correction, target: n-process,  targetHandle: correction, label: "@flag:correction",   animated: true}',
   ].join('\n')
 }
-
 export const buildDeterministicBaseTemplateKgcTurn = (args: BaseFallbackArgs): string => {
   void args.timestampMs
   const profile = analyzeKgcRequest(args.requestText)
-  const frontmatter = buildFrontmatter({
-    fileName: String(args.fileName || '').trim() || 'kgc.md',
-    profile,
-  })
-  const body = buildBody({
-    requestText: args.requestText,
-    assistantText: String(args.assistantText || ''),
-    profile,
-    fileName: String(args.fileName || '').trim() || 'kgc.md',
-  })
+  const assistantText = String(args.assistantText || '')
+  const responseSurface = extractChatResponseStructuredSurface(assistantText)
+  const fileName = String(args.fileName || '').trim() || 'kgc.md'
+  const frontmatter = projectChatResponseStructuredSurfaceIntoKgcFrontmatter({ frontmatter: buildFrontmatter({ fileName, profile }), surface: responseSurface })
+  const body = buildBody({ requestText: args.requestText, assistantText, profile, fileName, responseSurfaceBlock: buildChatResponseStructuredSurfaceBlock(responseSurface) })
   return ['---', frontmatter, '---', body].join('\n').trimEnd() + '\n'
 }

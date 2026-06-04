@@ -7,6 +7,70 @@ export type ViewportTransform = {
   viewportH?: number
 }
 
+export type ViewportFrame = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  width: number
+  height: number
+  centerX: number
+  centerY: number
+}
+
+export type ZoomScaleExtentLike =
+  | { minK?: number; maxK?: number; minScale?: number; maxScale?: number }
+  | null
+  | undefined
+
+export type ContextualZoomDetail = {
+  k: number
+  threshold: number
+  showContent: boolean
+  hidden: boolean
+}
+
+const readFinite = (value: unknown): number | null => {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+const clampViewportScale = (k: unknown, extent?: ZoomScaleExtentLike): number => {
+  const value = Math.max(0.001, readFinite(k) ?? 1)
+  const rawMin = readFinite(extent && 'minK' in extent ? extent.minK : extent?.minScale)
+  const rawMax = readFinite(extent && 'maxK' in extent ? extent.maxK : extent?.maxScale)
+  const min = rawMin != null ? Math.max(0.001, rawMin) : 0.001
+  const max = rawMax != null ? Math.max(min, rawMax) : Number.POSITIVE_INFINITY
+  return Math.max(min, Math.min(max, value))
+}
+
+export const normalizeViewportFrame = (args: {
+  viewportW: number
+  viewportH: number
+  left?: number
+  top?: number
+  width?: number
+  height?: number
+}): ViewportFrame => {
+  const viewportW = Math.max(1, Math.floor(readFinite(args.viewportW) ?? 1))
+  const viewportH = Math.max(1, Math.floor(readFinite(args.viewportH) ?? 1))
+  const left = Math.max(0, Math.min(viewportW - 1, readFinite(args.left) ?? 0))
+  const top = Math.max(0, Math.min(viewportH - 1, readFinite(args.top) ?? 0))
+  const width = Math.max(1, Math.min(viewportW - left, readFinite(args.width) ?? viewportW))
+  const height = Math.max(1, Math.min(viewportH - top, readFinite(args.height) ?? viewportH))
+  const right = left + width
+  const bottom = top + height
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width,
+    height,
+    centerX: left + width / 2,
+    centerY: top + height / 2,
+  }
+}
+
 export const safeViewportTransform = (
   transform: Pick<ViewportTransform, 'k' | 'x' | 'y'> | null,
 ): { k: number; x: number; y: number } => {
@@ -64,6 +128,22 @@ export const computeTransformScaleAboutViewportCenter = (args: {
   })
 }
 
+export const computeTransformScaleAboutViewportFrameCenter = (args: {
+  transform: Pick<ViewportTransform, 'k' | 'x' | 'y'> | null
+  viewport: Pick<ViewportFrame, 'centerX' | 'centerY'> | { viewportW: number; viewportH: number; left?: number; top?: number; width?: number; height?: number }
+  nextK: number
+}): { k: number; x: number; y: number } => {
+  const frame = 'centerX' in args.viewport && 'centerY' in args.viewport
+    ? args.viewport
+    : normalizeViewportFrame(args.viewport)
+  return computeTransformScaleAboutScreenPoint({
+    transform: args.transform,
+    focalX: frame.centerX,
+    focalY: frame.centerY,
+    nextK: args.nextK,
+  })
+}
+
 export const computeTransformScaleAboutScreenPoint = (args: {
   transform: Pick<ViewportTransform, 'k' | 'x' | 'y'> | null
   focalX: number
@@ -77,6 +157,64 @@ export const computeTransformScaleAboutScreenPoint = (args: {
   const nextX = focalX - worldC.x * nextK
   const nextY = focalY - worldC.y * nextK
   return { k: nextK, x: nextX, y: nextY }
+}
+
+export const computeTransformFromWorldCenter = (args: {
+  viewportW: number
+  viewportH: number
+  worldX: number
+  worldY: number
+  k: number
+  scaleExtent?: ZoomScaleExtentLike
+}): { k: number; x: number; y: number } => {
+  const viewportW = Math.max(1, Math.floor(readFinite(args.viewportW) ?? 1))
+  const viewportH = Math.max(1, Math.floor(readFinite(args.viewportH) ?? 1))
+  const worldX = readFinite(args.worldX) ?? 0
+  const worldY = readFinite(args.worldY) ?? 0
+  const k = clampViewportScale(args.k, args.scaleExtent)
+  return {
+    k,
+    x: viewportW / 2 - worldX * k,
+    y: viewportH / 2 - worldY * k,
+  }
+}
+
+export const computeTransformFromWorldTopLeft = (args: {
+  viewportW: number
+  viewportH: number
+  worldX: number
+  worldY: number
+  k: number
+  scaleExtent?: ZoomScaleExtentLike
+}): { k: number; x: number; y: number } => {
+  const viewportW = Math.max(1, Math.floor(readFinite(args.viewportW) ?? 1))
+  const viewportH = Math.max(1, Math.floor(readFinite(args.viewportH) ?? 1))
+  const k = clampViewportScale(args.k, args.scaleExtent)
+  const worldW = viewportW / k
+  const worldH = viewportH / k
+  return computeTransformFromWorldCenter({
+    viewportW,
+    viewportH,
+    worldX: (readFinite(args.worldX) ?? 0) + worldW / 2,
+    worldY: (readFinite(args.worldY) ?? 0) + worldH / 2,
+    k,
+    scaleExtent: { minK: k, maxK: k },
+  })
+}
+
+export const resolveContextualZoomDetail = (args: {
+  k: number
+  contentThreshold?: number
+}): ContextualZoomDetail => {
+  const k = clampViewportScale(args.k)
+  const threshold = Math.max(0, readFinite(args.contentThreshold) ?? 0)
+  const showContent = threshold <= 0 || k >= threshold
+  return {
+    k,
+    threshold,
+    showContent,
+    hidden: !showContent,
+  }
 }
 
 export const adjustPinnedTransformForViewportChange = (args: {

@@ -2,6 +2,9 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { createPortal } from 'react-dom'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { readOverlayElementSize, resolveOverlayVerticalTop } from '@/lib/ui/overlayPlacement'
+import { refreshOverlayPositionAfterMount, useOverlayRepositionObservers } from '@/lib/ui/overlayReposition'
+import { useBodyPortalRoot } from '@/lib/ui/overlayPortalRoot'
+import { buildNonBlockingPortalLayerStyle, withInteractivePortalContentStyle } from '@/lib/ui/overlayPortalStyle'
 import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
 
 type Align = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'bottom-center' | 'top-center'
@@ -17,11 +20,6 @@ interface AnchorOverlayProps {
   children: React.ReactNode
 }
 
-function createPortalRoot(): HTMLElement | null {
-  if (typeof document === 'undefined') return null
-  return document.createElement('section')
-}
-
 export function AnchorOverlay({
   anchorRef,
   open,
@@ -33,7 +31,7 @@ export function AnchorOverlay({
   children,
 }: AnchorOverlayProps) {
   const containerRef = useRef<HTMLElement | null>(null)
-  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(() => createPortalRoot())
+  const portalRoot = useBodyPortalRoot(open, { createBeforeOpen: true })
   const priorFocusedElementRef = useRef<HTMLElement | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
@@ -121,53 +119,7 @@ export function AnchorOverlay({
     }
   }, [open, onClose, anchorRef, updatePosition])
 
-  useEffect(() => {
-    if (!open) return
-    const containerEl = containerRef.current
-    if (!containerEl) return
-    updatePosition()
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => updatePosition())
-    observer.observe(containerEl)
-    const child = containerEl.firstElementChild
-    if (child instanceof HTMLElement) observer.observe(child)
-    return () => observer.disconnect()
-  }, [open, updatePosition])
-
-  useEffect(() => {
-    if (!open) return
-    const containerEl = containerRef.current
-    if (!containerEl) return
-    if (typeof MutationObserver === 'undefined') return
-    const observer = new MutationObserver(() => updatePosition())
-    observer.observe(containerEl, { attributes: true, childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [open, updatePosition])
-
-  useLayoutEffect(() => {
-    if (!open) return
-    if (portalRoot) return
-    setPortalRoot(createPortalRoot())
-  }, [open, portalRoot])
-
-  useLayoutEffect(() => {
-    if (!open) return
-    if (!portalRoot) return
-    if (typeof document === 'undefined') return
-    if (!document.body) return
-    try {
-      if (!document.body.contains(portalRoot)) document.body.appendChild(portalRoot)
-    } catch {
-      void 0
-    }
-    return () => {
-      try {
-        if (portalRoot.parentNode) portalRoot.parentNode.removeChild(portalRoot)
-      } catch {
-        void 0
-      }
-    }
-  }, [open, portalRoot])
+  useOverlayRepositionObservers({ open, rootRef: containerRef, updatePosition })
 
   useEffect(() => {
     if (!open) return
@@ -207,11 +159,7 @@ export function AnchorOverlay({
       left: pos.left,
       zIndex: Z_INDEX_ANCHOR_OVERLAY,
       width: 'max-content',
-      maxWidth: 'calc(100vw - var(--kg-safe-left, 0px) - var(--kg-safe-right, 0px) - 0.5rem)',
-      maxHeight: 'var(--kg-overlay-max-height, calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 0.5rem))',
-      overflow: allowOverflowVisible ? 'visible' : 'auto',
-      overscrollBehavior: allowOverflowVisible ? undefined : 'contain',
-      WebkitOverflowScrolling: allowOverflowVisible ? undefined : 'touch',
+      overflow: allowOverflowVisible ? 'visible' : undefined,
     }),
     [allowOverflowVisible, pos],
   )
@@ -219,20 +167,14 @@ export function AnchorOverlay({
   if (!open) return null
   if (!portalRoot) return null
   return createPortal(
-    <section style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ANCHOR_OVERLAY, pointerEvents: 'none', isolation: 'isolate' }}>
+    <section style={buildNonBlockingPortalLayerStyle(Z_INDEX_ANCHOR_OVERLAY)}>
       <section
         ref={el => {
           containerRef.current = el
           if (!el) return
-          updatePosition()
-          if (typeof window.requestAnimationFrame === 'function') {
-            window.requestAnimationFrame(() => {
-              updatePosition()
-              window.requestAnimationFrame(updatePosition)
-            })
-          }
+          refreshOverlayPositionAfterMount(updatePosition)
         }}
-        style={{ ...style, pointerEvents: 'auto' }}
+        style={withInteractivePortalContentStyle(style)}
         className={['kg-anchor-overlay', className].filter(Boolean).join(' ')}
         data-kg-anchor-overlay="true"
         tabIndex={-1}

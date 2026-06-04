@@ -1,8 +1,10 @@
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { setObjectPath } from '@/lib/data/objectPath'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
-import type { GraphData } from '@/lib/graph/types'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { readFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { WidgetRegistryEntry, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 import { type FlowEditorWorkflowNodeResolutionContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 
@@ -10,6 +12,52 @@ export type FlowEditorWorkflowConnectedValuesInput = {
   graphData: GraphData
   targetNodeId: string
   connectedValuesByNodeId: Map<string, FlowConnectedValuesBySchemaPath>
+}
+
+function cleanString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function normalizeWorkflowSchemaPath(schemaPath: unknown, fallbackKey = ''): string {
+  const raw = cleanString(schemaPath) || cleanString(fallbackKey)
+  if (!raw) return ''
+  if (raw.startsWith('properties') || raw.startsWith('metadata') || raw === 'label' || raw === 'type') return raw
+  return `properties.${raw}`
+}
+
+function collectOutputSchemaPaths(entry: WidgetRegistryEntry | null | undefined): Set<string> {
+  const out = new Set<string>()
+  const ports = Array.isArray(entry?.ports) ? entry.ports as WidgetRegistryPort[] : []
+  for (const port of ports) {
+    if (port?.direction !== 'output') continue
+    const schemaPath = normalizeWorkflowSchemaPath(port.schemaPath, port.portKey)
+    if (schemaPath) out.add(schemaPath)
+  }
+  return out
+}
+
+export function buildFlowEditorInlineComputeOutputPatch(args: {
+  node: GraphNode | null
+  registryEntry?: WidgetRegistryEntry | null
+  connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath | null
+  currentProperties: Record<string, unknown>
+}): Record<string, unknown> | null {
+  if (!args.node || !readFlowComputeSource(args.node)) return null
+  const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath || {}
+  const outputSchemaPaths = collectOutputSchemaPaths(args.registryEntry)
+  let nextRoot: { properties: Record<string, unknown> } = { properties: { ...args.currentProperties } }
+  let changed = false
+  for (const [schemaPathRaw, connected] of Object.entries(connectedValuesBySchemaPath)) {
+    const schemaPath = normalizeWorkflowSchemaPath(schemaPathRaw)
+    if (!schemaPath) continue
+    const isDeclaredOutput = outputSchemaPaths.has(schemaPath)
+    const isComputedDataOutput = outputSchemaPaths.size === 0 && schemaPath.startsWith('properties.data.')
+    if (!isDeclaredOutput && !isComputedDataOutput) continue
+    if (Object.is(connected?.value, undefined)) continue
+    nextRoot = setObjectPath(nextRoot, schemaPath, connected.value)
+    changed = true
+  }
+  return changed ? nextRoot.properties : null
 }
 
 export function resolveFlowEditorWorkflowConnectedValuesInput(args: {

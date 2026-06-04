@@ -14,7 +14,7 @@ export function testFrontmatterFlowWidgetsConnectToRichMediaPanelPorts() {
     '      handles: {key: handles, type: object, value: {target: ["prompt_in"], source: ["text_out"]}}',
     '      "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "textGeneration.openai"}',
     '      chatProvider: {key: chatProvider, type: string, value: "openai"}',
-    '      chatModel: {key: chatModel, type: string, value: "gpt-5.4-nano"}',
+    '      chatModel: {key: chatModel, type: string, value: "gpt-5-nano"}',
     '      prompt: {key: prompt, type: string, value: "hello"}',
     '    - id: {key: id, type: string, value: "w-seedream-image"}',
     '      type: {key: type, type: string, value: "ImageGeneration"}',

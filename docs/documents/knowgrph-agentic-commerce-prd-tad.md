@@ -16,7 +16,7 @@ epics:
     title: "Web3 Identity & Payment Extension"
   - id: "AC-E3"
     title: "Governance Overlay"
-tags: ["acp", "commerce", "web3", "openbox", "debox", "mcp", "harness", "foss"]
+tags: ["acp", "commerce", "web3", "solana-pay", "openbox", "debox", "mcp", "harness", "foss"]
 ---
 
 # Knowgrph Agentic Commerce — PRD & TAD
@@ -24,10 +24,7 @@ tags: ["acp", "commerce", "web3", "openbox", "debox", "mcp", "harness", "foss"]
 
 ## Overview
 
-Knowgrph exposes a composable MCP-native commerce orchestration layer — `knowgrph.commerce.*` — that makes any harness-driven workspace agent-buyable via the Agentic Commerce Protocol (ACP, Apache 2.0 / Stripe + OpenAI), while extending ACP with a FOSS Web3 identity sidecar (DeBox DID) and a governance signal adapter (OpenBOX risk scores). 
-The layer operates across two payment rails: 
-- fiat (Stripe Shared Payment Token), and 
-- on-chain (ERC-20 / USDC on L2), routed by capability negotiation at session initiation.
+Knowgrph exposes a composable MCP-native commerce orchestration layer — `knowgrph.commerce.*` — that makes any harness-driven workspace agent-buyable via the Agentic Commerce Protocol (ACP, Apache 2.0 / Stripe + OpenAI), while extending ACP with a FOSS Web3 identity sidecar (DeBox DID) and a governance signal adapter (OpenBOX risk scores). The layer operates across fiat (Stripe Shared Payment Token), on-chain EVM (ERC-20 / USDC on L2), and Solana Pay (`solana:` transfer URL + reference + verified transaction signature), routed by capability negotiation at session initiation.
 
 **Governing lenses**: min-viable-max-value · TCO-zero · token economics · harness-first.
 
@@ -143,12 +140,12 @@ Stripe account (existing or new); Cloudflare Workers + D1 (free tier); ACP spec 
 
 #### Problem Statement
 
-ACP's `payment_method` schema is card/fiat-only. DeBox users authenticate via DID (Decentralized Identity, ERC-based) and transact in ERC-20 tokens (BOX) or stablecoins (USDC). 
+ACP's `payment_method` schema is card/fiat-only. DeBox users authenticate via DID (Decentralized Identity, ERC-based) and transact in ERC-20 tokens (BOX) or stablecoins (USDC), while Solana-native buyers expect Solana Pay transfer URLs and reference-backed transaction verification.
 There is no native ACP path for Web3 buyers. Without a bridge, DeBox communities cannot participate in agent commerce flows initiated through Knowgrph, creating a hard exclusion of the Web3 buyer segment.
 
 #### Personas
 
-**Web3 Buyer** — holds a DeBox DID + ERC-20/USDC balance; wants to transact with AI agents without exporting card credentials to a PSP; values self-custody and DID-based provenance.
+**Web3 Buyer** — holds a DeBox DID + ERC-20/USDC balance or a Solana wallet with USDC/USDT; wants to transact with AI agents without exporting card credentials to a PSP; values self-custody and DID/reference-based provenance.
 
 **DAO Operator** — runs a DeBox DAO; wants to trigger harness-driven deliverables (analyses, reports, graph builds) funded by DAO treasury; values on-chain auditability of spending.
 
@@ -161,22 +158,22 @@ There is no native ACP path for Web3 buyers. Without a bridge, DeBox communities
 | Engage | Agent initiates session with DID + token intent | ACP session + `x-web3` body | Schema mismatch on standard ACP | Extension fields ignored by non-Web3 sellers |
 | Complete | On-chain transfer confirmed; synthetic vault token issued | L2 tx + Cloudflare Worker relay | No deterministic confirmation bridge | Worker polls L2; issues synthetic token on confirm |
 | Return | EAS attestation anchored; proof node added to canvas | EAS Base Sepolia + KGC canvas | No provenance trail | `@node:proof` carries tx hash + attestation UID |
+| Complete (Solana) | Wallet pays Solana Pay URL and returns signature | Solana Pay wallet + Worker RPC validation | Reference mismatch can unlock unpaid sessions | Worker verifies reference, recipient, amount, token mint, and memo before settlement |
 
 #### User Stories
 
 **AC-E2-S1**: As a Web3 Buyer, I want to signal my DeBox DID and ERC-20 payment intent via an ACP extension field, so that my agent can route payment to an on-chain rail without card credentials.
-
 **AC-E2-S2**: As a DAO Operator, I want a completed on-chain payment to automatically trigger a harness run and anchor its proof as an EAS attestation, so that treasury spend is traceable to a deliverable.
+**AC-E2-S3**: As a Solana-native buyer or agent, I want a checkout session to return a Solana Pay URL and settle only after a matching transaction signature is confirmed, so that payment is self-custodied and auditable without a parallel commerce worker.
 
 #### Acceptance Criteria
 
 **AC-E2-S1-AC1**: Given an ACP session with `x-web3.payment_method: "erc20"` and a valid `payer_did`, when the session is created, then the seller accepts the session, sets `status: "pending_onchain"`, and returns the L2 deposit address within 500 ms.
-
 > **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.web3Checkout" passes; POST /checkout/sessions with x-web3 returns 201 with status "pending_onchain" and a deterministic deposit_address`
-
 **AC-E2-S2-AC1**: Given a confirmed L2 transfer matching the session amount, when the Cloudflare Worker polls and detects confirmation, then `knowgrph.commerce.attest` is called, an EAS attestation UID is returned within 30 s, and a `@node:proof` entry is appended to the active KGC canvas.
-
 > **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.web3SettleRoute" passes; EAS attestation UID is present in harness-proof.json and @node:proof payload contains tx_hash plus attestation_uid`
+**AC-E2-S3-AC1**: Given an ACP session with `payment_rail: "solana_pay"` and configured `SOLANA_PAY_RECIPIENT`, `SOLANA_PAY_SPL_TOKEN`, and `SOLANA_PAY_RPC_URL`, when the session is created and then settled with a transaction signature, then the Worker returns a generated Solana Pay transfer URL/reference, verifies the confirmed RPC transaction against the session, emits `knowgrph.commerce.solana_pay_confirm`, and writes a `@node:proof` entry.
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.solanaPay" passes; Solana Pay sessions remain pending until the signature matches the generated reference, recipient, amount, SPL token, and memo`
 
 #### Success Metrics
 
@@ -204,7 +201,8 @@ ROI = (4 × 20) / (8 + 0.50 + 0.02) ≈ 9.5 — above threshold
 | Tier | Feature | ROI Score | Rationale |
 |---|---|---|---|
 | Must | ACP `x-web3` extension fields in session schema | 12 | Structural enabler; zero runtime cost |
-| Must | L2 deposit address generation + polling Worker | 9.5 | Core Web3 payment path |
+| Must | L2 deposit address generation + polling Worker | 9.5 | Core EVM Web3 payment path |
+| Must | Solana Pay transfer URL + RPC signature validation | 9.5 | Core Solana Web3 payment path |
 | Should | EAS attestation on settlement | 8 | Provenance; complements OpenBOX (AC-E3) |
 | Should | `@node:proof` canvas integration | 7 | Closes loop to KGC graph |
 | Could | BOX token price oracle integration | 4 | Nice for UX; not required for MVP |
@@ -212,11 +210,11 @@ ROI = (4 × 20) / (8 + 0.50 + 0.02) ≈ 9.5 — above threshold
 
 #### Min-Viable Scope (AC-E2)
 
-`x-web3` extension fields in ACP session schema. Cloudflare Worker that generates a deterministic L2 deposit address through the shared semantic-key helper, confirms Base Sepolia transfers, then calls `knowgrph.commerce.attest`. EAS HTTP attestation endpoint. No custom contract.
+`x-web3` extension fields in ACP session schema. Cloudflare Worker that generates a deterministic L2 deposit address through the shared semantic-key helper, confirms Base Sepolia transfers, and accepts Solana Pay sessions by generating a `solana:` transfer URL/reference and validating the confirmed signature through Solana RPC. EAS HTTP attestation endpoint. No custom contract.
 
 #### Out of Scope
 
-BOX token price discovery; multi-chain routing; escrow smart contracts; DEX integration.
+BOX token price discovery; DEX integration; escrow smart contracts; running a separate Solana Pay gateway process inside the Worker.
 
 #### Dependencies
 
@@ -325,14 +323,14 @@ flowchart LR
 ---
 
 **Component**: `checkout-worker`
-**Responsibility**: Implements ACP Agentic Checkout REST API (session CRUD + complete + cancel); validates request schemas; routes fiat sessions through hosted Stripe Checkout or the explicit delegate-token completion path, routes Web3 sessions through the `x-web3` extension, and persists session, proof, Stripe, and trace state to D1 through the existing payment Worker owner.
+**Responsibility**: Implements ACP Agentic Checkout REST API (session CRUD + complete + cancel); validates request schemas; routes fiat sessions through hosted Stripe Checkout or the explicit delegate-token completion path, routes EVM Web3 sessions through the `x-web3` extension, routes Solana Pay sessions through generated transfer URLs and verified signatures, and persists session, proof, Stripe, and trace state to D1 through the existing payment Worker owner.
 **Interfaces**:
 - `POST /checkout/sessions` → `CheckoutSession`
 - `GET /checkout/sessions/:id` → `CheckoutSession`
 - `POST /checkout/sessions/:id/complete` → `CheckoutSession`
 - `POST /checkout/sessions/:id/cancel` → `CheckoutSession`
-**Dependencies**: Cloudflare D1 (free tier); hosted Stripe Checkout + webhook verification; optional Stripe delegate-payment endpoint; Base RPC and EAS attestation endpoint for Web3 path
-**Configuration**: `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY`, visible Worker `[vars]` checkout price authority (`STRIPE_CHECKOUT_PRICE_ID` or the inline checkout price tuple), `STRIPE_WEBHOOK_SECRET`, `STRIPE_DELEGATE_PAYMENT_URL`, `ACP_BEARER_TOKEN`, `BASE_RPC_URL`, `EAS_ATTEST_URL`. Use `npm run payment:stripe:configure` to validate operator-supplied Stripe env, write checkout price authority to `wrangler.toml` only with `-- --write-visible-vars --yes --confirm=apply-stripe-payment-worker-config`, reject mode/return-origin process input, and dry-run Worker secret names before applying secrets with `-- --apply --yes --confirm=apply-stripe-payment-worker-config`; deploy `payment:worker:deploy` after visible Worker `[vars]` changes, or include `--deploy-visible-vars --apply --yes --confirm=apply-stripe-payment-worker-config` for the explicit deploy path before live Checkout smoke.
+**Dependencies**: Cloudflare D1 (free tier); hosted Stripe Checkout + webhook verification; optional Stripe delegate-payment endpoint; Base RPC and EAS attestation endpoint for EVM Web3 path; Solana RPC endpoint for Solana Pay signature verification
+**Configuration**: `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY`, visible Worker `[vars]` checkout price authority (`STRIPE_CHECKOUT_PRICE_ID` or the inline checkout price tuple), `STRIPE_WEBHOOK_SECRET`, `STRIPE_DELEGATE_PAYMENT_URL`, `ACP_BEARER_TOKEN`, `BASE_RPC_URL`, `EAS_ATTEST_URL`, `SOLANA_PAY_RECIPIENT`, `SOLANA_PAY_SPL_TOKEN`, `SOLANA_PAY_RPC_URL`, optional `SOLANA_PAY_AMOUNT_SCALE`, `SOLANA_PAY_NETWORK`, `SOLANA_PAY_LABEL`, and `SOLANA_PAY_COMMITMENT`. Use `npm run payment:stripe:configure` to validate operator-supplied Stripe env, write checkout price authority to `wrangler.toml` only with `-- --write-visible-vars --yes --confirm=apply-stripe-payment-worker-config`, reject mode/return-origin process input, and dry-run Worker secret names before applying secrets with `-- --apply --yes --confirm=apply-stripe-payment-worker-config`; deploy `payment:worker:deploy` after visible Worker `[vars]` changes, or include `--deploy-visible-vars --apply --yes --confirm=apply-stripe-payment-worker-config` for the explicit deploy path before live Checkout smoke.
 **FOSS / Vendor**: FOSS — Cloudflare Worker + D1; ACP spec Apache 2.0; Stripe proprietary (see ADR-1)
 **Token Budget**: N/A (no LLM call)
 
@@ -650,15 +648,15 @@ flowchart TB
 |---|---|---|---|
 | Config | ACP config route | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented |
 | Checkout | Checkout Worker | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented |
-| Web3 | Web3 settlement path | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts`, `agenticCommerceIntegrations.ts` | Implemented as Base RPC confirmation + EAS attest route |
+| Web3 | Web3 settlement path | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts`, `agenticCommerceIntegrations.ts`, `agenticCommerceSolanaPay.ts` | Implemented as Base RPC confirmation + EAS attest route plus Solana Pay transfer-reference validation |
 | Harness | Commerce Harness persistence | `cloudflare/workers/knowgrph-payment/agenticCommerceSettlement.ts`, `agenticCommercePersistence.ts` | Implemented |
-| Schema | ACP/session/Web3/proof shared SSOT + semantic keys | `grph-shared/src/payments/agenticCommerceSsot.ts`, `grph-shared/src/hash/signature.ts` | Implemented |
+| Schema | ACP/session/Web3/proof shared SSOT + semantic keys | `grph-shared/src/payments/agenticCommerceSsot.ts`, `grph-shared/src/payments/agenticCommerceSolanaPaySsot.ts`, `grph-shared/src/hash/signature.ts` | Implemented |
 | Data | D1 session/proof/trace tables | `cloudflare/d1/migrations/0003_agentic_commerce.sql` | Implemented |
-| Test | ACP config, hosted Stripe Checkout handoff, checkout lifecycle, Web3 settle, Stripe webhook/status-refresh settle guards, webhook idempotency/retry, OpenBOX proof/ingest, artifact routes, shared semantic-key helper | `canvas/src/__tests__/agenticCommerceWorker.test.ts`, `canvas/src/__tests__/knowgrphPaymentWorker.test.ts` | Implemented; includes `worker.payments.agenticCommerce.hostedStripeCheckoutHandoff`, `worker.payments.agenticCommerce.hostedStripeCheckoutRejectsDelegateComplete`, `worker.payments.agenticCommerce.terminalFiatRejectsDelegateComplete`, `worker.payments.agenticCommerce.stripePaidWebhookSkipsCancelled`, `worker.payments.agenticCommerce.stripeWebhookDuplicateSkipsSettlement`, `worker.payments.stripe.webhook.duplicatePayloadConflict`, `worker.payments.stripe.webhook.retriesFailedProcessing`, `worker.payments.stripe.webhook.reclaimsStaleProcessingClaim`, `worker.payments.agenticCommerce.stripeStatusRefreshSettle`, `worker.payments.agenticCommerce.stripeExpiredStatusRefreshCancel`, `worker.payments.agenticCommerce.stripeExpiredWebhookCancel`, `worker.payments.agenticCommerce.stripeAsyncPaymentFailed`, `worker.payments.agenticCommerce.stripeWebhookRejectsAmountMismatch`, and `worker.payments.agenticCommerce.sharedSemanticKey` |
+| Test | ACP config, hosted Stripe Checkout handoff, checkout lifecycle, Web3 settle, Solana Pay settle, Stripe webhook/status-refresh settle guards, webhook idempotency/retry, OpenBOX proof/ingest, artifact routes, shared semantic-key helper | `canvas/src/__tests__/agenticCommerceWorker.test.ts`, `canvas/src/__tests__/knowgrphPaymentWorker.test.ts` | Implemented; includes `worker.payments.agenticCommerce.hostedStripeCheckoutHandoff`, `worker.payments.agenticCommerce.solanaPayCheckout`, `worker.payments.agenticCommerce.solanaPaySettleRoute`, `worker.payments.agenticCommerce.solanaPayRejectsGenericWebhook`, `worker.payments.agenticCommerce.hostedStripeCheckoutRejectsDelegateComplete`, `worker.payments.agenticCommerce.terminalFiatRejectsDelegateComplete`, `worker.payments.agenticCommerce.stripePaidWebhookSkipsCancelled`, `worker.payments.agenticCommerce.stripeWebhookDuplicateSkipsSettlement`, `worker.payments.stripe.webhook.duplicatePayloadConflict`, `worker.payments.stripe.webhook.retriesFailedProcessing`, `worker.payments.stripe.webhook.reclaimsStaleProcessingClaim`, `worker.payments.agenticCommerce.stripeStatusRefreshSettle`, `worker.payments.agenticCommerce.stripeExpiredStatusRefreshCancel`, `worker.payments.agenticCommerce.stripeExpiredWebhookCancel`, `worker.payments.agenticCommerce.stripeAsyncPaymentFailed`, `worker.payments.agenticCommerce.stripeWebhookRejectsAmountMismatch`, and `worker.payments.agenticCommerce.sharedSemanticKey` |
 | Config | Wrangler config | `cloudflare/workers/knowgrph-payment/wrangler.toml` | Implemented |
 | Operator UI | MainPanel Commerce | `docs/documents/knowgrph-mainpanel-commerce-prd-tad.md` | Implemented as canonical Commerce operator UI |
 
-**Implementation note (2026-05-29)**: The existing repo already owned payment APIs in `cloudflare/workers/knowgrph-payment`, so ACP reuses that Worker and its D1 binding instead of adding a parallel route tree or second state worker. The Web3 path accepts `x-web3` sessions, returns a deterministic deposit address, confirms matching Base RPC transfers, calls an EAS attestation endpoint, and emits `@node:proof` payloads with `tx_hash` and `attestation_uid`; credential material stays in Cloudflare secrets and outside the repo.
+**Implementation note (2026-05-29; updated 2026-06-04)**: The existing repo already owned payment APIs in `cloudflare/workers/knowgrph-payment`, so ACP reuses that Worker and its D1 binding instead of adding a parallel route tree or second state worker. The Web3 path accepts `x-web3` sessions, returns a deterministic deposit address, confirms matching Base RPC transfers, calls an EAS attestation endpoint, and emits `@node:proof` payloads with `tx_hash` and `attestation_uid`; credential material stays in Cloudflare secrets and outside the repo. Solana Pay extends the same Worker/D1 owner: `payment_rail: "solana_pay"` returns a generated `solana:` transfer URL/reference and settlement validates Solana RPC `getTransaction` output before `knowgrph.commerce.settle`; the generic Commerce webhook cannot settle Solana Pay sessions.
 
 ---
 
@@ -671,6 +669,7 @@ flowchart TB
 | AC-E1-S3 | AC-E1-S3-AC1 | `commerce-harness` | Stripe webhook/status refresh → ACP settlement | `worker.payments.agenticCommerce.stripeWebhookSettle`, `worker.payments.agenticCommerce.stripeWebhookDuplicateSkipsSettlement`, `worker.payments.stripe.webhook.duplicatePayloadConflict`, `worker.payments.stripe.webhook.retriesFailedProcessing`, `worker.payments.stripe.webhook.reclaimsStaleProcessingClaim`, `worker.payments.agenticCommerce.stripeStatusRefreshSettle`, `worker.payments.agenticCommerce.hostedStripeCheckoutRejectsDelegateComplete`, `worker.payments.agenticCommerce.terminalFiatRejectsDelegateComplete`, `worker.payments.agenticCommerce.stripePaidWebhookSkipsCancelled`, `worker.payments.agenticCommerce.stripeExpiredStatusRefreshCancel`, `worker.payments.agenticCommerce.stripeExpiredWebhookCancel`, `worker.payments.agenticCommerce.stripeAsyncPaymentFailed`, and `worker.payments.agenticCommerce.stripeWebhookRejectsAmountMismatch` pass; proof writes occur only after verified matching first-time payment |
 | AC-E2-S1 | AC-E2-S1-AC1 | `checkout-worker` | `POST /checkout/sessions` (x-web3) | `worker.payments.agenticCommerce.web3Checkout` passes |
 | AC-E2-S2 | AC-E2-S2-AC1 | `web3-settle-worker` + `commerce-harness` | EAS + canvas writer | `worker.payments.agenticCommerce.web3SettleRoute` passes; @node:proof payload emitted |
+| AC-E2-S3 | AC-E2-S3-AC1 | `solana-pay-settle-worker` + `commerce-harness` | Solana RPC + canvas writer | `worker.payments.agenticCommerce.solanaPayCheckout`, `worker.payments.agenticCommerce.solanaPaySettleRoute`, and `worker.payments.agenticCommerce.solanaPayRejectsGenericWebhook` pass; @node:proof payload emits the verified signature |
 | AC-E3-S1 | AC-E3-S1-AC1 | `commerce-harness` | OpenBOX API | `worker.payments.agenticCommerce.openboxIngest` passes |
 
 ---

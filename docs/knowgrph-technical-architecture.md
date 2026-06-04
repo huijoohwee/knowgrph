@@ -10,20 +10,9 @@ generator_owner: "canvas/src/cli/lint-doc.ts"
 # Knowgrph Technical Architecture
 
 ## Generated Registry Contract
-
-- The opening YAML frontmatter block remains the first-block machine SSOT for this registry surface's generated status, canonical owner path, and generator ownership.
-- This file is an auto-generated registry surface, not the canonical authored technical architecture document.
-- Canonical technical architecture prose and behavior ownership live under `docs/documents/`; update the source docs or generator inputs there instead of hand-authoring this registry surface.
-- Registry rows must remain generator-owned output from `canvas/src/cli/lint-doc.ts`, not a parallel authoring surface or validation fixture.
-- Runtime or documentation decisions must never be inferred from stale generated rows when the canonical authored docs disagree; fix the upstream source and regenerate.
-
-Canonical technical architecture documentation lives in `docs/documents/knowgrph-settings-document.md` together with the broader architecture/design set in `docs/documents/`.
-For chat-to-canvas runtime ownership and KGC persistence behavior, use `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.md` and `docs/documents/knowgrph-llm-prompt-contract-prd-tad.md` as the canonical owner maps rather than inferring behavior from the generated settings registry alone.
-
-This root document exists as the auto-generated settings registry table surface used by `canvas/src/cli/lint-doc.ts`.
+The opening YAML frontmatter block remains the machine SSOT for this generated registry surface. Canonical architecture prose and behavior ownership live under `docs/documents/`; update source docs or generator inputs there, keep registry rows generator-owned from `canvas/src/cli/lint-doc.ts`, and use `docs/documents/knowgrph-settings-document.md`, `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.md`, and `docs/documents/knowgrph-llm-prompt-contract-prd-tad.md` as canonical owner maps instead of inferring runtime decisions from stale generated rows.
 
 ## Settings Registry
-
 <!-- SETTINGS_REGISTRY_TABLE_START -->
 
 | Setting key | Type | Source | LS key (if any) | Owner |
@@ -592,13 +581,24 @@ This root document exists as the auto-generated settings registry table surface 
 | `search.exa.mcp.maxResults` | number | localStorage |  |  |
 | `search.exa.mcp.fetchContentLimit` | number | localStorage |  |  |
 | `search.exa.mcp.requireFetchReview` | boolean | localStorage |  |  |
+| `openai.mcp.serverLabel` | string | localStorage |  |  |
+| `openai.mcp.serverUrl` | string | localStorage |  |  |
+| `openai.mcp.transport` | string | localStorage |  |  |
+| `openai.mcp.allowedTools` | json | localStorage |  |  |
+| `openai.mcp.requireApproval` | string | localStorage |  |  |
+| `openai.mcp.responsesModel` | string | localStorage |  |  |
+| `openai.mcp.authMode` | string | localStorage |  |  |
+| `openai.mcp.apiKeyEnv` | string | localStorage |  |  |
+| `openai.mcp.vectorStoreEnv` | string | localStorage |  |  |
+| `openai.mcp.serverPort` | number | localStorage |  |  |
+| `openai.mcp.requireToolReview` | boolean | localStorage |  |  |
 | `payments.stripe.mode` | string | localStorage |  |  |
 | `payments.stripe.secretKey` | string | localStorage |  |  |
 | `payments.stripe.publishableKey` | string | localStorage |  |  |
 | `payments.stripe.webhookSecret` | string | localStorage |  |  |
 | `payments.stripe.accountId` | string | localStorage |  |  |
 | `payments.stripe.paywallEnabled` | boolean | localStorage |  |  |
-| `payments.stripe.checkoutUrl` | string | localStorage |  |  |
+| `payments.stripe.checkoutUrl` | string | store |  |  |
 | `payments.stripe.mcp.serverKey` | string | localStorage |  |  |
 | `payments.stripe.mcp.remoteUrl` | string | localStorage |  |  |
 | `payments.stripe.mcp.connectionMode` | string | localStorage |  |  |

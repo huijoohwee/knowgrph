@@ -62,7 +62,7 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
           <label className="sr-only" htmlFor="timeline-transport-playback-rate">
             Playback rate
           </label>
-          <section className="ant-select ant-select-sm ant-select-single ant-select-show-arrow" style={{ width: 90 }}>
+          <section className="timeline-rate-select ant-select ant-select-sm ant-select-single ant-select-show-arrow">
             <select
               id="timeline-transport-playback-rate"
               className="ant-select-selection-native"

@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testMarkdownPreviewRendersHtmlGridAndPreCodeBlocks() {
+  const rendererSource = readFileSync(resolve(process.cwd(), 'src/features/markdown/ui/MarkdownTokenRenderer.tsx'), 'utf8')
+  if (!rendererSource.includes("MARKDOWN_IMAGE_GRID_BASE_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 items-start'") || !rendererSource.includes('resolveMarkdownImageGridColumnClassName(images.length)') || rendererSource.includes('grid grid-cols-1') || rendererSource.includes("images.length >= 6 ? 'sm:grid-cols-3 lg:grid-cols-4'")) {
+    throw new Error('expected Markdown image grids to use the renderer-owned mobile-first responsive helper')
+  }
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const doc = dom.window.document

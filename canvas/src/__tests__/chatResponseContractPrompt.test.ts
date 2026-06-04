@@ -28,6 +28,7 @@ import {
   resolvePreferredFallbackModel,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTransport'
 import type { FloatingPanelChatSubmitArgs } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTypes'
+import { buildSubmitArgsFixture } from '@/__tests__/helpers/chatSubmitArgsFixture'
 import {
   buildChatSubmitPayloadMessages,
   buildChatSubmitRequestContext,
@@ -85,71 +86,6 @@ const readBaseTemplateSample = (): string => {
   const p = candidates.find(candidate => existsSync(candidate)) || candidates[0]!
   return readFileSync(p, 'utf8')
 }
-
-const buildSubmitArgsFixture = (overrides: Partial<FloatingPanelChatSubmitArgs> = {}): FloatingPanelChatSubmitArgs => ({
-  historyKey: 'history-key',
-  graphData: null,
-  currentNode: null,
-  markdownText: null,
-  markdownDocumentName: null,
-  sourceFiles: [],
-  workspaceContextCacheKey: 'workspace-cache',
-  chatProvider: 'openai',
-  chatAuthMode: 'serverManaged',
-  chatApiKey: null,
-  chatEndpointUrl: 'https://chat.example.test/v1/chat/completions',
-  chatModel: 'gpt-4.1-mini',
-  chatTemperature: 0.3,
-  chatMaxCompletionTokens: 128,
-  chatServiceTier: null,
-  chatStream: true,
-  chatMessagesJson: null,
-  chatReasoningEffort: null,
-  chatThinkingType: null,
-  chatThinkingJson: null,
-  chatFrequencyPenalty: null,
-  chatPresencePenalty: null,
-  chatTopP: null,
-  chatLogprobs: null,
-  chatTopLogprobs: null,
-  chatParallelToolCalls: null,
-  chatStopJson: null,
-  chatStreamOptionsJson: null,
-  chatResponseFormatJson: null,
-  chatLogitBiasJson: null,
-  chatToolsJson: null,
-  chatToolChoiceJson: null,
-  chatGraphSummaryMaxTokens: null,
-  chatGuidelineDigestMaxTokens: null,
-  chatSystemPrompt: null,
-  chatContextScope: 'workspace',
-  chatStorageTarget: 'chatHistory',
-  chatLocalStorageRootPath: '/workspace',
-  chatKnowgrphWorkspacePath: null,
-  setChatKnowgrphWorkspacePath: () => {},
-  chatProviderSummary: 'openai:gpt-4.1-mini',
-  setChatModel: () => {},
-  messages: [],
-  setMessages: () => {},
-  input: '',
-  setInput: () => {},
-  isLoading: false,
-  setIsLoading: () => {},
-  setErrorText: () => {},
-  setConnectivity: () => {},
-  setConnectivityDetail: () => {},
-  setStreamingAssistant: () => {},
-  setStreamingInsights: () => {},
-  setStreamingWorkspacePath: () => {},
-  abortRef: { current: null },
-  streamDraftTextRef: { current: null },
-  streamFollowRef: { current: null },
-  followWorkspaceMarkdownPath: () => {},
-  finalizeAssistantSuccess: async () => {},
-  pushChatExchangeLog: () => {},
-  persistChatExchangeLog: async () => {},
-  ...overrides,
-})
 
 export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfaceKeys() {
   const prompt = CHAT_BASE_RESPONSE_CONTRACT_PROMPT
@@ -902,8 +838,8 @@ export function testChatKgcFinalizeAppliesSavedWorkspaceDocumentToCanvas() {
     if (!finalizeText.includes(snippet)) throw new Error(`Expected KGC finalize path to include: ${snippet}`)
   })
   const requiredApplySnippets = [
-    'shouldApplyImportedCanvasDocumentToGraph',
-    'setActiveMarkdownDocument({',
+    'applyWorkspaceImportToCanvas', 'shouldApplyImportedCanvasDocumentToGraph',
+    'skipComposedGraphApply: true', 'setActiveMarkdownDocument({',
     'applyViewPreset: true',
     'applyToGraph: true',
     'forceApplyToGraph: true',

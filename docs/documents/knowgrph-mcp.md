@@ -30,7 +30,7 @@ Do not use this file as the source of truth for:
 - the local SuperAgent harness contract
 - Pages HTTP MCP or browser WebMCP contracts
 - MainPanel `mcp` / `integrations` ownership
-- the FloatingPanel Chat -> KGC -> Canvas pipeline
+- the FloatingPanel Chat -> KGC or MCP structured response -> Editor Workspace -> Canvas pipeline
 
 ---
 

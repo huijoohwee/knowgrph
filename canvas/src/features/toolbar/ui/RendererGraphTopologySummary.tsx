@@ -19,6 +19,7 @@ const formatCount = (value: unknown): string => {
   if (!Number.isFinite(n)) return '0'
   return Math.floor(n).toLocaleString()
 }
+export const RENDERER_GRAPH_TOPOLOGY_STATS_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 text-xs sm:grid-cols-2'
 
 const readNumber = (record: Record<string, unknown>, key: string): number => {
   const value = record[key]
@@ -244,7 +245,7 @@ export function RendererGraphTopologySummary() {
   return (
     <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 py-2`} aria-label="Graph topology">
       <section className={`mb-2 text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>Graph topology</section>
-      <section className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+      <section className={RENDERER_GRAPH_TOPOLOGY_STATS_GRID_CLASS_NAME}>
         <section className="flex items-center justify-between gap-2">
           <span className={UI_THEME_TOKENS.text.tertiary}>Nodes</span>
           <span className={UI_THEME_TOKENS.text.primary}>{formatCount(summary.nodeCount)}</span>

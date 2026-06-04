@@ -4,6 +4,10 @@ import type { KgTokenDef } from 'grph-shared/ui/kgTokens'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_FOCUS_RING, UI_SURFACE_CARD } from '@/lib/ui'
 import { cn } from '@/lib/utils'
+import {
+  DESIGN_SYSTEM_TOKEN_DETAIL_GRID_CLASS_NAME,
+  DESIGN_SYSTEM_TOKENS_GRID_CLASS_NAME,
+} from '@/features/design-system/designSystemResponsiveClasses'
 
 type TokenRow = KgTokenDef & { current: string }
 
@@ -41,7 +45,7 @@ function TokenDetail({ token }: { token: TokenRow | null }) {
   return (
     <aside className={cn('p-4', UI_SURFACE_CARD)} aria-label="Token details">
       <h3 className="m-0 text-sm font-semibold">{token.cssVar}</h3>
-      <dl className="mt-3 grid grid-cols-[120px_1fr] gap-x-3 gap-y-2 text-sm">
+      <dl className={DESIGN_SYSTEM_TOKEN_DETAIL_GRID_CLASS_NAME}>
         <dt className={cn('m-0', UI_THEME_TOKENS.text.secondary)}>Current</dt>
         <dd className="m-0">{token.current}</dd>
         <dt className={cn('m-0', UI_THEME_TOKENS.text.secondary)}>Light</dt>
@@ -91,7 +95,7 @@ export default function TokensExplorer() {
   }, [rows, selected])
 
   return (
-    <article className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-4" aria-label="Tokens and themes">
+    <article className={DESIGN_SYSTEM_TOKENS_GRID_CLASS_NAME} aria-label="Tokens and themes">
       <section className={cn('p-4', UI_SURFACE_CARD)} aria-label="Token filters">
         <label className="block">
           <span className={cn('text-xs font-medium', UI_THEME_TOKENS.text.secondary)}>Search</span>

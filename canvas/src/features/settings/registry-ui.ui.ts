@@ -1012,13 +1012,13 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
       s().setChatContextScope(
         String(v || '').trim() === 'selection'
           ? 'selection'
-          : String(v || '').trim() === 'hybrid'
-            ? 'hybrid'
-            : 'workspace',
+          : String(v || '').trim() === 'workspace'
+            ? 'workspace'
+            : 'hybrid',
       ),
     docKey: 'chatContextScope',
-    default: () => 'workspace',
-    options: ['selection', 'workspace', 'hybrid'],
+    default: () => 'hybrid',
+    options: ['hybrid', 'selection', 'workspace'],
   },
   {
     key: 'integrationConfigsJson',

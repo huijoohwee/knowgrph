@@ -8,6 +8,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_PANEL_HEADER_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_SAMPLE_ROW_CLASSNAME,
   UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME,
@@ -161,7 +162,7 @@ export default function FieldSamplesPanel({
             : '—'}
         </section>
       </section>
-      <section className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2 ${UI_THEME_TOKENS.panel.bg}`}>
+      <section className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} py-2 ${UI_THEME_TOKENS.panel.bg}`}>
         {!selectedField ? (
           <section className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsSelectFieldToViewSamples}</section>
         ) : samples.length === 0 ? (

@@ -443,7 +443,7 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(storyboardCanvasText.includes('createStrytreeCandidateRunAction'), 'expected ForkCompare fan-out action to stay in the Storyboard surface')
   assert(storyboardCanvasText.includes('publishStrytreeCandidateAction'), 'expected ForkCompare publish action to stay in the Storyboard surface')
   const strybldrPanelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
-  assert(strybldrPanelText.includes('Strybldr storytree workflow'), 'expected Strytree workflow actions to be reachable from the active Strybldr panel')
+  assert(strybldrPanelText.includes('Strybldr storytree workflow') && strybldrPanelText.includes("STRYBLDR_STORYTREE_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-2 gap-1 sm:grid-cols-4'") && !strybldrPanelText.includes('grid grid-cols-4 gap-1'), 'expected Strytree workflow actions to be reachable from the active Strybldr panel with a mobile-first action grid owner')
   assert(strybldrPanelText.includes('Strybldr storytree filter'), 'expected Strytree filters to be reachable from the active Strybldr panel')
   assert(strybldrPanelText.includes('Strybldr ForkCompare candidates'), 'expected ForkCompare candidate run to be reachable from the active Strybldr panel')
 }

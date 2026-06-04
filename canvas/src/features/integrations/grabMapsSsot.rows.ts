@@ -1,4 +1,5 @@
 import { GRABMAPS_DEFAULT_MCP_URL } from 'grph-shared/geospatial/grabMapsSsot'
+import { CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
 
 export const MAPS_GEO_DOC_AREA = 'Geo'
 export const MAPS_MAPLIBRE_DOC_AREA = 'MapLibre'
@@ -189,7 +190,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     typeLabel: 'string',
     value: 'Integration setting. Discovery planner model.',
     keyDescription: 'Planner-model selector -> choose the LLM that translates user travel intent into GrabMaps operations -> keep the Props Panel discovery widget and MainPanel Maps defaults on one planning model SSOT.',
-    valueDescription: 'Default: gpt-5.4-nano; Options: gpt-5.4-nano; Switching models expands planning behavior only when the curated list grows; keeping one model narrows drift across widget and Maps surfaces.',
+    valueDescription: `Default: ${CHAT_DEFAULT_MODEL}; Options: ${CHAT_DEFAULT_MODEL}; Switching models expands planning behavior only when the curated list grows; keeping one model narrows drift across widget and Maps surfaces.`,
     ssot: 'https://maps.grab.com/developer/documentation/mcp',
     module: ['canvas/src/features/settings/registry-ui.grabmaps.ts', 'canvas/src/features/toolbar/GrabMapsDiscoveryWidgetSection.tsx', 'canvas/src/features/flow-editor-manager/grabMapsDiscoveryWidget.ts'],
     className: ['SettingsRegistryItem', 'GrabMapsDiscoveryWidgetSection'],
@@ -197,7 +198,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     valueKey: 'maps.grabmaps.mcp.discovery.chatModel',
     responsibility: 'Selects the chat-planner model used by the GrabMaps discovery widget.',
     searchHints: ['discovery planner model chat model'],
-    tooltipDefaultValue: 'gpt-5.4-nano',
+    tooltipDefaultValue: CHAT_DEFAULT_MODEL,
     tooltipExpansionNote: 'A shared planner model expands consistent discovery output across Maps and Props Panel flows.',
     tooltipContractionNote: 'One pinned model narrows planner drift across sessions.',
   },

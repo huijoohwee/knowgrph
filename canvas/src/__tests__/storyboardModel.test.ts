@@ -1,4 +1,8 @@
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { GraphData } from '@/lib/graph/types'
 
 const makeGraph = (): GraphData => ({
@@ -166,5 +170,174 @@ export function testStoryboardBoardModelResolvesProviderVideoToRenderableEmbedAn
   }
   if (!card.references.some(reference => reference.kind === 'image' && reference.url.includes(`/vi/${videoId}/`))) {
     throw new Error(`expected provider video thumbnail image reference, got ${JSON.stringify(card.references)}`)
+  }
+}
+
+export function testStoryboardBoardModelProjectsGeneratedOutputAndAudioMedia() {
+  const board = buildStoryboardBoardModel({
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'text-run',
+          label: 'Text Widget Run',
+          type: 'TextGeneration',
+          properties: {
+            lane: 'Generated',
+            output: '## Draft response\n\nA renderer-neutral text artifact from the active request.',
+          },
+        },
+        {
+          id: 'audio-run',
+          label: 'Audio Review',
+          type: 'Audio',
+          properties: {
+            lane: 'Generated',
+            mediaKind: 'audio',
+            mediaUrl: 'https://example.com/review.mp3',
+          },
+        },
+      ],
+      edges: [],
+    },
+    graphRevision: 11,
+  })
+  const generatedLane = board.lanes.find(lane => lane.label === 'Generated')
+  if (!generatedLane || generatedLane.cards.length !== 2) {
+    throw new Error(`expected generated lane with text and audio cards, got ${JSON.stringify(board.lanes)}`)
+  }
+  const textCard = generatedLane.cards.find(card => card.id === 'text-run') || null
+  if (!textCard?.output.includes('renderer-neutral text artifact')) {
+    throw new Error(`expected generated output to project into storyboard card output, got ${JSON.stringify(textCard)}`)
+  }
+  const audioCard = generatedLane.cards.find(card => card.id === 'audio-run') || null
+  if (audioCard?.media?.kind !== 'audio') {
+    throw new Error(`expected audio media to remain a renderable storyboard card media kind, got ${JSON.stringify(audioCard?.media)}`)
+  }
+}
+
+export function testStoryboardBoardModelUsesSharedDataflowForRichMediaPanelCards() {
+  const registry: WidgetRegistryEntry[] = [
+    {
+      id: 'source-text',
+      isEnabled: true,
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'source',
+      formId: 'source.text',
+      fields: [],
+      ports: [{ portKey: 'output', direction: 'output', schemaPath: 'output' }],
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    },
+    {
+      id: 'inline-compute',
+      isEnabled: true,
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'compute',
+      formId: 'compute.inline',
+      fields: [],
+      ports: [
+        { portKey: 'prompt', direction: 'input', schemaPath: 'prompt' },
+        { portKey: 'output', direction: 'output', schemaPath: 'output' },
+        { portKey: 'outputSrcDoc', direction: 'output', schemaPath: 'outputSrcDoc' },
+      ],
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    },
+    {
+      id: 'rich-media-panel',
+      isEnabled: true,
+      nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      widgetTypeId: 'rich-media',
+      formId: 'richMediaPanel',
+      fields: [],
+      ports: [
+        { portKey: 'output', direction: 'input', schemaPath: 'output' },
+        { portKey: 'outputSrcDoc', direction: 'input', schemaPath: 'outputSrcDoc' },
+      ],
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    },
+  ]
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [
+      {
+        id: 'source',
+        label: 'Source',
+        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        properties: {
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'source',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'source.text',
+          lane: 'Inputs',
+          output: 'story seed',
+        },
+      },
+      {
+        id: 'runner',
+        label: 'Inline Runner',
+        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        properties: {
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'compute',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'compute.inline',
+          'flow:compute': "(inputs) => ({ output: `Computed ${inputs.prompt}`, outputSrcDoc: `<main><h1>Computed storyboard panel</h1><p>${inputs.prompt}</p></main>` })",
+        },
+      },
+      {
+        id: 'panel',
+        label: 'Rich Media Panel',
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        properties: {
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'rich-media',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'richMediaPanel',
+          lane: 'Outputs',
+          richMediaActiveTab: 'text',
+        },
+      },
+    ],
+    edges: [
+      {
+        id: 'source-to-runner',
+        source: 'source',
+        target: 'runner',
+        label: 'output',
+        properties: {
+          [FLOW_EDGE_SOURCE_PORT_KEY]: 'output',
+          [FLOW_EDGE_TARGET_PORT_KEY]: 'prompt',
+        },
+      },
+      {
+        id: 'runner-to-panel-output',
+        source: 'runner',
+        target: 'panel',
+        label: 'output',
+        properties: {
+          [FLOW_EDGE_SOURCE_PORT_KEY]: 'output',
+          [FLOW_EDGE_TARGET_PORT_KEY]: 'output',
+        },
+      },
+      {
+        id: 'runner-to-panel-html',
+        source: 'runner',
+        target: 'panel',
+        label: 'outputSrcDoc',
+        properties: {
+          [FLOW_EDGE_SOURCE_PORT_KEY]: 'outputSrcDoc',
+          [FLOW_EDGE_TARGET_PORT_KEY]: 'outputSrcDoc',
+        },
+      },
+    ],
+  } as GraphData
+
+  const board = buildStoryboardBoardModel({ graphData, graphRevision: 12, widgetRegistry: registry })
+  const panelCard = board.lanes.flatMap(lane => lane.cards).find(card => card.id === 'panel') || null
+  if (!panelCard) throw new Error(`expected computed Rich Media Panel to project as a Storyboard card, got ${JSON.stringify(board.lanes)}`)
+  if (!panelCard.output.includes('Computed story seed')) {
+    throw new Error(`expected Storyboard card output to come from shared inline dataflow, got ${JSON.stringify(panelCard)}`)
+  }
+  if (panelCard.media?.kind !== 'iframe' || !panelCard.media.srcDoc) {
+    throw new Error(`expected computed outputSrcDoc to render as a Storyboard iframe card, got ${JSON.stringify(panelCard.media)}`)
+  }
+  if (!panelCard.media.srcDoc.includes('Computed storyboard panel') || !panelCard.media.srcDoc.includes('data-kg-rich-media-panel-srcdoc')) {
+    throw new Error('expected Storyboard iframe card to reuse normalized Rich Media Panel srcdoc')
   }
 }

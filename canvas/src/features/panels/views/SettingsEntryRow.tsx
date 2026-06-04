@@ -66,9 +66,15 @@ export function SettingsEntryRow({
 
   const sectionActionClassName = getUiSectionActionClassName('secondary', `${KTV_STATUS_TEXT_SIZE_CLASS_NAME} ${UI_TEXT_TRUNCATE}`)
   const sectionStatusClassName = getUiSectionChipClassName('tertiary', `${KTV_STATUS_TEXT_SIZE_CLASS_NAME} ${UI_TEXT_TRUNCATE}`)
+  const resolvedValueDisplayOverride =
+    writable
+    && refs.dirtyRef.current.has(resolvedValueKey)
+    && Object.prototype.hasOwnProperty.call(values, resolvedValueKey)
+      ? undefined
+      : valueDisplayOverride
   const inputNode = buildSettingsEntryInputNode({
     hasOptions: writable || hasOptions,
-    renderInput: () => actions.renderInput(resolvedValueKey, resolvedInputType, writable, resolvedInputOptions, valueDisplayOverride),
+    renderInput: () => actions.renderInput(resolvedValueKey, resolvedInputType, writable, resolvedInputOptions, resolvedValueDisplayOverride),
     settingType: setting.type,
     valueTooltip,
   })

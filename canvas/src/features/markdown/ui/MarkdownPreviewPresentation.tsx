@@ -22,6 +22,7 @@ import { findLineRangeFromTarget } from '@/features/markdown/ui/markdownPreviewC
 import { MarkdownPresentationViewport } from './MarkdownPresentationViewport'
 import { SlidesSidebar } from './SlidesSidebar'
 import type { MarkdownSourceFilesPanelIntegration } from './markdownSourceFilesPanelTypes'
+import { MARKDOWN_SLIDES_SIDEBAR_CLASS_NAME } from './markdownPresentationResponsiveClasses'
 
 import { usePresentationEffects } from './usePresentationEffects'
 import { resolvePresentationFrameModel } from './markdownPresentationFrame'
@@ -477,7 +478,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
               onMouseEnter={handleSidebarMouseEnter}
               onMouseLeave={handleSidebarMouseLeave}
             >
-              <section className="w-64 h-full flex flex-col overflow-hidden">
+              <section className={`${MARKDOWN_SLIDES_SIDEBAR_CLASS_NAME} h-full flex flex-col overflow-hidden`}>
                 <SlidesSidebar
                   embedded={true}
                   orderedSlideIndices={orderedSlideIndices}

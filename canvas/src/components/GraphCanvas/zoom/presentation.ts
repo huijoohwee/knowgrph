@@ -4,6 +4,7 @@ import type { MutableRefObject } from 'react'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { resolveContextualZoomDetail } from '@/lib/zoom/viewport'
 
 export function createGraphZoomPresentationApplier(args: {
   g: d3.Selection<SVGGElement, unknown, null, undefined>
@@ -141,8 +142,10 @@ export function createGraphZoomPresentationApplier(args: {
       }
     }
 
-    const hideBelow = args.schema.performance?.lod?.hideLabelsBelowScale ?? 0
-    const hidden = hideBelow > 0 && k < hideBelow
+    const hidden = resolveContextualZoomDetail({
+      k,
+      contentThreshold: args.schema.performance?.lod?.hideLabelsBelowScale ?? 0,
+    }).hidden
     if (!lastOpacityTs || now - lastOpacityTs > 16) {
       lastOpacityTs = now
       if (hidden !== lastHidden) {
@@ -157,4 +160,3 @@ export function createGraphZoomPresentationApplier(args: {
     }
   }
 }
-

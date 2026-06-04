@@ -8,7 +8,7 @@ import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownF
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { resolveWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
-export type WidgetCompactPreviewKind = 'text' | 'image' | 'video'
+export type WidgetCompactPreviewKind = 'text' | 'image' | 'video' | 'audio'
 
 export type WidgetCompactPreviewSpec = {
   kind: WidgetCompactPreviewKind
@@ -36,6 +36,11 @@ export type WidgetCompactPreviewViewModel =
     }
   | {
       kind: 'video'
+      sectionAriaLabel: 'Widget output preview'
+      mediaUrl: string
+    }
+  | {
+      kind: 'audio'
       sectionAriaLabel: 'Widget output preview'
       mediaUrl: string
     }
@@ -69,8 +74,15 @@ export function buildWidgetCompactPreviewViewModel(args: {
       mediaAlt: String(args.node?.label || args.node?.id || 'Widget image output'),
     }
   }
+  if (preview.kind === 'video') {
+    return {
+      kind: 'video',
+      sectionAriaLabel: 'Widget output preview',
+      mediaUrl: String(preview.url || ''),
+    }
+  }
   return {
-    kind: 'video',
+    kind: 'audio',
     sectionAriaLabel: 'Widget output preview',
     mediaUrl: String(preview.url || ''),
   }
@@ -101,6 +113,7 @@ function normalizePreviewKindHint(rawHint: string): WidgetCompactPreviewKind | n
   if (!hint) return null
   if (hint.includes('image') || hint.includes('svg')) return 'image'
   if (hint.includes('video')) return 'video'
+  if (hint.includes('audio')) return 'audio'
   if (
     hint.includes('text')
     || hint.includes('markdown')
@@ -199,10 +212,12 @@ function scoreWidgetPreviewCandidate(candidate: {
   const key = `${candidate.portKey}|${candidate.schemaPath}`.toLowerCase()
   if (key.includes('imageurl') || key.endsWith('.image') || key.includes('|image')) return 400
   if (key.includes('videourl') || key.endsWith('.video') || key.includes('|video')) return 380
+  if (key.includes('audiourl') || key.endsWith('.audio') || key.includes('|audio')) return 370
   if (key.includes('outputsrcdoc')) return 350
   if (key.includes('output') || key.includes('text') || key.includes('markdown')) return 360
   if (candidate.kind === 'image') return 320
   if (candidate.kind === 'video') return 300
+  if (candidate.kind === 'audio') return 290
   return 260
 }
 
@@ -255,6 +270,7 @@ export function resolveWidgetCompactPreview(args: {
   const knownDefaults: Array<{ portKey: string; schemaPath: string; outputTypeHint: string }> = [
     { portKey: 'imageUrl', schemaPath: 'properties.imageUrl', outputTypeHint: 'image' },
     { portKey: 'videoUrl', schemaPath: 'properties.videoUrl', outputTypeHint: 'video' },
+    { portKey: 'audioUrl', schemaPath: 'properties.audioUrl', outputTypeHint: 'audio' },
     { portKey: 'output', schemaPath: 'properties.output', outputTypeHint: 'text' },
     { portKey: 'outputSrcDoc', schemaPath: 'properties.outputSrcDoc', outputTypeHint: 'text' },
   ]
@@ -295,8 +311,10 @@ export function resolveWidgetCompactPreview(args: {
           ? 'image'
           : inferredUrlKind === 'video'
             ? 'video'
-            : null)
-      if (resolvedKind === 'image' || resolvedKind === 'video') {
+            : inferredUrlKind === 'audio'
+              ? 'audio'
+              : null)
+      if (resolvedKind === 'image' || resolvedKind === 'video' || resolvedKind === 'audio') {
         if (!rawString) continue
         candidates.push({
           kind: resolvedKind,
