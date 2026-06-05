@@ -193,7 +193,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ## Repository Architecture
 
-**Module Hierarchy**: schema defaults/types → layout engines (force/radial/stratify/Mermaid) → collision + overlap resolution → fit + zoom controller → renderer layers (nodes/links/groups)  
+**Module Hierarchy**: schema defaults/types → layout engines (force/radial/block/Mermaid) → collision + overlap resolution → fit + zoom controller → renderer layers (nodes/links/groups)
 
 **Dependency Flow**: schema/config readers → positioning/caching → simulation/constraints → scene composition → zoom state persistence
 
@@ -202,7 +202,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Graph canvas host:
   - `canvas/src/components/GraphCanvas/*` orchestrates layout, zoom, scene layers, and caching.
 - Layout engines:
-  - `canvas/src/components/GraphCanvas/layout/*` implements force/radial/stratify layout pipelines and shared helpers.
+  - `canvas/src/components/GraphCanvas/layout/*` implements force/radial/block layout pipelines, Mermaid-owned layout handoff, and shared helpers.
 - Overlap resolution:
   - `canvas/src/components/GraphCanvas/layout/{overlap.ts,groupOverlap.ts,relax.ts}` centralize bbox collision and bounded relaxation.
 - Fit and zoom:
@@ -242,7 +242,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 |---|---|---|---|---|---|---|---|
 | Nested group spacing | Prevent group-of-groups borders snapping together | - [ ] Apply depth-based padding using `layout.groups.nestedPaddingStep` | GraphCanvas | createGroupsLayer | schema.layout.groups | separated group boxes | Outer groups get more padding than inner groups |
 | Edge underlay readability | Keep edges beneath groups/nodes | - [ ] Use schema-driven 2D edge opacity (`layout.edges.opacity`, `layout.edges.opacityUnderGroups`) | GraphCanvas | useGraphCanvasStyles | schema.layout.edges | readable edges | When groups enabled, pick the lower opacity |
-| Fixture neutrality | Avoid local absolute paths | - [ ] Forbid hardcoded `/Users/.../GitHub/sandbox/...` paths in code/tests | policy | testForbidHardcodedSandboxAbsolutePaths | source scan | CI guard | Use sandbox-root helpers + basenames or repo-local fixtures |
+| Fixture neutrality | Avoid local absolute paths | - [ ] Forbid hardcoded sibling-checkout fixture paths in code/tests | policy | testForbidHardcodedExternalFixturePaths | source scan | CI guard | Use explicit env-provided fixtures or repo-local `data/test-data` fixtures |
 
 ### Module: collision + overlap SSOT
 

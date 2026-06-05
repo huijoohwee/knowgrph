@@ -2,6 +2,7 @@ import {
   ORCHESTRATOR_TRAVERSAL_TOOLTIP,
 } from '@/lib/config'
 import { AGENTIC_RAG_CONTEXT_URL } from '@/lib/agenticrag'
+import { DEFAULT_SCHEMA_CONFIG_PATH } from '@/lib/graph/file'
 import { TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'
 import { getOrchestratorSectionListLabel, ORCHESTRATOR_AGENTIC_COPY } from '@/features/panels/config'
 
@@ -28,7 +29,7 @@ let cachedUniversalRoleActionOutcomes: Record<string, RoleActionOutcomeFixture> 
 
 const readUniversalRoleActionOutcomes = async (): Promise<Record<string, RoleActionOutcomeFixture>> => {
   if (cachedUniversalRoleActionOutcomes) return cachedUniversalRoleActionOutcomes
-  const url = new URL('../../../schema-config/knowgrph-universal-schema-config.jsonld', import.meta.url)
+  const url = new URL(`../../../${DEFAULT_SCHEMA_CONFIG_PATH}`, import.meta.url)
   const isNodeRuntime =
     typeof process !== 'undefined' && !!(process as unknown as { versions?: { node?: string } }).versions?.node
   if (isNodeRuntime) {

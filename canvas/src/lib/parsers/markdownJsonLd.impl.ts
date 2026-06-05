@@ -20,7 +20,7 @@ import {
   MermaidParserContext,
 } from '@/features/parsers/markdownJsonLdMermaidParser'
 import { MarkdownGraphBuilder } from '@/features/parsers/markdownJsonLdBuilder'
-import { buildAliasedMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
+import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
 import {
@@ -869,7 +869,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
             ...(title ? { 'dom:attrs:title': title } : {}),
             ...(style ? { 'dom:attrs:style': style } : {}),
             ...(src
-              ? buildAliasedMediaProperties({
+              ? buildNodeMediaProperties({
                   kind: 'iframe',
                   url: src,
                   interactive: true,
@@ -1311,7 +1311,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       if (!url) continue
       const propsRaw = node.properties
       if (!propsRaw || typeof propsRaw !== 'object' || Array.isArray(propsRaw)) {
-        node.properties = buildAliasedMediaProperties({ kind: 'image', url })
+        node.properties = buildNodeMediaProperties({ kind: 'image', url })
         continue
       }
       const props = propsRaw as Record<string, unknown>
@@ -1328,7 +1328,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       if (existing) continue
       node.properties = {
         ...props,
-        ...buildAliasedMediaProperties({ kind: 'image', url }),
+        ...buildNodeMediaProperties({ kind: 'image', url }),
       }
     }
   }

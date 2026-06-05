@@ -1,0 +1,21 @@
+version: "0.1"
+dataset:
+  input_dir: "./data/outputs"
+  output_dir: "./data/graphrag/example"
+  file_glob: "example-codebase-index-viz.jsonld"
+chunking:
+  method: "recursive_character"
+  chunk_size: 1000
+  chunk_overlap: 150
+embeddings:
+  provider: "cohere"
+  model: "embed-english-v3.0"
+  dimensions: 1024
+graph:
+  strategy: "entity_relationship"
+  entity_extraction_prompt: "./data/config/graphrag/prompts.yaml"
+  relationship_extraction_prompt: "./data/config/graphrag/prompts.yaml"
+costs:
+  warn: true
+  max_docs: 50
+  dry_run: false

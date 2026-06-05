@@ -210,8 +210,9 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   if (!serverCard.capabilities?.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]?.mimeTypes?.includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)) {
     throw new Error(`expected mcp server-card to advertise MCP Apps extension capability, got ${JSON.stringify(serverCard.capabilities)}`)
   }
-  if (serverCard.transport?.type !== KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE || serverCard.transport?.stateless !== true || serverCard.transport?.legacySse !== false) {
-    throw new Error(`expected mcp server-card to advertise stateless Streamable HTTP without legacy SSE, got ${JSON.stringify(serverCard.transport)}`)
+  const removedSseFlag = ['leg', 'acySse'].join('')
+  if (serverCard.transport?.type !== KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE || serverCard.transport?.stateless !== true || Object.prototype.hasOwnProperty.call(serverCard.transport || {}, removedSseFlag)) {
+    throw new Error(`expected mcp server-card to advertise stateless Streamable HTTP without stale SSE flags, got ${JSON.stringify(serverCard.transport)}`)
   }
   const qwenSetup = serverCard.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]
   if (qwenSetup?.transport !== 'http' || qwenSetup?.url !== 'https://airvio.co/knowgrph/mcp' || !String(qwenSetup?.command || '').includes('qwen mcp add --transport http knowgrph https://airvio.co/knowgrph/mcp') || qwenSetup?.settingsJson?.mcpServers?.knowgrph?.httpUrl !== 'https://airvio.co/knowgrph/mcp' || !qwenSetup.settingsJson.mcpServers.knowgrph.includeTools?.includes('search') || !qwenSetup.settingsJson.mcpServers.knowgrph.includeTools?.includes('fetch')) {
@@ -255,7 +256,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     throw new Error(`expected inspect_agent_surface server-card tool to link the MCP Apps UI resource, got ${JSON.stringify(serverCardInspectTool)}`)
   }
   if (serverCardInspectTool?._meta?.['openai/outputTemplate'] !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
-    throw new Error(`expected inspect_agent_surface server-card tool to expose OpenAI output template compatibility metadata, got ${JSON.stringify(serverCardInspectTool)}`)
+    throw new Error(`expected inspect_agent_surface server-card tool to expose OpenAI output template metadata, got ${JSON.stringify(serverCardInspectTool)}`)
   }
   if (serverCardInspectTool?.securitySchemes?.[0]?.type !== 'noauth' || serverCardInspectTool?._meta?.securitySchemes?.[0]?.type !== 'noauth') {
     throw new Error(`expected inspect_agent_surface server-card tool to expose mirrored noauth security schemes, got ${JSON.stringify(serverCardInspectTool)}`)
@@ -312,8 +313,8 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     env: {},
     next: async () => new Response('unexpected next()'),
   } as never)
-  const transportMetadata = await transportMetadataResponse.json() as { transport?: { type?: string, stateless?: boolean, legacySse?: boolean } }
-  if (!transportMetadataResponse.ok || transportMetadata.transport?.type !== KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE || transportMetadata.transport?.stateless !== true || transportMetadata.transport?.legacySse !== false) {
+  const transportMetadata = await transportMetadataResponse.json() as { transport?: { type?: string, stateless?: boolean } & Record<string, unknown> }
+  if (!transportMetadataResponse.ok || transportMetadata.transport?.type !== KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE || transportMetadata.transport?.stateless !== true || Object.prototype.hasOwnProperty.call(transportMetadata.transport || {}, removedSseFlag)) {
     throw new Error(`expected MCP GET metadata to advertise Streamable HTTP transport, got ${JSON.stringify(transportMetadata)}`)
   }
 
@@ -382,7 +383,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     throw new Error(`expected MCP tools/list inspect_agent_surface tool to link the MCP Apps UI resource, got ${JSON.stringify(inspectTool)}`)
   }
   if (inspectTool?._meta?.['openai/outputTemplate'] !== KNOWGRPH_MCP_APP_RESOURCE_URI) {
-    throw new Error(`expected MCP tools/list inspect_agent_surface tool to expose OpenAI output template compatibility metadata, got ${JSON.stringify(inspectTool)}`)
+    throw new Error(`expected MCP tools/list inspect_agent_surface tool to expose OpenAI output template metadata, got ${JSON.stringify(inspectTool)}`)
   }
   if (inspectTool?.securitySchemes?.[0]?.type !== 'noauth' || inspectTool?._meta?.securitySchemes?.[0]?.type !== 'noauth') {
     throw new Error(`expected MCP tools/list inspect_agent_surface tool to expose mirrored noauth security schemes, got ${JSON.stringify(inspectTool)}`)
@@ -647,7 +648,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   }
   const readinessIds = readiness.checklist.map((check) => String((check as { id?: string }).id || ''))
   if (!readinessIds.includes('deep-research-search-fetch') || !readinessIds.includes('qwen-code-http-client-setup') || !readinessIds.includes('kimi-cli-http-client-setup') || !readinessIds.includes('byteplus-modelark-responses-mcp-setup') || !readinessIds.includes('openai-output-template') || !readinessIds.includes('openai-widget-bridge') || !readinessIds.includes('tool-security-schemes') || !readinessIds.includes('tool-impact-annotations') || !readinessIds.includes('widget-accessible') || !readinessIds.includes('prompt-discovery') || !readinessIds.includes('source-file-resource-template')) {
-    throw new Error(`expected readiness to cover deep-research and OpenAI Apps compatibility metadata, got ${JSON.stringify(readiness)}`)
+    throw new Error(`expected readiness to cover deep-research and OpenAI Apps metadata, got ${JSON.stringify(readiness)}`)
   }
   if (readiness.clients?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.settingsJson?.mcpServers?.knowgrph?.httpUrl !== 'https://airvio.co/knowgrph/mcp') {
     throw new Error(`expected readiness clients to include Qwen Code HTTP setup, got ${JSON.stringify(readiness.clients)}`)

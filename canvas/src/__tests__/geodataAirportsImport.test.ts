@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parseGraph } from '@/lib/graph/io/adapter'
-import { resolveSandboxRoot, isFile } from '@/tests/lib/sandboxRoot'
+import { resolveExternalFixtureRoot, isFile } from '@/tests/lib/externalFixtures'
 
 const readUtf8Prefix = (absPath: string, maxBytes: number): string => {
   const fd = fs.openSync(absPath, 'r')
@@ -15,10 +15,10 @@ const readUtf8Prefix = (absPath: string, maxBytes: number): string => {
 }
 
 export const testAirportsJsonGeodataParsingUsesSampling = () => {
-  const sandboxRoot = resolveSandboxRoot()
-  if (!sandboxRoot) return
+  const fixtureRoot = resolveExternalFixtureRoot()
+  if (!fixtureRoot) return
 
-  const airportsPath = path.join(sandboxRoot, 'test-data', 'airports.json')
+  const airportsPath = path.join(fixtureRoot, 'test-data', 'airports.json')
   if (!isFile(airportsPath)) return
 
   const prefix = readUtf8Prefix(airportsPath, 20 * 1024 * 1024)

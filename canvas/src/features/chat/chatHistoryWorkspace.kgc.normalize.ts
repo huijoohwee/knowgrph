@@ -164,9 +164,34 @@ const containsAny = (body: string, values: string[]): boolean => {
   })
 }
 
+const normalizeCoverageText = (value: string): string => {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[–—]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const missingImportantTerms = (body: string, values: string[]): string[] => {
+  const normalizedBody = normalizeCoverageText(body)
+  return values.filter(value => {
+    const cleaned = normalizeCoverageText(value)
+    return cleaned ? !normalizedBody.includes(cleaned) : false
+  })
+}
+
 const containsHeading = (body: string, heading: string): boolean => {
   return String(body || '').includes(heading)
 }
+
+const STALE_COMMERCE_FALLBACK_SNIPPETS = [
+  'external discovery channels',
+  'the stated revenue actions',
+  'the monetized conversion trigger',
+  'user-action monetization',
+  'monetized user actions',
+  'commercialization and integration assumptions',
+]
 
 const MCP_STRUCTURED_RESPONSE_HEADING = '### MCP Structured Response Projection'
 const COMPUTE_MAPPING_HEADING = '### Compute Inline Mapping Spec'
@@ -212,7 +237,7 @@ const shouldRegenerateQueryResponsiveFrontmatter = (args: {
     'forward_edges:',
     'direction:  {key: direction',
     'computed:   {key: computed',
-    'compute:       {key: compute',
+    'compute:\n        key: compute',
     'click n-trigger',
     'seq:    R01',
   ]
@@ -225,6 +250,13 @@ const shouldRegenerateQueryResponsiveFrontmatter = (args: {
   if (profile.signals.rxdb && !containsAny(frontmatter, ['rxdb'])) return true
   if (profile.signals.maplibre && !containsAny(frontmatter, ['maplibre'])) return true
   if (profile.signals.externalUsers && !containsAny(frontmatter, ['external-user', 'external users'])) return true
+  if (missingImportantTerms(frontmatter, profile.namedTerms).length > 0) return true
+  if (
+    !(profile.signals.b2c || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion || profile.signals.payments)
+    && STALE_COMMERCE_FALLBACK_SNIPPETS.some(snippet => containsAny(frontmatter, [snippet]))
+  ) {
+    return true
+  }
   return false
 }
 
@@ -278,6 +310,13 @@ const shouldRegenerateQueryResponsiveBody = (args: {
   if (profile.signals.maplibre && !containsAny(body, ['maplibre'])) return true
   if (profile.signals.externalUsers && !containsAny(body, ['external users'])) return true
   if (profile.artifact && !containsAny(body, [profile.artifact])) return true
+  if (missingImportantTerms(body, profile.namedTerms).length > 0) return true
+  if (
+    !(profile.signals.b2c || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion || profile.signals.payments)
+    && STALE_COMMERCE_FALLBACK_SNIPPETS.some(snippet => containsAny(body, [snippet]))
+  ) {
+    return true
+  }
   if (profile.namedTerms.length > 0 && !containsAny(body, profile.namedTerms)) return true
   return false
 }

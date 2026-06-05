@@ -16,8 +16,8 @@ const REQUESTED_SECTION_LABELS: Record<string, string> = {
   monetization: 'Monetization',
   integrations: 'Integration',
 }
-const GENERIC_WORKSPACE_HEADING_RX = /^(computing flow definition|runner protocol|graph registry|document links|flow graph|pipeline|open questions|customization guide)$/i
-const GENERIC_PREVIEW_LINE_RX = /(this document is the pipeline|machine-readable source of truth|human-readable projection|self-runnable|graph-complete|schema-validated|ssot surfaces|renderers may use this block|dual-layer structure|workspace listings)/i
+const GENERIC_WORKSPACE_HEADING_RX = /^(computing flow definition|runner protocol|graph registry|document links|flow graph|pipeline|open questions|customization guide)\b/i
+const GENERIC_PREVIEW_LINE_RX = /(this document is the pipeline|machine-readable source of truth|human-readable projection|self-runnable|graph-complete|schema-validated|ssot surfaces|renderers may use this block|dual-layer structure|workspace listings|execute .+ logic using bounded graph context|execution:\s*computing-flow|output:\s*"?computed analysis"?|stage:\s*"?execute"?)/i
 const REQUEST_KEYWORD_STOPWORDS = new Set([
   'a', 'an', 'and', 'are', 'be', 'by', 'for', 'from', 'how', 'in', 'into', 'is', 'of', 'on', 'or', 'the', 'to', 'with',
   'should', 'could', 'would', 'please', 'question', 'query', 'output', 'stream', 'report', 'response',

@@ -1,7 +1,7 @@
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
-import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
@@ -13,6 +13,7 @@ import { readWorkspaceSourceRootEntriesSnapshot } from '@/features/source-files/
 import { resolveMaterializedWorkspaceActivePath } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { resolveMarkdownWorkspaceCanonicalSelection } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionCanonicalPath'
 import { buildWorkspaceEntriesIndex, hasWorkspaceFileEntry } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 
 export function buildInitialWorkspaceStartupSnapshot(args: {
   currentActivePath: WorkspacePath | null
@@ -95,6 +96,26 @@ export function shouldFallbackWorkspaceStartupToReadme(args: {
   return !args.activePath && !args.hasDesiredActiveText && !args.preferCustomValidationSeed
 }
 
+export function createWorkspaceStartupSourceRootEntriesReader(args: {
+  fs: WorkspaceFs
+  startupWorkspaceEntries: WorkspaceEntry[]
+}): (activePath: WorkspacePath | null) => Promise<WorkspaceEntry[]> {
+  const snapshotByActivePath = new Map<WorkspacePath, Promise<WorkspaceEntry[]>>()
+  return async activePathRaw => {
+    const activePath = normalizeWorkspacePath(activePathRaw)
+    if (!activePath || activePath === '/') return args.startupWorkspaceEntries
+    const cached = snapshotByActivePath.get(activePath)
+    if (cached) return cached
+    const snapshot = readWorkspaceSourceRootEntriesSnapshot({
+      fs: args.fs,
+      activePath,
+      workspaceEntries: args.startupWorkspaceEntries,
+    })
+    snapshotByActivePath.set(activePath, snapshot)
+    return snapshot
+  }
+}
+
 export async function resolveInitialWorkspaceStartupState(): Promise<{
   activePath: WorkspacePath | null
   workspaceEntries: WorkspaceEntry[]
@@ -106,6 +127,10 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   const startupWorkspaceEntries = await fs.listEntries()
+  const readStartupSourceRootEntries = createWorkspaceStartupSourceRootEntriesReader({
+    fs,
+    startupWorkspaceEntries,
+  })
   const currentActivePath = resolveExistingWorkspaceStartupCanonicalPath({
     activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath }),
     workspaceEntries: startupWorkspaceEntries,
@@ -118,7 +143,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     workspaceEntries: startupWorkspaceEntries,
   })
   let workspaceEntries = desiredActivePath
-    ? await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
+    ? await readStartupSourceRootEntries(desiredActivePath)
     : startupWorkspaceEntries
   const hasDesiredActiveText = workspaceEntries.some(entry => entry?.kind === 'file' && entry.path === desiredActivePath && String(entry.text || '').trim())
   if (shouldFallbackWorkspaceStartupToReadme({
@@ -131,7 +156,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
       workspaceEntries: startupWorkspaceEntries,
     })
     workspaceEntries = desiredActivePath
-      ? await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
+      ? await readStartupSourceRootEntries(desiredActivePath)
       : startupWorkspaceEntries
   }
   const latestExplorer = useMarkdownExplorerStore.getState()
@@ -142,7 +167,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   if (!preferCustomValidationSeed && latestActivePath && latestActivePath !== currentActivePath) {
     const latestWorkspaceEntries = latestActivePath === desiredActivePath
       ? workspaceEntries
-      : await readWorkspaceSourceRootEntriesSnapshot({ fs, activePath: latestActivePath, workspaceEntries: startupWorkspaceEntries })
+      : await readStartupSourceRootEntries(latestActivePath)
     return buildInitialWorkspaceStartupSnapshot({
       currentActivePath: latestActivePath,
       desiredActivePath: latestActivePath,

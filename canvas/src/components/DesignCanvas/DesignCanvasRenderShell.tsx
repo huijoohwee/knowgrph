@@ -2,7 +2,8 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
-import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
+import { CanvasGridOverlaySurface } from '@/components/CanvasGridOverlaySurface'
+import type { CanvasGridRenderConfig } from '@/lib/canvas/canvasGridConfig'
 import { DesignCanvasArrangeActionBar } from '@/components/DesignCanvas/ArrangeActionBar'
 import { DesignCanvasEditorChrome } from '@/components/DesignCanvas/DesignCanvasEditorChrome'
 import { DesignCanvasFrameShellLayer } from '@/components/DesignCanvas/FrameShellLayer'
@@ -45,21 +46,7 @@ export type DesignCanvasRenderShellProps = {
   selectedCount: number
   arrangeActionsActive: boolean
   onArrangeAction: (action: string) => void
-  canvasGrid: {
-    enabled?: boolean
-    size?: number
-    anchor?: 'gridLine' | 'cellCenter'
-    lockToBaseStep?: boolean
-    variant?: 'lines' | 'dots'
-    majorEvery?: number
-    dotRadiusPx?: number
-    minorAlpha?: number
-    majorAlpha?: number
-    minorWidthPx?: number
-    majorWidthPx?: number
-    minorStroke?: string
-    majorStroke?: string
-  } | null
+  canvasGrid: CanvasGridRenderConfig | null
   themeSignal?: string
   dims: { width: number; height: number; dpr: number }
   getZoomTransform: () => unknown
@@ -218,26 +205,15 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
       />
       <DesignCanvasArrangeActionBar active={arrangeActionsActive} selectedCount={selectedCount} onAction={onArrangeAction} />
       <DesignCanvasEditorChrome active={active} interactionActive={interactionActive} selectedCount={selectedCount} layerCount={renderNodes.length} />
-      <InfiniteGridCanvasOverlay
-        enabled={canvasGrid?.enabled === true}
-        gridSize={canvasGrid?.size || 10}
-        anchor={canvasGrid?.anchor}
-        lockToBaseStep={canvasGrid?.lockToBaseStep}
-        variant={canvasGrid?.variant}
-        majorEvery={canvasGrid?.majorEvery}
-        dotRadiusPx={canvasGrid?.dotRadiusPx}
-        minorAlpha={canvasGrid?.minorAlpha}
-        majorAlpha={canvasGrid?.majorAlpha}
-        minorWidthPx={canvasGrid?.minorWidthPx}
-        majorWidthPx={canvasGrid?.majorWidthPx}
-        minorStroke={canvasGrid?.minorStroke}
-        majorStroke={canvasGrid?.majorStroke}
+      <CanvasGridOverlaySurface
+        canvasGrid={canvasGrid}
         width={dims.width}
         height={dims.height}
         dpr={dims.dpr}
         getTransform={getZoomTransform}
         getEventTarget={getZoomEventTarget}
         themeSignal={themeSignal}
+        surfaceId="design"
       />
       <svg
         ref={svgRef}

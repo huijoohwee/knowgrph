@@ -18,6 +18,7 @@ import {
 import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
+import { shouldUseWebpageAssetPathProxyUrl } from '@/lib/url'
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
 
@@ -183,8 +184,8 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
   const domTag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag']).trim().toUpperCase() : ''
   if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'AUDIO' || domTag === 'IFRAME' || domTag === 'SVG') score += 20
 
-  const url = String(spec.url || '').toLowerCase()
-  if (url.includes('mmbiz.qpic.cn') || url.includes('wx_fmt=')) score += 220
+  const url = String(spec.url || '')
+  if (shouldUseWebpageAssetPathProxyUrl(url)) score += 220
 
   const kind = String(spec.kind || '').toLowerCase()
   if (kind === 'image' || kind === 'svg') score += 10

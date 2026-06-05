@@ -1,4 +1,4 @@
-import { pickSandboxDemoMarkdownFile, readSandboxDemoText, toDocumentPath } from '@/tests/lib/sandboxRoot'
+import { pickExternalDemoMarkdownFile, readExternalDemoText, toDocumentPath } from '@/tests/lib/externalFixtures'
 
 const looksLikeFrontmatterMermaidMarkdown = (text: string): boolean => {
   const raw = String(text || '')
@@ -10,7 +10,7 @@ const looksLikeFrontmatterMermaidMarkdown = (text: string): boolean => {
 }
 
 export const resolveMarkdownSlideDemoPath = (): string | null => {
-  return pickSandboxDemoMarkdownFile({
+  return pickExternalDemoMarkdownFile({
     preferBasename: 'markdown-slide-demo.md',
     predicate: looksLikeFrontmatterMermaidMarkdown,
     envVarPathKey: 'KG_MARKDOWN_SLIDE_DEMO_PATH',
@@ -25,7 +25,7 @@ export const resolveMarkdownSlideDemoDocumentPath = (): string | null => {
 }
 
 export const readMarkdownSlideDemo = (): string | null => {
-  const res = readSandboxDemoText({
+  const res = readExternalDemoText({
     preferBasename: 'markdown-slide-demo.md',
     predicate: looksLikeFrontmatterMermaidMarkdown,
     envVarPathKey: 'KG_MARKDOWN_SLIDE_DEMO_PATH',

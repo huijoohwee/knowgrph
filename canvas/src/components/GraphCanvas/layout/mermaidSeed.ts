@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { readMermaidAxisFromNodes } from '@/components/GraphCanvas/layout/mermaidDirection'
 import { computeSeedGrid, getSeedGridCellBox } from '@/components/GraphCanvas/layout/seedGrid'
 import { DEFAULT_FIT_PADDING, readFitPadding } from '@/lib/graph/layoutDefaults'
+import { computeGraphElementCentroidShiftToViewportCenter } from '@/lib/canvas/graph-elements/centroid'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -276,24 +277,15 @@ export const applyMermaidSeedLayout = (args: {
     groupCenters.push({ x: (minX + maxX) / 2, y: (minY + maxY) / 2 })
   }
 
-  let sumX = 0
-  let sumY = 0
   const centers = groupCenters.length > 0 ? groupCenters : mermaidNodes
-  let count = 0
-  for (let i = 0; i < centers.length; i += 1) {
-    const n = centers[i] as unknown as { x?: number; y?: number }
-    const x = n && typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-    const y = n && typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-    if (x == null || y == null) continue
-    sumX += x
-    sumY += y
-    count += 1
-  }
-  if (count > 0) {
-    const cx = sumX / count
-    const cy = sumY / count
-    const dx = frameW / 2 - cx
-    const dy = frameH / 2 - cy
+  const shift = computeGraphElementCentroidShiftToViewportCenter({
+    elements: centers,
+    viewportW: frameW,
+    viewportH: frameH,
+  })
+  if (shift) {
+    const dx = shift.dx
+    const dy = shift.dy
     for (let i = 0; i < mermaidNodes.length; i += 1) {
       const n = mermaidNodes[i]
       if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue

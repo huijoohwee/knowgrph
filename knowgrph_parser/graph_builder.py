@@ -555,7 +555,7 @@ def parse_markdown_text_to_graph_jsonld(
             "strictEnvVar": "KG_NEUTRALITY_STRICT",
             "strict": bool(neutrality_strict_env.lower() in ("1", "true", "yes", "on")),
         }
-    for key in ("ontologies", "polygonLayers"):
+    for key in ("ontologies", "graphLayers"):
         if key in fm:
             value = fm.get(key)
             if isinstance(value, list):

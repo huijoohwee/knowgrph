@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { computeSeedGrid, getSeedGridCellBox } from '@/components/GraphCanvas/layout/seedGrid'
 import { DEFAULT_FIT_PADDING, readFitPadding } from '@/lib/graph/layoutDefaults'
 import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
+import { computeGraphElementCentroidShiftToViewportCenter } from '@/lib/canvas/graph-elements/centroid'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -122,21 +123,14 @@ export const applyMarkdownHeadingSeedLayout = (args: {
     }
   }
 
-  let sumX = 0
-  let sumY = 0
-  let count = 0
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
-    sumX += n.x
-    sumY += n.y
-    count += 1
-  }
-  if (count > 0) {
-    const cx = sumX / count
-    const cy = sumY / count
-    const dx = frameW / 2 - cx
-    const dy = frameH / 2 - cy
+  const shift = computeGraphElementCentroidShiftToViewportCenter({
+    elements: nodes,
+    viewportW: frameW,
+    viewportH: frameH,
+  })
+  if (shift) {
+    const dx = shift.dx
+    const dy = shift.dy
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue

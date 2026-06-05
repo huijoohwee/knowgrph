@@ -123,7 +123,7 @@ export default function FlowEditorInspector({
   const selectedNodeCardFields = React.useMemo(
     () => GRAPH_NODE_CARD_TEXT_FIELDS.map(field => ({
       ...field,
-      value: readGraphNodeCanonicalTextProperty(selectedNodeProperties, field.aliasKeys),
+      value: readGraphNodeCanonicalTextProperty(selectedNodeProperties, field.propertyKeys),
     })),
     [selectedNodeProperties],
   )
@@ -183,7 +183,7 @@ export default function FlowEditorInspector({
                       onPatchSelectedNodeProperties(
                         buildGraphNodeCanonicalTextPatch({
                           currentProperties: selectedNodeProperties,
-                          aliasKeys: field.aliasKeys,
+                          propertyKeys: field.propertyKeys,
                           canonicalKey: field.canonicalKey,
                           nextValue,
                         }),

@@ -446,7 +446,7 @@ export async function testChatResponseLiteralMcpResultFinalizesWorkspaceAndAppli
     useGraphStore.getState().updateNode('mcp-response-literal-card', {
       properties: buildGraphNodeCanonicalTextPatch({
         currentProperties: card.properties || {},
-        aliasKeys: GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS,
+        propertyKeys: GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS,
         canonicalKey: 'output',
         nextValue: editedCardOutput,
       }) as never,

@@ -24,6 +24,8 @@ import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspa
 import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanvas/flowEditorOverlayRecenter'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
+import { computeLayoutRectSetViewportCenterShift } from '@/lib/canvas/graph-elements/centroid'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -172,26 +174,33 @@ export function recenterVisibleFlowEditorOverlayCentroid(args: {
     // If every overlay drifted outside viewport, fall back to the full collective
     // bounds so fit/reset can always recover and recenter the layout.
     const entries = visibleEntries.length > 0 ? visibleEntries : allEntries
-    const centroid = entries.reduce((acc, entry) => ({
-      x: acc.x + (entry.left + entry.right) / 2,
-      y: acc.y + (entry.top + entry.bottom) / 2,
-    }), { x: 0, y: 0 })
-    centroid.x /= entries.length
-    centroid.y /= entries.length
-    const desiredDeltaX = visibleViewport.centerX - centroid.x
-    const desiredDeltaY = visibleViewport.centerY - centroid.y
-    const minDeltaX = visibleViewport.left - bounds.minX
-    const maxDeltaX = visibleViewport.right - bounds.maxX
-    const minDeltaY = visibleViewport.top - bounds.minY
-    const maxDeltaY = visibleViewport.bottom - bounds.maxY
-    const deltaX =
-      minDeltaX <= maxDeltaX
-        ? Math.max(minDeltaX, Math.min(maxDeltaX, desiredDeltaX))
-        : desiredDeltaX
-    const deltaY =
-      minDeltaY <= maxDeltaY
-        ? Math.max(minDeltaY, Math.min(maxDeltaY, desiredDeltaY))
-        : desiredDeltaY
+    const metrics = measureLayoutRectSet(entries.map(entry => ({
+      left: entry.left,
+      top: entry.top,
+      width: Math.max(1, entry.right - entry.left),
+      height: Math.max(1, entry.bottom - entry.top),
+    })))
+    const clampMetrics = measureLayoutRectSet([{
+      left: bounds.minX,
+      top: bounds.minY,
+      width: Math.max(1, bounds.maxX - bounds.minX),
+      height: Math.max(1, bounds.maxY - bounds.minY),
+    }])
+    const shift = computeLayoutRectSetViewportCenterShift({
+      metrics,
+      clampMetrics,
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
+      viewportLeft: visibleViewport.left,
+      viewportTop: visibleViewport.top,
+      viewportRight: visibleViewport.right,
+      viewportBottom: visibleViewport.bottom,
+      viewportCenterX: visibleViewport.centerX,
+      viewportCenterY: visibleViewport.centerY,
+    })
+    if (!shift) return
+    const deltaX = shift.dx
+    const deltaY = shift.dy
     if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
     const current = args.runtime.transform || d3.zoomIdentity
     setFlowNativeTransform(args.runtime, d3.zoomIdentity.translate(current.x + deltaX, current.y + deltaY).scale(current.k))
@@ -331,8 +340,14 @@ export const applyZoomRequestNative = (args: {
         const scaleBy = Math.min(fitW / bounds.width, fitH / bounds.height)
         const targetK = Math.max(flowMinK, Math.min(flowMaxK, safeBaseK * scaleBy))
         const appliedScale = targetK / safeBaseK
-        const centerX = (bounds.minX + bounds.maxX) / 2
-        const centerY = (bounds.minY + bounds.maxY) / 2
+        const metrics = measureLayoutRectSet([{
+          left: bounds.minX,
+          top: bounds.minY,
+          width: Math.max(1, bounds.maxX - bounds.minX),
+          height: Math.max(1, bounds.maxY - bounds.minY),
+        }])
+        const centerX = metrics?.centroidX ?? (bounds.minX + bounds.maxX) / 2
+        const centerY = metrics?.centroidY ?? (bounds.minY + bounds.maxY) / 2
         const targetX = visibleViewport.centerX - (centerX - base.x) * appliedScale
         const targetY = visibleViewport.centerY - (centerY - base.y) * appliedScale
         return {

@@ -743,7 +743,13 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('const applyBootstrapMountRequest = React.useCallback((request: BootstrapMountRequest) => {')) {
     throw new Error('expected source files bootstrap startup mount flow to centralize ref wiring, persisted restore, and first scheduling in a dedicated helper')
   }
-  if (!bootstrapText.includes('rematerializeRequest: resolveWorkspaceRematerializeRequest({') || !bootstrapText.includes('initialActivePathRequest: resolveActivePathMaterializationRequest({')) {
+  const bootstrapMountUsesPreparedActivePathRequest =
+    bootstrapText.includes('initialActivePathRequest: resolveActivePathMaterializationRequest({') ||
+    (
+      bootstrapText.includes('const initialActivePathRequest = resolveActivePathMaterializationRequest({') &&
+      bootstrapText.includes('initialActivePathRequest,')
+    )
+  if (!bootstrapText.includes('rematerializeRequest: resolveWorkspaceRematerializeRequest({') || !bootstrapMountUsesPreparedActivePathRequest) {
     throw new Error('expected source files bootstrap startup mount flow to reuse dedicated rematerialize and active-path request resolvers before the first scheduled rematerialize')
   }
   if (!bootstrapText.includes('const applyBootstrapInitialRematerializeRequest = React.useCallback((request: WorkspaceRematerializeRequest | null): boolean => {') || !bootstrapText.includes('scheduleWorkspaceRematerializeRef.current?.(request)') || !bootstrapText.includes('const applyBootstrapFallbackRematerializeRequest = React.useCallback(() => {') || !bootstrapText.includes('const applyBootstrapSideEffectsRequest = React.useCallback((request: BootstrapMountSideEffectsRequest) => {') || !bootstrapText.includes('applyBootstrapInitialActivePathRequest(request.initialActivePathRequest)') || !bootstrapText.includes('applyBootstrapSideEffectsRequest(request.bootstrapSideEffectsRequest)')) {
@@ -1219,8 +1225,8 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!indexingText.includes('const WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS = 240_000')) {
     throw new Error('expected markdown workspace indexing to keep a shared heavy-parse cap for workspace switch flows')
   }
-  if (!indexingText.includes('nextText.length <= WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS')) {
-    throw new Error('expected frontmatter-driven workspace landing apply to skip graph apply when active workspace text exceeds heavy-parse cap')
+  if (!indexingText.includes('if (shouldSkipHeavyWorkspaceSourceParsing) {')) {
+    throw new Error('expected frontmatter-driven workspace landing apply to use the shared heavy-parse skip guard')
   }
   if (!indexingText.includes('const shouldSkipHeavyWorkspaceSourceParsing = nextText.length > WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS')) {
     throw new Error('expected workspace indexing parse path to bypass heavy source parsing for oversized workspace text regardless of entry family')
@@ -1234,13 +1240,16 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!activeDocText.includes('export function applyActiveMarkdownDocumentPayload(args:')) {
     throw new Error('expected active markdown document apply ownership to be centralized in a shared markdown helper')
   }
-  if (!documentActionsText.includes('function buildPendingFrontmatterMarkdownGraph(args:')) {
-    throw new Error('expected markdown document actions to centralize strict frontmatter pending graph handoff in a shared helper')
+  if (
+    !documentActionsText.includes('function buildPendingMarkdownDocumentGraph(args:') ||
+    !documentActionsText.includes("context === 'frontmatter-flow'") ||
+    !documentActionsText.includes('canvasWorkspacePreset: buildCanvasWorkspacePresetMetadata(preset)')
+  ) {
+    throw new Error('expected markdown document actions to centralize pending markdown/frontmatter graph handoff in a shared helper')
   }
-  if (!documentActionsText.includes('if (strictFlowEditorPreset) {')
-    || !documentActionsText.includes('get().setGraphData(buildPendingFrontmatterMarkdownGraph({')
+  if (!documentActionsText.includes('if (applyViewPresetForSwitch) {\n        get().setGraphData(buildPendingMarkdownDocumentGraph({')
     || !documentActionsText.includes('currentGraph: get().graphData,')) {
-    throw new Error('expected strict frontmatter markdown graph applies to publish a pending empty graph immediately so the previous scene cannot stay render-authoritative during async handoff')
+    throw new Error('expected markdown graph applies to publish a selected-document pending graph immediately so the previous scene cannot stay render-authoritative during async handoff')
   }
   if (!selectionText.includes('applyActiveMarkdownDocumentPayload({')) {
     throw new Error('expected markdown workspace selection restore paths to reuse the shared active markdown document helper')

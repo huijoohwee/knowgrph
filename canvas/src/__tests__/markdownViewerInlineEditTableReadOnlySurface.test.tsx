@@ -37,7 +37,7 @@ export async function testMarkdownViewerInlineEditTableDoesNotOpenGenericContent
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/table-inline-edit.md"
+        activeDocumentPath="/fixtures/table-inline-edit.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}

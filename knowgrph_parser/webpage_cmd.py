@@ -113,18 +113,13 @@ def _postprocess_markdown(markdown: str) -> str:
     joined = text.strip()
     return joined + ('\n' if joined else '')
 
-# --- Fetch Utilities (Shared/Copied from youtube_cmd.py to avoid circular imports if any, or move to common?) ---
-# For now, I'll keep it self-contained or import if common.py has them. 
-# common.py only has slugify based on previous LS. 
-# youtube_cmd.py has the fetch logic. I'll replicate it here for "neutrality" and "isolation".
-
 _COOKIE_JAR = http.cookiejar.CookieJar()
 _OPENER = build_opener(HTTPCookieProcessor(_COOKIE_JAR))
 _OPENER.addheaders = [
     ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
     ("Accept", "*/*"),
     ("Accept-Language", "en-US,en;q=0.9"),
-    ("Accept-Encoding", "gzip, deflate, br"),
+    ("Accept-Encoding", "gzip, deflate"),
 ]
 
 def _fetch_url(url: str, timeout: int = 30) -> bytes:
@@ -137,9 +132,9 @@ def _fetch_url(url: str, timeout: int = 30) -> bytes:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "*/*",
                 "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate",
             }
-            # verify=False to bypass legacy SSL issues if any
-            resp = requests.get(url, headers=headers, timeout=timeout, verify=False)
+            resp = requests.get(url, headers=headers, timeout=timeout)
             if resp.status_code in {429, 403, 503}:
                 if attempt < max_retries - 1:
                     time.sleep(1 * (attempt + 1))

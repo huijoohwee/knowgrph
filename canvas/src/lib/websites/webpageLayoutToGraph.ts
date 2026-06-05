@@ -1,7 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
-import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
+import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 
-import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '@/lib/url'
+import { buildWebpageAssetPathProxyUrl, shouldUseWebpageAssetPathProxyUrl } from '@/lib/url'
 
 import type { WebpageLayoutSnapshot, WebpageLayoutElement } from './webpageLayoutExport'
 import { looksLikeWebpageShellText } from './webpageShellHeuristics'
@@ -44,22 +44,18 @@ const isTransparentColor = (c: string): boolean => {
 
 const safeStr = (v: unknown): string => String(v ?? '').trim()
 
-const applyAliasedMediaProperties = (args: {
+const applyNodeMediaProperties = (args: {
   properties: Record<string, JSONValue>
   kind: 'image' | 'video' | 'audio' | 'iframe'
   url: string
   interactive?: boolean
 }): void => {
-  const next = patchNodeMediaProperties({
-    properties: args.properties as Record<string, unknown>,
+  const next = buildNodeMediaProperties({
     kind: args.kind,
     url: args.url,
     interactive: args.interactive === true,
   }) as Record<string, JSONValue>
   Object.assign(args.properties, next)
-  args.properties.media = args.url as unknown as JSONValue
-  const aliasKey = args.kind === 'video' ? 'video' : args.kind === 'audio' ? 'audio' : args.kind === 'iframe' ? 'iframe_url' : 'image'
-  args.properties[aliasKey] = args.url as unknown as JSONValue
 }
 
 const basenameFromUrl = (raw: string): string => {
@@ -1734,13 +1730,13 @@ export function convertWebpageLayoutToGraphData(
       'dom:attrs:alt': alt as unknown as JSONValue,
     }
     const normalizedSrc0 = src.startsWith('//') ? `https:${src}` : src
-    const normalizedSrc = isWeChatHotlinkProtectedAssetUrl(normalizedSrc0) ? buildWebpageAssetPathProxyUrl(normalizedSrc0) : normalizedSrc0
+    const normalizedSrc = shouldUseWebpageAssetPathProxyUrl(normalizedSrc0) ? buildWebpageAssetPathProxyUrl(normalizedSrc0) : normalizedSrc0
     if (tag === 'IMG' && normalizedSrc) {
-      applyAliasedMediaProperties({ properties, kind: 'image', url: normalizedSrc })
+      applyNodeMediaProperties({ properties, kind: 'image', url: normalizedSrc })
     } else if ((tag === 'VIDEO' || tag === 'AUDIO') && normalizedSrc) {
-      applyAliasedMediaProperties({ properties, kind: tag === 'VIDEO' ? 'video' : 'audio', url: normalizedSrc, interactive: true })
+      applyNodeMediaProperties({ properties, kind: tag === 'VIDEO' ? 'video' : 'audio', url: normalizedSrc, interactive: true })
     } else if (tag === 'IFRAME' && normalizedSrc) {
-      applyAliasedMediaProperties({ properties, kind: 'iframe', url: normalizedSrc, interactive: true })
+      applyNodeMediaProperties({ properties, kind: 'iframe', url: normalizedSrc, interactive: true })
     }
     if (text) properties['dom:textPreview'] = truncateForPreview(text, 360) as unknown as JSONValue
     const kind = isMediaTag(tag) ? 'media' : isInteractiveTag(tag) ? 'interactive' : isContainerTag(tag) ? 'container' : 'element'

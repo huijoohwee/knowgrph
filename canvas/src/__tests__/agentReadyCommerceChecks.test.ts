@@ -1,5 +1,6 @@
 import {
   AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS,
+  AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS,
 } from 'grph-shared/payments/agenticCommerceSsot'
 import {
   assertAuthoritativeX402PaymentRequired,
@@ -31,6 +32,21 @@ export function testAgentReadyCommerceChecksRejectFallbackX402PayToAddress() {
     }
   }
   if (!rejected) throw new Error('expected x402 readiness to reject the deterministic fallback payTo address')
+}
+
+export function testAgentReadyCommerceChecksRejectPlaceholderX402PayToAddress() {
+  const payload = buildPaymentRequiredPayload(AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS)
+  let rejected = false
+  try {
+    assertAuthoritativeX402PaymentRequired(payload, 'test x402 probe')
+  } catch (error) {
+    rejected = true
+    const message = error instanceof Error ? error.message : String(error)
+    if (!message.includes('future-setup placeholder') || !message.includes('X402_PAY_TO_ADDRESS')) {
+      throw new Error(`expected placeholder payTo rejection to name X402_PAY_TO_ADDRESS, got ${message}`)
+    }
+  }
+  if (!rejected) throw new Error('expected x402 readiness to reject the placeholder payTo address')
 }
 
 export function testAgentReadyCommerceChecksAcceptConfiguredX402PayToAddress() {

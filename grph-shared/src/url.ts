@@ -183,15 +183,37 @@ export function isLikelyAudioUrl(url: string): boolean {
   return /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(u)
 }
 
-export function isSubstackCdnImageFetchUrl(url: string): boolean {
+function isImageTransformFetchUrl(url: string): boolean {
   const u = String(url || '').trim()
   if (!u) return false
   try {
     const parsed = new URL(u)
-    return /(\.|^)substackcdn\.com$/i.test(parsed.hostname) && /\/image\/fetch\b/i.test(parsed.pathname)
+    return /(^|\/)image\/fetch(\/|$)/i.test(parsed.pathname)
   } catch {
     return false
   }
+}
+
+const IMAGE_FORMAT_VALUE_RE = /^(png|jpe?g|gif|webp|svg)$/i
+
+function hasImageFormatQueryHint(parsed: URL): boolean {
+  let hasHint = false
+  parsed.searchParams.forEach((value, name) => {
+    if (hasHint) return
+    const key = String(name || '').trim().toLowerCase()
+    const rawValue = String(value || '').trim().toLowerCase()
+    if (!key || !rawValue) return
+    const isFormatKey = key === 'format' || key === 'fmt' || key === 'fm' || key === 'tp' || key.endsWith('_fmt')
+    if (isFormatKey && IMAGE_FORMAT_VALUE_RE.test(rawValue)) hasHint = true
+  })
+  return hasHint
+}
+
+function hasImagePathHint(pathname: string): boolean {
+  const path = decodeURIComponentSafe(pathname).toLowerCase()
+  if (!path) return false
+  if (/(^|\/)(image|images|img|photo|photos|picture|pictures)(\/|$)/i.test(path)) return true
+  return /(^|[\/._-])(png|jpe?g|gif|webp|svg)([\/._-]|$)/i.test(path)
 }
 
 export function isLikelyImageUrl(url: string): boolean {
@@ -200,33 +222,14 @@ export function isLikelyImageUrl(url: string): boolean {
   if (/^data:image\//i.test(u)) return true
   if (/\.(png|jpe?g|gif|webp)(\?|#|$)/i.test(u)) return true
   if (isLikelySvgUrl(u)) return true
-  if (isSubstackCdnImageFetchUrl(u) && /(\.png|\.jpe?g|\.gif|\.webp|\.svg)(\?|#|$)/i.test(decodeURIComponentSafe(u))) return true
-  if (isSubstackCdnImageFetchUrl(u)) return true
+  if (isImageTransformFetchUrl(u)) return true
 
   try {
     const parsed = new URL(u)
-    const host = parsed.hostname.toLowerCase()
-
-    if ((host === 'media.licdn.com' || host.endsWith('.licdn.com')) && /\/(dms\/image|image)\//i.test(parsed.pathname || '')) {
-      return true
-    }
-
-    const isWeChatAssetHost =
-      host === 'mmbiz.qpic.cn' ||
-      host.endsWith('.qpic.cn') ||
-      host === 'mmbiz.qlogo.cn' ||
-      host.endsWith('.qlogo.cn') ||
-      host === 'wx.qlogo.cn' ||
-      host.endsWith('.wx.qlogo.cn')
-    if (isWeChatAssetHost) {
-      const wxFmt = String(parsed.searchParams.get('wx_fmt') || '').toLowerCase()
-      if (wxFmt && /(png|jpe?g|gif|webp|svg)/i.test(wxFmt)) return true
-      const tp = String(parsed.searchParams.get('tp') || '').toLowerCase()
-      if (tp && /(png|jpe?g|gif|webp|svg)/i.test(tp)) return true
-      const p = parsed.pathname.toLowerCase()
-      if (p.includes('/mmbiz_png/') || p.includes('/mmbiz_jpg/') || p.includes('/mmbiz_gif/') || p.includes('/mmbiz_webp/')) return true
-      if (p.includes('/mmbiz/') && (p.includes('wx_fmt=') || p.includes('tp='))) return true
-    }
+    if (hasImageFormatQueryHint(parsed)) return true
+    if (hasImagePathHint(parsed.pathname || '')) return true
+    const decoded = decodeURIComponentSafe(u)
+    if (decoded !== u && /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(decoded)) return true
   } catch {
     void 0
   }

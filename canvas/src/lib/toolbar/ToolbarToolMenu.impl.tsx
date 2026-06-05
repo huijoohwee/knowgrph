@@ -109,11 +109,14 @@ const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingP
 const GitGraphFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })),
 )
+const GanttFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/GanttFloatingPanelView').then(mod => ({ default: mod.GanttFloatingPanelView })),
+)
 const StrybldrFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/strybldr/StrybldrFloatingPanelView').then(mod => ({ default: mod.StrybldrFloatingPanelView })),
 )
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'gitGraph', 'strybldr'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'gitGraph', 'gantt', 'strybldr'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -491,6 +494,7 @@ export function ToolbarToolMenu({
       { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
       { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer },
       { view: 'gitGraph', title: UI_LABELS.gitGraph, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gitGraph },
+      { view: 'gantt', title: UI_LABELS.gantt, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gantt },
       { view: 'strybldr', title: 'Strybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.strybldr },
     ],
     [],
@@ -711,6 +715,11 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'gitGraph' && (
               <React.Suspense fallback={null}>
                 <GitGraphFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'gantt' && (
+              <React.Suspense fallback={null}>
+                <GanttFloatingPanelViewLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'strybldr' && (

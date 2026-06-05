@@ -38,8 +38,8 @@ type GraphFieldsViewProps = {
   onStatusChange: (msg: string) => void
   searchQuery?: string
   embedded?: boolean
-  entryAliasLabels?: ReadonlyArray<string>
-  onEntryAliasClick?: ((label: string) => void) | null
+  entryShortcutLabels?: ReadonlyArray<string>
+  onEntryShortcutClick?: ((label: string) => void) | null
   entryOpenRequest?: {
     token: number
     entryLabel: string
@@ -50,8 +50,8 @@ export default function GraphFieldsView({
   onStatusChange,
   searchQuery,
   embedded = false,
-  entryAliasLabels = [],
-  onEntryAliasClick = null,
+  entryShortcutLabels = [],
+  onEntryShortcutClick = null,
   entryOpenRequest = null,
 }: GraphFieldsViewProps) {
   const graphData = useActiveGraphRenderData()
@@ -305,18 +305,18 @@ export default function GraphFieldsView({
         <section className="mb-2">
           <MainPanelGraphFieldsHeader agenticLegend={agenticLegend} />
         </section>
-        {entryAliasLabels.length > 0 && onEntryAliasClick ? (
-          <section className="mb-2 rounded border border-white/10 p-2" aria-label="Graph Fields entry aliases">
+        {entryShortcutLabels.length > 0 && onEntryShortcutClick ? (
+          <section className="mb-2 rounded border border-white/10 p-2" aria-label="Graph Fields entry shortcuts">
             <section className={cn('text-[10px] mb-2', UI_THEME_TOKENS.text.tertiary)}>
-              Entry aliases (click to open Field Settings)
+              Entry shortcuts (click to open Field Settings)
             </section>
             <section className="flex flex-wrap gap-1">
-              {entryAliasLabels.map(label => (
+              {entryShortcutLabels.map(label => (
                 <button
                   key={label}
                   type="button"
                   className={cn('App-toolbar__btn text-xs', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
-                  onClick={() => onEntryAliasClick(label)}
+                  onClick={() => onEntryShortcutClick(label)}
                 >
                   {label}
                 </button>

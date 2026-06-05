@@ -9,6 +9,10 @@ import {
   writeWorkspaceSourceTextIfPresent,
 } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { readYamlFrontmatterMermaidCode } from '@/lib/markdown/frontmatter'
+import {
+  readFrontmatterMermaidDiagramCodes,
+  readYamlFrontmatterMermaidDiagramCodes,
+} from '@/lib/mermaid/mermaidDiagramCode'
 import { readFrontmatterMermaidCode } from '@/lib/mermaid/mermaidFrontmatterCode'
 import { resolveMermaidGitGraphCode } from '@/lib/mermaid/mermaidGitGraph'
 import {
@@ -56,7 +60,9 @@ export function useMermaidGitGraphDocument() {
   const code = React.useMemo(
     () =>
       resolveMermaidGitGraphCode([
+        ...readYamlFrontmatterMermaidDiagramCodes(markdownDocumentText || '', 'gitgraph'),
         readYamlFrontmatterMermaidCode(markdownDocumentText || ''),
+        ...readFrontmatterMermaidDiagramCodes(graphData, 'gitgraph'),
         readFrontmatterMermaidCode(graphData),
       ]),
     [graphData, markdownDocumentText],

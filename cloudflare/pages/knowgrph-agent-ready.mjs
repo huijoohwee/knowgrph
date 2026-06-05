@@ -287,7 +287,6 @@ const mcpServerCard = {
     type: KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE,
     url: `${APP_URL}mcp`,
     stateless: true,
-    legacySse: false,
   },
   capabilities: {
     tools: AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
@@ -467,8 +466,8 @@ export const webMcpScript = `(() => {
     const topLevelKeys = parsed ? extractTopLevelFrontmatterKeys(parsed.frontmatter) : [];
     const flowBlock = parsed ? extractYamlBlock(parsed.frontmatter, "flow") : null;
     const flowKeys = flowBlock ? extractNestedYamlKeys(flowBlock.blockText) : [];
-    const forbiddenGroupingAliasSet = new Set(["kg:subgraphs", "clusters", "groups", "layers"]);
-    const forbiddenGroupingAliases = Array.from(new Set(topLevelKeys.concat(flowKeys).filter((key) => forbiddenGroupingAliasSet.has(key)))).sort((a, b) => a.localeCompare(b));
+    const forbiddenGroupingKeySet = new Set(["kg:subgraphs", "clusters", "groups", "layers"]);
+    const forbiddenGroupingKeys = Array.from(new Set(topLevelKeys.concat(flowKeys).filter((key) => forbiddenGroupingKeySet.has(key)))).sort((a, b) => a.localeCompare(b));
     const headings = extractMarkdownHeadings(parsed ? parsed.body : markdown);
     return {
       workspaceId,
@@ -482,7 +481,7 @@ export const webMcpScript = `(() => {
       flowNodeCount: flowBlock ? countYamlSequenceEntries(flowBlock.blockText, "nodes") : null,
       flowConnectionCount: flowBlock ? (countYamlSequenceEntries(flowBlock.blockText, "connections") ?? countYamlSequenceEntries(flowBlock.blockText, "edges")) : null,
       flowSubgraphCount: flowBlock ? countYamlSequenceEntries(flowBlock.blockText, "subgraphs") : null,
-      forbiddenGroupingAliases,
+      forbiddenGroupingKeys,
       headingCount: headings.length,
       headings: headings.map((heading) => heading.text),
       bodyLength: normalizeString(parsed ? parsed.body : markdown).length,

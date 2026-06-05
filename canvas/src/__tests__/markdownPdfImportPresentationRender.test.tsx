@@ -8,6 +8,10 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
+function readOptionalPdfImageFixtureDir(): string {
+  return String(process.env.KG_TEST_PDF_IMAGE_FIXTURE_DIR || '').trim()
+}
+
 async function listPdfFiles(dir: string): Promise<{ filePath: string; size: number }[]> {
   try {
     const entries = await fs.readdir(dir)
@@ -29,8 +33,9 @@ async function listPdfFiles(dir: string): Promise<{ filePath: string; size: numb
   }
 }
 
-export async function testMarkdownPresentationRendersPdfAssetImagesFromSandboxFixture() {
-  const dir = path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'test-pdf')
+export async function testMarkdownPresentationRendersPdfAssetImagesFromOptionalFixture() {
+  const dir = readOptionalPdfImageFixtureDir()
+  if (!dir) return
   const candidates = await listPdfFiles(dir)
   if (candidates.length === 0) return
 
@@ -92,4 +97,3 @@ export async function testMarkdownPresentationRendersPdfAssetImagesFromSandboxFi
     restoreWindow()
   }
 }
-

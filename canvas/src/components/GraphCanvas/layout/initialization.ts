@@ -10,6 +10,7 @@ import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { measureGraphElementCenterSet } from '@/lib/canvas/graph-elements/centroid'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -178,29 +179,10 @@ export const normalizeSeededLayoutToViewport = (args: { nodes: GraphNode[]; widt
   const { nodes, width, height } = args
   if (!nodes || nodes.length < 2) return
 
-  let minX = Infinity
-  let maxX = -Infinity
-  let minY = Infinity
-  let maxY = -Infinity
-  let sumX = 0
-  let sumY = 0
-  let count = 0
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]!
-    if (!hasFiniteXY(n)) continue
-    const x = n.x as number
-    const y = n.y as number
-    if (x < minX) minX = x
-    if (x > maxX) maxX = x
-    if (y < minY) minY = y
-    if (y > maxY) maxY = y
-    sumX += x
-    sumY += y
-    count += 1
-  }
-  if (count < 2 || minX === Infinity) return
-  const spanX = Math.max(1e-6, maxX - minX)
-  const spanY = Math.max(1e-6, maxY - minY)
+  const metrics = measureGraphElementCenterSet(nodes, { fallbackToFixedPosition: false })
+  if (!metrics || metrics.count < 2) return
+  const spanX = Math.max(1e-6, metrics.maxX - metrics.minX)
+  const spanY = Math.max(1e-6, metrics.maxY - metrics.minY)
   const targetW = Math.max(1, width - 80)
   const targetH = Math.max(1, height - 80)
   const sx = targetW / spanX
@@ -209,8 +191,8 @@ export const normalizeSeededLayoutToViewport = (args: { nodes: GraphNode[]; widt
 
   const tooLarge = spanX > width * 1.6 || spanY > height * 1.6
   const tooSmall = spanX < width * 0.22 && spanY < height * 0.22
-  const cx = sumX / count
-  const cy = sumY / count
+  const cx = metrics.centroidX
+  const cy = metrics.centroidY
   const tx = args.viewportCenter ? args.viewportCenter.x : width / 2
   const ty = args.viewportCenter ? args.viewportCenter.y : height / 2
   const translateDist = Math.hypot(cx - tx, cy - ty)
@@ -613,33 +595,21 @@ export const layoutLooksUnstableForViewport = (args: {
   const { nodes, width, height } = args
   if (!nodes || nodes.length < 2) return false
 
-  let minX = Infinity
-  let maxX = -Infinity
-  let minY = Infinity
-  let maxY = -Infinity
-  let valid = 0
+  const metrics = measureGraphElementCenterSet(nodes, { fallbackToFixedPosition: false })
+  const valid = metrics?.count || 0
   let extreme = 0
-  let sumX = 0
-  let sumY = 0
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]!
     if (!hasFiniteXY(n)) continue
     const x = n.x as number
     const y = n.y as number
-    valid += 1
-    sumX += x
-    sumY += y
     if (Math.abs(x) > 120000 || Math.abs(y) > 120000) extreme += 1
-    if (x < minX) minX = x
-    if (x > maxX) maxX = x
-    if (y < minY) minY = y
-    if (y > maxY) maxY = y
   }
-  if (valid < 2 || minX === Infinity) return false
+  if (!metrics || valid < 2) return false
   if (extreme > 0) return true
 
-  const spanX = maxX - minX
-  const spanY = maxY - minY
+  const spanX = metrics.maxX - metrics.minX
+  const spanY = metrics.maxY - metrics.minY
   const w = Math.max(1, width)
   const h = Math.max(1, height)
   const ratio = Math.max(spanX / Math.max(1e-6, spanY), spanY / Math.max(1e-6, spanX))
@@ -647,8 +617,8 @@ export const layoutLooksUnstableForViewport = (args: {
   const tooLarge = spanX > w * 6 || spanY > h * 6
   const tooSmall = spanX < Math.max(90, w * 0.12) && spanY < Math.max(90, h * 0.12)
 
-  const cx = sumX / valid
-  const cy = sumY / valid
+  const cx = metrics.centroidX
+  const cy = metrics.centroidY
   const tx = args.viewportCenter ? args.viewportCenter.x : w / 2
   const ty = args.viewportCenter ? args.viewportCenter.y : h / 2
   const dist = Math.hypot(cx - tx, cy - ty)

@@ -29,6 +29,9 @@ export async function testMarkdownWorkspaceBacklinksListOwnsExplorerBacklinksSec
     if (!(container.textContent || '').includes('No backlinks.')) {
       throw new Error('expected backlinks list to render the explorer empty state')
     }
+    if (!container.querySelector('.kg-markdown-workspace-explorer-empty-state')) {
+      throw new Error('expected backlinks empty state to use the shared Explorer empty-state owner')
+    }
 
     await act(async () => {
       root.render(
@@ -48,6 +51,11 @@ export async function testMarkdownWorkspaceBacklinksListOwnsExplorerBacklinksSec
       await new Promise(resolve => setTimeout(resolve, 0))
     })
 
+    const nav = container.querySelector('nav[aria-label="Backlinks"]')
+    if (!(nav instanceof dom.window.HTMLElement)) throw new Error('expected backlinks list to render the shared Explorer list container')
+    if (!nav.className.includes('kg-markdown-workspace-explorer-list') || nav.className.includes('overflow-auto')) {
+      throw new Error(`expected backlinks navigation to use the shared Explorer list owner without a nested scroll class, got ${JSON.stringify(nav.className)}`)
+    }
     const buttons = container.querySelectorAll('button')
     if (buttons.length !== 2) throw new Error(`expected 2 backlink rows, got ${String(buttons.length)}`)
     buttons[0]?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

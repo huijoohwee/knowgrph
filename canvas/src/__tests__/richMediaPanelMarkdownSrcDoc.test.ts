@@ -65,22 +65,22 @@ export function testMarkdownViewerDocumentNormalizesGenericDivContainers() {
   }
 }
 
-export function testRichMediaMediaAliasesHaveSingleSharedOwner() {
+export function testRichMediaNodeMediaPropertiesHaveSingleSharedOwner() {
   const root = process.cwd()
   const owner = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'graph-elements', 'mediaProperties.ts'), 'utf8')
   const parserUtils = readFileSync(resolve(root, 'src', 'features', 'parsers', 'markdownJsonLdUtils.ts'), 'utf8')
   const builder = readFileSync(resolve(root, 'src', 'features', 'parsers', 'markdownJsonLdBuilder.ts'), 'utf8')
   const parserImpl = readFileSync(resolve(root, 'src', 'lib', 'parsers', 'markdownJsonLd.impl.ts'), 'utf8')
 
-  if (!owner.includes('export function buildAliasedMediaProperties')) {
-    throw new Error('expected media alias helper to live in the shared media properties owner')
+  if (!owner.includes('export function buildNodeMediaProperties')) {
+    throw new Error('expected node media property helper to live in the shared media properties owner')
   }
   for (const [label, text] of [['utils', parserUtils], ['builder', builder], ['impl', parserImpl]] as const) {
-    if (!text.includes("buildAliasedMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'")) {
-      throw new Error(`expected markdown parser ${label} to reuse shared media alias helper`)
+    if (!text.includes("buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'")) {
+      throw new Error(`expected markdown parser ${label} to reuse shared media property helper`)
     }
-    if (text.includes('function buildAliasedMediaProperties') || text.includes('const buildAliasedMediaProperties =')) {
-      throw new Error(`expected markdown parser ${label} not to own a duplicate media alias helper`)
+    if (text.includes('function buildNodeMediaProperties') || text.includes('const buildNodeMediaProperties =')) {
+      throw new Error(`expected markdown parser ${label} not to own a duplicate media property helper`)
     }
   }
 }

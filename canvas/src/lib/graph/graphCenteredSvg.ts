@@ -2,6 +2,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeRenderRadius } from '@/lib/graph/schema'
 import { getEdgeBaseStroke, getNodeBaseFill } from '@/lib/graph/visualStyles'
+import { measureGraphElementCenterSet } from '@/lib/canvas/graph-elements/centroid'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -169,13 +170,11 @@ export function exportGraphAsCenteredSvgMarkup(args: {
     }
     if (posById.size === 0) return null
 
-    let sumX = 0
-    let sumY = 0
-    let count = 0
     let minX = Infinity
     let maxX = -Infinity
     let minY = Infinity
     let maxY = -Infinity
+    const centeredPoints: Array<{ x: number; y: number }> = []
 
     const fontSizePx = 12
     const labelPadY = 8
@@ -196,15 +195,14 @@ export function exportGraphAsCenteredSvgMarkup(args: {
       if (right > maxX) maxX = right
       if (top < minY) minY = top
       if (bottom > maxY) maxY = bottom
-      sumX += p.x
-      sumY += p.y
-      count += 1
+      centeredPoints.push(p)
     }
 
-    if (!(count > 0) || !Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return null
+    const centroidMetrics = measureGraphElementCenterSet(centeredPoints)
+    if (!centroidMetrics || !Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return null
 
-    const cx = sumX / count
-    const cy = sumY / count
+    const cx = centroidMetrics.centroidX
+    const cy = centroidMetrics.centroidY
     const halfW = Math.max(1, Math.max(Math.abs(minX - cx), Math.abs(maxX - cx)))
     const halfH = Math.max(1, Math.max(Math.abs(minY - cy), Math.abs(maxY - cy)))
     const vb = computeCenteredViewBoxForAspect({ cx, cy, halfW, halfH, outAspect: widthPx / heightPx, padding: paddingPx })

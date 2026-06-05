@@ -12,6 +12,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
+import { computeViewportCenteredTransformForGraphElements } from '@/lib/canvas/graph-elements/centroid'
 
 type ZoomBehaviorRef = React.MutableRefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
 type SvgRef = React.MutableRefObject<SVGSVGElement | null>
@@ -49,33 +50,13 @@ function centerGraphTransform(args: {
 }): { x: number; y: number; k: number } | null {
   const nodes = Array.isArray(args.graphData.nodes) ? (args.graphData.nodes as GraphNode[]) : []
   if (nodes.length === 0) return { x: 0, y: 0, k: 1 }
-  let sumX = 0
-  let sumY = 0
-  let count = 0
-  for (let i = 0; i < nodes.length; i += 1) {
-    const node = nodes[i] as unknown as { x?: unknown; y?: unknown; properties?: unknown }
-    const x0 = typeof node?.x === 'number' && Number.isFinite(node.x) ? (node.x as number) : null
-    const y0 = typeof node?.y === 'number' && Number.isFinite(node.y) ? (node.y as number) : null
-    if (x0 == null || y0 == null) continue
-    const props =
-      node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
-        ? (node.properties as Record<string, unknown>)
-        : {}
-    const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : 0
-    const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : 0
-    sumX += x0 + width / 2
-    sumY += y0 + height / 2
-    count += 1
-  }
-  if (count <= 0) return { x: 0, y: 0, k: 1 }
-  const cx = sumX / count
-  const cy = sumY / count
-  const k = 1
-  return {
-    x: args.viewportW / 2 - cx * k,
-    y: args.viewportH / 2 - cy * k,
-    k,
-  }
+  return computeViewportCenteredTransformForGraphElements({
+    elements: nodes,
+    viewportW: args.viewportW,
+    viewportH: args.viewportH,
+    scale: 1,
+    coordinateMode: 'topLeftVisualRect',
+  }) || { x: 0, y: 0, k: 1 }
 }
 
 export function useZoomInitController(args: UseZoomInitControllerArgs) {

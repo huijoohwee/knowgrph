@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .common import DEFAULT_AGENTIC_RAG_SCHEMA_URL, DEFAULT_TERM_IRI_BASE, KG_PREFIX, utc_now_iso
 from .codebase_index_artifacts import normalize_rel_path
+from .config_paths import UNIVERSAL_SCHEMA_CONFIG_REL, repo_path
 from .runtime_events import add_runtime_events
 from .python_codebase_index_graph import GraphNodeRecord
 
@@ -234,7 +235,7 @@ def ensure_schema_config_file(path: str, *, base_dir: Optional[str] = None) -> N
     if directory:
         os.makedirs(directory, exist_ok=True)
     resolved_base = os.path.abspath(base_dir) if base_dir else os.path.abspath(os.getcwd())
-    ssot_path = os.path.join(resolved_base, "schema-config", "knowgrph-universal-schema-config.jsonld")
+    ssot_path = repo_path(resolved_base, UNIVERSAL_SCHEMA_CONFIG_REL)
     if os.path.exists(ssot_path):
         try:
             with open(ssot_path, "r", encoding="utf-8") as handle:

@@ -90,7 +90,7 @@ export const CHAT_SHARED_MODEL_CATALOG_OPTIONS = [
   ...CHAT_BYTEPLUS_MODEL_OPTIONS,
   ...CHAT_LOCAL_MODEL_OPTIONS,
 ] as const
-export const CHAT_MODEL_ALIASES: Record<string, string> = {
+export const CHAT_MODEL_ID_BY_INPUT_VARIANT: Record<string, string> = {
   'gpt-5 nano': 'gpt-5-nano',
   'gpt-5 mini': 'gpt-5-mini',
   'gpt-4.1 nano': 'gpt-4.1-nano',

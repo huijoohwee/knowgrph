@@ -25,7 +25,7 @@
 
 **Dataset**: `docs/assets/example-workflow.jsonld` – Neutral workflow with regions and questions
 
-**Schema-Config**: `schema-config/knowgrph-example-workflow-schema-config.jsonld`
+**Schema-Config**: `data/config/schema/knowgrph-example-workflow-schema-config.jsonld`
 
 **Configuration Schema**:
 
@@ -73,7 +73,7 @@ layers.schema:
 {
   id: "exampleWorkflow",
   datasetPath: "docs/assets/example-workflow.jsonld",
-  schemaPath: "schema-config/knowgrph-example-workflow-schema-config.jsonld"
+  schemaPath: "data/config/schema/knowgrph-example-workflow-schema-config.jsonld"
 }
 ```
 
@@ -95,10 +95,10 @@ layers.schema:
 ```yaml
 schema.layout.mode:
   scope: schema_global
-  type: string (enum: "force" | "radial" | "stratify")
+  type: string (enum: "force" | "radial" | "block" | "mermaid")
   mutability: runtime_configurable
   validation: must be valid layout algorithm
-  impact: selects 2D graph layout algorithm (force-directed vs radial)
+  impact: selects graph layout algorithm or renderer-owned layout mode
 ```
 
 **Layout Mode Descriptions**:
@@ -107,7 +107,8 @@ schema.layout.mode:
 |-----------|----------------------------|------------------------------|----------------|
 | `force`   | Force-directed simulation  | General-purpose graph layout | O(n²) per tick |
 | `radial`  | Circular hierarchy         | Emphasize centrality         | O(n log n)     |
-| `stratify` | Structured tree + constraints | Document hierarchy / Mermaid subgraphs | O(n log n) + bounded relax |
+| `block`   | Block-style 2D placement   | Flowchart-like 2D surfaces   | Bounded by graph size |
+| `mermaid` | Mermaid-owned layout       | Mermaid frontmatter surfaces | Delegated to Mermaid |
 
 ### Flow Renderer Layout Configuration
 
@@ -536,7 +537,7 @@ schema_config["metadata"]["layers"] = {
 | `small` | Up to ~1e3 nodes | 10                 | 0.2                      | 0.3                  |
 | `medium`| Up to ~1e4 nodes | 5                  | 0.3                      | 0.5                  |
 | `large` | Up to ~1e5 nodes | 3                  | 0.4                      | 0.7                  |
-**Template Location**: `data/schema-config-template.jsonld`
+**Template Location**: `data/config/schema/knowgrph-schema-config-template.jsonld`
 **Metadata Fields**:
 ```yaml
 metadata.corpusSizePreset:

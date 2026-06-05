@@ -16,25 +16,39 @@ import {
   ZOOM_VIEWPORT_PRESET_16_9,
 } from 'grph-shared/zoom/presets'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import {
+  computeViewportCenteredTransformForGraphElements,
+  measureGraphElementCenterSet,
+  readGraphElementCenterPoint,
+} from '@/lib/canvas/graph-elements/centroid'
 
 export const fitNodeTransform = (n: GraphNode, width: number, height: number) => {
   const s = 1.5;
-  return d3.zoomIdentity.translate(width / 2 - s * (n.x || 0), height / 2 - s * (n.y || 0)).scale(s);
+  const centered = computeViewportCenteredTransformForGraphElements({
+    elements: [n],
+    viewportW: width,
+    viewportH: height,
+    scale: s,
+  })
+  return centered ? d3.zoomIdentity.translate(centered.x, centered.y).scale(centered.k) : d3.zoomIdentity.scale(s);
 };
 
 export const fitEdgeTransform = (src: GraphNode, tgt: GraphNode, width: number, height: number) => {
   const pad = DEFAULT_FIT_PADDING;
-  const minX = Math.min(src.x || 0, tgt.x || 0);
-  const maxX = Math.max(src.x || 0, tgt.x || 0);
-  const minY = Math.min(src.y || 0, tgt.y || 0);
-  const maxY = Math.max(src.y || 0, tgt.y || 0);
+  const srcPoint = readGraphElementCenterPoint(src) || { x: 0, y: 0 }
+  const tgtPoint = readGraphElementCenterPoint(tgt) || { x: 0, y: 0 }
+  const minX = Math.min(srcPoint.x, tgtPoint.x);
+  const maxX = Math.max(srcPoint.x, tgtPoint.x);
+  const minY = Math.min(srcPoint.y, tgtPoint.y);
+  const maxY = Math.max(srcPoint.y, tgtPoint.y);
   const boxW = Math.max(1, maxX - minX);
   const boxH = Math.max(1, maxY - minY);
   const sX = (width - 2 * pad) / boxW;
   const sY = (height - 2 * pad) / boxH;
   const s = Math.max(DEFAULT_ZOOM_MIN_SCALE, Math.min(DEFAULT_ZOOM_MAX_SCALE, Math.min(sX, sY, 3)));
-  const cx = ((src.x || 0) + (tgt.x || 0)) / 2;
-  const cy = ((src.y || 0) + (tgt.y || 0)) / 2;
+  const centroid = measureGraphElementCenterSet([srcPoint, tgtPoint]) || { centroidX: 0, centroidY: 0 }
+  const cx = centroid.centroidX;
+  const cy = centroid.centroidY;
   return d3.zoomIdentity.translate(width / 2 - s * cx, height / 2 - s * cy).scale(s);
 };
 
@@ -147,20 +161,7 @@ export const fitAllTransform = (
   const graphData = opts.graphData
   const includeGroupsBounds = opts.includeGroupsBounds !== false
 
-  const coerceFiniteNumber = (v: unknown): number | null => {
-    if (typeof v !== 'number' || !Number.isFinite(v)) return null
-    return v
-  }
-
-  const readNodeXY = (n: GraphNode): { x: number; y: number } | null => {
-    const x = coerceFiniteNumber((n as unknown as { x?: unknown }).x)
-    const y = coerceFiniteNumber((n as unknown as { y?: unknown }).y)
-    if (x != null && y != null) return { x, y }
-    const fx = coerceFiniteNumber((n as unknown as { fx?: unknown }).fx)
-    const fy = coerceFiniteNumber((n as unknown as { fy?: unknown }).fy)
-    if (fx != null && fy != null) return { x: fx, y: fy }
-    return null
-  }
+  const readNodeXY = (n: GraphNode): { x: number; y: number } | null => readGraphElementCenterPoint(n)
 
   const validNodes = nodes.filter(n => !!readNodeXY(n))
 
@@ -245,12 +246,6 @@ export const fitAllTransform = (
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
-  let sumX = 0;
-  let sumY = 0;
-  let sumWX = 0;
-  let sumWY = 0;
-  let sumW = 0;
-  let validCount = 0;
 
   for (let i = 0; i < nodesForFit.length; i += 1) {
     const n = nodesForFit[i];
@@ -263,16 +258,6 @@ export const fitAllTransform = (
     const hw = ext.halfW
     const hh = ext.halfH
     
-    sumX += x;
-    sumY += y;
-    validCount += 1;
-    if (useCentroidCentering) {
-      const w0 = schema ? Math.max(1, Math.min(4000, hw + hh)) : 1
-      sumWX += x * w0
-      sumWY += y * w0
-      sumW += w0
-    }
-
     // For bounding box, include node dimensions + padding
     const left = x - hw - nodePadding
     const right = x + hw + nodePadding
@@ -369,17 +354,6 @@ export const fitAllTransform = (
         if (top < minY) minY = top
         if (bottom > maxY) maxY = bottom
 
-        if (useCentroidCentering) {
-          const cx0 = (left + right) / 2
-          const cy0 = (top + bottom) / 2
-          sumX += cx0
-          sumY += cy0
-          validCount += 1
-          const w0 = Math.max(1, Math.min(8000, (right - left) + (bottom - top)))
-          sumWX += cx0 * w0
-          sumWY += cy0 * w0
-          sumW += w0
-        }
       }
     }
     }
@@ -428,12 +402,12 @@ export const fitAllTransform = (
     }
   }
 
-  const cx = useCentroidCentering
-    ? (sumW > 0 ? sumWX / sumW : validCount > 0 ? sumX / validCount : (minX + maxX) / 2)
-    : (minX + maxX) / 2;
-  const cy = useCentroidCentering
-    ? (sumW > 0 ? sumWY / sumW : validCount > 0 ? sumY / validCount : (minY + maxY) / 2)
-    : (minY + maxY) / 2;
+  const elementCentroidMetrics = useCentroidCentering ? measureGraphElementCenterSet(validNodes) : null
+  const centroid = elementCentroidMetrics
+    ? { x: elementCentroidMetrics.centroidX, y: elementCentroidMetrics.centroidY }
+    : null
+  const cx = centroid ? centroid.x : (minX + maxX) / 2;
+  const cy = centroid ? centroid.y : (minY + maxY) / 2;
 
   // Ensure minimum zoom scale to avoid tiny graph on large canvas
   const symmetricContentW = 2 * Math.max(cx - minX, maxX - cx)
@@ -464,21 +438,16 @@ export const fitSubsetTransform = (nodes: GraphNode[], width: number, height: nu
 };
 
 export const centerAllTransform = (nodes: GraphNode[], width: number, height: number) => {
-  const coords = nodes
-    .map(n => [n.x, n.y] as const)
-    .filter(([x, y]) => typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y));
-  if (coords.length === 0) {
+  const centered = computeViewportCenteredTransformForGraphElements({
+    elements: nodes,
+    viewportW: width,
+    viewportH: height,
+    scale: 1,
+  })
+  if (!centered) {
     return d3.zoomIdentity;
   }
-  let sumX = 0;
-  let sumY = 0;
-  for (let i = 0; i < coords.length; i += 1) {
-    sumX += coords[i][0];
-    sumY += coords[i][1];
-  }
-  const cx = coords.length > 0 ? sumX / coords.length : 0;
-  const cy = coords.length > 0 ? sumY / coords.length : 0;
-  return d3.zoomIdentity.translate(width / 2 - cx, height / 2 - cy).scale(1);
+  return d3.zoomIdentity.translate(centered.x, centered.y).scale(centered.k);
 };
 
 export const scaleCenteredOnGraphCentroidTransform = (
@@ -487,20 +456,15 @@ export const scaleCenteredOnGraphCentroidTransform = (
   height: number,
   scale: number,
 ) => {
-  const coords = nodes
-    .map(n => [n.x, n.y] as const)
-    .filter(([x, y]) => typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y))
-  if (coords.length === 0) {
+  const k = Math.max(0.001, scale)
+  const centered = computeViewportCenteredTransformForGraphElements({
+    elements: nodes,
+    viewportW: width,
+    viewportH: height,
+    scale: k,
+  })
+  if (!centered) {
     return d3.zoomIdentity.scale(scale)
   }
-  let sumX = 0
-  let sumY = 0
-  for (let i = 0; i < coords.length; i += 1) {
-    sumX += coords[i][0]
-    sumY += coords[i][1]
-  }
-  const cx = sumX / coords.length
-  const cy = sumY / coords.length
-  const k = Math.max(0.001, scale)
-  return d3.zoomIdentity.translate(width / 2 - k * cx, height / 2 - k * cy).scale(k)
+  return d3.zoomIdentity.translate(centered.x, centered.y).scale(centered.k)
 }

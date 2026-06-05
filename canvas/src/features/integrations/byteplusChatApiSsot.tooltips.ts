@@ -14,8 +14,8 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
   },
   auth_mode: {
     defaultValue: 'serverManaged',
-    expansionNote: 'BYOK expands direct caller control.',
-    contractionNote: 'Server-managed auth narrows credential handling in the widget.',
+    expansionNote: 'BYOK expands explicit caller-owned credential control.',
+    contractionNote: 'Server-managed auth narrows credential handling to Cloudflare/dev proxy secrets.',
   },
   endpoint_url: {
     defaultValue: 'https://ark.ap-southeast.bytepluses.com/api/v3',
@@ -24,7 +24,7 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
   },
   api_key: {
     defaultValue: '—',
-    expansionNote: 'A BYOK secret expands direct authenticated execution.',
+    expansionNote: 'A memory-only BYOK secret expands explicit caller-authenticated execution.',
     contractionNote: 'No key narrows execution to server-managed auth only.',
   },
   model: {

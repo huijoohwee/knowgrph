@@ -10,6 +10,7 @@ import { getEdgeBaseStroke, getEdgeLabelColor, getEdgeStrokeWidth, getNodeLabelC
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { resolveCanvas2dRendererId } from '@/lib/config.render'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 import { readFrontmatterMermaidCode } from '@/lib/mermaid/mermaidFrontmatterCode'
 import { resolveMermaidGitGraphCode } from '@/lib/mermaid/mermaidGitGraph'
 
@@ -105,7 +106,7 @@ export const testMermaidFrontmatterGitGraphPreservesDiagramWithoutFlowchartTopol
   }
   const resolved = resolveCanvas2dRendererId('GitGraph')
   if (resolved !== 'gitGraph') {
-    throw new Error(`expected GitGraph renderer alias to resolve, got ${String(resolved || '')}`)
+    throw new Error(`expected GitGraph renderer token to resolve, got ${String(resolved || '')}`)
   }
 }
 
@@ -148,7 +149,7 @@ export const testFrontmatterFlowGitGraphRendererCanReadMermaidMetadata = async (
 const resolveMermaidDocCandidates = (): string[] => {
   const cwd = process.cwd()
   return [
-    path.resolve(cwd, '..', '..', 'sandbox', 'demo', 'md-demo-00.md'),
+    resolveRepoTestDataPath('md-demo-00.md'),
     path.resolve(cwd, '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-prd-tad.md'),
   ]
 }

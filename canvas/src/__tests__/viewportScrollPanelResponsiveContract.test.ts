@@ -74,17 +74,26 @@ export function testDocumentVersionGitGraphUsesSharedResponsiveViewportOwner() {
   const cssText = readUtf8('src/styles/responsive-toolbar.css')
   const panelText = readUtf8('src/features/document-versioning/DocumentVersionGitGraphPanel.tsx')
 
-  if (!classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !classText.includes('UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME') || !classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_CLASSNAME') || !classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME') || !classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_IDLE_CLASSNAME')) {
+  if (!classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !classText.includes('UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME')) {
     throw new Error('expected document version GitGraph viewport owners to be exported from the shared responsive class registry')
   }
   if (!cssText.includes('.kg-document-version-gitgraph-viewport') || !cssText.includes('.kg-document-version-gitgraph-viewport--compact') || !cssText.includes('--kg-document-version-gitgraph-viewport-max-height')) {
     throw new Error('expected document version GitGraph viewport caps to live in shared responsive CSS')
   }
-  if (!panelText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !panelText.includes('UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !panelText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME') || !panelText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME')) {
+  if (!panelText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !panelText.includes('UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME') || !panelText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME') || !panelText.includes('data-kg-document-version-gitgraph-direct-selection="1"')) {
     throw new Error('expected document version GitGraph panel to consume shared responsive owners')
   }
-  if (panelText.includes('max-h-32') || panelText.includes('max-h-56') || panelText.includes('min-h-[4rem]') || panelText.includes('min-h-[5rem]') || panelText.includes('border-blue-600 bg-blue-500/20') || panelText.includes('hover:border-blue-500/70')) {
-    throw new Error('expected document version GitGraph sizing and version-node state classes to stay in shared responsive owners')
+  if (
+    classText.includes('UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE') ||
+    panelText.includes('max-h-32') ||
+    panelText.includes('max-h-56') ||
+    panelText.includes('min-h-[4rem]') ||
+    panelText.includes('min-h-[5rem]') ||
+    panelText.includes('border-blue-600 bg-blue-500/20') ||
+    panelText.includes('hover:border-blue-500/70') ||
+    panelText.includes('data-kg-document-version-gitgraph-version-node')
+  ) {
+    throw new Error('expected document version GitGraph sizing to stay in shared viewport owners and selection to stay on rendered SVG elements')
   }
 }
 
@@ -93,10 +102,10 @@ export function testWorkspaceAndGraphTablePanelsUseSharedViewportScrollOwner() {
   const domTableText = readUtf8('src/features/graph-table/ui/GraphTableDomTableView.tsx')
   const inspectorText = readUtf8('src/features/graph-table/ui/GraphTableInspector.tsx')
 
-  if (!explorerText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME') || !domTableText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME') || !inspectorText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME')) {
-    throw new Error('expected Explorer and Graph Table scroll panels to consume the shared viewport scroll owner')
+  if (!explorerText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_CONTENT_CLASSNAME') || !domTableText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME') || !inspectorText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME')) {
+    throw new Error('expected Explorer to consume the shared section-scroll stack owner and Graph Table panels to consume the shared viewport scroll owner')
   }
-  if (explorerText.includes('flex-1 min-h-0 overflow-auto') || domTableText.includes('flex-1 min-h-0 min-w-0 max-w-full overflow-auto') || inspectorText.includes("'flex-1 min-h-0 overflow-auto'")) {
-    throw new Error('expected Explorer and Graph Table panels to stay free of local viewport scroll literals')
+  if (explorerText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME') || explorerText.includes('kg-responsive-viewport-scroll-panel') || explorerText.includes('flex-1 min-h-0 overflow-auto') || domTableText.includes('flex-1 min-h-0 min-w-0 max-w-full overflow-auto') || inspectorText.includes("'flex-1 min-h-0 overflow-auto'")) {
+    throw new Error('expected Explorer and Graph Table panels to stay free of local or stale viewport scroll literals')
   }
 }

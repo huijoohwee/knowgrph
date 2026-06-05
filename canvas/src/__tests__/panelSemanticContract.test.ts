@@ -423,8 +423,13 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   }
 
   const markdownExplorer = readUtf8(markdownExplorerPath)
-  if (!markdownExplorer.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') || !markdownExplorer.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
-    throw new Error('Expected MarkdownWorkspaceExplorer header to scroll without fixed mobile height')
+  if (
+    !markdownExplorer.includes('WorkspaceHeaderRow') ||
+    !markdownExplorer.includes('kg-markdown-workspace-panel-toolbar-row') ||
+    markdownExplorer.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') ||
+    markdownExplorer.includes('uiToolbarRowScrollJustifyBetweenClassName')
+  ) {
+    throw new Error('Expected MarkdownWorkspaceExplorer header to use the shared workspace toolbar row without duplicated row-scroll wiring')
   }
   const explorerSearchControl = readUtf8(explorerSearchControlPath)
   const explorerHeaderActions = readUtf8(explorerHeaderActionsPath)
@@ -1520,8 +1525,8 @@ export const testWorkflowManagerConsolidatedEntriesReuseGraphFieldsRightPane = (
   const graphTabText = readUtf8(flowEditorGraphTabPath)
   const graphFieldsText = readUtf8(graphFieldsViewPath)
 
-  if (!graphTabText.includes('entryAliasLabels={WORKFLOW_ALIAS_LABELS}')) {
-    throw new Error('Expected Workflow Manager to pass consolidated workflow alias labels into GraphFieldsView')
+  if (!graphTabText.includes('entryShortcutLabels={WORKFLOW_SHORTCUT_LABELS}')) {
+    throw new Error('Expected Workflow Manager to pass consolidated workflow shortcut labels into GraphFieldsView')
   }
   if (!graphTabText.includes('entryOpenRequest={entryOpenRequest}')) {
     throw new Error('Expected Workflow Manager to pass entry open requests into GraphFieldsView')
@@ -1611,19 +1616,19 @@ export const testWorkflowManagerNonWorkflowListsReuseGraphFieldsRightPane = () =
   if (!graphTabText.includes('aria-label="Graph Fields and Field Settings"')) {
     throw new Error('Expected non-workflow Workflow Manager surface to include embedded Graph Fields right pane')
   }
-  if (!graphTabText.includes('const GRAPH_FIELDS_ALIAS_LABELS = [')) {
-    throw new Error('Expected non-workflow Workflow Manager to define Graph Fields alias labels')
+  if (!graphTabText.includes('const GRAPH_FIELDS_SHORTCUT_LABELS = [')) {
+    throw new Error('Expected non-workflow Workflow Manager to define Graph Fields shortcut labels')
   }
   if (!graphTabText.includes("'Node'") || !graphTabText.includes("'Edges'") || !graphTabText.includes("'Clusters'") || !graphTabText.includes("'Renderer'") || !graphTabText.includes("'Layer Mode'")) {
-    throw new Error('Expected non-workflow alias list to cover Node/Edges/Clusters/Renderer/Layer Mode')
+    throw new Error('Expected non-workflow shortcut list to cover Node/Edges/Clusters/Renderer/Layer Mode')
   }
-  if (!graphTabText.includes('entryAliasLabels={GRAPH_FIELDS_ALIAS_LABELS}')) {
-    throw new Error('Expected non-workflow Workflow Manager to pass alias labels into GraphFieldsView')
+  if (!graphTabText.includes('entryShortcutLabels={GRAPH_FIELDS_SHORTCUT_LABELS}')) {
+    throw new Error('Expected non-workflow Workflow Manager to pass shortcut labels into GraphFieldsView')
   }
-  if (!graphFieldsText.includes('aria-label="Graph Fields entry aliases"')) {
-    throw new Error('Expected GraphFieldsView to render alias buttons within Graph Fields surface')
+  if (!graphFieldsText.includes('aria-label="Graph Fields entry shortcuts"')) {
+    throw new Error('Expected GraphFieldsView to render shortcut buttons within Graph Fields surface')
   }
-  if (!graphFieldsText.includes('onClick={() => onEntryAliasClick(label)}')) {
-    throw new Error('Expected GraphFieldsView alias clicks to route through the shared right-pane open handler')
+  if (!graphFieldsText.includes('onClick={() => onEntryShortcutClick(label)}')) {
+    throw new Error('Expected GraphFieldsView shortcut clicks to route through the shared right-pane open handler')
   }
 }

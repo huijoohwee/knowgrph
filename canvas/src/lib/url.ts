@@ -1,4 +1,4 @@
-import { applyMediaProxySrc, shouldUseRemoteFetchProxy, unwrapUserProvidedText } from 'grph-shared/url'
+import { applyMediaProxySrc, isLikelyImageUrl as isLikelySharedImageUrl, unwrapUserProvidedText } from 'grph-shared/url'
 
 export * from 'grph-shared/url'
 
@@ -99,16 +99,15 @@ export function resolveUrlAgainstBase(baseUrl: string | null | undefined, rawUrl
   }
 }
 
-export function isWeChatHotlinkProtectedAssetUrl(absUrl: string): boolean {
+export function shouldUseWebpageAssetPathProxyUrl(absUrl: string): boolean {
   const raw = String(absUrl || '').trim()
   if (!/^https?:\/\//i.test(raw)) return false
   try {
     const u = new URL(raw)
-    const host = u.hostname.toLowerCase()
-    if (host === 'mmbiz.qpic.cn' || host.endsWith('.qpic.cn')) return true
-    if (host === 'mmbiz.qlogo.cn' || host.endsWith('.qlogo.cn')) return true
-    if (host === 'wx.qlogo.cn' || host.endsWith('.wx.qlogo.cn')) return true
-    return false
+    if (!isLikelySharedImageUrl(u.toString())) return false
+    const pathname = u.pathname || ''
+    if (/(^|\/)image\/fetch(\/|$)/i.test(pathname)) return true
+    return !/\.(png|jpe?g|gif|webp|svg)$/i.test(pathname)
   } catch {
     return false
   }
@@ -153,12 +152,5 @@ export function applyImageLikeProxySrc(src: string): string {
   if (raw.startsWith('/__webpage_asset_proxy?url=')) return raw
   if (raw.startsWith('/__media_proxy?url=')) return raw
   const normalized = raw.startsWith('//') ? `https:${raw}` : raw
-  if (isWeChatHotlinkProtectedAssetUrl(normalized)) {
-    if (typeof window === 'undefined') return normalized
-    const origin = window.location?.origin
-    if (!origin) return normalized
-    if (!shouldUseRemoteFetchProxy()) return normalized
-    return applyMediaProxySrc(normalized)
-  }
   return applyMediaProxySrc(normalized)
 }

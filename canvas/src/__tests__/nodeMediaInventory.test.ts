@@ -118,8 +118,8 @@ export function testAudioMediaUsesSharedCardPanelAndHtmlViewerOwners() {
   if (!richMediaOverlayLayer.includes("n.kind === 'audio'")) {
     throw new Error('expected D3 rich media overlay layer to preserve shared audio media kind')
   }
-  if (!webpageLayoutToGraph.includes("t === 'AUDIO'") || !webpageLayoutToGraph.includes("kind: 'audio'")) {
-    throw new Error('expected webpage layout graph import to preserve audio media tags through shared media aliases')
+  if (!webpageLayoutToGraph.includes("t === 'AUDIO'") || !webpageLayoutToGraph.includes("tag === 'VIDEO' ? 'video' : 'audio'")) {
+    throw new Error('expected webpage layout graph import to preserve audio media tags through shared media properties')
   }
   if (!htmlViewer.includes('audio[src]') || !htmlViewer.includes('.kg-mediaBody audio')) {
     throw new Error('expected exported HTML viewer to discover and style audio media nodes')

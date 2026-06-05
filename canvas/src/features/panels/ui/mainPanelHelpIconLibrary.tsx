@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  ArrowRightLeft, BarChart3, Braces, CalendarClock, Copy, CreditCard, Eraser, Film, GitBranch, Globe2, Hand, Hash,
+  ArrowRightLeft, BarChart3, Braces, CalendarClock, ChartGantt, Copy, CreditCard, Eraser, Film, GitBranch, Globe2, Hand, Hash,
   HelpCircle, History as HistoryIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
   Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
 } from 'lucide-react'
@@ -64,6 +64,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.geo',
   'floatingPanel.renderer',
   'floatingPanel.gitGraph',
+  'floatingPanel.gantt',
   'floatingPanel.strybldr',
   'floatingPanel.graphTraversal',
   'field.scope.node',
@@ -340,6 +341,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'GitGraph',
     Icon: GitBranch,
   },
+  'floatingPanel.gantt': {
+    category: 'FloatingPanel surface',
+    label: 'Gantt',
+    Icon: ChartGantt,
+  },
   'floatingPanel.strybldr': {
     category: 'FloatingPanel surface',
     label: 'Strybldr',
@@ -473,6 +479,7 @@ export type FloatingPanelTypeIconView =
   | 'geo'
   | 'renderer'
   | 'gitGraph'
+  | 'gantt'
   | 'strybldr'
   | 'graphTraversal'
 
@@ -485,6 +492,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   geo: 'floatingPanel.geo',
   renderer: 'floatingPanel.renderer',
   gitGraph: 'floatingPanel.gitGraph',
+  gantt: 'floatingPanel.gantt',
   strybldr: 'floatingPanel.strybldr',
   graphTraversal: 'floatingPanel.graphTraversal',
 } satisfies Record<FloatingPanelTypeIconView, MainPanelTypeIconKey>

@@ -94,7 +94,6 @@ export const testMainPanelKtvTerminologyMaintainsKeyTypeValueVocabulary = () => 
     path.resolve(root, 'src'),
     path.resolve(root, 'artifacts', 'live-verification'),
     path.resolve(repoRoot, 'cloudflare'),
-    path.resolve(repoRoot, 'data', 'knowgrph-workflow-preview'),
     path.resolve(repoRoot, 'docs'),
     path.resolve(repoRoot, 'grph-shared', 'src'),
     path.resolve(repoRoot, 'mcp'),

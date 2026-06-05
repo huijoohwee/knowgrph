@@ -14,6 +14,7 @@ type BuildMarkdownFileTreeContextMenuItemsArgs = {
   copyToClipboard: (text: string) => Promise<boolean>
   buildShareUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
   promptShareUrl?: (url: string) => void
+  onShareUrlError?: (message: string) => void
   onCreateNewFile?: (parentPath: WorkspacePath) => void
   onRevealInFinder?: (path: WorkspacePath) => void
   onClearFile?: (path: WorkspacePath) => void
@@ -39,11 +40,14 @@ export function buildMarkdownFileTreeContextMenuItems(
       onSelect: () => {
         void Promise.resolve(args.buildShareUrl?.(args.entry) || null)
           .then(url => {
-            if (!url) return
+            if (!url) {
+              notifyShareUrlError(args.onShareUrlError, 'Share URL is unavailable because the file could not be published.')
+              return
+            }
             return shareOrCopyUrl(url, args.copyToClipboard, args.promptShareUrl)
           })
-          .catch(() => {
-            void 0
+          .catch(error => {
+            notifyShareUrlError(args.onShareUrlError, 'Share URL is unavailable because the file could not be published.', error)
           })
         args.closeContextMenu()
       },
@@ -131,6 +135,22 @@ export function buildMarkdownFileTreeContextMenuItems(
   }
 
   return items
+}
+
+function notifyShareUrlError(
+  onShareUrlError: ((message: string) => void) | undefined,
+  fallbackMessage: string,
+  error?: unknown,
+): void {
+  const errorMessage = error instanceof Error ? String(error.message || '').trim() : ''
+  const message = errorMessage || fallbackMessage
+  if (typeof onShareUrlError === 'function') {
+    onShareUrlError(message)
+    return
+  }
+  if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+    window.alert(message)
+  }
 }
 
 async function shareOrCopyUrl(

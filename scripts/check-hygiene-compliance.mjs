@@ -25,6 +25,37 @@ const checkAll = args.has('--all')
 const chunkOnly = args.has('--chunks')
 const semanticOnly = args.has('--semantic-only')
 const budgetOnly = args.has('--budget-only')
+const layoutOnly = args.has('--layout-only')
+
+const disallowedRepoEntries = [
+  { rel: '.trae', reason: 'editor workspace notes belong outside tracked knowgrph source' },
+  { rel: 'canvas/.trae', reason: 'editor workspace notes belong outside tracked knowgrph source' },
+  { rel: 'configs', reason: 'config roots are consolidated under data/config' },
+  { rel: 'llm-chat-config', reason: 'config roots are consolidated under data/config/llm-chat' },
+  { rel: 'orchestrator-config', reason: 'config roots are consolidated under data/config/orchestrator' },
+  { rel: 'schema-config', reason: 'config roots are consolidated under data/config/schema' },
+  { rel: 'trash_rm_scripts', reason: 'ad-hoc removal scripts are not tracked source' },
+  { rel: 'canvas/trash_rm_scripts', reason: 'ad-hoc removal scripts are not tracked source' },
+  { rel: 'canvas/sandbox', reason: 'test and export tools live under canvas/src/cli, canvas/src/tests/tools, or data/test-data' },
+  { rel: 'canvas/=', reason: 'accidental shell scratch output is not tracked source' },
+  { rel: 'canvas/B,', reason: 'accidental shell scratch output is not tracked source' },
+  { rel: 'canvas/{', reason: 'accidental shell scratch output is not tracked source' },
+  { rel: 'canvas/tmp-snap-live.txt', reason: 'local smoke scratch output is not tracked source' },
+  { rel: 'canvas/tmp_probe_initial_workspace_open.ts', reason: 'local smoke scratch output is not tracked source' },
+  { rel: 'organize_todo.py', reason: 'repo scripts live under scripts/' },
+  { rel: '{target}', reason: 'accidental shell scratch output is not tracked source' },
+  { rel: 'data/knowgrph-workflow-preview', reason: 'workflow previews are generated under ignored data/outputs' },
+  { rel: 'data/knowgrph-schema-document_202601300527', reason: 'dated parser scratch output is stale generated source' },
+  { rel: 'docs/documents/api-reference', reason: 'API references live under docs/documents/knowgrph-api-reference' },
+  { rel: 'docs/documents/deprecated', reason: 'deprecated documents are not active knowgrph source' },
+  { rel: 'docs/documents/knowgrph-api-reference/_archive', reason: 'archived API reference snapshots are stale source copies' },
+  { rel: 'docs/reports/prd-codebase-gap-report_202601052150.md', reason: 'dated gap reports are stale generated reports' },
+  { rel: 'docs/reports/prd-codebase-gap-report_202601052215.md', reason: 'dated gap reports are stale generated reports' },
+  { rel: 'test-report', reason: 'dated test reports are stale generated reports' },
+  { rel: 'todo-log_202602.md', reason: 'monthly todo logs live under docs/reports/todo-log' },
+  { rel: 'todo-log_202603.md', reason: 'monthly todo logs live under docs/reports/todo-log' },
+  { rel: 'todo-log_202604.md', reason: 'monthly todo logs live under docs/reports/todo-log' },
+]
 
 const ignoredDirNames = new Set([
   '.git',
@@ -219,6 +250,24 @@ const listChangedTextFiles = async () => {
   return out
 }
 
+const findLayoutViolations = async () => {
+  const out = []
+  for (const entry of disallowedRepoEntries) {
+    const abs = path.resolve(repoRoot, entry.rel)
+    try {
+      const stat = await fs.lstat(abs)
+      out.push({
+        rel: entry.rel,
+        kind: stat.isDirectory() ? 'directory' : 'file',
+        reason: entry.reason,
+      })
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+  }
+  return out
+}
+
 const findBudgetViolations = async (files, options = {}) => {
   const out = []
   for (const filePath of files) {
@@ -349,6 +398,17 @@ const reportChunkViolations = violations => {
   }
 }
 
+const reportLayoutViolations = violations => {
+  if (violations.length === 0) return
+  console.error('[knowgrph] stale repo layout entries are present:')
+  for (const entry of violations.slice(0, reportLimit)) {
+    console.error(`  - ${entry.rel} (${entry.kind}): ${entry.reason}`)
+  }
+  if (violations.length > reportLimit) {
+    console.error(`  - ... ${violations.length - reportLimit} more`)
+  }
+}
+
 const main = async () => {
   let failed = false
 
@@ -357,6 +417,16 @@ const main = async () => {
     reportChunkViolations(chunkViolations)
     if (chunkViolations.length > 0) process.exit(1)
     console.log('[knowgrph] built chunk compliance checks passed')
+    return
+  }
+
+  const layoutViolations = await findLayoutViolations()
+  reportLayoutViolations(layoutViolations)
+  failed = failed || layoutViolations.length > 0
+
+  if (layoutOnly) {
+    if (failed) process.exit(1)
+    console.log('[knowgrph] repo layout hygiene checks passed')
     return
   }
 

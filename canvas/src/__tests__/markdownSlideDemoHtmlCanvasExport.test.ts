@@ -6,7 +6,7 @@ export async function testMarkdownSlideDemoHtmlCanvasExportHudAndMetadata() {
   const text = readMarkdownSlideDemo()
   if (!text || !text.trim()) throw new Error('expected markdown-slide-demo text')
 
-  const documentPath = resolveMarkdownSlideDemoDocumentPath() || 'sandbox/demo/markdown-slide-demo.md'
+  const documentPath = resolveMarkdownSlideDemoDocumentPath() || 'data/test-data/md-demo-00.md'
   const res = await loadGraphDataFromTextViaParser(documentPath, text, { applyToStore: false })
   if (!res || !res.graphData) throw new Error('expected graphData from markdown-slide-demo import')
 
@@ -31,4 +31,3 @@ export async function testMarkdownSlideDemoHtmlCanvasExportHudAndMetadata() {
     throw new Error('expected exported html canvas viewer to embed node position metadata')
   }
 }
-

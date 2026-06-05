@@ -5,13 +5,13 @@
 Render imported webpages with high fidelity (rich media, animations) while preserving the app invariants:
 
 - **Sandbox boundary**: untrusted HTML must never escape the iframe.
-- **View-only switching**: `Markdown | HTML | DOM | Raw | JSON` must not mutate graph/layout/zoom.
+- **View-only switching**: `Markdown | HTML | JSON` must not mutate graph/layout/zoom.
 - **Neutrality**: no site-specific hacks or hardcoded domains.
 
 ## Surfaces
 
 - **Editor**: shows an editable Markdown SSOT; JSON may be shown as a read-only text override.
-- **Viewer / Presentation / Slides Gallery**: render either Markdown (view = `markdown`) or a sandboxed iframe (view ∈ {html, dom, raw, json}).
+- **Viewer / Presentation / Slides Gallery**: render either Markdown (view = `markdown`) or a sandboxed iframe (view in `{html, json}`).
 
 ## Editor Loading Invariants
 
@@ -21,7 +21,7 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 ## Frontmatter Contract (per imported page)
 
 - `kgWebpageUrl`: source URL
-- `kgWebpageView`: `markdown | html | dom | raw | json`
+- `kgWebpageView`: `markdown | html | json`
 - `kgWebpageSiteRootRel`: optional local in-repo site root (for resolving `/assets/...` in `srcdoc`)
 - `kgWebpageScriptPolicy`: optional per-doc script policy override (`allow | strip`) for rare cases where automatic script heuristics need a manual override
 - `kgWebpageIncludeImages`: optional per-doc conversion override (`true | false`) when the default auto image handling is not sufficient
@@ -29,6 +29,8 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 - `kgWebsiteImportId`: optional website-import job id
 - `kgWebsiteNodeId`: optional stable node id
 - `kgWebsiteOutputDirRel`: optional artifact root override
+
+Unsupported historical view values such as `dom`, `raw`, `source`, and `preview` are not active modes and must fall back to `html` through the shared frontmatter parser; do not add compatibility aliases.
 
 ## Endpoints (dev server middleware)
 
@@ -65,7 +67,7 @@ When `kgWebsiteImportId/kgWebsiteNodeId` are present, the HTML Viewer prefers st
 
 ### `POST /__website_import/import-url`
 
-- Persists per-URL artifacts to the workspace output dir (default `.knowgrph-workspace/...`; in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink):
+- Persists per-URL artifacts to the repo-local ignored workspace output dir (default `.knowgrph-workspace/...`):
   - `raw.html` (guaranteed)
 - `page.md` and `conversion.json` may exist for some imports; when present they are served via `/__website_import/artifact`, otherwise the client falls back to on-demand conversion.
 
@@ -236,13 +238,13 @@ For local repo-relative inputs, `Import URL` accepts both `path/to/file.html` an
 - **Mode contract (ordered)**:
   - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
   - (2) `HTML`: Editor stays editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe (view-only).
-  - (3) `DOM`: Viewer/Presentation/Slides render a post-hydration DOM snapshot (best for JS-heavy pages).
-  - (4) `Raw`: Viewer/Presentation/Slides render raw HTML source for inspection/debug.
-  - (5) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe (view-only).
+  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe (view-only).
+
+DOM export remains a capture/sync bridge, not a selectable view mode. Raw HTML remains an internal artifact source for the HTML viewer, not a user-facing `kgWebpageView` value.
 
 The canonical place for these controls is the Markdown toolbar `nav` ("Webpage" group): `View`, `Script`, `Imgs`, `Fid`, and an explicit `Sync` action.
 
-Markdown rendering supports safe rich-media HTML blocks through an allowlist renderer (no `dangerouslySetInnerHTML`), including `<svg>`, `<iframe>`, `<video>`, `<audio>`, `<details>/<summary>`, plus layout-safe media wrappers like `<picture>`, `<figure>`, and `<figcaption>`. The same shared rich-media SSOT (URL heuristics + iframe sandbox policy + auto Script/Imgs/Fid defaults) is reused across Markdown Viewer, Canvas 2D/3D, Design, and Document/Geospatial modes; per-doc frontmatter is an optional override and must not be required for normal Rich Media rendering.
+Markdown rendering supports safe rich-media HTML blocks through an allowlist renderer (no `dangerouslySetInnerHTML`), including `<svg>`, `<iframe>`, `<video>`, `<audio>`, `<details>/<summary>`, plus layout-safe media wrappers like `<picture>`, `<figure>`, and `<figcaption>`. The same shared rich-media SSOT (URL heuristics + iframe sandbox policy + auto Script/Imgs/Fid defaults) is reused across Markdown Viewer, Canvas 2D/3D, Design, and Document/Geospatial modes; per-doc frontmatter is an optional override and must not be required for normal Rich Media rendering. Image/media kind inference must derive from neutral extensions, media path segments, image transform paths, and format-like query parameters (for example `format`, `fmt`, `*_fmt`, `tp`) rather than host allowlists.
 
 ## Shared Signal Tokens (Mode-Independent)
 

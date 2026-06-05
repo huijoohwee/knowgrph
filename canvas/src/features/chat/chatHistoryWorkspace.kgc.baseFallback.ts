@@ -3,7 +3,19 @@ import {
   sanitizeRequestIntent,
   sanitizeScalar,
 } from './chatKgcRequestProfile'
-import { toKgcOutputWorkspacePath } from './chatHistoryWorkspace.paths'
+import {
+  buildGuardrailRows,
+  buildNamedTermSummary,
+  buildOpenQuestions,
+  buildSnapshotRows,
+  fallbackActor,
+  fallbackArtifact,
+  fallbackDomain,
+  fallbackObjective,
+  fallbackOwner,
+  fallbackProduct,
+  fallbackStatus,
+} from './chatHistoryWorkspace.kgc.fallbackSections'
 import { buildChatResponseStructuredSurfaceBlock } from './chatHistoryWorkspace.kgc.structuredSurfaceBlock'
 import { extractChatResponseStructuredSurface, projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContent'
 
@@ -33,22 +45,9 @@ const summariseAssistantSignal = (assistantText: string): string => {
   return sanitizeScalar(text, 220)
 }
 
-const fallbackActor = (subject: string): string => subject || '{{subject}}'
-const fallbackProduct = (product: string): string => product || '{{product}}'
-const fallbackArtifact = (artifact: string): string => artifact || 'Chat Response'
-const fallbackDomain = (domain: string, topics: string[]): string => domain || topics.join(' + ') || '{{domain}}'
-const fallbackObjective = (objective: string): string => objective || '{{objective}}'
-const fallbackOwner = (owner: string): string => owner || '{{owner}}'
-const fallbackStatus = (status: string): string => status || '{{status}}'
-
 const deriveOutputTargetFileName = (fileName: string): string => {
-  const derived = toKgcOutputWorkspacePath(`/${String(fileName || '').trim() || 'kgc.md'}`)
-  const parts = String(derived || '').split('/').filter(Boolean)
-  return String(parts[parts.length - 1] || '').trim() || 'kgc-output.md'
-}
-
-const buildNamedTermSummary = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  return profile.namedTerms.join(', ')
+  const raw = String(fileName || '').trim()
+  return raw && /^kgc_/i.test(raw) ? raw : 'kgc.md'
 }
 
 const buildRequestSummary = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -67,6 +66,7 @@ const buildRequestSummary = (profile: ReturnType<typeof analyzeKgcRequest>): str
   const parts = [
     `${artifact} request for ${subject}`,
     product !== '{{product}}' ? `around ${product}` : '',
+    profile.namedTerms.length ? `covering ${buildNamedTermSummary(profile)}` : '',
     profile.signals.mcp ? 'using MCP distribution' : '',
     profile.signals.externalUsers ? 'for external users' : '',
     profile.signals.openClaw ? 'with OpenClaw marketplace delivery' : (profile.signals.marketplace ? 'with marketplace delivery' : ''),
@@ -104,6 +104,19 @@ const buildObjectiveSummary = (profile: ReturnType<typeof analyzeKgcRequest>): s
   ].filter(Boolean)
   return sanitizeScalar(parts.join('; '), 180)
 }
+
+const typedBlockScalarEnvelopeLines = (
+  indent: string,
+  field: string,
+  type: string,
+  valueLines: string[],
+): string[] => [
+  `${indent}${field}:`,
+  `${indent}  key: ${field}`,
+  `${indent}  type: ${type}`,
+  `${indent}  value: |`,
+  ...valueLines.map(line => `${indent}    ${line}`),
+]
 
 const buildUseCaseText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   const surfaces = [
@@ -150,14 +163,18 @@ const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.signals.rxdb ? 'RxDB local-first state' : '',
     profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
   ].filter(Boolean)
-  return `Recommend a lean response package that turns the request into an actionable offer covering ${channels.join(', ') || 'the stated delivery surfaces'}. Make the deliverable concrete enough for product, growth, monetization, and integration follow-through without drifting into boilerplate or restating the request verbatim.`
+  const namedTerms = buildNamedTermSummary(profile)
+  return `Shape a lean response package that turns the request into an actionable handoff covering ${channels.join(', ') || namedTerms || 'the active request terms'}. Keep text and rich-media handoff ready for editor workspace widgets, cards, edges, and Rich Media Panels when the response includes renderable handles such as \`outputSrcDoc\` or media URLs. Make the deliverable concrete enough for follow-through without drifting into boilerplate, stale template prose, or unrelated examples.`
 }
 
 const buildUserFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   const conversionMoment = profile.signals.swipe
     ? 'completes the Swipe checkout flow and unlocks the paid entitlement or action'
     : (profile.signals.payments ? 'completes checkout and unlocks the paid entitlement or action' : 'crosses from free exploration into paid activation')
-  return `An external user discovers the \`{{product}}\` offer through the MCP or marketplace surface, evaluates the free or low-friction entry point, reaches a monetized action such as premium usage, conversion, or subscription, ${conversionMoment}, and then receives the promised output, capability, or follow-up access.`
+  if (profile.signals.payments || profile.signals.swipe || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion) {
+    return `A user discovers the \`{{product}}\` offer, evaluates the entry point, reaches the requested paid or conversion action, ${conversionMoment}, and then receives the promised output, capability, or follow-up access.`
+  }
+  return `\`{{subject}}\` opens the workspace, provides the active request terms, reviews generated text plus connected render outputs, edits assumptions inline, and persists the validated handoff so downstream panels and cards stay aligned with the same source values.`
 }
 
 const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -191,8 +208,8 @@ const buildWorkflowText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
   }
   const marketplaceStep = profile.signals.openClaw
     ? 'package the offer for OpenClaw and related skills marketplace discovery'
-    : (profile.signals.marketplace ? 'package the offer for marketplace discovery' : 'package the offer for external discovery')
-  return `S01 captures the active request brief for \`{{product}}\`. S02 shapes context around ${marketplaceStep}, user-value framing, and the requested \`{{artifact}}\`. S03 generates the response package. S04 checks that the stated assumptions, transitions, and boundaries are explicit. S05 persists a reusable handoff. In practice the workflow should move from input -> context -> draft -> review -> delivery instead of stopping at generic prose.`
+    : (profile.signals.marketplace ? 'package the offer for marketplace discovery' : 'package the active request terms')
+  return `S01 captures the active request brief for \`{{product}}\`. S02 shapes context around ${marketplaceStep}, named terms, and the requested \`{{artifact}}\`. S03 generates the response package. S04 checks term coverage, assumptions, transitions, and boundaries. S05 persists a reusable handoff. In practice the workflow should move from input -> context -> draft -> review -> delivery instead of stopping at generic prose.`
 }
 
 const buildDataFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -200,14 +217,15 @@ const buildDataFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     const fileNote = profile.outputFile ? ` plus output target ${profile.outputFile}` : ''
     return `Request text and workspace context become a bounded creative bundle containing tone, pacing, originality constraints${fileNote}. That bundle becomes \`{{artifact}}\` markdown, validation yields either corrective feedback or approved output, and approved output becomes persisted workspace state with creative intent and safety assumptions intact.`
   }
-  const monetizationPayload = profile.signals.swipe
-    ? 'pricing assumptions, checkout trigger, Swipe payment state, and post-payment entitlement'
-    : 'pricing assumptions, conversion trigger, and post-conversion entitlement'
+  const transitionPayload = profile.signals.swipe
+    ? 'Swipe checkout trigger, payment state, and post-payment entitlement'
+    : (profile.signals.payments || profile.signals.conversion ? 'conversion trigger and post-conversion entitlement' : 'handoff state and downstream render targets')
   const stackPayload = [
     profile.signals.rxdb ? 'RxDB-backed local context' : '',
     profile.signals.maplibre ? 'MapLibre-relevant spatial context' : '',
   ].filter(Boolean)
-  return `Request text and workspace context become a bounded strategy bundle containing product positioning, MCP packaging, marketplace assumptions, ${monetizationPayload}${stackPayload.length ? `, and ${stackPayload.join(' plus ')}` : ''}. That bundle becomes \`{{artifact}}\` markdown, validation yields either corrective feedback or approved output, and approved output becomes persisted workspace state with commercialization and integration assumptions intact.`
+  const namedTerms = buildNamedTermSummary(profile) || 'the active request terms'
+  return `Request text and workspace context become a bounded bundle containing ${namedTerms}, ${transitionPayload}${stackPayload.length ? `, and ${stackPayload.join(' plus ')}` : ''}. Inline compute can read connected input handles, emit text output plus optional \`outputSrcDoc\` markup and media URLs, and Rich Media Panels consume those handles directly. Edits to source cards or widgets recompute downstream panels instead of copying stale values.`
 }
 
 const buildVariableLinkRows = (profile: ReturnType<typeof analyzeKgcRequest>): Array<[string, string, string, string]> => {
@@ -223,100 +241,6 @@ const buildVariableLinkRows = (profile: ReturnType<typeof analyzeKgcRequest>): A
   ]
 }
 
-const buildSnapshotRows = (
-  profile: ReturnType<typeof analyzeKgcRequest>,
-  fileName: string,
-): Array<[string, string, string]> => {
-  const outputTarget = profile.outputFile || deriveOutputTargetFileName(fileName)
-  if (profile.signals.creativeScript) {
-    return [
-      ['Deliverable', '`{{artifact}}`', 'keeps the requested output format explicit'],
-      ['Creative mode', 'original script package', 'keeps the body focused on content creation rather than planning prose'],
-      ['Tone source', 'high-level inspiration only', 'keeps atmosphere without copying named properties'],
-      ['Distinctiveness guard', profile.signals.trademarkAvoidance ? 'avoid direct trademark or franchise references' : 'keep the draft original', 'keeps the output safely differentiated'],
-      ['Output target', outputTarget, 'keeps the handoff destination visible'],
-      ['Validation focus', 'clarity, originality, and body/frontmatter linkage', 'keeps persistence requirements aligned with the document contract'],
-    ]
-  }
-  const discoverySurface = profile.signals.openClaw
-    ? 'OpenClaw and skills marketplace discovery'
-    : (profile.signals.marketplace ? 'skills marketplace discovery' : 'external discovery channels')
-  const monetizedActions = [
-    profile.signals.subscriptions ? 'subscriptions' : '',
-    profile.signals.payPerUse ? 'pay-per-use usage' : '',
-    profile.signals.conversion ? 'commerce-like conversion actions' : '',
-  ].filter(Boolean).join(', ') || 'the stated revenue actions'
-  const stackBoundaries = [
-    profile.signals.rxdb ? 'RxDB local-first state' : '',
-    profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
-  ].filter(Boolean).join(', ') || 'the stated implementation boundaries'
-  const checkoutStep = profile.signals.swipe
-    ? 'Swipe checkout and payment completion'
-    : (profile.signals.payments ? 'checkout completion' : 'the monetized conversion trigger')
-  return [
-    ['Primary subject', '`{{product}}`', 'keeps the central subject consistent across body and frontmatter'],
-    ['Audience or surface', profile.signals.externalUsers ? `external users through ${discoverySurface}` : discoverySurface, 'keeps the addressed surface tied to the request'],
-    ['Deliverable', '`{{artifact}}`', 'keeps the stored output aligned with the requested artifact'],
-    ['Canonical output path', outputTarget, 'keeps companion output naming aligned with the stored KGC document'],
-    ['Operating constraints', buildObjectiveSummary(profile) || fallbackObjective(profile.objective), 'keeps the active objective and constraints visible'],
-    ['Action surfaces', monetizedActions, 'keeps user actions tied to the stated request context'],
-    ['Transition step', checkoutStep, 'keeps handoff or transition moments explicit when present'],
-    ['Implementation boundaries', stackBoundaries, 'keeps implementation references bounded to relevant surfaces'],
-  ]
-}
-
-const buildOpenQuestions = (args: {
-  artifact: string
-  topics: string[]
-  namedTerms: string[]
-  requestedSections: ReturnType<typeof analyzeKgcRequest>['requestedSections']
-  signals: ReturnType<typeof analyzeKgcRequest>['signals']
-  outputFile: string
-  defaultOutputTarget: string
-}): Array<{ id: string; question: string; status: string }> => {
-  const artifact = args.artifact || 'the deliverable'
-  if (args.signals.creativeScript) {
-    const creativeQuestions = [
-      `Which review criteria determine whether ${artifact} is clear, original, and complete enough to persist?`,
-      args.outputFile
-        ? `Should the final body optimize for the target handoff file \`${args.outputFile}\` or stay generic across script destinations?`
-        : `Should the final body optimize for the companion output file \`${args.defaultOutputTarget}\` or stay generic across creative handoff surfaces?`,
-      args.signals.trademarkAvoidance
-        ? 'Which tone or atmosphere cues are allowed while still avoiding direct trademark, franchise, or character references?'
-        : 'Which tone or atmosphere cues should remain explicit instead of being inferred?',
-      'Which sections should stay compact versus cinematic if the script needs another generation pass?',
-    ]
-    return creativeQuestions.map((question, index) => ({
-      id: `OQ-0${index + 1}`,
-      question,
-      status: index === 0 ? '`#D85A30:blocking`' : 'medium',
-    }))
-  }
-  const questions = [
-    `Which acceptance criteria determine whether ${artifact} is complete enough to persist without another validation pass?`,
-    args.namedTerms.length
-      ? `Which named integrations or surfaces must remain explicit in the final response: ${args.namedTerms.join(', ')}?`
-      : args.topics.length
-      ? `Which topic constraints must remain explicit in the final response: ${args.topics.join(', ')}?`
-      : 'Which context constraints must remain explicit in the final response instead of being inferred?',
-    args.requestedSections.integrations
-      ? args.signals.swipe
-        ? 'Which integrations are required at generation time versus documented later, especially OpenClaw discovery, Swipe checkout, RxDB state, and MapLibre presentation?'
-        : 'Which integrations are required at generation time versus documented as later implementation work?'
-      : 'Which dependencies belong in the current answer versus a later implementation phase?',
-    args.requestedSections.monetization
-      ? args.signals.swipe
-        ? 'Which user action should trigger Swipe checkout, and what entitlement or fulfillment should follow payment completion?'
-        : 'Which monetization or conversion decision points are requirements versus open evaluation items?'
-      : 'Which delivery and ownership decisions still need confirmation before downstream automation runs?',
-  ]
-  return questions.map((question, index) => ({
-    id: `OQ-0${index + 1}`,
-    question,
-    status: index === 0 ? '`#D85A30:blocking`' : 'medium',
-  }))
-}
-
 const buildDocumentLead = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   const focus = [
     profile.signals.mcp ? 'delivery packaging' : '',
@@ -326,7 +250,8 @@ const buildDocumentLead = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.signals.swipe || profile.signals.payments ? 'checkout transitions' : '',
     profile.signals.rxdb || profile.signals.maplibre ? 'implementation boundaries' : '',
   ].filter(Boolean)
-  return `> This document packages \`{{artifact}}\` for \`{{subject}}\` around the active request. Shared terms stay aligned through frontmatter, while the body stays focused on ${focus.join(', ') || 'the active request'} instead of generic template narration.`
+  const namedTerms = buildNamedTermSummary(profile)
+  return `> This document packages \`{{artifact}}\` for \`{{subject}}\` around the active request. Shared terms stay aligned through frontmatter, while the body stays focused on ${focus.join(', ') || namedTerms || 'the active request'} instead of generic template narration.`
 }
 
 const buildComputingFlowIntro = (requestSummary: string): string => {
@@ -357,7 +282,11 @@ const buildBody = (args: {
   const owner = fallbackOwner(args.profile.owner)
   const defaultOutputTarget = deriveOutputTargetFileName(args.fileName)
   const variableLinkRows = buildVariableLinkRows(args.profile)
-  const snapshotRows = buildSnapshotRows(args.profile, args.fileName)
+  const snapshotRows = buildSnapshotRows({
+    profile: args.profile,
+    outputTarget: args.profile.outputFile || defaultOutputTarget,
+    objectiveSummary,
+  })
   const usePlanningScaffold = Boolean(
     args.profile.requestedSections.useCase ||
     args.profile.requestedSections.problem ||
@@ -586,9 +515,7 @@ const buildBody = (args: {
         '',
         '| Focus | Constraint | Why it matters |',
         '|---|---|---|',
-        '| Originality | Keep the draft distinct from named source properties | preserves safety and usefulness |',
-        `| Shared terms | Reuse \`{{artifact}}\`, \`{{subject}}\`, and \`{{objective}}\` from frontmatter | keeps body and YAML aligned |`,
-        '| Persistence | Store only validated output | keeps retries bounded and artifacts reusable |',
+        ...buildGuardrailRows(args.profile).map(row => `| ${row[0]} | ${row[1]} | ${row[2]} |`),
       ]),
     '',
     '## TAD — Technical Architecture',
@@ -604,11 +531,13 @@ const buildBody = (args: {
     '### Compute Inline Mapping Spec',
     '',
     '```yaml',
-    'compute: {key: compute, type: function, value: |',
-    '  (inputs) => ({',
-    '    result: transform(inputs.upstream_handle)',
-    '  })',
-    '}',
+    'compute:',
+    '  key: compute',
+    '  type: function',
+    '  value: |',
+    '    (inputs) => ({',
+    '      result: transform(inputs.upstream_handle)',
+    '    })',
     '```',
     '',
     '| Field | Type | Rule |',
@@ -754,6 +683,7 @@ const buildRequiredSectionLabels = (profile: ReturnType<typeof analyzeKgcRequest
 
 const buildFrontmatterContextSummary = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   return sanitizeScalar([
+    buildNamedTermSummary(profile),
     profile.signals.mcp ? 'MCP distribution' : '',
     profile.signals.externalUsers ? 'external users' : '',
     profile.signals.openClaw ? 'OpenClaw marketplace' : (profile.signals.marketplace ? 'skills marketplace' : ''),
@@ -769,6 +699,7 @@ const buildFrontmatterContextSummary = (profile: ReturnType<typeof analyzeKgcReq
 const buildFrontmatterValidationFocus = (profile: ReturnType<typeof analyzeKgcRequest>): string[] => {
   return [
     ...buildRequiredSectionLabels(profile),
+    profile.namedTerms.length > 0 ? 'named request term coverage' : '',
     profile.signals.openClaw ? 'OpenClaw discovery path' : '',
     profile.signals.swipe ? 'Swipe payment trigger and fulfillment' : '',
     profile.signals.subscriptions ? 'subscription entitlement logic' : '',
@@ -1080,15 +1011,15 @@ const buildFrontmatter = (args: {
     '      confidence:    {key: confidence,    type: string,   value: "high"}',
     '      status:        {key: status,        type: string,   value: "TBD"}',
     '      kanban:        {key: kanban,        type: string,   value: "TBD"}',
-    '      compute:       {key: compute,       type: function, value: |',
-    '        (inputs) => ({',
-    '          signal: {',
-    '            scope:   inputs.__selected_scope  ?? null,',
-    '            fm:      inputs.__frontmatter     ?? {},',
-    '            summary: inputs.__context_summary ?? ""',
-    '          }',
-    '        })',
-    '      }',
+    ...typedBlockScalarEnvelopeLines('      ', 'compute', 'function', [
+      '(inputs) => ({',
+      '  signal: {',
+      '    scope:   inputs.__selected_scope  ?? null,',
+      '    fm:      inputs.__frontmatter     ?? {},',
+      '    summary: inputs.__context_summary ?? ""',
+      '  }',
+      '})',
+    ]),
     '    - id:            {key: id,            type: string,   value: "n-pack"}',
     '      type:          {key: type,          type: string,   value: "default"}',
     '      label:         {key: label,         type: string,   value: "S02 · packContext()"}',
@@ -1102,15 +1033,15 @@ const buildFrontmatter = (args: {
     '      confidence:    {key: confidence,    type: string,   value: "high"}',
     '      status:        {key: status,        type: string,   value: "TBD"}',
     '      kanban:        {key: kanban,        type: string,   value: "TBD"}',
-    '      compute:       {key: compute,       type: function, value: |',
-    '        (inputs) => ({',
-    '          context: inputs.signal ? {',
-    '            selected_scope:  inputs.signal.scope,',
-    '            frontmatter:     inputs.signal.fm,',
-    '            context_summary: inputs.signal.summary',
-    '          } : null',
-    '        })',
-    '      }',
+    ...typedBlockScalarEnvelopeLines('      ', 'compute', 'function', [
+      '(inputs) => ({',
+      '  context: inputs.signal ? {',
+      '    selected_scope:  inputs.signal.scope,',
+      '    frontmatter:     inputs.signal.fm,',
+      '    context_summary: inputs.signal.summary',
+      '  } : null',
+      '})',
+    ]),
     '    - id:            {key: id,            type: string,   value: "n-process"}',
     '      type:          {key: type,          type: string,   value: "default"}',
     '      label:         {key: label,         type: string,   value: "S03 · generateArtifact()"}',
@@ -1124,16 +1055,16 @@ const buildFrontmatter = (args: {
     '      confidence:    {key: confidence,    type: string,   value: "high"}',
     '      status:        {key: status,        type: string,   value: "TBD"}',
     '      kanban:        {key: kanban,        type: string,   value: "TBD"}',
-    '      compute:       {key: compute,       type: function, value: |',
-    '        async (inputs) => ({',
-    '          md: inputs.context',
-    '            ? await callAnthropicAPI({',
-    '                ...inputs.context,',
-    '                correction: inputs.correction ?? null',
-    '              })',
-    '            : null',
-    '        })',
-    '      }',
+    ...typedBlockScalarEnvelopeLines('      ', 'compute', 'function', [
+      'async (inputs) => ({',
+      '  md: inputs.context',
+      '    ? await callAnthropicAPI({',
+      '        ...inputs.context,',
+      '        correction: inputs.correction ?? null',
+      '      })',
+      '    : null',
+      '})',
+    ]),
     '    - id:            {key: id,            type: string,   value: "n-validate"}',
     '      type:          {key: type,          type: string,   value: "default"}',
     '      label:         {key: label,         type: string,   value: "S04 · validateArtifact()"}',
@@ -1147,15 +1078,15 @@ const buildFrontmatter = (args: {
     '      confidence:    {key: confidence,    type: string,   value: "high"}',
     '      status:        {key: status,        type: string,   value: "TBD"}',
     '      kanban:        {key: kanban,        type: string,   value: "TBD"}',
-    '      compute:       {key: compute,       type: function, value: |',
-    '        (inputs) => {',
-    '          const result = runValidation(inputs.md);',
-    '          return {',
-    '            valid_md:   result.ok ? inputs.md    : null,',
-    '            correction: result.ok ? null : result.errors',
-    '          };',
-    '        }',
-    '      }',
+    ...typedBlockScalarEnvelopeLines('      ', 'compute', 'function', [
+      '(inputs) => {',
+      '  const result = runValidation(inputs.md);',
+      '  return {',
+      '    valid_md:   result.ok ? inputs.md    : null,',
+      '    correction: result.ok ? null : result.errors',
+      '  };',
+      '}',
+    ]),
     '    - id:            {key: id,            type: string,   value: "n-deliver"}',
     '      type:          {key: type,          type: string,   value: "output"}',
     '      label:         {key: label,         type: string,   value: "S05 · deliverArtifact()"}',
@@ -1169,13 +1100,17 @@ const buildFrontmatter = (args: {
     '      confidence:    {key: confidence,    type: string,   value: "high"}',
     '      status:        {key: status,        type: string,   value: "TBD"}',
     '      kanban:        {key: kanban,        type: string,   value: "TBD"}',
-    '      compute:       {key: compute,       type: function, value: |',
-    '        (inputs) => ({',
-    '          rendered: inputs.valid_md',
-    '            ? deliverArtifact(inputs.valid_md)',
-    '            : null',
-    '        })',
-    '      }\n  subgraphs:\n    - {id: sg-p1, kind: subgraph, label: "Context Packaging", memberNodeIds: [n-trigger, n-pack], parentId: null}\n    - {id: sg-p2, kind: subgraph, label: "Generate + Validate", memberNodeIds: [n-process, n-validate], parentId: null}\n    - {id: sg-p3, kind: subgraph, label: "Deliver + Persist", memberNodeIds: [n-deliver], parentId: null}',
+    ...typedBlockScalarEnvelopeLines('      ', 'compute', 'function', [
+      '(inputs) => ({',
+      '  rendered: inputs.valid_md',
+      '    ? deliverArtifact(inputs.valid_md)',
+      '    : null',
+      '})',
+    ]),
+    '  subgraphs:',
+    '    - {id: sg-p1, kind: subgraph, label: "Context Packaging", memberNodeIds: [n-trigger, n-pack], parentId: null}',
+    '    - {id: sg-p2, kind: subgraph, label: "Generate + Validate", memberNodeIds: [n-process, n-validate], parentId: null}',
+    '    - {id: sg-p3, kind: subgraph, label: "Deliver + Persist", memberNodeIds: [n-deliver], parentId: null}',
     '  edges:',
     '    - {id: e1, source: n-trigger,  sourceHandle: signal,     target: n-pack,     targetHandle: signal,     label: "signal",             animated: true}',
     '    - {id: e2, source: n-pack,     sourceHandle: context,    target: n-process,  targetHandle: context,    label: "context",            animated: true}',

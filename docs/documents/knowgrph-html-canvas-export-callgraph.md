@@ -3,7 +3,7 @@
 This document is a file → function call graph of the **exact data flow** for:
 
 - Editor workspace → Export → HTML Canvas (`.canvas-2d.html`)
-- Sandbox CLI export (`sandbox/export-canvas-html.ts`) used for fixtures
+- Standalone export CLI (`src/cli/export-canvas-html.ts`) used for fixtures
 
 ## 1. Data Flow (Workspace Export)
 
@@ -37,7 +37,7 @@ flowchart TD
 - **Visual parity**: `applyGraphCanvasStyles2d` is applied to the SVG DOM before serialization, so exported strokes/colors/animations match live 2D.
 - **Standalone correctness**: `rewriteSvgMarkupForStandaloneHtmlExport` resolves proxy URLs and inlines bounded repo-file media.
 
-## 2. Data Flow (Sandbox CLI Export)
+## 2. Data Flow (Standalone CLI Export)
 
 ```mermaid
 flowchart TD
@@ -48,7 +48,7 @@ flowchart TD
   C --> E[renderGraphCanvasSvgForHtmlExport\nhtmlCanvasSvgExport.ts]
   D1 --> E
   E --> F[normalizeInteractiveSvgForHtmlViewer\nnormalizeInteractiveSvg.ts]
-  F --> G[inlineMissingEdgeGeometry\nexport-canvas-html.ts]
+  F --> G[inlineMissingEdgeGeometry\nsrc/cli/export-canvas-html.ts]
   G --> H[buildGraphHtmlViewerMarkup\ngraphHtmlViewer.ts]
   H --> I[Write output HTML\nfs.writeFile]
 ```
@@ -74,4 +74,4 @@ flowchart TD
 - Markdown block SVG overlay injector: [markdownDesignSvgOverlay.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/htmlViewer/markdownDesignSvgOverlay.ts)
 - Standalone SVG rewrite: [rewriteSvgMarkupForStandaloneHtmlExport.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport.ts)
 - HTML viewer builder: [graphHtmlViewer.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/graphHtmlViewer.ts)
-- Sandbox exporter: [export-canvas-html.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/sandbox/export-canvas-html.ts)
+- Standalone export CLI: [export-canvas-html.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/cli/export-canvas-html.ts)

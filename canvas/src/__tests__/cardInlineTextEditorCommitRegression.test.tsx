@@ -44,6 +44,15 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
   }
 }
 
+export function testCardInlineTextEditorAvoidsRuntimeFocusPolyfill() {
+  const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
+  for (const fragment of ['attach' + 'Event', 'detach' + 'Event']) {
+    if (cardInlineEditor.includes(fragment)) {
+      throw new Error(`expected CardInlineTextEditor to avoid runtime focus polyfill fragment: ${fragment}`)
+    }
+  }
+}
+
 export async function testCardInlineTextEditorAllowsSharedClickActivation() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')

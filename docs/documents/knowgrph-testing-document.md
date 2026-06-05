@@ -260,7 +260,6 @@ testEdaMlpInterviewSessionMarkdownProducesMermaidAnchorsAndInternalLinks(markdow
 |------------------------------------|----------------------------------------------|--------------------------------------------------|
 | `KNOWGRPH_EDA_MLP_INTERVIEW_MD_PATH` | Interview markdown fixture path            | `../data/test-data/eda-mlp-interview-session.fixture.md` |
 | `KNOWGRPH_TEST_DATA_DIR`           | Root directory for test fixtures             | `../data/test-data`                              |
-| `KNOWGRPH_MERMAID_FIXTURE_PATH`    | Mermaid frontmatter test fixture             | `../data/test-data/mermaid-frontmatter.fixture.md` |
 
 **Structural vs Content Assertions**:
 

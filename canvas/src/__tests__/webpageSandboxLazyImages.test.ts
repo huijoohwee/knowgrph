@@ -1,43 +1,45 @@
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
 
+const formatHintImageUrl = 'https://assets.example/images/640?asset_fmt=png'
+
 export async function testWebpageSandboxPromotesLazyImageDataSrc() {
   const raw = [
     '<!doctype html>',
     '<html><head><meta charset="utf-8"></head><body>',
     '<h1>Hello</h1>',
-    '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-src="https://mmbiz.qpic.cn/sz_mmbiz_png/test/640?wx_fmt=png" />',
+    `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-src="${formatHintImageUrl}" />`,
     '</body></html>',
   ].join('')
 
-  const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://mp.weixin.qq.com/s/test', scriptPolicy: 'strip' })
-  if (!out.includes('src="/__webpage_asset_path/https%3A%2F%2Fmmbiz.qpic.cn/sz_mmbiz_png/test/640?wx_fmt=png"')) {
+  const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://example.com/page', scriptPolicy: 'strip' })
+  if (!out.includes('src="/__webpage_asset_path/https%3A%2F%2Fassets.example/images/640?asset_fmt=png"')) {
     throw new Error('expected promoted img src to appear in sandbox html')
   }
 }
 
-export async function testWebpageSandboxProxiesWeChatImgSrc() {
+export async function testWebpageSandboxProxiesFormatHintImgSrc() {
   const raw = [
     '<!doctype html>',
     '<html><head><meta charset="utf-8"></head><body>',
-    '<img src="https://mmbiz.qpic.cn/sz_mmbiz_png/test/640?wx_fmt=png" />',
+    `<img src="${formatHintImageUrl}" />`,
     '</body></html>',
   ].join('')
-  const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://mp.weixin.qq.com/s/test', scriptPolicy: 'strip' })
-  if (!out.includes('/__webpage_asset_path/https%3A%2F%2Fmmbiz.qpic.cn/sz_mmbiz_png/test/640?wx_fmt=png')) {
-    throw new Error('expected wechat image src to be rewritten to asset proxy')
+  const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://example.com/page', scriptPolicy: 'strip' })
+  if (!out.includes('/__webpage_asset_path/https%3A%2F%2Fassets.example/images/640?asset_fmt=png')) {
+    throw new Error('expected format-hinted image src to be rewritten to asset-path proxy')
   }
 }
 
-export async function testWebpageSandboxInjectsWeChatUnhideStyle() {
+export async function testWebpageSandboxRevealsHiddenContentRoot() {
   const raw = [
     '<!doctype html>',
     '<html><head><meta charset="utf-8"></head><body>',
     '<section class="rich_media_content" id="js_content" style="opacity:0;visibility:hidden">X</section>',
     '</body></html>',
   ].join('')
-  const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://mp.weixin.qq.com/s/test', scriptPolicy: 'strip' })
-  if (!out.includes('data-kg-wechat-unhide="1"')) {
-    throw new Error('expected wechat unhide style to be injected')
+  const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://example.com/page', scriptPolicy: 'strip' })
+  if (!out.includes('data-kg-content-unhide="1"')) {
+    throw new Error('expected hidden content unhide style to be injected')
   }
 }
 
@@ -49,11 +51,11 @@ export async function testWebpageSandboxAbsolutizesLocalProxyUrlsInsteadOfChangi
     const raw = [
       '<!doctype html>',
       '<html><head><meta charset="utf-8"></head><body>',
-      '<img src="https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png" />',
+      `<img src="${formatHintImageUrl}" />`,
       '</body></html>',
     ].join('')
-    const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://mp.weixin.qq.com/s/test', scriptPolicy: 'strip' })
-    if (!out.includes('<base href="https://mp.weixin.qq.com/s/test">')) {
+    const out = buildWebpageHtmlSrcdoc({ html: raw, baseHref: 'https://example.com/page', scriptPolicy: 'strip' })
+    if (!out.includes('<base href="https://example.com/page">')) {
       throw new Error('expected sandbox base href to remain the source url')
     }
     if (!out.includes('src="http://localhost:1234/__webpage_asset_path/')) {

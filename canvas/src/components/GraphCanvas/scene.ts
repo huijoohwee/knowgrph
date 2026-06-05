@@ -45,6 +45,7 @@ import {
 } from '@/components/GraphCanvas/userInteractionFlag'
 import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
 import { resolveContextualZoomDetail } from '@/lib/zoom/viewport'
+import { readGraphElementCenterPoint } from '@/lib/canvas/graph-elements/centroid'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -267,6 +268,76 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       next,
     )
   }
+  const readViewportFitNodes = (): GraphNode[] => {
+    try {
+      const mountedNodes = nodesSelRef.current?.data()
+      if (Array.isArray(mountedNodes) && mountedNodes.length > 0) return mountedNodes as GraphNode[]
+    } catch {
+      void 0
+    }
+    return displayNodes
+  }
+  const buildViewportFitNodesPositionSignature = (nodes: GraphNode[]): string => {
+    if (!Array.isArray(nodes) || nodes.length === 0) return '0'
+    const parts: string[] = [String(nodes.length)]
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const xy = readGraphElementCenterPoint(n)
+      if (!xy) {
+        parts.push(String(n?.id || ''), '', '')
+        continue
+      }
+      parts.push(
+        String(n.id || ''),
+        String(Math.round(xy.x * 10) / 10),
+        String(Math.round(xy.y * 10) / 10),
+      )
+    }
+    return parts.join('|')
+  }
+  let postInitialFitRafId: number | null = null
+  let postInitialFitTimerId: ReturnType<typeof setTimeout> | null = null
+  let postInitialFitChecks = 0
+  let postInitialFitStableChecks = 0
+  let postInitialFitLastSignature = ''
+  const cancelPostInitialFitToScreenTransform = () => {
+    if (postInitialFitRafId != null) {
+      cancelAnimationFrame(postInitialFitRafId)
+      postInitialFitRafId = null
+    }
+    if (postInitialFitTimerId != null) {
+      clearTimeout(postInitialFitTimerId)
+      postInitialFitTimerId = null
+    }
+  }
+  const schedulePostInitialFitToScreenTransform = () => {
+    if (initialZoomTransform) return
+    if (!fitToScreenMode) return
+    if (postInitialFitRafId != null) return
+    if (postInitialFitTimerId != null) return
+    const run = () => {
+      postInitialFitTimerId = null
+      postInitialFitRafId = requestAnimationFrame(() => {
+        postInitialFitRafId = null
+        if (!active()) return
+        if (hasGraphCanvasUserInteracted(svgEl)) return
+        const fitNodes = readViewportFitNodes()
+        const signature = buildViewportFitNodesPositionSignature(fitNodes)
+        if (signature === postInitialFitLastSignature) {
+          postInitialFitStableChecks += 1
+        } else {
+          postInitialFitStableChecks = 0
+          postInitialFitLastSignature = signature
+        }
+        postInitialFitChecks += 1
+        applyInitialTransform(computeViewportFitTransform('fitToScreen'))
+        if (postInitialFitStableChecks >= 4 || postInitialFitChecks >= 24) return
+        const delayMs = postInitialFitChecks < 10 ? 160 : 400
+        postInitialFitTimerId = setTimeout(run, delayMs)
+      })
+    }
+    postInitialFitTimerId = setTimeout(run, 0)
+  }
 
   const computeAutoCenterTransform = (): { k: number; x: number; y: number } | null => {
     if (initialZoomTransform) return null
@@ -276,7 +347,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       return { k: 1, x: width / 2, y: height / 2 }
     }
 
-    const nodes = displayNodes
+    const nodes = readViewportFitNodes()
     if (!nodes || nodes.length === 0) return null
     let minX = Number.POSITIVE_INFINITY
     let maxX = Number.NEGATIVE_INFINITY
@@ -304,11 +375,12 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     return { k: 1, x, y }
   }
 
-  const computeInitialViewportFitTransform = (): { k: number; x: number; y: number } | null => {
-    if (initialZoomTransform) return null
-    const nodes = displayNodes
+  const computeViewportFitTransform = (intent: 'initialFit' | 'fitToScreen'): { k: number; x: number; y: number } | null => {
+    const nodes = readViewportFitNodes()
     if (!nodes || nodes.length === 0) return null
-    const intent = fitToScreenMode ? 'fitToScreen' : 'initialFit'
+    const fitGraphData = nodes === displayNodes
+      ? graphDataForDisplay
+      : { ...graphDataForDisplay, nodes }
     const schemaValue = getSchema()
     const mode = readLayoutMode(schemaValue)
     const fillRatioOverride = (() => {
@@ -323,7 +395,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     const opts = {
       ...baseOpts,
       centerMode: 'centroid' as const,
-      graphData: graphDataForDisplay,
+      graphData: fitGraphData,
       deriveGroupsOptions: { forceDocumentStructure },
     }
     const t = fitAllTransform(nodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
@@ -332,6 +404,11 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     const y = typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0
     if (!Number.isFinite(k) || !Number.isFinite(x) || !Number.isFinite(y)) return null
     return { k, x, y }
+  }
+
+  const computeInitialViewportFitTransform = (): { k: number; x: number; y: number } | null => {
+    if (initialZoomTransform) return null
+    return computeViewportFitTransform(fitToScreenMode ? 'fitToScreen' : 'initialFit')
   }
 
   const layoutPositionsSource = (() => {
@@ -551,6 +628,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyInitialTransform(initialZoomTransform)
   } else {
     applyInitialTransform(computeInitialViewportFitTransform() || computeAutoCenterTransform())
+    schedulePostInitialFitToScreenTransform()
   }
 
   if (args.freezeSimulation === true) {
@@ -802,6 +880,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       }
       svg.attr('data-kg-layout-frozen', '1')
       storeLayoutPositions()
+      if (!initialZoomTransform && !hasGraphCanvasUserInteracted(svgEl)) {
+        applyInitialTransform(computeViewportFitTransform(fitToScreenMode ? 'fitToScreen' : 'initialFit'))
+      }
       finalFitApplied = true
     },
   })
@@ -852,6 +933,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
 
   return () => {
+    cancelPostInitialFitToScreenTransform()
     const any = svgEl as unknown as { __kgViewportControllerDestroy?: (() => void) | null; __kgWindowGestureDestroy?: (() => void) | null }
     if (typeof any.__kgViewportControllerDestroy === 'function') {
       try {

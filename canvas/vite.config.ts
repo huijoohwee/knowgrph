@@ -48,13 +48,13 @@ const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 const resolvedThreeSrc = nodeRequire.resolve('three/src/Three.js')
 const resolvedD3Entry = nodeRequire.resolve('d3')
-const resolvedMaplibreEntry = path.resolve(__dirname, 'node_modules/maplibre-gl/src/index.ts')
+const resolvedMaplibreEntry = nodeRequire.resolve('maplibre-gl/src/index.ts')
 const resolvedZustandCompatEntry = path.resolve(__dirname, 'src/lib/vendor/zustandCompat.ts')
 const resolvedGympgrphSrc = path.resolve(__dirname, '../gympgrph/src/index.ts')
 const resolvedGympgrphMapPreviewSrc = path.resolve(__dirname, '../gympgrph/src/mapPreview.ts')
 const resolvedGympgrphTestkitSrc = path.resolve(__dirname, '../gympgrph/src/testkit.ts')
 const MARKDOWN_PIPELINE_INPUT_REL_PATH = String(process.env.VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH || '').trim() || 'docs/knowgrph-pipeline-document.md'
-const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
+const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/outputs/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
@@ -1792,11 +1792,20 @@ function createChatLogAppendHandler(): import('vite').Connect.NextHandleFunction
 }
 
 function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
-  const writeJson = (res: import('node:http').ServerResponse, status: number, payload: unknown) => {
+  const canWriteChatProxyResponse = (res: import('node:http').ServerResponse): boolean => (
+    !res.destroyed && !res.writableEnded
+  )
+  const writeJson = (res: import('node:http').ServerResponse, status: number, payload: unknown): boolean => {
+    if (!canWriteChatProxyResponse(res)) return false
+    if (res.headersSent) {
+      res.end()
+      return false
+    }
     res.statusCode = status
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.setHeader('Cache-Control', 'no-store')
     res.end(JSON.stringify(payload))
+    return true
   }
   const parseSseFrames = (buffer: string): { frames: Array<{ event: string; data: string }>; rest: string } => {
     const lines = buffer.split(/\r?\n/)
@@ -2334,6 +2343,11 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       res.end()
     } catch (error) {
+      if (!canWriteChatProxyResponse(res)) return
+      if (res.headersSent) {
+        res.end()
+        return
+      }
       const message =
         error && typeof error === 'object' && 'message' in error
           ? String((error as { message?: unknown }).message || '')
@@ -5978,6 +5992,11 @@ function applyWorkspaceInitializationDocsAbsRootDefault(command: string): void {
 
 export default defineConfig(({ command }) => {
   applyWorkspaceInitializationDocsAbsRootDefault(command)
+  const grphSharedAliasRoot = path.resolve(
+    __dirname,
+    command === 'serve' ? '../grph-shared/src' : '../grph-shared/dist',
+  )
+  const grphSharedAliasSuffix = command === 'serve' ? '' : '.js'
   return {
   cacheDir: resolveViteCacheDir(command),
   base: command === 'build'
@@ -6059,8 +6078,7 @@ export default defineConfig(({ command }) => {
                   moduleId.includes('/node_modules/markdown-it-anchor/') ||
                   moduleId.includes('/node_modules/markdown-it-footnote/') ||
                   moduleId.includes('/node_modules/markdown-it-mark/') ||
-                  moduleId.includes('/node_modules/markdown-it-sub/') ||
-                  moduleId.includes('/node_modules/markdown-it-sup/')
+                  moduleId.includes('/node_modules/markdown-it-sub/')
                 ) {
                   return 'markdown-it'
                 }
@@ -6110,27 +6128,8 @@ export default defineConfig(({ command }) => {
       { find: /^gympgrph\/testkit$/, replacement: resolvedGympgrphTestkitSrc },
       {
         find: /^grph-shared\/(.*)$/,
-        replacement: path.resolve(__dirname, '../grph-shared/dist/$1.js'),
-      },
-      {
-        find: /^grph-shared\/markdown\/mermaidBlocks$/,
-        replacement: path.resolve(__dirname, '../grph-shared/dist/markdown/mermaidBlocks.js'),
-      },
-      {
-        find: /^grph-shared\/markdown\/documentPath$/,
-        replacement: path.resolve(__dirname, '../grph-shared/dist/markdown/documentPath.js'),
-      },
-      {
-        find: /^grph-shared\/ui\/panelTypography$/,
-        replacement: path.resolve(__dirname, '../grph-shared/dist/ui/panelTypography.js'),
-      },
-      {
-        find: /^grph-shared\/ui\/tailwindTextSize$/,
-        replacement: path.resolve(__dirname, '../grph-shared/dist/ui/tailwindTextSize.js'),
-      },
-      {
-        find: /^grph-shared\/collision\/boxCollision$/,
-        replacement: path.resolve(__dirname, '../grph-shared/dist/collision/boxCollision.js'),
+        // Dev serves shared source directly so Vite does not break when generated dist files are cleaned.
+        replacement: path.resolve(grphSharedAliasRoot, `$1${grphSharedAliasSuffix}`),
       },
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ]
@@ -6154,7 +6153,6 @@ export default defineConfig(({ command }) => {
         path.resolve(__dirname, '..'),
         path.resolve(__dirname, '../..'),
         path.resolve(__dirname, '../../grph'),
-        path.resolve(__dirname, '../../sandbox'),
       ]
     }
   },

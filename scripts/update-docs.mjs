@@ -52,7 +52,7 @@ const workflowPreviewDocuments = [
   'docs/documents/knowgrph-testing-document.md',
 ]
 
-const workflowPreviewOutputDir = 'data/knowgrph-workflow-preview'
+const workflowPreviewOutputDir = 'data/outputs/knowgrph-workflow-preview'
 
 const run = (command, commandArgs, label) => {
   console.log(`[docs:update] ${label}`)

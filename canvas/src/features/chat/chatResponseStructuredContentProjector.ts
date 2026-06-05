@@ -166,6 +166,102 @@ const insertBeforeMarker = (frontmatter: string, marker: string, lines: string[]
   return frontmatter.replace(marker, `\n${lines.join('\n')}${marker}`)
 }
 
+const STRUCTURED_FRONTMATTER_FIELD_ORDER = [
+  'kgCanvasSurfaceMode',
+  'kgCanvasRenderMode',
+  'kgCanvas3dMode',
+  'kgCanvas2dRenderer',
+  'kgDocumentSemanticMode',
+  'kgFrontmatterModeEnabled',
+  'kgMultiDimTableModeEnabled',
+  'kgDocumentStructureBaselineLock',
+  'flow_diagrams',
+  'kgAssetType',
+  'kgAssetFormat',
+  'kgAssetName',
+  'kgAssetMimeType',
+  'kgAssetDataUrl',
+  'kgAssetUrl',
+  'kgAssetPendingLocalImport',
+  'kgAssetPendingLocalPath',
+  'kgAssetBytes',
+  'kgAssetValidGlbMagic',
+  'kgAssetValidGlbContainer',
+  'kgAssetValidGlbChunkOrder',
+  'kgAssetValidGlbChunkAlignment',
+  'kgAssetValidGlbJsonPadding',
+  'kgAssetValidGlbBinPadding',
+  'kgAssetValidGlbBinReference',
+  'kgAssetValidGltfJson',
+  'kgAssetValidGltfAsset',
+  'kgAssetGltfVersion',
+  'kgAssetExternalResourceCount',
+  'kgAssetEmbeddedResourceCount',
+  'kgAssetGlbJsonChunkBytes',
+  'kgAssetGlbBinChunkBytes',
+  'kgAssetGlbUnknownChunkCount',
+] as const
+
+const structuredFrontmatterSortIndex = (key: string): number => {
+  const index = (STRUCTURED_FRONTMATTER_FIELD_ORDER as readonly string[]).indexOf(key)
+  return index >= 0 ? index : STRUCTURED_FRONTMATTER_FIELD_ORDER.length
+}
+
+const replaceTopLevelFrontmatterScalar = (frontmatter: string, key: string, value: JSONValue): {
+  next: string
+  replaced: boolean
+} => {
+  const line = `${yamlKey(key)}: ${yamlValue(value)}`
+  const rx = new RegExp(`(^${escapeRegExp(key)}\\s*:\\s*).*$`, 'm')
+  if (!rx.test(frontmatter)) return { next: frontmatter, replaced: false }
+  return { next: frontmatter.replace(rx, line), replaced: true }
+}
+
+const isBlockFrontmatterValue = (value: JSONValue): boolean =>
+  typeof value === 'object' && value !== null
+
+const findTopLevelFrontmatterKeyIndex = (lines: string[], key: string): number => {
+  const escaped = escapeRegExp(key)
+  const rx = new RegExp(`^\\s{0}["']?${escaped}["']?\\s*:`)
+  return lines.findIndex(line => rx.test(line || ''))
+}
+
+const replaceTopLevelFrontmatterBlock = (frontmatter: string, key: string, value: JSONValue): {
+  next: string
+  replaced: boolean
+} => {
+  const lines = String(frontmatter || '').replace(/\r\n/g, '\n').split('\n')
+  const index = findTopLevelFrontmatterKeyIndex(lines, key)
+  if (index < 0) return { next: frontmatter, replaced: false }
+  const end = findYamlSectionEnd(lines, index, 0)
+  lines.splice(index, end - index, ...dumpYamlLines({ [key]: value }))
+  return { next: lines.join('\n'), replaced: true }
+}
+
+const upsertStructuredFrontmatterFields = (frontmatter: string, fields: Record<string, JSONValue> | null | undefined): string => {
+  const entries = Object.entries(fields || {})
+    .filter(([key, value]) => key && typeof value !== 'undefined')
+    .sort(([a], [b]) => structuredFrontmatterSortIndex(a) - structuredFrontmatterSortIndex(b) || a.localeCompare(b))
+  if (entries.length === 0) return frontmatter
+
+  let next = frontmatter
+  const missingLines: string[] = []
+  for (const [key, value] of entries) {
+    const replaced = isBlockFrontmatterValue(value)
+      ? replaceTopLevelFrontmatterBlock(next, key, value)
+      : replaceTopLevelFrontmatterScalar(next, key, value)
+    next = replaced.next
+    if (!replaced.replaced) {
+      if (isBlockFrontmatterValue(value)) missingLines.push(...dumpYamlLines({ [key]: value }))
+      else missingLines.push(`${yamlKey(key)}: ${yamlValue(value)}`)
+    }
+  }
+  if (missingLines.length === 0) return next
+  const flowMarker = '\nflow:\n'
+  if (next.includes(flowMarker)) return insertBeforeMarker(next, flowMarker, missingLines)
+  return `${next.trimEnd()}\n${missingLines.join('\n')}`
+}
+
 const insertIntoFlowListBlock = (frontmatter: string, marker: string, lines: string[]): string => {
   if (lines.length === 0) return frontmatter
   const markerIndex = frontmatter.indexOf(marker)
@@ -333,8 +429,10 @@ export const projectChatResponseStructuredSurfaceIntoKgcFrontmatter = (args: {
 }): string => {
   const frontmatter = String(args.frontmatter || '')
   const surface = args.surface || null
-  if (!surface || surface.nodes.length === 0) return frontmatter
-  const frontmatterWithRegistry = upsertWidgetRegistryEntries(frontmatter, surface)
+  if (!surface) return frontmatter
+  const frontmatterWithStructuredFields = upsertStructuredFrontmatterFields(frontmatter, surface.frontmatter)
+  if (surface.nodes.length === 0) return frontmatterWithStructuredFields
+  const frontmatterWithRegistry = upsertWidgetRegistryEntries(frontmatterWithStructuredFields, surface)
   const frontmatterWithWidgetRefs = appendWidgetBundleNodeRefs(frontmatterWithRegistry, surface.nodes.map(node => node.id))
   const projectedNodes = surface.nodes.filter(node => !hasFlowListItemId(frontmatterWithWidgetRefs, node.id))
   const projectedEdges = surface.edges.filter(edge => !hasFlowListItemId(frontmatterWithWidgetRefs, edge.id))

@@ -1057,7 +1057,7 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!viteConfigText.includes("nodeRequire.resolve('three/src/Three.js')")) {
     throw new Error('expected vite config to resolve three through its source barrel so coarse subchunks can split cleanly')
   }
-  if (!viteConfigText.includes("node_modules/maplibre-gl/src/index.ts")) {
+  if (!viteConfigText.includes("nodeRequire.resolve('maplibre-gl/src/index.ts')")) {
     throw new Error('expected vite config to resolve maplibre through its source entry so subchunks can split cleanly')
   }
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'")) {

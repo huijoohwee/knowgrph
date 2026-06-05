@@ -13,7 +13,11 @@ import {
 } from './chatStorageConfig'
 import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
 import { formatReasoningStepSummary } from './FloatingPanelChat.helpers'
-import { extractKgcWorkspaceSessionId, formatKgcWorkspaceSessionId } from './chatHistoryWorkspace.paths'
+import {
+  extractKgcWorkspaceSessionId,
+  formatKgcWorkspaceSessionId,
+  toKgcTraceWorkspacePath,
+} from './chatHistoryWorkspace.paths'
 import { ensureChatWorkspaceMirrorFolder, mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
 import { ensureWorkspaceFolderPathExists, writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
 import {
@@ -21,6 +25,7 @@ import {
   type DereferencedChatStreamArtifact,
 } from './chatStreamArtifactDereference'
 import { buildShareThinkingArtifactDocument } from './shareThinkingArtifact'
+import { mergeKgcTraceSection } from './chatKgcConsolidatedArtifacts'
 
 const REPORT_SHARE_HINT_RX = /\/report\/share\//i
 
@@ -145,8 +150,8 @@ const REQUESTED_SECTION_LABELS: Record<string, string> = {
   integrations: 'Integration',
 }
 
-const GENERIC_WORKSPACE_HEADING_RX = /^(computing flow definition|runner protocol|graph registry|document links|flow graph|pipeline|open questions|customization guide)$/i
-const GENERIC_PREVIEW_LINE_RX = /(this document is the pipeline|machine-readable source of truth|human-readable projection|self-runnable|graph-complete|schema-validated|ssot surfaces|renderers may use this block|dual-layer structure|workspace listings)/i
+const GENERIC_WORKSPACE_HEADING_RX = /^(computing flow definition|runner protocol|graph registry|document links|flow graph|pipeline|open questions|customization guide)\b/i
+const GENERIC_PREVIEW_LINE_RX = /(this document is the pipeline|machine-readable source of truth|human-readable projection|self-runnable|graph-complete|schema-validated|ssot surfaces|renderers may use this block|dual-layer structure|workspace listings|execute .+ logic using bounded graph context|execution:\s*computing-flow|output:\s*"?computed analysis"?|stage:\s*"?execute"?)/i
 const REQUEST_KEYWORD_STOPWORDS = new Set([
   'a', 'an', 'and', 'are', 'be', 'by', 'for', 'from', 'how', 'in', 'into', 'is', 'of', 'on', 'or', 'the', 'to', 'with',
   'should', 'could', 'would', 'please', 'question', 'query', 'output', 'stream', 'report', 'response',
@@ -588,67 +593,17 @@ export const resolveChatStreamArtifactBundle = (args: {
     normalizeChatLocalStorageRootPath(String(args.defaultLocalRootPath || '').trim() || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT),
   )
   const folderPath = normalizeWorkspacePath(`${rootPath === '/' ? '' : rootPath}/${sessionId}`)
+  const tracePath = args.workspacePath ? toKgcTraceWorkspacePath(args.workspacePath) : null
   return {
     sessionId,
     folderPath,
-    streamLogPath: normalizeWorkspacePath(`${folderPath}/chat-stream-log_${sessionId}.md`),
+    streamLogPath: tracePath || normalizeWorkspacePath(`${folderPath}/chat-stream-log_${sessionId}.md`),
     streamReportPath: normalizeWorkspacePath(`${folderPath}/chat-stream-report_${sessionId}.md`),
   }
 }
 
 export const resetChatStreamArtifactBundleForTests = (): void => {
   // Bundle resolution is currently pure; tests still rely on a shared reset hook.
-}
-
-const buildPlaceholderArtifactText = (args: {
-  kind: 'log' | 'report'
-  bundle: ChatStreamArtifactBundle
-  timestampMs: number
-}): string => {
-  const title = args.kind === 'log' ? 'Chat Stream Log' : 'Chat Stream Report'
-  const documentId = `${args.kind}:${args.bundle.sessionId}`
-  const nodes: ArtifactNode[] = [
-    {
-      id: `${documentId}:session`,
-      type: 'story',
-      label: `Chat Session ${args.bundle.sessionId}`,
-      stage: 'Lineage',
-      summary: 'New Chat session artifact bundle prepared in workspace Source Files.',
-      order: 1,
-      tags: ['chat', 'session', args.kind],
-    },
-    {
-      id: `${documentId}:artifact`,
-      type: 'panel',
-      label: title,
-      stage: args.kind === 'log' ? 'Observability' : 'Reports',
-      summary: 'Awaiting stream output.',
-      order: 2,
-    },
-  ]
-  const edges: ArtifactEdge[] = [
-    {
-      id: `${documentId}:session-artifact`,
-      source: `${documentId}:session`,
-      target: `${documentId}:artifact`,
-      label: 'prepares',
-    },
-  ]
-  return [
-    buildArtifactFrontmatter({
-      documentId,
-      documentTitle: `${title} ${args.bundle.sessionId}`,
-      nodes,
-      edges,
-    }),
-    `# ${title}`,
-    '',
-    `- Session: \`${args.bundle.sessionId}\``,
-    `- Created: ${formatReadableUtc(args.timestampMs)}`,
-    '',
-    'Artifact placeholder created by FloatingPanel Chat New Chat.',
-    '',
-  ].join('\n')
 }
 
 export const ensureChatStreamArtifactBundleInitialized = async (args: {
@@ -661,25 +616,6 @@ export const ensureChatStreamArtifactBundleInitialized = async (args: {
   await fs.ensureSeed()
   await ensureWorkspaceFolderPathExists(bundle.folderPath)
   void ensureChatWorkspaceMirrorFolder(bundle.folderPath)
-  const seedTargets = [
-    { path: bundle.streamLogPath, kind: 'log' as const },
-    { path: bundle.streamReportPath, kind: 'report' as const },
-  ]
-  for (const target of seedTargets) {
-    const existing = await fs.readFileText(target.path)
-    if (existing !== null) continue
-    const text = buildPlaceholderArtifactText({
-      kind: target.kind,
-      bundle,
-      timestampMs: args.timestampMs,
-    })
-    await writeWorkspaceFileTextEnsuringFile({ fs, path: target.path, text })
-    void mirrorChatWorkspaceFileToHost({ workspacePath: target.path, text })
-  }
-  await materializeChatStreamArtifactsIntoSourceFiles({
-    createdPaths: seedTargets.map(target => target.path as WorkspacePath),
-    chatLocalStorageRootPath: args.defaultLocalRootPath,
-  })
   return bundle
 }
 
@@ -1201,7 +1137,7 @@ export const renderChatStreamArtifacts = async (args: {
     observedUrls,
     dereferencedArtifacts,
   })
-  const reportCount = Math.max(1, reportUrls.length)
+  const reportCount = reportUrls.length
   const reportDocuments: RenderedChatStreamReport[] = []
   for (let i = 0; i < reportCount; i += 1) {
     const reportPath = toReportPath(bundle, i, reportCount)
@@ -1290,8 +1226,20 @@ export const persistChatStreamArtifacts = async (args: {
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   const rendered = await renderChatStreamArtifacts(args)
-  await writeWorkspaceFileTextEnsuringFile({ fs, path: bundle.streamLogPath, text: rendered.logText })
-  await mirrorChatWorkspaceFileToHost({ workspacePath: bundle.streamLogPath, text: rendered.logText })
+  const tracePath = args.workspacePath ? toKgcTraceWorkspacePath(args.workspacePath) : null
+  if (tracePath && normalizeWorkspacePath(tracePath) === normalizeWorkspacePath(bundle.streamLogPath)) {
+    await mergeKgcTraceSection({
+      fs,
+      workspacePath: args.workspacePath,
+      sectionKey: `stream-log:${args.traceId}`,
+      title: 'Chat Stream Log',
+      text: rendered.logText,
+      fenceLanguage: 'markdown',
+    })
+  } else {
+    await writeWorkspaceFileTextEnsuringFile({ fs, path: bundle.streamLogPath, text: rendered.logText })
+    await mirrorChatWorkspaceFileToHost({ workspacePath: bundle.streamLogPath, text: rendered.logText })
+  }
   const createdArtifactPaths: WorkspacePath[] = [bundle.streamLogPath as WorkspacePath]
   for (const reportDocument of rendered.reportDocuments) {
     await writeWorkspaceFileTextEnsuringFile({ fs, path: reportDocument.path, text: reportDocument.text })

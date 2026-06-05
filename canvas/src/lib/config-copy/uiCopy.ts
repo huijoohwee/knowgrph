@@ -10,6 +10,7 @@ const EMPTY_RESPONSE = 'Empty response'
 const BASELINE_LOCKED_TOAST = 'View Lock is ON. Turn it OFF to drag or edit graph elements.'
 const SELECTION_CLEARED_MODE_TOAST = 'Selection cleared: not available in the target mode.'
 const CANVAS_VIEW_RENDERER_D3_TITLE = '2D Renderer: D3 Graph'
+const CANVAS_VIEW_RENDERER_DASHBOARD_TITLE = '2D Renderer: Dashboard'
 const CANVAS_VIEW_RENDERER_FLOWCHART_TITLE = '2D Renderer: Flowchart'
 const CANVAS_VIEW_RENDERER_GITGRAPH_TITLE = '2D Renderer: GitGraph'
 const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow Canvas'
@@ -19,7 +20,7 @@ const CANVAS_VIEW_RENDERER_STRYBLDR_TITLE = '2D Renderer: Strybldr'
 const CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE = '2D Renderer: Flow Editor'
 const CANVAS_VIEW_RENDERER_DESIGN_TITLE = '2D Renderer: Design'
 const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP =
-  '2D Renderer: switch between D3, Flowchart, GitGraph, Flow Canvas, Animatic, Storyboard, Strybldr, Design, and Flow Editor.'
+  '2D Renderer: switch between D3, Dashboard, Flowchart, GitGraph, Flow Canvas, Animatic, Storyboard, Strybldr, Design, and Flow Editor.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -205,7 +206,7 @@ export const UI_COPY = {
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',
   zoomMenuTooltip: 'Zoom: Pin to View, Fit to View, Fit to Screen, and Zoom to Selection controls.',
   interactionModeTooltip: 'Interaction: Navigate (clear selection), View Lock (drag/edit gate), and multi-select controls.',
-  canvasGridTooltip: 'Grid: toggle grid visibility + snap-to-grid. Configure variant/size in Settings. Hold Alt while dragging to temporarily disable snapping.',
+  canvasGridTooltip: 'Grid: toggle grid visibility. Snap to Grid controls drag and keyboard snapping separately. Configure variant/size in Settings; hold Alt while dragging to temporarily disable snapping.',
   renderMediaAsNodesTooltip: 'Rich Media: shows or hides media overlays on media-capable nodes without reloading.',
   launchTooltip: 'Launch',
   threeDModeOnTitle: '3D Mode',
@@ -213,6 +214,7 @@ export const UI_COPY = {
   canvasViewModeTitle: 'Canvas View Mode',
   canvasViewModeTooltip: 'Canvas View Mode: renderer, semantic mode, surface, and geospatial controls.',
   canvasViewRendererD3Title: CANVAS_VIEW_RENDERER_D3_TITLE,
+  canvasViewRendererDashboardTitle: CANVAS_VIEW_RENDERER_DASHBOARD_TITLE,
   canvasViewRendererD3FlowchartTitle: CANVAS_VIEW_RENDERER_FLOWCHART_TITLE,
   canvasViewRendererGitGraphTitle: CANVAS_VIEW_RENDERER_GITGRAPH_TITLE,
   canvasViewRendererFlowTitle: CANVAS_VIEW_RENDERER_FLOW_TITLE,
@@ -226,7 +228,6 @@ export const UI_COPY = {
   geospatialModeTitle: 'Geospatial Mode',
   geospatialModeOnTitle: 'Geospatial Mode',
   geospatialModeOffTitle: 'Document Mode',
-  themeTooltipPrefix: 'Theme: ',
   chatEmptyStateHelp:
     'Chat has workspace-wide context from Explorer, Source Files, and Workspace Editor. Configure endpoint and model in Settings, then ask about any file, node, or dataset.',
   chatNoSelectionContextStatus: 'Using workspace-wide context from Explorer, Source Files, and Workspace Editor.',

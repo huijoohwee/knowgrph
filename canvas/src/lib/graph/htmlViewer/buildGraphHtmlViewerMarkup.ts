@@ -103,17 +103,6 @@ const canonicalizeMarkdownOverlayElement = (el: Element, args: { id: string; anc
 const inferMediaKind = (rawUrl: string): HtmlViewerMediaNode['kind'] => {
   const inferred = inferMediaKindFromUrl(rawUrl)
   if (inferred === 'image' || inferred === 'svg' || inferred === 'video' || inferred === 'audio') return inferred
-  const u = String(rawUrl || '').trim().toLowerCase()
-  if (!u) return 'iframe'
-  if (
-    u.includes('wx_fmt=png') ||
-    u.includes('wx_fmt=jpg') ||
-    u.includes('wx_fmt=jpeg') ||
-    u.includes('wx_fmt=gif') ||
-    u.includes('wx_fmt=webp')
-  ) {
-    return 'image'
-  }
   return 'iframe'
 }
 

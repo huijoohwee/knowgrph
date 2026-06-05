@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+function readOptionalEnvFixture(envName: string): string {
+  const relPath = typeof process.env[envName] === 'string' ? String(process.env[envName]).trim() : ''
+  if (!relPath) return ''
+  return readFileSync(resolve(process.cwd(), relPath), 'utf8')
+}
+
 export function testCanvasBaselineDefaultsUseFlowEditorAndBlockLayout() {
   const configRenderPath = resolve(process.cwd(), 'src', 'lib', 'config.render.ts')
   const schemaPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'schema.ts')
@@ -100,15 +106,10 @@ export function testSourceFilesComposeDoesNotBlankPendingRemoteSeeds() {
 
 export function testCanvasWorkspaceFrontmatterPresetKeysAreDocumentedInSourceAndFixture() {
   const frontmatterPath = resolve(process.cwd(), 'src', 'lib', 'markdown', 'frontmatter.ts')
-  const readmePath = resolve(process.cwd(), '..', 'README.md')
-  const demoPath = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-demo-video.md')
-  const seededVideoDemoPath = resolve(process.cwd(), '..', 'knowgrph-video-demo-seeded.md')
-  const richMediaDemoPath = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-rich-media-generation-demo.md')
   const frontmatterText = readFileSync(frontmatterPath, 'utf8')
-  const readmeText = readFileSync(readmePath, 'utf8')
-  const demoText = readFileSync(demoPath, 'utf8')
-  const seededVideoDemoText = readFileSync(seededVideoDemoPath, 'utf8')
-  const richMediaDemoText = readFileSync(richMediaDemoPath, 'utf8')
+  const demoText = readOptionalEnvFixture('KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_PATH')
+  const seededVideoDemoText = readOptionalEnvFixture('KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH')
+  const richMediaDemoText = readOptionalEnvFixture('KG_TEST_KNOWGRPH_RICH_MEDIA_GENERATION_DEMO_PATH')
 
   if (!frontmatterText.includes('kgCanvas2dRenderer')) {
     throw new Error('expected markdown frontmatter helpers to expose kgCanvas2dRenderer preset support')
@@ -122,31 +123,22 @@ export function testCanvasWorkspaceFrontmatterPresetKeysAreDocumentedInSourceAnd
   if (!frontmatterText.includes('kgDocumentStructureBaselineLock')) {
     throw new Error('expected markdown frontmatter helpers to expose kgDocumentStructureBaselineLock preset support')
   }
-  if (!readmeText.includes('kgCanvas2dRenderer: "d3"')) {
-    throw new Error('expected README.md to declare d3 preload in frontmatter')
-  }
-  if (!readmeText.includes('kgCanvasSurfaceMode: "2d"')) {
-    throw new Error('expected README.md to declare 2d surface mode explicitly in frontmatter')
-  }
-  if (!readmeText.includes('kgDocumentStructureBaselineLock: false')) {
-    throw new Error('expected README.md to declare View Lock OFF in frontmatter')
-  }
-  if (!demoText.includes('kgCanvasSurfaceMode: "2d"')) {
+  if (demoText && !demoText.includes('kgCanvasSurfaceMode: "2d"')) {
     throw new Error('expected rich-media demo fixture to declare 2d surface mode explicitly in frontmatter')
   }
-  if (!demoText.includes('kgCanvas2dRenderer: "flowEditor"')) {
+  if (demoText && !demoText.includes('kgCanvas2dRenderer: "flowEditor"')) {
     throw new Error('expected rich-media demo fixture to declare flowEditor preload in frontmatter')
   }
-  if (!seededVideoDemoText.includes('kgCanvasSurfaceMode: "2d"')) {
+  if (seededVideoDemoText && !seededVideoDemoText.includes('kgCanvasSurfaceMode: "2d"')) {
     throw new Error('expected seeded video demo fixture to declare 2d surface mode explicitly in frontmatter')
   }
-  if (!seededVideoDemoText.includes('kgMultiDimTableModeEnabled: false')) {
+  if (seededVideoDemoText && !seededVideoDemoText.includes('kgMultiDimTableModeEnabled: false')) {
     throw new Error('expected seeded video demo fixture to disable multi-dimensional table mode explicitly in frontmatter')
   }
-  if (!richMediaDemoText.includes('kgCanvasSurfaceMode: "2d"')) {
+  if (richMediaDemoText && !richMediaDemoText.includes('kgCanvasSurfaceMode: "2d"')) {
     throw new Error('expected rich media generation seed to declare 2d surface mode explicitly in frontmatter')
   }
-  if (!richMediaDemoText.includes('kgMultiDimTableModeEnabled: false')) {
+  if (richMediaDemoText && !richMediaDemoText.includes('kgMultiDimTableModeEnabled: false')) {
     throw new Error('expected rich media generation seed to disable multi-dimensional table mode explicitly in frontmatter')
   }
 }

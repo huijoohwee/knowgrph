@@ -593,9 +593,9 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `openai.mcp.serverPort` | number | localStorage |  |  |
 | `openai.mcp.requireToolReview` | boolean | localStorage |  |  |
 | `payments.stripe.mode` | string | localStorage |  |  |
-| `payments.stripe.secretKey` | string | localStorage |  |  |
+| `payments.stripe.secretKey` | string | backendEnv |  |  |
 | `payments.stripe.publishableKey` | string | localStorage |  |  |
-| `payments.stripe.webhookSecret` | string | localStorage |  |  |
+| `payments.stripe.webhookSecret` | string | backendEnv |  |  |
 | `payments.stripe.accountId` | string | localStorage |  |  |
 | `payments.stripe.paywallEnabled` | boolean | localStorage |  |  |
 | `payments.stripe.checkoutUrl` | string | store |  |  |

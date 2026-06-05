@@ -148,8 +148,11 @@ export async function testMarkdownWorkspaceToolbarViewerToggleKeepsEditablePane(
 
     const viewerInput = checkboxFor(dom.window.document, 'Viewer')
     const markdownInput = checkboxFor(dom.window.document, 'Markdown')
-    if (viewerInput.checked || markdownInput.checked) {
-      throw new Error('expected Viewer and Markdown panes to start closed in the editability regression')
+    if (viewerInput.checked) {
+      throw new Error('expected Viewer pane to start closed in the editability regression')
+    }
+    if (!markdownInput.checked) {
+      throw new Error('expected forced editor-mode Markdown pane to report checked when it is visible')
     }
 
     await act(async () => {
@@ -224,8 +227,11 @@ export async function testMarkdownWorkspaceToolbarRemovesMultiDimTableToggleAndV
     if (tableInput) {
       throw new Error('expected the legacy Multi-dimensional Table pane toggle to be removed')
     }
-    if (viewerInput.checked || markdownInput.checked) {
-      throw new Error('expected Viewer and Markdown panes to start closed in the pane toggle regression')
+    if (viewerInput.checked) {
+      throw new Error('expected Viewer pane to start closed in the pane toggle regression')
+    }
+    if (!markdownInput.checked) {
+      throw new Error('expected forced editor-mode Markdown pane to report checked when it is visible')
     }
 
     await act(async () => {

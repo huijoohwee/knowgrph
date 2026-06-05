@@ -44,7 +44,7 @@ function classifyType(relPath: string): string {
   if (relPath.includes('/canvas/src/workers/')) return 'Worker'
   if (relPath.includes('/canvas/src/cli/')) return 'Cli'
   if (relPath.includes('/knowgrph_parser/')) return relPath.endsWith('.py') ? 'ParserPy' : 'Parser'
-  if (relPath.includes('/orchestrator-config/')) return 'Config'
+  if (relPath.includes('/data/config/')) return 'Config'
   if (relPath.endsWith('.json') || relPath.endsWith('.jsonld')) return 'Artifact'
   return 'File'
 }
@@ -339,4 +339,3 @@ function main(): void {
 }
 
 main()
-

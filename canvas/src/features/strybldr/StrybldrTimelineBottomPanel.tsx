@@ -12,7 +12,7 @@ import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { GitGraph, History } from 'lucide-react'
+import { ChartGantt, FileDiff, GitGraph, History } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
 
 type TimelineBottomPanelPosition = {
@@ -20,10 +20,16 @@ type TimelineBottomPanelPosition = {
   left: number
 }
 
-type TimelineBottomPanelView = 'timeline' | 'gitGraph'
+type TimelineBottomPanelView = 'timeline' | 'documentVersionGraph' | 'gitGraph' | 'gantt'
 
 const TIMELINE_BOTTOM_PANEL_VISIBLE_PX = 32
 const TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE = { width: 560, height: 128 } as const
+const GitGraphBottomPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/GitGraphBottomPanelView').then(mod => ({ default: mod.GitGraphBottomPanelView })),
+)
+const GanttBottomPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/GanttBottomPanelView').then(mod => ({ default: mod.GanttBottomPanelView })),
+)
 const DocumentVersionGitGraphPanelLazy = React.lazy(() =>
   import('@/features/document-versioning/DocumentVersionGitGraphPanel').then(mod => ({ default: mod.DocumentVersionGitGraphPanel })),
 )
@@ -208,23 +214,36 @@ export function StrybldrTimelineBottomPanel({
   }, [clampPosition, getDefaultUnpinnedPosition, pinned, resolveLayerRelativePosition])
   const handleMinimize = React.useCallback(() => setMinimized(true), [])
   const handleRestore = React.useCallback(() => setMinimized(false), [])
-  const documentVersionGitGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
+  const documentVersionGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'documentVersionGraph'
+  const mermaidGitGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
+  const mermaidGanttRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
+  const bottomSurfaceDiagramRequested = documentVersionGraphRequested || mermaidGitGraphRequested || mermaidGanttRequested
   const showTimelineView = React.useCallback(() => {
     setView('timeline')
-    if (documentVersionGitGraphRequested) setBottomSurfaceCollapsed(true)
-  }, [documentVersionGitGraphRequested, setBottomSurfaceCollapsed])
+    if (bottomSurfaceDiagramRequested) setBottomSurfaceCollapsed(true)
+  }, [bottomSurfaceDiagramRequested, setBottomSurfaceCollapsed])
+  const showDocumentVersionGraphView = React.useCallback(() => {
+    setView('documentVersionGraph')
+    setBottomSurfaceTab('documentVersionGraph')
+    setBottomSurfaceCollapsed(false)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
   const showGitGraphView = React.useCallback(() => {
     setView('gitGraph')
     setBottomSurfaceTab('gitGraph')
     setBottomSurfaceCollapsed(false)
   }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  const showGanttView = React.useCallback(() => {
+    setView('gantt')
+    setBottomSurfaceTab('gantt')
+    setBottomSurfaceCollapsed(false)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
   const handleClose = React.useCallback(() => {
-    if (documentVersionGitGraphRequested) {
+    if (bottomSurfaceDiagramRequested) {
       setBottomSurfaceCollapsed(true)
       return
     }
     setTimelineEnabled(false)
-  }, [documentVersionGitGraphRequested, setBottomSurfaceCollapsed, setTimelineEnabled])
+  }, [bottomSurfaceDiagramRequested, setBottomSurfaceCollapsed, setTimelineEnabled])
 
   const handleHeaderPointerDown = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     event.stopPropagation()
@@ -266,7 +285,7 @@ export function StrybldrTimelineBottomPanel({
 
   const panelHeightStyle = minimized
     ? { height: 'var(--kg-toolbar-compact-surface-height)' }
-    : view === 'gitGraph'
+    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt'
       ? { maxHeight: 'min(44vh, 24rem)' }
       : { maxHeight: 'min(32vh, 12rem)' }
   const panelPosition = position || getDefaultUnpinnedPosition()
@@ -344,6 +363,21 @@ export function StrybldrTimelineBottomPanel({
               <IconButton
                 className={cn(
                   'App-toolbar__btn',
+                  view === 'documentVersionGraph'
+                    ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                    : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                )}
+                title="Version Graph"
+                showTooltip
+                aria-pressed={view === 'documentVersionGraph'}
+                onClick={showDocumentVersionGraphView}
+                data-kg-strybldr-bottom-timeline-document-version-graph-toggle="1"
+              >
+                <FileDiff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                className={cn(
+                  'App-toolbar__btn',
                   view === 'gitGraph'
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
@@ -356,6 +390,21 @@ export function StrybldrTimelineBottomPanel({
               >
                 <GitGraph className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
               </IconButton>
+              <IconButton
+                className={cn(
+                  'App-toolbar__btn',
+                  view === 'gantt'
+                    ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                    : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                )}
+                title="Gantt"
+                showTooltip
+                aria-pressed={view === 'gantt'}
+                onClick={showGanttView}
+                data-kg-strybldr-bottom-timeline-gantt-toggle="1"
+              >
+                <ChartGantt className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
             </section>
             <HeaderActions
               onPinToggle={handlePinToggle}
@@ -367,7 +416,7 @@ export function StrybldrTimelineBottomPanel({
           </header>
           {!minimized ? (
             <section className="min-h-0 flex-1 px-2 pb-2" aria-label="Timeline bottom panel body">
-              {view === 'gitGraph' ? (
+              {view === 'documentVersionGraph' ? (
                 <React.Suspense fallback={null}>
                   <DocumentVersionGitGraphPanelLazy
                     activePath={markdownDocumentName}
@@ -376,6 +425,14 @@ export function StrybldrTimelineBottomPanel({
                     fallbackToLatest
                     themeMode={resolvedThemeMode}
                   />
+                </React.Suspense>
+              ) : view === 'gitGraph' ? (
+                <React.Suspense fallback={null}>
+                  <GitGraphBottomPanelViewLazy compact />
+                </React.Suspense>
+              ) : view === 'gantt' ? (
+                <React.Suspense fallback={null}>
+                  <GanttBottomPanelViewLazy compact />
                 </React.Suspense>
               ) : (
                 <StrybldrTimelinePanel active={active} />

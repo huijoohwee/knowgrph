@@ -56,9 +56,9 @@ Generated knowgrph content HTML must expose meaningful containers for agent and 
 - **Semantic Processing**:
   - `knowgrph_parser.semantic_processor` transforms blocks into entities/mentions/relations via configurable NLP pipelines.
 - **Schema Propagation**:
-  - `schema-config/build_schema_config_jsonld` maps parser hints into canvas-editable layer configurations.
+  - `knowgrph_parser/schema_config.py` maps parser hints into canvas-editable layer configurations.
 - **Canvas Runtime**:
-  - `src/models/GraphData.ts`, `src/config/schema-config/` coordinate semantic rendering, filtering, and user controls.
+  - `data/config/schema/` and canvas schema features coordinate semantic rendering, filtering, and user controls.
 
 ### Integration Bridge: Parser → Schema → Canvas
 
@@ -257,7 +257,7 @@ graph_metrics_config:
 | EdgeElevator    | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_elevate_edges`        | Elevator → analyzes → sentences → emits semanticRelation edges        | `_split_sentences`, `extract_sentence_features`| Creates edges with relation, confidence, sourceSentence, temporal/modality/negation| ~90    |
 | PatternMiner    | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_mine_cooccurrence`    | Miner → counts → pairs → emits coOccursWith edges with PPMI           | `_compute_ppmi`, `_pmi_to_similarity`| Creates edges with support, pmi, similarity, confidence| ~70    |
 | Graph Metrics   | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_compute_centrality_communities`| Analyzer → computes → metrics → augments entities with centrality/communities| `nx.pagerank`, `_run_networkx_connected_components`| Adds properties: mentionCount, blockFrequency, centrality, communityId| ~60    |
-| Schema Builder  | `schema-config/build_schema_config_jsonld.py`| SchemaConfigBuilder| `build_schema_config_jsonld`| Builder → reads → graph metadata → produces schema-config JSONâ€'LD     | `graph_jsonld.metadata`         | Populates metadata.layersFromGraph, metadata.layers, corpusSizePresets| ~200   |
+| Schema Builder  | `knowgrph_parser/schema_config.py`| SchemaConfigBuilder| `build_schema_config_jsonld`| Builder → reads → graph metadata → produces schema-config JSONâ€'LD     | `graph_jsonld.metadata`         | Populates metadata.layersFromGraph, metadata.layers, corpusSizePresets| ~200   |
 | Canvas Controls | `src/components/controls/AiKgSemanticControls.tsx`| AiKgSemanticControls| Component           | UI → exposes → semantic config → enables runtime tuning of similarity | `GraphSchema`                   | Updates schema.layers.semantic via user input| ~150   |
 
 ---
@@ -305,9 +305,9 @@ knowgrph/
 │   ├── graph_builder.py           # Markdown parsing + semantic source aggregation
 │   ├── semantic_processor.py      # TokenLinker, EdgeElevator, PatternMiner
 │   └── text_utils.py              # Tokenization, span merging, utilities
-├── schema-config/
-│   ├── build_schema_config_jsonld.py  # Schema config generation
-│   └── knowgrph-schema-config-template.jsonld
+├── data/config/schema/
+│   ├── knowgrph-schema-config-template.jsonld
+│   └── knowgrph-universal-schema-config.jsonld
 ├── schema/AgenticRAG/
 │   ├── graph-schema.jsonld
 │   ├── node-schema.jsonld
@@ -317,8 +317,8 @@ knowgrph/
     ├── models/
     │   ├── GraphData.ts            # Runtime graph/node/edge models
     │   └── GraphSchema.ts          # Schema layer configuration model
-    ├── config/schema-config/
-    │   └── schema-config-utils.ts  # Schema loading and validation
+    ├── features/schema/
+    │   └── validation.ts           # Schema loading and validation
     └── components/controls/
         └── AiKgSemanticControls.tsx # UI controls for semantic layer
 ```

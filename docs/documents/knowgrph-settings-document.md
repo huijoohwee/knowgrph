@@ -80,7 +80,7 @@
 - Website import uses `webpageImportIncludeImages` for conversion and `webpageImportView` as the default per-page view (stored in each stub’s `kgWebpageView`).
 - In the active-row dropdown, Viewer/Presentation/Slides render HTML in a sandboxed iframe when `kgWebpageView ∈ {json, html}`.
 - When `kgWebsiteImportId/kgWebsiteNodeId` exist, Viewer prefers rendering from stored `raw.html` artifacts (in-repo) instead of proxying live HTML.
-- Workspace artifacts are stored under `.knowgrph-workspace/` (in this repo resolved via symlink to `sandbox/.knowgrph-workspace/`).
+- Workspace artifacts are stored under the repo-local ignored `.knowgrph-workspace/` root.
 - If `kgWebsiteOutputDirRel` is present, it overrides the artifact root directory for resolving `raw.html/page.md/conversion.json`.
 
 ---
@@ -114,8 +114,8 @@
 
 - `chatProvider` defaults to BytePlus ModelArk (`ap-southeast-1`) with OpenAI as the secondary official profile; preserve canonical official endpoint URLs in Settings even though requests route through the same-origin proxy.
 - `chatAuthMode` selects `serverManaged` (default) vs `byok`.
-  - `serverManaged`: no user key is required; the server-side proxy injects a provider key from environment.
-  - `byok`: the user provides an API key for the current session only (store-only; never localStorage).
+  - `serverManaged`: no user key is required; Cloudflare/dev proxy secrets stay server-side and the proxy injects the provider key.
+  - `byok`: the user explicitly provides a fallback API key for the current runtime only (memory-only; never localStorage/sessionStorage).
 - `chatEndpointUrl` and `chatApiKey` configure an OpenAI-compatible chat endpoint; official BytePlus/OpenAI calls use Bearer auth through the proxy and may attach `X-Client-Request-Id` for request tracing.
 - `chatModel` accepts custom provider model ids via text input with shared suggestions; Settings can refresh `/v1/models` from the configured endpoint without forcing a static option list.
 - `chatContextScope` selects selection-only, workspace-wide (default), or hybrid context; hybrid adds workspace-wide file context to selection-derived graph and markdown snippets while keeping behavior bounded and schema-neutral.

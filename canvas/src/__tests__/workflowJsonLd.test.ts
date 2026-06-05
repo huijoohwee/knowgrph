@@ -6,12 +6,17 @@ import {
   parseGraphFieldSettingsDocument,
   validateGraphRagWorkflowJsonLdObject,
 } from '@/features/panels/utils/workflowJsonLd'
-import { parseGraphragCliConfigYamlToJsonLd, buildGraphRagWorkflowFromGraphData } from '@/features/panels/utils/graphragConfig'
+import {
+  DEFAULT_GRAPHRAG_CONFIG_PATH,
+  parseGraphragCliConfigYamlToJsonLd,
+  buildGraphRagWorkflowFromGraphData,
+} from '@/features/panels/utils/graphragConfig'
+import { DEFAULT_SCHEMA_CONFIG_PATH } from '@/lib/graph/file'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import type { GraphFieldSettingsById } from '@/features/graph-fields/graphFields'
 
 const readGraphragCliConfigYamlText = async (): Promise<string> => {
-  const url = new URL('../../../configs/graphrag/config.yaml', import.meta.url)
+  const url = new URL(`../../../${DEFAULT_GRAPHRAG_CONFIG_PATH}`, import.meta.url)
   const isNodeRuntime =
     typeof process !== 'undefined' && !!(process as unknown as { versions?: { node?: string } }).versions?.node
   if (isNodeRuntime) {
@@ -98,7 +103,7 @@ export function testWorkflowJsonLdHistoryGraphShape() {
 }
 
 export async function testWorkflowJsonLdGraphRagPathGraphFieldSettingsFixture() {
-  const cfg = await readJsonFixture('../../../schema-config/knowgrph-universal-schema-config.jsonld')
+  const cfg = await readJsonFixture(`../../../${DEFAULT_SCHEMA_CONFIG_PATH}`)
   const doc = (cfg as { metadata?: { fixtures?: { graphFieldSettings?: { graphRAGPath?: unknown } } } }).metadata?.fixtures?.graphFieldSettings?.graphRAGPath
   if (!doc) {
     throw new Error('Universal schema config missing metadata.fixtures.graphFieldSettings.graphRAGPath')
@@ -283,7 +288,7 @@ export async function testWorkflowJsonLdGraphRagCliYamlMapping() {
   const yamlText = await readGraphragCliConfigYamlText()
   const doc = parseGraphragCliConfigYamlToJsonLd(yamlText, 'yaml-graph')
   if (!doc) {
-    throw new Error('parseGraphragCliConfigYamlToJsonLd returned null for configs/graphrag/config.yaml')
+    throw new Error(`parseGraphragCliConfigYamlToJsonLd returned null for ${DEFAULT_GRAPHRAG_CONFIG_PATH}`)
   }
   if (doc['@type'] !== 'rag:GraphRAGWorkflow') {
     throw new Error('GraphRAG YAML mapping @type mismatch')

@@ -2,7 +2,9 @@ import { withD3FlowchartSceneSchema } from '@/lib/canvas/d3FlowchartSchemaOverri
 import { isD3Like2dRenderer } from '@/lib/config.render'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { hashSignatureParts } from '@/lib/hash/signature'
 
 export type D3SceneSetupContext = {
   graphKind: string
@@ -14,6 +16,53 @@ export type D3SceneSetupContext = {
   graphMetaKey: string
   buildKey: string
   isMermaidLayout: boolean
+}
+
+const readFiniteNumber = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+
+const roundedCoordinateKey = (value: unknown): string => {
+  const n = readFiniteNumber(value)
+  return n == null ? '' : String(Math.round(n * 10) / 10)
+}
+
+export function buildD3SceneGraphShapeKey(graphData: GraphData): string {
+  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
+  const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
+  const nodeParts = nodes
+    .map(node => {
+      const props = node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
+        ? (node.properties as Record<string, unknown>)
+        : {}
+      return [
+        String(node.id || ''),
+        String(node.type || ''),
+        roundedCoordinateKey((node as unknown as { x?: unknown }).x),
+        roundedCoordinateKey((node as unknown as { y?: unknown }).y),
+        String(props['visual:shape'] || ''),
+        String(props.mermaidScope || ''),
+        String(props['visual:parentId'] || ''),
+      ].join(':')
+    })
+    .sort((left, right) => left.localeCompare(right))
+  const edgeParts = edges
+    .map(edge => {
+      const endpoints = readGraphEdgeEndpoints(edge)
+      return [
+        String((edge as unknown as { id?: unknown }).id || ''),
+        String(edge.label || ''),
+        String(endpoints.src || ''),
+        String(endpoints.tgt || ''),
+      ].join(':')
+    })
+    .sort((left, right) => left.localeCompare(right))
+  return hashSignatureParts([
+    'd3-scene-graph-shape',
+    nodes.length,
+    edges.length,
+    ...nodeParts,
+    ...edgeParts,
+  ])
 }
 
 export function buildD3SceneSetupContext(args: {
@@ -50,7 +99,7 @@ export function buildD3SceneSetupContext(args: {
   const expansionCfg = args.schema.behavior?.expansion || {}
   const expansionEnabled = expansionCfg.enabled !== false
   const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
-  const graphMetaKey = buildGraphMetaKeyIgnoringPending(args.sceneGraphData)
+  const graphMetaKey = `${buildGraphMetaKeyIgnoringPending(args.sceneGraphData)}:shape:${buildD3SceneGraphShapeKey(args.sceneGraphData)}`
   // Keep scene rebuilds semantic-only so panel/workspace gesture toggles do not drift layout.
   const buildKey = [
     String(args.graphContentRevision || 0),

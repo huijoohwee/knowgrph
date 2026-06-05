@@ -73,7 +73,7 @@ Behavior:
 - Fetch URL with **timeout** and **max-bytes** guard.
 - Convert HTML → Markdown (best-effort).
 - Persist:
-  - `sandbox/.knowgrph-workspace/telegram-imports/<docId>/page.md`
+  - `.knowgrph-workspace/telegram-imports/<docId>/page.md`
   - `.../raw.html` (optional; enables HTML view)
   - `.../conversion.json` (optional; diagnostics)
 - Return `editorUrl` that opens the Canvas editor on that doc.
@@ -157,7 +157,7 @@ Typical minimal footprint:
    - `POST /api/import-url`
    - `GET /api/docs/<docId>`
    - `GET /r/<docId>`
-2) Implement storage layout under `sandbox/.knowgrph-workspace/telegram-imports/`.
+2) Implement storage layout under `.knowgrph-workspace/telegram-imports/`.
 3) Add bounded fetch + SSRF guard + logging.
 
 ### Phase 2 — Telegram bot integration
@@ -172,4 +172,3 @@ Typical minimal footprint:
 1) Upgrade extractor stack (trafilatura → fallback).
 2) Add per-chat allowlist / per-user rate limits.
 3) Add “HTML/JSON view” integration using existing `kgWebpageView` contract (optional).
-

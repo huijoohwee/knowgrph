@@ -13,6 +13,16 @@ const tick = async (n = 1): Promise<void> => {
   }
 }
 
+const VITE_DEV_INDEX_HTML = [
+  '<!doctype html><html lang="en">',
+  '<head>',
+  '<script type="module">import { injectIntoGlobalHook } from "/@react-refresh";</script>',
+  '<script type="module" src="/@vite/client"></script>',
+  '</head>',
+  '<body><main id="root"></main><script type="module" src="/src/main.tsx?t=123"></script></body>',
+  '</html>',
+].join('\n')
+
 export async function testMarkdownWorkspaceEffectiveContentPrefersCanonicalWritebackWhenEditorIsClean() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const container = dom.window.document.getElementById('root')
@@ -77,6 +87,9 @@ export async function testMarkdownWorkspaceEffectiveContentPrefersCanonicalWrite
       root.render(<Harness />)
       await tick(4)
     })
+    await act(async () => {
+      await tick(4)
+    })
 
     const state = readState()
     if (state.activeText !== canonicalText) {
@@ -86,7 +99,7 @@ export async function testMarkdownWorkspaceEffectiveContentPrefersCanonicalWrite
       throw new Error(`expected effective workspace text to prefer canonical markdown writeback, got ${JSON.stringify(state)}`)
     }
   } finally {
-    try {
+  try {
       await act(async () => {
         root.unmount()
         await tick(2)
@@ -234,6 +247,83 @@ export async function testMarkdownWorkspaceEffectiveContentKeepsNonMarkdownSourc
   } finally {
     try {
       await act(async () => {
+        root.unmount()
+        await tick(2)
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceEffectiveContentRejectsViteDevIndexHtmlPayload() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  const container = dom.window.document.getElementById('root')
+  if (!container) throw new Error('missing root container')
+  const root = createRoot(container)
+  const path = '/chat-log/20260605T020314Z/kgc-trace_20260605T020314Z.md'
+
+  useGraphStore.getState().setChatWorkspaceStreamingState({
+    path,
+    text: VITE_DEV_INDEX_HTML,
+  })
+
+    try {
+    function Harness() {
+      const [activeText, setActiveText] = React.useState('')
+      const userEditedActiveTextRef = React.useRef(false)
+      const effective = useMarkdownWorkspaceEffectiveContent({
+        activePath: path as never,
+        activeDocumentKey: path,
+        activeEntryKind: 'file',
+        activeText,
+        setActiveText,
+        markdownDocumentName: path,
+        markdownDocumentText: VITE_DEV_INDEX_HTML,
+        layoutMode: 'split',
+        contentMode: 'document',
+        widgetFormat: 'markdown',
+        widgetEditorText: '',
+        widgetViewerText: '',
+        pdfWorkspaceViewerTextOverride: null,
+        webpageWorkspaceMeta: null,
+        webpageWorkspaceEditorTextOverride: null,
+        webpageWorkspaceViewerTextOverride: null,
+        userEditedActiveTextRef,
+      })
+
+      return (
+        <output
+          data-testid="state"
+          data-active-text={activeText}
+          data-effective-text={effective.effectiveActiveText}
+        />
+      )
+    }
+
+    const readState = () => {
+      const el = dom.window.document.querySelector('[data-testid="state"]')
+      if (!(el instanceof dom.window.HTMLElement)) throw new Error('missing state output')
+      return {
+        activeText: el.getAttribute('data-active-text') || '',
+        effectiveText: el.getAttribute('data-effective-text') || '',
+      }
+    }
+
+    await act(async () => {
+      root.render(<Harness />)
+      await tick(4)
+    })
+
+    const state = readState()
+    if (state.activeText || state.effectiveText) {
+      throw new Error(`expected Vite dev app-shell HTML to be rejected from Markdown editor content, got ${JSON.stringify(state)}`)
+    }
+  } finally {
+    try {
+      await act(async () => {
+        useGraphStore.getState().setChatWorkspaceStreamingState(null)
         root.unmount()
         await tick(2)
       })

@@ -10,11 +10,13 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import {
+  createWorkspaceStartupSourceRootEntriesReader,
   resolveExistingWorkspaceStartupCanonicalPath,
   resolveWorkspaceStartupActivePathToApply,
   resolveWorkspaceStartupCanonicalPath,
   shouldFallbackWorkspaceStartupToReadme,
 } from '@/features/source-files/sourceFilesRuntimeStartup'
+import { invalidateCachedWorkspaceActiveEntrySnapshot } from '@/features/source-files/workspaceActiveEntryCache'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import {
   buildInitialWorkspaceStartupSnapshot,
@@ -659,6 +661,50 @@ export async function testWorkspaceBootstrapMaterializeSharedSnapshotHelpersCent
     preferCustomValidationSeed: false,
   })) {
     throw new Error('expected startup README fallback to initialize only when no active path has been selected')
+  }
+
+  const startupActivePath = '/docs/startup-active.md'
+  invalidateCachedWorkspaceActiveEntrySnapshot()
+  try {
+    const startupBaseFs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+        { path: '/docs', parentPath: '/', kind: 'folder', name: 'docs', updatedAtMs: 1 },
+        { path: startupActivePath, parentPath: '/docs', kind: 'file', name: 'startup-active.md', text: '', updatedAtMs: 1 },
+      ],
+    })
+    let startupReadCalls = 0
+    const startupFs: WorkspaceFs = {
+      ...startupBaseFs,
+      readFileText: async path => {
+        startupReadCalls += 1
+        await new Promise(resolve => setTimeout(resolve, 0))
+        return String(path || '').trim() === startupActivePath ? '# Startup Active' : null
+      },
+    }
+    const startupEntries = await startupFs.listEntries()
+    const readStartupEntries = createWorkspaceStartupSourceRootEntriesReader({
+      fs: startupFs,
+      startupWorkspaceEntries: startupEntries,
+    })
+    const [firstStartup, secondStartup] = await Promise.all([
+      readStartupEntries(startupActivePath),
+      readStartupEntries(startupActivePath),
+    ])
+    if (startupReadCalls !== 1) {
+      throw new Error(`expected startup active-path snapshot hydration to be coalesced, got ${startupReadCalls} active reads`)
+    }
+    const firstText = firstStartup.find(entry => entry.path === startupActivePath)?.text || ''
+    const secondText = secondStartup.find(entry => entry.path === startupActivePath)?.text || ''
+    if (firstText !== '# Startup Active' || secondText !== '# Startup Active') {
+      throw new Error(`expected coalesced startup snapshots to preserve active text, got ${JSON.stringify([firstText, secondText])}`)
+    }
+    await readStartupEntries(startupActivePath)
+    if (startupReadCalls !== 1) {
+      throw new Error(`expected retained startup active-path snapshot without another active read, got ${startupReadCalls}`)
+    }
+  } finally {
+    invalidateCachedWorkspaceActiveEntrySnapshot()
   }
 }
 

@@ -318,7 +318,7 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWor
 }
 
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsCanonicalChatRootFilesVisible() {
-  const chatRootPath = '/chat-log/20260527T150000Z/chat-stream-log_20260527T150000Z.md'
+  const chatRootPath = '/chat-log/20260527T150000Z/kgc-trace_20260527T150000Z.md'
   const nonCanonicalPath = '/scratch/places-demo.md'
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
@@ -335,8 +335,8 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsCanonicalChat
         kind: 'file',
         path: chatRootPath,
         parentPath: '/chat-log/20260527T150000Z',
-        name: 'chat-stream-log_20260527T150000Z.md',
-        text: '# chat stream log',
+        name: 'kgc-trace_20260527T150000Z.md',
+        text: '# KGC Trace',
         updatedAtMs: 1,
       },
       {
@@ -350,7 +350,7 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsCanonicalChat
     ],
     sourcesByPath: {
       '/docs/documents/knowgrph-storage-sync-document.md': { kind: 'local', originalName: 'knowgrph-storage-sync-document.md' },
-      [chatRootPath]: { kind: 'local', originalName: 'chat-stream-log_20260527T150000Z.md' },
+      [chatRootPath]: { kind: 'local', originalName: 'kgc-trace_20260527T150000Z.md' },
       [nonCanonicalPath]: { kind: 'local', originalName: 'places-demo.md' },
     },
     workspaceDocsOnly: true,
@@ -367,7 +367,7 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsCanonicalChat
 
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsConfiguredShareExportRootFilesVisible() {
   const shareExportPath = '/docs_/MiroThinker-global-oil-price-trajectory-simulation-20260407/MiroThinker-global-oil-price-trajectory-simulation-20260407.md'
-  const chatRootPath = '/chat-log/20260527T150000Z/chat-stream-log_20260527T150000Z.md'
+  const chatRootPath = '/chat-log/20260527T150000Z/kgc-trace_20260527T150000Z.md'
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
     workspaceEntries: [
@@ -383,14 +383,14 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsConfiguredSha
         kind: 'file',
         path: chatRootPath,
         parentPath: '/chat-log/20260527T150000Z',
-        name: 'chat-stream-log_20260527T150000Z.md',
-        text: '# chat stream log',
+        name: 'kgc-trace_20260527T150000Z.md',
+        text: '# KGC Trace',
         updatedAtMs: 1,
       },
     ],
     sourcesByPath: {
       [shareExportPath]: { kind: 'local', originalName: 'MiroThinker-global-oil-price-trajectory-simulation-20260407.md' },
-      [chatRootPath]: { kind: 'local', originalName: 'chat-stream-log_20260527T150000Z.md' },
+      [chatRootPath]: { kind: 'local', originalName: 'kgc-trace_20260527T150000Z.md' },
     },
     workspaceDocsOnly: true,
     workspaceSourceRootPaths: ['/docs_', '/docs', '/chat-log'],
@@ -404,16 +404,16 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsConfiguredSha
 
 export async function testWorkspaceSourceFilesSyncPreservesExistingCanonicalChatRootFilesAcrossActiveOnlyRefresh() {
   const activePath = '/chat-log/20260527T150000Z/kgc_20260527T150000Z.md'
-  const existingSidecarPath = '/chat-log/20260527T150000Z/chat-stream-log_20260527T150000Z.md'
+  const existingTracePath = '/chat-log/20260527T150000Z/kgc-trace_20260527T150000Z.md'
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [
       {
-        id: 'existing-sidecar',
-        name: 'chat-stream-log_20260527T150000Z.md',
-        text: '# sidecar',
+        id: 'existing-trace',
+        name: 'kgc-trace_20260527T150000Z.md',
+        text: '# KGC Trace',
         enabled: false,
         status: 'idle',
-        source: { kind: 'local', path: `workspace:${existingSidecarPath}` },
+        source: { kind: 'local', path: `workspace:${existingTracePath}` },
       },
     ],
     workspaceEntries: [
@@ -436,9 +436,9 @@ export async function testWorkspaceSourceFilesSyncPreservesExistingCanonicalChat
 
   const active = next.find(f => f.source?.path === `workspace:${activePath}`)
   if (!active) throw new Error('expected active canonical chat workspace file to remain visible after active-only refresh')
-  const sidecar = next.find(f => f.source?.path === `workspace:${existingSidecarPath}`)
-  if (!sidecar) throw new Error('expected existing canonical chat sidecar file to stay visible across active-only refresh')
-  if (sidecar.enabled !== false) throw new Error('expected preserved canonical chat sidecar file to keep its previous disabled state')
+  const trace = next.find(f => f.source?.path === `workspace:${existingTracePath}`)
+  if (!trace) throw new Error('expected existing canonical chat trace file to stay visible across active-only refresh')
+  if (trace.enabled !== false) throw new Error('expected preserved canonical chat trace file to keep its previous disabled state')
 }
 
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWorkspaceEntries() {

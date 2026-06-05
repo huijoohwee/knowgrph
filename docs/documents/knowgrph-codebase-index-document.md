@@ -41,7 +41,7 @@
 | Testability         | Support automated validation        | - [ ] Inject dependencies; expose test hooks; forbid untestable code                          |
 | Transparency        | Document decisions                  | - [ ] Comment non-obvious logic; link to specs; forbid undocumented magic                     |
 | Validation          | Verify all inputs                   | - [ ] Check file existence; parse configs early; forbid late-stage errors                     |
-| Versioning          | Maintain backward compatibility     | - [ ] Namespace schema URLs; deprecate gracefully; forbid breaking changes                    |
+| Versioning          | Maintain explicit schema versions   | - [ ] Namespace schema URLs; migrate source contracts; forbid shadow migration paths          |
 
 ---
 
@@ -64,7 +64,7 @@
 - Canvas integration:
   - Canvas CLI and UI load `codebase-index-viz.jsonld`, universal schema config, and orchestrator config as GraphData and configuration presets.
   - `canvas/src/lib/graph/jsonld` handles JSON-LD parsing and normalization, ensuring consistent interpretation of the index.
-  - LLM-facing schema-config guidance is documented in `docs/documents/knowgrph-llm-prompt-contract.md`, which explains how to safely modify `schema-config/knowgrph-schema-config-template.jsonld` for new datasets.
+  - LLM-facing schema-config guidance is documented in `docs/documents/knowgrph-llm-prompt-contract.md`, which explains how to safely modify `data/config/schema/knowgrph-schema-config-template.jsonld` for new datasets.
   - For how markdown-derived graphs surface in Canvas and how Canvas↔Markdown panel sync works, see:
     - `docs/documents/knowgrph-parser-document.md` (Markdown Rendering, Canvas UI)
     - `docs/documents/knowgrph-renderer-document.md` (Canvas ↔ Markdown selection sync)
@@ -95,7 +95,7 @@ config:
   type: path
   mutability: runtime_configurable
   binding: command_line
-  default: orchestrator-config/knowgrph-universal-orchestrator-config.yaml
+  default: data/config/orchestrator/knowgrph-universal-orchestrator-config.yaml
   validation: must exist, YAML object
   impact: defines traversal_edges, ignore patterns, and GraphRAG workflow linkage
 ```
@@ -120,7 +120,7 @@ config:
 Key behaviors:
 
 - Normalizes file paths and ignores configured paths via a compiled ignore matcher (`build_ignore_matcher`) and `normalize_rel_path`.
-- Canonicalizes `File` node IDs to the normalized path and tracks `metadata.aliases` for original IDs.
+- Canonicalizes `File` node IDs to the normalized path before edge adjacency and does not persist source IDs as alternate metadata keys.
 - Maps edges into adjacency lists on source nodes (`node[label] = ["kg:targetId", …]`).
 - Populates `metadata.layers.indexing`, `metadata.layers.traversal`, and `metadata.layers.tracing`.
 - Advertises traversal labels in `metadata.jsonLdMapping.contextEdgeProperties`.
@@ -134,7 +134,7 @@ Key behaviors:
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------------|-------------------------|------------------------------------------------|----------------------------------|---------------------------------------------------|
 | Path Normalization   | Ensure consistent identifiers   | - [ ] Apply POSIX normalization; resolve relatives; forbid platform-specific paths         | codebase_index_jsonld      | normalize_rel_path      | Path string, base_path                         | Normalized relative path         | Path.resolve().relative_to() with as_posix()      |
 | Ignore Filtering     | Respect exclusion patterns      | - [ ] Match glob patterns; skip hidden files; forbid inclusion of ignored paths            | codebase_index_jsonld      | build_ignore_matcher    | Path string, patterns list                     | Callable path matcher             | Pre-normalize patterns + cache per-path decisions |
-| ID Canonicalization  | Unify File node identifiers     | - [ ] Remap to normalized path; store aliases; forbid duplicate IDs                        | codebase_index_jsonld      | build_jsonld            | Graph nodes dict                               | Canonical node dict              | Single File node per normalized path              |
+| ID Canonicalization  | Unify File node identifiers     | - [ ] Normalize to path before edge adjacency; do not store source ID alternates; forbid duplicate IDs | codebase_index_jsonld      | build_jsonld            | Graph nodes dict                               | Canonical node dict              | Single File node per normalized path              |
 | Edge Adjacency       | Build traversal lists           | - [ ] Group edges by source/label; append targets; forbid duplicate edges                  | codebase_index_jsonld      | build_jsonld            | Graph edges list                               | node[label] = [targets]          | Dict accumulation with label keys                 |
 | Metadata Layers      | Encode provenance lineage       | - [ ] Populate indexing/traversal/tracing layers; timestamp; forbid missing metadata       | codebase_index_jsonld      | build_jsonld            | Runtime events, traversal edges                | metadata.layers dict             | Structured dict with schema URLs                  |
 | JSONâ€'LD Context      | Declare edge properties         | - [ ] List traversal labels in contextEdgeProperties; version context; forbid schema drift | codebase_index_jsonld      | build_jsonld            | Traversal edges config                         | @context.contextEdgeProperties   | Copy traversal_edges keys into context            |
@@ -162,7 +162,7 @@ config:
   type: path
   mutability: runtime_configurable
   binding: command_line
-  default: orchestrator-config/knowgrph-universal-orchestrator-config.yaml
+  default: data/config/orchestrator/knowgrph-universal-orchestrator-config.yaml
   validation: must exist, YAML
   impact: injects traversal_edges, GraphRAG paths, runtime events, and ignore patterns
 ```
@@ -396,7 +396,7 @@ output_dir:
 | Indexing  | `knowgrph_parser/codebase_index_jsonld.py`       | —                        | `build_jsonld`                  | JsonLdBuilder converts workflow nodes/edges into AgenticRAG index JSONâ€'LD    | `.codebase_index_artifacts`, `.runtime_events` | JSONâ€'LD `@context`, `@graph`, `metadata`      | ~17-271 |
 | Indexing  | `knowgrph_parser/python_codebase_index_cmd.py`   | —                        | `main`                          | PythonIndexCli walks codebase and writes JSONâ€'LD, schema, orchestrator files | `.python_codebase_index_document`, `.python_codebase_index_graph` | Codebase index JSONâ€'LD + configs | ~22-112 |
 | Indexing  | `knowgrph_parser/python_codebase_index_document.py` | —                     | `build_jsonld_document`         | PythonJsonLdBuilder maps GraphNodeRecord objects into AgenticRAG JSONâ€'LD     | `.runtime_events`, `.codebase_index_artifacts` | JSONâ€'LD `@context`, `@graph`, `metadata.layers` | ~118-227 |
-| Docs      | `knowgrph/package.json`                         | docs:update script        | `npm run docs:update`           | DocsUpdateJob runs markdown pipeline for docs/documents → refreshes graph/schema/orchestrator previews | `python -m knowgrph_parser markdown`, `.knowgrph-workflow-preview` | Preview artifacts synced with authored docs     | —      |
+| Docs      | `knowgrph/package.json`                         | docs:update script        | `npm run docs:update`           | DocsUpdateJob runs markdown pipeline for docs/documents → refreshes ignored graph/schema/orchestrator previews | `python -m knowgrph_parser markdown`, `data/outputs/knowgrph-workflow-preview` | Generated previews stay outside tracked source     | —      |
 | Semantic  | `knowgrph_parser/markdown_cmd.py`                | DocumentUnifier          | `_unify_entities_across_docs`   | Unifier merges entities across docs → resolves canonical IDs (L102-165)      | `.graph_builder`, `.schema_config`   | JSONâ€'LD `@graph`, canonical entity IDs         | ~200+  |
 | Semantic  | `knowgrph_parser/semantic_processor.py`          | TokenLinker              | `merge_tokens_to_spans`         | TokenLinker merges tokens to spans → identifies entities based on phrase boundaries | `.token_linker`, `.markdown_blocks`  | Token spans, confidence scores                 | ~200+  |
 | Semantic  | `knowgrph_parser/semantic_processor.py`          | EdgeElevator             | `extract_sentence_features`     | EdgeElevator extracts sentence features → enriches edges with temporal/modal attributes | `.edge_elevator`                     | Edge attributes (temporal, modal)              | ~200+  |

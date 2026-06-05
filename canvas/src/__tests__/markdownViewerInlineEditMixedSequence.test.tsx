@@ -94,7 +94,7 @@ export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInl
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/mixed-sequence.md"
+        activeDocumentPath="/fixtures/mixed-sequence.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -183,7 +183,7 @@ export async function testMarkdownViewerInlineEditTaskListCompactBracketSyntaxPa
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/task-list-compact.md"
+        activeDocumentPath="/fixtures/task-list-compact.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -243,7 +243,7 @@ export async function testMarkdownViewerInlineEditMultilineListParagraphKeepsUnd
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/list-multiline-underline.md"
+        activeDocumentPath="/fixtures/list-multiline-underline.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -315,7 +315,7 @@ export async function testMarkdownViewerInlineEditTaskRowKeepsUnderlineRendered(
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/task-row-underline.md"
+        activeDocumentPath="/fixtures/task-row-underline.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -388,7 +388,7 @@ export async function testMarkdownViewerInlineEditBlockquoteBlankLinesPreserveQu
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-blank-lines.md"
+        activeDocumentPath="/fixtures/blockquote-blank-lines.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -441,7 +441,7 @@ export async function testMarkdownViewerInlineEditCalloutThreeBlankLinesKeepsUne
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/callout-triple-blank.md"
+        activeDocumentPath="/fixtures/callout-triple-blank.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -504,7 +504,7 @@ export async function testMarkdownViewerInlineEditCalloutThreeContentLinesEditOn
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/callout-triple-content.md"
+        activeDocumentPath="/fixtures/callout-triple-content.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -579,7 +579,7 @@ export async function testMarkdownViewerInlineEditCalloutClickBlurWithoutEditDoe
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/callout-click-blur-noedit.md"
+        activeDocumentPath="/fixtures/callout-click-blur-noedit.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -647,7 +647,7 @@ export async function testMarkdownViewerInlineEditAdmonitionCalloutBodyOpenKeeps
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/admonition-callout-open-parity.md"
+        activeDocumentPath="/fixtures/admonition-callout-open-parity.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -706,7 +706,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTrailingBlankLineDoe
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-trailing-blank-line.md"
+        activeDocumentPath="/fixtures/blockquote-trailing-blank-line.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -772,7 +772,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTypographyKeepsUiFon
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-font-parity.md"
+        activeDocumentPath="/fixtures/blockquote-font-parity.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -823,7 +823,7 @@ export async function testMarkdownViewerInlineEditRuntimeParityProbeReportsMisma
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-runtime-parity-probe.md"
+        activeDocumentPath="/fixtures/blockquote-runtime-parity-probe.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -876,7 +876,7 @@ export async function testMarkdownViewerInlineEditBlockquoteRangeClampsToContigu
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-range-clamp.md"
+        activeDocumentPath="/fixtures/blockquote-range-clamp.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -938,7 +938,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTrailingNewlineDoesN
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-trailing-newline-no-extra-row.md"
+        activeDocumentPath="/fixtures/blockquote-trailing-newline-no-extra-row.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -990,7 +990,7 @@ export async function testMarkdownViewerInlineEditBlockquoteMultiLineOpenDoesNot
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-multiline-open-no-extra-row.md"
+        activeDocumentPath="/fixtures/blockquote-multiline-open-no-extra-row.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -1039,7 +1039,7 @@ export async function testMarkdownViewerInlineEditBlockquoteMultiLineWithSourceT
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-multiline-source-trailing-newline-open-no-extra-row.md"
+        activeDocumentPath="/fixtures/blockquote-multiline-source-trailing-newline-open-no-extra-row.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -1088,7 +1088,7 @@ export async function testMarkdownViewerInlineEditBlockquoteTrimsTrailingEmptyIn
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/blockquote-trim-trailing-empty-inline-wrapper-row.md"
+        activeDocumentPath="/fixtures/blockquote-trim-trailing-empty-inline-wrapper-row.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}
@@ -1139,7 +1139,7 @@ export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledOpenBl
     const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
 
     const opts: RenderOpts = {
-      activeDocumentPath: '/sandbox/demo/blockquote-gutter-disabled-open-blur-noedit.md',
+      activeDocumentPath: '/fixtures/blockquote-gutter-disabled-open-blur-noedit.md',
       highlightedLineRange: null,
       markdownWordWrap: true,
       markdownPresentationMode: false,
@@ -1204,7 +1204,7 @@ export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledTraili
     const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
 
     const opts: RenderOpts = {
-      activeDocumentPath: '/sandbox/demo/blockquote-gutter-disabled-trailing-newline-no-mutation.md',
+      activeDocumentPath: '/fixtures/blockquote-gutter-disabled-trailing-newline-no-mutation.md',
       highlightedLineRange: null,
       markdownWordWrap: true,
       markdownPresentationMode: false,
@@ -1276,7 +1276,7 @@ export async function testMarkdownViewerInlineEditAdmonitionCalloutRangeClampsTo
     root.render(
       <MarkdownTokenRenderer
         tokens={tokens}
-        activeDocumentPath="/sandbox/demo/admonition-range-clamp.md"
+        activeDocumentPath="/fixtures/admonition-range-clamp.md"
         highlightedLineRange={null}
         markdownWordWrap
         markdownPresentationMode={false}

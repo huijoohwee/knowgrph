@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { GraphSchema, defaultSchema } from '@/lib/graph/schema'
-import { toSchemaConfigPath } from '@/lib/graph/file'
+import { DEFAULT_SCHEMA_CONFIG_PATH, normalizeSchemaConfigPath, toSchemaConfigPath } from '@/lib/graph/file'
 import { computeFilteredLists } from '@/features/schema-editor/utils'
 import { importSchemaFromFileIntoStore, exportSchemaAsJSON, parseSchemaText } from '@/features/schema/io'
 import { lintSchemaMetadata, validateSchema } from '@/features/schema/validation'
@@ -103,9 +103,9 @@ export function useSchemaTab(tab: string) {
       const suggestedRaw = (() => {
         const label = typeof schemaImportLabel === 'string' ? schemaImportLabel.trim() : ''
         if (label) {
-          return label.startsWith('schema-config/') ? label : `schema-config/${label}`
+          return String(normalizeSchemaConfigPath(label))
         }
-        return 'schema-config/knowgrph-universal-schema-config.jsonld'
+        return String(DEFAULT_SCHEMA_CONFIG_PATH)
       })()
 
       setSchemaError('')

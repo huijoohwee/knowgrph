@@ -2,8 +2,8 @@ import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 import {
-  EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES,
-  EXA_MCP_ALL_NON_DEPRECATED_TOOLS_JSON,
+  EXA_MCP_ACTIVE_TOOL_NAMES,
+  EXA_MCP_ACTIVE_TOOLS_JSON,
   EXA_MCP_API_KEY_HEADER,
   EXA_MCP_CONNECTION_MODES,
   EXA_MCP_DASHBOARD_URL,
@@ -16,7 +16,6 @@ import {
   EXA_MCP_DEFAULT_STARTUP_TIMEOUT_MS,
   EXA_MCP_DEFAULT_TOOL_NAMES,
   EXA_MCP_DEFAULT_TOOL_PROFILE,
-  EXA_MCP_DEPRECATED_TOOL_REPLACEMENTS,
   EXA_MCP_DOC_AREA,
   EXA_MCP_DOCS_MARKDOWN_URL,
   EXA_MCP_DOCS_URL,
@@ -76,7 +75,7 @@ const stripToolsQueryParam = (url: string): string => {
 
 export function resolveExaMcpEnabledTools(values: Record<string, unknown>): string[] {
   const toolProfile = readStringValue(values, `${EXA_MCP_KEY_PREFIX}toolProfile`, EXA_MCP_DEFAULT_TOOL_PROFILE)
-  if (toolProfile === 'all_non_deprecated') return [...EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES]
+  if (toolProfile === 'advanced') return [...EXA_MCP_ACTIVE_TOOL_NAMES]
   const enabledTools = readJsonArrayValue(values, `${EXA_MCP_KEY_PREFIX}enabledTools`, EXA_MCP_DEFAULT_TOOL_NAMES)
   return normalizeExaMcpToolNames(enabledTools)
 }
@@ -110,10 +109,6 @@ export function buildExaRemoteMcpConfigJson(values: Record<string, unknown>): st
   }, null, 2)
 }
 
-const deprecatedReplacementSummary = Object.entries(EXA_MCP_DEPRECATED_TOOL_REPLACEMENTS)
-  .map(([deprecatedTool, replacement]) => `${deprecatedTool} -> ${replacement}`)
-  .join(' | ')
-
 const EXA_MCP_DOC_ROWS: ReadonlyArray<ExaMcpDocRow> = [
   {
     key: 'server_key',
@@ -135,8 +130,8 @@ const EXA_MCP_DOC_ROWS: ReadonlyArray<ExaMcpDocRow> = [
     key: 'tool_profile',
     typeLabel: 'enum',
     valueKey: `${EXA_MCP_KEY_PREFIX}toolProfile`,
-    responsibility: 'Tool profile used to derive the enabled non-deprecated Exa MCP tools.',
-    notes: 'Default profile uses web search and page fetch; all_non_deprecated adds advanced search through the tools query parameter.',
+    responsibility: 'Tool profile used to derive the enabled Exa MCP tools.',
+    notes: 'Default profile uses web search and page fetch; advanced adds advanced search through the tools query parameter.',
     tooltipDefaultValue: EXA_MCP_DEFAULT_TOOL_PROFILE,
     searchHints: ['tool profile', ...EXA_MCP_TOOL_PROFILES],
   },
@@ -144,10 +139,10 @@ const EXA_MCP_DOC_ROWS: ReadonlyArray<ExaMcpDocRow> = [
     key: 'enabled_tools',
     typeLabel: 'string[]',
     valueKey: `${EXA_MCP_KEY_PREFIX}enabledTools`,
-    responsibility: 'Explicit non-deprecated Exa MCP tools enabled for the default profile.',
-    notes: 'Deprecated upstream aliases are filtered out before generated URLs or config JSON are built.',
+    responsibility: 'Explicit Exa MCP tools enabled for the default profile.',
+    notes: 'Only tools from the shared active Exa MCP tool list are emitted in generated URLs or config JSON.',
     tooltipDefaultValue: EXA_MCP_DEFAULT_ENABLED_TOOLS_JSON,
-    searchHints: [...EXA_MCP_DEFAULT_TOOL_NAMES, EXA_MCP_ALL_NON_DEPRECATED_TOOLS_JSON],
+    searchHints: [...EXA_MCP_DEFAULT_TOOL_NAMES, EXA_MCP_ACTIVE_TOOLS_JSON],
   },
   {
     key: 'connection.mode',
@@ -211,7 +206,7 @@ const EXA_MCP_DOC_ROWS: ReadonlyArray<ExaMcpDocRow> = [
     typeLabel: 'tool',
     value: 'web_search_advanced_exa',
     responsibility: 'Optional advanced Exa search tool for category filters, domain restrictions, date ranges, summaries, and subpage crawling.',
-    notes: 'Enabled only through the all_non_deprecated profile or explicit sanitized enabled tools.',
+    notes: 'Enabled only through the advanced profile or explicit sanitized enabled tools.',
     searchHints: ['web_search_advanced_exa', 'advanced search', 'domain filters', 'date ranges'],
   },
   {
@@ -237,13 +232,6 @@ const EXA_MCP_DOC_ROWS: ReadonlyArray<ExaMcpDocRow> = [
     responsibility: 'Auth and rate-limit boundary for Exa free-plan, production header injection, or local npm usage.',
     notes: 'MainPanel may name the header/env var for operators, but it must not store or render an actual Exa API key value.',
     searchHints: ['free plan', EXA_MCP_API_KEY_HEADER, EXA_MCP_LOCAL_API_KEY_ENV, 'rate limit'],
-  },
-  {
-    key: 'deprecated_replacements',
-    typeLabel: 'deprecation map',
-    value: deprecatedReplacementSummary,
-    responsibility: 'Deprecated Exa MCP tools are documented as replacement notes only and are not enabled as compatibility aliases.',
-    searchHints: ['deprecated tools', 'replacement tools', 'company_research_exa', 'crawling_exa'],
   },
   {
     key: 'docs.url',

@@ -19,6 +19,14 @@ const readBaseTemplateSample = (): string => {
   return readFileSync(path, 'utf8')
 }
 
+const VITE_DEV_INDEX_HTML = [
+  '<!doctype html><html lang="en">',
+  '<script type="module">import { injectIntoGlobalHook } from "/@react-refresh";</script>',
+  '<script type="module" src="/@vite/client"></script>',
+  '<main id="root"></main><script type="module" src="/src/main.tsx?t=123"></script>',
+  '</html>',
+].join('\n')
+
 export async function testChatHistoryWorkspaceDraftWritesOnlyKgcTraceDuringStreaming() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -57,6 +65,54 @@ export async function testChatHistoryWorkspaceDraftWritesOnlyKgcTraceDuringStrea
     }
     if (fetchCalls.some(call => call.includes('kgc-trace_20260430T120000Z.md'))) {
       throw new Error('expected partial KGC draft writes to avoid mirroring kgc-trace companion drafts to the host chat-log path')
+    }
+  } finally {
+    resetWorkspaceFsForTests()
+    globalThis.fetch = originalFetch
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testChatHistoryWorkspaceDraftRejectsViteDevIndexHtmlPayload() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const originalFetch = globalThis.fetch
+  const fetchCalls: string[] = []
+  try {
+    resetWorkspaceFsForTests()
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      fetchCalls.push(`${String(input)}\n${String(init?.body || '')}`)
+      return { ok: true } as Response
+    }) as typeof fetch
+
+    const canonicalPath = '/chat-log/20260605T020314Z/kgc_20260605T020314Z.md'
+    await upsertChatHistoryWorkspaceDraft({
+      requestedPath: canonicalPath,
+      timestampMs: Date.UTC(2026, 5, 5, 2, 3, 14),
+      providerSummary: 'OpenAI · test',
+      userText: 'Generate KGC',
+      assistantText: VITE_DEV_INDEX_HTML,
+      storageType: 'chatKnowgrph',
+      traceId: 'trace-vite-html',
+      title: 'Knowledge Graph Canvas Storage',
+    })
+
+    const fs = await getWorkspaceFs()
+    const canonicalText = await fs.readFileText(canonicalPath)
+    const tracePath = toKgcTraceWorkspacePath(canonicalPath)
+    const traceText = tracePath ? await fs.readFileText(tracePath) : null
+
+    if (canonicalText || traceText) {
+      throw new Error('expected KGC draft persistence to reject Vite dev app-shell HTML before writing Markdown artifacts')
+    }
+    const rejectedPathMirrorCalls = fetchCalls.filter(call => (
+      call.includes('kgc_20260605T020314Z.md') ||
+      call.includes('kgc-trace_20260605T020314Z.md')
+    ))
+    if (rejectedPathMirrorCalls.length > 0) {
+      throw new Error(`expected rejected app-shell HTML draft to avoid host mirror writes, got ${rejectedPathMirrorCalls.length}`)
     }
   } finally {
     resetWorkspaceFsForTests()
@@ -161,14 +217,18 @@ export async function testChatHistoryWorkspaceStructuredDraftDoesNotRewriteKgcTr
   }
 }
 
-export async function testChatHistoryWorkspaceFinalizeUpdatesStaleKgcTraceOnce() {
+export async function testChatHistoryWorkspaceFinalizeKeepsKgcTraceDraftAsFinalTrace() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { restore: restoreDom } = initJsdomHarness()
   const originalFetch = globalThis.fetch
+  const fetchCalls: string[] = []
   try {
     resetWorkspaceFsForTests()
-    globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      fetchCalls.push(`${String(input)}\n${String(init?.body || '')}`)
+      return { ok: true } as Response
+    }) as typeof fetch
 
     const canonicalPath = '/chat-log/20260430T121000Z/kgc_20260430T121000Z.md'
     const tracePath = toKgcTraceWorkspacePath(canonicalPath)
@@ -213,8 +273,19 @@ export async function testChatHistoryWorkspaceFinalizeUpdatesStaleKgcTraceOnce()
     if (!traceBeforeFinalize || !traceBeforeFinalize.includes('kg-chat-draft:start:trace-finalize-upgrade')) {
       throw new Error('expected trace companion to still hold the streaming draft before finalize')
     }
-    if (!traceAfterFinalize || traceAfterFinalize !== canonicalAfterFinalize) {
-      throw new Error('expected finalize to upgrade the trace companion to the canonical KGC document once')
+    if (!traceAfterFinalize) {
+      throw new Error('expected KGC finalize to keep the trace companion after canonical persistence')
+    }
+    if (traceAfterFinalize.includes('kg-chat-draft:start:trace-finalize-upgrade') || traceAfterFinalize.includes('kg-chat-draft:end:trace-finalize-upgrade')) {
+      throw new Error('expected KGC finalize to remove the transient streaming draft markers from the trace companion')
+    }
+    for (const expected of ['## KGC Finalization Trace', 'Trace-ID: trace-finalize-upgrade', '### assistant', 'Computing Flow Definition']) {
+      if (!traceAfterFinalize.includes(expected)) {
+        throw new Error(`expected finalized trace companion to include ${expected}`)
+      }
+    }
+    if (!canonicalAfterFinalize || !canonicalAfterFinalize.includes('Computing Flow Definition')) {
+      throw new Error('expected KGC finalize to keep the canonical workspace document as the graph/run markdown output')
     }
   } finally {
     resetWorkspaceFsForTests()

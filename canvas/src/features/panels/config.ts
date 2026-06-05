@@ -345,12 +345,12 @@ export const SCHEMA_STEP_COPY: Record<SchemaStepKey, SchemaStepCopy> = {
     title: 'Schema Configurator',
     descriptionShort: 'Apply schema-config presets to style nodes, edges, and layouts.',
     descriptionLong:
-      'Apply schema-config JSON presets from schema-config/ to style nodes, edges, and 2D/3D layout so visual styling and layout forces stay aligned with each dataset and workflow.',
+      'Apply schema-config JSON presets from data/config/schema/ to style nodes, edges, and 2D/3D layout so visual styling and layout forces stay aligned with each dataset and workflow.',
   },
   '3.1': {
     id: '3.1',
     badge: 'Step 3.1',
-    title: 'Apply presets from schema-config/',
+    title: 'Apply presets from data/config/schema/',
   },
   '3.1.1': {
     id: '3.1.1',
@@ -358,7 +358,7 @@ export const SCHEMA_STEP_COPY: Record<SchemaStepKey, SchemaStepCopy> = {
     title: 'Apply and manage schema-config presets',
     descriptionShort: 'Manage the active schema-config preset with Apply, Clear, and Reset.',
     descriptionLong:
-      'Use Apply, Clear Schema, and Reset with the toolbar actions to manage the active schema-config preset from schema-config/ so you can safely iterate on presets without losing a known-good configuration.',
+      'Use Apply, Clear Schema, and Reset with the toolbar actions to manage the active schema-config preset from data/config/schema/ so you can safely iterate on presets without losing a known-good configuration.',
   },
   '3.2': {
     id: '3.2',

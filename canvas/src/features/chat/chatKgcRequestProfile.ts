@@ -86,6 +86,7 @@ const ARTIFACT_PATTERNS: Array<{ rx: RegExp; label: string }> = [
   { rx: /\btad\b/i, label: 'TAD' },
   { rx: /\btco\b/i, label: 'TCO' },
   { rx: /\brfc\b/i, label: 'RFC' },
+  { rx: /\bmemo\b/i, label: 'memo' },
   { rx: /\bbrief\b/i, label: 'brief' },
   { rx: /\bplan\b/i, label: 'plan' },
   { rx: /\broadmap\b/i, label: 'roadmap' },
@@ -93,7 +94,6 @@ const ARTIFACT_PATTERNS: Array<{ rx: RegExp; label: string }> = [
   { rx: /\bspec(?:ification)?\b/i, label: 'specification' },
   { rx: /\bproposal\b/i, label: 'proposal' },
   { rx: /\breport\b/i, label: 'report' },
-  { rx: /\banalysis\b/i, label: 'analysis' },
   { rx: /\bresponse\b/i, label: 'response' },
   { rx: /\barchitecture\b/i, label: 'architecture' },
   { rx: /\bvideo script\b/i, label: 'video script' },
@@ -136,12 +136,125 @@ const inferSubject = (lowered: string): string => {
   return SUBJECT_CANDIDATES.find(role => lowered.includes(role)) || ''
 }
 
-const inferProduct = (intent: string): string => {
+const TERM_STOPWORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'any',
+  'as',
+  'by',
+  'for',
+  'from',
+  'in',
+  'into',
+  'of',
+  'on',
+  'or',
+  'the',
+  'to',
+  'vs',
+  'with',
+])
+
+const normalizeNamedTerm = (raw: string, maxChars = 90): string => {
+  const cleaned = sanitizeScalar(raw, maxChars)
+    .replace(/^[\s:;,.()[\]{}"'`]+|[\s:;,.()[\]{}"'`]+$/g, '')
+    .replace(/^(?:please|draft|write|create|generate|build|make|fix|improve|enhance|finetune|recommend)\s+/i, '')
+    .replace(/^(?:and|or|plus)\s+/i, '')
+    .replace(/^(?:a|an|the)\s+(?:concise\s+|neutral\s+|short\s+|detailed\s+)?(?:implementation\s+|technical\s+|product\s+)?(?:memo|brief|report|response|plan|specification|proposal|draft)\s+for\s+/i, '')
+    .replace(/^.*\binspired by\s+/i, '')
+    .replace(/\s+(?:please|thanks)$/i, '')
+    .trim()
+  if (!cleaned) return ''
+  if (/^(?:forbid|avoid|no trademark|non[- ]?infring)/i.test(cleaned)) return ''
+  const words = cleaned.toLowerCase().split(/\s+/).filter(Boolean)
+  if (words.length === 1 && TERM_STOPWORDS.has(words[0])) return ''
+  if (words.length > 0 && words.every(word => TERM_STOPWORDS.has(word))) return ''
+  return cleaned
+}
+
+const addTerm = (terms: string[], raw: string, maxChars = 90): void => {
+  const term = normalizeNamedTerm(raw, maxChars)
+  if (!term || term.length < 2) return
+  const wordCount = term.split(/\s+/).length
+  const highSignal = /[A-Z]{2,}|[A-Z][a-z]+[A-Z]|[0-9]|[-/]|%/.test(term)
+  if (wordCount === 1 && !highSignal) return
+  terms.push(term)
+}
+
+const splitTermConnectors = (raw: string): string[] => {
+  return String(raw || '')
+    .split(/\s+(?:vs\.?|versus)\s+|\s+\+\s+|\s+\/\s+|\s+(?:and|or)\s+/i)
+    .map(term => term.trim())
+    .filter(Boolean)
+}
+
+const inferGenericNamedTerms = (intent: string): string[] => {
+  const terms: string[] = []
+  for (const match of String(intent || '').matchAll(/\*\*([^*]{2,100})\*\*|`([^`\n]{2,100})`|"([^"\n]{2,100})"/g)) {
+    addTerm(terms, match[1] || match[2] || match[3] || '')
+  }
+  for (const match of String(intent || '').matchAll(/\b[A-Z][A-Z0-9]{1,9}\b/g)) addTerm(terms, match[0], 32)
+  for (const match of String(intent || '').matchAll(/\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\b/g)) addTerm(terms, match[0], 48)
+  for (const match of String(intent || '').matchAll(/\b[a-z]+[A-Z][A-Za-z0-9]*\b/g)) addTerm(terms, match[0], 48)
+  for (const match of String(intent || '').matchAll(/\b\d+\s*[–-]\s*\d+\s*(?:day|week|month|quarter|year)s?\s+(?:horizon|window|range)\b/gi)) {
+    addTerm(terms, match[0], 64)
+  }
+  const chunks = String(intent || '')
+    .replace(/\([^)]{2,120}\)/g, match => `; ${match.slice(1, -1)}; `)
+    .split(/[;,\n—]|(?:\s+-\s+)/g)
+  for (const chunk of chunks) {
+    const trimmed = chunk.trim()
+    if (!trimmed) continue
+    const colonParts = trimmed.split(/\s*:\s*/g).filter(Boolean)
+    for (const part of colonParts) {
+      addTerm(terms, part)
+      for (const connectorTerm of splitTermConnectors(part)) addTerm(terms, connectorTerm)
+    }
+  }
+  for (const match of String(intent || '').matchAll(/\b(?:about|around|for|on|using|via|with)\s+([^,.;\n]{3,100})/gi)) {
+    addTerm(terms, match[1] || '')
+  }
+  return unique(terms).slice(0, 16)
+}
+
+const normalizeTermForComparison = (raw: string): string => {
+  return String(raw || '')
+    .toLowerCase()
+    .replace(/[`"'()[\]{}]/g, ' ')
+    .replace(/[–—]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const inferTrademarkAvoidanceExcludedTerms = (intent: string): string[] => {
+  const excluded: string[] = []
+  for (const match of String(intent || '').matchAll(/\binspired by\s+([^.;\n`(]{2,160})/gi)) {
+    const span = match[1] || ''
+    addTerm(excluded, span)
+    for (const connectorTerm of splitTermConnectors(span)) addTerm(excluded, connectorTerm)
+  }
+  return unique(excluded).map(normalizeTermForComparison).filter(Boolean)
+}
+
+const filterTrademarkAvoidanceTerms = (intent: string, terms: string[]): string[] => {
+  const excludedTerms = inferTrademarkAvoidanceExcludedTerms(intent)
+  if (excludedTerms.length <= 0) return terms
+  return terms.filter(term => {
+    const normalizedTerm = normalizeTermForComparison(term)
+    return !excludedTerms.some(excluded => {
+      return normalizedTerm === excluded || normalizedTerm.includes(excluded) || excluded.includes(normalizedTerm)
+    })
+  })
+}
+
+const inferProduct = (intent: string, namedTerms: string[]): string => {
   const boldMatch = /\*\*([^*]{2,80})\*\*/.exec(intent)
   if (boldMatch?.[1]) return sanitizeScalar(boldMatch[1], 80)
   const quotedMatch = /"([^"\n]{2,80})"/.exec(intent)
   if (quotedMatch?.[1]) return sanitizeScalar(quotedMatch[1], 80)
-  return ''
+  const firstTerm = namedTerms.find(term => /\S/.test(term) && !/^\d+\s*[–-]\s*\d+/.test(term))
+  return firstTerm ? sanitizeScalar(firstTerm, 80) : ''
 }
 
 const inferArtifact = (lowered: string): string => {
@@ -186,14 +299,14 @@ const inferSignals = (lowered: string): KgcRequestSignals => ({
 })
 
 const inferNamedTerms = (signals: KgcRequestSignals, intent: string): string[] => {
-  const acronymTerms = String(intent || '').match(/\b[A-Z]{2,6}\b/g) || []
-  return unique([
+  const terms = unique([
     signals.openClaw ? 'OpenClaw' : '',
     signals.swipe ? 'Swipe payment flow' : '',
     signals.rxdb ? 'RxDB' : '',
     signals.maplibre ? 'MapLibre' : '',
-    ...acronymTerms.map(term => sanitizeScalar(term, 24)),
+    ...inferGenericNamedTerms(intent),
   ])
+  return signals.trademarkAvoidance ? filterTrademarkAvoidanceTerms(intent, terms) : terms
 }
 
 const inferOutputFile = (intent: string): string => {
@@ -275,9 +388,9 @@ export const analyzeKgcRequest = (requestText: string): KgcRequestProfile => {
   const signals = inferSignals(lowered)
   const topics = inferTopics(lowered)
   const namedTerms = inferNamedTerms(signals, intent)
-  const subject = sanitizeScalar(inferSubject(lowered), 60)
-  const product = inferProduct(intent)
   const artifact = inferArtifact(lowered)
+  const subject = sanitizeScalar(inferSubject(lowered), 60)
+  const product = inferProduct(intent, namedTerms)
   return {
     intent,
     product,

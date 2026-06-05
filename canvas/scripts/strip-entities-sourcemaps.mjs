@@ -48,8 +48,13 @@ async function stripSourcemapComments(dir) {
   return { scanned: files.length, changed }
 }
 
+const packageRoot = process.cwd()
+const repoRoot = path.resolve(packageRoot, '..')
 const roots = [
-  path.resolve(process.cwd(), 'node_modules/entities/lib/esm'),
+  path.resolve(packageRoot, 'node_modules/entities/lib/esm'),
+  path.resolve(packageRoot, 'node_modules/markdown-it/node_modules/entities/lib/esm'),
+  path.resolve(repoRoot, 'node_modules/entities/lib/esm'),
+  path.resolve(repoRoot, 'node_modules/markdown-it/node_modules/entities/lib/esm'),
 ]
 
 for (const root of roots) {

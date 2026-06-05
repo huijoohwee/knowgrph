@@ -1,7 +1,7 @@
 import { slugify } from './markdownJsonLdUtils'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
 import { decodeCodebasePathFromUrl } from '@/lib/url'
-import { buildAliasedMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
+import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 
 export interface BuilderContext {
@@ -174,7 +174,7 @@ export class MarkdownGraphBuilder {
           buildBilibiliEmbedUrl(url)
         if (!embed) return null
         return {
-          ...buildAliasedMediaProperties({ kind: 'iframe', url: embed, interactive: true }),
+          ...buildNodeMediaProperties({ kind: 'iframe', url: embed, interactive: true }),
           'visual:shape': 'rect',
         }
       })()
@@ -184,19 +184,19 @@ export class MarkdownGraphBuilder {
         const kind = inferMediaKindFromResourceUrl(raw)
         if (kind === 'image' || kind === 'svg') {
           return {
-            ...buildAliasedMediaProperties({ kind, url: raw }),
+            ...buildNodeMediaProperties({ kind, url: raw }),
             'visual:shape': 'rect',
           }
         }
         if (kind === 'video') {
           return {
-            ...buildAliasedMediaProperties({ kind: 'video', url: raw, interactive: true }),
+            ...buildNodeMediaProperties({ kind: 'video', url: raw, interactive: true }),
             'visual:shape': 'rect',
           }
         }
         if (kind === 'iframe') {
           return {
-            ...buildAliasedMediaProperties({ kind: 'iframe', url: raw, interactive: true }),
+            ...buildNodeMediaProperties({ kind: 'iframe', url: raw, interactive: true }),
             'visual:shape': 'rect',
           }
         }
@@ -208,7 +208,7 @@ export class MarkdownGraphBuilder {
         if (!/^https?:\/\//i.test(raw) && !decodeCodebasePathFromUrl(raw)) return null
         if (inlineLinkMediaProps) return null
         return {
-          ...buildAliasedMediaProperties({ kind: 'iframe', url: raw, interactive: true }),
+          ...buildNodeMediaProperties({ kind: 'iframe', url: raw, interactive: true }),
           'visual:shape': 'rect',
         }
       })()

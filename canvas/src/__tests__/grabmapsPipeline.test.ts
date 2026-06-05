@@ -10,6 +10,7 @@ import {
   GRABMAPS_DEFAULT_MCP_PACKAGE,
   GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS,
 } from 'grph-shared/geospatial/grabMapsSsot'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 const readUtf8 = (absPath: string): string => {
   return fs.readFileSync(absPath, { encoding: 'utf8' })
@@ -80,6 +81,21 @@ export const testGrabMapsParserReusesSharedPlainObjectGuard = () => {
   }
   if (text.includes('const isRecord = (v: unknown): v is Record<string, unknown> =>')) {
     throw new Error('expected GrabMaps parser to stop defining a local record guard')
+  }
+}
+
+export const testGrabMapsMarkdownPoiColumnKeysUseVariantsNotAliases = () => {
+  const filePath = path.resolve(process.cwd(), 'src', 'features', 'geospatial', 'grabMapsMarkdownPoi.ts')
+  const text = readUtf8(filePath)
+  if (!text.includes('deriveColumnKeyVariants')) {
+    throw new Error('expected GrabMaps markdown POI column-key normalization to use variant terminology')
+  }
+  if (
+    text.includes('deriveColumnKeyAliases') ||
+    text.includes('const aliases') ||
+    text.includes('for (const alias of')
+  ) {
+    throw new Error('expected GrabMaps markdown POI column-key normalization to avoid alias terminology')
   }
 }
 
@@ -288,7 +304,7 @@ export const testWorkspaceInitializationDocsRenderableThroughYamlFrontmatterPipe
 }
 
 export const testGrabMapsReferenceDemoDeclaresCanonicalGeospatialSeedPreset = () => {
-  const demoPath = path.resolve(process.cwd(), '..', '..', 'sandbox', 'demo', 'knowgrph-maps-grabmap-multim-demo.md')
+  const demoPath = resolveRepoTestDataPath('knowgrph-maps-grabmap-multim-demo.md')
   const text = readUtf8(demoPath)
   if (!text.includes('kgCanvasSurfaceMode: "geospatial"')) {
     throw new Error('Expected GrabMaps reference demo to declare geospatial surface mode as the canonical seed preset')
@@ -492,30 +508,36 @@ export const testGrabMapsSearchDiscoveryDocsExposeKeywordCountryLimitAndNearbyRa
   }
 }
 
-export const testGrabMapsDefaultsToByokAuthAndSessionKeyPersistence = () => {
+export const testGrabMapsDefaultsToServerManagedAndMemoryOnlyByok = () => {
   const authPath = path.resolve(process.cwd(), '..', 'grph-shared', 'src', 'geospatial', 'grabMapsAuth.ts')
-  const uiSlicePath = path.resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSlice.ts')
+  const uiSlicePath = path.resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const registryPath = path.resolve(process.cwd(), 'src', 'features', 'settings', 'registry-ui.grabmaps.ts')
   const authText = readUtf8(authPath)
   const uiSliceText = readUtf8(uiSlicePath)
   const registryText = readUtf8(registryPath)
-  if (!authText.includes("export const GRABMAPS_BYOK_API_KEY_SESSION_KEY = 'kg:maps:grabmaps:byokApiKey'")) {
-    throw new Error('Expected GrabMaps BYOK helper to define a browser-session persistence key')
+  if (authText.includes('GRABMAPS_BYOK_API_KEY_SESSION_KEY')) {
+    throw new Error('Expected GrabMaps BYOK helper to stop defining a browser-session persistence key')
   }
-  if (!authText.includes("if (typeof window === 'undefined') return 'byok'")) {
-    throw new Error('Expected shared GrabMaps browser auth helper to default to byok')
+  if (!authText.includes("return raw === 'byok' ? 'byok' : 'serverManaged'")) {
+    throw new Error('Expected shared GrabMaps auth mode normalizer to default unknown values to serverManaged')
   }
-  if (!authText.includes('window.sessionStorage.getItem(GRABMAPS_BYOK_API_KEY_SESSION_KEY)')) {
-    throw new Error('Expected GrabMaps BYOK helper to restore keys from browser session storage')
+  if (!authText.includes("if (typeof window === 'undefined') return 'serverManaged'")) {
+    throw new Error('Expected shared GrabMaps browser auth helper to default to serverManaged')
   }
-  if (!authText.includes('window.sessionStorage.setItem(GRABMAPS_BYOK_API_KEY_SESSION_KEY, next)')) {
-    throw new Error('Expected GrabMaps BYOK helper to persist keys into browser session storage')
+  if (authText.includes('window.sessionStorage.getItem') || authText.includes('window.sessionStorage.setItem')) {
+    throw new Error('Expected GrabMaps BYOK helper to keep API keys memory-only and avoid browser session storage')
   }
-  if (!uiSliceText.includes("LS_KEYS.grabMapsAuthMode,\n      'byok'")) {
-    throw new Error('Expected GrabMaps UI store default auth mode to be byok')
+  if (!uiSliceText.includes("LS_KEYS.grabMapsAuthMode,\n      'serverManaged'")) {
+    throw new Error('Expected GrabMaps UI store default auth mode to be serverManaged')
   }
-  if (!registryText.includes("default: () => 'byok'")) {
-    throw new Error('Expected GrabMaps settings registry default auth mode to be byok')
+  if (!uiSliceText.includes("value => (value === 'byok' ? 'byok' : 'serverManaged')")) {
+    throw new Error('Expected GrabMaps UI store auth mode normalizer to default unknown values to serverManaged')
+  }
+  if (!registryText.includes("default: () => 'serverManaged'")) {
+    throw new Error('Expected GrabMaps settings registry default auth mode to be serverManaged')
+  }
+  if (!registryText.includes("options: ['serverManaged', 'byok']")) {
+    throw new Error('Expected GrabMaps settings registry to present serverManaged before explicit BYOK fallback')
   }
   if (!authText.includes(".replace(/^authorization\\s*:\\s*bearer\\s+/i, '')")) {
     throw new Error('Expected GrabMaps BYOK sanitization to strip Authorization: Bearer prefixes')

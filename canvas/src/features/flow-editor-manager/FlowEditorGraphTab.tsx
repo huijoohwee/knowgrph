@@ -17,7 +17,7 @@ import {
   UI_RESPONSIVE_FLOW_MANAGER_TABLE_FRAME_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 
-const GRAPH_FIELDS_ALIAS_LABELS = [
+const GRAPH_FIELDS_SHORTCUT_LABELS = [
   'Renderer',
   'Node',
   'Edges',
@@ -25,8 +25,8 @@ const GRAPH_FIELDS_ALIAS_LABELS = [
   'Layer Mode',
 ] as const
 
-const WORKFLOW_ALIAS_LABELS = [
-  ...GRAPH_FIELDS_ALIAS_LABELS,
+const WORKFLOW_SHORTCUT_LABELS = [
+  ...GRAPH_FIELDS_SHORTCUT_LABELS,
   'Workflow sections mode',
   'Workflow Sections',
   'Steps',
@@ -81,8 +81,8 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
                   searchQuery={searchQuery}
                   embedded={true}
                   entryOpenRequest={entryOpenRequest}
-                  entryAliasLabels={WORKFLOW_ALIAS_LABELS}
-                  onEntryAliasClick={openEntryInFieldSettings}
+                  entryShortcutLabels={WORKFLOW_SHORTCUT_LABELS}
+                  onEntryShortcutClick={openEntryInFieldSettings}
                 />
               </section>
             )}
@@ -115,8 +115,8 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
                   searchQuery={searchQuery}
                   embedded={true}
                   entryOpenRequest={entryOpenRequest}
-                  entryAliasLabels={GRAPH_FIELDS_ALIAS_LABELS}
-                  onEntryAliasClick={openEntryInFieldSettings}
+                  entryShortcutLabels={GRAPH_FIELDS_SHORTCUT_LABELS}
+                  onEntryShortcutClick={openEntryInFieldSettings}
                 />
               )}
             </section>

@@ -1,5 +1,9 @@
 import { load as parseYaml } from 'js-yaml'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import {
+  repairFlowInlineEnvelopeBlockScalars,
+  repairYamlInlineColonSpacing,
+} from '@/lib/markdown/frontmatterYamlRepair'
 import { isUnsafeFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -12,6 +16,7 @@ import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { normalizeFlowSubgraphs } from '@/features/parsers/markdownFrontmatterFlowGraph.subgraphs'
 import { normalizeFlowEnvelopeRecord, unwrapFlowEnvelopeFieldValue } from '@/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope'
 import { buildImplicitFlowEdgePortKey } from '@/lib/graph/flowPorts'
+export { repairFlowInlineEnvelopeBlockScalars } from '@/lib/markdown/frontmatterYamlRepair'
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
 export const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
@@ -53,103 +58,6 @@ function countIndent(rawLine: string): number {
   let i = 0
   while (i < rawLine.length && rawLine[i] === ' ') i += 1
   return i
-}
-function repairYamlInlineColonSpacing(raw: string): string {
-  const src = String(raw || '')
-  if (!src) return src
-  const out: string[] = []
-  const lines = src.split('\n')
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i] || ''
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) {
-      out.push(line)
-      continue
-    }
-    const m = /^(\s*[-]?\s*[A-Za-z0-9_.-]+):([^\s].*)$/.exec(line)
-    if (m) {
-      out.push(`${m[1]}: ${m[2]}`)
-      continue
-    }
-    out.push(line)
-  }
-  return out.join('\n')
-}
-export function repairFlowInlineEnvelopeBlockScalars(raw: string): string {
-  const src = String(raw || '')
-  if (!src) return src
-  const lines = src.split('\n')
-  const out: string[] = []
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = String(lines[i] || '')
-    const m = /^(\s*)([A-Za-z0-9_.-]+)\s*:\s*\{\s*key:\s*([^,]+?),\s*type:\s*([^,]+?),\s*value:\s*\|\s*$/.exec(line)
-    if (!m) {
-      out.push(line)
-      continue
-    }
-    const indent = m[1] || ''
-    const indentLen = indent.length
-    const fieldKey = String(m[2] || '').trim()
-    const keyPart = String(m[3] || '').trim()
-    const typePart = String(m[4] || '').trim()
-    if (!fieldKey || !keyPart || !typePart) {
-      out.push(line)
-      continue
-    }
-    out.push(`${indent}${fieldKey}:`)
-    out.push(`${indent}  key: ${keyPart}`)
-    out.push(`${indent}  type: ${typePart}`)
-    out.push(`${indent}  value: |`)
-    let consumedClosingBrace = false
-    for (let j = i + 1; j < lines.length; j += 1) {
-      const bodyLine = String(lines[j] || '')
-      const trimmedBody = bodyLine.trim()
-      if (/^\s*\}\s*$/.test(bodyLine) && countIndent(bodyLine) <= indentLen) {
-        consumedClosingBrace = true
-        i = j
-        break
-      }
-
-      const bodyIndent = countIndent(bodyLine)
-      if (trimmedBody && bodyIndent <= indentLen) {
-        consumedClosingBrace = true
-        i = j - 1
-        break
-      }
-
-      if (bodyIndent > indentLen && /\}\s*$/.test(bodyLine) && !/^\s*\}\s*$/.test(bodyLine)) {
-        let k = j + 1
-        while (k < lines.length) {
-          const nextRaw = String(lines[k] || '')
-          const nextTrimmed = nextRaw.trim()
-          if (!nextTrimmed) {
-            k += 1
-            continue
-          }
-          if (countIndent(nextRaw) <= indentLen) {
-            const stripped = bodyLine.replace(/\}\s*$/, '')
-            out.push(stripped ? `  ${stripped}` : stripped)
-            consumedClosingBrace = true
-            i = j
-            break
-          }
-          break
-        }
-        if (consumedClosingBrace) break
-      }
-
-      out.push(bodyLine ? `  ${bodyLine}` : bodyLine)
-    }
-    if (!consumedClosingBrace) {
-      // Keep original line if malformed envelope to avoid destructive rewrite.
-      out.pop()
-      out.pop()
-      out.pop()
-      out.pop()
-      out.push(line)
-    }
-  }
-  return out.join('\n')
 }
 
 function parseFlowObjectFromYamlBlock(rawBlock: string): Record<string, unknown> | null {

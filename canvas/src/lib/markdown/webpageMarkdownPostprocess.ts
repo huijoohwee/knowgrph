@@ -238,6 +238,7 @@ const coalesceNavLinksToTable = (markdown: string): string => {
   const lines = String(markdown || '').replace(/\r/g, '').split('\n')
   let inFence = false
   const maxScan = Math.min(lines.length, 140)
+  const linkRe = /(!?\[[^\]]+\]\([^)]+\))/g
   for (let i = 0; i < maxScan; i += 1) {
     const rawLine = String(lines[i] || '')
     const trimmed = rawLine.trim()
@@ -249,11 +250,10 @@ const coalesceNavLinksToTable = (markdown: string): string => {
     if (!trimmed) continue
     if (trimmed.includes('|')) continue
 
-    const re = /(!?\[[^\]]+\]\([^)]+\))/g
-    const matches = trimmed.match(re) || []
+    const matches = trimmed.match(linkRe) || []
     if (matches.length < 4 || matches.length > 8) continue
 
-    const remainder = trimmed.replace(re, '').replace(/\s+/g, '')
+    const remainder = trimmed.replace(linkRe, '').replace(/\s+/g, '')
     if (remainder) continue
 
     const cells = matches.map(m => m.trim()).filter(Boolean)
@@ -263,6 +263,26 @@ const coalesceNavLinksToTable = (markdown: string): string => {
     const sep = `| ${cells.map(() => '---').join(' | ')} |`
     lines[i] = header
     lines.splice(i + 1, 0, sep, '')
+    break
+  }
+  for (let i = 0; i < maxScan; i += 1) {
+    const trimmed = String(lines[i] || '').trim()
+    if (!trimmed || trimmed.includes('|')) continue
+    const cells: string[] = []
+    let consumed = 0
+    for (let j = i; j < maxScan && cells.length < 8; j += 1) {
+      const candidate = String(lines[j] || '').trim()
+      if (!candidate || candidate.includes('|')) break
+      const matches = candidate.match(linkRe) || []
+      const remainder = candidate.replace(linkRe, '').replace(/\s+/g, '')
+      if (matches.length !== 1 || remainder) break
+      cells.push(matches[0].trim())
+      consumed += 1
+    }
+    if (cells.length < 4) continue
+    const header = `| ${cells.join(' | ')} |`
+    const sep = `| ${cells.map(() => '---').join(' | ')} |`
+    lines.splice(i, consumed, header, sep, '')
     break
   }
   return lines.join('\n')

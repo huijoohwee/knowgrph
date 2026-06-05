@@ -1,9 +1,9 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 export const testMarkdownViewerMdDemoSweepLexesAndHasLineRanges = () => {
-  const demoPath = path.resolve(process.cwd(), '..', '..', 'sandbox', 'demo', 'md-demo-00.md')
+  const demoPath = resolveRepoTestDataPath('md-demo-00.md')
   if (!fs.existsSync(demoPath)) {
     throw new Error(`missing demo markdown file: ${demoPath}`)
   }

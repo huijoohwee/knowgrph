@@ -189,9 +189,9 @@ export const inspectSharedDocumentStructure = (args = {}) => {
   const superAgentRuntimeSurfacesBlock = superAgentHarnessDemoBlock
     ? extractYamlBlock(superAgentHarnessDemoBlock.blockText, 'runtime_surfaces')
     : null
-  const forbiddenGroupingAliasSet = new Set(['kg:subgraphs', 'clusters', 'groups', 'layers'])
-  const forbiddenGroupingAliases = Array.from(
-    new Set([...topLevelKeys, ...flowKeys].filter((key) => forbiddenGroupingAliasSet.has(key))),
+  const forbiddenGroupingKeySet = new Set(['kg:subgraphs', 'clusters', 'groups', 'layers'])
+  const forbiddenGroupingKeys = Array.from(
+    new Set([...topLevelKeys, ...flowKeys].filter((key) => forbiddenGroupingKeySet.has(key))),
   ).sort((a, b) => a.localeCompare(b))
   const headings = extractMarkdownHeadings(parsed ? parsed.body : markdown)
 
@@ -239,7 +239,7 @@ export const inspectSharedDocumentStructure = (args = {}) => {
       ? countYamlSequenceEntries(flowBlock.blockText, 'connections') ?? countYamlSequenceEntries(flowBlock.blockText, 'edges')
       : null,
     flowSubgraphCount: flowBlock ? countYamlSequenceEntries(flowBlock.blockText, 'subgraphs') : null,
-    forbiddenGroupingAliases,
+    forbiddenGroupingKeys,
     headingCount: headings.length,
     headings: headings.map((heading) => heading.text),
     bodyLength: normalizeString(parsed ? parsed.body : markdown).length,

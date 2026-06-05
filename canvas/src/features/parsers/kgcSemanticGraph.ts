@@ -246,7 +246,7 @@ export function parseKgcSemanticGraphFromMarkdown(args: ParseKgcSemanticGraphArg
     if (existing && (existing.properties || {})['kgc:inferredFromEdge'] !== true) {
       const existingType = asCleanString((existing.properties || {})['kgc:nodeType'])
       if (normalizeToken(existingType) !== typeKey) {
-        warnings.push(`Duplicate KGC node "${token.id}" at line ${token.line} used conflicting type "${token.type}".`)
+        warnings.push(`Repeated KGC node "${token.id}" at line ${token.line} used different type "${token.type}".`)
       }
       continue
     }

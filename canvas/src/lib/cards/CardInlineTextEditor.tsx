@@ -85,9 +85,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     if (!editing) return
     const input = inputRef.current
     if (!input) return
-    const legacyFocusTarget = input as unknown as { attachEvent?: unknown; detachEvent?: unknown }
-    if (typeof legacyFocusTarget.attachEvent !== 'function') legacyFocusTarget.attachEvent = () => void 0
-    if (typeof legacyFocusTarget.detachEvent !== 'function') legacyFocusTarget.detachEvent = () => void 0
     input.focus()
     if ('selectionStart' in input && typeof input.value === 'string') {
       const end = input.value.length

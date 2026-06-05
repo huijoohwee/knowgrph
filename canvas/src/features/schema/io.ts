@@ -1,6 +1,11 @@
 import { GraphSchema } from '@/lib/graph/schema'
 import { readExportPrefs, writeExportPrefs, saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
-import { pickTextFileWithExtensions } from '@/lib/graph/file'
+import {
+  DEFAULT_SCHEMA_CONFIG_PATH,
+  normalizeSchemaConfigPath,
+  SCHEMA_CONFIG_PATH_PREFIX,
+  pickTextFileWithExtensions,
+} from '@/lib/graph/file'
 import { validateSchema, lintSchemaMetadata } from '@/features/schema/validation'
 import { schemaToJsonLd, schemaFromJsonLd } from '@/features/schema/schemaJsonLd'
 import { exportSchemaAsCSV } from '@/features/schema/schemaCsv'
@@ -155,9 +160,9 @@ export async function exportSchemaAsJSON(
     const raw = (() => {
       if (suggested) return String(suggested)
       if (filenamePref && formatPref === 'schema-json') return filenamePref
-      return 'schema-config/knowgrph-universal-schema-config.jsonld'
+      return String(DEFAULT_SCHEMA_CONFIG_PATH)
     })()
-    const withPrefix = raw.startsWith('schema-config/') ? raw : `schema-config/${raw}`
+    const withPrefix = String(normalizeSchemaConfigPath(raw))
     const lowered = withPrefix.toLowerCase()
     const name = lowered.endsWith('.json') || lowered.endsWith('.jsonld') || lowered.endsWith('.json-ld')
       ? withPrefix
@@ -198,9 +203,9 @@ export async function exportSchemaAsJsonLd(
     const raw = (() => {
       if (suggested) return String(suggested)
       if (filenamePref && formatPref === 'schema-jsonld') return filenamePref
-      return 'schema-config/knowgrph-universal-schema-config.jsonld'
+      return String(DEFAULT_SCHEMA_CONFIG_PATH)
     })()
-    const prefixed = raw.startsWith('schema-config/') ? raw : `schema-config/${raw}`
+    const prefixed = String(normalizeSchemaConfigPath(raw))
     const lowered = prefixed.toLowerCase()
     const name = (lowered.endsWith('.jsonld') || lowered.endsWith('.json') || lowered.endsWith('.json-ld'))
       ? prefixed
@@ -236,7 +241,7 @@ export async function exportSchemaAsCsv(
     const filenamePref = typeof (prefs as Record<string, unknown>).filename === 'string' ? (prefs as Record<string, unknown>).filename as string : undefined
     const formatPref = typeof (prefs as Record<string, unknown>).format === 'string' ? (prefs as Record<string, unknown>).format as string : undefined
     const raw = suggested ? String(suggested) : (filenamePref && formatPref === 'schema-csv' ? filenamePref : 'schema.csv')
-    const prefixed = raw.startsWith('schema-config/') ? raw : 'schema.csv'
+    const prefixed = raw.startsWith(SCHEMA_CONFIG_PATH_PREFIX) ? raw : 'schema.csv'
     const lowered = prefixed.toLowerCase()
     const name = lowered.endsWith('.csv') ? prefixed : 'schema.csv'
     const saved = await saveBlobWithPicker(blob, name, { description: 'CSV Files', accept: { 'text/csv': ['.csv'] } })

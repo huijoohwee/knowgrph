@@ -1,12 +1,9 @@
 import React from 'react'
-import PlainMermaidDiagram from '@/features/markdown/ui/PlainMermaidDiagram'
 import { formatTimestamp } from '@/features/panels/utils/time'
+import { InteractiveMermaidDiagram, type InteractiveMermaidSelectionRow } from '@/lib/diagram/InteractiveMermaidDiagram'
 import {
   UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME,
   UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME,
-  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_CLASSNAME,
-  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_IDLE_CLASSNAME,
-  UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME,
   UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -21,32 +18,38 @@ import {
 } from './documentVersioning'
 import { useDocumentVersionRecords } from './useDocumentVersions'
 
-const clampPercent = (value: number): number => Math.max(0, Math.min(100, value))
-
-const resolveGitGraphNodePositionPercent = (index: number, total: number): number => {
-  if (total <= 1) return 50
-  const start = total <= 4 ? 28 : 22
-  const step = total <= 4 ? 12 : Math.max(6, Math.min(11, 58 / Math.max(1, total - 1)))
-  return clampPercent(start + index * step)
-}
-
-const resolveGitGraphPointerIndex = (ratio: number, total: number): number => {
-  if (total <= 1) return 0
-  const pointerPercent = clampPercent(ratio * 100)
-  let bestIndex = 0
-  let bestDistance = Number.POSITIVE_INFINITY
-  for (let index = 0; index < total; index += 1) {
-    const distance = Math.abs(pointerPercent - resolveGitGraphNodePositionPercent(index, total))
-    if (distance >= bestDistance) continue
-    bestDistance = distance
-    bestIndex = index
-  }
-  return bestIndex
-}
-
 const formatGitGraphRowLabel = (row: DocumentVersionGitGraphRow): string => {
   const sourceLabel = String(row.entry.label || row.entry.source || 'Saved').trim()
   return sourceLabel ? `v${row.versionNumber} ${sourceLabel}` : `v${row.versionNumber}`
+}
+
+const normalizeDocumentVersionDiagramLabel = (value: string | null | undefined): string => {
+  return String(value || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+const readDocumentVersionDiagramLabels = (row: DocumentVersionGitGraphRow | null | undefined): string[] => {
+  if (!row) return []
+  return [
+    row.graphId,
+    row.tag,
+    row.entry.label,
+    row.entry.source,
+    `v${row.versionNumber}`,
+    formatGitGraphRowLabel(row),
+  ].map(label => String(label || '').trim()).filter(Boolean)
+}
+
+const documentVersionDiagramLabelMatchesRow = (
+  label: string,
+  row: DocumentVersionGitGraphRow,
+): boolean => {
+  const normalizedLabel = normalizeDocumentVersionDiagramLabel(label)
+  if (!normalizedLabel) return false
+  return readDocumentVersionDiagramLabels(row).some(candidate => {
+    const normalizedCandidate = normalizeDocumentVersionDiagramLabel(candidate)
+    if (!normalizedCandidate) return false
+    return normalizedLabel === normalizedCandidate || normalizedLabel.includes(normalizedCandidate) || normalizedCandidate.includes(normalizedLabel)
+  })
 }
 
 export function DocumentVersionGitGraphPanel({
@@ -106,26 +109,29 @@ export function DocumentVersionGitGraphPanel({
     if (!selectedVersion) return null
     return gitGraphRows.find(row => row.entry.id === selectedVersion.id) || null
   }, [gitGraphRows, selectedVersion])
+  const selectedDiagramLabels = React.useMemo(() => readDocumentVersionDiagramLabels(selectedRow), [selectedRow])
+  const selectionRows = React.useMemo<InteractiveMermaidSelectionRow[]>(() => {
+    return gitGraphRows.map(row => ({
+      key: row.entry.id,
+      labels: readDocumentVersionDiagramLabels(row),
+      kind: 'document-version',
+      lineNumber: row.versionNumber,
+    }))
+  }, [gitGraphRows])
   const selectedPatchText = selectedReview?.diff.patch || 'No text changes.'
 
-  const handleGraphSurfaceClick = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
-    if (!gitGraphRows.length) return
-    const target = event.target instanceof Element ? event.target : null
-    if (target?.closest('[data-kg-document-version-gitgraph-version-node]')) return
-    const rect = event.currentTarget.getBoundingClientRect()
-    if (!rect.width || !Number.isFinite(rect.width)) return
-    const index = resolveGitGraphPointerIndex((event.clientX - rect.left) / rect.width, gitGraphRows.length)
-    const entry = gitGraphRows[index]?.entry || null
-    if (entry) setSelectedVersionId(entry.id)
+  const handleSelectedVersionRowKeyChange = React.useCallback((rowKey: string | null) => {
+    const nextId = String(rowKey || '').trim()
+    if (nextId && gitGraphRows.some(row => row.entry.id === nextId)) {
+      setSelectedVersionId(nextId)
+      return
+    }
+    if (!nextId) setSelectedVersionId(null)
   }, [gitGraphRows])
-
-  const handleVersionNodeClick = React.useCallback((
-    event: React.MouseEvent<HTMLButtonElement>,
-    row: DocumentVersionGitGraphRow,
-  ) => {
-    event.stopPropagation()
-    setSelectedVersionId(row.entry.id)
-  }, [])
+  const handleSvgSelectedLabelChange = React.useCallback((label: string) => {
+    const row = gitGraphRows.find(candidate => documentVersionDiagramLabelMatchesRow(label, candidate)) || null
+    if (row) setSelectedVersionId(row.entry.id)
+  }, [gitGraphRows])
 
   if (!selectedVersions.length || !selectedSummary) {
     return (
@@ -147,7 +153,7 @@ export function DocumentVersionGitGraphPanel({
       data-kg-document-version-gitgraph-selected-version={selectedVersion?.id || ''}
     >
       <header className={`flex min-w-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 text-xs ${UI_THEME_TOKENS.panel.divider}`}>
-        <span className={`font-medium ${UI_THEME_TOKENS.text.primary}`}>GitGraph</span>
+        <span className={`font-medium ${UI_THEME_TOKENS.text.primary}`}>Version Graph</span>
         <span className={`min-w-0 truncate ${UI_THEME_TOKENS.text.secondary}`} title={selectedPath}>{selectedPath}</span>
         <span className={UI_THEME_TOKENS.text.tertiary}>{`v${selectedSummary.count}`}</span>
         <span className={UI_THEME_TOKENS.text.tertiary}>{formatTimestamp(selectedSummary.latest.timestamp)}</span>
@@ -159,43 +165,21 @@ export function DocumentVersionGitGraphPanel({
         <section
           className={UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME}
           role="group"
-          aria-label="Document version GitGraph"
-          onClick={handleGraphSurfaceClick}
+          aria-label="Document version graph"
           data-kg-document-version-gitgraph-surface="1"
+          data-kg-document-version-gitgraph-direct-selection="1"
         >
-          <PlainMermaidDiagram
+          <InteractiveMermaidDiagram
             code={gitGraphCode}
             rootThemeMode={themeMode}
+            svgSurfaceKey="document-version-graph"
+            selectedLabels={selectedDiagramLabels}
+            selectionRows={selectionRows}
+            selectedRowKey={selectedVersion?.id || ''}
+            dimUnselected={!!selectedRow}
+            onSelectedLabelChange={handleSvgSelectedLabelChange}
+            onSelectedRowKeyChange={handleSelectedVersionRowKeyChange}
           />
-          <section className="pointer-events-none absolute inset-0" aria-label="Document version GitGraph version selectors">
-            {gitGraphRows.map((row, index) => {
-              const selected = row.entry.id === selectedVersion?.id
-              return (
-                <button
-                  key={row.entry.id}
-                  type="button"
-                  className={[
-                    UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_CLASSNAME,
-                    selected ? UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME : UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_IDLE_CLASSNAME,
-                  ].join(' ')}
-                  style={{
-                    left: `${resolveGitGraphNodePositionPercent(index, gitGraphRows.length)}%`,
-                    top: compact ? '44%' : '48%',
-                  }}
-                  title={`Show changes for ${formatGitGraphRowLabel(row)}`}
-                  aria-label={`Show changes for ${formatGitGraphRowLabel(row)}`}
-                  aria-pressed={selected}
-                  onClick={event => handleVersionNodeClick(event, row)}
-                  data-kg-document-version-gitgraph-version-node={row.entry.id}
-                  data-kg-document-version-gitgraph-version-graph-id={row.graphId}
-                  data-kg-document-version-gitgraph-version-index={String(index)}
-                  data-kg-document-version-gitgraph-version-selected={selected ? 'true' : 'false'}
-                >
-                  <span className="sr-only">{formatGitGraphRowLabel(row)}</span>
-                </button>
-              )
-            })}
-          </section>
         </section>
       </section>
       {selectedReview && selectedVersion ? (

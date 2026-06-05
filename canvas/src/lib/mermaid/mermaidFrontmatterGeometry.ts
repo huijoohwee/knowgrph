@@ -4,7 +4,6 @@ import { getKgThemeFromDom } from '@/lib/ui/tokens-ssot'
 import { renderMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'
-import { readFrontmatterMermaidCode } from '@/lib/mermaid/mermaidFrontmatterCode'
 
 type MermaidTheme = 'light' | 'dark'
 
@@ -111,6 +110,10 @@ const coerceNumber = (v: string): number | null => {
 }
 
 const normalizeName = (raw: string): string => String(raw || '').trim()
+
+const readCode = (value: unknown): string => {
+  return typeof value === 'string' ? String(value || '').trim() : ''
+}
 
 const pathMaxAbsNumber = (d: string): number => {
   const s = String(d || '')
@@ -435,6 +438,35 @@ const isFrontmatterMermaidDiagramProps = (props: Record<string, unknown> | null)
 const isFrontmatterMermaidDiagram = (n: GraphNode): boolean => {
   if (String(n.type || '') !== 'MermaidDiagram') return false
   return isFrontmatterMermaidDiagramProps(readNodeProperties(n))
+}
+
+const findFrontmatterMermaidDiagramNode = (graphData: GraphData): GraphNode | null => {
+  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (node && isFrontmatterMermaidDiagram(node)) return node
+  }
+  return null
+}
+
+const readFrontmatterMermaidDiagramProps = (graphData: GraphData): Record<string, unknown> | null => {
+  const node = findFrontmatterMermaidDiagramNode(graphData)
+  if (node) return readNodeProperties(node)
+  const metadata = toMetadataRecord(graphData.metadata)
+  const frontmatterMeta = metadata.frontmatterMeta
+  if (!frontmatterMeta || typeof frontmatterMeta !== 'object' || Array.isArray(frontmatterMeta)) return null
+  return frontmatterMeta as Record<string, unknown>
+}
+
+const readFrontmatterMermaidCodeFromProps = (props: Record<string, unknown> | null): string => {
+  const code = readCode(props?.code)
+  if (code) return code
+  return readCode(props?.mermaid)
+}
+
+export const readFrontmatterMermaidCode = (graphData: GraphData | null | undefined): string => {
+  if (!graphData) return ''
+  return readFrontmatterMermaidCodeFromProps(readFrontmatterMermaidDiagramProps(graphData))
 }
 
 export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: GraphData): GraphData {

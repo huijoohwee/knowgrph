@@ -68,7 +68,7 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
     "canonicalKey: 'dialogue'",
   ]) {
     if (!storyboard.includes(snippet)) {
-      throw new Error(`expected storyboard inline editing to canonicalize text properties through shared aliases: ${snippet}`)
+      throw new Error(`expected storyboard inline editing to canonicalize text properties through shared property keys: ${snippet}`)
     }
   }
 

@@ -1,7 +1,7 @@
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
-import { readSandboxDemoText, toDocumentPath } from '@/tests/lib/sandboxRoot'
+import { readExternalDemoText, toDocumentPath } from '@/tests/lib/externalFixtures'
 import { buildSimulation, normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -10,7 +10,7 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
 
-const demo = readSandboxDemoText({ preferBasename: 'mddemo.md' })
+const demo = readExternalDemoText({ preferBasename: 'mddemo.md' })
 if (!demo) process.exit(0)
 
 const docPath = toDocumentPath(demo.path) || 'mddemo.md'

@@ -2,7 +2,7 @@ import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
-import { readSandboxDemoText, toDocumentPath } from '@/tests/lib/sandboxRoot'
+import { readExternalDemoText, toDocumentPath } from '@/tests/lib/externalFixtures'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -33,7 +33,7 @@ const hasEdge = (edges: GraphEdge[], args: { source: string; target: string; lab
 }
 
 export const testMermaidFrontmatterClickAnchorsAndBlockLinks = () => {
-  const demo = readSandboxDemoText({ preferBasename: 'mddemo.md' })
+  const demo = readExternalDemoText({ preferBasename: 'mddemo.md' })
   if (!demo) return
 
   const docPath = toDocumentPath(demo.path) || 'mddemo.md'

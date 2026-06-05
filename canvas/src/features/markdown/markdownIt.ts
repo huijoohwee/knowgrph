@@ -3,7 +3,7 @@ import markdownItAnchor from 'markdown-it-anchor'
 import markdownItFootnote from 'markdown-it-footnote'
 import markdownItMark from 'markdown-it-mark'
 import markdownItSub from 'markdown-it-sub'
-import markdownItSup from 'markdown-it-sup'
+import { markdownItSuperscript } from '@/features/markdown/markdownItSuperscript'
 import { slugify } from 'grph-shared/markdown/slugify'
 
 let cached: MarkdownIt | null = null
@@ -23,7 +23,7 @@ export function getMarkdownIt(): MarkdownIt {
   })
     .use(markdownItFootnote)
     .use(markdownItSub)
-    .use(markdownItSup)
+    .use(markdownItSuperscript)
     .use(markdownItMark)
     .use(markdownItAnchor, {
       permalink: false,

@@ -236,6 +236,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         setChatKnowgrphWorkspacePath: args.submitArgs.setChatKnowgrphWorkspacePath,
         setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
         persistDraft: upsertChatHistoryWorkspaceDraft,
+        persistWorkspaceDrafts: true,
       })
       const assistantStream = await readAssistantResponse({
         response: res,

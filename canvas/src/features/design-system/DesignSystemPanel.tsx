@@ -7,8 +7,7 @@ import { UI_FOCUS_RING, UI_SURFACE_CARD } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { UI_LABELS } from '@/lib/config'
 import { DESIGN_SYSTEM_SHELL_GRID_CLASS_NAME } from '@/features/design-system/designSystemResponsiveClasses'
-
-type ThemeMode = 'system' | 'light' | 'dark'
+import { THEME_MODE_OPTIONS, type ThemeMode } from '@/lib/ui/theme'
 
 const NAV_ITEMS: Array<{ id: DesignSystemPageId; label: string }> = [
   { id: 'hub', label: 'Hub' },
@@ -46,15 +45,11 @@ function ThemeModeToggle() {
     <section aria-label={UI_LABELS.theme} className="flex items-center gap-2">
       <span className={cn('text-xs', UI_THEME_TOKENS.text.secondary)}>{UI_LABELS.theme}</span>
       <section className={cn('flex items-center gap-1 p-1 rounded-lg border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}>
-        <button type="button" className={itemClass(themeMode === 'system')} onClick={() => onSet('system')}>
-          {UI_LABELS.themeSystem}
-        </button>
-        <button type="button" className={itemClass(themeMode === 'light')} onClick={() => onSet('light')}>
-          {UI_LABELS.themeLight}
-        </button>
-        <button type="button" className={itemClass(themeMode === 'dark')} onClick={() => onSet('dark')}>
-          {UI_LABELS.themeDark}
-        </button>
+        {THEME_MODE_OPTIONS.map(option => (
+          <button key={option.mode} type="button" className={itemClass(themeMode === option.mode)} onClick={() => onSet(option.mode)}>
+            {option.label}
+          </button>
+        ))}
       </section>
     </section>
   )

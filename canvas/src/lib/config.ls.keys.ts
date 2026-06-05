@@ -408,9 +408,7 @@ export const LS_KEYS = {
   mainPanelLeft: 'kg:ui:mainPanel:left',
 
   paymentsStripeMode: 'kg:payments:stripe:mode',
-  paymentsStripeSecretKey: 'kg:payments:stripe:secretKey',
   paymentsStripePublishableKey: 'kg:payments:stripe:publishableKey',
-  paymentsStripeWebhookSecret: 'kg:payments:stripe:webhookSecret',
   paymentsStripeAccountId: 'kg:payments:stripe:accountId',
   paymentsStripePaywallEnabled: 'kg:payments:stripe:paywallEnabled',
   paymentsStripeCheckoutUrl: 'kg:payments:stripe:checkoutUrl',

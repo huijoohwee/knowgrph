@@ -1,6 +1,6 @@
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 
-export async function testMediaOverlayPoolPrioritizesWeChatImagesWithinBudget() {
+export async function testMediaOverlayPoolPrioritizesFormatHintImagesWithinBudget() {
   const nodes: any[] = Array.from({ length: 60 }).map((_, i) => {
     return {
       id: `img:${i + 1}`,
@@ -10,18 +10,18 @@ export async function testMediaOverlayPoolPrioritizesWeChatImagesWithinBudget() 
     }
   })
   nodes.push({
-    id: 'wechat:1',
+    id: 'format-hint:1',
     type: 'Link',
-    label: 'mmbiz.qpic.cn',
+    label: 'Format hinted image',
     properties: {
-      url: 'https://mmbiz.qpic.cn/mmbiz_png/gdEn3pxzatSHAib7vomhHSibH0icqO2xD72/640?wx_fmt=png&from=appmsg',
-      label: 'mmbiz.qpic.cn',
+      url: 'https://assets.example/images/640?asset_fmt=png&source=article',
+      label: 'Format hinted image',
     },
   })
 
   const out = listMediaOverlayNodes({ enabled: true, nodes: nodes as any, poolMax: 24 })
-  const hasWeChat = out.some(n => n.kind === 'image' && n.url.includes('mmbiz.qpic.cn') && n.url.includes('wx_fmt='))
-  if (!hasWeChat) throw new Error('expected WeChat image to be prioritized into overlay pool budget')
+  const hasFormatHintedImage = out.some(n => n.kind === 'image' && n.url.includes('assets.example/images/640') && n.url.includes('asset_fmt=png'))
+  if (!hasFormatHintedImage) throw new Error('expected format-hinted image to be prioritized into overlay pool budget')
 }
 
 export async function testMediaOverlayPoolAlwaysIncludesPreferredNodesWhenMedia() {
@@ -34,11 +34,11 @@ export async function testMediaOverlayPoolAlwaysIncludesPreferredNodesWhenMedia(
     }
   })
   nodes.push({
-    id: 'preferred:wechat',
+    id: 'preferred:format-hint',
     type: 'Link',
-    label: 'Preferred WeChat',
+    label: 'Preferred image',
     properties: {
-      url: 'https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png&from=appmsg',
+      url: 'https://assets.example/images/640?asset_fmt=png&source=article',
       label: 'cover',
     },
   })
@@ -47,9 +47,9 @@ export async function testMediaOverlayPoolAlwaysIncludesPreferredNodesWhenMedia(
     enabled: true,
     nodes: nodes as any,
     poolMax: 6,
-    preferredNodeIds: ['preferred:wechat'],
+    preferredNodeIds: ['preferred:format-hint'],
   })
-  if (!out.some(n => n.id === 'preferred:wechat')) {
+  if (!out.some(n => n.id === 'preferred:format-hint')) {
     throw new Error('expected preferred media node to be included even when poolMax is small')
   }
 }

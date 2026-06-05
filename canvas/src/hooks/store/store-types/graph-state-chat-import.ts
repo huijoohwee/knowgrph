@@ -56,8 +56,13 @@ export type FloatingPanelView =
   | 'geo'
   | 'renderer'
   | 'gitGraph'
+  | 'gantt'
   | 'strybldr'
   | 'graphTraversal'
+
+export type MermaidDiagramSelectionKind = 'gitgraph' | 'gantt'
+
+export type MermaidDiagramSelectedRowKeyByKind = Partial<Record<MermaidDiagramSelectionKind, string>>
 
 export interface GraphStateChatImport {
   flowchartDataSource: 'api' | 'fixture' | 'workspace';
@@ -172,6 +177,8 @@ export interface GraphStateChatImport {
   setFloatingPanelOpen: (open: boolean) => void;
   floatingPanelView: FloatingPanelView;
   setFloatingPanelView: (view: FloatingPanelView) => void;
+  mermaidDiagramSelectedRowKeyByKind: MermaidDiagramSelectedRowKeyByKind;
+  setMermaidDiagramSelectedRowKey: (kind: MermaidDiagramSelectionKind, rowKey: string | null) => void;
   gitGraphSelectedCommandLineIndex: number | null;
   setGitGraphSelectedCommandLineIndex: (lineIndex: number | null) => void;
   chatExchangeLogs: ChatExchangeLogEntry[];

@@ -51,7 +51,7 @@ export const getMarkdownDataViewConfigStorageKey = (scopeKey: string): MarkdownD
 export const SCHEMA_SECTIONS = [
   {
     id: 'schemaApplyPresets',
-    label: 'Apply presets from schema-config/',
+    label: 'Apply presets from data/config/schema/',
     collapsedKey: 'schemaUiStep31Collapsed',
   },
   {

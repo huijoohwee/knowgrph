@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { GraphData } from '@/lib/graph/types'
 import { computeZoomTargetNodeIds, computeZoomSubset } from '@/lib/zoom/selectionTargets'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
@@ -355,6 +357,92 @@ export function testFitAllTransformRespectsCollisionPaddingInViewportFit() {
   }
 }
 
+export function testFitAllTransformWithSchemaCentersGraphElementCentroidUnweighted() {
+  const width = 1440
+  const height = 980
+  const nodes: GraphNode[] = [
+    {
+      id: 'wide',
+      label: 'Wide',
+      type: 'Entity',
+      properties: { 'visual:width': 2400, 'visual:height': 1600 },
+      x: 1000,
+      y: 1000,
+    },
+    {
+      id: 'plain-a',
+      label: 'Plain A',
+      type: 'Entity',
+      properties: { 'visual:width': 120, 'visual:height': 80 },
+      x: -500,
+      y: -500,
+    },
+    {
+      id: 'plain-b',
+      label: 'Plain B',
+      type: 'Entity',
+      properties: { 'visual:width': 120, 'visual:height': 80 },
+      x: -500,
+      y: -500,
+    },
+  ]
+
+  const t = fitAllTransform(nodes, width, height, {
+    schema: defaultSchema,
+    centerMode: 'centroid',
+  })
+  const centroidX = nodes.reduce((sum, n) => sum + (n.x || 0), 0) / nodes.length
+  const centroidY = nodes.reduce((sum, n) => sum + (n.y || 0), 0) / nodes.length
+  const screenCentroidX = t.k * centroidX + t.x
+  const screenCentroidY = t.k * centroidY + t.y
+  if (Math.abs(screenCentroidX - width / 2) > 1) {
+    throw new Error('expected schema-backed fitAllTransform to center unweighted graph-element centroid X')
+  }
+  if (Math.abs(screenCentroidY - height / 2) > 1) {
+    throw new Error('expected schema-backed fitAllTransform to center unweighted graph-element centroid Y')
+  }
+}
+
+export function testFitAllTransformCentersFullCentroidWhenClusterFilteringBounds() {
+  const width = 1440
+  const height = 980
+  const nodes: GraphNode[] = []
+  for (let i = 0; i < 24; i += 1) {
+    nodes.push({
+      id: `cluster-${i}`,
+      label: `Cluster ${i}`,
+      type: 'Entity',
+      x: i % 6,
+      y: Math.floor(i / 6),
+      properties: { 'visual:width': 80, 'visual:height': 40 },
+    })
+  }
+  nodes.push({
+    id: 'visible-tail',
+    label: 'Visible tail',
+    type: 'Entity',
+    x: 1200,
+    y: 800,
+    properties: { 'visual:width': 80, 'visual:height': 40 },
+  })
+
+  const t = fitAllTransform(nodes, width, height, {
+    schema: defaultSchema,
+    centerMode: 'centroid',
+    detectClusters: true,
+  })
+  const centroidX = nodes.reduce((sum, n) => sum + (n.x || 0), 0) / nodes.length
+  const centroidY = nodes.reduce((sum, n) => sum + (n.y || 0), 0) / nodes.length
+  const screenCentroidX = t.k * centroidX + t.x
+  const screenCentroidY = t.k * centroidY + t.y
+  if (Math.abs(screenCentroidX - width / 2) > 1) {
+    throw new Error('expected cluster-filtered fit bounds to keep centering the full graph-element centroid X')
+  }
+  if (Math.abs(screenCentroidY - height / 2) > 1) {
+    throw new Error('expected cluster-filtered fit bounds to keep centering the full graph-element centroid Y')
+  }
+}
+
 export function testFitAllTransformTargetFillUsesCapped1920x1080Frame() {
   const pad = DEFAULT_FIT_PADDING
   const nodes: GraphNode[] = [
@@ -422,6 +510,85 @@ export function testReadFitAllOptionsEnforces80to20FillRatioForAllFitIntents() {
   }
   if (screen.targetFillRatio !== DEFAULT_FIT_TO_SCREEN_FILL_RATIO) {
     throw new Error('expected fitToScreen to use default 80/20 target fill ratio')
+  }
+}
+
+export function testReadFitAllOptionsCentersD3FitToScreenByCentroid() {
+  const schema = defaultSchema
+  const mode = 'radial'
+  const screen = readFitAllOptions({ schema, mode, intent: 'fitToScreen' })
+  if (screen.centerMode !== 'centroid') {
+    throw new Error('expected D3 fitToScreen options to center graph elements by centroid')
+  }
+  const svgRuntimeSource = readFileSync(
+    resolve(process.cwd(), 'src/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime.ts'),
+    'utf8',
+  )
+  if (!svgRuntimeSource.includes('readFitAllOptions')) {
+    throw new Error('expected SVG surface runtime to reuse shared fit options')
+  }
+  if (svgRuntimeSource.includes("centerMode: 'bbox'") || svgRuntimeSource.includes('centerMode: "bbox"')) {
+    throw new Error('expected SVG surface runtime to avoid a local bbox centering override')
+  }
+}
+
+export function testGraphSceneRefitsCentroidAfterForceLayoutSettles() {
+  const sceneSource = readFileSync(
+    resolve(process.cwd(), 'src/components/GraphCanvas/scene.ts'),
+    'utf8',
+  )
+  const sceneSetupSource = readFileSync(
+    resolve(process.cwd(), 'src/components/GraphCanvasRoot/utils/d3SceneSetupContext.ts'),
+    'utf8',
+  )
+  const layoutPrepSource = readFileSync(
+    resolve(process.cwd(), 'src/components/GraphCanvasRoot/utils/d3SceneLayoutPrepContext.ts'),
+    'utf8',
+  )
+  const graphCanvasRootSource = readFileSync(
+    resolve(process.cwd(), 'src/components/GraphCanvasRoot/GraphCanvasRootImpl.tsx'),
+    'utf8',
+  )
+  const autoZoomSource = readFileSync(
+    resolve(process.cwd(), 'src/features/zoom/useAutoZoomModes2d.ts'),
+    'utf8',
+  )
+  const zoomActionsSource = readFileSync(
+    resolve(process.cwd(), 'src/lib/zoom/actions.ts'),
+    'utf8',
+  )
+  if (!sceneSource.includes('const computeViewportFitTransform =')) {
+    throw new Error('expected GraphCanvas scene to centralize viewport fit computation for initial and settled layout fits')
+  }
+  if (!sceneSource.includes('if (!initialZoomTransform && !hasGraphCanvasUserInteracted(svgEl)) {')) {
+    throw new Error('expected settled D3 force layout fit to respect explicit zoom state and user interaction')
+  }
+  if (!sceneSource.includes("applyInitialTransform(computeViewportFitTransform(fitToScreenMode ? 'fitToScreen' : 'initialFit'))")) {
+    throw new Error('expected settled D3 force layout to refit with the shared centroid fit options')
+  }
+  if (!sceneSource.includes('const schedulePostInitialFitToScreenTransform =') || !sceneSource.includes("applyInitialTransform(computeViewportFitTransform('fitToScreen'))")) {
+    throw new Error('expected D3 fit-to-screen scenes to refit once after mounted node positions settle')
+  }
+  if (!sceneSource.includes('const readViewportFitNodes =') || !sceneSource.includes('const mountedNodes = nodesSelRef.current?.data()')) {
+    throw new Error('expected D3 viewport fitting to use the mounted rendered node selection when available')
+  }
+  if (!sceneSource.includes('cancelAnimationFrame(postInitialFitRafId)')) {
+    throw new Error('expected post-initial D3 fit-to-screen refit to be cancelled during scene cleanup')
+  }
+  if (!sceneSetupSource.includes('export function buildD3SceneGraphShapeKey') || !sceneSetupSource.includes(':shape:${buildD3SceneGraphShapeKey(args.sceneGraphData)}')) {
+    throw new Error('expected D3 zoom view keys to include the rendered graph shape, not only metadata')
+  }
+  if (!layoutPrepSource.includes('const canReuseLastKnownZoomTransform =') || !layoutPrepSource.includes('args.prevLayoutViewKey === layoutViewKey')) {
+    throw new Error('expected last-known D3 zoom reuse to be gated by the same layout view, not carried across graph-shape changes')
+  }
+  if (!graphCanvasRootSource.includes('const readAutoZoomGraph = useCallback(') || !graphCanvasRootSource.includes('getGraph: readAutoZoomGraph')) {
+    throw new Error('expected GraphCanvasRoot D3 auto-fit mode to read the rendered scene graph, not the source graph')
+  }
+  if (!autoZoomSource.includes('lastFitSigRef.current = null\n    const schedule = scheduleFitRef.current')) {
+    throw new Error('expected auto-fit signature cache to reset when the graph override changes')
+  }
+  if (!zoomActionsSource.includes('readGraphActiveDocumentViewMode') || zoomActionsSource.includes("if (args.documentSemanticMode === 'document') {\n    opts = applyDocumentSemanticFitPolicy")) {
+    throw new Error('expected D3 zoom fit policy to use active document view mode instead of forcing document structure from semantic mode alone')
   }
 }
 

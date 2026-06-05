@@ -14,6 +14,7 @@ import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   const md = [
@@ -1994,8 +1995,7 @@ function readMarkdownSyntaxComputingFlowSamplePath(): string {
     ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_SAMPLE_PATH.trim()
     : ''
   if (envPath) return envPath
-  const cwd = process.cwd()
-  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
+  return resolveRepoTestDataPath('markdown-syntax-computing-flow-sample.md')
 }
 
 function readMarkdownSyntaxComputingFlowRfSamplePath(): string {
@@ -2003,17 +2003,14 @@ function readMarkdownSyntaxComputingFlowRfSamplePath(): string {
     ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_RF_SAMPLE_PATH.trim()
     : ''
   if (envPath) return envPath
-  const cwd = process.cwd()
-  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-rf-sample.md')
+  return resolveRepoTestDataPath('markdown-syntax-computing-flow-rf-sample.md')
 }
 
 function readKnowgrphRichMediaGenerationDemoPath(): string {
   const envPath = typeof process.env.KG_TEST_KNOWGRPH_RICH_MEDIA_GENERATION_DEMO_PATH === 'string'
     ? process.env.KG_TEST_KNOWGRPH_RICH_MEDIA_GENERATION_DEMO_PATH.trim()
     : ''
-  if (envPath) return envPath
-  const cwd = process.cwd()
-  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-rich-media-generation-demo.md')
+  return envPath
 }
 
 function readKnowgrphVideoDemoPath(): string {
@@ -2028,9 +2025,7 @@ function readKnowgrphVideoDemoSeededPath(): string {
   const envPath = typeof process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH === 'string'
     ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH.trim()
     : ''
-  if (envPath) return envPath
-  const cwd = process.cwd()
-  return path.resolve(cwd, '..', 'knowgrph-video-demo-seeded.md')
+  return envPath
 }
 
 function readKgcAiPipelinePrdTadPath(): string {

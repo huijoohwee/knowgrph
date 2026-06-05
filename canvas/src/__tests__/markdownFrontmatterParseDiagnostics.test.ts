@@ -21,6 +21,36 @@ export function testMarkdownFrontmatterParseReportsYamlFailureWarnings() {
   }
 }
 
+export function testMarkdownFrontmatterParseRepairsInlineComputeBlockScalarEnvelope() {
+  const lines = splitMarkdownLines([
+    '---',
+    'title: "Recovered Flow"',
+    'flow:',
+    '  nodes:',
+    '    - id: {key: id, type: string, value: "n-trigger"}',
+    '      compute: {key: compute, type: function, value: |',
+    '        (inputs) => ({',
+    '          output: inputs.input ?? null',
+    '        })',
+    '      }',
+    '  edges: []',
+    '---',
+    '',
+    '# Body',
+  ].join('\n'))
+
+  const parsed = parseMarkdownFrontmatter(lines)
+  const warningBlob = parsed.warnings.join(' | ')
+  if (warningBlob.includes('Markdown frontmatter YAML parse failed and frontmatter was ignored:')) {
+    throw new Error(`expected inline compute envelope to repair without dropping frontmatter, got: ${warningBlob}`)
+  }
+  const flow = parsed.meta.flow as { nodes?: Array<{ compute?: { value?: unknown } }> } | undefined
+  const computeValue = flow?.nodes?.[0]?.compute?.value
+  if (typeof computeValue !== 'string' || !computeValue.includes('inputs.input')) {
+    throw new Error(`expected repaired compute block scalar value, got ${JSON.stringify(computeValue)}`)
+  }
+}
+
 export async function testMarkdownParserCarriesFrontmatterParseWarningsThroughParserResult() {
   const markdownSpec = builtInParsers.find(spec => String(spec.id) === 'markdown')
   if (!markdownSpec || typeof markdownSpec.parseAsync !== 'function') {

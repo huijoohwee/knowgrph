@@ -41,7 +41,7 @@ function mayContainFlowGraphDeclaration(text: string): boolean {
   if (/^\s*(?:flowchart|graph)\s+(?:TD|LR|RL|TB|BT)\b/im.test(prefix)) return true
   const frontmatter = readLeadingFrontmatter(prefix)
   if (!frontmatter) return false
-  return /\b(?:flow|nodes|connections|frontmatterFlowSettings|runtime|pipeline|mermaid|widget_bundle|graph_meta|index)\s*:/m.test(frontmatter)
+  return /\b(?:flow|flow_diagrams|nodes|connections|frontmatterFlowSettings|runtime|pipeline|mermaid|widget_bundle|graph_meta|index)\s*:/m.test(frontmatter)
 }
 
 export function readMarkdownLargeDocumentProfile(rawText: string): MarkdownLargeDocumentProfile {

@@ -431,9 +431,7 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   mainPanelLeft: 'ui.mainPanel',
 
   paymentsStripeMode: 'payments.stripe',
-  paymentsStripeSecretKey: 'payments.stripe',
   paymentsStripePublishableKey: 'payments.stripe',
-  paymentsStripeWebhookSecret: 'payments.stripe',
   paymentsStripeAccountId: 'payments.stripe',
   paymentsStripeMcpServerKey: 'payments.stripe.mcp',
   paymentsStripeMcpRemoteUrl: 'payments.stripe.mcp',

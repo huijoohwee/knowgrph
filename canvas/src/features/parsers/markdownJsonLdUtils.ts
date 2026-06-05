@@ -1,5 +1,5 @@
 import { isLikelyImageUrl } from '@/lib/url'
-import { buildAliasedMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
+import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import { extractHtmlAttr, extractScriptEmbedAnchorHref } from 'grph-shared/markdown/mediaHtml'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 
@@ -256,7 +256,7 @@ export const classifyMediaFromAltAndUrl = (
       props: {
         url,
         alt,
-        ...buildAliasedMediaProperties({
+        ...buildNodeMediaProperties({
           kind: 'iframe',
           url: embed,
           interactive: true,
@@ -274,7 +274,7 @@ export const classifyMediaFromAltAndUrl = (
       props: {
         url,
         alt,
-        ...buildAliasedMediaProperties({
+        ...buildNodeMediaProperties({
           kind: 'iframe',
           url: embed,
           interactive: true,
@@ -292,7 +292,7 @@ export const classifyMediaFromAltAndUrl = (
       props: {
         url,
         alt,
-        ...buildAliasedMediaProperties({
+        ...buildNodeMediaProperties({
           kind: 'iframe',
           url: embed,
           interactive: true,
@@ -310,7 +310,7 @@ export const classifyMediaFromAltAndUrl = (
       props: {
         url,
         alt,
-        ...buildAliasedMediaProperties({
+        ...buildNodeMediaProperties({
           kind: 'iframe',
           url: embed,
           interactive: true,
@@ -325,7 +325,7 @@ export const classifyMediaFromAltAndUrl = (
   const mediaProps: Record<string, unknown> = {
     url,
     alt,
-    ...buildAliasedMediaProperties({
+    ...buildNodeMediaProperties({
       kind: type === 'IFrame' ? 'iframe' : type === 'Video' ? 'video' : 'image',
       url,
       interactive: type === 'IFrame' || type === 'Video',

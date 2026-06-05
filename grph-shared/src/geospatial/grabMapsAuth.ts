@@ -1,12 +1,11 @@
 export const GRABMAPS_AUTH_MODE_LS_KEY = 'kg:maps:grabmaps:authMode'
 export const GRABMAPS_BROWSER_API_KEY_SLOT = '__kgGrabMapsApiKey'
-export const GRABMAPS_BYOK_API_KEY_SESSION_KEY = 'kg:maps:grabmaps:byokApiKey'
 
 export type GrabMapsAuthMode = 'byok' | 'serverManaged'
 
 export const normalizeGrabMapsAuthMode = (value: unknown): GrabMapsAuthMode => {
   const raw = String(value || '').trim().toLowerCase()
-  return raw === 'servermanaged' ? 'serverManaged' : 'byok'
+  return raw === 'byok' ? 'byok' : 'serverManaged'
 }
 
 export const sanitizeGrabMapsApiKey = (value: unknown): string => {
@@ -21,11 +20,11 @@ export const sanitizeGrabMapsApiKey = (value: unknown): string => {
 }
 
 export const readGrabMapsAuthModeFromBrowser = (): GrabMapsAuthMode => {
-  if (typeof window === 'undefined') return 'byok'
+  if (typeof window === 'undefined') return 'serverManaged'
   try {
     return normalizeGrabMapsAuthMode(window.localStorage.getItem(GRABMAPS_AUTH_MODE_LS_KEY))
   } catch {
-    return 'byok'
+    return 'serverManaged'
   }
 }
 
@@ -38,16 +37,7 @@ export const readGrabMapsByokApiKeyFromBrowser = (): string => {
   } catch {
     void 0
   }
-  try {
-    if (typeof window === 'undefined') return ''
-    const persisted = sanitizeGrabMapsApiKey(window.sessionStorage.getItem(GRABMAPS_BYOK_API_KEY_SESSION_KEY))
-    if (!persisted) return ''
-    const root = globalThis as Record<string, unknown>
-    root[GRABMAPS_BROWSER_API_KEY_SLOT] = persisted
-    return persisted
-  } catch {
-    return ''
-  }
+  return ''
 }
 
 export const writeGrabMapsByokApiKeyToBrowser = (value: unknown): string => {
@@ -56,14 +46,6 @@ export const writeGrabMapsByokApiKeyToBrowser = (value: unknown): string => {
   try {
     const root = globalThis as Record<string, unknown>
     root[GRABMAPS_BROWSER_API_KEY_SLOT] = next
-  } catch {
-    void 0
-  }
-  try {
-    if (typeof window !== 'undefined') {
-      if (next) window.sessionStorage.setItem(GRABMAPS_BYOK_API_KEY_SESSION_KEY, next)
-      else window.sessionStorage.removeItem(GRABMAPS_BYOK_API_KEY_SESSION_KEY)
-    }
   } catch {
     void 0
   }

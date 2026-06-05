@@ -68,17 +68,25 @@ export const UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME = 'kg-responsive-view
 
 export const UI_RESPONSIVE_COMPACT_VIEWPORT_SCROLL_PANEL_CLASSNAME = 'kg-responsive-viewport-scroll-panel kg-responsive-viewport-scroll-panel--compact overflow-auto'
 
+export const UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_CONTENT_CLASSNAME = 'kg-markdown-workspace-explorer-content flex-1 min-h-0'
+
+export const UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_CLASSNAME = 'kg-markdown-workspace-explorer-section'
+
+export const UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_PRIMARY_CLASSNAME = 'kg-markdown-workspace-explorer-section--scroll-primary'
+
+export const UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_SECONDARY_CLASSNAME = 'kg-markdown-workspace-explorer-section--scroll-secondary'
+
+export const UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_BODY_CLASSNAME = 'kg-markdown-workspace-explorer-section-body'
+
+export const UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_LIST_CLASSNAME = 'kg-markdown-workspace-explorer-list min-h-0'
+
+export const UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME = 'kg-markdown-workspace-explorer-empty-state'
+
 export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME = 'kg-document-version-gitgraph-viewport shrink-0 overflow-auto'
 
 export const UI_RESPONSIVE_COMPACT_DOCUMENT_VERSION_GITGRAPH_VIEWPORT_CLASSNAME = 'kg-document-version-gitgraph-viewport kg-document-version-gitgraph-viewport--compact shrink-0 overflow-auto'
 
 export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_SURFACE_CLASSNAME = 'kg-document-version-gitgraph-surface relative'
-
-export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_CLASSNAME = 'pointer-events-auto absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border transition'
-
-export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_SELECTED_CLASSNAME = 'border-blue-600 bg-blue-500/20 shadow-[0_0_0_3px_rgba(59,130,246,0.18)]'
-
-export const UI_RESPONSIVE_DOCUMENT_VERSION_GITGRAPH_VERSION_NODE_IDLE_CLASSNAME = 'border-transparent bg-transparent hover:border-blue-500/70 hover:bg-blue-500/10'
 
 export const UI_RESPONSIVE_SIDE_PANEL_CLASSNAME = 'kg-responsive-side-panel'
 

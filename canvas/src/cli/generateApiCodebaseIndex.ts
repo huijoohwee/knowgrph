@@ -234,7 +234,7 @@ function buildRow(row: SsotRow, spec: IndexSpec): string {
     modules,
     classes,
     functions,
-  ].join(' | ')
+  ].join(' | ').trimEnd()
 }
 
 function generateIndex(spec: IndexSpec, rows: ReadonlyArray<SsotRow>): string {

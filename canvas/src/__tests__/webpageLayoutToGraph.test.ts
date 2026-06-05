@@ -1480,17 +1480,17 @@ export function testWebpageLayoutToGraphAddsMediaProps() {
   if (String(props.media_kind || '') !== 'image') throw new Error('expected media_kind=image')
   if (!String(props.media_url || '').includes('mmbiz.qpic.cn')) throw new Error('expected media_url')
   if (!String(props.image || '').includes('mmbiz.qpic.cn')) throw new Error('expected image url')
-  if (!String(props.media || '').includes('mmbiz.qpic.cn')) throw new Error('expected generic media alias for image url')
+  if (!String(props.media || '').includes('mmbiz.qpic.cn')) throw new Error('expected generic media URL property for image url')
   if (String(videoProps.media_kind || '') !== 'video') throw new Error('expected media_kind=video')
   if (String(videoProps.media_interactive || '') !== 'true') throw new Error('expected video media to stay interactive')
   if (!String(videoProps.media_url || '').includes('demo.mp4')) throw new Error('expected video media_url')
   if (!String(videoProps.video || '').includes('demo.mp4')) throw new Error('expected video alias')
-  if (!String(videoProps.media || '').includes('demo.mp4')) throw new Error('expected generic media alias for video url')
+  if (!String(videoProps.media || '').includes('demo.mp4')) throw new Error('expected generic media URL property for video url')
   if (String(iframeProps.media_kind || '') !== 'iframe') throw new Error('expected media_kind=iframe')
   if (String(iframeProps.media_interactive || '') !== 'true') throw new Error('expected iframe media to stay interactive')
   if (!String(iframeProps.media_url || '').includes('/embed')) throw new Error('expected iframe media_url')
   if (!String(iframeProps.iframe_url || '').includes('/embed')) throw new Error('expected iframe alias')
-  if (!String(iframeProps.media || '').includes('/embed')) throw new Error('expected generic media alias for iframe url')
+  if (!String(iframeProps.media || '').includes('/embed')) throw new Error('expected generic media URL property for iframe url')
 }
 
 export function testWebpageLayoutToGraphWrapperSingleChildPrune() {

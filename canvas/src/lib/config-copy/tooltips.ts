@@ -730,7 +730,7 @@ const MARKDOWN_PIPELINE_INPUT_REL_PATH = readEnvString(
 
 export const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = readEnvString(
   'VITE_MARKDOWN_PIPELINE_OUTPUT_DIR',
-  'data/knowgrph-workflow-preview',
+  'data/outputs/knowgrph-workflow-preview',
 );
 
 const MARKDOWN_PIPELINE_BASENAME = readEnvString(

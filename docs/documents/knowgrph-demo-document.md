@@ -15,32 +15,32 @@
 
 ## Agentic RAG Demo Architecture
 
-**Demo Stack**: Sample Data → HTML Parser → Markdown Conversion → Agentic RAG Pipeline → Graph Extraction → Canvas Visualization
+**Demo Stack**: Repo Fixture Catalog → Parser Workflow Presets → Parser/Agentic RAG Processing → Graph Extraction → Canvas Visualization
 
-**Execution Flow**: User Trigger → Status Update → Data Loading → Pipeline Execution → Graph Construction → Curation Panel Display
+**Execution Flow**: User Trigger → Preset Selection → Repo Fixture Loading → Parser Execution → Graph Construction → Canvas Display
 
-**Design Principles**: Browser-Only Execution | Zero-Configuration Experience | Neutral Content | Immediate Feedback | Metrics Transparency
+**Design Principles**: Browser-Only Execution | Zero-Configuration Experience | Neutral Fixtures | Immediate Feedback | Metrics Transparency
 
 ### High-Level Components
 
-- **Demo Entry Point**: `handleRunDemo` in `ToolbarMenuLauncher.tsx` coordinates demo workflow and status updates.
-- **Demo Runner**: `runAgenticRagDemo` in `src/__tests__/demo/runner.ts` orchestrates data loading, parsing, and pipeline execution.
-- **Sample Data**: `src/__tests__/demo/data.ts` provides neutral AI Engineering Field Guide (Version 4.0) content covering Fundamentals, ML, DL, Ethics, and Practice.
-- **HTML Parser**: `src/features/parsers/html-parser.ts` converts HTML to Markdown, handling collapsed sections (`<details>`) and extracting JSON-LD.
-- **Agentic RAG Pipeline**: `@/features/agentic-rag` executes token linking, edge elevation, and threshold tuning entirely in browser.
+- **Demo Entry Points**: parser workflow presets in `canvas/src/features/parsers/workflowPresets.ts` and `canvas/src/features/parsers/examplesCatalog.ts` provide zero-configuration demo choices.
+- **Repo Fixtures**: `data/test-data/neutral-kg.jsonld`, `data/test-data/eda-mlp-path.json`, `docs/assets/example-workflow.jsonld`, and `docs/assets/multi-ontology-kg.jsonld` provide bounded demo data.
+- **Workspace Seed Demos**: `canvas/src/features/workspace-fs/seed/markdown-slide-demo.md` and `canvas/src/features/workspace-fs/seed/trip-demo-mmd.md` provide Markdown/GeoJSON smoke surfaces.
+- **HTML Parser**: `canvas/src/features/parsers/html-parser.ts` converts HTML to Markdown, handling collapsed sections (`<details>`) and extracting JSON-LD.
+- **Agentic RAG Processing**: `canvas/src/features/parsers/agenticRag.ts` and `canvas/src/features/agentic-rag/` execute token linking, edge elevation, and threshold tuning entirely in browser.
 
 ### Integration Bridge: Demo Workflow → Canvas Renderer
 
 | Demo Stage                    | Canvas Component Equivalent           | Configuration Controls                                    |
 |-------------------------------|---------------------------------------|-----------------------------------------------------------|
-| User Trigger                  | Toolbar "Demo" button click           | `handleRunDemo` event handler                             |
-| Status Update                 | Floating Panel status message         | `setStatus("Running Agentic RAG...")`                     |
-| Data Loading                  | Sample data retrieval                 | `data.ts` import                                          |
+| User Trigger                  | Parser workflow preset selection      | `useParserWorkflowState` + workflow preset catalog        |
+| Status Update                 | Parser/workspace panel state          | parser workflow status and import result state            |
+| Data Loading                  | Repo fixture retrieval                | `EXAMPLES_BY_ID` dataset and schema paths                 |
 | HTML → Markdown Conversion    | HTML parser invocation                | `html-parser.ts` with `<details>` handling                |
 | Pipeline Execution            | Agentic RAG pipeline run              | `DEFAULT_AGENTIC_RAG_CONFIG`                              |
-| Graph Construction            | GraphData normalization               | Token linking + edge elevation + metadata attachment      |
+| Graph Construction            | GraphData normalization               | token linking + edge elevation + metadata attachment      |
 | Visualization                 | Canvas scene rendering                | Graph layout + node styling + edge rendering              |
-| Curation Panel Display        | Panel activation                      | `openCurationPanel()` on completion                       |
+| Inspection Panel Display      | MainPanel / parser workspace views    | active graph and source-file state                        |
 
 ---
 
@@ -48,12 +48,12 @@
 
 | Layer/Subsystem       | Path/Module                                   | Component                   | Interface/Method            | Responsibility (S-V-O)                                                                        | Dependencies                          | Contracts                                         | LOC    |
 |-----------------------|-----------------------------------------------|-----------------------------|-----------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------|---------------------------------------------------|--------|
-| Demo Trigger          | `canvas/src/features/toolbar/ToolbarMenuLauncher.tsx` | ToolbarMenuLauncher  | `handleRunDemo`             | Handler → triggers demo workflow → updates status → opens curation panel on completion        | Demo runner, status store             | Async event handler returning Promise<void>       | ~50    |
-| Demo Runner           | `canvas/src/__tests__/demo/runner.ts`         | Demo Runner                 | `runAgenticRagDemo`         | Runner → loads sample data → parses HTML → executes pipeline → constructs GraphData           | Sample data, HTML parser, pipeline    | Returns `GraphData` with metadata                 | ~200   |
-| Sample Data           | `canvas/src/__tests__/demo/data.ts`           | Sample Data Module          | `DEMO_HTML_CONTENT`         | Module → exports AI Engineering Field Guide HTML → covers ML/DL/Ethics/Practice topics        | None (static data)                    | Exported const string with HTML content           | ~800   |
+| Demo Catalog          | `canvas/src/features/parsers/examplesCatalog.ts` | Examples Catalog            | `EXAMPLE_DATASETS`          | Catalog → maps demo IDs → pairs dataset and schema paths                                      | Graph file path helpers               | Typed example config entries                      | ~50    |
+| Workflow Presets      | `canvas/src/features/parsers/workflowPresets.ts` | Workflow Presets            | `WORKFLOW_PRESETS`          | Preset catalog → binds parser IDs, dataset paths, schema paths, and render overrides          | Examples catalog, parser registry     | Typed workflow preset entries                     | ~120   |
+| Repo Fixtures         | `data/test-data/` and `docs/assets/`          | Fixture Files               | N/A                         | Fixtures → provide neutral JSON/JSON-LD demo graphs                                           | None                                  | Repo-relative data files                          | bounded |
 | HTML Parser           | `canvas/src/features/parsers/html-parser.ts`  | HTML Parser                 | `parseHtml`                 | Parser → converts HTML to Markdown → extracts JSON-LD → handles `<details>` sections          | Markdown converter, JSON-LD extractor | Returns `{markdown, jsonld}` object               | ~400   |
-| Agentic RAG Pipeline  | `canvas/src/features/agentic-rag/AgenticRagPipeline.ts` | AgenticRagPipeline   | `execute`                   | Pipeline → links tokens → elevates edges → tunes thresholds → attaches provenance             | NLP utilities, graph builder          | Returns `GraphData` with extraction metrics       | ~600   |
-| Graph Visualizer      | `canvas/src/features/graph/GraphRenderer.tsx` | GraphRenderer               | `render`                    | Renderer → layouts nodes → styles entities → renders edges → displays metrics                 | GraphData, schema-config              | React component with canvas scene                 | ~1000  |
+| Agentic RAG Processing| `canvas/src/features/parsers/agenticRag.ts` and `canvas/src/features/agentic-rag/` | Agentic RAG Helpers | parser/graph helpers        | Helpers → link tokens → elevate edges → tune thresholds → attach provenance                   | NLP utilities, graph builder          | GraphData-compatible output                       | modular |
+| Graph Visualizer      | `canvas/src/components/GraphCanvas/`          | GraphCanvas                 | React render path           | Renderer → lays out nodes → styles entities → renders edges → exposes canvas interactions     | GraphData, schema-config              | Canvas scene components                           | modular |
 
 ---
 
@@ -61,7 +61,7 @@
 
 ### Workflow Stage 1: User Trigger
 
-**From Toolbar → Demo Initiation**: User clicks "Demo" button (MonitorPlay icon) in Toolbar "Workspace Actions" section → triggers `handleRunDemo` → updates status to "Running Agentic RAG..." → disables UI interactions.
+**From Workflow Preset → Demo Initiation**: User selects a demo workflow preset → parser workflow state resolves the typed dataset/schema pair → loader imports the repo fixture → graph state updates for canvas rendering.
 
 **Configuration Schema**:
 
@@ -85,58 +85,57 @@ demo.triggerButton.label:
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Button Rendering      | Display demo trigger          | - [ ] Render MonitorPlay icon with label; forbid unlabeled buttons                         | `ToolbarMenuLauncher`     | `renderDemoButton`   | void                      | React element         | JSX button with icon + label            |
-| Click Handling        | Initiate demo workflow        | - [ ] Attach onClick handler; call `handleRunDemo`; forbid missing event handler           | `ToolbarMenuLauncher`     | `handleRunDemo`      | click event               | Promise<void>         | async function invocation               |
-| Status Update         | Inform user of progress       | - [ ] Set status to "Running Agentic RAG..."; forbid silent execution                      | `handleRunDemo`           | `setStatus`          | status string             | void                  | status store update                     |
+| Preset Rendering      | Display demo choices          | - [ ] Render workflow presets from the shared catalog; forbid untyped local demo lists      | `useParserWorkflowState`  | preset state         | catalog                   | UI options            | typed preset catalog                    |
+| Selection Handling    | Initiate demo workflow        | - [ ] Resolve dataset/schema from `EXAMPLES_BY_ID`; forbid hardcoded demo paths            | `workflowPresets`         | preset resolution    | preset ID                 | parser config         | catalog lookup                          |
+| Status Update         | Inform user of progress       | - [ ] Surface parser/import status; forbid silent execution                                | parser workspace state    | status update        | status string             | void                  | state update                            |
 
 ---
 
 ### Workflow Stage 2: Data Loading
 
-**From Sample Data → HTML Content**: Demo runner imports `DEMO_HTML_CONTENT` from `data.ts` → validates non-empty HTML → passes to HTML parser.
+**From Repo Fixture → Parser Input**: workflow presets resolve repo-relative dataset/schema paths from `EXAMPLES_BY_ID` → parser loader reads the fixture → GraphData is validated before canvas rendering.
 
 **Sample Data Schema**:
 
 ```yaml
-DEMO_HTML_CONTENT:
+EXAMPLE_DATASETS:
   scope: demo_global
-  type: string (HTML)
-  mutability: immutable (static export)
-  validation: must be valid HTML with semantic structure
-  impact: source content for Agentic RAG extraction
+  type: typed catalog entries
+  mutability: source-owned
+  validation: dataset and schema paths must exist
+  impact: source fixtures for demo graph extraction
 
 contentStructure:
-  sections:
-    - Fundamentals (Python, SQL)
-    - Machine Learning (Scikit-learn)
-    - Deep Learning (TensorFlow, PyTorch)
-    - Ethics and Responsible AI
-    - Practice and Application
-  format: HTML with <details> collapsed sections
-  size: ~800 LOC HTML
+  fixtures:
+    - data/test-data/neutral-kg.jsonld
+    - data/test-data/eda-mlp-path.json
+    - docs/assets/example-workflow.jsonld
+    - docs/assets/multi-ontology-kg.jsonld
+  format: JSON or JSON-LD graph data
+  size: bounded repo fixtures
 ```
 
 **Content Neutrality**:
 
 | Neutrality Aspect     | Implementation                                                  |
 |-----------------------|-----------------------------------------------------------------|
-| Domain-Agnostic       | AI Engineering Field Guide covers general ML/DL topics          |
-| No Branding           | Content references generic tools (Python, SQL, TensorFlow)      |
-| Reusable Structure    | HTML follows semantic standards (`<details>`, `<section>`)      |
+| Domain-Agnostic       | Fixtures use generic workflow, ontology, and pipeline graph data |
+| No Branding           | Content avoids vendor-specific demo ownership                   |
+| Reusable Structure    | JSON/JSON-LD follows shared GraphData and schema contracts       |
 | Stable Fixture        | Static content ensures reproducible demo runs                   |
 
 **Design Compliance**:
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Data Import           | Load sample HTML              | - [ ] Import `DEMO_HTML_CONTENT` from `data.ts`; forbid runtime data fetching              | `runAgenticRagDemo`       | N/A (import)         | void                      | HTML string           | ES module import                        |
-| Content Validation    | Ensure non-empty data         | - [ ] Assert HTML length > 0; forbid empty content                                         | `runAgenticRagDemo`       | `validateHtml`       | HTML string               | boolean valid         | length check assertion                  |
+| Data Import           | Load repo fixture             | - [ ] Resolve dataset path from `EXAMPLES_BY_ID`; forbid runtime hardcoded demo paths      | `workflowPresets`         | catalog lookup       | preset ID                 | dataset path          | typed example mapping                   |
+| Content Validation    | Ensure non-empty data         | - [ ] Assert parsed graph has nodes/edges; forbid empty content                            | parser loader             | graph validation     | fixture text              | graph data            | graph shape validation                  |
 
 ---
 
 ### Workflow Stage 3: HTML → Markdown Conversion
 
-**From HTML → Markdown + JSON-LD**: HTML parser processes `DEMO_HTML_CONTENT` → converts to Markdown → extracts JSON-LD metadata → handles `<details>` collapsed sections → outputs `{markdown, jsonld}`.
+**From HTML → Markdown + JSON-LD**: when a preset or import uses HTML, the HTML parser processes the source text → converts to Markdown → extracts JSON-LD metadata → handles `<details>` collapsed sections → outputs `{markdown, jsonld}`.
 
 **Parser Configuration**:
 
@@ -285,53 +284,52 @@ demo.visualization.autoOpenCuration:
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Layout Application    | Position nodes                | - [ ] Apply layout algorithm; compute positions; forbid overlapping nodes                  | `GraphRenderer`           | `applyLayout`        | GraphData                 | positioned nodes      | force simulation or hierarchical layout |
-| Node Styling          | Differentiate entities        | - [ ] Style by entity type; use semantic colors; forbid uniform styling                    | `GraphRenderer`           | `styleNodes`         | nodes, schema-config      | styled nodes          | type-based color/size lookup            |
-| Edge Rendering        | Show relationships            | - [ ] Render edges with confidence weights; forbid unlabeled edges                         | `GraphRenderer`           | `renderEdges`        | edges                     | canvas drawing        | confidence → opacity/width mapping      |
-| Panel Activation      | Enable curation               | - [ ] Open Curation panel on completion; forbid leaving user without next action           | `handleRunDemo`           | `openCurationPanel`  | void                      | void (panel update)   | panel state setter                      |
+| Layout Application    | Position nodes                | - [ ] Apply layout algorithm; compute positions; forbid overlapping nodes                  | `GraphCanvas`             | render path          | GraphData                 | positioned nodes      | force/grid/tree/radial layouts          |
+| Node Styling          | Differentiate entities        | - [ ] Style by entity type; use semantic colors; forbid uniform styling                    | `GraphCanvas`             | render path          | nodes, schema-config      | styled nodes          | type-based color/size lookup            |
+| Edge Rendering        | Show relationships            | - [ ] Render edges with confidence weights; forbid unlabeled edges                         | `GraphCanvas`             | render path          | edges                     | canvas drawing        | confidence → opacity/width mapping      |
+| Panel Activation      | Enable inspection             | - [ ] Keep graph and source-file state inspectable after load; forbid orphaned demo output | MainPanel / parser views  | state projection     | active graph              | UI state              | store projection                        |
 
 ---
 
 ## Demo Data Specifications
 
-### AI Engineering Field Guide (Version 4.0)
+### Repo-Owned Demo Fixtures
 
 **Content Coverage**:
 
 | Section                | Topics                                          | Purpose                                      |
 |------------------------|-------------------------------------------------|----------------------------------------------|
-| Fundamentals           | Python, SQL, Data Structures                    | Foundation for ML/AI engineering             |
-| Machine Learning       | Scikit-learn, Model Selection, Evaluation       | Classical ML techniques and tools            |
-| Deep Learning          | TensorFlow, PyTorch, Neural Networks            | Modern deep learning frameworks              |
-| Ethics                 | Bias, Fairness, Responsible AI                  | Ethical considerations in AI development     |
-| Practice               | Deployment, Monitoring, Production ML           | Real-world application and operations        |
+| Generic KG             | `data/test-data/neutral-kg.jsonld`              | Baseline graph visualization                 |
+| EDA to MLP Pipeline    | `data/test-data/eda-mlp-path.json`              | Pipeline path inspection                     |
+| Example Workflow       | `docs/assets/example-workflow.jsonld`           | Workflow graph styling and schema pairing    |
+| Multi-Ontology Graph   | `docs/assets/multi-ontology-kg.jsonld`          | Multi-ontology visual assessment             |
 
-**HTML Structure**:
+**Fixture Structure**:
 
 ```yaml
-htmlStructure.detailsSections:
+fixtureStructure.datasetPath:
   scope: content_organization
-  type: array (<details> elements)
-  mutability: immutable (static content)
-  validation: each section has <summary> and content
-  impact: enables progressive disclosure in demo content
+  type: repo-relative path
+  mutability: source-owned
+  validation: file exists under data/test-data or docs/assets
+  impact: enables reproducible demo loading
 
-htmlStructure.semanticMarkup:
+fixtureStructure.schemaPath:
   scope: content_organization
-  type: HTML5 semantic elements
-  mutability: immutable
-  validation: valid HTML5 structure
-  impact: ensures clean Markdown conversion
+  type: repo-relative schema path
+  mutability: source-owned
+  validation: schema exists under data/config/schema
+  impact: keeps visual presets aligned with loaded graph
 ```
 
 **Neutrality Requirements**:
 
 | Requirement           | Implementation                                  | Rationale                                    |
 |-----------------------|-------------------------------------------------|----------------------------------------------|
-| No Vendor Lock-In     | References open-source tools (Python, TensorFlow)| Avoids commercial product promotion          |
-| Domain-Agnostic       | Covers general AI/ML topics, not specific industry | Applicable across sectors                  |
-| Educational Focus     | Structured as field guide with learning progression | Suitable for diverse user backgrounds      |
-| Stable Content        | Static HTML fixture, no external dependencies    | Ensures reproducible demo experience         |
+| No Vendor Lock-In     | Uses repo-owned JSON/JSON-LD graph fixtures      | Avoids commercial product promotion          |
+| Domain-Agnostic       | Covers generic graph, workflow, and ontology data | Applicable across sectors                   |
+| Educational Focus     | Keeps fixtures small and inspectable             | Suitable for parser/render verification      |
+| Stable Content        | Static repo fixtures, no external dependencies   | Ensures reproducible demo experience         |
 
 **Design Compliance**:
 

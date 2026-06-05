@@ -1,4 +1,4 @@
-import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '../url'
+import { buildWebpageAssetPathProxyUrl, shouldUseWebpageAssetPathProxyUrl } from '../url'
 import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 
 export type WebpageSandboxScriptPolicy = 'strip' | 'allow'
@@ -9,15 +9,13 @@ export type WebpageSandboxBuildResult = {
   tooLargeForSrcdoc: boolean
 }
 
-const injectWeChatUnhideStyle = (html: string, baseHref: string): string => {
+const revealHiddenContentRoots = (html: string): string => {
   const raw = String(html || '')
-  const base = String(baseHref || '').trim()
-  const isWeChat = /mp\.weixin\.qq\.com/i.test(base) || /mp\.weixin\.qq\.com/i.test(raw)
-  if (!isWeChat) return raw
+  if (!/\b(?:id|class)\s*=\s*("|')[^"']*(?:js_content|rich_media_content)[^"']*\1/i.test(raw)) return raw
   const stripHiddenInlineStyle = (s: string): string => {
     const input = String(s || '')
-    if (!/js_content/i.test(input) || !/style\s*=/.test(input)) return input
-    return input.replace(/(<[^>]+\bid\s*=\s*("|')js_content\2[^>]*\bstyle\s*=\s*("|'))([^"']*)(\3)/gi, (_m, head: string, _q1: string, q: string, styleValue: string, tail: string) => {
+    if (!/(?:js_content|rich_media_content)/i.test(input) || !/style\s*=/.test(input)) return input
+    return input.replace(/(<[^>]+\b(?:id|class)\s*=\s*("|')[^"']*(?:js_content|rich_media_content)[^"']*\2[^>]*\bstyle\s*=\s*("|'))([^"']*)(\3)/gi, (_m, head: string, _q1: string, q: string, styleValue: string, tail: string) => {
       let next = String(styleValue || '')
       next = next.replace(/\bvisibility\s*:\s*hidden\s*;?/gi, '')
       next = next.replace(/\bopacity\s*:\s*0\s*;?/gi, '')
@@ -36,7 +34,7 @@ const injectWeChatUnhideStyle = (html: string, baseHref: string): string => {
     'img{max-width:100% !important;height:auto !important;}',
     'body{opacity:1 !important;}',
   ].join('')
-  const styleTag = `<style data-kg-wechat-unhide="1">${css}</style>`
+  const styleTag = `<style data-kg-content-unhide="1">${css}</style>`
   const lower = cleaned.toLowerCase()
   const headClose = lower.indexOf('</head>')
   if (headClose >= 0) return `${cleaned.slice(0, headClose)}\n${styleTag}\n${cleaned.slice(headClose)}`
@@ -141,16 +139,14 @@ const absolutizeLocalProxyPaths = (html: string, origin: string): string => {
   return next
 }
 
-const shouldProxyHotlinkProtectedImageUrl = (absUrl: string): boolean => isWeChatHotlinkProtectedAssetUrl(absUrl)
-
-const proxyHotlinkProtectedImages = (html: string): string => {
+const proxyAssetPathImages = (html: string): string => {
   const raw = String(html || '')
   if (!/<img\b/i.test(raw)) return raw
   return raw.replace(/<img\b[^>]*>/gi, (tag) => {
     const srcMatch = /\bsrc\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tag)
     const srcValue = srcMatch ? (srcMatch[2] ?? srcMatch[3] ?? '') : ''
     const normalizedSrc = normalizeInlineUrl(srcValue)
-    if (!normalizedSrc || !shouldProxyHotlinkProtectedImageUrl(normalizedSrc)) return tag
+    if (!normalizedSrc || !shouldUseWebpageAssetPathProxyUrl(normalizedSrc)) return tag
     const proxied = buildWebpageAssetPathProxyUrl(normalizedSrc)
     if (!proxied) return tag
     const injected = `src="${escapeHtml(proxied)}"`
@@ -174,7 +170,7 @@ const proxyAllRemoteImages = (html: string): string => {
     const srcValue = srcMatch ? (srcMatch[2] ?? srcMatch[3] ?? '') : ''
     const normalizedSrc = normalizeInlineUrl(srcValue)
     if (!/^https?:\/\//i.test(normalizedSrc)) return tag
-    const proxied = shouldProxyHotlinkProtectedImageUrl(normalizedSrc)
+    const proxied = shouldUseWebpageAssetPathProxyUrl(normalizedSrc)
       ? buildWebpageAssetPathProxyUrl(normalizedSrc)
       : buildWebpageAssetProxyUrl(normalizedSrc)
     if (!proxied) return tag
@@ -215,7 +211,7 @@ const promoteLazyLoadedImages = (html: string): string => {
     const normalizedCandidate = normalizeInlineUrl(candidateRaw)
     if (!isSafeSrc(normalizedCandidate)) return tag
 
-    const promoted = shouldProxyHotlinkProtectedImageUrl(normalizedCandidate)
+    const promoted = shouldUseWebpageAssetPathProxyUrl(normalizedCandidate)
       ? buildWebpageAssetPathProxyUrl(normalizedCandidate)
       : normalizedCandidate
 
@@ -498,11 +494,11 @@ async function buildSandboxHtmlAsync(args: {
       await stepYield('Sanitizing Refresh')
       current = stripWebpageRefreshMeta(current)
 
-      await stepYield('Unhiding WeChat')
-      current = injectWeChatUnhideStyle(current, args.baseHref)
+      await stepYield('Unhiding Content')
+      current = revealHiddenContentRoots(current)
 
       await stepYield('Fixing Lazy Images')
-      current = proxyHotlinkProtectedImages(promoteLazyLoadedImages(current))
+      current = proxyAssetPathImages(promoteLazyLoadedImages(current))
     } else {
       await stepYield('Sanitizing CSP')
       current = stripWebpageCspMeta(current)
@@ -510,11 +506,11 @@ async function buildSandboxHtmlAsync(args: {
       await stepYield('Sanitizing Refresh')
       current = stripWebpageRefreshMeta(current)
 
-      await stepYield('Unhiding WeChat')
-      current = injectWeChatUnhideStyle(current, args.baseHref)
+      await stepYield('Unhiding Content')
+      current = revealHiddenContentRoots(current)
 
       await stepYield('Fixing Lazy Images')
-      current = proxyHotlinkProtectedImages(promoteLazyLoadedImages(current))
+      current = proxyAssetPathImages(promoteLazyLoadedImages(current))
 
       await stepYield('Stripping Scripts')
       current = stripWebpageScriptTags(current)
@@ -588,15 +584,14 @@ export function buildWebpageHtmlSrcdoc(args: { html: string; baseHref: string; s
 
   let current = rawHtml
   if (scriptPolicy === 'allow') {
-    current = proxyHotlinkProtectedImages(
-      proxyAllRemoteImages(promoteLazyLoadedImages(injectWeChatUnhideStyle(stripWebpageRefreshMeta(stripWebpageCspMeta(current)), args.baseHref))),
+    current = proxyAssetPathImages(
+      proxyAllRemoteImages(promoteLazyLoadedImages(revealHiddenContentRoots(stripWebpageRefreshMeta(stripWebpageCspMeta(current))))),
     )
   } else {
-    current = proxyHotlinkProtectedImages(
+    current = proxyAssetPathImages(
       proxyAllRemoteImages(promoteLazyLoadedImages(
-        injectWeChatUnhideStyle(
+        revealHiddenContentRoots(
           stripWebpageInlineEventHandlers(stripWebpageScriptTags(stripWebpageRefreshMeta(stripWebpageCspMeta(current)))),
-          args.baseHref,
         )
       )),
     )

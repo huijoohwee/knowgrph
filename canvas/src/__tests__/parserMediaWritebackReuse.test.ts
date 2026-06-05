@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export function testParserMediaWritebackReusesSharedMediaPatchHelper() {
+export function testParserMediaWritebackReusesSharedMediaPropertyHelper() {
   const builderPath = resolve(process.cwd(), 'src', 'features', 'parsers', 'markdownJsonLdBuilder.ts')
   const utilsPath = resolve(process.cwd(), 'src', 'features', 'parsers', 'markdownJsonLdUtils.ts')
   const parserPath = resolve(process.cwd(), 'src', 'lib', 'parsers', 'markdownJsonLd.impl.ts')
@@ -14,29 +14,29 @@ export function testParserMediaWritebackReusesSharedMediaPatchHelper() {
   const webpageText = readFileSync(webpagePath, 'utf8')
   const mermaidText = readFileSync(mermaidPath, 'utf8')
 
-  if (!builderText.includes("import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'")) {
-    throw new Error('expected markdownJsonLdBuilder to import shared patchNodeMediaProperties helper')
+  if (!builderText.includes("import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'")) {
+    throw new Error('expected markdownJsonLdBuilder to import shared buildNodeMediaProperties helper')
   }
-  if (!builderText.includes('buildAliasedMediaProperties({ kind: \'iframe\'')) {
-    throw new Error('expected markdownJsonLdBuilder link/media ingestion to reuse shared aliased media writeback helper')
+  if (!builderText.includes('buildNodeMediaProperties({ kind: \'iframe\'')) {
+    throw new Error('expected markdownJsonLdBuilder link/media ingestion to reuse shared media property helper')
   }
-  if (!utilsText.includes("import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'")) {
-    throw new Error('expected markdownJsonLdUtils to import shared patchNodeMediaProperties helper')
+  if (!utilsText.includes("import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'")) {
+    throw new Error('expected markdownJsonLdUtils to import shared buildNodeMediaProperties helper')
   }
-  if (!utilsText.includes('buildAliasedMediaProperties({')) {
-    throw new Error('expected markdownJsonLdUtils media classification to reuse shared aliased media writeback helper')
+  if (!utilsText.includes('buildNodeMediaProperties({')) {
+    throw new Error('expected markdownJsonLdUtils media classification to reuse shared media property helper')
   }
-  if (!parserText.includes("import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'")) {
-    throw new Error('expected markdownJsonLd parser to import shared patchNodeMediaProperties helper')
+  if (!parserText.includes("import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'")) {
+    throw new Error('expected markdownJsonLd parser to import shared buildNodeMediaProperties helper')
   }
-  if (!parserText.includes('buildAliasedImageMediaProperties(')) {
-    throw new Error('expected markdownJsonLd parser POI image writeback to reuse shared aliased image helper')
+  if (!parserText.includes('buildNodeMediaProperties({ kind: \'image\'')) {
+    throw new Error('expected markdownJsonLd parser POI image writeback to reuse shared media property helper')
   }
-  if (!webpageText.includes("import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'")) {
-    throw new Error('expected webpageLayoutToGraph to import shared patchNodeMediaProperties helper')
+  if (!webpageText.includes("import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'")) {
+    throw new Error('expected webpageLayoutToGraph to import shared buildNodeMediaProperties helper')
   }
-  if (!webpageText.includes('applyAliasedMediaProperties({ properties, kind: \'video\'')) {
-    throw new Error('expected webpageLayoutToGraph to reuse shared aliased media helper for DOM media nodes')
+  if (!webpageText.includes('applyNodeMediaProperties({ properties, kind: tag === \'VIDEO\' ? \'video\' : \'audio\'')) {
+    throw new Error('expected webpageLayoutToGraph to reuse shared media property helper for DOM media nodes')
   }
   if (!mermaidText.includes("import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'")) {
     throw new Error('expected mermaidFrontmatterGeometry to import shared patchNodeMediaProperties helper')

@@ -46,6 +46,7 @@ const mergePaint = (base: InfiniteGridPaint, patch: Partial<InfiniteGridPaint> |
 export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, args: {
   enabled: boolean
   gridSize: number
+  gridSizeY?: number
   viewportW: number
   viewportH: number
   dpr: number
@@ -62,12 +63,13 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
   const x = isFiniteNumber(args.transform?.x) ? args.transform.x : 0
   const y = isFiniteNumber(args.transform?.y) ? args.transform.y : 0
 
-  const baseSize = Math.max(1, Math.floor(isFiniteNumber(args.gridSize) ? args.gridSize : 1))
+  const baseSizeX = Math.max(1, Math.floor(isFiniteNumber(args.gridSize) ? args.gridSize : 1))
+  const baseSizeY = Math.max(1, Math.floor(isFiniteNumber(args.gridSizeY) ? args.gridSizeY : baseSizeX))
   const p = mergePaint(defaultInfiniteGridPaint(), args.paint)
 
   const majorEvery = Math.max(2, Math.floor(p.majorEvery || 5))
 
-  const pickMinorWorldStep = (): number => {
+  const pickMinorWorldStep = (baseSize: number): number => {
     let step = baseSize
     const minPx = Math.max(2, p.minMinorStepPx)
     if (step * k >= minPx) return step
@@ -80,7 +82,7 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
     return step
   }
 
-  const pickLockedMinorWorldStep = (): number => {
+  const pickLockedMinorWorldStep = (baseSize: number): number => {
     let step = baseSize
     const minPx = Math.max(2, p.minMinorStepPx)
     while (step * k < minPx && step < 1_000_000) {
@@ -89,8 +91,10 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
     return step
   }
 
-  const minorStep = args.lockToBaseStep === true ? pickLockedMinorWorldStep() : pickMinorWorldStep()
-  const majorStep = minorStep * majorEvery
+  const minorStepX = args.lockToBaseStep === true ? pickLockedMinorWorldStep(baseSizeX) : pickMinorWorldStep(baseSizeX)
+  const minorStepY = args.lockToBaseStep === true ? pickLockedMinorWorldStep(baseSizeY) : pickMinorWorldStep(baseSizeY)
+  const majorStepX = minorStepX * majorEvery
+  const majorStepY = minorStepY * majorEvery
 
   const minW = screenToWorld({ transform: { k, x, y }, sx: 0, sy: 0 })
   const maxW = screenToWorld({ transform: { k, x, y }, sx: viewportW, sy: viewportH })
@@ -102,20 +106,24 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
   const minorWidthWorld = Math.max(0.1, (Math.max(0.5, p.minorWidthPx) / (dpr * k)))
   const majorWidthWorld = Math.max(0.1, (Math.max(0.5, p.majorWidthPx) / (dpr * k)))
 
-  const shouldDrawMinor = minorStep * k >= Math.max(2, p.minMinorStepPx)
-  const shouldDrawMajor = majorStep * k >= Math.max(6, p.minMajorStepPx)
+  const shouldDrawMinorX = minorStepX * k >= Math.max(2, p.minMinorStepPx)
+  const shouldDrawMinorY = minorStepY * k >= Math.max(2, p.minMinorStepPx)
+  const shouldDrawMajorX = majorStepX * k >= Math.max(6, p.minMajorStepPx)
+  const shouldDrawMajorY = majorStepY * k >= Math.max(6, p.minMajorStepPx)
 
   const dotRadiusWorld = Math.max(0.05, Math.max(0.5, p.dotRadiusPx) / (dpr * k))
   const anchor = args.anchor === 'cellCenter' ? 'cellCenter' : 'gridLine'
 
-  const drawLines = (step: number, stroke: string, alpha: number, widthWorld: number) => {
-    const startX = Math.floor(minX / step) * step
-    const endX = Math.ceil(maxX / step) * step
-    const startY = Math.floor(minY / step) * step
-    const endY = Math.ceil(maxY / step) * step
+  const drawLines = (stepX: number, stepY: number, drawX: boolean, drawY: boolean, stroke: string, alpha: number, widthWorld: number) => {
+    const offsetX = anchor === 'cellCenter' ? stepX * 0.5 : 0
+    const offsetY = anchor === 'cellCenter' ? stepY * 0.5 : 0
+    const startX = Math.floor((minX - offsetX) / stepX) * stepX + offsetX
+    const endX = Math.ceil((maxX - offsetX) / stepX) * stepX + offsetX
+    const startY = Math.floor((minY - offsetY) / stepY) * stepY + offsetY
+    const endY = Math.ceil((maxY - offsetY) / stepY) * stepY + offsetY
     const maxLines = 2_500
-    const countX = Math.max(0, Math.floor((endX - startX) / step) + 1)
-    const countY = Math.max(0, Math.floor((endY - startY) / step) + 1)
+    const countX = drawX ? Math.max(0, Math.floor((endX - startX) / stepX) + 1) : 0
+    const countY = drawY ? Math.max(0, Math.floor((endY - startY) / stepY) + 1) : 0
     if (countX + countY > maxLines) return
 
     ctx.save()
@@ -126,35 +134,40 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
     ctx.lineJoin = 'miter'
 
     ctx.beginPath()
-    for (let gx = startX; gx <= endX + 1e-6; gx += step) {
-      ctx.moveTo(gx, minY)
-      ctx.lineTo(gx, maxY)
+    if (drawX) {
+      for (let gx = startX; gx <= endX + 1e-6; gx += stepX) {
+        ctx.moveTo(gx, minY)
+        ctx.lineTo(gx, maxY)
+      }
     }
-    for (let gy = startY; gy <= endY + 1e-6; gy += step) {
-      ctx.moveTo(minX, gy)
-      ctx.lineTo(maxX, gy)
+    if (drawY) {
+      for (let gy = startY; gy <= endY + 1e-6; gy += stepY) {
+        ctx.moveTo(minX, gy)
+        ctx.lineTo(maxX, gy)
+      }
     }
     ctx.stroke()
     ctx.restore()
   }
 
-  const drawDots = (step: number, fill: string, alpha: number, rWorld: number) => {
-    const offset = anchor === 'cellCenter' ? step * 0.5 : 0
-    const startX = Math.floor((minX - offset) / step) * step + offset
-    const endX = Math.ceil((maxX - offset) / step) * step + offset
-    const startY = Math.floor((minY - offset) / step) * step + offset
-    const endY = Math.ceil((maxY - offset) / step) * step + offset
+  const drawDots = (stepX: number, stepY: number, fill: string, alpha: number, rWorld: number) => {
+    const offsetX = anchor === 'cellCenter' ? stepX * 0.5 : 0
+    const offsetY = anchor === 'cellCenter' ? stepY * 0.5 : 0
+    const startX = Math.floor((minX - offsetX) / stepX) * stepX + offsetX
+    const endX = Math.ceil((maxX - offsetX) / stepX) * stepX + offsetX
+    const startY = Math.floor((minY - offsetY) / stepY) * stepY + offsetY
+    const endY = Math.ceil((maxY - offsetY) / stepY) * stepY + offsetY
     const maxDots = 18_000
-    const countX = Math.max(0, Math.floor((endX - startX) / step) + 1)
-    const countY = Math.max(0, Math.floor((endY - startY) / step) + 1)
+    const countX = Math.max(0, Math.floor((endX - startX) / stepX) + 1)
+    const countY = Math.max(0, Math.floor((endY - startY) / stepY) + 1)
     if (countX * countY > maxDots) return
 
     ctx.save()
     ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * Math.max(0, Math.min(1, alpha))))
     ctx.fillStyle = fill
     ctx.beginPath()
-    for (let gy = startY; gy <= endY + 1e-6; gy += step) {
-      for (let gx = startX; gx <= endX + 1e-6; gx += step) {
+    for (let gy = startY; gy <= endY + 1e-6; gy += stepY) {
+      for (let gx = startX; gx <= endX + 1e-6; gx += stepX) {
         ctx.moveTo(gx + rWorld, gy)
         ctx.arc(gx, gy, rWorld, 0, Math.PI * 2)
       }
@@ -164,18 +177,19 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
   }
 
   if (p.variant === 'dots') {
-    if (shouldDrawMinor) drawDots(minorStep, p.minorStroke, p.minorAlpha, dotRadiusWorld)
-    if (shouldDrawMajor) drawDots(majorStep, p.majorStroke, p.majorAlpha, Math.max(dotRadiusWorld, dotRadiusWorld * 1.35))
+    if (shouldDrawMinorX && shouldDrawMinorY) drawDots(minorStepX, minorStepY, p.minorStroke, p.minorAlpha, dotRadiusWorld)
+    if (shouldDrawMajorX && shouldDrawMajorY) drawDots(majorStepX, majorStepY, p.majorStroke, p.majorAlpha, Math.max(dotRadiusWorld, dotRadiusWorld * 1.35))
     return
   }
 
-  if (shouldDrawMinor) drawLines(minorStep, p.minorStroke, p.minorAlpha, minorWidthWorld)
-  if (shouldDrawMajor) drawLines(majorStep, p.majorStroke, p.majorAlpha, majorWidthWorld)
+  if (shouldDrawMinorX || shouldDrawMinorY) drawLines(minorStepX, minorStepY, shouldDrawMinorX, shouldDrawMinorY, p.minorStroke, p.minorAlpha, minorWidthWorld)
+  if (shouldDrawMajorX || shouldDrawMajorY) drawLines(majorStepX, majorStepY, shouldDrawMajorX, shouldDrawMajorY, p.majorStroke, p.majorAlpha, majorWidthWorld)
 }
 
 export const drawInfiniteGrid = (ctx: CanvasRenderingContext2D, args: {
   enabled: boolean
   gridSize: number
+  gridSizeY?: number
   viewportW: number
   viewportH: number
   dpr: number
@@ -201,6 +215,7 @@ export const drawInfiniteGrid = (ctx: CanvasRenderingContext2D, args: {
   drawInfiniteGridInWorldContext(ctx, {
     enabled: true,
     gridSize: args.gridSize,
+    gridSizeY: args.gridSizeY,
     viewportW,
     viewportH,
     dpr,

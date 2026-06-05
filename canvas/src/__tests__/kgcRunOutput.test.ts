@@ -72,6 +72,53 @@ const buildKgcFixture = (formatLine = ''): string => [
   '',
 ].join('\n')
 
+const buildGenericKgcFixture = (): string => [
+  '---',
+  'title: "QNX-42 Gateway Response"',
+  'product: ""',
+  'subject: "Operator"',
+  'artifact: "response"',
+  'objective: "Connect QNX-42 gateway, BlueLark adapter, outputSrcDoc chart panel, and audioUrl review notes"',
+  'domain: "QNX-42 gateway, BlueLark adapter, outputSrcDoc chart panel, audioUrl review notes"',
+  'date: "2026-06-05"',
+  'doc:',
+  '  id: "doc:kgc:generic-run"',
+  '  type: chatKnowgrph',
+  'flow:',
+  '  nodes:',
+  '    - id: n-out',
+  '      type: output',
+  '      label: "Output"',
+  '      data:',
+  '        role: "assistant"',
+  '        format: "markdown"',
+  '        text: "done"',
+  '---',
+  '',
+  '# QNX-42 Gateway Response · AI Pipeline',
+  '',
+  '### Use Case',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Problem',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Solution',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### User Flow',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Data Flow',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+].join('\n')
+
 export function testResolveKgcRunOutputPreferenceReadsOutputNodeFormat() {
   const pngPref = resolveKgcRunOutputPreference({
     canonicalPath: '/chat-log/kgc_20260420231505.md',
@@ -116,7 +163,7 @@ export function testResolveKgcRunOutputPreferenceReadsCanonicalMediaKeys() {
   }
 }
 
-export async function testEmitKgcRunOutputWritesMarkdownCompanionBody() {
+export async function testEmitKgcRunOutputWritesCanonicalMarkdownSection() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { restore: restoreDom } = initJsdomHarness()
@@ -132,11 +179,11 @@ export async function testEmitKgcRunOutputWritesMarkdownCompanionBody() {
         captureCanvasSvgSnapshot: async () => null,
       }),
     })
-    if (result.path !== '/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md') {
+    if (result.path !== '/chat-log/20260420T231505Z/kgc_20260420T231505Z.md') {
       throw new Error(`expected markdown run output path, got ${String(result.path)}`)
     }
     const fs = await getWorkspaceFs()
-    const written = await fs.readFileText('/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md')
+    const written = await fs.readFileText('/chat-log/20260420T231505Z/kgc_20260420T231505Z.md')
     if (!written) {
       throw new Error('expected markdown run output text to be written')
     }
@@ -178,6 +225,58 @@ export async function testEmitKgcRunOutputWritesMarkdownCompanionBody() {
   }
 }
 
+export async function testEmitKgcRunOutputStaysGenericForArbitraryNamedTerms() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const originalFetch = globalThis.fetch
+  try {
+    resetWorkspaceFsForTests()
+    globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
+    const result = await emitKgcRunOutput({
+      canonicalPath: '/chat-log/kgc_20260605050000.md',
+      canonicalText: buildGenericKgcFixture(),
+      getStore: () => ({
+        captureCanvasPngSnapshot: async () => null,
+        captureCanvasSvgSnapshot: async () => null,
+      }),
+    })
+    if (!result.path) throw new Error('expected generic markdown run output path')
+    const fs = await getWorkspaceFs()
+    const written = await fs.readFileText(result.path)
+    if (!written) throw new Error('expected generic markdown run output text to be written')
+    const expectedSnippets = [
+      'QNX-42 gateway',
+      'BlueLark adapter',
+      'outputSrcDoc chart panel',
+      'audioUrl review notes',
+      '## Data Flow',
+      'outputSrcDoc',
+    ]
+    for (const snippet of expectedSnippets) {
+      if (!written.includes(snippet)) {
+        throw new Error(`expected generic markdown run output to include term-responsive snippet: ${snippet}`)
+      }
+    }
+    const forbiddenSnippets = [
+      'delivery, or commercialization',
+      'activation, upgrade, or purchase',
+      'payment completion',
+      'Pipeline-only placeholder.',
+    ]
+    for (const snippet of forbiddenSnippets) {
+      if (written.includes(snippet)) {
+        throw new Error(`expected generic markdown run output to avoid stale template snippet: ${snippet}`)
+      }
+    }
+  } finally {
+    resetWorkspaceFsForTests()
+    globalThis.fetch = originalFetch
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testEmitKgcRunOutputFallsBackToMarkdownForVideoPreference() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -197,11 +296,11 @@ export async function testEmitKgcRunOutputFallsBackToMarkdownForVideoPreference(
     if (result.kind !== 'video' || result.degraded !== true) {
       throw new Error('expected video run output to report degraded markdown fallback until direct video bytes are available')
     }
-    if (result.path !== '/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md') {
-      throw new Error(`expected video run output fallback to write markdown companion, got ${String(result.path)}`)
+    if (result.path !== '/chat-log/20260420T231505Z/kgc_20260420T231505Z.md') {
+      throw new Error(`expected video run output fallback to write canonical markdown, got ${String(result.path)}`)
     }
     const fs = await getWorkspaceFs()
-    const written = await fs.readFileText('/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md')
+    const written = await fs.readFileText('/chat-log/20260420T231505Z/kgc_20260420T231505Z.md')
     if (!written || !written.includes('## Solution') || written.includes('# Knowledge Graph Canvas · AI Pipeline')) {
       throw new Error('expected video markdown fallback to stay query-responsive instead of copying the runnable KGC scaffold')
     }

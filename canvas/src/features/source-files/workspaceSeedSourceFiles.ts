@@ -27,7 +27,7 @@ const DEFAULT_WORKSPACE_SEED_SOURCE_PATHS = new Set<string>([
   GEOSPATIAL_WORKSPACE_SOURCE_PATH,
 ])
 
-const buildSeedWorkspacePathAliases = (...paths: Array<unknown>): string[] => {
+const buildSeedWorkspacePathVariants = (...paths: Array<unknown>): string[] => {
   const out = new Set<string>()
   for (let i = 0; i < paths.length; i += 1) {
     const normalized = normalizeWorkspacePath(paths[i] as string)
@@ -39,13 +39,13 @@ const buildSeedWorkspacePathAliases = (...paths: Array<unknown>): string[] => {
 
 const canonicalizeWorkspaceDocsPath = (path: string): string => {
   const normalized = normalizeWorkspacePath(path)
-  const collapseDocsDuplicatePrefix = (value: string): string => {
+  const collapseNestedDocsMirrorPrefix = (value: string): string => {
     let next = normalizeWorkspacePath(value)
     if (!next || next === '/') return next
     const lower = next.toLowerCase()
-    const duplicatedDocsPrefix = '/docs/huijoohwee/docs/'
-    if (lower.startsWith(duplicatedDocsPrefix)) {
-      next = `/docs/${next.slice(duplicatedDocsPrefix.length)}`
+    const nestedDocsMirrorPrefix = '/docs/huijoohwee/docs/'
+    if (lower.startsWith(nestedDocsMirrorPrefix)) {
+      next = `/docs/${next.slice(nestedDocsMirrorPrefix.length)}`
     }
     const docsMarker = '/huijoohwee/docs/'
     const markerIndex = next.toLowerCase().indexOf(docsMarker)
@@ -54,7 +54,7 @@ const canonicalizeWorkspaceDocsPath = (path: string): string => {
     }
     return normalizeWorkspacePath(next)
   }
-  const collapsed = collapseDocsDuplicatePrefix(normalized)
+  const collapsed = collapseNestedDocsMirrorPrefix(normalized)
   const docsSegment = '/docs/'
   if (collapsed.startsWith(docsSegment)) return collapsed
   const docsIndex = collapsed.lastIndexOf(docsSegment)
@@ -63,15 +63,15 @@ const canonicalizeWorkspaceDocsPath = (path: string): string => {
 }
 
 const WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH = new Map<string, string>([
-  ...buildSeedWorkspacePathAliases(
+  ...buildSeedWorkspacePathVariants(
     WORKSPACE_README_SEED_PATH,
     WORKSPACE_README_SEED_REL_PATH,
   ).map(path => [path, WORKSPACE_README_SOURCE_PATH] as const),
-  ...buildSeedWorkspacePathAliases(
+  ...buildSeedWorkspacePathVariants(
     TEST_VALIDATION_WORKSPACE_SEED_PATH,
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   ).map(path => [path, TEST_VALIDATION_SOURCE_PATH] as const),
-  ...buildSeedWorkspacePathAliases(
+  ...buildSeedWorkspacePathVariants(
     GEOSPATIAL_WORKSPACE_SEED_PATH,
     GEOSPATIAL_WORKSPACE_SEED_REL_PATH,
   ).map(path => [path, GEOSPATIAL_WORKSPACE_SOURCE_PATH] as const),

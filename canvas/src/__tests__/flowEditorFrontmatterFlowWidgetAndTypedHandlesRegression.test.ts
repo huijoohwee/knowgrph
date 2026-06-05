@@ -59,7 +59,8 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   }
   if (!canvasViewportText.includes("import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'")
     || !canvasViewportText.includes("import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'")
-    || !canvasViewportText.includes("import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'")) {
+    || !canvasViewportText.includes("import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'")
+    || !canvasViewportText.includes('isFlowEditorCanvas2dRenderer')) {
     throw new Error('expected CanvasViewport to reuse shared active source and frontmatter-flow helpers for Flow Editor surface arbitration')
   }
   if (!canvasViewportText.includes('const activeSourceFile = React.useMemo(')
@@ -69,10 +70,11 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
     throw new Error('expected CanvasViewport to resolve the active Source Files graph by explorer active path during workspace transitions')
   }
   if (!canvasViewportText.includes('const workspaceFrontmatterFlowEditorSurfaceActive = workspaceEditorOverlayOpen === true')
+    || !canvasViewportText.includes('&& isFlowEditorCanvas2dRenderer(canvas2dRenderer)')
     || !canvasViewportText.includes('isFrontmatterFlowGraph(activeGraphData)')
     || !canvasViewportText.includes('isFrontmatterFlowGraph(activeSourceFile?.parsedGraphData)')
     || !canvasViewportText.includes("const active2dSurface = workspaceFrontmatterFlowEditorSurfaceActive ? 'flowEditor' : rawActive2dSurface")) {
-    throw new Error('expected CanvasViewport to keep Flow Editor as the active surface while the active Source Files graph is frontmatter-flow')
+    throw new Error('expected CanvasViewport to keep Flow Editor alive for frontmatter-flow handoff only when the active 2D renderer is Flow Editor')
   }
   if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterFlowEditorSurfaceActive')
     || !canvasViewportText.includes("!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d'")

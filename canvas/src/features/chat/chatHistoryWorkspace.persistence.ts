@@ -10,11 +10,14 @@ import { normalizeKgcFrontmatterIdentityToFileName } from './chatHistoryWorkspac
 import {
   ensureHistoryFilePath,
   resolveFilePrefix,
+  toCanonicalKgcWorkspacePath,
   toKgcTraceWorkspacePath,
 } from './chatHistoryWorkspace.paths'
+import { mergeKgcTraceSection } from './chatKgcConsolidatedArtifacts'
 import { mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
 import type { ChatHistoryWorkspaceAppendArgs, ChatHistoryWorkspaceDraftArgs } from './chatHistoryWorkspace.types'
 import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
+import { shouldRejectMarkdownDocumentPayload } from '@/lib/markdown/markdownDocumentPayloadGuards'
 
 const inFlightByPath = new Map<string, Promise<void>>()
 
@@ -88,7 +91,9 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
     storageType: args.storageType,
     defaultLocalRootPath: args.defaultLocalRootPath,
   })
-  const key = normalizeWorkspacePath(path)
+  const key = prefix === 'kgc'
+    ? toCanonicalKgcWorkspacePath(path)
+    : normalizeWorkspacePath(path)
   const previous = inFlightByPath.get(key) || Promise.resolve()
   const run = previous.then(async () => {
     if (typeof args.onResolvedPath === 'function') {
@@ -102,7 +107,8 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
     await fs.ensureSeed()
     const traceId = String(args.traceId || '').trim() || `trace-${args.timestampMs}`
     const baseTitle = args.title || (prefix === 'kgc' ? 'Knowledge Graph Canvas Storage' : 'Chat History Storage')
-    const assistantBody = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
+    const rawAssistantBody = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
+    const assistantBody = shouldRejectMarkdownDocumentPayload(rawAssistantBody) ? '' : rawAssistantBody
     const kgcAssistantBody = normalizeKgcAssistantBodyForStorage({
       timestampMs: args.timestampMs,
       workspacePath: key,
@@ -118,17 +124,31 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
       })
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
       const tracePath = toKgcTraceWorkspacePath(key)
-      const traceExistingRaw = tracePath ? (await fs.readFileText(tracePath)) || '' : ''
       const shouldWriteCanonical = next !== existingRaw
-      const shouldWriteTrace = Boolean(tracePath) && next !== traceExistingRaw
-      if (!shouldWriteCanonical && !shouldWriteTrace) return
       if (shouldWriteCanonical) {
         await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
         void mirrorChatWorkspaceFileToHost({ workspacePath: key, text: next })
       }
-      if (tracePath && shouldWriteTrace) {
-        await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
-        void mirrorChatWorkspaceFileToHost({ workspacePath: tracePath, text: next })
+      if (tracePath) {
+        const traceExistingRaw = (await fs.readFileText(tracePath)) || ''
+        const traceExisting = stripDraftBlock(traceExistingRaw, traceId)
+        if (traceExisting !== traceExistingRaw) {
+          await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: traceExisting })
+        }
+        const entry = buildChatHistoryEntry({
+          timestampMs: args.timestampMs,
+          traceId,
+          providerSummary: args.providerSummary,
+          userText: args.userText,
+          assistantText: shouldRejectMarkdownDocumentPayload(args.assistantText) ? 'No response content.' : args.assistantText,
+        })
+        await mergeKgcTraceSection({
+          fs,
+          workspacePath: key,
+          sectionKey: `final:${traceId}`,
+          title: 'KGC Finalization Trace',
+          text: entry,
+        })
       }
       return
     }
@@ -138,7 +158,7 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
       traceId,
       providerSummary: args.providerSummary,
       userText: args.userText,
-      assistantText: args.assistantText,
+      assistantText: shouldRejectMarkdownDocumentPayload(args.assistantText) ? 'No response content.' : args.assistantText,
     })
     await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: `${entry.trimEnd()}\n` })
     void mirrorChatWorkspaceFileToHost({ workspacePath: tracePath, text: `${entry.trimEnd()}\n` })
@@ -178,7 +198,9 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
     await fs.ensureSeed()
     const existingRaw = (await fs.readFileText(key)) || ''
     if (prefix === 'kgc') {
-      const assistantDraftText = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
+      const rawAssistantDraftText = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
+      const assistantDraftText = shouldRejectMarkdownDocumentPayload(rawAssistantDraftText) ? '' : rawAssistantDraftText
+      if (!assistantDraftText && rawAssistantDraftText) return
       // Streaming behavior: avoid dumping fallback template for partial chunks.
       // Only persist canonical KGC during draft when the streamed content is already structured.
       if (!isKgcStructuredMarkdown(assistantDraftText)) {
@@ -220,6 +242,7 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
       return
     }
     const baseTitle = args.title || 'Chat History Storage'
+    if (shouldRejectMarkdownDocumentPayload(args.assistantText)) return
     const draft = buildKgcDraftEntry({
       timestampMs: args.timestampMs,
       traceId,

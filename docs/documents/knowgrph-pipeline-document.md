@@ -22,12 +22,12 @@
 | Token Linking       | Merge spans via coherence           | - [ ] Use embedding similarity; configure thresholds; forbid term lists                       |
 | Edge Scoring        | Weight relationships numerically    | - [ ] Combine syntactic/semantic features; forbid pattern matching on entity types            |
 | Threshold Selection | Optimize on validation sets         | - [ ] Grid search with stratified splits; target metrics; forbid manual tuning                |
-| Entity Unification  | Resolve conflicts algorithmically   | - [ ] Cluster by similarity; apply voting strategies; forbid identity assumptions             |
+| Entity Unification  | Consolidate equivalent entities     | - [ ] Compute canonical entity IDs; merge deterministically; forbid identity assumptions      |
 | Quality Monitoring  | Track metrics continuously          | - [ ] Maintain rolling windows; detect drift; forbid silent degradation                       |
 | Corpus Reasoning    | Aggregate graph-wide patterns       | - [ ] Compute centrality; mine frequent patterns; forbid dataset-specific heuristics          |
 | Query Execution     | Fuse multi-strategy retrieval       | - [ ] Parse to features; rank by confidence; forbid hardcoded query templates                 |
 | Neutrality Testing  | Validate across domains             | - [ ] Run on diverse corpora; measure consistency; forbid domain-dependent metrics            |
-| Reproducibility     | Version all artifacts               | - [ ] Hash configs/data; seed randomness; forbid environment dependencies                     |
+| Reproducibility     | Version all artifacts               | - [ ] Hash configuration and data; seed randomness; forbid environment dependencies           |
 | Configuration       | Expose all behavior externally      | - [ ] Define YAML schemas; document defaults; forbid embedded constants                       |
 | Environment Wiring  | Control via env variables           | - [ ] Map variables to paths; inject at runtime; forbid hardcoded file locations             |
 
@@ -44,7 +44,7 @@
 
 ## Pipeline Discipline (Runtime Import → Render)
 - Scope: `/GitHub/{knowgrph,gympgrph,singabldr}` → import → render.
-- Support all `/GitHub/sandbox/` test data; no hardcoding.
+- Support repo-owned fixtures under `data/test-data/` plus explicit operator-provided fixture paths; no implicit sibling-checkout dependencies.
 - Centralize configs (labels, boxes, collisions, timing, knobs); reuse shared utilities.
 - For arbitrary JSON ingest, render only explicit graph entities (`nodes`/`edges`); forbid synthetic placeholder/fallback graph construction when entities are absent.
 - Keep the computing-flow sample and its pipeline docs aligned as the canonical ingest→parse→render fixture/docs pair; oversized docs may split into companion files, but the original filename remains the sub-600 canonical index with continuation links.
@@ -204,7 +204,7 @@ When changing shared packages that are wired via `file:` links (for example `sin
 | Preprocessing               | Structural normalization, schema validation  | Ignore patterns, validation rules, provenance tracking    |
 | Model Training              | Threshold tuning via grid search             | Search spaces, validation strategy, optimization objective|
 | Model Evaluation            | Quality monitoring and drift detection       | Metric targets, degradation thresholds, check intervals   |
-| Prediction                  | Entity extraction and edge construction      | Confidence thresholds, merge strategies, conflict resolution|
+| Prediction                  | Entity extraction and edge construction      | Confidence thresholds, merge strategies, canonical IDs      |
 | Inference                   | Agentic query execution with multi-retrieval | Traversal depth, fusion methods, ranking models           |
 
 ---
@@ -220,7 +220,7 @@ document_sources: {loader_type, connection_params, schema_discovery}
 token_linking: {coherence_threshold, max_syntactic_distance, merge_strategy}
 edge_elevation: {feature_weights, feature_transforms, boosts}
 threshold_tuning: {validation_strategy, search_spaces, optimization}
-document_unification: {similarity_metric, merge_threshold, conflict_resolution}
+document_unification: {similarity_metric, merge_threshold, inference_depth}
 feedback_loops: {monitoring, quality_targets, degradation_detection, retuning}
 corpus_reasoning: {centrality_metrics, pattern_mining, interaction_analysis}
 agentic_rag: {query_parsing, retrieval_strategies, fusion, reranking, context_extraction}
@@ -307,17 +307,16 @@ provenance_tracking: {track_lineage, versioning_strategy}
 
 ## Layer 4: Document Unification
 
-**DocumentUnifier**: Reconciles conflicting properties across entities representing the same abstract object.
+**DocumentUnifier**: Consolidates entities representing the same abstract object under one canonical ID.
 
-**Algorithm**: Similarity clustering → Conflict detection → Resolution strategies → Candidate preservation
+**Algorithm**: Entity key normalization → Canonical ID assignment → Fill-missing property merge → Edge endpoint rewrite
 
 | Context              | Intent                          | Directive                                                                                   | Module           | Class/Object     | Function/Method       | Dependency | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|------------------|-----------------------|------------|------------------------------|------------------------|----------------------------------|
-| Similarity Computation| Measure entity likeness        | - [ ] Compute pairwise similarity; apply metric from config; forbid identity heuristics    | document_unifier | DocumentUnifier  | compute_similarity    | scipy      | Entity pairs, properties     | Similarity matrix      | Match metric to scipy function   |
-| Clustering           | Group similar entities          | - [ ] Apply hierarchical clustering; use configured linkage; forbid single-linkage        | document_unifier | DocumentUnifier  | cluster_entities      | scipy      | Similarity matrix, threshold | Cluster assignments    | hierarchy.linkage with method    |
-| Conflict Detection   | Find property disagreements     | - [ ] Group by property key; check value count; forbid silent conflicts                   | document_unifier | DocumentUnifier  | detect_conflicts      | —          | Merged entities              | Conflict list          | len(set(values)) > 1 per property|
-| Vote Aggregation     | Resolve conflicting values      | - [ ] Weight by confidence/authority/recency; sum votes; forbid arbitrary tie-breaking    | document_unifier | DocumentUnifier  | aggregate_votes       | numpy      | Conflicting values, weights  | Resolved value         | argmax(sum(weight * vote))       |
-| Validation           | Check unification quality       | - [ ] Compute conflict rate and merge precision; compare to targets; forbid unchecked merges| document_unifier | DocumentUnifier  | validate_quality      | sklearn    | Unified graph, gold standard | Quality metrics        | conflict_rate < max, precision > min|
+| Entity Keying        | Identify equivalent entities     | - [ ] Normalize entity type and text; hash canonical key; forbid source-id dependence       | document_unifier | DocumentUnifier  | canonical_entity_id   | sha256     | Entity type, normalized text | Canonical entity ID    | sha256(type:text) prefix         |
+| Property Merge       | Preserve stable entity fields    | - [ ] Fill missing properties from later documents; preserve existing values deterministically | document_unifier | DocumentUnifier  | merge_entity          | —          | Existing and incoming entity | Updated entity         | first value wins; missing fills  |
+| Edge Rewrite         | Keep graph endpoints canonical   | - [ ] Rewrite source/target endpoints through the canonical entity map; forbid stale source IDs | document_unifier | DocumentUnifier  | rewrite_edge_endpoints | —          | Edge and canonical map       | Edge with canonical IDs | map lookup for endpoints         |
+| Metadata             | Track unification knobs          | - [ ] Record merge threshold and inference depth; forbid unimplemented strategy flags       | document_unifier | DocumentUnifier  | unify_entities        | —          | Parsed documents             | Unified graph metadata | explicit emitted config keys     |
 
 ---
 
@@ -376,7 +375,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 | Variable                                  | Scope            | Default                                    | Impact                                              |
 |-------------------------------------------|------------------|--------------------------------------------|-----------------------------------------------------|
 | `VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH`   | deployment       | `docs/knowgrph-pipeline-document.md`       | Controls which markdown document is parsed          |
-| `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR`       | deployment       | `data/knowgrph-workflow-preview`           | Controls artifact output location                   |
+| `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR`       | deployment       | `data/outputs/knowgrph-workflow-preview`   | Controls ignored generated artifact output location |
 | `VITE_MARKDOWN_PIPELINE_BASENAME`         | deployment       | `knowgrph-pipeline-document`               | Controls artifact filename prefixes                 |
 
 **Artifact Generation**: `*-graph-data.jsonld` (neutral node/edge graph) | `*-schema-config.jsonld` (Knowgrph schema-config, compatible with AgenticRAG structural JSON-LD) | `*-orchestrator-config.yaml` (workflow orchestrator)
@@ -389,7 +388,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 | 2    | Run pipeline via Canvas UI             | Tools menu → "Run codebase index pipeline" | Vite dev server                   |
 | 3    | Load generated artifacts               | `runMarkdownPipelineAndLoadArtifacts()`  | Graph Data Table (singabldr), Schema + Workflow views (Knowgrph host) |
 | 4    | Validate in Canvas                     | Visual inspection, traversal tests       | Canvas UI layers                    |
-| 5    | Update docs with findings              | `npm run docs:update`                    | Preview artifacts                   |
+| 5    | Update docs with findings              | `npm run docs:update`                    | Ignored generated preview artifacts |
 
 | Context              | Intent                          | Directive                                                                                   | Module/Component  | Class/Object | Function/Method              | Dependency      | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|-------------------|--------------|------------------------------|-----------------|------------------------------|------------------------|----------------------------------|
@@ -408,7 +407,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 | 1     | TokenLinker              | `link_tokens`                    | Analyzes token features → merges spans → returns entity mentions             | `FeatureExtractor`, `ConfigLoader`   | Mention list with confidence scores           | ~300   |
 | 2     | EdgeElevator             | `score_relationships`            | Extracts relation features → computes scores → returns weighted edges        | `FeatureExtractor`, `ConfigLoader`   | Edge list with confidence scores              | ~250   |
 | 3     | ThresholdTuner           | `tune_thresholds`                | Runs grid search → evaluates metrics → returns optimal thresholds            | `sklearn`, `ConfigLoader`            | Threshold dict with validation metrics        | ~400   |
-| 4     | DocumentUnifier          | `unify_entities`                 | Clusters entities → resolves conflicts → returns unified graph               | `scipy`, `ConfigLoader`              | Unified entity dict with provenance           | ~350   |
+| 4     | DocumentUnifier          | `unify_entities`                 | Canonicalizes entities → rewrites edges → returns unified graph              | `hashlib`, `ConfigLoader`            | Unified entity dict with provenance           | ~350   |
 | 5     | FeedbackOrchestrator     | `monitor_quality`                | Tracks metrics → detects drift → triggers retuning                           | `ThresholdTuner`, `ConfigLoader`     | Quality report with retuning decisions        | ~300   |
 | 6     | CorpusReasoner           | `analyze_corpus`                 | Computes centrality → mines patterns → returns importance scores             | `networkx`, `ConfigLoader`           | Importance dict with pattern list             | ~400   |
 | 7     | AgenticQueryEngine       | `execute_query`                  | Parses query → fuses retrieval → reranks results                             | `CorpusReasoner`, `ConfigLoader`     | Ranked result list with context chunks        | ~500   |
@@ -438,7 +437,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 | Unit Tests           | Validate components in isolation| - [ ] Mock dependencies; test edge cases; forbid integration leakage                       |
 | Integration Tests    | Verify layer interactions       | - [ ] Use realistic fixtures; measure end-to-end metrics; forbid synthetic-only testing    |
 | Neutrality Tests     | Ensure domain-agnostic behavior | - [ ] Run on 5+ diverse corpora; check CV < 0.2; forbid single-corpus optimization         |
-| Reproducibility Tests| Guarantee deterministic output  | - [ ] Fix seeds; hash configs/data; compare outputs; forbid environment dependencies       |
+| Reproducibility Tests| Guarantee deterministic output  | - [ ] Fix seeds; hash configuration and data; compare outputs; forbid environment dependencies |
 | Performance Tests    | Maintain efficiency             | - [ ] Profile on large corpora; measure latency/throughput; forbid O(n²) where avoidable   |
 
 ---

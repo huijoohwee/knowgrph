@@ -22,7 +22,7 @@ export const EXA_MCP_DEFAULT_CONNECTION_MODE = 'hosted-free'
 
 export const EXA_MCP_TOOL_PROFILES = [
   'default',
-  'all_non_deprecated',
+  'advanced',
 ] as const
 
 export const EXA_MCP_DEFAULT_TOOL_PROFILE = 'default'
@@ -36,21 +36,10 @@ export const EXA_MCP_ADVANCED_TOOL_NAMES = [
   'web_search_advanced_exa',
 ] as const
 
-export const EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES = [
+export const EXA_MCP_ACTIVE_TOOL_NAMES = [
   ...EXA_MCP_DEFAULT_TOOL_NAMES,
   ...EXA_MCP_ADVANCED_TOOL_NAMES,
 ] as const
-
-export const EXA_MCP_DEPRECATED_TOOL_REPLACEMENTS = {
-  get_code_context_exa: 'web_search_exa',
-  company_research_exa: 'web_search_advanced_exa',
-  crawling_exa: 'web_fetch_exa',
-  people_search_exa: 'web_search_advanced_exa',
-  linkedin_search_exa: 'web_search_advanced_exa',
-  deep_researcher_start: 'Research API: https://exa.ai/docs/reference/research/create-a-task',
-  deep_researcher_check: 'Research API: https://exa.ai/docs/reference/research/get-a-task',
-  deep_search_exa: 'web_search_advanced_exa',
-} as const
 
 export const EXA_MCP_API_KEY_HEADER = 'x-api-key'
 
@@ -64,7 +53,7 @@ export const EXA_MCP_DEFAULT_FETCH_CONTENT_LIMIT = 12000
 
 export const EXA_MCP_DEFAULT_REQUIRE_FETCH_REVIEW = true
 
-const ALLOWED_EXA_MCP_TOOLS = new Set<string>(EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES)
+const ALLOWED_EXA_MCP_TOOLS = new Set<string>(EXA_MCP_ACTIVE_TOOL_NAMES)
 
 export const normalizeExaMcpToolNames = (tools: readonly string[]): string[] => {
   const unique: string[] = []
@@ -87,6 +76,6 @@ export const buildExaMcpRemoteUrl = (tools: readonly string[]): string => {
 
 export const EXA_MCP_DEFAULT_ENABLED_TOOLS_JSON = JSON.stringify(EXA_MCP_DEFAULT_TOOL_NAMES, null, 2)
 
-export const EXA_MCP_ALL_NON_DEPRECATED_TOOLS_JSON = JSON.stringify(EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES, null, 2)
+export const EXA_MCP_ACTIVE_TOOLS_JSON = JSON.stringify(EXA_MCP_ACTIVE_TOOL_NAMES, null, 2)
 
-export const EXA_MCP_ALL_NON_DEPRECATED_REMOTE_URL = buildExaMcpRemoteUrl(EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES)
+export const EXA_MCP_ADVANCED_REMOTE_URL = buildExaMcpRemoteUrl(EXA_MCP_ACTIVE_TOOL_NAMES)

@@ -74,9 +74,7 @@ export default function SchemaSummary({
   const graphLayersRaw =
     metadata && Object.prototype.hasOwnProperty.call(metadata, 'graphLayers')
       ? (metadata.graphLayers as unknown)
-      : metadata && Object.prototype.hasOwnProperty.call(metadata, 'polygonLayers')
-        ? (metadata.polygonLayers as unknown)
-        : null
+      : null
   const ontologiesCount = Array.isArray(ontologiesRaw) ? ontologiesRaw.length : 0
   const graphLayersCount = Array.isArray(graphLayersRaw) ? graphLayersRaw.length : 0
 
@@ -220,7 +218,7 @@ export default function SchemaSummary({
     sections.push(
       <Tooltip
         key="ontologies"
-        content="Counts come from markdown frontmatter ontologies/graphLayers (polygonLayers alias) or GraphData metadata. Click to open Help on multi-ontology graphs and cluster layers."
+        content="Counts come from markdown frontmatter ontologies/graphLayers or GraphData metadata. Click to open Help on multi-ontology graphs and cluster layers."
         maxWidthPx={260}
 
       >

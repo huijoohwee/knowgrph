@@ -134,8 +134,8 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
-      'ui.workspaceEditor.overlay.defaultSplit.canvasAuthoritative',
-      modWorkspaceOverlayContract.testWorkspaceEditorOverlayDefaultSplitKeepsCanvasAuthoritative,
+      'ui.workspaceEditor.overlay.defaultSplit.halfViewport',
+      modWorkspaceOverlayContract.testWorkspaceEditorOverlayDefaultSplitInitializesAtHalfViewport,
     )
 
     const modLaunchImportContract = await import('../../__tests__/launchImportFallbackFileListSnapshotContract.test')

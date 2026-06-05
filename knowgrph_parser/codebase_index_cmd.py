@@ -11,6 +11,7 @@ from .codebase_index_config import (
     load_yaml,
 )
 from .codebase_index_jsonld import build_jsonld
+from .config_paths import UNIVERSAL_ORCHESTRATOR_CONFIG_REL, repo_path
 from .runtime_events import load_runtime_events_from_log
 
 
@@ -32,7 +33,7 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: str, parser_script_p
     input_default = os.path.join(base_dir, "data", "outputs", "knowgrph-workflow.json")
     output_default = os.path.join(base_dir, "data", "outputs", "codebase-index-viz.jsonld")
     runtime_events_log_default = os.path.join(base_dir, "data", "outputs", "runtime-events.jsonl")
-    orchestrator_config_default = os.path.join(base_dir, "orchestrator-config", "knowgrph-universal-orchestrator-config.yaml")
+    orchestrator_config_default = repo_path(base_dir, UNIVERSAL_ORCHESTRATOR_CONFIG_REL)
     parser = argparse.ArgumentParser(prog="parse-codebase-index", add_help=True)
     parser.add_argument("--input", "-i", default=input_default)
     parser.add_argument("--output", "-o", default=output_default)

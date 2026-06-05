@@ -1,16 +1,13 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
 import type { MarkdownPresentationApi } from '@/features/markdown-workspace/markdownWorkspaceTypes'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
+import { readWebpageArtifactFixture } from './helpers/webpageArtifactFixtures'
 
 export async function testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedia() {
-  const p = path.resolve(process.cwd(), 'sandbox', 'tmp-remotion.md')
-  const markdownText = fs.readFileSync(p, 'utf8')
-  if (!markdownText || !markdownText.trim()) throw new Error('expected tmp-remotion.md to be non-empty')
+  const { markdownText, activeDocumentPath, editorUri } = readWebpageArtifactFixture('remotion')
 
   const { dom, restore } = initJsdomHarness()
   try {
@@ -40,13 +37,13 @@ export async function testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedi
         isMarkdown: true,
         activeText: markdownText,
         setActiveText: () => {},
-        activeDocumentKey: '/sandbox/tmp-remotion.md',
+        activeDocumentKey: activeDocumentPath,
         highlightedLineRange: null,
         revealLineInEditor: () => {},
         showInViewer: () => {},
         showInPresentation: () => {},
         showInSlidesGallery: () => {},
-        editorUri: 'inmemory://tmp-remotion.md',
+        editorUri,
         editorLanguage: 'markdown',
         editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
       }),

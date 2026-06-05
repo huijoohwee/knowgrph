@@ -42,7 +42,10 @@ const agentReadyDiscoveryTarget = path.resolve(
 const agentReadyCommerceTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-commerce.mjs')
 const agentReadyCommerceX402RouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'api', 'payments', 'commerce', 'x402.js')
 const agentReadyCommerceX402RouteBody = `import { buildKnowgrphX402PaymentRequiredResponse } from "../../../knowgrph/knowgrph-agent-ready-commerce.mjs";\n\nexport async function onRequest(context) {\n  return buildKnowgrphX402PaymentRequiredResponse(context.request, context.env || {});\n}\n`
-const agentReadyRuntimeSharedEntries = ['dist/payments/agenticCommerceSsot.js']
+const agentReadyRuntimeSharedEntries = [
+  'dist/hash/signature.js',
+  'dist/payments/agenticCommerceSsot.js',
+]
 const videoFrameSharedProviderSource = path.resolve(knowgrphRoot, 'grph-shared', 'dist', 'rich-media', 'providers.js')
 const videoFrameSharedProviderTarget = path.resolve(githubRoot, 'huijoohwee', 'grph-shared', 'dist', 'rich-media', 'providers.js')
 const rootAgentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph-agent-ready-shared.mjs')

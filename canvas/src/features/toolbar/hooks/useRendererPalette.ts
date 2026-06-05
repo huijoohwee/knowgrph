@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { MVP_COLOR_PALETTE } from '@/lib/graph/schema';
+import { getRendererPalette } from '@/lib/graph/schema';
 import type { JSONValue } from '@/lib/graph/types';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -12,25 +12,7 @@ export function useRendererPalette() {
     }))
   );
 
-  const palette = React.useMemo(() => {
-    const meta =
-      schema.metadata && typeof schema.metadata === 'object' && !Array.isArray(schema.metadata)
-        ? schema.metadata
-        : {};
-    const raw = Object.prototype.hasOwnProperty.call(meta, 'renderer:palette')
-      ? (meta['renderer:palette'] as unknown)
-      : undefined;
-    const baseNodes = MVP_COLOR_PALETTE.nodes;
-    const baseEdges = MVP_COLOR_PALETTE.edges;
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      const obj = raw as { nodes?: Record<string, string>; edges?: Record<string, string> };
-      return {
-        nodes: { ...baseNodes, ...(obj.nodes || {}) },
-        edges: { ...baseEdges, ...(obj.edges || {}) },
-      };
-    }
-    return { nodes: baseNodes, edges: baseEdges };
-  }, [schema]);
+  const palette = React.useMemo(() => getRendererPalette(schema), [schema]);
 
   const handleUpdatePaletteColor = React.useCallback(
     (kind: 'node' | 'edge', key: string, value: string) => {

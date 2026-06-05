@@ -56,7 +56,7 @@ export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArg
       requestText: args.requestText,
       workspacePath: args.workspacePath,
     })
-    return projectStructuredContentIntoKgcMarkdown(queryResponsive)
+    return projectStructuredContentIntoKgcMarkdown(ensureKgcBaseTemplateRequiredBodyScaffold(queryResponsive))
   }
   const fileName = String(args.workspacePath || '').split('/').filter(Boolean).slice(-1)[0] || ''
   const fallback = buildDeterministicBaseTemplateKgcTurn({

@@ -70,11 +70,12 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 import { resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 const readComputingFlowSample = (): string => {
-  const p = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
+  const p = resolveRepoTestDataPath('markdown-syntax-computing-flow-sample.md')
   return readFileSync(p, 'utf8')
 }
 
@@ -101,12 +102,31 @@ export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfac
     'TBD (unknown) or — (not applicable)',
     'Every streamed paragraph must remain relevant to the active query',
     'never output placeholder or example links',
+    'GitGraph, Gantt, and Geospatial outputs follow the same rule',
+    'typed `flow_diagrams` data (`mermaid_gitgraph`, `mermaid_gantt`)',
+    'GeoJSON/FeatureCollection data may live in neutral `geoJson`/`geojson`/coordinate fields',
+    'source/card/widget -> safe compute -> Rich Media Panel `outputSrcDoc`',
+    'D3 Graph, Flow Canvas, Dashboard, 3D Mode, and XR Mode outputs use neutral frontmatter data',
+    '`kgCanvas2dRenderer`, `kgCanvasSurfaceMode`, `kgCanvasRenderMode`, `kgCanvas3dMode`, and `kgAsset*`',
+    'do not mix them with document version-control GitGraph state, renderer-local Timeline UI, or Geospatial Mode toggles',
   ]
   requiredSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
       throw new Error(`Expected chat response contract prompt to include: ${snippet}`)
     }
   })
+
+  for (const snippet of [
+    'GitGraph, Gantt, and Geospatial requests are dataflow too',
+    '`type: mermaid_gitgraph` / `type: mermaid_gantt`',
+    'GeoJSON/FeatureCollection payloads',
+    'instead of emitting a static copied panel as authority',
+    'D3 Graph, Flow Canvas, Dashboard, 3D Mode, and XR Mode requests are frontmatter data too',
+  ]) {
+    if (!CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT.includes(snippet)) {
+      throw new Error(`Expected KGC response contract prompt to include: ${snippet}`)
+    }
+  }
 
   CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC.forEach(key => {
     if (!prompt.includes(`\`${key}\``)) {
@@ -401,6 +421,101 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFinalizesSimp
   }
 }
 
+export async function testExecuteFloatingPanelChatSubmitCoordinatorPersistsKgcStreamDraftsAcrossRefresh() {
+  const createDraftWriterCalls: Array<{
+    liveKgcPath: string | null
+    persistWorkspaceDrafts?: boolean
+    traceId: string
+  }> = []
+  const draftFlushes: Array<{ text: string; force: boolean }> = []
+  const submitArgs = buildSubmitArgsFixture({
+    chatStorageTarget: 'chatKnowgrph',
+    chatLocalStorageRootPath: '/workspace/chat',
+    chatKnowgrphWorkspacePath: '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md',
+    abortRef: { current: null },
+    streamDraftTextRef: { current: null },
+    streamFollowRef: { current: null },
+  })
+
+  await executeFloatingPanelChatSubmitCoordinator({
+    submitArgs,
+    requestUrl: 'https://chat.example.test/v1/chat/completions',
+    trimmedInput: 'Generate durable KGC',
+    assistantMessageId: 'assistant-pending',
+    nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate durable KGC' }],
+    requestTimestampMs: Date.UTC(2026, 4, 22, 18, 10, 0),
+    traceId: 'trace-durable-stream',
+    bootstrapDraft: async () => '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md',
+    buildRequestContext: async () => ({
+      packedContext: { selected_node: null, connected_edges: [], frontmatter: null, graph_summary: '', guideline_digest: '' },
+      systemMessages: [{ role: 'system', content: 'base-system' }],
+      conversationMessages: [{ role: 'user', content: 'Generate durable KGC' }],
+    }),
+    createRequestSender: () => async () => new Response('{}', { status: 200, headers: { 'content-type': 'text/event-stream' } }),
+    resolveInitialModel: () => ({ providerModelOptions: ['model-a'], effectiveModel: 'model-a' }),
+    executeTransportAttempt: async args => ({
+      response: await args.sendChat('model-a', 'max_completion_tokens'),
+      effectiveModel: 'model-a',
+      detail: null,
+    }),
+    createDraftWriter: draftArgs => {
+      createDraftWriterCalls.push({
+        liveKgcPath: draftArgs.liveKgcPath,
+        persistWorkspaceDrafts: draftArgs.persistWorkspaceDrafts,
+        traceId: draftArgs.traceId,
+      })
+      return async (text, force) => {
+        draftFlushes.push({ text, force })
+      }
+    },
+    readAssistantResponse: async streamArgs => {
+      await streamArgs.flushDraft('partial durable stream', false)
+      return {
+        assistantText: 'partial durable stream',
+        rawSseEvents: [],
+        reasoningSteps: [],
+        reasoningPreview: null,
+        reasoningStepCount: 0,
+        usageSummary: null,
+        finishReason: null,
+        modelId: 'model-a',
+      }
+    },
+    resolveKnowgrphAttempt: args => ({
+      kind: 'final',
+      finalAssistantText: args.assistantText,
+      validatedKgc: null,
+      status: 'ok',
+      validation: {
+        stage: 'validated',
+        attempt: args.attempt,
+        maxAttempts: args.maxValidationAttempts,
+        failedRuleId: null,
+        failedMessage: null,
+        correctionPromptPreview: null,
+        hasStructuredKgc: false,
+        hasStructuredResponseSurface: true,
+        hasYamlFrontmatter: false,
+        validatedKgcLength: 0,
+      },
+    }),
+  })
+
+  if (createDraftWriterCalls.length !== 1) {
+    throw new Error(`Expected coordinator to create one streaming draft writer, got: ${createDraftWriterCalls.length}`)
+  }
+  const call = createDraftWriterCalls[0]
+  if (!call || call.liveKgcPath !== '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md') {
+    throw new Error(`Expected coordinator to bind stream drafts to the live KGC path, got: ${JSON.stringify(createDraftWriterCalls)}`)
+  }
+  if (call.persistWorkspaceDrafts !== true) {
+    throw new Error(`Expected coordinator to enable durable workspace draft persistence for refresh recovery, got: ${JSON.stringify(call)}`)
+  }
+  if (draftFlushes.length !== 1 || draftFlushes[0]?.text !== 'partial durable stream') {
+    throw new Error(`Expected streamed content to flow through the durable draft writer, got: ${JSON.stringify(draftFlushes)}`)
+  }
+}
+
 export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesValidatedAndAppliedPipelineSnapshots() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -690,7 +805,7 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
     'the answer itself must be the KGC document',
     'exactly one standalone KGC document',
     'Do not return prose plus a partial KGC fragment',
-    'do not downgrade to a minimal canvas-preset-only document',
+    'do not downgrade to a minimal canvas-preset-only document', 'materialize a neutral dataflow',
     'Do not emit stock labels such as "Request Intent"',
     'graphId, doc_type, date, ai_model, and lang MUST be concrete resolved strings.',
     'title SHOULD resolve when product context is known',
@@ -805,7 +920,7 @@ export function testKgcDeterministicFallbackIsStructuredAndValid() {
     'subgraphs:',
     'sg-p1',
     'direction:  {key: direction,  type: string,  value: LR}',
-    'compute:       {key: compute,       type: function, value: |',
+    'compute:\n        key: compute\n        type: function\n        value: |',
     'click n-trigger  "#pipeline" "S01 · trigger / input"',
     'sandbox:  {key: sandbox,  type: string,  value: "quickjs-emscripten"}',
   ]
@@ -1035,11 +1150,11 @@ export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
     'external users',
     'Swipe can cover checkout, payment confirmation, and post-payment handoff',
     'OpenClaw can cover marketplace listing and demand capture',
-    'An external user discovers the `{{product}}` offer',
+    'A user discovers the `{{product}}` offer',
     'unlocks the paid entitlement or action',
     '### Request Snapshot',
     'Canonical output path',
-    'kgc-output_20260420T105432Z.md',
+    'kgc_20260420T105432Z.md',
   ]
   requiredSnippets.forEach(snippet => {
     if (!md.includes(snippet)) {
@@ -1473,6 +1588,51 @@ export async function testCreateChatKnowgrphDraftWriterSkipsDuplicateNonForceWri
   }
   if (streamDraftTextRef.current?.text !== 'alpha') {
     throw new Error(`Expected live streaming draft state to retain the latest text, got: ${JSON.stringify(streamDraftTextRef.current)}`)
+  }
+}
+
+export async function testCreateChatKnowgrphDraftWriterRejectsViteDevIndexHtmlDrafts() {
+  const viteDevIndexHtml = [
+    '<!doctype html><html lang="en">',
+    '<script type="module">import { injectIntoGlobalHook } from "/@react-refresh";</script>',
+    '<script type="module" src="/@vite/client"></script>',
+    '<main id="root"></main><script type="module" src="/src/main.tsx?t=123"></script>',
+    '</html>',
+  ].join('\n')
+  const persisted: string[] = []
+  const followed: string[] = []
+  const streamingStates: Array<{ path?: string | null; text?: string | null } | null> = []
+  const streamDraftTextRef = { current: null as { path: string; text: string } | null }
+  const flushDraft = createChatKnowgrphDraftWriter({
+    chatStorageTarget: 'chatKnowgrph',
+    liveKgcPath: '/workspace/chat/kgc.md',
+    requestTimestampMs: Date.UTC(2026, 4, 22, 16, 30, 0),
+    providerSummary: 'openai:gpt',
+    userText: 'Generate KGC',
+    defaultLocalRootPath: '/workspace',
+    traceId: 'trace-stream-html-test',
+    streamDraftTextRef,
+    followWorkspaceMarkdownPath: path => { followed.push(path) },
+    setChatKnowgrphWorkspacePath: () => {},
+    setChatWorkspaceStreamingState: value => { streamingStates.push(value) },
+    persistDraft: async payload => { persisted.push(String(payload.assistantText || '')); return '/workspace/chat/kgc.md' },
+    persistWorkspaceDrafts: true,
+  })
+
+  await flushDraft(viteDevIndexHtml, true)
+
+  if (persisted.length !== 0) {
+    throw new Error(`Expected Vite dev app-shell HTML draft to avoid workspace persistence, got ${persisted.length} writes`)
+  }
+  if (followed.length !== 0) {
+    throw new Error(`Expected rejected app-shell HTML draft not to move workspace selection, got ${JSON.stringify(followed)}`)
+  }
+  if (streamDraftTextRef.current?.text !== '') {
+    throw new Error(`Expected rejected app-shell HTML draft to clear live draft text, got ${JSON.stringify(streamDraftTextRef.current)}`)
+  }
+  const lastStreamingState = streamingStates[streamingStates.length - 1]
+  if (!lastStreamingState || lastStreamingState.text !== '') {
+    throw new Error(`Expected rejected app-shell HTML draft to clear streaming state, got ${JSON.stringify(streamingStates)}`)
   }
 }
 

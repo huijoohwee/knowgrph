@@ -37,6 +37,17 @@ const sha256Hex = async (text: string): Promise<string> => {
 
 export async function testKnowgrphVdeoxplnRegistryProjectsToAgentSkillsMainPanelAndMcp() {
   const repoRoot = path.resolve(process.cwd(), '..')
+  const contractText = fs.readFileSync(path.resolve(process.cwd(), 'src', 'features', 'agent-ready', 'knowgrphVdeoxplnContract.mjs'), 'utf8')
+  if (contractText.includes('from "grph-shared/hash/signature"')) {
+    throw new Error('expected Pages-bundled vdeoxpln contract to avoid package-only hash helper imports')
+  }
+  if (!contractText.includes('from "../../../../grph-shared/dist/hash/signature.js"')) {
+    throw new Error('expected vdeoxpln semantic keys to use the synced shared hash runtime')
+  }
+  const syncScriptText = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'sync-pages-knowgrph.mjs'), 'utf8')
+  if (!syncScriptText.includes("'dist/hash/signature.js'")) {
+    throw new Error('expected Pages sync to publish the shared hash signature runtime')
+  }
   const registry = buildKnowgrphVdeoxplnRegistry()
   const validation = validateKnowgrphVdeoxplnRegistry(registry)
   if (!validation.ok) {
@@ -200,8 +211,8 @@ export function testKnowgrphVdeoxplnRoutingAndSourceBackedRunManifest() {
   }
 
   const manifestPath = resolveKnowgrphVdeoxplnRunManifestWorkspacePath('/chat/20260530T010203Z/kgc_20260530T010203Z.md')
-  if (manifestPath !== '/chat/20260530T010203Z/kgc-output_20260530T010203Z-vdeoxpln-run.md') {
-    throw new Error(`expected vdeoxpln manifest path to use KGC companion owner, got ${manifestPath}`)
+  if (manifestPath !== '/chat/20260530T010203Z/kgc_20260530T010203Z.md') {
+    throw new Error(`expected vdeoxpln manifest path to use the canonical KGC owner, got ${manifestPath}`)
   }
   const manifest = buildKnowgrphVdeoxplnRunManifestMarkdown(chatPlan, {
     status: 'ok',
@@ -232,7 +243,7 @@ export function testKnowgrphVdeoxplnRoutingAndSourceBackedRunManifest() {
     throw new Error('expected FloatingPanel Chat finalization to persist the source-backed vdeoxpln run manifest')
   }
   const artifactOwner = fs.readFileSync(path.resolve(process.cwd(), 'src/features/chat/knowgrphVdeoxplnChatArtifacts.ts'), 'utf8')
-  for (const required of ['toKgcOutputWorkspacePath', 'writeWorkspaceFileTextEnsuringFile', 'mirrorChatWorkspaceFileToHost']) {
+  for (const required of ['toCanonicalKgcWorkspacePath', 'mergeKgcCanonicalSection']) {
     if (!artifactOwner.includes(required)) throw new Error(`expected vdeoxpln chat artifact owner to reuse ${required}`)
   }
 }

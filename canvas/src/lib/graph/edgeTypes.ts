@@ -268,8 +268,7 @@ const resolveBezierHandleReach = (args: {
   const baseHandleReach = Math.max(20, Math.min(180, span * 0.5))
   const orbitalBoost = Math.abs(orbitMag) > 1e-6 ? 24 : 0
   // Keep long 16:9 frontmatter runs from reading as parallel rails: let them
-  // commit toward the target earlier, but stay below the fully wide legacy
-  // handle reach so local routes do not balloon again.
+  // commit toward the target earlier while preserving a bounded local route.
   const longRunTurnReach = 78 + crossSpan * 0.18 + span * 0.045 + orbitalBoost
   return Math.max(20, Math.min(baseHandleReach, 164 + orbitalBoost, longRunTurnReach))
 }

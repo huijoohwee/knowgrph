@@ -139,7 +139,7 @@ export async function testMarkdownHtmlIframeIngestionProducesMediaNodes() {
   if (iframeNodes.length === 0) throw new Error('expected iframe media node from html iframe tag')
   const iframeProps = (iframeNodes[0]?.properties || {}) as Record<string, unknown>
   if (!String(iframeProps.media_url || '').includes('ycombinator.com/library/8d')) throw new Error('expected html iframe media_url alias')
-  if (!String(iframeProps.media || '').includes('ycombinator.com/library/8d')) throw new Error('expected html iframe generic media alias')
+  if (!String(iframeProps.media || '').includes('ycombinator.com/library/8d')) throw new Error('expected html iframe generic media URL property')
   if (iframeProps.media_interactive !== true) throw new Error('expected html iframe to stay interactive')
   await Promise.resolve()
 }
@@ -309,7 +309,7 @@ export async function testMarkdownHtmlVideoIngestionProducesMediaNodes() {
   if (videoNodes.length === 0) throw new Error('expected video media node from html video tag')
   const videoProps = (videoNodes[0]?.properties || {}) as Record<string, unknown>
   if (!String(videoProps.media_url || '').includes('demo.mp4')) throw new Error('expected html video media_url alias')
-  if (!String(videoProps.media || '').includes('demo.mp4')) throw new Error('expected html video generic media alias')
+  if (!String(videoProps.media || '').includes('demo.mp4')) throw new Error('expected html video generic media URL property')
   if (videoProps.media_interactive !== true) throw new Error('expected html video to stay interactive')
   await Promise.resolve()
 }

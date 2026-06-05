@@ -13,6 +13,7 @@ import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import {
   UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_NARROW_MENU_PANEL_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_LIST_CLASSNAME,
   UI_RESPONSIVE_MENU_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 
@@ -230,7 +231,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   }
 
   return (
-    <nav className="min-h-0 overflow-auto" aria-label="Source files">
+    <nav className={UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_LIST_CLASSNAME} aria-label="Source files">
       {renderNode(tree, 0)}
       {contextMenu ? (
         <section

@@ -3,11 +3,31 @@ import { LS_KEYS } from '@/lib/config'
 export type ThemeMode = 'system' | 'light' | 'dark'
 export type ResolvedThemeMode = Exclude<ThemeMode, 'system'>
 
+export const THEME_MODE_OPTIONS: ReadonlyArray<{ mode: ThemeMode; label: string }> = [
+  { mode: 'system', label: 'System' },
+  { mode: 'light', label: 'Light' },
+  { mode: 'dark', label: 'Dark' },
+] as const
+
+export function isThemeMode(value: unknown): value is ThemeMode {
+  return value === 'system' || value === 'light' || value === 'dark'
+}
+
+export function getThemeModeLabel(mode: ThemeMode): string {
+  return THEME_MODE_OPTIONS.find(option => option.mode === mode)?.label || mode
+}
+
+export function getNextThemeMode(mode: ThemeMode): ThemeMode {
+  const index = THEME_MODE_OPTIONS.findIndex(option => option.mode === mode)
+  const next = THEME_MODE_OPTIONS[(index + 1) % THEME_MODE_OPTIONS.length]
+  return next?.mode || 'system'
+}
+
 export function getInitialThemeMode(storage: Storage | null, fallback: ThemeMode = 'system'): ThemeMode {
   if (!storage) return fallback
   try {
     const stored = storage.getItem(LS_KEYS.themeMode)
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+    if (isThemeMode(stored)) return stored
   } catch {
     void 0
   }
@@ -21,12 +41,6 @@ export function persistThemeMode(storage: Storage | null, mode: ThemeMode): void
   } catch {
     void 0
   }
-}
-
-export function getNextThemeMode(mode: ThemeMode): ThemeMode {
-  if (mode === 'system') return 'light'
-  if (mode === 'light') return 'dark'
-  return 'system'
 }
 
 export function getSystemTheme(): ResolvedThemeMode {

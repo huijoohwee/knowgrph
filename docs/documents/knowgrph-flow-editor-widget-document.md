@@ -241,7 +241,7 @@
 ### Widget Image/Video Parity
 
 - Image/Video widget exports share one bundle contract and should remain projection-parity safe: Markdown and JSON views must represent the same `registry` and `graph` content.
-- Canonical run artifacts follow the same chain contract used by chat pipeline docs: `kgc-trace_<ts>.md` -> `kgc_<ts>.md` -> `kgc-output_<ts>.md`.
+- Canonical run artifacts follow the same chain contract used by chat pipeline docs: `kgc-trace_<ts>.md` keeps trace/stream observability, `kgc_<ts>.md` keeps canonical markdown run/manifests, and only binary media outputs use explicit `kgc-output_<ts>.*` companions.
 - If any widget/run reference guide exceeds the line cap, keep this file as canonical index and move detail into companion files with explicit continuation links.
 
 ---

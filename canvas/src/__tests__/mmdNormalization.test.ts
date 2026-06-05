@@ -50,6 +50,13 @@ export function testReadMermaidDiagramKindDetectsGitGraph() {
   }
 }
 
+export function testReadMermaidDiagramKindDetectsGantt() {
+  const code = ['gantt', '  title Delivery plan', '  section Build', '  Compute :crit, a1, 2026-06-05, 1d'].join('\n')
+  if (readMermaidDiagramKind(code) !== 'gantt') {
+    throw new Error('Expected Gantt Mermaid kind to be detected')
+  }
+}
+
 export function testReadMermaidDiagramKindSkipsMermaidConfigHeader() {
   const code = ['---', 'config:', '  theme: default', '---', 'gitGraph', '  commit'].join('\n')
   if (readMermaidDiagramKind(code) !== 'gitgraph') {
@@ -82,5 +89,23 @@ export function testSplitMermaidDiagramsKeepsGitGraphSlicesSeparate() {
   }
   if (!configuredDiagrams[0]?.code.startsWith('---')) {
     throw new Error('Expected Mermaid config header to stay attached to its GitGraph slice')
+  }
+}
+
+export function testSplitMermaidDiagramsKeepsGanttSlicesSeparate() {
+  const code = [
+    'gitGraph',
+    '  commit id:"source"',
+    'gantt',
+    '  title Dynamic flow',
+    '  section Compute',
+    '  Inline compute :crit, c1, 2026-06-05, 1d',
+  ].join('\n')
+  const diagrams = splitMermaidDiagrams(code)
+  if (diagrams.length !== 2) {
+    throw new Error(`Expected two Mermaid diagrams, got ${diagrams.length}`)
+  }
+  if (diagrams[0]?.kind !== 'gitgraph' || diagrams[1]?.kind !== 'gantt') {
+    throw new Error('Expected GitGraph and Gantt diagram slices')
   }
 }

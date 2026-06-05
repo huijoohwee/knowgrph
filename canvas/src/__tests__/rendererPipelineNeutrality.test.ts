@@ -5,6 +5,8 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const root = resolve(process.cwd(), 'src')
   const renderConfigText = readFileSync(resolve(root, 'lib', 'config.render.ts'), 'utf8')
   const canvasViewportText = readFileSync(resolve(root, 'components', 'CanvasViewport.tsx'), 'utf8')
+  const dashboardCanvasText = readFileSync(resolve(root, 'components', 'DashboardCanvas', 'index.tsx'), 'utf8')
+  const dashboardModelText = readFileSync(resolve(root, 'components', 'DashboardCanvas', 'dashboardModel.ts'), 'utf8')
   const rendererSelectText = readFileSync(resolve(root, 'components', 'toolbar', 'Canvas2dRendererSelect.tsx'), 'utf8')
   const canvasViewMenuText = readFileSync(resolve(root, 'components', 'toolbar', 'canvasViewMenu.ts'), 'utf8')
   const animaticTimelineModelText = readFileSync(resolve(root, 'components', 'AnimaticCanvas', 'useAnimaticTimelineModel.ts'), 'utf8')
@@ -45,14 +47,42 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!renderConfigText.includes('export const isFlowEditorCanvas2dRenderer')) {
     throw new Error('expected shared Flow Editor renderer helper in config.render')
   }
+  if (renderConfigText.includes('aliases:') || renderConfigText.includes('CANVAS_2D_RENDERER_ID_BY_ALIAS')) {
+    throw new Error('expected shared renderer config to resolve canonical normalized tokens without alias lists')
+  }
   if (!renderConfigText.includes('gitGraph') || !renderConfigText.includes('export const isGitGraphCanvas2dRenderer')) {
     throw new Error('expected GitGraph renderer to be registered through shared renderer config')
+  }
+  if (
+    !renderConfigText.includes('dashboard') ||
+    !renderConfigText.includes("surfaceId: 'dashboard'") ||
+    !renderConfigText.includes('export const isDashboardCanvas2dRenderer') ||
+    !renderConfigText.includes('!isDashboardCanvas2dRenderer(id)')
+  ) {
+    throw new Error('expected Dashboard renderer to be registered through shared renderer config and excluded from minimap')
   }
   if (!canvasViewportText.includes('getCanvas2dSurfaceId(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport to derive the active 2D surface from the shared renderer surface helper')
   }
+  if (!canvasViewportText.includes("import('@/components/DashboardCanvas')") || !canvasViewportText.includes("active2dSurface === 'dashboard'")) {
+    throw new Error('expected CanvasViewport to mount Dashboard through the shared 2D surface branch')
+  }
   if (!canvasViewportText.includes("import('@/components/MermaidGitGraphCanvas')") || !canvasViewportText.includes("active2dSurface === 'gitGraph'")) {
     throw new Error('expected CanvasViewport to mount GitGraph through the shared 2D surface branch')
+  }
+  const blockedChartRuntimeTokens = [['chart', 'js'].join('.'), ['chart', 'js'].join('')]
+  if (!dashboardCanvasText.includes("import * as d3 from 'd3'") || blockedChartRuntimeTokens.some(token => dashboardCanvasText.toLowerCase().includes(token))) {
+    throw new Error('expected Dashboard renderer to reuse D3 and avoid introducing an alternate chart runtime')
+  }
+  if (
+    !dashboardCanvasText.includes('buildScopedGraphSemanticKey') ||
+    !dashboardCanvasText.includes('data-kg-dashboard-canvas="1"') ||
+    !dashboardCanvasText.includes('data-kg-dashboard-grid-enabled')
+  ) {
+    throw new Error('expected Dashboard renderer to reuse shared semantic keys and expose neutral runtime markers')
+  }
+  if (!dashboardModelText.includes('readCanvasGridConfigFromSchema(schema)') || !dashboardModelText.includes('buildDashboardCanvasModel')) {
+    throw new Error('expected Dashboard model to derive grid state from the shared canvas grid config')
   }
   if (!gitGraphCanvasText.includes('useSvgSurfaceZoomRuntime({') || !gitGraphCanvasText.includes('data-kg-gitgraph-interactive="1"')) {
     throw new Error('expected GitGraph renderer to delegate interaction to the shared SVG surface zoom runtime')
@@ -215,6 +245,9 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   }
   if (!uiCopyText.includes('2D Renderer: GitGraph')) {
     throw new Error('expected GitGraph renderer to be labeled as 2D Renderer: GitGraph')
+  }
+  if (!uiCopyText.includes('2D Renderer: Dashboard') || !canvasViewMenuText.includes('canvasViewRendererDashboardTitle')) {
+    throw new Error('expected Dashboard renderer to be labeled and exposed through shared Canvas View copy')
   }
   if (!uiCopyText.includes('2D Renderer: Storyboard')) {
     throw new Error('expected Storyboard renderer to be labeled as 2D Renderer: Storyboard')

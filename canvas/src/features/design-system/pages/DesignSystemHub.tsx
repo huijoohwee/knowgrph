@@ -90,11 +90,10 @@ export default function DesignSystemHub() {
 
       <Card title="Adoption status">
         <p className={cn('m-0 text-sm', UI_THEME_TOKENS.text.secondary)}>
-          This page focuses on the SSOT foundation. Next steps are to progressively migrate remaining legacy utility classes (e.g.
+          This page focuses on the SSOT foundation. Next steps are to progressively move remaining local utility classes (e.g.
           `bg-gray-*`, `ring-blue-*`) into token-backed utilities.
         </p>
       </Card>
     </article>
   )
 }
-

@@ -24,6 +24,9 @@ export async function testMarkdownWorkspaceTocListOwnsExplorerTocSectionBody() {
     if (!(container.textContent || '').includes('No headings.')) {
       throw new Error('expected TOC list to render the explorer empty state')
     }
+    if (!container.querySelector('.kg-markdown-workspace-explorer-empty-state')) {
+      throw new Error('expected TOC empty state to use the shared Explorer empty-state owner')
+    }
 
     const items: TocItem[] = [
       { id: 'doc', text: 'Doc', depth: 1, index: 0, startLine: 1, children: [] },
@@ -42,6 +45,9 @@ export async function testMarkdownWorkspaceTocListOwnsExplorerTocSectionBody() {
 
     const nav = container.querySelector('nav[aria-label="Table of contents"]')
     if (!(nav instanceof dom.window.HTMLElement)) throw new Error('expected TOC list to render the TOC navigation container')
+    if (!nav.className.includes('kg-markdown-workspace-explorer-list') || nav.className.includes('overflow-auto')) {
+      throw new Error(`expected TOC navigation to use the shared Explorer list owner without a nested scroll class, got ${JSON.stringify(nav.className)}`)
+    }
     const rows = container.querySelectorAll('li')
     if (rows.length !== 2) throw new Error(`expected 2 TOC root rows, got ${String(rows.length)}`)
   } finally {

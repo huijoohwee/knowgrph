@@ -1,4 +1,4 @@
-import { getObjectPath } from '@/lib/data/objectPath'
+import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
@@ -11,6 +11,7 @@ import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resol
 import { applyFlowDataflowReducer, applyFlowDataflowTransform } from '@/lib/flowEditor/flowDataflowTransforms'
 import { isFrontmatterFlowComputedEnabled } from '@/lib/graph/frontmatterFlowSettings'
 import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import { runRegisteredFlowWidgetCompute } from '@/lib/flowEditor/widgetComputeRegistry'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -359,6 +360,7 @@ function computeOutputPortValue(args: {
 
 function buildConnectedValuesForNode(args: {
   node: GraphNode
+  registryEntry?: WidgetRegistryEntry | null
   inbound: InboundValuesByPortKey
   inputPortPaths: Map<string, string>
   outputPortPaths: Map<string, string>
@@ -405,6 +407,44 @@ function buildConnectedValuesForNode(args: {
     }
   }
 
+  const allSources = Array.from(args.inbound.values())
+    .flat()
+    .map(it => ({ edgeId: it.edgeId, nodeId: it.sourceId, portKey: it.sourcePortKey }))
+
+  const applyComputedOutputs = (computed: Record<string, unknown>, allowUnregisteredOutputs: boolean): void => {
+    for (const [portKeyRaw, value] of Object.entries(computed)) {
+      const portKey = cleanString(portKeyRaw)
+      if (!portKey) continue
+      if (!allowUnregisteredOutputs && !args.outputPortPaths.has(portKey)) continue
+      const toPath = args.outputPortPaths.get(portKey) || normalizeSchemaPath(`properties.data.${portKey}`, portKey)
+      if (!toPath) continue
+      if (typeof value === 'undefined') continue
+      byPath[toPath] = { value, sources: allSources }
+    }
+  }
+
+  if (args.computeEnabled) {
+    let effectiveProperties = { ...readNodeProperties(args.node) }
+    for (const [schemaPath, connected] of Object.entries(byPath)) {
+      const normalizedPath = normalizeSchemaPath(schemaPath, schemaPath)
+      if (!normalizedPath.startsWith('properties.')) continue
+      if (typeof connected?.value === 'undefined') continue
+      const nextNode = setObjectPath(
+        { properties: effectiveProperties } as Record<string, unknown>,
+        normalizedPath,
+        connected.value,
+      )
+      const nextProps = readPlainObject((nextNode as Record<string, unknown>).properties)
+      if (nextProps) effectiveProperties = nextProps
+    }
+    const registeredComputed = runRegisteredFlowWidgetCompute({
+      node: args.node,
+      registryEntry: args.registryEntry,
+      properties: effectiveProperties,
+    })
+    if (registeredComputed) applyComputedOutputs(registeredComputed, false)
+  }
+
   const computeSource = args.computeEnabled ? readFlowComputeSource(args.node) : ''
   if (computeSource) {
     const computed = runFlowComputeSource(computeSource, inByPortKey, {
@@ -420,17 +460,7 @@ function buildConnectedValuesForNode(args: {
       connectedValuesBySchemaPath: { ...byPath },
     })
     if (computed) {
-      const allSources = Array.from(args.inbound.values())
-        .flat()
-        .map(it => ({ edgeId: it.edgeId, nodeId: it.sourceId, portKey: it.sourcePortKey }))
-      for (const [portKeyRaw, value] of Object.entries(computed)) {
-        const portKey = cleanString(portKeyRaw)
-        if (!portKey) continue
-        const toPath = args.outputPortPaths.get(portKey) || normalizeSchemaPath(`properties.data.${portKey}`, portKey)
-        if (!toPath) continue
-        if (typeof value === 'undefined') continue
-        byPath[toPath] = { value, sources: allSources }
-      }
+      applyComputedOutputs(computed, true)
     }
   }
 
@@ -522,6 +552,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
       const portPaths = portPathsByNodeId.get(id)
       const connected = buildConnectedValuesForNode({
         node: n,
+        registryEntry: registryByNodeId.get(id) || null,
         inbound,
         inputPortPaths: portPaths?.input || new Map(),
         outputPortPaths: portPaths?.output || new Map(),
@@ -594,6 +625,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
       const portPaths = portPathsByNodeId.get(id)
       const connected = buildConnectedValuesForNode({
         node: n,
+        registryEntry: registryByNodeId.get(id) || null,
         inbound,
         inputPortPaths: portPaths?.input || new Map(),
         outputPortPaths: portPaths?.output || new Map(),

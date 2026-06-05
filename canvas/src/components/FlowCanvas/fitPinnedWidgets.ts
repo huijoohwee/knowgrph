@@ -13,6 +13,10 @@ import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatter
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { computeBalancedSpreadBaseGapPx, computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
+import {
+  computeLayoutRectSetViewportCenterShift,
+  measureTransformedGraphElementScreenRectSet,
+} from '@/lib/canvas/graph-elements/centroid'
 
 export { readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 
@@ -254,42 +258,26 @@ export function fitFlowEditorPinnedWidgets(args: {
   }
   const { extras } = buildOverlayFitNodes(last.k)
   if (extras.length === 0) return last
-  let minScreenX = Number.POSITIVE_INFINITY
-  let minScreenY = Number.POSITIVE_INFINITY
-  let maxScreenX = Number.NEGATIVE_INFINITY
-  let maxScreenY = Number.NEGATIVE_INFINITY
-  const sum = extras.reduce((acc, node) => ({
-    x: acc.x + (last.x + last.k * (Number(node.x) || 0)),
-    y: acc.y + (last.y + last.k * (Number(node.y) || 0)),
-  }), { x: 0, y: 0 })
-  for (let i = 0; i < extras.length; i += 1) {
-    const node = extras[i]!
-    const props = (node.properties || {}) as Record<string, unknown>
-    const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : 0
-    const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : 0
-    const centerX = last.x + last.k * (Number(node.x) || 0)
-    const centerY = last.y + last.k * (Number(node.y) || 0)
-    minScreenX = Math.min(minScreenX, centerX - (width * last.k) / 2)
-    minScreenY = Math.min(minScreenY, centerY - (height * last.k) / 2)
-    maxScreenX = Math.max(maxScreenX, centerX + (width * last.k) / 2)
-    maxScreenY = Math.max(maxScreenY, centerY + (height * last.k) / 2)
-  }
-  const centroidX = sum.x / extras.length
-  const centroidY = sum.y / extras.length
-  const desiredDeltaX = args.fitW / 2 - centroidX
-  const desiredDeltaY = args.viewportH / 2 - centroidY
-  const minDeltaX = Number.isFinite(minScreenX) ? -minScreenX : desiredDeltaX
-  const maxDeltaX = Number.isFinite(maxScreenX) ? args.fitW - maxScreenX : desiredDeltaX
-  const minDeltaY = Number.isFinite(minScreenY) ? -minScreenY : desiredDeltaY
-  const maxDeltaY = Number.isFinite(maxScreenY) ? args.viewportH - maxScreenY : desiredDeltaY
-  const deltaX =
-    minDeltaX <= maxDeltaX
-      ? Math.max(minDeltaX, Math.min(maxDeltaX, desiredDeltaX))
-      : desiredDeltaX
-  const deltaY =
-    minDeltaY <= maxDeltaY
-      ? Math.max(minDeltaY, Math.min(maxDeltaY, desiredDeltaY))
-      : desiredDeltaY
+  const metrics = measureTransformedGraphElementScreenRectSet({
+    elements: extras,
+    transform: last,
+    elementWidth: node => {
+      const props = (node.properties || {}) as Record<string, unknown>
+      return typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : 1
+    },
+    elementHeight: node => {
+      const props = (node.properties || {}) as Record<string, unknown>
+      return typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : 1
+    },
+  })
+  const shift = computeLayoutRectSetViewportCenterShift({
+    metrics,
+    viewportW: args.fitW,
+    viewportH: args.viewportH,
+  })
+  if (!shift) return last
+  const deltaX = shift.dx
+  const deltaY = shift.dy
   if (Math.abs(deltaX) < 1e-6 && Math.abs(deltaY) < 1e-6) return last
   return d3.zoomIdentity.translate(last.x + deltaX, last.y + deltaY).scale(last.k)
 }

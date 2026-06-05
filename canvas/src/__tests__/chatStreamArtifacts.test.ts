@@ -8,6 +8,7 @@ import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-f
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   buildStreamArtifactQueryRelevance,
+  ensureChatStreamArtifactBundleInitialized,
   persistChatStreamArtifacts,
   resetChatStreamArtifactBundleForTests,
   renderChatStreamArtifacts,
@@ -33,11 +34,48 @@ export function testChatStreamArtifactBundleReusesKgcTimestampSessionFolder() {
   if (bundle.folderPath !== '/chat-log/20260523T174000Z') {
     throw new Error(`expected timestamped session folder path, got ${bundle.folderPath}`)
   }
-  if (bundle.streamLogPath !== '/chat-log/20260523T174000Z/chat-stream-log_20260523T174000Z.md') {
+  if (bundle.streamLogPath !== '/chat-log/20260523T174000Z/kgc-trace_20260523T174000Z.md') {
     throw new Error(`unexpected stream log path ${bundle.streamLogPath}`)
   }
   if (bundle.streamReportPath !== '/chat-log/20260523T174000Z/chat-stream-report_20260523T174000Z.md') {
     throw new Error(`unexpected stream report path ${bundle.streamReportPath}`)
+  }
+}
+
+export async function testChatStreamArtifactBundleInitializationDefersMarkdownSidecars() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  try {
+    resetWorkspaceFsForTests()
+    resetChatStreamArtifactBundleForTests()
+    useGraphStore.getState().clearSourceFiles()
+    const bundle = await ensureChatStreamArtifactBundleInitialized({
+      workspacePath: '/chat-log/20260605T005045Z/kgc_20260605T005045Z.md',
+      timestampMs: Date.UTC(2026, 5, 5, 0, 50, 45),
+      defaultLocalRootPath: '/chat-log',
+    })
+    const fs = await getWorkspaceFs()
+    const entries = await fs.listEntries()
+    const paths = new Set(entries.map(entry => String(entry.path || '')))
+    if (!paths.has('/chat-log/20260605T005045Z')) {
+      throw new Error(`expected chat stream initialization to create only the session folder, got ${JSON.stringify([...paths])}`)
+    }
+    if (await fs.readFileText(bundle.streamLogPath) !== null || await fs.readFileText(bundle.streamReportPath) !== null) {
+      throw new Error('expected chat stream initialization to defer log/report markdown until query-responsive stream content exists')
+    }
+    const deferredSourcePaths = new Set([
+      `workspace:${bundle.streamLogPath}`,
+      `workspace:${bundle.streamReportPath}`,
+    ])
+    if (useGraphStore.getState().sourceFiles.some(file => deferredSourcePaths.has(String(file?.source?.path || '')))) {
+      throw new Error('expected deferred chat stream initialization to avoid Source Files placeholder sidecars')
+    }
+  } finally {
+    resetWorkspaceFsForTests()
+    useGraphStore.getState().clearSourceFiles()
+    restoreDom()
+    restoreWindow()
   }
 }
 
@@ -56,6 +94,13 @@ export async function testRenderChatStreamArtifactsBuildsGenericQueryRelevantMet
     '',
     '### Integration Boundaries',
     'MapLibre provides spatial rendering while MCP integrations broker external tool calls.',
+    '',
+    '## Computing Flow Definition  ← MANDATORY first body section; target of links.yaml_anchor',
+    '',
+    'Execute User Flow logic using bounded graph context.',
+    '',
+    'execution: computing-flow',
+    'output: "Computed analysis"',
   ].join('\n')
   const rendered = await renderChatStreamArtifacts({
     workspacePath: '/chat-log/20260527T131514Z/kgc_20260527T131514Z.md',
@@ -146,6 +191,11 @@ export async function testRenderChatStreamArtifactsBuildsGenericQueryRelevantMet
   if (rendered.logText.includes('This document is the pipeline.') || rendered.logText.includes('machine-readable source of truth')) {
     throw new Error('expected rendered stream log response snapshot to suppress generic pipeline boilerplate')
   }
+  for (const forbidden of ['Computing Flow Definition', 'bounded graph context', 'execution: computing-flow', 'Computed analysis']) {
+    if (rendered.logText.includes(forbidden)) {
+      throw new Error(`expected rendered stream log response snapshot to suppress generic computing-flow boilerplate, saw ${forbidden}`)
+    }
+  }
   if (!rendered.logText.includes('## Stream Signals') || !rendered.logText.includes('Selected Signals:')) {
     throw new Error('expected rendered stream log to summarize stream signals instead of dumping every raw chunk')
   }
@@ -172,14 +222,8 @@ export async function testRenderChatStreamArtifactsBuildsGenericQueryRelevantMet
   if (rendered.logText.includes('Artifact: report') || rendered.logText.includes('Artifact: Chat Response')) {
     throw new Error('expected rendered stream log to avoid generic artifact filler in query relevance metadata')
   }
-  if (!rendered.reportDocuments[0]?.text.includes('## Query Relevance')) {
-    throw new Error('expected rendered stream report to include the query relevance section')
-  }
-  if (!rendered.reportDocuments[0]?.text.includes('## Stream-Aligned Workspace Output') || !rendered.reportDocuments[0]?.text.includes(workspaceAssistantText)) {
-    throw new Error('expected rendered stream report to prioritize the canonical workspace-aligned output')
-  }
-  if (!rendered.reportDocuments[0]?.text.includes('## Raw Stream Output')) {
-    throw new Error('expected rendered stream report to preserve raw stream output separately for observability')
+  if (rendered.reportDocuments.length !== 0) {
+    throw new Error(`expected ordinary stream rendering to avoid duplicate report markdown docs, got ${rendered.reportDocuments.length}`)
   }
 }
 
@@ -292,7 +336,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     const entries = await fs.listEntries()
     const entryPaths = new Set(entries.map(entry => String(entry.path || '')))
     const expectedFolder = '/chat-log/20260523T174000Z'
-    const expectedLog = `${expectedFolder}/chat-stream-log_20260523T174000Z.md`
+    const expectedLog = `${expectedFolder}/kgc-trace_20260523T174000Z.md`
     const expectedReport = `${expectedFolder}/chat-stream-report_20260523T174000Z.md`
     const expectedDereferencedShare = `${expectedFolder}/share-01-share-derived.md`
     const expectedDereferencedReport = `${expectedFolder}/report-share-02-report-derived.md`
@@ -355,7 +399,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     if (!reportText || !reportText.includes('# Chat Stream Report')) {
       throw new Error('expected primary stream report markdown doc')
     }
-    if (!reportText.includes('## Query Relevance') || !reportText.includes('conversion workflow') || !reportText.includes('spatial workflows')) {
+    if (!reportText.includes('## Query Relevance') || !reportText.includes('user-action monetization') || !reportText.includes('local-first spatial workflows')) {
       throw new Error('expected stream report to include request-derived query relevance focus')
     }
     if (!reportText.includes('## Stream-Aligned Workspace Output') || !reportText.includes('### Monetization Surface') || !reportText.includes('### Integration Boundaries')) {
@@ -397,7 +441,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     if (!shareThinkingText.includes('Now I can write the final answer.')) {
       throw new Error('expected per-share thinking trace to preserve the finalization marker')
     }
-    const mirroredLogWrite = mirrorCalls.find(call => call.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/20260523T174000Z/chat-stream-log_20260523T174000Z.md`))
+    const mirroredLogWrite = mirrorCalls.find(call => call.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/20260523T174000Z/kgc-trace_20260523T174000Z.md`))
     if (!mirroredLogWrite) {
       throw new Error('expected stream log writes to mirror into the sibling host chat-log root')
     }
@@ -418,7 +462,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
       throw new Error('expected per-share thinking trace markdown to mirror into the sibling host chat-log root')
     }
     const sourceFiles = useGraphStore.getState().sourceFiles
-    const visibleLog = sourceFiles.find(file => String(file?.source?.path || '') === 'workspace:/chat-log/20260523T174000Z/chat-stream-log_20260523T174000Z.md')
+    const visibleLog = sourceFiles.find(file => String(file?.source?.path || '') === 'workspace:/chat-log/20260523T174000Z/kgc-trace_20260523T174000Z.md')
     const visibleReport = sourceFiles.find(file => String(file?.source?.path || '') === 'workspace:/chat-log/20260523T174000Z/chat-stream-report_20260523T174000Z.md')
     if (!visibleLog || !visibleReport) {
       throw new Error('expected persisted chat-log stream artifacts to become visible in Source Files')
@@ -480,6 +524,9 @@ export async function testPersistChatStreamArtifactsDereferencesShareUrlFromRequ
     })
 
     const fs = await getWorkspaceFs()
+    if (await fs.readFileText('/chat-log/20260527T162848Z/chat-stream-report_20260527T162848Z.md') !== null) {
+      throw new Error('expected ordinary share-url streams to avoid duplicate stream report markdown')
+    }
     const exported = await fs.readFileText('/chat-log/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943.md')
     const thinking = await fs.readFileText('/chat-log/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943-thinking.md')
     if (!exported?.includes(`kgWebpageUrl: "${MIROMIND_SHARE_URL}"`)) {

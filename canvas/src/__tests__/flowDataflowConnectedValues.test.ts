@@ -5,6 +5,15 @@ import { parseGraph } from '@/lib/graph/io/adapter'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import {
+  FLOW_RICH_MEDIA_PANEL_FORM_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+  FLOW_SWARM_PREDICTION_FORM_ID,
+  FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
+  FLOW_SWARM_PREDICTION_WIDGET_TYPE_ID,
+} from '@/lib/config.flow-editor'
+import { buildSwarmPredictionRegistryDraft } from '@/features/swarm-prediction/swarmPredictionWidget'
 
 export const testFlowDataflowConnectedValuesReusesSharedReaders = () => {
   const filePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
@@ -580,6 +589,107 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
   const score = sink['properties.score']
   if (!score) throw new Error('expected computed score at properties.score')
   if (score.value !== 14) throw new Error(`expected properties.score to be 14, got ${String(score.value)}`)
+}
+
+export const testFlowDataflowRegisteredWidgetComputePropagatesOutputPorts = () => {
+  const graphData = {
+    type: 'GraphData',
+    context: 'frontmatter-flow',
+    metadata: { frontmatterFlowSettings: { computed: true } },
+    nodes: [
+      {
+        id: 'seed',
+        type: 'Source',
+        label: 'Source',
+        properties: {
+          seedSignalsJson: JSON.stringify([
+            { label: 'Source demand', valence: 0.34, weight: 0.8, sourceRef: 'source' },
+            { label: 'Review risk', valence: -0.12, weight: 0.4, sourceRef: 'review' },
+          ]),
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'seed',
+        },
+      },
+      {
+        id: 'swarm',
+        type: FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
+        label: 'Swarm',
+        properties: {
+          scenarioTitle: 'Neutral scenario',
+          agentPopulationJson: JSON.stringify([
+            { label: 'Operator', cohort: 'operator', initialBelief: 0.2, confidence: 0.7, influence: 0.6 },
+            { label: 'Reviewer', cohort: 'review', initialBelief: -0.1, confidence: 0.8, influence: 0.4 },
+          ]),
+          interventionsJson: JSON.stringify([{ tick: 1, label: 'Review gate', effect: -0.02, targetCohort: 'review' }]),
+          ticks: 3,
+          output: '',
+          outputSrcDoc: '',
+          imageUrl: '',
+          [FLOW_WIDGET_TYPE_ID_KEY]: FLOW_SWARM_PREDICTION_WIDGET_TYPE_ID,
+          [FLOW_WIDGET_FORM_ID_KEY]: FLOW_SWARM_PREDICTION_FORM_ID,
+        },
+      },
+      {
+        id: 'panel',
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        label: 'Panel',
+        properties: {
+          outputSrcDoc: '',
+          richMediaActiveTab: 'auto',
+          [FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+          [FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID,
+        },
+      },
+    ],
+    edges: [
+      { id: 'e-seed', source: 'seed', target: 'swarm', properties: { 'flow:sourcePortKey': 'seedSignalsJson', 'flow:targetPortKey': 'seedSignalsJson_in' } },
+      { id: 'e-panel', source: 'swarm', target: 'panel', properties: { 'flow:sourcePortKey': 'outputSrcDoc', 'flow:targetPortKey': 'outputSrcDoc' } },
+    ],
+  }
+
+  const swarmDraft = buildSwarmPredictionRegistryDraft()
+  const registry = [
+    {
+      id: 'q-source',
+      isEnabled: true,
+      nodeTypeId: 'Source',
+      widgetTypeId: 'default',
+      formId: 'seed',
+      fields: [],
+      ports: [{ portKey: 'seedSignalsJson', direction: 'output' as const, schemaPath: 'properties.seedSignalsJson' }],
+      schemaMappings: [],
+      updatedAt: '2026-06-05T00:00:00.000Z',
+    },
+    { ...swarmDraft, id: 'q-swarm', updatedAt: '2026-06-05T00:00:00.000Z' },
+    {
+      id: 'q-panel',
+      isEnabled: true,
+      nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      widgetTypeId: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+      formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
+      fields: [],
+      ports: [{ portKey: 'outputSrcDoc', direction: 'input' as const, schemaPath: 'properties.outputSrcDoc' }],
+      schemaMappings: [],
+      updatedAt: '2026-06-05T00:00:00.000Z',
+    },
+  ]
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry,
+    targetNodeIds: new Set(['panel']),
+  })
+  const panel = byNodeId.get('panel')
+  const srcDoc = panel?.['properties.outputSrcDoc']?.value
+  if (typeof srcDoc !== 'string' || !srcDoc.includes('<!doctype html>')) {
+    throw new Error(`expected registered widget compute to feed panel outputSrcDoc, got ${String(srcDoc).slice(0, 120)}`)
+  }
+  if (!String(srcDoc).includes('Neutral scenario')) {
+    throw new Error('expected registered widget compute to use node-local properties')
+  }
+  if (!String(srcDoc).includes('Prediction score') || !String(srcDoc).includes('Consensus')) {
+    throw new Error('expected registered widget compute to expose renderable chart content')
+  }
 }
 
 export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {

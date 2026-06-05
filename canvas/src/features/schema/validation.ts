@@ -270,7 +270,9 @@ export const validateSchema = (s: Partial<GraphSchema>): GraphSchema => {
     : null
   if (layoutAny) {
     const mode = layoutAny.mode
-    if (mode === 'stratify') layoutAny.mode = 'force'
+    if (mode !== undefined && mode !== 'force' && mode !== 'radial' && mode !== 'block' && mode !== 'mermaid') {
+      layoutAny.mode = base.layout?.mode ?? 'block'
+    }
     if (Object.prototype.hasOwnProperty.call(layoutAny, 'stratify')) {
       delete layoutAny.stratify
     }

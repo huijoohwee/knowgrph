@@ -3,16 +3,15 @@ import {
   buildKnowgrphVdeoxplnRunManifestMarkdown,
 } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
-import { toKgcOutputWorkspacePath } from './chatHistoryWorkspace.paths'
-import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
-import { mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
+import { toCanonicalKgcWorkspacePath } from './chatHistoryWorkspace.paths'
+import { mergeKgcCanonicalSection } from './chatKgcConsolidatedArtifacts'
 
 export const resolveKnowgrphVdeoxplnRunManifestWorkspacePath = (
   workspacePath: string | null | undefined,
 ): string | null => {
   const normalized = normalizeWorkspacePath(String(workspacePath || '').trim())
   if (!normalized || normalized === '/') return null
-  return toKgcOutputWorkspacePath(normalized, 'md', { variant: 'vdeoxpln-run' })
+  return toCanonicalKgcWorkspacePath(normalized)
 }
 
 export async function persistKnowgrphVdeoxplnRunManifestForChat(args: {
@@ -49,7 +48,11 @@ export async function persistKnowgrphVdeoxplnRunManifestForChat(args: {
     canvasApplied: args.canvasApplied,
     errorMessage: args.errorMessage || '',
   })
-  await writeWorkspaceFileTextEnsuringFile({ path: manifestPath, text })
-  void mirrorChatWorkspaceFileToHost({ workspacePath: manifestPath, text })
-  return manifestPath
+  return await mergeKgcCanonicalSection({
+    workspacePath: manifestPath,
+    sectionKey: 'vdeoxpln-run',
+    title: 'Vdeoxpln Run Manifest',
+    text,
+    fenceLanguage: 'markdown',
+  })
 }

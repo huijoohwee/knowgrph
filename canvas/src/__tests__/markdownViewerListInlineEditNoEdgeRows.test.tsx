@@ -3,7 +3,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownListBlock } from '@/features/markdown/ui/MarkdownListBlock'
 import fs from 'node:fs'
-import path from 'node:path'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -92,7 +92,7 @@ const runListInteractionCase = async (args: {
         baseTextClass="text-sm"
         wrapClass=""
         opts={{
-          activeDocumentPath: '/sandbox/demo/md-demo-00.md',
+          activeDocumentPath: '/fixtures/md-demo-00.md',
           uiPanelTextFontClass: 'font-sans',
           uiPanelMonospaceTextClass: 'font-mono',
           markdownPresentationMode: false,
@@ -182,7 +182,7 @@ export async function testMarkdownViewerInlineEditUnorderedListHasNoEdgeRows() {
 }
 
 export async function testMarkdownViewerInlineEditMdDemo01ListHasNoEdgeRows() {
-  const demoPath = path.resolve(process.cwd(), '..', '..', 'sandbox', 'demo', 'md-demo-01.md')
+  const demoPath = resolveRepoTestDataPath('md-demo-01.md')
   if (!fs.existsSync(demoPath)) throw new Error(`missing demo file: ${demoPath}`)
   const markdown = fs.readFileSync(demoPath, { encoding: 'utf8' })
   await runListInteractionCase({

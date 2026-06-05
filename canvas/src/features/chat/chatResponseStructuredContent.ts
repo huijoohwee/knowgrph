@@ -9,13 +9,15 @@ import {
   FLOW_VIDEO_TRANSCRIBER_FORM_ID,
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
-import { unwrapFlowEnvelopeFieldValue } from '@/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope'
 import {
   appendEmbeddedStructuredTextCandidates,
   collectStructuredTextCandidates,
   parseYamlOrJsonValue,
   STRUCTURED_ENVELOPE_KEYS,
 } from './chatResponseStructuredContentCandidates'
+import { STRUCTURED_SURFACE_INLINE_COMPUTE_NODE_ID, STRUCTURED_SURFACE_INLINE_COMPUTE_SOURCE } from './chatResponseStructuredCompute'
+import { collectStructuredFrontmatterFields, STRUCTURED_FRONTMATTER_FIELD_KEYS } from './chatResponseStructuredFrontmatter'
+import { isRecord, mergeStructuredProperties, readFieldValue, readFirstString, readString, toJsonValue } from './chatResponseStructuredRecord'
 export { projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContentProjector'
 
 type ChatResponseStructuredRole = 'widget' | 'panel' | 'card' | 'media' | 'node'
@@ -42,6 +44,7 @@ export type ChatResponseSurfaceEdge = {
 export type ChatResponseStructuredSurface = {
   nodes: ChatResponseSurfaceNode[]
   edges: ChatResponseSurfaceEdge[]
+  frontmatter?: Record<string, JSONValue>
 }
 
 const MAX_RESPONSE_SURFACE_NODES = 12
@@ -88,81 +91,56 @@ const STRUCTURED_NODE_META_KEYS = new Set([
   'outputPort',
   'output_port',
   'properties',
+  ...STRUCTURED_FRONTMATTER_FIELD_KEYS,
 ])
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+const GEOSPATIAL_STRUCTURED_DIRECT_KEYS = [
+  'geoJson',
+  'geojson',
+  'geo_json',
+  'featureCollection',
+  'feature_collection',
+  'features',
+  'coordinates',
+] as const
 
-const toJsonValue = (value: unknown): JSONValue | undefined => {
-  if (value === null) return null
-  if (typeof value === 'string' || typeof value === 'boolean') return value
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
-  if (Array.isArray(value)) {
-    const out: JSONValue[] = []
-    for (let i = 0; i < value.length; i += 1) {
-      const item = toJsonValue(value[i])
-      if (typeof item !== 'undefined') out.push(item)
-    }
-    return out
-  }
-  if (isRecord(value)) {
-    const out: Record<string, JSONValue> = {}
-    for (const [key, raw] of Object.entries(value)) {
-      const item = toJsonValue(raw)
-      if (typeof item !== 'undefined') out[key] = item
-    }
-    return out
-  }
-  return undefined
+const GEOSPATIAL_STRUCTURED_BUNDLE_KEYS = [
+  'lat',
+  'lng',
+  'lon',
+  'latitude',
+  'longitude',
+  'location',
+  'geometry',
+  'bbox',
+] as const
+
+const hasMeaningfulStructuredValue = (value: unknown): boolean => {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  if (typeof value === 'number') return Number.isFinite(value)
+  if (typeof value === 'boolean') return true
+  if (Array.isArray(value)) return value.length > 0
+  return isRecord(value) && Object.keys(value).length > 0
 }
 
-const readString = (value: unknown): string =>
-  typeof value === 'string'
-    ? value.trim()
-    : (typeof value === 'number' || typeof value === 'boolean')
-      ? String(value).trim()
-      : ''
-
-const unwrapStructuredFieldValue = (raw: unknown, key: string): unknown =>
-  unwrapFlowEnvelopeFieldValue({
-    raw,
-    path: `structuredContent.${key}`,
-    expectedKey: key || undefined,
-    warnings: [],
-  })
-
-const mergeStructuredProperties = (record: Record<string, unknown>): Record<string, unknown> => {
-  const out: Record<string, unknown> = { ...record }
-  const assignIfMissing = (keyRaw: unknown, valueRaw: unknown) => {
-    const key = readString(unwrapStructuredFieldValue(keyRaw, 'key'))
-    if (!key || Object.prototype.hasOwnProperty.call(out, key)) return
-    out[key] = unwrapStructuredFieldValue(valueRaw, key)
+const readGeospatialStructuredPayload = (record: Record<string, unknown>): JSONValue | undefined => {
+  for (const key of GEOSPATIAL_STRUCTURED_DIRECT_KEYS) {
+    const raw = readFieldValue(record, key)
+    if (!hasMeaningfulStructuredValue(raw)) continue
+    const normalized = key === 'features' && Array.isArray(raw)
+      ? toJsonValue({ type: 'FeatureCollection', features: raw })
+      : toJsonValue(raw)
+    if (typeof normalized !== 'undefined') return normalized
   }
-  const properties = record.properties
-  if (isRecord(properties)) {
-    for (const [key, value] of Object.entries(properties)) {
-      if (Object.prototype.hasOwnProperty.call(out, key)) continue
-      out[key] = unwrapStructuredFieldValue(value, key)
-    }
-  } else if (Array.isArray(properties)) {
-    for (const item of properties) {
-      if (!isRecord(item)) continue
-      assignIfMissing(item.key, Object.prototype.hasOwnProperty.call(item, 'value') ? item.value : item)
-    }
+  const bundled: Record<string, JSONValue> = {}
+  for (const key of GEOSPATIAL_STRUCTURED_BUNDLE_KEYS) {
+    const raw = readFieldValue(record, key)
+    if (!hasMeaningfulStructuredValue(raw)) continue
+    const normalized = toJsonValue(raw)
+    if (typeof normalized !== 'undefined') bundled[key] = normalized
   }
-  return out
-}
-
-const readFieldValue = (record: Record<string, unknown>, key: string): unknown =>
-  unwrapStructuredFieldValue(record[key], key)
-
-const readFirstString = (record: Record<string, unknown>, keys: readonly string[]): string => {
-  for (let i = 0; i < keys.length; i += 1) {
-    const key = keys[i] as string
-    const value = readString(readFieldValue(record, key))
-    if (value) return value
-  }
-  return ''
+  return Object.keys(bundled).length > 0 ? bundled : undefined
 }
 
 const slugify = (value: unknown, fallback: string): string => {
@@ -178,11 +156,13 @@ const normalizeNodeId = (value: unknown, fallback: string): string =>
 
 const normalizeKind = (value: unknown, props: Record<string, unknown>): ChatResponseSurfaceNode['kind'] => {
   const explicit = readString(value).toLowerCase()
+  if (explicit === 'geo' || explicit === 'geojson' || explicit === 'geospatial' || explicit === 'map') return 'html'
   if (explicit === 'image' || explicit === 'audio' || explicit === 'video' || explicit === 'html' || explicit === 'text') return explicit
   if (readFirstString(props, ['audioUrl', 'audio_url', 'audio'])) return 'audio'
   if (readFirstString(props, ['videoUrl', 'video_url', 'video'])) return 'video'
   if (readFirstString(props, ['imageUrl', 'image_url', 'image', 'mediaUrl', 'media_url'])) return 'image'
   if (readFirstString(props, ['outputSrcDoc', 'srcDoc', 'srcdoc', 'html'])) return 'html'
+  if (typeof readGeospatialStructuredPayload(props) !== 'undefined') return 'html'
   return 'text'
 }
 
@@ -245,6 +225,7 @@ const defaultSourceHandleForNode = (args: {
 }): string => {
   const explicit = readConfiguredHandle(args.record, ['sourceHandle', 'source_handle', 'sourcePort', 'source_port', 'outputHandle', 'output_handle', 'outputPort', 'output_port'])
   if (explicit) return explicit
+  if (typeof readGeospatialStructuredPayload(args.record) !== 'undefined') return 'geoJson'
   if (args.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID || args.nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) return 'text_out'
   if (args.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'imageUrl'
   if (args.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'videoUrl'
@@ -272,6 +253,7 @@ const pickRichMediaTab = (kind: ChatResponseSurfaceNode['kind']): JSONValue => {
 const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseStructuredRole): ChatResponseSurfaceNode | null => {
   if (!isRecord(value)) return null
   const record = mergeStructuredProperties(value)
+  const geospatialPayload = readGeospatialStructuredPayload(record)
   const kind = normalizeKind(readFieldValue(record, 'kind') || readFieldValue(record, 'type') || readFieldValue(record, 'mediaKind') || readFieldValue(record, 'media_kind'), record)
   const nodeTypeId = inferWidgetNodeTypeId(record, role)
   const targetHandle = defaultTargetHandleForNode({ nodeTypeId, kind, record })
@@ -281,10 +263,11 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
   const audioUrl = readFirstString(record, ['audioUrl', 'audio_url', 'audio'])
   const videoUrl = readFirstString(record, ['videoUrl', 'video_url', 'video'])
   const outputSrcDoc = readFirstString(record, ['outputSrcDoc', 'srcDoc', 'srcdoc', 'html'])
-  const hasRenderableContent = Boolean(output || imageUrl || audioUrl || videoUrl || outputSrcDoc)
+  const hasRenderableContent = Boolean(output || imageUrl || audioUrl || videoUrl || outputSrcDoc || typeof geospatialPayload !== 'undefined')
   const hasDeclaredWidgetInput = nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     && Boolean(readWidgetFormId(record) || readFirstString(record, ['prompt', 'input', 'instructions', 'systemPrompt', 'system_prompt']))
-  if (!hasRenderableContent && !hasDeclaredWidgetInput) return null
+  const hasDeclaredPanelTarget = nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && (role === 'panel' || role === 'media')
+  if (!hasRenderableContent && !hasDeclaredWidgetInput && !hasDeclaredPanelTarget) return null
 
   const label = readFirstString(record, ['label', 'title', 'name']) || `Response ${index + 1}`
   const rawId = readFirstString(record, ['id', 'nodeId', 'node_id']) || label
@@ -304,6 +287,7 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
   if (audioUrl) properties.audioUrl = audioUrl
   if (videoUrl) properties.videoUrl = videoUrl
   if (outputSrcDoc) properties.outputSrcDoc = outputSrcDoc
+  if (typeof geospatialPayload !== 'undefined') properties.geoJson = geospatialPayload
   for (const [key, raw] of Object.entries(record)) {
     if (Object.prototype.hasOwnProperty.call(properties, key)) continue
     if (STRUCTURED_NODE_META_KEYS.has(key)) continue
@@ -377,12 +361,12 @@ const parseYamlOrJsonCandidate = (text: string): Record<string, unknown> | null 
   return readStructuredRoot(parsed)
 }
 
-const collectNodeAliases = (record: unknown, node: ChatResponseSurfaceNode, fallback: string): string[] => {
+const collectNodeReferenceKeys = (record: unknown, node: ChatResponseSurfaceNode, fallback: string): string[] => {
   if (!isRecord(record)) return [node.id]
   const normalized = mergeStructuredProperties(record)
   const rawId = readFirstString(normalized, ['id', 'nodeId', 'node_id'])
   const label = readFirstString(normalized, ['label', 'title', 'name'])
-  const aliases = [
+  const referenceKeys = [
     node.id,
     rawId,
     label,
@@ -391,7 +375,7 @@ const collectNodeAliases = (record: unknown, node: ChatResponseSurfaceNode, fall
     normalizeNodeId(rawId, fallback),
     normalizeNodeId(label, fallback),
   ]
-  return aliases.map(alias => String(alias || '').trim()).filter(Boolean)
+  return referenceKeys.map(referenceKey => String(referenceKey || '').trim()).filter(Boolean)
 }
 
 const readEndpoint = (record: Record<string, unknown>, nodeKeys: readonly string[], handleKeys: readonly string[]): { nodeId: string; handle: string } | null => {
@@ -417,7 +401,7 @@ const defaultTargetHandle = (targetId: string, nodeHandleById: Map<string, strin
 const normalizeStructuredEdge = (args: {
   raw: unknown
   index: number
-  nodeIdByAlias: Map<string, string>
+  nodeIdByReferenceKey: Map<string, string>
   nodeSourceHandleById: Map<string, string>
   nodeTargetHandleById: Map<string, string>
 }): ChatResponseSurfaceEdge | null => {
@@ -426,8 +410,8 @@ const normalizeStructuredEdge = (args: {
   const source = readEndpoint(record, ['source', 'from', 'fromNode', 'from_node'], ['sourceHandle', 'source_handle', 'sourcePort', 'source_port', 'fromHandle', 'from_handle', 'fromPort', 'from_port'])
   const target = readEndpoint(record, ['target', 'to', 'toNode', 'to_node'], ['targetHandle', 'target_handle', 'targetPort', 'target_port', 'toHandle', 'to_handle', 'toPort', 'to_port'])
   if (!source || !target) return null
-  const sourceId = args.nodeIdByAlias.get(source.nodeId) || source.nodeId
-  const targetId = args.nodeIdByAlias.get(target.nodeId) || target.nodeId
+  const sourceId = args.nodeIdByReferenceKey.get(source.nodeId) || source.nodeId
+  const targetId = args.nodeIdByReferenceKey.get(target.nodeId) || target.nodeId
   const sourceHandle = source.handle || defaultSourceHandle(sourceId, args.nodeSourceHandleById)
   const targetHandle = target.handle || defaultTargetHandle(targetId, args.nodeTargetHandleById)
   if (!sourceId || !targetId || !sourceHandle || !targetHandle) return null
@@ -456,12 +440,112 @@ const buildDefaultResponseEdge = (node: ChatResponseSurfaceNode, index: number):
 const edgeSignature = (edge: ChatResponseSurfaceEdge): string =>
   [edge.source, edge.sourceHandle, edge.target, edge.targetHandle].map(value => String(value || '').trim()).join('\u0000')
 
+const readStructuredNodeRole = (node: ChatResponseSurfaceNode): ChatResponseStructuredRole | '' => {
+  const raw = node.properties?.['chat:structuredRole']
+  const role = typeof raw === 'string' ? raw.trim() : ''
+  if (role === 'widget' || role === 'panel' || role === 'card' || role === 'media' || role === 'node') return role
+  return ''
+}
+
+const hasFlowComputeSource = (node: ChatResponseSurfaceNode): boolean =>
+  typeof node.properties?.['flow:compute'] === 'string'
+  && String(node.properties['flow:compute'] || '').trim().length > 0
+
+const isStructuredDataflowSourceNode = (node: ChatResponseSurfaceNode): boolean => {
+  const role = readStructuredNodeRole(node)
+  if (role === 'card' || role === 'widget') return true
+  return role === 'node' && node.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+}
+
+const isStructuredDataflowPanelTarget = (node: ChatResponseSurfaceNode): boolean => {
+  const role = readStructuredNodeRole(node)
+  return role === 'panel' || (role === 'media' && node.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+}
+
+const computeInputHandleForSource = (node: ChatResponseSurfaceNode): string => {
+  const handle = String(node.sourceHandle || '').trim()
+  if (!handle || handle === 'text_out' || handle === 'output') return 'prompt_in'
+  return handle
+}
+
+const computeOutputHandleForPanel = (node: ChatResponseSurfaceNode): string => {
+  const targetHandle = String(node.targetHandle || '').trim()
+  if (targetHandle) return targetHandle
+  return readTargetHandle(node.kind)
+}
+
+const uniqueSurfaceNodeId = (baseId: string, usedIds: ReadonlySet<string>): string => {
+  const base = String(baseId || '').trim() || STRUCTURED_SURFACE_INLINE_COMPUTE_NODE_ID
+  if (!usedIds.has(base)) return base
+  for (let i = 2; i < 100; i += 1) {
+    const candidate = `${base}-${i}`
+    if (!usedIds.has(candidate)) return candidate
+  }
+  return `${base}-${usedIds.size + 1}`
+}
+
+const ensureStructuredSurfaceDataflow = (args: {
+  nodes: ChatResponseSurfaceNode[]
+  edges: ChatResponseSurfaceEdge[]
+}): void => {
+  if (args.nodes.length === 0 || args.nodes.length >= MAX_RESPONSE_SURFACE_NODES) return
+  if (args.edges.length > 0) return
+  if (args.nodes.some(hasFlowComputeSource)) return
+  const sources = args.nodes.filter(isStructuredDataflowSourceNode)
+  const panels = args.nodes.filter(isStructuredDataflowPanelTarget)
+  if (sources.length === 0 || panels.length === 0) return
+
+  const usedIds = new Set(args.nodes.map(node => String(node.id || '').trim()).filter(Boolean))
+  const computeId = uniqueSurfaceNodeId(STRUCTURED_SURFACE_INLINE_COMPUTE_NODE_ID, usedIds)
+  args.nodes.push({
+    id: computeId,
+    label: 'Structured Compute',
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    kind: 'text',
+    sourceHandle: 'outputSrcDoc',
+    targetHandle: 'prompt_in',
+    properties: {
+      'chat:structuredContent': true,
+      'chat:structuredRole': 'widget',
+      [FLOW_WIDGET_FORM_ID_KEY]: 'textGeneration',
+      [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+      'flow:compute': STRUCTURED_SURFACE_INLINE_COMPUTE_SOURCE,
+      prompt: 'Headless structured-content compute runner',
+    },
+  })
+
+  sources.forEach((source, index) => {
+    const sourceHandle = String(source.sourceHandle || readTargetHandle(source.kind) || 'output').trim()
+    args.edges.push({
+      id: `e-mcp-response-${slugify(`${source.id}-${sourceHandle}-${computeId}-input`, String(index + 1))}`,
+      source: source.id,
+      target: computeId,
+      sourceHandle,
+      targetHandle: computeInputHandleForSource(source),
+      label: `${sourceHandle}->${computeInputHandleForSource(source)}`,
+    })
+  })
+
+  panels.forEach((panel, index) => {
+    const targetHandle = computeOutputHandleForPanel(panel)
+    args.edges.push({
+      id: `e-mcp-response-${slugify(`${computeId}-${targetHandle}-${panel.id}`, String(index + 1))}`,
+      source: computeId,
+      target: panel.id,
+      sourceHandle: targetHandle,
+      targetHandle,
+      label: `${targetHandle}->${targetHandle}`,
+    })
+  })
+}
+
 export const extractChatResponseStructuredSurface = (assistantText: string): ChatResponseStructuredSurface | null => {
   const candidates = collectStructuredTextCandidates(assistantText, 8)
   appendEmbeddedStructuredTextCandidates(candidates, 8)
 
+  const frontmatter: Record<string, JSONValue> = {}
   const seenIds = new Set<string>()
-  const nodeIdByAlias = new Map<string, string>()
+  const nodeIdByReferenceKey = new Map<string, string>()
   const nodeSourceHandleById = new Map<string, string>()
   const nodeTargetHandleById = new Map<string, string>()
   const nodes: ChatResponseSurfaceNode[] = []
@@ -469,22 +553,24 @@ export const extractChatResponseStructuredSurface = (assistantText: string): Cha
   for (let i = 0; i < candidates.length && nodes.length < MAX_RESPONSE_SURFACE_NODES; i += 1) {
     const root = parseYamlOrJsonCandidate(candidates[i] || '')
     if (!root) continue
+    collectStructuredFrontmatterFields(root, frontmatter)
     const records = collectRecords(root)
     for (let j = 0; j < records.length && nodes.length < MAX_RESPONSE_SURFACE_NODES; j += 1) {
       const record = records[j]
+      collectStructuredFrontmatterFields(record.value, frontmatter)
       const node = normalizeNodeRecord(record.value, nodes.length, record.role)
       if (!node || seenIds.has(node.id)) continue
       seenIds.add(node.id)
       nodeSourceHandleById.set(node.id, node.sourceHandle)
       nodeTargetHandleById.set(node.id, node.targetHandle)
-      collectNodeAliases(record.value, node, String(nodes.length + 1)).forEach(alias => {
-        if (!nodeIdByAlias.has(alias)) nodeIdByAlias.set(alias, node.id)
+      collectNodeReferenceKeys(record.value, node, String(nodes.length + 1)).forEach(referenceKey => {
+        if (!nodeIdByReferenceKey.has(referenceKey)) nodeIdByReferenceKey.set(referenceKey, node.id)
       })
       nodes.push(node)
     }
     rawEdges.push(...collectEdgeRecords(root))
   }
-  if (nodes.length === 0) return null
+  if (nodes.length === 0 && Object.keys(frontmatter).length === 0) return null
   const edges: ChatResponseSurfaceEdge[] = []
   const seenEdges = new Set<string>()
   const pushEdge = (edge: ChatResponseSurfaceEdge) => {
@@ -494,9 +580,10 @@ export const extractChatResponseStructuredSurface = (assistantText: string): Cha
     edges.push(edge)
   }
   for (let i = 0; i < rawEdges.length; i += 1) {
-    const edge = normalizeStructuredEdge({ raw: rawEdges[i], index: i, nodeIdByAlias, nodeSourceHandleById, nodeTargetHandleById })
+    const edge = normalizeStructuredEdge({ raw: rawEdges[i], index: i, nodeIdByReferenceKey, nodeSourceHandleById, nodeTargetHandleById })
     if (edge) pushEdge(edge)
   }
+  ensureStructuredSurfaceDataflow({ nodes, edges })
   nodes.forEach((node, index) => pushEdge(buildDefaultResponseEdge(node, index)))
-  return { nodes, edges }
+  return Object.keys(frontmatter).length > 0 ? { nodes, edges, frontmatter } : { nodes, edges }
 }

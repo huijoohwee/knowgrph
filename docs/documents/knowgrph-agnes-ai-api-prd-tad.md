@@ -202,8 +202,8 @@ flowchart LR
 | `chatProvider` | `agnes-ai` | Canonical shared provider id |
 | `chatEndpointUrl` | `https://apihub.agnes-ai.com/v1/chat/completions` | Routed through shared proxy |
 | `chatModel` | `agnes-2.0-flash` | Shared default model |
-| `chatAuthMode` | `serverManaged` or `byok` | Same shared auth modes as other providers |
-| `chatApiKey` | session-only when BYOK | Never persist to localStorage |
+| `chatAuthMode` | `serverManaged` or `byok` | Server-managed Cloudflare/dev proxy secrets are default; BYOK is explicit fallback |
+| `chatApiKey` | memory-only when BYOK | Never persist to localStorage or sessionStorage |
 | token limit key | `max_tokens` | Agnes stays on chat-completions surface |
 
 ### Proxy Contract
@@ -356,10 +356,6 @@ The Agnes integration must continue to enforce the following constraints:
 | production Pages proxy auth plus host allowlist | `huijoohwee/functions/__chat_proxy/[[path]].js`, `huijoohwee/functions/api/_integrationHub.js` |
 | production proxy parity smoke | `huijoohwee/scripts/smoke-test-integrations.mjs` |
 
-## Archived Upstream Reference
+## Runtime Authority
 
-The upstream Agnes material that informed this integration remains archived for reference only:
-
-- `docs/documents/knowgrph-api-reference/_archive/agnes-ai-api-reference.md`
-
-That archive is **not** the runtime authority. The runtime authority is the shared Knowgrph implementation path documented here.
+Agnes behavior is governed by the shared Knowgrph implementation surfaces above. Archived upstream copies are not kept as runtime authority.

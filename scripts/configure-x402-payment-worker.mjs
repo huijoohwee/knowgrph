@@ -15,6 +15,7 @@ import {
 const {
   AGENTIC_COMMERCE_ENV_KEYS,
   AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS,
+  AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS,
   readAgenticCommerceX402PayToAddress,
 } = await loadAgenticCommerceSsot()
 const {
@@ -73,6 +74,9 @@ const validateX402PayToAddress = (value, source) => {
   if (normalizeAddress(normalized) === normalizeAddress(AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS)) {
     return `${x402PayToKey} from ${source} must not equal the deterministic fallback payTo address.`
   }
+  if (normalizeAddress(normalized) === normalizeAddress(AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS)) {
+    return `${x402PayToKey} from ${source} is only a future-setup placeholder; replace it with an operator-owned receiving wallet before deploying x402.`
+  }
   return null
 }
 
@@ -100,8 +104,10 @@ const validateX402PayToInput = () => {
     return
   }
 
-  const configuredPayTo = readAgenticCommerceX402PayToAddress(configEnv)
   const source = configVars.has(x402PayToKey) ? `${options.configPath} [vars]` : 'shared fallback'
+  const configuredPayTo = configVars.has(x402PayToKey)
+    ? configVars.get(x402PayToKey)
+    : readAgenticCommerceX402PayToAddress(configEnv)
   const error = validateX402PayToAddress(configuredPayTo, source)
   if (error) {
     addCheck('x402-pay-to-address-input', 'fail', error)

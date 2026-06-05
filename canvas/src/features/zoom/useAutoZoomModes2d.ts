@@ -41,6 +41,7 @@ export function useAutoZoomModes2d(args: {
   const graphOverrideRef = React.useRef<(() => { graphData: GraphData | null; graphDataRevision: number } | null) | null>(null)
   React.useEffect(() => {
     graphOverrideRef.current = typeof args.getGraph === 'function' ? args.getGraph : null
+    lastFitSigRef.current = null
     const schedule = scheduleFitRef.current
     if (schedule) schedule()
   }, [args.getGraph])

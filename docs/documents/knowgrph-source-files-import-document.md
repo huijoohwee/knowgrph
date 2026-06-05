@@ -162,6 +162,9 @@ sequenceDiagram
   - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads initialization-file source text from `huijoohwee/docs`, materializes the canonical files into the workspace root, and keeps seed ordering deterministic.
 - **Source Files Runtime Bootstrap (Knowgrph)**:
   - `knowgrph/canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx` coalesces seed-sync, rematerialization, and storage bridge scheduling through request-owned helpers to keep Source Files, Workspace, and Storage in sync on the same tick.
+  - `knowgrph/canvas/src/features/source-files/sourceFilesRuntimeStartup.ts` owns per-bootstrap active-path snapshot reuse through `createWorkspaceStartupSourceRootEntriesReader(...)`, so repeated startup reads for the same selected Source File share one active-entry hydration.
+  - `knowgrph/canvas/src/lib/markdown-workspace-runtime/markdownWorkspaceSelectionResolvedText.ts` owns resolved-text lookup and same-key in-flight caching for Source Files switching. Cache keys include the active path, canonical-read intent, entry timestamp, and entry text hash so switching does not duplicate FS/storage reads while stale entry text remains rejected upstream.
+  - `knowgrph/canvas/src/lib/markdown-workspace-runtime/useMarkdownWorkspaceSelection.ts` treats an active document switch as settled only when the selected document name, text, and Canvas graph source have converged; settled switches clear retry timers, while in-flight applies remain deferred.
 - **Document Versioning (Knowgrph)**:
   - `knowgrph/canvas/src/features/document-versioning/documentVersioning.ts` owns bounded local snapshots, git-style diffs, and GitGraph history code shared by Editor Workspace, Source Files, GitGraph CRUD, and the Timeline bottom panel GitGraph view.
 - **Curation UI (Singabldr)**:
@@ -247,7 +250,7 @@ sequenceDiagram
 
 ### Website Import (Sitemap/Tree → Workspace Pages + Artifact-Backed View Switching)
 
-**From/To**: Markdown Workspace → Import website (Globe button) → `/__website_import/start` → sitemap discovery + bounded crawling → per-page artifacts persisted under `.knowgrph-workspace/website-imports/<importId>/nodes/<nodeId>/` (in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink) → workspace stubs written under `/websites/<host>/<importId>/...`.
+**From/To**: Markdown Workspace → Import website (Globe button) → `/__website_import/start` → sitemap discovery + bounded crawling → per-page artifacts persisted under `.knowgrph-workspace/website-imports/<importId>/nodes/<nodeId>/` → workspace stubs written under `/websites/<host>/<importId>/...`.
 
 **Website Sitemap Artifact (workspace)**:
 - Writes `website.sitemap.md` at the website import root folder.
@@ -269,7 +272,7 @@ sequenceDiagram
 - **Markdown artifact**: The Markdown view can embed a ` ```text kg-webpage-layout ` block as a lightweight, editable layout snapshot.
 
 **Single-URL Artifact Path (non-sitemap)**:
-- Source Files / Markdown Workspace “Import URL” can also persist per-URL artifacts via `POST /__website_import/import-url`, writing `raw.html`, `page.md`, `conversion.json` under `.knowgrph-workspace/...` (in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink).
+- Source Files / Markdown Workspace “Import URL” can also persist per-URL artifacts via `POST /__website_import/import-url`, writing `raw.html`, `page.md`, `conversion.json` under `.knowgrph-workspace/...`.
  
 Note: The current website-import artifact set is `raw.html`, `page.md`, `conversion.json` (no separate layout artifacts).
 

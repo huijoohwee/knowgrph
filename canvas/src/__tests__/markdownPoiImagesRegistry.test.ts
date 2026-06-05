@@ -1,6 +1,6 @@
 import { applyParser, builtInParsers, registerParser, resetParsers, toParserId } from '@/features/parsers'
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
-import { readSandboxDemoText } from '@/tests/lib/sandboxRoot'
+import { readExternalDemoText } from '@/tests/lib/externalFixtures'
 
 const extractPoiImageUrl = (markdown: string, poiName: string): string | null => {
   const safePoi = poiName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -13,7 +13,7 @@ export async function testMarkdownPoiImagesRegistryEnrichesMatchingNodes() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))
 
-  const res = readSandboxDemoText({ preferBasename: 'trip-demo-mmd.md', envVarPathKey: 'KG_TRIP_DEMO_MMD_PATH' })
+  const res = readExternalDemoText({ preferBasename: 'trip-demo-mmd.md', envVarPathKey: 'KG_TRIP_DEMO_MMD_PATH' })
   if (!res) return
   const markdown = res.text
 

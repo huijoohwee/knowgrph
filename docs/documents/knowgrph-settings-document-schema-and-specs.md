@@ -107,7 +107,7 @@ themeMode.system:
   tokens: updates by listening to matchMedia "change" events (no polling)
 ```
 
-**UI Control**: "Theme Mode" preset buttons in Settings panel
+**UI Control**: Toolbar `Theme` is one button that cycles through the shared `THEME_MODE_OPTIONS` order: System, Light, Dark. Direct settings/design-system selectors must use the same option source.
 
 **Design Compliance**:
 
@@ -115,6 +115,7 @@ themeMode.system:
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
 | Theme Application     | Apply color palette           | - [ ] Read `themeMode`; apply `data-theme` + `.dark`; forbid per-component overrides      | Theme utilities + store   | `applyThemeMode`, `setThemeMode` | theme mode string | DOM + store update  | `data-theme` drives CSS vars + Tailwind `dark:` |
 | System Sync           | Match OS preference           | - [ ] Listen for OS theme changes; update when `system` active; forbid polling            | App bootstrap             | `subscribeToSystemThemeChanges` | media query change | theme refresh | `matchMedia` change → re-apply system theme |
+| Toolbar Theme Control | Cycle all modes in one button | - [ ] Toggle System/Light/Dark from `THEME_MODE_OPTIONS`; forbid segmented toolbar groups or local mode maps | Toolbar + theme helper    | `getNextThemeMode`, `handleToggleTheme` | theme click | next mode update | shared option order |
 
 ---
 

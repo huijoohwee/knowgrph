@@ -5,6 +5,7 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { buildPublishedDocShareUrlFromSource } from '@/features/canvas/canvasDocDeepLink'
 import { publishWorkspaceEntryShareUrl } from '@/features/source-files/sourceFileShareUrl'
+import { UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type MarkdownWorkspaceSourceFilesListProps = {
   loading: boolean
@@ -56,11 +57,11 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
   }, [sourcesByPath])
 
   if (loading) {
-    return <p className={`px-2 py-1 ${textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Loading…</p>
+    return <p className={`${UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME} px-2 py-1 ${textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Loading…</p>
   }
 
   if (loadError) {
-    return <p className={`px-2 py-1 ${textSizeClass} ${UI_THEME_TOKENS.status.error}`}>Failed: {loadError}</p>
+    return <p className={`${UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME} px-2 py-1 ${textSizeClass} ${UI_THEME_TOKENS.status.error}`}>Failed: {loadError}</p>
   }
 
   return (

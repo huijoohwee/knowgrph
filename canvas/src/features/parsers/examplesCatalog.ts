@@ -1,13 +1,9 @@
-import { toDatasetPath, toSchemaConfigPath } from '@/lib/graph/file'
+import { DEFAULT_SCHEMA_CONFIG_PATH, schemaConfigFilePath, toDatasetPath } from '@/lib/graph/file'
 import type { DatasetPath, SchemaConfigPath } from '@/lib/graph/file'
 
 export type ExampleId =
   | 'sampleTop3Portfolio'
   | 'genericKgVisualization'
-  | 'universalLeanStartup'
-  | 'investorsJsonLd'
-  | 'ventureCapitalPortfolio'
-  | 'customerVoiceManagement'
   | 'exampleWorkflow'
   | 'multiOntologyWorkflow'
   | 'edaMlpPipeline'
@@ -23,56 +19,32 @@ export const EXAMPLE_DATASETS: ExampleConfig[] = [
   {
     id: 'sampleTop3Portfolio',
     label: 'Sample Top-3 portfolio test graph',
-    datasetPath: toDatasetPath('data/test-data/graph_202512091600.json'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
+    datasetPath: toDatasetPath('public/unicorn-investors-top-3-3d.json'),
+    schemaPath: DEFAULT_SCHEMA_CONFIG_PATH,
   },
   {
     id: 'genericKgVisualization',
     label: 'Knowledge graph visualization',
-    datasetPath: toDatasetPath('data/test-data/ai-kg-viz_1500.json'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
-  },
-  {
-    id: 'universalLeanStartup',
-    label: 'Universal Lean Startup Knowledge Graph',
-    datasetPath: toDatasetPath('data/test-data/universal-lean-startup-kg.json'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
-  },
-  {
-    id: 'investorsJsonLd',
-    label: 'Investors JSON-LD graph',
-    datasetPath: toDatasetPath('data/test-data/a0.jsonld'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
-  },
-  {
-    id: 'ventureCapitalPortfolio',
-    label: 'Venture capital portfolio graph',
-    datasetPath: toDatasetPath('data/test-data/graph_202512091600.json'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
-  },
-  {
-    id: 'customerVoiceManagement',
-    label: 'Customer voice management graph',
-    datasetPath: toDatasetPath('data/test-data/ai-customer-voice-management.graph.json'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
+    datasetPath: toDatasetPath('data/test-data/neutral-kg.jsonld'),
+    schemaPath: DEFAULT_SCHEMA_CONFIG_PATH,
   },
   {
     id: 'exampleWorkflow',
     label: 'Example workflow graph',
     datasetPath: toDatasetPath('docs/assets/example-workflow.jsonld'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-example-workflow-schema-config.jsonld'),
+    schemaPath: schemaConfigFilePath('knowgrph-example-workflow-schema-config.jsonld'),
   },
   {
     id: 'multiOntologyWorkflow',
     label: 'Multi-ontology assessment graph',
     datasetPath: toDatasetPath('docs/assets/multi-ontology-kg.jsonld'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-interviewer-schema-config.jsonld'),
+    schemaPath: schemaConfigFilePath('knowgrph-interviewer-schema-config.jsonld'),
   },
   {
     id: 'edaMlpPipeline',
     label: 'EDA→MLP pipeline path graph',
     datasetPath: toDatasetPath('data/test-data/eda-mlp-path.json'),
-    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
+    schemaPath: DEFAULT_SCHEMA_CONFIG_PATH,
   },
 ]
 

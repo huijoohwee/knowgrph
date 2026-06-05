@@ -1215,7 +1215,7 @@ export type FlowNativeDrawArgs = {
   showGroupResizeHandle?: boolean
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
-  grid?: { enabled: boolean; size: number; variant?: 'lines' | 'dots'; majorEvery?: number; dotRadiusPx?: number } | null
+  grid?: { enabled: boolean; size: number; sizeX?: number; sizeY?: number; variant?: 'lines' | 'dots'; majorEvery?: number; dotRadiusPx?: number } | null
   flowEditorWidgetOpenNodeIds?: string[]
   flowEditorWidgetPinnedByNodeId?: Record<string, boolean>
   flowEditorWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
@@ -1282,11 +1282,12 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       : resolveCssVarCached(rt, '--kg-canvas-grid-major', fallbacks.major)
     drawInfiniteGridInWorldContext(rt.ctx, {
       enabled: true,
-      gridSize: grid.size,
       viewportW: rt.viewportW,
       viewportH: rt.viewportH,
       dpr: rt.dpr,
       transform: { k: rt.transform.k, x: rt.transform.x, y: rt.transform.y },
+      gridSize: (grid as any).sizeX || grid.size,
+      gridSizeY: (grid as any).sizeY,
       anchor: (grid as any).anchor,
       lockToBaseStep: (grid as any).lockToBaseStep,
       paint: {

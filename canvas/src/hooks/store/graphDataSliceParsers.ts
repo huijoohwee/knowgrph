@@ -9,7 +9,6 @@ export function parseLayoutMode(raw: unknown): NonNullable<NonNullable<GraphSche
   if (normalized === 'block' || normalized === 'flowchart' || normalized === 'hub-and-spoke' || normalized === 'hub_and_spoke') return 'block'
   if (normalized === 'force') return 'radial'
   if (normalized === 'radial' || normalized === 'radial-cluster' || normalized === 'cluster') return 'radial'
-  if (normalized === 'stratify') return 'radial'
   if (normalized === 'tree' || normalized === 'tidy-tree' || normalized === 'dendrogram') return 'radial'
   return null
 }

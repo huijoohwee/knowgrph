@@ -1,3 +1,6 @@
+import inspect
+
+from . import webpage_cmd
 from .webpage_cmd import _extract_structured_details_markdown, _table_html_to_markdown
 
 
@@ -44,8 +47,8 @@ def main() -> int:
     details = _extract_structured_details_markdown(html, base_url="https://example.com/")
     if "## Extracted Navigation Menus" not in details:
         raise SystemExit("missing nav section")
-    if "Products:" not in details:
-        raise SystemExit("missing Products menu")
+    if "Primary: Products | Player | Lambda | Timeline | Recorder | Resources" not in details:
+        raise SystemExit("missing primary navigation menu")
     if "## Templates" not in details or "Hello World" not in details:
         raise SystemExit("missing template names")
     if "## Pricing (Extracted)" not in details:
@@ -60,6 +63,11 @@ def main() -> int:
     )
     if "| A | B |" not in md_table:
         raise SystemExit("table markdown conversion failed")
+
+    fetch_source = inspect.getsource(webpage_cmd._fetch_url)
+    forbidden_fetch_tokens = ("verify" + "=False", "legacy " + "SSL")
+    if any(token in fetch_source for token in forbidden_fetch_tokens):
+        raise SystemExit("webpage fetch must keep TLS verification enabled")
 
     return 0
 

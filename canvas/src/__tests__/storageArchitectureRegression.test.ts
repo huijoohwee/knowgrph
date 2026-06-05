@@ -88,6 +88,51 @@ export function testBrowserCacheLegacyShimFilesAreRemoved() {
   }
 }
 
+export function testPaymentSettingsDoNotOwnBrowserServerSecretKeys() {
+  const keyText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'config.ls.keys.ts'), 'utf8')
+  const ownerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'config.ls.owners.ts'), 'utf8')
+  const registryText = readFileSync(resolve(process.cwd(), 'src', 'features', 'settings', 'registry-payments.ts'), 'utf8')
+  const forbiddenBrowserSecretKeys = ['paymentsStripeSecretKey', 'paymentsStripeWebhookSecret']
+  for (const key of forbiddenBrowserSecretKeys) {
+    if (keyText.includes(key) || ownerText.includes(key) || registryText.includes(key)) {
+      throw new Error(`expected Stripe server secret setting ${key} to stay out of browser localStorage ownership`)
+    }
+  }
+  if (registryText.includes('LS_KEYS.paymentsStripeSecretKey') || registryText.includes('LS_KEYS.paymentsStripeWebhookSecret')) {
+    throw new Error('expected payment settings registry to avoid browser reads/writes for Stripe server secrets')
+  }
+  if (!registryText.includes("key: 'payments.stripe.secretKey'") || !registryText.includes("key: 'payments.stripe.webhookSecret'")) {
+    throw new Error('expected payment settings registry to keep explicit server-secret rows for operator docs')
+  }
+  const serverSecretSourceCount = (registryText.match(/source: 'backendEnv'/g) || []).length
+  if (serverSecretSourceCount < 2) {
+    throw new Error('expected Stripe server secret settings to be labeled as backendEnv-owned')
+  }
+}
+
+export function testPdfWorkspaceServerUsesCurrentArtifactLayoutOnly() {
+  const serverText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'pdf', 'server', 'pdfWorkspaceServer.ts'), 'utf8')
+  const forbiddenFragments = [
+    "'modes'",
+    '"modes"',
+    "'text-only'",
+    "'image-heavy'",
+    "'scan-ocr'",
+    'legacyPrefix',
+    'legacyAssetsDirAbs',
+  ]
+  for (const fragment of forbiddenFragments) {
+    if (serverText.includes(fragment)) {
+      throw new Error(`expected PDF workspace server to avoid stale mode-layout artifact handling: ${fragment}`)
+    }
+  }
+  for (const requiredFragment of ["path.join(docDirAbs, 'output.md')", "path.join(docDirAbs, 'anchor-map.json')", "path.join(docDirAbs, 'assets')"]) {
+    if (!serverText.includes(requiredFragment)) {
+      throw new Error(`expected PDF workspace server to use current artifact layout fragment: ${requiredFragment}`)
+    }
+  }
+}
+
 export function testKnowgrphCanonicalStorageOwnerUsesPersistedCollectionStore() {
   const storagePath = resolve(process.cwd(), 'src', 'lib', 'storage', 'knowgrphStorageDb.ts')
   const storageText = readFileSync(storagePath, 'utf8')
@@ -143,21 +188,21 @@ export function testGraphTableCacheOwnerUsesPersistedCollectionStore() {
   }
 }
 
-export function testWorkflowPreviewArtifactsAvoidRxdbTerminologyForActiveStorageDocs() {
-  const workflowPreviewDir = resolve(process.cwd(), '..', 'data', 'knowgrph-workflow-preview')
-  const previewFiles = [
-    'knowgrph-local-storage-document-graph-data.jsonld',
-    'knowgrph-codebase-index-document-graph-data.jsonld',
-    'knowgrph-ui-ux-design-document-graph-data.jsonld',
-    'knowgrph-pipeline-deep-dive-document-graph-data.jsonld',
-    'knowgrph-pipeline-document-graph-data.jsonld',
+export function testWorkflowPreviewSourceDocsAvoidRxdbTerminologyForActiveStorageDocs() {
+  const docsDir = resolve(process.cwd(), '..', 'docs', 'documents')
+  const sourceDocs = [
+    'knowgrph-local-storage-document.md',
+    'knowgrph-codebase-index-document.md',
+    'knowgrph-ui-ux-design-document.md',
+    'knowgrph-pipeline-deep-dive-document.md',
+    'knowgrph-pipeline-document.md',
   ]
   const stalePattern = /\bRxDB\b|\brxdb\b/
-  for (const previewFile of previewFiles) {
-    const previewPath = resolve(workflowPreviewDir, previewFile)
-    const previewText = readFileSync(previewPath, 'utf8')
-    if (stalePattern.test(previewText)) {
-      throw new Error(`expected workflow preview artifact ${previewFile} to avoid stale RxDB terminology`)
+  for (const sourceDoc of sourceDocs) {
+    const sourcePath = resolve(docsDir, sourceDoc)
+    const sourceText = readFileSync(sourcePath, 'utf8')
+    if (stalePattern.test(sourceText)) {
+      throw new Error(`expected workflow preview source doc ${sourceDoc} to avoid stale RxDB terminology`)
     }
   }
 }
@@ -176,6 +221,12 @@ export function testDocsUpdateScriptUsesCentralizedWorkflowPreviewOwner() {
 
   const ownerPath = resolve(process.cwd(), '..', 'scripts', 'update-docs.mjs')
   const ownerText = readFileSync(ownerPath, 'utf8')
+  if (!ownerText.includes("const workflowPreviewOutputDir = 'data/outputs/knowgrph-workflow-preview'")) {
+    throw new Error('expected docs update owner to emit workflow preview artifacts under ignored data/outputs')
+  }
+  if (ownerText.includes("const workflowPreviewOutputDir = 'data/knowgrph-workflow-preview'")) {
+    throw new Error('expected docs update owner to avoid the tracked workflow preview output root')
+  }
   const requiredDocuments = [
     'docs/documents/knowgrph-pipeline-document.md',
     'docs/documents/knowgrph-pipeline-deep-dive-document.md',
@@ -207,5 +258,69 @@ export function testCanvasBuildUsesWorkflowPreviewDocsOwner() {
   }
   if (!prebuild.includes('tsx src/cli/lint-doc.ts')) {
     throw new Error('expected canvas prebuild to keep document linting after preview generation')
+  }
+}
+
+export function testCanvasStrictPortDevBuildsLinkedPackagesBeforeVite() {
+  const packagePath = resolve(process.cwd(), 'package.json')
+  const rootPackagePath = resolve(process.cwd(), '..', 'package.json')
+  const viteConfigPath = resolve(process.cwd(), 'vite.config.ts')
+  const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+    scripts?: Record<string, string>
+  }
+  const rootPackageJson = JSON.parse(readFileSync(rootPackagePath, 'utf8')) as {
+    scripts?: Record<string, string>
+    workspaces?: string[]
+  }
+  const viteConfigText = readFileSync(viteConfigPath, 'utf8')
+  const scripts = packageJson.scripts || {}
+  const rootScripts = rootPackageJson.scripts || {}
+  for (const workspace of ['canvas', 'grph-shared', 'gympgrph', 'mcp']) {
+    if (!rootPackageJson.workspaces?.includes(workspace)) {
+      throw new Error(`expected root npm workspaces to include ${workspace}`)
+    }
+  }
+  const prepareLinkedPackages = scripts['prepare:linked-packages'] || ''
+  if (prepareLinkedPackages.includes('npm install') || prepareLinkedPackages.includes('--prefix ../grph-shared install') || prepareLinkedPackages.includes('--prefix ../gympgrph install')) {
+    throw new Error('expected linked package preparation to avoid child package installs once root npm workspaces own installation')
+  }
+  if (prepareLinkedPackages !== 'npm run build:grph-shared && npm run build:gympgrph') {
+    throw new Error('expected linked package preparation to build grph-shared before gympgrph')
+  }
+  if (scripts['build:grph-shared'] !== 'npm --prefix .. run build --workspace=grph-shared') {
+    throw new Error('expected grph-shared build to run through the root workspace')
+  }
+  if (scripts['build:gympgrph'] !== 'npm --prefix .. run build --workspace=gympgrph') {
+    throw new Error('expected gympgrph build to run through the root workspace')
+  }
+  for (const childLockfile of ['package-lock.json', '../gympgrph/package-lock.json', '../grph-shared/package-lock.json']) {
+    if (existsSync(resolve(process.cwd(), childLockfile))) {
+      throw new Error(`expected root package-lock.json to be the only npm lockfile, found ${childLockfile}`)
+    }
+  }
+  if (rootScripts.setup !== 'npm install') {
+    throw new Error('expected root setup to own npm workspace installation')
+  }
+  if (rootScripts.postinstall !== 'npm run hooks:install') {
+    throw new Error('expected root postinstall to avoid nested npm installs')
+  }
+  if (rootScripts.dev !== 'npm run dev --workspace=@knowgrph/canvas --') {
+    throw new Error('expected root dev script to delegate through the canvas workspace')
+  }
+  if (!scripts.predev?.includes('npm run prepare:linked-packages')) {
+    throw new Error('expected predev to own linked package preparation for every dev server entry')
+  }
+  if (
+    !viteConfigText.includes("command === 'serve' ? '../grph-shared/src' : '../grph-shared/dist'") ||
+    !viteConfigText.includes("const grphSharedAliasSuffix = command === 'serve' ? '' : '.js'") ||
+    !viteConfigText.includes('replacement: path.resolve(grphSharedAliasRoot, `$1${grphSharedAliasSuffix}`)')
+  ) {
+    throw new Error('expected Vite serve aliases to resolve grph-shared client modules from source instead of generated dist')
+  }
+  if (scripts['predev:5173'] !== 'npm run predev') {
+    throw new Error('expected dev:5173 lifecycle to reuse predev before starting the strict-port Vite server')
+  }
+  if (scripts['dev:5173'] !== 'vite --configLoader runner --port 5173 --strictPort') {
+    throw new Error('expected dev:5173 to stay scoped to the strict-port Vite command')
   }
 }

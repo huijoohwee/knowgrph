@@ -2,9 +2,9 @@
 schema: kgc-computing-flow/v1
 doc_id: knowgrph-yaml-mermaid-gitgraph-frontmatter-prd-tad
 doc_type: prd-tad
-version: 0.1.0
+version: 0.1.4
 status: dev-source-implemented-no-deploy
-updated: 2026-06-04
+updated: 2026-06-05
 deploy_status: not_deployed
 ---
 
@@ -12,7 +12,7 @@ deploy_status: not_deployed
 
 ## Document Purpose
 
-This document defines the implemented Dev-source contract for Toolbar -> Canvas View Mode -> **2D Renderer: GitGraph**. The feature lets a Markdown document land on a dedicated Mermaid GitGraph surface through YAML frontmatter while preserving the existing Flow frontmatter parser and renderer ownership boundaries.
+This document defines the implemented Dev-source contract for Toolbar -> Canvas View Mode -> **2D Renderer: GitGraph** and the shared BottomPanel/FloatingPanel Mermaid diagram surfaces for GitGraph and Gantt. The feature lets a Markdown document land on a dedicated Mermaid GitGraph surface through YAML frontmatter while preserving the existing Flow frontmatter parser and renderer ownership boundaries.
 
 The implementation is Dev-only. It does not claim a Prod mirror sync or Cloudflare deployment.
 
@@ -20,17 +20,19 @@ The implementation is Dev-only. It does not claim a Prod mirror sync or Cloudfla
 
 | Capability | Implemented owner | Proof |
 |---|---|---|
-| Mermaid diagram kind detection | `grph-shared/src/markdown/mermaidInput.ts` | `mmdNormalization.test.ts` covers `gitGraph`, `gitGraph:`, Mermaid config headers, and mixed diagram splitting. |
+| Mermaid diagram kind detection | `grph-shared/src/markdown/mermaidInput.ts` | `mmdNormalization.test.ts` covers `gitGraph`, `gitGraph:`, `gantt`, Mermaid config headers, and mixed diagram splitting. |
 | Frontmatter ingestion | `canvas/src/lib/parsers/markdownJsonLd.impl.ts` | Frontmatter `mermaid: |` creates a `MermaidDiagram` with `properties.diagramKind = "gitgraph"`. |
 | Flowchart parser isolation | `canvas/src/features/parsers/markdownJsonLdMermaidParser.ts` | GitGraph commands do not create Flowchart `MermaidNode` topology. |
 | Frontmatter-flow metadata fallback | `canvas/src/lib/mermaid/mermaidFrontmatterCode.ts` | `frontmatter-flow` graphs can preserve and expose top-level `mermaid` metadata. |
-| GitGraph code resolver | `canvas/src/lib/mermaid/mermaidGitGraph.ts` | Chooses the first GitGraph slice from Mermaid frontmatter candidates. |
+| Mermaid diagram code resolver | `canvas/src/lib/mermaid/mermaidDiagramCode.ts`, `canvas/src/lib/mermaid/mermaidGitGraph.ts` | Scans typed `{key,type,value}` frontmatter objects for `mermaid_gitgraph` / `mermaid_gantt`, then falls back to top-level `mermaid: |` candidates. |
 | Renderer surface | `canvas/src/components/MermaidGitGraphCanvas.tsx` | Renders the resolved Mermaid GitGraph code through the shared Mermaid SVG cache and postprocessor. |
-| Interactive viewport | `canvas/src/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime.ts` | Wraps the Mermaid SVG with the shared D3 Graph zoom controller, fit helpers, keyed zoom persistence, and neutral SVG element selection. |
+| Interactive viewport | `canvas/src/lib/diagram/InteractiveMermaidDiagram.tsx`, `canvas/src/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime.ts` | BottomPanel Version Graph, GitGraph, and Gantt wrap cached Mermaid SVG output with the shared SVG zoom controller, content-bounds fitting, actual SVG viewport measurement, per-diagram keyed zoom persistence, neutral SVG element selection, and row-selection callbacks. |
 | Inline GitGraph CRUD | `canvas/src/lib/mermaid/mermaidGitGraphEdit.ts`, `canvas/src/components/MermaidGitGraphCanvas.tsx` | Command create/update/delete transforms operate on the active Markdown `mermaid: |` source and reuse the shared inline text editor. |
-| Document version GitGraph | `canvas/src/features/document-versioning/documentVersioning.ts`, `canvas/src/features/document-versioning/DocumentVersionGitGraphPanel.tsx`, `canvas/src/features/strybldr/StrybldrTimelineBottomPanel.tsx` | Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in GitGraph view; the bottom panel exposes the GitGraph icon immediately to the right of the Timeline icon; MainPanel History does not own a duplicate document-version Docs surface. |
+| Document version graph | `canvas/src/features/document-versioning/documentVersioning.ts`, `canvas/src/features/document-versioning/DocumentVersionGitGraphPanel.tsx`, `canvas/src/features/strybldr/StrybldrTimelineBottomPanel.tsx` | Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in Version Graph view; the bottom panel keeps Version Graph separate from Mermaid GitGraph; MainPanel History does not own a duplicate document-version Docs surface. |
+| BottomPanel / FloatingPanel Mermaid panels | `canvas/src/features/gitgraph/MermaidDiagramPanelView.tsx`, `canvas/src/features/gitgraph/GitGraphBottomPanelView.tsx`, `canvas/src/features/gitgraph/GanttBottomPanelView.tsx`, `canvas/src/features/gitgraph/GanttFloatingPanelView.tsx` | GitGraph and Gantt use a split shared utility: BottomPanel owns the Mermaid diagram preview and omits parsed row lists; FloatingPanel owns parsed rows / GitGraph command editing and omits Mermaid diagram previews. Both surfaces share the same selected-row store and document-version graph row-selection helper; document-version history never appears as a GitGraph fallback. |
+| Typed `flow_diagrams` frontmatter | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.flowDiagrams.ts` | `mermaid_gitgraph` and `mermaid_gantt` entries derive ordinary source -> compute -> Rich Media Panel dataflow nodes without filename checks or static backfill. |
 | Canvas mount | `canvas/src/components/CanvasViewport.tsx` | Mounts the GitGraph surface only when the active 2D surface is `gitGraph`. |
-| Toolbar and registry | `canvas/src/lib/config.render.ts`, `canvas/src/components/toolbar/canvasViewMenu.ts`, `canvas/src/lib/config-copy/uiCopy.ts` | Registers canonical renderer id `gitGraph`, label `2D Renderer: GitGraph`, menu metadata, icon, and alias resolution. |
+| Toolbar and registry | `canvas/src/lib/config.render.ts`, `canvas/src/components/toolbar/canvasViewMenu.ts`, `canvas/src/components/toolbar/canvasViewActions.ts`, `canvas/src/lib/config-copy/uiCopy.ts` | Registers canonical renderer id `gitGraph`, label `2D Renderer: GitGraph`, menu metadata, icon, normalized canonical-token resolution, and Canvas View Display Controls that open BottomPanel GitGraph/Gantt through the shared bottom-surface store. |
 
 ## Product Requirements
 
@@ -113,9 +115,9 @@ Markdown Source
 
 ### Parsing
 
-- `readMermaidDiagramKind` recognizes `flowchart`, `graph`, `gitGraph`, and `gitGraph:` declarations.
-- `splitMermaidDiagrams` keeps mixed Flowchart and GitGraph Mermaid blocks separate and preserves immediate Mermaid config headers with their diagram slice.
-- `parseMermaidFrontmatter` remains Flowchart-only. GitGraph is preserved as diagram code and rendered by Mermaid itself.
+- `readMermaidDiagramKind` recognizes `flowchart`, `graph`, `gitGraph`, `gitGraph:`, and `gantt` declarations.
+- `splitMermaidDiagrams` keeps mixed Flowchart, GitGraph, and Gantt Mermaid blocks separate and preserves immediate Mermaid config headers with their diagram slice.
+- `parseMermaidFrontmatter` remains Flowchart-only. GitGraph and Gantt are preserved as diagram code and rendered by Mermaid itself.
 
 ### Rendering
 
@@ -124,7 +126,7 @@ Markdown Source
 - The surface resolves GitGraph code from active Markdown frontmatter text first, then from parsed graph metadata as fallback, so inline source edits render immediately without waiting on a parser reapply.
 - Mermaid rendering uses the existing cached SVG renderer and SVG postprocessor.
 - Interaction uses `useSvgSurfaceZoomRuntime`, which adapts the rendered SVG to the shared D3 Graph viewport path (`createZoom`, toolbar `useZoomEffects`, `fitAllTransform`, `useAutoZoomModes2d`, and keyed zoom commits).
-- The adapter creates a neutral one-node visual-bounds graph from the SVG `viewBox` or dimensions. This graph is only a fit/zoom measurement input and is not written back to source GraphData.
+- The adapter creates a neutral one-node visual-bounds graph from the wrapped SVG content bounds, with the root `viewBox` or dimensions as fallback. This graph is only a fit/zoom measurement input and is not written back to source GraphData.
 - SVG selection is generic and element-local. It exposes selected labels through surface data attributes for inspection without adding GitGraph semantic parsing, hardcoded labels, or file-specific behavior.
 
 ### Inline Editing
@@ -137,11 +139,25 @@ Markdown Source
 ### Document Version Visualization
 
 - Document version snapshots remain owned by `documentVersioning.ts`; entries may carry optional collaborator metadata without requiring a collaboration backend.
-- Document-version GitGraph rendering is owned by `DocumentVersionGitGraphPanel`; BottomPanel placement is owned by `StrybldrTimelineBottomPanel`.
-- Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in GitGraph view immediately after `[ ] Markdown` and does not render an inline document notice.
-- The bottom Timeline panel exposes GitGraph through the GitGraph icon immediately to the right of the Timeline icon.
+- Document-version graph rendering is owned by `DocumentVersionGitGraphPanel`; BottomPanel placement is owned by `StrybldrTimelineBottomPanel`.
+- Document-version Version Graph reuses the same `InteractiveMermaidDiagram` SVG row-key selection path as Mermaid GitGraph and Gantt: version ids are row keys, rendered commit dots/labels are chart targets, unmatched SVG parts dim through the shared SVG runtime, and no proxy version-node overlay is rendered.
+- Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in Version Graph view immediately after `[ ] Markdown` and does not render an inline document notice.
+- The bottom Timeline panel exposes Timeline, Version Graph, GitGraph, and Gantt as separate controls. The GitGraph control is reserved for typed `mermaid_gitgraph` diagram source.
 - MainPanel History stays limited to Chat, History, and Log; it does not render a Docs tab, document-version list, Monaco diff review, or duplicate GitGraph timeline.
 - Document version rendering is browser-local and Dev-source only. It does not write review state back to Prod, Cloudflare, GraphData topology, or Mermaid source.
+
+### GitGraph / Gantt Panel Rendering
+
+- `mermaidDiagramCode.ts` is the neutral resolver for typed Mermaid diagram source. It scans any parsed frontmatter object for `type: mermaid_gitgraph` or `type: mermaid_gantt` with a string `value`, so authoring is not tied to a specific document name, fixture path, or `flow_diagrams` nesting.
+- The resolver preserves source precedence: active Markdown frontmatter text is read before parsed graph metadata, and typed entries are read before the legacy top-level `mermaid: |` fallback.
+- `MermaidDiagramPanelView` is the shared BottomPanel/FloatingPanel split shell. `renderMode="diagram"` mounts `InteractiveMermaidDiagram`, which renders through the cached Mermaid SVG renderer and then hands the SVG to `useSvgSurfaceZoomRuntime` with a diagram-kind surface key. `renderMode="list"` mounts parsed command/task rows only.
+- BottomPanel GitGraph and Gantt annotate the rendered Mermaid SVG with parsed row keys and select rows from direct SVG targets such as commit dots, commit-label backgrounds, branch labels, branch lanes, task bars, task labels, section bands, and section/title text. The hit-test may tolerate a small near-miss around an annotated SVG target, but it does not add visible proxy row-marker controls or select rows by canvas x-position.
+- FloatingPanel `GitGraph` keeps its command CRUD and selection-row behavior without mounting a Mermaid diagram preview. FloatingPanel `Gantt` is a first-class row-list view without mounting a Mermaid diagram preview.
+- BottomPanel and FloatingPanel stay in sync through `mermaidDiagramSelectedRowKeyByKind`; row clicks in FloatingPanel update BottomPanel diagram selection, and direct SVG element clicks in BottomPanel update the FloatingPanel selected row.
+- BottomPanel `GitGraph` renders typed GitGraph frontmatter only. It does not import, mount, or fallback to the document-version graph panel. BottomPanel `Gantt` renders typed Gantt frontmatter only and does not reuse document-version state.
+- Canvas View -> Display Controls exposes `GitGraph` and `Gantt` beside `Timeline`. These controls route to `bottomSurfaceTab` / `bottomSurfaceCollapsed`; they must not switch the 2D renderer, mutate layout state, or duplicate panel rendering logic.
+- `bottomSurfaceTab: "gitGraph"` is Mermaid-only. Document version control uses `bottomSurfaceTab: "documentVersionGraph"` and is labeled Version Graph in the bottom panel.
+- The shared panel path must not backfill static diagrams, regenerate stale templates, or branch on demo filenames.
 
 ## YAML Frontmatter Contract
 
@@ -186,6 +202,43 @@ flow:
       label: {key: label, type: string, value: "Root"}
 ```
 
+Combined `flow_diagrams` block for Flow Editor / Storyboard rich-media output:
+
+```yaml
+flow_diagrams:
+  key: flow_diagrams
+  type: object
+  value:
+    gitgraph:
+      key: gitgraph
+      type: mermaid_gitgraph
+      render_on: [flow_editor, storyboard]
+      value: |-
+        gitGraph
+          commit id:"source_input"
+          branch research
+          checkout research
+          commit id:"parallel_review"
+          checkout main
+          merge research
+    gantt:
+      key: gantt
+      type: mermaid_gantt
+      render_on: [flow_editor, storyboard, document_view, timeline_view]
+      value: |-
+        gantt
+          title computing flow
+          dateFormat YYYY-MM-DD
+          section Critical path
+          Source input :done, source_input, 2026-06-05, 1d
+          Parallel review :crit, parallel_review, after source_input, 2d
+```
+
+The parser treats each entry as source data and derives ordinary Flow nodes:
+`FlowDiagramSource -> TextGeneration compute -> RichMediaPanel`. The compute node
+emits `outputSrcDoc`, so Flow Editor overlays and Storyboard cards consume the
+same connected Rich Media Panel path as other generated HTML outputs.
+
 ## Mermaid GitGraph Syntax Boundary
 
 Knowgrph does not reimplement the GitGraph grammar. It detects the diagram kind and delegates rendering to Mermaid. The supported syntax surface therefore follows Mermaid's GitGraph documentation for declarations and commands such as:
@@ -198,14 +251,17 @@ Knowgrph does not reimplement the GitGraph grammar. It detects the diagram kind 
 - `cherry-pick`
 - optional commit metadata such as `id`, `tag`, and `type`
 
-Mermaid syntax reference: `https://github.com/mermaid-js/mermaid/blob/develop/packages/mermaid/src/docs/syntax/gitgraph.md`.
+Mermaid syntax references:
+
+- GitGraph: `https://github.com/mermaid-js/mermaid/blob/develop/packages/mermaid/src/docs/syntax/gitgraph.md`
+- Gantt: `https://github.com/mermaid-js/mermaid/blob/develop/docs/syntax/gantt.md`
 
 ## Out Of Scope
 
 - No Prod mirror sync.
 - No Cloudflare deployment.
 - No GitGraph-to-GraphData topology expansion.
-- No legacy renderer alias remap beyond the centralized canonical renderer alias table.
+- No legacy renderer alias remap; renderer frontmatter uses centralized canonical renderer-token resolution.
 - No document-specific fixtures or repository-path heuristics.
 
 ## Validation
@@ -215,6 +271,9 @@ Focused validation completed:
 ```text
 npm --prefix canvas run build:grph-shared
 node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "import * as t from './src/__tests__/mmdNormalization.test.ts'; t.testReadMermaidDiagramKindDetectsGitGraph(); t.testReadMermaidDiagramKindSkipsMermaidConfigHeader(); t.testSplitMermaidDiagramsKeepsGitGraphSlicesSeparate(); console.log('mmd normalization gitgraph ok')"
+node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "import * as t from './src/__tests__/mmdNormalization.test.ts'; t.testReadMermaidDiagramKindDetectsGantt(); t.testSplitMermaidDiagramsKeepsGanttSlicesSeparate(); console.log('mmd normalization gantt ok')"
+node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "import * as t from './src/__tests__/mermaidGanttPanelRouting.test.ts'; t.testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(); t.testTypedMermaidDiagramResolverReadsParsedGraphMetadata(); t.testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities(); console.log('mermaid gitgraph gantt panel routing ok')"
+node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "import * as t from './src/__tests__/canvas3dMode.test.ts'; t.testCanvasViewTimelineToggleUsesSharedViewModeOption(); console.log('canvas view diagram bottom-panel controls ok')"
 node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "import * as t from './src/__tests__/mermaidFrontmatterRender.test.ts'; (async () => { await t.testMermaidFrontmatterGitGraphPreservesDiagramWithoutFlowchartTopology(); await t.testFrontmatterFlowGitGraphRendererCanReadMermaidMetadata(); console.log('mermaid frontmatter gitgraph ok') })()"
 node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "import * as t from './src/__tests__/rendererPipelineNeutrality.test.ts'; t.test2dRendererPipelineUsesSharedSurfaceHelpers(); console.log('renderer pipeline gitgraph ok')"
 node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "import * as t from './src/__tests__/mermaidGitGraphEdit.test.ts'; t.testMermaidGitGraphEditParsesCrudCommandsAndFindsSvgLabel(); t.testMermaidGitGraphEditUpdatesAddsAndDeletesCommands(); t.testMermaidGitGraphEditReplacesYamlMermaidFrontmatterOnly(); t.testMermaidGitGraphEditCreatesFrontmatterWhenMissing(); console.log('gitgraph edit helpers ok')"

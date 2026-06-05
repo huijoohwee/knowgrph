@@ -11,7 +11,7 @@ import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
-import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
+import { getCanvas2dSurfaceId, isFlowEditorCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
@@ -22,6 +22,7 @@ const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
 )
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
+const DashboardCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/DashboardCanvas'), { retries: 2, retryDelayMs: 50 }))
 const MermaidGitGraphCanvasLazy = React.lazy(() => import('@/components/MermaidGitGraphCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
 const AnimaticCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/AnimaticCanvas'), { retries: 2, retryDelayMs: 50 }))
@@ -84,6 +85,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   )
   const rawActive2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
   const workspaceFrontmatterFlowEditorSurfaceActive = workspaceEditorOverlayOpen === true
+    && isFlowEditorCanvas2dRenderer(canvas2dRenderer)
     && canvasRenderMode === '2d'
     && (
       isFrontmatterFlowGraph(activeGraphData)
@@ -104,7 +106,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
       bottomSurfaceTab: s.bottomSurfaceTab,
     })),
   )
-  const documentVersionGitGraphBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
+  const documentVersionGraphBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'documentVersionGraph'
+  const mermaidGitGraphBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
+  const mermaidGanttBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
   const { paywallEnabled, floatingPanelOpen, floatingPanelView } = useGraphStore(
     useShallow(s => ({
       paywallEnabled: s.paymentsStripePaywallEnabled === true,
@@ -129,7 +133,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     geospatialOverlayOwnsViewport,
     timelineEnabled,
   })
-  const timelineBottomPanelVisible = documentVersionGitGraphBottomPanelVisible || strybldrTimelineBottomPanelVisible
+  const timelineBottomPanelVisible = documentVersionGraphBottomPanelVisible || mermaidGitGraphBottomPanelVisible || mermaidGanttBottomPanelVisible || strybldrTimelineBottomPanelVisible
   const paywallOverlayActive = paywallEnabled && floatingPanelOpen && floatingPanelView === 'chat'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -148,6 +152,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
           <section className="absolute inset-0 z-[10]">
             <section className={`absolute inset-0 ${d3SurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!d3SurfaceActive}>
               {d3SurfaceActive ? <GraphCanvasLazy active /> : null}
+            </section>
+            <section className={`absolute inset-0 ${active2dSurface === 'dashboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'dashboard'}>
+              {active2dSurface === 'dashboard' ? <DashboardCanvasLazy active /> : null}
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'gitGraph' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gitGraph'}>
               {active2dSurface === 'gitGraph' ? <MermaidGitGraphCanvasLazy active /> : null}
@@ -208,7 +215,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             {timelineBottomPanelVisible ? (
               <StrybldrTimelineBottomPanelLazy
                 active={strybldrTimelineBottomPanelVisible}
-                initialView={documentVersionGitGraphBottomPanelVisible ? 'gitGraph' : 'timeline'}
+                initialView={mermaidGanttBottomPanelVisible ? 'gantt' : mermaidGitGraphBottomPanelVisible ? 'gitGraph' : documentVersionGraphBottomPanelVisible ? 'documentVersionGraph' : 'timeline'}
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />
             ) : null}

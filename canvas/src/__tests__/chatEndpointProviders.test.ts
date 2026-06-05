@@ -26,6 +26,7 @@ import {
   getChatProviderLabel,
   getChatProviderRegionLabel,
   getSharedChatModelCatalogOptions,
+  normalizeChatModelIdForProvider,
   resolveChatModelIdForProvider,
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
@@ -303,6 +304,23 @@ export function testSharedChatModelCatalogReusesMainPanelIntegrationsOptions() {
   }
 }
 
+export function testChatModelInputVariantsUseCanonicalMapTerminology() {
+  const modelsPath = resolve(process.cwd(), 'src', 'lib', 'chatEndpointModels.ts')
+  const endpointPath = resolve(process.cwd(), 'src', 'lib', 'chatEndpoint.ts')
+  const modelsText = readFileSync(modelsPath, 'utf8')
+  const endpointText = readFileSync(endpointPath, 'utf8')
+  if (!modelsText.includes('CHAT_MODEL_ID_BY_INPUT_VARIANT')) {
+    throw new Error('expected chat model input normalization to use canonical input-variant terminology')
+  }
+  if (modelsText.includes('CHAT_MODEL_ALIASES') || endpointText.includes('CHAT_MODEL_ALIASES')) {
+    throw new Error('expected chat model normalization to avoid alias terminology')
+  }
+  const normalized = normalizeChatModelIdForProvider('gpt-5 nano', CHAT_PROVIDER_OPENAI)
+  if (normalized !== CHAT_OPENAI_MODEL_OPTIONS[0]) {
+    throw new Error(`expected gpt-5 nano input variant to normalize to ${CHAT_OPENAI_MODEL_OPTIONS[0]}, got ${JSON.stringify(normalized)}`)
+  }
+}
+
 export function testOpenAiResolverDropsUnknownNativeModelIds() {
   const staleNativeModel = ['gpt', '5.4', 'nano'].join('-')
   const resolved = resolveChatModelIdForProvider(staleNativeModel, CHAT_PROVIDER_OPENAI, { preserveUnknownCustomModel: true })
@@ -352,5 +370,31 @@ export function testBytePlusProxyRewritesLegacyRunAllPaths() {
   const missing = expectedSnippets.filter(snippet => !source.includes(snippet))
   if (missing.length) {
     throw new Error(`expected BytePlus proxy compatibility rewrites in vite.config.ts, missing ${JSON.stringify(missing)}`)
+  }
+}
+
+export function testChatProxyErrorResponsesGuardHeadersSent() {
+  const candidates = [
+    resolve(process.cwd(), 'vite.config.ts'),
+    resolve(process.cwd(), 'canvas/vite.config.ts'),
+  ]
+  const viteConfigPath = candidates.find(candidate => existsSync(candidate))
+  if (!viteConfigPath) {
+    throw new Error(`could not find vite.config.ts from ${process.cwd()}`)
+  }
+  const source = readFileSync(viteConfigPath, 'utf8')
+  const expectedSnippets = [
+    'const canWriteChatProxyResponse = (res: import',
+    '!res.destroyed && !res.writableEnded',
+    'if (!canWriteChatProxyResponse(res)) return false',
+    'if (res.headersSent) {',
+    'return false',
+    'if (!canWriteChatProxyResponse(res)) return',
+    'res.end()',
+    'toActionableChatProxyError',
+  ]
+  const missing = expectedSnippets.filter(snippet => !source.includes(snippet))
+  if (missing.length) {
+    throw new Error(`expected chat proxy errors to avoid writing headers after response start, missing ${JSON.stringify(missing)}`)
   }
 }

@@ -8,6 +8,7 @@ import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .common import DEFAULT_TERM_IRI_BASE
+from .config_paths import UNIVERSAL_ORCHESTRATOR_CONFIG_REL
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYTHON_BIN = sys.executable
@@ -24,7 +25,7 @@ DEFAULT_EMBEDDINGS_BACKEND_FILE = os.path.join(
 
 CODEBASE_INDEX_ORCHESTRATOR_CONFIG_REL = os.getenv(
     "KG_CODEBASE_INDEX_ORCHESTRATOR_CONFIG",
-    "orchestrator-config/knowgrph-universal-orchestrator-config.yaml",
+    UNIVERSAL_ORCHESTRATOR_CONFIG_REL,
 )
 CODEBASE_INDEX_JSONLD_REL = os.getenv(
     "KG_CODEBASE_INDEX_JSONLD_PATH",

@@ -53,7 +53,7 @@ export function testChatResponseStructuredContentProjectsToRenderableFlowNodes()
     || authoredSurfaceEdge.sourceHandle !== 'output'
     || authoredSurfaceEdge.targetHandle !== 'outputSrcDoc'
   ) {
-    throw new Error(`Expected authored structured edge aliases to resolve to canonical node ids, got: ${JSON.stringify(surface.edges)}`)
+    throw new Error(`Expected authored structured edge references to resolve to canonical node ids, got: ${JSON.stringify(surface.edges)}`)
   }
 
   const markdown = normalizeKgcAssistantBodyForStorage({
@@ -179,7 +179,7 @@ export function testChatResponseStructuredContentAcceptsLiteralMcpToolResultEnve
     || authoredEdge.target !== 'mcp-response-mcp-video'
     || authoredEdge.targetHandle !== 'videoUrl'
   ) {
-    throw new Error(`Expected literal MCP authored edge to resolve aliases and handles, got: ${JSON.stringify(authoredEdge)}`)
+    throw new Error(`Expected literal MCP authored edge to resolve references and handles, got: ${JSON.stringify(authoredEdge)}`)
   }
 
   const contentOnlyAssistantText = JSON.stringify({
@@ -362,7 +362,7 @@ export function testChatResponseStructuredContentAcceptsTypedKtvEnvelopeRecords(
     || authoredEdge.sourceHandle !== 'output'
     || authoredEdge.targetHandle !== 'audioUrl'
   ) {
-    throw new Error(`Expected typed KTV edge aliases to resolve, got: ${JSON.stringify(surface.edges)}`)
+    throw new Error(`Expected typed KTV edge references to resolve, got: ${JSON.stringify(surface.edges)}`)
   }
 
   const markdown = normalizeKgcAssistantBodyForStorage({

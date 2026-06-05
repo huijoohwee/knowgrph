@@ -12,9 +12,8 @@ import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tes
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { assertMcpHubSurfacesExaMcpConfig } from '@/__tests__/helpers/mainPanelMcpExpectations'
 import {
-  EXA_MCP_ALL_NON_DEPRECATED_REMOTE_URL,
-  EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES,
-  EXA_MCP_DEPRECATED_TOOL_REPLACEMENTS,
+  EXA_MCP_ACTIVE_TOOL_NAMES,
+  EXA_MCP_ADVANCED_REMOTE_URL,
   EXA_MCP_LOCAL_API_KEY_ENV,
   EXA_MCP_REMOTE_URL,
   normalizeExaMcpToolNames,
@@ -64,10 +63,13 @@ const assertNoSecretMaterial = (text: string): void => {
   })
 }
 
-const assertNoDeprecatedTools = (text: string): void => {
-  Object.keys(EXA_MCP_DEPRECATED_TOOL_REPLACEMENTS).forEach(tool => {
+const assertNoUnsupportedTools = (text: string): void => {
+  ;[
+    'unsupported_exa_tool',
+    'unknown_exa_tool',
+  ].forEach(tool => {
     if (text.includes(tool)) {
-      throw new Error(`expected generated Exa MCP config to omit deprecated tool ${JSON.stringify(tool)}, got ${JSON.stringify(text)}`)
+      throw new Error(`expected generated Exa MCP config to omit unsupported tool ${JSON.stringify(tool)}, got ${JSON.stringify(text)}`)
     }
   })
 }
@@ -89,36 +91,36 @@ export function testExaMcpDefaultGeneratedConfigIsNonSecretAndHosted() {
   }
   const combined = `${codexCommand}\n${configText}`
   assertNoSecretMaterial(combined)
-  assertNoDeprecatedTools(combined)
+  assertNoUnsupportedTools(combined)
 }
 
-export function testExaMcpAllNonDeprecatedProfileBuildsExactToolsUrl() {
+export function testExaMcpAdvancedProfileBuildsExactToolsUrl() {
   const values = {
-    'search.exa.mcp.toolProfile': 'all_non_deprecated',
+    'search.exa.mcp.toolProfile': 'advanced',
   }
   const configText = buildExaRemoteMcpConfigJson(values)
   const parsed = JSON.parse(configText) as { mcpServers?: Record<string, { url?: string }> }
   const url = parsed.mcpServers?.exa?.url || ''
 
-  if (url !== EXA_MCP_ALL_NON_DEPRECATED_REMOTE_URL) {
-    throw new Error(`expected all-non-deprecated Exa URL ${EXA_MCP_ALL_NON_DEPRECATED_REMOTE_URL}, got ${JSON.stringify(url)}`)
+  if (url !== EXA_MCP_ADVANCED_REMOTE_URL) {
+    throw new Error(`expected advanced Exa URL ${EXA_MCP_ADVANCED_REMOTE_URL}, got ${JSON.stringify(url)}`)
   }
   const tools = new URL(url).searchParams.get('tools')?.split(',') || []
-  if (JSON.stringify(tools) !== JSON.stringify(EXA_MCP_ALL_NON_DEPRECATED_TOOL_NAMES)) {
-    throw new Error(`expected exact Exa all-tools profile, got ${JSON.stringify(tools)}`)
+  if (JSON.stringify(tools) !== JSON.stringify(EXA_MCP_ACTIVE_TOOL_NAMES)) {
+    throw new Error(`expected exact Exa advanced profile, got ${JSON.stringify(tools)}`)
   }
   assertNoSecretMaterial(configText)
-  assertNoDeprecatedTools(configText)
+  assertNoUnsupportedTools(configText)
 }
 
-export function testExaMcpGeneratedConfigFiltersDeprecatedTools() {
+export function testExaMcpGeneratedConfigFiltersUnsupportedTools() {
   const values = {
     'search.exa.mcp.enabledTools': JSON.stringify([
-      'company_research_exa',
+      'unsupported_exa_tool',
       'web_fetch_exa',
       'web_search_advanced_exa',
       'web_fetch_exa',
-      'crawling_exa',
+      'unknown_exa_tool',
     ]),
   }
   const configText = buildExaRemoteMcpConfigJson(values)
@@ -126,16 +128,16 @@ export function testExaMcpGeneratedConfigFiltersDeprecatedTools() {
   const url = parsed.mcpServers?.exa?.url || ''
   const tools = new URL(url).searchParams.get('tools')?.split(',') || []
   const normalized = normalizeExaMcpToolNames([
-    'company_research_exa',
+    'unsupported_exa_tool',
     'web_fetch_exa',
     'web_search_advanced_exa',
     'web_fetch_exa',
-    'crawling_exa',
+    'unknown_exa_tool',
   ])
 
   if (JSON.stringify(tools) !== JSON.stringify(normalized)) {
-    throw new Error(`expected deprecated Exa tools to be filtered from generated URL, got ${JSON.stringify(tools)}`)
+    throw new Error(`expected unsupported Exa tools to be filtered from generated URL, got ${JSON.stringify(tools)}`)
   }
   assertNoSecretMaterial(configText)
-  assertNoDeprecatedTools(configText)
+  assertNoUnsupportedTools(configText)
 }

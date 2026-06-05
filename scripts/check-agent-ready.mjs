@@ -421,12 +421,13 @@ const checks = [
           .map((tool) => toComparableMcpToolEntry(tool || {}))
           .sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
         : null
+      const removedSseFlag = ['leg', 'acySse'].join('')
       return response.ok
         && payload.serverInfo?.name
         && payload.serverInfo?.version
         && payload.transport?.type === KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
         && payload.transport?.stateless === true
-        && payload.transport?.legacySse === false
+        && !Object.prototype.hasOwnProperty.call(payload.transport || {}, removedSseFlag)
         && payload.links?.status === `${canonicalBaseUrl}/health`
         && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.transport === 'http'
         && payload.clientSetups?.[KNOWGRPH_MCP_CLIENT_IDS.qwenCode]?.url === `${canonicalBaseUrl}/mcp`

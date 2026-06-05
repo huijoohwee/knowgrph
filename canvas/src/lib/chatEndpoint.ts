@@ -17,7 +17,7 @@ import {
   CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_LOCAL_MODEL_OPTIONS,
   CHAT_MIROMIND_MODEL_OPTIONS,
-  CHAT_MODEL_ALIASES,
+  CHAT_MODEL_ID_BY_INPUT_VARIANT,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_QWEN_MODEL_OPTIONS,
   CHAT_SHARED_MODEL_CATALOG_OPTIONS,
@@ -529,8 +529,8 @@ export function normalizeChatModelIdForProvider(value: unknown, provider: unknow
   const normalizedProvider = normalizeChatProviderId(provider)
   const raw = typeof value === 'string' ? value.trim() : ''
   if (!raw) return getDefaultChatModelForProvider(normalizedProvider)
-  const alias = CHAT_MODEL_ALIASES[raw.toLowerCase()]
-  return alias || raw
+  const canonicalInputVariant = CHAT_MODEL_ID_BY_INPUT_VARIANT[raw.toLowerCase()]
+  return canonicalInputVariant || raw
 }
 
 export function isKnownChatModelIdForDifferentProvider(value: unknown, provider: unknown): boolean {

@@ -45,9 +45,9 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     typeLabel: 'string',
     value: 'serverManaged',
     valueKey: 'chatAuthMode',
-    responsibility: 'Auth mode selector -> reuse shared OpenAI credential policy for image requests.',
+    responsibility: 'Auth mode selector -> default image requests to server-managed Cloudflare/dev proxy secrets and allow memory-only BYOK only as explicit fallback.',
     tooltipDefaultValue: 'serverManaged',
-    searchHints: ['openai image auth mode byok server-managed'],
+    searchHints: ['openai image auth mode byok server-managed Cloudflare secret'],
     modules: ['canvas/src/hooks/store/uiSlice.ts', 'canvas/src/features/settings/registry-ui.ui.ts'],
     classes: ['GraphState'],
     functions: ['setChatAuthMode'],
@@ -57,7 +57,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
     typeLabel: 'string',
     value: '',
     valueKey: 'chatApiKey',
-    responsibility: 'Credential input -> reuse shared OpenAI BYOK secret for image generation.',
+    responsibility: 'Credential input -> reuse the shared memory-only OpenAI BYOK secret for image generation when explicit fallback auth is selected.',
     tooltipDefaultValue: '',
     searchHints: ['openai image api key credential'],
     modules: ['canvas/src/hooks/store/uiSlice.ts', 'canvas/src/features/settings/registry-ui.ui.ts'],
@@ -213,7 +213,7 @@ export const OPENAI_IMAGES_API_DOC_ROWS: ReadonlyArray<OpenAiImagesApiDocRow> = 
 
 export const OPENAI_IMAGES_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>> = {
   chatAuthMode: ['select auth mode', 'choose image credential flow'],
-  chatApiKey: ['store API secret', 'authorize BYOK image requests'],
+  chatApiKey: ['hold memory-only BYOK secret', 'authorize proxied image requests'],
 }
 
 export const OPENAI_IMAGES_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {

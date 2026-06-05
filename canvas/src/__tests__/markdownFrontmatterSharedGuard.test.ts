@@ -42,17 +42,17 @@ kgDocumentSemanticMode: keyword
   }
 }
 
-export const testMarkdownFrontmatterNormalizesCanvasRenderModeAliases = () => {
+export const testMarkdownFrontmatterNormalizesCanvasRenderModeTokens = () => {
   const preset = parseCanvasWorkspaceFrontmatterPreset(`---
 kgCanvasRenderMode: "Surface 2D"
 kgCanvas2dRenderer: "Flow Editor"
 ---`)
-  if (!preset) throw new Error('expected canvas render mode alias preset to parse')
+  if (!preset) throw new Error('expected canvas render mode token preset to parse')
   if (preset.canvasRenderMode !== '2d') {
-    throw new Error(`expected Surface 2D alias to normalize to 2d, got ${String(preset.canvasRenderMode)}`)
+    throw new Error(`expected Surface 2D token to normalize to 2d, got ${String(preset.canvasRenderMode)}`)
   }
   if (preset.canvas2dRenderer !== 'flowEditor') {
-    throw new Error(`expected Flow Editor alias to normalize to flowEditor, got ${String(preset.canvas2dRenderer)}`)
+    throw new Error(`expected Flow Editor token to normalize to flowEditor, got ${String(preset.canvas2dRenderer)}`)
   }
 }
 
@@ -75,7 +75,7 @@ kgCanvasRenderMode: "XR Mode"
 export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxOwner = () => {
   const legacyTimelineRendererAlias = ['Timeline', 'Animation'].join(' ')
   if (resolveCanvas2dRendererId('Flow Editor') !== 'flowEditor') {
-    throw new Error('expected shared renderer normalizer to resolve Flow Editor alias upstream')
+    throw new Error('expected shared renderer normalizer to resolve Flow Editor display token upstream')
   }
   if (resolveCanvas2dRendererId('Animatic') !== 'animatic') {
     throw new Error('expected shared renderer normalizer to resolve Animatic upstream')

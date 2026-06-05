@@ -33,7 +33,7 @@ import { resolveMarkdownGeoDatasetParseResult } from '@/features/geospatial/mark
 
 export function testMarkdownGeoDatasetRequestHelperCentralizesGeoCodeBlockRequestShape() {
   const req = buildMarkdownGeoDatasetRegistrationRequest({
-    activeDocumentPath: ' workspace:/sandbox/demo/trip-demo.mmd#geo ',
+    activeDocumentPath: ' workspace:/fixtures/trip-demo.mmd#geo ',
     lang: 'geojson',
     text: ' {"type":"FeatureCollection","features":[]} ',
     startLine: 7,
@@ -43,7 +43,7 @@ export function testMarkdownGeoDatasetRequestHelperCentralizesGeoCodeBlockReques
   const codeBlockContract: MarkdownGeoCodeBlock = req.codeBlock
   const codeBlockLanguage: MarkdownGeoCodeBlockLanguage = req.codeBlock.lang
 
-  if (req.sourceDocumentPath !== '/sandbox/demo/trip-demo.mmd') {
+  if (req.sourceDocumentPath !== '/fixtures/trip-demo.mmd') {
     throw new Error('expected markdown geo dataset request helper to normalize workspace-style document paths into a canonical upstream identity')
   }
   if (codeBlockContract.startLine !== 7 || codeBlockContract.endLine !== 11 || codeBlockLanguage !== 'geojson') {
@@ -78,7 +78,7 @@ export function testMarkdownGeoDatasetRequestHelperCentralizesGeoCodeBlockReques
   }
 
   const graphSourcePath = buildMarkdownGeoDatasetGraphSourcePath(req)
-  if (graphSourcePath !== '/sandbox/demo/trip-demo.mmd#L7-L11') {
+  if (graphSourcePath !== '/fixtures/trip-demo.mmd#L7-L11') {
     throw new Error(`expected markdown geo dataset graph-source helper to derive a stable document line range path, got ${graphSourcePath}`)
   }
   const sourceLineRangePath = buildMarkdownGeoDatasetSourceLineRangePath(req)
@@ -116,10 +116,10 @@ export function testMarkdownGeoDatasetRequestHelperCentralizesGeoCodeBlockReques
     throw new Error(`expected markdown geo line-range helper to clamp and bound line ranges, got ${JSON.stringify(normalizedRange)}`)
   }
   if (buildMarkdownGeoDocumentLineRangePath({
-    sourceDocumentPath: 'workspace:/sandbox/demo/trip-demo.mmd#focus',
+    sourceDocumentPath: 'workspace:/fixtures/trip-demo.mmd#focus',
     startLine: 7.8,
     endLine: 3.2,
-  }) !== '/sandbox/demo/trip-demo.mmd#L7-L7') {
+  }) !== '/fixtures/trip-demo.mmd#L7-L7') {
     throw new Error('expected markdown geo line-range helper to derive one canonical document#line-range identity from workspace-style input')
   }
 
@@ -190,7 +190,7 @@ export function testMarkdownGeoDatasetRequestHelperCentralizesGeoCodeBlockReques
   }
 
   const tableGraphSourcePath = buildMarkdownGeoTableGraphSourcePath({
-    sourceDocumentPath: 'workspace:/sandbox/demo/trip-demo.mmd#focus',
+    sourceDocumentPath: 'workspace:/fixtures/trip-demo.mmd#focus',
     featureCollection: {
       type: 'FeatureCollection',
       features: [
@@ -203,11 +203,11 @@ export function testMarkdownGeoDatasetRequestHelperCentralizesGeoCodeBlockReques
     },
     tableIndex: 2,
   })
-  if (tableGraphSourcePath !== '/sandbox/demo/trip-demo.mmd#markdown-geo-table-L18') {
+  if (tableGraphSourcePath !== '/fixtures/trip-demo.mmd#markdown-geo-table-L18') {
     throw new Error(`expected markdown geo table source-path helper to derive a stable source path from table line metadata, got ${tableGraphSourcePath}`)
   }
   const tableSourceDescriptor = buildMarkdownGeoTableGraphSourceDescriptor({
-    sourceDocumentPath: 'workspace:/sandbox/demo/trip-demo.mmd#focus',
+    sourceDocumentPath: 'workspace:/fixtures/trip-demo.mmd#focus',
     featureCollection: {
       type: 'FeatureCollection',
       features: [
@@ -225,18 +225,18 @@ export function testMarkdownGeoDatasetRequestHelperCentralizesGeoCodeBlockReques
   }
 
   const fallbackTableGraphSourcePath = buildMarkdownGeoTableGraphSourcePath({
-    sourceDocumentPath: 'workspace:/sandbox/demo/trip-demo.mmd',
+    sourceDocumentPath: 'workspace:/fixtures/trip-demo.mmd',
     featureCollection: { type: 'FeatureCollection', features: [] },
     tableIndex: 2,
   })
-  if (fallbackTableGraphSourcePath !== '/sandbox/demo/trip-demo.mmd#markdown-geo-table-2') {
+  if (fallbackTableGraphSourcePath !== '/fixtures/trip-demo.mmd#markdown-geo-table-2') {
     throw new Error(`expected markdown geo table source-path helper to fall back to a stable ordinal suffix when table line metadata is unavailable, got ${fallbackTableGraphSourcePath}`)
   }
 }
 
 export function testMarkdownGeoDatasetParseResultClonesRequestScopedCacheSnapshots() {
   const req = buildMarkdownGeoDatasetRegistrationRequest({
-    activeDocumentPath: 'workspace:/sandbox/demo/trip-demo.mmd#geo',
+    activeDocumentPath: 'workspace:/fixtures/trip-demo.mmd#geo',
     lang: 'geojson',
     text: '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"Clone Guard"},"geometry":{"type":"Point","coordinates":[103.85,1.29]}}]}',
     startLine: 9,

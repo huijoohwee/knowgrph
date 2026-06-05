@@ -1,4 +1,4 @@
-import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
+import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Magnet, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
@@ -11,6 +11,18 @@ import {
 } from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
 import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
+import {
+  CANVAS_GRID_DISPLAY_CONTROL_DESCRIPTION,
+  CANVAS_GRID_DISPLAY_CONTROL_ID,
+  CANVAS_GRID_DISPLAY_CONTROL_LABEL,
+  CANVAS_GRID_DISPLAY_CONTROL_TITLE,
+  SNAP_GRID_DISPLAY_CONTROL_DESCRIPTION,
+  SNAP_GRID_DISPLAY_CONTROL_ID,
+  SNAP_GRID_DISPLAY_CONTROL_LABEL,
+  SNAP_GRID_DISPLAY_CONTROL_TITLE,
+  readCanvasGridDisplayControlActive,
+  readSnapGridDisplayControlActive,
+} from '@/lib/canvas/canvasGridDisplayControls'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
   if (
@@ -31,6 +43,7 @@ const isAnimationApplicable = (state: CanvasViewModelState) => {
 
 const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRendererOption['Icon']> = {
   d3: CircleDot,
+  dashboard: Grid3x3,
   flowchart: Columns2,
   gitGraph: GitGraph,
   flow: GitMerge,
@@ -43,6 +56,7 @@ const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRen
 
 const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   d3: UI_COPY.canvasViewRendererD3Title,
+  dashboard: UI_COPY.canvasViewRendererDashboardTitle,
   flowchart: UI_COPY.canvasViewRendererD3FlowchartTitle,
   gitGraph: UI_COPY.canvasViewRendererGitGraphTitle,
   flow: UI_COPY.canvasViewRendererFlowTitle,
@@ -69,6 +83,9 @@ export const buildCanvasViewOptions = (
 ): CanvasViewOption[] => {
   const animationApplicable = isAnimationApplicable(state)
   const timelineEnabled = resolveTimelineEnabled(state.timelineEnabled)
+  const bottomSurfaceOpen = state.bottomSurfaceCollapsed !== true
+  const gitGraphBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gitGraph'
+  const ganttBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gantt'
   const minimapSupported = state.canvasRenderMode === '2d' && supportsCanvas2dMinimap(state.canvas2dRenderer)
   const minimapVisible = minimapSupported && state.minimapCollapsed !== true
   const nodeShapeMode = state.schema.behavior?.nodeShapeMode
@@ -370,11 +387,20 @@ export const buildCanvasViewOptions = (
               : undefined,
         },
         {
-          id: 'control:grid',
-          title: UI_LABELS.grid,
-          label: 'Grid',
+          id: CANVAS_GRID_DISPLAY_CONTROL_ID,
+          title: CANVAS_GRID_DISPLAY_CONTROL_TITLE,
+          label: CANVAS_GRID_DISPLAY_CONTROL_LABEL,
           Icon: Grid3x3,
-          isActive: state.schema.behavior?.snapGrid?.enabled === true || state.schema.behavior?.canvasGrid?.enabled === true,
+          description: CANVAS_GRID_DISPLAY_CONTROL_DESCRIPTION,
+          isActive: readCanvasGridDisplayControlActive(state.schema),
+        },
+        {
+          id: SNAP_GRID_DISPLAY_CONTROL_ID,
+          title: SNAP_GRID_DISPLAY_CONTROL_TITLE,
+          label: SNAP_GRID_DISPLAY_CONTROL_LABEL,
+          Icon: Magnet,
+          description: SNAP_GRID_DISPLAY_CONTROL_DESCRIPTION,
+          isActive: readSnapGridDisplayControlActive(state.schema),
         },
         {
           id: 'control:timeline',
@@ -382,6 +408,24 @@ export const buildCanvasViewOptions = (
           label: 'Time',
           Icon: MonitorPlay,
           isActive: timelineEnabled,
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+        },
+        {
+          id: 'control:gitGraph',
+          title: 'GitGraph',
+          label: 'Git',
+          Icon: GitGraph,
+          isActive: gitGraphBottomPanelVisible,
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+        },
+        {
+          id: 'control:gantt',
+          title: 'Gantt',
+          label: 'Gantt',
+          Icon: ChartGantt,
+          isActive: ganttBottomPanelVisible,
           disabled: state.geospatialEnabled,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },

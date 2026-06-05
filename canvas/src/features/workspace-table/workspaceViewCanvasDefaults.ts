@@ -19,6 +19,7 @@ const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_RATIO = 0.12
 const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX = 420
 const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MAX_PX = 640
 const WORKSPACE_EDITOR_PANE_MIN_WIDTH_PX = 320
+export const WORKSPACE_EDITOR_PANE_DEFAULT_VIEWPORT_RATIO = 0.5
 const WORKSPACE_EDITOR_PANE_COMPACT_MIN_RATIO = 0.75
 const WORKSPACE_EDITOR_PANE_COMPACT_MIN_PX = 192
 const WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX = 768
@@ -78,8 +79,7 @@ export function resolveWorkspaceEditorPaneDefaultWidthPx(args: { minPx: number; 
   if (viewport <= WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX) {
     return args.maxPx
   }
-  const ratio = 1 - (WORKSPACE_EDITOR_CANVAS_DEFAULT_SPLIT.canvasPercent / 100)
-  return clampPx(viewport * ratio, args.minPx, args.maxPx)
+  return clampPx(viewport * WORKSPACE_EDITOR_PANE_DEFAULT_VIEWPORT_RATIO, args.minPx, args.maxPx)
 }
 
 export function resolveWorkspaceCanvasPreviewDefaultWidthPx(args: { minPx: number; maxPx: number }): number {

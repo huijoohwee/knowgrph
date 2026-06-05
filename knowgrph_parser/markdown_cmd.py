@@ -55,21 +55,24 @@ def _get_edge_endpoints(edge_obj: Dict[str, Any]) -> Tuple[str, str]:
     return src, tgt
 
 
-def _remap_edge_endpoints(edge_obj: Dict[str, Any], id_aliases: Dict[str, str]) -> None:
+def _rewrite_edge_endpoints_to_canonical_entities(
+    edge_obj: Dict[str, Any],
+    canonical_entity_id_by_source_id: Dict[str, str],
+) -> None:
     src, tgt = _get_edge_endpoints(edge_obj)
-    if src and src in id_aliases:
+    if src and src in canonical_entity_id_by_source_id:
         if "source" in edge_obj:
-            edge_obj["source"] = id_aliases[src]
+            edge_obj["source"] = canonical_entity_id_by_source_id[src]
         if "source_node" in edge_obj:
-            edge_obj["source_node"] = id_aliases[src]
-    if tgt and tgt in id_aliases:
+            edge_obj["source_node"] = canonical_entity_id_by_source_id[src]
+    if tgt and tgt in canonical_entity_id_by_source_id:
         if "target" in edge_obj:
-            edge_obj["target"] = id_aliases[tgt]
+            edge_obj["target"] = canonical_entity_id_by_source_id[tgt]
         if "target_node" in edge_obj:
-            edge_obj["target_node"] = id_aliases[tgt]
+            edge_obj["target_node"] = canonical_entity_id_by_source_id[tgt]
 
 
-def _merge_entity(existing: Dict[str, Any], incoming: Dict[str, Any], *, alias_id: str) -> None:
+def _merge_entity(existing: Dict[str, Any], incoming: Dict[str, Any]) -> None:
     existing_name = str(existing.get("name") or "").strip()
     incoming_name = str(incoming.get("name") or "").strip()
     if (not existing_name) or (len(incoming_name) > len(existing_name)):
@@ -87,24 +90,12 @@ def _merge_entity(existing: Dict[str, Any], incoming: Dict[str, Any], *, alias_i
             if k not in existing_props and v is not None:
                 existing_props[k] = v
         existing["properties"] = existing_props
-    existing_meta = existing.get("metadata")
-    if not isinstance(existing_meta, dict):
-        existing_meta = {}
-    aliases = existing_meta.get("aliases")
-    if not isinstance(aliases, list):
-        aliases = []
-    if alias_id and alias_id not in aliases and alias_id != str(existing.get("@id") or ""):
-        aliases.append(alias_id)
-    if aliases:
-        existing_meta["aliases"] = aliases
-    existing["metadata"] = existing_meta
 
 
 def _unify_entities_across_docs(
     docs: List[Dict[str, Any]],
     *,
     entity_merge_threshold: float = 0.85,
-    conflict_resolution_strategy: str = "majority_vote",
     cross_document_inference_depth: int = 2,
 ) -> Dict[str, Any]:
     if not docs:
@@ -113,13 +104,11 @@ def _unify_entities_across_docs(
     base_ctx = base.get("@context")
     merged_items: List[Dict[str, Any]] = []
     entity_by_id: Dict[str, Dict[str, Any]] = {}
-    id_aliases: Dict[str, str] = {}
+    canonical_entity_id_by_source_id: Dict[str, str] = {}
     merged_metadata: Dict[str, Any] = {}
     
-    # Record unification configuration in metadata
     merged_metadata["unificationConfig"] = {
         "entityMergeThreshold": entity_merge_threshold,
-        "conflictResolutionStrategy": conflict_resolution_strategy,
         "crossDocumentInferenceDepth": cross_document_inference_depth,
     }
 
@@ -150,7 +139,7 @@ def _unify_entities_across_docs(
             if not old_id or not entity_type or not normalized_text:
                 continue
             new_id = _canonical_entity_id(entity_type, normalized_text)
-            id_aliases[old_id] = new_id
+            canonical_entity_id_by_source_id[old_id] = new_id
     for d in docs:
         graph_items = d.get("@graph") or []
         if not isinstance(graph_items, list):
@@ -161,18 +150,16 @@ def _unify_entities_across_docs(
             item = dict(item_any)
             if _is_entity_node(item):
                 old_id = str(item.get("@id") or "").strip()
-                new_id = id_aliases.get(old_id, old_id)
+                new_id = canonical_entity_id_by_source_id.get(old_id, old_id)
                 item["@id"] = new_id
                 existing = entity_by_id.get(new_id)
                 if existing:
-                    _merge_entity(existing, item, alias_id=old_id)
+                    _merge_entity(existing, item)
                 else:
                     entity_by_id[new_id] = item
-                    if old_id and old_id != new_id:
-                        _merge_entity(item, item, alias_id=old_id)
                 continue
             if item.get("@type") == "Edge" or "source_node" in item or "target_node" in item or "source" in item or "target" in item:
-                _remap_edge_endpoints(item, id_aliases)
+                _rewrite_edge_endpoints_to_canonical_entities(item, canonical_entity_id_by_source_id)
                 merged_items.append(item)
                 continue
             merged_items.append(item)
@@ -253,11 +240,6 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         help="Minimum similarity for entity consolidation (0.7-0.95)",
     )
     parser.add_argument(
-        "--conflict-resolution",
-        default="majority_vote",
-        help="Strategy for property conflicts (majority_vote|most_recent|retain_all)",
-    )
-    parser.add_argument(
         "--inference-depth",
         type=int,
         default=2,
@@ -306,7 +288,6 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         graph_doc = _unify_entities_across_docs(
             docs,
             entity_merge_threshold=float(args.entity_merge_threshold),
-            conflict_resolution_strategy=str(args.conflict_resolution),
             cross_document_inference_depth=int(args.inference_depth),
         )
     forbidden_tokens = _load_forbidden_tokens_from_env()

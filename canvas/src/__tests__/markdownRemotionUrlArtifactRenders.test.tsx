@@ -1,15 +1,12 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { readWebpageArtifactFixture } from './helpers/webpageArtifactFixtures'
 
 export async function testMarkdownPreviewRendersRemotionUrlArtifact() {
-  const p = path.resolve(process.cwd(), 'sandbox', 'tmp-remotion.md')
-  const markdownText = fs.readFileSync(p, 'utf8')
-  if (!markdownText || !markdownText.trim()) throw new Error('expected tmp-remotion.md to be non-empty')
-  if (/<!--/.test(markdownText)) throw new Error('expected tmp-remotion.md to not include HTML comment markers')
+  const { markdownText, activeDocumentPath } = readWebpageArtifactFixture('remotion')
+  if (/<!--/.test(markdownText)) throw new Error('expected Remotion webpage artifact fixture to not include HTML comment markers')
 
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
@@ -22,7 +19,7 @@ export async function testMarkdownPreviewRendersRemotionUrlArtifact() {
     root.render(
       React.createElement(MarkdownPreview, {
         markdownText,
-        activeDocumentPath: '/sandbox/tmp-remotion.md',
+        activeDocumentPath,
         highlightedLineRange: null,
         markdownWordWrap: true,
         markdownPresentationMode: false,

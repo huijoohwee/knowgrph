@@ -9,7 +9,9 @@ import {
 } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import { resolveActivePathFromWorkspaceFileSelection } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionSync'
 import {
+  isWorkspace2dRendererPresetStaleForDocument,
   isWorkspaceGraphSourceStaleForDocument,
+  isWorkspaceDocumentSwitchApplySettled,
   shouldApplyStableWorkspaceSelectionToCanvas,
 } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceSelection'
 import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
@@ -19,6 +21,7 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   const ingestText = readFileSync(resolve(process.cwd(), 'src/features/source-files/sourceFilesIngestIntegration.ts'), 'utf8')
   const loaderText = readFileSync(resolve(process.cwd(), 'src/features/markdown-workspace/useMarkdownLoader.ts'), 'utf8')
   const selectionText = readFileSync(resolve(process.cwd(), 'src/lib/markdown-workspace-runtime/useMarkdownWorkspaceSelection.ts'), 'utf8')
+  const switchApplyText = readFileSync(resolve(process.cwd(), 'src/lib/markdown-workspace-runtime/markdownWorkspaceDocumentSwitchApply.ts'), 'utf8')
   const documentActionsText = readFileSync(resolve(process.cwd(), 'src/hooks/store/graph-data-slice/graphDataDocumentActions.ts'), 'utf8')
   const viewShellText = readFileSync(resolve(process.cwd(), 'src/lib/markdown-workspace-runtime/useMarkdownWorkspaceViewShell.tsx'), 'utf8')
   const flowPositionsText = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/useFlowComputedPositions.ts'), 'utf8')
@@ -35,16 +38,16 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   if (!loaderText.includes('autoEnableFrontmatter: false') || !loaderText.includes('applyViewPreset: false')) {
     throw new Error('expected markdown workspace editor text sync to avoid replaying YAML/frontmatter presets on every edit')
   }
-  if (!selectionText.includes('autoEnableFrontmatter: true') || !selectionText.includes('applyViewPreset: true') || !selectionText.includes('applyToGraph: true')) {
+  if (!switchApplyText.includes('autoEnableFrontmatter: true') || !switchApplyText.includes('applyViewPreset: true') || !switchApplyText.includes('applyToGraph: true')) {
     throw new Error('expected Source Files selection to render selected file content and apply YAML/frontmatter canvas presets')
   }
   if (!selectionText.includes('if (nextPath && prevPath && prevPath !== nextPath) {') || !selectionText.includes('if (switched.next !== args.activePath) return')) {
     throw new Error('expected Source Files switching to preserve the pending switch until the matching active-document apply consumes it')
   }
-  if (!selectionText.includes('readWorkspaceActiveDocumentResolvedText({') || !selectionText.includes('args.patchWorkspaceEntryInlineText(nextPath, nextText)')) {
+  if (!selectionText.includes('readCachedWorkspaceSelectionResolvedTextForActivePath({') || !selectionText.includes('args.patchWorkspaceEntryInlineText(nextPath, nextText)')) {
     throw new Error('expected Source Files switching to hydrate metadata-only workspace entries through the shared active-document resolver before Canvas apply')
   }
-  if (!selectionText.includes('const applySelectedWorkspaceDocumentToCanvas = React.useCallback') || !selectionText.includes('await applySelectedWorkspaceDocumentToCanvas({')) {
+  if (!switchApplyText.includes('const applySelectedWorkspaceDocumentToCanvas = React.useCallback') || !selectionText.includes('await applySelectedWorkspaceDocumentToCanvas({')) {
     throw new Error('expected Source Files selection to reuse one shared Canvas apply path for file switches and stable hydration')
   }
   if (!selectionText.includes('resolveActivePathFromWorkspaceFileSelection({') || !selectionText.includes('setActivePathSafe(nextActivePath)')) {
@@ -56,7 +59,8 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   if (
     !selectionText.includes('shouldApplyStableWorkspaceSelectionToCanvas({') ||
     !selectionText.includes('markdownDocumentName: args.markdownDocumentName') ||
-    !selectionText.includes('graphDataSource: args.graphDataSource')
+    !selectionText.includes('graphDataSource: args.graphDataSource') ||
+    !selectionText.includes('canvas2dRenderer: args.canvas2dRenderer')
   ) {
     throw new Error('expected already-hydrated Source Files selection to replay Canvas/frontmatter apply when active markdown document is stale')
   }
@@ -70,35 +74,47 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
     throw new Error('expected active graph render data to neutralize stale or unowned graphData when Source Files switches to another file')
   }
   if (
-    !selectionText.includes('const applied = await applyActiveMarkdownDocumentPayload({') ||
-    !selectionText.includes('if (applied === true) {\n        lastDocumentSwitchApplySigRef.current = nextSig') ||
-    selectionText.includes('documentSwitchApplyInFlightSigRef.current = nextSig\n    lastDocumentSwitchApplySigRef.current = nextSig')
+    !switchApplyText.includes('const applied = await applyActiveMarkdownDocumentPayload({') ||
+    !switchApplyText.includes("if (applied === true) {\n        lastDocumentSwitchApplySigRef.current = nextSig\n        return 'applied'") ||
+    switchApplyText.includes('documentSwitchApplyInFlightSigRef.current = nextSig\n    lastDocumentSwitchApplySigRef.current = nextSig')
   ) {
     throw new Error('expected Source Files switching to mark Canvas document-switch signatures completed only after graph/frontmatter apply succeeds')
   }
   if (
-    !selectionText.includes('graphDataSource: applyArgs.graphDataSource') ||
+    !switchApplyText.includes('graphDataSource: applyArgs.graphDataSource') ||
     !selectionText.includes('graphDataSource: args.graphDataSource') ||
-    !selectionText.includes('graphSourceStaleForDocument') ||
-    !selectionText.includes('shouldReplayCompletedApplyForMarkdownConflict') ||
-    !selectionText.includes('if (!shouldReplayCompletedApplyForMarkdownConflict && lastDocumentSwitchApplySigRef.current === nextSig) return false')
+    !switchApplyText.includes('canvas2dRenderer: applyArgs.canvas2dRenderer') ||
+    !switchApplyText.includes('graphSourceStaleForDocument') ||
+    !switchApplyText.includes('shouldReplayCompletedApplyForMarkdownConflict') ||
+    !switchApplyText.includes("if (!shouldReplayCompletedApplyForMarkdownConflict && lastDocumentSwitchApplySigRef.current === nextSig) return 'settled'")
   ) {
     throw new Error('expected Source Files switching apply signature to include graphData source so stale Canvas graphs replay selected-file frontmatter')
   }
   if (
-    !selectionText.includes('activeEntry,\n    activeEntryKind,\n    args.graphDataSource,\n    args.getFs') ||
-    !selectionText.includes('args.activeTextRef,\n    args.graphDataSource,\n    args.getFs')
+    !selectionText.includes('activeEntry,\n    activeEntryKind,\n    args.canvas2dRenderer,\n    args.graphDataSource,\n    args.getFs') ||
+    !selectionText.includes('args.activeTextRef,\n    args.canvas2dRenderer,\n    args.graphDataSource,\n    args.getFs')
   ) {
-    throw new Error('expected Source Files switching effects to subscribe to graphDataSource so stale Canvas graph ownership replays selected-file content/frontmatter')
+    throw new Error('expected Source Files switching effects to subscribe to graphDataSource and canvas2dRenderer so stale Canvas state replays selected-file content/frontmatter')
   }
-  if (!selectionText.includes('const applied = await applySelectedWorkspaceDocumentToCanvas({') || !selectionText.includes('if (applied && switchedActivePathRef.current?.next === switched.next) {')) {
-    throw new Error('expected Source Files switching to keep pending file-switch ownership when Canvas apply returns false')
+  if (
+    !selectionText.includes('const applied = await applySelectedWorkspaceDocumentToCanvas({') ||
+    !selectionText.includes("applied === 'applied' || applied === 'settled'") ||
+    !selectionText.includes("applied === 'deferred' && switchedActivePathRef.current?.next === switched.next")
+  ) {
+    throw new Error('expected Source Files switching to clear settled file-switch ownership and keep deferred ownership for retries')
   }
-  if (!selectionText.includes('scheduleDocumentSwitchApplyRetry') || !selectionText.includes('documentSwitchApplyRetryTick')) {
+  if (!selectionText.includes('scheduleDocumentSwitchApplyRetry') || !selectionText.includes('documentSwitchApplyRetryTick') || !switchApplyText.includes('documentSwitchApplyRetryTick')) {
     throw new Error('expected Source Files switching to retry the same selected file after an in-flight Canvas graph/frontmatter apply defers the first attempt')
   }
-  if (!selectionText.includes('if (documentSwitchApplyRetryTimerRef.current != null)') || !selectionText.includes('window.clearTimeout(documentSwitchApplyRetryTimerRef.current)')) {
+  if (!switchApplyText.includes('if (documentSwitchApplyRetryTimerRef.current == null) return') || !switchApplyText.includes('window.clearTimeout(documentSwitchApplyRetryTimerRef.current)')) {
     throw new Error('expected Source Files switching retry to clear stale timers and avoid duplicate retry churn')
+  }
+  if (
+    !switchApplyText.includes('isWorkspaceDocumentSwitchApplySettled({') ||
+    !switchApplyText.includes("return 'settled'") ||
+    !selectionText.includes('clearDocumentSwitchApplyRetry()')
+  ) {
+    throw new Error('expected Source Files switching to treat already-converged active documents as settled instead of retrying')
   }
   if (
     !runtimeMaterializationText.includes('export async function reapplyActiveWorkspaceMarkdownDocument') ||
@@ -262,6 +278,73 @@ export function testSourceFilesStableHydratedSelectionStillAppliesStaleCanvasDoc
   })
   if (sameDocument) {
     throw new Error('expected stable selected file apply guard to avoid duplicate same-document Canvas apply churn')
+  }
+}
+
+export function testSourceFilesDocumentSwitchSettlementStopsRetryChurn() {
+  const settled = isWorkspaceDocumentSwitchApplySettled({
+    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
+    text: '# Flow Editor',
+    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    markdownDocumentText: '# Flow Editor',
+    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
+    canvas2dRenderer: 'flowEditor',
+  })
+  if (!settled) {
+    throw new Error('expected matching active markdown document and Canvas graph source to settle Source Files switch retries')
+  }
+
+  const staleGraph = isWorkspaceDocumentSwitchApplySettled({
+    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
+    text: '# Flow Editor',
+    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    markdownDocumentText: '# Flow Editor',
+    graphDataSource: 'markdown:docs/another-file.md',
+    canvas2dRenderer: 'flowEditor',
+  })
+  if (staleGraph) {
+    throw new Error('expected stale Canvas graph source to keep Source Files switch apply work pending')
+  }
+
+  const staleText = isWorkspaceDocumentSwitchApplySettled({
+    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
+    text: '# Flow Editor',
+    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    markdownDocumentText: '# Older text',
+    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
+    canvas2dRenderer: 'flowEditor',
+  })
+  if (staleText) {
+    throw new Error('expected stale active markdown text to keep Source Files switch apply work pending')
+  }
+
+  const staleRendererText = '---\nkgCanvas2dRenderer: "flowEditor"\n---\n# Flow Editor'
+  const staleRenderer = isWorkspaceDocumentSwitchApplySettled({
+    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
+    text: staleRendererText,
+    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    markdownDocumentText: staleRendererText,
+    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
+    canvas2dRenderer: 'design',
+  })
+  if (staleRenderer) {
+    throw new Error('expected stale 2D renderer preset to keep Source Files switch apply work pending')
+  }
+  if (!isWorkspace2dRendererPresetStaleForDocument({ text: staleRendererText, canvas2dRenderer: 'd3' })) {
+    throw new Error('expected selected-file frontmatter renderer preset to reject the current 2D renderer')
+  }
+  const staleRendererShouldApply = shouldApplyStableWorkspaceSelectionToCanvas({
+    activePath: '/docs/knowgrph-flow-editor-demo.md',
+    activeEntryKind: 'file',
+    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
+    nextText: staleRendererText,
+    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    markdownDocumentText: staleRendererText,
+    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
+    canvas2dRenderer: 'design',
+  })
+  if (!staleRendererShouldApply) {
+    throw new Error('expected stable selected file apply guard to replay when the active 2D renderer is stale')
   }
 }
 

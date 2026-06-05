@@ -6,17 +6,17 @@ export const testCodebaseRelPathCoercionFromAbsoluteUnderRoot = () => {
   const prev = process.env.VITE_CODEBASE_ROOT
   process.env.VITE_CODEBASE_ROOT = '/tmp/kg-codebase-root'
   try {
-    const abs = '/tmp/kg-codebase-root/sandbox/demo/markdown-slide-demo.md'
+    const abs = '/tmp/kg-codebase-root/data/test-data/md-demo-00.md'
     const rel = coerceCodebaseRelPath(abs)
-    if (rel !== 'sandbox/demo/markdown-slide-demo.md') {
+    if (rel !== 'data/test-data/md-demo-00.md') {
       throw new Error(`expected rel path, got ${JSON.stringify(rel)}`)
     }
     const ws = normalizeWorkspacePath(abs)
-    if (ws !== '/sandbox/demo/markdown-slide-demo.md') {
+    if (ws !== '/data/test-data/md-demo-00.md') {
       throw new Error(`expected workspace path, got ${JSON.stringify(ws)}`)
     }
     const metaDoc = getDocumentPathFromMetadata({ codebasePath: `${abs}#L1-3` })
-    if (metaDoc !== 'sandbox/demo/markdown-slide-demo.md') {
+    if (metaDoc !== 'data/test-data/md-demo-00.md') {
       throw new Error(`expected metadata documentPath from codebasePath, got ${JSON.stringify(metaDoc)}`)
     }
   } finally {

@@ -1,19 +1,13 @@
 import type { Canvas2dRendererId } from '@/lib/config'
+import type { BottomSurfaceTab } from '@/hooks/store/store-types/core'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
-import { coerceSnapGridTuple, SNAP_GRID_SIZE_DEFAULT, type SnapGridTuple } from '@/lib/canvas/snapGridSize'
 import {
-  CANVAS_GRID_MAJOR_ALPHA_DEFAULT,
-  CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT,
-  CANVAS_GRID_MINOR_ALPHA_DEFAULT,
-  CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT,
-  clampCanvasGridAlpha,
-  clampCanvasGridDotRadiusPx,
-  clampCanvasGridMajorEvery,
-  clampCanvasGridWidthPx,
-  coerceCanvasGridStroke,
-  coerceCanvasGridVariant,
-} from '@/lib/canvas/canvasGridConfig'
+  CANVAS_GRID_DISPLAY_CONTROL_ID,
+  SNAP_GRID_DISPLAY_CONTROL_ID,
+  buildCanvasGridVisibilityBehaviorPatch,
+  buildSnapGridBehaviorPatch,
+} from '@/lib/canvas/canvasGridDisplayControls'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import {
   isFrontmatterOnlyCanvas2dRenderer,
@@ -36,6 +30,8 @@ type CanvasViewActionParams = {
   multiDimTableModeEnabled: boolean
   renderMediaAsNodes: boolean
   timelineEnabled: boolean
+  bottomSurfaceCollapsed: boolean
+  bottomSurfaceTab: BottomSurfaceTab
   minimapCollapsed?: boolean
   schema: GraphSchema
   setCanvas2dRenderer: (id: Canvas2dRendererId) => void
@@ -45,42 +41,13 @@ type CanvasViewActionParams = {
   setBehavior?: (behavior: Partial<GraphSchema['behavior']>) => void
   setRenderMediaAsNodes: (enabled: boolean) => void
   setTimelineEnabled: (enabled: boolean) => void
+  setBottomSurfaceCollapsed: (collapsed: boolean) => void
+  setBottomSurfaceTab: (tab: BottomSurfaceTab) => void
   setMinimapCollapsed?: (collapsed: boolean) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
   requestFlowEditorLayoutRebalance?: () => void
-}
-
-type CanvasGridBehaviorInput = {
-  enabled?: unknown
-  variant?: unknown
-  majorEvery?: unknown
-  dotRadiusPx?: unknown
-  minorAlpha?: unknown
-  majorAlpha?: unknown
-  minorWidthPx?: unknown
-  majorWidthPx?: unknown
-  minorStroke?: unknown
-  majorStroke?: unknown
-}
-
-const buildVisibleCanvasGridBehavior = (canvasGrid: CanvasGridBehaviorInput | null | undefined, enabled: boolean) => {
-  const minorStroke = coerceCanvasGridStroke(canvasGrid?.minorStroke) || undefined
-  const majorStroke = coerceCanvasGridStroke(canvasGrid?.majorStroke) || undefined
-  return {
-    ...canvasGrid,
-    enabled,
-    variant: coerceCanvasGridVariant(canvasGrid?.variant),
-    majorEvery: clampCanvasGridMajorEvery(canvasGrid?.majorEvery),
-    dotRadiusPx: clampCanvasGridDotRadiusPx(canvasGrid?.dotRadiusPx),
-    minorAlpha: clampCanvasGridAlpha(canvasGrid?.minorAlpha, CANVAS_GRID_MINOR_ALPHA_DEFAULT),
-    majorAlpha: clampCanvasGridAlpha(canvasGrid?.majorAlpha, CANVAS_GRID_MAJOR_ALPHA_DEFAULT),
-    minorWidthPx: clampCanvasGridWidthPx(canvasGrid?.minorWidthPx, CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT),
-    majorWidthPx: clampCanvasGridWidthPx(canvasGrid?.majorWidthPx, CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT),
-    minorStroke,
-    majorStroke,
-  }
 }
 
 export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
@@ -97,6 +64,8 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     multiDimTableModeEnabled,
     renderMediaAsNodes,
     timelineEnabled,
+    bottomSurfaceCollapsed,
+    bottomSurfaceTab,
     minimapCollapsed = false,
     schema,
     setCanvas2dRenderer,
@@ -106,6 +75,8 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setBehavior,
     setRenderMediaAsNodes,
     setTimelineEnabled,
+    setBottomSurfaceCollapsed,
+    setBottomSurfaceTab,
     setMinimapCollapsed,
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
@@ -274,6 +245,17 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     if (resolveTimelineEnabled(timelineEnabled) !== nextEnabled) setTimelineEnabled(nextEnabled)
     return
   }
+  if (id === 'control:gitGraph' || id === 'control:gantt') {
+    if (geospatialEnabled) return
+    const nextTab: BottomSurfaceTab = id === 'control:gitGraph' ? 'gitGraph' : 'gantt'
+    if (bottomSurfaceCollapsed !== true && bottomSurfaceTab === nextTab) {
+      setBottomSurfaceCollapsed(true)
+      return
+    }
+    setBottomSurfaceTab(nextTab)
+    setBottomSurfaceCollapsed(false)
+    return
+  }
   if (id === 'control:minimap') {
     if (geospatialEnabled || canvasRenderMode !== '2d' || !supportsCanvas2dMinimap(canvas2dRenderer)) return
     setMinimapCollapsed?.(!minimapCollapsed)
@@ -314,25 +296,25 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     if (next.changed) setSchema(next.schema)
     return
   }
-  if (id === 'control:grid') {
+  if (id === CANVAS_GRID_DISPLAY_CONTROL_ID) {
     const behavior = schema.behavior
-    const snapGrid = (behavior.snapGrid || {}) as { enabled?: boolean; size?: unknown }
-    const canvasGrid = (behavior.canvasGrid || {}) as CanvasGridBehaviorInput
-    const nextEnabled = !(snapGrid.enabled === true || canvasGrid.enabled === true)
-    const snapGridSize: number | SnapGridTuple =
-      Array.isArray(snapGrid.size)
-        ? coerceSnapGridTuple(snapGrid.size)
-        : typeof snapGrid.size === 'number' && Number.isFinite(snapGrid.size)
-          ? snapGrid.size
-          : SNAP_GRID_SIZE_DEFAULT
-    const nextBehavior = {
-      snapGrid: {
-        ...snapGrid,
-        enabled: nextEnabled,
-        size: snapGridSize,
-      },
-      canvasGrid: buildVisibleCanvasGridBehavior(canvasGrid, nextEnabled),
+    const nextBehavior = buildCanvasGridVisibilityBehaviorPatch(schema)
+    if (typeof setBehavior === 'function') {
+      setBehavior(nextBehavior)
+      return
     }
+    setSchema({
+      ...schema,
+      behavior: {
+        ...behavior,
+        ...nextBehavior,
+      },
+    })
+    return
+  }
+  if (id === SNAP_GRID_DISPLAY_CONTROL_ID) {
+    const behavior = schema.behavior
+    const nextBehavior = buildSnapGridBehaviorPatch(schema)
     if (typeof setBehavior === 'function') {
       setBehavior(nextBehavior)
       return

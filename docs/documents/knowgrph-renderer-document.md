@@ -49,12 +49,13 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
 
-### Renderer Mode Matrix (2D: D3 Graph/Flowchart/GitGraph/Flow Canvas/Animatic/Storyboard/Design/Flow Editor; 3D; Voxel)
+### Renderer Mode Matrix (2D: D3 Graph/Dashboard/Flowchart/GitGraph/Flow Canvas/Animatic/Storyboard/Design/Flow Editor; 3D; Voxel)
 
 - **Shared derivation SSOT**:
-  - All renderers (2D D3 Graph/Flowchart/Flow Canvas/Animatic/Storyboard/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
+  - Graph-derived renderers (2D D3 Graph/Dashboard/Flowchart/Flow Canvas/Animatic/Storyboard/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
   - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
   - GitGraph is a diagram-code renderer: it reuses active document/frontmatter Mermaid code authority, the shared Mermaid SVG cache, the shared D3 viewport controller, and the shared FloatingPanel shell for source-file command CRUD, but does not expand GitGraph commands into GraphData topology or mutate the display-graph pipeline.
+  - Dashboard is a graph-derived D3 chart surface: it derives KPIs, time-series, bars, and table cards from active `GraphData` plus `GraphSchema`, reuses `readCanvasGridConfigFromSchema`, and does not introduce an alternate chart runtime, file-specific fixtures, or external-demo data.
 - **Frontmatter Mode On/Off**:
   - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes). Flow Editor uses a frontmatter-only derived view: keyword/table/composed-source derivations are disabled while Flow/Flow Editor frontmatter-only policy is active so other document modes/renderers cannot interfere with Flow Editor graph state.
   - If `flow` block metadata exists, flow-derived nodes/connections are the canonical parser input for renderer surfaces; parser wiring must not merge legacy top-level `edges` into the rendered graph.
@@ -62,7 +63,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Subgraph/group metadata must stay explicit-only (`kg:subgraphs` and cluster derivation); renderer paths must not rely on synthetic fallback groups such as `frontmatter:all`, tier buckets, or category buckets.
   - Frontmatter Mode **Off**: renderers fall back to the Markdown→JSON‑LD pipeline; the active graph is still `graphDataForDisplay`, and mode switches are view‑only (no store mutations of imported Markdown/JSON‑LD).
 - **2D vs 3D renderer parity**:
-  - 2D D3 runs force/layout; 2D Flow Canvas/Animatic/Storyboard/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
+  - 2D D3 runs force/layout; 2D Dashboard reuses D3 scales/shapes for charts without running D3 forces; 2D Flow Canvas/Animatic/Storyboard/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
   - 3D reuses 2D layout positions (when present) as a baseline and applies its own camera + depth presentation, but must not introduce a separate derivation pipeline or a different node/edge set.
   - Switching 2D↔3D must preserve selection and view keys (per‑renderer zoom keys are isolated; layout caches are renderer‑variant aware but share the same schema/layout fingerprint).
   - Standard 3D stays available for Block/frontmatter-flow graphs and reuses the same display-graph + layout-cache path as 2D; only Radial auto-demotes to 2D.
@@ -116,6 +117,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Mermaid `click` directives targeting `#anchor` must map to edges from diagram nodes to Anchor nodes generated from body anchors; Canvas and exported HTML viewers use the same mapping so clicking from Mermaid or Graph views lands on the same markdown location.
   - Graph nodes that carry document anchor metadata may be surfaced as clickable targets or overlay entries that navigate back into the Markdown Viewer using `documentPath` + anchor id; exports must preserve this mapping without requiring absolute filesystem paths.
   - Rich Media overlays (2D/3D) must keep their node ids and anchor links intact across live Canvas and HTML exports; toggling Rich Media On/Off is view-only and must not change the underlying graph or markdown links.
+  - FloatingPanel Chat structured-content payloads stay renderer-neutral: authored `edges[]` and safe `flow:compute` remain authoritative; otherwise source cards/widgets plus panel targets synthesize one neutral inline compute widget and explicit handle edges before Flow Editor, Storyboard, Cards, and Rich Media Panels render connected values.
   - Exported HTML Canvas viewer exposes a compact HUD for renderer/Rich Media/Frontmatter toggles (2D↔3D, Rich, Media, FM). HUD toggles are strictly view‑only, reuse the same SSOT GraphData/fit/zoom semantics as Canvas mode, and support desktop+mobile via full‑viewport canvas with pointer/touch pan/drag/pinch.
 
 #### How to use HTML Canvas export (end-user)
@@ -196,6 +198,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - 2D wheel + pinch zoom (D3, Flow, Animatic, Storyboard, Design, Flow Editor) uses SSOT normalization and a shared continuous zoom factor, honoring the same user-tunable settings in MainPanel Settings (`canvasInteractionSpeedMultiplier`, `canvasPanSpeedMultiplier`, `wheelZoomCtrlMetaBoostMultiplier`, `flowWheelZoomSpeedMultiplier`, `flowWheelZoomIncrementMultiplier`, `flowWheelZoomSmoothMinDurationMs`, `flowWheelZoomSmoothMaxDurationMs`). Defaults may be upgraded once via `LS_KEYS.flowWheelZoomDefaultsVersion` to improve pinch/zoom responsiveness without overriding user-tuned values. While the pointer is over the active canvas, default page scroll/zoom is prevented so zooming never triggers horizontal/vertical page scrolling. All 2D renderers apply a short anchored easing animation for wheel deltas (rAF-driven) to prevent per-frame delta clumping; cancel on pan/drag and cleanup RAF on unmount. Zoom actions and modes are also shared (`zoomDurationFitMs`, `zoomDurationSelectionMs`, `viewPinned`, `fitToScreenMode`, `zoomToSelectionMode`).
   - UI container: `canvas/src/pages/Canvas.tsx`
   - 2D D3 renderer entry: `canvas/src/components/GraphCanvas.tsx`
+  - 2D Dashboard renderer entry: `canvas/src/components/DashboardCanvas/index.tsx`
   - 2D Flow renderer entry: `canvas/src/components/FlowCanvas.tsx`
   - 2D Storyboard renderer entry: `canvas/src/components/StoryboardCanvas.tsx`
   - 2D Design renderer entry: `canvas/src/components/DesignCanvas.tsx`
@@ -323,6 +326,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 ## Visual Styling & Palette
 
 - **Palette Source**: `renderer:palette` in `schema.metadata`.
+- **Palette Reader SSOT**: Renderer settings and renderers must read defaults through `getRendererPalette(schema)` so Toolbar, D3, 3D, Graph Fields, and table surfaces share one metadata/default merge path.
 - **Defaults**:
   - `idea` (Blue), `hypothesis` (Yellow), `execution` (Green), `pivot` (Orange), `alert` (Red).
 - **Lifecycle Mapping**:
@@ -412,6 +416,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 ## Viewport and zoom behavior
 - **Fit to Screen**:
   - Centers on rendered graph centroid and accounts for label-aware bounds.
+  - Shared graph-element centroid ownership lives in `canvas/src/lib/canvas/graph-elements/centroid.ts`; D3, Flow Canvas, Flow Editor, Design, SVG export, layout seed, post-fit, and arrange helpers must import it instead of recomputing local centroid sums.
   - Computes fit scale on actual viewport dimensions with `targetFillRatio = 0.8`.
   - Clamps zoom scale via `schema.performance.zoom.{minScale,maxScale}`.
   - Re-evaluates on view/layout/presentation changes unless the view is pinned.

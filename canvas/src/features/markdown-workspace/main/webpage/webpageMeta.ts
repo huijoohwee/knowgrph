@@ -2,12 +2,9 @@ import type { WebpageFrontmatterMeta, WebpageViewMode, WebsiteImportFrontmatterM
 import { readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
 
 export function normalizeWebpageViewFromFrontmatterValue(viewRaw: string): WebpageViewMode {
-  if (viewRaw === 'html') return 'html'
-  if (viewRaw === 'dom') return 'html'
-  if (viewRaw === 'json') return 'json'
-  if (viewRaw === 'raw') return 'json'
   if (viewRaw === 'markdown') return 'markdown'
-  return 'markdown'
+  if (viewRaw === 'json') return 'json'
+  return 'html'
 }
 
 export function deriveWebpageFrontmatterMetaFromBlock(block: YamlFrontmatterHeaderBlock | null): WebpageFrontmatterMeta | null {

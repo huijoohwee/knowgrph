@@ -6,6 +6,7 @@ import { shouldUseFlowEditorScreenAuthorityCollectivePan } from '@/lib/flowEdito
 import {
   WORKSPACE_EDITOR_CANVAS_GUTTER_CSS,
   WORKSPACE_EDITOR_CANVAS_GUTTER_PX,
+  WORKSPACE_EDITOR_PANE_DEFAULT_VIEWPORT_RATIO,
   resolveWorkspaceCanvasMinVisibleStripPx,
   resolveWorkspaceEditorPaneDefaultWidthPx,
   resolveWorkspaceEditorPaneMinWidthPx,
@@ -346,7 +347,7 @@ export function testFlowEditorScreenAuthorityCollectivePanIncludesStandaloneRend
   }
 }
 
-export function testWorkspaceEditorOverlayDefaultSplitKeepsCanvasAuthoritative() {
+export function testWorkspaceEditorOverlayDefaultSplitInitializesAtHalfViewport() {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
   const hadWindow = typeof window !== 'undefined'
   const originalInnerWidth = hadWindow ? window.innerWidth : undefined
@@ -364,9 +365,16 @@ export function testWorkspaceEditorOverlayDefaultSplitKeepsCanvasAuthoritative()
       const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: minWidth, rightGutterPx: WORKSPACE_EDITOR_CANVAS_GUTTER_PX })
       const defaultWidth = resolveWorkspaceEditorPaneDefaultWidthPx({ minPx: minWidth, maxPx: maxWidth })
       const explorerWidth = resolveWorkspaceExplorerDefaultWidthPx({ minPx: 160, maxPx: 560 })
+      const expectedDefaultWidth = Math.max(
+        minWidth,
+        Math.min(maxWidth, Math.round(viewportWidth * WORKSPACE_EDITOR_PANE_DEFAULT_VIEWPORT_RATIO)),
+      )
       const canvasWidth = window.innerWidth - defaultWidth
-      if (canvasWidth <= defaultWidth) {
-        throw new Error(`expected workspace editor/canvas default split to keep canvas authoritative at ${viewportWidth}px, got editor=${defaultWidth} canvas=${canvasWidth}`)
+      if (defaultWidth !== expectedDefaultWidth) {
+        throw new Error(`expected workspace editor default width to initialize at 50% of ${viewportWidth}px, got ${defaultWidth} expected ${expectedDefaultWidth}`)
+      }
+      if (Math.abs(canvasWidth - defaultWidth) > 1) {
+        throw new Error(`expected workspace editor/canvas default split to initialize evenly at ${viewportWidth}px, got editor=${defaultWidth} canvas=${canvasWidth}`)
       }
       if (explorerWidth < 160) {
         throw new Error(`expected workspace explorer default split to keep Source Files readable at ${viewportWidth}px, got ${explorerWidth}`)

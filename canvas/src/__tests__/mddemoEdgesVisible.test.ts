@@ -1,10 +1,10 @@
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
-import { readSandboxDemoText, toDocumentPath } from '@/tests/lib/sandboxRoot'
+import { readExternalDemoText, toDocumentPath } from '@/tests/lib/externalFixtures'
 
 export const testMddemoEdgesVisibleInDisplayGraph = () => {
-  const demo = readSandboxDemoText({ preferBasename: 'mddemo.md' })
+  const demo = readExternalDemoText({ preferBasename: 'mddemo.md' })
   if (!demo) return
 
   const name = toDocumentPath(demo.path) || 'mddemo.md'

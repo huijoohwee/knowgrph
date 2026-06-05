@@ -89,13 +89,13 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 #### TAD-C06 - KGC Workspace Path Contract
 
 - Owner: `chatHistoryWorkspace.paths.ts`.
-- Responsibility: canonical session-folder KGC path derivation: `/chat-log/YYYYMMDDTHHmmssZ/kgc_YYYYMMDDTHHmmssZ.md`, trace companion `kgc-trace_YYYYMMDDTHHmmssZ.md`, and output companion `kgc-output_YYYYMMDDTHHmmssZ.*`.
+- Responsibility: canonical session-folder KGC path derivation: `/chat-log/YYYYMMDDTHHmmssZ/kgc_YYYYMMDDTHHmmssZ.md`, trace companion `kgc-trace_YYYYMMDDTHHmmssZ.md`, and markdown output/manifest consolidation back into `kgc_YYYYMMDDTHHmmssZ.md`.
 - Constraint: path identity is part of the runtime contract; ad hoc filename schemes are forbidden.
 
 #### TAD-C07 - Stream Artifact Session Contract
 
 - Owner: `chatStreamArtifacts.ts`.
-- Responsibility: derive one timestamped session folder and stable `chat-stream-log_*`, `chat-stream-report*`, plus dereferenced markdown artifact filenames on the shared workspace path.
+- Responsibility: derive one timestamped session folder, fold stream-log content into `kgc-trace_*` for KGC sessions, and keep `chat-stream-report*` plus dereferenced markdown artifact filenames on the shared workspace path.
 - Constraint: stream artifacts are additive companions to canonical `kgc_*`; they must not become a second graph-apply source.
 
 #### TAD-C08 - Markdown Graph Parse Priority
@@ -150,14 +150,14 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 - Session folder: `YYYYMMDDTHHmmssZ`
 - Canonical KGC file: `kgc_<session>.md`
 - Trace companion: `kgc-trace_<session>.md`
-- Output companion: `kgc-output_<session>.<ext>`
+- Markdown run output and manifests: consolidated sections in `kgc_<session>.md`
 
 The runtime MUST persist and normalize to these forms instead of inventing alternate file identity patterns.
 
 #### DC-03 - Stream Artifact Session Identity
 
 - Session folder: `YYYYMMDDTHHmmssZ`
-- Stream log file: `chat-stream-log_<session>.md`
+- Stream log content: consolidated section in `kgc-trace_<session>.md`
 - Stream report file: `chat-stream-report_<session>.md`
 - Additional dereference files: stable ordinal markdown basenames inside the same session folder
 

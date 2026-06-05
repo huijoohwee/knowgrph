@@ -306,7 +306,7 @@ export function extractEdgesFromFrontmatterMermaidWiring(args: {
   frontmatterStartLine: number
   frontmatterEndLineExclusive: number
 }): { edges: GraphEdge[]; edgeNodeIds: string[] } {
-  const aliasToSigil = new Map<string, string>()
+  const nodeKeyToSigil = new Map<string, string>()
   const edgeNodeIds = new Set<string>()
   const edges: GraphEdge[] = []
   const seen = new Set<string>()
@@ -325,35 +325,35 @@ export function extractEdgesFromFrontmatterMermaidWiring(args: {
       const kind = normalizeKindFromSigil(key)
       return normalizeSigilId(key, kind)
     }
-    const viaAlias = aliasToSigil.get(key)
-    if (!viaAlias) return ''
-    const kind = normalizeKindFromSigil(viaAlias)
-    return normalizeSigilId(viaAlias, kind)
+    const sigilForNodeKey = nodeKeyToSigil.get(key)
+    if (!sigilForNodeKey) return ''
+    const kind = normalizeKindFromSigil(sigilForNodeKey)
+    return normalizeSigilId(sigilForNodeKey, kind)
   }
 
-  const addAliasFromSigilLine = (line: string) => {
+  const addNodeKeyFromSigilLine = (line: string) => {
     const trimmed = String(line || '').trim()
     if (!trimmed || trimmed.startsWith('%%')) return
     const subgraphMatch = /^subgraph\s+([A-Za-z0-9_.-]+).*"(@(?:node|edge|cluster):[^"·\s]+)[^"]*"/.exec(trimmed)
     if (subgraphMatch) {
-      const alias = String(subgraphMatch[1] || '').trim()
+      const nodeKey = String(subgraphMatch[1] || '').trim()
       const sigilRaw = String(subgraphMatch[2] || '').trim()
       const sigil = normalizeSigilId(sigilRaw, normalizeKindFromSigil(sigilRaw))
-      if (alias && sigil) aliasToSigil.set(alias, sigil)
+      if (nodeKey && sigil) nodeKeyToSigil.set(nodeKey, sigil)
       if (sigil.startsWith('@edge:')) edgeNodeIds.add(sigil)
       return
     }
     const nodeMatch = /^([A-Za-z0-9_.-]+)\s*.*"(@(?:node|edge|cluster):[^"·\s]+)[^"]*"/.exec(trimmed)
     if (!nodeMatch) return
-    const alias = String(nodeMatch[1] || '').trim()
+    const nodeKey = String(nodeMatch[1] || '').trim()
     const sigilRaw = String(nodeMatch[2] || '').trim()
     const sigil = normalizeSigilId(sigilRaw, normalizeKindFromSigil(sigilRaw))
-    if (alias && sigil) aliasToSigil.set(alias, sigil)
+    if (nodeKey && sigil) nodeKeyToSigil.set(nodeKey, sigil)
     if (sigil.startsWith('@edge:')) edgeNodeIds.add(sigil)
   }
 
   for (let i = args.frontmatterStartLine + 1; i < args.frontmatterEndLineExclusive; i += 1) {
-    addAliasFromSigilLine(args.lines[i] || '')
+    addNodeKeyFromSigilLine(args.lines[i] || '')
   }
 
   let edgeCounter = 0

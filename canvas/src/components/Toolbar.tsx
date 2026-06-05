@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play, Download, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
-import { UI_LABELS, UI_COPY } from '@/lib/config';
+import { UI_LABELS } from '@/lib/config';
 import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
   uiToolbarTouchRowScrollClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { getThemeModeLabel } from '@/lib/ui/theme';
 import { useCanvasToolbarContext } from '@/components/toolbar/useCanvasToolbarContext';
 import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSelect';
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect';
@@ -351,8 +352,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           themeMode === 'dark' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={`${UI_COPY.themeTooltipPrefix}${themeMode === 'system' ? UI_LABELS.themeSystem : themeMode === 'light' ? UI_LABELS.themeLight : UI_LABELS.themeDark}`}
+        title={`${UI_LABELS.theme}: ${getThemeModeLabel(themeMode)}`}
+        tooltipContent={`${UI_LABELS.theme}: ${getThemeModeLabel(themeMode)}`}
+        ariaLabel={`${UI_LABELS.theme}: ${getThemeModeLabel(themeMode)}`}
         onClick={actions.handleToggleTheme}
+        data-kg-theme-mode-control="toggle"
+        data-kg-theme-mode-current={themeMode}
         showTooltip
       >
         <SunMoon className={iconSizeClass} strokeWidth={iconStrokeWidth} />

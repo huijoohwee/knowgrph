@@ -1,4 +1,5 @@
 import type React from 'react'
+import type { BottomSurfaceTab } from '@/hooks/store/store-types/core'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { GraphSchema } from '@/lib/graph/schema'
 
@@ -29,7 +30,10 @@ export type CanvasViewOptionId =
   | 'control:portHandles'
   | 'control:minimap'
   | 'control:grid'
+  | 'control:snapGrid'
   | 'control:timeline'
+  | 'control:gitGraph'
+  | 'control:gantt'
   | 'view:geospatial'
 
 export type CanvasViewOption = {
@@ -65,6 +69,8 @@ export type CanvasViewModelState = {
   multiDimTableModeEnabled: boolean
   renderMediaAsNodes: boolean
   timelineEnabled: boolean
+  bottomSurfaceCollapsed: boolean
+  bottomSurfaceTab: BottomSurfaceTab
   minimapCollapsed?: boolean
   geospatialEnabled: boolean
   layoutMode?: string

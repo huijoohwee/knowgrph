@@ -84,7 +84,7 @@ const STORYBOARD_RENDERED_EDGE_LABELS = new Set(['parent_node_id', 'rootBranch',
 const EMPTY_STORYBOARD_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4'
 const STORYBOARD_SCORECARD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 text-[11px] sm:grid-cols-2'
-const STORYBOARD_CANONICAL_TEXT_FIELDS = { summary: { aliasKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS, canonicalKey: 'summary' }, output: { aliasKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS, canonicalKey: 'output' }, action: { aliasKeys: STORYBOARD_ACTION_PROPERTY_KEYS, canonicalKey: 'action' }, dialogue: { aliasKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS, canonicalKey: 'dialogue' } } as const
+const STORYBOARD_CANONICAL_TEXT_FIELDS = { summary: { propertyKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS, canonicalKey: 'summary' }, output: { propertyKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS, canonicalKey: 'output' }, action: { propertyKeys: STORYBOARD_ACTION_PROPERTY_KEYS, canonicalKey: 'action' }, dialogue: { propertyKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS, canonicalKey: 'dialogue' } } as const
 
 const STORYTREE_FILTERS = [
   { id: 'all', label: 'All' },
@@ -527,7 +527,7 @@ export default function StoryboardCanvas({
   }, [commitStrytreeWorkflowResult, graphData])
   const updateStoryboardCanonicalProperty = React.useCallback((args: {
     cardId: string
-    aliasKeys: readonly string[]
+    propertyKeys: readonly string[]
     canonicalKey: string
     nextValue: string
   }) => {
@@ -535,7 +535,7 @@ export default function StoryboardCanvas({
     updateNode(args.cardId, {
       properties: buildGraphNodeCanonicalTextPatch({
         currentProperties,
-        aliasKeys: args.aliasKeys,
+        propertyKeys: args.propertyKeys,
         canonicalKey: args.canonicalKey,
         nextValue: args.nextValue,
       }) as never,
@@ -818,7 +818,7 @@ export default function StoryboardCanvas({
                       const field = STORYBOARD_CANONICAL_TEXT_FIELDS[fieldId]
                       updateStoryboardCanonicalProperty({
                         cardId: card.id,
-                        aliasKeys: field.aliasKeys,
+                        propertyKeys: field.propertyKeys,
                         canonicalKey: field.canonicalKey,
                         nextValue,
                       })
@@ -1129,7 +1129,7 @@ export default function StoryboardCanvas({
                                       onCommit={nextValue => {
                                         updateStoryboardCanonicalProperty({
                                           cardId: card.id,
-                                          aliasKeys: STORYBOARD_PROMPT_PROPERTY_KEYS,
+                                          propertyKeys: STORYBOARD_PROMPT_PROPERTY_KEYS,
                                           canonicalKey: 'prompt',
                                           nextValue,
                                         })

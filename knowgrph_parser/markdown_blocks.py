@@ -73,14 +73,14 @@ def parse_frontmatter(lines: List[str]) -> Tuple[Dict[str, Any], int]:
             current_item = None
             items = []
             continue
-        if current_list_key == "polygonLayers":
+        if current_list_key == "graphLayers":
             if raw.startswith("- "):
                 payload = raw[2:].strip()
                 if payload:
                     items.append(payload)
                 i += 1
                 continue
-            meta["polygonLayers"] = items
+            meta["graphLayers"] = items
             current_list_key = None
             items = []
             continue

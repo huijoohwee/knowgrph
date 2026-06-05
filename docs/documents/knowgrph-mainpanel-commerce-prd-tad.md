@@ -126,10 +126,11 @@ Commerce consumes route metadata from shared owners:
 Do not duplicate route strings locally in the UI if a shared route helper exists.
 
 Production x402 readiness must reject the shared deterministic fallback `payTo`
-address. Use `payment:x402:configure -- --write-visible-vars --yes
---confirm=apply-stripe-payment-worker-config` to write `X402_PAY_TO_ADDRESS`
-into `knowgrph-payment` Worker `[vars]`, then deploy before treating
-machine-native x402 payments as payable.
+address and the zero-address future-setup placeholder. Use
+`payment:x402:configure -- --write-visible-vars --yes
+--confirm=apply-stripe-payment-worker-config` to write an operator-owned
+`X402_PAY_TO_ADDRESS` into `knowgrph-payment` Worker `[vars]`, then deploy
+before treating machine-native x402 payments as payable.
 
 For the MainPanel operator view, `buildAgenticCommerceMainPanelReadiness` derives
 `AGENTIC_COMMERCE_MAIN_PANEL_READINESS` from those route owners and the shared

@@ -76,6 +76,22 @@ const hasSelectOption = (container: Element, optionValue: string): boolean =>
   (Array.from(container.querySelectorAll('select')) as HTMLSelectElement[])
     .some(select => getSelectOptionValues(select).includes(optionValue))
 
+const findKtvRow = (container: Element, key: string): HTMLElement | undefined =>
+  (Array.from(container.querySelectorAll('dl')) as HTMLElement[])
+    .find(row => String(row.children[0]?.textContent || '').trim() === key)
+
+const requireKtvValueCell = (container: Element, key: string): HTMLElement => {
+  const row = findKtvRow(container, key)
+  if (!row) {
+    throw new Error(`expected ${key} KTV row, got ${JSON.stringify(container.textContent || '')}`)
+  }
+  const valueCell = row.children[2] as HTMLElement | undefined
+  if (!valueCell) {
+    throw new Error(`expected ${key} row to have a Value cell`)
+  }
+  return valueCell
+}
+
 export async function testIntegrationsHubReusesSettingsEntryList() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -263,6 +279,112 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
       throw new Error(`expected text/openai-chat/openai-images/deerflow/video/image section links to open floating props panel six times, got ${JSON.stringify(propsPanelEvents)}`)
     }
     eventWindow.dispatchEvent = originalDispatchEvent
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelIntegrationsDefaultsToServerManagedAndMemoryOnlyByok() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplus',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const authValueCell = requireKtvValueCell(container, 'byteplus.auth_mode')
+    const authSelect = authValueCell.querySelector('select') as HTMLSelectElement | null
+    if (!authSelect) {
+      throw new Error(`expected byteplus.auth_mode to render an auth select, got ${JSON.stringify(authValueCell.textContent || '')}`)
+    }
+    const authOptions = getSelectOptionValues(authSelect)
+    if (authSelect.value !== 'serverManaged' || authOptions[0] !== 'serverManaged' || authOptions[1] !== 'byok') {
+      throw new Error(`expected serverManaged default before explicit BYOK fallback, got ${JSON.stringify({ value: authSelect.value, authOptions })}`)
+    }
+
+    const apiKeyValueCell = requireKtvValueCell(container, 'byteplus.api_key')
+    const serverManagedInput = apiKeyValueCell.querySelector('input') as HTMLInputElement | null
+    if (!serverManagedInput || serverManagedInput.type === 'password' || serverManagedInput.placeholder !== 'Server-managed Key') {
+      throw new Error(`expected byteplus.api_key to render a server-managed placeholder by default, got ${JSON.stringify(apiKeyValueCell.textContent || '')}`)
+    }
+    if (useGraphStore.getState().chatAuthMode !== 'serverManaged' || useGraphStore.getState().chatApiKey !== '') {
+      throw new Error(`expected initial chat auth to use serverManaged without a browser key, got ${JSON.stringify({
+        chatAuthMode: useGraphStore.getState().chatAuthMode,
+        hasKey: Boolean(useGraphStore.getState().chatApiKey),
+      })}`)
+    }
+
+    const selectValueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLSelectElement.prototype, 'value')?.set
+    if (!selectValueSetter) throw new Error('expected DOM select value setter')
+    await act(async () => {
+      selectValueSetter.call(authSelect, 'byok')
+      Simulate.change(authSelect)
+      await waitForFrames(anyWindow.requestAnimationFrame, 2)
+    })
+
+    const byokValueCell = requireKtvValueCell(container, 'byteplus.api_key')
+    const byokInput = byokValueCell.querySelector('input[type="password"]') as HTMLInputElement | null
+    if (!byokInput) {
+      throw new Error('expected explicit BYOK mode to expose a password input for the memory-only key')
+    }
+
+    const inputValueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set
+    if (!inputValueSetter) throw new Error('expected DOM input value setter')
+    await act(async () => {
+      inputValueSetter.call(byokInput, 'sk-panel-memory-only')
+      Simulate.change(byokInput)
+      await waitForFrames(anyWindow.requestAnimationFrame, 2)
+    })
+
+    const storedValues = Array.from({ length: storage.length }, (_, index) => {
+      const key = storage.key(index) || ''
+      return `${key}=${storage.getItem(key) || ''}`
+    }).join('\n')
+    if (storedValues.includes('sk-panel-memory-only')) {
+      throw new Error(`expected MainPanel BYOK key to stay out of browser storage, got ${storedValues}`)
+    }
+    if (useGraphStore.getState().chatAuthMode !== 'byok' || useGraphStore.getState().chatApiKey !== 'sk-panel-memory-only') {
+      throw new Error(`expected explicit BYOK to hold only the live store key, got ${JSON.stringify({
+        chatAuthMode: useGraphStore.getState().chatAuthMode,
+        chatApiKey: useGraphStore.getState().chatApiKey,
+      })}`)
+    }
+
+    const nextAuthSelect = requireKtvValueCell(container, 'byteplus.auth_mode').querySelector('select') as HTMLSelectElement | null
+    if (!nextAuthSelect) throw new Error('expected auth select to remain rendered after BYOK change')
+    await act(async () => {
+      selectValueSetter.call(nextAuthSelect, 'serverManaged')
+      Simulate.change(nextAuthSelect)
+      await waitForFrames(anyWindow.requestAnimationFrame, 2)
+    })
+    if (useGraphStore.getState().chatAuthMode !== 'serverManaged' || useGraphStore.getState().chatApiKey !== '') {
+      throw new Error('expected returning to serverManaged to clear the memory-only BYOK key')
+    }
   } finally {
     try {
       await unmountAndFlush(root)

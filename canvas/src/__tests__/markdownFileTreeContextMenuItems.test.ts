@@ -142,3 +142,69 @@ export async function testMarkdownFileTreeShareUrlPromptsWhenClipboardUnavailabl
     throw new Error(`expected Share URL fallback prompt when clipboard write is unavailable, got ${prompted.join(',')}`)
   }
 }
+
+export async function testMarkdownFileTreeShareUrlSurfacesPublishFailure() {
+  const calls: string[] = []
+  const errors: string[] = []
+  const copied: string[] = []
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/docs/public.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'public.md',
+      updatedAtMs: 0,
+    },
+    buildShareUrl: async () => {
+      throw new Error('publish failed')
+    },
+    copyToClipboard: async text => {
+      copied.push(text)
+      return true
+    },
+    onShareUrlError: message => errors.push(message),
+    closeContextMenu: () => calls.push('close'),
+  })
+
+  await items[0]?.onSelect()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  if (calls.join(',') !== 'close') {
+    throw new Error(`expected Share URL failure to close the context menu immediately, got ${calls.join(',')}`)
+  }
+  if (copied.length !== 0) {
+    throw new Error(`expected Share URL failure to avoid copying unpublished URLs, got ${copied.join(',')}`)
+  }
+  if (errors.join(',') !== 'publish failed') {
+    throw new Error(`expected Share URL publish failure to surface the error, got ${errors.join(',')}`)
+  }
+}
+
+export async function testMarkdownFileTreeShareUrlSurfacesUnavailablePublishResult() {
+  const errors: string[] = []
+  const copied: string[] = []
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/docs/public.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'public.md',
+      updatedAtMs: 0,
+    },
+    buildShareUrl: async () => null,
+    copyToClipboard: async text => {
+      copied.push(text)
+      return true
+    },
+    onShareUrlError: message => errors.push(message),
+    closeContextMenu: () => void 0,
+  })
+
+  await items[0]?.onSelect()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  if (copied.length !== 0) {
+    throw new Error(`expected unavailable Share URL to avoid copying unpublished URLs, got ${copied.join(',')}`)
+  }
+  if (!errors.join(',').includes('could not be published')) {
+    throw new Error(`expected unavailable Share URL to surface a publish message, got ${errors.join(',')}`)
+  }
+}

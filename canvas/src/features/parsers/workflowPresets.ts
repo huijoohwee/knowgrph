@@ -7,7 +7,6 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { EXAMPLES_BY_ID } from '@/features/parsers/examplesCatalog'
 import { LS_KEYS, PUBLIC_FALLBACK_JSON } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
-import { DATASET_FALLBACK_MAPPINGS } from '@/features/parsers/config/fallbackMappings'
 
 declare const workflowPresetIdBrand: unique symbol
 
@@ -58,16 +57,6 @@ export const WORKFLOW_PRESETS: WorkflowPresetCatalogEntry[] = [
     },
   },
   {
-    id: 'customerVoiceManagement' as WorkflowPresetId,
-    label: 'Demo: Customer Voice Management',
-    parserId: toParserId('json') as WorkflowPresetParserId,
-    datasetFileName: EXAMPLES_BY_ID.customerVoiceManagement.datasetPath as WorkflowDatasetPath,
-    schemaFileName: EXAMPLES_BY_ID.customerVoiceManagement.schemaPath as WorkflowSchemaPath,
-    threeOverrides: {
-      backgroundColor: '',
-    },
-  },
-  {
     id: 'example-workflow' as WorkflowPresetId,
     label: 'Demo: Example Workflow (semantic clusters hidden)',
     parserId: toParserId('jsonld') as WorkflowPresetParserId,
@@ -80,33 +69,6 @@ export const WORKFLOW_PRESETS: WorkflowPresetCatalogEntry[] = [
     parserId: toParserId('jsonld') as WorkflowPresetParserId,
     datasetFileName: EXAMPLES_BY_ID.multiOntologyWorkflow.datasetPath as WorkflowDatasetPath,
     schemaFileName: EXAMPLES_BY_ID.multiOntologyWorkflow.schemaPath as WorkflowSchemaPath,
-    threeOverrides: {
-      backgroundColor: '',
-    },
-  },
-  {
-    id: 'universal-lean-startup-kg' as WorkflowPresetId,
-    label: 'Demo: Universal Lean Startup Knowledge Graph',
-    parserId: toParserId('jsonld') as WorkflowPresetParserId,
-    datasetFileName: EXAMPLES_BY_ID.universalLeanStartup.datasetPath as WorkflowDatasetPath,
-    schemaFileName: EXAMPLES_BY_ID.universalLeanStartup.schemaPath as WorkflowSchemaPath,
-    threeOverrides: {
-      backgroundColor: '',
-    },
-  },
-  {
-    id: 'a0-investors-kg' as WorkflowPresetId,
-    label: 'Demo: Investors Knowledge Graph',
-    parserId: toParserId('jsonld') as WorkflowPresetParserId,
-    datasetFileName: EXAMPLES_BY_ID.investorsJsonLd.datasetPath as WorkflowDatasetPath,
-    schemaFileName: EXAMPLES_BY_ID.investorsJsonLd.schemaPath as WorkflowSchemaPath,
-  },
-  {
-    id: 'venture-capital-portfolio' as WorkflowPresetId,
-    label: 'Demo: Venture Capital Portfolio',
-    parserId: toParserId('json') as WorkflowPresetParserId,
-    datasetFileName: EXAMPLES_BY_ID.ventureCapitalPortfolio.datasetPath as WorkflowDatasetPath,
-    schemaFileName: EXAMPLES_BY_ID.ventureCapitalPortfolio.schemaPath as WorkflowSchemaPath,
     threeOverrides: {
       backgroundColor: '',
     },
@@ -282,7 +244,7 @@ function getDatasetLoaders(): Record<string, RawLoader> | null {
     RawLoader
   >
   const publicData = import.meta.glob('../../../../public/**/*', { query: '?raw', import: 'default' }) as Record<string, RawLoader>
-  const schemaConfig = import.meta.glob('../../../../schema-config/**/*', { query: '?raw', import: 'default' }) as Record<string, RawLoader>
+  const schemaConfig = import.meta.glob('../../../../data/config/schema/**/*', { query: '?raw', import: 'default' }) as Record<string, RawLoader>
   datasetLoadersCache = { ...testData, ...publicData, ...schemaConfig }
   return datasetLoadersCache
 }
@@ -290,7 +252,7 @@ function getDatasetLoaders(): Record<string, RawLoader> | null {
 function getSchemaLoaders(): Record<string, RawLoader> | null {
   if (typeof window === 'undefined') return null
   if (schemaLoadersCache) return schemaLoadersCache
-  schemaLoadersCache = import.meta.glob('../../../../schema-config/**/*', {
+  schemaLoadersCache = import.meta.glob('../../../../data/config/schema/**/*', {
     query: '?raw',
     import: 'default',
   }) as Record<string, RawLoader>
@@ -302,53 +264,6 @@ export async function loadExampleDatasetTextInBrowser(datasetPath: string): Prom
   if (!loaders) return null
   const loader = findLoader(loaders, datasetPath)
   if (loader) return await loader()
-
-  const normalized = normalizeRepoPath(datasetPath)
-
-  const inlineJsonLd = (() => {
-    if (
-      normalized === 'data/test-data/ai-kg-viz_1500.json' ||
-      normalized === 'data/test-data/universal-lean-startup-kg.json' ||
-      normalized === 'data/test-data/a0.jsonld'
-    ) {
-      return JSON.stringify(
-        {
-          '@context': {
-            '@vocab': 'http://example.org/kg#',
-            kg: 'http://example.org/kg#',
-          },
-          '@graph': [
-            { '@id': 'kg:ai', '@type': 'Concept', name: 'AI' },
-            { '@id': 'kg:kg', '@type': 'Concept', name: 'Knowledge Graph' },
-            { '@id': 'kg:viz', '@type': 'Concept', name: 'Visualization' },
-            {
-              '@id': 'kg:e1',
-              'kg:subject': 'kg:viz',
-              'kg:predicate': 'kg:relatedTo',
-              'kg:object': 'kg:ai',
-            },
-            {
-              '@id': 'kg:e2',
-              'kg:subject': 'kg:viz',
-              'kg:predicate': 'kg:relatedTo',
-              'kg:object': 'kg:kg',
-            },
-          ],
-        },
-        null,
-        2,
-      )
-    }
-    return null
-  })()
-  if (inlineJsonLd) return inlineJsonLd
-
-  const fallbackPath = DATASET_FALLBACK_MAPPINGS[normalized] || null
-
-  if (fallbackPath) {
-    const fallbackLoader = findLoader(loaders, fallbackPath)
-    if (fallbackLoader) return await fallbackLoader()
-  }
 
   const url = PUBLIC_FALLBACK_JSON ? String(PUBLIC_FALLBACK_JSON).trim() : ''
   if (url) {

@@ -7,6 +7,10 @@ import {
   shouldAcceptWorkspaceDocumentSelectionText,
   shouldHydrateStableWorkspaceSelectionText,
 } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceSelection'
+import {
+  readCachedWorkspaceSelectionResolvedTextForActivePath,
+  type MarkdownWorkspaceSelectionResolvedTextCache,
+} from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionResolvedText'
 import { resolveAuthoritativeWorkspaceText, writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 import { resolveMarkdownWorkspaceApplyText } from '@/lib/markdown-workspace-runtime/markdownWorkspaceApply'
 import { preferCanonicalYamlFrontmatterFencedText } from '@/lib/markdown/frontmatter'
@@ -14,7 +18,7 @@ import { buildActiveMarkdownDocumentPayload } from '@/features/markdown/activeMa
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { shouldCommitResolvedActiveMarkdownText } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { upsertWorkspaceDocsMirrorText } from '@/features/workspace-fs/workspaceSeedProvider'
-import type { WorkspaceEntry } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspaceFs } from '@/features/workspace-fs/types'
 
 const FENCED_FRONTMATTER_MARKDOWN = [
   '---',
@@ -186,6 +190,74 @@ export async function testWorkspaceSelectionSwitchPrefersPathResolvedTextOverPol
   })
   if (resolved !== '# Knowgrph Video Demo') {
     throw new Error(`expected selected video demo path to prefer workspace storage text over polluted inline text, got ${JSON.stringify(resolved)}`)
+  }
+}
+
+export async function testWorkspaceSelectionResolvedTextCacheCoalescesConcurrentSwitchReads() {
+  const activePath = '/docs/knowgrph-video-demo.md'
+  let readCalls = 0
+  const fs: WorkspaceFs = {
+    ensureSeed: async () => true,
+    listEntries: async () => [],
+    readFileText: async path => {
+      readCalls += 1
+      await new Promise(resolve => setTimeout(resolve, 0))
+      return String(path || '') === activePath ? '# Knowgrph Video Demo' : null
+    },
+    writeFileText: async () => {},
+    createFile: async () => '/docs/new.md',
+    createFolder: async () => '/docs/new-folder',
+    deleteEntry: async () => {},
+  }
+  const cacheRef: { current: MarkdownWorkspaceSelectionResolvedTextCache | null } = { current: null }
+  const first = readCachedWorkspaceSelectionResolvedTextForActivePath({
+    activePath,
+    activeEntry: {
+      path: activePath,
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'knowgrph-video-demo.md',
+      text: '',
+      updatedAtMs: 1,
+    },
+    fs,
+    cacheRef,
+  })
+  const second = readCachedWorkspaceSelectionResolvedTextForActivePath({
+    activePath,
+    activeEntry: {
+      path: activePath,
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'knowgrph-video-demo.md',
+      text: '',
+      updatedAtMs: 1,
+    },
+    fs,
+    cacheRef,
+  })
+  const [firstText, secondText] = await Promise.all([first, second])
+  if (firstText !== '# Knowgrph Video Demo' || secondText !== '# Knowgrph Video Demo') {
+    throw new Error(`expected coalesced switch hydration to resolve active text, got ${JSON.stringify([firstText, secondText])}`)
+  }
+  if (readCalls !== 1) {
+    throw new Error(`expected same-path switch hydration to read backing workspace once, got ${readCalls}`)
+  }
+  const retained = await readCachedWorkspaceSelectionResolvedTextForActivePath({
+    activePath,
+    activeEntry: {
+      path: activePath,
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'knowgrph-video-demo.md',
+      text: '',
+      updatedAtMs: 1,
+    },
+    fs,
+    cacheRef,
+  })
+  if (retained !== '# Knowgrph Video Demo' || readCalls !== 1) {
+    throw new Error(`expected retained switch hydration result without another read, got text=${JSON.stringify(retained)} calls=${readCalls}`)
   }
 }
 

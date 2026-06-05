@@ -243,8 +243,8 @@ const buildIssues = (args: {
     if (args.workspaceDocument.hasFlowBlock !== true) {
       issues.push('The active workspace document does not yet expose a canonical flow block.')
     }
-    if (Array.isArray(args.workspaceDocument.forbiddenGroupingAliases) && args.workspaceDocument.forbiddenGroupingAliases.length > 0) {
-      issues.push(`The active workspace document still uses forbidden grouping aliases: ${args.workspaceDocument.forbiddenGroupingAliases.join(', ')}.`)
+    if (Array.isArray(args.workspaceDocument.forbiddenGroupingKeys) && args.workspaceDocument.forbiddenGroupingKeys.length > 0) {
+      issues.push(`The active workspace document still uses forbidden grouping keys: ${args.workspaceDocument.forbiddenGroupingKeys.join(', ')}.`)
     }
   }
 
@@ -353,8 +353,8 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
     workspaceDocument.available === true
     && workspaceDocument.hasFrontmatter === true
     && workspaceDocument.hasFlowBlock === true
-    && Array.isArray(workspaceDocument.forbiddenGroupingAliases)
-    && workspaceDocument.forbiddenGroupingAliases.length === 0
+    && Array.isArray(workspaceDocument.forbiddenGroupingKeys)
+    && workspaceDocument.forbiddenGroupingKeys.length === 0
   const canvasReady =
     canvasTopology.available === true
     && Number(canvasTopology.graphTopology?.nodeCount || 0) > 0

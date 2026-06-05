@@ -227,11 +227,11 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
   'openaiApi.auth_mode': {
     key: 'auth_mode',
     typeLabel: 'string',
-    value: 'Integration setting. serverManaged | byok.',
+    value: 'Integration setting. serverManaged | byok. Default serverManaged uses server-side Cloudflare/dev proxy secrets; BYOK is an explicit user fallback.',
     valueKey: 'chatAuthMode',
-    responsibility: 'Orchestrator -> choose server-managed or BYOK credential flow -> keep auth policy aligned across Integrations and widget runs.',
+    responsibility: 'Orchestrator -> choose server-managed or memory-only BYOK credential flow -> keep auth policy aligned across Integrations and widget runs.',
     notes: 'Integration transport setting reused by the OpenAI Text Widget.',
-    searchHints: ['chatAuthMode auth byok serverManaged api key'],
+    searchHints: ['chatAuthMode auth byok serverManaged api key Cloudflare secret'],
     modules: ['canvas/src/hooks/store/uiSlice.ts', 'canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/components/FlowEditorCanvas.tsx'],
     classes: ['GraphState', 'RunGenerationConfig'],
     functions: ['setChatAuthMode', 'setChatApiKey', 'generateRunMarkdownWithProvider'],
@@ -251,11 +251,11 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
   'openaiApi.api_key': {
     key: 'api_key',
     typeLabel: 'string',
-    value: 'Integration setting. Required for BYOK authentication.',
+    value: 'Integration setting. Empty in serverManaged; required only for explicit BYOK fallback.',
     valueKey: 'chatApiKey',
-    responsibility: 'Credential manager -> hold caller-supplied OpenAI secret for BYOK runs -> authorize direct OpenAI requests without leaking into persistent storage.',
+    responsibility: 'Credential manager -> hold caller-supplied OpenAI secret in memory only for BYOK runs -> authorize proxied OpenAI requests without leaking into persistent storage.',
     notes: 'Integration transport setting reused by the OpenAI Text Widget.',
-    searchHints: ['chatApiKey api key authentication bearer'],
+    searchHints: ['chatApiKey api key authentication bearer memory-only'],
     modules: ['canvas/src/hooks/store/uiSlice.ts', 'canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/components/FlowEditorCanvas.tsx'],
     classes: ['GraphState', 'RunGenerationConfig'],
     functions: ['setChatApiKey', 'setChatAuthMode', 'generateRunMarkdownWithProvider'],
@@ -431,7 +431,7 @@ export const OPENAI_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>>
   chatProvider: ['select provider profile', 'bind OpenAI request routing'],
   chatAuthMode: ['select auth mode', 'choose credential flow'],
   chatEndpointUrl: ['set responses endpoint', 'route API requests'],
-  chatApiKey: ['store API secret', 'authorize direct OpenAI calls'],
+  chatApiKey: ['hold memory-only BYOK secret', 'authorize proxied OpenAI calls'],
   chatModel: ['select target model', 'route response execution'],
   chatMessagesJson: ['compose input items', 'serialize request input'],
   chatTemperature: ['set sampling temperature', 'control output variability'],
@@ -465,8 +465,8 @@ export const OPENAI_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
   },
   auth_mode: {
     defaultValue: 'serverManaged',
-    expansionNote: 'BYOK expands direct caller control.',
-    contractionNote: 'Server-managed auth narrows credential handling in the widget.',
+    expansionNote: 'BYOK expands explicit caller-owned credential control.',
+    contractionNote: 'Server-managed auth narrows credential handling to Cloudflare/dev proxy secrets.',
   },
   endpoint_url: {
     defaultValue: 'https://api.openai.com/v1/responses',
@@ -475,7 +475,7 @@ export const OPENAI_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
   },
   api_key: {
     defaultValue: '—',
-    expansionNote: 'A BYOK secret expands direct authenticated execution.',
+    expansionNote: 'A memory-only BYOK secret expands explicit caller-authenticated execution.',
     contractionNote: 'No key narrows execution to server-managed auth only.',
   },
   model: {

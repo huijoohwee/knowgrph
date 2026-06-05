@@ -2378,6 +2378,12 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!workspaceWidthDefaultsText.includes('MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_RATIO') || !workspaceWidthDefaultsText.includes('return args.maxPx')) {
     throw new Error('expected compact workspace width defaults to prefer editable mobile pane width from the shared owner')
   }
+  if (
+    !workspaceWidthDefaultsText.includes('WORKSPACE_EDITOR_PANE_DEFAULT_VIEWPORT_RATIO = 0.5') ||
+    workspaceWidthDefaultsText.includes('1 - (WORKSPACE_EDITOR_CANVAS_DEFAULT_SPLIT.canvasPercent / 100)')
+  ) {
+    throw new Error('expected desktop workspace editor pane default initialization to use a neutral 50% viewport ratio')
+  }
   if (!responsiveToolbarCssText.includes('flex-direction: column')) {
     throw new Error('expected Editor Workspace mobile layout to stack Explorer above editor content')
   }
@@ -2386,6 +2392,16 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-explorer-resize') || responsiveToolbarCssText.includes('.kg-markdown-workspace-explorer-resize {\n      display: none;')) {
     throw new Error('expected Explorer/editor divider to remain visible when Editor Workspace stacks on narrow viewports')
+  }
+  if (
+    !responsiveToolbarCssText.includes('box-shadow: inset 1px 0 0 var(--kg-divider)') ||
+    !responsiveToolbarCssText.includes('inline-size: 100% !important') ||
+    !responsiveToolbarCssText.includes('block-size: 1px !important') ||
+    !responsiveToolbarCssText.includes('cursor: row-resize !important') ||
+    !responsiveToolbarCssText.includes('background-image: none !important') ||
+    !responsiveToolbarCssText.includes('box-shadow: none;')
+  ) {
+    throw new Error('expected Explorer/editor divider to stay visible on desktop and reset to a horizontal separator on stacked mobile')
   }
   if (!responsiveToolbarCssText.includes('.MainPanelContainer')) {
     throw new Error('expected main panel mobile viewport bounds to stay centralized in shared CSS')

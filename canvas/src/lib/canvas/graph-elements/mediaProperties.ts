@@ -29,7 +29,7 @@ export function patchNodeMediaProperties(args: {
   return next
 }
 
-export function buildAliasedMediaProperties(args: {
+export function buildNodeMediaProperties(args: {
   kind: NodeMediaKind
   url: string
   interactive?: boolean

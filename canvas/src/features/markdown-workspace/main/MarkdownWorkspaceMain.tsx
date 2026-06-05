@@ -531,14 +531,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       {frontmatterNotice}
     </section>
   ) : null
-  const documentVersionGitGraphOpen = bottomSurfaceTab === 'gitGraph' && bottomSurfaceCollapsed !== true
-  const setDocumentVersionGitGraphOpen = React.useCallback((next: boolean) => {
+  const documentVersionGraphOpen = bottomSurfaceTab === 'documentVersionGraph' && bottomSurfaceCollapsed !== true
+  const setDocumentVersionGraphOpen = React.useCallback((next: boolean) => {
     if (next) {
-      setBottomSurfaceTab('gitGraph')
+      setBottomSurfaceTab('documentVersionGraph')
       setBottomSurfaceCollapsed(false)
       return
     }
-    if (bottomSurfaceTab === 'gitGraph') {
+    if (bottomSurfaceTab === 'documentVersionGraph') {
       setBottomSurfaceCollapsed(true)
     }
   }, [bottomSurfaceTab, setBottomSurfaceCollapsed, setBottomSurfaceTab])
@@ -998,8 +998,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         setMarkdownWordWrap,
         markdownTextHighlight,
         setMarkdownTextHighlight,
-        documentVersionGitGraphOpen,
-        setDocumentVersionGitGraphOpen,
+        documentVersionGraphOpen,
+        setDocumentVersionGraphOpen,
         viewerKind,
         viewerMode,
         setViewerMode: handleSetViewerMode,
@@ -1017,6 +1017,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         presentationApiRef,
         webpageSignalSummary,
         webpageWorkspaceMeta, onWebpageChangeView, onWebpageUpdateMeta, contentFormat, onContentFormatChange,
+        forceMarkdownEditorInEditorMode,
       }}
       layoutMode={layoutMode}
       documentNotice={documentNotice}

@@ -45,10 +45,6 @@ import {
 const PRESET_ID_BY_EXAMPLE_ID: Record<ExampleId, string> = {
   sampleTop3Portfolio: 'sample-investors-top3-3d',
   genericKgVisualization: 'ai-kg-viz',
-  customerVoiceManagement: 'aiCustomerVoiceManagement',
-  universalLeanStartup: 'universal-lean-startup-kg',
-  investorsJsonLd: 'a0-investors-kg',
-  ventureCapitalPortfolio: 'venture-capital-portfolio',
   exampleWorkflow: 'example-workflow',
   multiOntologyWorkflow: 'multi-ontology-kg',
   edaMlpPipeline: 'eda-mlp-pipeline-path',

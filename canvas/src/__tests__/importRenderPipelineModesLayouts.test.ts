@@ -23,12 +23,13 @@ import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 import { listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 import type { GraphNode } from '@/lib/graph/types'
 import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 const readSlideDemoOrFallback = (): { nameForParse: string; text: string; documentPath: string } => {
-  const docPath = resolveMarkdownSlideDemoDocumentPath() || 'sandbox/demo/markdown-slide-demo.md'
+  const docPath = resolveMarkdownSlideDemoDocumentPath() || 'data/test-data/md-demo-00.md'
   const text = readMarkdownSlideDemo()
   if (text && text.trim()) {
     return { nameForParse: docPath, text, documentPath: docPath }
@@ -42,7 +43,7 @@ const readComputingFlowRfSamplePath = (): string => {
     ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_RF_SAMPLE_PATH.trim()
     : ''
   if (envPath) return envPath
-  return path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-rf-sample.md')
+  return resolveRepoTestDataPath('markdown-syntax-computing-flow-rf-sample.md')
 }
 
 const readComputingFlowSamplePath = (): string => {
@@ -50,7 +51,7 @@ const readComputingFlowSamplePath = (): string => {
     ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_SAMPLE_PATH.trim()
     : ''
   if (envPath) return envPath
-  return path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
+  return resolveRepoTestDataPath('markdown-syntax-computing-flow-sample.md')
 }
 
 const readKgcPipelinePrdTadPath = (): string => {
@@ -73,8 +74,7 @@ const readKnowgrphVideoDemoSeededPath = (): string => {
   const envPath = typeof process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH === 'string'
     ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_SEEDED_PATH.trim()
     : ''
-  if (envPath) return envPath
-  return path.resolve(process.cwd(), '..', 'knowgrph-video-demo-seeded.md')
+  return envPath
 }
 
 const toSimpleFlowGraph = (graphData: { nodes?: unknown; edges?: unknown }) => {

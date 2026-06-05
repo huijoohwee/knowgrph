@@ -6,6 +6,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { computeZoomSubset } from '@/lib/zoom/selectionTargets'
+import { readGraphActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import type { ZoomRequest, ZoomFitIntent } from '@/lib/zoom/requests'
 import { computeTransformScaleAboutViewportCenter } from '@/lib/zoom/viewport'
 import { pickNextZoomStep, readZoomStepPolicy } from '@/lib/zoom/steps'
@@ -90,6 +91,15 @@ function applyDocumentSemanticFitPolicy(schema: GraphSchema, opts: ReturnType<ty
   return next
 }
 
+function shouldApplyDocumentStructureFitPolicy(args: {
+  graphData: GraphData
+  documentSemanticMode?: 'document' | 'keyword'
+}): boolean {
+  const activeDocumentViewMode = readGraphActiveDocumentViewMode(args.graphData)
+  if (activeDocumentViewMode) return activeDocumentViewMode === 'documentStructure'
+  return args.documentSemanticMode === 'document'
+}
+
 function getFitTransformCached(args: {
   graphData: GraphData
   schema: GraphSchema
@@ -112,7 +122,10 @@ function getFitTransformCached(args: {
     intent: args.intent === 'fitSelection' ? 'fitSelection' : args.intent,
     targetFillRatioOverride: args.fitFillRatio,
   })
-  if (args.documentSemanticMode === 'document') {
+  if (shouldApplyDocumentStructureFitPolicy({
+    graphData: args.graphData,
+    documentSemanticMode: args.documentSemanticMode,
+  })) {
     opts = applyDocumentSemanticFitPolicy(args.schema, opts)
   }
   const key = [

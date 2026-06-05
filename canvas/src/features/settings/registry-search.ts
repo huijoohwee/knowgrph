@@ -1,7 +1,7 @@
 import type { SettingMeta } from './types'
 import { LS_KEYS } from '@/lib/config'
 import {
-  EXA_MCP_ALL_NON_DEPRECATED_TOOLS_JSON,
+  EXA_MCP_ACTIVE_TOOLS_JSON,
   EXA_MCP_CONNECTION_MODES,
   EXA_MCP_DEFAULT_CONNECTION_MODE,
   EXA_MCP_DEFAULT_ENABLED_TOOLS_JSON,
@@ -81,4 +81,4 @@ export const searchSettingsRegistry: SettingMeta[] = [
   }),
 ]
 
-export const EXA_MCP_ENABLED_TOOLS_ADVANCED_PROFILE_JSON = EXA_MCP_ALL_NON_DEPRECATED_TOOLS_JSON
+export const EXA_MCP_ENABLED_TOOLS_ADVANCED_PROFILE_JSON = EXA_MCP_ACTIVE_TOOLS_JSON

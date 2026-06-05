@@ -96,6 +96,7 @@ export function testDocumentVersioningSurfacesUseSharedOwners() {
   const historyViewText = readFileSync(resolve(root, 'features', 'panels', 'views', 'HistoryView.tsx'), 'utf8')
   const documentVersioningText = readFileSync(resolve(root, 'features', 'document-versioning', 'documentVersioning.ts'), 'utf8')
   const monacoTextEditorText = readFileSync(resolve(root, 'lib', 'monaco', 'MonacoTextEditor.impl.tsx'), 'utf8')
+  const interactiveMermaidDiagramText = readFileSync(resolve(root, 'lib', 'diagram', 'InteractiveMermaidDiagram.tsx'), 'utf8')
 
   if (!runtimeIoText.includes('recordDocumentVersionSnapshot({') || !runtimeIoText.includes("source: 'editorWorkspace'")) {
     throw new Error('expected Editor Workspace writeback to capture document versions through the shared version owner')
@@ -118,59 +119,101 @@ export function testDocumentVersioningSurfacesUseSharedOwners() {
   if (
     !documentVersioningText.includes('buildDocumentVersionPathSummaries') ||
     !documentVersioningText.includes('buildDocumentVersionGitGraphRows') ||
-    !documentVersionGitGraphPanelText.includes('PlainMermaidDiagram') ||
+    !documentVersionGitGraphPanelText.includes('InteractiveMermaidDiagram') ||
+    !documentVersionGitGraphPanelText.includes('selectedDiagramLabels') ||
+    !documentVersionGitGraphPanelText.includes('selectionRows={selectionRows}') ||
+    !documentVersionGitGraphPanelText.includes("selectedRowKey={selectedVersion?.id || ''}") ||
+    !documentVersionGitGraphPanelText.includes('onSelectedRowKeyChange={handleSelectedVersionRowKeyChange}') ||
+    !documentVersionGitGraphPanelText.includes('handleSvgSelectedLabelChange') ||
+    !documentVersionGitGraphPanelText.includes('svgSurfaceKey="document-version-graph"') ||
+    !documentVersionGitGraphPanelText.includes('data-kg-document-version-gitgraph-direct-selection="1"') ||
+    !interactiveMermaidDiagramText.includes('useSvgSurfaceZoomRuntime({') ||
+    !interactiveMermaidDiagramText.includes('data-kg-interactive-svg-diagram-surface') ||
+    !interactiveMermaidDiagramText.includes('data-kg-interactive-svg-diagram-key') ||
+    !interactiveMermaidDiagramText.includes('data-kg-mermaid-row-target') ||
     !documentVersionGitGraphPanelText.includes('buildDocumentVersionGitGraphRows') ||
     !documentVersionGitGraphPanelText.includes('buildDocumentVersionReviewModel') ||
     !documentVersionGitGraphPanelText.includes('buildDocumentVersionsGitGraphCode') ||
+    !documentVersionGitGraphPanelText.includes('>Version Graph<') ||
+    !documentVersionGitGraphPanelText.includes('aria-label="Document version graph"') ||
     !documentVersionGitGraphPanelText.includes('data-kg-document-version-gitgraph-panel') ||
     !documentVersionGitGraphPanelText.includes('selectedVersionId') ||
-    !documentVersionGitGraphPanelText.includes('data-kg-document-version-gitgraph-version-node') ||
-    !documentVersionGitGraphPanelText.includes('data-kg-document-version-gitgraph-version-selected') ||
     !documentVersionGitGraphPanelText.includes('data-kg-document-version-gitgraph-selected-review') ||
-    !documentVersionGitGraphPanelText.includes('aria-pressed={selected}') ||
-    !documentVersionGitGraphPanelText.includes('useDocumentVersionRecords()')
+    !documentVersionGitGraphPanelText.includes('useDocumentVersionRecords()') ||
+    documentVersionGitGraphPanelText.includes('>GitGraph<') ||
+    documentVersionGitGraphPanelText.includes('aria-label="Document version GitGraph"')
   ) {
-    throw new Error('expected document-version GitGraph rendering and selected-version review to live in a shared panel owner')
+    throw new Error('expected document-version Version Graph rendering and selected-version review to live in a shared panel owner')
   }
   if (
-    !markdownWorkspaceMainText.includes('documentVersionGitGraphOpen') ||
-    !markdownWorkspaceMainText.includes('setDocumentVersionGitGraphOpen') ||
-    !markdownWorkspaceMainText.includes("setBottomSurfaceTab('gitGraph')") ||
+    documentVersionGitGraphPanelText.includes('resolveDiagramPointerRowIndex') ||
+    documentVersionGitGraphPanelText.includes('resolveDiagramRowPositionPercent') ||
+    documentVersionGitGraphPanelText.includes('data-kg-document-version-gitgraph-version-node') ||
+    documentVersionGitGraphPanelText.includes('data-kg-document-version-gitgraph-version-selected') ||
+    documentVersionGitGraphPanelText.includes('aria-pressed={selected}')
+  ) {
+    throw new Error('expected document-version Version Graph to select from rendered SVG elements instead of proxy version-node controls')
+  }
+  if (
+    !markdownWorkspaceMainText.includes('documentVersionGraphOpen') ||
+    !markdownWorkspaceMainText.includes('setDocumentVersionGraphOpen') ||
+    !markdownWorkspaceMainText.includes("setBottomSurfaceTab('documentVersionGraph')") ||
+    markdownWorkspaceMainText.includes('documentVersionGitGraphOpen') ||
+    markdownWorkspaceMainText.includes('setDocumentVersionGitGraphOpen') ||
     !markdownWorkspaceMainText.includes('setBottomSurfaceCollapsed(false)') ||
     markdownWorkspaceMainText.includes('DocumentVersionGitGraphPanel') ||
     markdownWorkspaceMainText.includes('documentVersionGitGraphNotice') ||
-    !markdownWorkspaceToolbarText.includes('data-kg-markdown-workspace-diff-gitgraph-toggle="1"') ||
-    !markdownWorkspaceToolbarText.includes('Show document version diff GitGraph') ||
+    !markdownWorkspaceToolbarText.includes('data-kg-markdown-workspace-document-version-graph-toggle="1"') ||
+    !markdownWorkspaceToolbarText.includes('Show document version graph') ||
     !markdownWorkspaceToolbarText.includes('<FileDiff') ||
+    markdownWorkspaceToolbarText.includes('data-kg-markdown-workspace-diff-gitgraph-toggle="1"') ||
+    markdownWorkspaceToolbarText.includes('Show document version diff GitGraph') ||
     markdownWorkspaceToolbarText.includes('onPointerDown={event => event.stopPropagation()}') ||
     markdownWorkspaceToolbarText.includes('onClick={event => event.stopPropagation()}')
   ) {
-    throw new Error('expected Editor Workspace diff toggle to open BottomPanel GitGraph without rendering an inline document notice')
+    throw new Error('expected Editor Workspace diff toggle to open BottomPanel Version Graph without rendering an inline document notice')
   }
   if (
     existsSync(resolve(root, 'features', 'document-versioning', 'DocumentVersionGitGraphBottomPanel.tsx')) ||
     canvasViewportText.includes('DocumentVersionGitGraphBottomPanelLazy') ||
     canvasViewportText.includes('data-kg-document-version-gitgraph-bottom-panel') ||
+    !canvasViewportText.includes("bottomSurfaceTab === 'documentVersionGraph'") ||
     !canvasViewportText.includes("bottomSurfaceTab === 'gitGraph'") ||
-    !canvasViewportText.includes('documentVersionGitGraphBottomPanelVisible') ||
-    !canvasViewportText.includes("initialView={documentVersionGitGraphBottomPanelVisible ? 'gitGraph' : 'timeline'}") ||
+    !canvasViewportText.includes("bottomSurfaceTab === 'gantt'") ||
+    !canvasViewportText.includes('documentVersionGraphBottomPanelVisible') ||
+    !canvasViewportText.includes('mermaidGitGraphBottomPanelVisible') ||
+    !canvasViewportText.includes('mermaidGanttBottomPanelVisible') ||
+    !canvasViewportText.includes("initialView={mermaidGanttBottomPanelVisible ? 'gantt' : mermaidGitGraphBottomPanelVisible ? 'gitGraph' : documentVersionGraphBottomPanelVisible ? 'documentVersionGraph' : 'timeline'}") ||
     !canvasViewportText.includes('workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}') ||
     !canvasViewportText.includes('strybldrTimelineBottomPanelVisible')
   ) {
-    throw new Error('expected BottomPanel GitGraph to reuse the shared Timeline bottom panel across canvas renderers')
+    throw new Error('expected BottomPanel Version Graph and Mermaid diagram tabs to reuse the shared Timeline bottom panel across canvas renderers')
   }
   if (
     !timelineBottomPanelText.includes('DocumentVersionGitGraphPanel') ||
     !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-timeline-toggle="1"') ||
+    !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-document-version-graph-toggle="1"') ||
     !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-gitgraph-toggle="1"') ||
+    !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-gantt-toggle="1"') ||
     !timelineBottomPanelText.includes('title="Timeline"') ||
+    !timelineBottomPanelText.includes('title="Version Graph"') ||
     !timelineBottomPanelText.includes('title="GitGraph"') ||
+    !timelineBottomPanelText.includes('title="Gantt"') ||
     !timelineBottomPanelText.includes('<History') ||
+    !timelineBottomPanelText.includes('<FileDiff') ||
     !timelineBottomPanelText.includes('<GitGraph') ||
+    !timelineBottomPanelText.includes('<ChartGantt') ||
+    !timelineBottomPanelText.includes("view === 'documentVersionGraph'") ||
     !timelineBottomPanelText.includes("view === 'gitGraph'") ||
+    !timelineBottomPanelText.includes("view === 'gantt'") ||
     !timelineBottomPanelText.includes("initialView = 'timeline'") ||
+    !timelineBottomPanelText.includes('showDocumentVersionGraphView') ||
     !timelineBottomPanelText.includes('showGitGraphView') ||
+    !timelineBottomPanelText.includes('showGanttView') ||
     !timelineBottomPanelText.includes('setBottomSurfaceTab') ||
+    !timelineBottomPanelText.includes("setBottomSurfaceTab('documentVersionGraph')") ||
+    !timelineBottomPanelText.includes("setBottomSurfaceTab('gitGraph')") ||
+    !timelineBottomPanelText.includes("setBottomSurfaceTab('gantt')") ||
     !timelineBottomPanelText.includes("import { WORKSPACE_LEFT_PANE_SELECTOR } from '@/lib/canvas/viewportMeasureElement'") ||
     !timelineBottomPanelText.includes('resolveWorkspaceCanvasLayerInsetLeft') ||
     !timelineBottomPanelText.includes('workspaceEditorOverlayOpen = false') ||
@@ -184,7 +227,7 @@ export function testDocumentVersioningSurfacesUseSharedOwners() {
     timelineBottomPanelText.includes('className="fixed inset-0 z-[230] pointer-events-none"') ||
     !timelineBottomPanelText.includes("position: 'absolute' as const")
   ) {
-    throw new Error('expected bottom Timeline panel to expose the moved document-version GitGraph beside Timeline')
+    throw new Error('expected bottom Timeline panel to expose separate Version Graph, GitGraph, and Gantt views')
   }
   if (
     historyViewText.includes("id: 'docs'") ||

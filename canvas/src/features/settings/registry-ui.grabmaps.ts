@@ -23,8 +23,8 @@ export const uiGrabMapsSettingsRegistry: SettingMeta[] = [
     source: 'store',
     read: () => s().grabMapsAuthMode,
     write: v => s().setGrabMapsAuthMode(normalizeGrabMapsAuthMode(v)),
-    default: () => 'byok',
-    options: ['byok', 'serverManaged'],
+    default: () => 'serverManaged',
+    options: ['serverManaged', 'byok'],
     docKey: 'maps.grabmaps.authMode',
   },
   {

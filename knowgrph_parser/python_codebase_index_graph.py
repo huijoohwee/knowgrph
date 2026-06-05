@@ -193,8 +193,8 @@ def build_code_graph(codebase_root: str, ignored_paths: List[str]) -> Dict[str, 
                 add_relation(nodes_by_id, file_id, "contains", fn_id)
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                for alias in node.names:
-                    module_name = alias.name
+                for imported_name in node.names:
+                    module_name = imported_name.name
                     target_id = "module:" + module_name
                     module_node = ensure_node(nodes_by_id, target_id, "Module", module_name, "")
                     module_node.properties["module"] = module_name

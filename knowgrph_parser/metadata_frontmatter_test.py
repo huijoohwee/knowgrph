@@ -1,12 +1,40 @@
-import os
-
-from .graph_builder import parse_markdown_to_graph_jsonld
+from .graph_builder import parse_markdown_text_to_graph_jsonld
 
 
 def main() -> int:
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-    path = os.path.join(root, "docs", "documents", "knowgrph-pipeline-document.md")
-    doc = parse_markdown_to_graph_jsonld(path, codebase_root=root)
+    doc = parse_markdown_text_to_graph_jsonld(
+        """
+---
+title: Pipeline metadata fixture
+ontologies:
+  - prefix: prov
+    iri: http://www.w3.org/ns/prov#
+  - prefix: mex
+    iri: http://mex.aksw.org/mex-core#
+  - prefix: pplan
+    iri: http://purl.org/net/p-plan#
+  - prefix: mls
+    iri: http://www.w3.org/ns/mls#
+  - prefix: geo
+    iri: http://www.opengis.net/ont/geosparql#
+  - prefix: ro
+    iri: https://w3id.org/ro/crate#
+graphLayers:
+  - competencyHyperspace
+  - performanceSpace
+  - classDistributionSpace
+  - preprocessingCluster
+  - modelTypeClusters
+  - kpiViolationRegion
+  - candidateClusters
+  - assessmentRegion
+---
+
+# Pipeline metadata fixture
+        """.strip(),
+        graph_id="metadata-frontmatter",
+        semantic_enabled=False,
+    )
     meta = doc.get("metadata") or {}
     if "ontologies" not in meta:
         raise SystemExit("metadata.ontologies missing")
@@ -54,6 +82,25 @@ def main() -> int:
     ]
     if graph_layers != expected_graph_layers:
         raise SystemExit(f"metadata.graphLayers mismatch: expected {expected_graph_layers}, got {graph_layers}")
+
+    removed_doc = parse_markdown_text_to_graph_jsonld(
+        """
+---
+title: Removed metadata fixture
+polygonLayers:
+  - removedCluster
+---
+
+# Removed metadata fixture
+        """.strip(),
+        graph_id="removed-metadata-frontmatter",
+        semantic_enabled=False,
+    )
+    removed_meta = removed_doc.get("metadata") or {}
+    if "polygonLayers" in removed_meta:
+        raise SystemExit("metadata.polygonLayers should not be projected")
+    if "graphLayers" in removed_meta:
+        raise SystemExit("metadata.graphLayers should not be mapped from removed polygonLayers")
     return 0
 
 

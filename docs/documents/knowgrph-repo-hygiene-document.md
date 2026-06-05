@@ -8,12 +8,14 @@ Keep the repository fast to clone/pull/push by preventing large local artifacts 
 
 - `.knowgrph-workspace/` is a local artifact root (PDF workspace, website-import artifacts, per-URL `raw.html`, etc).
 - `.knowgrph-workspace/` must never be committed.
-- In this repo, `.knowgrph-workspace/` is physically stored at `sandbox/.knowgrph-workspace/` and referenced from `knowgrph/.knowgrph-workspace` via symlink.
+- In this repo, `.knowgrph-workspace/` is a repo-local ignored runtime root. It is disposable and may be removed between verification runs.
+- Workflow preview artifacts are generated under `data/outputs/knowgrph-workflow-preview/` and must stay ignored; source docs under `docs/documents/` remain canonical.
 
 ## Ignore Rules
 
 - `knowgrph/.gitignore` must include `.knowgrph-workspace` and `.knowgrph-workspace/`.
-- `sandbox/.gitignore` must include `.knowgrph-workspace` and `.knowgrph-workspace/`.
+- `knowgrph/.gitignore` must ignore `data/outputs/` and the removed tracked generated preview root `data/knowgrph-workflow-preview/`.
+- Runtime and sandbox-specific ignore rules must not reintroduce `.knowgrph-workspace/` or generated preview outputs as tracked source.
 
 ## Cross-Repo Policy
 
@@ -22,7 +24,6 @@ Apply the same “no large local artifacts in git history” rule to these repos
 - `/GitHub/knowgrph`
 - `/GitHub/singabldr`
 - `/GitHub/chatgrph`
-- `/GitHub/sandbox`
 
 Common paths to exclude from history (when they accidentally get committed):
 
@@ -94,8 +95,15 @@ git push --force-with-lease --tags
 
 - Never commit: `.knowgrph-workspace/**`.
 - Never commit: generated preview outputs under `data/` unless explicitly needed and bounded.
+- Never commit: TypeScript incremental build info (`*.tsbuildinfo`).
+- Never commit: local Cloudflare/Wrangler state under `.wrangler/**`.
+- Never reintroduce root config/script duplicates: `configs/`, `llm-chat-config/`, `orchestrator-config/`, `schema-config/`, `trash_rm_scripts/`, `canvas/trash_rm_scripts/`, or root `organize_todo.py`.
+- Keep active config inputs under `data/config/`; keep moved utility scripts under `scripts/`.
+- Keep editor workspace notes out of tracked source: `.trae/` and `canvas/.trae/` must stay absent.
+- Keep local smoke and shell scratch outputs out of active source, including `canvas/tmp-*`, `canvas/tmp_*`, `canvas/=`, `canvas/B,`, `canvas/{`, and root `{target}`.
+- Keep stale archives and dated generated reports out of active source: `docs/documents/deprecated/`, `docs/documents/knowgrph-api-reference/_archive/`, `docs/documents/api-reference/`, root `test-report/`, root `todo-log_*.md`, and dated `docs/reports/prd-codebase-gap-report_*.md`.
 - Never commit: `node_modules/**` or ad-hoc backup bundles under `backups/**`.
-- Prefer storing large fixtures under `/GitHub/sandbox/test-data/` as local-only files (ignored); keep only small sample fixtures in git.
+- Keep repo-owned test fixtures under `data/test-data/`; optional large external fixtures must be passed explicitly through environment variables and stay outside tracked source.
 - Keep Pages deploy content constrained: `content/knowgrph` must only include built `assets`, entry `index.html`, favicon, settings, and small examples; scripts exclude cesium, vendor/mermaid bundles, demo, examples, and large test JSON from sync/publish.
 - Keep Canvas and Toolbar entry chunks lean: prefer lazy-loaded bundles for heavy tool surfaces (MainPanel, Toolbar menus, MarkdownWorkspace, workspace export bridge, Graph Data Table) and dynamic imports for rare exports; forbid deep source-level manualChunks and uncontrolled entry growth that make low-end devices or mobile browsers unresponsive.
 - Before optimization or refactor work, clean unrelated pending changes in all repos, preserve only scoped code/test diffs, and treat `content/knowgrph` artifacts as generated outputs mirrored from `canvas/dist` rather than hand-edited configuration state.

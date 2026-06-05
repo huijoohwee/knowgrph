@@ -2,7 +2,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
-import { isFlowEditorCanvas2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { isFlowEditorCanvas2dRenderer, isFrontmatterOnlyPolicyActive, resolveCanvas2dRendererId } from '@/lib/config.render'
+import { normalizeCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import {
   parseCanvasWorkspaceFrontmatterPreset,
   readCanvasWorkspaceFrontmatterPresetFromMeta,
@@ -17,6 +18,58 @@ import {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | null): CanvasWorkspaceFrontmatterPreset | null {
+  if (!meta) return null
+  const raw = isRecord(meta.canvasWorkspacePreset) ? meta.canvasWorkspacePreset as Record<string, unknown> : null
+  if (!raw) return null
+  const readMode2d3d = (value: unknown): '2d' | '3d' | undefined => {
+    const text = String(value || '').trim()
+    return text === '2d' || text === '3d' ? text : undefined
+  }
+  const readSurface = (value: unknown): '2d' | '3d' | 'xr' | 'geospatial' | undefined => {
+    const text = String(value || '').trim()
+    return text === '2d' || text === '3d' || text === 'xr' || text === 'geospatial' ? text : undefined
+  }
+  const readSemantic = (value: unknown): 'document' | 'keyword' | undefined => {
+    const text = String(value || '').trim()
+    return text === 'document' || text === 'keyword' ? text : undefined
+  }
+  const readBool = (value: unknown): boolean | undefined => typeof value === 'boolean' ? value : undefined
+
+  const canvasSurfaceMode = readSurface(raw.canvasSurfaceMode)
+  const canvasRenderMode = readMode2d3d(raw.canvasRenderMode)
+  const canvas2dRenderer = resolveCanvas2dRendererId(raw.canvas2dRenderer)
+  const canvas3dMode = raw.canvas3dMode == null ? undefined : normalizeCanvas3dMode(raw.canvas3dMode)
+  const documentSemanticMode = readSemantic(raw.documentSemanticMode)
+  const frontmatterModeEnabled = readBool(raw.frontmatterModeEnabled)
+  const multiDimTableModeEnabled = readBool(raw.multiDimTableModeEnabled)
+  const documentStructureBaselineLock = readBool(raw.documentStructureBaselineLock)
+
+  if (
+    canvasSurfaceMode === undefined &&
+    canvasRenderMode === undefined &&
+    canvas2dRenderer === undefined &&
+    canvas3dMode === undefined &&
+    documentSemanticMode === undefined &&
+    frontmatterModeEnabled === undefined &&
+    multiDimTableModeEnabled === undefined &&
+    documentStructureBaselineLock === undefined
+  ) {
+    return null
+  }
+
+  return {
+    canvasSurfaceMode,
+    canvasRenderMode,
+    canvas2dRenderer,
+    canvas3dMode,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    documentStructureBaselineLock,
+  }
 }
 
 function disableGeospatialForDocumentPreset(): void {
@@ -100,7 +153,7 @@ export function resolveCanvasFrontmatterPreset(args: {
 
   const metadata = isRecord(args.graphData?.metadata) ? (args.graphData?.metadata as Record<string, unknown>) : null
   const frontmatterMeta = metadata && isRecord(metadata.frontmatterMeta) ? (metadata.frontmatterMeta as Record<string, unknown>) : null
-  return readCanvasWorkspaceFrontmatterPresetFromMeta(frontmatterMeta)
+  return readCanvasWorkspaceFrontmatterPresetFromMeta(frontmatterMeta) || readNormalizedCanvasWorkspacePreset(metadata)
 }
 
 export function applyCanvasFrontmatterPreset(args: {
@@ -192,12 +245,15 @@ export function applyCanvasFrontmatterPreset(args: {
     store.setCanvas3dMode('3d')
     changed = true
   }
-  if (canvas2dRenderer && store.canvas2dRenderer !== canvas2dRenderer) {
-    if (store.documentStructureBaselineLock === true && documentStructureBaselineLock !== true) {
-      store.setDocumentStructureBaselineLock(false)
+  if (canvas2dRenderer) {
+    const current = useGraphStore.getState()
+    if (current.canvas2dRenderer !== canvas2dRenderer) {
+      if (current.documentStructureBaselineLock === true && documentStructureBaselineLock !== true) {
+        current.setDocumentStructureBaselineLock(false)
+      }
+      current.setCanvas2dRenderer(canvas2dRenderer)
+      if (useGraphStore.getState().canvas2dRenderer === canvas2dRenderer) changed = true
     }
-    store.setCanvas2dRenderer(canvas2dRenderer)
-    if (useGraphStore.getState().canvas2dRenderer === canvas2dRenderer) changed = true
   }
 
   if (canvas3dMode && useGraphStore.getState().canvas3dMode !== canvas3dMode) {

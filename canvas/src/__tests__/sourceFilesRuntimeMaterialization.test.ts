@@ -180,7 +180,7 @@ export async function testActiveWorkspaceMarkdownReapplyReplaysYamlWhenEditorWor
 
 export function testBuildActiveWorkspaceRuntimeSourceFilesSnapshotIncludesFreshEmptyActiveWorkspaceFile() {
   const activePath = '/chat-log/kgc_20260527193000.md'
-  const existingSidecarPath = '/chat-log/20260527T193000Z/chat-stream-log_20260527T193000Z.md'
+  const existingTracePath = '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md'
   const snapshot = buildActiveWorkspaceRuntimeSourceFilesSnapshot({
     activePath: activePath as never,
     existingSourceFiles: [
@@ -193,11 +193,11 @@ export function testBuildActiveWorkspaceRuntimeSourceFilesSnapshotIncludesFreshE
         status: 'idle',
       },
       {
-        id: 'existing-sidecar',
-        name: 'chat-stream-log_20260527T193000Z.md',
-        text: '# sidecar',
+        id: 'existing-trace',
+        name: 'kgc-trace_20260527T193000Z.md',
+        text: '# KGC Trace',
         enabled: false,
-        source: { kind: 'local', path: resolveWorkspaceSourcePathKey(existingSidecarPath) },
+        source: { kind: 'local', path: resolveWorkspaceSourcePathKey(existingTracePath) },
         status: 'idle',
       },
     ],
@@ -220,7 +220,7 @@ export function testBuildActiveWorkspaceRuntimeSourceFilesSnapshotIncludesFreshE
   if (activeFile.enabled !== true) {
     throw new Error(`expected fresh empty active workspace file to be enabled, got ${String(activeFile.enabled)}`)
   }
-  const preservedSidecar = snapshot.runtimeSourceFiles.find(file => String(file?.source?.path || '') === resolveWorkspaceSourcePathKey(existingSidecarPath)) || null
+  const preservedSidecar = snapshot.runtimeSourceFiles.find(file => String(file?.source?.path || '') === resolveWorkspaceSourcePathKey(existingTracePath)) || null
   if (!preservedSidecar) {
     throw new Error('expected runtime source-file snapshot to preserve existing canonical chat sidecar files')
   }

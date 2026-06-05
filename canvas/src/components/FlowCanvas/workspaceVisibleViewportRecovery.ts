@@ -1,4 +1,6 @@
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
+import { layoutRectSetCentroidWithinViewport } from '@/lib/canvas/graph-elements/centroid'
 
 export const FLOW_EDITOR_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE = 24
 
@@ -108,18 +110,29 @@ export function deriveFlowOverlayCollectiveViewportState(args: {
     && bounds.maxY > visibleViewport.top
     && bounds.minX < visibleViewport.right
     && bounds.minY < visibleViewport.bottom
-  const centroidX = (bounds.minX + bounds.maxX) / 2
-  const centroidY = (bounds.minY + bounds.maxY) / 2
   const spanW = Math.max(1, bounds.width)
   const spanH = Math.max(1, bounds.height)
   const spanAspect = spanW / spanH
   const fitsVisibleViewport =
     spanW <= visibleViewport.width * 1.4
     && spanH <= visibleViewport.height * 1.4
+  const metrics = measureLayoutRectSet([{
+    left: bounds.minX,
+    top: bounds.minY,
+    width: spanW,
+    height: spanH,
+  }])
   const centered =
     fitsVisibleViewport
-    && Math.abs(centroidX - visibleViewport.centerX) <= visibleViewport.width * 0.2
-    && Math.abs(centroidY - visibleViewport.centerY) <= visibleViewport.height * 0.24
+    && layoutRectSetCentroidWithinViewport({
+      metrics,
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
+      viewportCenterX: visibleViewport.centerX,
+      viewportCenterY: visibleViewport.centerY,
+      toleranceXRatio: 0.2,
+      toleranceYRatio: 0.24,
+    })
   const balanced = centered && fitsVisibleViewport && spanAspect >= 0.18 && spanAspect <= 6
   return { visible, centered, balanced, offscreen, fitsVisibleViewport }
 }

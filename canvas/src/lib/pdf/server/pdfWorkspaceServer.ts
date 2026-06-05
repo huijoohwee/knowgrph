@@ -116,16 +116,14 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
       try {
         const parts = pathname.split('/').filter(Boolean)
         const docId = parts.length >= 3 ? decodeURIComponent(parts[2] || '') : ''
-        const legacyModeRaw = parts.length >= 4 ? decodeURIComponent(parts[3] || '') : ''
-        const isLegacyMode = legacyModeRaw === 'text-only' || legacyModeRaw === 'image-heavy' || legacyModeRaw === 'scan-ocr'
-        const file = isLegacyMode ? (parts.length >= 5 ? parts.slice(4).map(decodeURIComponent).join('/') : '') : (parts.length >= 4 ? parts.slice(3).map(decodeURIComponent).join('/') : '')
+        const file = parts.length >= 4 ? parts.slice(3).map(decodeURIComponent).join('/') : ''
         if (!docId || !file || file.includes('..') || file.includes('\\')) {
           res.statusCode = 404
           res.setHeader('Content-Type', 'text/plain; charset=utf-8')
           res.end('Asset not found')
           return
         }
-        const assetsDirAbs = isLegacyMode ? path.join(workspaceAbs, docId, 'modes', legacyModeRaw, 'assets') : path.join(workspaceAbs, docId, 'assets')
+        const assetsDirAbs = path.join(workspaceAbs, docId, 'assets')
         const resolved = path.resolve(assetsDirAbs, file)
         const within = resolved.startsWith(path.resolve(assetsDirAbs) + path.sep)
         if (!within) {
@@ -275,36 +273,6 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
         .then(s => String(s))
         .catch(() => '')
       let anchorMap = (await readJsonFile(path.join(docDirAbs, 'anchor-map.json'))) as unknown
-
-      if (!markdown || !anchorMap) {
-        const candidates = ['image-heavy', 'text-only', 'scan-ocr']
-        for (const candidate of candidates) {
-          const candidateDir = path.join(docDirAbs, 'modes', candidate)
-          const candidateMd = await fs
-            .readFile(path.join(candidateDir, 'output.md'), 'utf8')
-            .then(s => String(s))
-            .catch(() => '')
-          const candidateAnchor = (await readJsonFile(path.join(candidateDir, 'anchor-map.json'))) as unknown
-          if (candidateMd && candidateAnchor) {
-            const legacyPrefix = `/__pdf_workspace/assets/${encodeURIComponent(docId)}/${encodeURIComponent(candidate)}`
-            const nextPrefix = `/__pdf_workspace/assets/${encodeURIComponent(docId)}`
-            markdown = candidateMd.includes(`${legacyPrefix}/`) ? candidateMd.split(`${legacyPrefix}/`).join(`${nextPrefix}/`) : candidateMd
-            anchorMap = candidateAnchor
-            const legacyAssetsDirAbs = path.join(candidateDir, 'assets')
-            const assetsDirAbs = path.join(docDirAbs, 'assets')
-            try {
-              const st = await fs.stat(assetsDirAbs)
-              if (!st.isDirectory()) throw new Error('not dir')
-            } catch {
-              await fs.mkdir(assetsDirAbs, { recursive: true }).catch(() => void 0)
-              await fs.cp(legacyAssetsDirAbs, assetsDirAbs, { recursive: true }).catch(() => void 0)
-            }
-            await fs.writeFile(path.join(docDirAbs, 'output.md'), markdown, 'utf8').catch(() => void 0)
-            await writeJsonFileAtomic(path.join(docDirAbs, 'anchor-map.json'), anchorMap).catch(() => void 0)
-            break
-          }
-        }
-      }
 
       if (!markdown || !anchorMap) {
         const sourcePdfAbs = path.join(docDirAbs, SOURCE_PDF_FILENAME)

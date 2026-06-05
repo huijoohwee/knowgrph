@@ -32,7 +32,7 @@ def build_jsonld(
     if not isinstance(edges_value, list):
         edges_value = []
     id_to_node: Dict[str, Dict[str, Any]] = {}
-    id_aliases: Dict[str, str] = {}
+    canonical_node_id_by_input_id: Dict[str, str] = {}
     timestamp = utc_timestamp()
     for raw_node in nodes_value:
         if not isinstance(raw_node, dict):
@@ -64,7 +64,7 @@ def build_jsonld(
         if node_type == "File" and isinstance(node_obj.get("path"), str) and node_obj["path"]:
             node_id = node_obj["path"]
         if node_id != original_node_id:
-            id_aliases[original_node_id] = node_id
+            canonical_node_id_by_input_id[original_node_id] = node_id
             node_obj["@id"] = f"{KG_PREFIX}{node_id}"
         owner_value = raw_data.get("owner")
         if isinstance(owner_value, str) and owner_value:
@@ -181,13 +181,6 @@ def build_jsonld(
                         continue
                     if key not in existing_meta and value is not None:
                         existing_meta[key] = value
-                aliases = existing_meta.get("aliases")
-                if not isinstance(aliases, list):
-                    aliases = []
-                if original_node_id not in aliases and original_node_id != node_id:
-                    aliases.append(original_node_id)
-                if aliases:
-                    existing_meta["aliases"] = aliases
         else:
             id_to_node[node_id] = node_obj
     outgoing: Dict[str, Dict[str, List[str]]] = {}
@@ -201,8 +194,8 @@ def build_jsonld(
         target_id = str(target_value) if target_value is not None else ""
         if not source_id or not target_id:
             continue
-        source_id = id_aliases.get(source_id, source_id)
-        target_id = id_aliases.get(target_id, target_id)
+        source_id = canonical_node_id_by_input_id.get(source_id, source_id)
+        target_id = canonical_node_id_by_input_id.get(target_id, target_id)
         if source_id not in id_to_node or target_id not in id_to_node:
             continue
         raw_data = raw_edge.get("data") or {}

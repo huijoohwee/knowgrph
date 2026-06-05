@@ -49,16 +49,16 @@ const normalizeColumnKey = (value: unknown): string => {
   return normalizeMarkdownInlineText(value).replace(/\\([^A-Za-z0-9\s])/g, '$1').trim()
 }
 
-const deriveColumnKeyAliases = (value: unknown): string[] => {
-  const aliases: string[] = []
+const deriveColumnKeyVariants = (value: unknown): string[] => {
+  const variants: string[] = []
   const normalized = normalizeColumnKey(value)
-  if (!normalized) return aliases
-  aliases.push(normalized)
+  if (!normalized) return variants
+  variants.push(normalized)
   const withoutTrailingParens = normalized.replace(/\s*\([^)]*\)\s*$/g, '').trim()
-  if (withoutTrailingParens && !aliases.includes(withoutTrailingParens)) aliases.push(withoutTrailingParens)
+  if (withoutTrailingParens && !variants.includes(withoutTrailingParens)) variants.push(withoutTrailingParens)
   const beforeEquation = withoutTrailingParens.split(/\s*=\s*/)[0]?.trim() || ''
-  if (beforeEquation && !aliases.includes(beforeEquation)) aliases.push(beforeEquation)
-  return aliases
+  if (beforeEquation && !variants.includes(beforeEquation)) variants.push(beforeEquation)
+  return variants
 }
 
 const isCoordinateLikeHeader = (headerNorm: string): boolean => {
@@ -103,10 +103,10 @@ const buildRowColumnRecord = (header: string[], row: unknown[]): Record<string, 
     const value = typeof cell === 'string' ? cell.trim() : cell
     if (value === null || value === undefined || value === '') continue
     rawColumns[key] = value
-    const aliases = deriveColumnKeyAliases(key)
-    for (const alias of aliases) {
-      if (!alias || alias === key || alias in rawColumns) continue
-      rawColumns[alias] = value
+    const variants = deriveColumnKeyVariants(key)
+    for (const variant of variants) {
+      if (!variant || variant === key || variant in rawColumns) continue
+      rawColumns[variant] = value
     }
   }
   return rawColumns

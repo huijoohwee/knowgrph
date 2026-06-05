@@ -5,6 +5,7 @@ import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/w
 import { isMarkdownPath, languageForPath } from '@/features/markdown-workspace/markdownWorkspaceUtils'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { shouldRejectMarkdownDocumentPayload } from '@/lib/markdown/markdownDocumentPayloadGuards'
 
 type WebpageWorkspaceMeta = {
   url?: unknown
@@ -21,7 +22,8 @@ export function resolveLiveWorkspaceStreamingText(args: {
   const activePath = normalizeWorkspacePath(String(args.activePath || '').trim())
   const streamingPath = normalizeWorkspacePath(String(args.streamingPath || '').trim())
   if (!activePath || !streamingPath || activePath !== streamingPath) return ''
-  return String(args.streamingText || '')
+  const text = String(args.streamingText || '')
+  return shouldRejectMarkdownDocumentPayload(text) ? '' : text
 }
 
 export function useMarkdownWorkspaceEffectiveContent(args: {
@@ -76,7 +78,9 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
     if (!isMarkdownPath(String(activePath || docKey))) return false
     return matchesMarkdownDocumentPath(docKey, markdownName)
   }, [activeDocumentKey, activePath, markdownDocumentName])
-  const canonicalMarkdownText = typeof markdownDocumentText === 'string' ? markdownDocumentText : ''
+  const rawCanonicalMarkdownText = typeof markdownDocumentText === 'string' ? markdownDocumentText : ''
+  const canonicalMarkdownText = shouldRejectMarkdownDocumentPayload(rawCanonicalMarkdownText) ? '' : rawCanonicalMarkdownText
+  const visibleActiveText = shouldRejectMarkdownDocumentPayload(activeText) ? '' : activeText
   const shouldSyncProgrammaticActiveText = (
     contentMode !== 'widget'
     && isMatchingMarkdownDocument
@@ -90,6 +94,12 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
     userEditedActiveTextRef.current = false
     setActiveText(prev => (prev === canonicalMarkdownText ? prev : canonicalMarkdownText))
   }, [canonicalMarkdownText, setActiveText, shouldSyncProgrammaticActiveText, userEditedActiveTextRef])
+
+  React.useLayoutEffect(() => {
+    if (!shouldRejectMarkdownDocumentPayload(activeText)) return
+    userEditedActiveTextRef.current = false
+    setActiveText(prev => (shouldRejectMarkdownDocumentPayload(prev) ? '' : prev))
+  }, [activeText, setActiveText, userEditedActiveTextRef])
 
   const liveWorkspaceStreamingText = React.useMemo(
     () =>
@@ -106,18 +116,18 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
     if (contentMode === 'widget') return widgetEditorText
     if (liveWorkspaceStreamingText) return liveWorkspaceStreamingText
     if (shouldSyncProgrammaticActiveText) return canonicalMarkdownText
-    if (activeText) return activeText
+    if (visibleActiveText) return visibleActiveText
     if (isMatchingMarkdownDocument && canonicalMarkdownText) {
       return canonicalMarkdownText
     }
-    return activeText
-  }, [activeText, canonicalMarkdownText, contentMode, isMatchingMarkdownDocument, liveWorkspaceStreamingText, shouldSyncProgrammaticActiveText, widgetEditorText])
+    return visibleActiveText
+  }, [canonicalMarkdownText, contentMode, isMatchingMarkdownDocument, liveWorkspaceStreamingText, shouldSyncProgrammaticActiveText, visibleActiveText, widgetEditorText])
 
   const effectiveSetActiveText = React.useCallback(
     (next: string) => {
       if (contentMode === 'widget') return
       userEditedActiveTextRef.current = true
-      setActiveText(next)
+      setActiveText(shouldRejectMarkdownDocumentPayload(next) ? '' : next)
     },
     [contentMode, setActiveText, userEditedActiveTextRef],
   )

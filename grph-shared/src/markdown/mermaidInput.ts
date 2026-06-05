@@ -3,7 +3,7 @@ export const isMermaidCodeFenceLang = (lang: string): boolean => {
   return v === 'mermaid' || v === 'mmd'
 }
 
-export type MermaidDiagramKind = 'flowchart' | 'gitgraph' | 'unknown'
+export type MermaidDiagramKind = 'flowchart' | 'gitgraph' | 'gantt' | 'unknown'
 
 export type MermaidDiagramSlice = {
   code: string
@@ -22,6 +22,7 @@ export const readMermaidDiagramKindFromLine = (line: string): MermaidDiagramKind
   if (!meaningful) return 'unknown'
   if (/^(?:graph|flowchart)\b/i.test(meaningful)) return 'flowchart'
   if (/^gitgraph\b:?\s*/i.test(meaningful)) return 'gitgraph'
+  if (/^gantt\b:?\s*/i.test(meaningful)) return 'gantt'
   return 'unknown'
 }
 

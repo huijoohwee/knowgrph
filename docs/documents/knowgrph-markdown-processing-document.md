@@ -169,16 +169,14 @@ To avoid redundant processing and ensure consistency across the application (e.g
 
 ## Usage
 
-For cross-feature smoke testing (Frontmatter + Mermaid + GeoJSON + Presentation), use a sandbox demo Markdown file under:
-
-`sandbox/demo/*.md`
+For cross-feature smoke testing (Frontmatter + Mermaid + GeoJSON + Presentation), use a repo-local fixture under `data/test-data/` or pass an operator-owned fixture explicitly through `KG_MARKDOWN_SLIDE_DEMO_PATH` / `KG_EXTERNAL_FIXTURE_ROOT`.
 
 For slide-demo interop (anchors/callouts/wikilinks), keep the bounded tests aligned with the same fixture:
 
 - `knowgrph/canvas/src/__tests__/markdown/markdownSlideDemoSupportInterop.test.ts`
 - `knowgrph/canvas/src/__tests__/markdown/markdownJsonLdSlideDemoInterop.test.ts`
 
-Tests resolve a demo file via a bounded search within the repo sandbox folder (or `KG_MARKDOWN_SLIDE_DEMO_PATH` / `KG_SANDBOX_ROOT`) so docs don't hardcode machine-specific absolute paths.
+Tests use repo-local fixtures by default; optional external fixture reads are environment-gated so docs do not hardcode machine-specific or sibling-checkout paths.
 
 ```markdown
 ```yaml

@@ -307,7 +307,7 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
     booleanCheck('structured-content', 'Tool result returns structured content for the View', structuredContentReady, [appTool?.name]),
     booleanCheck('resource-descriptor', 'MCP resource descriptor uses the MCP Apps MIME type', appResource?.mimeType === KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE, [appResource?.uri]),
     booleanCheck('resource-security-meta', 'Resource declares UI sandbox metadata', appResource?._meta?.ui?.prefersBorder === true && Boolean(appResource?._meta?.ui?.csp), [appResource?.uri]),
-    booleanCheck('openai-output-template', 'App tool exposes the OpenAI output template compatibility key', openAiOutputTemplateReady, [appTool?.name]),
+    booleanCheck('openai-output-template', 'App tool exposes the OpenAI output template metadata key', openAiOutputTemplateReady, [appTool?.name]),
     booleanCheck('openai-widget-bridge', 'App resource supports the OpenAI Apps widget bridge', openAiWidgetBridgeReady, ['window.openai', 'openai:set_globals']),
     booleanCheck('tool-security-schemes', 'App tool exposes no-auth securitySchemes and mirrors them in _meta', appToolSecuritySchemesReady, [appTool?.name]),
     booleanCheck('tool-impact-annotations', 'App tool exposes complete read-only impact annotations', appToolAnnotationsReady, [appTool?.name]),
@@ -401,7 +401,6 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
         url: transportUrl,
         stateless: true,
         serverFactory: true,
-        legacySse: false,
       },
       {
         id: 'local-stdio-jsonrpc',

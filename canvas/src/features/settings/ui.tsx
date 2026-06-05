@@ -357,7 +357,7 @@ export const renderSettingInput = (
   }
   if (key === 'maps.grabmaps.authMode') {
     const raw = String(v ?? '').trim().toLowerCase()
-    const normalized = raw === 'servermanaged' ? 'serverManaged' : 'byok'
+    const normalized = raw === 'byok' ? 'byok' : 'serverManaged'
     return (
       <select
         value={normalized}
@@ -375,8 +375,8 @@ export const renderSettingInput = (
         }}
         className={uiPanelKeyValueInputClass}
       >
-        <option value="byok">BYOK</option>
         <option value="serverManaged">Server-managed Key</option>
+        <option value="byok">BYOK</option>
       </select>
     )
   }
@@ -428,7 +428,7 @@ export const renderSettingInput = (
   }
   if (key === 'maps.grabmaps.apiKey') {
     const authModeRaw = String(values['maps.grabmaps.authMode'] || '').trim().toLowerCase()
-    const authMode = authModeRaw === 'servermanaged' ? 'serverManaged' : 'byok'
+    const authMode = authModeRaw === 'byok' ? 'byok' : 'serverManaged'
     if (authMode !== 'byok') {
       return (
         <PlainTextInputEditor

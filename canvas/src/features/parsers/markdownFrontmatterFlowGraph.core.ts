@@ -54,6 +54,7 @@ import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
 import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 import { mergeWidgetRegistryEntries, readAuthoredWidgetRegistryEntries } from '@/features/parsers/markdownFrontmatterFlowGraph.widgetRegistry'
+import { deriveFlowDiagramsWidgets } from '@/features/parsers/markdownFrontmatterFlowGraph.flowDiagrams'
 
 function guessJsonTypeLabel(value: unknown): string {
   if (value == null) return 'null'
@@ -858,8 +859,8 @@ function deriveFlowMetaFromIndexMermaid(args: {
   const mermaid = readFrontmatterIndexMermaidValue(args)
   if (!mermaid) return meta
   const lines = mermaid.split('\n')
-  const aliasToLabel = new Map<string, string>()
-  const aliases = new Set<string>()
+  const nodeKeyToLabel = new Map<string, string>()
+  const nodeKeys = new Set<string>()
   let direction: 'LR' | 'RL' | 'TB' | 'BT' | null = null
   for (let i = 0; i < lines.length; i += 1) {
     const line = String(lines[i] || '').trim()
@@ -871,19 +872,19 @@ function deriveFlowMetaFromIndexMermaid(args: {
     }
     const quotedDefs = line.matchAll(/([A-Za-z0-9_:-]+)\s*\[\s*"([^"]+)"\s*\]/g)
     for (const def of quotedDefs) {
-      const alias = asString(def[1])
+      const nodeKey = asString(def[1])
       const label = asString(def[2])
-      if (!alias) continue
-      aliases.add(alias)
-      if (label) aliasToLabel.set(alias, label)
+      if (!nodeKey) continue
+      nodeKeys.add(nodeKey)
+      if (label) nodeKeyToLabel.set(nodeKey, label)
     }
     const plainDefs = line.matchAll(/([A-Za-z0-9_:-]+)\s*\[\s*([^\]]+)\s*\]/g)
     for (const def of plainDefs) {
-      const alias = asString(def[1])
+      const nodeKey = asString(def[1])
       const label = asString(def[2])
-      if (!alias) continue
-      aliases.add(alias)
-      if (label && !aliasToLabel.has(alias)) aliasToLabel.set(alias, label)
+      if (!nodeKey) continue
+      nodeKeys.add(nodeKey)
+      if (label && !nodeKeyToLabel.has(nodeKey)) nodeKeyToLabel.set(nodeKey, label)
     }
   }
   const connections: Array<Record<string, unknown>> = []
@@ -896,8 +897,8 @@ function deriveFlowMetaFromIndexMermaid(args: {
     const source = asString(edge[1])
     const target = asString(edge[3])
     if (!source || !target || source === target) continue
-    aliases.add(source)
-    aliases.add(target)
+    nodeKeys.add(source)
+    nodeKeys.add(target)
     const label = asString(edge[2] || '')
     const labelArrow = label.includes('→') ? '→' : label.includes('->') ? '->' : ''
     const fromPort = labelArrow ? asString(label.split(labelArrow)[0]) || 'output' : 'output'
@@ -914,12 +915,12 @@ function deriveFlowMetaFromIndexMermaid(args: {
       ...(label ? { label } : {}),
     })
   }
-  const nodes = Array.from(aliases)
+  const nodes = Array.from(nodeKeys)
     .sort((a, b) => a.localeCompare(b))
     .map((id): Record<string, unknown> => ({
       id,
       type: 'default',
-      label: aliasToLabel.get(id) || id,
+      label: nodeKeyToLabel.get(id) || id,
     }))
   if (nodes.length === 0) return meta
   return {
@@ -1036,7 +1037,7 @@ function parseWidgetBundleMermaidWiring(args: {
 }): Array<Record<string, unknown>> {
   const mermaid = String(args.mermaid || '')
   if (!mermaid.trim()) return []
-  const aliasToNodeId = new Map<string, string>()
+  const nodeKeyToNodeId = new Map<string, string>()
   const lines = mermaid.split('\n')
   const readNodeIdFromLabel = (labelRaw: string): string => {
     const label = String(labelRaw || '')
@@ -1051,15 +1052,15 @@ function parseWidgetBundleMermaidWiring(args: {
     if (!line) continue
     const quotedDefs = line.matchAll(/([A-Za-z0-9_]+)\s*\[\s*"([^"]+)"\s*\]/g)
     for (const def of quotedDefs) {
-      const alias = asString(def[1])
+      const nodeKey = asString(def[1])
       const nodeId = readNodeIdFromLabel(def[2] || '')
-      if (alias && nodeId) aliasToNodeId.set(alias, nodeId)
+      if (nodeKey && nodeId) nodeKeyToNodeId.set(nodeKey, nodeId)
     }
     const plainDefs = line.matchAll(/([A-Za-z0-9_]+)\s*\[\s*([^\]]+)\s*\]/g)
     for (const def of plainDefs) {
-      const alias = asString(def[1])
+      const nodeKey = asString(def[1])
       const nodeId = readNodeIdFromLabel(def[2] || '')
-      if (alias && nodeId) aliasToNodeId.set(alias, nodeId)
+      if (nodeKey && nodeId) nodeKeyToNodeId.set(nodeKey, nodeId)
     }
   }
   const out: Array<Record<string, unknown>> = []
@@ -1069,10 +1070,10 @@ function parseWidgetBundleMermaidWiring(args: {
     if (!line) continue
     const edge = /^([A-Za-z0-9_]+)(?:\s*\[[^\]]*\])?\s*-->\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_]+)(?:\s*\[[^\]]*\])?/.exec(line)
     if (!edge) continue
-    const sourceAlias = asString(edge[1])
-    const targetAlias = asString(edge[3])
-    const source = aliasToNodeId.get(sourceAlias) || (args.widgetIdSet.has(sourceAlias) ? sourceAlias : '')
-    const target = aliasToNodeId.get(targetAlias) || (args.widgetIdSet.has(targetAlias) ? targetAlias : '')
+    const sourceNodeKey = asString(edge[1])
+    const targetNodeKey = asString(edge[3])
+    const source = nodeKeyToNodeId.get(sourceNodeKey) || (args.widgetIdSet.has(sourceNodeKey) ? sourceNodeKey : '')
+    const target = nodeKeyToNodeId.get(targetNodeKey) || (args.widgetIdSet.has(targetNodeKey) ? targetNodeKey : '')
     if (!source || !target || source === target) continue
     const label = asString(edge[2] || '')
     const labelArrow = label.includes('→') ? '→' : label.includes('->') ? '->' : ''
@@ -1379,6 +1380,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
 
   const metaRecord = normalizeMetaWithFlowBlock(metaForNormalization as Record<string, unknown>)
   deriveDirectorBriefShotWidgets(metaRecord)
+  deriveFlowDiagramsWidgets(metaRecord)
   const sourceFrontmatterMeta = enrichSourceFrontmatterMetaFromRawLines({
     sourceFrontmatterMeta: buildSourceFrontmatterMeta(metaWithIndexMermaidFallback),
     lines,

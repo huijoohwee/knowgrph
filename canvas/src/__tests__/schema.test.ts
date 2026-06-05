@@ -15,6 +15,7 @@ import { clampCollisionRadius } from '@/features/panels/utils/orchestratorTraver
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import { canonicalizeSchemaForPersistence, stringifyCanonicalSchema } from '@/features/schema/schemaCanonical'
 import { schemaFromJsonLd, schemaToJsonLd } from '@/features/schema/schemaJsonLd'
+import { parseLayoutMode } from '@/hooks/store/graphDataSliceParsers'
 
 export const testValidateSchemaFillsDefaults = () => {
   const s = validateSchema({})
@@ -33,6 +34,28 @@ export const testValidateSchemaBehaviorDefaults = () => {
   const exp2 = s2.behavior?.expansion || {}
   if (exp2.enabled !== false) throw new Error('expansion enabled override not applied')
   if (exp2.zoomOnSelection === false) throw new Error('zoomOnSelection should not be forced off when only enabled is overridden')
+}
+
+export const testValidateSchemaRejectsLegacyStratifyLayoutMode = () => {
+  const s = validateSchema({
+    layout: {
+      ...(defaultSchema.layout || {}),
+      mode: 'stratify',
+      stratify: { enabled: true },
+    } as unknown as NonNullable<Parameters<typeof validateSchema>[0]>['layout'],
+  })
+  if (s.layout?.mode !== defaultSchema.layout?.mode) {
+    throw new Error(`expected unsupported stratify layout mode to fall back to default, got ${String(s.layout?.mode)}`)
+  }
+  if (Object.prototype.hasOwnProperty.call(s.layout || {}, 'stratify')) {
+    throw new Error('expected stale layout.stratify payload to be removed at schema validation owner')
+  }
+}
+
+export const testGraphDataLayoutModeParserRejectsLegacyStratify = () => {
+  if (parseLayoutMode('stratify') !== null) {
+    throw new Error('expected graph metadata layout parser to reject stale stratify mode instead of remapping it')
+  }
 }
 
 export const testAddRenameRemoveNodeType = () => {
@@ -108,6 +131,10 @@ export const testRendererPaletteReusesSharedMetadataAndObjectReaders = () => {
   }
   if (text.includes("schema && schema.metadata && typeof schema.metadata === 'object' && !Array.isArray(schema.metadata)")) {
     throw new Error('expected schema renderer palette helper to stop coercing schema metadata inline')
+  }
+  const toolbarPaletteHook = readFileSync(resolve(process.cwd(), 'src/features/toolbar/hooks/useRendererPalette.ts'), 'utf8')
+  if (!toolbarPaletteHook.includes('getRendererPalette(schema)') || toolbarPaletteHook.includes('MVP_COLOR_PALETTE')) {
+    throw new Error('expected toolbar renderer palette hook to reuse the shared schema palette helper instead of local defaults')
   }
 
   const palette = getRendererPalette({

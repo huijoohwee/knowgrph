@@ -3,17 +3,35 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_BODY_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_PRIMARY_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_SECONDARY_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
+
+export type MarkdownExplorerSectionScrollMode = 'auto' | 'primary' | 'secondary'
 
 export function MarkdownExplorerSection(props: {
   title: string
   collapsed: boolean
   setCollapsed: (next: boolean) => void
+  sectionRef?: React.Ref<HTMLElement>
+  sectionStyle?: React.CSSProperties
+  scrollMode?: MarkdownExplorerSectionScrollMode
   right?: React.ReactNode
   children: React.ReactNode
 }) {
-  const { title, collapsed, setCollapsed, right, children } = props
+  const { title, collapsed, setCollapsed, sectionRef, sectionStyle, scrollMode = 'auto', right, children } = props
   const panelTypography = usePanelTypography()
+  const sectionScrollClassName = collapsed
+    ? ''
+    : scrollMode === 'primary'
+      ? UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_PRIMARY_CLASSNAME
+      : scrollMode === 'secondary'
+        ? UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_SECONDARY_CLASSNAME
+        : ''
 
   const onKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
@@ -26,7 +44,12 @@ export function MarkdownExplorerSection(props: {
   )
 
   return (
-    <section className={`border-b ${UI_THEME_TOKENS.panel.border}`} aria-label={title}>
+    <section
+      ref={sectionRef}
+      className={`${UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_CLASSNAME} ${sectionScrollClassName} border-b ${UI_THEME_TOKENS.panel.border}`}
+      style={sectionStyle}
+      aria-label={title}
+    >
       <header
         className={[
           'sticky top-0 z-20 w-full flex items-center justify-between px-2 py-1',
@@ -54,7 +77,11 @@ export function MarkdownExplorerSection(props: {
           {right}
         </nav>
       </header>
-      {!collapsed && <section className="px-1 pb-1">{children}</section>}
+      {!collapsed ? (
+        <section className={`${UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_BODY_CLASSNAME} px-1 pb-1`} aria-label={`${title} content`}>
+          {children}
+        </section>
+      ) : null}
     </section>
   )
 }

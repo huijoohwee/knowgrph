@@ -128,6 +128,48 @@ export function testFrontmatterFlowImportModePreservesExplicitRendererPreset() {
   }
 }
 
+export function testFrontmatterFlowImportModePreservesNormalizedGraphRendererPreset() {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setDocumentSemanticMode('document')
+  useGraphStore.getState().setFrontmatterModeEnabled(true)
+
+  const graphData = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: {
+      kind: 'frontmatter-flow',
+      canvasWorkspacePreset: {
+        canvasSurfaceMode: '2d',
+        canvasRenderMode: '2d',
+        canvas2dRenderer: 'd3',
+        documentSemanticMode: 'document',
+        frontmatterModeEnabled: true,
+        multiDimTableModeEnabled: false,
+        documentStructureBaselineLock: false,
+      },
+    },
+    nodes: [{ id: 'maps-readme', type: 'Document', label: 'Maps README' }],
+    edges: [],
+  } as never
+
+  const preset = resolveCanvasFrontmatterPreset({ graphData })
+  if (preset?.canvas2dRenderer !== 'd3') {
+    throw new Error(`expected normalized graph preset to resolve d3, got ${String(preset?.canvas2dRenderer)}`)
+  }
+
+  const handled = applyFrontmatterFlowImportModes(graphData)
+  const st = useGraphStore.getState()
+  if (handled !== true) {
+    throw new Error('expected frontmatter-flow import modes to handle normalized graph renderer preset')
+  }
+  if (st.canvas2dRenderer !== 'd3') {
+    throw new Error(`expected normalized graph preset to preserve d3 renderer, got ${String(st.canvas2dRenderer)}`)
+  }
+}
+
 export function testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAligned() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
@@ -332,7 +374,7 @@ export function testWorkspaceImportModesHonorExplicitMarkdownFrontmatterPreset()
   if (st.documentStructureBaselineLock !== false) throw new Error('expected explicit preset to force View Lock OFF')
 }
 
-export function testWorkspaceImportModesNormalizeRendererAliasesAndExplicitTableMode() {
+export function testWorkspaceImportModesNormalizeCanonicalRendererTokensAndExplicitTableMode() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(true)
   useGraphStore.getState().setCanvasRenderMode('3d')
@@ -343,22 +385,22 @@ export function testWorkspaceImportModesNormalizeRendererAliasesAndExplicitTable
 
   const rawText = [
     '---',
-    'title: "Flowchart Alias"',
+    'title: "Flowchart Token"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "Flowchart"',
-    'kgDocumentSemanticMode: "Keyword Mode"',
+    'kgCanvas2dRenderer: "flowchart"',
+    'kgDocumentSemanticMode: "keyword"',
     'kgFrontmatterModeEnabled: false',
     'kgMultiDimTableModeEnabled: true',
     'kgDocumentStructureBaselineLock: false',
     '---',
     '',
-    '# Flowchart Alias',
+    '# Flowchart Token',
   ].join('\n')
 
   const preset = resolveCanvasFrontmatterPreset({ rawText })
-  if (!preset) throw new Error('expected flowchart alias preset to resolve')
-  if (preset.canvas2dRenderer !== 'flowchart') throw new Error(`expected Flowchart alias to normalize to flowchart, got ${String(preset.canvas2dRenderer)}`)
-  if (preset.documentSemanticMode !== 'keyword') throw new Error(`expected Keyword Mode alias to normalize to keyword, got ${String(preset.documentSemanticMode)}`)
+  if (!preset) throw new Error('expected flowchart canonical-token preset to resolve')
+  if (preset.canvas2dRenderer !== 'flowchart') throw new Error(`expected flowchart token to normalize to flowchart, got ${String(preset.canvas2dRenderer)}`)
+  if (preset.documentSemanticMode !== 'keyword') throw new Error(`expected keyword token to normalize to keyword, got ${String(preset.documentSemanticMode)}`)
   if (preset.frontmatterModeEnabled !== false) throw new Error('expected explicit frontmatter OFF to resolve')
   if (preset.multiDimTableModeEnabled !== true) throw new Error('expected explicit multi-dimensional table mode ON to resolve')
 
@@ -366,7 +408,7 @@ export function testWorkspaceImportModesNormalizeRendererAliasesAndExplicitTable
 
   const st = useGraphStore.getState()
   if (st.canvasRenderMode !== '2d') throw new Error(`expected explicit preset to force 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
-  if (st.canvas2dRenderer !== 'flowchart') throw new Error(`expected Flowchart alias landing to use flowchart, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'flowchart') throw new Error(`expected flowchart token landing to use flowchart, got ${String(st.canvas2dRenderer)}`)
   if (st.documentSemanticMode !== 'keyword') throw new Error(`expected explicit keyword mode landing, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== false) throw new Error('expected explicit frontmatter OFF to be preserved')
   if (st.multiDimTableModeEnabled !== true) throw new Error('expected explicit multi-dimensional table mode ON to be preserved')
@@ -413,7 +455,7 @@ export function testWorkspaceImportModesFlowEditorPresetDisablesConflictingTable
   if (st.documentStructureBaselineLock !== false) throw new Error('expected Flow Editor preset to unlock baseline lock')
 }
 
-export function testWorkspaceImportModesNormalizeFlowCanvasAliasToFrontmatterOnlyLanding() {
+export function testWorkspaceImportModesUseCanonicalFlowRendererForFrontmatterOnlyLanding() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
@@ -424,26 +466,26 @@ export function testWorkspaceImportModesNormalizeFlowCanvasAliasToFrontmatterOnl
 
   const rawText = [
     '---',
-    'title: "Flow Canvas Alias"',
+    'title: "Flow Renderer"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "Flow Canvas"',
-    'kgDocumentSemanticMode: "Keyword Mode"',
+    'kgCanvas2dRenderer: "flow"',
+    'kgDocumentSemanticMode: "keyword"',
     'kgFrontmatterModeEnabled: false',
     'kgMultiDimTableModeEnabled: true',
     'kgDocumentStructureBaselineLock: false',
     '---',
     '',
-    '# Flow Canvas Alias',
+    '# Flow Renderer',
   ].join('\n')
 
   const preset = resolveCanvasFrontmatterPreset({ rawText })
-  if (!preset) throw new Error('expected flow canvas alias preset to resolve')
-  if (preset.canvas2dRenderer !== 'flow') throw new Error(`expected Flow Canvas alias to normalize to flow, got ${String(preset.canvas2dRenderer)}`)
+  if (!preset) throw new Error('expected flow canonical-token preset to resolve')
+  if (preset.canvas2dRenderer !== 'flow') throw new Error(`expected flow token to normalize to flow, got ${String(preset.canvas2dRenderer)}`)
 
   applyInteractiveImportModes({ rawText })
 
   const st = useGraphStore.getState()
-  if (st.canvas2dRenderer !== 'flow') throw new Error(`expected Flow Canvas alias landing to use flow renderer, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'flow') throw new Error(`expected flow token landing to use flow renderer, got ${String(st.canvas2dRenderer)}`)
   if (st.documentSemanticMode !== 'document') throw new Error(`expected frontmatter-only flow renderer to force document semantic mode, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== true) throw new Error('expected frontmatter-only flow renderer to force frontmatter mode ON')
   if (st.multiDimTableModeEnabled !== false) throw new Error('expected frontmatter-only flow renderer to force multi-dimensional table mode OFF')

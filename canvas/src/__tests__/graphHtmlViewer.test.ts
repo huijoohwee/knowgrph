@@ -194,8 +194,8 @@ export async function testExportHtmlViewerTreatsIFrameKindWithImageUrlAsImage() 
   if (!html.includes('kgInferMediaKindFromUrl2')) {
     throw new Error('expected exported html viewer to include extended media kind inference')
   }
-  if (!html.includes('wx_fmt=')) {
-    throw new Error('expected exported html viewer to treat wx_fmt images as images')
+  if (!html.includes("key.slice(-4) === '_fmt'") || !html.includes("key === 'format'")) {
+    throw new Error('expected exported html viewer to treat neutral image format query hints as images')
   }
   if (!html.includes("inferredKind && (kind === 'iframe'")) {
     throw new Error('expected iframe kind to be overridden by inferred image kind')
@@ -211,10 +211,10 @@ export async function testExportHtmlViewerHudIncludesModeToggles() {
   }
 }
 
-export async function testExportHtmlViewerMarkdownSnippetWeChatImageAppearsInOverlayPoolAndHtml() {
+export async function testExportHtmlViewerMarkdownSnippetFormatHintImageAppearsInOverlayPoolAndHtml() {
   const snippet =
-    '![mmbiz.qpic.cn](https://mmbiz.qpic.cn/mmbiz_png/gdEn3pxzatSHAib7vomhHSibH0icqO2xD72VBSBEgWDypepymkibpnpmW9iczvnTShtBHPyGRN7MttLwmWbFCIz9MtLKtVxml3cXeO1icZ0DicibLew/640?wx_fmt=png&from=appmsg)'
-  const parsed = await loadGraphDataFromTextViaParser('sandbox/test-data/snippet-wechat-image.md', snippet, { applyToStore: false })
+    '![remote image](https://assets.example/media_png/gdEn3pxzatSHAib7vomhHSibH0icqO2xD72VBSBEgWDypepymkibpnpmW9iczvnTShtBHPyGRN7MttLwmWbFCIz9MtLKtVxml3cXeO1icZ0DicibLew/640?asset_fmt=png&from=fixture)'
+  const parsed = await loadGraphDataFromTextViaParser('inline/snippet-format-hint-image.md', snippet, { applyToStore: false })
   if (!parsed || !parsed.graphData) throw new Error('expected graphData from markdown snippet parser')
   const graphData = parsed.graphData
   const overlayNodes = listMediaOverlayNodes({
@@ -222,22 +222,22 @@ export async function testExportHtmlViewerMarkdownSnippetWeChatImageAppearsInOve
     nodes: graphData.nodes || [],
     poolMax: 24,
   })
-  const expectedHost = 'mmbiz.qpic.cn/mmbiz_png/'
-  const expectedQuery = 'wx_fmt=png'
+  const expectedHost = 'assets.example/media_png/'
+  const expectedQuery = 'asset_fmt=png'
   const inOverlayPool = overlayNodes.some(n => n.kind === 'image' && n.url.includes(expectedHost) && n.url.includes(expectedQuery))
   if (!inOverlayPool) {
-    throw new Error('expected markdown snippet WeChat image to appear in media overlay node pool')
+    throw new Error('expected markdown snippet image format hint to appear in media overlay node pool')
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const html = await buildGraphHtmlViewerMarkup({
-    title: 'snippet-wechat-image',
+    title: 'snippet-format-hint-image',
     svgMarkup: svg,
     includeRichMediaOverlays: true,
     graphData,
   })
   if (!html) throw new Error('expected html')
   if (!html.includes(expectedHost) || !html.includes(expectedQuery)) {
-    throw new Error('expected markdown snippet WeChat image to be embedded in html viewer runtime payload')
+    throw new Error('expected markdown snippet image format hint to be embedded in html viewer runtime payload')
   }
 }
 
@@ -320,7 +320,7 @@ export async function testExportHtmlViewerRuntimeFallsBackToRawMediaWhenProxyFai
     includeRichMediaOverlays: true,
     graphData: {
       type: 'Graph',
-      nodes: [{ id: 'm1', label: 'Media', type: 'Image', properties: { media_kind: 'image', media_url: 'https://mmbiz.qpic.cn/a.png?wx_fmt=png' } }],
+      nodes: [{ id: 'm1', label: 'Media', type: 'Image', properties: { media_kind: 'image', media_url: 'https://assets.example/media/640?asset_fmt=png' } }],
       edges: [],
     },
   })

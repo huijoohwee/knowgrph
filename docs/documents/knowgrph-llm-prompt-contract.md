@@ -2,14 +2,14 @@
 
 ## Purpose
 
-- Enable an LLM to safely modify `schema-config/knowgrph-schema-config-template.jsonld` to create dataset-specific schema configs that remain:
+- Enable an LLM to safely modify `data/config/schema/knowgrph-schema-config-template.jsonld` to create dataset-specific schema configs that remain:
   - AgenticRAG-aligned.
   - Canvas-compatible.
   - Domain-agnostic (no hardcoded business logic).
 
 ## Input Artifact
 
-- You are given a JSON-LD document at `schema-config/knowgrph-schema-config-template.jsonld` with:
+- You are given a JSON-LD document at `data/config/schema/knowgrph-schema-config-template.jsonld` with:
   - `@context`: JSON-LD context including `@vocab`, `kg`, and `schema` prefixes.
   - `@graph`: node type and edge label definitions.
   - `metadata`: schema-level configuration, including:

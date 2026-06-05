@@ -2,7 +2,11 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS } from 'grph-shared/payments/agenticCommerceSsot'
+import {
+  AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS,
+  AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS,
+  readAgenticCommerceX402PayToAddress,
+} from 'grph-shared/payments/agenticCommerceSsot'
 
 type ConfigSummary = {
   ok?: boolean
@@ -100,6 +104,44 @@ export function testX402PaymentConfigScriptRejectsFallbackPayToAuthorityInput() 
   const payTo = readCheck(summary, 'x402-pay-to-address-input')
   if (payTo.status !== 'fail' || !String(payTo.details || '').includes('must not equal')) {
     throw new Error(`expected fallback x402 payTo input to be rejected, got ${JSON.stringify(payTo)}`)
+  }
+}
+
+export function testX402PaymentConfigScriptRejectsPlaceholderPayToAuthorityInput() {
+  const { result, summary } = runConfig({ X402_PAY_TO_ADDRESS: AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS }, [
+    '--write-visible-vars',
+    '--yes',
+    '--confirm=apply-stripe-payment-worker-config',
+  ])
+  if (result.status === 0 || summary.ok !== false) {
+    throw new Error(`expected placeholder x402 payTo input to fail, got ${JSON.stringify({ status: result.status, summary })}`)
+  }
+  const payTo = readCheck(summary, 'x402-pay-to-address-input')
+  if (payTo.status !== 'fail' || !String(payTo.details || '').includes('future-setup placeholder')) {
+    throw new Error(`expected placeholder x402 payTo input to be rejected, got ${JSON.stringify(payTo)}`)
+  }
+}
+
+export function testX402PaymentConfigScriptRejectsConfiguredPlaceholderPayToAuthority() {
+  const { result, summary } = runConfig({}, [], [
+    '[vars]',
+    `X402_PAY_TO_ADDRESS = "${AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS}"`,
+  ].join('\n'))
+  if (result.status === 0 || summary.ok !== false) {
+    throw new Error(`expected configured placeholder x402 payTo to fail, got ${JSON.stringify({ status: result.status, summary })}`)
+  }
+  const payTo = readCheck(summary, 'x402-pay-to-address-input')
+  if (payTo.status !== 'fail' || !String(payTo.details || '').includes('future-setup placeholder')) {
+    throw new Error(`expected configured placeholder x402 payTo to be rejected, got ${JSON.stringify(payTo)}`)
+  }
+}
+
+export function testX402PaymentConfigScriptReaderIgnoresPlaceholderPayToAuthority() {
+  const readPayTo = readAgenticCommerceX402PayToAddress({
+    X402_PAY_TO_ADDRESS: AGENTIC_COMMERCE_X402_PLACEHOLDER_PAY_TO_ADDRESS,
+  })
+  if (readPayTo !== AGENTIC_COMMERCE_X402_FALLBACK_PAY_TO_ADDRESS) {
+    throw new Error(`expected shared x402 payTo reader to ignore placeholder and return fallback, got ${readPayTo}`)
   }
 }
 

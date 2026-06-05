@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { extractEmbeddedGeoJsonFeatureCollections, extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embeddedGeoJson'
 import { resolveMarkdownGeoTextParseResult } from '@/features/geospatial/markdownGeoParse'
 import { readTripDemoMmd } from '@/tests/lib/tripDemo'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 export function testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections() {
   const p = resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-embedded-geojson-demo.md')
@@ -18,7 +19,7 @@ export function testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections() {
 }
 
 export function testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollectionInComputingFlowSample() {
-  const p = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
+  const p = resolveRepoTestDataPath('markdown-syntax-computing-flow-sample.md')
   const text = readFileSync(p, 'utf8')
   const blocks = extractEmbeddedGeoJsonFeatureCollections(text)
   if (blocks.length < 1) {
@@ -42,7 +43,7 @@ export function testMarkdownEmbeddedGeoJsonExtractionSupportsTripDemoMmdJsonFenc
 
   const reqs = extractEmbeddedGeoJsonGraphDataRequests({
     markdownText: text,
-    sourceDocumentPath: 'sandbox/demo/trip-demo-mmd.md',
+    sourceDocumentPath: 'fixtures/trip-demo-mmd.md',
     limit: 10,
   })
   if (reqs.length < 1) {

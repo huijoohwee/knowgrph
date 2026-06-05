@@ -90,7 +90,7 @@ layout:
 ```
 
 Notes:
-- `layout.mode` supports `force`, `radial`, and `mermaid` (legacy `stratify` inputs are coerced to `force`).
+- `layout.mode` supports the current schema values `force`, `radial`, `block`, and `mermaid`; removed layout names are not remapped.
 - Frontmatter mode is only “effective” when the active graph contains frontmatter Mermaid seed nodes; otherwise filtering is a no-op and cache keys must not change.
 - `layout.flow.rankdir` controls the canonical top-bottom vs left-right flow direction.
 - Layout position caches must be isolated by the full key `(datasetKey, semanticMode, frontmatterMode, layoutMode, renderMode, renderVariant, layoutVariant?, viewKey, mediaPanelDensity, renderMediaAsNodes)` (no fallback to partial/legacy keys).

@@ -30,7 +30,7 @@ import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { useOverlayInteractions2d } from '@/components/GraphCanvasRoot/hooks/useOverlayInteractions2d'
 import { subscribeGlobalCancelWatchdog } from '@/lib/browser/globalCancelEvents'
 import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
-import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
+import { CanvasGridOverlaySurface } from '@/components/CanvasGridOverlaySurface'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -359,6 +359,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     return d3.zoomTransform(el)
   }, [])
   const getZoomEventTarget = useCallback(() => svgRef.current, [])
+  const readAutoZoomGraph = useCallback(
+    () => ({
+      graphData: sceneGraphData,
+      graphDataRevision: graphContentRevision || graphDataRevision || 0,
+    }),
+    [graphContentRevision, graphDataRevision, sceneGraphData],
+  )
 
   const debouncedWidth = useDebouncedValue(width, 100)
   const debouncedHeight = useDebouncedValue(height, 100)
@@ -412,7 +419,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [])
 
   useZoomEffects({ svgRef, zoomRef, width, height, paused: !active, graphDataOverride: sceneGraphData })
-  useAutoZoomModes2d({ viewportW: width, viewportH: height, paused: !active })
+  useAutoZoomModes2d({ viewportW: width, viewportH: height, paused: !active, getGraph: readAutoZoomGraph })
   useEdgeCreationEffect({ paused: !active, tempLinkSelRef, linkDragRef })
   useEffect(() => {
     if (!active) return
@@ -1040,26 +1047,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   return (
     <main ref={containerRef} className={CANVAS_SURFACE_CLASS} role="main" aria-label="Graph Canvas">
       <ArrangeToolbar2d active={active} selectedCount={arrange.selectedIds.length} onArrange={arrange.applyArrange} />
-      <InfiniteGridCanvasOverlay
-        enabled={canvasGrid?.enabled === true}
-        gridSize={canvasGrid?.size || 10}
-        anchor={canvasGrid?.anchor}
-        lockToBaseStep={canvasGrid?.lockToBaseStep}
-        variant={canvasGrid?.variant}
-        majorEvery={canvasGrid?.majorEvery}
-        dotRadiusPx={canvasGrid?.dotRadiusPx}
-        minorAlpha={canvasGrid?.minorAlpha}
-        majorAlpha={canvasGrid?.majorAlpha}
-        minorWidthPx={canvasGrid?.minorWidthPx}
-        majorWidthPx={canvasGrid?.majorWidthPx}
-        minorStroke={canvasGrid?.minorStroke}
-        majorStroke={canvasGrid?.majorStroke}
+      <CanvasGridOverlaySurface
+        canvasGrid={canvasGrid}
         width={width}
         height={height}
         dpr={dpr}
         getTransform={getZoomTransform}
         getEventTarget={getZoomEventTarget}
         themeSignal={resolvedThemeMode}
+        surfaceId="d3"
       />
       <svg
         ref={svgRef}

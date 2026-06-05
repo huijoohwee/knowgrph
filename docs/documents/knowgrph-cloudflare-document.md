@@ -360,7 +360,7 @@ scoped API token with zone DNS edit permission. Presence checks must print only 
 |---|---|---|---|
 | Availability | Public app and storage routes must survive deploy | Pages + Workers route separation | live `curl` probes and browser smoke |
 | Security | DNS writes require least privilege | scoped token, secure local storage, fail-fast scripts | masked env checks and Cloudflare token validation |
-| Observability | Worker behavior must be inspectable | Wrangler logs, route probes, explicit check scripts; x402 readiness must reject fallback `payTo` authority until `X402_PAY_TO_ADDRESS` is deployed | `wrangler tail`, `agent-ready:check`, `dns-aid:check`, `payment:stripe:configure`, `payment:stripe:readiness`, `payment:x402:configure`, `payment:x402:readiness`, `payment:readiness` |
+| Observability | Worker behavior must be inspectable | Wrangler logs, route probes, explicit check scripts; x402 readiness must reject fallback or zero-address placeholder `payTo` authority until operator-owned `X402_PAY_TO_ADDRESS` is deployed | `wrangler tail`, `agent-ready:check`, `dns-aid:check`, `payment:stripe:configure`, `payment:stripe:readiness`, `payment:x402:configure`, `payment:x402:readiness`, `payment:readiness` |
 | Consistency | Dev, publish mirror, and Cloudflare stay aligned | source-owned sync and deploy commands | `pages:check-sync` |
 | Agent discovery | Agents find the same service via DNS and HTTP | DNS-AID SVCB + `.well-known` + MCP metadata | DoH `AD=true` and route checks |
 | Token cost | Cloudflare routing path has no LLM calls | no AI harness in routing path | token cost remains `$0` |

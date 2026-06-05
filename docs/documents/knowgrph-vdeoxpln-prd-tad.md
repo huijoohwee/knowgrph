@@ -94,9 +94,9 @@ owners, typed contracts, and validation harnesses.
 
 ## Executive Summary
 
-Knowgrph already has partial vdeoxpln surfaces:
+Knowgrph already has source-owned vdeoxpln surfaces:
 
-- a local `.trae` skill for multi-repo orchestration
+- a canonical generated vdeoxpln registry and agent-skill projection
 - a local stdio MCP tool inventory
 - browser WebMCP tool registration
 - Cloudflare Pages agent-ready metadata and agent-skills
@@ -132,7 +132,7 @@ runtime predicates.
 | Vdeoxpln registry | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | Defines canonical vdeoxpln ids, semantic keys, source owners, tools, generated Markdown, and Pages projections. | This is the canonical source for vdeoxpln metadata. |
 | Vdeoxpln routing | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | Ranks vdeoxplnEntries from neutral intent, content type, current state, and capability signals. | Route names, file names, absolute paths, and URLs are ignored for selection. |
 | Vdeoxpln run manifest | `canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts` | Persists source-backed run manifests beside KGC workspace artifacts. | Run manifests carry the selected vdeoxpln id, semantic run key, status, AI/cost fields, and Canvas apply result. |
-| Trae local skill | `.trae/skills/multi-repo-orchestrator/SKILL.md` | Repo-local guidance for coordinated multi-repo work. | Keep as a source-authored vdeoxpln until a generated registry supersedes it in place. |
+| Generated agent skills | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | Projects registry entries into Pages agent-skill Markdown and MainPanel MCP docs. | Generated skills replace tracked local tool-specific skill files. |
 | Local MCP inventory | `mcp/local-tool-contract.js` | Defines local stdio tool names, descriptions, and schemas. | Treat local tools as vdeoxpln capabilities, not a separate naming universe. |
 | Local MCP transport | `mcp/server.js` | Executes local stdio tools. | Keep execution local-root scoped and path guarded. |
 | MCP README | `mcp/README.md` | Documents local stdio MCP and separates deployed surfaces. | Generate or validate future vdeoxpln references from the same vdeoxpln contract. |
@@ -549,7 +549,7 @@ Registry-specific checks must prove:
 | Question | Default answer until implemented |
 |---|---|
 | Where should the canonical registry file live? | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`; consumers import its generated projections rather than path-matching at runtime. |
-| Should generated `SKILL.md` files replace `.trae/skills` immediately? | No. Validate existing authored skills first, then replace only when generation is stable. |
+| Should generated `SKILL.md` files replace tracked tool-specific local skills? | Yes. The registry projection is validated by `vdeoxpln:check`; tracked local skill copies must not remain as parallel authority. |
 | Which vdeoxplnEntries can mutate graph state remotely? | None by default. Published Pages/WebMCP remains read-only until authenticated mutation semantics exist. |
 | Should research-video workflows become a first-class vdeoxpln? | Yes, as an original Knowgrph vdeoxpln using Source Files, Storyboard, renderer, and chat owners. |
 

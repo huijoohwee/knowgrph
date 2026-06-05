@@ -1,12 +1,12 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'gitGraph', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gitGraph', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -14,7 +14,6 @@ type Canvas2dRendererSpec = {
   menuLabel: string
   menuDescription: string
   menuBadges: readonly string[]
-  aliases: readonly string[]
   sharesFlowEditorFrontmatterSyntax: boolean
 }
 
@@ -25,7 +24,14 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'D3',
     menuDescription: 'Node-link graph',
     menuBadges: ['Layout', 'Shape'],
-    aliases: ['d3graph'],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
+  dashboard: {
+    surfaceId: 'dashboard',
+    registryLabel: 'Dashboard',
+    menuLabel: 'Dash',
+    menuDescription: 'Graph dashboard',
+    menuBadges: ['D3', 'Grid'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   flowchart: {
@@ -34,7 +40,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Bi',
     menuDescription: 'Bipartite flow',
     menuBadges: ['Block', 'Voxel'],
-    aliases: ['d3flowchart'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   gitGraph: {
@@ -43,7 +48,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Git',
     menuDescription: 'Mermaid GitGraph',
     menuBadges: ['Mermaid', 'History'],
-    aliases: ['git', 'gitgraph', 'mermaidgitgraph'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   flow: {
@@ -52,7 +56,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Canvas',
     menuDescription: 'Canvas flow',
     menuBadges: ['Overlay', 'Media'],
-    aliases: ['flowcanvas'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   animatic: {
@@ -61,7 +64,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Animatic',
     menuDescription: 'Timeline beats',
     menuBadges: ['Timing', 'Lanes'],
-    aliases: [],
     sharesFlowEditorFrontmatterSyntax: true,
   },
   storyboard: {
@@ -70,7 +72,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Story',
     menuDescription: 'Storyboard lanes',
     menuBadges: ['Cards', 'Stages'],
-    aliases: ['story'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   strybldr: {
@@ -79,7 +80,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Strybldr',
     menuDescription: 'Image to storyboard',
     menuBadges: ['Image', 'Elements'],
-    aliases: [],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   flowEditor: {
@@ -88,7 +88,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Edit',
     menuDescription: 'Editable flow',
     menuBadges: ['Widgets', 'Run'],
-    aliases: ['edit'],
     sharesFlowEditorFrontmatterSyntax: true,
   },
   design: {
@@ -97,7 +96,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Design',
     menuDescription: 'DOM wireframe',
     menuBadges: ['Inspect', 'Tokens'],
-    aliases: [],
     sharesFlowEditorFrontmatterSyntax: false,
   },
 }
@@ -109,14 +107,10 @@ const normalizeCanvas2dRendererToken = (value: unknown): string => {
     .replace(/[\s_-]+/g, '')
 }
 
-const CANVAS_2D_RENDERER_ID_BY_ALIAS = (() => {
+const CANVAS_2D_RENDERER_ID_BY_NORMALIZED_TOKEN = (() => {
   const map = new Map<string, Canvas2dRendererId>()
   for (const rendererId of CANVAS_2D_RENDERERS) {
-    const spec = CANVAS_2D_RENDERER_SPECS[rendererId]
     map.set(normalizeCanvas2dRendererToken(rendererId), rendererId)
-    for (const alias of spec.aliases) {
-      map.set(normalizeCanvas2dRendererToken(alias), rendererId)
-    }
   }
   return map
 })()
@@ -131,7 +125,7 @@ export const resolveCanvas2dRendererId = (value: unknown): Canvas2dRendererId | 
   if (isCanvas2dRendererId(value)) return value
   const normalized = normalizeCanvas2dRendererToken(value)
   if (!normalized) return undefined
-  return CANVAS_2D_RENDERER_ID_BY_ALIAS.get(normalized)
+  return CANVAS_2D_RENDERER_ID_BY_NORMALIZED_TOKEN.get(normalized)
 }
 
 export const getCanvas2dRendererLabel = (id: Canvas2dRendererId): string => {
@@ -176,6 +170,10 @@ export const isGitGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undef
   return id === 'gitGraph'
 }
 
+export const isDashboardCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'dashboard'
+}
+
 export const isFlowCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'flow' || id === 'flowEditor'
 }
@@ -218,7 +216,7 @@ export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined):
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isGitGraphCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isDashboardCanvas2dRenderer(id) && !isFlowchartCanvas2dRenderer(id) && !isGitGraphCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const

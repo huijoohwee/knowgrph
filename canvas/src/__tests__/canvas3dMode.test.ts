@@ -25,6 +25,13 @@ export const BLOCK_SCHEMA = {
   rules: [],
 } as unknown as GraphSchema
 
+const NOOP_BOTTOM_SURFACE_ACTIONS = {
+  bottomSurfaceCollapsed: true,
+  bottomSurfaceTab: 'stats' as const,
+  setBottomSurfaceCollapsed: () => {},
+  setBottomSurfaceTab: () => {},
+}
+
 export function testVoxelModeRejectsGeospatialMode() {
   const args = {
     canvas2dRenderer: 'flowchart' as const,
@@ -71,6 +78,7 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: true,
+    ...NOOP_BOTTOM_SURFACE_ACTIONS,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => {},
     setCanvasRenderMode: mode => {
@@ -110,6 +118,8 @@ export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: false,
+    bottomSurfaceCollapsed: true,
+    bottomSurfaceTab: 'stats',
     geospatialEnabled: false,
     layoutMode: 'block',
     schema: BLOCK_SCHEMA,
@@ -156,6 +166,7 @@ export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: false,
+    ...NOOP_BOTTOM_SURFACE_ACTIONS,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => {},
     setCanvasRenderMode: () => {},
@@ -185,6 +196,7 @@ export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: false,
+    ...NOOP_BOTTOM_SURFACE_ACTIONS,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => {},
     setCanvasRenderMode: () => {},
@@ -497,6 +509,7 @@ export function testCanvasViewSelectionBlocksVoxelDuringGeospatialMode() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: true,
+    ...NOOP_BOTTOM_SURFACE_ACTIONS,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => { setCanvas2dRendererCalls += 1 },
     setCanvasRenderMode: () => { setCanvasRenderModeCalls += 1 },
@@ -528,6 +541,8 @@ export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelSt
       multiDimTableModeEnabled: false,
       renderMediaAsNodes: false,
       timelineEnabled: true,
+      bottomSurfaceCollapsed: true,
+      bottomSurfaceTab: 'stats',
       geospatialEnabled: false,
       layoutMode: 'block',
       schema: BLOCK_SCHEMA,
@@ -541,7 +556,7 @@ export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelSt
   const rendererMenu = options.find(option => option.id === 'renderer:menu')
   if (!rendererMenu?.children?.length) throw new Error('Expected renderer menu children')
   const disabled = new Map(rendererMenu.children.map(option => [option.id, option.disabled === true]))
-  const requiredSelectable: CanvasViewOptionId[] = ['renderer:flowchart', 'renderer:flow', 'renderer:animatic', 'renderer:storyboard', 'renderer:flowEditor', 'renderer:d3', 'renderer:design']
+  const requiredSelectable: CanvasViewOptionId[] = ['renderer:flowchart', 'renderer:flow', 'renderer:animatic', 'renderer:storyboard', 'renderer:flowEditor', 'renderer:d3', 'renderer:dashboard', 'renderer:design']
   for (const id of requiredSelectable) {
     if (disabled.get(id)) {
       throw new Error(`Expected ${id} to stay selectable for a 2D renderer choice even when inactive canvas3dMode is voxel`)
@@ -566,6 +581,8 @@ export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
       multiDimTableModeEnabled: false,
       renderMediaAsNodes: false,
       timelineEnabled: true,
+      bottomSurfaceCollapsed: true,
+      bottomSurfaceTab: 'stats',
       geospatialEnabled: false,
       layoutMode: 'block',
       schema: BLOCK_SCHEMA,
@@ -597,6 +614,8 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
       multiDimTableModeEnabled: false,
       renderMediaAsNodes: false,
       timelineEnabled: true,
+      bottomSurfaceCollapsed: false,
+      bottomSurfaceTab: 'gitGraph',
       geospatialEnabled: false,
       layoutMode: 'block',
       schema: BLOCK_SCHEMA,
@@ -614,18 +633,24 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
   const displayControls = options.find(option => option.id === 'control:menu')
   const timelineToggle = displayControls?.children?.find(child => child.id === 'control:timeline')
   const gridToggle = displayControls?.children?.find(child => child.id === 'control:grid')
-  if (!displayControls || !timelineToggle || !gridToggle) {
-    throw new Error('Expected Display Controls to own Grid and Timeline toggles')
+  const snapGridToggle = displayControls?.children?.find(child => child.id === 'control:snapGrid')
+  const gitGraphToggle = displayControls?.children?.find(child => child.id === 'control:gitGraph')
+  const ganttToggle = displayControls?.children?.find(child => child.id === 'control:gantt')
+  if (!displayControls || !timelineToggle || !gridToggle || !snapGridToggle || !gitGraphToggle || !ganttToggle) {
+    throw new Error('Expected Display Controls to own Grid, Snap to Grid, Timeline, GitGraph, and Gantt toggles')
   }
   const childIds = displayControls.children?.map(child => child.id).join('|')
-  if (childIds !== 'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:minimap|control:grid|control:timeline') {
-    throw new Error(`Expected Minimap, Grid, and Timeline to sit beside each other in Display Controls, got ${childIds}`)
+  if (childIds !== 'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:minimap|control:grid|control:snapGrid|control:timeline|control:gitGraph|control:gantt') {
+    throw new Error(`Expected Minimap, Grid, Snap to Grid, Timeline, GitGraph, and Gantt to sit beside each other in Display Controls, got ${childIds}`)
   }
   if (timelineToggle.children?.length) {
     throw new Error('Expected Timeline to reuse Grid-style single toggle semantics, not On/Off submenu children')
   }
-  if (timelineToggle.isActive !== true || gridToggle.isActive === true) {
-    throw new Error('Expected Timeline and Grid toggles to expose peer active states under Display Controls')
+  if (gitGraphToggle.children?.length || ganttToggle.children?.length) {
+    throw new Error('Expected GitGraph and Gantt to reuse Timeline-style single-action bottom-panel semantics')
+  }
+  if (timelineToggle.isActive !== true || gitGraphToggle.isActive !== true || ganttToggle.isActive === true || gridToggle.isActive === true || snapGridToggle.isActive === true) {
+    throw new Error('Expected Timeline, GitGraph, Gantt, Grid, and Snap to Grid toggles to expose peer active states under Display Controls')
   }
   const calls: string[] = []
   const unexpectedViewMutations: string[] = []
@@ -647,6 +672,7 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: true,
+    ...NOOP_BOTTOM_SURFACE_ACTIONS,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: markUnexpected('setCanvas2dRenderer') as any,
     setCanvasRenderMode: markUnexpected('setCanvasRenderMode') as any,
@@ -681,6 +707,7 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: false,
+    ...NOOP_BOTTOM_SURFACE_ACTIONS,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => {},
     setCanvasRenderMode: () => {},
@@ -694,6 +721,79 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
   })
   if (calls.join('|') !== 'true') {
     throw new Error(`Expected Timeline toggle to enable the shared bottom-panel setting, got ${calls.join('|')}`)
+  }
+  const bottomCalls: string[] = []
+  applyCanvasViewSelection({
+    id: 'control:gantt',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {
+      throw new Error('Expected Gantt toggle to avoid opening Geospatial Mode')
+    },
+    canvas2dRenderer: 'strybldr',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    timelineEnabled: true,
+    bottomSurfaceCollapsed: true,
+    bottomSurfaceTab: 'stats',
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: markUnexpected('setCanvas2dRenderer') as any,
+    setCanvasRenderMode: markUnexpected('setCanvasRenderMode') as any,
+    setCanvas3dMode: markUnexpected('setCanvas3dMode'),
+    setSchema: markUnexpected('setSchema') as any,
+    setBehavior: markUnexpected('setBehavior') as any,
+    setRenderMediaAsNodes: markUnexpected('setRenderMediaAsNodes'),
+    setTimelineEnabled: markUnexpected('setTimelineEnabled'),
+    setBottomSurfaceCollapsed: collapsed => bottomCalls.push(`collapsed:${String(collapsed)}`),
+    setBottomSurfaceTab: tab => bottomCalls.push(`tab:${tab}`),
+    setDocumentSemanticMode: markUnexpected('setDocumentSemanticMode') as any,
+    setFrontmatterModeEnabled: markUnexpected('setFrontmatterModeEnabled'),
+    setMultiDimTableModeEnabled: markUnexpected('setMultiDimTableModeEnabled'),
+  })
+  if (bottomCalls.join('|') !== 'tab:gantt|collapsed:false') {
+    throw new Error(`Expected Gantt Display Control to open the shared BottomPanel Gantt tab, got ${bottomCalls.join('|')}`)
+  }
+  bottomCalls.length = 0
+  applyCanvasViewSelection({
+    id: 'control:gitGraph',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {
+      throw new Error('Expected GitGraph toggle to avoid opening Geospatial Mode')
+    },
+    canvas2dRenderer: 'strybldr',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    timelineEnabled: true,
+    bottomSurfaceCollapsed: false,
+    bottomSurfaceTab: 'gitGraph',
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: markUnexpected('setCanvas2dRenderer') as any,
+    setCanvasRenderMode: markUnexpected('setCanvasRenderMode') as any,
+    setCanvas3dMode: markUnexpected('setCanvas3dMode'),
+    setSchema: markUnexpected('setSchema') as any,
+    setBehavior: markUnexpected('setBehavior') as any,
+    setRenderMediaAsNodes: markUnexpected('setRenderMediaAsNodes'),
+    setTimelineEnabled: markUnexpected('setTimelineEnabled'),
+    setBottomSurfaceCollapsed: collapsed => bottomCalls.push(`collapsed:${String(collapsed)}`),
+    setBottomSurfaceTab: tab => bottomCalls.push(`tab:${tab}`),
+    setDocumentSemanticMode: markUnexpected('setDocumentSemanticMode') as any,
+    setFrontmatterModeEnabled: markUnexpected('setFrontmatterModeEnabled'),
+    setMultiDimTableModeEnabled: markUnexpected('setMultiDimTableModeEnabled'),
+  })
+  if (bottomCalls.join('|') !== 'collapsed:true') {
+    throw new Error(`Expected active GitGraph Display Control to collapse the shared BottomPanel, got ${bottomCalls.join('|')}`)
+  }
+  if (unexpectedViewMutations.length > 0) {
+    throw new Error(`Expected GitGraph/Gantt bottom controls not to mutate Canvas View Mode setters, got ${unexpectedViewMutations.join(', ')}`)
   }
 }
 
@@ -716,6 +816,7 @@ export function testCanvasViewRendererSelectionActivates2dSurface() {
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
     timelineEnabled: true,
+    ...NOOP_BOTTOM_SURFACE_ACTIONS,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => { rendererCalls += 1 },
     setCanvasRenderMode: mode => { renderModes.push(mode) },

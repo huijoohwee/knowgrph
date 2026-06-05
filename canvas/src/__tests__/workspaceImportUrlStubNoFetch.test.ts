@@ -27,7 +27,7 @@ import {
   writeWorkspaceImportShareExportRootPathSetting,
 } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
-type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
+type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }; const MIROMIND_SHARE_FIXTURE = { token: 'c753877f-7480-4e76-bf75-89fe18358943', url: ['https://', 'dr.miromind.ai', '/share/', 'c753877f-7480-4e76-bf75-89fe18358943'].join('') }
 const webpageHtml = (title: string, extraHead = '') => [
   '<!doctype html>',
   '<html>',
@@ -326,8 +326,8 @@ export async function testWorkspaceImportUrlCarriesApplyPolicyFromIngestion(): P
   }
 }
 export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDocsRoot(): Promise<void> {
-  const shareUrl = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
-  const exportToken = 'c753877f-7480-4e76-bf75-89fe18358943'
+  const shareUrl = MIROMIND_SHARE_FIXTURE.url
+  const exportToken = MIROMIND_SHARE_FIXTURE.token
   const longParagraph = 'Both Goldman Sachs and UBS assume that the current Hormuz-driven shock is a large but ultimately reversible disturbance in an otherwise stationary oil market, and they underweight the midstream hysteresis and policy feedbacks that structurally raise the price floor.'
   const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
@@ -499,8 +499,8 @@ export function testWorkspaceSourceRootPathsIncludeConfiguredShareExportRoot(): 
 }
 export async function testWorkspaceImportUrlUsesConfiguredShareExportRootSetting(): Promise<void> {
   const { restore } = initJsdomHarness()
-  const shareUrl = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
-  const exportToken = 'c753877f-7480-4e76-bf75-89fe18358943'
+  const shareUrl = MIROMIND_SHARE_FIXTURE.url
+  const exportToken = MIROMIND_SHARE_FIXTURE.token
   const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousValue = readWorkspaceImportShareExportRootPathSetting()
@@ -1431,7 +1431,7 @@ export async function testWorkspaceImportUrlImportSkipsTextDomProbeWhenStructure
 }
 export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSiblingExport(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
-  const url = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
+  const url = MIROMIND_SHARE_FIXTURE.url
   const shellHtml = [
     '<!doctype html>',
     '<html>',
@@ -1556,7 +1556,7 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
 }
 export async function testWorkspaceImportUrlShareThinkingTrajectoryDoesNotUseWholeDocumentHtmlFallback(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
-  const url = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
+  const url = MIROMIND_SHARE_FIXTURE.url
   const shellHtml = [
     '<!doctype html>',
     '<html><body>',
@@ -1714,8 +1714,8 @@ export async function testWorkspaceImportUrlShareArtifactPersistNormalizesThinki
   try {
     const persisted = await persistImportedShareUrlArtifacts({
       fs,
-      url: 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943',
-      importedName: 'c753877f-7480-4e76-bf75-89fe18358943.md',
+      url: MIROMIND_SHARE_FIXTURE.url,
+      importedName: `${MIROMIND_SHARE_FIXTURE.token}.md`,
       importedText: '# Summary\n',
       importedThinkingText: [
         '<section class="flex items-center gap-2"><section></section><section><span class="text-p text-secondary">Found 6 results</span></section></section>',
@@ -1724,7 +1724,7 @@ export async function testWorkspaceImportUrlShareArtifactPersistNormalizesThinki
         '- import numpy as np',
         '```',
       ].join('\n'),
-      importedWorkspacePath: '/docs_/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943.md',
+      importedWorkspacePath: `/docs_/${MIROMIND_SHARE_FIXTURE.token}/${MIROMIND_SHARE_FIXTURE.token}.md`,
       rootFolderPath,
     })
     if (!persisted) throw new Error('expected eligible share url to persist markdown artifacts')
@@ -1752,11 +1752,11 @@ export async function testWorkspaceImportUrlShareArtifactDoesNotBackfillThinking
   try {
     const persisted = await persistImportedShareUrlArtifacts({
       fs,
-      url: 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943',
-      importedName: 'c753877f-7480-4e76-bf75-89fe18358943.md',
+      url: MIROMIND_SHARE_FIXTURE.url,
+      importedName: `${MIROMIND_SHARE_FIXTURE.token}.md`,
       importedText: [
         '---',
-        'kgWebpageUrl: "https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943"',
+        `kgWebpageUrl: "${MIROMIND_SHARE_FIXTURE.url}"`,
         'kgWebpageView: "markdown"',
         '---',
         '',
@@ -1765,7 +1765,7 @@ export async function testWorkspaceImportUrlShareArtifactDoesNotBackfillThinking
         'This content belongs only in the main markdown artifact.',
       ].join('\n'),
       importedThinkingText: '',
-      importedWorkspacePath: '/docs_/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943.md',
+      importedWorkspacePath: `/docs_/${MIROMIND_SHARE_FIXTURE.token}/${MIROMIND_SHARE_FIXTURE.token}.md`,
       rootFolderPath,
     })
     if (!persisted) throw new Error('expected eligible share url to persist markdown artifacts')

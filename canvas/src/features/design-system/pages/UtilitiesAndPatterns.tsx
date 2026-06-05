@@ -110,7 +110,7 @@ export default function UtilitiesAndPatterns() {
 
       <Card title="Migration guidance">
         <ol className={cn('m-0 pl-5 text-sm', UI_THEME_TOKENS.text.secondary)}>
-          <li>Identify legacy constants and per-feature Tailwind color/spacing utilities.</li>
+          <li>Identify local constants and per-feature Tailwind color/spacing utilities.</li>
           <li>Map to semantic token(s) and replace via shared UI utilities.</li>
           <li>Validate theme switching and keyboard focus visibility.</li>
         </ol>

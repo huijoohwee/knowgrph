@@ -31,28 +31,9 @@ export async function testWorkspaceImportUrlExportsWebpageMarkdownIntoDocsRoot()
     const fs = createMemoryWorkspaceFs({
       initialEntries: [
         { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
-        {
-          path: `/${fileName}`,
-          parentPath: '/',
-          kind: 'file',
-          name: fileName,
-          text: [
-            '---',
-            `kgWebpageUrl: "${url}"`,
-            'kgWebpageView: "markdown"',
-            '---',
-            '',
-            '# Legacy root import',
-            '',
-          ].join('\n'),
-          updatedAtMs: 1,
-        },
       ],
     })
     await fs.ensureSeed()
-    if ((await fs.readFileText(`/${fileName}`)) === null) {
-      throw new Error('test setup expected a legacy root-level webpage artifact')
-    }
     const result = await importWorkspaceUrl({
       fs,
       urlRaw: url,
@@ -90,8 +71,8 @@ export async function testWorkspaceImportUrlExportsWebpageMarkdownIntoDocsRoot()
     if ((await fs.readFileText(`/${fileName}`)) !== null) {
       throw new Error('expected webpage URL import to avoid a duplicate root-level workspace artifact')
     }
-    if (!result.removedPaths?.includes(`/${fileName}`)) {
-      throw new Error(`expected stale root-level webpage artifact to be reported as removed, got ${JSON.stringify(result.removedPaths || [])}`)
+    if (result.removedPaths?.includes(`/${fileName}`)) {
+      throw new Error(`expected webpage URL import to avoid old root-level cleanup paths, got ${JSON.stringify(result.removedPaths || [])}`)
     }
   } finally {
     if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot

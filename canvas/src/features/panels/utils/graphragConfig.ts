@@ -6,6 +6,8 @@ import {
   getAgenticRagIgnoreFiltersSummary,
 } from '@/lib/graph/jsonld/index'
 
+export const DEFAULT_GRAPHRAG_CONFIG_PATH = 'data/config/graphrag/config.yaml'
+
 type RagTraversalRuleRelationConstraint = {
   '@type': 'rag:TraversalRule'
   ruleType: 'relation-constraint'

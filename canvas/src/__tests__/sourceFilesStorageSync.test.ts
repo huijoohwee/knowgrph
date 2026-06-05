@@ -364,6 +364,44 @@ export async function testSourceFileShareUrlReturnsAirvioOpaquePublicRouteAfterP
   }
 }
 
+export async function testSourceFileShareUrlHydratesMetadataOnlyWorkspaceEntryBeforePublish() {
+  await __resetKnowgrphStorageDbForTests()
+  try {
+    const env = createFakeKnowgrphStorageWorkerEnv()
+    const fetchImpl = createStorageWorkerFetch(env)
+    const workspaceId = 'kgws:test-share-url-hydrates-entry'
+    const shareUrl = await publishWorkspaceEntryShareUrl({
+      workspaceId,
+      baseUrl: 'https://example.com',
+      fetchImpl,
+      readEntryText: entry => entry.path === '/workspace/chat/public.md' ? '# Hydrated Public Share URL' : '',
+      entry: {
+        path: '/workspace/chat/public.md',
+        parentPath: '/workspace/chat',
+        kind: 'file',
+        name: 'public.md',
+        updatedAtMs: 1,
+      },
+    })
+    if (!shareUrl) {
+      throw new Error('expected metadata-only workspace entry to resolve text before Share URL publication')
+    }
+    const docResponse = await readStorageWorker().fetch(
+      new Request(`https://example.com${buildKnowgrphStorageDocPath(workspaceId, 'workspace/chat/public.md')}`),
+      env as never,
+    )
+    if (!docResponse.ok) {
+      throw new Error(`expected hydrated Share URL document to be publicly readable, got ${docResponse.status}`)
+    }
+    const text = await docResponse.text()
+    if (text !== '# Hydrated Public Share URL') {
+      throw new Error(`expected Share URL publication to store hydrated workspace text, got ${text}`)
+    }
+  } finally {
+    await __resetKnowgrphStorageDbForTests()
+  }
+}
+
 export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQueueIntegration() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
   const text = readFileSync(bootstrapPath, 'utf8')

@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
   "exports": {
     "./graph/types": {
       "types": "./dist/graph/types.d.ts",
@@ -13,6 +16,16 @@
       "types": "./dist/collision/boxCollision.d.ts",
       "import": "./dist/collision/boxCollision.js",
       "default": "./dist/collision/boxCollision.js"
+    },
+    "./collision/aabbContain": {
+      "types": "./dist/collision/aabbContain.d.ts",
+      "import": "./dist/collision/aabbContain.js",
+      "default": "./dist/collision/aabbContain.js"
+    },
+    "./collision/aabbPush": {
+      "types": "./dist/collision/aabbPush.d.ts",
+      "import": "./dist/collision/aabbPush.js",
+      "default": "./dist/collision/aabbPush.js"
     },
     "./collision/types": {
       "types": "./dist/collision/types.d.ts",
@@ -219,6 +232,11 @@
       "import": "./dist/payments/stripePaymentSsot.js",
       "default": "./dist/payments/stripePaymentSsot.js"
     },
+    "./payments/agenticCommerceSemanticKey": {
+      "types": "./dist/payments/agenticCommerceSemanticKey.d.ts",
+      "import": "./dist/payments/agenticCommerceSemanticKey.js",
+      "default": "./dist/payments/agenticCommerceSemanticKey.js"
+    },
     "./payments/agenticCommerceSsot": {
       "types": "./dist/payments/agenticCommerceSsot.d.ts",
       "import": "./dist/payments/agenticCommerceSsot.js",
@@ -360,5 +378,8 @@
     "src",
     "package.json",
     "README.md"
-  ]
+  ],
+  "dependencies": {
+    "yjs": "^13.6.31"
+  }
 }

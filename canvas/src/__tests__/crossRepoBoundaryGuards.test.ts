@@ -313,7 +313,7 @@ export function testForbidHardcodedSandboxAbsolutePaths() {
   }
   if (violations.length) {
     const msg = violations.map(v => `${v.file} contains ${JSON.stringify(v.snippet)}`).join('\n')
-    throw new Error(`Forbidden hardcoded absolute sandbox paths detected. Use sandboxRoot helpers + basenames or local test fixtures:\n${msg}`)
+    throw new Error(`Forbidden hardcoded absolute sandbox paths detected. Use external fixture helpers + basenames or local test fixtures:\n${msg}`)
   }
 }
 

@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { createZoom } from '@/components/GraphCanvas/zoom'
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -26,12 +27,16 @@ type SvgSurfaceBounds = {
 type SvgSurfaceRuntime = {
   revision: number
   bounds: SvgSurfaceBounds
+  viewport: {
+    width: number
+    height: number
+  }
 }
 
 type SvgElementSelectionController = {
   cleanup: () => void
   clearSelectedElement: () => void
-  setSelectedElementByLabel: (label: string | null | undefined) => void
+  setSelectedElementByLabel: (label: string | null | undefined, options?: { notify?: boolean }) => void
 }
 
 type UseSvgSurfaceZoomRuntimeArgs = {
@@ -42,6 +47,7 @@ type UseSvgSurfaceZoomRuntimeArgs = {
   rendererId: Canvas2dRendererId
   graphData: GraphData | null
   graphDataRevision: number
+  svgSurfaceKey?: string
   selectedElementLabel?: string
   readSelectedElementLabel?: (args: {
     svgEl: SVGSVGElement
@@ -93,6 +99,29 @@ const readSvgVisualBounds = (svgEl: SVGSVGElement): SvgSurfaceBounds => {
   }
 }
 
+const readSvgContentClientBounds = (svgEl: SVGSVGElement, group: SVGGElement): SvgSurfaceBounds | null => {
+  const svgRect = svgEl.getBoundingClientRect()
+  const groupRect = group.getBoundingClientRect()
+  if (
+    !Number.isFinite(svgRect.left) ||
+    !Number.isFinite(svgRect.top) ||
+    !Number.isFinite(groupRect.left) ||
+    !Number.isFinite(groupRect.top) ||
+    !Number.isFinite(groupRect.width) ||
+    !Number.isFinite(groupRect.height) ||
+    groupRect.width <= 1 ||
+    groupRect.height <= 1
+  ) {
+    return null
+  }
+  return {
+    minX: groupRect.left - svgRect.left,
+    minY: groupRect.top - svgRect.top,
+    width: Math.max(1, groupRect.width),
+    height: Math.max(1, groupRect.height),
+  }
+}
+
 const isSvgViewportMetadataElement = (node: ChildNode): boolean => {
   if (!(node instanceof SVGElement)) return false
   const tag = node.tagName.toLowerCase()
@@ -127,8 +156,20 @@ const ensureSvgZoomContentGroup = (svgEl: SVGSVGElement): SVGGElement => {
   return group
 }
 
-const prepareSvgForInteractiveViewport = (svgEl: SVGSVGElement): { group: SVGGElement; bounds: SvgSurfaceBounds } => {
-  const bounds = readSvgVisualBounds(svgEl)
+const readSvgViewportRect = (svgEl: SVGSVGElement): { width: number; height: number } => {
+  const rect = svgEl.getBoundingClientRect()
+  return {
+    width: Math.max(1, Number.isFinite(rect.width) && rect.width > 0 ? rect.width : svgEl.clientWidth || 1),
+    height: Math.max(1, Number.isFinite(rect.height) && rect.height > 0 ? rect.height : svgEl.clientHeight || 1),
+  }
+}
+
+const prepareSvgForInteractiveViewport = (svgEl: SVGSVGElement): {
+  group: SVGGElement
+  bounds: SvgSurfaceBounds
+  viewport: { width: number; height: number }
+} => {
+  const fallbackBounds = readSvgVisualBounds(svgEl)
   svgEl.setAttribute('data-kg-svg-surface-root', '1')
   svgEl.setAttribute('width', '100%')
   svgEl.setAttribute('height', '100%')
@@ -139,7 +180,16 @@ const prepareSvgForInteractiveViewport = (svgEl: SVGSVGElement): { group: SVGGEl
   svgEl.style.maxWidth = 'none'
   svgEl.style.overflow = 'hidden'
   svgEl.style.touchAction = 'none'
-  return { group: ensureSvgZoomContentGroup(svgEl), bounds }
+  const group = ensureSvgZoomContentGroup(svgEl)
+  group.removeAttribute('transform')
+  const contentBounds = readSvgContentClientBounds(svgEl, group)
+  const bounds = contentBounds || fallbackBounds
+  svgEl.setAttribute('data-kg-svg-fit-source', contentBounds ? 'content' : 'root')
+  svgEl.setAttribute('data-kg-svg-fit-x', String(bounds.minX))
+  svgEl.setAttribute('data-kg-svg-fit-y', String(bounds.minY))
+  svgEl.setAttribute('data-kg-svg-fit-w', String(bounds.width))
+  svgEl.setAttribute('data-kg-svg-fit-h', String(bounds.height))
+  return { group, bounds, viewport: readSvgViewportRect(svgEl) }
 }
 
 const buildSvgSurfaceGraphData = (args: {
@@ -194,6 +244,12 @@ const normalizeSvgComparableLabel = (value: string | null | undefined): string =
 const SVG_SELECTABLE_ELEMENT_SELECTOR = 'text, tspan, circle, rect, path, g'
 const SVG_LABEL_PREFERRED_ELEMENT_SELECTOR = 'text, tspan, [aria-label], [data-id], [id]'
 const SVG_DIMMABLE_ELEMENT_SELECTOR = 'text, tspan, circle, rect, path'
+const SVG_DIRECT_SELECTION_TARGET_SELECTOR = '[data-kg-svg-selection-target="1"], [data-kg-mermaid-row-target="1"]'
+const SVG_NEAREST_DIRECT_SELECTION_RADIUS_PX = 12
+
+const normalizeSvgSurfaceZoomKey = (value: string | null | undefined): string => {
+  return String(value || '').trim().replace(/[^\w:.-]+/g, '-').replace(/-+/g, '-')
+}
 
 const readSvgSelectionCandidates = (svgEl: SVGSVGElement): Element[] => {
   const contentEl = svgEl.querySelector('[data-kg-svg-zoom-content="1"]') || svgEl
@@ -210,6 +266,53 @@ const findSvgSelectionCandidateByLabel = (svgEl: SVGSVGElement, label: string | 
   if (exact) return exact
   const preferred = candidates.filter(element => element.matches(SVG_LABEL_PREFERRED_ELEMENT_SELECTOR))
   return preferred.find(element => normalizeSvgComparableLabel(readSvgElementLabel(element)).includes(normalized)) || null
+}
+
+const readSvgRectDistance = (rect: DOMRect, x: number, y: number): number => {
+  const dx = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0
+  const dy = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
+  return Math.hypot(dx, dy)
+}
+
+const findNearestSvgSelectionTarget = (
+  svgEl: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+): Element | null => {
+  const contentEl = svgEl.querySelector('[data-kg-svg-zoom-content="1"]') || svgEl
+  let best: { element: Element; distance: number; area: number } | null = null
+  for (const element of Array.from(contentEl.querySelectorAll(SVG_DIRECT_SELECTION_TARGET_SELECTOR))) {
+    if (element.closest('[data-kg-svg-viewport-hitbox="1"]')) continue
+    if (element.tagName.toLowerCase() === 'path') continue
+    const rect = element.getBoundingClientRect()
+    if (
+      !Number.isFinite(rect.left) ||
+      !Number.isFinite(rect.top) ||
+      !Number.isFinite(rect.width) ||
+      !Number.isFinite(rect.height) ||
+      rect.width <= 0 ||
+      rect.height <= 0
+    ) continue
+    const distance = readSvgRectDistance(rect, clientX, clientY)
+    if (distance > SVG_NEAREST_DIRECT_SELECTION_RADIUS_PX) continue
+    const area = Math.max(1, rect.width * rect.height)
+    if (!best || distance < best.distance || (distance === best.distance && area < best.area)) {
+      best = { element, distance, area }
+    }
+  }
+  return best?.element || null
+}
+
+const resolveSvgSelectionClickCandidate = (
+  svgEl: SVGSVGElement,
+  target: Element | null,
+  event: MouseEvent,
+): Element | null => {
+  const directTarget = target?.closest(SVG_DIRECT_SELECTION_TARGET_SELECTOR)
+  if (directTarget instanceof Element && directTarget.closest('[data-kg-svg-zoom-content="1"]')) return directTarget
+  const candidate = target?.closest(SVG_SELECTABLE_ELEMENT_SELECTOR)
+  if (candidate instanceof Element && candidate.closest('[data-kg-svg-zoom-content="1"]')) return candidate
+  return findNearestSvgSelectionTarget(svgEl, event.clientX, event.clientY)
 }
 
 const updateSvgSelectionDimming = (
@@ -265,12 +368,12 @@ const installSvgElementSelection = (args: {
       label,
     }) || []
   }
-  const setSelected = (el: Element | null, labelOverride?: string) => {
+  const setSelected = (el: Element | null, labelOverride?: string, notify = true) => {
     const label = String(labelOverride || readSvgElementLabel(el)).replace(/\s+/g, ' ').trim()
     if (selectedEl === el) {
       updateSvgSelectionDimming(args.svgEl, selectedEl, readSelectionPeers(selectedEl, label))
       args.svgEl.setAttribute('data-kg-svg-selected-label', label)
-      args.onSelectedElementLabelChange?.(label)
+      if (notify) args.onSelectedElementLabelChange?.(label)
       return
     }
     if (selectedEl) selectedEl.removeAttribute('data-kg-svg-selected')
@@ -278,22 +381,17 @@ const installSvgElementSelection = (args: {
     if (selectedEl) selectedEl.setAttribute('data-kg-svg-selected', '1')
     updateSvgSelectionDimming(args.svgEl, selectedEl, readSelectionPeers(selectedEl, label))
     args.svgEl.setAttribute('data-kg-svg-selected-label', label)
-    args.onSelectedElementLabelChange?.(label)
+    if (notify) args.onSelectedElementLabelChange?.(label)
   }
 
   const onClick = (event: MouseEvent) => {
     const target = event.target instanceof Element ? event.target : null
-    if (!target || target.closest('[data-kg-svg-viewport-hitbox="1"]')) {
+    const candidate = resolveSvgSelectionClickCandidate(args.svgEl, target, event)
+    if (!candidate || candidate.closest('[data-kg-svg-viewport-hitbox="1"]')) {
       setSelected(null)
       return
     }
-    const candidate = target.closest('text, tspan, circle, rect, path, g')
-    if (!(candidate instanceof Element)) {
-      setSelected(null)
-      return
-    }
-    if (candidate.closest('[data-kg-svg-zoom-content="1"]') == null) return
-    const label = args.readSelectedElementLabel?.({ svgEl: args.svgEl, target, candidate }) || readSvgElementLabel(candidate)
+    const label = args.readSelectedElementLabel?.({ svgEl: args.svgEl, target: target || candidate, candidate }) || readSvgElementLabel(candidate)
     setSelected(candidate, label)
   }
 
@@ -305,12 +403,12 @@ const installSvgElementSelection = (args: {
       updateSvgSelectionDimming(args.svgEl, null)
     },
     clearSelectedElement: () => setSelected(null),
-    setSelectedElementByLabel: label => {
+    setSelectedElementByLabel: (label, options) => {
       const normalizedLabel = String(label || '').replace(/\s+/g, ' ').trim()
       const candidate =
         args.resolveSelectedElementByLabel?.({ svgEl: args.svgEl, label: normalizedLabel }) ||
         findSvgSelectionCandidateByLabel(args.svgEl, normalizedLabel)
-      setSelected(candidate, normalizedLabel)
+      setSelected(candidate, normalizedLabel, options?.notify !== false)
     },
   }
 }
@@ -324,6 +422,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     rendererId,
     graphData,
     graphDataRevision,
+    svgSurfaceKey,
     selectedElementLabel,
     readSelectedElementLabel,
     resolveSelectedElementByLabel,
@@ -370,10 +469,12 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     () => buildSvgSurfaceGraphData({ bounds: runtime?.bounds || null, graphData, rendererId }),
     [graphData, rendererId, runtime?.bounds],
   )
+  const viewportWidth = runtime?.viewport.width || dims.width
+  const viewportHeight = runtime?.viewport.height || dims.height
 
   const zoomViewKey = React.useMemo(
-    () =>
-      buildActive2dZoomViewKey({
+    () => {
+      const base = buildActive2dZoomViewKey({
         canvasRenderMode,
         canvas2dRenderer,
         schema: effectiveSchema,
@@ -384,7 +485,10 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
         renderMediaAsNodes,
         mediaPanelDensity,
         collapsedGroupIds,
-      }),
+      })
+      const normalizedSurfaceKey = normalizeSvgSurfaceZoomKey(svgSurfaceKey)
+      return base && normalizedSurfaceKey ? `${base}::svg:${normalizedSurfaceKey}` : base
+    },
     [
       canvas2dRenderer,
       canvasRenderMode,
@@ -396,6 +500,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
       graphData,
       mediaPanelDensity,
       renderMediaAsNodes,
+      svgSurfaceKey,
     ],
   )
   const zoomViewKeyRef = React.useRef<string | null>(null)
@@ -403,10 +508,10 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     zoomViewKeyRef.current = zoomViewKey
   }, [zoomViewKey])
 
-  const dimsRef = React.useRef({ width: dims.width, height: dims.height })
+  const dimsRef = React.useRef({ width: viewportWidth, height: viewportHeight })
   React.useEffect(() => {
-    dimsRef.current = { width: dims.width, height: dims.height }
-  }, [dims.height, dims.width])
+    dimsRef.current = { width: viewportWidth, height: viewportHeight }
+  }, [viewportHeight, viewportWidth])
 
   const zoomCommitSchedulerRef = React.useRef(
     createRafLatestScheduler<{ k: number; x: number; y: number }>(pending => {
@@ -451,26 +556,28 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
         prevBounds.minX === prepared.bounds.minX &&
         prevBounds.minY === prepared.bounds.minY &&
         prevBounds.width === prepared.bounds.width &&
-        prevBounds.height === prepared.bounds.height
+        prevBounds.height === prepared.bounds.height &&
+        prev?.viewport.width === prepared.viewport.width &&
+        prev?.viewport.height === prepared.viewport.height
       ) {
         return prev
       }
-      return { revision: (prev?.revision || 0) + 1, bounds: prepared.bounds }
+      return { revision: (prev?.revision || 0) + 1, bounds: prepared.bounds, viewport: prepared.viewport }
     })
-  }, [active, svgHostRef, svgMarkup])
+  }, [active, dims.height, dims.width, svgHostRef, svgMarkup])
 
   useZoomEffects({
     svgRef,
     zoomRef,
-    width: dims.width,
-    height: dims.height,
+    width: viewportWidth,
+    height: viewportHeight,
     paused: !active,
     graphDataOverride: visualGraphData,
   })
 
   useAutoZoomModes2d({
-    viewportW: dims.width,
-    viewportH: dims.height,
+    viewportW: viewportWidth,
+    viewportH: viewportHeight,
     paused: !active,
     getGraph: React.useCallback(
       () => ({ graphData: visualGraphData, graphDataRevision }),
@@ -516,17 +623,21 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
       zoomState: initialZoomState,
       pinned: store.viewPinned === true,
       graphDataRevision,
-      nextViewportW: dims.width,
-      nextViewportH: dims.height,
+      nextViewportW: viewportWidth,
+      nextViewportH: viewportHeight,
     })
     if (initial) {
       svg.call(zoom.transform as never, d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k))
-    } else if (visualGraphData && dims.width > 80 && dims.height > 80) {
-      const fitted = fitAllTransform(visualGraphData.nodes, dims.width, dims.height, {
+    } else if (visualGraphData && viewportWidth > 80 && viewportHeight > 80) {
+      const mode = readLayoutMode(effectiveSchema)
+      const fitted = fitAllTransform(visualGraphData.nodes, viewportWidth, viewportHeight, {
+        ...readFitAllOptions({
+          schema: effectiveSchema,
+          mode,
+          intent: 'fitToScreen',
+          targetFillRatioOverride: store.viewportFitFillRatio,
+        }),
         graphData: visualGraphData,
-        schema: effectiveSchema,
-        targetFillRatio: store.viewportFitFillRatio,
-        centerMode: 'bbox',
       })
       svg.call(zoom.transform as never, fitted)
     } else {
@@ -545,7 +656,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     })
     selectionControllerRef.current = selectionController
     if (typeof selectedElementLabel === 'string') {
-      selectionController.setSelectedElementByLabel(selectedElementLabel)
+      selectionController.setSelectedElementByLabel(selectedElementLabel, { notify: false })
     }
 
     return () => {
@@ -582,8 +693,6 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     }
   }, [
     active,
-    dims.height,
-    dims.width,
     effectiveSchema,
     graphDataRevision,
     onSelectedElementLabelChange,
@@ -592,7 +701,9 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     resolveSelectedElementByLabel,
     runtime,
     svgMarkup,
+    viewportHeight,
     viewportControlsPreset,
+    viewportWidth,
     visualGraphData,
     zoomViewKey,
   ])
@@ -601,7 +712,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     if (!active) return
     const selectionController = selectionControllerRef.current
     if (!selectionController || typeof selectedElementLabel !== 'string') return
-    selectionController.setSelectedElementByLabel(selectedElementLabel)
+    selectionController.setSelectedElementByLabel(selectedElementLabel, { notify: false })
   }, [active, selectedElementLabel, svgMarkup])
 
   return { selectedElementLabel: selectedLabel }

@@ -8,24 +8,130 @@ export function testWorkspaceHeaderRowsUseSharedResponsiveOwner() {
   const cssText = readUtf8('src/styles/responsive-toolbar.css')
   const workspaceHeaderText = readUtf8('src/components/ui/WorkspaceHeader.tsx')
   const markdownExplorerText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceExplorer.tsx')
+  const markdownExplorerSectionText = readUtf8('src/features/markdown-workspace/MarkdownExplorerSection.tsx')
+  const markdownExplorerSectionResizeHandleText = readUtf8('src/features/markdown-workspace/MarkdownExplorerSectionResizeHandle.tsx')
+  const markdownExplorerSectionResizeText = readUtf8('src/features/markdown-workspace/markdownExplorerSectionResize.ts')
+  const markdownFileTreeText = readUtf8('src/features/markdown-workspace/MarkdownFileTree.tsx')
+  const markdownSourceFilesListText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceSourceFilesList.tsx')
+  const markdownTocListText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceTocList.tsx')
+  const markdownBacklinksListText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceBacklinksList.tsx')
   const markdownToolbarText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx')
+  const resizeSeparatorText = readUtf8('src/components/ui/VerticalResizeSeparatorHr.tsx')
   const graphTableHeaderText = readUtf8('src/features/graph-table/ui/GraphTableWorkspaceHeader.tsx')
 
   if (!classText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME')) {
     throw new Error('expected workspace header row class owner to be exported from the shared responsive class registry')
   }
-  if (!workspaceHeaderText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') || !markdownExplorerText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME')) {
+  if (!workspaceHeaderText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') || !markdownExplorerText.includes('WorkspaceHeaderRow')) {
     throw new Error('expected workspace header rows and explorer headers to consume the shared responsive owner')
   }
-  if (!cssText.includes('--kg-workspace-header-row-min-height') || !cssText.includes('.kg-graph-table-header { --kg-workspace-header-row-min-height')) {
+  if (!cssText.includes('--kg-workspace-header-row-min-height') || !cssText.includes('.kg-graph-table-header')) {
     throw new Error('expected workspace header row heights to live in shared responsive CSS')
   }
   if (
+    !cssText.includes('.kg-markdown-workspace-panel-toolbar-row') ||
+    !markdownExplorerText.includes('kg-markdown-workspace-panel-toolbar-row') ||
+    !markdownToolbarText.includes('kg-markdown-workspace-panel-toolbar-row') ||
+    !markdownToolbarText.includes('kg-markdown-workspace-toolbar-leading') ||
+    !markdownToolbarText.includes('kg-markdown-workspace-toolbar-controls') ||
+    !cssText.includes('.kg-markdown-workspace-toolbar-row > .kg-markdown-workspace-toolbar-controls') ||
+    !cssText.includes('overflow-x: auto !important') ||
+    !cssText.includes('overflow: visible !important') ||
+    !cssText.includes('width: max-content') ||
+    !cssText.includes('--kg-markdown-workspace-toolbar-dock-offset') ||
+    !cssText.includes('--kg-markdown-workspace-toolbar-bottom-offset') ||
+    !cssText.includes('bottom: calc(var(--kg-safe-bottom) + var(--kg-markdown-workspace-toolbar-bottom-offset))') ||
+    !cssText.includes('border-bottom: 1px solid var(--kg-border)') ||
+    !cssText.includes('--kg-markdown-workspace-toolbar-editor-clearance') ||
+    !cssText.includes('margin-block-end: var(--kg-markdown-workspace-toolbar-editor-clearance) !important') ||
+    !cssText.includes('scroll-padding-block-end: var(--kg-markdown-workspace-toolbar-editor-clearance)') ||
+    !cssText.includes('touch-action: pan-x')
+  ) {
+    throw new Error('expected Markdown workspace toolbar row to keep one scroll owner, share the workspace panel footer boundary, and reserve editor clearance in the shared responsive owner')
+  }
+  if (
+    !cssText.includes('.kg-markdown-workspace-explorer-resize') ||
+    !cssText.includes('box-shadow: inset 1px 0 0 var(--kg-divider)') ||
+    !cssText.includes('inline-size: 100% !important') ||
+    !cssText.includes('block-size: 1px !important') ||
+    !cssText.includes('cursor: row-resize !important') ||
+    !cssText.includes('background-image: none !important') ||
+    !cssText.includes('box-shadow: none;')
+  ) {
+    throw new Error('expected Markdown workspace Explorer divider to stay visible on desktop and reset to a horizontal separator on stacked mobile')
+  }
+  if (
+    !classText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_CLASSNAME') ||
+    !classText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_CONTENT_CLASSNAME') ||
+    !classText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_PRIMARY_CLASSNAME') ||
+    !classText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_SECONDARY_CLASSNAME') ||
+    !classText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_BODY_CLASSNAME') ||
+    !classText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_LIST_CLASSNAME') ||
+    !classText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME') ||
+    !cssText.includes('.kg-markdown-workspace-explorer-content') ||
+    !cssText.includes('.kg-markdown-workspace-explorer-section-resize') ||
+    !cssText.includes('var(--kg-resize-separator-thickness, 0.25rem)') ||
+    !cssText.includes('.kg-markdown-workspace-explorer-section--scroll-primary') ||
+    !cssText.includes('.kg-markdown-workspace-explorer-section--scroll-secondary') ||
+    !cssText.includes('.kg-markdown-workspace-explorer-section-body') ||
+    !cssText.includes('.kg-markdown-workspace-explorer-list') ||
+    !cssText.includes('.kg-markdown-workspace-explorer-empty-state') ||
+    !cssText.includes('overflow-y: auto') ||
+    !resizeSeparatorText.includes("RESIZE_SEPARATOR_THICKNESS = 'var(--kg-resize-separator-thickness, 0.25rem)'") ||
+    !resizeSeparatorText.includes('HorizontalResizeSeparatorHr') ||
+    !resizeSeparatorText.includes('aria-orientation="horizontal"') ||
+    !resizeSeparatorText.includes('cursor-row-resize') ||
+    !resizeSeparatorText.includes('inlineSize: RESIZE_SEPARATOR_THICKNESS') ||
+    !resizeSeparatorText.includes('blockSize: RESIZE_SEPARATOR_THICKNESS') ||
+    !markdownExplorerText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_CONTENT_CLASSNAME') ||
+    !markdownExplorerText.includes('scrollMode="primary"') ||
+    !markdownExplorerText.includes("tocItems.length > 0 || sectionHeightsPx ? 'secondary' : 'auto'") ||
+    !markdownExplorerText.includes("backlinks.length > 0 || sectionHeightsPx ? 'secondary' : 'auto'") ||
+    !markdownExplorerText.includes('MarkdownExplorerSectionResizeHandle') ||
+    !markdownExplorerText.includes('boundary="sourceFiles-toc"') ||
+    !markdownExplorerText.includes('boundary="toc-backlinks"') ||
+    !markdownExplorerText.includes('readMarkdownExplorerSectionHeightsPx') ||
+    !markdownExplorerSectionText.includes('MarkdownExplorerSectionScrollMode') ||
+    !markdownExplorerSectionText.includes('sectionRef?: React.Ref<HTMLElement>') ||
+    !markdownExplorerSectionText.includes('sectionStyle?: React.CSSProperties') ||
+    !markdownExplorerSectionText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_PRIMARY_CLASSNAME') ||
+    !markdownExplorerSectionText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_SECONDARY_CLASSNAME') ||
+    !markdownExplorerSectionText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_BODY_CLASSNAME') ||
+    !markdownExplorerSectionResizeHandleText.includes('HorizontalResizeSeparatorHr') ||
+    !markdownExplorerSectionResizeHandleText.includes('startPointerDrag') ||
+    !markdownExplorerSectionResizeHandleText.includes('createRafValueScheduler') ||
+    !markdownExplorerSectionResizeHandleText.includes('resolveMarkdownExplorerSectionResize') ||
+    !markdownExplorerSectionResizeText.includes('resolveMarkdownExplorerSectionResize') ||
+    !markdownExplorerSectionResizeText.includes("sourceFiles-toc") ||
+    !markdownExplorerSectionResizeText.includes("toc-backlinks") ||
+    !markdownFileTreeText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_LIST_CLASSNAME') ||
+    !markdownSourceFilesListText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME') ||
+    !markdownTocListText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_LIST_CLASSNAME') ||
+    !markdownTocListText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME') ||
+    !markdownBacklinksListText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_LIST_CLASSNAME') ||
+    !markdownBacklinksListText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME')
+  ) {
+    throw new Error('expected Source Files, TOC, and Backlinks to share Explorer section body, list, and empty-state responsive owners')
+  }
+  if (cssText.includes('--kg-markdown-workspace-explorer-section-resize-size')) {
+    throw new Error('expected Explorer section resize handles to reuse the shared resize separator thickness token')
+  }
+  if (
+    [markdownExplorerSectionText, markdownFileTreeText, markdownTocListText, markdownBacklinksListText].some(text => text.includes('overflow-auto'))
+  ) {
+    throw new Error('expected Explorer child sections and lists to stay free of local Tailwind scroll owners')
+  }
+  if (markdownExplorerText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME') || markdownExplorerText.includes('kg-responsive-viewport-scroll-panel')) {
+    throw new Error('expected Markdown Explorer to use section-level scroll owners instead of one shared viewport scroller')
+  }
+  if (
     [markdownExplorerText, markdownToolbarText].some(text => text.includes('min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)]')) ||
+    markdownExplorerText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') ||
+    markdownExplorerText.includes('uiToolbarRowScrollJustifyBetweenClassName') ||
     graphTableHeaderText.includes('min-h-[var(--kg-control-height,28px)]') ||
     markdownToolbarText.includes('kg-markdown-workspace-toolbar-row kg-toolbar') ||
     graphTableHeaderText.includes('kg-graph-table-header kg-toolbar')
   ) {
-    throw new Error('expected workspace header consumers to stay free of local toolbar height literals')
+    throw new Error('expected workspace header consumers to stay free of local toolbar height literals and duplicated row-scroll wiring')
   }
 }

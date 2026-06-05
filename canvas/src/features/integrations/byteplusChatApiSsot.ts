@@ -11,7 +11,7 @@ export const BYTEPLUS_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]
   chatProvider: ['select provider profile', 'bind BytePlus request routing'],
   chatAuthMode: ['select auth mode', 'choose credential flow'],
   chatEndpointUrl: ['set regional base URL', 'route API requests'],
-  chatApiKey: ['store BYOK secret', 'authorize direct BytePlus calls'],
+  chatApiKey: ['hold memory-only BYOK secret', 'authorize proxied BytePlus calls'],
   chatModel: ['select target model', 'route request execution'],
   chatMessagesJson: ['compose message payload', 'serialize multimodal turns'],
   chatThinkingJson: ['shape thinking payload', 'govern reasoning mode'],

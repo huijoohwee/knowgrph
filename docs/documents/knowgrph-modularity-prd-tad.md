@@ -89,7 +89,7 @@ same build, sync, and readiness checks.
 | Chat context packing | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts` | Packs selection/workspace/hybrid context, corpus evidence, model options, and provider payloads. | Context scopes and token ceilings are shared settings, not per-module prompt forks. |
 | Chat response validation | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` + `chatMarkdownValidation.ts` + `chatResponseStructuredContent.ts` | Enforces frontmatter-first KGC output or accepts renderable literal MCP `structuredContent`. | Reject wrapper prose, parallel grouping channels, synthetic KGC backfill, and downstream graph patches upstream. |
 | Chat to canvas apply | `canvas/src/features/chat/chatKgcCanvasApply.ts` | Reads validated KGC from Workspace FS and applies it through `setActiveMarkdownDocument`. | Chat never writes a separate graph path. |
-| Renderer config | `canvas/src/lib/config.render.ts` | Defines renderer ids, surface ids, menu labels, aliases, default renderer, and feature predicates. | Add renderer semantics here before touching UI leaves. |
+| Renderer config | `canvas/src/lib/config.render.ts` | Defines renderer ids, surface ids, menu labels, normalized canonical tokens, default renderer, and feature predicates. | Add renderer semantics here before touching UI leaves. |
 | Renderer mounting | `canvas/src/components/CanvasViewport.tsx` | Lazily mounts only the active 2D, 3D, or geospatial surface. | No warmed inactive renderer trees or local renderer registry clones. |
 | Shared graph identity | `canvas/src/lib/graph/semanticKey.ts` and `canvas/src/lib/graph/lookupCache.ts` | Build scoped graph semantic keys and reusable node/edge lookup caches. | Any cache or derivation that depends on graph shape must use these helpers. |
 
@@ -182,7 +182,7 @@ renderer state.
 Acceptance criteria:
 
 - Given a 2D renderer id, when the Canvas surface resolves, then `config.render.ts` maps it to a surface id and `CanvasViewport.tsx` mounts only that active surface.
-- Given a new renderer is added, when it is wired, then menu labels, aliases, frontmatter syntax sharing, minimap support, and tests derive from shared config.
+- Given a new renderer is added, when it is wired, then menu labels, canonical renderer tokens, frontmatter syntax sharing, minimap support, and tests derive from shared config.
 - `/goal` translation: renderer config and CanvasViewport tests pass with no standalone runtime registry clone.
 
 ## Technical Architecture
@@ -281,8 +281,8 @@ snapshots, handles provider differences, accepts renderable literal MCP structur
 active surface in `CanvasViewport.tsx`.
 
 **Rationale**: The current runtime uses finite renderer ids and surface ids. A standalone registry
-API would conflict with the mounted active-surface model and would hide menu, alias, minimap, and
-frontmatter syntax behavior outside the shared owner.
+API would conflict with the mounted active-surface model and would hide menu, renderer-token,
+minimap, and frontmatter syntax behavior outside the shared owner.
 
 ## Validation Contract
 

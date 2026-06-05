@@ -1,5 +1,5 @@
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
-import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { parseGitHubRepoUrl } from '../githubRepoApi'
 import { importGitHubFolder } from '../githubRepoImport'
 import type { WorkspaceImportProgress, WorkspaceImportResult } from './types'
@@ -13,7 +13,6 @@ import {
 } from './shareUrlExport'
 import { persistImportedWebpageUrlArtifact } from './webpageUrlExport'
 import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspaceFsWrite'
-import { readWorkspaceImportMarkdownSourceUrl, workspaceImportSourceUrlsMatch } from './sourceUrlIdentity'
 import { buildCorpusImportManifest, buildCorpusSourceUnit } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 import {
   buildStrybldrStoryboardDocument,
@@ -156,17 +155,6 @@ export async function importWorkspaceUrl(args: {
     ...(webpageUrlArtifact?.removedPaths || []),
     ...(persistedShareArtifacts?.removedPaths || []),
   ]
-  if (webpageUrlArtifactPath) {
-    const legacyPath = normalizeWorkspacePath(joinWorkspacePath(parentPath, fetched.name))
-    if (legacyPath && legacyPath !== webpageUrlArtifactPath) {
-      const legacyText = await args.fs.readFileText(legacyPath)
-      const legacySourceUrl = legacyText === null ? '' : readWorkspaceImportMarkdownSourceUrl(legacyText)
-      if (legacySourceUrl && workspaceImportSourceUrlsMatch(sourceUrl, legacySourceUrl)) {
-        await args.fs.deleteEntry(legacyPath)
-        removedPaths.push(legacyPath)
-      }
-    }
-  }
   if (persistedShareArtifacts) {
     const knownSourcePaths = new Set(sources.map(item => normalizeWorkspacePath(item.path)))
     const artifactPaths = [persistedShareArtifacts.exportMarkdownPath, persistedShareArtifacts.exportThinkingPath]

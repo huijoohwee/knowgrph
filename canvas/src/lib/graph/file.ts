@@ -22,6 +22,22 @@ export type SchemaConfigPath = string & { readonly [schemaConfigPathBrand]: true
 
 export const toDatasetPath = (path: string): DatasetPath => path as DatasetPath;
 export const toSchemaConfigPath = (path: string): SchemaConfigPath => path as SchemaConfigPath;
+export const SCHEMA_CONFIG_DIR = 'data/config/schema'
+export const SCHEMA_CONFIG_PATH_PREFIX = `${SCHEMA_CONFIG_DIR}/`
+export const DEFAULT_SCHEMA_CONFIG_FILENAME = 'knowgrph-universal-schema-config.jsonld'
+export const DEFAULT_SCHEMA_CONFIG_PATH = toSchemaConfigPath(`${SCHEMA_CONFIG_PATH_PREFIX}${DEFAULT_SCHEMA_CONFIG_FILENAME}`)
+
+export const normalizeSchemaConfigPath = (
+  path: string | null | undefined,
+  fallback: SchemaConfigPath = DEFAULT_SCHEMA_CONFIG_PATH,
+): SchemaConfigPath => {
+  const trimmed = String(path || '').trim()
+  if (!trimmed) return fallback
+  if (trimmed.startsWith(SCHEMA_CONFIG_PATH_PREFIX)) return toSchemaConfigPath(trimmed)
+  return toSchemaConfigPath(`${SCHEMA_CONFIG_PATH_PREFIX}${trimmed}`)
+}
+
+export const schemaConfigFilePath = (filename: string): SchemaConfigPath => normalizeSchemaConfigPath(filename)
 
 export const ensureExt = (name: string, allowed: string[], fallback: string): string => {
   const s = String(name || '').toLowerCase()

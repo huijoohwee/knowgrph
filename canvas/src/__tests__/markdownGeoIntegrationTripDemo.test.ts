@@ -15,8 +15,9 @@ import {
 } from '@/tests/lib/tripDemo'
 import type { GraphData } from '@/lib/graph/types'
 import { LRUCache } from 'grph-shared/cache/LRUCache'
-import { resolveSandboxRoot } from '@/tests/lib/sandboxRoot'
+import { resolveExternalFixtureRoot } from '@/tests/lib/externalFixtures'
 import { buildGeospatialOverlayGraphData } from '@/features/geospatial/geospatialOverlayGraphData'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 const extractFirstGeoJsonFromJsonFences = (markdown: string): string | null => {
   const lines = String(markdown || '').split('\n')
@@ -42,7 +43,7 @@ const extractFirstGeoJsonFromJsonFences = (markdown: string): string | null => {
 }
 
 const resolveComputingFlowSamplePath = (): string =>
-  path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
+  resolveRepoTestDataPath('markdown-syntax-computing-flow-sample.md')
 
 export async function testMarkdownTripDemoJsonFenceRegistersAsGeoDataset() {
   const raw = readTripDemo()
@@ -194,7 +195,7 @@ export async function testMarkdownGeoJsonLoadGraphAutoEnablesGeospatialMode() {
       },
     })
     const req = {
-      sourceDocumentPath: 'sandbox/test-data/markdown-syntax-computing-flow-sample.md',
+      sourceDocumentPath: 'data/test-data/markdown-syntax-computing-flow-sample.md',
       codeBlock: {
         lang: 'geojson' as const,
         text: sampleGeoJson,
@@ -849,7 +850,7 @@ export function testGeospatialOverlayGraphDataResolvesSourceFileFromGraphIdPath(
 export function testTripDemoMmdOverlayGraphDataMatchesWorkspacePrefixedSourcePath() {
   const markdown = readTripDemoMmd()
   if (!markdown) return
-  const sourcePath = resolveTripDemoMmdDocumentPath() || '/sandbox/demo/trip-demo-mmd.md'
+  const sourcePath = resolveTripDemoMmdDocumentPath() || 'trip-demo-mmd.md'
   const docKey = String(sourcePath).replace(/^\/+/, '')
   const baseGraph: GraphData = {
     type: 'Graph',
@@ -880,7 +881,7 @@ export function testTripDemoMmdOverlayGraphDataMatchesWorkspacePrefixedSourcePat
 }
 
 export function testTripDemoMmdOverlayGraphDataUsesParsedSourceGraphOutsideEditorMode() {
-  const sourcePath = resolveTripDemoMmdDocumentPath() || '/sandbox/demo/trip-demo-mmd.md'
+  const sourcePath = resolveTripDemoMmdDocumentPath() || 'trip-demo-mmd.md'
   const docKey = String(sourcePath).replace(/^\/+/, '')
   const parsedGraph: GraphData = {
     type: 'Graph',
@@ -941,9 +942,9 @@ export async function testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdo
   const originalFetch = (globalThis as unknown as { fetch?: unknown }).fetch
 
   try {
-    const sandboxRoot = resolveSandboxRoot()
-    if (!sandboxRoot) return
-    const abs = path.resolve(path.join(sandboxRoot, 'demo', 'trip-demo.md')).replace(/\\/g, '/')
+    const fixtureRoot = resolveExternalFixtureRoot()
+    if (!fixtureRoot) return
+    const abs = path.resolve(path.join(fixtureRoot, 'demo', 'trip-demo.md')).replace(/\\/g, '/')
     const url = abs
     const expectedFetchUrl = `http://localhost:5173/@fs${abs.startsWith('/') ? '' : '/'}${abs}`
 

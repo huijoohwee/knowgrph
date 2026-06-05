@@ -1,5 +1,6 @@
 import { upsertChatHistoryWorkspaceDraft } from '../chatHistoryWorkspace'
 import { toKgcTraceWorkspacePath } from '../chatHistoryWorkspace.paths'
+import { shouldRejectMarkdownDocumentPayload } from '@/lib/markdown/markdownDocumentPayloadGuards'
 import {
   extractAssistantDelta,
   extractAssistantStreamDelta,
@@ -41,6 +42,11 @@ export const createChatKnowgrphDraftWriter = (args: {
     if (args.chatStorageTarget !== 'chatKnowgrph') return
     if (!args.liveKgcPath) return
     const liveTracePath = toKgcTraceWorkspacePath(args.liveKgcPath) || args.liveKgcPath
+    if (shouldRejectMarkdownDocumentPayload(text)) {
+      args.streamDraftTextRef.current = { path: liveTracePath, text: '' }
+      args.setChatWorkspaceStreamingState?.({ path: liveTracePath, text: '' })
+      return
+    }
     if (
       args.streamDraftTextRef.current &&
       args.streamDraftTextRef.current.path === liveTracePath &&

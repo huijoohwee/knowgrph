@@ -1,4 +1,4 @@
-import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { SourceFile } from '@/hooks/store/types'
 import type {
@@ -16,6 +16,10 @@ import {
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
+export type ReadWorkspaceEntryTextForStoragePublish = (
+  entry: WorkspaceEntry,
+) => string | null | undefined | Promise<string | null | undefined>
+
 const readActiveKnowgrphStorageWorkspaceId = (): string => {
   const override = normalizeString(readEnvString('VITE_KNOWGRPH_STORAGE_WORKSPACE_ID', ''))
   if (override) return override
@@ -26,6 +30,44 @@ const readActiveKnowgrphStorageWorkspaceId = (): string => {
     folderCacheId: state.localMarkdownFolderCacheId,
     selectedFolderPath: state.localMarkdownSelectedFolderPath,
   })
+}
+
+const readWorkspaceEntryResolvedTextForStoragePublish = async (args: {
+  entry: WorkspaceEntry
+  getWorkspaceFs: () => Promise<WorkspaceFs>
+  readEntryText?: ReadWorkspaceEntryTextForStoragePublish
+  storageFallbackByPath: Map<string, string>
+}): Promise<string> => {
+  const inlineText = String(args.entry.text || '')
+  if (inlineText.trim()) return inlineText
+  if (typeof args.readEntryText === 'function') {
+    try {
+      const resolved = String((await args.readEntryText(args.entry)) || '')
+      if (resolved.trim()) return resolved
+    } catch {
+      void 0
+    }
+  }
+  try {
+    const { readWorkspaceActiveDocumentResolvedText } = await import('@/features/source-files/sourceFilesRuntimeActive')
+    let fs: WorkspaceFs | undefined
+    try {
+      fs = await args.getWorkspaceFs()
+    } catch {
+      fs = undefined
+    }
+    const resolved = await readWorkspaceActiveDocumentResolvedText({
+      activePath: args.entry.path,
+      currentText: inlineText,
+      fs,
+      storageFallbackByPath: args.storageFallbackByPath,
+      preferCanonicalPathText: true,
+    })
+    if (String(resolved || '').trim()) return String(resolved || '')
+  } catch {
+    void 0
+  }
+  return inlineText
 }
 
 export const buildPublishedSourceFileShareUrlForWorkspacePath = (args: {
@@ -81,20 +123,35 @@ export const publishWorkspaceEntriesToKnowgrphStorage = async (args: {
   baseUrl?: string | null
   deviceId?: string | null
   fetchImpl?: KnowgrphStorageSyncNowArgs['fetchImpl']
+  readEntryText?: ReadWorkspaceEntryTextForStoragePublish
 }): Promise<PublishWorkspaceEntriesToKnowgrphStorageResult> => {
   const workspaceId = normalizeString(args.workspaceId) || readActiveKnowgrphStorageWorkspaceId()
   const entries = Array.isArray(args.entries) ? args.entries : []
   const records: SourceFile[] = []
   const canonicalPaths: string[] = []
   const seen = new Set<string>()
+  const storageFallbackByPath = new Map<string, string>()
+  let workspaceFsPromise: Promise<WorkspaceFs> | null = null
+  const getWorkspaceFsForPublish = () => {
+    if (!workspaceFsPromise) {
+      workspaceFsPromise = import('@/features/workspace-fs/workspaceFs').then(mod => mod.getWorkspaceFs())
+    }
+    return workspaceFsPromise
+  }
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i]
     if (!entry || entry.kind !== 'file') continue
     const canonicalPath = readPrimaryStorageCanonicalPathForWorkspacePath(entry.path, { markdownOnly: false })
     if (!workspaceId || !canonicalPath || seen.has(canonicalPath)) continue
     seen.add(canonicalPath)
-    const record = buildWorkspaceEntryStorageSourceFileRecord({
+    const text = await readWorkspaceEntryResolvedTextForStoragePublish({
       entry,
+      getWorkspaceFs: getWorkspaceFsForPublish,
+      readEntryText: args.readEntryText,
+      storageFallbackByPath,
+    })
+    const record = buildWorkspaceEntryStorageSourceFileRecord({
+      entry: text === entry.text ? entry : { ...entry, text },
       workspaceId,
       canonicalPath,
     })
@@ -138,6 +195,7 @@ export const publishWorkspacePathsToKnowgrphStorage = async (args: {
   baseUrl?: string | null
   deviceId?: string | null
   fetchImpl?: KnowgrphStorageSyncNowArgs['fetchImpl']
+  readEntryText?: ReadWorkspaceEntryTextForStoragePublish
 }): Promise<PublishWorkspaceEntriesToKnowgrphStorageResult> => {
   const normalizedPaths = new Set(
     (Array.isArray(args.paths) ? args.paths : [])
@@ -158,6 +216,7 @@ export const publishWorkspacePathsToKnowgrphStorage = async (args: {
     baseUrl: args.baseUrl,
     deviceId: args.deviceId,
     fetchImpl: args.fetchImpl,
+    readEntryText: args.readEntryText || (entry => fs.readFileText(entry.path)),
   })
 }
 
@@ -168,6 +227,7 @@ export const publishWorkspaceEntryShareUrl = async (args: {
   baseUrl?: string | null
   deviceId?: string | null
   fetchImpl?: KnowgrphStorageSyncNowArgs['fetchImpl']
+  readEntryText?: ReadWorkspaceEntryTextForStoragePublish
 }): Promise<string | null> => {
   const source = args.sourcesByPath?.[args.entry.path]
   if (source?.kind === 'url') {
@@ -186,6 +246,7 @@ export const publishWorkspaceEntryShareUrl = async (args: {
     baseUrl: args.baseUrl,
     deviceId: args.deviceId,
     fetchImpl: args.fetchImpl,
+    readEntryText: args.readEntryText,
   })
   if (result.storedCount < 1) return null
   return shareUrl

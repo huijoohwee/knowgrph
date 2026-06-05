@@ -39,6 +39,11 @@ import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-ov
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
+import {
+  layoutRectSetCentroidWithinViewport,
+  measureTransformedGraphElementScreenRectSet,
+} from '@/lib/canvas/graph-elements/centroid'
 import {
   buildWorkspaceVisibleViewportFitRecoveryKey,
   computeWorkspaceOverlayVisibleViewportFitTransform,
@@ -278,29 +283,16 @@ export function useFlowCanvasRuntime(args: {
     const gapPx = Math.max(16, Math.round(Math.min(nodeW, nodeH) * k * 0.08))
     if (isVerticalOverlayCluster({ items, gapPx })) return false
     if (isHorizontalOverlayStrip({ items, gapPx })) return false
-    let minLeft = Number.POSITIVE_INFINITY
-    let minTop = Number.POSITIVE_INFINITY
-    let maxRight = Number.NEGATIVE_INFINITY
-    let maxBottom = Number.NEGATIVE_INFINITY
-    let sumCenterX = 0
-    let sumCenterY = 0
-    for (let i = 0; i < items.length; i += 1) {
-      const item = items[i]!
-      minLeft = Math.min(minLeft, item.left)
-      minTop = Math.min(minTop, item.top)
-      maxRight = Math.max(maxRight, item.left + item.width)
-      maxBottom = Math.max(maxBottom, item.top + item.height)
-      sumCenterX += item.left + item.width / 2
-      sumCenterY += item.top + item.height / 2
-    }
-    const centroidX = sumCenterX / items.length
-    const centroidY = sumCenterY / items.length
-    const targetCenterX = viewportW / 2
-    const targetCenterY = viewportH / 2
-    if (Math.abs(centroidX - targetCenterX) > viewportW * 0.2) return false
-    if (Math.abs(centroidY - targetCenterY) > viewportH * 0.24) return false
-    const spanW = Math.max(1, maxRight - minLeft)
-    const spanH = Math.max(1, maxBottom - minTop)
+    const metrics = measureLayoutRectSet(items)
+    if (!layoutRectSetCentroidWithinViewport({
+      metrics,
+      viewportW,
+      viewportH,
+      toleranceXRatio: 0.2,
+      toleranceYRatio: 0.24,
+    })) return false
+    const spanW = Math.max(1, (metrics?.maxRight || 0) - (metrics?.minLeft || 0))
+    const spanH = Math.max(1, (metrics?.maxBottom || 0) - (metrics?.minTop || 0))
     const spanAspect = spanW / spanH
     if (items.length >= 5 && spanAspect < 0.42) return false
     return true
@@ -320,26 +312,19 @@ export function useFlowCanvasRuntime(args: {
     const k = Number.isFinite(args.t.k) ? Math.max(0.001, args.t.k) : 1
     const tx = Number.isFinite(args.t.x) ? args.t.x : 0
     const ty = Number.isFinite(args.t.y) ? args.t.y : 0
-    let measured = 0
-    let sumCenterX = 0
-    let sumCenterY = 0
-    for (let i = 0; i < args.nodes.length; i += 1) {
-      const node = args.nodes[i]
-      const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
-      const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
-      if (x == null || y == null) continue
-      measured += 1
-      sumCenterX += x * k + tx + (nodeW * k) / 2
-      sumCenterY += y * k + ty + (nodeH * k) / 2
-    }
-    if (measured <= 0) return false
-    const centroidX = sumCenterX / measured
-    const centroidY = sumCenterY / measured
-    const targetCenterX = viewportW / 2
-    const targetCenterY = viewportH / 2
-    if (Math.abs(centroidX - targetCenterX) > viewportW * 0.28) return false
-    if (Math.abs(centroidY - targetCenterY) > viewportH * 0.32) return false
-    return true
+    return layoutRectSetCentroidWithinViewport({
+      metrics: measureTransformedGraphElementScreenRectSet({
+        elements: args.nodes,
+        transform: { k, x: tx, y: ty },
+        elementWidth: nodeW,
+        elementHeight: nodeH,
+        coordinateMode: 'topLeftVisualRect',
+      }),
+      viewportW,
+      viewportH,
+      toleranceXRatio: 0.28,
+      toleranceYRatio: 0.32,
+    })
   }, [])
   const [workspaceOverlayInteractionFrameTick, setWorkspaceOverlayInteractionFrameTick] = React.useState(0)
   const workspaceOverlayOpenPrevRef = React.useRef(false)

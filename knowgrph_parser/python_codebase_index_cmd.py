@@ -9,6 +9,11 @@ from .codebase_index_config import (
     extract_traversal_edges,
     load_yaml,
 )
+from .config_paths import (
+    UNIVERSAL_ORCHESTRATOR_CONFIG_REL,
+    UNIVERSAL_SCHEMA_CONFIG_REL,
+    repo_path,
+)
 from .python_codebase_index_document import (
     build_jsonld_document,
     ensure_orchestrator_config_file,
@@ -21,8 +26,8 @@ from .python_codebase_index_graph import build_code_graph
 
 def main(argv: Optional[List[str]] = None, *, base_dir: str, parser_script_path: str) -> int:
     default_index_jsonld = os.path.join(base_dir, "data", "outputs", "codebase-index-viz.jsonld")
-    default_schema_config = os.path.join(base_dir, "schema-config", "knowgrph-universal-schema-config.jsonld")
-    default_orchestrator_config = os.path.join(base_dir, "orchestrator-config", "knowgrph-universal-orchestrator-config.yaml")
+    default_schema_config = repo_path(base_dir, UNIVERSAL_SCHEMA_CONFIG_REL)
+    default_orchestrator_config = repo_path(base_dir, UNIVERSAL_ORCHESTRATOR_CONFIG_REL)
 
     parser = argparse.ArgumentParser(prog="python-codebase-index", add_help=True)
     parser.add_argument("--codebase-root", "-r", default=None)

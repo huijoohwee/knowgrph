@@ -1,4 +1,5 @@
 import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
+import { measureGraphElementCenterSet } from '@/lib/canvas/graph-elements/centroid'
 
 export type ArrangeAction2d =
   | 'align-left'
@@ -19,20 +20,8 @@ export type ArrangeItemRect = {
 }
 
 export function computeWorldCentroid(items: readonly { x: number; y: number }[]): { x: number; y: number } | null {
-  if (!items || items.length === 0) return null
-  let sumX = 0
-  let sumY = 0
-  let count = 0
-  for (let i = 0; i < items.length; i += 1) {
-    const x = items[i] ? (items[i]!.x as number) : Number.NaN
-    const y = items[i] ? (items[i]!.y as number) : Number.NaN
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-    sumX += x
-    sumY += y
-    count += 1
-  }
-  if (count <= 0) return null
-  return { x: sumX / count, y: sumY / count }
+  const metrics = measureGraphElementCenterSet(items)
+  return metrics ? { x: metrics.centroidX, y: metrics.centroidY } : null
 }
 
 export function computeArrangeCenters(args: {

@@ -119,14 +119,14 @@ export function mergeEdges(args: {
   for (let i = 0; i < args.sigilEdges.length; i += 1) {
     const e = args.sigilEdges[i]
     const keys = edgeDedupKeys(e)
-    let duplicated = false
+    let alreadySeen = false
     for (let k = 0; k < keys.length; k += 1) {
       if (uniq.has(keys[k]!)) {
-        duplicated = true
+        alreadySeen = true
         break
       }
     }
-    if (duplicated) continue
+    if (alreadySeen) continue
     for (let k = 0; k < keys.length; k += 1) uniq.add(keys[k]!)
     out.push(e)
   }

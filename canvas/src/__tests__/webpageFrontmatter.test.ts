@@ -72,32 +72,22 @@ export const testFrontmatterOnlyDocDetection = () => {
   if (isFrontmatterOnlyDoc(withBody)) throw new Error('expected body doc to not be frontmatter-only')
 }
 
-export const testWebpageFrontmatterLegacyDomAndRawMapToHtmlAndJson = () => {
-  const input = [
-    '---',
-    'kgWebpageUrl: "https://localhost/path"',
-    'kgWebpageView: "dom"',
-    '---',
-    '',
-    '# Title',
-    '',
-  ].join('\n')
-  const domParsed = parseWebpageFrontmatterMeta(input)
-  if (!domParsed) throw new Error('expected meta')
-  if (domParsed.view !== 'html') throw new Error('expected legacy dom to map to html')
-
-  const input2 = [
-    '---',
-    'kgWebpageUrl: "https://localhost/path"',
-    'kgWebpageView: "raw"',
-    '---',
-    '',
-    '# Title',
-    '',
-  ].join('\n')
-  const rawParsed = parseWebpageFrontmatterMeta(input2)
-  if (!rawParsed) throw new Error('expected meta')
-  if (rawParsed.view !== 'json') throw new Error('expected legacy raw to map to json')
+export const testWebpageFrontmatterUnsupportedViewUsesHtmlDefault = () => {
+  const unsupportedViews = ['source', 'preview', 'dom', 'raw']
+  for (const view of unsupportedViews) {
+    const input = [
+      '---',
+      'kgWebpageUrl: "https://localhost/path"',
+      `kgWebpageView: "${view}"`,
+      '---',
+      '',
+      '# Title',
+      '',
+    ].join('\n')
+    const parsed = parseWebpageFrontmatterMeta(input)
+    if (!parsed) throw new Error(`expected meta for unsupported view ${view}`)
+    if (parsed.view !== 'html') throw new Error(`expected unsupported view ${view} to use html default`)
+  }
 }
 
 export const testWebpageFrontmatterSupportsScriptPolicy = () => {

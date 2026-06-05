@@ -11,20 +11,20 @@ pnpm-debug.log*
 dist/
 build/
 coverage/
+*.tsbuildinfo
 
 git-error-*
 /git-error-*
 
 data/outputs/
+data/knowgrph-workflow-preview/
 data/_tmp_md_smoke/
 logs/
+.wrangler/
 *.log
 
 youtube_urllib_debug.html
-sandbox/test-data/*.canvas-*.html
-sandbox/test-data/*.generated.md
 canvas/*.pdf
-canvas/sandbox/*.html
 decoded_template.js
 
 .venv/
@@ -36,6 +36,7 @@ __pycache__/
 .idea/
 .vscode/
 
+.trae/
 .deprecated/
 test-report/
 test-results/
@@ -53,8 +54,16 @@ secrets.json
 
 # Local / generated outputs
 .tmp-*.png
-canvas/src/__tests__/demo/airports_full_all_feet.geojson
-canvas/src/__tests__/demo/cities.geojson
-
+canvas/.tmp-*
+canvas/.trae/
+canvas/tmp-*
+canvas/tmp_*
+canvas/=
+canvas/B,
+canvas/[{]
+[{]target[}]
+canvas/artifacts/live-verification/
+docs/reports/prd-codebase-gap-report_*.md
+docs/documents/fix-[0-9]*.md
 .knowgrph-workspace
 .knowgrph-workspace/

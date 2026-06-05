@@ -12,6 +12,8 @@ import {
   writeKgcCompanionOutputBlob,
   writeKgcCompanionOutputText,
 } from './chatHistoryWorkspace.output'
+import { buildNamedTermSummary } from './chatHistoryWorkspace.kgc.fallbackSections'
+import { mergeKgcCanonicalSection } from './chatKgcConsolidatedArtifacts'
 
 export type KgcRunOutputKind = 'markdown' | 'png' | 'svg' | 'video'
 
@@ -125,11 +127,13 @@ const buildRunOutputRequestText = (args: {
 }
 
 const buildRecommendationSummary = (requestText: string, profile: ReturnType<typeof analyzeKgcRequest>): string => {
+  const namedTerms = buildNamedTermSummary(profile)
   const clauses = [
     profile.signals.zeroBudget ? 'zero-budget' : '',
     profile.signals.bootstrap ? 'bootstrap-first' : '',
     profile.signals.organicGrowth ? 'organic-growth' : '',
     profile.product ? `${profile.product}` : '',
+    !profile.product && namedTerms ? namedTerms : '',
     profile.signals.mcp ? 'MCP offer' : '',
     profile.signals.externalUsers ? 'for external users' : '',
     profile.signals.openClaw ? 'with OpenClaw distribution' : (profile.signals.marketplace ? 'with marketplace distribution' : ''),
@@ -140,7 +144,8 @@ const buildRecommendationSummary = (requestText: string, profile: ReturnType<typ
 }
 
 const buildUseCaseText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  return `${profile.subject || 'The primary user'} needs ${profile.artifact || 'a working deliverable'} that translates the request into an offer, plan, or asset they can use immediately. The output should stay grounded in ${profile.product || 'the named product'} and remain useful for ${profile.signals.externalUsers ? 'external-user delivery' : 'the intended audience'}.`
+  const focus = buildNamedTermSummary(profile) || profile.product || 'the active request terms'
+  return `${profile.subject || 'The primary user'} needs ${profile.artifact || 'a working deliverable'} that translates the request into a usable handoff. The output should stay grounded in ${focus} and remain useful for ${profile.signals.externalUsers ? 'external-user delivery' : 'the intended audience'}.`
 }
 
 const buildProblemText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -152,7 +157,11 @@ const buildProblemText = (profile: ReturnType<typeof analyzeKgcRequest>): string
     profile.signals.swipe || profile.signals.payments ? 'payment and checkout transitions' : '',
   ].filter(Boolean)
   const joined = constraints.length ? ` under ${constraints.join(', ')}` : ''
-  return `${profile.subject || 'The user'} needs ${profile.artifact || 'an output'} for ${profile.product || 'the stated product'}${joined}. A generic scaffold is not enough because the result has to stay specific to the request, show what gets delivered, and keep any commercial or integration assumptions explicit.`
+  const focus = buildNamedTermSummary(profile) || profile.product || 'the active request terms'
+  const assumptionScope = profile.signals.swipe || profile.signals.payments || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion
+    ? 'commercial, entitlement, or integration assumptions'
+    : 'handoff, render, or integration assumptions'
+  return `${profile.subject || 'The user'} needs ${profile.artifact || 'an output'} for ${focus}${joined}. A generic scaffold is not enough because the result has to stay specific to the request, show what gets delivered, and keep ${assumptionScope} explicit.`
 }
 
 const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -164,11 +173,15 @@ const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.signals.rxdb ? 'RxDB local-first state' : '',
     profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
   ].filter(Boolean)
-  return `Recommend a lean, execution-oriented response that packages ${profile.product || 'the product'} into ${profile.artifact || 'the requested deliverable'}. Keep the plan concrete across ${channels.join(', ') || 'the requested surfaces'} and prioritize decisions that move the request toward a usable output rather than describing the KGC pipeline itself.`
+  const focus = buildNamedTermSummary(profile) || profile.product || 'the active request terms'
+  return `Shape a lean, execution-oriented response that packages ${focus} into ${profile.artifact || 'the requested deliverable'}. Keep the plan concrete across ${channels.join(', ') || 'the requested surfaces'} and prioritize decisions that move the request toward usable output rather than describing the KGC pipeline itself.`
 }
 
 const buildUserFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  return `A target user discovers ${profile.product || 'the offer'}, evaluates the initial value proposition, reaches a meaningful action such as activation, upgrade, or purchase, completes the required entitlement or checkout step, and then receives the promised capability or artifact.`
+  if (profile.signals.swipe || profile.signals.payments || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion) {
+    return `A target user discovers ${profile.product || 'the offer'}, evaluates the initial value proposition, reaches the requested activation or paid action, completes the required entitlement or checkout step, and then receives the promised capability or artifact.`
+  }
+  return `A target user opens the workspace, reviews the generated text and connected render outputs, edits source assumptions inline, and receives updated cards, widgets, or Rich Media Panels from the same source values.`
 }
 
 const buildWorkflowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -180,8 +193,9 @@ const buildDataFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.product || '',
     profile.domain || '',
     profile.objective || '',
+    buildNamedTermSummary(profile),
   ].filter(Boolean).join('; ')
-  return `Request inputs, product context, and delivery assumptions are condensed into a structured working brief. That brief becomes the generated output, and the final artifact preserves only the data needed for follow-up review, delivery, or commercialization. ${inputs ? `Key context includes ${inputs}.` : ''}`
+  return `Request inputs, workspace context, and delivery assumptions are condensed into a structured working brief. That brief becomes generated output plus optional render handles such as output, imageUrl, audioUrl, videoUrl, or outputSrcDoc. The final artifact preserves only the data needed for follow-up review, delivery, or downstream rendering. ${inputs ? `Key context includes ${inputs}.` : ''}`
 }
 
 const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -190,8 +204,11 @@ const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): s
     profile.signals.payPerUse ? 'pay-per-use actions' : '',
     profile.signals.conversion ? 'conversion-oriented commerce events' : '',
   ].filter(Boolean)
-  const monetizationLabel = monetization.length ? monetization.join(', ') : 'the stated monetization options'
-  return `Monetization should stay tied to actual user actions rather than abstract pricing language. Compare ${monetizationLabel}, show where value is unlocked, and keep the handoff into ${profile.signals.swipe ? 'Swipe checkout and fulfillment' : 'payment completion'} explicit.`
+  const monetizationLabel = monetization.length ? monetization.join(', ') : 'the stated monetization or value-exchange options'
+  const handoff = profile.signals.swipe
+    ? 'Swipe checkout and fulfillment'
+    : (profile.signals.payments ? 'payment completion' : 'the requested fulfillment handoff')
+  return `Monetization should stay tied to actual user actions rather than abstract pricing language. Compare ${monetizationLabel}, show where value is unlocked, and keep the handoff into ${handoff} explicit.`
 }
 
 const buildIntegrationText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -442,9 +459,10 @@ export const emitKgcRunOutput = async (args: {
           prompt: buildKgcRunGenerationPrompt(args.canonicalText),
         }).catch(() => null)
       : null
-    const path = await writeKgcCompanionOutputText({
+    const path = await mergeKgcCanonicalSection({
       workspacePath: args.canonicalPath,
-      extension: 'md',
+      sectionKey: 'run-output:markdown',
+      title: 'KGC Run Output',
       text: providerMarkdown || buildKgcRunMarkdownOutput(args.canonicalText),
     })
     return { path, kind: 'markdown', degraded: false }
@@ -515,9 +533,10 @@ export const emitKgcRunOutput = async (args: {
         prompt: buildKgcRunGenerationPrompt(args.canonicalText),
       }).catch(() => null)
     : null
-  const path = await writeKgcCompanionOutputText({
+  const path = await mergeKgcCanonicalSection({
     workspacePath: args.canonicalPath,
-    extension: 'md',
+    sectionKey: 'run-output:video-fallback',
+    title: 'KGC Run Output',
     text: fallbackMarkdown || buildKgcRunMarkdownOutput(args.canonicalText),
   })
   return { path, kind: 'video', degraded: true }

@@ -93,12 +93,27 @@ export const createUiInitialState = (
           || view === 'geo'
           || view === 'renderer'
           || view === 'gitGraph'
+          || view === 'gantt'
           || view === 'strybldr'
           || view === 'graphTraversal'
             ? view
             : 'propsPanel'
         if (state.floatingPanelView === next) return {}
         return { floatingPanelView: next } as Partial<GraphState>
+      }),
+
+    mermaidDiagramSelectedRowKeyByKind: {},
+    setMermaidDiagramSelectedRowKey: (kind: 'gitgraph' | 'gantt', rowKey: string | null) =>
+      set(state => {
+        const diagramKind = kind === 'gantt' ? 'gantt' : kind === 'gitgraph' ? 'gitgraph' : null
+        if (!diagramKind) return {}
+        const nextKey = String(rowKey || '').trim()
+        const prev = state.mermaidDiagramSelectedRowKeyByKind || {}
+        if ((prev[diagramKind] || '') === nextKey) return {}
+        const next = { ...prev }
+        if (nextKey) next[diagramKind] = nextKey
+        else delete next[diagramKind]
+        return { mermaidDiagramSelectedRowKeyByKind: next } as Partial<GraphState>
       }),
 
     gitGraphSelectedCommandLineIndex: null,
@@ -527,8 +542,8 @@ export const createUiInitialState = (
 
     grabMapsAuthMode: lsJson<'serverManaged' | 'byok'>(
       LS_KEYS.grabMapsAuthMode,
-      'byok',
-      value => (value === 'serverManaged' ? 'serverManaged' : 'byok'),
+      'serverManaged',
+      value => (value === 'byok' ? 'byok' : 'serverManaged'),
     ),
     grabMapsApiKey: readGrabMapsByokApiKeyFromBrowser(),
     grabMapsDirectionsEndpointUrl: lsJson<string>(

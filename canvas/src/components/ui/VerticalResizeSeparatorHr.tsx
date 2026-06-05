@@ -2,6 +2,8 @@ import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
+export const RESIZE_SEPARATOR_THICKNESS = 'var(--kg-resize-separator-thickness, 0.25rem)'
+
 export type VerticalResizeSeparatorHrProps = Omit<
   React.ComponentPropsWithoutRef<'hr'>,
   'role' | 'aria-orientation' | 'aria-label'
@@ -37,7 +39,12 @@ export const VerticalResizeSeparatorHr = React.forwardRef<HTMLHRElement, Vertica
           visualClassName,
           className,
         )}
-        style={visualStyleOverrides ? { ...visualStyleOverrides, ...style } : style}
+        style={{
+          inlineSize: RESIZE_SEPARATOR_THICKNESS,
+          minWidth: RESIZE_SEPARATOR_THICKNESS,
+          ...(visualStyleOverrides || {}),
+          ...style,
+        }}
         {...rest}
       />
     )
@@ -45,3 +52,52 @@ export const VerticalResizeSeparatorHr = React.forwardRef<HTMLHRElement, Vertica
 )
 
 VerticalResizeSeparatorHr.displayName = 'VerticalResizeSeparatorHr'
+
+export type HorizontalResizeSeparatorHrProps = Omit<
+  React.ComponentPropsWithoutRef<'hr'>,
+  'role' | 'aria-orientation' | 'aria-label'
+> & {
+  ariaLabel: string
+  visualStyle?: 'line' | 'centerGrip'
+}
+
+export const HorizontalResizeSeparatorHr = React.forwardRef<HTMLHRElement, HorizontalResizeSeparatorHrProps>(
+  ({ ariaLabel, className, style, visualStyle = 'line', ...rest }, ref) => {
+    const visualClassName =
+      visualStyle === 'centerGrip'
+        ? 'bg-transparent hover:bg-transparent'
+        : 'bg-[color:var(--kg-border)] hover:bg-[color:var(--kg-divider)]'
+    const visualStyleOverrides: React.CSSProperties | undefined =
+      visualStyle === 'centerGrip'
+        ? {
+            backgroundColor: 'transparent',
+            backgroundImage: 'linear-gradient(var(--kg-divider), var(--kg-divider))',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '3.5rem 1px',
+          }
+        : undefined
+    return (
+      <hr
+        ref={ref}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label={ariaLabel}
+        className={cn(
+          `h-1 w-full border-0 cursor-row-resize select-none touch-none focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryStrongRing}`,
+          visualClassName,
+          className,
+        )}
+        style={{
+          blockSize: RESIZE_SEPARATOR_THICKNESS,
+          minHeight: RESIZE_SEPARATOR_THICKNESS,
+          ...(visualStyleOverrides || {}),
+          ...style,
+        }}
+        {...rest}
+      />
+    )
+  },
+)
+
+HorizontalResizeSeparatorHr.displayName = 'HorizontalResizeSeparatorHr'

@@ -1,0 +1,452 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "name": "Singapore Monopoly",
+    "version": "1.0",
+    "currency": "SGD",
+    "startingMoney": 1500,
+    "salaryOnGo": 200,
+    "boardSize": 40
+  },
+  "knowledgeGraph": {
+    "edges": [
+      { "source": 1,  "target": 3,  "type": "district",   "weight": 3, "label": "East Heritage" },
+      { "source": 6,  "target": 8,  "type": "district",   "weight": 3, "label": "Suburban West" },
+      { "source": 8,  "target": 9,  "type": "district",   "weight": 3, "label": "Suburban Belt" },
+      { "source": 11, "target": 13, "type": "district",   "weight": 3, "label": "Heritage Quarter" },
+      { "source": 13, "target": 14, "type": "district",   "weight": 3, "label": "Heritage Quarter" },
+      { "source": 11, "target": 14, "type": "district",   "weight": 2, "label": "Heritage Quarter" },
+      { "source": 16, "target": 18, "type": "district",   "weight": 3, "label": "Coastal Leisure" },
+      { "source": 18, "target": 19, "type": "district",   "weight": 3, "label": "Coastal Leisure" },
+      { "source": 16, "target": 19, "type": "district",   "weight": 2, "label": "Coastal Leisure" },
+      { "source": 21, "target": 23, "type": "district",   "weight": 3, "label": "Riverside" },
+      { "source": 23, "target": 24, "type": "district",   "weight": 3, "label": "Riverside" },
+      { "source": 21, "target": 24, "type": "district",   "weight": 2, "label": "Riverside" },
+      { "source": 26, "target": 27, "type": "district",   "weight": 3, "label": "City Centre" },
+      { "source": 27, "target": 29, "type": "district",   "weight": 3, "label": "City Centre" },
+      { "source": 26, "target": 29, "type": "district",   "weight": 2, "label": "City Centre" },
+      { "source": 31, "target": 32, "type": "district",   "weight": 3, "label": "Marina Bay" },
+      { "source": 32, "target": 34, "type": "district",   "weight": 3, "label": "Marina Bay" },
+      { "source": 31, "target": 34, "type": "district",   "weight": 2, "label": "Marina Bay" },
+      { "source": 37, "target": 39, "type": "district",   "weight": 3, "label": "Premium Core" },
+      { "source": 5,  "target": 15, "type": "transit",    "weight": 2, "label": "MRT Network" },
+      { "source": 15, "target": 25, "type": "transit",    "weight": 2, "label": "MRT Network" },
+      { "source": 25, "target": 35, "type": "transit",    "weight": 2, "label": "MRT Network" },
+      { "source": 5,  "target": 35, "type": "transit",    "weight": 2, "label": "MRT Network" },
+      { "source": 12, "target": 28, "type": "utility",    "weight": 1, "label": "Infrastructure" },
+      { "source": 1,  "target": 11, "type": "geographic", "weight": 1, "label": "East–Central" },
+      { "source": 3,  "target": 13, "type": "geographic", "weight": 1, "label": "East–Central" },
+      { "source": 9,  "target": 19, "type": "geographic", "weight": 1, "label": "East Corridor" },
+      { "source": 14, "target": 21, "type": "geographic", "weight": 1, "label": "River–Heritage" },
+      { "source": 29, "target": 37, "type": "geographic", "weight": 1, "label": "Orchard–Somerset" },
+      { "source": 32, "target": 39, "type": "geographic", "weight": 1, "label": "Bay–Raffles" },
+      { "source": 16, "target": 32, "type": "geographic", "weight": 1, "label": "Sentosa–Marina" },
+      { "source": 27, "target": 32, "type": "geographic", "weight": 1, "label": "MRT–Marina" },
+      { "source": 6,  "target": 5,  "type": "transit",    "weight": 1, "label": "NS Line" },
+      { "source": 9,  "target": 5,  "type": "transit",    "weight": 1, "label": "EW Line" },
+      { "source": 34, "target": 35, "type": "transit",    "weight": 1, "label": "DT Line" }
+    ]
+  },
+  "features": [
+    {
+      "type": "Feature", "id": 0,
+      "geometry": { "type": "Point", "coordinates": [103.8769, 1.2866] },
+      "properties": {
+        "position": 0, "name": "GO", "type": "go",
+        "description": "Collect S$200 salary as you pass GO",
+        "icon": "🏁"
+      }
+    },
+    {
+      "type": "Feature", "id": 1,
+      "geometry": { "type": "Point", "coordinates": [103.8718, 1.3163] },
+      "properties": {
+        "position": 1, "name": "Geylang Road", "type": "property", "colorGroup": "brown",
+        "price": 60, "rent": [2, 10, 30, 90, 160, 250],
+        "houseCost": 50, "mortgage": 30,
+        "description": "Vibrant street known for durian stalls and 24h eateries",
+        "district": "East Heritage", "icon": "🍈"
+      }
+    },
+    {
+      "type": "Feature", "id": 2,
+      "geometry": { "type": "Point", "coordinates": [103.8900, 1.2960] },
+      "properties": {
+        "position": 2, "name": "Community Chest", "type": "community_chest",
+        "description": "Draw a Community Chest card", "icon": "📦"
+      }
+    },
+    {
+      "type": "Feature", "id": 3,
+      "geometry": { "type": "Point", "coordinates": [103.9028, 1.3139] },
+      "properties": {
+        "position": 3, "name": "Joo Chiat", "type": "property", "colorGroup": "brown",
+        "price": 60, "rent": [4, 20, 60, 180, 320, 450],
+        "houseCost": 50, "mortgage": 30,
+        "description": "Peranakan heritage enclave with colourful shophouses",
+        "district": "East Heritage", "icon": "🏮"
+      }
+    },
+    {
+      "type": "Feature", "id": 4,
+      "geometry": { "type": "Point", "coordinates": [103.8521, 1.2841] },
+      "properties": {
+        "position": 4, "name": "Income Tax", "type": "tax",
+        "amount": 200, "description": "Pay S$200 income tax", "icon": "💸"
+      }
+    },
+    {
+      "type": "Feature", "id": 5,
+      "geometry": { "type": "Point", "coordinates": [103.8350, 1.3521] },
+      "properties": {
+        "position": 5, "name": "NS MRT Line", "type": "station",
+        "price": 200, "rent": [25, 50, 100, 200],
+        "mortgage": 100,
+        "description": "North–South Line — Singapore's busiest MRT corridor",
+        "icon": "🚇"
+      }
+    },
+    {
+      "type": "Feature", "id": 6,
+      "geometry": { "type": "Point", "coordinates": [103.7865, 1.4382] },
+      "properties": {
+        "position": 6, "name": "Woodlands", "type": "property", "colorGroup": "lightblue",
+        "price": 100, "rent": [6, 30, 90, 270, 400, 550],
+        "houseCost": 50, "mortgage": 50,
+        "description": "Northern gateway town connecting Singapore to Malaysia",
+        "district": "Suburban West", "icon": "🌳"
+      }
+    },
+    {
+      "type": "Feature", "id": 7,
+      "geometry": { "type": "Point", "coordinates": [103.8350, 1.3000] },
+      "properties": {
+        "position": 7, "name": "Chance", "type": "chance",
+        "description": "Draw a Chance card", "icon": "❓"
+      }
+    },
+    {
+      "type": "Feature", "id": 8,
+      "geometry": { "type": "Point", "coordinates": [103.7426, 1.3330] },
+      "properties": {
+        "position": 8, "name": "Jurong East", "type": "property", "colorGroup": "lightblue",
+        "price": 100, "rent": [6, 30, 90, 270, 400, 550],
+        "houseCost": 50, "mortgage": 50,
+        "description": "Western regional hub and future Greater Southern Waterfront anchor",
+        "district": "Suburban Belt", "icon": "🏭"
+      }
+    },
+    {
+      "type": "Feature", "id": 9,
+      "geometry": { "type": "Point", "coordinates": [103.9449, 1.3540] },
+      "properties": {
+        "position": 9, "name": "Tampines", "type": "property", "colorGroup": "lightblue",
+        "price": 120, "rent": [8, 40, 100, 300, 450, 600],
+        "houseCost": 50, "mortgage": 60,
+        "description": "Major new town in the East with massive Tampines Mall",
+        "district": "Suburban Belt", "icon": "🛍️"
+      }
+    },
+    {
+      "type": "Feature", "id": 10,
+      "geometry": { "type": "Point", "coordinates": [103.7530, 1.3045] },
+      "properties": {
+        "position": 10, "name": "Jail / Just Visiting", "type": "jail",
+        "description": "Just visiting — or behind bars!", "icon": "⛓️"
+      }
+    },
+    {
+      "type": "Feature", "id": 11,
+      "geometry": { "type": "Point", "coordinates": [103.8496, 1.3066] },
+      "properties": {
+        "position": 11, "name": "Little India", "type": "property", "colorGroup": "pink",
+        "price": 140, "rent": [10, 50, 150, 450, 625, 750],
+        "houseCost": 100, "mortgage": 70,
+        "description": "Colourful enclave of temples, spice shops and flower garlands",
+        "district": "Heritage Quarter", "icon": "🪷"
+      }
+    },
+    {
+      "type": "Feature", "id": 12,
+      "geometry": { "type": "Point", "coordinates": [103.9915, 1.3644] },
+      "properties": {
+        "position": 12, "name": "Changi Airport", "type": "utility",
+        "price": 150, "rent": [4, 10], "mortgage": 75,
+        "description": "World's best airport — Jewel-crowned gateway to Singapore",
+        "icon": "✈️"
+      }
+    },
+    {
+      "type": "Feature", "id": 13,
+      "geometry": { "type": "Point", "coordinates": [103.8593, 1.3036] },
+      "properties": {
+        "position": 13, "name": "Arab Street", "type": "property", "colorGroup": "pink",
+        "price": 140, "rent": [10, 50, 150, 450, 625, 750],
+        "houseCost": 100, "mortgage": 70,
+        "description": "Bustling bazaar with batik fabrics and the golden-domed Sultan Mosque",
+        "district": "Heritage Quarter", "icon": "🕌"
+      }
+    },
+    {
+      "type": "Feature", "id": 14,
+      "geometry": { "type": "Point", "coordinates": [103.8441, 1.2832] },
+      "properties": {
+        "position": 14, "name": "Chinatown", "type": "property", "colorGroup": "pink",
+        "price": 160, "rent": [12, 60, 180, 500, 700, 900],
+        "houseCost": 100, "mortgage": 80,
+        "description": "Pagodas, hawker stalls and the Sri Mariamman Temple",
+        "district": "Heritage Quarter", "icon": "🐉"
+      }
+    },
+    {
+      "type": "Feature", "id": 15,
+      "geometry": { "type": "Point", "coordinates": [103.8198, 1.3042] },
+      "properties": {
+        "position": 15, "name": "EW MRT Line", "type": "station",
+        "price": 200, "rent": [25, 50, 100, 200], "mortgage": 100,
+        "description": "East–West Line spanning the island from Pasir Ris to Tuas",
+        "icon": "🚇"
+      }
+    },
+    {
+      "type": "Feature", "id": 16,
+      "geometry": { "type": "Point", "coordinates": [103.8198, 1.2494] },
+      "properties": {
+        "position": 16, "name": "Sentosa Island", "type": "property", "colorGroup": "orange",
+        "price": 180, "rent": [14, 70, 200, 550, 750, 950],
+        "houseCost": 100, "mortgage": 90,
+        "description": "Resort island with Universal Studios, beaches, and the world's two largest casinos",
+        "district": "Coastal Leisure", "icon": "🏖️"
+      }
+    },
+    {
+      "type": "Feature", "id": 17,
+      "geometry": { "type": "Point", "coordinates": [103.8350, 1.2900] },
+      "properties": {
+        "position": 17, "name": "Community Chest", "type": "community_chest",
+        "description": "Draw a Community Chest card", "icon": "📦"
+      }
+    },
+    {
+      "type": "Feature", "id": 18,
+      "geometry": { "type": "Point", "coordinates": [103.9210, 1.2988] },
+      "properties": {
+        "position": 18, "name": "East Coast Park", "type": "property", "colorGroup": "orange",
+        "price": 180, "rent": [14, 70, 200, 550, 750, 950],
+        "houseCost": 100, "mortgage": 90,
+        "description": "Beloved 15km waterfront park with BBQ pits and seafood restaurants",
+        "district": "Coastal Leisure", "icon": "🌊"
+      }
+    },
+    {
+      "type": "Feature", "id": 19,
+      "geometry": { "type": "Point", "coordinates": [103.9769, 1.3720] },
+      "properties": {
+        "position": 19, "name": "Pasir Ris Park", "type": "property", "colorGroup": "orange",
+        "price": 200, "rent": [16, 80, 220, 600, 800, 1000],
+        "houseCost": 100, "mortgage": 100,
+        "description": "Mangrove boardwalks, water sports and family chalets in the far East",
+        "district": "Coastal Leisure", "icon": "🦀"
+      }
+    },
+    {
+      "type": "Feature", "id": 20,
+      "geometry": { "type": "Point", "coordinates": [103.7530, 1.4382] },
+      "properties": {
+        "position": 20, "name": "Free Parking", "type": "free_parking",
+        "description": "Rest here — no rent, no tax", "icon": "🅿️"
+      }
+    },
+    {
+      "type": "Feature", "id": 21,
+      "geometry": { "type": "Point", "coordinates": [103.8462, 1.2906] },
+      "properties": {
+        "position": 21, "name": "Clarke Quay", "type": "property", "colorGroup": "red",
+        "price": 220, "rent": [18, 90, 250, 700, 875, 1050],
+        "houseCost": 150, "mortgage": 110,
+        "description": "Riverside entertainment hub with colonial warehouses turned nightlife venues",
+        "district": "Riverside", "icon": "🎉"
+      }
+    },
+    {
+      "type": "Feature", "id": 22,
+      "geometry": { "type": "Point", "coordinates": [103.8350, 1.3200] },
+      "properties": {
+        "position": 22, "name": "Chance", "type": "chance",
+        "description": "Draw a Chance card", "icon": "❓"
+      }
+    },
+    {
+      "type": "Feature", "id": 23,
+      "geometry": { "type": "Point", "coordinates": [103.8489, 1.2866] },
+      "properties": {
+        "position": 23, "name": "Boat Quay", "type": "property", "colorGroup": "red",
+        "price": 220, "rent": [18, 90, 250, 700, 875, 1050],
+        "houseCost": 150, "mortgage": 110,
+        "description": "Historic trading quay facing the Singapore River, now lined with restaurants",
+        "district": "Riverside", "icon": "⛵"
+      }
+    },
+    {
+      "type": "Feature", "id": 24,
+      "geometry": { "type": "Point", "coordinates": [103.8378, 1.2912] },
+      "properties": {
+        "position": 24, "name": "Robertson Quay", "type": "property", "colorGroup": "red",
+        "price": 240, "rent": [20, 100, 300, 750, 925, 1100],
+        "houseCost": 150, "mortgage": 120,
+        "description": "Upscale riverside enclave with galleries, boutique hotels and al-fresco dining",
+        "district": "Riverside", "icon": "🍷"
+      }
+    },
+    {
+      "type": "Feature", "id": 25,
+      "geometry": { "type": "Point", "coordinates": [103.8451, 1.3048] },
+      "properties": {
+        "position": 25, "name": "CC MRT Line", "type": "station",
+        "price": 200, "rent": [25, 50, 100, 200], "mortgage": 100,
+        "description": "Circle Line — the orbital MRT ring encircling the city centre",
+        "icon": "🚇"
+      }
+    },
+    {
+      "type": "Feature", "id": 26,
+      "geometry": { "type": "Point", "coordinates": [103.8559, 1.2997] },
+      "properties": {
+        "position": 26, "name": "Bugis Junction", "type": "property", "colorGroup": "yellow",
+        "price": 260, "rent": [22, 110, 330, 800, 975, 1150],
+        "houseCost": 150, "mortgage": 130,
+        "description": "Glassy air-conditioned mall built over a restored Victorian street",
+        "district": "City Centre", "icon": "🛒"
+      }
+    },
+    {
+      "type": "Feature", "id": 27,
+      "geometry": { "type": "Point", "coordinates": [103.8456, 1.2990] },
+      "properties": {
+        "position": 27, "name": "Dhoby Ghaut", "type": "property", "colorGroup": "yellow",
+        "price": 260, "rent": [22, 110, 330, 800, 975, 1150],
+        "houseCost": 150, "mortgage": 130,
+        "description": "MRT interchange and the gateway to Orchard Road shopping belt",
+        "district": "City Centre", "icon": "🚉"
+      }
+    },
+    {
+      "type": "Feature", "id": 28,
+      "geometry": { "type": "Point", "coordinates": [103.7717, 1.2644] },
+      "properties": {
+        "position": 28, "name": "PSA Singapore Port", "type": "utility",
+        "price": 150, "rent": [4, 10], "mortgage": 75,
+        "description": "One of the world's busiest container ports — the engine of Singapore trade",
+        "icon": "🚢"
+      }
+    },
+    {
+      "type": "Feature", "id": 29,
+      "geometry": { "type": "Point", "coordinates": [103.8384, 1.2985] },
+      "properties": {
+        "position": 29, "name": "Somerset", "type": "property", "colorGroup": "yellow",
+        "price": 280, "rent": [24, 120, 360, 850, 1025, 1200],
+        "houseCost": 150, "mortgage": 140,
+        "description": "Youth culture hub with 313@Somerset mall and Orchard Gateway",
+        "district": "City Centre", "icon": "🧋"
+      }
+    },
+    {
+      "type": "Feature", "id": 30,
+      "geometry": { "type": "Point", "coordinates": [103.8769, 1.4382] },
+      "properties": {
+        "position": 30, "name": "Go to Jail", "type": "go_to_jail",
+        "description": "Go directly to Jail. Do not pass GO.", "icon": "👮"
+      }
+    },
+    {
+      "type": "Feature", "id": 31,
+      "geometry": { "type": "Point", "coordinates": [103.8637, 1.2816] },
+      "properties": {
+        "position": 31, "name": "Gardens by the Bay", "type": "property", "colorGroup": "green",
+        "price": 300, "rent": [26, 130, 390, 900, 1100, 1275],
+        "houseCost": 200, "mortgage": 150,
+        "description": "Futuristic Supertrees and glass-domed biomes on reclaimed Marina Bay land",
+        "district": "Marina Bay", "icon": "🌴"
+      }
+    },
+    {
+      "type": "Feature", "id": 32,
+      "geometry": { "type": "Point", "coordinates": [103.8610, 1.2834] },
+      "properties": {
+        "position": 32, "name": "Marina Bay Sands", "type": "property", "colorGroup": "green",
+        "price": 300, "rent": [26, 130, 390, 900, 1100, 1275],
+        "houseCost": 200, "mortgage": 150,
+        "description": "Iconic triple-tower resort crowned by the Sands SkyPark infinity pool",
+        "district": "Marina Bay", "icon": "🏙️"
+      }
+    },
+    {
+      "type": "Feature", "id": 33,
+      "geometry": { "type": "Point", "coordinates": [103.8350, 1.3600] },
+      "properties": {
+        "position": 33, "name": "Community Chest", "type": "community_chest",
+        "description": "Draw a Community Chest card", "icon": "📦"
+      }
+    },
+    {
+      "type": "Feature", "id": 34,
+      "geometry": { "type": "Point", "coordinates": [103.9893, 1.3601] },
+      "properties": {
+        "position": 34, "name": "Jewel Changi", "type": "property", "colorGroup": "green",
+        "price": 320, "rent": [28, 150, 450, 1000, 1200, 1400],
+        "houseCost": 200, "mortgage": 160,
+        "description": "Forest valley and HSBC Rain Vortex — the world's tallest indoor waterfall",
+        "district": "Marina Bay", "icon": "💎"
+      }
+    },
+    {
+      "type": "Feature", "id": 35,
+      "geometry": { "type": "Point", "coordinates": [103.8475, 1.3271] },
+      "properties": {
+        "position": 35, "name": "DT MRT Line", "type": "station",
+        "price": 200, "rent": [25, 50, 100, 200], "mortgage": 100,
+        "description": "Downtown Line — connecting Bukit Panjang to Expo via the city",
+        "icon": "🚇"
+      }
+    },
+    {
+      "type": "Feature", "id": 36,
+      "geometry": { "type": "Point", "coordinates": [103.8350, 1.3400] },
+      "properties": {
+        "position": 36, "name": "Chance", "type": "chance",
+        "description": "Draw a Chance card", "icon": "❓"
+      }
+    },
+    {
+      "type": "Feature", "id": 37,
+      "geometry": { "type": "Point", "coordinates": [103.8321, 1.3048] },
+      "properties": {
+        "position": 37, "name": "Orchard Road", "type": "property", "colorGroup": "darkblue",
+        "price": 350, "rent": [35, 175, 500, 1100, 1300, 1500],
+        "houseCost": 200, "mortgage": 175,
+        "description": "Singapore's legendary 2.2km shopping boulevard lined with luxury malls",
+        "district": "Premium Core", "icon": "🛍️"
+      }
+    },
+    {
+      "type": "Feature", "id": 38,
+      "geometry": { "type": "Point", "coordinates": [103.8521, 1.2900] },
+      "properties": {
+        "position": 38, "name": "GST / Luxury Tax", "type": "tax",
+        "amount": 100, "description": "Pay S$100 luxury tax", "icon": "💎"
+      }
+    },
+    {
+      "type": "Feature", "id": 39,
+      "geometry": { "type": "Point", "coordinates": [103.8521, 1.2841] },
+      "properties": {
+        "position": 39, "name": "Raffles Place", "type": "property", "colorGroup": "darkblue",
+        "price": 400, "rent": [50, 200, 600, 1400, 1700, 2000],
+        "houseCost": 200, "mortgage": 200,
+        "description": "Singapore's financial heart — surrounded by skyscrapers of global banks",
+        "district": "Premium Core", "icon": "🏦"
+      }
+    }
+  ]
+}

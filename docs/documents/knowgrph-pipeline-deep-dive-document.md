@@ -64,7 +64,7 @@ Canonical GraphData (Zustand store)
 
 **Load steps**:
 - Toolbar → Source Files → Import → JSON‑LD → Local → select the JSON‑LD file above
-- Optional: apply `schema-config/knowgrph-universal-schema-config.jsonld` to get pipeline-friendly styles (`contains/calls/invokes/next`)
+- Optional: apply `data/config/schema/knowgrph-universal-schema-config.jsonld` to get pipeline-friendly styles (`contains/calls/invokes/next`)
 
 ---
 

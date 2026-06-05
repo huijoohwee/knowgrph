@@ -9,13 +9,14 @@ try:
 except Exception:
     yaml = None
 
+from .config_paths import GRAPHRAG_CONFIG_REL, repo_path
 from .pipeline_cmd import write_a0_csv, write_jsonld
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DEFAULT_OUTPUT_DIR = os.path.join(DATA_DIR, "graphrag")
 DEFAULT_INPUT_DIR = os.path.join(DATA_DIR, "raw")
-DEFAULT_CONFIG = os.path.join(BASE_DIR, "configs", "graphrag", "config.yaml")
+DEFAULT_CONFIG = repo_path(BASE_DIR, GRAPHRAG_CONFIG_REL)
 
 
 def ensure_output_dir(out_dir: str) -> None:

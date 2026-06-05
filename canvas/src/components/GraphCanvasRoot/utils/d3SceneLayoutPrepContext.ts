@@ -130,13 +130,26 @@ export function buildD3SceneLayoutPrepContext(args: {
     nextViewportW: args.sceneWidth,
     nextViewportH: args.sceneHeight,
   })
-  const initialZoomTransform =
-    pickedInitialZoomTransform || (!args.fitToScreenMode && !args.zoomToSelectionMode ? args.lastKnownZoomTransform : null)
   const { layoutPositionsForMode, skipInitialLayout, cacheKey } = determineLayoutPositions({
     ...currentLayoutSeed,
     layoutVariant,
     ...currentLayoutHistory,
   })
+  const canReuseLastKnownZoomTransform =
+    !!args.prevLayoutViewKey &&
+    args.prevLayoutViewKey === layoutViewKey &&
+    args.prevDatasetKey === datasetKey &&
+    args.prevMode === mode &&
+    args.prevFrontmatterMode === !!args.effectiveFrontmatterModeEnabled &&
+    args.prevSemanticMode === layoutResolutionContext.semanticMode &&
+    args.prevRenderMode === args.canvasRenderMode &&
+    args.prevRenderVariant === layoutResolutionContext.renderVariant &&
+    args.prevLayoutVariant === layoutVariant
+  const initialZoomTransform =
+    pickedInitialZoomTransform ||
+    (!args.fitToScreenMode && !args.zoomToSelectionMode && canReuseLastKnownZoomTransform
+      ? args.lastKnownZoomTransform
+      : null)
   const effectiveLayoutPositionsForMode = args.isFlowchart ? null : layoutPositionsForMode
 
   const baselineLayoutRuntime = readBaselineDocumentLayoutRuntimeContext({

@@ -67,7 +67,7 @@ const GRABMAPS_TOOLTIP_ROLE = 'GrabMaps'
 
 const GRABMAPS_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>> = {
   'maps.grabmaps.authMode': ['select auth mode', 'set trust boundary for GrabMaps calls'],
-  'maps.grabmaps.apiKey': ['store BYOK secret', 'authorize proxy-backed GrabMaps requests'],
+  'maps.grabmaps.apiKey': ['hold memory-only BYOK secret', 'authorize proxy-backed GrabMaps requests'],
   'maps.grabmaps.basemap.styleUrl': ['pin style URL', 'keep basemap loading on one shared endpoint'],
   'maps.grabmaps.mcp.discovery.chatModel': ['select planner model', 'keep discovery planning aligned with widget defaults'],
   'maps.grabmaps.mcp.searchPlaces.query': ['set default search query', 'seed keyword-search discovery runs'],

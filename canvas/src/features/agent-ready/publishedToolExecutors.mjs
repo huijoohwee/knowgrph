@@ -346,5 +346,11 @@ export const createPublishedAgentReadyToolExecutors = (args = {}) => {
   return executors
 }
 
+const createBrowserSafeFunctionSource = (fn) => `((...args) => {
+  const n = (value) => value
+  const __name = (value) => value
+  return (${Function.prototype.toString.call(fn)})(...args)
+})`
+
 export const PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE =
-  createPublishedAgentReadyToolExecutors.toString()
+  createBrowserSafeFunctionSource(createPublishedAgentReadyToolExecutors)

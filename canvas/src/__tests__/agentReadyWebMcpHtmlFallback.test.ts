@@ -5,6 +5,7 @@ import {
   buildExpectedMockAgentSurfaceInspection,
   createMockResponse,
 } from '@/__tests__/helpers/webMcpRuntimeFixture'
+import { PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE } from '@/features/agent-ready/publishedToolExecutors.mjs'
 import { webMcpScript } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
 
 type RegisteredTool = {
@@ -37,6 +38,9 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     }
     if (webMcpScript.includes('__name(')) {
       throw new Error('expected HTML fallback script to avoid bundler-only __name helper references')
+    }
+    if (!PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE.includes('const n = (value) => value')) {
+      throw new Error('expected published executor browser source to define the bundler name helper before bundled Function#toString output runs')
     }
     const navigatorObject = window.navigator as Navigator & {
       modelContext?: {

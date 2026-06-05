@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
-import path from 'node:path'
 import { computeDerivedFields } from '@/features/graph-fields/graphFields'
 import { getRowFieldText, type GraphDataTableColumnKey, type UnifiedRow } from '@/features/graph-data-table/graphDataTable'
 import { parseGraph } from '@/lib/graph/io/adapter'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 export function testGraphFieldsDerivedIncludesNestedGeoMetadataKeys() {
   const graphData = {
@@ -55,7 +55,7 @@ export function testGraphDataTableNestedPropertyColumnsReadNestedValues() {
 }
 
 export function testSingapolyJsonGeoParsingAndGraphFields() {
-  const fixturePath = path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'singapoly.json')
+  const fixturePath = resolveRepoTestDataPath('singapoly.json')
   let text = ''
   try {
     text = readFileSync(fixturePath, 'utf8')

@@ -48,7 +48,7 @@ export function readFitAllOptions(args: {
 
   return {
     pad,
-    centerMode: args.intent === 'fitToScreen' ? 'bbox' : 'centroid',
+    centerMode: 'centroid',
     detectClusters: detectClustersEffective,
     targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : undefined,
     enforceAspectRatio: enforceAspectRatio !== false,

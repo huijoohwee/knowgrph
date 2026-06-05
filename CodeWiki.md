@@ -11,7 +11,7 @@ Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and syn
 - **Produce (标准化处理)**：将提取出的数据清洗并转换为规范的 `GraphData` 数据模型（由节点和边构成）。
 - **Reuse (渲染与复用)**：前端通过 2D (SVG/D3) 或 3D (WebGL/Three.js/MapLibre Globe) 引擎将 `GraphData` 进行可视化渲染，支持用户交互式编辑、拖拽和格式导出。
 
-代码仓库采用解耦的 Monorepo 风格组织，主要分为前端应用（React）和后端数据解析脚本（Python）以及共享类型库。
+代码仓库采用解耦的 Monorepo 风格组织，主要分为前端应用（React）、后端数据解析脚本（Python）、共享类型库以及 Cloudflare/MCP 运行面。
 
 ---
 
@@ -23,8 +23,9 @@ Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and syn
 | `knowgrph_parser/` | Python, NetworkX, PyYAML, yt-dlp | **后端数据解析与提取引擎**。处理数据源的加载和转化工作。支持从代码库中建立知识图谱索引、GraphRAG 流水线处理，以及将多模态数据转换为统一的 `GraphData` 格式。 |
 | `grph-shared/` | TypeScript | **共享库**。提供图谱核心类型（如 `GraphNode`, `GraphEdge`, `GraphData`），以及在各前端模块之间共享的纯函数工具（哈希、缓存、数组处理、URL解析等）。 |
 | `gympgrph/` | TypeScript, MapLibre | **地理空间与地图集成库**。负责提供 2D/3D 地理信息及相关可视化能力，用于包含地理坐标的数据集（GeoJSON等）。 |
-| `schema-config/` | JSON | **样式与规则配置库**。存储图谱节点和边的预设视觉样式（颜色、粗细）、布局物理力参数以及验证约束规则。 |
-| `docs/` & `data/` | Markdown, JSON | **文档与数据制品**。包含系统设计文档、API目录、测试使用的示例数据集以及解析脚本的输出基线。 |
+| `data/config/` | YAML, JSON, JSON-LD | **配置输入库**。集中存储 GraphRAG、LLM chat、orchestrator 与 schema 配置，避免根目录重复配置源。 |
+| `docs/` & `data/outputs/` | Markdown, JSON | **文档与生成制品**。`docs/documents/` 保存权威设计文档；本地生成预览与运行输出归入被忽略的 `data/outputs/`。 |
+| `cloudflare/` & `mcp/` | Workers, Pages, Node.js | **发布与工具运行面**。包含 Cloudflare Workers/Pages 处理器、D1 迁移与本地 MCP 合约。 |
 
 ---
 
@@ -89,37 +90,36 @@ Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and syn
 提供交互式可视化界面以及热重载 (HMR) 能力。
 
 ```bash
-# 1. 进入前端目录
-cd canvas
-
-# 2. 安装项目及工作区依赖
+# 1. 安装根项目依赖
 npm install
 
+# 2. 安装并准备前端与本地工作区依赖
+npm run setup
+
 # 3. 启动开发服务器 (默认端口 5173)
-npm run dev
+npm run dev -- --host 127.0.0.1
 ```
 
 ### 5.3 后端解析引擎 (Python Parsers)
 用于数据转换、知识图谱提取和命令行测试。
 
 ```bash
-# 1. 回到项目根目录
-cd /workspace
-
-# 2. 创建并激活 Python 虚拟环境
+# 1. 在项目根目录创建并激活 Python 虚拟环境
 python3.11 -m venv .venv
 source .venv/bin/activate
 
-# 3. 安装后端依赖
+# 2. 安装后端依赖
 pip install -r requirements.txt
 
-# 4. 运行 Smoke 测试以验证解析器功能
+# 3. 运行 Smoke 测试以验证解析器功能
 python -m knowgrph_parser smoke --timeout-seconds 20
 ```
 
 ### 5.4 生产构建与预览
 ```bash
-# 在 canvas 目录下执行
+# 根目录脚本会构建共享包并运行 Canvas 构建
 npm run build
-npm run preview
+
+# 如需只预览 Canvas 构建产物
+npm --prefix canvas run preview
 ```

@@ -8,16 +8,18 @@ try:
 except Exception:
     yaml = None
 
+from .config_paths import (
+    GRAPHRAG_CONFIG_REL,
+    UNIVERSAL_ORCHESTRATOR_CONFIG_REL,
+    repo_path,
+)
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DEFAULT_CONFIG = os.path.join(BASE_DIR, "configs", "graphrag", "config.yaml")
+DEFAULT_CONFIG = repo_path(BASE_DIR, GRAPHRAG_CONFIG_REL)
 DEFAULT_GRAPH_ID = "codebase-index"
 DEFAULT_OUTPUT = os.path.join(BASE_DIR, "data", "graphrag", "graphrag-workflow.jsonld")
-DEFAULT_ORCHESTRATOR = os.path.join(
-    BASE_DIR,
-    "orchestrator-config",
-    "knowgrph-universal-orchestrator-config.yaml",
-)
+DEFAULT_ORCHESTRATOR = repo_path(BASE_DIR, UNIVERSAL_ORCHESTRATOR_CONFIG_REL)
 
 
 def load_yaml(path: str) -> Dict[str, Any]:

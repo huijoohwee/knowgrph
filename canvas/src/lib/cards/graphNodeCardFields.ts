@@ -16,7 +16,7 @@ export type GraphNodeCardTextFieldSpec = {
   id: GraphNodeCardTextFieldId
   label: string
   canonicalKey: string
-  aliasKeys: readonly string[]
+  propertyKeys: readonly string[]
   placeholder: string
 }
 
@@ -25,35 +25,35 @@ export const GRAPH_NODE_CARD_TEXT_FIELDS: readonly GraphNodeCardTextFieldSpec[] 
     id: 'summary',
     label: 'Summary',
     canonicalKey: 'summary',
-    aliasKeys: GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
+    propertyKeys: GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
     placeholder: 'Add summary',
   },
   {
     id: 'output',
     label: 'Output',
     canonicalKey: 'output',
-    aliasKeys: GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS,
+    propertyKeys: GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS,
     placeholder: 'Add output',
   },
   {
     id: 'action',
     label: 'Action',
     canonicalKey: 'action',
-    aliasKeys: GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
+    propertyKeys: GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
     placeholder: 'Add action',
   },
   {
     id: 'dialogue',
     label: 'Dialogue',
     canonicalKey: 'dialogue',
-    aliasKeys: GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS,
+    propertyKeys: GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS,
     placeholder: 'Add dialogue',
   },
   {
     id: 'prompt',
     label: 'Prompt',
     canonicalKey: 'prompt',
-    aliasKeys: GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
+    propertyKeys: GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
     placeholder: 'Add prompt',
   },
 ] as const
@@ -81,9 +81,9 @@ export function readGraphNodeCardTitle(node: Pick<GraphNode, 'id' | 'label' | 'p
 
 export function readGraphNodeCanonicalTextProperty(
   properties: Record<string, unknown>,
-  aliasKeys: readonly string[],
+  propertyKeys: readonly string[],
 ): string {
-  for (const key of aliasKeys) {
+  for (const key of propertyKeys) {
     const value = properties[key]
     const text = normalizeCardText(value)
     if (text) return text
@@ -97,7 +97,7 @@ export function readGraphNodeCanonicalTextProperty(
 
 export function buildGraphNodeCanonicalTextPatch(args: {
   currentProperties: Record<string, unknown>
-  aliasKeys: readonly string[]
+  propertyKeys: readonly string[]
   canonicalKey: string
   nextValue: string
 }): Record<string, unknown> {
@@ -105,9 +105,9 @@ export function buildGraphNodeCanonicalTextPatch(args: {
   const nestedProperties = isPlainObject(nextProperties.properties)
     ? { ...nextProperties.properties }
     : null
-  for (const key of args.aliasKeys) delete nextProperties[key]
+  for (const key of args.propertyKeys) delete nextProperties[key]
   if (nestedProperties) {
-    for (const key of args.aliasKeys) delete nestedProperties[key]
+    for (const key of args.propertyKeys) delete nestedProperties[key]
   }
   const normalizedValue = normalizeCardText(args.nextValue)
   if (normalizedValue) {

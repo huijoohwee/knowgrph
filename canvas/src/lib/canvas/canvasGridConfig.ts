@@ -1,4 +1,5 @@
 import type { GraphSchema } from '@/lib/graph/schema'
+import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { resolveVoxelGridStepFromSchema } from '@/lib/canvas/voxelGrid'
 
 export type CanvasGridVariant = 'lines' | 'dots'
@@ -19,6 +20,8 @@ export type CanvasGridConfig = {
 export type CanvasGridRenderConfig = {
   enabled: true
   size: number
+  sizeX: number
+  sizeY: number
   variant: CanvasGridVariant
   majorEvery: number
   dotRadiusPx: number
@@ -28,7 +31,7 @@ export type CanvasGridRenderConfig = {
   majorWidthPx: number
   minorStroke: string | null
   majorStroke: string | null
-  anchor: 'cellCenter'
+  anchor: 'gridLine' | 'cellCenter'
   lockToBaseStep: true
 }
 
@@ -103,12 +106,20 @@ export const readCanvasGridWorldStepFromSchema = (schema: GraphSchema | null | u
   return resolveVoxelGridStepFromSchema(schema)
 }
 
+export const readCanvasGridWorldStepsFromSchema = (schema: GraphSchema | null | undefined): { size: number; x: number; y: number } => {
+  const grid = readSnapGridConfigFromSchema(schema)
+  return { size: grid.size, x: grid.x, y: grid.y }
+}
+
 export const readCanvasGridRenderConfigFromSchema = (schema: GraphSchema | null | undefined): CanvasGridRenderConfig | null => {
   const grid = readCanvasGridConfigFromSchema(schema)
   if (!grid.enabled) return null
+  const steps = readCanvasGridWorldStepsFromSchema(schema)
   return {
     enabled: true,
-    size: readCanvasGridWorldStepFromSchema(schema),
+    size: steps.size,
+    sizeX: steps.x,
+    sizeY: steps.y,
     variant: grid.variant,
     majorEvery: grid.majorEvery,
     dotRadiusPx: grid.dotRadiusPx,
@@ -118,7 +129,7 @@ export const readCanvasGridRenderConfigFromSchema = (schema: GraphSchema | null 
     majorWidthPx: grid.majorWidthPx,
     minorStroke: grid.minorStroke,
     majorStroke: grid.majorStroke,
-    anchor: 'cellCenter',
+    anchor: 'gridLine',
     lockToBaseStep: true,
   }
 }

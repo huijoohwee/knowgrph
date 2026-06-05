@@ -173,7 +173,7 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
     })
     state.addSourceFile({
       id: 'sf-demo',
-      name: 'knowgrph-demo-video.md',
+      name: 'disabled-flow-preset.md',
       text: [
         '---',
         'title: "Demo"',
@@ -196,7 +196,7 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
       },
       parsedTextHash: 'demo-hash',
       parsedGraphRevision: 0,
-      source: { kind: 'local', path: 'workspace:/sandbox/test-data/test-generate-video/knowgrph-demo-video.md' },
+      source: { kind: 'local', path: 'workspace:/fixtures/disabled-flow-preset.md' },
     })
 
     applyGraphOwnerComposedGraphFromSourceFiles()

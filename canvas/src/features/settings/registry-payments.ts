@@ -35,15 +35,9 @@ export const paymentsSettingsRegistry: SettingMeta[] = [
   {
     key: 'payments.stripe.secretKey',
     type: 'string',
-    source: 'localStorage',
-    read: () => {
-      const legacy = lsJson(LS_KEYS.paymentsStripeSecretKey, '', parseString)
-      if (legacy) lsSetJson(LS_KEYS.paymentsStripeSecretKey, '')
-      return ''
-    },
-    write: () => {
-      lsSetJson(LS_KEYS.paymentsStripeSecretKey, '')
-    },
+    source: 'backendEnv',
+    read: () => '',
+    write: () => undefined,
     docKey: 'payments.stripe.secretKey',
     default: () => '',
   },
@@ -61,15 +55,9 @@ export const paymentsSettingsRegistry: SettingMeta[] = [
   {
     key: 'payments.stripe.webhookSecret',
     type: 'string',
-    source: 'localStorage',
-    read: () => {
-      const legacy = lsJson(LS_KEYS.paymentsStripeWebhookSecret, '', parseString)
-      if (legacy) lsSetJson(LS_KEYS.paymentsStripeWebhookSecret, '')
-      return ''
-    },
-    write: () => {
-      lsSetJson(LS_KEYS.paymentsStripeWebhookSecret, '')
-    },
+    source: 'backendEnv',
+    read: () => '',
+    write: () => undefined,
     docKey: 'payments.stripe.webhookSecret',
     default: () => '',
   },

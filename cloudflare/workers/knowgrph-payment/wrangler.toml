@@ -11,6 +11,9 @@ STRYTREE_PIXVERSE_BASE_URL = "https://app-api.pixverse.ai"
 STRYTREE_PIXVERSE_MAX_POLLS = "60"
 STRYTREE_PIXVERSE_POLL_INTERVAL_MS = "1500"
 STRYTREE_DAILY_PROVIDER_BUDGET_CENTS = "0"
+STRIPE_CHECKOUT_PRICE_ID = "price_1TeXU4GzH0w0k4VUqOmX4aTn"
+# Placeholder only. Replace with an operator-owned EVM receiving wallet before x402 production readiness.
+X402_PAY_TO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 [[routes]]
 pattern = "airvio.co/api/payments/*"
