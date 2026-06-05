@@ -15,7 +15,8 @@ import {
   getDefaultChatModelForProvider,
   resolveChatModelIdForProvider,
 } from '@/lib/chatEndpoint'
-import { resolveChatProviderSelectionValues } from '@/lib/chatProviderSelection'
+import { inferChatProviderFromEndpointUrl, inferChatProviderFromModelId } from '@/lib/chatEndpointProviderInference'
+import { resolveChatModelSelectionValues, resolveChatProviderSelectionValues } from '@/lib/chatProviderSelection'
 import {
   CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
   normalizeChatLocalStorageRootPath,
@@ -83,9 +84,10 @@ export const createInitialChatUiContext = (readers: UiStorageReaders) => {
   const storedChatProvider = lsJson<string>(LS_KEYS.chatProvider, CHAT_DEFAULT_PROVIDER, value => normalizeChatProviderId(value))
   const storedChatModel = lsJson<string | null>(LS_KEYS.chatModel, null, value => (typeof value === 'string' ? value : null))
   const normalizedStoredProvider = normalizeChatProviderId(storedChatProvider)
-  const normalizedStoredModel = resolveChatModelIdForProvider(storedChatModel, normalizedStoredProvider, { preserveUnknownCustomModel: true })
-  const shouldMigrateLegacyProviderDefault = normalizedStoredProvider !== CHAT_DEFAULT_PROVIDER && !normalizedStoredModel && getChatModelOptions(normalizedStoredProvider).length === 0
-  const initialChatProvider = shouldMigrateLegacyProviderDefault ? CHAT_DEFAULT_PROVIDER : normalizedStoredProvider
+  const inferredStoredProvider = inferChatProviderFromModelId(storedChatModel, normalizedStoredProvider)
+  const normalizedStoredModel = resolveChatModelIdForProvider(storedChatModel, inferredStoredProvider, { preserveUnknownCustomModel: true })
+  const shouldMigrateLegacyProviderDefault = inferredStoredProvider !== CHAT_DEFAULT_PROVIDER && !normalizedStoredModel && getChatModelOptions(inferredStoredProvider).length === 0
+  const initialChatProvider = shouldMigrateLegacyProviderDefault ? CHAT_DEFAULT_PROVIDER : inferredStoredProvider
   const initialChatAuthMode = lsJson<'serverManaged' | 'byok'>(LS_KEYS.chatAuthMode, 'serverManaged', value => (value === 'byok' ? 'byok' : 'serverManaged'))
   const storedChatEndpointUrl = lsJson<string | null>(LS_KEYS.chatEndpointUrl, null, value => (typeof value === 'string' ? value : null))
   const initialChatEndpointUrl = lsJson<string | null>(LS_KEYS.chatEndpointUrl, shouldMigrateLegacyProviderDefault ? normalizeChatEndpointUrlInput(null, initialChatProvider) : normalizeChatEndpointUrlInput(storedChatEndpointUrl, initialChatProvider), value => {
@@ -149,20 +151,43 @@ export const createUiChatActions = (set: SetGraph)=> ({
         return { chatApiKey: sanitized }
       }),
     setChatEndpointUrl: (url: string | null) =>
-      set(state => ({
-        chatEndpointUrl: lsSetJson(
-          LS_KEYS.chatEndpointUrl,
-          normalizeChatEndpointUrlInput(url, state.chatProvider),
-        ),
-      })),
+      set(state => {
+        const nextProvider = inferChatProviderFromEndpointUrl(url, state.chatProvider)
+        const nextEndpointUrl = normalizeChatEndpointUrlInput(url, nextProvider)
+        const nextModel = nextProvider === state.chatProvider
+          ? state.chatModel
+          : resolveChatModelIdForProvider(state.chatModel, nextProvider, { preserveUnknownCustomModel: true })
+        if (
+          state.chatProvider === nextProvider
+          && state.chatEndpointUrl === nextEndpointUrl
+          && state.chatModel === nextModel
+        ) {
+          return {}
+        }
+        return {
+          chatProvider: lsSetJson(LS_KEYS.chatProvider, nextProvider),
+          chatEndpointUrl: lsSetJson(LS_KEYS.chatEndpointUrl, nextEndpointUrl),
+          chatModel: lsSetJson(LS_KEYS.chatModel, nextModel),
+        }
+      }),
     setChatModel: (model: string | null) =>
       set(state => {
-        const nextProvider = normalizeChatProviderId(state.chatProvider)
+        const next = resolveChatModelSelectionValues({
+          currentEndpointUrl: state.chatEndpointUrl,
+          currentProvider: state.chatProvider,
+          model: String(model || '').trim(),
+        })
+        if (
+          state.chatProvider === next.chatProvider
+          && state.chatModel === next.chatModel
+          && state.chatEndpointUrl === next.chatEndpointUrl
+        ) {
+          return {}
+        }
         return {
-          chatModel: lsSetJson(
-            LS_KEYS.chatModel,
-            resolveChatModelIdForProvider(model, nextProvider, { preserveUnknownCustomModel: true }),
-          ),
+          chatProvider: lsSetJson(LS_KEYS.chatProvider, next.chatProvider),
+          chatModel: lsSetJson(LS_KEYS.chatModel, next.chatModel),
+          chatEndpointUrl: lsSetJson(LS_KEYS.chatEndpointUrl, next.chatEndpointUrl),
         }
       }),
     setChatTemperature: (v: number) =>

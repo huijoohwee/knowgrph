@@ -8,6 +8,7 @@ import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDat
 import { hasRegisteredFlowWidgetCompute } from '@/lib/flowEditor/widgetComputeRegistry'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { isCanvas2dRendererId } from '@/lib/config.render'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
@@ -269,7 +270,9 @@ export function testMarkdownFrontmatterFlowGraphFidelityPublishedFlowDiagramDocs
     const g = res.graphData
     if (String(g.context || '').trim() !== 'frontmatter-flow') throw new Error(`expected frontmatter-flow context for ${samplePath}`)
     const preset = parseCanvasWorkspaceFrontmatterPreset(md)
-    if (preset?.canvas2dRenderer !== 'flowEditor') throw new Error(`expected ${samplePath} source frontmatter to select flowEditor`)
+    if (!isCanvas2dRendererId(preset?.canvas2dRenderer)) {
+      throw new Error(`expected ${samplePath} source frontmatter to select a current 2D renderer, got ${String(preset?.canvas2dRenderer || '')}`)
+    }
     const flowSettings = ((g.metadata || {}) as Record<string, unknown>).frontmatterFlowSettings as Record<string, unknown> | null
     if (flowSettings?.computed !== true) throw new Error(`expected ${samplePath} parsed flow settings to enable computed frontmatter flow`)
     const frontmatterMeta = ((g.metadata || {}) as Record<string, unknown>).frontmatterMeta as Record<string, unknown> | null

@@ -7,7 +7,7 @@ import {
   resetBrowserLocalSurfaceSnapshotsForTests,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { inspectLocalChatPipelineState } from '@/features/agent-ready/localChatPipelineStateInspection'
-import { CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
+import { CHAT_LOCAL_DEFAULT_MODEL, CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
 import { useSettingsChatAssist } from '@/features/panels/views/useSettingsChatAssist'
 import { useSettingsSync } from '@/features/panels/views/useSettingsSync'
 import { CHAT_KTV_ROW_KEYS } from '@/features/panels/views/settingsView.constants'
@@ -77,6 +77,17 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
               [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_LM_STUDIO],
             )}
           </section>
+          <section data-row="model-input">
+            {renderSettingInput(
+              'chatModel',
+              'string',
+              true,
+              values,
+              setValues,
+              dirtyRef,
+              ['gpt-4.1-mini', CHAT_LOCAL_DEFAULT_MODEL],
+            )}
+          </section>
           <section data-row="context">{buildChatAssistNodes(CHAT_KTV_ROW_KEYS.contextScope)}</section>
         </section>
       )
@@ -107,16 +118,24 @@ export async function testMainPanelSettingsSyncsLiveFloatingChatPipelineInspecti
     }
 
     const providerRow = mainPanelContainer.querySelector('[data-row="provider"]') as HTMLElement | null
-    const providerSelect = providerRow?.querySelector('select') as HTMLSelectElement | null
-    if (!providerSelect) {
-      throw new Error(`expected chatProvider Value dropdown, got ${JSON.stringify(providerRow?.textContent || '')}`)
+    const providerInput = providerRow?.querySelector('input') as HTMLInputElement | null
+    if (!providerInput || providerInput.readOnly !== true || providerInput.value !== CHAT_PROVIDER_OPENAI) {
+      throw new Error(`expected chatProvider Value to be derived read-only OpenAI text, got ${JSON.stringify(providerRow?.textContent || providerInput?.value || '')}`)
+    }
+    if (providerRow?.querySelector('select')) {
+      throw new Error('expected chatProvider Value to avoid a manual provider dropdown')
+    }
+    const modelInputRow = mainPanelContainer.querySelector('[data-row="model-input"]') as HTMLElement | null
+    const modelSelect = modelInputRow?.querySelector('select') as HTMLSelectElement | null
+    if (!modelSelect) {
+      throw new Error(`expected chatModel Value dropdown, got ${JSON.stringify(modelInputRow?.textContent || '')}`)
     }
 
     await act(async () => {
       const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLSelectElement.prototype, 'value')?.set
       if (!valueSetter) throw new Error('expected DOM select value setter')
-      valueSetter.call(providerSelect, CHAT_PROVIDER_LM_STUDIO)
-      Simulate.change(providerSelect)
+      valueSetter.call(modelSelect, CHAT_LOCAL_DEFAULT_MODEL)
+      Simulate.change(modelSelect)
       await waitForFrames(dom.window as unknown as Window, 3)
     })
     await act(async () => {

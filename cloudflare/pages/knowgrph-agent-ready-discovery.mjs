@@ -209,6 +209,47 @@ export const buildAgentReadyOpenApiPaths = ({
       },
     },
   },
+  "/api/storage/blob/{workspaceId}/{canonicalPath}": {
+    post: {
+      summary: "Store a workspace binary artifact in R2",
+      parameters: [
+        { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+        { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/octet-stream": { schema: { type: "string", format: "binary" } },
+        },
+      },
+      responses: {
+        "200": { description: "R2 object coordinates and public storage route" },
+        "400": { description: "Invalid workspace, path, or declared payload size" },
+      },
+    },
+    get: {
+      summary: "Read a workspace binary artifact from R2",
+      parameters: [
+        { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+        { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
+      ],
+      responses: {
+        "200": { description: "Binary artifact body with stored HTTP metadata" },
+        "404": { description: "Object not found" },
+      },
+    },
+    head: {
+      summary: "Read workspace binary artifact metadata from R2",
+      parameters: [
+        { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+        { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
+      ],
+      responses: {
+        "200": { description: "Binary artifact metadata" },
+        "404": { description: "Object not found" },
+      },
+    },
+  },
   [`${appBasePath}/doc-default/{canonicalPath}`]: {
     get: {
       summary: "Read a default-workspace shared document",

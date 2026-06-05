@@ -46,11 +46,7 @@ import {
   executeFloatingPanelChatSubmitCoordinator,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator'
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
-import {
-  createChatKnowgrphDraftWriter,
-  CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR,
-  readAssistantResponseText,
-} from '@/features/chat/floatingPanelChat/floatingPanelChatStreaming'
+import { createChatKnowgrphDraftWriter } from '@/features/chat/floatingPanelChat/floatingPanelChatStreaming'
 import type { ChatMessage } from '@/features/chat/FloatingPanelChatSections'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import {
@@ -326,7 +322,7 @@ export async function testCreateChatSubmitRequestSenderBuildsKnowgrphPayloadWith
   }
 }
 
-export async function testBootstrapKnowgrphSubmitDraftSeedsTraceWorkspaceAndEmptyDraft() {
+export async function testBootstrapKnowgrphSubmitDraftStreamsCanonicalWorkspaceAndSeedsTraceDraft() {
   const streamingWorkspaceWrites: Array<string | null> = []
   const followed: string[] = []
   const resolvedPaths: string[] = []
@@ -349,14 +345,17 @@ export async function testBootstrapKnowgrphSubmitDraftSeedsTraceWorkspaceAndEmpt
   if (liveKgcPath !== '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md') {
     throw new Error(`Expected preflight bootstrap to resolve the Knowgrph workspace path, got: ${liveKgcPath}`)
   }
-  if (streamingWorkspaceWrites.length !== 1 || !String(streamingWorkspaceWrites[0] || '').includes('kgc-trace_')) {
-    throw new Error(`Expected preflight bootstrap to point streaming workspace at the trace path, got: ${JSON.stringify(streamingWorkspaceWrites)}`)
+  if (
+    streamingWorkspaceWrites.length !== 1 ||
+    streamingWorkspaceWrites[0] !== '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md'
+  ) {
+    throw new Error(`Expected preflight bootstrap to point streaming workspace at the canonical KGC path, got: ${JSON.stringify(streamingWorkspaceWrites)}`)
   }
   if (persistedAssistantTexts.length !== 1 || persistedAssistantTexts[0] !== '') {
     throw new Error(`Expected preflight bootstrap to seed one empty assistant draft, got: ${JSON.stringify(persistedAssistantTexts)}`)
   }
-  if (followed.length !== 1) {
-    throw new Error(`Expected preflight bootstrap to follow the trace workspace exactly once, got: ${followed.length}`)
+  if (followed.length !== 1 || followed[0] !== '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md') {
+    throw new Error(`Expected preflight bootstrap to follow the canonical KGC workspace exactly once, got: ${JSON.stringify(followed)}`)
   }
 }
 
@@ -419,6 +418,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFinalizesSimp
   if (terminalResets.length !== 1) {
     throw new Error(`Expected coordinator helper to perform one terminal reset on success, got: ${terminalResets.length}`)
   }
+
 }
 
 export async function testExecuteFloatingPanelChatSubmitCoordinatorPersistsKgcStreamDraftsAcrossRefresh() {
@@ -552,10 +552,10 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
       markdownDocumentName: null,
       selectedNodeId: null,
       streamingAssistant: { id: 'assistant-pending', text: 'Streaming...' },
-      streamingWorkspacePath: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md',
-      streamFollowPath: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md',
+      streamingWorkspacePath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
+      streamFollowPath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
       streamDraft: {
-        path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md',
+        path: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
         text: '_Streaming..._',
       },
     })
@@ -588,8 +588,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
         },
         setMessages,
         setStreamingAssistant,
-        streamFollowRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
-        streamDraftTextRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', text: '_Streaming..._' } },
+        streamFollowRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
+        streamDraftTextRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md', text: '_Streaming..._' } },
       })
       React.useEffect(() => {
         finalizeAssistantSuccess = callback
@@ -619,8 +619,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
       setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
       setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
       abortRef: { current: null },
-      streamDraftTextRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', text: '_Streaming..._' } },
-      streamFollowRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
+      streamDraftTextRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md', text: '_Streaming..._' } },
+      streamFollowRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
     })
 
     await executeFloatingPanelChatSubmitCoordinator({
@@ -1586,8 +1586,14 @@ export async function testCreateChatKnowgrphDraftWriterSkipsDuplicateNonForceWri
   if (followed.length !== 1) {
     throw new Error(`Expected duplicate draft updates to avoid repeated follow-path churn, got ${followed.length}`)
   }
+  if (followed[0] !== '/workspace/chat/kgc.md') {
+    throw new Error(`Expected live streaming follow path to stay on canonical KGC workspace, got ${JSON.stringify(followed)}`)
+  }
   if (streamDraftTextRef.current?.text !== 'alpha') {
     throw new Error(`Expected live streaming draft state to retain the latest text, got: ${JSON.stringify(streamDraftTextRef.current)}`)
+  }
+  if (streamDraftTextRef.current?.path !== '/workspace/chat/kgc.md') {
+    throw new Error(`Expected live streaming draft state to stay on canonical KGC workspace, got: ${JSON.stringify(streamDraftTextRef.current)}`)
   }
 }
 
@@ -1630,74 +1636,15 @@ export async function testCreateChatKnowgrphDraftWriterRejectsViteDevIndexHtmlDr
   if (streamDraftTextRef.current?.text !== '') {
     throw new Error(`Expected rejected app-shell HTML draft to clear live draft text, got ${JSON.stringify(streamDraftTextRef.current)}`)
   }
+  if (streamDraftTextRef.current?.path !== '/workspace/chat/kgc.md') {
+    throw new Error(`Expected rejected app-shell HTML draft state to clear against canonical KGC workspace, got ${JSON.stringify(streamDraftTextRef.current)}`)
+  }
   const lastStreamingState = streamingStates[streamingStates.length - 1]
   if (!lastStreamingState || lastStreamingState.text !== '') {
     throw new Error(`Expected rejected app-shell HTML draft to clear streaming state, got ${JSON.stringify(streamingStates)}`)
   }
-}
-
-export async function testReadAssistantResponseTextCollectsSseChunksAndFlushesDrafts() {
-  const encoder = new TextEncoder()
-  const events = [
-    'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
-    'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
-    'data: [DONE]\n\n',
-  ]
-  const response = new Response(
-    new ReadableStream({
-      start(controller) {
-        events.forEach(event => controller.enqueue(encoder.encode(event)))
-        controller.close()
-      },
-    }),
-    { headers: { 'content-type': 'text/event-stream' } },
-  )
-  const flushed: Array<{ text: string; force: boolean }> = []
-  let nowTick = 200
-  const assistantStream = await readAssistantResponseText({
-    response,
-    isEventStream: true,
-    flushDraft: (text, force) => { flushed.push({ text, force }) },
-    nowMs: () => {
-      const current = nowTick
-      nowTick += 200
-      return current
-    },
-  })
-  if (assistantStream.assistantText !== 'Hello world') {
-    throw new Error(`Expected SSE helper to accumulate assistant text, got: ${assistantStream.assistantText}`)
-  }
-  if (flushed.length < 2) {
-    throw new Error(`Expected SSE helper to flush draft during stream and at completion, got ${flushed.length} flushes`)
-  }
-  const last = flushed[flushed.length - 1]
-  if (last.text !== 'Hello world' || last.force !== true) {
-    throw new Error(`Expected final SSE draft flush to be forced with full text, got: ${JSON.stringify(last)}`)
-  }
-}
-
-export async function testReadAssistantResponseTextFailsOnMissingFirstChunk() {
-  const response = new Response(
-    new ReadableStream<Uint8Array>({
-      start() {
-        return
-      },
-    }),
-    { headers: { 'content-type': 'text/event-stream' } },
-  )
-  let failed = false
-  try {
-    await readAssistantResponseText({
-      response,
-      isEventStream: true,
-      flushDraft: async () => {},
-      firstChunkTimeoutMs: 10,
-    })
-  } catch (error) {
-    failed = String(error instanceof Error ? error.message : error).includes(CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR)
-  }
-  if (!failed) {
-    throw new Error('Expected event-stream reader to fail when the first chunk never arrives')
+  if (lastStreamingState.path !== '/workspace/chat/kgc.md') {
+    throw new Error(`Expected rejected app-shell HTML streaming state to stay on canonical KGC workspace, got ${JSON.stringify(streamingStates)}`)
   }
 }
 

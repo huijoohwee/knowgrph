@@ -7,12 +7,14 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   exportPrefix: '/api/storage/export/',
   docPrefix: '/api/storage/doc/',
   defaultDocPrefix: '/api/storage/doc-default/',
+  blobPrefix: '/api/storage/blob/',
   sourceFilesIndex: '/api/storage/source-files',
   sourceFilesIndexPrefix: '/api/storage/source-files/',
   sourceFilesLlms: '/api/storage/llms.txt',
 } as const
 
 export const KNOWGRPH_STORAGE_D1_BINDING_NAME = 'DB'
+export const KNOWGRPH_STORAGE_R2_BLOB_BINDING_NAME = 'KNOWGRPH_STORAGE_BLOB_BUCKET'
 export const KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID = 'kgws:canonical-docs'
 export const CLOUDFLARE_PAY_PER_CRAWL_DOC_URL =
   'https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/index.md'
@@ -220,6 +222,20 @@ export type KnowgrphStorageExportResponse = {
   graphSnapshots: KgGraphSnapshotRecord[]
 }
 
+export type KnowgrphStorageBlobUploadResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  canonicalPath: string
+  objectKey: string
+  contentType: string
+  contentHash: string | null
+  sizeBytes: number | null
+  etag: string | null
+  uploadedAtMs: number
+  publicPath: string
+}
+
 export type KnowgrphCollaborationDocumentKind = 'markdown' | 'json'
 
 export type KnowgrphCollaborationSaveRequest = {
@@ -246,10 +262,33 @@ export type KnowgrphCollaborationSaveResponse = {
   committedAtMs: number
 }
 
+export type KnowgrphStorageR2ObjectLike = {
+  body?: ReadableStream<Uint8Array> | null
+  httpEtag?: string
+  etag?: string
+  size?: number
+  writeHttpMetadata?: (headers: Headers) => void
+}
+
+export type KnowgrphStorageR2BucketLike = {
+  put: (
+    key: string,
+    value: ReadableStream<Uint8Array> | ArrayBuffer | ArrayBufferView | Blob | string | null,
+    options?: {
+      httpMetadata?: Record<string, string>
+      customMetadata?: Record<string, string>
+    },
+  ) => Promise<KnowgrphStorageR2ObjectLike | null | undefined>
+  get: (key: string) => Promise<KnowgrphStorageR2ObjectLike | null | undefined>
+  head?: (key: string) => Promise<KnowgrphStorageR2ObjectLike | null | undefined>
+  delete?: (key: string) => Promise<void>
+}
+
 export type KnowgrphStorageWorkerEnv = {
   DB: unknown
   KNOWGRPH_STORAGE_SIGNING_SECRET?: string
-  KNOWGRPH_STORAGE_BLOB_BUCKET?: unknown
+  KNOWGRPH_STORAGE_BLOB_BUCKET?: KnowgrphStorageR2BucketLike
+  KNOWGRPH_STORAGE_BLOB_MAX_BYTES?: string
   KNOWGRPH_STORAGE_GITHUB_TOKEN?: string
   KNOWGRPH_STORAGE_GITHUB_OWNER?: string
   KNOWGRPH_STORAGE_GITHUB_REPO?: string
@@ -285,6 +324,9 @@ export const buildKnowgrphStorageDocPath = (workspaceId: string, canonicalPath: 
 
 export const buildKnowgrphStorageDefaultDocPath = (canonicalPath: string): string =>
   `${KNOWGRPH_STORAGE_ROUTE_PATHS.defaultDocPrefix}${encodeURIComponent(String(canonicalPath || '').trim())}`
+
+export const buildKnowgrphStorageBlobPath = (workspaceId: string, canonicalPath: string): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.blobPrefix}${encodeURIComponent(String(workspaceId || '').trim())}/${encodeURIComponent(String(canonicalPath || '').trim())}`
 
 export const buildKnowgrphStorageSourceFilesIndexPath = (workspaceId?: string | null): string => {
   const normalizedWorkspaceId = String(workspaceId || '').trim()

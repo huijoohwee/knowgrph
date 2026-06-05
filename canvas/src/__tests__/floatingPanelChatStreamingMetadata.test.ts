@@ -76,4 +76,29 @@ export function testExtractAssistantStreamDeltaReadsMiroMindReasoningAndUsage() 
   if (usageSummary !== 'Usage: prompt 11 · completion 22 · total 33 · reasoning 7 · searches 2') {
     throw new Error(`expected usage summary, got ${JSON.stringify(usageSummary)}`)
   }
+
+  const structuredDelta = extractAssistantStreamDelta({
+    model: 'mirothinker-1-7-deepresearch-mini',
+    choices: [
+      {
+        delta: {
+          content: [
+            { type: 'text', text: 'Structured ' },
+            { type: 'output_text', text: 'answer' },
+          ],
+        },
+      },
+    ],
+  })
+  if (structuredDelta.contentDelta !== 'Structured answer') {
+    throw new Error(`expected structured content delta, got ${JSON.stringify(structuredDelta.contentDelta)}`)
+  }
+
+  const responsesDelta = extractAssistantStreamDelta({
+    type: 'response.output_text.delta',
+    delta: 'Responses chunk',
+  })
+  if (responsesDelta.contentDelta !== 'Responses chunk') {
+    throw new Error(`expected root output_text delta, got ${JSON.stringify(responsesDelta.contentDelta)}`)
+  }
 }

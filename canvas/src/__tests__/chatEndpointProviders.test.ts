@@ -8,6 +8,7 @@ import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
   CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
+  CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_MIROMIND_BASE,
   CHAT_MIROMIND_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
@@ -18,6 +19,7 @@ import {
   CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_GOOGLE_CLOUD,
+  CHAT_PROVIDER_LM_STUDIO,
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
   CHAT_PROVIDER_QWEN,
@@ -31,6 +33,8 @@ import {
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
+import { inferChatProviderFromEndpointUrl, inferChatProviderFromModelId } from '@/lib/chatEndpointProviderInference'
+import { resolveChatModelSelectionValues } from '@/lib/chatProviderSelection'
 
 export function testBytePlusProviderBuildsOfficialProxyHeaders() {
   const headers = buildChatProxyHeaders({
@@ -304,6 +308,34 @@ export function testSharedChatModelCatalogReusesMainPanelIntegrationsOptions() {
   }
 }
 
+export function testChatModelSelectionDerivesProviderAndEndpoint() {
+  const qwenSelection = resolveChatModelSelectionValues({
+    currentEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
+    currentProvider: CHAT_PROVIDER_OPENAI,
+    model: CHAT_QWEN_MODEL_OPTIONS[0],
+  })
+  if (qwenSelection.chatProvider !== CHAT_PROVIDER_QWEN) {
+    throw new Error(`expected Qwen model selection to derive provider ${CHAT_PROVIDER_QWEN}, got ${JSON.stringify(qwenSelection)}`)
+  }
+  if (qwenSelection.chatEndpointUrl !== CHAT_QWEN_ENDPOINT_URL) {
+    throw new Error(`expected Qwen model selection to reset endpoint to ${CHAT_QWEN_ENDPOINT_URL}, got ${JSON.stringify(qwenSelection)}`)
+  }
+  const endpointProvider = inferChatProviderFromEndpointUrl(CHAT_QWEN_ENDPOINT_URL, CHAT_PROVIDER_OPENAI)
+  if (endpointProvider !== CHAT_PROVIDER_QWEN) {
+    throw new Error(`expected Qwen endpoint selection to derive provider ${CHAT_PROVIDER_QWEN}, got ${JSON.stringify(endpointProvider)}`)
+  }
+
+  const localProvider = inferChatProviderFromModelId(CHAT_LOCAL_DEFAULT_MODEL, CHAT_PROVIDER_OPENAI)
+  if (localProvider !== CHAT_PROVIDER_LM_STUDIO) {
+    throw new Error(`expected local model selection to derive provider ${CHAT_PROVIDER_LM_STUDIO}, got ${JSON.stringify(localProvider)}`)
+  }
+
+  const customProvider = inferChatProviderFromModelId('custom/provider-model', CHAT_PROVIDER_MIROMIND)
+  if (customProvider !== CHAT_PROVIDER_MIROMIND) {
+    throw new Error(`expected custom model ids to preserve the current provider, got ${JSON.stringify(customProvider)}`)
+  }
+}
+
 export function testChatModelInputVariantsUseCanonicalMapTerminology() {
   const modelsPath = resolve(process.cwd(), 'src', 'lib', 'chatEndpointModels.ts')
   const endpointPath = resolve(process.cwd(), 'src', 'lib', 'chatEndpoint.ts')
@@ -370,6 +402,49 @@ export function testBytePlusProxyRewritesLegacyRunAllPaths() {
   const missing = expectedSnippets.filter(snippet => !source.includes(snippet))
   if (missing.length) {
     throw new Error(`expected BytePlus proxy compatibility rewrites in vite.config.ts, missing ${JSON.stringify(missing)}`)
+  }
+}
+
+export function testMiroMindServerManagedProxyEnvNamesStayAligned() {
+  const viteConfigCandidates = [
+    resolve(process.cwd(), 'vite.config.ts'),
+    resolve(process.cwd(), 'canvas/vite.config.ts'),
+  ]
+  const viteConfigPath = viteConfigCandidates.find(candidate => existsSync(candidate))
+  if (!viteConfigPath) {
+    throw new Error(`could not find vite.config.ts from ${process.cwd()}`)
+  }
+  const source = readFileSync(viteConfigPath, 'utf8')
+  const expectedSourceSnippets = [
+    "const miromindProviderSelected = providerHeader === 'miromind'",
+    'requiresMiroMindKey',
+    'process.env.KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY || process.env.MIROMIND_API_KEY',
+    'Missing MiroMind API key for chat proxy upstream',
+  ]
+  const missingSourceSnippets = expectedSourceSnippets.filter(snippet => !source.includes(snippet))
+  if (missingSourceSnippets.length) {
+    throw new Error(`expected Dev chat proxy to keep MiroMind server-managed env names aligned, missing ${JSON.stringify(missingSourceSnippets)}`)
+  }
+
+  const readinessScriptCandidates = [
+    resolve(process.cwd(), '..', 'scripts', 'check-miromind-readiness.mjs'),
+    resolve(process.cwd(), 'scripts', 'check-miromind-readiness.mjs'),
+  ]
+  const readinessScriptPath = readinessScriptCandidates.find(candidate => existsSync(candidate))
+  if (!readinessScriptPath) {
+    throw new Error(`could not find check-miromind-readiness.mjs from ${process.cwd()}`)
+  }
+  const readinessSource = readFileSync(readinessScriptPath, 'utf8')
+  const expectedReadinessSnippets = [
+    'MIROMIND_API_KEY',
+    'wrangler',
+    'joohwee.pages.dev',
+    'proxyMissingKey',
+    'context.env',
+  ]
+  const missingReadinessSnippets = expectedReadinessSnippets.filter(snippet => !readinessSource.includes(snippet))
+  if (missingReadinessSnippets.length) {
+    throw new Error(`expected MiroMind readiness script to prove Pages secret and live proxy state, missing ${JSON.stringify(missingReadinessSnippets)}`)
   }
 }
 

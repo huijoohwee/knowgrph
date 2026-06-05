@@ -964,12 +964,10 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected integrationConfigsJson to render as a compact one-row Value input, not a multiline editor')
   }
   if (
-    !settingsChatProviderInput.includes('resolveChatModelIdForProvider')
-    || !settingsChatProviderInput.includes('args.values.chatProvider')
-    || settingsChatProviderInput.includes('[selected, ...args.options]')
-    || settingsChatProviderInput.includes('[resolved, ...args.options]')
+    !['resolveChatModelIdForProvider', 'inferChatProviderFromModelId', 'resolveChatModelSelectionValues', 'args.values.chatProvider', 'readOnly'].every(snippet => settingsChatProviderInput.includes(snippet))
+    || ['resolveChatProviderSelectionValues', '[selected, ...args.options]', '[resolved, ...args.options]'].some(snippet => settingsChatProviderInput.includes(snippet))
   ) {
-    throw new Error('Expected chatModel dropdowns to normalize stale provider models without prepending duplicate legacy options')
+    throw new Error('Expected chatProvider to derive from chatModel while chatModel dropdowns normalize stale provider models without duplicate legacy options')
   }
   if (settingsUi.includes('className={`w-full h-6 px-2 text-sm border') || settingsUi.includes('className={`w-full min-w-0 max-w-full h-6 px-2 text-sm border')) {
     throw new Error('Expected settings input branches to avoid local KTV input class redefinitions')

@@ -1,13 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import storageWorker from '../../../cloudflare/workers/knowgrph-storage/index.ts'
 import { createFakeKnowgrphStorageWorkerEnv } from '@/__tests__/helpers/fakeKnowgrphStorageD1'
+import { createStorageWorkerFetch, readStorageWorker } from '@/__tests__/helpers/fakeKnowgrphStorageWorkerFetch'
 import type { SourceFile } from '@/hooks/store/types'
 import {
   __resetKnowgrphStorageDbForTests,
   getKnowgrphStorageDb,
 } from '@/lib/storage/knowgrphStorageDb'
-import { buildKnowgrphStorageDocPath } from '@/lib/storage/knowgrphStorageSyncContract'
+import {
+  buildKnowgrphStorageDocPath,
+} from '@/lib/storage/knowgrphStorageSyncContract'
 import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
   buildSourceFilesStorageSyncSignature,
@@ -39,22 +41,6 @@ const sourceFileFixture: SourceFile = {
     path: '/imports/demo.md',
   },
 }
-
-const readStorageWorker = (): { fetch: (request: Request, env: never) => Promise<Response> } => {
-  const candidate = storageWorker as unknown as {
-    fetch?: (request: Request, env: never) => Promise<Response>
-    default?: { fetch?: (request: Request, env: never) => Promise<Response> }
-  }
-  const fetchImpl = candidate.fetch || candidate.default?.fetch
-  if (!fetchImpl) throw new Error('expected storage worker test module to expose fetch')
-  return { fetch: fetchImpl }
-}
-
-const createStorageWorkerFetch = (env: ReturnType<typeof createFakeKnowgrphStorageWorkerEnv>) =>
-  async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const request = input instanceof Request ? input : new Request(String(input), init)
-    return readStorageWorker().fetch(request, env as never)
-  }
 
 export function testKnowgrphWorkspaceIdBuildsStableScopedIdentity() {
   const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID

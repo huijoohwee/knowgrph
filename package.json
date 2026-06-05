@@ -33,6 +33,7 @@
     "dns-aid:check": "node ./scripts/check-dns-aid-cloudflare.mjs",
     "dns-aid:publish": "node ./scripts/publish-dns-aid-cloudflare.mjs",
     "agnes:readiness:check": "node ./scripts/check-agnes-readiness.mjs",
+    "miromind:readiness:check": "node ./scripts/check-miromind-readiness.mjs",
     "storage:worker:dev": "npx --yes wrangler dev --config cloudflare/workers/knowgrph-storage/wrangler.toml",
     "storage:worker:deploy": "npx --yes wrangler deploy --config cloudflare/workers/knowgrph-storage/wrangler.toml",
     "payment:worker:dev": "npx --yes wrangler dev --config cloudflare/workers/knowgrph-payment/wrangler.toml",

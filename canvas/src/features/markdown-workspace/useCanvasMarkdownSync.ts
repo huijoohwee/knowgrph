@@ -175,7 +175,6 @@ export function useCanvasMarkdownSync(args: {
         docKey,
       })
       if (!targetPath) {
-        lastCanvasSyncSigRef.current = sig
         setStatusError(`Missing file: ${docKey}`, { ttlMs: 3500, dismissible: true })
         return
       }

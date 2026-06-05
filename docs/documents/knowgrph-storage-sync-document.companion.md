@@ -2,8 +2,8 @@
 
 Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, architectural decisions (ADRs), deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
-**Version**: 2.6.0
-**Date**: 2026-06-01
+**Version**: 2.6.1
+**Date**: 2026-06-05
 
 ---
 
@@ -35,7 +35,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | Given | When | Then |
 |---|---|---|
 | Developer edits a source file | autosave debounce fires | document upsert queued in the local outbox and pushed to `/api/storage/push` |
-| Push endpoint receives a mutation | D1 `documents` table upserted | response confirms stored revision, client clears outbox entry |
+| Push endpoint receives a mutation | D1 `documents` table upserted by canonical workspace/path identity | response confirms stored revision, client clears outbox entry |
 | Second device opens same workspace | client polls `/api/storage/pull` with last cursor | receives all mutations newer than cursor, applies to the local persisted cache |
 | `Storage Sync` is off in Toolbar → Workspace View | Source Files change or workspace selection changes | the configured docs mirror refresh loop stays paused |
 | `Storage Sync` is on in Toolbar → Workspace View | Source Files change or workspace selection changes | Source Files rematerialize from the configured `/docs` workspace mirror |
@@ -82,10 +82,12 @@ Local field names differ from remote to preserve the existing browser-local cont
 
 `cloudflare/workers/knowgrph-storage/` implements:
 
-- `POST /api/storage/push` — validate mutations, upsert D1 rows, emit sync events
+- `POST /api/storage/push` — validate mutations, upsert D1 rows by primary id or `(workspace_id, canonical_path)`, emit sync events
 - `POST /api/storage/pull` — query sync events after cursor, return mutations
 - `GET /api/storage/export/:workspaceId` — full workspace snapshot (JSON)
 - `GET /api/storage/doc/:workspaceId/:canonicalPath*` — public single-document view (text/markdown)
+- `POST /api/storage/blob/:workspaceId/:canonicalPath*` — store generated binary artifacts in R2 under the same workspace/canonical-path identity
+- `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*` — read generated binary artifact bodies or metadata from R2
 
 ### Client Sync Loop
 
@@ -101,6 +103,7 @@ Local field names differ from remote to preserve the existing browser-local cont
 `canvas/src/features/source-files/` wires storage into active workspace:
 
 - source-file edits enqueue storage mutations
+- generated workspace artifacts such as `/chat-log/{session}/kgc_{session}.md` promote through the shared Source Files storage publication helper; generated binary artifacts store bytes in R2 and promote a sibling Markdown manifest through the same D1 document path; `workspace:` entries stay skipped by background sync unless explicitly promoted
 - sync loop starts per active workspace
 - Toolbar → Workspace View → `Storage Sync` gates the configured docs mirror refresh loop and PocketBase/Yjs collaboration rooms
 - pulled remote records applied back into visible `sourceFiles`
@@ -165,6 +168,7 @@ flowchart TB
 - Reuse shared toast (`ToastHost.tsx`) and History log (`HistoryView.tsx`) rendering surfaces.
 - Forbid a second storage-only modal, drawer, or panel system.
 - Handle persisted-cache conflict errors in the workspace FS resilient wrapper: retry once before degrading to memory FS, preventing false "persistence unavailable" toasts from concurrent write race conditions.
+- Resolve document writes against `(workspace_id, canonical_path)` before insert so seeded docs, Source Files edits, and Share URL publication converge on the same D1 row instead of surfacing SQLite uniqueness errors.
 
 ---
 
@@ -254,6 +258,24 @@ flowchart TB
 
 **Alternatives considered**: (1) Git merge on saved files — rejected for minified JSON and high-frequency same-file edits. (2) D1 optimistic concurrency only — acceptable for coarse document updates, not character/field-level concurrent authoring. (3) Last-write-wins PocketBase records — loses edits and violates the Source Files contract.
 
+### ADR-011: Promote Generated Chat Markdown Through Source Files Storage
+
+**Status**: Accepted. FloatingPanel Chat writes new KGC sessions under `/chat-log/{session}/`, materializes those files into Source Files as `workspace:/chat-log/...`, and then promotes generated Markdown/text artifacts through `publishGeneratedWorkspacePathsToKnowgrphStorage()`. The D1 canonical path removes the workspace prefix and leading slash, for example `chat-log/20260605T134222Z/kgc_20260605T134222Z.md`.
+
+**Decision**: Background Source Files sync still skips generic workspace-backed files to avoid switch-time churn. Generated chat artifacts opt into storage via the shared promotion helper after the workspace files are created. When `VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED` is off, the helper stores a local D1/outbox row only; when it is on, the queued mutation flushes through `/api/storage/push`.
+
+**Binary policy**: D1 remains a Markdown/text document store. Binary chat outputs store bytes through the storage Worker R2 binding `KNOWGRPH_STORAGE_BLOB_BUCKET`, then write and publish a sibling `.manifest.md` with the R2 object key, storage URL, MIME type, size, hash, and source workspace path.
+
+### ADR-012: Store Generated Binary Artifacts In R2 With Markdown Manifests
+
+**Status**: Accepted. The storage Worker binds `KNOWGRPH_STORAGE_BLOB_BUCKET` to the `knowgrph-storage-blobs` R2 bucket and owns `/api/storage/blob/:workspaceId/:canonicalPath*`. Browser-generated binary outputs upload the Blob to R2 only when runtime storage sync is enabled, then promote a Markdown manifest to D1 via `publishGeneratedWorkspacePathsToKnowgrphStorage()`.
+
+**Decision**: R2 owns binary bytes; D1 owns searchable/editable manifests. The R2 object key is rooted by storage workspace ID plus canonical path, for example `workspaces/kgws%3A.../chat-log/.../kgc-output_...png`. Public reads go through the storage Worker so metadata, CORS, and cache policy stay centralized.
+
+**Deployment gate**: Cloudflare account-level R2 must be enabled before `wrangler r2 bucket create knowgrph-storage-blobs` and a real storage Worker deploy can succeed. `wrangler deploy --dry-run --config cloudflare/workers/knowgrph-storage/wrangler.toml` validates the binding locally, but live mutation is blocked while the Cloudflare API returns R2 enablement error `10042`.
+
+**Alternatives considered**: (1) Put base64 in D1 `content_md` — rejected because D1 is the Markdown/text cache and would inflate sync payloads. (2) Keep only browser-local or host-mirror files — rejected because production Source Files cannot dereference them. (3) Add a chat-only uploader — rejected because generated widget/video/image outputs should reuse the same storage route and canonical path helper.
+
 ---
 
 ## Deployment Phases
@@ -279,7 +301,8 @@ flowchart TB
 3. ~~Add `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route for public single-document view~~ ✅
 4. ~~Add `CanvasDocDeepLinkRuntime` for deep link canvas rendering (`/knowgrph/doc/{workspaceId}/{canonicalPath}`)~~ ✅
 5. Keep D1 export/import as an explicit Worker/runtime path, not the default toolbar Storage Sync path
-6. Update workspace creation flow to detect multi-member workspaces and keep GitHub SSOT while enabling PocketBase/Yjs collaboration rooms
+6. ~~Add R2-backed `/api/storage/blob/:workspaceId/:canonicalPath*` for generated binary bytes plus D1 Markdown manifests~~ ✅
+7. Update workspace creation flow to detect multi-member workspaces and keep GitHub SSOT while enabling PocketBase/Yjs collaboration rooms
 
 ### Phase 3 — PocketBase + Yjs Concurrent Editing (DEV BUILT)
 
@@ -328,6 +351,7 @@ flowchart TB
 |---|---|---:|---|---|
 | Minimal persisted cache | Browser-local draft and cache store | Lowest | Strong via local chunk reuse | Required |
 | SQLite / D1 | First shared store | Low | Strong via persisted chunks and revisions | Recommended |
+| R2 | Binary artifact byte store | Low | Strong when paired with Markdown manifests in D1 | Recommended for generated media |
 | PostgreSQL | High-scale shared backend | Highest | Strong for future server retrieval | Deferred |
 
 ---
@@ -339,6 +363,7 @@ Focused tests cover:
 - Shared contract routes and record shapes
 - Worker push, pull, and export behavior
 - Worker public doc view (single document markdown response)
+- Worker R2 blob upload/read route and generated binary manifest publication
 - Client sync loop scheduling and result handling
 - Source-files mutation enqueueing
 - Inbound pulled-record application into visible source-files state
@@ -351,6 +376,7 @@ Representative test files:
 - `canvas/src/__tests__/knowgrphStorageWorker.test.ts`
 - `canvas/src/__tests__/knowgrphStorageClientSync.test.ts`
 - `canvas/src/__tests__/sourceFilesStorageSync.test.ts`
+- `canvas/src/__tests__/chatHistoryWorkspaceOutput.test.ts`
 - `canvas/src/__tests__/sourceFilesInboundStorageApply.test.ts`
 - `canvas/src/__tests__/knowgrphStorageConflictUx.test.ts`
 - `canvas/src/__tests__/uiActionSurfaces.testx`

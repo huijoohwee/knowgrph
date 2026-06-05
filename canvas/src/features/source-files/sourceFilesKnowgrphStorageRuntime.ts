@@ -1,4 +1,4 @@
-import { readEnvString } from '@/lib/config.env'
+import { readKnowgrphStorageBaseUrl } from '@/features/source-files/sourceFilesKnowgrphStorageSettings'
 
 type SourceFilesStorageSyncModule = typeof import('@/features/source-files/sourceFilesStorageSync')
 type SourceFilesInboundStorageApplyModule = typeof import('@/features/source-files/sourceFilesInboundStorageApply')
@@ -18,7 +18,7 @@ export type KnowgrphStorageRuntimeDependencies = {
 let cachedKnowgrphStorageRuntimeDependenciesPromise: Promise<KnowgrphStorageRuntimeDependencies> | null = null
 
 const resolveKnowgrphStorageRuntimeBaseUrl = (): string | null => {
-  const raw = String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
+  const raw = readKnowgrphStorageBaseUrl()
   return raw || null
 }
 

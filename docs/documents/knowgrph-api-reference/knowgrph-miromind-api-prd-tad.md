@@ -241,7 +241,7 @@ Explicitly excluded now:
 | Finalize / persist | `useFinalizeAssistantSuccess.ts` | saved `kgc_*.md` workspace document |
 | Canvas apply | `chatKgcCanvasApply.ts` -> `applyWorkspaceImportToCanvas()` -> `setActiveMarkdownDocument()` | Source Files materialization + frontmatter preset apply + markdown-to-graph apply |
 | Flow Editor text/transcript run | `useFlowEditorWorkflowActions.ts` -> `writeTextWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | passive sibling workspace Markdown artifact plus shared widget/Rich Media Panel `outputPath` |
-| Flow Editor image/video run | `useFlowEditorWorkflowActions.ts` -> `writeRichMediaWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | generated binary sibling artifact plus passive editable Markdown manifest and shared widget/Rich Media Panel `outputPath` / `outputManifestPath` |
+| Flow Editor image/video run | `useFlowEditorWorkflowActions.ts` -> `writeRichMediaWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | generated binary sibling artifact, R2-backed storage route when runtime sync is enabled, passive editable Markdown manifest, and shared widget/Rich Media Panel `outputPath` / `outputManifestPath` |
 | View/render | toolbar view state + renderer/frontmatter owners | provider-neutral canvas projections |
 
 ## 13. Owner Map
@@ -271,7 +271,7 @@ MiroMind is an additive chat provider capability on the existing shared chat req
 | Base URL | `https://api.miromind.ai/v1` |
 | Primary endpoint | `POST /chat/completions` |
 | Models | `mirothinker-1-7-deepresearch-mini`, `mirothinker-1-7-deepresearch` |
-| Auth | `Authorization: Bearer <MIROMIND_API_KEY>` |
+| Auth | Server-managed `MIROMIND_API_KEY` from Cloudflare Pages `context.env`, or memory-only BYOK on explicit fallback |
 | Stream mode | SSE, `stream: true` |
 | Optional capability | `mcp_servers` request field, provider-side, private beta / plan-dependent |
 
@@ -326,7 +326,8 @@ MiroMind exposes reasoning-step extensions such as `delta.reasoning_steps` and f
 ### 16.2 Allowed additive behavior
 
 - Parse `delta.reasoning_steps` when present.
-- Parse `delta.content` for final answer tokens.
+- Parse `delta.content` for final answer tokens, including provider-compatible structured text parts.
+- Keep reasoning-only streams visible as reasoning metadata without promoting them to final assistant content.
 - Parse terminal `finish_reason` and `usage`.
 - Ignore MiroMind-specific fields gracefully when not present.
 
@@ -349,7 +350,7 @@ Required invariants:
 - One saved canonical `kgc_*.md` document remains the artifact that Workspace and Canvas follow.
 - Graph-application payload equals the saved markdown document, not a derived provider payload.
 - The saved document lands in Source Files before active-document apply so Flow Editor, Storyboard, Rich Media Panels, Cards, Widgets, and Edges read the same renderer-neutral data.
-- Flow Editor text/transcript widget runs that have an active workspace document persist one sibling Markdown artifact and register it in Source Files passively. Flow Editor image/video widget runs persist the binary artifact plus one editable Markdown manifest and register that manifest in Source Files passively; provider output must not bypass the shared widget or Rich Media Panel patch owners.
+- Flow Editor text/transcript widget runs that have an active workspace document persist one sibling Markdown artifact and register it in Source Files passively. Flow Editor image/video widget runs persist the binary artifact, store bytes through the R2-backed storage route when runtime sync is enabled, create one editable Markdown manifest, and register that manifest in Source Files passively; provider output must not bypass the shared widget or Rich Media Panel patch owners.
 
 ### 17.2 Provenance handling
 
@@ -462,12 +463,14 @@ Guardrails:
 ## Validation Checklist
 
 - Add `MiroMind API` only through shared MainPanel settings metadata and shared config/readiness owners.
+- Keep `miromindApi.api_key` defaulted to `Server-managed Key`; Pages must provide `MIROMIND_API_KEY` through runtime `context.env` after a deployment created with that secret.
 - Keep MainPanel `MCP` documentation descriptive and neutral; do not imply a new runtime.
 - Keep prompt layering canonical; do not replace the base KGC contract.
 - Keep `chatKnowgrph` output as one frontmatter-first KGC markdown document.
 - Keep the saved workspace markdown document as the only graph-application payload.
 - Keep frontmatter/canvas preset parsing unchanged and provider-neutral.
 - Keep renderer/view-mode behavior unchanged across D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, Design, and Flow Editor.
+- Run `npm run miromind:readiness:check` for the non-deploy gate covering the rendered MainPanel path, Pages secret listing, and live no-BYOK proxy smoke.
 - Forbid direct LLM-output -> graph mutation bypasses.
 - Forbid duplicate grouping registries, legacy aliases, and provider-specific schema forks.
 - Forbid browser-persisted secrets and prod-only doc divergence.

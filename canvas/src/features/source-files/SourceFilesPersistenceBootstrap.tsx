@@ -2,7 +2,6 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { readEnvString } from '@/lib/config.env'
 import {
   loadPersistedSourceFiles,
   loadPersistedSourceFilesWorkspace,
@@ -71,15 +70,9 @@ import {
   loadKnowgrphStorageRuntimeDependencies,
   type KnowgrphStorageRuntimeDependencies,
 } from '@/features/source-files/sourceFilesKnowgrphStorageRuntime'
+import { readKnowgrphStorageRuntimeSyncEnabled } from '@/features/source-files/sourceFilesKnowgrphStorageSettings'
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
 const ACTIVE_PATH_SWITCH_COMPOSE_SUPPRESS_MS = 800
-const readKnowgrphStorageRuntimeSyncEnabled = (): boolean => {
-  const raw = String(readEnvString('VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED', '') || '')
-    .trim()
-    .toLowerCase()
-  if (!raw) return false
-  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
-}
 const markWorkspaceSeedSyncDebug = (source: string): void => {
   __canvasStartupDebug.workspaceSeedLastSyncAtMs = Date.now()
   __canvasStartupDebug.workspaceSeedLastSyncSource = String(source || '').trim()

@@ -107,6 +107,7 @@ export default function CanvasPage() {
   const [toolbarHeaderElevated, setToolbarHeaderElevated] = React.useState(false)
   const toolbarHeaderRef = React.useRef<HTMLElement>(null)
   const editorOverlayRef = React.useRef<HTMLElement>(null)
+  const toolbarHeaderLayerClassName = toolbarHeaderElevated ? 'z-[420]' : 'z-[290]'
   React.useEffect(() => {
     if (workspaceViewMode !== 'editor') setToolbarHeaderElevated(false)
   }, [workspaceViewMode])
@@ -115,6 +116,9 @@ export default function CanvasPage() {
   const activePath = useMarkdownExplorerStore(s => s.activePath)
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceCanvasPaneVisible = workspaceEditorOverlayOpen && workspaceCanvasPaneOpen
+  React.useEffect(() => {
+    setToolbarHeaderElevated(false)
+  }, [workspaceCanvasPaneVisible])
   const workspacePaneBoundaryCss = `min(${workspacePreviewWidthPx}px, calc(100% - ${WORKSPACE_EDITOR_CANVAS_GUTTER_CSS}))`
   const canvasToolbarDockSpansViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const workspaceToolbarBoundaryStyle = React.useMemo<React.CSSProperties | undefined>(
@@ -247,9 +251,9 @@ export default function CanvasPage() {
             {workspaceCanvasPaneVisible ? (
               <header
                 ref={toolbarHeaderRef}
-                className={`absolute inset-0 pointer-events-none ${toolbarHeaderElevated ? 'z-[420]' : 'z-[400]'}`}
+                className={`absolute inset-0 pointer-events-none ${toolbarHeaderLayerClassName}`}
                 aria-label="Workspace Toolbar Header"
-                onPointerDown={() => setToolbarHeaderElevated(true)}
+                data-kg-workspace-toolbar-layer={toolbarHeaderElevated ? 'above-editor' : 'under-editor'}
               >
                 <nav
                   className={UI_RESPONSIVE_CANVAS_WORKSPACE_TOOLBAR_DOCK_CLASSNAME}
@@ -257,7 +261,10 @@ export default function CanvasPage() {
                   aria-label="Canvas Toolbar"
                   role="navigation"
                 >
-                  <section className={UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CONTENT_CLASSNAME}>
+                  <section
+                    className={UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CONTENT_CLASSNAME}
+                    onPointerDownCapture={() => setToolbarHeaderElevated(true)}
+                  >
                     {workspaceDocumentSwitchPending ? (
                       <section
                         className={UI_RESPONSIVE_CANVAS_DOCUMENT_SWITCH_NOTICE_CLASSNAME}

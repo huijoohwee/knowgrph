@@ -110,10 +110,10 @@ const seedChatPipelineSnapshot = () => {
     markdownDocumentName: null,
     selectedNodeId: null,
     streamingAssistant: { id: 'assistant-pending', text: 'Streaming...' },
-    streamingWorkspacePath: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md',
-    streamFollowPath: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md',
+    streamingWorkspacePath: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
+    streamFollowPath: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
     streamDraft: {
-      path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md',
+      path: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
       text: '_Streaming..._',
     },
   })
@@ -160,8 +160,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
         pushChatExchangeLog: () => {},
         setMessages,
         setStreamingAssistant,
-        streamFollowRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
-        streamDraftTextRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', text: '_Streaming..._' } },
+        streamFollowRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
+        streamDraftTextRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md', text: '_Streaming..._' } },
       })
       React.useEffect(() => {
         finalizeAssistantSuccess = callback
@@ -185,8 +185,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
       setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
       followWorkspaceMarkdownPath: path => { followedPaths.push(path) },
       abortRef: { current: null },
-      streamDraftTextRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', text: '_Streaming..._' } },
-      streamFollowRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
+      streamDraftTextRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md', text: '_Streaming..._' } },
+      streamFollowRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
     })
 
     await executeFloatingPanelChatSubmitCoordinator({

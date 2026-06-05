@@ -42,16 +42,22 @@ function syncRegistryKeys({
 export function useSettingsSync({ dirtyRef, setValues, values }: UseSettingsSyncArgs) {
   React.useEffect(() => {
     const shouldApplyProvider = dirtyRef.current.has('chatProvider')
+    const shouldApplyEndpointUrl = dirtyRef.current.has('chatEndpointUrl')
+    const shouldApplyModel = dirtyRef.current.has('chatModel')
     const shouldApplyAuthMode = dirtyRef.current.has('chatAuthMode')
     const shouldApplyApiKey = dirtyRef.current.has('chatApiKey')
-    if (!shouldApplyProvider && !shouldApplyAuthMode && !shouldApplyApiKey) return
+    if (!shouldApplyProvider && !shouldApplyEndpointUrl && !shouldApplyModel && !shouldApplyAuthMode && !shouldApplyApiKey) return
 
     const nextProvider = String(values.chatProvider || '').trim()
+    const nextEndpointUrl = String(values.chatEndpointUrl || '').trim()
+    const nextModel = String(values.chatModel || '').trim()
     const nextAuthMode = String(values.chatAuthMode || '').trim().toLowerCase() === 'byok' ? 'byok' : 'serverManaged'
     const nextApiKey = typeof values.chatApiKey === 'string' ? values.chatApiKey : ''
 
     const store = useGraphStore.getState()
     if (shouldApplyProvider) store.setChatProvider(nextProvider)
+    if (shouldApplyEndpointUrl) store.setChatEndpointUrl(nextEndpointUrl)
+    if (shouldApplyModel) store.setChatModel(nextModel)
     if (shouldApplyAuthMode) store.setChatAuthMode(nextAuthMode)
     if (shouldApplyApiKey && nextAuthMode === 'byok') store.setChatApiKey(nextApiKey)
 
@@ -65,11 +71,13 @@ export function useSettingsSync({ dirtyRef, setValues, values }: UseSettingsSync
     }
 
     if (shouldApplyProvider) dirtyRef.current.delete('chatProvider')
+    if (shouldApplyEndpointUrl) dirtyRef.current.delete('chatEndpointUrl')
+    if (shouldApplyModel) dirtyRef.current.delete('chatModel')
     if (shouldApplyAuthMode) dirtyRef.current.delete('chatAuthMode')
     if (shouldApplyApiKey) dirtyRef.current.delete('chatApiKey')
 
     setValues(prev => ({ ...prev, ...normalizedValues }))
-  }, [dirtyRef, setValues, values.chatApiKey, values.chatAuthMode, values.chatProvider])
+  }, [dirtyRef, setValues, values.chatApiKey, values.chatAuthMode, values.chatEndpointUrl, values.chatModel, values.chatProvider])
 
   React.useEffect(() => {
     syncRegistryKeys({

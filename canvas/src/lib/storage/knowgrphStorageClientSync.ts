@@ -312,7 +312,7 @@ const getClientFetch = (value?: KnowgrphStorageFetchLike): KnowgrphStorageFetchL
 
 const buildApiOriginKey = (baseUrl?: string | null): string => {
   try {
-    return new URL(resolveApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.push, baseUrl)).origin
+    return new URL(resolveKnowgrphStorageApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.push, baseUrl)).origin
   } catch {
     return normalizeString(baseUrl) || 'window-origin'
   }
@@ -413,7 +413,7 @@ const buildSkippedSyncResult = (args: {
   lastPullCursor: normalizeString(args.currentCursor?.get('lastPullCursor')) || null,
 })
 
-const resolveApiUrl = (path: string, baseUrl?: string | null): string => {
+export const resolveKnowgrphStorageApiUrl = (path: string, baseUrl?: string | null): string => {
   const safePath = normalizeString(path)
   const explicitBase = normalizeString(baseUrl)
   if (/^https?:\/\//i.test(safePath)) return safePath
@@ -831,7 +831,7 @@ const pushKnowgrphStorageOutbox = async (
     const sanitizedMutation = sanitizedOutbox.payload as unknown as KnowgrphStorageMutation
     mutations.push(sanitizedMutation)
   }
-  const response = await fetchImpl(resolveApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.push, args.baseUrl), {
+  const response = await fetchImpl(resolveKnowgrphStorageApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.push, args.baseUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -937,7 +937,7 @@ const pullKnowgrphStorageChanges = async (
 ) => {
   const fetchImpl = getClientFetch(args.fetchImpl)
   const apiOrigin = buildApiOriginKey(args.baseUrl)
-  const response = await fetchImpl(resolveApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.pull, args.baseUrl), {
+  const response = await fetchImpl(resolveKnowgrphStorageApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.pull, args.baseUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(
@@ -1174,7 +1174,7 @@ export const exportKnowgrphStorageWorkspace = async (
   if (!workspaceId) throw new Error('workspaceId is required for storage export')
   const fetchImpl = getClientFetch(args.fetchImpl)
   const apiOrigin = buildApiOriginKey(args.baseUrl)
-  const response = await fetchImpl(resolveApiUrl(buildKnowgrphStorageExportPath(workspaceId), args.baseUrl), { method: 'GET' })
+  const response = await fetchImpl(resolveKnowgrphStorageApiUrl(buildKnowgrphStorageExportPath(workspaceId), args.baseUrl), { method: 'GET' })
   const json = await parseStorageResponseJson<KnowgrphStorageExportResponse | { ok?: false; error?: string }>(response, {
     requestLabel: 'knowgrph storage export',
     apiOrigin,

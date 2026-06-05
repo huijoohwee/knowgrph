@@ -31,6 +31,7 @@ const agentReadyShareRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'funct
 const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
 const agentReadyDiscoverySource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-discovery.mjs')
 const agentReadyCommerceSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-commerce.mjs')
+const agentReadyAppShellSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-app-shell.mjs')
 const agentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-shared.mjs')
 const agentReadyDiscoveryTarget = path.resolve(
   githubRoot,
@@ -40,6 +41,7 @@ const agentReadyDiscoveryTarget = path.resolve(
   'knowgrph-agent-ready-discovery.mjs',
 )
 const agentReadyCommerceTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-commerce.mjs')
+const agentReadyAppShellTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-app-shell.mjs')
 const agentReadyCommerceX402RouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'api', 'payments', 'commerce', 'x402.js')
 const agentReadyCommerceX402RouteBody = `import { buildKnowgrphX402PaymentRequiredResponse } from "../../../knowgrph/knowgrph-agent-ready-commerce.mjs";\n\nexport async function onRequest(context) {\n  return buildKnowgrphX402PaymentRequiredResponse(context.request, context.env || {});\n}\n`
 const agentReadyRuntimeSharedEntries = [
@@ -433,7 +435,6 @@ const plainFileNeedsUpdate = async (src, dest) => {
     return true
   }
 }
-
 const textFileNeedsUpdate = async (body, dest) => {
   try {
     return textHash(body) !== await fileHash(dest)
@@ -441,7 +442,6 @@ const textFileNeedsUpdate = async (body, dest) => {
     return true
   }
 }
-
 const copyIfChanged = async (src, dest, rel) => {
   const needsUpdate = await fileNeedsUpdate(src, dest, rel)
   if (!needsUpdate) return false
@@ -463,9 +463,9 @@ const fileExists = async (filePath) => {
 
 const agentReadyRuntimeCopies = [
   [agentReadyCommerceSource, agentReadyCommerceTarget],
+  [agentReadyAppShellSource, agentReadyAppShellTarget],
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
 ]
-
 const removeEmptyDirs = async (rootDir) => {
   const walk = async (dir) => {
     let entries = []

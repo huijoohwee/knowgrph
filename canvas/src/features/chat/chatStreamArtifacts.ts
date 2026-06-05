@@ -582,7 +582,7 @@ type ChatStreamArtifactBundle = {
   streamLogPath: string
   streamReportPath: string
 }
-
+export type PersistedChatStreamArtifactBundle = ChatStreamArtifactBundle & { createdArtifactPaths: WorkspacePath[] }
 export const resolveChatStreamArtifactBundle = (args: {
   workspacePath?: string | null
   timestampMs: number
@@ -1217,7 +1217,7 @@ export const persistChatStreamArtifacts = async (args: {
   rawSseEvents: string[]
   status: 'ok' | 'error'
   fetchUrlContent?: typeof fetchWorkspaceUrlContent
-}): Promise<ChatStreamArtifactBundle> => {
+}): Promise<PersistedChatStreamArtifactBundle> => {
   const bundle = await ensureChatStreamArtifactBundleInitialized({
     workspacePath: args.workspacePath,
     timestampMs: args.timestampMs,
@@ -1259,5 +1259,5 @@ export const persistChatStreamArtifacts = async (args: {
     createdPaths: createdArtifactPaths,
     chatLocalStorageRootPath: args.defaultLocalRootPath,
   })
-  return bundle
+  return { ...bundle, createdArtifactPaths }
 }

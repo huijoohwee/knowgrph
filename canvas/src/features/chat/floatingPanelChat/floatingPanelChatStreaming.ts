@@ -1,5 +1,4 @@
 import { upsertChatHistoryWorkspaceDraft } from '../chatHistoryWorkspace'
-import { toKgcTraceWorkspacePath } from '../chatHistoryWorkspace.paths'
 import { shouldRejectMarkdownDocumentPayload } from '@/lib/markdown/markdownDocumentPayloadGuards'
 import {
   extractAssistantDelta,
@@ -41,22 +40,22 @@ export const createChatKnowgrphDraftWriter = (args: {
   return async (text: string, _force: boolean): Promise<void> => {
     if (args.chatStorageTarget !== 'chatKnowgrph') return
     if (!args.liveKgcPath) return
-    const liveTracePath = toKgcTraceWorkspacePath(args.liveKgcPath) || args.liveKgcPath
+    const liveWorkspacePath = args.liveKgcPath
     if (shouldRejectMarkdownDocumentPayload(text)) {
-      args.streamDraftTextRef.current = { path: liveTracePath, text: '' }
-      args.setChatWorkspaceStreamingState?.({ path: liveTracePath, text: '' })
+      args.streamDraftTextRef.current = { path: liveWorkspacePath, text: '' }
+      args.setChatWorkspaceStreamingState?.({ path: liveWorkspacePath, text: '' })
       return
     }
     if (
       args.streamDraftTextRef.current &&
-      args.streamDraftTextRef.current.path === liveTracePath &&
+      args.streamDraftTextRef.current.path === liveWorkspacePath &&
       args.streamDraftTextRef.current.text === text
     ) {
       return
     }
-    args.followWorkspaceMarkdownPath(liveTracePath)
-    args.streamDraftTextRef.current = { path: liveTracePath, text }
-    args.setChatWorkspaceStreamingState?.({ path: liveTracePath, text })
+    args.followWorkspaceMarkdownPath(liveWorkspacePath)
+    args.streamDraftTextRef.current = { path: liveWorkspacePath, text }
+    args.setChatWorkspaceStreamingState?.({ path: liveWorkspacePath, text })
     if (args.persistWorkspaceDrafts !== true) return
     const persistDraft = args.persistDraft || upsertChatHistoryWorkspaceDraft
     try {
@@ -181,7 +180,16 @@ export const readAssistantResponseText = async (args: {
       }
       try {
         state = { ...state, rawSseEvents: [...state.rawSseEvents, raw] }
-        const next = extractAssistantStreamDelta(JSON.parse(raw) as unknown)
+        const parsedPayload = JSON.parse(raw) as unknown
+        const next = extractAssistantStreamDelta(parsedPayload)
+        const payloadType =
+          parsedPayload && typeof parsedPayload === 'object' && !Array.isArray(parsedPayload)
+            ? String((parsedPayload as Record<string, unknown>).type || '').trim().toLowerCase()
+            : ''
+        const contentDelta =
+          payloadType === 'response.output_text.done' && state.assistantText
+            ? ''
+            : next.contentDelta
         let changed = false
         if (next.modelId && next.modelId !== state.modelId) {
           state = { ...state, modelId: next.modelId }
@@ -191,8 +199,8 @@ export const readAssistantResponseText = async (args: {
           state = { ...state, reasoningSteps: [...state.reasoningSteps, ...next.reasoningStepSummaries] }
           changed = true
         }
-        if (next.contentDelta) {
-          state = { ...state, assistantText: `${state.assistantText}${next.contentDelta}` }
+        if (contentDelta) {
+          state = { ...state, assistantText: `${state.assistantText}${contentDelta}` }
           changed = true
           flushDraftThrottled(false)
         }

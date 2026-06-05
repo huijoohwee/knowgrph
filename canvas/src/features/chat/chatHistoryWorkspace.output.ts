@@ -158,6 +158,96 @@ export const writeWorkspaceBlobArtifactAtPath = async (args: {
   return outputPath
 }
 
+const readWorkspacePathBasename = (workspacePath: string): string => {
+  const parts = normalizeWorkspacePath(workspacePath).split('/').filter(Boolean)
+  return String(parts[parts.length - 1] || '').trim()
+}
+
+const quoteManifestScalar = (value: unknown): string =>
+  JSON.stringify(String(value == null ? '' : value))
+
+const buildStoredBinaryManifestMarkdown = (args: {
+  workspacePath: string
+  storage: {
+    workspaceId: string
+    canonicalPath: string
+    objectKey: string
+    publicUrl: string
+    contentType: string
+    contentHash: string | null
+    sizeBytes: number | null
+    etag: string | null
+    uploadedAtMs: number
+  }
+}): string => {
+  const uploadedAtIso = Number.isFinite(args.storage.uploadedAtMs)
+    ? new Date(args.storage.uploadedAtMs).toISOString()
+    : ''
+  return [
+    '---',
+    'kind: knowgrph_binary_artifact',
+    `workspace_path: ${quoteManifestScalar(args.workspacePath)}`,
+    `storage_workspace_id: ${quoteManifestScalar(args.storage.workspaceId)}`,
+    `canonical_path: ${quoteManifestScalar(args.storage.canonicalPath)}`,
+    `r2_object_key: ${quoteManifestScalar(args.storage.objectKey)}`,
+    `storage_url: ${quoteManifestScalar(args.storage.publicUrl)}`,
+    `mime_type: ${quoteManifestScalar(args.storage.contentType)}`,
+    `size_bytes: ${args.storage.sizeBytes == null ? 'null' : String(args.storage.sizeBytes)}`,
+    `content_hash: ${args.storage.contentHash ? quoteManifestScalar(args.storage.contentHash) : 'null'}`,
+    `etag: ${args.storage.etag ? quoteManifestScalar(args.storage.etag) : 'null'}`,
+    `uploaded_at_ms: ${Number.isFinite(args.storage.uploadedAtMs) ? String(args.storage.uploadedAtMs) : 'null'}`,
+    `uploaded_at: ${uploadedAtIso ? quoteManifestScalar(uploadedAtIso) : 'null'}`,
+    '---',
+    '',
+    '# Binary Artifact',
+    '',
+    `- Workspace path: \`${args.workspacePath}\``,
+    `- Storage workspace: \`${args.storage.workspaceId}\``,
+    `- Canonical path: \`${args.storage.canonicalPath}\``,
+    `- R2 object key: \`${args.storage.objectKey}\``,
+    `- Storage URL: ${args.storage.publicUrl}`,
+    `- MIME type: \`${args.storage.contentType}\``,
+    `- Size bytes: \`${args.storage.sizeBytes == null ? '' : String(args.storage.sizeBytes)}\``,
+    `- Content hash: \`${args.storage.contentHash || ''}\``,
+    '',
+  ].join('\n')
+}
+
+const writeStoredBinaryManifestIfAvailable = async (args: {
+  workspacePath: string
+  blob: Blob
+}): Promise<string | null> => {
+  try {
+    const { uploadGeneratedWorkspaceBlobToKnowgrphStorage } = await import('@/features/source-files/sourceFilesBinaryStorage')
+    const storage = await uploadGeneratedWorkspaceBlobToKnowgrphStorage({
+      workspacePath: args.workspacePath,
+      blob: args.blob,
+    })
+    if (!storage) return null
+    const basename = readWorkspacePathBasename(args.workspacePath)
+    const manifestPath = resolveWorkspaceSiblingArtifactPath({
+      workspacePath: args.workspacePath,
+      fileName: `${basename || 'binary-artifact'}.manifest.md`,
+    })
+    if (!manifestPath) return null
+    const writtenPath = await writeWorkspaceTextArtifactAtPath({
+      absolutePath: manifestPath,
+      text: buildStoredBinaryManifestMarkdown({
+        workspacePath: args.workspacePath,
+        storage,
+      }),
+    })
+    if (!writtenPath) return null
+    const { publishGeneratedWorkspacePathsToKnowgrphStorage } = await import('@/features/source-files/sourceFileShareUrl')
+    await publishGeneratedWorkspacePathsToKnowgrphStorage({
+      paths: [writtenPath],
+    })
+    return writtenPath
+  } catch {
+    return null
+  }
+}
+
 export const resolveKgcCompanionOutputPath = (args: {
   workspacePath: string | null | undefined
   extension: string
@@ -188,8 +278,15 @@ export const writeKgcCompanionOutputBlob = async (args: {
   variant?: string | null
 }): Promise<string | null> => {
   const outputPath = resolveKgcCompanionOutputPath(args)
-  return await writeWorkspaceBlobArtifactAtPath({
+  const writtenPath = await writeWorkspaceBlobArtifactAtPath({
     absolutePath: outputPath,
     blob: args.blob,
   })
+  if (writtenPath) {
+    await writeStoredBinaryManifestIfAvailable({
+      workspacePath: writtenPath,
+      blob: args.blob,
+    })
+  }
+  return writtenPath
 }

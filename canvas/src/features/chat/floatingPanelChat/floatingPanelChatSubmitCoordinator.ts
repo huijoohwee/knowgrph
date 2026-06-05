@@ -279,7 +279,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           setConnectivity: args.submitArgs.setConnectivity,
           connectivity: 'error',
           setConnectivityDetail: args.submitArgs.setConnectivityDetail,
-          connectivityDetail: null,
+          connectivityDetail: UI_COPY.chatResponseMissingContentStatus,
           setIsLoading: args.submitArgs.setIsLoading,
           abortRef: args.submitArgs.abortRef,
           setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,

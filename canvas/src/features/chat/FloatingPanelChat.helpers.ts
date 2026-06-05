@@ -12,6 +12,7 @@ import {
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
 import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
+import { extractAssistantContentText, isObjectRecord } from './assistantContentText'
 import type { ChatMessage } from './FloatingPanelChatSections'
 
 export const clampTemperature = (raw: unknown): number => {
@@ -349,8 +350,9 @@ export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDe
   }
   const record = payload as Record<string, unknown>
   const choices = Array.isArray(record.choices) ? record.choices : []
-  const first = choices[0] && typeof choices[0] === 'object' ? choices[0] as Record<string, unknown> : null
-  const delta = first?.delta && typeof first.delta === 'object' ? first.delta as Record<string, unknown> : null
+  const first = isObjectRecord(choices[0]) ? choices[0] : null
+  const delta = isObjectRecord(first?.delta) ? first.delta : null
+  const message = isObjectRecord(first?.message) ? first.message : null
   const reasoningSteps = Array.isArray(delta?.reasoning_steps)
     ? delta.reasoning_steps
       .map(formatReasoningStepSummary)
@@ -366,7 +368,11 @@ export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDe
       }
     : null
   return {
-    contentDelta: typeof delta?.content === 'string' ? String(delta.content) : '',
+    contentDelta:
+      extractAssistantContentText(delta?.content)
+      || extractAssistantContentText(delta?.text)
+      || extractAssistantContentText(message?.content)
+      || extractAssistantContentText(record),
     reasoningStepSummaries: reasoningSteps,
     finishReason: typeof first?.finish_reason === 'string' ? String(first.finish_reason) : null,
     usage,
@@ -376,12 +382,14 @@ export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDe
 
 export const extractAssistantDelta = (payload: unknown): string => {
   if (!payload || typeof payload !== 'object') return ''
-  const choices = (payload as { choices?: unknown }).choices
-  if (!Array.isArray(choices) || choices.length === 0) return ''
-  const first = choices[0] as { delta?: { content?: unknown }; message?: { content?: unknown } } | null
-  const delta = first?.delta && typeof first.delta.content === 'string' ? String(first.delta.content) : ''
-  const direct = first?.message && typeof first.message.content === 'string' ? String(first.message.content) : ''
-  return delta || direct || ''
+  const record = payload as Record<string, unknown>
+  const choices = record.choices
+  const rootText = extractAssistantContentText(record.output_text) || extractAssistantContentText(record.output)
+  if (!Array.isArray(choices) || choices.length === 0) return rootText
+  const first = isObjectRecord(choices[0]) ? choices[0] : null
+  const delta = isObjectRecord(first?.delta) ? extractAssistantContentText(first.delta.content) : ''
+  const direct = isObjectRecord(first?.message) ? extractAssistantContentText(first.message.content) : ''
+  return delta || direct || rootText || ''
 }
 
 export const parseErrorBody = async (res: Response): Promise<string> => {

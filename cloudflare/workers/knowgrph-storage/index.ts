@@ -36,6 +36,7 @@ import {
   writeSyncEvent,
 } from './db'
 import { handleCrawlerSourceFiles, isKnowgrphStorageCrawlerRoute } from './crawler'
+import { handleBlobRead, handleBlobUpload, isKnowgrphStorageBlobRoute } from './blob'
 import {
   KNOWGRPH_STORAGE_DOC_VIEW_HEADERS,
   readPublishedMarkdown,
@@ -44,8 +45,8 @@ import { handleCollaborationSave } from './collaborationBridge'
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,authorization',
+  'access-control-allow-methods': 'GET,HEAD,POST,OPTIONS',
+  'access-control-allow-headers': 'content-type,authorization,x-knowgrph-content-hash,x-knowgrph-content-kind',
   'access-control-max-age': '86400',
 }
 
@@ -169,13 +170,27 @@ const processDocumentMutation = async (
   workspaceId: string,
   mutation: Extract<KnowgrphStorageMutation, { entity: 'document' }>,
   nowIso: string,
+  documentIdAliases: Map<string, string>,
 ): Promise<KnowgrphStorageMutationAck> => {
   const record = mutation.record
-  const existing = await queryFirst<{ revision: number }>(
+  const existingById = await queryFirst<{ id: string; revision: number; content_hash: string; deleted: number }>(
     db,
-    'SELECT revision FROM documents WHERE id = ? AND workspace_id = ?',
+    'SELECT id, revision, content_hash, deleted FROM documents WHERE id = ? AND workspace_id = ?',
     [record.id, workspaceId],
   )
+  const existingByPath = await queryFirst<{ id: string; revision: number; content_hash: string; deleted: number }>(
+    db,
+    'SELECT id, revision, content_hash, deleted FROM documents WHERE workspace_id = ? AND canonical_path = ?',
+    [workspaceId, record.canonicalPath],
+  )
+  const existingId = normalizeString(existingById?.id)
+  const existingPathId = normalizeString(existingByPath?.id)
+  if (existingId && existingPathId && existingId !== existingPathId) {
+    return acknowledgeConflict(mutation, `document canonical path is already owned by ${existingPathId}`)
+  }
+  const existing = existingById || existingByPath
+  const targetDocumentId = normalizeString(existing?.id) || record.id
+  if (targetDocumentId !== record.id) documentIdAliases.set(record.id, targetDocumentId)
   const existingRevision = existing ? normalizeNumber(existing.revision) : null
   if (
     mutation.baseRevision != null
@@ -185,45 +200,65 @@ const processDocumentMutation = async (
   ) {
     return acknowledgeConflict(mutation, `document revision conflict: expected ${mutation.baseRevision}, found ${existingRevision}`)
   }
-  await execute(
-    db,
-    `INSERT INTO documents (
-       id, workspace_id, canonical_path, title, doc_type, lang, graph_id, source_kind,
-       content_md, content_hash, parser_version, revision, deleted, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       workspace_id = excluded.workspace_id,
-       canonical_path = excluded.canonical_path,
-       title = excluded.title,
-       doc_type = excluded.doc_type,
-       lang = excluded.lang,
-       graph_id = excluded.graph_id,
-       source_kind = excluded.source_kind,
-       content_md = excluded.content_md,
-       content_hash = excluded.content_hash,
-       parser_version = excluded.parser_version,
-       revision = excluded.revision,
-       deleted = excluded.deleted,
-       updated_at = excluded.updated_at`,
-    [
-      record.id,
-      workspaceId,
-      record.canonicalPath,
-      record.title,
-      record.docType,
-      record.lang,
-      record.graphId,
-      record.sourceKind,
-      record.contentMd,
-      record.contentHash,
-      record.parserVersion,
-      normalizeNumber(record.revision),
-      record.deleted || mutation.op === 'delete' ? 1 : 0,
-      isoFromMs(record.updatedAtMs, nowIso),
-      isoFromMs(record.updatedAtMs, nowIso),
-    ],
-  )
-  return acknowledgeApplied(mutation, normalizeNumber(record.revision))
+  const requestedRevision = normalizeNumber(record.revision)
+  const nextDeleted = record.deleted || mutation.op === 'delete'
+  const didExistingDocumentChange =
+    !!existing
+    && (
+      normalizeString(existing.content_hash) !== record.contentHash
+      || Number(existing.deleted || 0) !== (nextDeleted ? 1 : 0)
+    )
+  const nextRevision =
+    existingRevision != null && didExistingDocumentChange && requestedRevision <= existingRevision
+      ? existingRevision + 1
+      : Math.max(requestedRevision, existingRevision == null ? 1 : existingRevision)
+  const updatedAt = isoFromMs(record.updatedAtMs, nowIso)
+  const values = [
+    record.canonicalPath,
+    record.title,
+    record.docType,
+    record.lang,
+    record.graphId,
+    record.sourceKind,
+    record.contentMd,
+    record.contentHash,
+    record.parserVersion,
+    nextRevision,
+    nextDeleted ? 1 : 0,
+    updatedAt,
+  ]
+  if (existing) {
+    await execute(
+      db,
+      `UPDATE documents SET
+         canonical_path = ?, title = ?, doc_type = ?, lang = ?, graph_id = ?, source_kind = ?,
+         content_md = ?, content_hash = ?, parser_version = ?, revision = ?, deleted = ?, updated_at = ?
+       WHERE id = ? AND workspace_id = ?`,
+      [...values, targetDocumentId, workspaceId],
+    )
+  } else {
+    await execute(
+      db,
+      `INSERT INTO documents (
+         id, workspace_id, canonical_path, title, doc_type, lang, graph_id, source_kind,
+         content_md, content_hash, parser_version, revision, deleted, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(workspace_id, canonical_path) DO UPDATE SET
+         title = excluded.title,
+         doc_type = excluded.doc_type,
+         lang = excluded.lang,
+         graph_id = excluded.graph_id,
+         source_kind = excluded.source_kind,
+         content_md = excluded.content_md,
+         content_hash = excluded.content_hash,
+         parser_version = excluded.parser_version,
+         revision = excluded.revision,
+         deleted = excluded.deleted,
+         updated_at = excluded.updated_at`,
+      [record.id, workspaceId, ...values, updatedAt],
+    )
+  }
+  return acknowledgeApplied(mutation, nextRevision)
 }
 
 const processDocumentChunkMutation = async (
@@ -231,8 +266,10 @@ const processDocumentChunkMutation = async (
   workspaceId: string,
   mutation: Extract<KnowgrphStorageMutation, { entity: 'documentChunk' }>,
   nowIso: string,
+  documentIdAliases: Map<string, string>,
 ): Promise<KnowgrphStorageMutationAck> => {
   const record = mutation.record
+  const documentId = documentIdAliases.get(normalizeString(record.documentId)) || record.documentId
   if (mutation.op === 'delete') {
     await execute(db, 'DELETE FROM document_chunks WHERE id = ? AND workspace_id = ?', [record.id, workspaceId])
     return acknowledgeApplied(mutation, null)
@@ -254,7 +291,7 @@ const processDocumentChunkMutation = async (
        updated_at = excluded.updated_at`,
     [
       record.id,
-      record.documentId,
+      documentId,
       workspaceId,
       record.chunkKey,
       normalizeNumber(record.chunkOrder),
@@ -273,8 +310,10 @@ const processGraphSnapshotMutation = async (
   workspaceId: string,
   mutation: Extract<KnowgrphStorageMutation, { entity: 'graphSnapshot' }>,
   nowIso: string,
+  documentIdAliases: Map<string, string>,
 ): Promise<KnowgrphStorageMutationAck> => {
   const record = mutation.record
+  const documentId = documentIdAliases.get(normalizeString(record.documentId)) || record.documentId
   if (mutation.op === 'delete') {
     await execute(db, 'DELETE FROM graph_snapshots WHERE id = ? AND workspace_id = ?', [record.id, workspaceId])
     return acknowledgeApplied(mutation, null)
@@ -282,7 +321,7 @@ const processGraphSnapshotMutation = async (
   const existing = await queryFirst<{ graph_revision: number }>(
     db,
     'SELECT MAX(graph_revision) AS graph_revision FROM graph_snapshots WHERE document_id = ? AND workspace_id = ?',
-    [record.documentId, workspaceId],
+    [documentId, workspaceId],
   )
   const existingRevision = existing?.graph_revision == null ? null : normalizeNumber(existing.graph_revision)
   if (
@@ -309,7 +348,7 @@ const processGraphSnapshotMutation = async (
        updated_at = excluded.updated_at`,
     [
       record.id,
-      record.documentId,
+      documentId,
       workspaceId,
       normalizeNumber(record.graphRevision),
       record.graphHash,
@@ -333,6 +372,7 @@ const handlePush = async (request: Request, env: KnowgrphStorageWorkerEnv, db: D
   await ensureWorkspaceRow(db, workspaceId, nowIso)
   await ensureSyncDeviceRow(db, workspaceId, deviceId, nowIso)
   const acknowledgements: KnowgrphStorageMutationAck[] = []
+  const documentIdAliases = new Map<string, string>()
   for (const mutation of body.mutations) {
     const mismatch = validateMutationWorkspace(workspaceId, mutation)
     if (mismatch) {
@@ -340,15 +380,15 @@ const handlePush = async (request: Request, env: KnowgrphStorageWorkerEnv, db: D
       continue
     }
     if (mutation.entity === 'document') {
-      acknowledgements.push(await processDocumentMutation(db, workspaceId, mutation, nowIso))
+      acknowledgements.push(await processDocumentMutation(db, workspaceId, mutation, nowIso, documentIdAliases))
       continue
     }
     if (mutation.entity === 'documentChunk') {
-      acknowledgements.push(await processDocumentChunkMutation(db, workspaceId, mutation, nowIso))
+      acknowledgements.push(await processDocumentChunkMutation(db, workspaceId, mutation, nowIso, documentIdAliases))
       continue
     }
     if (mutation.entity === 'graphSnapshot') {
-      acknowledgements.push(await processGraphSnapshotMutation(db, workspaceId, mutation, nowIso))
+      acknowledgements.push(await processGraphSnapshotMutation(db, workspaceId, mutation, nowIso, documentIdAliases))
       continue
     }
     acknowledgements.push(acknowledgeRejected(mutation, 'unsupported mutation entity'))
@@ -498,6 +538,10 @@ export const createKnowgrphStorageWorker = () => ({
     try {
       if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.collabSave) {
         return await handleCollaborationSave(request, env)
+      }
+      if (isKnowgrphStorageBlobRoute(url.pathname)) {
+        if (request.method === 'POST') return await handleBlobUpload(request, env)
+        if (request.method === 'GET' || request.method === 'HEAD') return await handleBlobRead(request, env)
       }
       const db = readDb(env)
       if (!db) return errorResponse(500, 'server_error', 'missing Cloudflare D1 binding DB')

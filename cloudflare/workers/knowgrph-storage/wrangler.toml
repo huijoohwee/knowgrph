@@ -15,3 +15,7 @@ binding = "DB"
 database_name = "knowgrph-storage"
 database_id = "633355bf-1a52-4085-bd3c-eba4220ff152"
 migrations_dir = "../../d1/migrations"
+
+[[r2_buckets]]
+binding = "KNOWGRPH_STORAGE_BLOB_BUCKET"
+bucket_name = "knowgrph-storage-blobs"

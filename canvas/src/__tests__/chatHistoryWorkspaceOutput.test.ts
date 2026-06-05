@@ -1,11 +1,25 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import storageWorker from '../../../cloudflare/workers/knowgrph-storage/index.ts'
+import { createFakeKnowgrphStorageWorkerEnv } from '@/__tests__/helpers/fakeKnowgrphStorageD1'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { writeKgcCompanionOutputBlob, writeKgcCompanionOutputText } from '@/features/chat/chatHistoryWorkspace.output'
 import { writeRichMediaWidgetRunOutputArtifact, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { buildKnowgrphStorageDocPath } from '@/lib/storage/knowgrphStorageSyncContract'
+import { __resetKnowgrphStorageDbForTests } from '@/lib/storage/knowgrphStorageDb'
+
+const readStorageWorker = (): { fetch: (request: Request, env: never) => Promise<Response> } => {
+  const candidate = storageWorker as unknown as {
+    fetch?: (request: Request, env: never) => Promise<Response>
+    default?: { fetch?: (request: Request, env: never) => Promise<Response> }
+  }
+  const fetchImpl = candidate.fetch || candidate.default?.fetch
+  if (!fetchImpl) throw new Error('expected storage worker test module to expose fetch')
+  return { fetch: fetchImpl }
+}
 
 export async function testWriteKgcCompanionOutputTextCreatesSiblingWorkspaceArtifact() {
   const storage = new MemoryStorage()
@@ -103,6 +117,80 @@ export async function testWriteKgcCompanionOutputBlobMirrorsBinaryArtifactToHost
   } finally {
     resetWorkspaceFsForTests()
     globalThis.fetch = originalFetch
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testWriteKgcCompanionOutputBlobUploadsR2AndPublishesManifestWhenRuntimeSyncEnabled() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const originalFetch = globalThis.fetch
+  const previousRuntimeSync = process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const workspaceId = 'kgws:test-generated-binary-manifest'
+  try {
+    resetWorkspaceFsForTests()
+    await __resetKnowgrphStorageDbForTests()
+    process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED = '1'
+    process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://example.com'
+    process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = workspaceId
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input || '')
+      if (url === '/__kg_fs_write') {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      const request = input instanceof Request
+        ? input
+        : new Request(url.startsWith('/api/storage/') ? `https://example.com${url}` : String(input), init)
+      return readStorageWorker().fetch(request, env as never)
+    }) as typeof fetch
+
+    const blob = new Blob([Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10])], { type: 'image/png' })
+    const writtenPath = await writeKgcCompanionOutputBlob({
+      workspacePath: '/chat-log/kgc_20260420105432.md',
+      extension: 'png',
+      blob,
+    })
+    if (writtenPath !== '/chat-log/20260420T105432Z/kgc-output_20260420T105432Z.png') {
+      throw new Error(`expected binary helper to preserve canonical output path, got ${String(writtenPath || '')}`)
+    }
+    if (env.KNOWGRPH_STORAGE_BLOB_BUCKET.objects.size !== 1) {
+      throw new Error(`expected generated binary output to upload one R2 object, got ${env.KNOWGRPH_STORAGE_BLOB_BUCKET.objects.size}`)
+    }
+    const manifestPath = '/chat-log/20260420T105432Z/kgc-output_20260420T105432Z.png.manifest.md'
+    const fs = await getWorkspaceFs()
+    const manifest = await fs.readFileText(manifestPath)
+    if (!manifest || !manifest.includes('kind: knowgrph_binary_artifact') || !manifest.includes('r2_object_key:')) {
+      throw new Error(`expected generated binary output to write an R2 manifest, got ${String(manifest || '')}`)
+    }
+    const docResponse = await readStorageWorker().fetch(
+      new Request(`https://example.com${buildKnowgrphStorageDocPath(workspaceId, 'chat-log/20260420T105432Z/kgc-output_20260420T105432Z.png.manifest.md')}`),
+      env as never,
+    )
+    if (!docResponse.ok) {
+      throw new Error(`expected generated binary manifest to publish to D1, got ${docResponse.status}`)
+    }
+    const published = await docResponse.text()
+    if (!published.includes('storage_url:') || !published.includes('kgc-output_20260420T105432Z.png')) {
+      throw new Error(`expected published manifest to expose storage URL and source binary, got ${published}`)
+    }
+  } finally {
+    await __resetKnowgrphStorageDbForTests()
+    resetWorkspaceFsForTests()
+    globalThis.fetch = originalFetch
+    if (typeof previousRuntimeSync === 'string') process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED = previousRuntimeSync
+    else delete process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
     restoreDom()
     restoreWindow()
   }

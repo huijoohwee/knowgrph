@@ -1,3 +1,5 @@
+import { FakeKnowgrphStorageR2Bucket } from './fakeKnowgrphStorageR2'
+
 type FakeRow = Record<string, unknown>
 
 const normalizeSql = (sql: string): string =>
@@ -118,8 +120,14 @@ export class FakeKnowgrphStorageD1Database {
         createdAt,
         updatedAt,
       ] = values
-      this.documents.set(String(id), {
-        id,
+      const existingByPath = Array.from(this.documents.entries()).find(
+        ([, row]) => row.workspace_id === workspaceId && row.canonical_path === canonicalPath,
+      )
+      const targetId = String(existingByPath?.[0] || id)
+      const existing = this.documents.get(targetId) || {}
+      this.documents.set(targetId, {
+        ...existing,
+        id: targetId,
         workspace_id: workspaceId,
         canonical_path: canonicalPath,
         title,
@@ -132,7 +140,43 @@ export class FakeKnowgrphStorageD1Database {
         parser_version: parserVersion,
         revision,
         deleted,
-        created_at: createdAt,
+        created_at: existing.created_at || createdAt,
+        updated_at: updatedAt,
+      })
+      return
+    }
+    if (normalizedSql.includes('update documents set')) {
+      const [
+        canonicalPath,
+        title,
+        docType,
+        lang,
+        graphId,
+        sourceKind,
+        contentMd,
+        contentHash,
+        parserVersion,
+        revision,
+        deleted,
+        updatedAt,
+        id,
+        workspaceId,
+      ] = values
+      const existing = this.documents.get(String(id))
+      if (!existing || existing.workspace_id !== workspaceId) return
+      this.documents.set(String(id), {
+        ...existing,
+        canonical_path: canonicalPath,
+        title,
+        doc_type: docType,
+        lang,
+        graph_id: graphId,
+        source_kind: sourceKind,
+        content_md: contentMd,
+        content_hash: contentHash,
+        parser_version: parserVersion,
+        revision,
+        deleted,
         updated_at: updatedAt,
       })
       return
@@ -418,6 +462,23 @@ export class FakeKnowgrphStorageD1Database {
           content_length: String(row.content_md || '').length,
         }))
     }
+    if (
+      normalizedSql.includes('select id, revision, content_hash, deleted from documents where id = ? and workspace_id = ?')
+    ) {
+      const [id, workspaceId] = values
+      const row = this.documents.get(String(id))
+      if (!row || row.workspace_id !== workspaceId) return []
+      return [{ id: row.id, revision: row.revision, content_hash: row.content_hash, deleted: row.deleted }]
+    }
+    if (
+      normalizedSql.includes('select id, revision, content_hash, deleted from documents where workspace_id = ? and canonical_path = ?')
+    ) {
+      const [workspaceId, canonicalPath] = values
+      const row = Array.from(this.documents.values()).find(
+        item => item.workspace_id === workspaceId && item.canonical_path === canonicalPath,
+      )
+      return row ? [{ id: row.id, revision: row.revision, content_hash: row.content_hash, deleted: row.deleted }] : []
+    }
     if (normalizedSql.includes('select revision from documents')) {
       const [id, workspaceId] = values
       const row = this.documents.get(String(id))
@@ -526,4 +587,5 @@ export class FakeKnowgrphStorageD1Database {
 
 export const createFakeKnowgrphStorageWorkerEnv = () => ({
   DB: new FakeKnowgrphStorageD1Database(),
+  KNOWGRPH_STORAGE_BLOB_BUCKET: new FakeKnowgrphStorageR2Bucket(),
 })

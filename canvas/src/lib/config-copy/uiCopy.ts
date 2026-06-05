@@ -163,6 +163,8 @@ export const UI_COPY = {
   chatRequestFailedStatus: (status: number) => `Chat request failed with status ${status}.`,
   chatRequestFailedGenericError: 'Chat request failed.',
   chatResponseMissingContentError: 'Chat response did not include content.',
+  chatResponseMissingContentStatus:
+    'Chat endpoint responded, but the response did not include final assistant content.',
   chatSubmitPreparationTimeoutError: (providerLabel: string) =>
     `${providerLabel} got stuck while preparing the chat request. Start a fresh chat session or retry after workspace activity settles.`,
   chatSubmitTransportTimeoutError: (providerLabel: string) =>

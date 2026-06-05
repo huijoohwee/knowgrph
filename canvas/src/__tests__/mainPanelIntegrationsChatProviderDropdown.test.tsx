@@ -7,9 +7,7 @@ import {
   CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
   CHAT_MIROMIND_MODEL_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
-  CHAT_PROVIDER_AGNES,
-  CHAT_PROVIDER_GOOGLE_CLOUD,
-  CHAT_PROVIDER_MIROMIND,
+  CHAT_PROVIDER_OPENAI,
   CHAT_PROVIDER_QWEN,
   CHAT_QWEN_ENDPOINT_OPTIONS,
   CHAT_QWEN_MODEL_OPTIONS,
@@ -87,39 +85,43 @@ const findValueCellSelectForRowKey = (container: HTMLElement, rowKey: string) =>
   return row?.children[2]?.querySelector<HTMLSelectElement>('select') || null
 }
 
-export async function testMainPanelRequestedIntegrationsChatProviderValueCellUsesSingleDropdownOwner() {
+export async function testMainPanelRequestedIntegrationsChatProviderValueCellDerivesFromChatModel() {
   const host = createMainPanelHost()
 
   try {
-    await renderRequestedIntegrationsSearch(host.root, 'chatProvider')
+    await renderRequestedIntegrationsSearch(host.root, 'chat')
 
     const valueRows = Array.from(host.container.querySelectorAll('dl')) as HTMLElement[]
     const providerRow = valueRows.find(row => row.children[0]?.textContent?.trim() === 'chatProvider')
     const providerValueCell = providerRow?.children[2] as HTMLElement | undefined
-    const providerSelect = providerValueCell?.querySelector('select') as HTMLSelectElement | null
-    if (!providerValueCell || !providerSelect) {
-      throw new Error(`expected chatProvider Value cell to render one provider dropdown, got ${JSON.stringify(providerValueCell?.textContent || '')}`)
+    const providerInput = providerValueCell?.querySelector('input') as HTMLInputElement | null
+    if (!providerValueCell || !providerInput || providerInput.readOnly !== true || providerInput.value !== CHAT_PROVIDER_OPENAI) {
+      throw new Error(`expected chatProvider Value cell to render derived read-only OpenAI text, got ${JSON.stringify(providerValueCell?.textContent || providerInput?.value || '')}`)
     }
-    if (providerValueCell.querySelectorAll('select').length !== 1) {
-      throw new Error('expected chatProvider Value cell to render a single dropdown owner')
+    if (providerValueCell.querySelector('select')) {
+      throw new Error('expected chatProvider Value cell to avoid a manual provider dropdown')
     }
     if (providerValueCell.querySelector('button')) {
       throw new Error(`expected chatProvider Value cell to omit duplicate provider preset buttons, got ${JSON.stringify(providerValueCell.textContent || '')}`)
+    }
+    const modelSelect = findValueCellSelectForRowKey(host.container, 'chatModel')
+    if (!modelSelect) {
+      throw new Error('expected chatModel Value cell to own provider selection through the model dropdown')
     }
 
     const valueSetter = Object.getOwnPropertyDescriptor(host.dom.window.HTMLSelectElement.prototype, 'value')?.set
     if (!valueSetter) throw new Error('expected DOM select value setter')
     await act(async () => {
-      valueSetter.call(providerSelect, CHAT_PROVIDER_QWEN)
-      Simulate.change(providerSelect)
+      valueSetter.call(modelSelect, CHAT_QWEN_MODEL_OPTIONS[0])
+      Simulate.change(modelSelect)
       await waitForFrames()
     })
 
     const rerenderedRows = Array.from(host.container.querySelectorAll('dl')) as HTMLElement[]
     const rerenderedProviderRow = rerenderedRows.find(row => row.children[0]?.textContent?.trim() === 'chatProvider')
-    const rerenderedProviderSelect = rerenderedProviderRow?.children[2]?.querySelector('select') as HTMLSelectElement | null
-    if (rerenderedProviderSelect?.value !== CHAT_PROVIDER_QWEN) {
-      throw new Error(`expected chatProvider dropdown to keep selected value ${JSON.stringify(CHAT_PROVIDER_QWEN)}, got ${JSON.stringify(rerenderedProviderSelect?.value)}`)
+    const rerenderedProviderInput = rerenderedProviderRow?.children[2]?.querySelector('input') as HTMLInputElement | null
+    if (rerenderedProviderInput?.value !== CHAT_PROVIDER_QWEN) {
+      throw new Error(`expected chatProvider Value to derive ${JSON.stringify(CHAT_PROVIDER_QWEN)} from chatModel, got ${JSON.stringify(rerenderedProviderInput?.value)}`)
     }
   } finally {
     await host.restore()
@@ -159,31 +161,21 @@ export async function testMainPanelRequestedIntegrationsProviderModelRowsRejectK
   const leakedOpenAiModel: string = CHAT_OPENAI_MODEL_OPTIONS[0]
   const cases = [
     {
-      provider: CHAT_PROVIDER_MIROMIND,
-      query: 'chatModel',
-      rowKey: 'chatModel',
-      expectedModel: CHAT_MIROMIND_MODEL_OPTIONS[0],
-    },
-    {
-      provider: CHAT_PROVIDER_MIROMIND,
       query: 'miromindApi.model',
       rowKey: 'miromindApi.model',
       expectedModel: CHAT_MIROMIND_MODEL_OPTIONS[0],
     },
     {
-      provider: CHAT_PROVIDER_AGNES,
       query: 'agnesApi.model',
       rowKey: 'agnesApi.model',
       expectedModel: CHAT_AGNES_MODEL_OPTIONS[0],
     },
     {
-      provider: CHAT_PROVIDER_QWEN,
       query: 'qwenApi.model',
       rowKey: 'qwenApi.model',
       expectedModel: CHAT_QWEN_MODEL_OPTIONS[0],
     },
     {
-      provider: CHAT_PROVIDER_GOOGLE_CLOUD,
       query: 'googleCloudApi.model',
       rowKey: 'googleCloudApi.model',
       expectedModel: CHAT_GOOGLE_CLOUD_MODEL_OPTIONS[0],
@@ -195,11 +187,11 @@ export async function testMainPanelRequestedIntegrationsProviderModelRowsRejectK
 
     try {
       const graphState = useGraphStore.getState()
-      graphState.setChatProvider(testCase.provider)
+      graphState.setChatProvider(CHAT_PROVIDER_OPENAI)
       graphState.setChatModel(leakedOpenAiModel)
       const storedModel = useGraphStore.getState().chatModel
-      if (storedModel !== testCase.expectedModel) {
-        throw new Error(`expected chatModel setter to reject known cross-provider model ${JSON.stringify(leakedOpenAiModel)} for ${testCase.provider}, got ${JSON.stringify(storedModel)}`)
+      if (storedModel !== leakedOpenAiModel) {
+        throw new Error(`expected global chatModel setter to keep model-selected OpenAI value, got ${JSON.stringify(storedModel)}`)
       }
 
       await renderRequestedIntegrationsSearch(host.root, testCase.query)
@@ -300,7 +292,7 @@ export async function testMainPanelRequestedIntegrationsMappedChatModelKeepsUser
 }
 
 export async function testMainPanelRequestedIntegrationsDropdownValuesStayEditableAndUnduplicated() {
-  await testMainPanelRequestedIntegrationsChatProviderValueCellUsesSingleDropdownOwner()
+  await testMainPanelRequestedIntegrationsChatProviderValueCellDerivesFromChatModel()
   await testMainPanelRequestedIntegrationsChatModelValueCellUsesVisibleModelDropdown()
   await testMainPanelRequestedIntegrationsProviderModelRowsRejectKnownCrossProviderLeak()
   await testMainPanelRequestedIntegrationsMappedDropdownKeepsUserSelection()

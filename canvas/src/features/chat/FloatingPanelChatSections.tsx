@@ -7,6 +7,9 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
   UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_HINT_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME,
   UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
@@ -212,6 +215,8 @@ export function FloatingPanelChatFooter({
   isNewChatDisabled,
   onNewChat,
 }: FooterProps) {
+  const chatModelSelectId = React.useId()
+
   return (
     <section className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
       {errorText && (
@@ -232,11 +237,22 @@ export function FloatingPanelChatFooter({
         </section>
       )}
       {modelOptions.length > 0 && (
-        <section className="flex items-center justify-between gap-2">
-          <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+        <section className={UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME} data-kg-chat-model-control="true">
+          <label
+            htmlFor={chatModelSelectId}
+            className={[
+              UI_RESPONSIVE_CONTROL_HINT_CLASSNAME,
+              uiPanelTextFontClass,
+              uiPanelMicroLabelTextSizeClass,
+              UI_THEME_TOKENS.text.tertiary,
+            ].join(' ')}
+          >
             {UI_COPY.chatModelSelectLabel}
-          </section>
+          </label>
           <select
+            id={chatModelSelectId}
+            aria-label={UI_COPY.chatModelSelectLabel}
+            data-kg-chat-model-select="true"
             value={modelId}
             onChange={e => {
               const next = e.target.value
@@ -244,7 +260,7 @@ export function FloatingPanelChatFooter({
               onModelChanged(next)
             }}
             disabled={isLoading || modelOptions.length <= 1}
-            className={`${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
+            className={`${UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME} ${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
           >
             {modelOptions.map(option => (
               <option key={option} value={option}>

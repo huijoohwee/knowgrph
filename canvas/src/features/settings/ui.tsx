@@ -381,7 +381,7 @@ export const renderSettingInput = (
     )
   }
 
-  const chatProviderInput = renderChatProviderSettingInput({ className: uiPanelKeyValueInputClass, dirtyRef, keyName: key, options, setValues, value: v })
+  const chatProviderInput = renderChatProviderSettingInput({ className: uiPanelKeyValueInputClass, dirtyRef, keyName: key, options, setValues, value: v, values })
   if (chatProviderInput) return chatProviderInput
 
   const chatModelInput = renderChatModelSettingInput({ className: uiPanelKeyValueInputLeftClass, dirtyRef, keyName: key, options, setValues, value: v, values })

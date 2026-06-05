@@ -116,6 +116,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
   const clampedMainPanelPos = isMainPanelOpen ? clampMainPanelPos(mainPanelDragPos) : mainPanelDragPos
   const isNarrowViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
+  const shouldUseToolbarRowScroll = isNarrowViewport || isWorkspaceOverlayMode
   const effectiveMainPanelPinned = isNarrowViewport ? true : mainPanelPinned
   const effectiveMainPanelCollapsed = isNarrowViewport ? false : mainPanelCollapsed
 
@@ -133,7 +134,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   return (
 	    <nav
 	      ref={toolbarNavRef}
-	      className={`${navClassBase} ${isNarrowViewport ? uiToolbarTouchRowScrollClassName : ''}`}
+	      className={`${navClassBase} ${shouldUseToolbarRowScroll ? uiToolbarTouchRowScrollClassName : ''}`}
       role="navigation"
 	      aria-label="Main Toolbar"
 	      data-kg-canvas-wheel-ignore="true"

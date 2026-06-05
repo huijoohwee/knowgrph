@@ -1572,7 +1572,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected chat message bubble width and chat/discovery multiline text input editor heights to live in shared responsive owner classes')
   }
   if (
-    !floatingPanelChatSectionsText.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
+    !['UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME', 'UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME', 'UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME', 'htmlFor={chatModelSelectId}', 'data-kg-chat-model-select="true"'].every(snippet => floatingPanelChatSectionsText.includes(snippet)) ||
     !grabMapsDiscoverySettingsGridText.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
     !responsiveToolbarCssText.includes('.kg-responsive-compact-panel-field-input') ||
     !responsiveToolbarCssText.includes('--kg-responsive-compact-panel-field-input-height') ||

@@ -13,6 +13,10 @@ import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/feature
 import {
   readPrimaryStorageCanonicalPathForWorkspacePath,
 } from '@/features/source-files/sourceFilesStoragePaths'
+import {
+  readKnowgrphStorageBaseUrl,
+  readKnowgrphStorageRuntimeSyncEnabled,
+} from '@/features/source-files/sourceFilesKnowgrphStorageSettings'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
@@ -20,7 +24,7 @@ export type ReadWorkspaceEntryTextForStoragePublish = (
   entry: WorkspaceEntry,
 ) => string | null | undefined | Promise<string | null | undefined>
 
-const readActiveKnowgrphStorageWorkspaceId = (): string => {
+export const readActiveKnowgrphStorageWorkspaceId = (): string => {
   const override = normalizeString(readEnvString('VITE_KNOWGRPH_STORAGE_WORKSPACE_ID', ''))
   if (override) return override
   const state = useGraphStore.getState()
@@ -217,6 +221,52 @@ export const publishWorkspacePathsToKnowgrphStorage = async (args: {
     deviceId: args.deviceId,
     fetchImpl: args.fetchImpl,
     readEntryText: args.readEntryText || (entry => fs.readFileText(entry.path)),
+  })
+}
+
+export const publishGeneratedWorkspaceEntriesToKnowgrphStorage = async (args: {
+  entries: WorkspaceEntry[]
+  workspaceId?: string | null
+  syncNow?: boolean
+  baseUrl?: string | null
+  deviceId?: string | null
+  fetchImpl?: KnowgrphStorageSyncNowArgs['fetchImpl']
+  readEntryText?: ReadWorkspaceEntryTextForStoragePublish
+}): Promise<PublishWorkspaceEntriesToKnowgrphStorageResult> => {
+  const shouldSyncNow = typeof args.syncNow === 'boolean'
+    ? args.syncNow
+    : readKnowgrphStorageRuntimeSyncEnabled()
+  return publishWorkspaceEntriesToKnowgrphStorage({
+    entries: args.entries,
+    workspaceId: args.workspaceId,
+    syncNow: shouldSyncNow,
+    baseUrl: normalizeString(args.baseUrl) || readKnowgrphStorageBaseUrl(),
+    deviceId: args.deviceId,
+    fetchImpl: args.fetchImpl,
+    readEntryText: args.readEntryText,
+  })
+}
+
+export const publishGeneratedWorkspacePathsToKnowgrphStorage = async (args: {
+  paths: ReadonlyArray<string>
+  workspaceId?: string | null
+  syncNow?: boolean
+  baseUrl?: string | null
+  deviceId?: string | null
+  fetchImpl?: KnowgrphStorageSyncNowArgs['fetchImpl']
+  readEntryText?: ReadWorkspaceEntryTextForStoragePublish
+}): Promise<PublishWorkspaceEntriesToKnowgrphStorageResult> => {
+  const shouldSyncNow = typeof args.syncNow === 'boolean'
+    ? args.syncNow
+    : readKnowgrphStorageRuntimeSyncEnabled()
+  return publishWorkspacePathsToKnowgrphStorage({
+    paths: args.paths,
+    workspaceId: args.workspaceId,
+    syncNow: shouldSyncNow,
+    baseUrl: normalizeString(args.baseUrl) || readKnowgrphStorageBaseUrl(),
+    deviceId: args.deviceId,
+    fetchImpl: args.fetchImpl,
+    readEntryText: args.readEntryText,
   })
 }
 

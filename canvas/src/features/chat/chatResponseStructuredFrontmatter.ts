@@ -11,6 +11,8 @@ const CANVAS_FRONTMATTER_FIELD_KEYS = [
   'kgFrontmatterModeEnabled',
   'kgMultiDimTableModeEnabled',
   'kgDocumentStructureBaselineLock',
+  'kgWorkflowManagerModeEnabled',
+  'kgStrybldrStoryboard',
 ] as const
 
 const ASSET_FRONTMATTER_FIELD_KEYS = [
@@ -112,6 +114,27 @@ const STRUCTURED_FRONTMATTER_CONTAINER_KEYS = new Set([
   'scene',
   'frontmatter',
 ])
+
+const STRUCTURED_EXPLICIT_FRONTMATTER_CONTAINER_KEYS = new Set([
+  'frontmatter',
+])
+
+const STRUCTURED_FRONTMATTER_RESERVED_KEY_TOKENS = new Set([
+  'cards',
+  'content',
+  'edges',
+  'flow',
+  'media',
+  'nodes',
+  'panels',
+  'response',
+  'result',
+  'richmedia',
+  'structuredcontent',
+  'widgets',
+])
+
+const SAFE_STRUCTURED_FRONTMATTER_KEY_RE = /^[A-Za-z_][A-Za-z0-9_:-]{0,96}$/
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -265,13 +288,25 @@ const normalizeStructuredFrontmatterValue = (key: string, value: unknown): JSONV
   if (key === 'kgCanvas3dMode') return readStructuredCanvas3dModeValue(value)
   if (key === 'kgCanvas2dRenderer') return readStructuredCanvas2dRendererValue(value)
   if (key === 'kgDocumentSemanticMode') return readStructuredDocumentSemanticModeValue(value)
-  if (key === 'kgFrontmatterModeEnabled' || key === 'kgMultiDimTableModeEnabled' || key === 'kgDocumentStructureBaselineLock' || key === 'kgAssetPendingLocalImport') {
+  if (
+    key === 'kgFrontmatterModeEnabled'
+    || key === 'kgMultiDimTableModeEnabled'
+    || key === 'kgDocumentStructureBaselineLock'
+    || key === 'kgWorkflowManagerModeEnabled'
+    || key === 'kgStrybldrStoryboard'
+    || key === 'kgAssetPendingLocalImport'
+  ) {
     return readStructuredBooleanValue(value)
   }
   if (key === 'kgAssetType') return readStructuredAssetTypeValue(value)
   if (key === 'kgAssetFormat') return readStructuredAssetFormatValue(value)
   if (key === 'flow_diagrams') return toJsonValue(value)
   return toJsonValue(value)
+}
+
+const isSafeExplicitFrontmatterKey = (key: string): boolean => {
+  if (!SAFE_STRUCTURED_FRONTMATTER_KEY_RE.test(key)) return false
+  return !STRUCTURED_FRONTMATTER_RESERVED_KEY_TOKENS.has(normalizeStructuredKeyToken(key))
 }
 
 const assignStructuredFrontmatterValue = (
@@ -281,6 +316,20 @@ const assignStructuredFrontmatterValue = (
 ): boolean => {
   if (!STRUCTURED_FRONTMATTER_FIELD_KEYS.has(key)) return false
   const normalized = normalizeStructuredFrontmatterValue(key, value)
+  if (typeof normalized === 'undefined') return false
+  out[key] = normalized
+  return true
+}
+
+const assignExplicitStructuredFrontmatterValue = (
+  out: Record<string, JSONValue>,
+  key: string,
+  value: unknown,
+): boolean => {
+  if (!isSafeExplicitFrontmatterKey(key)) return false
+  const normalized = STRUCTURED_FRONTMATTER_FIELD_KEYS.has(key)
+    ? normalizeStructuredFrontmatterValue(key, value)
+    : toJsonValue(value)
   if (typeof normalized === 'undefined') return false
   out[key] = normalized
   return true
@@ -310,6 +359,12 @@ export const collectStructuredFrontmatterFields = (
   for (const [rawKey, rawValue] of Object.entries(record)) {
     const token = normalizeStructuredKeyToken(rawKey)
     if (!STRUCTURED_FRONTMATTER_CONTAINER_KEYS.has(token) || !isRecord(rawValue)) continue
+    if (STRUCTURED_EXPLICIT_FRONTMATTER_CONTAINER_KEYS.has(token)) {
+      const frontmatterRecord = mergeStructuredProperties(rawValue)
+      for (const [frontmatterKey] of Object.entries(frontmatterRecord)) {
+        assignExplicitStructuredFrontmatterValue(out, frontmatterKey, readFieldValue(frontmatterRecord, frontmatterKey))
+      }
+    }
     collectStructuredFrontmatterFields(rawValue, out, rawKey)
     if ((token === 'model' || token === 'scene') && !Object.prototype.hasOwnProperty.call(out, 'kgAssetType')) {
       assignStructuredFrontmatterValue(out, 'kgAssetType', 'model')

@@ -34,6 +34,22 @@ export function testCanvasToolbarDockResponsiveContract() {
     throw new Error('expected editor-workspace canvas toolbar to keep desktop pane boundary and span the mobile viewport')
   }
   if (
+    !canvasText.includes("const toolbarHeaderLayerClassName = toolbarHeaderElevated ? 'z-[420]' : 'z-[290]'") ||
+    !canvasText.includes('data-kg-workspace-toolbar-layer={toolbarHeaderElevated ?') ||
+    !canvasText.includes("setToolbarHeaderElevated(false)\n  }, [workspaceCanvasPaneVisible]") ||
+    !canvasText.includes('className={`absolute inset-0 pointer-events-none ${toolbarHeaderLayerClassName}`}') ||
+    !canvasText.includes('onPointerDownCapture={() => setToolbarHeaderElevated(true)}') ||
+    canvasText.includes("toolbarHeaderElevated ? 'z-[420]' : 'z-[400]'")
+  ) {
+    throw new Error('expected editor-workspace canvas toolbar to default underneath the editor shell and elevate only after toolbar interaction')
+  }
+  if (
+    !toolbarText.includes('const shouldUseToolbarRowScroll = isNarrowViewport || isWorkspaceOverlayMode') ||
+    !toolbarText.includes('shouldUseToolbarRowScroll ? uiToolbarTouchRowScrollClassName :')
+  ) {
+    throw new Error('expected constrained editor-workspace canvas toolbar rows to reuse the shared horizontal scroll utility')
+  }
+  if (
     responsiveToolbarText.includes('.kg-canvas-toolbar-dock') ||
     responsiveToolbarText.includes('.kg-workspace-overlay-canvas-toolbar') ||
     !dockCssText.includes('.kg-canvas-toolbar-dock-content > .App-toolbar--touch-scroll') ||

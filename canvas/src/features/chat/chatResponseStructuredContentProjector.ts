@@ -175,6 +175,8 @@ const STRUCTURED_FRONTMATTER_FIELD_ORDER = [
   'kgFrontmatterModeEnabled',
   'kgMultiDimTableModeEnabled',
   'kgDocumentStructureBaselineLock',
+  'kgWorkflowManagerModeEnabled',
+  'kgStrybldrStoryboard',
   'flow_diagrams',
   'kgAssetType',
   'kgAssetFormat',

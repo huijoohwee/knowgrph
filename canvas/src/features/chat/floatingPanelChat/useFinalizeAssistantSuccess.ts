@@ -16,6 +16,21 @@ import { publishLocalChatPipelineFinalizeSnapshot } from '@/features/agent-ready
 import { persistChatStreamArtifacts } from '@/features/chat/chatStreamArtifacts'
 import { persistKnowgrphVdeoxplnRunManifestForChat } from '@/features/chat/knowgrphVdeoxplnChatArtifacts'
 
+const normalizeStoragePromotionPath = (value: unknown): string => normalizeWorkspacePath(String(value || '').trim())
+
+const promoteGeneratedChatWorkspacePathsToStorage = async (paths: ReadonlyArray<string | null | undefined>): Promise<void> => {
+  const uniquePaths = [...new Set(paths.map(normalizeStoragePromotionPath).filter(path => path && path !== '/'))]
+  if (uniquePaths.length === 0) return
+  try {
+    const { publishGeneratedWorkspacePathsToKnowgrphStorage } = await import('@/features/source-files/sourceFileShareUrl')
+    await publishGeneratedWorkspacePathsToKnowgrphStorage({
+      paths: uniquePaths,
+    })
+  } catch (error) {
+    console.warn('[knowgrph-storage] generated chat artifact promotion skipped', error)
+  }
+}
+
 export const useFinalizeAssistantSuccess = (args: {
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'
   chatProviderSummary: string
@@ -84,6 +99,7 @@ export const useFinalizeAssistantSuccess = (args: {
         ? validatedKgc
         : rawAssistantText
 
+    const storagePromotionPaths: string[] = []
     const resolvedKnowgrphPath = await appendChatHistoryWorkspaceFile({
       storageType: 'chatKnowgrph',
       title: 'Knowledge Graph Canvas Storage',
@@ -96,8 +112,9 @@ export const useFinalizeAssistantSuccess = (args: {
       userText: requestText,
       assistantText: assistantTextForKgc,
     })
+    storagePromotionPaths.push(resolvedKnowgrphPath)
 
-    await persistChatStreamArtifacts({
+    const persistedStreamArtifacts = await persistChatStreamArtifacts({
       workspacePath: resolvedKnowgrphPath,
       timestampMs,
       defaultLocalRootPath: args.chatLocalStorageRootPath,
@@ -113,6 +130,7 @@ export const useFinalizeAssistantSuccess = (args: {
       rawSseEvents,
       status,
     })
+    storagePromotionPaths.push(...persistedStreamArtifacts.createdArtifactPaths)
 
     if (args.chatStorageTarget === 'chatHistory') {
       await appendChatHistoryWorkspaceFile({
@@ -176,7 +194,7 @@ export const useFinalizeAssistantSuccess = (args: {
       })
       if (args.chatStorageTarget === 'chatKnowgrph') {
         try {
-          await persistKnowgrphVdeoxplnRunManifestForChat({
+          const manifestPath = await persistKnowgrphVdeoxplnRunManifestForChat({
             workspacePath: knowgrphPath,
             requestText,
             status: 'error',
@@ -188,6 +206,8 @@ export const useFinalizeAssistantSuccess = (args: {
             canvasApplied,
             errorMessage: canvasApplyError,
           })
+          storagePromotionPaths.push(manifestPath || knowgrphPath)
+          await promoteGeneratedChatWorkspacePathsToStorage(storagePromotionPaths)
         } catch {
           void 0
         }
@@ -195,7 +215,7 @@ export const useFinalizeAssistantSuccess = (args: {
       throw error
     }
     if (args.chatStorageTarget === 'chatKnowgrph') {
-      await persistKnowgrphVdeoxplnRunManifestForChat({
+      const manifestPath = await persistKnowgrphVdeoxplnRunManifestForChat({
         workspacePath: knowgrphPath,
         requestText,
         status,
@@ -207,6 +227,8 @@ export const useFinalizeAssistantSuccess = (args: {
         canvasApplied,
         errorMessage: canvasApplyError,
       })
+      storagePromotionPaths.push(manifestPath || knowgrphPath)
+      await promoteGeneratedChatWorkspacePathsToStorage(storagePromotionPaths)
     }
     const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''
     const conciseSource =

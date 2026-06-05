@@ -39,6 +39,7 @@ import {
   buildKnowgrphCommerceDiscovery,
   buildKnowgrphCommerceStaticFiles,
 } from "./knowgrph-agent-ready-commerce.mjs";
+import { fetchKnowgrphAppShellAsset } from "./knowgrph-agent-ready-app-shell.mjs";
 import {
   PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE,
   createPublishedDocIdentityResolver,
@@ -1234,7 +1235,6 @@ const routeResponse = async (request) => {
       return null;
   }
 };
-
 export async function onRequest(context) {
   const { env, request } = context;
   const method = String(request.method || "GET").toUpperCase();
@@ -1267,7 +1267,7 @@ export async function onRequest(context) {
     return next;
   }
 
-  const response = await context.next();
+  const response = resolvePublishedDocRequestIdentity(request.url) ? await fetchKnowgrphAppShellAsset(context, APP_BASE_PATH) : await context.next();
   if (!handlesKnowgrphHtmlSurface(url.pathname)) return response;
   const htmlResponse = method === "HEAD" ? response : await injectWebMcpScript(response);
   const nextResponse = new Response(method === "HEAD" ? null : htmlResponse.body, htmlResponse);

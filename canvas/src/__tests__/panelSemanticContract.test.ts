@@ -638,7 +638,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected Collaboration panel invite and answer input shells to reuse the shared responsive flex input owner')
   }
   if (
-    !floatingPanelChatSections.includes('UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME') || !floatingPanelChatSections.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
+    !['UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME', 'UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME', 'UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME', 'UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME', 'htmlFor={chatModelSelectId}', 'data-kg-chat-model-select="true"'].every(snippet => floatingPanelChatSections.includes(snippet)) ||
     !grabMapsDiscoverySettingsGrid.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') || !responsiveCss.includes('.kg-floating-chat-message-bubble') || !responsiveCss.includes('.kg-responsive-compact-panel-field-input') ||
     !responsiveCss.includes('--kg-responsive-compact-panel-field-input-height') ||
     !responsiveCss.includes('--kg-responsive-compact-panel-field-input-padding-inline') ||
