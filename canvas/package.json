@@ -29,6 +29,7 @@
     "doc:lint": "tsx src/cli/lint-doc.ts",
     "doc:sanity": "tsx src/cli/doc-sanity-check.ts",
     "validate:animatic-interactions": "python3 ./scripts/validate_animatic_timeline_interactions.py",
+    "validate:multi-user-collaboration:e2e": "tsx ./scripts/verify-multi-user-collaboration-e2e.ts",
     "validate:strybldr-generated-video": "node ./scripts/verify-stryfork-generated-video-e2e.mjs",
     "validate:stryfork-generated-video": "node ./scripts/verify-stryfork-generated-video-e2e.mjs",
     "build": "vite build --configLoader runner",

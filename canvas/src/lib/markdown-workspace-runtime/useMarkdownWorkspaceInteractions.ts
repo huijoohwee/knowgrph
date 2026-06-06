@@ -16,6 +16,7 @@ import {
 } from './markdownWorkspaceRuntime.shared'
 import {
   resolveMarkdownWorkspaceLineOffset,
+  resolveMarkdownWorkspaceRevealText,
   revealMarkdownWorkspaceLineFromCanvas,
   revealMarkdownWorkspaceLineInEditor,
   showMarkdownWorkspaceLineInMode,
@@ -42,6 +43,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
   setExpandedPaths: React.Dispatch<React.SetStateAction<Set<string>>>
   activeDocumentKey: string
   activeText: string
+  revealText?: string | null
   setActiveText: (text: string) => void
   outlineText: string
   graphNodesRef: React.MutableRefObject<GraphNode[]>
@@ -85,6 +87,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     setExpandedPaths,
     activeDocumentKey,
     activeText,
+    revealText,
     setActiveText,
     outlineText,
     graphNodesRef,
@@ -182,7 +185,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     if (!requestedRevealLine) return
     const handle = editorRef.current
     if (!handle) return
-    const text = String(activeText || '')
+    const text = resolveMarkdownWorkspaceRevealText({ activeText, revealText })
     const resolved = resolveMarkdownWorkspaceLineOffset({
       text,
       line: requestedRevealLine,
@@ -197,7 +200,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
       void 0
     }
     requestRevealLine(null)
-  }, [activeText, editorRef, requestRevealLine, requestedRevealLine])
+  }, [activeText, editorRef, requestRevealLine, requestedRevealLine, revealText])
 
   React.useEffect(() => {
     return subscribeMarkdownLayoutRequest(({ mode }) => {
@@ -227,16 +230,16 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     },
     [setHighlightedLineRange, setLayoutMode],
   )
-  const showInSlidesGallery = React.useCallback(
+  const showInGallery = React.useCallback(
     (line: number) => {
-      showMarkdownWorkspaceLineInMode({
-        mode: 'slides-gallery',
-        line,
-        setLayoutMode,
-        setHighlightedLineRange,
-      })
+      const normalizedLine = Number.isFinite(line) ? Math.max(1, Math.floor(line)) : 0
+      const store = useGraphStore.getState()
+      store.setCanvasRenderMode('2d')
+      store.setCanvas2dRenderer('gallery')
+      if (store.workspaceCanvasPaneOpen !== true) store.setWorkspaceCanvasPaneOpen(true)
+      setHighlightedLineRange(normalizedLine > 0 ? { start: normalizedLine, end: normalizedLine } : null)
     },
-    [setHighlightedLineRange, setLayoutMode],
+    [setHighlightedLineRange],
   )
 
   const matchesActiveDoc = React.useCallback(
@@ -388,7 +391,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     revealLineInEditor,
     showInViewer,
     showInPresentation,
-    showInSlidesGallery,
+    showInGallery,
     onEditorCaretLine,
     tocTokens: explorerState.tocTokens,
     backlinks: explorerState.backlinks,

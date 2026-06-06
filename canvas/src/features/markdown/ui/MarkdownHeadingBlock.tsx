@@ -83,7 +83,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     baseTopPx,
     markdownPresentationMode: opts.markdownPresentationMode,
   })
-  const stickyHeadingEnabled = !opts.markdownLargeDocumentMode
+  const stickyHeadingEnabled = !opts.markdownLargeDocumentMode && !opts.markdownCardPreviewMode
 
   const stickyStyle = {
     top: `${topPx}px`,

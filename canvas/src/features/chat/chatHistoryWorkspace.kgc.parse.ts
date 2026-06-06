@@ -33,11 +33,13 @@ const countMatches = (text: string, pattern: RegExp): number => {
 
 const extractTopLevelYamlBlockScalar = (frontmatter: string, key: string): string => {
   const lines = String(frontmatter || '').replace(/\r\n/g, '\n').split('\n')
-  const keyLabel = `${String(key || '').trim()}:`
+  const keyName = String(key || '').trim()
+  const keyRx = new RegExp(`^${keyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:(?:\\s|$)`)
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]
-    if (!line.startsWith(keyLabel)) continue
-    const rawValue = line.slice(keyLabel.length).trim()
+    const match = keyRx.exec(line)
+    if (!match) continue
+    const rawValue = line.slice(match[0].length).trim()
     if (rawValue !== '|') return rawValue
     const out: string[] = []
     for (let j = i + 1; j < lines.length; j += 1) {

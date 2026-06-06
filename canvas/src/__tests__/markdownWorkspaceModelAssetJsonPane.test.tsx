@@ -76,7 +76,7 @@ export async function testMarkdownWorkspacePendingGltfJsonPaneLoadsOriginalJson(
           revealLineInEditor={() => {}}
           showInViewer={() => {}}
           showInPresentation={() => {}}
-          showInSlidesGallery={() => {}}
+          showInGallery={() => {}}
           editorUri="file:///large-scene.gltf"
           editorLanguage="markdown"
           editorRef={editorRef}

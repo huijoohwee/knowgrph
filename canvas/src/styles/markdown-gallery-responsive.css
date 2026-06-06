@@ -1,0 +1,101 @@
+.kg-markdown-gallery-card-preview-frame {
+  box-sizing: border-box;
+  container-type: inline-size;
+  font-size: clamp(0.58rem, 2cqi, 0.72rem);
+  line-height: 1.22;
+}
+
+.kg-markdown-gallery-card-preview-frame > * {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.kg-markdown-gallery-card-preview-frame [aria-label='Slide Content'],
+.kg-markdown-gallery-card-preview-frame [aria-label='Slide Left Column'],
+.kg-markdown-gallery-card-preview-frame [aria-label='Slide Right Column'] {
+  padding: clamp(0.35rem, 1.6cqi, 0.7rem) clamp(0.45rem, 2cqi, 0.85rem) !important;
+}
+
+.kg-markdown-gallery-card-preview-frame [data-kg-markdown-slide-preview-density='gallery-card'] [data-kg-sticky-heading]:first-child > h1:first-child,
+.kg-markdown-gallery-card-preview-frame [data-kg-markdown-slide-preview-density='gallery-card'] [data-kg-sticky-heading]:first-child > h2:first-child,
+.kg-markdown-gallery-card-preview-frame [data-kg-markdown-slide-preview-density='gallery-card'] [data-kg-sticky-heading]:first-child > h3:first-child,
+.kg-markdown-gallery-card-preview-frame [data-kg-markdown-slide-preview-density='gallery-card'] [data-kg-sticky-heading]:first-child > h4:first-child,
+.kg-markdown-gallery-card-preview-frame [data-kg-markdown-slide-preview-density='gallery-card'] [data-kg-sticky-heading]:first-child > h5:first-child,
+.kg-markdown-gallery-card-preview-frame [data-kg-markdown-slide-preview-density='gallery-card'] [data-kg-sticky-heading]:first-child > h6:first-child {
+  display: none !important;
+}
+
+.kg-markdown-gallery-card-preview-frame h1,
+.kg-markdown-gallery-card-preview-frame h2,
+.kg-markdown-gallery-card-preview-frame h3,
+.kg-markdown-gallery-card-preview-frame h4,
+.kg-markdown-gallery-card-preview-frame h5,
+.kg-markdown-gallery-card-preview-frame h6 {
+  max-width: 100%;
+  margin: 0 0 0.35rem !important;
+  overflow: hidden;
+  line-height: 1.08 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kg-markdown-gallery-card-preview-frame h1 {
+  font-size: clamp(1.15rem, 5.2cqi, 1.85rem) !important;
+}
+
+.kg-markdown-gallery-card-preview-frame h2 {
+  font-size: clamp(0.98rem, 4cqi, 1.35rem) !important;
+}
+
+.kg-markdown-gallery-card-preview-frame h3,
+.kg-markdown-gallery-card-preview-frame h4,
+.kg-markdown-gallery-card-preview-frame h5,
+.kg-markdown-gallery-card-preview-frame h6 {
+  font-size: clamp(0.78rem, 2.6cqi, 1rem) !important;
+}
+
+.kg-markdown-gallery-card-preview-frame p,
+.kg-markdown-gallery-card-preview-frame li,
+.kg-markdown-gallery-card-preview-frame td,
+.kg-markdown-gallery-card-preview-frame th {
+  font-size: clamp(0.56rem, 1.8cqi, 0.72rem) !important;
+  line-height: 1.22 !important;
+}
+
+.kg-markdown-gallery-card-preview-frame p,
+.kg-markdown-gallery-card-preview-frame ul,
+.kg-markdown-gallery-card-preview-frame ol,
+.kg-markdown-gallery-card-preview-frame figure,
+.kg-markdown-gallery-card-preview-frame pre {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.kg-markdown-gallery-card-preview-frame table {
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+
+.kg-markdown-gallery-card-preview-frame td,
+.kg-markdown-gallery-card-preview-frame th {
+  max-width: 0;
+  overflow: hidden;
+  padding: 0.22rem 0.35rem !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kg-markdown-gallery-card-preview-frame pre,
+.kg-markdown-gallery-card-preview-frame code {
+  font-size: clamp(0.52rem, 1.5cqi, 0.64rem) !important;
+  line-height: 1.16 !important;
+}
+
+.kg-markdown-gallery-card-preview-frame button {
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  font-size: 0.62rem;
+}

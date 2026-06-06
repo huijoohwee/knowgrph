@@ -1218,6 +1218,15 @@ export function testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles() {
   if (helperText.includes('String(args.enableEditorGestures ? 1 : 0)')) {
     throw new Error('expected D3 scene build key to ignore workspace/panel gesture gating so layout does not rebuild on overlay toggles')
   }
+  if (helperText.includes('sceneWidth') || helperText.includes('sceneHeight')) {
+    throw new Error('expected D3 scene setup helper to keep viewport dimensions out of the scene rebuild key')
+  }
+  if (helperText.includes('roundedCoordinateKey') || helperText.includes('{ x?: unknown }') || helperText.includes('{ y?: unknown }')) {
+    throw new Error('expected D3 scene shape key to ignore mutable runtime coordinates so force-layout ticks do not rebuild the scene')
+  }
+  if (!helperText.includes("String(props['visual:shape'] || '')") || !helperText.includes("String(props['visual:parentId'] || '')")) {
+    throw new Error('expected D3 scene shape key to retain semantic node shape and group-parent identity')
+  }
   if (!helperText.includes('String(args.infiniteCanvasInteractionMode)')) {
     throw new Error('expected D3 scene build key to keep interaction-mode semantics while excluding overlay gesture toggles')
   }
@@ -1231,6 +1240,17 @@ export function testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles() {
   }
   if (!hookText.includes('const workspaceOverlayOpenRef = useRef(false)')) {
     throw new Error('expected D3 scene hook to track workspace overlay-open state through a non-reactive ref')
+  }
+  const sceneSetupCallStart = hookText.indexOf('const sceneSetup = buildD3SceneSetupContext({')
+  const sceneSetupCallEnd = sceneSetupCallStart >= 0 ? hookText.indexOf('    })', sceneSetupCallStart) : -1
+  const sceneSetupCall = sceneSetupCallStart >= 0 && sceneSetupCallEnd > sceneSetupCallStart
+    ? hookText.slice(sceneSetupCallStart, sceneSetupCallEnd)
+    : ''
+  if (!sceneSetupCall) {
+    throw new Error('expected D3 scene hook to build setup context through the shared helper')
+  }
+  if (sceneSetupCall.includes('sceneWidth') || sceneSetupCall.includes('sceneHeight')) {
+    throw new Error('expected D3 scene hook to keep viewport dimensions out of scene setup rebuild inputs')
   }
   if (!hookText.includes('s => s.workspaceViewMode')) {
     throw new Error('expected D3 scene hook overlay-open subscription to listen only to workspaceViewMode')

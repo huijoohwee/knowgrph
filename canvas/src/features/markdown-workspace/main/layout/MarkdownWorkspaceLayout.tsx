@@ -17,7 +17,6 @@ export function MarkdownWorkspaceLayout(props: {
   viewer: React.ReactNode
   htmlViewer?: React.ReactNode
   presentation: React.ReactNode
-  slidesGallery: React.ReactNode
 }) {
   const paneVisibility = resolveMarkdownWorkspacePaneVisibility({
     layoutMode: props.layoutMode,
@@ -87,8 +86,6 @@ export function MarkdownWorkspaceLayout(props: {
         <section className="flex-1 min-h-0 flex kg-workspace-surface-shell" aria-label="Presentation view">
           {props.presentation}
         </section>
-      ) : props.layoutMode === 'slides-gallery' ? (
-        props.slidesGallery
       ) : (
         <section className="kg-markdown-workspace-split-panes flex-1 min-w-0 min-h-0 flex kg-workspace-surface-shell" aria-label="Split view">
           {effectiveSplitPanes.map((pane, index) => (

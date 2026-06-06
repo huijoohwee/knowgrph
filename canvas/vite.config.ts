@@ -6230,6 +6230,7 @@ export default defineConfig(({ command }) => {
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallback: 'index.html',
+        importScripts: ['knowgrph-chat-stream-sw.js'],
         globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/*.{js,css,woff,woff2,ttf}'],
         globIgnores: ['assets/monaco-*.js', 'assets/mermaid-*.js'],
         runtimeCaching: [

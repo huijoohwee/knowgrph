@@ -2,6 +2,7 @@ import type { GraphData } from '@/lib/graph/types'
 import { parseGraphFromJson } from '@/lib/graph/io/adapter'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
+import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import {
   normalizeFlowchartApiGraphData,
   parseFlowchartApiGraphPayload,
@@ -21,12 +22,13 @@ export const WORKSPACE_GRAPH_PARSE_HINT = 'workspace:inline-data'
 export const WORKSPACE_GRAPH_SOURCE_KIND = 'workspace'
 
 const workspaceJsonGraphParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
+const workspaceFrontmatterFlowParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 const workspaceFrontmatterMermaidParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 const workspaceKgcSemanticGraphParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 export const WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS = 120
 
 const buildWorkspaceStructuredParseKey = (args: {
-  parseKind: 'json-graph' | 'frontmatter-mermaid' | 'kgc-semantic'
+  parseKind: 'json-graph' | 'frontmatter-flow' | 'frontmatter-mermaid' | 'kgc-semantic'
   markdownName: string | null
   markdownText: string | null
 }): string => {
@@ -90,6 +92,34 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
       sourceKind,
       graphKind,
     } as Record<string, any>,
+  }
+}
+
+const withWorkspaceMarkdownSourceMetadata = (args: {
+  graphData: GraphData
+  markdownName: string | null
+  fallbackSourceKind: string
+}): GraphData => {
+  const name = String(args.markdownName || '').trim()
+  const metadata = args.graphData.metadata && typeof args.graphData.metadata === 'object' && !Array.isArray(args.graphData.metadata)
+    ? (args.graphData.metadata as Record<string, any>)
+    : {}
+  const frontmatterMeta = metadata.frontmatterMeta && typeof metadata.frontmatterMeta === 'object' && !Array.isArray(metadata.frontmatterMeta)
+    ? (metadata.frontmatterMeta as Record<string, unknown>)
+    : null
+  const sourceKind =
+    typeof metadata.sourceKind === 'string' && metadata.sourceKind.trim()
+      ? metadata.sourceKind.trim()
+      : typeof frontmatterMeta?.sourceKind === 'string' && frontmatterMeta.sourceKind.trim()
+        ? frontmatterMeta.sourceKind.trim()
+        : args.fallbackSourceKind
+  return {
+    ...args.graphData,
+    metadata: {
+      ...metadata,
+      ...(name ? { source: `markdown:${name}`, markdownDocumentName: name } : {}),
+      sourceKind,
+    } as GraphData['metadata'],
   }
 }
 
@@ -209,6 +239,36 @@ export const parseWorkspaceJsonGraphDataCached = (args: { markdownName: string |
   if (cached) return cached.graphData
   const graphData = parseWorkspaceJsonGraphData(args)
   workspaceJsonGraphParseCache.set(key, { graphData })
+  return graphData
+}
+
+export const parseWorkspaceFrontmatterFlowGraphDataCached = (args: {
+  markdownName: string | null
+  markdownText: string | null
+}): GraphData | null => {
+  const text = String(args.markdownText || '')
+  if (!text.trim()) return null
+  const key = buildWorkspaceStructuredParseKey({
+    parseKind: 'frontmatter-flow',
+    markdownName: args.markdownName,
+    markdownText: args.markdownText,
+  })
+  const cached = workspaceFrontmatterFlowParseCache.get(key)
+  if (cached) return cached.graphData
+  let graphData: GraphData | null = null
+  try {
+    const parsed = tryParseMarkdownFrontmatterFlowGraph(args.markdownName || 'workspace:frontmatter-flow.md', text)
+    graphData = parsed?.graphData
+      ? withWorkspaceMarkdownSourceMetadata({
+          graphData: parsed.graphData,
+          markdownName: args.markdownName,
+          fallbackSourceKind: 'frontmatter-flow',
+        })
+      : null
+  } catch {
+    graphData = null
+  }
+  workspaceFrontmatterFlowParseCache.set(key, { graphData })
   return graphData
 }
 

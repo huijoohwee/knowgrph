@@ -9798,6 +9798,104 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-search.ts:L77"
   },
+  "search.feishuBase.mcp.serverKey": {
+    "area": "—",
+    "responsibility": "server key",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-feishu-base-mcp.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-feishu-base-mcp.ts:L16"
+  },
+  "search.feishuBase.mcp.connectionMode": {
+    "area": "—",
+    "responsibility": "connection mode",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-feishu-base-mcp.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-feishu-base-mcp.ts:L22"
+  },
+  "search.feishuBase.mcp.authBoundary": {
+    "area": "—",
+    "responsibility": "auth boundary",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-feishu-base-mcp.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-feishu-base-mcp.ts:L28"
+  },
+  "search.feishuBase.mcp.docsUrl": {
+    "area": "—",
+    "responsibility": "docs url",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-feishu-base-mcp.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-feishu-base-mcp.ts:L34"
+  },
+  "search.feishuBase.mcp.phase": {
+    "area": "—",
+    "responsibility": "phase",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-feishu-base-mcp.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-feishu-base-mcp.ts:L40"
+  },
+  "search.feishuBase.mcp.phase2Status": {
+    "area": "—",
+    "responsibility": "phase2 status",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-feishu-base-mcp.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-feishu-base-mcp.ts:L46"
+  },
+  "search.feishuBase.mcp.phase3Status": {
+    "area": "—",
+    "responsibility": "phase3 status",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-feishu-base-mcp.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-feishu-base-mcp.ts:L52"
+  },
   "openai.mcp.serverLabel": {
     "area": "OpenAI MCP Server Configuration",
     "responsibility": "Responses API MCP tool server_label",

@@ -1,0 +1,62 @@
+import React, { act } from 'react'
+import { createRoot } from 'react-dom/client'
+import { FloatingPanelChatMessagesSection } from '@/features/chat/FloatingPanelChatSections'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
+
+export async function testFloatingPanelChatRendersSourceFilesWorkspaceLinks() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const openedPaths: string[] = []
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatMessagesSection, {
+        messages: [{
+          id: 'assistant-1',
+          role: 'assistant',
+          content: [
+            '- Structured KGC response saved to workspace.',
+            '- [Open in Source Files: kgc_20260606T010203Z.md](workspace:/chat-log/20260606T010203Z/kgc_20260606T010203Z.md)',
+          ].join('\n'),
+        }],
+        isLoading: false,
+        historyKey: 'history-key',
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelKeyValueTextSizeClass: 'text-xs',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        onOpenWorkspacePath: path => { openedPaths.push(path) },
+        setMessages: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const button = container.querySelector('[data-kg-chat-source-file-link="true"]') as HTMLButtonElement | null
+    if (!button) throw new Error('expected assistant message to render a Source Files workspace link button')
+    const expectedPath = '/chat-log/20260606T010203Z/kgc_20260606T010203Z.md'
+    if (button.dataset.workspacePath !== expectedPath) {
+      throw new Error(`expected workspace link to normalize the workspace: scheme, got ${button.dataset.workspacePath}`)
+    }
+    if (!String(button.textContent || '').includes('Open in Source Files')) {
+      throw new Error(`expected workspace link label to name Source Files, got ${String(button.textContent || '')}`)
+    }
+    if (button.getAttribute('aria-label') !== `Open ${expectedPath} in Source Files`) {
+      throw new Error(`expected workspace link to expose a Source Files aria-label, got ${button.getAttribute('aria-label')}`)
+    }
+
+    await act(async () => {
+      button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+    if (openedPaths[0] !== expectedPath) {
+      throw new Error(`expected workspace link click to open the Source Files workspace path, got ${JSON.stringify(openedPaths)}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}

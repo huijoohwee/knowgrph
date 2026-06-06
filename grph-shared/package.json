@@ -252,6 +252,16 @@
       "import": "./dist/search/exaMcpSsot.js",
       "default": "./dist/search/exaMcpSsot.js"
     },
+    "./search/feishuBaseMcpSsot": {
+      "types": "./dist/search/feishuBaseMcpSsot.d.ts",
+      "import": "./dist/search/feishuBaseMcpSsot.js",
+      "default": "./dist/search/feishuBaseMcpSsot.js"
+    },
+    "./search/larkAppMcpSsot": {
+      "types": "./dist/search/larkAppMcpSsot.d.ts",
+      "import": "./dist/search/larkAppMcpSsot.js",
+      "default": "./dist/search/larkAppMcpSsot.js"
+    },
     "./openai/openaiMcpSsot": {
       "types": "./dist/openai/openaiMcpSsot.d.ts",
       "import": "./dist/openai/openaiMcpSsot.js",

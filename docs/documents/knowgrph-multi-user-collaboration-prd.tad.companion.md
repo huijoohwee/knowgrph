@@ -1,30 +1,44 @@
+---
+title: "Knowgrph Multi-User Collaboration TAD Companion"
+doc_type: "TAD Companion"
+version: "1.1.2"
+date: "2026-06-06"
+status: "Accepted and implemented P2P pilot"
+scope: "Technical continuation for the no-server WebRTC collaboration pilot"
+lang: "en-US"
+parent: "knowgrph-multi-user-collaboration-prd.tad.md"
+deployment_boundary: "Dev only until explicit Prod or Cloudflare instruction"
+---
+
 # Knowgrph Multi-User Collaboration - TAD Companion
 
-Continuation of [knowgrph-multi-user-collaboration-prd.tad.md](knowgrph-multi-user-collaboration-prd.tad.md). Contains Part II: Technical Architecture Documentation.
+Continuation of [knowgrph-multi-user-collaboration-prd.tad.md](knowgrph-multi-user-collaboration-prd.tad.md). Contains the detailed architecture inventory for the shipped no-server P2P collaboration pilot.
 
-**Document Version**: 1.1.0  
-**Date**: 2026-05-29  
+**Document Version**: 1.1.2
+**Date**: 2026-06-06
 **Status**: Accepted and implemented P2P pilot
 
 ---
 
-# Part II: Technical Architecture Documentation (TAD)
-
 ## Architecture Overview
 
-The implemented collaboration surface is a browser-to-browser WebRTC pilot. It does not require a server-side room service. The host owns invite creation, guest answer application, multi-peer relay, roster publication, document sync, presence, and peer removal.
+The implemented collaboration surface is a browser-to-browser WebRTC pilot. It does not require a server-side room service. The host owns invite creation, guest answer application, multi-peer relay, roster publication, document sync, presence, and peer removal. Runtime concerns are split into neutral state helpers, command effects, broadcast effects, and the orchestration hook.
 
 ```mermaid
 flowchart LR
     A[MainPanel Collaboration Tab] --> B[CollaborationView.tsx]
     B --> C[p2pCollaborationStore.ts]
     C --> D[useP2PCollaborationRuntime.ts]
-    D --> E[p2pCollaborationProtocol.ts]
-    E --> F[Invite Token kgCollab]
-    E --> G[Answer Token kgCollabAnswer]
-    D --> H[RTCDataChannel]
-    H --> I[hello / presence / document-sync / session-roster]
-    I --> C
+    D --> E[useP2PCollaborationCommandEffect.ts]
+    D --> F[useP2PCollaborationBroadcastEffects.ts]
+    D --> G[p2pCollaborationRuntimeState.ts]
+    E --> H[p2pCollaborationProtocol.ts]
+    F --> H
+    H --> I[Invite Token kgCollab]
+    H --> J[Answer Token kgCollabAnswer]
+    D --> K[RTCDataChannel]
+    K --> L[hello / presence / document-sync / session-roster]
+    L --> C
     C --> B
 ```
 
@@ -36,9 +50,13 @@ flowchart LR
 | TAD-MUC-C002 | Collaboration view | Renders session, invite, answer, peer roster, follow, and remove controls | `canvas/src/features/panels/views/CollaborationView.tsx` | Shipped |
 | TAD-MUC-C003 | P2P protocol | Encodes/decodes invite and answer tokens; validates wire messages | `canvas/src/features/collaboration/p2pCollaborationProtocol.ts` | Shipped |
 | TAD-MUC-C004 | P2P store | Owns session state, peer roster, commands, local caret, and follow target | `canvas/src/features/collaboration/p2pCollaborationStore.ts` | Shipped |
-| TAD-MUC-C005 | P2P runtime | Creates WebRTC peer connections, sends/receives wire messages, relays host roster and document sync | `canvas/src/features/collaboration/useP2PCollaborationRuntime.ts` | Shipped |
-| TAD-MUC-C006 | Type icons | Provides shared Collaboration row icon semantics | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Shipped |
-| TAD-MUC-C007 | Test harness | Validates protocol, store, view, and runtime behavior | `canvas/src/__tests__/mainPanelCollaboration.test.tsx` | Shipped |
+| TAD-MUC-C005 | Runtime orchestration | Creates WebRTC peer connections, receives wire messages, and coordinates effects | `canvas/src/features/collaboration/useP2PCollaborationRuntime.ts` | Shipped |
+| TAD-MUC-C006 | Runtime state helpers | Own reusable runtime refs, peer snapshots, signatures, and WebRTC helpers | `canvas/src/features/collaboration/p2pCollaborationRuntimeState.ts` | Shipped |
+| TAD-MUC-C007 | Command effects | Executes start-host, join-invite, apply-answer, disconnect, and remove-peer commands | `canvas/src/features/collaboration/useP2PCollaborationCommandEffect.ts` | Shipped |
+| TAD-MUC-C008 | Broadcast effects | Debounces document sync and emits hello, presence, and roster broadcasts | `canvas/src/features/collaboration/useP2PCollaborationBroadcastEffects.ts` | Shipped |
+| TAD-MUC-C009 | Type icons | Provides shared Collaboration row icon semantics | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Shipped |
+| TAD-MUC-C010 | Test harness | Validates protocol, store, view, runtime relay, and runtime lifecycle behavior | `canvas/src/__tests__/mainPanelCollaboration.*` | Shipped |
+| TAD-MUC-C011 | App-level E2E smoke | Opens the Markdown workspace, dispatches the shared MainPanel collaboration event, and validates host invite readiness | `canvas/scripts/verify-multi-user-collaboration-e2e.ts` | Shipped |
 
 ## Data Flows
 
@@ -47,7 +65,7 @@ flowchart LR
 | Stage | Owner | Input | Output |
 |---|---|---|---|
 | Command | `p2pCollaborationStore.ts` | `queueStartHost()` | pending command `start-host` |
-| Offer | `useP2PCollaborationRuntime.ts` | active document key, host identity | `RTCSessionDescriptionInit` offer |
+| Effect | `useP2PCollaborationCommandEffect.ts` | pending command, active document refs | WebRTC connection ref and offer |
 | Encode | `p2pCollaborationProtocol.ts` | `P2PInvitePayload` | invite token |
 | Share | `buildP2PInviteUrl()` | invite token, location | URL with `kgCollab` |
 
@@ -56,9 +74,9 @@ flowchart LR
 | Stage | Owner | Input | Output |
 |---|---|---|---|
 | Parse | `parseP2PInviteInput()` | invite token or URL | validated invite payload |
-| Answer | runtime | invite offer | answer description |
+| Effect | `useP2PCollaborationCommandEffect.ts` | invite offer, guest identity | answer description |
 | Encode | `encodeP2PAnswerPayload()` | `P2PAnswerPayload` | answer token |
-| Apply | host runtime | answer token | connected guest peer |
+| Apply | host command effect | answer token | connected guest peer |
 
 ### Collaboration Wire Flow
 
@@ -97,6 +115,7 @@ flowchart LR
 ### TAD-MUC-I004: UI Contract
 
 - Collaboration UI uses shared `KeyTypeValueRow` and MainPanel type icons.
+- Shared MainPanel open events accept the `collaboration` tab through `useCanvasToolbarContext.ts`.
 - The view registers stable collapse/expand actions.
 - Owner-only remove actions are visible only for remote guest rows.
 - Search filters session, invite, answer, and peer rows without creating alternate panels.
@@ -140,8 +159,9 @@ Authenticated workspace membership, D1 role checks, server-side audit trails, an
 | Local-first | No-server WebRTC handshake | protocol and runtime owners |
 | Neutrality | MainPanel tab and shared KTV rows | `CollaborationView.tsx` |
 | State safety | Typed Zustand store and command queue | `p2pCollaborationStore.ts` |
-| Runtime safety | Support checks, explicit reset, peer removal, echo suppression | `useP2PCollaborationRuntime.ts` |
-| Testability | Protocol/store/view/runtime focused cases | `mainPanelCollaboration.test.tsx` |
+| Runtime safety | Support checks, explicit reset, peer removal, echo suppression | split runtime owners |
+| Testability | Protocol/store/view/runtime focused cases | split `mainPanelCollaboration.*` tests |
+| TCO | Zero new server dependency for shipped pilot | ADR-MUC-001 |
 
 ## Validation
 
@@ -149,9 +169,11 @@ Authenticated workspace membership, D1 role checks, server-side audit trails, an
 npm --prefix canvas run test:ci:unit -- "multiUserCollaboration.docs"
 npm --prefix canvas run test:ci:unit -- "collaboration."
 npm --prefix canvas run test:ci:unit -- "ui.mainPanel.collaboration"
-npm run hygiene:check
+npm --prefix canvas run validate:multi-user-collaboration:e2e
 npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false
 ```
+
+The E2E command expects a local Vite canvas server and uses the shared `QUERY_PARAM_OPEN_EDITOR_WORKSPACE` route to mount the Markdown runtime before opening Collaboration. `npm run hygiene:check` remains a repo-wide changed-file gate and can be red from unrelated dirty-tree files. The collaboration owners in this document are each below the 600-line source budget.
 
 ## Revision History
 
@@ -159,3 +181,5 @@ npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false
 |---|---|---|---|
 | 1.0.0 | 2026-05-08 | joohwee | Initial authenticated D1/JWT collaboration plan |
 | 1.1.0 | 2026-05-29 | joohwee | Promoted implemented no-server WebRTC pilot and separated planned auth/D1 extension |
+| 1.1.1 | 2026-06-06 | Codex | Added YAML frontmatter and aligned architecture inventory with split runtime and test owners |
+| 1.1.2 | 2026-06-06 | Codex | Added app-level E2E smoke validation for shared MainPanel Collaboration open and host invite readiness |

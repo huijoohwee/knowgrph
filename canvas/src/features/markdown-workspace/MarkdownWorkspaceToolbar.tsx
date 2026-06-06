@@ -1,7 +1,6 @@
 import React from 'react'
 import {
   FileDiff,
-  LayoutGrid,
   LayoutPanelTop,
   Maximize2,
   X,
@@ -458,17 +457,6 @@ export function MarkdownWorkspaceToolbar({
               onClick={() => setLayoutMode('presentation')}
             >
               <LayoutPanelTop className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              aria-pressed={layoutMode === 'slides-gallery'}
-              title="Slides Gallery"
-              onClick={() => setLayoutMode('slides-gallery')}
-            >
-              <LayoutGrid className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} />
             </button>
           </li>
         </menu>

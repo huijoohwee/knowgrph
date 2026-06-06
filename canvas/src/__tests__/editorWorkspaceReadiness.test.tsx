@@ -37,7 +37,7 @@ const buildWorkspaceProps = (overrides: Partial<React.ComponentProps<typeof Mark
   revealLineInEditor: () => void 0,
   showInViewer: () => void 0,
   showInPresentation: () => void 0,
-  showInSlidesGallery: () => void 0,
+  showInGallery: () => void 0,
   editorUri: 'file:///workspace/webmcp-editor-readiness.md',
   editorLanguage: 'markdown',
   editorRef: { current: null },

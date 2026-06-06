@@ -2,6 +2,7 @@
 @import './styles/responsive-toolbar.css';
 @import './styles/responsive-canvas-toolbar.css';
 @import './styles/markdown-presentation-responsive.css';
+@import './styles/markdown-gallery-responsive.css';
 @import './styles/markdown-codeblock-responsive.css';
 @import './styles/graph-table-responsive.css';
 @import './styles/toast-responsive.css';

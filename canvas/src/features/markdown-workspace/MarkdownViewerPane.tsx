@@ -29,7 +29,7 @@ type MarkdownViewerPaneProps = {
   uiPanelMonospaceTextClass: string
   annotateDisplayMode: 'inline' | 'beside' | 'render'
   onShowInGraphDataTable?: (line: number) => void
-  onShowInSlidesGallery?: (line: number) => void
+  onShowInGallery?: (line: number) => void
   onShowInEditor: (line: number) => void
   isMarkdownPreviewTruncated: boolean
   uiPanelKeyValueTextSizeClass: string
@@ -79,7 +79,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
     uiPanelMonospaceTextClass,
     annotateDisplayMode,
     onShowInGraphDataTable,
-    onShowInSlidesGallery,
+    onShowInGallery,
     onShowInEditor,
     isMarkdownPreviewTruncated,
     uiPanelKeyValueTextSizeClass,
@@ -160,7 +160,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
         uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
         annotateDisplayMode={annotateDisplayMode}
         onShowInGraphDataTable={onShowInGraphDataTable}
-        onShowInSlidesGallery={onShowInSlidesGallery}
+        onShowInGallery={onShowInGallery}
         onShowInEditor={onShowInEditor}
         onScroll={handleViewerScroll}
         flashLine={flashLine}

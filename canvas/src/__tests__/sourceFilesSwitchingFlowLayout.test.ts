@@ -327,11 +327,11 @@ export function testSourceFilesDocumentSwitchSettlementStopsRetryChurn() {
     graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
     canvas2dRenderer: 'design',
   })
-  if (staleRenderer) {
-    throw new Error('expected stale 2D renderer preset to keep Source Files switch apply work pending')
+  if (!staleRenderer) {
+    throw new Error('expected selected-file renderer differences to settle once document text and graph source are current')
   }
   if (!isWorkspace2dRendererPresetStaleForDocument({ text: staleRendererText, canvas2dRenderer: 'd3' })) {
-    throw new Error('expected selected-file frontmatter renderer preset to reject the current 2D renderer')
+    throw new Error('expected selected-file frontmatter renderer helper to continue detecting preset differences for initial/import apply paths')
   }
   const staleRendererShouldApply = shouldApplyStableWorkspaceSelectionToCanvas({
     activePath: '/docs/knowgrph-flow-editor-demo.md',
@@ -343,8 +343,8 @@ export function testSourceFilesDocumentSwitchSettlementStopsRetryChurn() {
     graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
     canvas2dRenderer: 'design',
   })
-  if (!staleRendererShouldApply) {
-    throw new Error('expected stable selected file apply guard to replay when the active 2D renderer is stale')
+  if (staleRendererShouldApply) {
+    throw new Error('expected stable selected file apply guard to preserve user-selected 2D renderer choices')
   }
 }
 

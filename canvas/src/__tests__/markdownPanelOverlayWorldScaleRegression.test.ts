@@ -51,6 +51,105 @@ export async function testMarkdownPanelOverlayUsesWorldSizeAndScaleForCardLayout
   }
 }
 
+export async function testMarkdownPanelOverlayClampUsesViewportOrigin() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const root = dom.window.document.getElementById('root')
+    if (!root) throw new Error('expected root container')
+    const el = dom.window.document.createElement('section')
+    root.appendChild(el)
+
+    const loop = startMarkdownPanelOverlayLoop2d({
+      enabled: true,
+      loop: 'onDemand',
+      getItems: () => [{ id: 'panel-1', cx: 2000, cy: 220, w: 240, h: 120 }],
+      getViewport: () => ({ left: 568, top: 0, w: 567, h: 962 }),
+      readTransform: () => ({
+        k: 1,
+        x: 0,
+        y: 0,
+        applyX: (v: number) => v,
+        applyY: (v: number) => v,
+      }) as any,
+      getElementForId: id => (id === 'panel-1' ? el : null),
+      getDensity: () => 'default',
+      getSizingConfig: () => ({ widthRatio: 0.2, widthMinPx: 210, widthMaxPx: 360 }),
+      clampToViewport: { margin: 16 },
+    })
+
+    loop.schedule()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const transform = String(el.style.transform || '')
+    const match = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(transform)
+    if (!match) {
+      throw new Error(`expected markdown overlay panel to use translated panel box, got ${transform}`)
+    }
+    const left = Number(match[1])
+    const top = Number(match[2])
+    if (left !== 879 || top !== 160) {
+      throw new Error(`expected panel clamp to respect visible viewport origin, got left=${left} top=${top}`)
+    }
+
+    loop.stop()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownPanelOverlayCollectiveFitSpreadsPanelsInVisibleViewport() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const root = dom.window.document.getElementById('root')
+    if (!root) throw new Error('expected root container')
+    const first = dom.window.document.createElement('section')
+    const second = dom.window.document.createElement('section')
+    root.appendChild(first)
+    root.appendChild(second)
+
+    const loop = startMarkdownPanelOverlayLoop2d({
+      enabled: true,
+      loop: 'onDemand',
+      getItems: () => [
+        { id: 'panel-a', cx: 2000, cy: 220, w: 240, h: 120 },
+        { id: 'panel-b', cx: 3200, cy: 220, w: 240, h: 120 },
+      ],
+      getViewport: () => ({ left: 568, top: 0, w: 567, h: 962 }),
+      readTransform: () => ({
+        k: 1,
+        x: 0,
+        y: 0,
+        applyX: (v: number) => v,
+        applyY: (v: number) => v,
+      }) as any,
+      getElementForId: id => (id === 'panel-a' ? first : id === 'panel-b' ? second : null),
+      getDensity: () => 'default',
+      getSizingConfig: () => ({ widthRatio: 0.2, widthMinPx: 210, widthMaxPx: 360 }),
+      collectiveFitToViewport: true,
+      clampToViewport: { margin: 16 },
+    })
+
+    loop.schedule()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const readLeft = (el: HTMLElement) => {
+      const transform = String(el.style.transform || '')
+      const match = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(transform)
+      if (!match) throw new Error(`expected translated panel box, got ${transform}`)
+      return Number(match[1])
+    }
+    const leftA = readLeft(first)
+    const leftB = readLeft(second)
+    if (leftA < 584 || leftB > 879 || leftB - leftA < 250) {
+      throw new Error(`expected collective fit to spread markdown panels inside visible viewport, got leftA=${leftA} leftB=${leftB}`)
+    }
+
+    loop.stop()
+  } finally {
+    restore()
+  }
+}
+
 export function testMarkdownCardPreviewTablesUseCardWidthContract() {
   const tablePath = resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownTableBlock.tsx')
   const text = readFileSync(tablePath, 'utf8')

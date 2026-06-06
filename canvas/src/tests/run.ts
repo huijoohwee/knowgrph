@@ -506,6 +506,28 @@ export const runAllTests = async () => {
       modWorkspaceVisibleViewportRecovery.testFlowEditorWorkspaceRecoveryUsesSemanticKeyAndForbidsDocumentHardcodes,
     )
 
+    const modWorkspaceVisibleViewportD3Fit = await import('../__tests__/workspaceVisibleViewportD3FitRegression.test')
+    await execTest(
+      results,
+      'ui.d3.workspaceVisibleViewport.subtractsLeftOccluder',
+      modWorkspaceVisibleViewportD3Fit.testWorkspaceVisibleViewportSubtractsLeftOccluderForD3Fit,
+    )
+    await execTest(
+      results,
+      'ui.d3.workspaceVisibleViewport.fullyOccludedFallback',
+      modWorkspaceVisibleViewportD3Fit.testWorkspaceVisibleViewportFallsBackWhenCanvasIsFullyOccluded,
+    )
+    await execTest(
+      results,
+      'ui.d3.viewportFitNodes.keepsVisibleMediaOverlayNodes',
+      modWorkspaceVisibleViewportD3Fit.testGraphCanvasViewportFitNodesKeepsVisibleMediaOverlayNodes,
+    )
+    await execTest(
+      results,
+      'ui.d3.workspaceVisibleViewport.sharedOccluderContract',
+      modWorkspaceVisibleViewportD3Fit.testD3WorkspaceVisibleViewportFitUsesSharedOccluderContract,
+    )
+
   const modMinimapBounds = await import('../__tests__/minimapBoundsIgnoreMissingCoordsRegression.test')
   await execTest(
     results,

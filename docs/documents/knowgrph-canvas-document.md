@@ -135,9 +135,9 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ### Editor Workspace Sections (Markdown vs Graph Data Table)
 
-- The Editor workspace reuses the **Markdown Workspace** as the SSOT for document text (Explorer + Editor/Viewer/Split/Presentation/Slides).
+- The Editor workspace reuses the **Markdown Workspace** as the SSOT for document text (Explorer + Editor/Viewer/Split/Presentation), while `2D Renderer: Gallery` projects the active Markdown document from Canvas View Mode.
 - Import Folder in Markdown Workspace must be lazy: create file/folder entries and pending stubs without reading contents; clicking a file triggers indexing/loading/parsing/rendering (including on-demand PDF conversion) and shows an `Indexing` progress pill using the shared `label • n/n • kb/kb` formatting.
-- Switching files and switching webpage view modes must not toggle `frontmatterModeEnabled` or trigger graph/layout/zoom recomputation; view switches are strictly Viewer/Presentation/Slides-only and must not apply-to-graph.
+- Switching files and switching webpage view modes must not toggle `frontmatterModeEnabled` or trigger graph/layout/zoom recomputation; webpage view switches are strictly Viewer/Presentation-only and must not apply-to-graph.
 - Workspace file CRUD (create/edit/delete/clear) must sync to the Source Files list (with stable IDs keyed by `workspace:<path>`); file open should reuse cached `parsedGraphData` from Source Files when the text hash matches.
 - Markdown Workspace layout controls (Explorer open/closed, Canvas pane open/closed, Editor/Viewer/Split/Presentation) are UI-only state; toggling them must not rewrite graph state or invalidate layout/zoom caches.
 - In Viewer and Split modes, the rendered Markdown article content width must remain a stable 80% of the Viewer `section` width even when the Canvas pane or Explorer is toggled.

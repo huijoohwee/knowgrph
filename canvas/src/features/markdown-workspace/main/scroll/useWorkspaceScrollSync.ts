@@ -29,6 +29,12 @@ function setEditorScrollRatio(h: MonacoTextEditorHandle, ratio: number) {
   h.setScrollTop(Math.round(clamp01(ratio) * max))
 }
 
+export function scrollWorkspaceEditorHandleToBottom(h: MonacoTextEditorHandle): number {
+  const max = Math.max(0, h.getScrollHeight() - h.getClientHeight())
+  h.setScrollTop(max)
+  return max
+}
+
 export function useWorkspaceScrollSync(args: {
   activeDocumentKey: string
   layoutMode: MarkdownWorkspaceLayoutMode
@@ -37,6 +43,7 @@ export function useWorkspaceScrollSync(args: {
   jsonEditorHandle: MonacoTextEditorHandle | null
   viewerEl: HTMLElement | null
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>
+  liveTextTailFollowKey?: string | null
 }) {
   const scrollRatioByDocRef = React.useRef<Map<string, number>>(new Map())
   const docKey = String(args.activeDocumentKey || '')
@@ -131,6 +138,32 @@ export function useWorkspaceScrollSync(args: {
       iframe.removeEventListener('load', handleLoad)
     }
   }, [args.iframeRef, args.jsonEditorHandle, args.layoutMode, args.markdownEditorHandle, args.showWebpageHtml, args.viewerEl, getSavedRatio])
+
+  React.useLayoutEffect(() => {
+    if (!args.liveTextTailFollowKey) return
+    if (args.layoutMode !== 'editor' && args.layoutMode !== 'split') return
+    let followed = false
+    if (args.markdownEditorHandle) {
+      scrollWorkspaceEditorHandleToBottom(args.markdownEditorHandle)
+      followed = true
+    }
+    if (args.jsonEditorHandle) {
+      scrollWorkspaceEditorHandleToBottom(args.jsonEditorHandle)
+      followed = true
+    }
+    if (args.layoutMode === 'split' && args.viewerEl) {
+      setScrollRatio(args.viewerEl, 1)
+      followed = true
+    }
+    if (followed) setSavedRatio(1)
+  }, [
+    args.jsonEditorHandle,
+    args.layoutMode,
+    args.liveTextTailFollowKey,
+    args.markdownEditorHandle,
+    args.viewerEl,
+    setSavedRatio,
+  ])
 
   useSyncScrollEditorHandleElements(args.markdownEditorHandle, args.viewerEl, args.layoutMode === 'split')
   useSyncScrollEditorHandleElements(args.jsonEditorHandle, args.viewerEl, args.layoutMode === 'split')

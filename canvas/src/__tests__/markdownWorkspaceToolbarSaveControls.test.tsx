@@ -45,7 +45,7 @@ export async function testMarkdownWorkspaceToolbarRendersSaveControls() {
         revealLineInEditor={() => {}}
         showInViewer={() => {}}
         showInPresentation={() => {}}
-        showInSlidesGallery={() => {}}
+        showInGallery={() => {}}
         editorUri="file:///doc.md"
         editorLanguage="markdown"
         editorRef={editorRef}

@@ -6,6 +6,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { SceneGroupsDerivation } from '@/lib/scene/sceneDerivation'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { resolveWorkspaceVisibleViewport } from '@/lib/zoom/workspaceVisibleViewport'
 import { updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
 import { updateGraphSceneGroupsPresentation, updateGraphSceneNodesPresentation } from '@/components/GraphCanvas/scene'
 import { buildGraphCanvasStoreActionAdapters } from '@/components/GraphCanvasRoot/utils/graphStoreActionAdapters'
@@ -100,21 +101,18 @@ export function useD3PresentationUpdates2d(args: {
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const workspaceOverlayOpenRef = useRef(false)
   useEffect(() => {
-    const sync = (mode: 'canvas' | 'editor') => {
-      workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen({
-        workspaceViewMode: mode,
-        workspaceCanvasPaneOpen: true,
-      })
+    const sync = () => {
+      workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen(useGraphStore.getState())
     }
-    const state = useGraphStore.getState()
-    sync(state.workspaceViewMode)
+    const selectWorkspaceOverlayKey = (state: ReturnType<typeof useGraphStore.getState>) =>
+      `${state.workspaceViewMode}:${state.workspaceCanvasPaneOpen ? 1 : 0}`
+    sync()
     return useGraphStore.subscribe(
-      s => s.workspaceViewMode,
-      next => {
-        sync(next)
-      },
+      selectWorkspaceOverlayKey,
+      sync,
     )
   }, [])
   const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())
@@ -213,11 +211,18 @@ export function useD3PresentationUpdates2d(args: {
         graphData: sceneGraphDataRef.current,
         preferCurrentGraphDataRefs: true,
       })
+      const visibleViewport = resolveWorkspaceVisibleViewport({
+        viewportW: Math.max(1, Math.floor(sceneWidth)),
+        viewportH: Math.max(1, Math.floor(sceneHeight)),
+        workspaceEditorOverlayOpen: isWorkspaceEditorOverlayOpen(useGraphStore.getState()),
+        surfaceElement: svgRef.current,
+      })
       const computedOverlayHalfExtentsByNodeId = computeOverlayHalfExtentsByNodeId2d({
         nodes: sceneNodes,
         panelOnlyNodeIdSet,
         mediaOverlayNodeIdSet,
-        viewportW: Math.max(1, Math.floor(sceneWidth)),
+        viewportW: Math.max(1, Math.floor(visibleViewport.width)),
+        viewportH: Math.max(1, Math.floor(visibleViewport.height)),
         zoomK: (() => {
           try {
             const el = svgRef.current
@@ -347,6 +352,8 @@ export function useD3PresentationUpdates2d(args: {
     tempLinkSelRef,
     multiDimTableModeEnabled,
     zoomRef,
+    workspaceCanvasPaneOpen,
+    workspaceViewMode,
   ])
 
   useEffect(() => {

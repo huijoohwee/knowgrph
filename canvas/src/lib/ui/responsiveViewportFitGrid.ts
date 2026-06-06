@@ -15,6 +15,7 @@ export type ResponsiveViewportFitContentOptions = {
 
 export type ResponsiveViewportFitGridOptions = {
   minInlineSize?: string
+  trackMode?: 'stretch' | 'fixed'
 }
 
 const normalizeCssSize = (value: string | null | undefined, fallback: string): string => {
@@ -38,7 +39,9 @@ export const buildResponsiveViewportFitGridStyle = (
     options.minInlineSize,
     UI_RESPONSIVE_VIEWPORT_FIT_GRID_DEFAULT_MIN_INLINE_SIZE,
   )
+  const trackMax = options.trackMode === 'fixed' ? minInlineSize : '1fr'
   return {
-    gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${minInlineSize}), 1fr))`,
+    gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${minInlineSize}), ${trackMax}))`,
+    ...(options.trackMode === 'fixed' ? { justifyContent: 'start' } : {}),
   }
 }

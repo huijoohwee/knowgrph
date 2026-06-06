@@ -17,13 +17,25 @@ export function resolveLiveWorkspaceStreamingText(args: {
   streamingPath: WorkspacePath | null
   streamingText: string | null | undefined
   userEditedActiveText: boolean
+  programmaticStreamingOverride?: boolean
 }): string {
-  if (args.userEditedActiveText === true) return ''
+  if (args.userEditedActiveText === true && args.programmaticStreamingOverride !== true) return ''
   const activePath = normalizeWorkspacePath(String(args.activePath || '').trim())
   const streamingPath = normalizeWorkspacePath(String(args.streamingPath || '').trim())
   if (!activePath || !streamingPath || activePath !== streamingPath) return ''
   const text = String(args.streamingText || '')
   return shouldRejectMarkdownDocumentPayload(text) ? '' : text
+}
+
+export function resolveLiveWorkspaceStreamingTailFollowKey(args: {
+  activePath: WorkspacePath | null
+  streamingText: string | null | undefined
+}): string | null {
+  const text = String(args.streamingText || '')
+  if (!text) return null
+  const activePath = normalizeWorkspacePath(String(args.activePath || '').trim())
+  if (!activePath) return null
+  return `${activePath}:${text.length}:${text.slice(-120)}`
 }
 
 export function useMarkdownWorkspaceEffectiveContent(args: {
@@ -108,8 +120,17 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
         streamingPath: chatWorkspaceStreamingPath,
         streamingText: chatWorkspaceStreamingText,
         userEditedActiveText: userEditedActiveTextRef.current,
+        programmaticStreamingOverride: true,
       }),
     [activePath, chatWorkspaceStreamingPath, chatWorkspaceStreamingText, userEditedActiveTextRef],
+  )
+  const liveWorkspaceStreamingTailFollowKey = React.useMemo(
+    () =>
+      resolveLiveWorkspaceStreamingTailFollowKey({
+        activePath,
+        streamingText: liveWorkspaceStreamingText,
+      }),
+    [activePath, liveWorkspaceStreamingText],
   )
 
   const effectiveActiveText = React.useMemo(() => {
@@ -147,6 +168,7 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
     !(webpageWorkspaceMeta && webpageWorkspaceMeta.view !== 'markdown')
   const saveEnabled = effectiveIsEditing && activeEntryKind === 'file' && !!activeDocumentKey
   const disableEditorMutations =
+    !!liveWorkspaceStreamingText ||
     webpageDerivedReadOnlyActive ||
     (webpageWorkspaceMeta?.view === 'json' && typeof effectiveEditorTextOverride === 'string')
 
@@ -164,5 +186,6 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
     saveEnabled,
     disableEditorMutations,
     disableViewerMutations: contentMode === 'widget',
+    liveWorkspaceStreamingTailFollowKey,
   }
 }

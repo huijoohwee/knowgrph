@@ -252,6 +252,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["mediaOverlayLayout2d.frontmatter.mixedCenterFallback","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dFallbackDoesNotDeferMixedManualFrontmatterCenters"],
   ["richMedia.overlay.infiniteCanvas.clampPolicy","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy"],
   ["markdownPanelOverlay.worldScale.cardLayout","@/__tests__/markdownPanelOverlayWorldScaleRegression.test","testMarkdownPanelOverlayUsesWorldSizeAndScaleForCardLayout"],
+  ["markdownPanelOverlay.viewportOrigin.clamp","@/__tests__/markdownPanelOverlayWorldScaleRegression.test","testMarkdownPanelOverlayClampUsesViewportOrigin"],
+  ["markdownPanelOverlay.viewportOrigin.collectiveFit","@/__tests__/markdownPanelOverlayWorldScaleRegression.test","testMarkdownPanelOverlayCollectiveFitSpreadsPanelsInVisibleViewport"],
   ["markdownPanelOverlay.cardMarkdown.tableWidth","@/__tests__/markdownPanelOverlayWorldScaleRegression.test","testMarkdownCardPreviewTablesUseCardWidthContract"],
   ["export.htmlViewerSnapshot.inlineUrl.usesFetchRemoteOnLocalhost","@/__tests__/exportHtmlViewerSnapshotInlineUrl.test","testResolveSnapshotInlineFetchUrlUsesFetchRemoteOnLocalhost"],
   ["export.htmlWorkspace.composesViewerAndCanvas","@/__tests__/exportHtmlWorkspace.test","testBuildWorkspaceHtmlExportDocumentEmbedsEditorAndCanvasPayloads"],

@@ -45,6 +45,12 @@ export type KgcRequestSignals = {
   recommendation: boolean
   creativeScript: boolean
   trademarkAvoidance: boolean
+  headlessStructured: boolean
+  strybldr: boolean
+  storytree: boolean
+  gitGraph: boolean
+  gantt: boolean
+  richMediaPanels: boolean
   zeroBudget: boolean
   bootstrap: boolean
   organicGrowth: boolean
@@ -280,6 +286,12 @@ const inferSignals = (lowered: string): KgcRequestSignals => ({
   recommendation: /\brecommend(?:ed|ation)?\b/.test(lowered),
   creativeScript: /\bvideo script\b|\bscript\b|\bstoryboard\b|\bscene\b|\bnarrative\b/.test(lowered),
   trademarkAvoidance: /\bforbid mention\b|\bforbid.*trademark\b|\bavoid.*trademark\b|\bno trademark\b|\bnon[- ]infring/i.test(lowered),
+  headlessStructured: /\bheadless\b|\bun[- ]?opini(?:on|ated)\b|\bstructured(?:content| content| response)?\b|\btool result\b/.test(lowered),
+  strybldr: /\bstrybldr\b|\bstoryboard\b|\bstorytree\b|\bstrytree\b/.test(lowered),
+  storytree: /\bstorytree\b|\bstrytree\b/.test(lowered),
+  gitGraph: /\bgitgraph\b|\bgit graph\b/.test(lowered),
+  gantt: /\bgantt\b/.test(lowered),
+  richMediaPanels: /\brich media panels?\b|\brichmediapanel\b|\boutputsrcdoc\b|\bsrcdoc\b/.test(lowered),
   zeroBudget: /\bzero budget\b|\bno budget\b/.test(lowered),
   bootstrap: /\bbootstrap\b/.test(lowered),
   organicGrowth: /\borganic growth\b/.test(lowered),

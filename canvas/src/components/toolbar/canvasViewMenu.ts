@@ -1,4 +1,4 @@
-import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Magnet, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
+import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Images, Magnet, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
@@ -44,6 +44,7 @@ const isAnimationApplicable = (state: CanvasViewModelState) => {
 const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRendererOption['Icon']> = {
   d3: CircleDot,
   dashboard: Grid3x3,
+  gallery: Images,
   flowchart: Columns2,
   gitGraph: GitGraph,
   flow: GitMerge,
@@ -57,6 +58,7 @@ const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRen
 const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   d3: UI_COPY.canvasViewRendererD3Title,
   dashboard: UI_COPY.canvasViewRendererDashboardTitle,
+  gallery: UI_COPY.canvasViewRendererGalleryTitle,
   flowchart: UI_COPY.canvasViewRendererD3FlowchartTitle,
   gitGraph: UI_COPY.canvasViewRendererGitGraphTitle,
   flow: UI_COPY.canvasViewRendererFlowTitle,

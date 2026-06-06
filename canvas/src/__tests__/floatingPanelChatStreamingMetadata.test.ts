@@ -1,8 +1,10 @@
 import {
+  extractAssistantDelta,
   extractAssistantStreamDelta,
   formatChatStreamUsageSummary,
   parseSseEvents,
 } from '@/features/chat/FloatingPanelChat.helpers'
+import { extractAssistantContentText } from '@/features/chat/assistantContentText'
 
 export function testParseSseEventsSkipsHeartbeatCommentsAndKeepsMultiLinePayloads() {
   const input = [
@@ -100,5 +102,87 @@ export function testExtractAssistantStreamDeltaReadsMiroMindReasoningAndUsage() 
   })
   if (responsesDelta.contentDelta !== 'Responses chunk') {
     throw new Error(`expected root output_text delta, got ${JSON.stringify(responsesDelta.contentDelta)}`)
+  }
+
+  const traceOnlyDelta = extractAssistantStreamDelta({
+    model: 'mirothinker-1-7-deepresearch-mini',
+    choices: [
+      {
+        delta: {
+          reasoning_content: 'Inspect market context before selecting a source.',
+          tool_calls: [
+            {
+              type: 'function',
+              function: { name: 'google_search', arguments: '{"q":"BTC gold ETF flows"}' },
+            },
+          ],
+        },
+        finish_reason: 'error',
+      },
+    ],
+  })
+  if (traceOnlyDelta.contentDelta !== '') {
+    throw new Error(`expected trace-only delta not to become assistant text, got ${JSON.stringify(traceOnlyDelta.contentDelta)}`)
+  }
+  if (
+    traceOnlyDelta.reasoningStepSummaries.length !== 2 ||
+    !traceOnlyDelta.reasoningStepSummaries.includes('Inspect market context before selecting a source.') ||
+    !traceOnlyDelta.reasoningStepSummaries.includes('tool_call: google_search') ||
+    traceOnlyDelta.finishReason !== 'error'
+  ) {
+    throw new Error(`expected trace-only delta to preserve reasoning/tool signals, got ${JSON.stringify(traceOnlyDelta)}`)
+  }
+
+  const completedResponseDelta = extractAssistantStreamDelta({
+    type: 'response.completed',
+    response: {
+      output: [
+        {
+          type: 'reasoning',
+          summary: [
+            { type: 'summary_text', text: 'reasoning summary stays metadata' },
+          ],
+        },
+        {
+          type: 'message',
+          content: [
+            { type: 'output_text', text: 'Completed final answer' },
+          ],
+        },
+      ],
+    },
+  })
+  if (completedResponseDelta.contentDelta !== 'Completed final answer') {
+    throw new Error(`expected completed response wrapper text, got ${JSON.stringify(completedResponseDelta.contentDelta)}`)
+  }
+
+  const directMessageText = extractAssistantDelta({
+    choices: [
+      {
+        message: {
+          role: 'assistant',
+          text: 'Direct message text answer',
+        },
+      },
+    ],
+  })
+  if (directMessageText !== 'Direct message text answer') {
+    throw new Error(`expected direct message text answer, got ${JSON.stringify(directMessageText)}`)
+  }
+
+  const typedFinalAnswer = extractAssistantContentText({
+    type: 'final_answer',
+    text: 'Typed final answer',
+  })
+  if (typedFinalAnswer !== 'Typed final answer') {
+    throw new Error(`expected typed final answer text, got ${JSON.stringify(typedFinalAnswer)}`)
+  }
+
+  const reasoningOnly = extractAssistantContentText({
+    type: 'reasoning',
+    text: 'reasoning should not become final assistant text',
+  })
+  if (reasoningOnly !== '') {
+    throw new Error(`expected reasoning-only block to stay out of assistant text, got ${JSON.stringify(reasoningOnly)}`)
   }
 }

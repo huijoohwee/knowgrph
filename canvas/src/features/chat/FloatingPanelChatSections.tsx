@@ -13,6 +13,7 @@ import {
   UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 export type StreamingAssistantState = {
@@ -25,7 +26,72 @@ export type StreamingAssistantState = {
   modelId?: string | null
 }
 
-const WORKSPACE_LINK_RE = /\[([^\]]+)\]\((\/[^\s)]+\.md)\)/g
+const WORKSPACE_LINK_RE = /\[([^\]]+)\]\(((?:workspace:)?\/[^\s)]+\.md)\)/g
+
+const normalizeChatWorkspaceLinkPath = (raw: string): string => {
+  const text = String(raw || '').trim()
+  const withoutScheme = text.startsWith('workspace:') ? text.slice('workspace:'.length) : text
+  return normalizeWorkspacePath(withoutScheme)
+}
+
+const FloatingPanelChatStreamingStatus = React.memo(function FloatingPanelChatStreamingStatus({
+  reasoningPreview,
+  usageSummary,
+  finishReason,
+  writingWorkspaceFileLabel,
+  uiPanelTextFontClass,
+  uiPanelMicroLabelTextSizeClass,
+}: {
+  reasoningPreview?: string | null
+  usageSummary?: string | null
+  finishReason?: string | null
+  writingWorkspaceFileLabel?: string | null
+  uiPanelTextFontClass: string
+  uiPanelMicroLabelTextSizeClass: string
+}) {
+  const reasoning = String(reasoningPreview || '').trim()
+  const usage = String(usageSummary || '').trim()
+  const finish = String(finishReason || '').trim()
+  const writing = String(writingWorkspaceFileLabel || '').trim()
+  if (!reasoning && !usage && !finish && !writing) return null
+
+  return (
+    <section
+      aria-live="polite"
+      role="status"
+      data-kg-chat-stream-status="top"
+      className={[
+        'sticky top-0 z-10 space-y-1 rounded border px-2 py-1.5 shadow-sm',
+        UI_THEME_TOKENS.panel.border,
+        UI_THEME_TOKENS.panel.bg,
+      ].join(' ')}
+    >
+      {reasoning ? (
+        <section
+          data-kg-chat-stream-reasoning="true"
+          className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}
+        >
+          {reasoning}
+        </section>
+      ) : null}
+      {usage ? (
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+          {usage}
+        </section>
+      ) : null}
+      {finish ? (
+        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+          Finish: {finish}
+        </section>
+      ) : null}
+      {writing ? (
+        <section className={getUiSectionStatusChipClassName('info', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass].join(' '))}>
+          {writing}
+        </section>
+      ) : null}
+    </section>
+  )
+})
 
 const renderMessageWithWorkspaceLinks = (
   raw: string,
@@ -44,11 +110,15 @@ const renderMessageWithWorkspaceLinks = (
     const end = start + match[0].length
     if (start > last) nodes.push(content.slice(last, start))
     const label = String(match[1] || '').trim() || 'Open'
-    const path = String(match[2] || '').trim()
+    const path = normalizeChatWorkspaceLinkPath(String(match[2] || ''))
     nodes.push(
       <button
         key={`workspace-link-${index}-${path}`}
         type="button"
+        data-kg-chat-source-file-link="true"
+        data-workspace-path={path}
+        aria-label={`Open ${path} in Source Files`}
+        title={`Open ${path} in Source Files`}
         className={getUiSectionStatusChipClassName('info', 'cursor-pointer')}
         onClick={() => onOpenWorkspacePath(path)}
       >
@@ -104,6 +174,10 @@ type MessagesSectionProps = {
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelMicroLabelTextSizeClass: string
+  streamingReasoningPreview?: string | null
+  streamingUsageSummary?: string | null
+  streamingFinishReason?: string | null
+  writingWorkspaceFileLabel?: string | null
   onOpenWorkspacePath?: (path: string) => void
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
 }
@@ -115,11 +189,29 @@ export function FloatingPanelChatMessagesSection({
   uiPanelTextFontClass,
   uiPanelKeyValueTextSizeClass,
   uiPanelMicroLabelTextSizeClass,
+  streamingReasoningPreview,
+  streamingUsageSummary,
+  streamingFinishReason,
+  writingWorkspaceFileLabel,
   onOpenWorkspacePath,
   setMessages,
 }: MessagesSectionProps) {
+  const liveStreamingReasoningPreview = isLoading ? streamingReasoningPreview : null
+  const liveStreamingUsageSummary = isLoading ? streamingUsageSummary : null
+  const liveStreamingFinishReason = isLoading ? streamingFinishReason : null
+  const liveWritingWorkspaceFileLabel = isLoading ? writingWorkspaceFileLabel : null
+
   return (
     <>
+      <FloatingPanelChatStreamingStatus
+        reasoningPreview={liveStreamingReasoningPreview}
+        usageSummary={liveStreamingUsageSummary}
+        finishReason={liveStreamingFinishReason}
+        writingWorkspaceFileLabel={liveWritingWorkspaceFileLabel}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+      />
+
       <section className="flex items-center justify-between">
         <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {UI_COPY.chatHistoryCountStatus(messages.length)}
@@ -177,10 +269,6 @@ type FooterProps = {
   modelId: string
   modelOptions: string[]
   onModelChanged: (modelId: string) => void
-  streamingReasoningPreview?: string | null
-  streamingUsageSummary?: string | null
-  streamingFinishReason?: string | null
-  writingWorkspaceFileLabel?: string | null
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
   isSubmitDisabled: boolean
@@ -202,10 +290,6 @@ export function FloatingPanelChatFooter({
   modelId,
   modelOptions,
   onModelChanged,
-  streamingReasoningPreview,
-  streamingUsageSummary,
-  streamingFinishReason,
-  writingWorkspaceFileLabel,
   uiPanelTextFontClass,
   uiPanelMicroLabelTextSizeClass,
   isSubmitDisabled,
@@ -268,26 +352,6 @@ export function FloatingPanelChatFooter({
               </option>
             ))}
           </select>
-        </section>
-      )}
-      {streamingReasoningPreview ? (
-        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
-          {streamingReasoningPreview}
-        </section>
-      ) : null}
-      {streamingUsageSummary ? (
-        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
-          {streamingUsageSummary}
-        </section>
-      ) : null}
-      {streamingFinishReason ? (
-        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
-          Finish: {streamingFinishReason}
-        </section>
-      ) : null}
-      {writingWorkspaceFileLabel && (
-        <section className={getUiSectionStatusChipClassName('info', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass].join(' '))}>
-          {writingWorkspaceFileLabel}
         </section>
       )}
 

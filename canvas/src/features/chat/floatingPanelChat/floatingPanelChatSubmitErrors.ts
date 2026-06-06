@@ -90,6 +90,7 @@ export const handleSubmitIssueExit = <TMessage extends { id: string }>(args: {
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
   abortRef: { current: AbortController | null }
   setStreamingWorkspacePath: React.Dispatch<React.SetStateAction<string | null>>
+  setChatWorkspaceStreamingState?: (value: { path?: string | null; text?: string | null } | null) => void
   streamFollowRef: { current: { path: string; atMs: number } | null }
   streamDraftTextRef: { current: { path: string; text: string } | null }
   pushChatExchangeLog: (payload: {
@@ -136,6 +137,7 @@ export const handleSubmitIssueExit = <TMessage extends { id: string }>(args: {
     setIsLoading: args.setIsLoading,
     abortRef: args.abortRef,
     setStreamingWorkspacePath: args.setStreamingWorkspacePath,
+    setChatWorkspaceStreamingState: args.setChatWorkspaceStreamingState,
     streamFollowRef: args.streamFollowRef,
     streamDraftTextRef: args.streamDraftTextRef,
   })

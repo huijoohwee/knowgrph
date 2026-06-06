@@ -18,14 +18,6 @@ export type D3SceneSetupContext = {
   isMermaidLayout: boolean
 }
 
-const readFiniteNumber = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isFinite(value) ? value : null
-
-const roundedCoordinateKey = (value: unknown): string => {
-  const n = readFiniteNumber(value)
-  return n == null ? '' : String(Math.round(n * 10) / 10)
-}
-
 export function buildD3SceneGraphShapeKey(graphData: GraphData): string {
   const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
   const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
@@ -37,8 +29,6 @@ export function buildD3SceneGraphShapeKey(graphData: GraphData): string {
       return [
         String(node.id || ''),
         String(node.type || ''),
-        roundedCoordinateKey((node as unknown as { x?: unknown }).x),
-        roundedCoordinateKey((node as unknown as { y?: unknown }).y),
         String(props['visual:shape'] || ''),
         String(props.mermaidScope || ''),
         String(props['visual:parentId'] || ''),
@@ -71,8 +61,6 @@ export function buildD3SceneSetupContext(args: {
   canvasRenderMode: '2d' | '3d'
   canvas2dRenderer: string | null
   coarsePointer: boolean
-  sceneWidth: number
-  sceneHeight: number
   schemaLayoutEngineJson: string
   effectiveFrontmatterModeEnabled: boolean
   documentSemanticMode: 'document' | 'keyword'
@@ -100,10 +88,9 @@ export function buildD3SceneSetupContext(args: {
   const expansionEnabled = expansionCfg.enabled !== false
   const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
   const graphMetaKey = `${buildGraphMetaKeyIgnoringPending(args.sceneGraphData)}:shape:${buildD3SceneGraphShapeKey(args.sceneGraphData)}`
-  // Keep scene rebuilds semantic-only so panel/workspace gesture toggles do not drift layout.
+  // Keep scene rebuilds semantic-only so pane/viewport changes do not drift layout.
   const buildKey = [
     String(args.graphContentRevision || 0),
-    `${args.sceneWidth}x${args.sceneHeight}`,
     args.schemaLayoutEngineJson,
     String(args.effectiveFrontmatterModeEnabled ? 1 : 0),
     String(args.documentSemanticMode),

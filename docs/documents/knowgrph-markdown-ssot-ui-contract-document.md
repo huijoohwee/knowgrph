@@ -18,7 +18,7 @@ frontmatter_contract: "required"
 - Parser warning, repair, or fallback behavior is recovery-only; malformed YAML frontmatter remains an upstream authoring defect that must be fixed at source.
 
 ## Purpose
-This document defines the Single Source of Truth (SSOT) contract for Markdown UI surfaces so Markdown Editor, Viewer, and Presentation share the same header, sidebar, TOC structure, typography, and shared utility behavior, and so secondary surfaces (Slides Gallery, Graph Data, Canvas) never drift from the active document’s text identity.
+This document defines the Single Source of Truth (SSOT) contract for Markdown UI surfaces so Markdown Editor, Viewer, and Presentation share the same header, sidebar, TOC structure, typography, and shared utility behavior, and so secondary surfaces (Gallery renderer, Graph Data, Canvas) never drift from the active document’s text identity.
 
 ## Scope
 - **In scope**: Markdown workspace header, Explorer sidebar (Source Files + Outline + Backlinks), typography ladder, shared markdown utilities used by UI and parsers.
@@ -48,7 +48,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 
 ## Cross-Surface Sync (Slides / Graph Data / Canvas)
 
-- Slides Gallery, Graph Data, and Canvas interactions are read-only projections over the same active markdown document identity; they must not maintain a separate markdown text source.
+- Gallery renderer, Graph Data, and Canvas interactions are read-only projections over the same active markdown document identity; they must not maintain a separate markdown text source.
 - Any memoized markdown token cache must be isolated by `activeDocumentPath` and must not return cached tokens when the stored document path differs (prevents cross-document bleed and “content disappears” on view switches).
 - When the host supports Geospatial Mode, Markdown preview surfaces must receive `geoDatasetIntegration` so fenced GeoJSON blocks can render previews and register datasets into the geospatial layer.
 

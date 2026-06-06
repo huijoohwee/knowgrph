@@ -96,3 +96,27 @@ export function testFrontmatterFlowLandingKeepsWidgetsVisibleAgainstSiblingRende
     throw new Error('expected Flow Editor renderer isolation to avoid suppressing FlowCanvas native primitives')
   }
 }
+
+export function testFlowEditorRuntimeUsesActiveSourceGraphAuthority() {
+  const runtimeStoreStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeStoreState.ts')
+  const runtimeStoreStateText = readFileSync(runtimeStoreStatePath, 'utf8')
+
+  if (!runtimeStoreStateText.includes("import { useActiveGraphData } from '@/hooks/useActiveGraphData'")) {
+    throw new Error('expected Flow Editor runtime state to reuse shared active graph data authority')
+  }
+  if (!runtimeStoreStateText.includes('const activeBaseGraphData = useActiveGraphData(true)')) {
+    throw new Error('expected Flow Editor runtime state to derive selected-source graph data before reading raw store graph content')
+  }
+  if (!runtimeStoreStateText.includes('rawBaseGraphData: s.graphData')) {
+    throw new Error('expected Flow Editor runtime state to keep raw store graph only as a named fallback')
+  }
+  if (!runtimeStoreStateText.includes('const baseGraphData = activeBaseGraphData || state.rawBaseGraphData')) {
+    throw new Error('expected Flow Editor runtime state to prefer selected-source active graph over stale store graph content')
+  }
+  if (!runtimeStoreStateText.includes('buildGraphMetaKeyIgnoringPending(baseGraphData)')) {
+    throw new Error('expected Flow Editor widget pin scope to follow the active selected-source graph authority')
+  }
+  if (runtimeStoreStateText.includes('baseGraphData: s.graphData')) {
+    throw new Error('expected Flow Editor runtime state to avoid exposing raw store graph as render authority')
+  }
+}

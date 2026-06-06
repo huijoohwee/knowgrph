@@ -50,11 +50,6 @@ const MarkdownWorkspacePresentationSurfaceLazy = React.lazy(
     import('./presentation/MarkdownWorkspacePresentationSurface').then(mod => ({ default: mod.MarkdownWorkspacePresentationSurface })),
 )
 
-const MarkdownWorkspaceSlidesGallerySurfaceLazy = React.lazy(
-  async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspaceSlidesGallerySurface')['MarkdownWorkspaceSlidesGallerySurface'] }> =>
-    import('./presentation/MarkdownWorkspaceSlidesGallerySurface').then(mod => ({ default: mod.MarkdownWorkspaceSlidesGallerySurface })),
-)
-
 function sanitizeInvalidDataUrls(raw: string): string {
   const s = String(raw || '')
   if (!s.includes('data:image/') || !s.includes('<omitted>')) return s
@@ -132,6 +127,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     editorTextOverride,
     webpageHtmlOverride,
     disableEditorMutations,
+    liveTextTailFollowKey,
     viewerTextOverride,
     disableViewerMutations,
     widgetModeActive = false,
@@ -140,7 +136,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     revealLineInEditor,
     showInViewer,
     showInPresentation,
-    showInSlidesGallery,
+    showInGallery,
     editorUri,
     editorLanguage,
     editorRef,
@@ -642,6 +638,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     jsonEditorHandle,
     viewerEl,
     iframeRef,
+    liveTextTailFollowKey,
   })
 
   React.useEffect(() => {
@@ -953,33 +950,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         showInViewer={showInViewer}
         revealLineInEditor={(line: number) => revealLineInEditor(line)}
         showInPresentation={showInPresentation}
-        showInSlidesGallery={showInSlidesGallery}
-        onSurfaceRef={handleMarkdownViewerRootRef}
-      />
-    </React.Suspense>
-  )
-
-  const slidesGallery = (
-    <React.Suspense fallback={null}>
-      <MarkdownWorkspaceSlidesGallerySurfaceLazy
-        showWebpageHtml={showWebpageHtml}
-        webpageUrl={webpageMeta?.url || ''}
-        iframeSrc={iframeSrc}
-        iframeSrcDoc={iframeSrcDoc}
-        viewerText={viewerText}
-        activeDocumentKey={activeDocumentKey}
-        highlightedLineRange={highlightedLineRange}
-        markdownWordWrap={markdownWordWrap}
-        markdownTextHighlight={markdownTextHighlight}
-        uiPanelTextFontClass={uiPanelTextFontClass}
-        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-        webpageLayoutWireframeAscii={webpageLayoutWireframeAscii || ''}
-        geoDatasetIntegration={geoDatasetIntegration}
-        presentationApiRef={presentationApiRef}
-        showInViewer={showInViewer}
-        revealLineInEditor={(line: number) => revealLineInEditor(line)}
-        showInPresentation={showInPresentation}
-        showInSlidesGallery={showInSlidesGallery}
+        showInGallery={showInGallery}
         onSurfaceRef={handleMarkdownViewerRootRef}
       />
     </React.Suspense>
@@ -1031,7 +1002,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       viewer={viewer}
       htmlViewer={htmlPaneVisible ? htmlViewer : null}
       presentation={presentation}
-      slidesGallery={slidesGallery}
     />
   )
 })

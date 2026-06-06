@@ -11,7 +11,8 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 ## Surfaces
 
 - **Editor**: shows an editable Markdown SSOT; JSON may be shown as a read-only text override.
-- **Viewer / Presentation / Slides Gallery**: render either Markdown (view = `markdown`) or a sandboxed iframe (view in `{html, json}`).
+- **Viewer / Presentation**: render either Markdown (view = `markdown`) or a sandboxed iframe (view in `{html, json}`).
+- **2D Renderer: Gallery**: renders the active Markdown document as a gallery surface through Canvas View Mode.
 
 ## Editor Loading Invariants
 
@@ -213,7 +214,7 @@ When converting webpage HTML (static fetch or DOM-export snapshot) into Markdown
 
 ## Iframe Sandbox Policy
 
-All webpage HTML rendering in Viewer / Presentation / Slides uses a sandboxed iframe with:
+All webpage HTML rendering in Viewer / Presentation uses a sandboxed iframe with:
 
 - `sandbox="allow-scripts"`
 - `referrerPolicy="no-referrer"`
@@ -236,9 +237,9 @@ For local repo-relative inputs, `Import URL` accepts both `path/to/file.html` an
 ## View Mode Semantics
 
 - **Mode contract (ordered)**:
-  - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-  - (2) `HTML`: Editor stays editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe (view-only).
-  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe (view-only).
+  - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation render Markdown.
+  - (2) `HTML`: Editor stays editable Markdown SSOT; Viewer/Presentation render sandboxed HTML via iframe (view-only).
+  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation render sandboxed JSON code via iframe (view-only).
 
 DOM export remains a capture/sync bridge, not a selectable view mode. Raw HTML remains an internal artifact source for the HTML viewer, not a user-facing `kgWebpageView` value.
 

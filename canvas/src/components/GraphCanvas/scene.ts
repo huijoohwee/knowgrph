@@ -31,6 +31,7 @@ import { pickLayoutPositionsSource } from '@/components/GraphCanvas/layout/posit
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
 import { detectKeywordGraph } from '@/components/GraphCanvas/layout/graphKind'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
@@ -46,6 +47,8 @@ import {
 import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
 import { resolveContextualZoomDetail } from '@/lib/zoom/viewport'
 import { readGraphElementCenterPoint } from '@/lib/canvas/graph-elements/centroid'
+import { resolveWorkspaceVisibleViewport } from '@/lib/zoom/workspaceVisibleViewport'
+import { filterGraphCanvasViewportFitNodes } from '@/components/GraphCanvas/viewportFitNodes'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -212,6 +215,11 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   }).forceDocumentStructureGroups
   sceneGraphDataRef.current = graphDataForDisplay
   const displayNodes = Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as GraphNode[]) : []
+  const displayNodesForViewportFit = filterGraphCanvasViewportFitNodes({
+    nodes: displayNodes,
+    panelOnlyNodeIdSet,
+    mediaOverlayNodeIdSet,
+  })
   const edgesForDisplayUnsorted = Array.isArray(graphDataForDisplay.edges) ? (graphDataForDisplay.edges as GraphEdge[]) : []
   const edgesForDisplay = (() => {
     const edges = edgesForDisplayUnsorted
@@ -275,7 +283,16 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     } catch {
       void 0
     }
-    return displayNodes
+    return displayNodesForViewportFit
+  }
+  const readVisibleViewportFitFrame = () => {
+    const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(useGraphStore.getState())
+    return resolveWorkspaceVisibleViewport({
+      viewportW: Math.max(1, width),
+      viewportH: Math.max(1, Math.floor(height)),
+      workspaceEditorOverlayOpen,
+      surfaceElement: svgEl,
+    })
   }
   const buildViewportFitNodesPositionSignature = (nodes: GraphNode[]): string => {
     if (!Array.isArray(nodes) || nodes.length === 0) return '0'
@@ -344,7 +361,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     if (fitToScreenMode) return null
 
     if (readLayoutMode(schema) !== 'radial' && schema.layout?.forces?.disjointComponents !== false) {
-      return { k: 1, x: width / 2, y: height / 2 }
+      const visibleViewport = readVisibleViewportFitFrame()
+      return { k: 1, x: visibleViewport.centerX, y: visibleViewport.centerY }
     }
 
     const nodes = readViewportFitNodes()
@@ -369,8 +387,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     const cx = (minX + maxX) / 2
     const cy = (minY + maxY) / 2
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null
-    const x = width / 2 - cx
-    const y = height / 2 - cy
+    const visibleViewport = readVisibleViewportFitFrame()
+    const x = visibleViewport.centerX - cx
+    const y = visibleViewport.centerY - cy
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null
     return { k: 1, x, y }
   }
@@ -398,12 +417,18 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       graphData: fitGraphData,
       deriveGroupsOptions: { forceDocumentStructure },
     }
-    const t = fitAllTransform(nodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+    const visibleViewport = readVisibleViewportFitFrame()
+    const t = fitAllTransform(
+      nodes,
+      Math.max(1, visibleViewport.width),
+      Math.max(1, Math.floor(visibleViewport.height)),
+      opts,
+    )
     const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
     const x = typeof t.x === 'number' && Number.isFinite(t.x) ? t.x : 0
     const y = typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0
     if (!Number.isFinite(k) || !Number.isFinite(x) || !Number.isFinite(y)) return null
-    return { k, x, y }
+    return { k, x: x + visibleViewport.left, y: y + visibleViewport.top }
   }
 
   const computeInitialViewportFitTransform = (): { k: number; x: number; y: number } | null => {
@@ -498,11 +523,13 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
+  const overlayFitViewport = readVisibleViewportFitFrame()
   const overlayHalfExtentsByNodeId = computeOverlayHalfExtentsByNodeId2d({
     nodes: displayNodes,
     panelOnlyNodeIdSet: panelOnlyNodeIdSet || null,
     mediaOverlayNodeIdSet: mediaOverlayNodeIdSet || null,
-    viewportW: Math.max(1, Math.floor(width)),
+    viewportW: Math.max(1, Math.floor(overlayFitViewport.width)),
+    viewportH: Math.max(1, Math.floor(overlayFitViewport.height)),
     zoomK: typeof initialZoomTransform?.k === 'number' && Number.isFinite(initialZoomTransform.k) ? Math.max(0.001, initialZoomTransform.k) : 1,
     mediaPanelDensity,
     overlaySizing: overlaySizing || null,

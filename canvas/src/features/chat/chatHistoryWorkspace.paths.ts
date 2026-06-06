@@ -148,6 +148,10 @@ export const toKgcTraceWorkspacePath = (workspacePath: string): WorkspacePath | 
   return replaceKgcPathKind(workspacePath, `kgc-trace_${sessionId}.md`, sessionId)
 }
 
+export const toKgcStreamingWorkspacePath = (workspacePath: string): WorkspacePath => {
+  return toKgcTraceWorkspacePath(workspacePath) || normalizeWorkspacePath(workspacePath)
+}
+
 export const toKgcOutputWorkspacePath = (
   workspacePath: string,
   extension = 'md',

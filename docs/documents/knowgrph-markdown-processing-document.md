@@ -120,7 +120,7 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **Shared Lexing**: Markdown content is lexed once using `markdownPreviewLex.ts`.
 - **Token Passing**: The resulting tokens (`TokenWithLines`) are passed directly to `MarkdownCodeBlock`.
 - **No Re-lexing**: The component consumes the pre-computed token, avoiding expensive re-parsing during render cycles.
-- **Cache Isolation (Cross-View)**: Any cached token result must be returned only when `activeDocumentPath` matches the stored tokens path (prevents cross-document token bleed when switching Viewer/Presentation/Slides Gallery/Graph Data with Canvas mounted).
+- **Cache Isolation (Cross-View)**: Any cached token result must be returned only when `activeDocumentPath` matches the stored tokens path (prevents cross-document token bleed when switching Viewer/Presentation/Gallery renderer/Graph Data with Canvas mounted).
 - **Stable Token Keys (Presentation)**: In Presentation Mode, token render keys must incorporate `activeDocumentPath` + `startLine/endLine` to prevent per-slide state leakage (e.g., a code block “Inline” override persisting onto a different slide’s GeoJSON block).
 - **Code Block Mode Sync**: Global Beside/Inline/Render acts as the default. Per-block toggles create a local override; when the per-block mode matches the global default again, the override is cleared so future global changes apply.
 

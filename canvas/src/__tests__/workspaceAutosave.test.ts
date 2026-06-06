@@ -94,7 +94,7 @@ export async function testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange() {
         revealLineInEditor: () => {},
         showInViewer: () => {},
         showInPresentation: () => {},
-        showInSlidesGallery: () => {},
+        showInGallery: () => {},
         editorUri: 'inmemory://workspace/docs%2Fhello.md',
         editorLanguage: 'markdown',
         editorRef,

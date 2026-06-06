@@ -73,7 +73,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
     onShowInViewer: (line: number) => void
     onShowInEditor: (line: number) => void
     onShowInPresentation: (line: number) => void
-    onShowInSlidesGallery: (line: number) => void
+    onShowInGallery: (line: number) => void
     onShowInGraphDataTable: (line: number) => void
   } | null
 }) => {
@@ -331,7 +331,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
                   <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.viewer' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.viewer'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInViewer(selectionActions.startLine), close)}>Show in Viewer</button></li>
                   <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.editor' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.editor'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInEditor(selectionActions.startLine), close)}>Show in Editor</button></li>
                   <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.presentation' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.presentation'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInPresentation(selectionActions.startLine), close)}>Show in Presentation</button></li>
-                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.slides' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.slides'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInSlidesGallery(selectionActions.startLine), close)}>Show in Slides Gallery</button></li>
+                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.gallery' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.gallery'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInGallery(selectionActions.startLine), close)}>Show in Gallery</button></li>
                   <li className="list-none"><button type="button" className={selectionActions.currentView === 'table' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'table'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInGraphDataTable(selectionActions.startLine), close)}>{MARKDOWN_DATA_VIEW_COPY.showInLabel}</button></li>
                   <li className={props.toolbarMenuDividerClassName} />
                 </>

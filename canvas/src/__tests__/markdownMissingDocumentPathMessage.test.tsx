@@ -59,7 +59,7 @@ export async function testMarkdownViewerShowsMissingDocumentPathMessage() {
         uiPanelMonospaceTextClass: 'font-mono text-xs',
         annotateDisplayMode: 'inline',
         onShowInGraphDataTable: () => void 0,
-        onShowInSlidesGallery: () => void 0,
+        onShowInGallery: () => void 0,
         onShowInEditor: () => void 0,
         isMarkdownPreviewTruncated: false,
         uiPanelKeyValueTextSizeClass: 'text-xs',

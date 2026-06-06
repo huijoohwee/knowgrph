@@ -47,7 +47,8 @@ export type LsKeyOwner =
   | 'payments.stripe'
   | 'payments.stripe.mcp'
   | 'openai.mcp'
-  | 'search.exa.mcp';
+  | 'search.exa.mcp'
+  | 'search.feishuBase.mcp';
 
 
 export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
@@ -236,6 +237,13 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   searchExaMcpMaxResults: 'search.exa.mcp',
   searchExaMcpFetchContentLimit: 'search.exa.mcp',
   searchExaMcpRequireFetchReview: 'search.exa.mcp',
+  searchFeishuBaseMcpServerKey: 'search.feishuBase.mcp',
+  searchFeishuBaseMcpConnectionMode: 'search.feishuBase.mcp',
+  searchFeishuBaseMcpAuthBoundary: 'search.feishuBase.mcp',
+  searchFeishuBaseMcpDocsUrl: 'search.feishuBase.mcp',
+  searchFeishuBaseMcpPhase: 'search.feishuBase.mcp',
+  searchFeishuBaseMcpPhase2Status: 'search.feishuBase.mcp',
+  searchFeishuBaseMcpPhase3Status: 'search.feishuBase.mcp',
   openAiMcpServerLabel: 'openai.mcp',
   openAiMcpServerUrl: 'openai.mcp',
   openAiMcpTransport: 'openai.mcp',
@@ -472,6 +480,7 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   chatHistoryPrefix: 'ui.chat',
   chatStorageTarget: 'ui.chat',
   chatLocalStorageRootPath: 'ui.chat',
+  chatDurableStreamActiveRun: 'ui.chat',
   chatKnowgrphStorageMode: 'ui.chat',
   chatKnowgrphWorkspacePath: 'ui.chat',
   chatKnowgrphCloudUrl: 'ui.chat',

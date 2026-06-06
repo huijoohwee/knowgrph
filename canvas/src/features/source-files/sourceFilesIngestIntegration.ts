@@ -26,6 +26,8 @@ import { buildSourceFileLifecycleState, buildSourceFileRecord } from '@/features
 import { mapLimit } from '@/lib/async/mapLimit'
 import { SOURCE_FILES_REPARSE_CONCURRENCY } from '@/lib/config'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
+import { adaptFeishuBaseRecordsToSourceDocument } from '@/features/source-files/feishuBaseSourceAdapter'
+import type { FeishuBaseSourceImportRequest, FeishuBaseSourceImportResult } from '@/features/source-files/feishuBaseSourceImportContract'
 
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 
@@ -211,6 +213,35 @@ async function applyImportedTextToSourceFile(args: {
   })
   syncDocumentViewFromSourceFile({ name: args.name, text: args.text, source: args.source }, { applyToGraph: false })
   await parseAndApplySourceFile(args.id)
+}
+
+export async function importFeishuBaseSnapshotIntoSourceFile(
+  args: FeishuBaseSourceImportRequest,
+): Promise<FeishuBaseSourceImportResult> {
+  const adapted = adaptFeishuBaseRecordsToSourceDocument(args.snapshot)
+  if (!adapted.ok) {
+    return {
+      ok: false,
+      error: 'error' in adapted ? adapted.error : 'Import failed',
+      warnings: adapted.warnings,
+    }
+  }
+  const targetId = ensureTargetSourceFileId({
+    fileId: args.fileId,
+    suggestedName: adapted.document.name,
+  })
+  await applyImportedTextToSourceFile({
+    id: targetId,
+    name: adapted.document.name,
+    text: adapted.document.text,
+    source: { kind: 'local', path: adapted.document.name },
+  })
+  return {
+    ok: true,
+    fileId: targetId,
+    name: adapted.document.name,
+    warnings: adapted.warnings,
+  }
 }
 
 export async function parseAndApplySourceFile(fileId: string): Promise<void> {

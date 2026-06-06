@@ -1,10 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { FloatingPanelChatSubmitArgs } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTypes'
+import { buildNeutralKgcFixtureDocument } from '@/__tests__/helpers/neutralKgcFixture'
 import { executeFloatingPanelChatSubmitCoordinator } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
+import { isKgcStructuredMarkdown } from '@/features/chat/chatHistoryWorkspace'
 import {
   publishLocalChatPipelineSurfaceSnapshot,
   readLocalChatPipelineSurfaceSnapshot,
@@ -17,15 +17,6 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { useGraphStore } from '@/hooks/useGraphStore'
-
-const readBaseTemplateSample = (): string => {
-  const candidates = [
-    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-chat-response-base-template.md'),
-    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'template', 'kgc-ai-pipeline-chat-response-base-template.md'),
-  ]
-  const path = candidates.find(candidate => existsSync(candidate)) || candidates[0]!
-  return readFileSync(path, 'utf8')
-}
 
 const buildSubmitArgsFixture = (overrides: Partial<FloatingPanelChatSubmitArgs> = {}): FloatingPanelChatSubmitArgs => ({
   historyKey: 'history-key',
@@ -178,7 +169,14 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
       throw new Error('Expected finalize hook harness to expose the submit finalize callback')
     }
 
-    const canonical = readBaseTemplateSample().trim()
+    const requestText = 'Generate KGC'
+    const canonical = buildNeutralKgcFixtureDocument({
+      timestampMs: Date.UTC(2026, 4, 22, 19, 30, 0),
+      workspacePath: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
+      requestText,
+      assistantText: 'Recover with a neutral KGC document that proves retry, Source Files landing, Editor Workspace handoff, and Canvas apply.',
+      expectationLabel: 'neutral pipeline snapshot KGC fixture',
+    })
     const submitArgs = buildSubmitArgsFixture({
       finalizeAssistantSuccess,
       setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
@@ -189,44 +187,46 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
       streamFollowRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
     })
 
-    await executeFloatingPanelChatSubmitCoordinator({
-      submitArgs,
-      requestUrl: 'https://chat.example.test/v1/chat/completions',
-      trimmedInput: 'Generate KGC',
-      assistantMessageId: 'assistant-pending',
-      nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
-      requestTimestampMs: Date.UTC(2026, 4, 22, 19, 30, 0),
-      traceId: 'trace-webmcp-retry-ready',
-      bootstrapDraft: async () => '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
-      buildRequestContext: async () => ({
-        packedContext: { selected_node: null, connected_edges: [], frontmatter: null, graph_summary: '', guideline_digest: '' },
-        systemMessages: [{ role: 'system', content: 'base-system' }],
-        conversationMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
-      }),
-      createRequestSender: () => async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
-      resolveInitialModel: () => ({ providerModelOptions: ['model-a'], effectiveModel: 'model-a' }),
-      executeTransportAttempt: async () => {
-        transportCallCount += 1
-        if (transportCallCount === 2) {
-          retryInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
-        }
-        return {
-          response: new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
-          effectiveModel: 'model-a',
-          detail: null,
-        }
-      },
-      createDraftWriter: () => async () => {},
-      readAssistantResponse: async () => ({
-        assistantText: transportCallCount === 1 ? 'This answer is missing canonical KGC markdown.' : canonical,
-        rawSseEvents: [],
-        reasoningSteps: [],
-        reasoningPreview: null,
-        reasoningStepCount: 0,
-        usageSummary: null,
-        finishReason: transportCallCount === 1 ? null : 'stop',
-        modelId: 'model-a',
-      }),
+    await act(async () => {
+      await executeFloatingPanelChatSubmitCoordinator({
+        submitArgs,
+        requestUrl: 'https://chat.example.test/v1/chat/completions',
+        trimmedInput: requestText,
+        assistantMessageId: 'assistant-pending',
+        nextMessages: [{ id: 'user-1', role: 'user', content: requestText }],
+        requestTimestampMs: Date.UTC(2026, 4, 22, 19, 30, 0),
+        traceId: 'trace-webmcp-retry-ready',
+        bootstrapDraft: async () => '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
+        buildRequestContext: async () => ({
+          packedContext: { selected_node: null, connected_edges: [], frontmatter: null, graph_summary: '', guideline_digest: '' },
+          systemMessages: [{ role: 'system', content: 'base-system' }],
+          conversationMessages: [{ id: 'user-1', role: 'user', content: requestText }],
+        }),
+        createRequestSender: () => async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+        resolveInitialModel: () => ({ providerModelOptions: ['model-a'], effectiveModel: 'model-a' }),
+        executeTransportAttempt: async () => {
+          transportCallCount += 1
+          if (transportCallCount === 2) {
+            retryInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
+          }
+          return {
+            response: new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+            effectiveModel: 'model-a',
+            detail: null,
+          }
+        },
+        createDraftWriter: () => async () => {},
+        readAssistantResponse: async () => ({
+          assistantText: transportCallCount === 1 ? 'This answer is missing canonical KGC markdown.' : canonical,
+          rawSseEvents: [],
+          reasoningSteps: [],
+          reasoningPreview: null,
+          reasoningStepCount: 0,
+          usageSummary: null,
+          finishReason: transportCallCount === 1 ? null : 'stop',
+          modelId: 'model-a',
+        }),
+      })
     })
 
     const finalInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
@@ -255,7 +255,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
     }
     if (
       !String(graphState.markdownDocumentName || '').endsWith('kgc_20260522T193000Z.md') ||
-      !String(graphState.markdownDocumentText || '').startsWith('---\n')
+      !isKgcStructuredMarkdown(String(graphState.markdownDocumentText || ''))
     ) {
       throw new Error(`Expected retry recovery finalize flow to apply the canonical KGC document to the active canvas state, got ${JSON.stringify({ markdownDocumentName: graphState.markdownDocumentName, markdownDocumentText: graphState.markdownDocumentText?.slice(0, 40) || '' })}`)
     }

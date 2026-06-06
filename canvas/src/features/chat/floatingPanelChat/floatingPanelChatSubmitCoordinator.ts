@@ -15,7 +15,16 @@ import {
 } from './floatingPanelChatSubmitRequest'
 import { bootstrapKnowgrphSubmitDraft } from './floatingPanelChatSubmitPreflight'
 import { executeChatSubmitTransportAttempt } from './floatingPanelChatSubmitTransport'
-import { createChatKnowgrphDraftWriter, readAssistantResponseText } from './floatingPanelChatStreaming'
+import {
+  buildProviderStreamDraftText,
+  buildTraceOnlyAssistantText,
+  createChatKnowgrphDraftWriter,
+  readAssistantResponseText,
+} from './floatingPanelChatStreaming'
+import {
+  clearActiveDurableChatStreamRun,
+  forgetDurableChatStreamRun,
+} from './floatingPanelChatDurableStream'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 import { resolveChatEndpointForModels, buildChatProxyHeaders, CHAT_DEFAULT_ENDPOINT_URL } from '@/lib/chatEndpoint'
 import {
@@ -83,6 +92,10 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
   const handleIssueExit = args.handleIssueExit || handleSubmitIssueExit
   const resolveRuntimeFriendly = args.resolveRuntimeFriendly || resolveSubmitRuntimeFriendlyMessage
   const finalizeTerminal = args.finalizeTerminal || finalizeSubmitTerminalState
+  const finishDurableRun = () => {
+    clearActiveDurableChatStreamRun(args.traceId)
+    void forgetDurableChatStreamRun(args.traceId)
+  }
 
   try {
     const liveKgcPath = await withPreparationTimeout({
@@ -117,6 +130,18 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       submitArgs: args.submitArgs,
       requestUrl: args.requestUrl,
       controller,
+      durableStream: {
+        runId: args.traceId,
+        traceId: args.traceId,
+        assistantMessageId: args.assistantMessageId,
+        requestText: args.trimmedInput,
+        requestTimestampMs: args.requestTimestampMs,
+        chatStorageTarget: args.submitArgs.chatStorageTarget,
+        liveKgcPath,
+        providerSummary: args.submitArgs.chatProviderSummary,
+        defaultLocalRootPath: args.submitArgs.chatLocalStorageRootPath,
+        packedFrontmatter: packedContext.frontmatter,
+      },
     })
     const {
       providerModelOptions,
@@ -213,12 +238,14 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           setIsLoading: args.submitArgs.setIsLoading,
           abortRef: args.submitArgs.abortRef,
           setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,
+          setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
           streamFollowRef: args.submitArgs.streamFollowRef,
           streamDraftTextRef: args.submitArgs.streamDraftTextRef,
           pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
           persistChatExchangeLog: args.submitArgs.persistChatExchangeLog,
           shouldReportIssue: false,
         })
+        finishDurableRun()
         return
       }
 
@@ -242,6 +269,9 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         response: res,
         isEventStream: contentType.includes('text/event-stream'),
         flushDraft,
+        formatDraftText: args.submitArgs.chatStorageTarget === 'chatKnowgrph'
+          ? buildProviderStreamDraftText
+          : undefined,
         onProgress: nextState => {
           args.submitArgs.setStreamingAssistant(current => ({
             id: current?.id || args.assistantMessageId,
@@ -264,7 +294,14 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       const assistantText = assistantStream.assistantText
       finalAssistantStream = assistantStream
 
-      if (!assistantText) {
+      if (!assistantText.trim()) {
+        const traceOnlyAssistantText = buildTraceOnlyAssistantText(assistantStream)
+        if (traceOnlyAssistantText) {
+          await flushDraft(traceOnlyAssistantText, true)
+          finalAssistantText = traceOnlyAssistantText
+          finalStatus = 'error'
+          break
+        }
         handleIssueExit({
           assistantMessageId: args.assistantMessageId,
           requestText: args.trimmedInput,
@@ -283,11 +320,13 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           setIsLoading: args.submitArgs.setIsLoading,
           abortRef: args.submitArgs.abortRef,
           setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,
+          setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
           streamFollowRef: args.submitArgs.streamFollowRef,
           streamDraftTextRef: args.submitArgs.streamDraftTextRef,
           pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
           persistChatExchangeLog: args.submitArgs.persistChatExchangeLog,
         })
+        finishDurableRun()
         return
       }
 
@@ -334,16 +373,20 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
     })
     args.submitArgs.setConnectivity('ok')
     args.submitArgs.setConnectivityDetail(null)
+    finishDurableRun()
     finalizeTerminal({
       setIsLoading: args.submitArgs.setIsLoading,
       abortRef: args.submitArgs.abortRef,
       setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,
+      setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
       streamFollowRef: args.submitArgs.streamFollowRef,
       streamDraftTextRef: args.submitArgs.streamDraftTextRef,
     })
   } catch (err: unknown) {
     const raw = err instanceof Error ? err.message : String(err || '')
     if (raw && raw.toLowerCase().includes('aborted')) {
+      clearActiveDurableChatStreamRun(args.traceId)
+      void forgetDurableChatStreamRun(args.traceId)
       handleIssueExit({
         assistantMessageId: args.assistantMessageId,
         requestText: args.trimmedInput,
@@ -360,6 +403,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         setIsLoading: args.submitArgs.setIsLoading,
         abortRef: args.submitArgs.abortRef,
         setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,
+        setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
         streamFollowRef: args.submitArgs.streamFollowRef,
         streamDraftTextRef: args.submitArgs.streamDraftTextRef,
         pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
@@ -390,10 +434,12 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       setIsLoading: args.submitArgs.setIsLoading,
       abortRef: args.submitArgs.abortRef,
       setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,
+      setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
       streamFollowRef: args.submitArgs.streamFollowRef,
       streamDraftTextRef: args.submitArgs.streamDraftTextRef,
       pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
       persistChatExchangeLog: args.submitArgs.persistChatExchangeLog,
     })
+    finishDurableRun()
   }
 }

@@ -316,6 +316,25 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       ...runtimeProgressStatusBindings,
     }),
   )
+  const effectiveContent = useMarkdownWorkspaceEffectiveContent({
+    activePath,
+    activeDocumentKey: selectionState.activeDocumentKey,
+    activeEntryKind: selectionState.activeEntryKind,
+    activeText,
+    setActiveText,
+    markdownDocumentName,
+    markdownDocumentText,
+    layoutMode,
+    contentMode: widgetState.contentMode,
+    widgetFormat: widgetState.widgetFormat,
+    widgetEditorText: widgetState.widgetEditorText,
+    widgetViewerText: widgetState.widgetViewerText,
+    pdfWorkspaceViewerTextOverride: derivedViews.pdfWorkspaceViewerTextOverride,
+    webpageWorkspaceMeta: derivedViews.webpageWorkspaceMeta,
+    webpageWorkspaceEditorTextOverride: derivedViews.webpageWorkspaceEditorTextOverride,
+    webpageWorkspaceViewerTextOverride: derivedViews.webpageWorkspaceViewerTextOverride,
+    userEditedActiveTextRef,
+  })
   const pocketBaseYjsCollaborationRuntime = useSourceFilesPocketBaseYjsCollaborationRuntime({
     active, activeEntryKind: selectionState.activeEntryKind, activePath, activeDocumentKey: selectionState.activeDocumentKey, activeText,
     setActiveTextProgrammatic, setStatusInfo, setStatusError,
@@ -387,6 +406,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setExpandedPaths,
     activeDocumentKey: selectionState.activeDocumentKey,
     activeText,
+    revealText: effectiveContent.effectiveActiveText,
     setActiveText,
     outlineText,
     graphNodesRef: widgetState.graphNodesRef,
@@ -435,25 +455,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       applyMarkdownDocumentToGraph,
     }),
   )
-  const effectiveContent = useMarkdownWorkspaceEffectiveContent({
-    activePath,
-    activeDocumentKey: selectionState.activeDocumentKey,
-    activeEntryKind: selectionState.activeEntryKind,
-    activeText,
-    setActiveText,
-    markdownDocumentName,
-    markdownDocumentText,
-    layoutMode,
-    contentMode: widgetState.contentMode,
-    widgetFormat: widgetState.widgetFormat,
-    widgetEditorText: widgetState.widgetEditorText,
-    widgetViewerText: widgetState.widgetViewerText,
-    pdfWorkspaceViewerTextOverride: derivedViews.pdfWorkspaceViewerTextOverride,
-    webpageWorkspaceMeta: derivedViews.webpageWorkspaceMeta,
-    webpageWorkspaceEditorTextOverride: derivedViews.webpageWorkspaceEditorTextOverride,
-    webpageWorkspaceViewerTextOverride: derivedViews.webpageWorkspaceViewerTextOverride,
-    userEditedActiveTextRef,
-  })
   const workspaceStreamingStatusLabel = React.useMemo(() => {
     const activeWorkspacePath = normalizeWorkspacePath(String(activePath || '').trim())
     const streamingPath = normalizeWorkspacePath(String(chatWorkspaceStreamingPath || '').trim())
@@ -616,6 +617,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         jsonSourceText={activeJsonSourceText}
         editorTextOverride={effectiveContent.effectiveEditorTextOverride}
         disableEditorMutations={effectiveContent.disableEditorMutations || pocketBaseYjsCollaborationRuntime.rawJsonReadOnly}
+        liveTextTailFollowKey={effectiveContent.liveWorkspaceStreamingTailFollowKey}
         webpageHtmlOverride={null}
         viewerTextOverride={effectiveContent.combinedViewerTextOverride}
         disableViewerMutations={effectiveContent.disableViewerMutations}
@@ -625,7 +627,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         revealLineInEditor={interactionState.revealLineInEditor}
         showInViewer={interactionState.showInViewer}
         showInPresentation={interactionState.showInPresentation}
-        showInSlidesGallery={interactionState.showInSlidesGallery}
+        showInGallery={interactionState.showInGallery}
         editorUri={effectiveContent.editorUri}
         editorLanguage={effectiveContent.editorLanguage}
         editorRef={editorRef}

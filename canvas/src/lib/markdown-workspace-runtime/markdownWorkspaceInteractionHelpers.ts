@@ -10,6 +10,14 @@ export type MarkdownWorkspaceLineOffsetCache = {
   lineStarts: number[]
 }
 
+export function resolveMarkdownWorkspaceRevealText(args: {
+  activeText: string
+  revealText?: string | null
+}): string {
+  const revealText = String(args.revealText || '')
+  return revealText || String(args.activeText || '')
+}
+
 type MarkdownWorkspaceDocLocationHit = {
   kind: 'node' | 'edge'
   id: string
@@ -111,9 +119,9 @@ export function revealMarkdownWorkspaceLineFromCanvas(args: {
 }
 
 export function showMarkdownWorkspaceLineInMode(args: {
-  mode: 'viewer' | 'presentation' | 'slides-gallery'
+  mode: 'viewer' | 'presentation'
   line: number
-  setLayoutMode: (mode: 'viewer' | 'presentation' | 'slides-gallery') => void
+  setLayoutMode: (mode: 'viewer' | 'presentation') => void
   setHighlightedLineRange: (value: HighlightedLineRange) => void
 }): void {
   args.setLayoutMode(args.mode)

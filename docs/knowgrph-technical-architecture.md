@@ -581,6 +581,13 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `search.exa.mcp.maxResults` | number | localStorage |  |  |
 | `search.exa.mcp.fetchContentLimit` | number | localStorage |  |  |
 | `search.exa.mcp.requireFetchReview` | boolean | localStorage |  |  |
+| `search.feishuBase.mcp.serverKey` | string | localStorage |  |  |
+| `search.feishuBase.mcp.connectionMode` | string | localStorage |  |  |
+| `search.feishuBase.mcp.authBoundary` | string | localStorage |  |  |
+| `search.feishuBase.mcp.docsUrl` | string | localStorage |  |  |
+| `search.feishuBase.mcp.phase` | string | localStorage |  |  |
+| `search.feishuBase.mcp.phase2Status` | string | localStorage |  |  |
+| `search.feishuBase.mcp.phase3Status` | string | localStorage |  |  |
 | `openai.mcp.serverLabel` | string | localStorage |  |  |
 | `openai.mcp.serverUrl` | string | localStorage |  |  |
 | `openai.mcp.transport` | string | localStorage |  |  |

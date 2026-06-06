@@ -493,7 +493,7 @@ UI_THEME_TOKENS:
 | Markdown Viewer      | `<article>` (content), `<nav>` (TOC), `<figure>` (code blocks, Mermaid diagrams)                  |
 | Markdown Editor      | `<article>` (editor pane)                                                                          |
 | Presentation         | `<section>` (slides container), `<article>` (slide content), `<aside>` (sidebar), `<footer>` (controls) |
-| Slides Gallery       | `<section>` (container), `<header>` (slide label/index)                                            |
+| Gallery renderer       | `<section>` (container), `<header>` (slide label/index)                                            |
 | Graph Data Table     | `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, `<td>` wrapped in `<section>`                   |
 | Settings View        | `<table>` for technical details (replacing grid of divs)                                           |
 
@@ -512,7 +512,7 @@ UI_THEME_TOKENS:
 | Context              | Intent                          | Directive                                                                                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Table Styling        | Unified selection/hover         | - [ ] Use rowHoverAmber for hover; rowSelected for active; forbid legacy blue borders     |
-| Slides Gallery       | Match table interactions        | - [ ] Use same hover/selection styles; 16:9 aspect ratio thumbnails; forbid inconsistent styles |
+| Gallery renderer       | Match table interactions        | - [ ] Use same hover/selection styles; 16:9 aspect ratio thumbnails; forbid inconsistent styles |
 | Settings Panels      | Match table key/value rows      | - [ ] Use rowHoverAmber and rowSelected for interaction; forbid custom hover colors       |
 | Graph Data Table     | Clean flat design               | - [ ] Use rowBg (no zebra striping); rowSelected for highlight; forbid outdated styling   |
 

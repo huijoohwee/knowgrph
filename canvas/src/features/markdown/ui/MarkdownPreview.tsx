@@ -17,6 +17,7 @@ import type {
 } from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
+import { MarkdownPreviewGallery } from '@/features/markdown/ui/MarkdownPreviewGallery'
 import { MarkdownPreviewPresentation, SlidesSidebar } from '@/features/markdown/ui/MarkdownPreviewPresentation'
 import { MarkdownSelectionToolbar, type MarkdownSelectionToolbarState } from '@/features/markdown/ui/MarkdownSelectionToolbar'
 import { MarkdownInlineSelectionActionsContext } from '@/lib/markdown-core/ui/markdownInlineSelectionActions'
@@ -87,7 +88,7 @@ type MarkdownPreviewProps = {
   onShowInViewer?: (line: number) => void
   onShowInEditor?: (line: number) => void
   onShowInPresentation?: (line: number) => void
-  onShowInSlidesGallery?: (line: number) => void
+  onShowInGallery?: (line: number) => void
   onShowInGraphDataTable?: (line: number) => void
   annotateDisplayMode?: 'inline' | 'beside' | 'render'
   flashLine?: number | null
@@ -105,6 +106,7 @@ type MarkdownPreviewProps = {
   markdownTokenStoreSync?: boolean
   contentClassName?: string
   markdownCardPreviewMode?: boolean
+  galleryZoomScale?: number
 }
 
 const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -149,7 +151,7 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
     onShowInViewer,
     onShowInEditor,
     onShowInPresentation,
-    onShowInSlidesGallery,
+    onShowInGallery,
     onShowInGraphDataTable,
     annotateDisplayMode,
     flashLine,
@@ -167,6 +169,7 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
     markdownTokenStoreSync = true,
     contentClassName,
     markdownCardPreviewMode,
+    galleryZoomScale,
   },
   ref,
 ) {
@@ -376,18 +379,18 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
 
   const scrollClass = previewScrollable ? 'overflow-auto' : 'overflow-hidden'
 
-  const currentView: SsotSurface = markdownPresentationMode ? 'markdown.presentation' : 'markdown.viewer'
+  const currentView: SsotSurface = viewMode === 'gallery' ? 'markdown.gallery' : markdownPresentationMode ? 'markdown.presentation' : 'markdown.viewer'
   const inlineSelectionActionsValue = React.useMemo(() => {
     return {
       onShowOnCanvas: handleShowOnCanvas,
       onShowInViewer: onShowInViewer || (() => {}),
       onShowInEditor: onShowInEditor || (() => {}),
       onShowInPresentation: onShowInPresentation || (() => {}),
-      onShowInSlidesGallery: onShowInSlidesGallery || (() => {}),
+      onShowInGallery: onShowInGallery || (() => {}),
       onShowInGraphDataTable: onShowInGraphDataTable || (() => {}),
       currentView,
     }
-  }, [currentView, handleShowOnCanvas, onShowInEditor, onShowInGraphDataTable, onShowInPresentation, onShowInSlidesGallery, onShowInViewer])
+  }, [currentView, handleShowOnCanvas, onShowInEditor, onShowInGraphDataTable, onShowInPresentation, onShowInGallery, onShowInViewer])
   const selectionToolbarNode = !onReplaceLineRange ? (
     <MarkdownSelectionToolbar
       toolbar={selectionToolbar}
@@ -396,7 +399,7 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
       onShowInViewer={onShowInViewer || (() => {})}
       onShowInEditor={onShowInEditor || (() => {})}
       onShowInPresentation={onShowInPresentation || (() => {})}
-      onShowInSlidesGallery={onShowInSlidesGallery || (() => {})}
+      onShowInGallery={onShowInGallery || (() => {})}
       onShowInGraphDataTable={onShowInGraphDataTable || (() => {})}
       currentView={currentView}
     />
@@ -432,6 +435,7 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
         previewOverlayScope,
         previewOverlayPortalTarget: previewOverlayPortalTarget || null,
         fullDocTokens: tokens,
+        previewDensity: viewMode === 'gallery' ? 'gallery-card' : 'presentation',
       }),
     [
       slides,
@@ -444,32 +448,32 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
       previewOverlayScope,
       previewOverlayPortalTarget,
       tokens,
+      viewMode,
     ],
   )
 
   if (viewMode === 'gallery') {
     return (
-      <section className={`flex-1 min-h-0 flex flex-col ${uiPanelTextFontClass} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}>
-        <SlidesSidebar
-          embedded={true}
+      <section className={`flex-1 min-h-0 flex flex-col overflow-hidden ${uiPanelTextFontClass} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}>
+        <MarkdownPreviewGallery
+          slides={slides}
           orderedSlideIndices={orderedSlideIndices}
           activeSlideId={activeSlideId}
           slideOrder={slideOrder}
           slideCount={slides.length}
           activeSlideHeading={activeSlideHeading}
           showSlideThumbnails={true}
-          onToggleShowSlideThumbnails={() => {}}
-          onSidebarFocusSlideIdChange={() => {}}
           onActiveSlideIndexChange={setActiveSlideIndex}
           onSlideOrderChange={setSlideOrder}
           renderSlidePreview={renderSlidePreview}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+          zoomScale={galleryZoomScale}
           onSlideDoubleClick={(idx) => {
              const pos = orderedSlideIndices.indexOf(idx)
              if (pos >= 0) setActiveSlideIndex(pos)
              if (onShowInPresentation) onShowInPresentation(slides[idx]?.startLine || 0)
           }}
-          width="w-full"
-          layout="grid"
+          onSlideContextMenu={handleSlideContextMenu}
         />
       </section>
     )

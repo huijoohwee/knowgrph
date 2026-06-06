@@ -19,6 +19,7 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { workspaceBasename } from '@/features/workspace-fs/path'
 import { isMarkdownWorkspaceDocumentSwitchPending } from '@/lib/markdown-workspace-runtime/markdownWorkspaceDocumentSwitch'
 import { WORKSPACE_EDITOR_CANVAS_GUTTER_CSS } from '@/features/workspace-table/workspaceViewCanvasDefaults'
+import { WORKSPACE_VISIBLE_VIEWPORT_OCCLUDER_ATTR } from '@/lib/zoom/workspaceVisibleViewport'
 import {
   UI_RESPONSIVE_CANVAS_DOCUMENT_SWITCH_NOTICE_CLASSNAME,
   UI_RESPONSIVE_CANVAS_PAGE_SURFACE_CLASSNAME,
@@ -340,6 +341,7 @@ export default function CanvasPage() {
                         style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : '100%' }}
                         aria-label="Workspace left pane"
                         data-kg-workspace-left-pane="1"
+                        {...{ [WORKSPACE_VISIBLE_VIEWPORT_OCCLUDER_ATTR]: 'left' }}
                       >
                         {editorShellWarmed ? (
                           <React.Suspense fallback={null}>

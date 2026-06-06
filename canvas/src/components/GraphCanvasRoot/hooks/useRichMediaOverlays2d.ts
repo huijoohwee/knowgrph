@@ -3,6 +3,7 @@ import * as d3 from 'd3'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { DEFAULT_DRAG_ALPHA_TARGET } from '@/lib/graph/layoutDefaults'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
@@ -23,6 +24,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
+import { resolveWorkspaceVisibleViewport } from '@/lib/zoom/workspaceVisibleViewport'
 
 export function useRichMediaOverlays2d(args: {
   active: boolean
@@ -360,6 +362,21 @@ export function useRichMediaOverlays2d(args: {
     [requestMediaOverlaySchedule, updateMountedOverlayIdsKey],
   )
 
+  const readVisibleOverlayLayoutViewport = useCallback(() => {
+    const viewport = resolveWorkspaceVisibleViewport({
+      viewportW: Math.max(1, Math.floor(sceneWidth)),
+      viewportH: Math.max(1, Math.floor(sceneHeight)),
+      workspaceEditorOverlayOpen: isWorkspaceEditorOverlayOpen(useGraphStore.getState()),
+      surfaceElement: svgRef.current,
+    })
+    return {
+      left: viewport.left,
+      top: viewport.top,
+      width: viewport.width,
+      height: viewport.height,
+    }
+  }, [sceneHeight, sceneWidth, svgRef])
+
   const mediaOverlayHideNodeIdSet = React.useMemo(() => {
     if (!mountedOverlayIdsKey) return undefined
     const ids = mountedOverlayIdsKey.split('|').map(v => String(v || '').trim()).filter(Boolean)
@@ -383,6 +400,7 @@ export function useRichMediaOverlays2d(args: {
       density,
       viewportW: sceneWidth,
       viewportH: sceneHeight,
+      readLayoutViewport: readVisibleOverlayLayoutViewport,
       schema: schemaRef.current,
       collision: { enabled: true },
       readTransform: () => {
@@ -450,6 +468,7 @@ export function useRichMediaOverlays2d(args: {
     simulationRef,
     svgRef,
     overlaySizing,
+    readVisibleOverlayLayoutViewport,
   ])
 
   return {

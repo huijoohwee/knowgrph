@@ -78,7 +78,7 @@
 
 **Derived rules**
 - Website import uses `webpageImportIncludeImages` for conversion and `webpageImportView` as the default per-page view (stored in each stub’s `kgWebpageView`).
-- In the active-row dropdown, Viewer/Presentation/Slides render HTML in a sandboxed iframe when `kgWebpageView ∈ {json, html}`.
+- In the active-row dropdown, Viewer/Presentation render HTML in a sandboxed iframe when `kgWebpageView ∈ {json, html}`.
 - When `kgWebsiteImportId/kgWebsiteNodeId` exist, Viewer prefers rendering from stored `raw.html` artifacts (in-repo) instead of proxying live HTML.
 - Workspace artifacts are stored under the repo-local ignored `.knowgrph-workspace/` root.
 - If `kgWebsiteOutputDirRel` is present, it overrides the artifact root directory for resolving `raw.html/page.md/conversion.json`.
@@ -103,7 +103,7 @@
 
 **Scope**: Markdown Workspace → Viewer/Presentation; MainPanel → Settings
 
-**Intent**: Keep Markdown rendering defaults configurable and consistent across Viewer, Presentation, and Slides Gallery.
+**Intent**: Keep Markdown rendering defaults configurable and consistent across Viewer, Presentation, and Gallery renderer.
 
 **Keys**
 

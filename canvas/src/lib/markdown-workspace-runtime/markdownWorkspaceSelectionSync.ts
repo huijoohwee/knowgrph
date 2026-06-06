@@ -44,6 +44,8 @@ export function resolveActivePathFromWorkspaceFileSelection(args: {
   activePath: WorkspacePath | null
   entriesIndex?: WorkspaceEntriesIndex
   selectionEntryKind: string | null
+  lastSetActivePath?: { path: WorkspacePath; atMs: number } | null
+  nowMs?: number
 }): WorkspacePath | null {
   const rawSelectionPath = normalizeMarkdownWorkspaceSelectionPath(args.selectionPath)
   const selectionPath = rawSelectionPath && args.entriesIndex
@@ -56,5 +58,10 @@ export function resolveActivePathFromWorkspaceFileSelection(args: {
     ? (resolveMarkdownWorkspaceDocsMirrorCanonicalPath(rawActivePath, args.entriesIndex) || rawActivePath)
     : rawActivePath
   if (selectionPath === activePath) return null
+  const requestedPath = normalizeMarkdownWorkspaceSelectionPath(args.lastSetActivePath?.path || null)
+  const nowMs = typeof args.nowMs === 'number' ? args.nowMs : Date.now()
+  if (activePath && requestedPath === activePath && args.lastSetActivePath && nowMs - args.lastSetActivePath.atMs < 2000) {
+    return null
+  }
   return selectionPath as WorkspacePath
 }

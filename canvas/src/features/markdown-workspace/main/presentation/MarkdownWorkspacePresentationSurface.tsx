@@ -22,7 +22,7 @@ export function MarkdownWorkspacePresentationSurface(props: {
   showInViewer: (line: number) => void
   revealLineInEditor: (line: number) => void
   showInPresentation: (line: number) => void
-  showInSlidesGallery: (line: number) => void
+  showInGallery: (line: number) => void
   onSurfaceRef?: (el: HTMLElement | null) => void
 }) {
   if (props.showWebpageHtml) {
@@ -61,7 +61,7 @@ export function MarkdownWorkspacePresentationSurface(props: {
         onShowInViewer={props.showInViewer}
         onShowInEditor={(line: number) => props.revealLineInEditor(line)}
         onShowInPresentation={props.showInPresentation}
-        onShowInSlidesGallery={props.showInSlidesGallery}
+        onShowInGallery={props.showInGallery}
       />
     </section>
   )

@@ -238,8 +238,6 @@ export function useD3GraphScene2d(args: {
       canvasRenderMode,
       canvas2dRenderer,
       coarsePointer,
-      sceneWidth,
-      sceneHeight,
       schemaLayoutEngineJson,
       effectiveFrontmatterModeEnabled,
       documentSemanticMode,

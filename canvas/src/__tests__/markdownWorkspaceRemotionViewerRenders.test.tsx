@@ -42,7 +42,7 @@ export async function testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedi
         revealLineInEditor: () => {},
         showInViewer: () => {},
         showInPresentation: () => {},
-        showInSlidesGallery: () => {},
+        showInGallery: () => {},
         editorUri,
         editorLanguage: 'markdown',
         editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,

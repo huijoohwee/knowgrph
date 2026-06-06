@@ -28,7 +28,7 @@ export type MarkdownSelectionToolbarProps = {
   onShowInViewer: (line: number) => void
   onShowInEditor: (line: number) => void
   onShowInPresentation: (line: number) => void
-  onShowInSlidesGallery: (line: number) => void
+  onShowInGallery: (line: number) => void
   onShowInGraphDataTable: (line: number) => void
   currentView: SsotSurface
 }
@@ -41,7 +41,7 @@ export function MarkdownSelectionToolbar(props: MarkdownSelectionToolbarProps) {
     onShowInViewer,
     onShowInEditor,
     onShowInPresentation,
-    onShowInSlidesGallery,
+    onShowInGallery,
     onShowInGraphDataTable,
     currentView
   } = props
@@ -192,10 +192,10 @@ export function MarkdownSelectionToolbar(props: MarkdownSelectionToolbarProps) {
           <button
             type="button"
             className={btnClass}
-            disabled={currentView === 'markdown.slides'}
-            onClick={() => { onShowInSlidesGallery(toolbar.startLine); onClose() }}
+            disabled={currentView === 'markdown.gallery'}
+            onClick={() => { onShowInGallery(toolbar.startLine); onClose() }}
           >
-            Show in Slides Gallery
+            Show in Gallery
           </button>
           <button
             type="button"

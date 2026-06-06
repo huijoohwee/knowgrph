@@ -39,7 +39,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 ### Workflow Surface Auto-Open
 
-**Trigger**: Selecting media card in Slides Gallery
+**Trigger**: Selecting media card in Gallery renderer
 
 **Behavior**:
 - Automatically opens the Graph Data Table / workspace surface in Markdown mode
@@ -55,7 +55,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 - Show in Viewer: Switches to Markdown Viewer, auto-positions to exact line
 - Show in Editor: Switches to Markdown Editor
 - Show in Presentation: Enters Presentation mode
-- Show in Slides Gallery: Switches to Slides Gallery view
+- Show in Gallery: Switches to Gallery renderer view
 - Show in Graph Data Table: Opens the Graph Data Table surface for the selected node or edge
 
 **Conditional Availability**: Irrelevant options disabled based on current view
@@ -64,7 +64,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 ### Full Screen Presentation
 
-**Entry**: Dedicated "Enter Full Screen" button (`Maximize2`) in toolbar when in Presentation/Slides Gallery mode
+**Entry**: Dedicated "Enter Full Screen" button (`Maximize2`) in toolbar when in Presentation mode. Gallery is selected through Canvas View Mode as `2D Renderer: Gallery`.
 
 **Sidebar Behavior**:
 - Auto-Hide: Sidebar hides on full screen entry
@@ -75,7 +75,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 ### Right-Click Context Menu
 
-**Unified Behavior**: Displays Selection Toolbar in Viewer, Editor, Presentation, Slides Gallery, and Graph Data Table
+**Unified Behavior**: Displays Selection Toolbar in Viewer, Editor, Presentation, Gallery renderer, and Graph Data Table
 
 **Positioning Rule**: The toolbar is positioned at the exact pointer coordinates (no “fly-out” bias).
 
@@ -243,17 +243,17 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 - `MarkdownEditorPane`: Dedicated editor component
 - `MarkdownViewerPane`: Dedicated viewer component
 - `MarkdownPreviewPresentation`: Presentation mode component
-- `SlidesGallery`: Thumbnail navigation component
+- `GalleryCanvas`: Canvas View Mode 2D renderer for thumbnail-grid navigation
 
-**View Mode Toolbar**: Explicit toggle buttons for "Viewer", "Editor", "Markdown Presentation", "Slides Gallery"
+**View Mode Toolbar**: Explicit Markdown Workspace controls for "Viewer", "Editor", and "Markdown Presentation"; Gallery is consolidated under Canvas View Mode as `2D Renderer: Gallery`.
 
 **Icon Buttons**:
 - `MonitorPlay`: Markdown Presentation
-- `LayoutGrid`: Slides Gallery
+- `Images`: `2D Renderer: Gallery`
 - `Edit3`: Editor
 - `Eye`: Viewer
 
-**Button Order**: Markdown Presentation positioned left of Slides Gallery for intuitive progression
+**Renderer Order**: `2D Renderer: Gallery` is listed with the other shared Canvas View Mode renderers, adjacent to Dashboard.
 
 ### Editor Features
 
@@ -303,7 +303,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 - 0px: No header
 
 **Sidebar Synchronization**:
-- "Slides Gallery" sidebar uses same semantic structure (`aside`, `header`, `nav`) as Viewer sidebar
+- "Gallery renderer" sidebar uses same semantic structure (`aside`, `header`, `nav`) as Viewer sidebar
 - UI components: `IconButton`, `UI_THEME_TOKENS` for consistent appearance
 - State: `showSidebar` prop synchronized with Viewer sidebar
 - Persistence: shared Markdown workspace sidebar preference (`LS_KEYS.markdownShowSidebar`)
@@ -312,7 +312,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 ### Synchronization Guarantees
 
-**100% Sync**: Enforced between Markdown Viewer, Editor, Presentation, Slides Gallery, and Graph Data Table
+**100% Sync**: Enforced between Markdown Viewer, Editor, Presentation, Gallery renderer, and Graph Data Table
 
 **Sync Aspects**:
 - Heading navigation
@@ -324,7 +324,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 ### Click & Selection Behaviors
 
-**Viewer/Presentation/Slides Gallery**: Native selection gestures only (single click caret anchor; double click word; triple click paragraph/line). No implicit navigation on double-click.
+**Viewer/Presentation/Gallery renderer**: Native selection gestures only (single click caret anchor; double click word; triple click paragraph/line). No implicit navigation on double-click.
 
 **Bottom Surface Tab Bar**: Double-click → toggle fullscreen expansion
 

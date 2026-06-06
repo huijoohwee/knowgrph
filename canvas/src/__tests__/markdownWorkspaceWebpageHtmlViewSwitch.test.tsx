@@ -78,7 +78,7 @@ export async function testMarkdownWorkspaceEditorHtmlViewSwitchShowsViewerPane()
             revealLineInEditor: () => {},
             showInViewer: () => {},
             showInPresentation: () => {},
-            showInSlidesGallery: () => {},
+            showInGallery: () => {},
             editorUri: 'inmemory://webpage.md',
             editorLanguage: 'markdown',
             editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,

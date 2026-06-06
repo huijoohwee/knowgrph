@@ -15,6 +15,7 @@ export {
 export {
   createNewChatHistoryWorkspaceFilePath,
   ensureChatHistoryWorkspaceFilePath,
+  toKgcStreamingWorkspacePath,
 } from './chatHistoryWorkspace.paths'
 
 export {

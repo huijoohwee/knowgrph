@@ -7,6 +7,11 @@ import { buildKanbanCardDropIntentLabel } from '@/features/markdown/ui/kanban/ka
 import { getKanbanCardDragVisualState } from '@/features/markdown/ui/kanban/kanbanDragVisualState'
 import { KanbanCardDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
+import {
+  areKanbanRowIdsEqual,
+  moveKanbanRowIdBeforeTarget,
+  reconcileKanbanRowIds,
+} from '@/features/markdown/ui/kanban/kanbanOrderState'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
 import {
   type KanbanCardDragProps,
@@ -162,54 +167,15 @@ function DashboardChartTooltipOverlay(props: {
   )
 }
 
-const arraysEqual = (a: readonly string[], b: readonly string[]): boolean => {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false
-  }
-  return true
-}
-
-const reconcileDashboardOrder = (current: readonly string[] | null | undefined, ids: readonly string[]): string[] => {
-  const nextIds = ids.map(id => String(id || '').trim()).filter(Boolean)
-  const valid = new Set(nextIds)
-  const out: string[] = []
-  const seen = new Set<string>()
-  for (const id of current || []) {
-    const key = String(id || '').trim()
-    if (!key || !valid.has(key) || seen.has(key)) continue
-    seen.add(key)
-    out.push(key)
-  }
-  for (const id of nextIds) {
-    if (seen.has(id)) continue
-    seen.add(id)
-    out.push(id)
-  }
-  return out
-}
-
-const moveDashboardIdBeforeTarget = (order: readonly string[], sourceId: string, targetId: string): string[] => {
-  const source = String(sourceId || '').trim()
-  const target = String(targetId || '').trim()
-  if (!source || !target || source === target) return order.slice()
-  const withoutSource = order.filter(id => id !== source)
-  const targetIndex = withoutSource.indexOf(target)
-  if (targetIndex < 0) return order.slice()
-  const next = withoutSource.slice()
-  next.splice(targetIndex, 0, source)
-  return next
-}
-
 const orderDashboardCards = (cards: readonly DashboardCard[], order: readonly string[] | null | undefined): DashboardCard[] => {
   const cardById = new Map(cards.map(card => [card.id, card]))
-  const reconciled = reconcileDashboardOrder(order, cards.map(card => card.id))
+  const reconciled = reconcileKanbanRowIds(order, cards.map(card => card.id))
   return reconciled.map(id => cardById.get(id)).filter(Boolean) as DashboardCard[]
 }
 
 const orderDashboardMetrics = (metrics: readonly DashboardMetric[], order: readonly string[] | null | undefined): DashboardMetric[] => {
   const metricById = new Map(metrics.map(metric => [metric.id, metric]))
-  const reconciled = reconcileDashboardOrder(order, metrics.map(metric => metric.id))
+  const reconciled = reconcileKanbanRowIds(order, metrics.map(metric => metric.id))
   return reconciled.map(id => metricById.get(id)).filter(Boolean) as DashboardMetric[]
 }
 
@@ -531,19 +497,19 @@ function DashboardTableRows(props: {
   const baseRows = props.card.rows.length ? props.card.rows : [EMPTY_DASHBOARD_ROW]
   const rowIds = React.useMemo(() => baseRows.map(row => row.id), [baseRows])
   const rowIdsKey = rowIds.join('\u0000')
-  const [rowOrder, setRowOrder] = React.useState<string[]>(() => reconcileDashboardOrder([], rowIds))
+  const [rowOrder, setRowOrder] = React.useState<string[]>(() => reconcileKanbanRowIds([], rowIds))
   const [draggingRowId, setDraggingRowId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setRowOrder(current => {
-      const next = reconcileDashboardOrder(current, rowIds)
-      return arraysEqual(current, next) ? current : next
+      const next = reconcileKanbanRowIds(current, rowIds)
+      return areKanbanRowIdsEqual(current, next) ? current : next
     })
   }, [rowIdsKey, rowIds])
 
   const rowById = React.useMemo(() => new Map(baseRows.map(row => [row.id, row])), [baseRows])
   const rows = React.useMemo(
-    () => reconcileDashboardOrder(rowOrder, rowIds).map(id => rowById.get(id)).filter(Boolean) as DashboardTableRow[],
+    () => reconcileKanbanRowIds(rowOrder, rowIds).map(id => rowById.get(id)).filter(Boolean) as DashboardTableRow[],
     [rowById, rowIds, rowOrder],
   )
 
@@ -588,9 +554,9 @@ function DashboardTableRows(props: {
             event.preventDefault()
             event.stopPropagation()
             setRowOrder(current => {
-              const currentOrder = reconcileDashboardOrder(current, rowIds)
-              const next = moveDashboardIdBeforeTarget(currentOrder, draggingRowId, row.id)
-              return arraysEqual(currentOrder, next) ? current : next
+              const currentOrder = reconcileKanbanRowIds(current, rowIds)
+              const next = moveKanbanRowIdBeforeTarget(currentOrder, draggingRowId, row.id)
+              return areKanbanRowIdsEqual(currentOrder, next) ? current : next
             })
             setDraggingRowId(null)
           }}
@@ -779,9 +745,9 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
       const next: Record<string, string[]> = {}
       for (const section of model.sections) {
         const ids = section.cards.map(card => card.id)
-        const reconciled = reconcileDashboardOrder(current[section.id], ids)
+        const reconciled = reconcileKanbanRowIds(current[section.id], ids)
         next[section.id] = reconciled
-        if (!arraysEqual(current[section.id] || [], reconciled)) changed = true
+        if (!areKanbanRowIdsEqual(current[section.id] || [], reconciled)) changed = true
       }
       for (const sectionId of Object.keys(current)) {
         if (!Object.prototype.hasOwnProperty.call(next, sectionId)) changed = true
@@ -806,8 +772,8 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
   React.useEffect(() => {
     const metricIds = model.metrics.map(metric => metric.id)
     setMetricOrder(current => {
-      const next = reconcileDashboardOrder(current, metricIds)
-      return arraysEqual(current, next) ? current : next
+      const next = reconcileKanbanRowIds(current, metricIds)
+      return areKanbanRowIdsEqual(current, next) ? current : next
     })
     setMetricTextOverrides(current => {
       const valid = new Set(metricIds)
@@ -860,7 +826,7 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
       if (move.sourceGroupKey === DASHBOARD_METRICS_GROUP_KEY && move.targetGroupKey === DASHBOARD_METRICS_GROUP_KEY) {
         const availableMetricIds = model.metrics.map(metric => metric.id)
         if (!availableMetricIds.includes(move.rowId)) return true
-        const currentOrder = reconcileDashboardOrder(metricOrder, availableMetricIds)
+        const currentOrder = reconcileKanbanRowIds(metricOrder, availableMetricIds)
         const rowIdToGroupKey = new Map(currentOrder.map(metricId => [metricId, DASHBOARD_METRICS_GROUP_KEY]))
         const nextOrder = reorderKanbanRowIds({
           orderedRowIds: currentOrder,
@@ -871,14 +837,14 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
           targetRowId: move.targetRowId,
           position: move.position,
         })
-        return arraysEqual(currentOrder, nextOrder)
+        return areKanbanRowIdsEqual(currentOrder, nextOrder)
       }
       if (move.sourceGroupKey !== move.targetGroupKey) return true
       const section = model.sections.find(item => item.id === move.targetGroupKey)
       if (!section) return true
       const availableCardIds = section.cards.map(card => card.id)
       if (!availableCardIds.includes(move.rowId)) return true
-      const currentOrder = reconcileDashboardOrder(cardOrderBySection[section.id], availableCardIds)
+      const currentOrder = reconcileKanbanRowIds(cardOrderBySection[section.id], availableCardIds)
       const rowIdToGroupKey = new Map(currentOrder.map(cardId => [cardId, section.id]))
       const nextOrder = reorderKanbanRowIds({
         orderedRowIds: currentOrder,
@@ -889,14 +855,14 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
         targetRowId: move.targetRowId,
         position: move.position,
       })
-      return arraysEqual(currentOrder, nextOrder)
+      return areKanbanRowIdsEqual(currentOrder, nextOrder)
     },
     onCommitMove: move => {
       if (move.sourceGroupKey === DASHBOARD_METRICS_GROUP_KEY && move.targetGroupKey === DASHBOARD_METRICS_GROUP_KEY) {
         setMetricOrder(current => {
           const availableMetricIds = model.metrics.map(metric => metric.id)
           if (!availableMetricIds.includes(move.rowId)) return current
-          const currentOrder = reconcileDashboardOrder(current, availableMetricIds)
+          const currentOrder = reconcileKanbanRowIds(current, availableMetricIds)
           const rowIdToGroupKey = new Map(currentOrder.map(metricId => [metricId, DASHBOARD_METRICS_GROUP_KEY]))
           const nextOrder = reorderKanbanRowIds({
             orderedRowIds: currentOrder,
@@ -907,7 +873,7 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
             targetRowId: move.targetRowId,
             position: move.position,
           })
-          return arraysEqual(currentOrder, nextOrder) ? current : nextOrder
+          return areKanbanRowIdsEqual(currentOrder, nextOrder) ? current : nextOrder
         })
         return
       }
@@ -917,7 +883,7 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
         if (!section) return current
         const availableCardIds = section.cards.map(card => card.id)
         if (!availableCardIds.includes(move.rowId)) return current
-        const currentOrder = reconcileDashboardOrder(current[section.id], availableCardIds)
+        const currentOrder = reconcileKanbanRowIds(current[section.id], availableCardIds)
         const rowIdToGroupKey = new Map(currentOrder.map(cardId => [cardId, section.id]))
         const nextOrder = reorderKanbanRowIds({
           orderedRowIds: currentOrder,
@@ -928,7 +894,7 @@ export default function DashboardCanvas(props: DashboardCanvasProps) {
           targetRowId: move.targetRowId,
           position: move.position,
         })
-        return arraysEqual(currentOrder, nextOrder) ? current : { ...current, [section.id]: nextOrder }
+        return areKanbanRowIdsEqual(currentOrder, nextOrder) ? current : { ...current, [section.id]: nextOrder }
       })
     },
   })

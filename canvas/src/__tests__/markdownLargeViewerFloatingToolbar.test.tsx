@@ -64,7 +64,7 @@ export async function testLargeMarkdownViewerKeepsInlineFormattingToolbar() {
           revealLineInEditor: () => void 0,
           showInViewer: () => void 0,
           showInPresentation: () => void 0,
-          showInSlidesGallery: () => void 0,
+          showInGallery: () => void 0,
           editorUri: 'file:///large-viewer-toolbar.md',
           editorLanguage: 'markdown',
           editorRef: { current: null },

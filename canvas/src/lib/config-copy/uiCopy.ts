@@ -11,6 +11,7 @@ const BASELINE_LOCKED_TOAST = 'View Lock is ON. Turn it OFF to drag or edit grap
 const SELECTION_CLEARED_MODE_TOAST = 'Selection cleared: not available in the target mode.'
 const CANVAS_VIEW_RENDERER_D3_TITLE = '2D Renderer: D3 Graph'
 const CANVAS_VIEW_RENDERER_DASHBOARD_TITLE = '2D Renderer: Dashboard'
+const CANVAS_VIEW_RENDERER_GALLERY_TITLE = '2D Renderer: Gallery'
 const CANVAS_VIEW_RENDERER_FLOWCHART_TITLE = '2D Renderer: Flowchart'
 const CANVAS_VIEW_RENDERER_GITGRAPH_TITLE = '2D Renderer: GitGraph'
 const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow Canvas'
@@ -217,6 +218,7 @@ export const UI_COPY = {
   canvasViewModeTooltip: 'Canvas View Mode: renderer, semantic mode, surface, and geospatial controls.',
   canvasViewRendererD3Title: CANVAS_VIEW_RENDERER_D3_TITLE,
   canvasViewRendererDashboardTitle: CANVAS_VIEW_RENDERER_DASHBOARD_TITLE,
+  canvasViewRendererGalleryTitle: CANVAS_VIEW_RENDERER_GALLERY_TITLE,
   canvasViewRendererD3FlowchartTitle: CANVAS_VIEW_RENDERER_FLOWCHART_TITLE,
   canvasViewRendererGitGraphTitle: CANVAS_VIEW_RENDERER_GITGRAPH_TITLE,
   canvasViewRendererFlowTitle: CANVAS_VIEW_RENDERER_FLOW_TITLE,

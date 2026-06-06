@@ -1,5 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { buildCanonicalKgcTemplateFixtureDocument } from '@/__tests__/helpers/neutralKgcFixture'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -10,13 +9,8 @@ import {
 } from '@/features/chat/chatHistoryWorkspace'
 import { toKgcTraceWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 
-const readBaseTemplateSample = (): string => {
-  const candidates = [
-    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-chat-response-base-template.md'),
-    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'template', 'kgc-ai-pipeline-chat-response-base-template.md'),
-  ]
-  const path = candidates.find(candidate => existsSync(candidate)) || candidates[0]!
-  return readFileSync(path, 'utf8')
+const buildBaseTemplateSample = (): string => {
+  return buildCanonicalKgcTemplateFixtureDocument()
 }
 
 const VITE_DEV_INDEX_HTML = [
@@ -191,7 +185,7 @@ export async function testChatHistoryWorkspaceStructuredDraftDoesNotRewriteKgcTr
       timestampMs: 1_746_000_300_000,
       providerSummary: 'OpenAI · test',
       userText: 'Generate a structured KGC',
-      assistantText: readBaseTemplateSample(),
+      assistantText: buildBaseTemplateSample(),
       storageType: 'chatKnowgrph',
       traceId: 'trace-structured-draft',
       title: 'Knowledge Graph Canvas Storage',
@@ -232,7 +226,7 @@ export async function testChatHistoryWorkspaceFinalizeKeepsKgcTraceDraftAsFinalT
 
     const canonicalPath = '/chat-log/20260430T121000Z/kgc_20260430T121000Z.md'
     const tracePath = toKgcTraceWorkspacePath(canonicalPath)
-    const structured = readBaseTemplateSample()
+    const structured = buildBaseTemplateSample()
 
     await upsertChatHistoryWorkspaceDraft({
       requestedPath: canonicalPath,

@@ -127,12 +127,6 @@ export function shouldApplyStableWorkspaceSelectionToCanvas(args: {
   })) {
     return true
   }
-  if (isWorkspace2dRendererPresetStaleForDocument({
-    text: args.nextText,
-    canvas2dRenderer: args.canvas2dRenderer,
-  })) {
-    return true
-  }
   return (
     String(args.markdownDocumentName || '').trim() !== activeDocumentKey ||
     String(args.markdownDocumentText || '') !== String(args.nextText || '')
@@ -151,12 +145,6 @@ export function isWorkspaceDocumentSwitchApplySettled(args: {
   if (!activeDocumentKey) return false
   if (String(args.markdownDocumentName || '').trim() !== activeDocumentKey) return false
   if (String(args.markdownDocumentText || '') !== String(args.text || '')) return false
-  if (isWorkspace2dRendererPresetStaleForDocument({
-    text: args.text,
-    canvas2dRenderer: args.canvas2dRenderer,
-  })) {
-    return false
-  }
   return !isWorkspaceGraphSourceStaleForDocument({
     activeDocumentKey,
     graphDataSource: args.graphDataSource,

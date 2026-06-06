@@ -10,7 +10,7 @@ Use this file to sanity-check:
 
 - Markdown Viewer
 - Presentation mode (slides)
-- Slides Gallery
+- Gallery renderer
 - Mermaid rendering
 - Embedded GeoJSON → geospatial layer integration
 
@@ -64,4 +64,3 @@ graph LR
   ]
 }
 ```
-

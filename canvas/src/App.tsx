@@ -34,6 +34,7 @@ export default function App() {
     let cleanupTheme = () => void 0
     let cleanupIntegration = () => void 0
     let cleanupWorkspaceRuntime = () => void 0
+    let cleanupFeishuBaseSourceImport = () => void 0
     let storageHandler: ((e: StorageEvent) => void) | null = null
 
     const handle = scheduleIdle(() => {
@@ -45,6 +46,16 @@ export default function App() {
         .catch(error => {
           if (cancelled) return
           console.warn('[knowgrph] workspace runtime command unavailable', error)
+        })
+
+      void import('@/features/source-files/feishuBaseSourceImportCommand')
+        .then(feishuBaseSourceImportModule => {
+          if (cancelled) return
+          cleanupFeishuBaseSourceImport = feishuBaseSourceImportModule.installFeishuBaseSourceImportCommand()
+        })
+        .catch(error => {
+          if (cancelled) return
+          console.warn('[knowgrph] feishu base source import command unavailable', error)
         })
 
       void Promise.all([
@@ -127,6 +138,11 @@ export default function App() {
       }
       try {
         cleanupWorkspaceRuntime()
+      } catch {
+        void 0
+      }
+      try {
+        cleanupFeishuBaseSourceImport()
       } catch {
         void 0
       }

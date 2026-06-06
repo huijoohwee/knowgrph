@@ -39,6 +39,58 @@ import {
   EXA_MCP_REMOTE_URL,
 } from 'grph-shared/search/exaMcpSsot'
 import {
+  FEISHU_BASE_MCP_DEFAULT_AUTH_BOUNDARY,
+  FEISHU_BASE_MCP_DEFAULT_CONNECTION_MODE,
+  FEISHU_BASE_MCP_DEFAULT_PHASE,
+  FEISHU_BASE_MCP_DEFAULT_SERVER_KEY,
+  FEISHU_BASE_MCP_DOCS_URL,
+  FEISHU_BASE_MCP_OPERATOR_GUIDANCE,
+  FEISHU_BASE_MCP_PHASE_2_STATUS,
+  FEISHU_BASE_MCP_PHASE_3_STATUS,
+  FEISHU_BASE_MCP_PHASE_SCOPE,
+  FEISHU_BASE_MCP_SKILL_ROUTE,
+  FEISHU_BASE_MCP_TROUBLESHOOTING,
+} from 'grph-shared/search/feishuBaseMcpSsot'
+import {
+  LARK_APP_MCP_AUTH_BOUNDARY,
+  LARK_APP_MCP_BASEINFO_URL,
+  LARK_APP_MCP_CANVAS_SURFACE,
+  LARK_APP_MCP_DEFAULT_SERVER_KEY,
+  LARK_APP_MCP_DEPLOYED_URL,
+  LARK_APP_MCP_DOCS_URL,
+  LARK_APP_MCP_IMPORT_COMMAND,
+  LARK_APP_MCP_OPERATOR_GUIDANCE,
+  LARK_APP_MCP_PHASE_1_STATUS,
+  LARK_APP_MCP_PHASE_2_STATUS,
+  LARK_APP_MCP_PHASE_3_STATUS,
+  LARK_APP_MCP_PHASE_SCOPE,
+  LARK_APP_MCP_REMOTE_MUTATION_AUDIT,
+  LARK_APP_MCP_REMOTE_MUTATION_AUTH_MODE,
+  LARK_APP_MCP_REMOTE_MUTATION_BRIDGE_KIND,
+  LARK_APP_MCP_REMOTE_MUTATION_CONFLICT_POLICY,
+  LARK_APP_MCP_REMOTE_MUTATION_DEFERRED_ACTION,
+  LARK_APP_MCP_REMOTE_MUTATION_IDEMPOTENCY,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_BLOCKING_REASON,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_MANIFEST,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_MANIFEST_KIND,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_CHECKLIST,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_METADATA,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_NEXT_STEP,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_REMEDIATION_HINT,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_SEVERITY,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_SUMMARY,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_READINESS,
+  LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_STATUS,
+  LARK_APP_MCP_REMOTE_MUTATION_RUNTIME_COMMAND,
+  LARK_APP_MCP_REMOTE_MUTATION_SCOPE,
+  LARK_APP_MCP_REMOTE_MUTATION_SUPPORTED_DRY_RUN_ACTION,
+  LARK_APP_MCP_REMOTE_MUTATION_SUPPORTED_RUNTIME_ACTION,
+  LARK_APP_MCP_TRANSPORT_TYPE,
+  LARK_APP_MCP_TROUBLESHOOTING,
+  LARK_APP_MCP_WEBPAGE_URL,
+} from 'grph-shared/search/larkAppMcpSsot'
+import { QUERY_PARAM_LARK_HANDOFF } from '@/lib/routing/queryParams'
+import {
   OPENAI_MCP_CHATGPT_CONNECT_URL,
   OPENAI_MCP_DEFAULT_ALLOWED_TOOLS_JSON,
   OPENAI_MCP_DEFAULT_API_KEY_ENV,
@@ -118,6 +170,13 @@ export function assertMcpHubRendersConfigurableValueControls(container: Element)
     ['openaiMcp.chatgpt_app_connection', 'textarea'],
     ['exaMcp.enabled_tools', 'textarea'],
     ['exaMcp.require_fetch_review', 'input[type="checkbox"]'],
+    ['feishuBaseMcp.server_key', 'input'],
+    ['feishuBaseMcp.connection.mode', 'input'],
+    ['feishuBaseMcp.auth_boundary', 'input'],
+    ['feishuBaseMcp.phase', 'input'],
+    ['feishuBaseMcp.phase_2_status', 'input'],
+    ['feishuBaseMcp.phase_3_status', 'input'],
+    ['feishuBaseMcp.docs.url', 'input'],
     ['stripeMcp.local.args', 'textarea'],
     ['stripeMcp.tool.confirmation_required', 'input[type="checkbox"]'],
     ['stripeMcp.local_config', 'textarea'],
@@ -481,5 +540,176 @@ export function assertMcpHubSurfacesExaMcpConfig(container: Element): void {
     .filter(Boolean)
   if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-exa-'))) {
     throw new Error(`expected Exa MCP rows to use Exa MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesFeishuBaseMcpConfig(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  ;[
+    'Feishu Base MCP Configuration',
+    'feishuBaseMcp.server_key',
+    'feishuBaseMcp.connection.mode',
+    'feishuBaseMcp.auth_boundary',
+    'feishuBaseMcp.phase',
+    'feishuBaseMcp.phase_2_status',
+    'feishuBaseMcp.phase_3_status',
+    'feishuBaseMcp.skill.route',
+    'feishuBaseMcp.docs.url',
+    'feishuBaseMcp.operator_guidance',
+    'feishuBaseMcp.phase_scope',
+    'feishuBaseMcp.troubleshooting',
+    FEISHU_BASE_MCP_DEFAULT_SERVER_KEY,
+    FEISHU_BASE_MCP_DEFAULT_CONNECTION_MODE,
+    FEISHU_BASE_MCP_DEFAULT_AUTH_BOUNDARY,
+    FEISHU_BASE_MCP_DEFAULT_PHASE,
+    FEISHU_BASE_MCP_PHASE_2_STATUS,
+    FEISHU_BASE_MCP_PHASE_3_STATUS,
+    FEISHU_BASE_MCP_SKILL_ROUTE,
+    FEISHU_BASE_MCP_DOCS_URL,
+    FEISHU_BASE_MCP_OPERATOR_GUIDANCE,
+    FEISHU_BASE_MCP_PHASE_SCOPE,
+    FEISHU_BASE_MCP_TROUBLESHOOTING,
+    'Open Feishu Base Docs',
+    'Open FloatingPanel Chat UI',
+  ].forEach(token => {
+    if (!searchableText.includes(token)) {
+      throw new Error(`expected MCP hub to include Feishu Base MCP config token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;[
+    'tenant_access_token',
+    'app_secret',
+    'appSecret=',
+    'app_id',
+    'direct graph mutation',
+    'implemented source adapter',
+    'implemented publish target',
+  ].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected Feishu Base MCP surface to avoid forbidden token ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-feishu-base-'))) {
+    throw new Error(`expected Feishu Base MCP rows to use Feishu Base MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesLarkAppMcpConfig(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  ;[
+    'Lark App MCP to Canvas',
+    'larkAppMcp.server_key',
+    'larkAppMcp.remote.url',
+    'larkAppMcp.transport.type',
+    'larkAppMcp.lark_app.baseinfo_url',
+    'larkAppMcp.lark_app.webpage_url',
+    'larkAppMcp.canvas.surface',
+    'larkAppMcp.import.command',
+    'larkAppMcp.handoff.query_param',
+    'larkAppMcp.handoff.review_query_example',
+    'larkAppMcp.webpage.surface_role',
+    'larkAppMcp.phase_1_status',
+    'larkAppMcp.phase_2_status',
+    'larkAppMcp.phase_3_status',
+    'larkAppMcp.remote_mutation.bridge_kind',
+    'larkAppMcp.remote_mutation.auth_mode',
+    'larkAppMcp.remote_mutation.idempotency',
+    'larkAppMcp.remote_mutation.conflict_policy',
+    'larkAppMcp.remote_mutation.audit',
+    'larkAppMcp.remote_mutation.scope',
+    'larkAppMcp.remote_mutation.runtime_command',
+    'larkAppMcp.remote_mutation.supported_runtime_action',
+    'larkAppMcp.remote_mutation.supported_dry_run_action',
+    'larkAppMcp.remote_mutation.preview_status',
+    'larkAppMcp.remote_mutation.preview_metadata',
+    'larkAppMcp.remote_mutation.preview_readiness',
+    'larkAppMcp.remote_mutation.preview_blocking_reason',
+    'larkAppMcp.remote_mutation.preview_manifest',
+    'larkAppMcp.remote_mutation.preview_manifest_kind',
+    'larkAppMcp.remote_mutation.preview_summary',
+    'larkAppMcp.remote_mutation.preview_severity',
+    'larkAppMcp.remote_mutation.preview_checklist',
+    'larkAppMcp.remote_mutation.preview_remediation_hint',
+    'larkAppMcp.remote_mutation.preview_retry_disposition',
+    'larkAppMcp.remote_mutation.preview_required_host_capability',
+    'larkAppMcp.remote_mutation.preview_required_host_capability_status',
+    'larkAppMcp.remote_mutation.preview_required_host_capability_verification_method',
+    'larkAppMcp.remote_mutation.preview_required_host_capability_verification_target',
+    'larkAppMcp.remote_mutation.preview_required_host_capability_verification_evidence',
+    'larkAppMcp.remote_mutation.preview_required_host_capability_owner',
+    'larkAppMcp.remote_mutation.preview_next_step',
+    'larkAppMcp.remote_mutation.deferred_action',
+    'larkAppMcp.remote_mutation.request_example',
+    'larkAppMcp.remote_mutation.preview_result_example',
+    'larkAppMcp.auth_boundary',
+    'larkAppMcp.remote_config.generic',
+    'larkAppMcp.operator_guidance',
+    'larkAppMcp.phase_scope',
+    'larkAppMcp.troubleshooting',
+    LARK_APP_MCP_DEFAULT_SERVER_KEY,
+    LARK_APP_MCP_DEPLOYED_URL,
+    LARK_APP_MCP_TRANSPORT_TYPE,
+    LARK_APP_MCP_BASEINFO_URL,
+    LARK_APP_MCP_WEBPAGE_URL,
+    LARK_APP_MCP_CANVAS_SURFACE,
+    LARK_APP_MCP_IMPORT_COMMAND,
+    QUERY_PARAM_LARK_HANDOFF,
+    'webpage launch-or-config only',
+    LARK_APP_MCP_PHASE_1_STATUS,
+    LARK_APP_MCP_PHASE_2_STATUS,
+    LARK_APP_MCP_PHASE_3_STATUS,
+    LARK_APP_MCP_REMOTE_MUTATION_BRIDGE_KIND,
+    LARK_APP_MCP_REMOTE_MUTATION_AUTH_MODE,
+    LARK_APP_MCP_REMOTE_MUTATION_IDEMPOTENCY,
+    LARK_APP_MCP_REMOTE_MUTATION_CONFLICT_POLICY,
+    LARK_APP_MCP_REMOTE_MUTATION_AUDIT,
+    LARK_APP_MCP_REMOTE_MUTATION_SCOPE,
+    LARK_APP_MCP_REMOTE_MUTATION_RUNTIME_COMMAND,
+    LARK_APP_MCP_REMOTE_MUTATION_SUPPORTED_RUNTIME_ACTION,
+    LARK_APP_MCP_REMOTE_MUTATION_SUPPORTED_DRY_RUN_ACTION,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_STATUS,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_METADATA,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_READINESS,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_BLOCKING_REASON,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_MANIFEST,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_MANIFEST_KIND,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_SUMMARY,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_SEVERITY,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_CHECKLIST,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_REMEDIATION_HINT,
+    LARK_APP_MCP_REMOTE_MUTATION_PREVIEW_NEXT_STEP,
+    LARK_APP_MCP_REMOTE_MUTATION_DEFERRED_ACTION,
+    LARK_APP_MCP_AUTH_BOUNDARY,
+    LARK_APP_MCP_OPERATOR_GUIDANCE,
+    LARK_APP_MCP_PHASE_SCOPE,
+    LARK_APP_MCP_TROUBLESHOOTING,
+    LARK_APP_MCP_DOCS_URL,
+    'Open Lark Platform Docs',
+    'Open FloatingPanel Chat UI',
+  ].forEach(token => {
+    if (!searchableText.includes(token)) {
+      throw new Error(`expected MCP hub to include Lark App MCP config token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;[
+    '/Users/huijoohwee/Documents/GitHub/knowgrph',
+    'tenant_access_token',
+    'app_secret',
+    'https://example.com/write',
+  ].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected Lark App MCP surface to avoid forbidden token ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-lark-app-'))) {
+    throw new Error(`expected Lark App MCP rows to use Lark App MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
   }
 }

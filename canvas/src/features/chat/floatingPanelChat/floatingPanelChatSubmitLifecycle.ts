@@ -3,6 +3,7 @@ import type { StreamingAssistantState } from '../FloatingPanelChatSections'
 
 export type SubmitStreamingWorkspaceResetRefs = {
   setStreamingWorkspacePath: React.Dispatch<React.SetStateAction<string | null>>
+  setChatWorkspaceStreamingState?: (value: { path?: string | null; text?: string | null } | null) => void
   streamFollowRef: { current: { path: string; atMs: number } | null }
   streamDraftTextRef: { current: { path: string; text: string } | null }
 }
@@ -11,6 +12,7 @@ export const resetSubmitStreamingWorkspaceState = (
   args: SubmitStreamingWorkspaceResetRefs,
 ): void => {
   args.setStreamingWorkspacePath(null)
+  args.setChatWorkspaceStreamingState?.(null)
   args.streamFollowRef.current = null
   args.streamDraftTextRef.current = null
 }

@@ -3,6 +3,13 @@ import {
   sanitizeRequestIntent,
   sanitizeScalar,
 } from './chatKgcRequestProfile'
+import type { JSONValue } from '@/lib/graph/types'
+import {
+  FLOW_RICH_MEDIA_PANEL_FORM_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import {
   buildGuardrailRows,
   buildNamedTermSummary,
@@ -17,7 +24,12 @@ import {
   fallbackStatus,
 } from './chatHistoryWorkspace.kgc.fallbackSections'
 import { buildChatResponseStructuredSurfaceBlock } from './chatHistoryWorkspace.kgc.structuredSurfaceBlock'
-import { extractChatResponseStructuredSurface, projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContent'
+import {
+  extractChatResponseStructuredSurface,
+  projectChatResponseStructuredSurfaceIntoKgcFrontmatter,
+  type ChatResponseStructuredSurface,
+} from './chatResponseStructuredContent'
+import { STRUCTURED_SURFACE_INLINE_COMPUTE_SOURCE } from './chatResponseStructuredCompute'
 
 type BaseFallbackArgs = {
   timestampMs: number
@@ -48,6 +60,169 @@ const summariseAssistantSignal = (assistantText: string): string => {
 const deriveOutputTargetFileName = (fileName: string): string => {
   const raw = String(fileName || '').trim()
   return raw && /^kgc_/i.test(raw) ? raw : 'kgc.md'
+}
+
+const isTraceOnlyAssistantText = (assistantText: string): boolean => {
+  const text = String(assistantText || '')
+  return /Provider Stream Trace/i.test(text) && /did not return final assistant text/i.test(text)
+}
+
+const escapeHtml = (value: unknown): string => String(value || '').replace(/[&<>"']/g, ch => {
+  if (ch === '&') return '&amp;'
+  if (ch === '<') return '&lt;'
+  if (ch === '>') return '&gt;'
+  if (ch === '"') return '&quot;'
+  return '&#39;'
+})
+
+const resolveFallbackCanvas2dRenderer = (profile: ReturnType<typeof analyzeKgcRequest>): string =>
+  profile.signals.strybldr || profile.signals.storytree ? 'strybldr' : 'flowEditor'
+
+const shouldMaterializeHeadlessResponseSurface = (profile: ReturnType<typeof analyzeKgcRequest>): boolean =>
+  profile.signals.headlessStructured ||
+  profile.signals.strybldr ||
+  profile.signals.storytree ||
+  profile.signals.gitGraph ||
+  profile.signals.gantt ||
+  profile.signals.richMediaPanels ||
+  profile.signals.mcp
+
+const buildResponseStatus = (assistantText: string): string => {
+  if (isTraceOnlyAssistantText(assistantText)) return 'trace_only'
+  if (summariseAssistantSignal(assistantText)) return 'assistant_signal'
+  return 'request_profile'
+}
+
+const buildResponseMarkdownLines = (args: {
+  profile: ReturnType<typeof analyzeKgcRequest>
+  assistantText: string
+}): string[] => {
+  const assistantSignal = summariseAssistantSignal(args.assistantText)
+  const namedTerms = buildNamedTermSummary(args.profile)
+  const renderer = resolveFallbackCanvas2dRenderer(args.profile)
+  const artifact = fallbackArtifact(args.profile.artifact)
+  const intent = sanitizeRequestIntent(args.profile.intent, 320) || 'Prompt unavailable.'
+  const resultLine = isTraceOnlyAssistantText(args.assistantText)
+    ? 'The provider returned trace/tool signals but no final assistant text. This document does not invent the missing answer; it preserves the request scope, renderer contract, and observable signals for rerun or review.'
+    : assistantSignal
+      ? `Assistant output signal: ${assistantSignal}.`
+      : `No final assistant body was available. The run preserves a query-shaped ${artifact} profile instead of emitting a workflow explanation as the answer.`
+  const dataflowLine = shouldMaterializeHeadlessResponseSurface(args.profile)
+    ? `Frontmatter materializes a headless response dataflow for ${renderer}: request/card output feeds a safe inline compute node, and Rich Media Panels consume output handles such as output and outputSrcDoc.`
+    : 'Frontmatter keeps the query scope, validation terms, GitGraph/Gantt diagram sources, and body projection aligned without renderer-local fixture data.'
+  return [
+    '### Result',
+    '',
+    resultLine,
+    '',
+    '### Request Focus',
+    '',
+    `- Intent: ${intent}`,
+    `- Named terms: ${namedTerms || 'none extracted'}`,
+    `- Artifact: ${artifact}`,
+    '',
+    '### Headless Structured Output',
+    '',
+    `- Renderer: ${renderer}`,
+    `- Status: ${buildResponseStatus(args.assistantText)}`,
+    `- Dataflow: ${dataflowLine}`,
+  ]
+}
+
+const buildResponseMarkdown = (args: {
+  profile: ReturnType<typeof analyzeKgcRequest>
+  assistantText: string
+}): string => buildResponseMarkdownLines(args).join('\n')
+
+const buildResponseSrcDoc = (markdown: string): string => (
+  `<section data-kg-headless-response="1"><h1>Headless response</h1><pre>${escapeHtml(markdown)}</pre></section>`
+)
+
+const buildHeadlessResponseSurface = (args: {
+  profile: ReturnType<typeof analyzeKgcRequest>
+  assistantText: string
+}): ChatResponseStructuredSurface | null => {
+  if (!shouldMaterializeHeadlessResponseSurface(args.profile)) return null
+  const markdown = buildResponseMarkdown(args)
+  const renderer = resolveFallbackCanvas2dRenderer(args.profile)
+  const outputSrcDoc = buildResponseSrcDoc(markdown)
+  const commonPanelProperties = {
+    'chat:structuredContent': true,
+    'flow:widgetFormId': FLOW_RICH_MEDIA_PANEL_FORM_ID,
+    'flow:widgetTypeId': FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+    richMediaActiveTab: 'html',
+    media_interactive: true,
+  } satisfies Record<string, JSONValue>
+  return {
+    frontmatter: {
+      kgCanvas2dRenderer: renderer,
+      ...(renderer === 'strybldr' ? { kgStrybldrStoryboard: true } : {}),
+    },
+    nodes: [
+      {
+        id: 'mcp-response-request-brief',
+        label: 'Request Brief',
+        nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        kind: 'text',
+        sourceHandle: 'output',
+        targetHandle: 'output',
+        properties: {
+          ...commonPanelProperties,
+          'chat:structuredRole': 'card',
+          richMediaActiveTab: 'text',
+          media_interactive: false,
+          output: markdown,
+        },
+      },
+      {
+        id: 'mcp-response-headless-compute',
+        label: 'Headless Compute',
+        nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        kind: 'text',
+        sourceHandle: 'outputSrcDoc',
+        targetHandle: 'prompt_in',
+        properties: {
+          'chat:structuredContent': true,
+          'chat:structuredRole': 'widget',
+          'flow:widgetFormId': 'textGeneration',
+          'flow:widgetTypeId': 'default',
+          'flow:compute': STRUCTURED_SURFACE_INLINE_COMPUTE_SOURCE,
+          prompt: 'Headless structured response compute runner',
+        },
+      },
+      {
+        id: 'mcp-response-rich-media-panel',
+        label: 'Response Rich Media Panel',
+        nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        kind: 'html',
+        sourceHandle: 'outputSrcDoc',
+        targetHandle: 'outputSrcDoc',
+        properties: {
+          ...commonPanelProperties,
+          'chat:structuredRole': 'panel',
+          outputSrcDoc,
+        },
+      },
+    ],
+    edges: [
+      {
+        id: 'e-mcp-response-brief-to-compute',
+        source: 'mcp-response-request-brief',
+        target: 'mcp-response-headless-compute',
+        sourceHandle: 'output',
+        targetHandle: 'prompt_in',
+        label: 'output->prompt_in',
+      },
+      {
+        id: 'e-mcp-response-compute-to-panel',
+        source: 'mcp-response-headless-compute',
+        target: 'mcp-response-rich-media-panel',
+        sourceHandle: 'outputSrcDoc',
+        targetHandle: 'outputSrcDoc',
+        label: 'outputSrcDoc->outputSrcDoc',
+      },
+    ],
+  }
 }
 
 const buildRequestSummary = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -281,6 +456,10 @@ const buildBody = (args: {
   const objectiveSummary = buildObjectiveSummary(args.profile) || fallbackObjective(args.profile.objective)
   const owner = fallbackOwner(args.profile.owner)
   const defaultOutputTarget = deriveOutputTargetFileName(args.fileName)
+  const responseMarkdown = buildResponseMarkdown({
+    profile: args.profile,
+    assistantText: args.assistantText,
+  })
   const variableLinkRows = buildVariableLinkRows(args.profile)
   const snapshotRows = buildSnapshotRows({
     profile: args.profile,
@@ -363,6 +542,10 @@ const buildBody = (args: {
     `\`bg#E1F5EE:version {{version}}\` · \`bg#FAEEDA:status ${fallbackStatus(args.profile.status)}\` · owner \`${owner}\` · {{date}}`,
     '',
     buildDocumentLead(args.profile),
+    '',
+    '## Response',
+    '',
+    responseMarkdown,
     '',
     '## Computing Flow Definition',
     '',
@@ -710,9 +893,121 @@ const buildFrontmatterValidationFocus = (profile: ReturnType<typeof analyzeKgcRe
   ].filter(Boolean)
 }
 
+const normalizeDiagramTerm = (raw: string, maxChars = 72): string => (
+  sanitizeScalar(raw, maxChars)
+    .replace(/[\\"]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+)
+
+const buildDiagramTerms = (profile: ReturnType<typeof analyzeKgcRequest>): string[] => {
+  const placeholders = new Set(['{{product}}', '{{artifact}}', '{{domain}}', '{{subject}}', '{{objective}}'])
+  const terms = [
+    ...profile.namedTerms,
+    profile.product,
+    profile.artifact,
+    profile.domain,
+    profile.subject,
+    profile.objective,
+  ]
+  const candidates: string[] = []
+  const seen = new Set<string>()
+  for (const term of terms) {
+    const normalized = normalizeDiagramTerm(term)
+    const signature = normalized.toLowerCase()
+    if (!normalized || placeholders.has(normalized) || seen.has(signature)) continue
+    seen.add(signature)
+    candidates.push(normalized)
+  }
+  const searchable = (value: string): string => (
+    value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
+  )
+  const out = candidates.filter((term, index) => {
+    if (/^(?:a|an|the)\s+.*\bfor$/i.test(term)) return false
+    const signature = searchable(term)
+    if (!signature) return false
+    const compact = signature.replace(/\s+/g, '')
+    const wordCount = signature.split(/\s+/g).length
+    if (wordCount > 1 && compact.length > 12) return true
+    return !candidates.some((other, otherIndex) => {
+      if (otherIndex === index) return false
+      const otherSignature = searchable(other)
+      const otherCompact = otherSignature.replace(/\s+/g, '')
+      return otherCompact.length > compact.length && compact.length >= 3 && otherCompact.includes(compact)
+    })
+  }).slice(0, 6)
+  return out.length > 0 ? out : ['request scope', 'context bundle', 'generated response']
+}
+
+const buildMermaidQuotedValue = (raw: string, fallback: string): string => {
+  const value = normalizeDiagramTerm(raw || fallback, 80) || fallback
+  return JSON.stringify(value)
+}
+
+const buildGanttTaskLabel = (raw: string, fallback: string): string => {
+  return normalizeDiagramTerm(raw || fallback, 70)
+    .replace(/[:]/g, ' -')
+    .trim() || fallback
+}
+
+const buildFlowDiagramsBlock = (profile: ReturnType<typeof analyzeKgcRequest>, product: string, artifact: string): string[] => {
+  const diagramTerms = buildDiagramTerms(profile)
+  const flowTitle = product !== '{{product}}' ? product : artifact !== '{{artifact}}' ? artifact : 'active request'
+  const gitCommitTerms = diagramTerms.slice(0, 4)
+  const ganttTerms = diagramTerms.slice(0, 4)
+  return [
+    'flow_diagrams:',
+    '  key: flow_diagrams',
+    '  type: object',
+    '  value:',
+    '    gitgraph:',
+    '      key: gitgraph',
+    '      type: mermaid_gitgraph',
+    '      title: "Request GitGraph dataflow lanes"',
+    '      render_on: [flow_editor, storyboard, strybldr]',
+    '      value: |-',
+    '        gitGraph',
+    '          commit id:"prompt_capture"',
+    '          branch context_pack',
+    '          checkout context_pack',
+    ...gitCommitTerms.map(term => `          commit id:${buildMermaidQuotedValue(term, 'request_term')}`),
+    '          checkout main',
+    '          branch response_generation',
+    '          checkout response_generation',
+    `          commit id:${buildMermaidQuotedValue(artifact !== '{{artifact}}' ? artifact : 'generated response', 'generated response')}`,
+    '          checkout main',
+    '          branch review_gate',
+    '          checkout review_gate',
+    '          commit id:"term_coverage"',
+    '          checkout main',
+    '          merge context_pack',
+    '          merge response_generation',
+    '          merge review_gate',
+    '          commit id:"rich_media_panels"',
+    '    gantt:',
+    '      key: gantt',
+    '      type: mermaid_gantt',
+    '      title: "Request Gantt critical path"',
+    '      render_on: [flow_editor, storyboard, strybldr, document_view, timeline_view]',
+    '      value: |-',
+    '        gantt',
+    `          title computing flow: ${buildGanttTaskLabel(flowTitle, 'active request')}`,
+    '          dateFormat YYYY-MM-DD',
+    '          section Intake',
+    '          Prompt capture :done, prompt_capture, 2026-06-05, 1d',
+    '          section Term coverage',
+    ...ganttTerms.map((term, index) => `          ${buildGanttTaskLabel(term, `Request term ${index + 1}`)} coverage :term_${index + 1}, after prompt_capture, 1d`),
+    '          section Critical path',
+    '          Structured response generation :crit, response_generation, after prompt_capture, 1d',
+    '          Term coverage review :crit, review_gate, after response_generation, 1d',
+    '          Rich Media Panels :crit, rich_media_panels, after review_gate, 1d',
+  ]
+}
+
 const buildFrontmatter = (args: {
   fileName: string
   profile: ReturnType<typeof analyzeKgcRequest>
+  assistantText: string
 }): string => {
   const subject = fallbackActor(args.profile.subject)
   const product = fallbackProduct(args.profile.product)
@@ -729,6 +1024,11 @@ const buildFrontmatter = (args: {
   const contextSummary = buildFrontmatterContextSummary(args.profile)
   const requiredSections = buildRequiredSectionLabels(args.profile)
   const validationFocus = buildFrontmatterValidationFocus(args.profile)
+  const renderer = resolveFallbackCanvas2dRenderer(args.profile)
+  const responseMarkdownLines = buildResponseMarkdownLines({
+    profile: args.profile,
+    assistantText: args.assistantText,
+  })
   return [
     `title: ${JSON.stringify(title)}`,
     `graphId: ${JSON.stringify(graphId)}`,
@@ -736,6 +1036,14 @@ const buildFrontmatter = (args: {
     'date: "{{date}}"',
     'ai_model: "model-unknown"',
     'lang: "en-US"',
+    'kgCanvasSurfaceMode: "2d"',
+    'kgCanvasRenderMode: "2d"',
+    `kgCanvas2dRenderer: ${JSON.stringify(renderer)}`,
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgMultiDimTableModeEnabled: false',
+    'kgDocumentStructureBaselineLock: false',
+    ...(renderer === 'strybldr' ? ['kgStrybldrStoryboard: true'] : []),
     '$schema: "kgc-pipeline/v1"',
     'spec:',
     '  format:        kgc-pipeline',
@@ -992,6 +1300,17 @@ const buildFrontmatter = (args: {
     '    click n-process  "#pipeline" "S03 · generate / process"',
     '    click n-validate "#pipeline" "S04 · review / validate"',
     '    click n-deliver  "#pipeline" "S05 · deliver / persist"',
+    ...buildFlowDiagramsBlock(args.profile, product, artifact),
+    'response:',
+    '  key: response',
+    '  type: object',
+    '  value:',
+    `    status: ${JSON.stringify(buildResponseStatus(args.assistantText))}`,
+    `    renderer: ${JSON.stringify(renderer)}`,
+    `    intent: ${JSON.stringify(sanitizeRequestIntent(args.profile.intent, 320) || 'Prompt unavailable.')}`,
+    `    named_terms: ${JSON.stringify(args.profile.namedTerms)}`,
+    `    requested_sections: ${JSON.stringify(requiredSections)}`,
+    ...typedBlockScalarEnvelopeLines('    ', 'markdown_body', 'markdown', responseMarkdownLines),
     'flow:',
     '  direction:  {key: direction,  type: string,  value: LR}',
     '  edgeType:   {key: edgeType,   type: string,  value: smoothstep}',
@@ -1123,9 +1442,9 @@ export const buildDeterministicBaseTemplateKgcTurn = (args: BaseFallbackArgs): s
   void args.timestampMs
   const profile = analyzeKgcRequest(args.requestText)
   const assistantText = String(args.assistantText || '')
-  const responseSurface = extractChatResponseStructuredSurface(assistantText)
+  const responseSurface = extractChatResponseStructuredSurface(assistantText) || buildHeadlessResponseSurface({ profile, assistantText })
   const fileName = String(args.fileName || '').trim() || 'kgc.md'
-  const frontmatter = projectChatResponseStructuredSurfaceIntoKgcFrontmatter({ frontmatter: buildFrontmatter({ fileName, profile }), surface: responseSurface })
+  const frontmatter = projectChatResponseStructuredSurfaceIntoKgcFrontmatter({ frontmatter: buildFrontmatter({ fileName, profile, assistantText }), surface: responseSurface })
   const body = buildBody({ requestText: args.requestText, assistantText, profile, fileName, responseSurfaceBlock: buildChatResponseStructuredSurfaceBlock(responseSurface) })
   return ['---', frontmatter, '---', body].join('\n').trimEnd() + '\n'
 }

@@ -21,11 +21,12 @@ export function startMarkdownPanelOverlayLoop2d(args: {
   enabled: boolean
   loop: 'always' | 'onDemand'
   getItems: () => readonly MarkdownOverlayPanelItem[]
-  getViewport: () => { w: number; h: number }
+  getViewport: () => { left?: number; top?: number; w: number; h: number }
   readTransform: () => d3.ZoomTransform | null
   getElementForId: (id: string) => HTMLElement | null
   getDensity: () => MediaPanelDensity
   getSizingConfig: () => MediaOverlaySizingConfig
+  collectiveFitToViewport?: boolean
   clampToViewport?: { margin: number } | null
 }): MarkdownOverlayPanelLoop {
   if (!args.enabled) return { schedule: () => void 0, stop: () => void 0 }
@@ -42,6 +43,8 @@ export function startMarkdownPanelOverlayLoop2d(args: {
     const viewport = args.getViewport()
     const vw = Math.max(1, Math.floor(Number(viewport.w) || 1))
     const vh = Math.max(1, Math.floor(Number(viewport.h) || 1))
+    const viewportLeft = Number.isFinite(viewport.left) ? Number(viewport.left) : 0
+    const viewportTop = Number.isFinite(viewport.top) ? Number(viewport.top) : 0
     const density = args.getDensity() === 'compact' ? 'compact' : 'default'
     const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
     const sizing = computeMediaOverlaySizing({
@@ -59,11 +62,30 @@ export function startMarkdownPanelOverlayLoop2d(args: {
     const useSizing = lastSizing || sizing
     const unscaledPanelVars = computeMediaPanelCssVars3d({ density, sizeScale: 1 }).vars
     const clamp = args.clampToViewport
-      ? { viewportW: vw, viewportH: vh, margin: Math.max(0, Number(args.clampToViewport.margin) || 0) }
+      ? {
+          left: viewportLeft,
+          top: viewportTop,
+          viewportW: vw,
+          viewportH: vh,
+          margin: Math.max(0, Number(args.clampToViewport.margin) || 0),
+        }
       : undefined
 
     const items = args.getItems()
     if (!items || items.length === 0) return
+
+    const prepared: Array<{
+      id: string
+      el: HTMLElement
+      left: number
+      top: number
+      screenW: number
+      screenH: number
+      layoutW: number
+      layoutH: number
+      scale: number
+      hasWorldSize: boolean
+    }> = []
 
     for (let i = 0; i < items.length; i += 1) {
       const it = items[i]
@@ -84,11 +106,74 @@ export function startMarkdownPanelOverlayLoop2d(args: {
       const scale = hasWorldSize ? k : 1
       const screenW = layoutW * scale
       const screenH = layoutH * scale
-      const rect = computePanelRect({ cx: sx, cy: sy, w: screenW, h: screenH, clamp })
-      applyMediaPanelCssVars(el, hasWorldSize ? unscaledPanelVars : useSizing.vars)
-      applyPanelBox(el, { left: rect.left, top: rect.top, w: layoutW, h: layoutH, display: 'block', scale })
+      const rect = computePanelRect({
+        cx: sx,
+        cy: sy,
+        w: screenW,
+        h: screenH,
+        clamp: args.collectiveFitToViewport === true ? undefined : clamp,
+      })
+      prepared.push({
+        id,
+        el,
+        left: rect.left,
+        top: rect.top,
+        screenW,
+        screenH,
+        layoutW,
+        layoutH,
+        scale,
+        hasWorldSize,
+      })
+    }
+
+    if (prepared.length === 0) return
+
+    const collectiveFit = (() => {
+      if (args.collectiveFitToViewport !== true || !clamp || prepared.length <= 1) return null
+      let minX = Number.POSITIVE_INFINITY
+      let minY = Number.POSITIVE_INFINITY
+      let maxX = Number.NEGATIVE_INFINITY
+      let maxY = Number.NEGATIVE_INFINITY
+      for (let i = 0; i < prepared.length; i += 1) {
+        const item = prepared[i]!
+        minX = Math.min(minX, item.left)
+        minY = Math.min(minY, item.top)
+        maxX = Math.max(maxX, item.left + item.screenW)
+        maxY = Math.max(maxY, item.top + item.screenH)
+      }
+      if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null
+      const boundsW = Math.max(1, maxX - minX)
+      const boundsH = Math.max(1, maxY - minY)
+      const margin = Math.max(0, Number(args.clampToViewport?.margin) || 0)
+      const targetW = Math.max(1, vw - margin * 2)
+      const targetH = Math.max(1, vh - margin * 2)
+      const fitScale = Math.min(1, targetW / boundsW, targetH / boundsH)
+      const sourceCenterX = minX + boundsW / 2
+      const sourceCenterY = minY + boundsH / 2
+      const targetCenterX = viewportLeft + vw / 2
+      const targetCenterY = viewportTop + vh / 2
+      return { fitScale, sourceCenterX, sourceCenterY, targetCenterX, targetCenterY }
+    })()
+
+    for (let i = 0; i < prepared.length; i += 1) {
+      const item = prepared[i]!
+      const rect = (() => {
+        if (!collectiveFit) return { left: item.left, top: item.top, w: item.screenW, h: item.screenH }
+        const cx = item.left + item.screenW / 2
+        const cy = item.top + item.screenH / 2
+        return computePanelRect({
+          cx: collectiveFit.targetCenterX + (cx - collectiveFit.sourceCenterX) * collectiveFit.fitScale,
+          cy: collectiveFit.targetCenterY + (cy - collectiveFit.sourceCenterY) * collectiveFit.fitScale,
+          w: item.screenW,
+          h: item.screenH,
+          clamp,
+        })
+      })()
+      applyMediaPanelCssVars(item.el, item.hasWorldSize ? unscaledPanelVars : useSizing.vars)
+      applyPanelBox(item.el, { left: rect.left, top: rect.top, w: item.layoutW, h: item.layoutH, display: 'block', scale: item.scale })
       try {
-        ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
+        ;(item.el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
       } catch {
         void 0
       }

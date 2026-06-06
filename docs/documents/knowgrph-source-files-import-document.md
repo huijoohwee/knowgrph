@@ -218,15 +218,15 @@ sequenceDiagram
 
 ### Webpage Import (URL/Local Path → Markdown SSOT + HTML/JSON Viewer)
 
-**From/To**: Source Files / Workspace Import URL → browser-native webpage conversion (hidden sandboxed iframe DOM export + proxy-fetch fallback) → Markdown → Graph parse; Viewer/Presentation/Slides → fetch HTML via `/__webpage_proxy` (or stored artifacts) → sanitize → sandboxed iframe `srcdoc`.
+**From/To**: Source Files / Workspace Import URL → browser-native webpage conversion (hidden sandboxed iframe DOM export + proxy-fetch fallback) → Markdown → Graph parse; Viewer/Presentation → fetch HTML via `/__webpage_proxy` (or stored artifacts) → sanitize → sandboxed iframe `srcdoc`.
 
 **Decision Logic**:
 - **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
 - **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects `markdown | json | html`.
 - **Mode contract (active-row dropdown)**:
-  - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-  - (2) `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc` (view-only).
-  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc` (view-only).
+  - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation render Markdown.
+  - (2) `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation render sandboxed HTML via iframe `srcdoc` (view-only).
+  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation render sandboxed JSON code via iframe `srcdoc` (view-only).
 
 **Webpage Markdown (Editor SSOT)**:
 - Generated output is a single Markdown SSOT document (frontmatter + Markdown body). It must not include duplicate “artifact doc” wrappers, alternate formats, or synthetic table-of-contents/layout sections by default.
@@ -268,7 +268,7 @@ sequenceDiagram
 - **View switching (active-row dropdown)**: `Markdown | JSON | HTML` is strictly view-only (no apply-to-graph, no layout/zoom mutation, no default-setting mutation).
 - **Artifact mapping (editor text)**: `json→conversionJson`, `html→rawHtml`, `markdown→(no override)`.
 - **Frontmatter preservation**: View switching must preserve existing frontmatter keys (including `kgWebsiteImportId/kgWebsiteNodeId/kgWebsiteOutputDirRel`) so artifact-backed HTML/JSON resolution remains stable after switching.
-- **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation/Slides render sandboxed HTML via `srcdoc`. HTML is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code via `srcdoc`.
+- **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation render sandboxed HTML via `srcdoc`. HTML is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code via `srcdoc`.
 - **Markdown artifact**: The Markdown view can embed a ` ```text kg-webpage-layout ` block as a lightweight, editable layout snapshot.
 
 **Single-URL Artifact Path (non-sitemap)**:

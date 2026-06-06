@@ -29,7 +29,7 @@ Implementation note: the artifact generator is split into small modules under `c
 - `kgWebpageUrl`: source URL
 - `kgWebpageView`: `markdown | json | html`
 
-The webpage markdown artifact is stored in the markdown file itself (editable), and Viewer/Presentation/Slides render the same markdown (view-only switching).
+The webpage markdown artifact is stored in the markdown file itself (editable), and Viewer/Presentation render the same markdown (view-only switching).
 
 ## Signal Sources (Domain-Neutral)
 

@@ -34,6 +34,13 @@ import {
 } from '@/features/chat/FloatingPanelChat.helpers'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
+import {
+  abortDurableChatStreamRun,
+  clearActiveDurableChatStreamRun,
+  forgetDurableChatStreamRun,
+  readActiveDurableChatStreamRun,
+} from '@/features/chat/floatingPanelChat/floatingPanelChatDurableStream'
+import { useResumeDurableChatStream } from '@/features/chat/floatingPanelChat/useResumeDurableChatStream'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
 import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
@@ -133,6 +140,8 @@ export default function FloatingPanelChat() {
   React.useEffect(() => {
     if (isLoading) return
     setChatWorkspaceStreamingState(null)
+    setStreamingInsights(null)
+    setStreamingWorkspacePath(null)
   }, [isLoading, setChatWorkspaceStreamingState])
   const streamRevealSeqRef = React.useRef(0)
 
@@ -470,6 +479,7 @@ export default function FloatingPanelChat() {
 
   React.useEffect(() => {
     return () => {
+      if (readActiveDurableChatStreamRun()) return
       const ctrl = abortRef.current
       if (!ctrl) return
       try {
@@ -515,6 +525,12 @@ export default function FloatingPanelChat() {
   }, [])
 
   const handleStop = () => {
+    const activeDurableRun = readActiveDurableChatStreamRun()
+    if (activeDurableRun?.runId) {
+      clearActiveDurableChatStreamRun(activeDurableRun.runId)
+      void abortDurableChatStreamRun(activeDurableRun.runId)
+      void forgetDurableChatStreamRun(activeDurableRun.runId)
+    }
     const ctrl = abortRef.current
     if (!ctrl) return
     try {
@@ -536,6 +552,29 @@ export default function FloatingPanelChat() {
     pushChatExchangeLog,
     setMessages,
     setStreamingAssistant,
+    streamFollowRef,
+    streamDraftTextRef,
+  })
+
+  useResumeDurableChatStream({
+    isLoading,
+    chatStorageTarget,
+    chatProviderSummary,
+    chatLocalStorageRootPath,
+    chatModelId: chatModelSelect.modelId,
+    setIsLoading,
+    setErrorText,
+    setConnectivity,
+    setConnectivityDetail,
+    setStreamingAssistant,
+    setStreamingInsights,
+    setStreamingWorkspacePath,
+    setChatWorkspaceStreamingState,
+    setChatKnowgrphWorkspacePath,
+    setMessages,
+    followWorkspaceMarkdownPath,
+    finalizeAssistantSuccess,
+    abortRef,
     streamFollowRef,
     streamDraftTextRef,
   })
@@ -665,6 +704,14 @@ export default function FloatingPanelChat() {
           uiPanelTextFontClass={uiPanelTextFontClass}
           uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
           uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+          streamingReasoningPreview={streamingInsights?.reasoningPreview || null}
+          streamingUsageSummary={streamingInsights?.usageSummary || null}
+          streamingFinishReason={streamingInsights?.finishReason || null}
+          writingWorkspaceFileLabel={
+            isLoading && chatStorageTarget === 'chatKnowgrph' && streamingWorkspacePath
+              ? `Writing to ${(streamingWorkspacePath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md')}...`
+              : null
+          }
           onOpenWorkspacePath={openWorkspaceMarkdownPath}
           setMessages={setMessages}
         />
@@ -681,14 +728,6 @@ export default function FloatingPanelChat() {
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}
         onModelChanged={setChatModel}
-        streamingReasoningPreview={streamingInsights?.reasoningPreview || null}
-        streamingUsageSummary={streamingInsights?.usageSummary || null}
-        streamingFinishReason={streamingInsights?.finishReason || null}
-        writingWorkspaceFileLabel={
-          isLoading && chatStorageTarget === 'chatKnowgrph' && streamingWorkspacePath
-            ? `Writing to ${(streamingWorkspacePath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md')}...`
-            : null
-        }
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModelSelect.modelId}

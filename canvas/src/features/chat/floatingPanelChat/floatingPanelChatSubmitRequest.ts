@@ -23,6 +23,10 @@ import { buildProviderChatRequestOptions, parseLine, toShortId } from '../Floati
 import type { ChatMessage } from '../FloatingPanelChatSections'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 import {
+  fetchWithDurableChatStream,
+  type DurableChatStreamRequestMetadata,
+} from './floatingPanelChatDurableStream'
+import {
   buildKnowgrphVdeoxplnChatSystemPrompt,
   buildKnowgrphVdeoxplnRoutingPlan,
 } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
@@ -199,6 +203,7 @@ export const createChatSubmitRequestSender = (args: {
   requestUrl: string
   controller: AbortController
   fetchFn?: typeof fetch
+  durableStream?: DurableChatStreamRequestMetadata | null
 }) => {
   const fetchFn = args.fetchFn || fetch
   return async (
@@ -244,7 +249,7 @@ export const createChatSubmitRequestSender = (args: {
       chatToolsJson: args.submitArgs.chatToolsJson,
       chatToolChoiceJson: args.submitArgs.chatToolChoiceJson,
     })
-    return await fetchFn(args.requestUrl, {
+    const init: RequestInit = {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -257,6 +262,19 @@ export const createChatSubmitRequestSender = (args: {
           : { max_tokens: effectiveTokenLimit }),
       }),
       signal: args.controller.signal,
-    })
+    }
+    if (args.durableStream) {
+      return await fetchWithDurableChatStream({
+        runMetadata: {
+          ...args.durableStream,
+          modelId: model,
+        },
+        input: args.requestUrl,
+        init,
+        signal: args.controller.signal,
+        fallbackFetch: fetchFn,
+      })
+    }
+    return await fetchFn(args.requestUrl, init)
   }
 }

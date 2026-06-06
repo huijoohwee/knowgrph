@@ -369,11 +369,11 @@ This semantic structure ensures better compatibility with screen readers and sea
 
 ---
 - Top-of-document YAML frontmatter (`---` … `---` at the very start) is treated as metadata and does not create a slide break.
-- `---` lines that appear outside YAML frontmatter and outside fenced code blocks are treated as slide separators by the Knowgrph markdown viewer and Slides Gallery.
+- `---` lines that appear outside YAML frontmatter and outside fenced code blocks are treated as slide separators by the Knowgrph markdown viewer and Gallery renderer.
 - `---` that appear inside fenced code blocks or inside YAML frontmatter are treated as literal content, not slide breaks.
 
 **Reordering behavior:**
-- The Slides Gallery sidebar lets you drag thumbnails to change slide order; Knowgrph rewrites the underlying markdown to match that order so the editor, viewer, and on-disk file stay aligned.
+- The Gallery renderer sidebar lets you drag thumbnails to change slide order; Knowgrph rewrites the underlying markdown to match that order so the editor, viewer, and on-disk file stay aligned.
 - Reordering operates on slide-sized chunks, preserving per-slide YAML blocks, notes, and fenced code blocks (including those that contain `---`) as intact units.
 - When Knowgrph rewrites a deck after reordering, it normalizes slide separators to the form:
 
@@ -388,7 +388,7 @@ This semantic structure ensures better compatibility with screen readers and sea
   enforcing a single blank line before and after each `---` separator.
 
 **Fullscreen frame, zoom, and scroll semantics in Knowgrph:**
-- The Slides Gallery renders each slide inside a static frame; the frame border, corner radius, and drop shadow do not zoom.
+- The Gallery renderer renders each slide inside a static frame; the frame border, corner radius, and drop shadow do not zoom.
 - The slide content inside the frame can be zoomed and panned for detail inspection, while the frame stays fixed.
 - Mouse wheel or trackpad scroll **inside the frame** scrolls the slide content; it does not trigger zoom.
 - Zoom gestures are modifier-based: holding `Ctrl` (or `Cmd` on macOS) while scrolling zooms; plain scroll without modifiers only scrolls.

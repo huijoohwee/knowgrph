@@ -235,6 +235,7 @@ export type ChatStreamUsage = {
 
 export type AssistantStreamDelta = {
   contentDelta: string
+  reasoningTextDelta: string
   reasoningStepSummaries: string[]
   finishReason: string | null
   usage: ChatStreamUsage | null
@@ -289,7 +290,32 @@ const toNullableNumber = (value: unknown): number | null => {
   return Number.isFinite(next) ? next : null
 }
 
+const uniqueNonEmptyText = (values: Iterable<unknown>): string[] => {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const value of values) {
+    const text = typeof value === 'string' ? value.replace(/\r\n/g, '\n').trim() : ''
+    if (!text) continue
+    const key = text.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(text)
+  }
+  return out
+}
+
+const readRecordStringField = (record: Record<string, unknown> | null | undefined, key: string): string => {
+  const value = record?.[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+const readRecordRawStringField = (record: Record<string, unknown> | null | undefined, key: string): string => {
+  const value = record?.[key]
+  return typeof value === 'string' ? value.replace(/\r\n/g, '\n') : ''
+}
+
 export const formatReasoningStepSummary = (step: unknown): string => {
+  if (typeof step === 'string') return step.trim()
   if (!step || typeof step !== 'object') return ''
   const record = step as Record<string, unknown>
   const type = typeof record.type === 'string' ? record.type.trim() : ''
@@ -323,7 +349,57 @@ export const formatReasoningStepSummary = (step: unknown): string => {
     return 'fetch_url'
   }
   if (type === 'execute_python' || type === 'execute_command') return type
+  const toolCall = isObjectRecord(record.function) ? record.function : null
+  const toolName =
+    readRecordStringField(toolCall, 'name') ||
+    readRecordStringField(record, 'name') ||
+    readRecordStringField(record, 'tool_name')
+  if (toolName) return `tool_call: ${toolName}`
   return thought || content || type
+}
+
+const extractReasoningTextSummaries = (record: Record<string, unknown> | null): string[] => {
+  if (!record) return []
+  return uniqueNonEmptyText([
+    readRecordStringField(record, 'reasoning'),
+    readRecordStringField(record, 'thought'),
+    readRecordStringField(record, 'analysis'),
+  ])
+}
+
+const extractReasoningTextDelta = (...records: Array<Record<string, unknown> | null>): string => {
+  return records
+    .map(record => readRecordRawStringField(record, 'reasoning_content'))
+    .filter(Boolean)
+    .join('')
+}
+
+const extractToolCallSummaries = (record: Record<string, unknown> | null): string[] => {
+  if (!record) return []
+  const calls = Array.isArray(record.tool_calls) ? record.tool_calls : []
+  return uniqueNonEmptyText(calls.map(call => {
+    if (!isObjectRecord(call)) return ''
+    const fn = isObjectRecord(call.function) ? call.function : null
+    const name =
+      readRecordStringField(fn, 'name') ||
+      readRecordStringField(call, 'name') ||
+      readRecordStringField(call, 'type')
+    return name ? `tool_call: ${name}` : ''
+  }))
+}
+
+const extractReasoningSignalSummaries = (...records: Array<Record<string, unknown> | null>): string[] => {
+  const summaries: string[] = []
+  records.forEach(record => {
+    if (!record) return
+    const reasoningSteps = Array.isArray(record.reasoning_steps)
+      ? record.reasoning_steps.map(formatReasoningStepSummary).filter(Boolean)
+      : []
+    summaries.push(...reasoningSteps)
+    summaries.push(...extractReasoningTextSummaries(record))
+    summaries.push(...extractToolCallSummaries(record))
+  })
+  return uniqueNonEmptyText(summaries)
 }
 
 export const formatChatStreamUsageSummary = (usage: ChatStreamUsage | null): string | null => {
@@ -342,6 +418,7 @@ export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDe
   if (!payload || typeof payload !== 'object') {
     return {
       contentDelta: '',
+      reasoningTextDelta: '',
       reasoningStepSummaries: [],
       finishReason: null,
       usage: null,
@@ -353,11 +430,8 @@ export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDe
   const first = isObjectRecord(choices[0]) ? choices[0] : null
   const delta = isObjectRecord(first?.delta) ? first.delta : null
   const message = isObjectRecord(first?.message) ? first.message : null
-  const reasoningSteps = Array.isArray(delta?.reasoning_steps)
-    ? delta.reasoning_steps
-      .map(formatReasoningStepSummary)
-      .filter(Boolean)
-    : []
+  const reasoningSteps = extractReasoningSignalSummaries(delta, message, record)
+  const reasoningTextDelta = extractReasoningTextDelta(delta, message, record)
   const usage = record.usage && typeof record.usage === 'object'
     ? {
         promptTokens: toNullableNumber((record.usage as Record<string, unknown>).prompt_tokens),
@@ -371,10 +445,23 @@ export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDe
     contentDelta:
       extractAssistantContentText(delta?.content)
       || extractAssistantContentText(delta?.text)
+      || extractAssistantContentText(delta?.output_text)
+      || extractAssistantContentText(delta)
       || extractAssistantContentText(message?.content)
+      || extractAssistantContentText(message?.text)
+      || extractAssistantContentText(message?.output_text)
+      || extractAssistantContentText(message)
+      || extractAssistantContentText(first?.content)
+      || extractAssistantContentText(first?.text)
       || extractAssistantContentText(record),
+    reasoningTextDelta,
     reasoningStepSummaries: reasoningSteps,
-    finishReason: typeof first?.finish_reason === 'string' ? String(first.finish_reason) : null,
+    finishReason:
+      typeof first?.finish_reason === 'string'
+        ? String(first.finish_reason)
+        : typeof record.finish_reason === 'string'
+          ? String(record.finish_reason)
+          : null,
     usage,
     modelId: typeof record.model === 'string' ? String(record.model) : null,
   }
@@ -384,12 +471,23 @@ export const extractAssistantDelta = (payload: unknown): string => {
   if (!payload || typeof payload !== 'object') return ''
   const record = payload as Record<string, unknown>
   const choices = record.choices
-  const rootText = extractAssistantContentText(record.output_text) || extractAssistantContentText(record.output)
+  const rootText = extractAssistantContentText(record.output_text) || extractAssistantContentText(record.output) || extractAssistantContentText(record)
   if (!Array.isArray(choices) || choices.length === 0) return rootText
   const first = isObjectRecord(choices[0]) ? choices[0] : null
-  const delta = isObjectRecord(first?.delta) ? extractAssistantContentText(first.delta.content) : ''
-  const direct = isObjectRecord(first?.message) ? extractAssistantContentText(first.message.content) : ''
-  return delta || direct || rootText || ''
+  const delta = isObjectRecord(first?.delta)
+    ? extractAssistantContentText(first.delta.content)
+      || extractAssistantContentText(first.delta.text)
+      || extractAssistantContentText(first.delta.output_text)
+      || extractAssistantContentText(first.delta)
+    : ''
+  const direct = isObjectRecord(first?.message)
+    ? extractAssistantContentText(first.message.content)
+      || extractAssistantContentText(first.message.text)
+      || extractAssistantContentText(first.message.output_text)
+      || extractAssistantContentText(first.message)
+    : ''
+  const choiceText = extractAssistantContentText(first?.content) || extractAssistantContentText(first?.text) || extractAssistantContentText(first)
+  return delta || direct || choiceText || rootText || ''
 }
 
 export const parseErrorBody = async (res: Response): Promise<string> => {

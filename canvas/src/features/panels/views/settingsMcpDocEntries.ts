@@ -36,6 +36,18 @@ import {
   getExaMcpApiRowAnchorId,
 } from './exaMcpApiDocs'
 import {
+  FEISHU_BASE_MCP_DOC_AREA,
+  FEISHU_BASE_MCP_DOC_ENTRIES,
+  getFeishuBaseMcpApiRowAnchorId,
+} from './feishuBaseMcpApiDocs'
+import {
+  LARK_APP_MCP_DOC_AREA,
+  LARK_APP_MCP_DOC_ENTRIES,
+  LARK_APP_MCP_REMOTE_CONFIG_KEY,
+  buildLarkAppRemoteMcpConfigJson,
+  getLarkAppMcpApiRowAnchorId,
+} from './larkAppMcpApiDocs'
+import {
   STRIPE_MCP_DOC_AREA,
   STRIPE_MCP_DOC_ENTRIES,
   STRIPE_MCP_LOCAL_CONFIG_KEY,
@@ -76,6 +88,8 @@ export function buildMcpDocEntries(
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
     ...OPENAI_MCP_DOC_ENTRIES,
     ...EXA_MCP_DOC_ENTRIES,
+    ...FEISHU_BASE_MCP_DOC_ENTRIES,
+    ...LARK_APP_MCP_DOC_ENTRIES,
     ...STRIPE_MCP_DOC_ENTRIES,
     ...PIXVERSE_MCP_DOC_ENTRIES,
     ...MIROMIND_MCP_DOC_ENTRIES,
@@ -99,6 +113,10 @@ export function buildMcpVirtualEntry(
         ? getOpenAiMcpApiRowAnchorId(entry.meta.key)
       : area === EXA_MCP_DOC_AREA
         ? getExaMcpApiRowAnchorId(entry.meta.key)
+      : area === FEISHU_BASE_MCP_DOC_AREA
+        ? getFeishuBaseMcpApiRowAnchorId(entry.meta.key)
+      : area === LARK_APP_MCP_DOC_AREA
+        ? getLarkAppMcpApiRowAnchorId(entry.meta.key)
       : area === STRIPE_MCP_DOC_AREA
         ? getStripeMcpApiRowAnchorId(entry.meta.key)
       : area === PIXVERSE_MCP_DOC_AREA
@@ -128,6 +146,8 @@ export function buildMcpVirtualEntry(
               ? buildExaCodexMcpAddCommand(values)
               : entry.meta.key === EXA_MCP_REMOTE_CONFIG_KEY
                 ? buildExaRemoteMcpConfigJson(values)
+                : entry.meta.key === LARK_APP_MCP_REMOTE_CONFIG_KEY
+                  ? buildLarkAppRemoteMcpConfigJson()
                 : entry.meta.key === PIXVERSE_MCP_LOCAL_CONFIG_KEY
                   ? buildPixVerseLocalMcpConfigJson(values)
                   : ''

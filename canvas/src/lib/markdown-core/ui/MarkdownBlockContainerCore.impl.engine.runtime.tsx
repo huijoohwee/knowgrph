@@ -787,7 +787,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
           onShowInViewer: inlineSelectionActions.onShowInViewer,
           onShowInEditor: inlineSelectionActions.onShowInEditor,
           onShowInPresentation: inlineSelectionActions.onShowInPresentation,
-          onShowInSlidesGallery: inlineSelectionActions.onShowInSlidesGallery,
+          onShowInGallery: inlineSelectionActions.onShowInGallery,
           onShowInGraphDataTable: inlineSelectionActions.onShowInGraphDataTable,
         } : null}
         onVariableMenuMouseDownCapture={handleVariableMenuMouseDownCapture}

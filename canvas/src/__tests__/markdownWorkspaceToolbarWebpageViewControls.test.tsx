@@ -30,7 +30,7 @@ export async function testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks() 
     const formatCalls: Array<'markdown' | 'json'> = []
 
     function Harness() {
-      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation' | 'slides-gallery'>('split')
+      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation'>('split')
       const [visibility, setVisibility] = React.useState<MarkdownWorkspacePaneVisibility>({
         json: false,
         markdown: true,
@@ -111,7 +111,7 @@ export async function testMarkdownWorkspaceToolbarViewerToggleKeepsEditablePane(
     if (!container) throw new Error('missing root container')
 
     function Harness() {
-      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation' | 'slides-gallery'>('editor')
+      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation'>('editor')
       const [visibility, setVisibility] = React.useState<MarkdownWorkspacePaneVisibility>({
         json: false,
         markdown: false,
@@ -183,7 +183,7 @@ export async function testMarkdownWorkspaceToolbarRemovesMultiDimTableToggleAndV
     if (!container) throw new Error('missing root container')
 
     function Harness() {
-      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation' | 'slides-gallery'>('editor')
+      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation'>('editor')
       const [visibility, setVisibility] = React.useState<MarkdownWorkspacePaneVisibility>({
         json: false,
         markdown: false,
@@ -431,7 +431,7 @@ export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidate
           revealLineInEditor={() => {}}
           showInViewer={() => {}}
           showInPresentation={() => {}}
-          showInSlidesGallery={() => {}}
+          showInGallery={() => {}}
           editorUri="file:///doc.md"
           editorLanguage="markdown"
           editorRef={editorRef}
@@ -554,7 +554,7 @@ export async function testMarkdownWorkspaceToolbarViewerAndHtmlRenderTogetherAft
           revealLineInEditor={() => {}}
           showInViewer={() => {}}
           showInPresentation={() => {}}
-          showInSlidesGallery={() => {}}
+          showInGallery={() => {}}
           editorUri="file:///doc-click-path.md"
           editorLanguage="markdown"
           editorRef={editorRef}

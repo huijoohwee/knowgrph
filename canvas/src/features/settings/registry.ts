@@ -6,12 +6,14 @@ import { presetAndEnvSettingsRegistry } from './registry-presets'
 import { paymentsSettingsRegistry } from './registry-payments'
 import { searchSettingsRegistry } from './registry-search'
 import { openAiMcpSettingsRegistry } from './registry-openai-mcp'
+import { feishuBaseMcpSettingsRegistry } from './registry-feishu-base-mcp'
 
 export const settingsRegistry: SettingMeta[] = [
   ...uiSettingsRegistry,
   ...threeSettingsRegistry,
   ...presetAndEnvSettingsRegistry,
   ...searchSettingsRegistry,
+  ...feishuBaseMcpSettingsRegistry,
   ...openAiMcpSettingsRegistry,
   ...paymentsSettingsRegistry,
 ]

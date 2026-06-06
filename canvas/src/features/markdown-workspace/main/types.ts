@@ -138,6 +138,7 @@ export type MarkdownWorkspaceMainProps = {
   editorTextOverride?: string | null
   webpageHtmlOverride?: string | null
   disableEditorMutations?: boolean
+  liveTextTailFollowKey?: string | null
   viewerTextOverride?: string | null
   disableViewerMutations?: boolean
   suppressFrontmatterWarnings?: boolean
@@ -146,7 +147,7 @@ export type MarkdownWorkspaceMainProps = {
   revealLineInEditor: (line: number, endLine?: number) => void
   showInViewer: (line: number) => void
   showInPresentation: (line: number) => void
-  showInSlidesGallery: (line: number) => void
+  showInGallery: (line: number) => void
 
   editorUri: string
   editorLanguage: string

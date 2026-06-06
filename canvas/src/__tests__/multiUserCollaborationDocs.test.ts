@@ -15,7 +15,15 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
     'canvas/src/features/collaboration/p2pCollaborationProtocol.ts',
     'canvas/src/features/collaboration/p2pCollaborationStore.ts',
     'canvas/src/features/collaboration/useP2PCollaborationRuntime.ts',
+    'canvas/src/components/toolbar/useCanvasToolbarContext.ts',
+    'canvas/scripts/verify-multi-user-collaboration-e2e.ts',
+    'canvas/package.json',
     'canvas/src/__tests__/mainPanelCollaboration.test.tsx',
+    'canvas/src/__tests__/mainPanelCollaboration.protocolStore.test.ts',
+    'canvas/src/__tests__/mainPanelCollaboration.view.test.tsx',
+    'canvas/src/__tests__/mainPanelCollaboration.runtimeRelay.test.tsx',
+    'canvas/src/__tests__/mainPanelCollaboration.runtimeLifecycle.test.tsx',
+    'canvas/src/__tests__/mainPanelCollaboration.testkit.tsx',
   ].map(readRepoFile).join('\n')
 
   const requiredDocTokens = [
@@ -27,6 +35,7 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
     '`canvas/src/features/collaboration/useP2PCollaborationRuntime.ts` | Shipped',
     'The larger authenticated collaboration model remains a planned extension.',
     'Authenticated workspace membership, D1 role checks, server-side audit trails, and Durable Object rooms are not part of the implemented baseline.',
+    '`npm --prefix canvas run validate:multi-user-collaboration:e2e`',
   ]
   for (const token of requiredDocTokens) {
     if (!docs.includes(token)) {
@@ -42,6 +51,10 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
     'P2P_COLLAB_PROTOCOL_VERSION',
     'parseP2PCollaborationWireMessage',
     'useP2PCollaborationRuntime',
+    "detailTab === 'collaboration'",
+    'validate:multi-user-collaboration:e2e',
+    'QUERY_PARAM_OPEN_EDITOR_WORKSPACE',
+    'verify-multi-user-collaboration-e2e.ts',
     'session-roster',
     'document-sync',
     'testP2PCollaborationRuntimeRelaysRosterPresenceAndDocumentAcrossGuests',

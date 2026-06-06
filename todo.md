@@ -119,7 +119,7 @@ update to demo; FORBID duplicate content
 - AVOID/FORBID chaotic clustering, excessive void spaces, mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:Â
  Â Â  Â
  ### TOUCHPOINTSÂ
- - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas PreviewÂ
+ - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas PreviewÂ
  Â Â
  ### MODES/LAYOUTSÂ
  - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)Â
@@ -171,7 +171,7 @@ ENFORCE GRAPHS/content alignment/consistency/sync,
 FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 
 ### TOUCHPOINTS
-- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview
+- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas Preview
 
 ### MODES/LAYOUTS
 - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
@@ -225,7 +225,7 @@ ENFORCE GRAPHS/content alignment/consistency/sync,
 FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 
 ### TOUCHPOINTS
-- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview
+- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas Preview
 
 ### MODES/LAYOUTS
 - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)

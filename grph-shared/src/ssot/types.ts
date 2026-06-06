@@ -5,7 +5,7 @@ export type SsotSurface =
   | 'markdown.viewer'
   | 'markdown.editor'
   | 'markdown.presentation'
-  | 'markdown.slides'
+  | 'markdown.gallery'
 
 export type SsotEntityKind = 'graph' | 'node' | 'edge' | 'markdownDocument' | 'sourceFile' | 'geoDataset' | 'geoFeature'
 
@@ -38,6 +38,6 @@ export function isSsotSurface(v: unknown): v is SsotSurface {
     v === 'markdown.viewer' ||
     v === 'markdown.editor' ||
     v === 'markdown.presentation' ||
-    v === 'markdown.slides'
+    v === 'markdown.gallery'
   )
 }

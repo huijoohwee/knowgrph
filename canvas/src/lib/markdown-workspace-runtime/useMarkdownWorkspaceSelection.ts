@@ -156,10 +156,11 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       activePath: args.activePath,
       entriesIndex,
       selectionEntryKind: selectionEntry?.kind ?? null,
+      lastSetActivePath: args.lastSetActivePath,
     })
     if (!nextActivePath) return
     setActivePathSafe(nextActivePath)
-  }, [args.activePath, selectionEntry?.kind, selectionPath, setActivePathSafe])
+  }, [args.activePath, args.lastSetActivePath, selectionEntry?.kind, selectionPath, setActivePathSafe])
 
   const previousActivePathRef = React.useRef<WorkspacePath | null>(args.activePath)
   const switchedActivePathRef = React.useRef<{ prev: WorkspacePath; next: WorkspacePath } | null>(null)

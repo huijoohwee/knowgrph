@@ -2,6 +2,7 @@ import React from 'react'
 import * as d3 from 'd3'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { patchById } from 'grph-shared/array/patchArrayItem'
@@ -20,6 +21,7 @@ import {
   readRichMediaPanelFrameMetrics,
   type MediaPanelCssMetrics,
 } from '@/lib/render/mediaPanelLayout'
+import { resolveWorkspaceVisibleViewport } from '@/lib/zoom/workspaceVisibleViewport'
 import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
@@ -381,6 +383,21 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   }, [dragging])
 
   const viewportRef = React.useRef<{ w: number; h: number }>({ w: 1, h: 1 })
+  const readVisibleOverlayViewport = React.useCallback(() => {
+    const viewport = viewportRef.current
+    const visible = resolveWorkspaceVisibleViewport({
+      viewportW: viewport.w,
+      viewportH: viewport.h,
+      workspaceEditorOverlayOpen: isWorkspaceEditorOverlayOpen(useGraphStore.getState()),
+      surfaceElement: svgRef.current,
+    })
+    return {
+      left: visible.left,
+      top: visible.top,
+      w: visible.width,
+      h: visible.height,
+    }
+  }, [svgRef])
   React.useEffect(() => {
     const svgEl = svgRef.current
     if (!svgEl || typeof ResizeObserver === 'undefined') return
@@ -394,6 +411,15 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     ro.observe(svgEl)
     return () => ro.disconnect()
   }, [svgRef])
+
+  React.useEffect(() => {
+    const selectWorkspaceOverlayKey = (state: ReturnType<typeof useGraphStore.getState>) =>
+      `${state.workspaceViewMode}:${state.workspaceCanvasPaneOpen ? 1 : 0}`
+    return useGraphStore.subscribe(
+      selectWorkspaceOverlayKey,
+      () => overlayLayoutScheduleRef.current?.(),
+    )
+  }, [])
 
   React.useEffect(() => {
     if (!enabled) return
@@ -433,12 +459,13 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
         if (!allow) return src.map(pick)
         return src.filter(b => allow.has(b.type as never)).map(pick)
       },
-      getViewport: () => viewportRef.current,
+      getViewport: readVisibleOverlayViewport,
       readTransform: () => (svgRef.current ? d3.zoomTransform(svgRef.current) : null),
       getElementForId: id => overlayElsRef.current.get(id) || null,
       getDensity,
       getSizingConfig,
-      clampToViewport: null,
+      collectiveFitToViewport: true,
+      clampToViewport: { margin: 16 },
     })
 
     overlayLayoutScheduleRef.current = loop.schedule
@@ -488,7 +515,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
         props.requestOverlayScheduleRef.current = null
       }
     }
-  }, [enabled, layout, svgRef, props.requestOverlayScheduleRef])
+  }, [enabled, layout, readVisibleOverlayViewport, svgRef, props.requestOverlayScheduleRef])
 
   if (!enabled || !layoutForRender || visibleBlocks.length === 0) return null
 

@@ -22,9 +22,10 @@ export {
   type SlideVisualMeta 
 } from './markdownSlideVisuals'
 
-const markdownSlidePreviewShellClassName = `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`
+const markdownSlidePreviewShellClassName = `w-full h-full min-w-0 min-h-0 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`
 export const MARKDOWN_PRESENTATION_TWO_COLUMN_GRID_CLASS_NAME = 'w-full h-full grid min-w-0 grid-cols-2 gap-8'
 export const MARKDOWN_PRESENTATION_PREVIEW_TWO_COLUMN_GRID_CLASS_NAME = 'w-full h-full grid min-w-0 grid-cols-2 gap-2'
+type MarkdownSlidePreviewDensity = 'presentation' | 'gallery-card'
 
 const getSlidePrimaryHeading = (slideText: string): string => {
   const lines = splitMarkdownLines(slideText)
@@ -47,7 +48,8 @@ const buildTokenRendererProps = (
   activeDocumentPath: common.activeDocumentPath,
   highlightedLineRange: common.highlightedLineRange,
   markdownWordWrap: common.markdownWordWrap,
-  markdownPresentationMode: true,
+  markdownPresentationMode: common.markdownPresentationMode ?? true,
+  markdownCardPreviewMode: common.markdownCardPreviewMode,
   uiPanelTextFontClass: common.uiPanelTextFontClass,
   uiPanelMonospaceTextClass: common.uiPanelMonospaceTextClass,
   mermaidFrontmatterConfig: common.mermaidFrontmatterConfig,
@@ -215,6 +217,8 @@ type BuildSlideBodyArgs = {
   markdownWordWrap: boolean
   markdownTextHighlight: boolean
   selectionKind: 'node' | 'edge' | null
+  markdownPresentationMode?: boolean
+  markdownCardPreviewMode?: boolean
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
   uiPanelMicroLabelTextSizeClass: string
@@ -413,6 +417,24 @@ type BuildSlidePreviewArgs = {
   previewOverlayScope: 'viewport' | 'container'
   previewOverlayPortalTarget: HTMLElement | null
   fullDocTokens?: TokenWithLines[]
+  previewDensity?: MarkdownSlidePreviewDensity
+}
+
+const isGalleryPreviewLeadInToken = (token: TokenWithLines): boolean => {
+  if (token.type === 'heading') return false
+  if (token.type === 'hr') return false
+  const text = String((token as unknown as { text?: unknown; raw?: unknown }).text ?? (token as unknown as { raw?: unknown }).raw ?? '')
+    .replace(/<!--kg:keep-->/g, '')
+    .trim()
+  return text.length > 0
+}
+
+const removeLeadingGalleryPreviewHeading = (tokens: TokenWithLines[], compactCardPreview: boolean): TokenWithLines[] => {
+  if (!compactCardPreview || tokens.length === 0) return tokens
+  const firstHeadingIndex = tokens.findIndex(token => token.type === 'heading')
+  if (firstHeadingIndex < 0) return tokens
+  if (tokens.slice(0, firstHeadingIndex).some(isGalleryPreviewLeadInToken)) return tokens
+  return tokens.filter((_, index) => index !== firstHeadingIndex)
 }
 
 export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode => {
@@ -429,8 +451,10 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     previewOverlayScope,
     previewOverlayPortalTarget,
     fullDocTokens,
+    previewDensity = 'presentation',
   } = args
   const uiPanelMicroLabelTextSizeClass = uiPanelMicroLabelTextSizeClassRaw || 'text-[10px]'
+  const compactCardPreview = previewDensity === 'gallery-card'
 
   const slide = slides[slideIdx]
   if (!slide) return null
@@ -458,7 +482,8 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     activeDocumentPath,
     highlightedLineRange: null,
     markdownWordWrap: false,
-    markdownPresentationMode: true,
+    markdownPresentationMode: !compactCardPreview,
+    markdownCardPreviewMode: compactCardPreview,
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
     uiPanelMicroLabelTextSizeClass,
@@ -477,9 +502,15 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
   if (layoutPreview === 'two-cols') {
     const twoColumnTokens = buildTwoColumnTokens({ slide, headMeta, fullDocTokens })
     if (!twoColumnTokens) return null
-    const leftTokens = twoColumnTokens.left
+    const leftTokens = removeLeadingGalleryPreviewHeading(twoColumnTokens.left, compactCardPreview)
     const rightTokens = twoColumnTokens.right
     if (!leftTokens.length && !rightTokens.length) return null
+    const twoColumnGridClassName = compactCardPreview
+      ? 'w-full h-full grid min-w-0 grid-cols-2 gap-1'
+      : MARKDOWN_PRESENTATION_PREVIEW_TWO_COLUMN_GRID_CLASS_NAME
+    const twoColumnPaneClassName = compactCardPreview
+      ? 'w-full h-full min-w-0 px-2 py-1.5 overflow-hidden'
+      : 'w-full h-full px-2 py-2 overflow-hidden'
     return (
       <section
         className={[
@@ -487,14 +518,15 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
           slideClassPreview,
         ].filter(Boolean).join(' ')}
         style={slideStylePreview}
+        data-kg-markdown-slide-preview-density={previewDensity}
       >
-        <section className={MARKDOWN_PRESENTATION_PREVIEW_TWO_COLUMN_GRID_CLASS_NAME}>
-          <section className="w-full h-full px-2 py-2 overflow-hidden">
+        <section className={twoColumnGridClassName}>
+          <section className={twoColumnPaneClassName}>
             <MarkdownTokenRenderer
               {...buildTokenRendererProps(leftTokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
             />
           </section>
-          <section className="w-full h-full px-2 py-2 overflow-hidden">
+          <section className={twoColumnPaneClassName}>
             <MarkdownTokenRenderer
               {...buildTokenRendererProps(rightTokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
             />
@@ -508,12 +540,17 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
       ? 'w-full h-full flex items-center justify-center'
       : 'w-full h-full flex'
   const slideContentClassPreview =
-    layoutPreview === 'center'
+    compactCardPreview
+      ? layoutPreview === 'center'
+        ? 'max-w-full max-h-full min-w-0 min-h-0 px-3 py-2 overflow-hidden mx-auto flex items-center justify-center'
+        : 'w-full h-full min-w-0 min-h-0 px-3 py-2 overflow-hidden'
+      : layoutPreview === 'center'
       ? 'max-w-full max-h-full px-4 py-3 overflow-hidden mx-auto flex items-center justify-center pb-8'
       : 'w-full h-full px-4 py-3 overflow-hidden pb-8'
-  const tokens = fullDocTokens
+  const sourceTokens = fullDocTokens
     ? selectTokensInLineRange(fullDocTokens, slide.startLine, slide.endLine)
     : lexMarkdownContent(text, Math.max(0, (slide.startLine || 1) - 1)).tokens
+  const tokens = removeLeadingGalleryPreviewHeading(sourceTokens, compactCardPreview)
   if (!tokens || !tokens.length) return null
   return (
     <section
@@ -522,6 +559,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
         slideClassPreview,
       ].filter(Boolean).join(' ')}
       style={slideStylePreview}
+      data-kg-markdown-slide-preview-density={previewDensity}
     >
       <section className={slideOuterClassPreview}>
         <section className={slideContentClassPreview}>

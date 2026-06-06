@@ -25,6 +25,13 @@ export function testResponsiveViewportFitGridBuildsNeutralAutoFitStyle() {
   if (compactGridStyle.gridTemplateColumns !== 'repeat(auto-fit, minmax(min(100%, 10rem), 1fr))') {
     throw new Error('expected viewport-fit grid style to accept neutral min inline size overrides')
   }
+  const fixedGridStyle = buildResponsiveViewportFitGridStyle({ minInlineSize: '320px', trackMode: 'fixed' })
+  if (fixedGridStyle.gridTemplateColumns !== 'repeat(auto-fit, minmax(min(100%, 320px), 320px))') {
+    throw new Error('expected viewport-fit grid style to support fixed-width responsive tracks')
+  }
+  if (fixedGridStyle.justifyContent !== 'start') {
+    throw new Error('expected fixed viewport-fit grid tracks to align from the start')
+  }
   for (const requiredClass of ['min-w-0', 'w-full']) {
     if (!UI_RESPONSIVE_VIEWPORT_FIT_CONTENT_CLASSNAME.includes(requiredClass)) {
       throw new Error(`expected viewport-fit content class to preserve responsive width class: ${requiredClass}`)

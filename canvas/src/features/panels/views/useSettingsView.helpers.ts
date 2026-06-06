@@ -31,6 +31,8 @@ import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
 import { OPENAI_MCP_DOC_AREA } from './openaiMcpApiDocs'
 import { EXA_MCP_DOC_AREA } from './exaMcpApiDocs'
+import { FEISHU_BASE_MCP_DOC_AREA } from './feishuBaseMcpApiDocs'
+import { LARK_APP_MCP_DOC_AREA } from './larkAppMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
@@ -81,6 +83,8 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   CRAWLER_ACCESS_MCP_DOC_AREA,
   OPENAI_MCP_DOC_AREA,
   EXA_MCP_DOC_AREA,
+  FEISHU_BASE_MCP_DOC_AREA,
+  LARK_APP_MCP_DOC_AREA,
   STRIPE_MCP_DOC_AREA,
   KNOWGRPH_VDEOXPLN_DOC_AREA,
   MAPS_GRABMAPS_MCP_DOC_AREA,
@@ -183,6 +187,8 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
   if (area === OPENAI_MCP_DOC_AREA) return true
   if (area === EXA_MCP_DOC_AREA) return true
+  if (area === FEISHU_BASE_MCP_DOC_AREA) return true
+  if (area === LARK_APP_MCP_DOC_AREA) return true
   if (area === STRIPE_MCP_DOC_AREA) return true
   if (area === PIXVERSE_MCP_DOC_AREA) return true
   if (area === MIROMIND_MCP_DOC_AREA) return true

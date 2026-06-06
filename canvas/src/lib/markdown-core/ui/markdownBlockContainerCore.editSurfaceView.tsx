@@ -74,7 +74,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
     onShowInViewer: (line: number) => void
     onShowInEditor: (line: number) => void
     onShowInPresentation: (line: number) => void
-    onShowInSlidesGallery: (line: number) => void
+    onShowInGallery: (line: number) => void
     onShowInGraphDataTable: (line: number) => void
   } | null
   onVariableMenuMouseDownCapture: () => void

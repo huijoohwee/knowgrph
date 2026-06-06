@@ -3,6 +3,12 @@ import { emitMainPanelOpen, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panel
 import { QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY, QUERY_PARAM_OPEN_MAIN_PANEL, QUERY_PARAM_SHARE, QUERY_PARAM_SHARE_TEXT, QUERY_PARAM_SHARE_TITLE, QUERY_PARAM_SHARE_URL, QUERY_PARAM_WORKSPACE_COMMAND } from '@/lib/routing/queryParams'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyGraphDataCanonicalBootstrap } from '@/features/parsers/applyGraphDataCanonicalBootstrap'
+import {
+  consumeLarkAppCanvasHandoffParams,
+  parseLarkAppCanvasHandoffFromSearch,
+} from '@/features/canvas/larkAppCanvasHandoff'
+import type { FeishuBaseSourceImportCommand } from '@/features/source-files/feishuBaseSourceImportCommand'
+import type { FeishuBaseSourceImportRequest } from '@/features/source-files/feishuBaseSourceImportContract'
 
 const buildDevFlowEditorGeometryGraph = () => ({
   type: 'Graph' as const,
@@ -64,6 +70,49 @@ type MainPanelOpenReadyWindow = Window & {
   __KG_MAIN_PANEL_OPEN_READY__?: boolean
 }
 
+type LarkCanvasHandoffWindow = MainPanelOpenReadyWindow & {
+  knowgrphFeishuBaseSourceImportCommand?: FeishuBaseSourceImportCommand
+}
+
+const openMainPanelWhenReady = (tab: string): (() => void) | void => {
+  if (typeof window === 'undefined') return
+
+  const dispatchOpenMainPanel = () => {
+    try {
+      emitMainPanelOpen({ tab })
+    } catch {
+      void 0
+    }
+  }
+
+  if ((window as MainPanelOpenReadyWindow).__KG_MAIN_PANEL_OPEN_READY__ === true) {
+    dispatchOpenMainPanel()
+    return
+  }
+
+  const handleReady = () => {
+    window.removeEventListener(MAIN_PANEL_OPEN_READY_EVENT, handleReady)
+    dispatchOpenMainPanel()
+  }
+
+  window.addEventListener(MAIN_PANEL_OPEN_READY_EVENT, handleReady, { once: true })
+  return () => {
+    window.removeEventListener(MAIN_PANEL_OPEN_READY_EVENT, handleReady)
+  }
+}
+
+const importFeishuBaseSnapshotFromLarkHandoff = async (
+  request: FeishuBaseSourceImportRequest,
+): Promise<unknown> => {
+  const activeWindow = window as LarkCanvasHandoffWindow
+  const installedCommand = activeWindow.knowgrphFeishuBaseSourceImportCommand
+  if (installedCommand?.importSnapshot) {
+    return await installedCommand.importSnapshot(request)
+  }
+  const module = await import('@/features/source-files/feishuBaseSourceImportCommand')
+  return await module.createFeishuBaseSourceImportCommand().importSnapshot(request)
+}
+
 export function CanvasQueryBootstrapRuntime(props: {
   search: string
 }) {
@@ -71,12 +120,33 @@ export function CanvasQueryBootstrapRuntime(props: {
   const openedMainPanelFromQueryRef = React.useRef(false)
   const appliedDevFlowEditorGeometryRef = React.useRef(false)
   const handledWorkspaceCommandRef = React.useRef('')
+  const handledLarkHandoffRef = React.useRef('')
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
   const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled)
   const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
   const setOpenWidgetNodeIds = useGraphStore(s => s.setOpenWidgetNodeIds)
+  const setWorkspaceViewState = useGraphStore(s => s.setWorkspaceViewState)
+  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    let cancelled = false
+    let cleanup = () => void 0
+    void import('@/features/canvas/larkAppRemoteMutationBridgeRuntime')
+      .then(module => {
+        if (cancelled) return
+        cleanup = module.installLarkAppRemoteMutationBridgeCommand()
+      })
+      .catch(() => {
+        void 0
+      })
+    return () => {
+      cancelled = true
+      cleanup()
+    }
+  }, [])
 
   React.useEffect(() => {
     const raw = String(search || '')
@@ -161,6 +231,95 @@ export function CanvasQueryBootstrapRuntime(props: {
   ])
 
   React.useEffect(() => {
+    const raw = String(search || '')
+    if (!raw || typeof window === 'undefined') return
+    const parsed = parseLarkAppCanvasHandoffFromSearch(raw)
+    if (!parsed) return
+    if (handledLarkHandoffRef.current === parsed.rawToken) return
+    handledLarkHandoffRef.current = parsed.rawToken
+    consumeLarkAppCanvasHandoffParams(raw)
+
+    if (!parsed.ok) {
+      upsertUiToast({
+        id: 'lark-app:canvas-handoff-error',
+        kind: 'error',
+        message: parsed.error,
+        ttlMs: 5000,
+        dismissible: true,
+      })
+      return
+    }
+
+    const handoff = parsed.value
+    if (handoff.openEditorWorkspace || handoff.intent === 'import') {
+      setWorkspaceViewState({ mode: 'editor', paneOpen: true })
+    }
+
+    let cleanupMainPanel = () => void 0
+    if (handoff.openMainPanelTab) {
+      cleanupMainPanel = openMainPanelWhenReady(handoff.openMainPanelTab) || (() => void 0)
+    }
+
+    if (handoff.intent !== 'import' || handoff.importAction !== 'importSnapshot' || !handoff.snapshot) {
+      return cleanupMainPanel
+    }
+
+    upsertUiToast({
+      id: 'lark-app:canvas-handoff-import',
+      kind: 'neutral',
+      message: `Processing Lark ${handoff.surface} import handoff…`,
+      ttlMs: null,
+      dismissible: false,
+      busy: true,
+    })
+
+    void importFeishuBaseSnapshotFromLarkHandoff({
+      fileId: handoff.fileId,
+      snapshot: handoff.snapshot,
+    })
+      .then(result => {
+        if (result && typeof result === 'object' && !Array.isArray(result) && 'ok' in result && result.ok === true) {
+          const record = result as { name?: unknown; warnings?: unknown[] }
+          const warningCount = Array.isArray(record.warnings) ? record.warnings.length : 0
+          upsertUiToast({
+            id: 'lark-app:canvas-handoff-import',
+            kind: 'success',
+            message: warningCount > 0
+              ? `Imported Lark handoff into ${String(record.name || 'source file')} with ${warningCount} warning(s).`
+              : `Imported Lark handoff into ${String(record.name || 'source file')}.`,
+            ttlMs: 4000,
+            dismissible: true,
+            busy: false,
+          })
+          return
+        }
+        const error = result && typeof result === 'object' && !Array.isArray(result) && 'error' in result
+          ? String((result as { error?: unknown }).error || 'Lark handoff import failed.')
+          : 'Lark handoff import failed.'
+        upsertUiToast({
+          id: 'lark-app:canvas-handoff-import',
+          kind: 'error',
+          message: error,
+          ttlMs: 5000,
+          dismissible: true,
+          busy: false,
+        })
+      })
+      .catch(error => {
+        upsertUiToast({
+          id: 'lark-app:canvas-handoff-import',
+          kind: 'error',
+          message: error instanceof Error ? error.message : String(error || 'Lark handoff import failed.'),
+          ttlMs: 5000,
+          dismissible: true,
+          busy: false,
+        })
+      })
+
+    return cleanupMainPanel
+  }, [search, setWorkspaceViewState, upsertUiToast])
+
+  React.useEffect(() => {
     if (openedMainPanelFromQueryRef.current) return
     const raw = String(search || '')
     if (!raw) return
@@ -204,7 +363,6 @@ export function CanvasQueryBootstrapRuntime(props: {
   }, [search])
 
   const handledShareRef = React.useRef(false)
-  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
 
   React.useEffect(() => {
     if (handledShareRef.current) return

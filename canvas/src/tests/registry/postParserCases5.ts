@@ -183,4 +183,9 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.workspaceTable.csvRefresh.delimitedDataViewOwners","@/__tests__/workspaceTableModeSharedUtils.test","testWorkspaceCsvRefreshReusesDelimitedTextDataViewOwners"],
   ["ui.workspaceTable.graphToggle.floatingPanelCanvasBridge","@/__tests__/workspaceTableModeSharedUtils.test","testWorkspaceDataViewGraphToggleBridgesFloatingPanelToCanvasMode"],
   ["pdf.viewer.ssot.usesMarkdownPreview","@/__tests__/pdfDocumentViewerSsot.test","testPdfDocumentViewerUsesMarkdownPreviewSsot"],
+  ["ui.canvas.gallery.shared2dRenderer","@/__tests__/galleryCanvasConsolidation.test","testGalleryCanvasIsShared2dRenderer"],
+  ["ui.canvas.gallery.reusesPreviewAndGrid","@/__tests__/galleryCanvasConsolidation.test","testGalleryCanvasReusesMarkdownPreviewAndGridOverlay"],
+  ["ui.canvas.gallery.reusesSharedCardPrimitives","@/__tests__/galleryCanvasConsolidation.test","testGalleryCardsReuseSharedDashboardPrimitives"],
+  ["ui.canvas.gallery.zoomScaledFixedAspectGrid","@/__tests__/galleryCanvasConsolidation.test","testGalleryCardsScaleFromSharedScrollSurfaceZoom"],
+  ["ui.canvas.gallery.removesLegacySurface","@/__tests__/galleryCanvasConsolidation.test","testLegacyGalleryWorkspaceSurfaceRemoved"],
 ]

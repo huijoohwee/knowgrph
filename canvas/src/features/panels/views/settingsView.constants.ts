@@ -21,6 +21,8 @@ import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { OPENAI_MCP_DOC_AREA, OPENAI_MCP_DOCS_URL } from './openaiMcpApiDocs'
 import { EXA_MCP_DOC_AREA, EXA_MCP_DOCS_URL } from './exaMcpApiDocs'
+import { FEISHU_BASE_MCP_DOC_AREA, FEISHU_BASE_MCP_DOCS_URL } from './feishuBaseMcpApiDocs'
+import { LARK_APP_MCP_DOC_AREA, LARK_APP_MCP_DOCS_URL } from './larkAppMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA, PIXVERSE_MCP_DOCS_URL } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA, MIROMIND_MCP_DOCS_URL } from './miromindMcpApiDocs'
@@ -172,6 +174,18 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [EXA_MCP_DOC_AREA]: {
     docsUrl: EXA_MCP_DOCS_URL,
     docsLabel: 'Open Exa MCP Docs',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [FEISHU_BASE_MCP_DOC_AREA]: {
+    docsUrl: FEISHU_BASE_MCP_DOCS_URL,
+    docsLabel: 'Open Feishu Base Docs',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [LARK_APP_MCP_DOC_AREA]: {
+    docsUrl: LARK_APP_MCP_DOCS_URL,
+    docsLabel: 'Open Lark Platform Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },

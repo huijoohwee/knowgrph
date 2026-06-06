@@ -103,7 +103,7 @@ Local field names differ from remote to preserve the existing browser-local cont
 `canvas/src/features/source-files/` wires storage into active workspace:
 
 - source-file edits enqueue storage mutations
-- generated workspace artifacts such as `/chat-log/{session}/kgc_{session}.md` promote through the shared Source Files storage publication helper; generated binary artifacts store bytes in R2 and promote a sibling Markdown manifest through the same D1 document path; `workspace:` entries stay skipped by background sync unless explicitly promoted
+- generated workspace artifacts such as `/chat-log/{session}/kgc_{session}.md` promote through the server-owned GitHub write route first, then through the shared Source Files storage publication helper as a secondary read/share cache; generated binary artifacts store bytes in R2 and promote a sibling Markdown manifest through the same secondary D1 document path; `workspace:` entries stay skipped by background sync unless explicitly promoted
 - sync loop starts per active workspace
 - Toolbar → Workspace View → `Storage Sync` gates the configured docs mirror refresh loop and PocketBase/Yjs collaboration rooms
 - pulled remote records applied back into visible `sourceFiles`
@@ -258,11 +258,17 @@ flowchart TB
 
 **Alternatives considered**: (1) Git merge on saved files — rejected for minified JSON and high-frequency same-file edits. (2) D1 optimistic concurrency only — acceptable for coarse document updates, not character/field-level concurrent authoring. (3) Last-write-wins PocketBase records — loses edits and violates the Source Files contract.
 
-### ADR-011: Promote Generated Chat Markdown Through Source Files Storage
+### ADR-011: Promote Generated Chat Markdown Through GitHub First, Storage Second
 
-**Status**: Accepted. FloatingPanel Chat writes new KGC sessions under `/chat-log/{session}/`, materializes those files into Source Files as `workspace:/chat-log/...`, and then promotes generated Markdown/text artifacts through `publishGeneratedWorkspacePathsToKnowgrphStorage()`. The D1 canonical path removes the workspace prefix and leading slash, for example `chat-log/20260605T134222Z/kgc_20260605T134222Z.md`.
+**Status**: Accepted. FloatingPanel Chat writes new KGC sessions under `/chat-log/{session}/`, materializes those files into Source Files as `workspace:/chat-log/...`, and then promotes generated Markdown/text artifacts through `publishGeneratedWorkspacePathsToGitHub()` before any Cloudflare storage mirror. The GitHub repository path removes the workspace prefix and leading slash, for example `chat-log/20260605T134222Z/kgc_20260605T134222Z.md`.
 
-**Decision**: Background Source Files sync still skips generic workspace-backed files to avoid switch-time churn. Generated chat artifacts opt into storage via the shared promotion helper after the workspace files are created. When `VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED` is off, the helper stores a local D1/outbox row only; when it is on, the queued mutation flushes through `/api/storage/push`.
+**Decision**: Background Source Files sync still skips generic workspace-backed files to avoid switch-time churn. Generated chat artifacts opt into a server-side GitHub write after the workspace files are created. The Pages route `/knowgrph/api/workspace/github/write` accepts only text files under `chat-log/`, also accepts the custom-domain root alias `/api/workspace/github/write`, uses Cloudflare env bindings `KNOWGRPH_GITHUB_WRITE_REPOSITORY`, `KNOWGRPH_GITHUB_WRITE_BRANCH`, and `KNOWGRPH_GITHUB_WRITE_TOKEN`, sends a stable GitHub REST `User-Agent`, and never exposes GitHub credentials to the browser. If `VITE_KNOWGRPH_GITHUB_WRITE_ENABLED` is off, existing Cloudflare storage promotion may still run; if GitHub promotion is enabled and fails, the downstream D1/R2 mirror is skipped so Cloudflare does not become the canonical write owner.
+
+**Operator setup**: Use `npm run pages:github-write:configure -- --json` for dry-run readiness; the route validates configuration without committing to GitHub. To apply the production token, export `KNOWGRPH_GITHUB_WRITE_TOKEN` from a fine-grained GitHub token limited to the target repository with Contents read/write, then run `npm run pages:github-write:configure -- --apply --yes --confirm=configure-pages-github-write`. The helper rejects broad `gho_` OAuth tokens by default and redacts secret values from command output. Add `--write-smoke` only when a real GitHub test commit is intended; the production smoke created `chat-log/codex-prod-write-smoke-20260606T004928Z/kgc_codex-prod-write-smoke-20260606T004928Z.md` through the live custom-domain route.
+
+**Storage mirror**: When GitHub promotion applies or is disabled, generated Markdown/text artifacts may continue through `publishGeneratedWorkspacePathsToKnowgrphStorage()`. When `VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED` is off, the helper stores a local D1/outbox row only; when it is on, the queued mutation flushes through `/api/storage/push`.
+
+**Validation**: `npm run e2e:github-canonical-storage:dev` covers the local ordering contract with a fake GitHub route and fake storage Worker. `npm run e2e:github-canonical-storage:prod -- --json` creates one live `chat-log/.../kgc_*.md` file through Pages, verifies GitHub Contents before Cloudflare mutation, then verifies D1 document read, pull sync, and Share URL readback. The 2026-06-06 production proof wrote GitHub commit `e750ca7e1afa8bddc6b64fb28ed5d16060f8d99a`.
 
 **Binary policy**: D1 remains a Markdown/text document store. Binary chat outputs store bytes through the storage Worker R2 binding `KNOWGRPH_STORAGE_BLOB_BUCKET`, then write and publish a sibling `.manifest.md` with the R2 object key, storage URL, MIME type, size, hash, and source workspace path.
 

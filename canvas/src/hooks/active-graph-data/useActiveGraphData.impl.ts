@@ -25,6 +25,7 @@ import {
 import { mergeKeywordGraphWithSourceNodes } from './keywordGraphMerge'
 import { extractMarkdownAnnotationsFromText, type MarkdownAnnotation } from '@/lib/markdown/markdownSigil'
 import {
+  parseWorkspaceFrontmatterFlowGraphDataCached,
   parseWorkspaceFrontmatterMermaidGraphDataCached,
   parseWorkspaceKgcSemanticGraphDataCached,
   parseWorkspaceJsonGraphDataCached,
@@ -186,6 +187,13 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       markdownText: debouncedStructuredMarkdownText,
     })
   }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
+  const workspaceFrontmatterFlowGraphData = React.useMemo(() => {
+    if (!enabled || wantsApiGraphFlowchart) return null
+    return parseWorkspaceFrontmatterFlowGraphDataCached({
+      markdownName,
+      markdownText: debouncedStructuredMarkdownText,
+    })
+  }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
   const workspaceKgcSemanticGraphData = React.useMemo(() => {
     if (!enabled || wantsApiGraphFlowchart) return null
     return parseWorkspaceKgcSemanticGraphDataCached({
@@ -193,7 +201,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       markdownText: debouncedStructuredMarkdownText,
     })
   }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
-  const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData || !!workspaceKgcSemanticGraphData || !!workspaceFrontmatterMermaidGraphData
+  const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData || !!workspaceFrontmatterFlowGraphData || !!workspaceKgcSemanticGraphData || !!workspaceFrontmatterMermaidGraphData
   const activeMarkdownBaseGraph = React.useMemo(
     () =>
       resolveActiveMarkdownBaseGraph({
@@ -203,7 +211,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       }),
     [baseGraphDataRaw, markdownName, markdownText],
   )
-  const baseGraphData = workspaceJsonGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
+  const baseGraphData = workspaceJsonGraphData || workspaceFrontmatterFlowGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
   const { graphData: apiGraphFlowchart } = useApiGraphFlowchartGraphData(wantsApiGraphFlowchart)
 
   const lastRef = React.useRef<GraphData | null>(null)

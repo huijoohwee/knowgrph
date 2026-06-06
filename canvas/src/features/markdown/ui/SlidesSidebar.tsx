@@ -131,7 +131,7 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
         title={title}
         headerRight={headerRight}
       >
-        <nav className="flex-1 min-h-0 overflow-auto" aria-label="Slides Gallery">
+        <nav className="flex-1 min-h-0 overflow-auto" aria-label="Gallery">
           <PreviewGallery
             items={items}
             activeId={String(activeSlideId)}

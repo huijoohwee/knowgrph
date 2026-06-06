@@ -9,6 +9,7 @@ import {
 } from '@/lib/chatEndpoint'
 import {
   ensureChatHistoryWorkspaceFilePath,
+  toKgcStreamingWorkspacePath,
   upsertChatHistoryWorkspaceDraft,
 } from '../chatHistoryWorkspace'
 import { putChatHistoryCache, toShortId } from '../FloatingPanelChat.helpers'
@@ -120,12 +121,13 @@ export const bootstrapKnowgrphSubmitDraft = async (args: {
     defaultLocalRootPath: args.submitArgs.chatLocalStorageRootPath,
     onResolvedPath: path => args.submitArgs.setChatKnowgrphWorkspacePath(path),
   })
-  args.submitArgs.setStreamingWorkspacePath(liveKgcPath)
+  const liveStreamingPath = toKgcStreamingWorkspacePath(liveKgcPath)
+  args.submitArgs.setStreamingWorkspacePath(liveStreamingPath)
   args.submitArgs.setChatWorkspaceStreamingState?.({
-    path: liveKgcPath,
+    path: liveStreamingPath,
     text: '_Streaming..._',
   })
-  args.submitArgs.followWorkspaceMarkdownPath(liveKgcPath)
+  args.submitArgs.followWorkspaceMarkdownPath(liveStreamingPath)
   await persistDraft({
     requestedPath: liveKgcPath,
     onResolvedPath: path => args.submitArgs.setChatKnowgrphWorkspacePath(path),

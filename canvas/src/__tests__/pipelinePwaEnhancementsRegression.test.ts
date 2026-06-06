@@ -41,6 +41,9 @@ export function testPwaShellPrecachesHashedAssetsAndCachesLocalJson() {
   if (!text.includes("request.destination === 'worker'")) {
     throw new Error('Expected PWA runtime cache to include worker assets for lazy parser/editor surfaces')
   }
+  if (!text.includes("importScripts: ['knowgrph-chat-stream-sw.js']")) {
+    throw new Error('Expected generated PWA service worker to import the durable chat stream worker without replacing the app shell worker scope')
+  }
   if (!text.includes("url.pathname.endsWith('.json')")) {
     throw new Error('Expected PWA runtime cache to include same-origin JSON data payloads')
   }

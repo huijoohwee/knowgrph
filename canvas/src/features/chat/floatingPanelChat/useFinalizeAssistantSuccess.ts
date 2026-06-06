@@ -18,17 +18,83 @@ import { persistKnowgrphVdeoxplnRunManifestForChat } from '@/features/chat/knowg
 
 const normalizeStoragePromotionPath = (value: unknown): string => normalizeWorkspacePath(String(value || '').trim())
 
-const promoteGeneratedChatWorkspacePathsToStorage = async (paths: ReadonlyArray<string | null | undefined>): Promise<void> => {
+type GeneratedChatPromotionFetch = typeof fetch
+
+export type PromoteGeneratedChatWorkspacePathsResult = {
+  paths: string[]
+  githubStatus: 'applied' | 'skipped' | 'failed'
+  githubError?: string
+  storageStatus: 'applied' | 'skipped' | 'failed'
+  storageError?: string
+}
+
+export const promoteGeneratedChatWorkspacePaths = async (
+  paths: ReadonlyArray<string | null | undefined>,
+  options: {
+    githubEnabled?: boolean
+    githubBaseUrl?: string | null
+    githubFetchImpl?: GeneratedChatPromotionFetch
+    storageWorkspaceId?: string | null
+    storageSyncNow?: boolean
+    storageBaseUrl?: string | null
+    storageDeviceId?: string | null
+    storageFetchImpl?: GeneratedChatPromotionFetch
+  } = {},
+): Promise<PromoteGeneratedChatWorkspacePathsResult> => {
   const uniquePaths = [...new Set(paths.map(normalizeStoragePromotionPath).filter(path => path && path !== '/'))]
-  if (uniquePaths.length === 0) return
+  const result: PromoteGeneratedChatWorkspacePathsResult = {
+    paths: uniquePaths,
+    githubStatus: 'skipped',
+    storageStatus: 'skipped',
+  }
+  if (uniquePaths.length === 0) return result
+  let githubWriteApplied = false
+  try {
+    const { publishGeneratedWorkspacePathsToGitHub } = await import('@/features/source-files/sourceFilesGitHubWrite')
+    const githubResult = await publishGeneratedWorkspacePathsToGitHub({
+      paths: uniquePaths,
+      enabled: options.githubEnabled,
+      baseUrl: options.githubBaseUrl,
+      fetchImpl: options.githubFetchImpl,
+    })
+    githubWriteApplied = githubResult.status === 'applied'
+    result.githubStatus = githubResult.status === 'applied' ? 'applied' : 'skipped'
+    if (githubResult.status === 'failed') {
+      const error = githubResult.error || 'github_write_failed'
+      console.warn('[knowgrph-github] generated chat artifact promotion failed before storage fallback', error)
+      return {
+        ...result,
+        githubStatus: 'failed',
+        githubError: error,
+        storageStatus: 'skipped',
+      }
+    }
+  } catch (error) {
+    console.warn('[knowgrph-github] generated chat artifact promotion skipped before storage fallback', error)
+    result.githubStatus = 'skipped'
+  }
   try {
     const { publishGeneratedWorkspacePathsToKnowgrphStorage } = await import('@/features/source-files/sourceFileShareUrl')
-    await publishGeneratedWorkspacePathsToKnowgrphStorage({
+    const storageResult = await publishGeneratedWorkspacePathsToKnowgrphStorage({
       paths: uniquePaths,
+      workspaceId: options.storageWorkspaceId,
+      syncNow: options.storageSyncNow,
+      baseUrl: options.storageBaseUrl,
+      deviceId: options.storageDeviceId,
+      fetchImpl: options.storageFetchImpl,
     })
+    result.storageStatus = storageResult.storedCount > 0 ? 'applied' : 'skipped'
   } catch (error) {
-    console.warn('[knowgrph-storage] generated chat artifact promotion skipped', error)
+    console.warn(
+      githubWriteApplied
+        ? '[knowgrph-storage] generated chat artifact secondary storage promotion skipped after GitHub write'
+        : '[knowgrph-storage] generated chat artifact promotion skipped',
+      error,
+    )
+    result.storageStatus = 'failed'
+    result.storageError = error instanceof Error ? error.message : String(error || 'storage_publish_failed')
   }
+  return result
 }
 
 export const useFinalizeAssistantSuccess = (args: {
@@ -207,7 +273,7 @@ export const useFinalizeAssistantSuccess = (args: {
             errorMessage: canvasApplyError,
           })
           storagePromotionPaths.push(manifestPath || knowgrphPath)
-          await promoteGeneratedChatWorkspacePathsToStorage(storagePromotionPaths)
+          await promoteGeneratedChatWorkspacePaths(storagePromotionPaths)
         } catch {
           void 0
         }
@@ -228,7 +294,7 @@ export const useFinalizeAssistantSuccess = (args: {
         errorMessage: canvasApplyError,
       })
       storagePromotionPaths.push(manifestPath || knowgrphPath)
-      await promoteGeneratedChatWorkspacePathsToStorage(storagePromotionPaths)
+      await promoteGeneratedChatWorkspacePaths(storagePromotionPaths)
     }
     const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''
     const conciseSource =
@@ -237,7 +303,9 @@ export const useFinalizeAssistantSuccess = (args: {
         : rawAssistantText
     const concise = toConciseBulletText(conciseSource, knowgrphPath ? 49 : 50)
     const lines = [`- ${concise}`]
-    if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) lines.push(`- [${knowgrphLabel}](${knowgrphPath})`)
+    if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) {
+      lines.push(`- [Open in Source Files: ${knowgrphLabel}](${knowgrphPath})`)
+    }
     const finalAssistantText = typeof payload.finalAssistantOverride === 'string' && payload.finalAssistantOverride.trim()
       ? payload.finalAssistantOverride
       : lines.join('\n')
