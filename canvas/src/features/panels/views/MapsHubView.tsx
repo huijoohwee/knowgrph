@@ -1,5 +1,6 @@
 import React from 'react'
 import SettingsView from '@/features/panels/views/SettingsView'
+import SiteSelectionWidget from '@/features/maps/SiteSelectionWidget'
 
 export default function MapsHubView({
   searchQuery = '',
@@ -20,13 +21,16 @@ export default function MapsHubView({
   }) => void
 }) {
   return (
-    <SettingsView
-      searchQuery={searchQuery}
-      requestedAnchorId={requestedAnchorId}
-      requestedAnchorSeq={requestedAnchorSeq}
-      mode="maps"
-      onRegisterActions={onRegisterActions}
-    />
+    <div className="flex flex-col min-h-full">
+      <SiteSelectionWidget />
+      <SettingsView
+        searchQuery={searchQuery}
+        requestedAnchorId={requestedAnchorId}
+        requestedAnchorSeq={requestedAnchorSeq}
+        mode="maps"
+        onRegisterActions={onRegisterActions}
+      />
+    </div>
   )
 }
 
