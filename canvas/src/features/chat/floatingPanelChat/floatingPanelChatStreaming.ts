@@ -149,7 +149,6 @@ export const createChatKnowgrphDraftWriter = (args: {
   persistDraft?: typeof upsertChatHistoryWorkspaceDraft
   persistWorkspaceDrafts?: boolean
 }) => {
-  let draftPersistChain: Promise<unknown> = Promise.resolve()
   return async (text: string, _force: boolean): Promise<void> => {
     if (args.chatStorageTarget !== 'chatKnowgrph') return
     if (!args.liveKgcPath) return
@@ -184,15 +183,7 @@ export const createChatKnowgrphDraftWriter = (args: {
         title: 'Knowledge Graph Canvas Storage',
         traceId: args.traceId,
     }
-    const run = draftPersistChain.catch(() => undefined).then(async () => {
-      try {
-        await persistDraft(payload)
-      } catch {
-        void 0
-      }
-    })
-    draftPersistChain = run
-    await run
+    void persistDraft(payload).catch(() => undefined)
   }
 }
 

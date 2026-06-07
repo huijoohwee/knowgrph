@@ -5,6 +5,7 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { ensureMonacoStyles } from '@/lib/ui/lazyStyles'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
+import { applyExternalMonacoValue } from './monacoExternalValueApply'
 
 const FLASH_STYLE_ID = 'monaco-flash-style'
 const FLASH_CSS = `
@@ -1124,16 +1125,14 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     const editor = editorInstanceRef.current
     const model = editor?.getModel()
     if (!editor || !model) return
-    const current = model.getValue()
-    if (value === current) return
-    if (value === lastAppliedValueRef.current) return
-    const viewState = editor.saveViewState()
-    model.setValue(value)
-    lastAppliedValueRef.current = value
-    if (viewState) {
-      editor.restoreViewState(viewState)
-    }
-    recomputeHiddenLongHtmlLines()
+    applyExternalMonacoValue({
+      editor,
+      model,
+      rangeCtor: monacoRef.current!.Range,
+      value,
+      lastAppliedValueRef,
+      recomputeHiddenLongHtmlLines,
+    })
   }, [canUseMonaco, value, recomputeHiddenLongHtmlLines])
 
   React.useEffect(() => {

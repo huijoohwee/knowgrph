@@ -123,6 +123,7 @@ export function installWheelForwardingAndBrowserZoomGuards(
   el: Element,
   opts?: {
     forwardWheelTo?: () => Element | null
+    forwardWheelBeforeScrollableTarget?: boolean
     shouldForwardWheel?: (e: WheelEvent) => boolean
     stopPropagationOnForward?: boolean
     stopPropagationOnPreventZoom?: boolean
@@ -134,16 +135,9 @@ export function installWheelForwardingAndBrowserZoomGuards(
   const stopPropOnPreventZoom = opts?.stopPropagationOnPreventZoom === true
   const getForwardTo = typeof opts?.forwardWheelTo === 'function' ? opts.forwardWheelTo : null
   const shouldForwardWheel = typeof opts?.shouldForwardWheel === 'function' ? opts.shouldForwardWheel : null
+  const forwardBeforeScrollableTarget = opts?.forwardWheelBeforeScrollableTarget === true
 
-  const handleWheel = (e: WheelEvent) => {
-    try {
-      if ((e as unknown as Record<string, unknown>)[forwardedFlagKey] === true) return
-    } catch {
-      void 0
-    }
-
-    if (shouldKeepWheelOnScrollableTarget(e, el)) return
-
+  const tryForwardWheel = (e: WheelEvent): boolean => {
     const forwardTo = getForwardTo ? getForwardTo() : null
     const forwardAllowed = (() => {
       if (!forwardTo) return false
@@ -154,41 +148,54 @@ export function installWheelForwardingAndBrowserZoomGuards(
         return false
       }
     })()
-    if (forwardTo && forwardAllowed) {
-      try {
-        e.preventDefault()
-      } catch {
-        void 0
-      }
-      if (stopPropOnForward) {
-        try {
-          e.stopPropagation()
-        } catch {
-          void 0
-        }
-      }
-      try {
-        const ev = new WheelEvent('wheel', {
-          bubbles: true,
-          cancelable: true,
-          clientX: e.clientX,
-          clientY: e.clientY,
-          deltaX: e.deltaX,
-          deltaY: e.deltaY,
-          deltaZ: e.deltaZ,
-          deltaMode: e.deltaMode,
-          ctrlKey: e.ctrlKey,
-          metaKey: e.metaKey,
-          shiftKey: e.shiftKey,
-          altKey: e.altKey,
-        })
-        ;(ev as unknown as Record<string, unknown>)[forwardedFlagKey] = true
-        forwardTo.dispatchEvent(ev)
-      } catch {
-        void 0
-      }
-      return
+    if (!forwardTo || !forwardAllowed) return false
+    try {
+      e.preventDefault()
+    } catch {
+      void 0
     }
+    if (stopPropOnForward) {
+      try {
+        e.stopPropagation()
+      } catch {
+        void 0
+      }
+    }
+    try {
+      const ev = new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        deltaZ: e.deltaZ,
+        deltaMode: e.deltaMode,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+      })
+      ;(ev as unknown as Record<string, unknown>)[forwardedFlagKey] = true
+      forwardTo.dispatchEvent(ev)
+    } catch {
+      void 0
+    }
+    return true
+  }
+
+  const handleWheel = (e: WheelEvent) => {
+    try {
+      if ((e as unknown as Record<string, unknown>)[forwardedFlagKey] === true) return
+    } catch {
+      void 0
+    }
+
+    if (forwardBeforeScrollableTarget && tryForwardWheel(e)) return
+
+    if (shouldKeepWheelOnScrollableTarget(e, el)) return
+
+    if (tryForwardWheel(e)) return
 
     if (e.ctrlKey !== true && e.metaKey !== true) return
     try {

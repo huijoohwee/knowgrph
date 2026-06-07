@@ -197,6 +197,7 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
 
     const modRichMediaEditorDrag = await import('../../__tests__/richMediaPanelEditorModeDragRegression.test')
     await execTest(results, 'ui.richMediaPanel.editorMode.disablesContentPointerEvents', modRichMediaEditorDrag.testRichMediaPanelEditorModeDisablesInteractiveContentForDragging)
+    await execTest(results, 'ui.richMediaPanel.d3Overlay.wheelForwardsBeforeScrollableBody', modRichMediaEditorDrag.testD3RichMediaOverlayForwardsWheelBeforeScrollableBody)
 
     const modRichMediaOpenWidgetExclusion = await import('../../__tests__/flowEditorRichMediaPanelOpenWidgetExclusionRegression.test')
     await execTest(

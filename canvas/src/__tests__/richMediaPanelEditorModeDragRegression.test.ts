@@ -35,7 +35,8 @@ export async function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteract
   if (!wheelGuardsText.includes('shouldForwardWheel?: (e: WheelEvent) => boolean')) {
     throw new Error('expected shared wheel guards to accept a wheel-forwarding predicate')
   }
-  if (!wheelGuardsText.includes('if (forwardTo && forwardAllowed)')) {
+  if (!wheelGuardsText.includes('const tryForwardWheel = (e: WheelEvent): boolean => {')
+    || !wheelGuardsText.includes('if (!forwardTo || !forwardAllowed) return false')) {
     throw new Error('expected shared wheel guards to gate forwarding through the shared predicate result')
   }
   if (!wheelGuardsText.includes('export function shouldKeepWheelOnScrollableTarget(') || !wheelGuardsText.includes('opts?: WheelScrollableTargetOptions')) {
@@ -122,6 +123,31 @@ export async function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteract
       throw new Error(`expected only explicit modifier wheel to forward from the scrollable surface, forwarded=${forwardedAfterZoom}`)
     }
 
+    cleanup?.()
+    cleanup = installWheelForwardingAndBrowserZoomGuards(root, {
+      forwardWheelTo: () => forwardedTarget,
+      forwardWheelBeforeScrollableTarget: true,
+      stopPropagationOnForward: true,
+      stopPropagationOnPreventZoom: false,
+      forwardedFlagKey: '__kgForwarded',
+    })
+
+    const forwardedBeforeD3PanelWheel = readForwardedCount()
+    const d3PanelWheel = new dom.window.WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 48,
+    }) as unknown as WheelEvent
+    child.dispatchEvent(d3PanelWheel)
+
+    const forwardedAfterD3PanelWheel = readForwardedCount()
+    if (!d3PanelWheel.defaultPrevented) {
+      throw new Error('expected D3 rich-media panel wheel to be captured for canvas forwarding before local scroll')
+    }
+    if (forwardedAfterD3PanelWheel !== forwardedBeforeD3PanelWheel + 1) {
+      throw new Error(`expected D3 rich-media panel wheel to forward before scrollable-target guard, before=${forwardedBeforeD3PanelWheel} after=${forwardedAfterD3PanelWheel}`)
+    }
+
   } finally {
     try {
       cleanup?.()
@@ -131,6 +157,67 @@ export async function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteract
     g.getComputedStyle = originalGetComputedStyle
     g.WheelEvent = originalWheelEvent
     restoreDom()
+  }
+}
+
+export function testD3RichMediaOverlayForwardsWheelBeforeScrollableBody() {
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
+  const overlayText = readFileSync(overlayPath, 'utf8')
+  if (!overlayText.includes('forwardWheelBeforeScrollableTarget={!allowEmbeddedMediaInteraction}')
+    || !overlayText.includes('forwardPointerTo={() => svgRef.current}')
+    || !overlayText.includes('shouldForwardPointerDown={() => !allowEmbeddedMediaInteraction}')) {
+    throw new Error('expected D3 rich-media overlays to route non-interactive table/code body gestures through shared canvas pan/zoom owners')
+  }
+  if (overlayText.includes('onWheelCapture={stopEvent}')) {
+    throw new Error('expected D3 rich-media overlays to let shared native wheel forwarding receive panel-origin wheel events')
+  }
+
+  const designOverlayPath = resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx')
+  const designOverlayText = readFileSync(designOverlayPath, 'utf8')
+  if (!designOverlayText.includes('forwardWheelBeforeScrollableTarget={true}')
+    || !designOverlayText.includes('shouldForwardPointerDown={() => true}')) {
+    throw new Error('expected Markdown design rich-media panels to opt into canvas-first wheel and body-pan forwarding')
+  }
+  if (designOverlayText.includes("from 'grph-shared/dom/wheelGuards'")
+    || designOverlayText.includes('installWheelForwardingAndBrowserZoomGuards')) {
+    throw new Error('expected Markdown design overlay wrapper to avoid duplicate wheel forwarding; RichMediaPanel owns forwarding')
+  }
+  if (!designOverlayText.includes('collectiveFitToViewport: false,')
+    || !designOverlayText.includes('clampToViewport: null,')) {
+    throw new Error('expected Markdown design overlay to stay node-aligned by avoiding viewport fit/clamp')
+  }
+  if (designOverlayText.includes('isViewportClampEnabled')
+    || designOverlayText.includes('viewportClampSuspended')
+    || designOverlayText.includes('suspendViewportClamp')) {
+    throw new Error('expected Markdown design overlay to avoid stale clamp-suspension paths')
+  }
+  if (designOverlayText.includes('onWheelCapture={props.stopEvent}')) {
+    throw new Error('expected Markdown design overlay wrappers to let shared native wheel forwarding receive panel-origin wheel events')
+  }
+
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const panelText = readFileSync(panelPath, 'utf8')
+  if (!panelText.includes("from 'grph-shared/dom/overlayPointerGuards'")
+    || !panelText.includes('readOverlayPointerTargetState')
+    || !panelText.includes('isOverlayPanStartButtonEvent(native)')
+    || !panelText.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')) {
+    throw new Error('expected RichMediaPanel to reuse shared overlay pointer target/button guards')
+  }
+
+  const pointerGuardPath = resolve(process.cwd(), '..', 'grph-shared', 'src', 'dom', 'overlayPointerGuards.ts')
+  const pointerGuardText = readFileSync(pointerGuardPath, 'utf8')
+  if (!pointerGuardText.includes('export function readOverlayPointerTargetState')
+    || !pointerGuardText.includes('export function shouldBlockOverlayPanTarget')
+    || !pointerGuardText.includes('export function isOverlayPanStartButtonEvent')) {
+    throw new Error('expected shared overlay pointer guard to own target classification, pan blocking, and button interpretation')
+  }
+
+  const overlayInteractionsPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useOverlayInteractions2d.ts')
+  const overlayInteractionsText = readFileSync(overlayInteractionsPath, 'utf8')
+  const panTransformIndex = overlayInteractionsText.indexOf('zoom.transform as unknown as')
+  const requestScheduleIndex = overlayInteractionsText.indexOf('requestOverlaySchedule?.()', panTransformIndex)
+  if (panTransformIndex < 0 || requestScheduleIndex < 0) {
+    throw new Error('expected 2D overlay pan moves to request the shared overlay layout schedule after viewport transforms')
   }
 }
 

@@ -23,17 +23,13 @@ export type FlowConnectedValueSource = {
   nodeId: string
   portKey: string
 }
-
 export type FlowConnectedValue = {
   value: unknown
   sources: ReadonlyArray<FlowConnectedValueSource>
 }
-
 export type FlowConnectedValuesBySchemaPath = Record<string, FlowConnectedValue>
-
 const CONNECTED_VALUES_RESULT_CACHE_LIMIT = 64
 const connectedValuesResultCache = new Map<string, Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
-
 function cleanString(v: unknown): string { return typeof v === 'string' ? v.trim() : '' }
 
 function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): string {
@@ -61,12 +57,12 @@ function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): st
   }
   return parts.join('\n')
 }
-
 const readPlainObject = (value: unknown): Record<string, unknown> | null => {
   return isPlainObject(value) ? (value as Record<string, unknown>) : null
 }
-
 function isStoppedFlowValue(value: unknown): boolean { return value == null }
+
+function isMaterializedFlowOutputValue(value: unknown): boolean { return !isStoppedFlowValue(value) && (typeof value !== 'string' || value.trim().length > 0) }
 
 function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): string {
   if (!targetNodeIds || targetNodeIds.size === 0) return '*'
@@ -341,7 +337,8 @@ function computeOutputPortValue(args: {
   const computed = args.computedByNodeId.get(args.nodeId)?.[path]
   if (computed) return computed.value
   const direct = getObjectPath(args.node, path)
-  if (typeof direct !== 'undefined') return direct
+  const emptyOutputSrcDoc = path === 'properties.outputSrcDoc' && typeof direct === 'string' && !direct.trim()
+  if (typeof direct !== 'undefined' && !emptyOutputSrcDoc) return direct
   if (!args.outputPortPaths.has(args.portKey)) {
     const directData = getObjectPath(args.node, computedDataPath)
     if (typeof directData !== 'undefined') return directData
@@ -410,6 +407,7 @@ function buildConnectedValuesForNode(args: {
   const allSources = Array.from(args.inbound.values())
     .flat()
     .map(it => ({ edgeId: it.edgeId, nodeId: it.sourceId, portKey: it.sourcePortKey }))
+  const hasMaterializedOutputPort = Array.from(args.outputPortPaths.values()).some(path => isMaterializedFlowOutputValue(getObjectPath(args.node, path)))
 
   const applyComputedOutputs = (computed: Record<string, unknown>, allowUnregisteredOutputs: boolean): void => {
     for (const [portKeyRaw, value] of Object.entries(computed)) {
@@ -419,11 +417,13 @@ function buildConnectedValuesForNode(args: {
       const toPath = args.outputPortPaths.get(portKey) || normalizeSchemaPath(`properties.data.${portKey}`, portKey)
       if (!toPath) continue
       if (typeof value === 'undefined') continue
+      const materialized = getObjectPath(args.node, toPath)
+      if (isMaterializedFlowOutputValue(materialized)) continue
       byPath[toPath] = { value, sources: allSources }
     }
   }
 
-  if (args.computeEnabled) {
+  if (args.computeEnabled && !hasMaterializedOutputPort) {
     let effectiveProperties = { ...readNodeProperties(args.node) }
     for (const [schemaPath, connected] of Object.entries(byPath)) {
       const normalizedPath = normalizeSchemaPath(schemaPath, schemaPath)
@@ -445,7 +445,7 @@ function buildConnectedValuesForNode(args: {
     if (registeredComputed) applyComputedOutputs(registeredComputed, false)
   }
 
-  const computeSource = args.computeEnabled ? readFlowComputeSource(args.node) : ''
+  const computeSource = args.computeEnabled && !hasMaterializedOutputPort ? readFlowComputeSource(args.node) : ''
   if (computeSource) {
     const computed = runFlowComputeSource(computeSource, inByPortKey, {
       node: {

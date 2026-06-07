@@ -72,7 +72,7 @@ export type FloatingPanelChatSubmitArgs = {
   streamDraftTextRef: React.MutableRefObject<{ path: string; text: string } | null>
   streamFollowRef: React.MutableRefObject<{ path: string; atMs: number } | null>
 
-  followWorkspaceMarkdownPath: (path: string) => void
+  followWorkspaceMarkdownPath: (path: string, options?: { forceReveal?: boolean }) => void
 
   finalizeAssistantSuccess: (payload: {
     assistantMessageId: string

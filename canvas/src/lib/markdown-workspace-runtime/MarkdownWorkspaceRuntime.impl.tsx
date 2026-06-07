@@ -2,7 +2,6 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
-import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
@@ -30,16 +29,14 @@ import { useMarkdownWorkspaceBootstrapState } from './useMarkdownWorkspaceBootst
 import { buildMarkdownWorkspaceDerivedViewsArgs, buildMarkdownWorkspaceFileActionsArgs, buildMarkdownWorkspaceIndexingArgs, buildMarkdownWorkspaceSaveArgs, buildMarkdownWorkspaceSelectionArgs } from './markdownWorkspaceRuntime.composition'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
-import { useP2PCollaborationRuntime } from '@/features/collaboration/useP2PCollaborationRuntime'
 import { useSourceFilesPocketBaseYjsCollaborationRuntime } from '@/features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime'
+import { useMarkdownWorkspaceCollaborationRuntimeBridge } from './useMarkdownWorkspaceCollaborationRuntimeBridge'
 const EMPTY_STRING_ARRAY: string[] = []
 
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const active = props.active !== false
   const activeRef = React.useRef(active)
-  React.useEffect(() => {
-    activeRef.current = active
-  }, [active])
+  React.useEffect(() => { activeRef.current = active }, [active])
 
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const bottomSurfaceCollapsed = useGraphStore(s => s.bottomSurfaceCollapsed)
@@ -57,12 +54,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
-  const graphNodes = useGraphStore(
-    s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES,
-  )
-  const graphEdges = useGraphStore(
-    s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES,
-  )
+  const graphNodes = useGraphStore(s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES)
+  const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
   const graphContentRevision = useGraphStore(s => (s.graphContentRevision || 0) as number)
   const graphSourceLayerHash = useGraphStore(s => {
     const metadata = ((s.graphData as GraphData | null)?.metadata || null) as Record<string, unknown> | null
@@ -105,10 +98,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const meta = ((graphData?.metadata || null) as Record<string, unknown> | null) || null
     return String(meta.sourceLayerComposition || '') !== 'compose'
   }
-  // Keep the direct-vs-composed decision centralized at the runtime entry so
-  // workspace open/close behavior cannot drift from the incoming-graph contract.
-  // if (shouldUseDirectGraphDataFor(gd))
-  // if (shouldUseDirectGraphDataFor(cachedGraph))
   const bootstrapState = useMarkdownWorkspaceBootstrapState({
     activePath,
     effectiveBottomSurfaceCollapsed,
@@ -185,7 +174,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     (label: string, ttlMs: number = UI_TOAST_TTL_MS.statusAutoClose) => status.setStatusInfo(label, { ttlMs }),
     [status],
   )
-  const streamingWorkspaceToastActiveRef = React.useRef(false)
 
   const wasWorkspaceEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
   React.useEffect(() => {
@@ -455,31 +443,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       applyMarkdownDocumentToGraph,
     }),
   )
-  const workspaceStreamingStatusLabel = React.useMemo(() => {
-    const activeWorkspacePath = normalizeWorkspacePath(String(activePath || '').trim())
-    const streamingPath = normalizeWorkspacePath(String(chatWorkspaceStreamingPath || '').trim())
-    if (!activeWorkspacePath || !streamingPath || activeWorkspacePath !== streamingPath) return null
-    const fileName = streamingPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc-trace.md'
-    return `Streaming to ${fileName}`
-  }, [activePath, chatWorkspaceStreamingPath])
-  React.useEffect(() => {
-    const label = String(workspaceStreamingStatusLabel || '').trim()
-    if (label) {
-      status.setStatusInfo(label, { ttlMs: null, dismissible: false })
-      streamingWorkspaceToastActiveRef.current = true
-      return
-    }
-    if (!streamingWorkspaceToastActiveRef.current) return
-    status.clearStatus()
-    streamingWorkspaceToastActiveRef.current = false
-  }, [status, workspaceStreamingStatusLabel])
-  React.useEffect(() => {
-    return () => {
-      if (!streamingWorkspaceToastActiveRef.current) return
-      status.clearStatus()
-      streamingWorkspaceToastActiveRef.current = false
-    }
-  }, [status])
   const shellState = useMarkdownWorkspaceShell({
     active,
     refreshWorkspace: explorerState.refresh,
@@ -492,22 +455,12 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     saveActiveFileNow: saveState.saveActiveFileNow,
     setStatusWithAutoClear,
   })
-  const collaborationRuntime = useP2PCollaborationRuntime({
+  const collaborationRuntime = useMarkdownWorkspaceCollaborationRuntimeBridge({
     active,
     activeDocumentKey: selectionState.activeDocumentKey,
     activeText: effectiveContent.effectiveActiveText,
-    applyRemoteDocument: async ({ documentKey, text }) => {
-      await setActiveMarkdownDocument({
-        name: documentKey,
-        text,
-        normalizeMermaidMmd: false,
-        autoEnableFrontmatter: false,
-        applyViewPreset: false,
-      })
-    },
-    revealRemoteLine: line => {
-      interactionState.revealLineInEditor(line)
-    },
+    setActiveMarkdownDocument,
+    revealLineInEditor: interactionState.revealLineInEditor,
   })
   const viewShell = useMarkdownWorkspaceViewShell({
     entries,
@@ -621,7 +574,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         webpageHtmlOverride={null}
         viewerTextOverride={effectiveContent.combinedViewerTextOverride}
         disableViewerMutations={effectiveContent.disableViewerMutations}
-        suppressFrontmatterWarnings={!!workspaceStreamingStatusLabel}
+        suppressFrontmatterWarnings={Boolean(effectiveContent.liveWorkspaceStreamingTailFollowKey)}
         activeDocumentKey={selectionState.activeDocumentKey}
         highlightedLineRange={highlightedLineRange}
         revealLineInEditor={interactionState.revealLineInEditor}

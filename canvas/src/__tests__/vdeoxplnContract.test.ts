@@ -6,13 +6,9 @@ import {
   buildKnowgrphVdeoxplnMarkdown,
   buildKnowgrphVdeoxplnRegistry,
   buildKnowgrphVdeoxplnRoutingPlan,
-  buildKnowgrphVdeoxplnRunManifestMarkdown,
   KNOWGRPH_VDEOXPLN_IDS,
   validateKnowgrphVdeoxplnRegistry,
 } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
-import {
-  resolveKnowgrphVdeoxplnRunManifestWorkspacePath,
-} from '@/features/chat/knowgrphVdeoxplnChatArtifacts'
 import {
   buildAgentReadyOpenApiPaths,
 } from '../../../cloudflare/pages/knowgrph-agent-ready-discovery.mjs'
@@ -171,7 +167,7 @@ export async function testKnowgrphVdeoxplnRegistryProjectsToAgentSkillsMainPanel
   }
 }
 
-export function testKnowgrphVdeoxplnRoutingAndSourceBackedRunManifest() {
+export function testKnowgrphVdeoxplnRoutingKeepsCanonicalKgcClean() {
   const routeOnlyPlan = buildKnowgrphVdeoxplnRoutingPlan({
     routePath: '/knowgrph/.well-known/agent-skills/knowgrph-chat-to-canvas.md',
     filePath: 'docs/demo.md',
@@ -210,40 +206,20 @@ export function testKnowgrphVdeoxplnRoutingAndSourceBackedRunManifest() {
     throw new Error(`expected chat system prompt to carry routing guardrails, got ${prompt}`)
   }
 
-  const manifestPath = resolveKnowgrphVdeoxplnRunManifestWorkspacePath('/chat/20260530T010203Z/kgc_20260530T010203Z.md')
-  if (manifestPath !== '/chat/20260530T010203Z/kgc_20260530T010203Z.md') {
-    throw new Error(`expected vdeoxpln manifest path to use the canonical KGC owner, got ${manifestPath}`)
-  }
-  const manifest = buildKnowgrphVdeoxplnRunManifestMarkdown(chatPlan, {
-    status: 'ok',
-    workspacePath: '/chat/20260530T010203Z/kgc_20260530T010203Z.md',
-    timestamp: '2026-05-30T01:02:03.000Z',
-    providerSummary: 'test-provider',
-    modelId: 'test-model',
-    usageSummary: 'tokens=0',
-    finishReason: 'stop',
-    canvasApplied: true,
-  })
-  if (
-    !manifest.includes('schema: "knowgrph-vdeoxpln-run/v1"')
-    || !manifest.includes(`vdeoxpln_id: "${KNOWGRPH_VDEOXPLN_IDS.chatToCanvas}"`)
-    || !manifest.includes(`semantic_run_key: "${chatPlan.semanticRunKey}"`)
-    || !manifest.includes('Source-backed artifact:')
-    || !manifest.includes('Do not add compatibility aliases for stale vdeoxpln ids.')
-  ) {
-    throw new Error(`expected source-backed run manifest to include canonical vdeoxpln state, got ${manifest}`)
-  }
-
   const requestOwner = fs.readFileSync(path.resolve(process.cwd(), 'src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts'), 'utf8')
   if (!requestOwner.includes('buildKnowgrphVdeoxplnRoutingPlan') || !requestOwner.includes('buildKnowgrphVdeoxplnChatSystemPrompt')) {
     throw new Error('expected FloatingPanel Chat request owner to inject the selected vdeoxpln contract prompt')
   }
   const finalizeOwner = fs.readFileSync(path.resolve(process.cwd(), 'src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts'), 'utf8')
-  if (!finalizeOwner.includes('persistKnowgrphVdeoxplnRunManifestForChat')) {
-    throw new Error('expected FloatingPanel Chat finalization to persist the source-backed vdeoxpln run manifest')
+  if (finalizeOwner.includes('RunManifest') || finalizeOwner.includes('knowgrphVdeoxplnChatArtifacts')) {
+    throw new Error('expected FloatingPanel Chat finalization to keep canonical KGC files free of auxiliary run manifests')
   }
-  const artifactOwner = fs.readFileSync(path.resolve(process.cwd(), 'src/features/chat/knowgrphVdeoxplnChatArtifacts.ts'), 'utf8')
-  for (const required of ['toCanonicalKgcWorkspacePath', 'mergeKgcCanonicalSection']) {
-    if (!artifactOwner.includes(required)) throw new Error(`expected vdeoxpln chat artifact owner to reuse ${required}`)
+  const artifactOwnerPath = path.resolve(process.cwd(), 'src/features/chat/knowgrphVdeoxplnChatArtifacts.ts')
+  if (fs.existsSync(artifactOwnerPath)) {
+    throw new Error('expected obsolete vdeoxpln chat artifact helper to be removed')
+  }
+  const contractOwner = fs.readFileSync(path.resolve(process.cwd(), 'src/features/agent-ready/knowgrphVdeoxplnContract.mjs'), 'utf8')
+  for (const stale of ['knowgrphVdeoxplnChatArtifacts', 'buildKnowgrphVdeoxplnRunManifestMarkdown', 'knowgrph-vdeoxpln-run/v1']) {
+    if (contractOwner.includes(stale)) throw new Error(`expected vdeoxpln contract to avoid stale canonical manifest owner ${stale}`)
   }
 }

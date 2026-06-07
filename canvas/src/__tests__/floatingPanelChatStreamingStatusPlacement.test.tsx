@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { FloatingPanelChatMessagesSection } from '@/features/chat/FloatingPanelChatSections'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 export async function testFloatingPanelChatStreamsReasoningStatusAtTopOfChat() {
   const { dom, restore } = initJsdomHarness()
@@ -82,5 +84,15 @@ export async function testFloatingPanelChatStreamsReasoningStatusAtTopOfChat() {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
+  }
+}
+
+export function testWorkspaceRuntimeDoesNotMirrorChatStreamingStatusIntoToast() {
+  const text = readFileSync(resolve(process.cwd(), 'src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx'), 'utf8')
+  if (text.includes('Streaming to ')) {
+    throw new Error('expected chat/SSE streaming file status to stay in FloatingPanel Chat instead of generic workspace toast')
+  }
+  if (text.includes('streamingWorkspaceToastActiveRef') || text.includes('workspaceStreamingStatusLabel')) {
+    throw new Error('expected workspace runtime not to own a duplicate chat streaming toast lifecycle')
   }
 }

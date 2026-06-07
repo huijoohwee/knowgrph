@@ -444,7 +444,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFinalizesSimp
 
 }
 
-export async function testExecuteFloatingPanelChatSubmitCoordinatorPersistsKgcStreamDraftsAcrossRefresh() {
+export async function testExecuteFloatingPanelChatSubmitCoordinatorStreamsKgcDraftsWithoutWorkspaceRewrite() {
   const createDraftWriterCalls: Array<{
     liveKgcPath: string | null
     persistWorkspaceDrafts?: boolean
@@ -531,8 +531,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPersistsKgcSt
   if (!call || call.liveKgcPath !== '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md') {
     throw new Error(`Expected coordinator to bind stream drafts to the live KGC path, got: ${JSON.stringify(createDraftWriterCalls)}`)
   }
-  if (call.persistWorkspaceDrafts !== true) {
-    throw new Error(`Expected coordinator to enable durable workspace draft persistence for refresh recovery, got: ${JSON.stringify(call)}`)
+  if (call.persistWorkspaceDrafts !== false) {
+    throw new Error(`Expected coordinator to keep live stream drafts in editor state without workspace rewrite churn, got: ${JSON.stringify(call)}`)
   }
   if (draftFlushes.length !== 1 || draftFlushes[0]?.text !== 'partial durable stream') {
     throw new Error(`Expected streamed content to flow through the durable draft writer, got: ${JSON.stringify(draftFlushes)}`)
@@ -1032,7 +1032,7 @@ export function testKgcDeterministicFallbackProjectsHeadlessStrybldrResponseFirs
     'response:',
     'status: "trace_only"',
     'markdown_body:',
-    'Renderer: strybldr',
+    'renderer: "strybldr"',
     'This document does not invent the missing answer',
     'mcp-response-headless-compute',
     'mcp-response-rich-media-panel',

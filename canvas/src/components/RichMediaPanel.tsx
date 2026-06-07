@@ -45,6 +45,10 @@ import {
   PANEL_FRAME_BODY_STYLE,
   PANEL_FRAME_ROOT_STYLE,
 } from '@/lib/ui/panelFrame'
+import {
+  handleRichMediaPanelOverlayDragStartCapture,
+  startRichMediaPanelHeaderDrag,
+} from './RichMediaPanelOverlayDrag'
 
 type RichMediaKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
 
@@ -60,6 +64,7 @@ export type RichMediaPanelProps = {
   headerPassthrough?: boolean
   resizable?: boolean
   forwardWheelTo?: () => Element | null
+  forwardWheelBeforeScrollableTarget?: boolean
   forwardPointerTo?: () => Element | null
   shouldForwardPointerDown?: (e: PointerEvent) => boolean
   shouldStartHeaderDrag?: (e: PointerEvent) => boolean
@@ -222,6 +227,7 @@ export function RichMediaPanelResizeHandle(props: {
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
   const rootRef = React.useRef<HTMLElement | null>(null)
   const inlineSrcDocFrameRef = React.useRef<HTMLIFrameElement | null>(null)
+  const lastPointerDownAtRef = React.useRef(0)
   const forwardWheelTo = props.forwardWheelTo
   const onPanelChange = props.onPanelChange
   const title = String(props.title || '').trim() || 'Media node'
@@ -439,8 +445,11 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const installWheelForwarding =
     typeof props.forwardWheelTo === 'function'
     && (
-      !preferEmbed
-      || flowEditorFrontmatterDocumentMode === true
+      props.forwardWheelBeforeScrollableTarget === true
+      || (
+        !preferEmbed
+        || flowEditorFrontmatterDocumentMode === true
+      )
     )
   const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true
   const forwardingEnabled =
@@ -516,12 +525,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
 
     return installWheelForwardingAndBrowserZoomGuards(el, {
       forwardWheelTo: installWheelForwarding ? forwardWheelTo : undefined,
+      forwardWheelBeforeScrollableTarget: props.forwardWheelBeforeScrollableTarget === true,
       shouldForwardWheel: forwardModifierWheelZoomOnly ? e => e.ctrlKey === true || e.metaKey === true : undefined,
       stopPropagationOnForward: true,
       stopPropagationOnPreventZoom: false,
       forwardedFlagKey: '__kgForwarded',
     })
-  }, [forwardModifierWheelZoomOnly, forwardWheelTo, installWheelForwarding])
+  }, [forwardModifierWheelZoomOnly, forwardWheelTo, installWheelForwarding, props.forwardWheelBeforeScrollableTarget])
 
   const selectSelf = React.useCallback((native: PointerEvent | null) => {
     if (!flowEditorInteractionMode) return
@@ -553,165 +563,28 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })
   }, [installResize, props.onResize, props.onResizeEnd, props.onResizeStart, selectSelf])
 
-  const startHeaderDrag = React.useCallback((native: PointerEvent) => {
+  const startHeaderDrag = React.useCallback((native: PointerEvent | MouseEvent) => {
     if (!installHeaderDrag) return false
-    selectSelf(native)
-    if (native && typeof props.shouldStartHeaderDrag === 'function') {
-      try {
-        if (props.shouldStartHeaderDrag(native) !== true) return false
-      } catch {
-        return false
-      }
-    }
-    const pointerId = native.pointerId
-    const x0 = native.clientX
-    const y0 = native.clientY
-    try {
-      props.onHeaderDragStart?.({ pointerId, clientX: x0, clientY: y0 })
-    } catch {
-      void 0
-    }
-
-    startPointerDrag({
-      ev: native,
-      cursor: 'grabbing',
-      onMove: ev => {
-        try {
-          props.onHeaderDrag?.({
-            pointerId: ev.pointerId,
-            clientX: ev.clientX,
-            clientY: ev.clientY,
-            dx: ev.clientX - x0,
-            dy: ev.clientY - y0,
-          })
-        } catch {
-          void 0
-        }
-      },
-      onEnd: ev => {
-        try {
-          props.onHeaderDragEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
-        } catch {
-          void 0
-        }
-      },
-      onCancel: ev => {
-        try {
-          props.onHeaderDragEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
-        } catch {
-          void 0
-        }
-      },
-    })
-    return true
+    selectSelf(native as PointerEvent)
+    return startRichMediaPanelHeaderDrag(native, props)
   }, [installHeaderDrag, props, selectSelf])
-  const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
-    const native = e.nativeEvent
-    selectSelf(native)
-    const targetEl = (() => {
-      const t = (native as unknown as { target?: unknown }).target
-      return t instanceof Element ? t : null
-    })()
-    const isResizeHandleTarget = !!targetEl?.closest('[data-kg-resize-handle]')
-    const isScrollableSurfaceTarget = !!targetEl?.closest('[data-kg-media-scroll-surface="1"]')
-    const isInteractiveControlTarget = !!targetEl?.closest('textarea,input,select,button,a,[contenteditable="true"]')
-    const isPlayableMediaTarget = !!targetEl?.closest('[data-kg-card-media-interactive="1"],iframe,video,audio')
-    const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header="1"]')
-    const allowPointerButtons = (() => {
-      const b = typeof native.buttons === 'number' ? native.buttons : 0
-      return (b & 1) === 1 || (b & 4) === 4
-    })()
-    const blockOverlayPanForTarget =
-      isResizeHandleTarget
-      || isScrollableSurfaceTarget
-      || isInteractiveControlTarget
-      || isPlayableMediaTarget
-    if (isHeaderTarget && !blockOverlayPanForTarget && startHeaderDrag(native)) {
-      try {
-        e.preventDefault()
-        e.stopPropagation()
-      } catch {
-        void 0
-      }
-      return
-    }
-    if (
-      !isHeaderTarget
-      && !blockOverlayPanForTarget
-      && installOverlayPan
-      && allowPointerButtons
-      && native
-      && typeof native === 'object'
-    ) {
-      const pointerId = native.pointerId
-      const x0 = native.clientX
-      const y0 = native.clientY
-      try {
-        props.onOverlayPanStart?.({
-          pointerId,
-          clientX: x0,
-          clientY: y0,
-          buttons: typeof native.buttons === 'number' ? native.buttons : 0,
-          shiftKey: native.shiftKey === true,
-        })
-      } catch {
-        void 0
-      }
-      startPointerDrag({
-        ev: native,
-        cursor: 'grabbing',
-        onMove: ev => {
-          try {
-            props.onOverlayPan?.({
-              pointerId: ev.pointerId,
-              clientX: ev.clientX,
-              clientY: ev.clientY,
-              dx: ev.clientX - x0,
-              dy: ev.clientY - y0,
-              buttons: typeof ev.buttons === 'number' ? ev.buttons : 0,
-              shiftKey: ev.shiftKey === true,
-            })
-          } catch {
-            void 0
-          }
-        },
-        onEnd: ev => {
-          try {
-            props.onOverlayPanEnd?.({
-              pointerId: ev.pointerId,
-              clientX: ev.clientX,
-              clientY: ev.clientY,
-              buttons: typeof ev.buttons === 'number' ? ev.buttons : 0,
-              shiftKey: ev.shiftKey === true,
-            })
-          } catch {
-            void 0
-          }
-        },
-        onCancel: ev => {
-          try {
-            props.onOverlayPanEnd?.({
-              pointerId: ev.pointerId,
-              clientX: ev.clientX,
-              clientY: ev.clientY,
-              buttons: typeof ev.buttons === 'number' ? ev.buttons : 0,
-              shiftKey: ev.shiftKey === true,
-            })
-          } catch {
-            void 0
-          }
-        },
-      })
-      return
-    }
-    if (!(isHeaderTarget && installHeaderDrag)) {
-      try {
-        props.onPointerDownCapture?.(e)
-      } catch {
-        void 0
-      }
-    }
+  const handleRootDragStartCapture = React.useCallback((e: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>): boolean => {
+    return handleRichMediaPanelOverlayDragStartCapture({ event: e, installHeaderDrag, installOverlayPan, selectSelf, startHeaderDrag, handlers: props })
   }, [installHeaderDrag, installOverlayPan, props, selectSelf, startHeaderDrag])
+  const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
+    const handled = handleRootDragStartCapture(e)
+    if (!handled) return
+    lastPointerDownAtRef.current = typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now()
+  }, [handleRootDragStartCapture])
+  const onRootMouseDownCapture = React.useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now()
+    if (now - lastPointerDownAtRef.current < 400) return
+    handleRootDragStartCapture(e)
+  }, [handleRootDragStartCapture])
   const panelIsLoading = panel?.isLoading === true
   const panelLoadingLabel = String(panel?.loadingLabel || '').trim() || 'Generating output...'
   const loadingSkeletonVariant: CardMediaSkeletonVariant =
@@ -1115,6 +988,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           : bodySurfaceStyle),
       }}
       onPointerDownCapture={onRootPointerDownCapture}
+      onMouseDownCapture={onRootMouseDownCapture}
       onPointerUpCapture={props.onPointerUpCapture}
       onWheelCapture={props.onWheelCapture}
       onClickCapture={props.onClickCapture}

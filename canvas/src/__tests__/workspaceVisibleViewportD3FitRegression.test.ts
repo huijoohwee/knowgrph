@@ -126,15 +126,15 @@ export function testD3WorkspaceVisibleViewportFitUsesSharedOccluderContract() {
   if (!markdownDesignOverlayText.includes("import { resolveWorkspaceVisibleViewport } from '@/lib/zoom/workspaceVisibleViewport'")
     || !markdownDesignOverlayText.includes('const readVisibleOverlayViewport = React.useCallback(() => {')
     || !markdownDesignOverlayText.includes('getViewport: readVisibleOverlayViewport,')
-    || !markdownDesignOverlayText.includes('collectiveFitToViewport: true,')
-    || !markdownDesignOverlayText.includes('clampToViewport: { margin: 16 },')) {
-    throw new Error('expected D3 markdown design panels to clamp against the shared workspace visible viewport')
+    || !markdownDesignOverlayText.includes('collectiveFitToViewport: false,')
+    || !markdownDesignOverlayText.includes('clampToViewport: null,')) {
+    throw new Error('expected D3 markdown design panels to use the visible viewport for sizing while staying node-aligned and unclamped')
   }
   if (!markdownPanelOverlayLoopText.includes('getViewport: () => { left?: number; top?: number; w: number; h: number }')
     || !markdownPanelOverlayLoopText.includes('collectiveFitToViewport?: boolean')
     || !markdownPanelOverlayLoopText.includes('left: viewportLeft,')
     || !markdownPanelOverlayLoopText.includes('top: viewportTop,')) {
-    throw new Error('expected markdown panel overlay loop to support origin-aware visible viewport clamping')
+    throw new Error('expected markdown panel overlay loop to keep explicit origin-aware viewport support for callers that opt into clamping')
   }
   if (!canvasText.includes('WORKSPACE_VISIBLE_VIEWPORT_OCCLUDER_ATTR') || !canvasText.includes(`[WORKSPACE_VISIBLE_VIEWPORT_OCCLUDER_ATTR]: 'left'`)) {
     throw new Error('expected Workspace left pane to declare the shared visible-viewport occluder attribute')

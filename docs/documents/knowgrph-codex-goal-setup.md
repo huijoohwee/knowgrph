@@ -47,7 +47,7 @@ The script calls:
 
 ```bash
 python3 -m knowgrph_parser run-goal \
-  --input knowgrph_parser/fixtures/superagent-neutral.md \
+  --input docs/documents/my-input.md \
   --goal-file goal \
   --output-dir data/outputs/goal-run-current \
   --run-id goal-run-current \

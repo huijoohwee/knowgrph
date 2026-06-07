@@ -43,6 +43,7 @@ export type KgcRequestProfile = {
 
 export type KgcRequestSignals = {
   recommendation: boolean
+  computingFlow: boolean
   creativeScript: boolean
   trademarkAvoidance: boolean
   headlessStructured: boolean
@@ -284,6 +285,7 @@ const inferTopics = (lowered: string): string[] => {
 
 const inferSignals = (lowered: string): KgcRequestSignals => ({
   recommendation: /\brecommend(?:ed|ation)?\b/.test(lowered),
+  computingFlow: /\bflow editor\b|\bcomputing flow\b|\bcompute_summary\b|\bktv\b|\bkey\s*\/\s*type\s*\/\s*value\b|\bbody[- ]?tokens?\b|\brun all\b/.test(lowered),
   creativeScript: /\bvideo script\b|\bscript\b|\bstoryboard\b|\bscene\b|\bnarrative\b/.test(lowered),
   trademarkAvoidance: /\bforbid mention\b|\bforbid.*trademark\b|\bavoid.*trademark\b|\bno trademark\b|\bnon[- ]infring/i.test(lowered),
   headlessStructured: /\bheadless\b|\bun[- ]?opini(?:on|ated)\b|\bstructured(?:content| content| response)?\b|\btool result\b/.test(lowered),

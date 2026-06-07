@@ -172,6 +172,11 @@
       "import": "./dist/dom/pointerDrag.js",
       "default": "./dist/dom/pointerDrag.js"
     },
+    "./dom/overlayPointerGuards": {
+      "types": "./dist/dom/overlayPointerGuards.d.ts",
+      "import": "./dist/dom/overlayPointerGuards.js",
+      "default": "./dist/dom/overlayPointerGuards.js"
+    },
     "./dom/wheelGuards": {
       "types": "./dist/dom/wheelGuards.d.ts",
       "import": "./dist/dom/wheelGuards.js",

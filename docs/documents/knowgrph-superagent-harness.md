@@ -17,7 +17,7 @@ chat, rich-media, and KGC owners.
 This document describes the Codex-compatible harness implemented by:
 
 ```bash
-python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example
+python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example
 ```
 
 The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts source evidence from neutral frontmatter or markdown body text, selects registry-backed capability lanes and frontmatter skill hints through `skill.select`, writes a research pack, creates and executes deterministic code inside a bounded local sandbox artifact directory, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The shipped video path now supports either deterministic mock output or local PixVerse MCP execution behind the same typed tool registry without changing the run loop.
@@ -140,7 +140,7 @@ The PixVerse manifest records:
 Checkpoint a run:
 
 ```bash
-python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-checkpoint --run-id superagent-checkpoint --stop-after-step 2
+python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-checkpoint --run-id superagent-checkpoint --stop-after-step 2
 ```
 
 Resume it:
@@ -152,7 +152,7 @@ python3 -m knowgrph_parser superagent --resume --output-dir data/outputs/superag
 Exercise bounded recovery:
 
 ```bash
-python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-retry --run-id superagent-retry --fail-once video.generate.mock
+python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-retry --run-id superagent-retry --fail-once video.generate.mock
 ```
 
 Run a real-local PixVerse smoke path:

@@ -1302,10 +1302,10 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const lines = splitMarkdownLines(raw)
   let lead = 0
   while (lead < lines.length && !String(lines[lead] || '').trim()) lead += 1
-  if (String(lines[lead] || '').trim() !== '---') return null
+  if (!/^---\s*$/.test(String(lines[lead] || ''))) return null
   let frontmatterClose = -1
   for (let i = lead + 1; i < lines.length; i += 1) {
-    if (String(lines[i] || '').trim() === '---') {
+    if (/^---\s*$/.test(String(lines[i] || ''))) {
       frontmatterClose = i
       break
     }

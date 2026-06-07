@@ -1,8 +1,6 @@
 import type { JSONValue } from '@/lib/graph/types'
-import {
-  extractSecondLevelYamlKeys,
-  isFrontmatterVarKeyDeclared,
-} from './chatKgcFrontmatter'
+import { collectComputingFlowBodyVarKeys, findUndeclaredComputingFlowBodyRef, hasComputingFlowContract, readComputingFlowBodyRefKey } from './chatComputingFlowContract'
+import { extractSecondLevelYamlKeys, isFrontmatterVarKeyDeclared } from './chatKgcFrontmatter'
 
 export type ChatMarkdownValidationRuleId =
   | 'V-01'
@@ -172,7 +170,7 @@ const extractLeadingFrontmatterAndBody = (md: string): { frontmatter: string; bo
   while (start < lines.length && !String(lines[start] || '').trim()) start += 1
   if (String(lines[start] || '').trim() !== '---') return null
   for (let i = start + 1; i < lines.length; i += 1) {
-    if (String(lines[i] || '').trim() !== '---') continue
+    if (!/^---\s*$/.test(String(lines[i] || ''))) continue
     return {
       frontmatter: lines.slice(start + 1, i).join('\n').trim(),
       body: lines.slice(i + 1).join('\n').trim(),
@@ -418,6 +416,7 @@ const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatM
 const validateCanonicalKgcFrontmatterShape = (md: string): ChatMarkdownValidationError | null => {
   const parsed = extractLeadingFrontmatterAndBody(md)
   if (!parsed) return null
+  if (hasComputingFlowContract(parsed.frontmatter, parsed.body)) return null
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
   const hasCanvasPresetOnlyKeys = CANVAS_PRESET_ONLY_FRONTMATTER_KEYS.some(key => fmKeys.has(key))
   const hasCanonicalKgcSignals = CANONICAL_KGC_REQUIRED_FRONTMATTER_KEYS.some(key => fmKeys.has(key))
@@ -500,6 +499,11 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
   }
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
   const isBaseTemplate = isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys)
+  if (hasComputingFlowContract(parsed.frontmatter)) {
+    const key = findUndeclaredComputingFlowBodyRef(parsed.frontmatter, refs)
+    if (key) return { ruleId: 'V-03', message: `Computing-flow body variable {{${key}}} is not declared in canvas:runAction.bodyTokens.` }
+    return null
+  }
   if (isBaseTemplate) {
     for (const key of BASE_TEMPLATE_TIER_B_KEYS) {
       const scalar = extractTopLevelYamlBlockScalar(parsed.frontmatter, key).trim()
@@ -511,10 +515,7 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
       }
     }
     for (const ref of refs) {
-      const idxColon = ref.indexOf(':')
-      const idxPipe = ref.indexOf('|')
-      const cut = [idxColon, idxPipe].filter(i => i >= 0).sort((a, b) => a - b)[0]
-      const key = cut != null ? ref.slice(0, cut).trim() : ref
+      const key = readComputingFlowBodyRefKey(ref)
       if (!key) continue
       if (!isFrontmatterVarKeyDeclared({
         frontmatter: parsed.frontmatter,
@@ -538,25 +539,12 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
         message: `Frontmatter key "${scalarKey}" must be non-empty.`,
       }
     }
-    if (/\{\{[^}]+\}\}/.test(scalar)) {
-      return {
-        ruleId: 'V-03',
-        message: `Frontmatter key "${scalarKey}" must be concrete text, not a template placeholder.`,
-      }
-    }
+    if (/\{\{[^}]+\}\}/.test(scalar)) return { ruleId: 'V-03', message: `Frontmatter key "${scalarKey}" must be concrete text, not a template placeholder.` }
   }
   for (const ref of refs) {
-    const idxColon = ref.indexOf(':')
-    const idxPipe = ref.indexOf('|')
-    const cut = [idxColon, idxPipe].filter(i => i >= 0).sort((a, b) => a - b)[0]
-    const key = cut != null ? ref.slice(0, cut).trim() : ref
+    const key = readComputingFlowBodyRefKey(ref)
     if (!key) continue
-    if (!fmKeys.has(key)) {
-      return {
-        ruleId: 'V-03',
-        message: `Body variable {{${key}}} is not declared in YAML frontmatter.`,
-      }
-    }
+    if (!fmKeys.has(key)) return { ruleId: 'V-03', message: `Body variable {{${key}}} is not declared in YAML frontmatter.` }
   }
   return null
 }
@@ -564,6 +552,7 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
 const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError | null => {
   const parsed = extractLeadingFrontmatterAndBody(md)
   if (!parsed) return null
+  if (hasComputingFlowContract(parsed.frontmatter, parsed.body)) return null
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
   if (isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys)) {
     return validateBaseTemplateBodyShape(parsed.frontmatter, parsed.body)
@@ -759,6 +748,7 @@ export const buildResolvableVarKeySet = (args: {
   if (parsed) {
     const top = extractTopLevelFrontmatterKeys(parsed.frontmatter)
     for (const k of top) keys.add(k)
+    for (const k of collectComputingFlowBodyVarKeys(parsed.frontmatter)) keys.add(k)
     if (isBaseTemplateFrontmatter(parsed.frontmatter, top) && top.has('runtime')) {
       const second = extractSecondLevelYamlKeys(parsed.frontmatter, 'runtime')
       keys.add('runtime.*')

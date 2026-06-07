@@ -127,8 +127,8 @@ export const bootstrapKnowgrphSubmitDraft = async (args: {
     path: liveStreamingPath,
     text: '_Streaming..._',
   })
-  args.submitArgs.followWorkspaceMarkdownPath(liveStreamingPath)
-  await persistDraft({
+  args.submitArgs.followWorkspaceMarkdownPath(liveStreamingPath, { forceReveal: true })
+  void persistDraft({
     requestedPath: liveKgcPath,
     onResolvedPath: path => args.submitArgs.setChatKnowgrphWorkspacePath(path),
     timestampMs: args.requestTimestampMs,
@@ -139,6 +139,6 @@ export const bootstrapKnowgrphSubmitDraft = async (args: {
     defaultLocalRootPath: args.submitArgs.chatLocalStorageRootPath,
     title: 'Knowledge Graph Canvas Storage',
     traceId: args.traceId,
-  })
+  }).catch(() => undefined)
   return liveKgcPath
 }

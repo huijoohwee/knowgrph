@@ -7,7 +7,6 @@ import {
   buildKnowgrphVdeoxplnMarkdown,
   buildKnowgrphVdeoxplnRegistry,
   buildKnowgrphVdeoxplnRoutingPlan,
-  buildKnowgrphVdeoxplnRunManifestMarkdown,
   KNOWGRPH_VDEOXPLN_IDS,
   validateKnowgrphVdeoxplnRegistry,
 } from '../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs'
@@ -92,14 +91,13 @@ const chatPlan = buildKnowgrphVdeoxplnRoutingPlan({
 if (chatPlan.status !== 'selected' || chatPlan.selectedVdeoxplnId !== KNOWGRPH_VDEOXPLN_IDS.chatToCanvas) {
   fail(`chat-to-canvas neutral routing expected ${KNOWGRPH_VDEOXPLN_IDS.chatToCanvas}, got ${chatPlan.selectedVdeoxplnId || chatPlan.status}`)
 }
-const manifest = buildKnowgrphVdeoxplnRunManifestMarkdown(chatPlan, {
-  status: 'ok',
-  workspacePath: '/chat/20260530T010203Z/kgc_20260530T010203Z.md',
-  timestamp: '2026-05-30T01:02:03.000Z',
-  canvasApplied: true,
-})
-if (!manifest.includes('schema: "knowgrph-vdeoxpln-run/v1"') || !manifest.includes(chatPlan.semanticRunKey)) {
-  fail('vdeoxpln run manifest must include schema and semantic run key')
+const chatStageIds = new Set((chatPlan.executionStages || []).map((stage) => String(stage?.id || '')))
+for (const requiredStage of ['source-backed-artifact', 'source-files', 'floating-panel-chat', 'kgc-validation', 'canvas-apply']) {
+  if (!chatStageIds.has(requiredStage)) fail(`chat-to-canvas routing plan missing stage ${requiredStage}`)
+}
+const staleChatArtifactPath = path.resolve(repoRoot, 'canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts')
+if (existsSync(staleChatArtifactPath)) {
+  fail('obsolete vdeoxpln chat artifact helper must stay removed from canonical KGC finalization')
 }
 
 if (errors.length > 0) {

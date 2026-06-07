@@ -4,7 +4,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
-import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { patchById } from 'grph-shared/array/patchArrayItem'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
@@ -121,22 +120,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     anchorByBlockIdRef.current = props.anchorNodeIdByBlockId || null
   }, [props.anchorNodeIdByBlockId])
 
-  const wheelCleanupByIdRef = React.useRef<Map<string, () => void>>(new Map())
   const overlayRefFnByIdRef = React.useRef<Map<string, (el: HTMLElement | null) => void>>(new Map())
-
-  React.useEffect(() => {
-    return () => {
-      const m = wheelCleanupByIdRef.current
-      for (const cleanup of m.values()) {
-        try {
-          cleanup()
-        } catch {
-          void 0
-        }
-      }
-      m.clear()
-    }
-  }, [])
 
   const getOverlayRefForId = React.useCallback(
     (id: string) => {
@@ -144,40 +128,17 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       const cached = overlayRefFnByIdRef.current.get(key)
       if (cached) return cached
       const fn = (el: HTMLElement | null) => {
-        const prevCleanup = wheelCleanupByIdRef.current.get(key)
-        if (prevCleanup) {
-          wheelCleanupByIdRef.current.delete(key)
-          try {
-            prevCleanup()
-          } catch {
-            void 0
-          }
-        }
-
         if (!el) {
           overlayElsRef.current.delete(key)
           return
         }
 
         overlayElsRef.current.set(key, el)
-        if (!allowEmbeddedContentInteraction) {
-          try {
-            const cleanup = installWheelForwardingAndBrowserZoomGuards(el, {
-              forwardWheelTo: () => svgRef.current,
-              stopPropagationOnForward: true,
-              stopPropagationOnPreventZoom: false,
-              forwardedFlagKey: '__kgForwarded',
-            })
-            if (cleanup) wheelCleanupByIdRef.current.set(key, cleanup)
-          } catch {
-            void 0
-          }
-        }
       }
       overlayRefFnByIdRef.current.set(key, fn)
       return fn
     },
-    [allowEmbeddedContentInteraction, svgRef],
+    [],
   )
 
   const shouldStartHeaderDrag = React.useCallback((native: PointerEvent) => {
@@ -464,8 +425,8 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       getElementForId: id => overlayElsRef.current.get(id) || null,
       getDensity,
       getSizingConfig,
-      collectiveFitToViewport: true,
-      clampToViewport: { margin: 16 },
+      collectiveFitToViewport: false,
+      clampToViewport: null,
     })
 
     overlayLayoutScheduleRef.current = loop.schedule
@@ -582,7 +543,6 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               width: 1,
               height: 1,
             }}
-            onWheelCapture={props.stopEvent}
             onClickCapture={props.stopEvent}
             onDoubleClickCapture={props.stopEvent}
             onContextMenuCapture={props.stopEvent}
@@ -599,8 +559,9 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               onResize={({ pointerId, dx, dy }) => moveBlockResize(b.id, { pointerId, dx, dy })}
               onResizeEnd={({ pointerId }) => endBlockResize(b.id, pointerId)}
               forwardWheelTo={() => svgRef.current}
+              forwardWheelBeforeScrollableTarget={true}
               forwardPointerTo={() => svgRef.current}
-              shouldForwardPointerDown={() => allowEmbeddedContentInteraction !== true}
+              shouldForwardPointerDown={() => true}
               shouldStartHeaderDrag={native => shouldStartHeaderDrag(native)}
               onHeaderDragStart={args0 => {
                 if (!anchorId) return
@@ -654,7 +615,9 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
                   setDrag(null)
                 }
               }}
-              onOverlayPanStart={props.onOverlayPanStart}
+              onOverlayPanStart={args0 => {
+                props.onOverlayPanStart?.(args0)
+              }}
               onOverlayPan={props.onOverlayPan}
               onOverlayPanEnd={props.onOverlayPanEnd}
               onDoubleClickCapture={() => {

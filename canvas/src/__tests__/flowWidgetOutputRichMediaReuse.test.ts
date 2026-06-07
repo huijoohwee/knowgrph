@@ -433,20 +433,10 @@ export function testRichMediaPanelOverlayPanSkipsResizeAndScrollTargets() {
   if (!text.includes("pointerEvents: shouldHideSurfaceUntilReady ? 'none' : (headerPassthrough ? 'none' : (workspaceEditorOverlayOpen || canvasOverlayProxyEnabled ? 'auto'")) {
     throw new Error('expected RichMediaPanel root pointer events to stay enabled for shared overlay pan/drag handlers')
   }
-  if (!text.includes("const isResizeHandleTarget = !!targetEl?.closest('[data-kg-resize-handle]')")) {
-    throw new Error('expected RichMediaPanel root pointer-capture path to detect resize-handle targets before overlay pan start')
-  }
-  if (!text.includes("const isScrollableSurfaceTarget = !!targetEl?.closest('[data-kg-media-scroll-surface=\"1\"]')")) {
-    throw new Error('expected RichMediaPanel root pointer-capture path to detect scroll-surface targets before overlay pan start')
-  }
-  if (!text.includes('const isPlayableMediaTarget = !!targetEl?.closest(\'[data-kg-card-media-interactive="1"],iframe,video,audio\')')) {
-    throw new Error('expected RichMediaPanel root pointer-capture path to protect playable media surfaces before overlay pan start')
-  }
-  if (!text.includes("const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header=\"1\"]')")) {
-    throw new Error('expected RichMediaPanel header drag to be scoped to the reusable Flow Editor chrome header')
-  }
-  if (!text.includes('const blockOverlayPanForTarget =')) {
-    throw new Error('expected RichMediaPanel root pointer-capture path to gate overlay pan for resize/scroll/interactive targets')
+  if (!text.includes("from 'grph-shared/dom/overlayPointerGuards'")
+    || !text.includes('readOverlayPointerTargetState')
+    || !text.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')) {
+    throw new Error('expected RichMediaPanel root pointer-capture path to reuse shared overlay pointer guards for resize/scroll/media/header targets')
   }
   if (text.includes('overlayAlreadySelected')) {
     throw new Error('expected RichMediaPanel body pan to avoid stale selected-first gating so static renderer previews can pan immediately')

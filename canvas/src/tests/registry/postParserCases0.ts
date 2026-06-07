@@ -543,7 +543,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["worker.payments.combinedReadiness.usesExistingOwners","@/__tests__/paymentReadinessScript.test","testPaymentReadinessScriptUsesStripeAndX402ReadinessOwners"],
   ["worker.payments.combinedReadiness.aggregatesLiveSmoke","@/__tests__/paymentReadinessScript.test","testPaymentReadinessScriptAggregatesStripeAndX402WithLiveSmoke"],
   ["vdeoxpln.contract.registryProjection","@/__tests__/vdeoxplnContract.test","testKnowgrphVdeoxplnRegistryProjectsToAgentSkillsMainPanelAndMcp"],
-  ["vdeoxpln.contract.routingAndRunManifest","@/__tests__/vdeoxplnContract.test","testKnowgrphVdeoxplnRoutingAndSourceBackedRunManifest"],
+  ["vdeoxpln.contract.routingKeepsCanonicalKgcClean","@/__tests__/vdeoxplnContract.test","testKnowgrphVdeoxplnRoutingKeepsCanonicalKgcClean"],
   ["ui.payments.stripe.paywall.returnUrls","@/__tests__/paywallOverlay.test","testPaywallOverlayBuildsNeutralStripeCheckoutReturnUrls"],
   ["ui.payments.stripe.paywall.opensOverlay","@/__tests__/paywallOverlay.test","testPaywallOverlayOpensFromPaymentsStripeToggle"],
   ["ui.payments.stripe.paywall.generatesCheckout","@/__tests__/paywallOverlay.test","testPaywallOverlayGeneratesServerManagedCheckout"],

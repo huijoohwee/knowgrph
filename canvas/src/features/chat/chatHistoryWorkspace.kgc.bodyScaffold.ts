@@ -3,9 +3,9 @@ const splitLeadingFrontmatterAndBody = (raw: string): { frontmatter: string; bod
   const lines = text.split('\n')
   let lead = 0
   while (lead < lines.length && !String(lines[lead] || '').trim()) lead += 1
-  if (String(lines[lead] || '').trim() !== '---') return null
+  if (!/^---\s*$/.test(String(lines[lead] || ''))) return null
   for (let index = lead + 1; index < lines.length; index += 1) {
-    if (String(lines[index] || '').trim() !== '---') continue
+    if (!/^---\s*$/.test(String(lines[index] || ''))) continue
     return {
       frontmatter: lines.slice(lead + 1, index).join('\n'),
       body: lines.slice(index + 1).join('\n').trim(),

@@ -1,5 +1,10 @@
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import {
+  COMPUTING_FLOW_COMPUTE_NODE_ID,
+  COMPUTING_FLOW_SOURCE_NODE_ID,
+  hasComputingFlowContract,
+} from './chatComputingFlowContract'
+import {
   extractTopLevelYamlKeys,
   isFrontmatterVarKeyDeclared,
   splitLeadingFrontmatterAndBody,
@@ -87,6 +92,15 @@ const hasMandatoryBaseTemplateBodySections = (markdownBody: string): boolean => 
   return BASE_TEMPLATE_REQUIRED_BODY_SECTIONS.every(section => markdownBody.includes(section))
 }
 
+const isComputingFlowStructuredMarkdown = (frontmatter: string, markdownBody: string): boolean => {
+  if (!hasComputingFlowContract(frontmatter, markdownBody)) return false
+  const parsed = tryParseMarkdownFrontmatterFlowGraph('chatKnowgrph.computing-flow.md', ['---', frontmatter, '---', markdownBody].join('\n'))
+  if (!parsed) return false
+  const nodeIds = new Set((parsed.graphData.nodes || []).map(node => String(node.id || '')))
+  const edgeCount = Array.isArray(parsed.graphData.edges) ? parsed.graphData.edges.length : 0
+  return nodeIds.has(COMPUTING_FLOW_SOURCE_NODE_ID) && nodeIds.has(COMPUTING_FLOW_COMPUTE_NODE_ID) && edgeCount >= 1
+}
+
 export const isKgcStructuredMarkdown = (raw: string): boolean => {
   const text = String(raw || '').replace(/\r\n/g, '\n').trim()
   if (!text.startsWith('---\n')) return false
@@ -98,6 +112,7 @@ export const isKgcStructuredMarkdown = (raw: string): boolean => {
   const bodyRefs = extractVariableRefsFromBody(markdownBody)
   if (bodyRefs.length === 0) return false
   const frontmatterKeys = extractTopLevelYamlKeys(parsedFrontmatterBody.frontmatter)
+  if (isComputingFlowStructuredMarkdown(parsedFrontmatterBody.frontmatter, markdownBody)) return true
   for (const ref of bodyRefs) {
     const key = extractVarRefKey(ref)
     if (!key) continue

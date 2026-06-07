@@ -64,7 +64,7 @@ function mergeFrontmatterMeta(a: Record<string, unknown>, b: Record<string, unkn
 
 function findFrontmatterEndIndex(lines: string[], startDashLine: number): number {
   for (let i = startDashLine + 1; i < lines.length; i += 1) {
-    if (String(lines[i] || '').trim() === '---') return i
+    if (/^---\s*$/.test(String(lines[i] || ''))) return i
   }
   return -1
 }
@@ -553,7 +553,7 @@ export function tryParseSigilFrontmatter(lines: string[], startDashLine: number)
 export function tryParseMergedFrontmatterMetaWithNodes(lines: string[]): { meta: Record<string, unknown>; startIndex: number } | null {
   const dashIdx: number[] = []
   for (let i = 0; i < lines.length; i += 1) {
-    if (String(lines[i] || '').trim() === '---') dashIdx.push(i)
+    if (/^---\s*$/.test(String(lines[i] || ''))) dashIdx.push(i)
     if (dashIdx.length >= 10) break
   }
   if (dashIdx.length < 4) return null

@@ -247,7 +247,6 @@ const RAW_VDEOXPLN = Object.freeze([
       "canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts",
       "canvas/src/features/chat/chatMarkdownValidation.ts",
       "canvas/src/features/chat/chatKgcCanvasApply.ts",
-      "canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts",
       "canvas/src/features/workspace-fs/workspaceFs.ts",
       "canvas/src/features/source-files/applyComposedGraphFromSourceFiles.ts",
       "canvas/src/lib/graph/semanticKey.ts",
@@ -344,7 +343,6 @@ const RAW_VDEOXPLN = Object.freeze([
       "canvas/src/features/parsers/default.ts",
       "canvas/src/features/source-files/applyComposedGraphFromSourceFiles.ts",
       "canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts",
-      "canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts",
       "canvas/src/components/StoryboardCanvas/storyboardModel.ts",
       "canvas/src/lib/config.render.ts",
       "canvas/src/lib/graph/semanticKey.ts",
@@ -771,65 +769,6 @@ export const buildKnowgrphVdeoxplnChatSystemPrompt = (plan) => {
     "Do not infer vdeoxpln selection from route names, file names, absolute paths, demo fixtures, or compatibility aliases.",
     "Stages:",
     stageLines || "- registry: Load the selected vdeoxpln contract.",
-  ].join("\n");
-};
-
-export const buildKnowgrphVdeoxplnRunManifestMarkdown = (plan, args = {}) => {
-  const status = normalizeString(args.status) || "recorded";
-  const workspacePath = normalizeString(args.workspacePath);
-  const timestamp = normalizeString(args.timestamp) || new Date(0).toISOString();
-  const selectedVdeoxpln = plan?.selectedVdeoxpln || null;
-  const selectedVdeoxplnId = selectedVdeoxpln?.id || plan?.selectedVdeoxplnId || "";
-  const semanticRunKey = plan?.semanticRunKey || "";
-  const stageRows = (plan?.executionStages || []).map((stage) =>
-    `| \`${stage.id}\` | \`${stage.kind || "deterministic"}\` | \`${stage.owner || ""}\` | ${stage.summary || ""} |`,
-  );
-  return [
-    "---",
-    'schema: "knowgrph-vdeoxpln-run/v1"',
-    `status: "${status}"`,
-    `vdeoxpln_id: "${selectedVdeoxplnId}"`,
-    `semantic_run_key: "${semanticRunKey}"`,
-    `source_workspace_path: "${workspacePath}"`,
-    `timestamp: "${timestamp}"`,
-    "---",
-    "",
-    `# Vdeoxpln Run: ${selectedVdeoxpln?.title || selectedVdeoxplnId || "Unselected"}`,
-    "",
-    `Semantic run key: \`${semanticRunKey || "unavailable"}\``,
-    "",
-    `Status: \`${status}\``,
-    "",
-    `Source-backed artifact: ${workspacePath ? `\`${workspacePath}\`` : "not available"}`,
-    "",
-    `Routing decision: ${plan?.reason || "No selected vdeoxpln."}`,
-    "",
-    "Ignored routing context keys: `routePath`, `filePath`, `absolutePath`, `url`.",
-    "",
-    "## Artifact Contract",
-    "",
-    `- Persistence: \`${plan?.artifactContract?.persistence || "none"}\``,
-    `- Graph materialization: \`${plan?.artifactContract?.graphMaterialization || "none"}\``,
-    `- Canvas apply: \`${String(args.canvasApplied ?? "not-run")}\``,
-    `- Model: \`${normalizeString(args.modelId) || "not-recorded"}\``,
-    `- Provider: \`${normalizeString(args.providerSummary) || "not-recorded"}\``,
-    `- Usage: \`${normalizeString(args.usageSummary) || "not-recorded"}\``,
-    `- Finish reason: \`${normalizeString(args.finishReason) || "not-recorded"}\``,
-    "",
-    "## Stages",
-    "",
-    "| Stage | Kind | Owner | Summary |",
-    "|---|---|---|---|",
-    ...(stageRows.length ? stageRows : ["| `declined` | `deterministic` | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | No vdeoxpln selected from neutral signals. |"]),
-    "",
-    "## Failure State",
-    "",
-    args.errorMessage
-      ? `Structured failure: ${normalizeString(args.errorMessage)}`
-      : "Structured failure: none recorded.",
-    "",
-    "Do not add compatibility aliases for stale vdeoxpln ids.",
-    "",
   ].join("\n");
 };
 

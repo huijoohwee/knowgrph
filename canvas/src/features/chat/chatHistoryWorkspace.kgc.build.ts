@@ -1,5 +1,6 @@
 import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
 import { ensureKgcBaseTemplateRequiredBodyScaffold } from './chatHistoryWorkspace.kgc.bodyScaffold'
+import { sanitizeComputingFlowMarkdown } from './chatComputingFlowContract'
 import { splitLeadingFrontmatterAndBody } from './chatKgcFrontmatter'
 import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
 import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
@@ -49,14 +50,15 @@ const projectStructuredContentIntoKgcMarkdown = (markdown: string): string => {
 export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArgs): string => {
   const raw = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
   const recovered = recoverStructuredKgcAssistantPayload(raw)
-  const kgc = typeof recovered.kgc === 'string' ? recovered.kgc.trim() : ''
+  const kgc = typeof recovered.kgc === 'string' ? sanitizeComputingFlowMarkdown(recovered.kgc) : ''
   if (kgc && isKgcStructuredMarkdown(kgc)) {
     const queryResponsive = enforceKgcQueryResponsiveContent({
       markdown: kgc,
       requestText: args.requestText,
       workspacePath: args.workspacePath,
+      assistantText: args.assistantText,
     })
-    return projectStructuredContentIntoKgcMarkdown(ensureKgcBaseTemplateRequiredBodyScaffold(queryResponsive))
+    return sanitizeComputingFlowMarkdown(projectStructuredContentIntoKgcMarkdown(ensureKgcBaseTemplateRequiredBodyScaffold(queryResponsive)))
   }
   const fileName = String(args.workspacePath || '').split('/').filter(Boolean).slice(-1)[0] || ''
   const fallback = buildDeterministicBaseTemplateKgcTurn({
@@ -65,11 +67,12 @@ export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArg
     requestText: args.requestText,
     assistantText: args.assistantText,
   })
-  return ensureKgcBaseTemplateRequiredBodyScaffold(enforceKgcQueryResponsiveContent({
+  return sanitizeComputingFlowMarkdown(ensureKgcBaseTemplateRequiredBodyScaffold(enforceKgcQueryResponsiveContent({
     markdown: fallback,
     requestText: args.requestText,
     workspacePath: args.workspacePath,
-  }))
+    assistantText: args.assistantText,
+  })))
 }
 
 export const buildKgcWorkspaceDocument = (args: {

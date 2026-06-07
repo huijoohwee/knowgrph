@@ -187,6 +187,9 @@ export function RichMediaOverlayLayer2d(props: {
               })
             }}
             forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}
+            forwardWheelBeforeScrollableTarget={!allowEmbeddedMediaInteraction}
+            forwardPointerTo={() => svgRef.current}
+            shouldForwardPointerDown={() => !allowEmbeddedMediaInteraction}
             shouldStartHeaderDrag={() => {
               if (isSpacePanHeld()) return false
               return true
@@ -204,7 +207,6 @@ export function RichMediaOverlayLayer2d(props: {
             onResizeStart={({ pointerId }) => beginResize(n.id, pointerId)}
             onResize={({ pointerId, dx, dy }) => moveResize(n.id, { pointerId, dx, dy })}
             onResizeEnd={({ pointerId }) => endResize(n.id, pointerId)}
-            onWheelCapture={stopEvent}
             onClickCapture={stopEvent}
             onDoubleClickCapture={stopEvent}
             onContextMenuCapture={stopEvent}

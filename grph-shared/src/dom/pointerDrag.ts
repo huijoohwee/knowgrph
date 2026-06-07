@@ -111,6 +111,10 @@ export function startPointerDrag(args: {
   }
 
   const pointerId = typeof (ev as unknown as { pointerId?: unknown }).pointerId === 'number' ? ev.pointerId : null
+  const startPointerType = typeof (ev as unknown as { pointerType?: unknown }).pointerType === 'string'
+    ? String((ev as unknown as { pointerType: string }).pointerType)
+    : ''
+  const acceptMouseFallbackEvents = pointerId == null || !startPointerType || startPointerType === 'mouse'
   const dragKey = pointerId != null ? `pid:${pointerId}` : 'pid:mouse'
   const startButtons = typeof (ev as unknown as { buttons?: unknown }).buttons === 'number' ? ev.buttons : 1
   const body = document.body
@@ -190,6 +194,8 @@ export function startPointerDrag(args: {
     window.removeEventListener('pointermove', handleMove)
     window.removeEventListener('pointerup', handleUp)
     window.removeEventListener('pointercancel', handleCancel)
+    window.removeEventListener('mousemove', handleMouseMove)
+    window.removeEventListener('mouseup', handleMouseUp)
     window.removeEventListener('blur', handleWindowBlur)
     ;(captureTarget || target).removeEventListener('lostpointercapture', handleLostCapture)
     if (watchdog != null) {
@@ -241,9 +247,9 @@ export function startPointerDrag(args: {
     return true
   }
 
-  const handleMove = (mv: PointerEvent) => {
+  const handleMove = (mv: PointerEvent, opts?: { ignorePointerId?: boolean }) => {
     if (!active) return
-    if (pointerId != null && mv.pointerId !== pointerId) return
+    if (pointerId != null && opts?.ignorePointerId !== true && mv.pointerId !== pointerId) return
     if (cancelIfTargetDetached(mv)) return
 
     try {
@@ -271,8 +277,8 @@ export function startPointerDrag(args: {
     onMove(mv)
   }
 
-  const handleUp = (up: PointerEvent) => {
-    if (pointerId != null && up.pointerId !== pointerId) return
+  const handleUp = (up: PointerEvent, opts?: { ignorePointerId?: boolean }) => {
+    if (pointerId != null && opts?.ignorePointerId !== true && up.pointerId !== pointerId) return
     if (cancelIfTargetDetached(up)) return
     try {
       up.preventDefault()
@@ -311,6 +317,16 @@ export function startPointerDrag(args: {
     }
   }
 
+  const handleMouseMove = (mv: MouseEvent) => {
+    if (!acceptMouseFallbackEvents) return
+    handleMove(mv as unknown as PointerEvent, { ignorePointerId: true })
+  }
+
+  const handleMouseUp = (up: MouseEvent) => {
+    if (!acceptMouseFallbackEvents) return
+    handleUp(up as unknown as PointerEvent, { ignorePointerId: true })
+  }
+
   const handleLostCapture = (lost: Event) => {
     if (!active) return
     const ev = lost as unknown as PointerEvent
@@ -333,6 +349,8 @@ export function startPointerDrag(args: {
   window.addEventListener('pointermove', handleMove)
   window.addEventListener('pointerup', handleUp)
   window.addEventListener('pointercancel', handleCancel)
+  window.addEventListener('mousemove', handleMouseMove)
+  window.addEventListener('mouseup', handleMouseUp)
   window.addEventListener('blur', handleWindowBlur)
   ;(captureTarget || target).addEventListener('lostpointercapture', handleLostCapture)
 

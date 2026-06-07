@@ -120,6 +120,11 @@ export function useOverlayInteractions2d(args: {
         zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
         next,
       )
+      try {
+        requestOverlaySchedule?.()
+      } catch {
+        void 0
+      }
     }),
   )
 

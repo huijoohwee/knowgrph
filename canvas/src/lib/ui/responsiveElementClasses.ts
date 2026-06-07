@@ -495,7 +495,7 @@ export const UI_RESPONSIVE_CONTROL_TOGGLE_BUTTON_CLASSNAME = 'App-toolbar__btn k
 export const UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME = 'kg-responsive-control-value-row flex items-center'
 
 export const UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME = 'kg-responsive-control-value-row kg-responsive-control-value-row--compact flex items-center'
-
+export const UI_RESPONSIVE_CONTROL_ICON_CELL_CLASSNAME = 'kg-responsive-control-icon-cell'
 export const UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME = 'kg-responsive-control-inline-fill'
 
 export const UI_RESPONSIVE_CONTROL_HINT_CLASSNAME = 'kg-responsive-control-hint'

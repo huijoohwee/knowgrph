@@ -14,7 +14,6 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
 import { publishLocalChatPipelineFinalizeSnapshot } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { persistChatStreamArtifacts } from '@/features/chat/chatStreamArtifacts'
-import { persistKnowgrphVdeoxplnRunManifestForChat } from '@/features/chat/knowgrphVdeoxplnChatArtifacts'
 
 const normalizeStoragePromotionPath = (value: unknown): string => normalizeWorkspacePath(String(value || '').trim())
 
@@ -105,7 +104,7 @@ export const useFinalizeAssistantSuccess = (args: {
   chatLocalStorageRootPath: string
   setChatKnowgrphWorkspacePath: (path: string) => void
   setChatHistoryWorkspacePath: (path: string) => void
-  followWorkspaceMarkdownPath: (path: string) => void
+  followWorkspaceMarkdownPath: (path: string, options?: { forceReveal?: boolean }) => void
   pushChatExchangeLog: (payload: {
     request: string
     response: string
@@ -219,7 +218,7 @@ export const useFinalizeAssistantSuccess = (args: {
     let canvasApplyError: string | null = null
     try {
       if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) {
-        args.followWorkspaceMarkdownPath(knowgrphPath)
+        args.followWorkspaceMarkdownPath(knowgrphPath, { forceReveal: true })
         const applied = await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)
         canvasApplied = applied
         publishLocalChatPipelineFinalizeSnapshot({
@@ -260,19 +259,6 @@ export const useFinalizeAssistantSuccess = (args: {
       })
       if (args.chatStorageTarget === 'chatKnowgrph') {
         try {
-          const manifestPath = await persistKnowgrphVdeoxplnRunManifestForChat({
-            workspacePath: knowgrphPath,
-            requestText,
-            status: 'error',
-            timestampMs,
-            providerSummary: args.chatProviderSummary,
-            modelId,
-            usageSummary: payload.streamUsageSummary || null,
-            finishReason: payload.streamFinishReason || null,
-            canvasApplied,
-            errorMessage: canvasApplyError,
-          })
-          storagePromotionPaths.push(manifestPath || knowgrphPath)
           await promoteGeneratedChatWorkspacePaths(storagePromotionPaths)
         } catch {
           void 0
@@ -281,19 +267,6 @@ export const useFinalizeAssistantSuccess = (args: {
       throw error
     }
     if (args.chatStorageTarget === 'chatKnowgrph') {
-      const manifestPath = await persistKnowgrphVdeoxplnRunManifestForChat({
-        workspacePath: knowgrphPath,
-        requestText,
-        status,
-        timestampMs,
-        providerSummary: args.chatProviderSummary,
-        modelId,
-        usageSummary: payload.streamUsageSummary || null,
-        finishReason: payload.streamFinishReason || null,
-        canvasApplied,
-        errorMessage: canvasApplyError,
-      })
-      storagePromotionPaths.push(manifestPath || knowgrphPath)
       await promoteGeneratedChatWorkspacePaths(storagePromotionPaths)
     }
     const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''

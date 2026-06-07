@@ -1,4 +1,5 @@
 import React from 'react'
+import { Bot, ChevronDown, KeyRound } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import type { GraphNode } from '@/lib/graph/types'
@@ -8,7 +9,7 @@ import {
   UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
   UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME,
   UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME,
-  UI_RESPONSIVE_CONTROL_HINT_CLASSNAME,
+  UI_RESPONSIVE_CONTROL_ICON_CELL_CLASSNAME,
   UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME,
   UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
@@ -265,6 +266,11 @@ type FooterProps = {
   errorText: string | null
   connectivity: 'unknown' | 'ok' | 'error'
   connectivityDetail: string | null
+  apiKeyPrompt?: {
+    providerLabel: string
+    value: string
+    onChange: (value: string) => void
+  } | null
   currentNode: GraphNode | null
   modelId: string
   modelOptions: string[]
@@ -286,6 +292,7 @@ export function FloatingPanelChatFooter({
   errorText,
   connectivity,
   connectivityDetail,
+  apiKeyPrompt,
   currentNode,
   modelId,
   modelOptions,
@@ -300,6 +307,12 @@ export function FloatingPanelChatFooter({
   onNewChat,
 }: FooterProps) {
   const chatModelSelectId = React.useId()
+  const chatApiKeyInputId = React.useId()
+  const [isApiKeyExpanded, setIsApiKeyExpanded] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!apiKeyPrompt && isApiKeyExpanded) setIsApiKeyExpanded(false)
+  }, [apiKeyPrompt, isApiKeyExpanded])
 
   return (
     <section className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
@@ -322,24 +335,56 @@ export function FloatingPanelChatFooter({
       )}
       {modelOptions.length > 0 && (
         <section className={UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME} data-kg-chat-model-control="true">
-          <label
-            htmlFor={chatModelSelectId}
-            className={[
-              UI_RESPONSIVE_CONTROL_HINT_CLASSNAME,
-              uiPanelTextFontClass,
-              uiPanelMicroLabelTextSizeClass,
-              UI_THEME_TOKENS.text.tertiary,
-            ].join(' ')}
-          >
-            {UI_COPY.chatModelSelectLabel}
-          </label>
+          {apiKeyPrompt ? (
+            <button
+              type="button"
+              aria-label={isApiKeyExpanded ? 'Collapse API key input' : 'Expand API key input'}
+              aria-expanded={isApiKeyExpanded}
+              aria-controls={chatApiKeyInputId}
+              title={`${apiKeyPrompt.providerLabel} BYOK API key`}
+              data-kg-chat-model-icon="true"
+              data-kg-chat-api-key-toggle="true"
+              data-kg-chat-model-api-key-toggle="true"
+              className={[
+                'App-toolbar__btn',
+                UI_RESPONSIVE_CONTROL_ICON_CELL_CLASSNAME,
+                uiPanelMicroLabelTextSizeClass,
+                UI_THEME_TOKENS.button.text,
+                UI_THEME_TOKENS.button.hoverBg,
+              ].join(' ')}
+              onClick={() => setIsApiKeyExpanded(prev => !prev)}
+            >
+              <Bot className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
+              <ChevronDown
+                className={[
+                  'size-2.5 transition-transform',
+                  isApiKeyExpanded ? 'rotate-180' : '',
+                ].join(' ')}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            </button>
+          ) : (
+            <span
+              aria-hidden="true"
+              data-kg-chat-model-icon="true"
+              className={[
+                'App-toolbar__btn pointer-events-none',
+                UI_RESPONSIVE_CONTROL_ICON_CELL_CLASSNAME,
+                uiPanelMicroLabelTextSizeClass,
+                UI_THEME_TOKENS.button.text,
+              ].join(' ')}
+            >
+              <Bot className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
+            </span>
+          )}
           <select
             id={chatModelSelectId}
             aria-label={UI_COPY.chatModelSelectLabel}
             data-kg-chat-model-select="true"
             value={modelId}
-            onChange={e => {
-              const next = e.target.value
+            onChange={event => {
+              const next = String(event.target.value || '').trim()
               if (!next) return
               onModelChanged(next)
             }}
@@ -354,6 +399,35 @@ export function FloatingPanelChatFooter({
           </select>
         </section>
       )}
+      {apiKeyPrompt && isApiKeyExpanded ? (
+        <section className={UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME} data-kg-chat-api-key-prompt="true">
+          <span
+            aria-hidden="true"
+            data-kg-chat-api-key-icon="true"
+            className={[
+              'App-toolbar__btn pointer-events-none',
+              UI_RESPONSIVE_CONTROL_ICON_CELL_CLASSNAME,
+              uiPanelMicroLabelTextSizeClass,
+              UI_THEME_TOKENS.button.text,
+            ].join(' ')}
+          >
+            <KeyRound className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
+          </span>
+          <input
+            id={chatApiKeyInputId}
+            aria-label={`${apiKeyPrompt.providerLabel} BYOK API key`}
+            data-kg-chat-api-key-input="true"
+            type="password"
+            value={apiKeyPrompt.value}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={event => apiKeyPrompt.onChange(event.target.value)}
+            disabled={isLoading}
+            placeholder="Enter API key"
+            className={`${UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME} ${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
+          />
+        </section>
+      ) : null}
 
       <form onSubmit={onSubmit} className="space-y-2">
         <section className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>

@@ -10,9 +10,9 @@ export const splitLeadingFrontmatterAndBody = (raw: string): SplitFrontmatterBod
   const lines = text.split('\n')
   let lead = 0
   while (lead < lines.length && !String(lines[lead] || '').trim()) lead += 1
-  if (String(lines[lead] || '').trim() !== '---') return null
+  if (!/^---\s*$/.test(String(lines[lead] || ''))) return null
   for (let i = lead + 1; i < lines.length; i += 1) {
-    if (String(lines[i] || '').trim() !== '---') continue
+    if (!/^---\s*$/.test(String(lines[i] || ''))) continue
     return {
       frontmatter: lines.slice(lead + 1, i).join('\n'),
       body: lines.slice(i + 1).join('\n').trim(),

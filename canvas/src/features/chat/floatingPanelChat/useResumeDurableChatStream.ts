@@ -39,7 +39,7 @@ export const useResumeDurableChatStream = (args: {
   setChatWorkspaceStreamingState?: (value: { path?: string | null; text?: string | null } | null) => void
   setChatKnowgrphWorkspacePath: (path: string) => void
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
-  followWorkspaceMarkdownPath: (path: string) => void
+  followWorkspaceMarkdownPath: (path: string, options?: { forceReveal?: boolean }) => void
   finalizeAssistantSuccess: FloatingPanelChatSubmitArgs['finalizeAssistantSuccess']
   abortRef: React.MutableRefObject<AbortController | null>
   streamFollowRef: React.MutableRefObject<{ path: string; atMs: number } | null>
@@ -88,7 +88,7 @@ export const useResumeDurableChatStream = (args: {
             args.setStreamingWorkspacePath(String(value?.path || '').trim() || null)
             args.setChatWorkspaceStreamingState?.(value)
           },
-          persistWorkspaceDrafts: true,
+          persistWorkspaceDrafts: false,
         })
         const assistantStream = await readAssistantResponseText({
           response,

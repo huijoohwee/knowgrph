@@ -342,7 +342,7 @@ export async function testReadAssistantResponseTextFailsOnMissingFirstChunk() {
   }
 }
 
-export async function testCreateChatKnowgrphDraftWriterStreamsTraceCompanionAndPersistsCanonicalPath() {
+export async function testCreateChatKnowgrphDraftWriterStreamsTraceCompanionWithoutWorkspaceRewrite() {
   const followedPaths: string[] = []
   const streamingStates: Array<{ path: string | null; text: string }> = []
   const persistedDrafts: Array<{ requestedPath: string; assistantText: string }> = []
@@ -371,7 +371,7 @@ export async function testCreateChatKnowgrphDraftWriterStreamsTraceCompanionAndP
       })
       return '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md'
     },
-    persistWorkspaceDrafts: true,
+    persistWorkspaceDrafts: false,
   })
 
   await flushDraft('partial durable stream', false)
@@ -390,12 +390,8 @@ export async function testCreateChatKnowgrphDraftWriterStreamsTraceCompanionAndP
   ) {
     throw new Error(`Expected live workspace streaming state to expose trace companion text, got: ${JSON.stringify(streamingStates)}`)
   }
-  if (
-    persistedDrafts.length !== 1 ||
-    persistedDrafts[0]?.requestedPath !== '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md' ||
-    persistedDrafts[0]?.assistantText !== 'partial durable stream'
-  ) {
-    throw new Error(`Expected durable persistence to keep canonical output ownership, got: ${JSON.stringify(persistedDrafts)}`)
+  if (persistedDrafts.length !== 0) {
+    throw new Error(`Expected live stream draft writer to avoid workspace rewrite persistence, got: ${JSON.stringify(persistedDrafts)}`)
   }
 }
 
@@ -505,19 +501,11 @@ export async function testDurableChatStreamFetchBridgesWorkerSseWithoutPersistin
   }
 }
 
-export async function testCreateChatKnowgrphDraftWriterSerializesDraftPersistenceWithoutBlockingLiveState() {
+export async function testCreateChatKnowgrphDraftWriterUpdatesLiveStateWithoutWaitingForPersistence() {
   const followedPaths: string[] = []
   const streamingStates: Array<{ path: string | null; text: string }> = []
   const persistedDrafts: string[] = []
   const streamDraftTextRef: { current: { path: string; text: string } | null } = { current: null }
-  let markFirstPersistStarted: (() => void) | null = null
-  let releaseFirstPersist: (() => void) | null = null
-  const firstPersistStarted = new Promise<void>(resolve => {
-    markFirstPersistStarted = resolve
-  })
-  const allowFirstPersist = new Promise<void>(resolve => {
-    releaseFirstPersist = resolve
-  })
   const flushDraft = createChatKnowgrphDraftWriter({
     chatStorageTarget: 'chatKnowgrph',
     liveKgcPath: '/workspace/chat/20260522T182000Z/kgc_20260522T182000Z.md',
@@ -538,18 +526,13 @@ export async function testCreateChatKnowgrphDraftWriterSerializesDraftPersistenc
     persistDraft: async payload => {
       const text = String(payload.assistantText || '')
       persistedDrafts.push(text)
-      if (text === 'first partial') {
-        markFirstPersistStarted?.()
-        await allowFirstPersist
-      }
       return '/workspace/chat/20260522T182000Z/kgc_20260522T182000Z.md'
     },
-    persistWorkspaceDrafts: true,
+    persistWorkspaceDrafts: false,
   })
 
-  const firstWrite = flushDraft('first partial', false)
-  const secondWrite = flushDraft('second terminal', true)
-  await firstPersistStarted
+  await flushDraft('first partial', false)
+  await flushDraft('second terminal', true)
 
   const tracePath = '/workspace/chat/20260522T182000Z/kgc-trace_20260522T182000Z.md'
   if (streamDraftTextRef.current?.text !== 'second terminal' || streamDraftTextRef.current.path !== tracePath) {
@@ -562,14 +545,8 @@ export async function testCreateChatKnowgrphDraftWriterSerializesDraftPersistenc
   ) {
     throw new Error(`Expected live workspace state to update synchronously while persistence is pending, got ${JSON.stringify(streamingStates)}`)
   }
-  if (persistedDrafts.length !== 1 || persistedDrafts[0] !== 'first partial') {
-    throw new Error(`Expected second persistence write to wait for the first, got ${JSON.stringify(persistedDrafts)}`)
-  }
-  releaseFirstPersist?.()
-  await firstWrite
-  await secondWrite
-  if (persistedDrafts.join(' -> ') !== 'first partial -> second terminal') {
-    throw new Error(`Expected durable draft persistence to preserve stream order, got ${JSON.stringify(persistedDrafts)}`)
+  if (persistedDrafts.length !== 0) {
+    throw new Error(`Expected live editor stream updates to avoid workspace rewrite persistence, got ${JSON.stringify(persistedDrafts)}`)
   }
   if (followedPaths.length !== 2 || followedPaths.every(path => path === tracePath) !== true) {
     throw new Error(`Expected both live updates to follow the trace workspace path, got ${JSON.stringify(followedPaths)}`)

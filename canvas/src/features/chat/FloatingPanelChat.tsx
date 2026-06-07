@@ -12,6 +12,7 @@ import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from './Flo
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
 import { ensureChatStreamArtifactBundleInitialized } from '@/features/chat/chatStreamArtifacts'
+import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspaceFsWrite'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
@@ -34,6 +35,7 @@ import {
 } from '@/features/chat/FloatingPanelChat.helpers'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
+import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
 import {
   abortDurableChatStreamRun,
   clearActiveDurableChatStreamRun,
@@ -55,7 +57,6 @@ import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
 } from '@/features/panels/ui/KeyTypeValueRow'
-
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -68,6 +69,7 @@ export default function FloatingPanelChat() {
   const chatProvider = useGraphStore(s => s.chatProvider)
   const chatAuthMode = useGraphStore(s => (s.chatAuthMode === 'byok' ? 'byok' : 'serverManaged'))
   const chatApiKey = useGraphStore(s => s.chatApiKey)
+  const setChatApiKey = useGraphStore(s => s.setChatApiKey)
   const chatEndpointUrl = useGraphStore(s => s.chatEndpointUrl)
   const chatModel = useGraphStore(s => s.chatModel)
   const chatTemperature = useGraphStore(s => s.chatTemperature)
@@ -113,7 +115,6 @@ export default function FloatingPanelChat() {
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const docLocationRevision = useGraphStore(s => s.docLocationRevision)
   const integrationConfigsJson = useGraphStore(s => s.integrationConfigsJson)
-
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
@@ -136,7 +137,6 @@ export default function FloatingPanelChat() {
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
   const streamFollowRef = React.useRef<{ path: string; atMs: number } | null>(null)
   const streamDraftTextRef = React.useRef<{ path: string; text: string } | null>(null)
-
   React.useEffect(() => {
     if (isLoading) return
     setChatWorkspaceStreamingState(null)
@@ -159,14 +159,8 @@ export default function FloatingPanelChat() {
     const modelLabel = typeof chatModel === 'string' && chatModel.trim() ? chatModel.trim() : 'model pending'
     return `${chatProviderLabel} · ${chatProviderRegion} · ${modelLabel}`
   }, [chatModel, chatProviderLabel, chatProviderRegion])
-  const chatProviderHint = React.useMemo(
-    () => getChatRecommendedModelHint(chatProvider),
-    [chatProvider],
-  )
-  const pixverseVideoConfig = React.useMemo(
-    () => parseIntegrationConfigsJson(integrationConfigsJson).pixverseVideo,
-    [integrationConfigsJson],
-  )
+  const chatProviderHint = React.useMemo(() => getChatRecommendedModelHint(chatProvider), [chatProvider])
+  const pixverseVideoConfig = React.useMemo(() => parseIntegrationConfigsJson(integrationConfigsJson).pixverseVideo, [integrationConfigsJson])
   const chatProviderHintWithPixVerse = React.useMemo(() => {
     const pixverseHint = pixverseVideoConfig.enabled
       ? `PixVerse ${String(pixverseVideoConfig.strategy || 'auto')} is armed for rich-media runs.`
@@ -174,6 +168,7 @@ export default function FloatingPanelChat() {
     if (chatProviderHint && pixverseHint) return `${chatProviderHint} ${pixverseHint}`
     return pixverseHint || chatProviderHint
   }, [chatProviderHint, pixverseVideoConfig.enabled, pixverseVideoConfig.strategy])
+  const shouldShowChatApiKeyPrompt = shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })
 
   React.useEffect(() => {
     publishLocalChatPipelineSurfaceSnapshot({
@@ -311,11 +306,12 @@ export default function FloatingPanelChat() {
     emitMarkdownLayoutRequest('editor')
   }, [])
 
-  const followWorkspaceMarkdownPath = React.useCallback((path: string) => {
+  const followWorkspaceMarkdownPath = React.useCallback((path: string, options?: { forceReveal?: boolean }) => {
     const normalized = normalizeMarkdownWorkspaceSelectionPath(path as never) || path
     const nowMs = Date.now()
     const prevFollow = streamFollowRef.current
     const samePath = !!prevFollow && prevFollow.path === normalized
+    const forceReveal = options?.forceReveal === true
     if (!samePath || workspaceViewMode !== 'editor' || editorWorkspacePane !== 'markdown') {
       openMarkdownWorkspaceEditorPane(useGraphStore.getState())
     }
@@ -324,7 +320,7 @@ export default function FloatingPanelChat() {
     if (!samePath || activePath !== normalized) explorer.setActivePath(normalized)
     lsSetJson<'split' | 'editor' | 'viewer'>(LS_KEYS.markdownLayoutMode, 'editor')
     emitMarkdownLayoutRequest('editor')
-    if (!samePath || nowMs - prevFollow.atMs >= 180) {
+    if (forceReveal || !samePath || nowMs - prevFollow.atMs >= 180) {
       streamRevealSeqRef.current = (streamRevealSeqRef.current + 1) % 2
       const tailLine = Number.MAX_SAFE_INTEGER - streamRevealSeqRef.current
       explorer.requestRevealLine(tailLine)
@@ -355,9 +351,10 @@ export default function FloatingPanelChat() {
         timestampMs,
         defaultLocalRootPath: chatLocalStorageRootPath,
       })
+      await writeWorkspaceFileTextEnsuringFile({ path: nextPath, text: '' })
       setChatKnowgrphWorkspacePath(nextPath)
       clearCurrentHistory()
-      followWorkspaceMarkdownPath(nextPath)
+      followWorkspaceMarkdownPath(nextPath, { forceReveal: true })
     } catch {
       setErrorText(UI_COPY.chatNewChatFailedError)
     }
@@ -724,6 +721,7 @@ export default function FloatingPanelChat() {
         errorText={errorText}
         connectivity={connectivity}
         connectivityDetail={connectivityDetail}
+        apiKeyPrompt={shouldShowChatApiKeyPrompt ? { providerLabel: chatProviderLabel, value: chatApiKey || '', onChange: setChatApiKey } : null}
         currentNode={currentNode}
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}
