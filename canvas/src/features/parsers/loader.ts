@@ -230,9 +230,9 @@ export async function loadGraphDataFromTextViaParser(
         stage: 'parser:select',
         run: () => bestMatch({ name, text: normalizedText })
       })
-  const selectedParserId = preferredParserId || (bm ? toParserId(bm.id) : null)
+  const parserId = preferredParserId || (bm ? toParserId(bm.id) : null)
   const selectedParserLabel = preferredParserId ? String(preferredParserId) : String(bm?.id || '')
-  if (!selectedParserId) {
+  if (!parserId) {
     return finalizeLoaderResult({
       t0: tAll,
       sourceName: name,
@@ -241,7 +241,7 @@ export async function loadGraphDataFromTextViaParser(
       outcome: 'no-match',
     })
   }
-  const cached = getCachedParse(selectedParserId, name, normalizedText, cfgKey)
+  const cached = getCachedParse(parserId, name, normalizedText, cfgKey)
   if (cached) {
     notifyLoaderProgress(options, 'Using cached parse')
   } else {
@@ -251,7 +251,7 @@ export async function loadGraphDataFromTextViaParser(
     name: 'import',
     stage: 'parser:apply',
     detail: { parserId: selectedParserLabel, name, textChars: normalizedText.length },
-    run: () => applyParserAsync(selectedParserId, { name, text: normalizedText }),
+    run: () => applyParserAsync(parserId, { name, text: normalizedText }),
   })
   if (!res) {
     return finalizeLoaderResult({
@@ -265,12 +265,12 @@ export async function loadGraphDataFromTextViaParser(
     })
   }
 
-  if (!cached) setCachedParse(selectedParserId, name, normalizedText, res, cfgKey)
+  if (!cached) setCachedParse(parserId, name, normalizedText, res, cfgKey)
   let { graphData } = res
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
   const lower = String(name || '').trim().toLowerCase()
   if (!maybeEmpty) {
-    setCachedPreferredParser(name, normalizedText, selectedParserId, cfgKey)
+    setCachedPreferredParser(name, normalizedText, parserId, cfgKey)
   }
   if (maybeEmpty && selectedParserLabel !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown'))) {
     notifyLoaderProgress(options, 'Fallback: markdown parser')

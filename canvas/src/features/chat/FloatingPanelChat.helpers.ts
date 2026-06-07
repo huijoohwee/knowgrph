@@ -361,6 +361,7 @@ export const formatReasoningStepSummary = (step: unknown): string => {
 const extractReasoningTextSummaries = (record: Record<string, unknown> | null): string[] => {
   if (!record) return []
   return uniqueNonEmptyText([
+    readRecordStringField(record, 'reasoning_content'),
     readRecordStringField(record, 'reasoning'),
     readRecordStringField(record, 'thought'),
     readRecordStringField(record, 'analysis'),
@@ -414,6 +415,20 @@ export const formatChatStreamUsageSummary = (usage: ChatStreamUsage | null): str
   return parts.length > 0 ? `Usage: ${parts.join(' · ')}` : null
 }
 
+const readChatStreamUsage = (...records: Array<Record<string, unknown> | null>): ChatStreamUsage | null => {
+  const usageRecord = records
+    .map(record => record?.usage)
+    .find(isObjectRecord)
+  if (!usageRecord) return null
+  return {
+    promptTokens: toNullableNumber(usageRecord.prompt_tokens),
+    completionTokens: toNullableNumber(usageRecord.completion_tokens),
+    totalTokens: toNullableNumber(usageRecord.total_tokens),
+    reasoningTokens: toNullableNumber(usageRecord.reasoning_tokens),
+    numSearchQueries: toNullableNumber(usageRecord.num_search_queries),
+  }
+}
+
 export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDelta => {
   if (!payload || typeof payload !== 'object') {
     return {
@@ -432,15 +447,7 @@ export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDe
   const message = isObjectRecord(first?.message) ? first.message : null
   const reasoningSteps = extractReasoningSignalSummaries(delta, message, record)
   const reasoningTextDelta = extractReasoningTextDelta(delta, message, record)
-  const usage = record.usage && typeof record.usage === 'object'
-    ? {
-        promptTokens: toNullableNumber((record.usage as Record<string, unknown>).prompt_tokens),
-        completionTokens: toNullableNumber((record.usage as Record<string, unknown>).completion_tokens),
-        totalTokens: toNullableNumber((record.usage as Record<string, unknown>).total_tokens),
-        reasoningTokens: toNullableNumber((record.usage as Record<string, unknown>).reasoning_tokens),
-        numSearchQueries: toNullableNumber((record.usage as Record<string, unknown>).num_search_queries),
-      }
-    : null
+  const usage = readChatStreamUsage(record, first, delta, message)
   return {
     contentDelta:
       extractAssistantContentText(delta?.content)

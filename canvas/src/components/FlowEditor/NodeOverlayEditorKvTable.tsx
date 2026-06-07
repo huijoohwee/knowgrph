@@ -72,7 +72,7 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
           <col style={{ width: `${safeHit}px` }} />
         </colgroup>
         <caption className={cn('sr-only', microLabelClass)}>
-          {UI_LABELS.flowWidgetKeyLabel} / {UI_LABELS.flowWidgetValueLabel}
+          {UI_LABELS.flowWidgetKeyLabel} / {UI_LABELS.flowWidgetTypeLabel} / {UI_LABELS.flowWidgetValueLabel}
         </caption>
 
         {showHeader ? (

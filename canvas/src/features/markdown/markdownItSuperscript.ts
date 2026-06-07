@@ -58,6 +58,7 @@ function tokenizeSuperscript(state: MarkdownItInlineState, silent: boolean): boo
   }
 
   if (silent) {
+    state.pos = contentEnd + 1
     return true
   }
 

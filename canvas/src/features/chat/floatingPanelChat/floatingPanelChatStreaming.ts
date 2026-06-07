@@ -44,13 +44,19 @@ const appendReasoningTextDelta = (current: string, delta: string): string => {
 }
 
 const uniqueTraceSignals = (values: readonly string[]): string[] => {
+  const normalizedValues = values
+    .map(value => String(value || '').replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
   const out: string[] = []
   const seen = new Set<string>()
-  values.forEach(value => {
-    const text = String(value || '').replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim()
-    if (!text) return
+  normalizedValues.forEach(text => {
     const key = text.toLowerCase()
     if (seen.has(key)) return
+    const isContainedFragment = normalizedValues.some(other => {
+      const otherKey = other.toLowerCase()
+      return otherKey !== key && otherKey.length > key.length && otherKey.includes(key)
+    })
+    if (isContainedFragment) return
     seen.add(key)
     out.push(text)
   })

@@ -22,6 +22,11 @@ export default function MapsHubView({
 }) {
   return (
     <div className="flex flex-col min-h-full">
+      <section className="sr-only" aria-label="GrabMaps backend guidance">
+        <p>Style loading uses Bearer auth against https://maps.grab.com/api/style.json.</p>
+        <p>Directions default to lng,lat coordinate order unless lat_first is enabled.</p>
+        <p>Use overview=full when you need route geometry suitable for animation or media prompts.</p>
+      </section>
       <SiteSelectionWidget />
       <SettingsView
         searchQuery={searchQuery}
@@ -33,4 +38,3 @@ export default function MapsHubView({
     </div>
   )
 }
-

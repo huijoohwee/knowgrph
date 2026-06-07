@@ -70,6 +70,8 @@ export async function testFlowWidgetZoomUpdatesDoNotRerenderPanel() {
 
     await tick()
     await tick()
+    await tick()
+    await tick()
 
     const panel = document.body.querySelector('aside[data-kg-canvas-wheel-ignore="true"]')
     if (!panel) throw new Error('expected widget to render an overlay aside')

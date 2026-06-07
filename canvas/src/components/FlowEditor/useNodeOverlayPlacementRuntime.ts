@@ -63,6 +63,7 @@ function shouldUseFrontmatterBalancedFallbackForScreenAuthority(args: {
 
 export type ApplyOverlayPositionOptions = {
   emitInteractionFrame?: boolean
+  updateToolbarLayout?: boolean
 }
 
 export function useNodeOverlayPlacementRuntime(args: {
@@ -645,8 +646,9 @@ export function useNodeOverlayPlacementRuntime(args: {
       return { left: clamp(posBase.left, minLeft, maxLeft), top: clamp(posBase.top, minTop, maxTop) }
     })()
     const pos = posBaseForViewport
+    const updateToolbarLayout = opts?.updateToolbarLayout !== false
     const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
-    setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
+    if (updateToolbarLayout) setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
     const safeEffectivePanelScale = Number.isFinite(effectivePanelScale) && effectivePanelScale > 0 ? effectivePanelScale : 1
     const toolbarViewportLeft = frontmatterVisibleViewportAuthority ? screenAuthorityViewportLeft : 0
     const toolbarViewportRight = frontmatterVisibleViewportAuthority ? screenAuthorityViewportRight : viewportW
@@ -665,10 +667,10 @@ export function useNodeOverlayPlacementRuntime(args: {
       marginPx: WIDGET_ACTIONS_TOOLBAR_VIEWPORT_MARGIN_PX,
     })
     const nextToolbarInlineShiftPx = toolbarShiftScreenPx / safeEffectivePanelScale
-    setToolbarInlineShiftPx(prev => (Math.abs(prev - nextToolbarInlineShiftPx) <= 0.001 ? prev : nextToolbarInlineShiftPx))
+    if (updateToolbarLayout) setToolbarInlineShiftPx(prev => (Math.abs(prev - nextToolbarInlineShiftPx) <= 0.001 ? prev : nextToolbarInlineShiftPx))
     const nextToolbarMaxWidthPx = toolbarMaxScreenWidth / safeEffectivePanelScale
-    setToolbarMaxWidthPx(prev => (Math.abs(prev - nextToolbarMaxWidthPx) <= 0.001 ? prev : nextToolbarMaxWidthPx))
-    setToolbarSideClamp(prev => {
+    if (updateToolbarLayout) setToolbarMaxWidthPx(prev => (Math.abs(prev - nextToolbarMaxWidthPx) <= 0.001 ? prev : nextToolbarMaxWidthPx))
+    if (updateToolbarLayout) setToolbarSideClamp(prev => {
       const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > toolbarViewportRight
       return prev === nextToolbarSideClamp ? prev : nextToolbarSideClamp
     })
@@ -863,11 +865,11 @@ export function useNodeOverlayPlacementRuntime(args: {
           zoomStateRef.current = nextZoom
           if (frontmatterScreenAuthority && sameScale && !pinnedDragOverrideRef.current) return
           if (!frontmatterScreenAuthority && sameScale && !widgetWorldPosRef.current && !pinnedDragOverrideRef.current) return
-          applyOverlayPosition()
+          applyOverlayPosition({ updateToolbarLayout: false })
           return
         }
         zoomStateRef.current = nextZoom
-        applyOverlayPosition()
+        applyOverlayPosition({ updateToolbarLayout: false })
       },
     )
     return () => {

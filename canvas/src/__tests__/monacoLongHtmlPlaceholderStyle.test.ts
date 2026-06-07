@@ -3,7 +3,7 @@ import path from 'node:path'
 
 export function testMonacoLongHtmlPlaceholderIsVisibleAndEllipsized() {
   const root = process.cwd()
-  const filePath = path.join(root, 'src', 'features', 'monaco', 'MonacoTextEditor.tsx')
+  const filePath = path.join(root, 'src', 'lib', 'monaco', 'MonacoTextEditor.impl.tsx')
   const text = fs.readFileSync(filePath, { encoding: 'utf8' })
 
   if (!text.includes('kg-monaco-ellipsis-long-html-line')) {
@@ -19,4 +19,3 @@ export function testMonacoLongHtmlPlaceholderIsVisibleAndEllipsized() {
     throw new Error('Expected long HTML line prefix label placeholder class to exist')
   }
 }
-

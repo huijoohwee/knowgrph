@@ -22,8 +22,8 @@ export function testRichMediaPanelUsesSectionBodyResizeHandleSsot() {
   if (!text.includes('data-kg-rich-media-render-surface="1"')) {
     throw new Error('expected Rich Media Panel widget body to expose a dedicated render-surface marker')
   }
-  if (!text.includes('data-kg-resize-handle="se"')) {
-    throw new Error('expected Rich Media Panel widget body to render a bottom-right resize handle using data-kg-resize-handle="se"')
+  if (!text.includes('<RichMediaPanelResizeHandle placement="panel" onPointerDown={handleRichMediaOuterResizePointerDown} />')) {
+    throw new Error('expected Rich Media Panel widget body to render the shared bottom-right resize handle')
   }
 }
 
@@ -36,14 +36,14 @@ export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   if (!text.includes('data-kg-rich-media-render-surface="1"')) {
     throw new Error('expected shared Rich Media Panel frame to expose a dedicated semantic render-surface marker')
   }
-  if (!text.includes("position: flowEditorInteractionMode ? 'absolute' : 'relative'")) {
+  if (!text.includes("position: panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative')")) {
     throw new Error('expected shared Rich Media Panel root frame to establish the resize-anchor containing block')
   }
   if (text.includes('{showPanelMarkdownPreview ? (\n          <section') || text.includes(') : isEmptyPanel ? (\n          <section') || text.includes(') : panelIsLoading ? (\n          <section')) {
     throw new Error('expected shared Rich Media Panel body render states to forbid generic HTML division element surfaces')
   }
   const bodyStart = text.indexOf("'kg-mediaBody'")
-  const resizeHandle = text.indexOf('const resizeHandle = installResize ? (')
+  const resizeHandle = text.indexOf("const resizeHandle = installResize && resizeHandlePlacement === 'root'")
   const renderSurfaceStart = text.indexOf('const renderSurfaceChildren = (')
   const renderedSurfaceStart = text.indexOf('const renderedSurface = showFlowEditorChrome ? (')
   const rootFrameResizeHandle = text.indexOf('{renderedSurface}\n      {resizeHandle}')

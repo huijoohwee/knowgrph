@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
-import MainPanel from '@/features/panels/MainPanel'
+import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
 import {
   CHAT_AGNES_MODEL_OPTIONS,
   CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
@@ -37,11 +37,10 @@ const renderRequestedIntegrationsSearch = async (
   if (!win) throw new Error('expected window for root render flush')
   await mountReactRoot(
     root,
-    React.createElement(MainPanel, {
-      requestedTab: 'integrations',
-      requestedSearchQuery,
+    React.createElement(IntegrationsHubView, {
+      searchQuery: requestedSearchQuery,
     } as never),
-    { window: win, frames: 6 },
+    { window: win, frames: 12 },
   )
 }
 
@@ -58,6 +57,8 @@ const createMainPanelHost = () => {
   const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
   anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
   useGraphStore.getState().resetAll()
+  useGraphStore.getState().setChatProvider(CHAT_PROVIDER_OPENAI)
+  useGraphStore.getState().setChatModel(CHAT_OPENAI_MODEL_OPTIONS[0])
 
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
@@ -73,6 +74,8 @@ const createMainPanelHost = () => {
       } catch {
         void 0
       }
+      useGraphStore.getState().setChatProvider(CHAT_PROVIDER_OPENAI)
+      useGraphStore.getState().setChatModel(CHAT_OPENAI_MODEL_OPTIONS[0])
       restoreDom()
       restoreWindow()
     },
@@ -82,7 +85,7 @@ const createMainPanelHost = () => {
 const findValueCellSelectForRowKey = (container: HTMLElement, rowKey: string) => {
   const valueRows = Array.from(container.querySelectorAll('dl')) as HTMLElement[]
   const row = valueRows.find(item => item.children[0]?.textContent?.trim() === rowKey)
-  return row?.children[2]?.querySelector<HTMLSelectElement>('select') || null
+  return row?.querySelector<HTMLSelectElement>('select') || null
 }
 
 export async function testMainPanelRequestedIntegrationsChatProviderValueCellDerivesFromChatModel() {
@@ -93,7 +96,7 @@ export async function testMainPanelRequestedIntegrationsChatProviderValueCellDer
 
     const valueRows = Array.from(host.container.querySelectorAll('dl')) as HTMLElement[]
     const providerRow = valueRows.find(row => row.children[0]?.textContent?.trim() === 'chatProvider')
-    const providerValueCell = providerRow?.children[2] as HTMLElement | undefined
+    const providerValueCell = providerRow as HTMLElement | undefined
     const providerInput = providerValueCell?.querySelector('input') as HTMLInputElement | null
     if (!providerValueCell || !providerInput || providerInput.readOnly !== true || providerInput.value !== CHAT_PROVIDER_OPENAI) {
       throw new Error(`expected chatProvider Value cell to render derived read-only OpenAI text, got ${JSON.stringify(providerValueCell?.textContent || providerInput?.value || '')}`)
@@ -119,7 +122,7 @@ export async function testMainPanelRequestedIntegrationsChatProviderValueCellDer
 
     const rerenderedRows = Array.from(host.container.querySelectorAll('dl')) as HTMLElement[]
     const rerenderedProviderRow = rerenderedRows.find(row => row.children[0]?.textContent?.trim() === 'chatProvider')
-    const rerenderedProviderInput = rerenderedProviderRow?.children[2]?.querySelector('input') as HTMLInputElement | null
+    const rerenderedProviderInput = rerenderedProviderRow?.querySelector('input') as HTMLInputElement | null
     if (rerenderedProviderInput?.value !== CHAT_PROVIDER_QWEN) {
       throw new Error(`expected chatProvider Value to derive ${JSON.stringify(CHAT_PROVIDER_QWEN)} from chatModel, got ${JSON.stringify(rerenderedProviderInput?.value)}`)
     }
@@ -138,7 +141,7 @@ export async function testMainPanelRequestedIntegrationsChatModelValueCellUsesVi
     if (!modelSelect) {
       throw new Error('expected chatModel Value cell to render a visible model dropdown')
     }
-    if (modelSelect.closest('dl')?.children[2]?.querySelector('input[list="settings-chat-model-options"]')) {
+    if (modelSelect.closest('dl')?.querySelector('input[list="settings-chat-model-options"]')) {
       throw new Error('expected chatModel Value cell to avoid plain datalist-only text input')
     }
     ;[

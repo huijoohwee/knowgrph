@@ -20,11 +20,11 @@ export const renderChatProviderSettingInput = (args: {
   }
 
   const currentProvider = normalizeChatProviderId(args.values.chatProvider ?? args.value)
-  const derivedProvider = inferChatProviderFromModelId(args.values.chatModel, currentProvider)
+  const derivedProvider = inferChatProviderFromModelId(args.values.chatModel || args.value, currentProvider)
 
   return (
     <input
-      value={derivedProvider}
+      value={derivedProvider || currentProvider}
       readOnly
       aria-readonly="true"
       className={args.className}
@@ -49,9 +49,12 @@ export const renderChatModelSettingInput = (args: {
   const provider = inferChatProviderFromModelId(selected, args.values.chatProvider)
   const resolved = resolveChatModelIdForProvider(selected, provider, { preserveUnknownCustomModel: true })
   const normalized = args.options.includes(resolved) ? resolved : args.options[0] || ''
+  const modelOptions = resolved && !args.options.includes(resolved)
+    ? [resolved, ...args.options]
+    : args.options
   return (
     <select
-      value={normalized}
+      value={resolved || normalized}
       onChange={event => {
         const next = String(event.target.value || '').trim()
         args.dirtyRef.current.add('chatProvider')
@@ -68,7 +71,7 @@ export const renderChatModelSettingInput = (args: {
       }}
       className={args.className}
     >
-      {args.options.map(option => (
+      {modelOptions.map(option => (
         <option key={option} value={option}>
           {option}
         </option>

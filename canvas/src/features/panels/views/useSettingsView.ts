@@ -282,6 +282,7 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
     if (rowKey === 'qwenApi.model') {
       return {
         ...mappedMeta,
+        read: () => CHAT_QWEN_MODEL_OPTIONS[0],
         options: [...CHAT_QWEN_MODEL_OPTIONS],
       }
     }

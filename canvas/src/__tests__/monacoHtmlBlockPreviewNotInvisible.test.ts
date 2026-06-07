@@ -3,7 +3,7 @@ import path from 'node:path'
 
 export function testMonacoHtmlBlockCollapseShowsPreview() {
   const root = process.cwd()
-  const filePath = path.join(root, 'src', 'features', 'monaco', 'MonacoTextEditor.tsx')
+  const filePath = path.join(root, 'src', 'lib', 'monaco', 'MonacoTextEditor.impl.tsx')
   const text = fs.readFileSync(filePath, { encoding: 'utf8' })
 
   if (!text.includes('kg-monaco-ellipsis-long-html-line')) {

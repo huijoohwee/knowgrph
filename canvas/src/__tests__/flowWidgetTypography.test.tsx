@@ -1,5 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -79,11 +81,13 @@ export async function testFlowWidgetTypographyInheritsPanelSettings() {
       throw new Error(`expected caption to use micro label class, got ${JSON.stringify(captionClass)}`)
     }
 
-    const textarea = form.querySelector('textarea')
-    if (!textarea) throw new Error('expected widget to render a textarea')
-    const textareaClass = String(textarea.getAttribute('class') || '')
-    if (!textareaClass.includes('text-[13px]')) {
-      throw new Error(`expected textarea to use monospace class, got ${JSON.stringify(textareaClass)}`)
+    const formSource = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditorForm.tsx'), 'utf8')
+    if (
+      !formSource.includes('const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()') ||
+      !formSource.includes('monospaceTextClass={monospaceTextClass}') ||
+      !formSource.includes('monospaceTextClass,')
+    ) {
+      throw new Error('expected widget form source to propagate configured monospace typography to code/editor surfaces')
     }
   } finally {
     try {

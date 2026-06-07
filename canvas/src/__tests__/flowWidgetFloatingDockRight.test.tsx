@@ -29,6 +29,17 @@ function readScale(transform: string): number | null {
   return Number.isFinite(scale) ? scale : null
 }
 
+function clearFlowWidgetPlacementState() {
+  useGraphStore.setState({
+    flowWidgetPinnedByNodeId: {},
+    flowWidgetPinnedByNodeIdByGraphMetaKey: {},
+    flowWidgetPosByNodeId: {},
+    flowWidgetPosByNodeIdByGraphMetaKey: {},
+    flowWidgetWorldPosByNodeId: {},
+    flowWidgetWorldPosByNodeIdByGraphMetaKey: {},
+  } as never)
+}
+
 export async function testFlowWidgetUnpinnedReusesCanvasZoomMovement() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -44,6 +55,7 @@ export async function testFlowWidgetUnpinnedReusesCanvasZoomMovement() {
 
     const api = useGraphStore.getState()
     api.resetAll()
+    clearFlowWidgetPlacementState()
     api.setZoomState({ k: 1, x: 0, y: 0 })
     api.setFlowWidgetPinnedByNodeId({ n1: false })
     api.setFlowWidgetPosByNodeId({ n1: { top: 96, left: 999 } })
@@ -793,6 +805,7 @@ export async function testFrontmatterWidgetPinKeepsCurrentScreenPlacement() {
 
     const api = useGraphStore.getState()
     api.resetAll()
+    clearFlowWidgetPlacementState()
     api.setZoomState({ k: 2, x: 120, y: 30 })
     api.setFlowWidgetPinnedByNodeId({ n1: false })
     api.setFlowWidgetPosByNodeId({ n1: { top: 200, left: 130 } })
