@@ -239,11 +239,12 @@ export function CanvasQueryBootstrapRuntime(props: {
     handledLarkHandoffRef.current = parsed.rawToken
     consumeLarkAppCanvasHandoffParams(raw)
 
-    if (!parsed.ok) {
+    if (parsed.ok === false) {
+      const errorMessage = parsed.error
       upsertUiToast({
         id: 'lark-app:canvas-handoff-error',
         kind: 'error',
-        message: parsed.error,
+        message: errorMessage,
         ttlMs: 5000,
         dismissible: true,
       })

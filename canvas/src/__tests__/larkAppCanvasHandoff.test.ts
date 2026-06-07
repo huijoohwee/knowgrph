@@ -68,10 +68,14 @@ export function testLarkAppCanvasHandoffParsesImportIntent() {
 
 export function testLarkAppCanvasHandoffRejectsMalformedPayload() {
   const parsed = parseLarkAppCanvasHandoffFromSearch(`?${QUERY_PARAM_LARK_HANDOFF}=not-valid-base64`)
-  if (!parsed || parsed.ok) {
+  if (!parsed) {
     throw new Error(`expected malformed handoff to fail, got ${JSON.stringify(parsed)}`)
   }
-  if (!String(parsed.error || '').trim()) {
+  if (parsed.ok !== false) {
+    throw new Error(`expected malformed handoff to fail, got ${JSON.stringify(parsed)}`)
+  }
+  const errorMessage = parsed.error
+  if (!String(errorMessage || '').trim()) {
     throw new Error(`expected malformed handoff to surface an error, got ${JSON.stringify(parsed)}`)
   }
 }
