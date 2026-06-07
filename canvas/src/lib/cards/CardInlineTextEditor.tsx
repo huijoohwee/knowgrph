@@ -22,6 +22,7 @@ type CardInlineTextEditorProps = {
   emptyClassName?: string
   markdownPreview?: boolean | 'auto'
   rows?: number
+  stopActivationPropagation?: boolean
   onCommit?: (nextValue: string) => void
   onEditingChange?: (editing: boolean) => void
 }
@@ -67,6 +68,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     emptyClassName,
     markdownPreview = false,
     rows,
+    stopActivationPropagation = true,
     onCommit,
     onEditingChange,
   } = props
@@ -126,11 +128,13 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     if (!canEdit) return false
     if (shouldIgnoreInlineEditTarget(event.target)) return false
     event.preventDefault()
-    event.stopPropagation()
+    if (stopActivationPropagation) {
+      event.stopPropagation()
+    }
     setDraft(normalizeEditorValue(value))
     setEditing(true)
     return true
-  }, [canEdit, value])
+  }, [canEdit, stopActivationPropagation, value])
 
   const displayValue = readMarkdownSigilDisplayText(value)
   const showPlaceholder = !displayValue
@@ -198,7 +202,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         if (!canEdit) return
         if (shouldIgnoreInlineEditTarget(event.target)) return
         if (editActivation !== 'click' && event.detail < 2) return
-        event.stopPropagation()
+        if (stopActivationPropagation) {
+          event.stopPropagation()
+        }
       }}
       onClick={event => {
         if (!canEdit) return

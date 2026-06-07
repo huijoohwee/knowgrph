@@ -12,6 +12,7 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const formPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const registryPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorRegistrySection.tsx')
   const inlineValuePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'FlowEditorInlineValueEditor.tsx')
+  const jsonLikeValuePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorJsonLikeValueEditor.tsx')
   const fieldMutationPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'widgetFieldMutation.ts')
   const registryTemplatesPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'registryTemplates.ts')
 
@@ -59,8 +60,21 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
 
   const registry = readUtf8(registryPath)
   const inlineValue = readUtf8(inlineValuePath)
+  const jsonLikeValue = readUtf8(jsonLikeValuePath)
   if (!inlineValue.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")) {
     throw new Error('Expected Flow Editor editable Value cells to reuse the shared CardInlineTextEditor owner')
+  }
+  if (inlineValue.includes('stopActivationPropagation={active}')) {
+    throw new Error('Expected Flow Editor editable Value cells to keep first-click editing local instead of bubbling into workspace/indexing activation')
+  }
+  if (!inlineValue.includes('canEdit')) {
+    throw new Error('Expected Flow Editor editable Value cells to allow first-click editing through the shared inline editor')
+  }
+  if (form.includes('if (!active || !fieldSchemaPath) return')) {
+    throw new Error('Expected frontmatter Flow Envelope Value commits to accept the first inactive inline edit')
+  }
+  if (jsonLikeValue.includes('if (!props.active) return')) {
+    throw new Error('Expected JSON-like Flow Editor Value commits to accept the first inactive inline edit')
   }
   if (!form.includes("import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'")) {
     throw new Error('Expected frontmatter Flow Envelope Value cells to route through the shared inline Value adapter')

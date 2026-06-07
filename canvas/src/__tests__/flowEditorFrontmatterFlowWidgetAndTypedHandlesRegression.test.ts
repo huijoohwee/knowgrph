@@ -897,7 +897,7 @@ export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRow
   const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
   const helperText = readFileSync(contractHelperPath, 'utf8')
-  if (!text.includes('const frontmatterPortRows = React.useMemo(() => {')) {
+  if (!text.includes('const frontmatterPortRows = React.useMemo<FrontmatterPortKvRow[]>(() => {')) {
     throw new Error('expected frontmatter flow contract handle rows to be rendered from shared row specs')
   }
   if (!helperText.includes("rowKey: args.dir === 'in' ? 'flow-handles-target' : 'flow-handles-source'")) {
@@ -905,6 +905,12 @@ export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRow
   }
   if (!text.includes("inPortNode: rowSpec.dir === 'in' ? portButton : undefined") || !text.includes("outPortNode: rowSpec.dir === 'out' ? portButton : undefined")) {
     throw new Error('expected flow contract handle rows to render explicit directional port nodes from shared specs')
+  }
+  if (!text.includes("const connectedPortValue = rowSpec.dir === 'in'") || !text.includes('connectedValuesSnapshot?.[normalizedSchemaPath]?.value')) {
+    throw new Error('expected frontmatter input port Value rows to display upstream connected values from the shared dataflow map')
+  }
+  if (!text.includes('value={portValueText || connectedPortValueText}')) {
+    throw new Error('expected frontmatter input port Value rows to fall back to connected values when local KTV values are empty')
   }
   if (!helperText.includes('portKeys: string[]')) {
     throw new Error('expected flow contract handle rows to expose explicit semantic port-key lists')

@@ -35,6 +35,10 @@ import {
   resolveFlowEditorWorkflowConnectedValuesInput,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
 import {
+  isFlowEditorWorkflowRunnableNode,
+  resolveFlowEditorWorkflowDownstreamRunTargetIds,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowDownstreamRunTargets'
+import {
   setFlowEditorWorkflowRunLoadingStateForKnownNodeIds,
   updateFlowEditorWorkflowOutputForKnownNodeIds,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
@@ -64,11 +68,14 @@ export function useFlowEditorWorkflowActions(args: {
     run()
   }, [args])
 
-  const runWorkflowNode = React.useCallback(async (nodeId: string, runOptions?: { allowCreateRichMediaPanel?: boolean }) => {
+  const runWorkflowNode = React.useCallback(async (nodeId: string, runOptions?: { allowCreateRichMediaPanel?: boolean; visitedNodeIds?: Set<string> }) => {
     try {
       const id = String(nodeId || '').trim()
       const allowCreateRichMediaPanel = runOptions?.allowCreateRichMediaPanel !== false
       if (!id) return
+      const visitedNodeIds = runOptions?.visitedNodeIds || new Set<string>()
+      if (visitedNodeIds.has(id)) return
+      visitedNodeIds.add(id)
       const activeWorkspacePath = typeof args.markdownDocumentName === 'string' ? args.markdownDocumentName.trim() : ''
       if (activeWorkspacePath && isKgcWorkspaceCompanionPath(activeWorkspacePath)) {
         const canonicalPath = toCanonicalKgcWorkspacePath(activeWorkspacePath)
@@ -504,6 +511,27 @@ export function useFlowEditorWorkflowActions(args: {
         } finally {
           setRunLoadingStateForKnownNodeIds({ loading: false })
         }
+        return
+      }
+
+      const downstreamRunTargetIds = resolveFlowEditorWorkflowDownstreamRunTargetIds({
+        node,
+        graphData: graphForRun,
+      }).filter(targetId => !visitedNodeIds.has(targetId))
+      const downstreamRunnableTargetIds = downstreamRunTargetIds.filter(targetId => isFlowEditorWorkflowRunnableNode({
+        node: resolveNodeByIdAcrossGraphs(targetId),
+        resolveRichMediaKind: resolveRichMediaWidgetKind,
+      }))
+      if (downstreamRunnableTargetIds.length > 0) {
+        for (const targetId of downstreamRunnableTargetIds) {
+          await runWorkflowNode(targetId, { allowCreateRichMediaPanel, visitedNodeIds })
+        }
+        args.upsertUiToast({
+          id: `flow-editor-run-downstream-${id}`,
+          kind: 'neutral',
+          message: `Ran ${downstreamRunnableTargetIds.length} downstream node${downstreamRunnableTargetIds.length === 1 ? '' : 's'}.`,
+          ttlMs: 2200,
+        })
         return
       }
 

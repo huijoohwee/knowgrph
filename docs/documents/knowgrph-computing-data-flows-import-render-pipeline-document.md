@@ -214,6 +214,7 @@ Template `flow:` blocks should include:
 - `direction`, `edgeType`, and `computed` under `flow`, consumed as frontmatter-flow settings.
 - `socket_types` for every custom semantic edge type used by the template.
 - Node `handles` declaring target/source membership and matching `"flow:portTypes"` entries for typed connection validation.
+- Input widgets should expose query, context, audience, format, constraints, evidence, and tone as separate typed `{key,type,value}` fields when a reusable template needs recomputable response granularity.
 - Edges with explicit `sourceHandle` and `targetHandle` when a concrete field endpoint exists.
 - Declared Flow Editor widget nodes with document-scoped registry entries for interactive generated outputs, and Rich Media Panel endpoint nodes for neutral rendered outputs instead of sidecar preview instructions.
 - Optional `superagent_harness_template` metadata for long-horizon harness planning; it is not graph authoring data.

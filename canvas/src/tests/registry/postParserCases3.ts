@@ -175,6 +175,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.inlineCardEditor.sharedInput.preservesSharedMultilineCommitContract","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorPreservesSharedMultilineCommitContract"],
   ["ui.inlineCardEditor.sharedInput.avoidsRuntimeFocusPolyfill","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorAvoidsRuntimeFocusPolyfill"],
   ["ui.inlineCardEditor.sharedInput.allowsClickActivation","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorAllowsSharedClickActivation"],
+  ["ui.inlineCardEditor.sharedInput.propagatesActivationClick","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorCanPropagateActivationClick"],
+  ["ui.flowEditor.inlineValue.firstInactiveClickCommits","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testFlowEditorInlineValueEditorFirstInactiveClickCommits"],
   ["ui.inlineCardEditor.sharedAcrossAnimaticFlowStoryboardAndKanban","@/__tests__/inlineCardEditingSourceContract.test.ts","testInlineCardEditingStaysSharedAcrossSurfaces"],
   ["ui.dataViewKanban.cardLists.sharedResponsiveOwner","@/__tests__/kanbanCardListResponsiveContract.test.ts","testKanbanCardListsUseSharedResponsiveOwner"],
   ["animatic.serializerUtilities.scaleConfig.rewritesTimelineScaleBlock","@/__tests__/animaticTimelineModel.test.ts","testAnimaticTimelineScaleConfigSerializerRewritesTimelineScaleBlock"],

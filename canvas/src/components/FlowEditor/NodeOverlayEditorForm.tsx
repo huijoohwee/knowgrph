@@ -38,6 +38,7 @@ import {
 import {
   applyWidgetFieldValueUpdate,
   coerceWidgetFieldValue,
+  formatWidgetFieldValueText,
   normalizeWidgetFieldSchemaPath,
   readWidgetFieldValueText,
 } from '@/features/flow-editor-manager/widgetFieldMutation'
@@ -597,6 +598,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           schemaPath,
           fallbackKey: portKey,
         })
+        const connectedPortValue = rowSpec.dir === 'in'
+          ? connectedValuesSnapshot?.[normalizedSchemaPath]?.value
+          : undefined
+        const connectedPortValueText = typeof connectedPortValue !== 'undefined'
+          ? formatWidgetFieldValueText(connectedPortValue)
+          : ''
         return {
           rowKey,
           dir: rowSpec.dir,
@@ -614,7 +621,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           valueNode: (
             <PlainTextInputEditor
               id={inputId}
-              value={portValueText}
+              value={portValueText || connectedPortValueText}
               disabled
               className={cn(
                 keyValueInputClass,
@@ -636,6 +643,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     keyLabelClass,
     keyValueInputClass,
     monospaceTextClass,
+    connectedValuesSnapshot,
     propertiesSnapshot,
     renderFrontmatterPortButton,
     textSizeClass,
@@ -683,7 +691,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               onCommit={next => {
                 const raw = String(next ?? '')
                 setFlowDataDraft(raw)
-                if (!active) return
                 if (!raw.trim()) {
                   onPatchProperties({ data: undefined })
                   return
@@ -746,7 +753,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             multiline
             className={flowEnvelopeValueBoxClass}
             onCommit={next => {
-              if (!active || !fieldSchemaPath) return
+              if (!fieldSchemaPath) return
               const raw = String(next ?? '')
               const nextValue = raw.trim()
                 ? coerceWidgetFieldValue({ fieldType: rowSpec.typeLabel, value: raw })

@@ -55,7 +55,6 @@ export const JsonLikeValueEditor = React.memo(function JsonLikeValueEditor(props
       active={props.active}
       onCommit={next => {
         setText(next)
-        if (!props.active) return
         const raw = String(next || '')
         if (!raw.trim()) {
           props.onCommit(undefined)

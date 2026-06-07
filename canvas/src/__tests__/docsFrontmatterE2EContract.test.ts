@@ -24,6 +24,7 @@ const APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS = [
 const APPROVED_TYPED_WRAPPER_DOC_PATHS = [
   ...E2E_VIDEO_DOC_PATHS,
   ...APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS,
+  FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH,
 ]
 const E2E_TYPED_WRAPPER_DOC_SET = new Set(APPROVED_TYPED_WRAPPER_DOC_PATHS)
 const CANONICAL_PLAIN_YAML_DOC_CONTRACTS = [
@@ -54,6 +55,23 @@ type PlainRecord = Record<string, unknown>
 type PublishedFlowEditorDocContract = {
   filePath: string | null
   requiredSummaries: ReadonlyArray<readonly [string, string]>
+  requiredNodeTypedFields?: ReadonlyArray<{
+    nodeId: string
+    fields: readonly string[]
+  }>
+  requiredNodeLeadingFields?: ReadonlyArray<{
+    nodeId: string
+    fields: readonly string[]
+  }>
+  requiredNodeTargetHandles?: ReadonlyArray<{
+    nodeId: string
+    handles: readonly string[]
+  }>
+  requiredBlankNodeFields?: ReadonlyArray<{
+    nodeId: string
+    fields: readonly string[]
+  }>
+  forbiddenFragments?: readonly string[]
   optional: boolean
 }
 
@@ -390,9 +408,69 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
     {
       filePath: FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH,
       requiredSummaries: [
-        ['integration_openai', 'template SuperAgent gateway'],
-        ['compute_summary', 'semantic ports'],
+        ['source_input', 'granular query, context, audience, format, constraints, evidence, tone, metric label, and metric target inputs'],
+        ['compute_summary', 'semantic ports for granular inputs'],
         ['panel_chart_output', 'outputSrcDoc field'],
+      ],
+      requiredNodeTypedFields: [
+        {
+          nodeId: 'source_input',
+          fields: [
+            'input_query',
+            'input_context',
+            'input_audience',
+            'input_format',
+            'input_constraints',
+            'input_evidence',
+            'input_tone',
+            'input_metric_label',
+            'input_metric_target',
+          ],
+        },
+      ],
+      requiredNodeLeadingFields: [
+        {
+          nodeId: 'source_input',
+          fields: [
+            'label',
+            'position',
+            'input_query',
+            'input_context',
+            'input_audience',
+            'input_format',
+            'input_constraints',
+            'input_evidence',
+            'input_tone',
+            'input_metric_label',
+            'input_metric_target',
+          ],
+        },
+      ],
+      requiredNodeTargetHandles: [
+        {
+          nodeId: 'compute_summary',
+          handles: [
+            'input_query',
+            'input_context',
+            'input_audience',
+            'input_format',
+            'input_constraints',
+            'input_evidence',
+            'input_tone',
+            'input_metric_label',
+            'input_metric_target',
+          ],
+        },
+      ],
+      requiredBlankNodeFields: [
+        {
+          nodeId: 'compute_summary',
+          fields: ['output', 'imageUrl', 'outputSrcDoc'],
+        },
+      ],
+      forbiddenFragments: [
+        'Computed output',
+        '500-word baseline',
       ],
       optional: false,
     },
@@ -429,6 +507,11 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
     if (/(^|\n)flow:\s*(\n|$)/.test(bodyText)) {
       violations.push(`${toRepoRelativePath(contract.filePath)} must not keep body-side flow: graph mirrors`)
     }
+    for (const fragment of contract.forbiddenFragments || []) {
+      if (yamlText.includes(fragment) || bodyText.includes(fragment)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} must not keep stale generated fragment ${JSON.stringify(fragment)}`)
+      }
+    }
 
     const meta = parseYaml(yamlText)
     if (!isPlainRecord(meta) || !isPlainRecord(meta.flow) || !Array.isArray(meta.flow.nodes)) {
@@ -448,6 +531,81 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
       const summary = node['kgc:readingSummary']
       if (!isPlainRecord(summary) || !String(summary.value || '').includes(expectedFragment)) {
         violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${nodeId} to own kgc:readingSummary containing ${JSON.stringify(expectedFragment)}`)
+      }
+    }
+
+    for (const required of contract.requiredNodeTypedFields || []) {
+      const node = meta.flow.nodes.find(candidate => {
+        if (!isPlainRecord(candidate)) return false
+        const idField = candidate.id
+        return isPlainRecord(idField) && idField.value === required.nodeId
+      })
+      if (!isPlainRecord(node)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter node ${required.nodeId}`)
+        continue
+      }
+      for (const fieldKey of required.fields) {
+        if (!isTypedValueWrapper(node[fieldKey], fieldKey)) {
+          violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${required.nodeId}.${fieldKey} to use a {key,type,value} KTV wrapper`)
+        }
+      }
+    }
+
+    for (const required of contract.requiredNodeLeadingFields || []) {
+      const node = meta.flow.nodes.find(candidate => {
+        if (!isPlainRecord(candidate)) return false
+        const idField = candidate.id
+        return isPlainRecord(idField) && idField.value === required.nodeId
+      })
+      if (!isPlainRecord(node)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter node ${required.nodeId}`)
+        continue
+      }
+      const fieldKeys = Object.keys(node).filter(key => key !== 'id' && key !== 'type')
+      const leading = fieldKeys.slice(0, required.fields.length)
+      if (leading.join('\n') !== required.fields.join('\n')) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${required.nodeId} to expose granular KTV input fields before metadata rows`)
+      }
+    }
+
+    for (const required of contract.requiredNodeTargetHandles || []) {
+      const edges = Array.isArray(meta.flow.edges) ? meta.flow.edges : []
+      const connectedTargetHandles = new Set<string>()
+      for (const edge of edges) {
+        if (!isPlainRecord(edge)) continue
+        const target = edge.target
+        const targetHandle = edge.targetHandle
+        if (
+          isTypedValueWrapper(target, 'target')
+          && target.value === required.nodeId
+          && isTypedValueWrapper(targetHandle, 'targetHandle')
+          && typeof targetHandle.value === 'string'
+        ) {
+          connectedTargetHandles.add(targetHandle.value)
+        }
+      }
+      for (const handle of required.handles) {
+        if (!connectedTargetHandles.has(handle)) {
+          violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${required.nodeId} target handle ${handle} to be connected by a typed edge`)
+        }
+      }
+    }
+
+    for (const required of contract.requiredBlankNodeFields || []) {
+      const node = meta.flow.nodes.find(candidate => {
+        if (!isPlainRecord(candidate)) return false
+        const idField = candidate.id
+        return isPlainRecord(idField) && idField.value === required.nodeId
+      })
+      if (!isPlainRecord(node)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter node ${required.nodeId}`)
+        continue
+      }
+      for (const fieldKey of required.fields) {
+        const field = node[fieldKey]
+        if (!isTypedValueWrapper(field, fieldKey) || field.value !== '') {
+          violations.push(`${toRepoRelativePath(contract.filePath)} expected reusable node ${required.nodeId}.${fieldKey} to keep an empty KTV value`)
+        }
       }
     }
   }

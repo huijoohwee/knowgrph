@@ -56,7 +56,7 @@ export const FlowEditorInlineValueEditor = React.memo(function FlowEditorInlineV
       value={String(value ?? '')}
       ariaLabel={ariaLabel || id}
       placeholder={placeholder || ''}
-      canEdit={active}
+      canEdit
       editActivation="click"
       multiline={multiline}
       rows={rows}
