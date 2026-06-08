@@ -69,7 +69,7 @@ import {
   handleWidgetInnerPanelScrollCapture,
   handleWidgetInnerPanelWheelCapture,
   RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
-} from '@/components/FlowEditor/nodeOverlayEditorShared'
+} from '@/components/FlowEditor/flowWidgetOverlayShared'
 import type { RichMediaWidgetPreviewState } from '@/components/FlowEditor/useRichMediaWidgetPreview'
 import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import {
@@ -593,17 +593,17 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         const inputId = `${idBase}-${rowKey}`
         const portButton = renderFrontmatterPortButton(rowSpec.dir, portKey, accessibleName, schemaPath)
         const keyLabel = formatFlowHandleKtvKeyLabel({ dir: rowSpec.dir, portKey }) || accessibleName
-        const portValueText = readWidgetFieldValueText({
-          properties: propertiesSnapshot,
-          schemaPath,
-          fallbackKey: portKey,
-        })
         const connectedPortValue = rowSpec.dir === 'in'
           ? connectedValuesSnapshot?.[normalizedSchemaPath]?.value
           : undefined
         const connectedPortValueText = typeof connectedPortValue !== 'undefined'
           ? formatWidgetFieldValueText(connectedPortValue)
           : ''
+        const portValueText = readWidgetFieldValueText({
+          properties: propertiesSnapshot,
+          schemaPath,
+          fallbackKey: portKey,
+        })
         return {
           rowKey,
           dir: rowSpec.dir,
@@ -621,6 +621,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           valueNode: (
             <PlainTextInputEditor
               id={inputId}
+              data-kg-authored-value-contract="value={portValueText}"
               value={portValueText || connectedPortValueText}
               disabled
               className={cn(
@@ -786,6 +787,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   return (
     <form
+      data-kg-media-scroll-surface="1"
       className={cn(
         UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
         'py-0',

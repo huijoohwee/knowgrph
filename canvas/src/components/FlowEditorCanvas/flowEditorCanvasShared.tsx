@@ -1,6 +1,6 @@
 import React from 'react'
 
-import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
+import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
@@ -266,7 +266,7 @@ type FlowEditorWidgetOverlayProps = {
 
 export const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverlay(args: FlowEditorWidgetOverlayProps) {
   return (
-    <NodeOverlayEditor
+    <FlowWidgetOverlay
       visible={args.visible}
       active={args.active}
       flowEditorSurfaceId={args.flowEditorSurfaceId}

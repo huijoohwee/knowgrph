@@ -452,9 +452,13 @@ export function getCachedFlowEditorWorkflowNodeResolutionContext(args: {
   const cacheKey = hashSignatureParts([
     'flow-editor-workflow-node-resolution-context',
     draftLookup?.graphSemanticKey || '',
+    String(draftLookup?.revision ?? args.draftGraphRevision ?? ''),
     renderLookup?.graphSemanticKey || '',
+    String(renderLookup?.revision ?? args.renderGraphRevision ?? ''),
     baseLookup?.graphSemanticKey || '',
+    String(baseLookup?.revision ?? args.baseGraphRevision ?? ''),
     storeLookup?.graphSemanticKey || '',
+    String(storeLookup?.revision ?? args.storeGraphRevision ?? ''),
   ])
   const cached = readCachedFlowEditorWorkflowNodeResolutionContext(cacheKey)
   if (cached) return cached

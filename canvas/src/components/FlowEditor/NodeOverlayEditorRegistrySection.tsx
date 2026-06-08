@@ -5,12 +5,11 @@ import type { WidgetRegistryEntry, WidgetRegistryFieldOption, WidgetRegistryPort
 import { getObjectPath } from '@/lib/data/objectPath'
 import { NodeOverlayEditorKvTable, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { formatFlowHandleAccessibleName, formatFlowHandleKtvKeyLabel, formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
+import { UI_COPY } from '@/lib/config'
+import { formatFlowHandleAccessibleName, formatFlowHandleKtvKeyLabel, formatFlowHandleKtvSubLabel, formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
-  UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
@@ -28,7 +27,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
-import { applyConnectedWidgetFieldsToEmptyValues, applyWidgetFieldValueUpdate, coerceWidgetFieldValue, normalizeWidgetFieldSchemaPath, readWidgetFieldValueText } from '@/features/flow-editor-manager/widgetFieldMutation'
+import { applyWidgetFieldValueUpdate, normalizeWidgetFieldSchemaPath, readWidgetFieldValueText } from '@/features/flow-editor-manager/widgetFieldMutation'
 import {
   formatConnectedValue,
   JsonLikeValueEditor,
@@ -45,6 +44,7 @@ type RegistryPortRowModel = {
   portValueId: string
   handlePath: ReturnType<typeof readFlowHandlePath>
   portKeyLabel: string
+  portSubLabel: string
   aria: string
   mainPanelLink: ReturnType<typeof resolveWidgetRegistryMainPanelLink>
   portValueText: string
@@ -131,8 +131,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     })),
   )
 
-  const [autoApplyConnected, setAutoApplyConnected] = React.useState(false)
-
   const fieldKeyCounts = React.useMemo(() => {
     const counts = new Map<string, number>()
     for (let i = 0; i < registryFields.length; i += 1) {
@@ -141,17 +139,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     }
     return counts
   }, [registryFields])
-
-  const applyConnectedToEmptyFields = React.useCallback(() => {
-    if (!active) return
-    const nextProperties = applyConnectedWidgetFieldsToEmptyValues({
-      properties,
-      fields: registryFields,
-      connectedValuesBySchemaPath,
-    })
-    if (!nextProperties) return
-    onSetProperties(nextProperties)
-  }, [active, connectedValuesBySchemaPath, onSetProperties, properties, registryFields])
 
   const effectiveProperties = React.useMemo(() => {
     if (String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
@@ -176,11 +163,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       globalProperties: globalTextDefaults,
     })
   }, [globalTextDefaults, properties, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
-
-  React.useEffect(() => {
-    if (!autoApplyConnected) return
-    applyConnectedToEmptyFields()
-  }, [applyConnectedToEmptyFields, autoApplyConnected, connectedValuesBySchemaPath])
 
   const registryFieldSchemaPathSet = React.useMemo(() => {
     const out = new Set<string>()
@@ -219,6 +201,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       const handlePath = readFlowHandlePath(isIn ? 'in' : 'out')
       const handleSemanticKey = formatFlowHandleSemanticKey({ dir: isIn ? 'in' : 'out', portKey })
       const portKeyLabel = formatFlowHandleKtvKeyLabel({ dir: isIn ? 'in' : 'out', portKey }) || handleSemanticKey || portKey
+      const portSubLabel = formatFlowHandleKtvSubLabel({ portKey, schemaPath })
       const aria = formatFlowHandleAccessibleName({
         dir: isIn ? 'in' : 'out',
         portKey,
@@ -236,6 +219,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         portValueId,
         handlePath,
         portKeyLabel,
+        portSubLabel,
         aria,
         mainPanelLink: resolveWidgetRegistryMainPanelLink({
           registryEntry,
@@ -397,22 +381,12 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       ? (
           <section
             className={cn(
-              'mt-1 flex items-center justify-between gap-2',
+              'mt-1 min-w-0',
               microLabelClass,
             )}
             aria-label={UI_COPY.flowWidgetConnectedValueLabel}
           >
             <p className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.tertiary)}>{UI_COPY.flowWidgetConnectedValuePrefix}{connectedValueText}</p>
-            <button
-              type="button"
-              className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
-              onClick={() => setValue(coerceWidgetFieldValue({ fieldType, value: connected.value }))}
-              disabled={!active}
-              aria-label={UI_COPY.flowWidgetApplyConnectedValueLabel}
-              title={UI_COPY.flowWidgetApplyConnectedValueLabel}
-            >
-              {UI_LABELS.apply}
-            </button>
           </section>
         )
       : null
@@ -603,8 +577,10 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         outPortNode: !model.isIn ? portButton : null,
         keyNode: (
           <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={model.portValueId} title={model.aria || model.portKeyLabel}>
-            <span>{model.portKeyLabel}</span>
-            <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{model.schemaPath || model.portKey}</span>
+            <span className={cn('block min-w-0 truncate', UI_THEME_TOKENS.text.primary)}>{model.portKeyLabel}</span>
+            {model.portSubLabel ? (
+              <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{model.portSubLabel}</span>
+            ) : null}
           </label>
         ),
         valueNode: (
@@ -635,37 +611,8 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   const visiblePortRows = showPortRows ? portRows : []
   if (visibleFieldRows.length === 0 && visiblePortRows.length === 0) return null
 
-  const hasAnyConnectedValues = !!connectedValuesBySchemaPath && Object.keys(connectedValuesBySchemaPath).length > 0
-
   return (
     <section className="min-w-0 mt-4" aria-label="Widget Registry">
-
-      {hasAnyConnectedValues && visibleFieldRows.length > 0 ? (
-        <section className={cn('flex flex-wrap items-center justify-between gap-2 mb-2', microLabelClass)} aria-label={UI_COPY.flowWidgetConnectedControlsLabel}>
-          <label className={cn('inline-flex items-center gap-2', UI_THEME_TOKENS.text.secondary)}>
-            <input
-              type="checkbox"
-              checked={autoApplyConnected}
-              onChange={e => setAutoApplyConnected(e.target.checked)}
-              disabled={!active}
-            />
-            {UI_COPY.flowWidgetAutoApplyConnectedValuesLabel}
-          </label>
-          <button
-            type="button"
-            className={cn(UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, 'inline-flex shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
-            onClick={applyConnectedToEmptyFields}
-            disabled={!active}
-            aria-label={UI_COPY.flowWidgetApplyConnectedValuesToEmptyFieldsLabel}
-            title={UI_COPY.flowWidgetApplyConnectedValuesToEmptyFieldsLabel}
-          >
-            {UI_LABELS.apply}
-            {' '}
-            {UI_COPY.flowWidgetApplyAllSuffix}
-          </button>
-        </section>
-      ) : null}
-
       {visibleFieldRows.length > 0 && (
         <NodeOverlayEditorKvTable
           ariaLabel="Registry fields"
@@ -675,6 +622,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           forcePortDots
+          extraPlaceholderCell
         />
       )}
 

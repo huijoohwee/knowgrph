@@ -23,7 +23,7 @@ import {
   WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX,
   WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX,
   WIDGET_ACTIONS_TOOLBAR_VIEWPORT_MARGIN_PX,
-} from '@/components/FlowEditor/nodeOverlayEditorShared'
+} from '@/components/FlowEditor/flowWidgetOverlayShared'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaleKey, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
@@ -671,7 +671,7 @@ export function useNodeOverlayPlacementRuntime(args: {
     const nextToolbarMaxWidthPx = toolbarMaxScreenWidth / safeEffectivePanelScale
     if (updateToolbarLayout) setToolbarMaxWidthPx(prev => (Math.abs(prev - nextToolbarMaxWidthPx) <= 0.001 ? prev : nextToolbarMaxWidthPx))
     if (updateToolbarLayout) setToolbarSideClamp(prev => {
-      const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > toolbarViewportRight
+      const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportW
       return prev === nextToolbarSideClamp ? prev : nextToolbarSideClamp
     })
     const offset = canvasWindowOffsetRef.current

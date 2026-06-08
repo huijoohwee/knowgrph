@@ -1,8 +1,28 @@
 import React from 'react'
-import { CardMediaLoadingSkeleton } from '@/lib/cards/CardMediaPreview'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 
 const MarkdownPreviewLazy = React.lazy(() => import('@/features/markdown/ui/MarkdownPreview'))
+
 const CARD_MARKDOWN_CONTENT_CLASS_NAME = 'w-full max-w-none mx-0 min-w-0 px-0 box-border'
+const MARKDOWN_IMAGE_LINE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/
+
+function CardMarkdownPreviewFallback({ markdownText }: { markdownText: string }) {
+  const match = MARKDOWN_IMAGE_LINE_RE.exec(String(markdownText || ''))
+  if (!match) return null
+  const title = String(match[1] || 'Markdown image').trim() || 'Markdown image'
+  const url = String(match[2] || '').trim()
+  if (!url) return null
+  return (
+    <CardMediaPreview
+      kind="image"
+      url={url}
+      title={title}
+      fit="contain"
+      mediaThumbnailDataAttr
+      className="min-h-24 w-full"
+    />
+  )
+}
 
 export function CardMarkdownPreview({
   markdownText,
@@ -32,7 +52,7 @@ export function CardMarkdownPreview({
       className={rootClassName}
       style={style}
     >
-      <React.Suspense fallback={<CardMediaLoadingSkeleton label="Rendering markdown..." variant="text" richMediaDataAttrs={richMediaDataAttrs} />}>
+      <React.Suspense fallback={<CardMarkdownPreviewFallback markdownText={sourceText} />}>
         <MarkdownPreviewLazy
           markdownText={sourceText}
           activeDocumentPath={activeDocumentPath}

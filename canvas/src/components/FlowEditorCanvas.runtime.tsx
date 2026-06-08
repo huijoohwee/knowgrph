@@ -391,7 +391,7 @@ export default function FlowEditorCanvasRuntime(
     selectedDraftNode,
     selectedDraftEdge,
   })
-  const handleNodePropertiesCommittedForAutoRun = React.useCallback((nodeId: string) => {
+  const handleNodePropertiesCommittedForAutoRun = React.useCallback((nodeId: string, changedPropertyKeys?: ReadonlyArray<string>) => {
     if (canvasRunMode !== 'auto') return
     const id = String(nodeId || '').trim()
     if (!id) return
@@ -401,6 +401,7 @@ export default function FlowEditorCanvasRuntime(
       const targetNodeIds = resolveFlowEditorAutoRunNodeIds({
         graphData,
         nodeId: id,
+        changedPropertyKeys,
         resolveRichMediaKind: resolveRichMediaWidgetKind,
       })
       for (const targetNodeId of targetNodeIds) {
@@ -537,6 +538,7 @@ export default function FlowEditorCanvasRuntime(
     flowEditorFrontmatterGraphAvailable,
     geospatialWidgetPanelMode,
     renderGraphDataOverride,
+    draftGraphDataRef,
     baseGraphDataRevision,
     draftGraphDataRevision,
     overlayTopologyLayoutSignature,

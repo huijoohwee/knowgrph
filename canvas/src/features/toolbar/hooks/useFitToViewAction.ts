@@ -42,7 +42,7 @@ export function useFitToViewAction() {
 
     const geospatialEnabled = readGeospatialOverlayEnabledPreference()
 
-    const allowGeospatialFit = geospatialEnabled
+    const allowGeospatialFit = geospatialEnabled && canvasRenderMode !== '2d'
     if (allowGeospatialFit) {
       const hasSelection =
         (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ||

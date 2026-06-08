@@ -18,7 +18,7 @@ It answers five questions:
 2. Which files currently own WebMCP readiness and discovery?
 3. Which files currently own MCP Apps-ready tool/resource/server-readiness behavior?
 4. Which files currently own the MainPanel -> FloatingPanel Chat -> KGC or MCP structured response -> Editor Workspace -> Canvas flow?
-5. How does the planned Agentic OS dashboard reuse shipped owners for cross-repo build/control work?
+5. How does the planned Agentic Canvas OS dashboard reuse shipped owners for cross-repo build/control work?
 6. Which stale or conflicting architectures are forbidden?
 
 ---
@@ -46,7 +46,7 @@ It answers five questions:
 | Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published HTTP tool set includes `search`, `fetch`, `list_source_files`, `read_source_file`, `read_shared_document`, `inspect_shared_document_structure`, and `inspect_agent_surface`; WebMCP prefixes the same published tools with `knowgrph.` |
 | Vdeoxpln registry | Shipped | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | canonical vdeoxpln ids, semantic keys, source owners, tool projections, neutral routing, run manifest builder, and generated agent-skill Markdown |
 | Vdeoxpln run manifests | Shipped | `canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts` | writes KGC companion manifests through Workspace FS and host mirror after FloatingPanel Chat finalization |
-| Agentic OS dashboard contract | Planned extension | `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md` | Canvas UI and cross-repo agent build/control dashboard over shipped MCP, SuperAgent, Source Files, chat, and Canvas owners; no mutating execution until implementation and approval gates exist |
+| Agentic Canvas OS dashboard contract | Planned extension | `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md` + `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.companion.md` | Canvas UI and cross-repo agent build/control dashboard over shipped MCP, SuperAgent, Source Files, chat, and Canvas owners; includes secured starter-repo blueprints; no mutating execution until implementation and approval gates exist |
 | Agent-ready metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | health, API catalog, OpenAPI, MCP server card, A2A agent card, agent-skills |
 | Agent-skills discovery metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready-discovery.mjs` | agent-skills index and metadata expectations for published discovery |
 | MainPanel MCP | Shipped | `canvas/src/features/panels/views/McpHubView.tsx` | thin `SettingsView mode="mcp"` shell |
@@ -108,7 +108,7 @@ It answers five questions:
 - Shared deployed WebMCP stays on the published seven-tool read-only contract.
 - Browser-local inspect tools remain app-runtime only unless a future shared contract explicitly promotes them.
 - Local SuperAgent execution remains CLI/local-stdio MCP only unless a future source-owned deployed route and live validation prove otherwise.
-- Agentic OS remains a planned control-plane contract until source-owned tool contracts, focused tests, and live dry-run proof exist; docs must not imply arbitrary cross-repo writes, deploys, paid model calls, or financial actions are shipped.
+- Agentic Canvas OS remains a planned control-plane contract until source-owned tool contracts, focused tests, and live dry-run proof exist; docs must not imply arbitrary cross-repo writes, deploys, paid model calls, or financial actions are shipped.
 - DeerFlow-inspired SuperAgent language is conceptual-reference-only; do not copy DeerFlow code, clone its architecture, or add DeerFlow-owned parser, renderer, memory, or graph-apply stacks.
 - Public retrieval and discovery tools stay read-only, non-destructive, non-open-world, and idempotent; browser-local inspectors stay read-only, non-destructive, non-open-world, and idempotent.
 - MCP Apps-ready resource delivery stays server-owned through `resources/list` and `resources/read`; do not inline app HTML in tool results as a second resource path.
@@ -197,7 +197,7 @@ flowchart LR
 ### Architectural Invariants
 
 - MainPanel `mcp` and `integrations` stay thin shells over `SettingsView`.
-- Agentic OS dashboard state must enter through Source Files/KGC/frontmatter or typed MCP structured response manifests before Canvas rendering.
+- Agentic Canvas OS dashboard state must enter through Source Files/KGC/frontmatter or typed MCP structured response manifests before Canvas rendering.
 - Consumer repo roots must be explicit and allowlisted; external paths are never inferred from user prose alone.
 - Chat routing and presets stay owned by `useSettingsChatAssist()`.
 - Browser-local settings readiness inspection reuses `useSettingsChatAssist()` output instead of creating a second settings/readiness source of truth.
@@ -220,8 +220,8 @@ The following are explicitly forbidden:
 - adding a second MCP Apps resource URI, MIME-type constant, resource-read path, or server-readiness checklist outside the shared contract
 - adding a second MainPanel MCP config or routing surface outside `SettingsView` and `useSettingsChatAssist()`
 - adding a second LLM output -> Markdown or MCP structured response -> Editor Workspace -> Canvas pipeline outside the current chat submit, KGC/MCP structured-surface validation, finalize, and parser/apply owners
-- documenting Agentic OS as a shipped mutating remote MCP platform before repo-owned tool contracts and validation exist
-- letting Agentic OS tools write files, deploy, spend paid model tokens, or trigger Stripe/payment actions without dry-run output and human approval state
+- documenting Agentic Canvas OS as a shipped mutating remote MCP platform before repo-owned tool contracts and validation exist
+- letting Agentic Canvas OS tools write files, generate starter repo files, deploy, spend paid model tokens, or trigger Stripe/payment actions without dry-run output and human approval state
 - profiling or acting on arbitrary external paths outside a configured consumer-repo allowlist
 - treating `kg:subgraphs`, `clusters`, `groups`, or `layers` as upstream authoring alternatives to `flow.subgraphs`
 - treating downstream parser compatibility such as `frontmatter:chatKnowgrphRelaxed` as an upstream contract
@@ -235,7 +235,7 @@ The following are explicitly forbidden:
 If a future remote MCP service is added, it must:
 
 - introduce richer tools as thin adapters over current owners
-- adopt the Agentic OS dry-run/HITL policy before any cross-repo mutation tool
+- adopt the Agentic Canvas OS dry-run/HITL policy before any cross-repo mutation tool
 - keep tool-schema SSOT shared across stdio, browser, Pages, and remote transport
 - keep MCP Apps resources predeclared and read through standard MCP resource handlers
 - add read-oriented tools before mutating tools where possible
@@ -251,7 +251,7 @@ If a future remote MCP service is added, it must:
 - [x] WebMCP readiness ownership is implementation-accurate
 - [x] MCP Apps-ready resource, resource-template, capability, tool metadata, and server-readiness owners are documented
 - [x] Shipped vs planned boundary is explicit
-- [x] Agentic OS is documented as a planned Canvas UI and cross-repo build/control dashboard over shipped owners
+- [x] Agentic Canvas OS is documented as a planned Canvas UI and cross-repo build/control dashboard over shipped owners
 - [x] E2E MainPanel -> FloatingPanel Chat -> KGC or MCP structured response -> Editor Workspace -> Canvas contract is documented
 - [x] Forbidden architecture list blocks stale/conflicting narratives
 

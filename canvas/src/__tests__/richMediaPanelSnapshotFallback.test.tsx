@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame } from '@/tests/lib/reactRootHarness'
+import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
 
 const waitForBodyLink = async (container: HTMLElement, win: Window, url: string, maxFrames = 12) => {
   for (let i = 0; i < maxFrames; i += 1) {
@@ -1044,6 +1044,12 @@ export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
     if (!body.querySelector('[data-kg-card-markdown-preview="1"]')) {
       throw new Error('expected Flow Editor chrome body to reuse shared CardMarkdownPreview')
     }
+    await act(async () => {
+      for (let attempt = 0; attempt < 8 && !body.querySelector('img[data-kg-card-media-kind="image"][data-kg-media-thumbnail="1"]'); attempt += 1) {
+        await waitForTasks(2)
+        await waitForFrames(dom.window, 2)
+      }
+    })
     if (!body.querySelector('img[data-kg-card-media-kind="image"][data-kg-media-thumbnail="1"]')) {
       throw new Error(`expected markdown image inside Flow Editor chrome body to reuse shared CardMediaPreview, html=${container.innerHTML}`)
     }

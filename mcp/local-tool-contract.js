@@ -27,6 +27,21 @@ const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
   },
 });
 
+const AGENTIC_CANVAS_OS_PLAN_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: true,
+  required: ["contractVersion", "runId", "mode", "goal", "consumerRepo", "dashboard", "validation"],
+  properties: {
+    contractVersion: { type: "string" },
+    runId: { type: "string" },
+    mode: { type: "string" },
+    goal: { type: "string" },
+    consumerRepo: { type: "object", additionalProperties: true },
+    dashboard: { type: "object", additionalProperties: true },
+    validation: { type: "object", additionalProperties: true },
+  },
+});
+
 const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 }).filter((tool) =>
@@ -238,6 +253,126 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
         },
       },
     }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsPlan,
+      description:
+        "Use this when a local MCP host needs to produce a dry-run Agentic Canvas OS dashboard and run manifest for a goal, repo profile, approval-gated build plan, token/TCO budget, and optional secured starter-repo blueprint.",
+      outputSchema: AGENTIC_CANVAS_OS_PLAN_OUTPUT_SCHEMA,
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["goal"],
+        properties: {
+          goal: {
+            type: "string",
+            description: "Product or agent-build goal to turn into an Agentic Canvas OS dashboard plan.",
+          },
+          consumerRepo: {
+            type: "string",
+            description: "Human-readable consumer repo name. Defaults to the consumerRepoPath basename.",
+          },
+          consumerRepoPath: {
+            type: "string",
+            description: "Repo path to profile. Relative paths resolve under KNOWGRPH_ROOT; external sibling repos require allowExternalRepo=true.",
+          },
+          allowExternalRepo: {
+            type: "boolean",
+            default: false,
+            description: "Allow read-only profiling of a sibling repo outside KNOWGRPH_ROOT.",
+          },
+          runId: {
+            type: "string",
+            description: "Optional stable run id used for output artifact paths.",
+          },
+          outputDir: {
+            type: "string",
+            description: "Optional output directory inside KNOWGRPH_ROOT. Defaults to data/outputs/agentic-canvas-os/<runId>.",
+          },
+          lanes: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional lanes such as adapter_readiness, market_radar, browser_evidence, market_to_artifact, learning_loop, starter_repo, demo_pack, or failure_handling.",
+          },
+          includeStarterRepo: {
+            type: "boolean",
+            default: true,
+            description: "If true, include the secured React frontend plus AI-agent backend starter blueprint lane.",
+          },
+          writeArtifacts: {
+            type: "boolean",
+            default: false,
+            description: "If true, writes dashboard.agentic-os.md and run-manifest.json under outputDir only.",
+          },
+          frontendFramework: {
+            type: "string",
+            default: "react",
+            description: "Frontend framework label for the starter blueprint.",
+          },
+          agentBackend: {
+            type: "string",
+            default: "agent-platform-backend",
+            description: "Backend adapter label for the starter blueprint.",
+          },
+          deploymentTarget: {
+            type: "string",
+            default: "dry-run",
+            description: "Deployment target label for the dry-run blueprint.",
+          },
+          iac: {
+            type: "string",
+            enum: ["none", "cdk", "terraform"],
+            default: "none",
+            description: "Single infrastructure-as-code path to plan. Defaults to none until approved.",
+          },
+          marketQuestion: {
+            type: "string",
+            description: "Optional market question or product idea for the Market Radar lane. Defaults to goal.",
+          },
+          platforms: {
+            type: "array",
+            items: { type: "string" },
+            description: "Scoped market evidence platforms to plan for, such as x, reddit, producthunt, linkedin, xiaohongshu, tiktok, facebook, or instagram.",
+          },
+          sourceCards: {
+            type: "array",
+            items: { type: "object", additionalProperties: true },
+            description: "Optional already-captured source cards with url, platform, evidenceLevel, observedFields, and claimIds.",
+          },
+          allowedDomains: {
+            type: "array",
+            items: { type: "string" },
+            description: "Browser-evidence domain allowlist. Authenticated capture still requires confirmBrowserScope=true.",
+          },
+          confirmBrowserScope: {
+            type: "boolean",
+            default: false,
+            description: "If true with allowedDomains, marks local browser evidence scope approved for dry-run planning only.",
+          },
+          artifactKinds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Artifact kinds for market-to-artifact planning, such as text, image, audio, video, deck, landing_page, or demo_pack.",
+          },
+          finalizedTraceIds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Finalized run/chat trace ids allowed as Learning Loop inputs. Drafts and aborted turns are excluded.",
+          },
+          userNotes: {
+            type: "array",
+            items: { type: "string" },
+            description: "Explicit user notes that may become approval-gated identity facets.",
+          },
+          failOnceTool: {
+            type: "string",
+            description: "Optional tool name for dry-run failure-handling injection.",
+          },
+          maxIterations: { type: "number", description: "Agent loop iteration budget. Default: 8." },
+          tokenBudget: { type: "number", description: "Evidence/planning token budget. Default: 8000." },
+          tcoBudgetUsd: { type: "number", description: "Default fixed monthly TCO budget before live adapters. Default: 0." },
+        },
+      },
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults(BROWSER_API_TOOL, BROWSER_API_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,

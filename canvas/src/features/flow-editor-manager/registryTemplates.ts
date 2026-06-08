@@ -169,6 +169,10 @@ const OPENAI_COMPATIBLE_PROVIDER_ROW_SUFFIX_BY_OPENAI_SUFFIX: Readonly<Record<st
   max_output_tokens: 'max_tokens',
 }
 
+function isFrontmatterOwnedWidgetFormId(formId: unknown): boolean {
+  return String(formId || '').trim().startsWith('fm:')
+}
+
 function mapOpenAiRowKeyToChatCompatibleProviderRowKey(
   rowKey: string,
   providerFamily: 'miromind' | 'agnes' | 'qwen' | 'google-cloud',
@@ -242,11 +246,12 @@ export function listVisibleWidgetRegistryPortsForPropsEditor(args: {
   const ports = Array.isArray(args.registryEntry?.ports) ? args.registryEntry!.ports : []
   if (ports.length === 0) return []
   const nodeTypeId = String(args.registryEntry?.nodeTypeId || '').trim()
-  const providerFamily = nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+  const formId = String(args.registryEntry?.formId || '').trim()
+  const providerFamily = nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && !isFrontmatterOwnedWidgetFormId(formId)
     ? inferTextGenerationProviderFamily({
         provider: args.properties?.chatProvider,
         widgetTypeId: args.registryEntry?.widgetTypeId,
-        formId: args.registryEntry?.formId,
+        formId,
       })
     : null
   const out: WidgetRegistryPort[] = []
@@ -271,6 +276,7 @@ export function resolveWidgetRegistryApiDocRef(args: {
   portKey?: unknown
 }): WidgetRegistryApiDocRef | null {
   const nodeTypeId = String(args.registryEntry?.nodeTypeId || '').trim()
+  if (isFrontmatterOwnedWidgetFormId(args.registryEntry?.formId)) return null
   const schemaPath = String(args.schemaPath || '').trim()
   const fieldKey = String(args.fieldKey || '').trim()
   const portKey = String(args.portKey || '').trim()
@@ -406,6 +412,7 @@ export function getWidgetRegistryEntryLabel(args: {
 }): string {
   const nodeTypeId = String(args.nodeTypeId || '').trim()
   const formId = String(args.formId || '').trim()
+  if (isFrontmatterOwnedWidgetFormId(formId)) return 'Widget'
   if (isGrabMapsDiscoveryWidgetEntry(args)) return getGrabMapsDiscoveryWidgetLabel()
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
     if (formId === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_VIDEO_SCRIPT_WIDGET_LABEL

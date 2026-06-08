@@ -15,6 +15,7 @@ import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useApiGraphFlowchartGraphData } from '@/features/flowchart/apiGraphFlowchart'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import {
   buildKeywordSourceTextFromBaselineGraph,
   collectKeywordSourceMarkdownAnnotationsFromBaselineGraph,
@@ -201,7 +202,6 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       markdownText: debouncedStructuredMarkdownText,
     })
   }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
-  const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData || !!workspaceFrontmatterFlowGraphData || !!workspaceKgcSemanticGraphData || !!workspaceFrontmatterMermaidGraphData
   const activeMarkdownBaseGraph = React.useMemo(
     () =>
       resolveActiveMarkdownBaseGraph({
@@ -211,7 +211,25 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       }),
     [baseGraphDataRaw, markdownName, markdownText],
   )
-  const baseGraphData = workspaceJsonGraphData || workspaceFrontmatterFlowGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
+  const baseGraphData = React.useMemo(() => {
+    if (!frontmatterOnlyPolicyActive) {
+      return workspaceJsonGraphData || workspaceFrontmatterFlowGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
+    }
+    if (workspaceFrontmatterFlowGraphData) return workspaceFrontmatterFlowGraphData
+    if (isFrontmatterFlowGraph(activeMarkdownBaseGraph)) return activeMarkdownBaseGraph
+    return buildPendingActiveMarkdownGraph({ markdownName })
+  }, [
+    activeMarkdownBaseGraph,
+    frontmatterOnlyPolicyActive,
+    markdownName,
+    workspaceFrontmatterFlowGraphData,
+    workspaceFrontmatterMermaidGraphData,
+    workspaceJsonGraphData,
+    workspaceKgcSemanticGraphData,
+  ])
+  const hasStructuredWorkspaceGraph = frontmatterOnlyPolicyActive
+    ? !!workspaceFrontmatterFlowGraphData
+    : !!workspaceJsonGraphData || !!workspaceFrontmatterFlowGraphData || !!workspaceKgcSemanticGraphData || !!workspaceFrontmatterMermaidGraphData
   const { graphData: apiGraphFlowchart } = useApiGraphFlowchartGraphData(wantsApiGraphFlowchart)
 
   const lastRef = React.useRef<GraphData | null>(null)

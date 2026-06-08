@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
+import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -36,7 +36,7 @@ export async function testFlowWidgetTypographyInheritsPanelSettings() {
     root = createRoot(container as unknown as HTMLElement)
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: '890', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],

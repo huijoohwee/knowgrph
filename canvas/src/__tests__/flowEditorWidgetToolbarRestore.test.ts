@@ -9,7 +9,7 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx'),
     resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'),
     resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts'),
-    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts'),
+    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'flowWidgetOverlayShared.ts'),
   ]
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')

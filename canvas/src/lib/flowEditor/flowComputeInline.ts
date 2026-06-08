@@ -24,6 +24,7 @@ export type FlowComputeContext = {
 type FlowComputeFunction = (inputs: Record<string, unknown>, context: FlowComputeContext) => unknown
 
 const FLOW_COMPUTE_FUNCTION_CACHE_MAX_SIZE = 120
+const FLOW_COMPUTE_SOURCE_MAX_LENGTH = 12000
 const FLOW_COMPUTE_FUNCTION_CACHE = new Map<string, FlowComputeFunction | null>()
 
 function getCachedFlowComputeFunction(key: string): FlowComputeFunction | null | undefined {
@@ -49,7 +50,7 @@ function setCachedFlowComputeFunction(key: string, fn: FlowComputeFunction | nul
 
 export function isUnsafeFlowComputeSource(source: string): boolean {
   if (!source) return true
-  if (source.length > 4000) return true
+  if (source.length > FLOW_COMPUTE_SOURCE_MAX_LENGTH) return true
   const deny = /\b(window|document|globalThis|process|require|import|fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|Function|eval|setTimeout|setInterval)\b/
   if (deny.test(source)) return true
   const normalized = source.replace(/\s+/g, ' ')

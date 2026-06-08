@@ -17,7 +17,7 @@ import {
   resolveFlowEditorWidgetSurfacePointerPolicy,
   WIDGET_ACTIONS_TOOLBAR_OFFSET_PX,
   WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX,
-} from '@/components/FlowEditor/nodeOverlayEditorShared'
+} from '@/components/FlowEditor/flowWidgetOverlayShared'
 
 type RichMediaPanelToolbarProps = Pick<
   NodeOverlayEditorActionsToolbarProps,

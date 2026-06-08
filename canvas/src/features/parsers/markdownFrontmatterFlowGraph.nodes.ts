@@ -32,6 +32,13 @@ function asString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
+function asStringOrKtvValue(v: unknown): string {
+  const direct = asString(v)
+  if (direct) return direct
+  if (!isRecord(v)) return ''
+  return asString(v.value)
+}
+
 function asFiniteNumber(v: unknown): number | null {
   if (typeof v === 'number' && Number.isFinite(v)) return v
   if (typeof v === 'string') {
@@ -402,7 +409,7 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const paramsFromRow = isRecord(row.params) ? (row.params as unknown as JSONValue) : null
     const hasDataFromRow = Object.prototype.hasOwnProperty.call(row, 'data')
     const dataFromRow = hasDataFromRow && typeof row.data !== 'undefined' ? (row.data as JSONValue) : null
-    const computeFromRow = asString(row.compute)
+    const computeFromRow = asStringOrKtvValue(row.compute)
     const properties: Record<string, JSONValue> = {
       ...propsFromRow,
       ...(category && propsFromRow.category == null ? ({ category } as unknown as Record<string, JSONValue>) : {}),

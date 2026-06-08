@@ -4,7 +4,7 @@ import path from 'node:path'
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 
 export const testFlowEditorOverlayScalingUsesVisibleCollectiveCount = () => {
-  const sharedPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
+  const sharedPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'flowWidgetOverlayShared.ts')
   const overlayInnerPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
   const overlaySurfaceElementsPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
   const canvasSharedPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')

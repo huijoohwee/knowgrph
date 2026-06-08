@@ -22,6 +22,7 @@ import { UI_COPY, FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS, FLOW_RICH_MEDIA_PANEL_
 import { clearRichMediaOutputProperties, resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import { createUniqueId } from '@/lib/ids'
 import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 
 export function useFlowEditorNodeDraftActions(args: {
   active: boolean
@@ -41,7 +42,7 @@ export function useFlowEditorNodeDraftActions(args: {
   setSelectionSource: (src: 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => void
   setGraphDataPreservingLayout: (next: GraphData) => void
   updateOpenWidgetNodeIds: (updater: (prev: string[]) => string[]) => void
-  onNodePropertiesCommittedForAutoRun?: (nodeId: string) => void
+  onNodePropertiesCommittedForAutoRun?: (nodeId: string, changedPropertyKeys?: ReadonlyArray<string>) => void
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   nodePropsJson: string
   nodeMetaJson: string
@@ -51,6 +52,16 @@ export function useFlowEditorNodeDraftActions(args: {
   workflowContextJson: string
   setJsonError: React.Dispatch<React.SetStateAction<string | null>>
 }) {
+  const readDraftMutationRevisionFloor = React.useCallback((): number => {
+    const storeGraphData = useGraphStore.getState().graphData as GraphData | null
+    return Math.max(
+      readGraphDataRevision(args.baseGraphData),
+      readGraphDataRevision(args.draftGraphData),
+      readGraphDataRevision(args.draftGraphDataRef.current),
+      readGraphDataRevision(storeGraphData),
+    )
+  }, [args.baseGraphData, args.draftGraphData, args.draftGraphDataRef])
+
   const updateNodeById = React.useCallback((nodeId: string, patch: Partial<GraphNode>) => {
     const id = String(nodeId || '').trim()
     if (!id) return
@@ -63,11 +74,14 @@ export function useFlowEditorNodeDraftActions(args: {
         return { ...node, ...patch }
       })
       if (changed) {
-        args.draftGraphDataRef.current = bumpFlowEditorDraftGraphDataRevision(normalizeGraphData({ ...draft, nodes }))
+        args.draftGraphDataRef.current = bumpFlowEditorDraftGraphDataRevision(
+          normalizeGraphData({ ...draft, nodes }),
+          { revisionFloor: readDraftMutationRevisionFloor() },
+        )
       }
     }
     args.updateNode(id, patch)
-  }, [args])
+  }, [args, readDraftMutationRevisionFloor])
 
   const removeNodeById = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
@@ -137,8 +151,16 @@ export function useFlowEditorNodeDraftActions(args: {
       if (typeof value === 'undefined') delete nextProps[key]
       else nextProps[key] = value
     }
+    const changedPropertyKeys = Object.keys(patch)
+      .map(key => String(key || '').trim())
+      .filter(key => {
+        if (!key) return false
+        const prevValue = prevProps[key]
+        const nextValue = nextProps[key]
+        return !Object.is(prevValue, nextValue)
+      })
     updateNodeById(id, { properties: nextProps as never })
-    args.onNodePropertiesCommittedForAutoRun?.(id)
+    args.onNodePropertiesCommittedForAutoRun?.(id, changedPropertyKeys)
   }, [args, updateNodeById])
 
   const patchSelectedNodeProperties = React.useCallback((patch: Record<string, unknown>) => {
@@ -195,8 +217,14 @@ export function useFlowEditorNodeDraftActions(args: {
   const setNodePropertiesById = React.useCallback((nodeId: string, properties: Record<string, unknown>) => {
     const id = String(nodeId || '').trim()
     if (!id) return
-    updateNodeById(id, { properties: (properties || {}) as never })
-    args.onNodePropertiesCommittedForAutoRun?.(id)
+    const cur = args.draftGraphDataRef.current || args.draftGraphData || useGraphStore.getState().graphData
+    const node = cur?.nodes?.find(n => String(n.id || '') === id) || null
+    const prevProps = (node?.properties || {}) as Record<string, unknown>
+    const nextProps = (properties || {}) as Record<string, unknown>
+    const keySet = new Set([...Object.keys(prevProps), ...Object.keys(nextProps)])
+    const changedPropertyKeys = Array.from(keySet).filter(key => !Object.is(prevProps[key], nextProps[key]))
+    updateNodeById(id, { properties: nextProps as never })
+    args.onNodePropertiesCommittedForAutoRun?.(id, changedPropertyKeys)
   }, [args, updateNodeById])
 
   const validateNodeById = React.useCallback((nodeId: string) => {

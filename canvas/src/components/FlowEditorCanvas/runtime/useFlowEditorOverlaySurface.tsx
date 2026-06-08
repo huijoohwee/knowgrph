@@ -91,6 +91,7 @@ export function useFlowEditorOverlaySurface(args: {
   flowEditorFrontmatterGraphAvailable: boolean
   geospatialWidgetPanelMode?: boolean
   renderGraphDataOverride: GraphData | null
+  draftGraphDataRef: React.MutableRefObject<GraphData | null>
   baseGraphDataRevision: number
   draftGraphDataRevision: number
   overlayTopologyLayoutSignature: string
@@ -136,6 +137,7 @@ export function useFlowEditorOverlaySurface(args: {
     flowEditorFrontmatterGraphAvailable,
     geospatialWidgetPanelMode,
     renderGraphDataOverride,
+    draftGraphDataRef,
     baseGraphDataRevision,
     draftGraphDataRevision,
     overlayTopologyLayoutSignature,
@@ -588,10 +590,11 @@ export function useFlowEditorOverlaySurface(args: {
     !frontmatterVisibleSceneDisplayRef.current
     || frontmatterVisibleSceneDisplayRef.current.key !== frontmatterVisibleGraphSemanticKey
   ) {
+    const renderGraphDataOverride = frontmatterOverlayAuthorityGraphData
     frontmatterVisibleSceneDisplayRef.current = {
       key: frontmatterVisibleGraphSemanticKey,
-      value: frontmatterOverlayCoverageActive && frontmatterOverlayAuthorityGraphData
-        ? deriveSceneDisplayGraph({ graphData: frontmatterOverlayAuthorityGraphData })
+      value: frontmatterOverlayCoverageActive && renderGraphDataOverride
+        ? deriveSceneDisplayGraph({ graphData: renderGraphDataOverride })
         : null,
     }
   }
@@ -661,6 +664,7 @@ export function useFlowEditorOverlaySurface(args: {
       renderGraphMetaKind,
       renderGraphDataOverride,
       lastStableRenderGraphDataOverride: lastStableRenderGraphDataOverrideRef.current,
+      draftGraphDataRef,
       pendingOverlayNodeIdRef,
       pendingOverlayNode,
       overlayEditorNodeIds,
@@ -706,6 +710,7 @@ export function useFlowEditorOverlaySurface(args: {
     clearNodeOutputById,
     convertNodeToLoopById,
     duplicateNodeById,
+    draftGraphDataRef,
     enableHandlesForAllInputs,
     finalizePendingEdge,
     flowEditorSurfaceId,

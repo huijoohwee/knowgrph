@@ -15,28 +15,16 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { runAgenticCanvasOsPlan } from "./agentic-canvas-os-runtime.js";
 import { callBrowserApiRuntime } from "./browser-api-runtime.js";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "./local-tool-contract.js";
-import {
-  buildKnowgrphAgentReadyPromptContracts,
-  getKnowgrphAgentReadyPrompt,
-} from "../canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs";
+import { buildKnowgrphAgentReadyPromptContracts, getKnowgrphAgentReadyPrompt } from "../canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs";
 import { buildKnowgrphAgentReadyResourceTemplateContracts, buildKnowgrphSourceFileResourceReadResult, parseKnowgrphSourceFileResourceUri } from "../canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs";
 import { SITE_ORIGIN } from "../cloudflare/pages/knowgrph-agent-ready-shared.mjs";
 import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID } from "../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import { createPublishedAgentReadyToolExecutors } from "../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
-import {
-  buildKnowgrphVdeoxplnMarkdown,
-  buildKnowgrphVdeoxplnRegistry,
-  buildKnowgrphVdeoxplnRoutingPlan,
-  validateKnowgrphVdeoxplnRegistry,
-} from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
-import {
-  KNOWGRPH_MCP_APP_RESOURCE_URI,
-  buildKnowgrphMcpAppsCapabilities,
-  buildKnowgrphMcpAppsResourceDescriptor,
-  buildKnowgrphMcpAppsResourceReadResult,
-} from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
+import { buildKnowgrphVdeoxplnMarkdown, buildKnowgrphVdeoxplnRegistry, buildKnowgrphVdeoxplnRoutingPlan, validateKnowgrphVdeoxplnRegistry } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
+import { KNOWGRPH_MCP_APP_RESOURCE_URI, buildKnowgrphMcpAppsCapabilities, buildKnowgrphMcpAppsResourceDescriptor, buildKnowgrphMcpAppsResourceReadResult } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 
 const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000");
 const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000");
@@ -506,6 +494,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         .join("\n");
 
       return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
+    }
+
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsPlan) {
+      const result = await runAgenticCanvasOsPlan(args, { rootDir: KNOWGRPH_ROOT });
+      return {
+        content: [{ type: "text", text: truncate(result.text) }],
+        structuredContent: result.payload,
+        isError: !result.payload.validation?.ok,
+      };
     }
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun) {

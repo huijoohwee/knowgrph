@@ -99,7 +99,9 @@ export function testFrontmatterFlowLandingKeepsWidgetsVisibleAgainstSiblingRende
 
 export function testFlowEditorRuntimeUsesActiveSourceGraphAuthority() {
   const runtimeStoreStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeStoreState.ts')
+  const activeGraphDataPath = resolve(process.cwd(), 'src', 'hooks', 'active-graph-data', 'useActiveGraphData.impl.ts')
   const runtimeStoreStateText = readFileSync(runtimeStoreStatePath, 'utf8')
+  const activeGraphDataText = readFileSync(activeGraphDataPath, 'utf8')
 
   if (!runtimeStoreStateText.includes("import { useActiveGraphData } from '@/hooks/useActiveGraphData'")) {
     throw new Error('expected Flow Editor runtime state to reuse shared active graph data authority')
@@ -118,5 +120,20 @@ export function testFlowEditorRuntimeUsesActiveSourceGraphAuthority() {
   }
   if (runtimeStoreStateText.includes('baseGraphData: s.graphData')) {
     throw new Error('expected Flow Editor runtime state to avoid exposing raw store graph as render authority')
+  }
+  if (!activeGraphDataText.includes('if (!frontmatterOnlyPolicyActive) {')
+    || !activeGraphDataText.includes('if (workspaceFrontmatterFlowGraphData) return workspaceFrontmatterFlowGraphData')
+    || !activeGraphDataText.includes('if (isFrontmatterFlowGraph(activeMarkdownBaseGraph)) return activeMarkdownBaseGraph')
+    || !activeGraphDataText.includes('return buildPendingActiveMarkdownGraph({ markdownName })')) {
+    throw new Error('expected Flow Editor/frontmatter-only active graph authority to use only the frontmatter flow graph or pending markdown graph')
+  }
+  const frontmatterBranch = activeGraphDataText.slice(
+    activeGraphDataText.indexOf('if (!frontmatterOnlyPolicyActive) {'),
+    activeGraphDataText.indexOf('const hasStructuredWorkspaceGraph = frontmatterOnlyPolicyActive'),
+  )
+  if (!frontmatterBranch.includes('workspaceFrontmatterMermaidGraphData')
+    || !frontmatterBranch.includes('workspaceKgcSemanticGraphData')
+    || frontmatterBranch.indexOf('if (workspaceFrontmatterFlowGraphData) return workspaceFrontmatterFlowGraphData') > frontmatterBranch.indexOf('return buildPendingActiveMarkdownGraph({ markdownName })')) {
+    throw new Error('expected Flow Editor/frontmatter-only graph branch to avoid Mermaid/GitGraph or KGC semantic fallback before pending graph')
   }
 }

@@ -85,8 +85,11 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   if (registry.includes('MAIN_PANEL_OPEN_EVENT')) {
     throw new Error('Expected Widget props panel to forbid opening MainPanel Integrations')
   }
-  if (!registry.includes('applyConnectedWidgetFieldsToEmptyValues({')) {
-    throw new Error('Expected Widget registry section to delegate connected-field autofill to the shared mutation helper')
+  if (registry.includes('applyConnectedWidgetFieldsToEmptyValues') || registry.includes('autoApplyConnected')) {
+    throw new Error('Expected Widget registry section to avoid connected-value property writeback controls')
+  }
+  if (registry.includes('flowWidgetConnectedControlsLabel') || registry.includes('flowWidgetApplyConnectedValueLabel')) {
+    throw new Error('Expected Widget registry section to render connected values as read-only context, not Apply controls')
   }
   if (!registry.includes('applyWidgetFieldValueUpdate({')) {
     throw new Error('Expected Widget registry section to delegate schema-path field updates to the shared mutation helper')

@@ -60,10 +60,17 @@ type SharedMainPanelViewProps = {
 }
 
 const SHARED_MAIN_PANEL_TABS: SharedMainPanelTabKey[] = ['collaboration', 'integrations', 'mcp', 'maps', 'commerce', 'settings']
-const DEFAULT_MAIN_PANEL_SHARED_ACTIONS: MainPanelSharedActions = { allCollapsed: true }
+const noopMainPanelSharedAction = () => void 0
+const DEFAULT_MAIN_PANEL_SHARED_ACTIONS: MainPanelSharedActions = {
+  apply: noopMainPanelSharedAction,
+  reset: noopMainPanelSharedAction,
+  collapseAll: noopMainPanelSharedAction,
+  expandAll: noopMainPanelSharedAction,
+  allCollapsed: true,
+}
 const MAIN_PANEL_SHARED_VIEW_BY_TAB: Record<
   SharedMainPanelTabKey,
-  React.LazyExoticComponent<React.ComponentType<SharedMainPanelViewProps>>
+  React.ComponentType<SharedMainPanelViewProps>
 > = {
   collaboration: CollaborationViewLazy,
   integrations: IntegrationsHubViewLazy,

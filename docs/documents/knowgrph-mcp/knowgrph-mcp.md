@@ -8,6 +8,7 @@ frontmatter_contract: "required"
 related:
   - "knowgrph-mcp-service-prd-tad.md"
   - "knowgrph-mcp-agentic-os-prd-tad.md"
+  - "knowgrph-mcp-agentic-os-prd-tad.companion.md"
   - "knowgrph-mcp-service-prd-tad.companion.md"
 ---
 
@@ -19,7 +20,7 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 **Intent**
 - keep shipped MCP surfaces truthful
 - keep one canonical architecture contract
-- frame Knowgrph MCP as an Agentic OS control plane for Canvas UI and cross-repo agent build dashboards
+- frame Knowgrph MCP as an Agentic Canvas OS control plane for Canvas UI and cross-repo agent build dashboards
 - keep MainPanel -> FloatingPanel Chat -> YAML frontmatter or MCP structured response -> Editor Workspace -> Canvas flow implementation-accurate
 - forbid stale/conflicting MCP narratives
 
@@ -37,7 +38,7 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 | Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with descriptor-complete shared tools, `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, and browser-local E2E readiness inspectors |
 | MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
 | FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown or literal MCP structured response -> Editor Workspace -> Canvas apply path |
-| Agentic OS dashboard contract | Planned extension over shipped owners | `knowgrph-mcp-agentic-os-prd-tad.md` | Canvas UI/cross-repo agent build and control dashboard; dry-run first; repo allowlist, HITL, TCO/token budgets, and adapter plans for AWS, Vercel, Exa, and Stripe |
+| Agentic Canvas OS dashboard contract | Planned extension over shipped owners | `knowgrph-mcp-agentic-os-prd-tad.md` + companion | Canvas UI/cross-repo agent build and control dashboard; dry-run first; repo allowlist, HITL, TCO/token budgets, adapter plans, market/artifact/starter lanes, and learning-loop lane |
 | Remote Worker MCP platform | Planned extension | none in repo yet | must not be documented as implemented |
 
 ---
@@ -66,7 +67,9 @@ Guardrails:
 - The app resource HTML supports both host bridge shapes from the shared resource owner: OpenAI Apps `window.openai` globals / `openai:set_globals` for ChatGPT widgets and the native MCP Apps `ui/initialize` / `ui/notifications/initialized` lifecycle for extension-capable hosts.
 - `search` and `fetch` are the canonical data-first published document tools for OpenAI Deep Research-style hosts, Claude, Qwen Code, Kimi CLI, BytePlus ModelArk, and generic MCP clients; Pages HTTP MCP, local stdio MCP, and WebMCP expose them as read-only tools returning stable `kgdoc:` Source File IDs, citation-ready result URLs, and complete markdown as both `content` and `text` without mutating graph state.
 - `search` ranks Source Files with bounded content-aware scoring through the same storage reader used by `fetch`; it must not remain index-line-only because natural LLM queries often target terms inside markdown body content rather than filenames.
-- Agentic OS does not add a second runtime. It is the operator-facing control-plane contract that composes current MCP, SuperAgent, MainPanel, FloatingPanel Chat, Source Files, and Canvas owners into cross-repo build dashboards for consumer repos such as `stryfork`.
+- Agentic Canvas OS does not add a second runtime. It is the operator-facing control-plane contract that composes current MCP, SuperAgent, MainPanel, FloatingPanel Chat, Source Files, and Canvas owners into cross-repo build dashboards for consumer repos such as `stryfork`.
+- Agentic Canvas OS Dashboard is a Source Files Markdown document plus typed runtime manifest. Canvas renders it through existing frontmatter-flow and Flow Editor owners; runtime inspection is read-only until a source-owned approval/mutation contract exists.
+- Agentic Canvas OS Market Radar, real-browser evidence, market-to-artifact, Starter Repo, and Learning Loop lane details live in `knowgrph-mcp-agentic-os-prd-tad.companion.md`; they remain planned, local-first where needed, source-backed, redacted, no-copy, and approval-gated.
 - Cross-repo agent build workflows must be dry-run first, root-allowlisted, trace-emitting, and human-approved before file writes, deployment, paid model calls, or financial actions.
 - Public retrieval and discovery tools declare complete read-only, non-destructive, non-open-world, idempotent annotations; browser-local inspectors remain read-only, non-destructive, non-open-world, and idempotent.
 - `prompts/list` and `prompts/get` expose shared read-only host guidance prompts for Source Files research and agent-surface inspection; prompts tell hosts to use existing tools and do not create a second execution path.
@@ -113,7 +116,8 @@ References: [MCP Apps overview](https://modelcontextprotocol.io/extensions/apps/
 This file is an overview and document index. The canonical detailed contracts live here:
 
 - [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md): product and architecture contract
-- [knowgrph-mcp-agentic-os-prd-tad.md](knowgrph-mcp-agentic-os-prd-tad.md): Agentic OS PRD/TAD for Canvas UI and cross-repo agent build/control dashboards
+- [knowgrph-mcp-agentic-os-prd-tad.md](knowgrph-mcp-agentic-os-prd-tad.md): Agentic Canvas OS PRD/TAD for Canvas UI and cross-repo agent build/control dashboards
+- [knowgrph-mcp-agentic-os-prd-tad.companion.md](knowgrph-mcp-agentic-os-prd-tad.companion.md): Agentic Canvas OS lane contracts for market evidence, browser evidence, artifact generation, starter repositories, learning memory, skills, and identity facets
 - [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp-service-prd-tad.companion.md): file-level owner map, WebMCP readiness owners, invariants, and forbidden architecture
 - `mcp/README.md`: local stdio MCP server usage; shared local tool inventory lives in `mcp/local-tool-contract.js`
 
@@ -123,7 +127,7 @@ This file is an overview and document index. The canonical detailed contracts li
 
 - keep one SSOT contract per MCP surface
 - keep local SuperAgent harness truth in `knowgrph-superagent-harness.md`, `knowgrph_parser/*`, and `mcp/local-tool-contract.js`
-- keep Agentic OS truth in the Agentic OS PRD/TAD until repo-owned tool contracts exist
+- keep Agentic Canvas OS truth in the parent PRD/TAD plus companion until repo-owned tool contracts exist
 - reuse the shipped chat/validation/parser/apply chain instead of creating a second MCP-only graph pipeline
 - introduce future remote tools as thin adapters over current owners
 - remove stale/conflicting content instead of preserving parallel narratives

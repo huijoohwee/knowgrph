@@ -15,9 +15,14 @@ function hasCompatibleDraftNodeIdentity(currentDraft: GraphData | null, baseGrap
   return sharedCount >= Math.max(1, Math.min(draftNodeIds.length, baseNodeIds.size) * 0.8)
 }
 
-export function bumpFlowEditorDraftGraphDataRevision(graphData: GraphData): GraphData {
+export function bumpFlowEditorDraftGraphDataRevision(graphData: GraphData, opts?: { revisionFloor?: number | null }): GraphData {
   const metadata = (graphData.metadata || {}) as Record<string, unknown>
-  const current = readGraphDataRevision(graphData)
+  const current = Math.max(
+    readGraphDataRevision(graphData),
+    typeof opts?.revisionFloor === 'number' && Number.isFinite(opts.revisionFloor)
+      ? Math.max(0, Math.floor(opts.revisionFloor))
+      : 0,
+  )
   return { ...graphData, metadata: { ...metadata, graphDataRevision: current + 1 } }
 }
 
@@ -34,6 +39,6 @@ export function resolveFlowEditorDraftGraphDataForBaseReset(args: {
   if (args.previousDocumentKey !== args.activeDocumentKey) return base
   const currentRevision = readGraphDataRevision(current)
   const baseRevision = readGraphDataRevision(base)
-  if (currentRevision <= baseRevision) return base
+  if (currentRevision < baseRevision) return base
   return hasCompatibleDraftNodeIdentity(current, base) ? current : base
 }

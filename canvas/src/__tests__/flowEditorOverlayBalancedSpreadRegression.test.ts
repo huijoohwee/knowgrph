@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+export { testFlowEditorLayoutRebalanceUsesCenteredBalancedSpreadRuntime } from './flowEditorLayoutRebalanceRuntimeContract.test'
 
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 

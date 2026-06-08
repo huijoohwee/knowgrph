@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
+import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
 import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -63,7 +63,7 @@ export async function testFlowEditorUnpinnedWidgetDoesNotSnapToPhantomBorderOnLa
     }
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],
@@ -92,7 +92,7 @@ export async function testFlowEditorUnpinnedWidgetDoesNotSnapToPhantomBorderOnLa
     await waitForTx(dockedLeft + 200)
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],

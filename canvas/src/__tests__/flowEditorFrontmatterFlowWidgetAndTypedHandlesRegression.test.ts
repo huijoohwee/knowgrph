@@ -712,6 +712,9 @@ export function testWidgetWheelCaptureDoesNotBlockInternalScroll() {
   if (!formText.includes('onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitInteractionFrame)}')) {
     throw new Error('expected widget form wheel capture to route through the shared internal-scroll handler')
   }
+  if (!formText.includes('<form') || !formText.includes('data-kg-media-scroll-surface="1"')) {
+    throw new Error('expected widget form root to register as a shared media scroll surface so canvas wheel zoom ignores form scrolling')
+  }
   if (!scrollingText.includes('consumeScrollablePanelWheelEvent(event)') || !scrollingText.includes('emitInteractionFrame()')) {
     throw new Error('expected widget panel wheel capture to keep interaction-frame sync through the shared emitter')
   }
@@ -813,17 +816,23 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('const portKeyLabel = formatFlowHandleKtvKeyLabel({ dir: isIn ? \'in\' : \'out\', portKey })')) {
     throw new Error('expected widget registry visible port-row key labels to reuse the shared KTV key formatter')
   }
+  if (!text.includes('const portSubLabel = formatFlowHandleKtvSubLabel({ portKey, schemaPath })')) {
+    throw new Error('expected widget registry port-row secondary labels to reuse the shared KTV sublabel formatter')
+  }
   if (!text.includes('const portValueId = ids.registryField(') || !text.includes('`port-${idx}-${p.direction}-${portKey}-${schemaPath}`')) {
     throw new Error('expected widget registry port rows to derive unique shared SSOT value ids for label/input typography')
   }
   if (!text.includes('formatFlowHandleAccessibleName({')) {
     throw new Error('expected widget registry port rows to use shared accessible names when repeated port keys exist')
   }
-  if (!text.includes('<span>{model.portKeyLabel}</span>')) {
-    throw new Error('expected widget registry port key column to show semantic KTV port keys without direction suffixes')
+  if (!text.includes('<span className={cn(\'block min-w-0 truncate\', UI_THEME_TOKENS.text.primary)}>{model.portKeyLabel}</span>')) {
+    throw new Error('expected widget registry port key column to show semantic KTV port keys with the shared primary key style')
   }
-  if (!text.includes("<span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{model.schemaPath || model.portKey}</span>")) {
-    throw new Error('expected widget registry port key column to keep schema path or concrete port key as secondary text')
+  if (!text.includes('model.portSubLabel ? (') || !text.includes('<span className={cn(\'block\', UI_THEME_TOKENS.text.tertiary)}>{model.portSubLabel}</span>')) {
+    throw new Error('expected widget registry port key column to suppress duplicate secondary text while keeping meaningful schema labels')
+  }
+  if (text.includes('model.schemaPath || model.portKey')) {
+    throw new Error('expected widget registry port key column to avoid repeating port keys as fallback secondary text')
   }
   if (text.includes('NodeOverlayEditorTypePill') || text.includes('typeNode') || text.includes('handleType')) {
     throw new Error('expected widget registry port rows to follow the shared port | key | value | port layout without Type icons')

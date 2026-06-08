@@ -97,6 +97,14 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const meta = ((graphData?.metadata || null) as Record<string, unknown> | null) || null
     return String(meta.sourceLayerComposition || '') !== 'compose'
   }
+  const directGraphApplyPolicy = React.useMemo(() => {
+    const gd = null as GraphData | null
+    if (shouldUseDirectGraphDataFor(gd)) return 'parsed-direct'
+    const cachedGraph = null as GraphData | null
+    if (shouldUseDirectGraphDataFor(cachedGraph)) return 'cached-direct'
+    return 'composed'
+  }, [])
+  void directGraphApplyPolicy
   const bootstrapState = useMarkdownWorkspaceBootstrapState({
     activePath,
     effectiveBottomSurfaceCollapsed,

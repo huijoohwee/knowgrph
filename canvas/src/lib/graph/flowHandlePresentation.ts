@@ -18,6 +18,13 @@ export function formatFlowHandleKtvKeyLabel(args: { dir: FlowHandleDir; portKey:
   return formatFlowHandleSemanticKey(args)
 }
 
+export function formatFlowHandleKtvSubLabel(args: { portKey: string; schemaPath?: unknown }): string {
+  const portKey = String(args.portKey || '').trim()
+  const schemaPath = String(args.schemaPath || '').trim()
+  if (!schemaPath || schemaPath === portKey) return ''
+  return schemaPath
+}
+
 export function formatFlowHandleAccessibleName(args: {
   dir: FlowHandleDir
   portKey: string

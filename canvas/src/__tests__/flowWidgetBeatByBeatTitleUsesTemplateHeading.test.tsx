@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
+import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -34,7 +34,7 @@ export async function testFlowWidgetBeatByBeatTitleUsesTemplateHeading() {
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'NODE_CLIP_01', label: 'Clip 01', type: 'Node', x: 10, y: 10, properties: {} },
         graphMetaKind: 'frontmatter-flow',

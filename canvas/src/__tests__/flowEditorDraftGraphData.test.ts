@@ -42,3 +42,20 @@ export function testFlowEditorDraftGraphRevisionBumpIsNeutral() {
   const bumped = bumpFlowEditorDraftGraphDataRevision(graph(5, ['n1']))
   if (readGraphDataRevision(bumped) !== 6) throw new Error('expected neutral Flow Editor draft revision bump to increment metadata graphDataRevision')
 }
+
+export function testFlowEditorDraftGraphRevisionBumpOutranksRevisionFloor() {
+  const bumped = bumpFlowEditorDraftGraphDataRevision(graph(5, ['n1']), { revisionFloor: 42 })
+  if (readGraphDataRevision(bumped) !== 43) throw new Error('expected Flow Editor draft revision bump to outrank the store/base graph revision floor')
+}
+
+export function testFlowEditorBaseResetPreservesEqualRevisionSameDocumentDraft() {
+  const base = graph(7, ['source_input', 'compute_summary'])
+  const draft = graph(7, ['source_input', 'compute_summary'])
+  const resolved = resolveFlowEditorDraftGraphDataForBaseReset({
+    activeDocumentKey: 'docs/example.md::',
+    previousDocumentKey: 'docs/example.md::',
+    currentDraftGraphData: draft,
+    nextBaseGraphData: base,
+  })
+  if (resolved !== draft) throw new Error('expected same-document equal-revision reset to preserve the live draft after store writeback')
+}

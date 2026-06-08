@@ -98,7 +98,8 @@ export function bindFlowNativeInteractionListeners(args: {
   const onWindowPointerDownCapture = (e: PointerEvent) => {
     if (!ctx.args.active) return
     const st = useGraphStore.getState()
-    const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)
+    const flowEditorOverlayInteractionMode =
+      String(st.canvas2dRenderer || '') === 'flowEditor' && shouldUseFlowEditorScreenAuthorityCollectivePan(st)
     if (!flowEditorOverlayInteractionMode) return
     if (e.pointerType === 'touch') return
     if (proxyPanPointerId != null) return

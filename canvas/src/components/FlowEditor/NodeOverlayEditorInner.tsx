@@ -7,10 +7,10 @@ import { useNodeOverlayDragHandlers } from '@/components/FlowEditor/useNodeOverl
 import { useNodeOverlayPlacementRuntime } from '@/components/FlowEditor/useNodeOverlayPlacementRuntime'
 import { useNodeOverlayRichMediaToolbar } from '@/components/FlowEditor/useNodeOverlayRichMediaToolbar'
 import {
-  FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE,
-  FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED,
-  type NodeOverlayEditorProps,
-} from '@/components/FlowEditor/nodeOverlayEditorShared'
+  FLOW_WIDGET_OVERLAY_Z_INDEX_BASE,
+  FLOW_WIDGET_OVERLAY_Z_INDEX_SELECTED,
+  type FlowWidgetOverlayProps,
+} from '@/components/FlowEditor/flowWidgetOverlayShared'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveEffectiveFlowWidgetPinnedInCanvas, shouldUseFlowEditorWidgetFloatingScreenAuthority } from '@/lib/flowEditor/widgetPlacementAuthority'
@@ -28,7 +28,7 @@ import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
-const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidgetInner({
+const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
   active,
   flowEditorSurfaceId,
   overlayCollectiveCount,
@@ -66,7 +66,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
   onUpdateKvEntry,
   onPinnedInCanvasChange,
   onRenameSchemaFieldId,
-}: NodeOverlayEditorProps) {
+}: FlowWidgetOverlayProps) {
   const { panelTextClass, microLabelClass, monospaceTextClass } = usePanelTypography()
   const {
     uiIconScale,
@@ -116,7 +116,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
   const overlayZIndex = React.useMemo(() => {
     const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
     const selected = isCanonicalNodeIdEqual(selectedNodeId, nodeId)
-    return selected ? FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED : FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE - idx
+    return selected ? FLOW_WIDGET_OVERLAY_Z_INDEX_SELECTED : FLOW_WIDGET_OVERLAY_Z_INDEX_BASE - idx
   }, [nodeId, selectedNodeId, stackIndex])
 
   const readPinnedInCanvas = React.useCallback((id: string): boolean => {
@@ -553,13 +553,13 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
   return typeof document === 'undefined' ? overlayElement : createPortal(overlayElement, document.body)
 })
 
-const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner(props: NodeOverlayEditorProps) {
-  return <NodeOverlayEditorWidgetInner {...props} />
+const FlowWidgetOverlayBody = React.memo(function FlowWidgetOverlayBody(props: FlowWidgetOverlayProps) {
+  return <FlowWidgetOverlayInner {...props} />
 })
 
-const NodeOverlayEditor = React.memo(function NodeOverlayEditor(props: NodeOverlayEditorProps) {
+const FlowWidgetOverlay = React.memo(function FlowWidgetOverlay(props: FlowWidgetOverlayProps) {
   if (props.visible === false) return null
-  return <NodeOverlayEditorInner {...props} />
+  return <FlowWidgetOverlayBody {...props} />
 })
 
-export default NodeOverlayEditor
+export default FlowWidgetOverlay

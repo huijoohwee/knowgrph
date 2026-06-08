@@ -85,6 +85,13 @@ type ResourceContractModule = {
   parseKnowgrphSourceFileResourceUri: (uri: string) => string
 }
 
+type AgenticCanvasOsRuntimeModule = {
+  runAgenticCanvasOsPlan: (
+    args: Record<string, unknown>,
+    context: { rootDir: string },
+  ) => Promise<{ payload: Record<string, any>, text: string }>
+}
+
 const importLocalToolContract = async (): Promise<LocalToolContractModule> => {
   const contractUrl = pathToFileURL(path.resolve(process.cwd(), '..', 'mcp', 'local-tool-contract.js')).href
   return await import(contractUrl) as LocalToolContractModule
@@ -98,6 +105,11 @@ const importPromptContract = async (): Promise<PromptContractModule> => {
 const importResourceContract = async (): Promise<ResourceContractModule> => {
   const contractUrl = pathToFileURL(path.resolve(process.cwd(), 'src', 'features', 'agent-ready', 'knowgrphAgentReadyResourceContract.mjs')).href
   return await import(contractUrl) as ResourceContractModule
+}
+
+const importAgenticCanvasOsRuntime = async (): Promise<AgenticCanvasOsRuntimeModule> => {
+  const runtimeUrl = pathToFileURL(path.resolve(process.cwd(), '..', 'mcp', 'agentic-canvas-os-runtime.js')).href
+  return await import(runtimeUrl) as AgenticCanvasOsRuntimeModule
 }
 
 export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
@@ -115,6 +127,7 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsPlan,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
   ]
@@ -193,6 +206,19 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   const browserApiTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun)
   if (!browserApiTool) throw new Error('expected browser API runtime tool')
   assertAnnotations(browserApiTool, { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false })
+
+  const agenticCanvasOsTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsPlan)
+  if (!agenticCanvasOsTool) throw new Error('expected Agentic Canvas OS planner tool')
+  assertAnnotations(agenticCanvasOsTool, { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true })
+  if (!String(agenticCanvasOsTool.description || '').includes('dry-run Agentic Canvas OS dashboard')) {
+    throw new Error(`expected Agentic Canvas OS tool to describe dry-run dashboard scope, got ${JSON.stringify(agenticCanvasOsTool.description)}`)
+  }
+  if (!agenticCanvasOsTool.inputSchema.properties?.goal || !agenticCanvasOsTool.inputSchema.properties?.writeArtifacts) {
+    throw new Error(`expected Agentic Canvas OS tool schema to expose goal and writeArtifacts, got ${JSON.stringify(agenticCanvasOsTool.inputSchema.properties)}`)
+  }
+  if (agenticCanvasOsTool.outputSchema?.type !== 'object' || !agenticCanvasOsTool.outputSchema.required?.includes('dashboard')) {
+    throw new Error(`expected Agentic Canvas OS tool to expose structured dashboard output, got ${JSON.stringify(agenticCanvasOsTool.outputSchema)}`)
+  }
 
   const superagentTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun)
   if (!superagentTool) {
@@ -312,5 +338,43 @@ export async function testKnowgrphMcpResourceTemplateContractStaysSharedAndStabl
   const content = readResult.contents?.[0]
   if (content?.uri !== resourceUri || content?.mimeType !== contract.KNOWGRPH_SOURCE_FILE_RESOURCE_MIME_TYPE || content?.text !== '# Example' || content?._meta?.id !== sourceFileId) {
     throw new Error(`expected Source Files resource read result to expose markdown content and metadata, got ${JSON.stringify(readResult)}`)
+  }
+}
+
+export async function testKnowgrphAgenticCanvasOsRuntimeCoversDryRunPrdTad() {
+  const runtime = await importAgenticCanvasOsRuntime()
+  const result = await runtime.runAgenticCanvasOsPlan({
+    goal: 'Build a production-ready agent product with market evidence, browser evidence, learning, and demo pack',
+    runId: 'agentic-os-contract-test',
+    writeArtifacts: false,
+    marketQuestion: 'Is there demand for an agentic productivity product?',
+    sourceCards: [
+      { url: 'https://example.com/source-a', platform: 'reddit', evidenceLevel: 'A', observedFields: ['thread', 'comments'], claimIds: ['claim-a'] },
+      { url: 'https://example.com/source-b', platform: 'producthunt', evidenceLevel: 'B', observedFields: ['launch'], claimIds: ['claim-b'] },
+    ],
+    allowedDomains: ['example.com'],
+    confirmBrowserScope: true,
+    finalizedTraceIds: ['trace-1'],
+    userNotes: ['Prefer dry-run-first agent workflows.'],
+    failOnceTool: 'exa.search',
+  }, { rootDir: path.resolve(process.cwd(), '..') })
+  const payload = result.payload
+
+  for (const required of ['planner', 'toolCalls', 'approvalGates', 'budgetMeters', 'evidencePack', 'marketRadar', 'browserEvidence', 'artifactPipeline', 'learningLoop', 'adapterPlans', 'failureHandling', 'demoPack', 'goalCoverage']) {
+    if (!payload[required]) throw new Error(`expected Agentic Canvas OS payload to include ${required}`)
+  }
+  if (payload.dashboard?.written !== false) throw new Error(`expected dry-run runtime not to write artifacts by default, got ${JSON.stringify(payload.dashboard)}`)
+  if (payload.demoPack.sections.length !== 7) throw new Error(`expected seven demo-pack sections, got ${JSON.stringify(payload.demoPack.sections)}`)
+  if (!payload.goalCoverage.every((entry: { ok?: boolean }) => entry.ok === true)) {
+    throw new Error(`expected all dry-run /goal coverage checks to pass, got ${JSON.stringify(payload.goalCoverage)}`)
+  }
+  if (payload.browserEvidence.redactionPolicy.persistedCredentialValues !== 0) {
+    throw new Error(`expected browser evidence to persist zero credential values, got ${JSON.stringify(payload.browserEvidence)}`)
+  }
+  if (!payload.learningLoop.candidateSkills.every((skill: { approvalState?: string }) => skill.approvalState === 'required')) {
+    throw new Error(`expected candidate skills to require approval, got ${JSON.stringify(payload.learningLoop.candidateSkills)}`)
+  }
+  if (!payload.flow.nodes.some((node: { type?: string }) => node.type === 'AgenticOSDemoPack')) {
+    throw new Error(`expected dashboard graph to include AgenticOSDemoPack, got ${JSON.stringify(payload.flow.nodes)}`)
   }
 }

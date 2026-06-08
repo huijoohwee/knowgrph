@@ -77,11 +77,6 @@ export const UI_COPY = {
   flowWidgetParamsInvalidJson: 'Invalid JSON.',
   flowWidgetConnectedValueLabel: 'Connected value',
   flowWidgetConnectedValuePrefix: 'Connected: ',
-  flowWidgetApplyConnectedValueLabel: 'Apply connected value',
-  flowWidgetConnectedControlsLabel: 'Connected value controls',
-  flowWidgetAutoApplyConnectedValuesLabel: 'Auto-apply connected values to empty fields',
-  flowWidgetApplyConnectedValuesToEmptyFieldsLabel: 'Apply connected values to empty fields',
-  flowWidgetApplyAllSuffix: 'all',
   flowEditorNoDraftGraphToast: 'No draft graph loaded.',
   flowEditorYamlFrontmatterRequiredToast:
     'Flow Editor in Frontmatter Mode requires Markdown files (*.md) to include YAML frontmatter (--- ... ---) at the top.',

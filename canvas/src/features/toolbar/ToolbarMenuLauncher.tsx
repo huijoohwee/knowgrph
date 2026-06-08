@@ -18,6 +18,7 @@ import {
   FLOATING_PANEL_DEFAULT_HEIGHT_FALLBACK_PX,
   FLOATING_PANEL_DEFAULT_WIDTH_FALLBACK_PX,
 } from '@/lib/ui/floatingPanelGeometry'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
@@ -147,6 +148,8 @@ export function ToolbarMenuLauncher({
   }, [_onOpenMainPanel, closeToolMenu, setIsToolMenuOpen, setToolMenuDragPos])
 
   const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const geospatialOverlayEnabled = readGeospatialOverlayEnabledPreference()
+  void geospatialOverlayEnabled
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
   return (

@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { buildFlowEditorInlineComputeOutputPatch } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
+import {
+  buildFlowEditorInlineComputeOutputPatch,
+  resolveFlowEditorWorkflowConnectedValuesInput,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
 import {
   isFlowEditorWorkflowRunnableNode,
   readFlowWidgetCardRunDownstreamTargetIds,
@@ -125,10 +128,88 @@ export function testFlowEditorCanvasRunsFlowComputeBeforeProviderTextBranch() {
     currentProperties: computingTemplateComputeNode.properties || {},
   })
   const runSrcDoc = String(computingTemplatePatch?.outputSrcDoc || '')
-  if (!runSrcDoc.includes('3000 target')) {
-    throw new Error(`expected widget Run to materialize recomputed outputSrcDoc from KTV input_metric_target, got ${runSrcDoc}`)
+  const computingTemplateSourceNode = computingTemplateParsed.graphData.nodes.find(node => String(node.id || '') === 'source_input') || null
+  const expectedMetricTarget = Number((computingTemplateSourceNode?.properties || {}).input_metric_target)
+  if (!Number.isFinite(expectedMetricTarget) || expectedMetricTarget <= 0) {
+    throw new Error(`expected computing-flow template to keep a positive KTV input_metric_target, got ${String((computingTemplateSourceNode?.properties || {}).input_metric_target)}`)
   }
-  if (runSrcDoc.includes('300 target')) {
-    throw new Error(`expected widget Run to replace stale materialized outputSrcDoc, got ${runSrcDoc}`)
+  if (!runSrcDoc.includes(`${expectedMetricTarget} target`)) {
+    throw new Error(`expected widget Run to materialize recomputed outputSrcDoc from current KTV input_metric_target ${expectedMetricTarget}, got ${runSrcDoc}`)
+  }
+
+  const ktvComputeParsed = tryParseMarkdownFrontmatterFlowGraph('ktv-compute.md', [
+    '---',
+    'schema: "kgc-computing-flow/v1"',
+    'flow:',
+    '  nodes:',
+    '    - id: {key: id, type: string, value: "source_input"}',
+    '      type: {key: type, type: string, value: "InputWidget"}',
+    '      label: {key: label, type: string, value: "Source Input"}',
+    '      input_metric_target: {key: input_metric_target, type: number, value: 50}',
+    '    - id: {key: id, type: string, value: "compute_summary"}',
+    '      type: {key: type, type: string, value: "ComputeWidget"}',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '      compute:',
+    '        key: compute',
+    '        type: string',
+    '        value: |',
+    '          inputs => ({ outputSrcDoc: String(inputs.input_metric_target) + " target" })',
+    '  edges:',
+    '    - id: {key: id, type: string, value: "edge_metric"}',
+    '      source: {key: source, type: string, value: "source_input"}',
+    '      sourceHandle: {key: sourceHandle, type: string, value: "input_metric_target"}',
+    '      target: {key: target, type: string, value: "compute_summary"}',
+    '      targetHandle: {key: targetHandle, type: string, value: "input_metric_target"}',
+    '      label: {key: label, type: string, value: "input_metric_target"}',
+    '      type: {key: type, type: string, value: "template_number_signal"}',
+    '---',
+    '',
+  ].join('\n'))
+  const ktvComputeNode = ktvComputeParsed?.graphData.nodes.find(node => String(node.id || '') === 'compute_summary') || null
+  if (!ktvComputeNode || readFlowComputeSource(ktvComputeNode) !== 'inputs => ({ outputSrcDoc: String(inputs.input_metric_target) + " target" })') {
+    throw new Error('expected frontmatter KTV compute envelopes to materialize as runnable flow:compute source')
+  }
+
+  const staleRenderGraph: GraphData = {
+    type: 'flow',
+    nodes: [
+      { id: 'source_input', type: 'InputWidget', label: 'Source Input', properties: { input_metric_target: 500 } },
+      { id: 'compute_summary', type: 'ComputeWidget', label: 'Compute Summary', properties: { compute: 'inputs => ({ outputSrcDoc: String(inputs.input_metric_target) })' } },
+    ],
+    edges: [
+      { id: 'edge_metric', source: 'source_input', target: 'compute_summary', properties: { 'flow:sourcePortKey': 'input_metric_target', 'flow:targetPortKey': 'input_metric_target' } },
+    ],
+  } as never
+  const liveRunGraph: GraphData = {
+    ...staleRenderGraph,
+    nodes: [
+      { id: 'source_input', type: 'InputWidget', label: 'Source Input', properties: { input_metric_target: 550 } },
+      { id: 'compute_summary', type: 'ComputeWidget', label: 'Compute Summary', properties: { compute: 'inputs => ({ outputSrcDoc: String(inputs.input_metric_target) })' } },
+    ],
+  } as never
+  const connectedInput = resolveFlowEditorWorkflowConnectedValuesInput({
+    context: {
+      graphSemanticKey: 'test',
+      draftGraph: liveRunGraph,
+      renderGraph: staleRenderGraph,
+      baseGraph: staleRenderGraph,
+      storeGraph: staleRenderGraph,
+      draftNodes: liveRunGraph.nodes,
+      renderNodes: staleRenderGraph.nodes,
+      baseNodes: staleRenderGraph.nodes,
+      storeNodes: staleRenderGraph.nodes,
+      draftNodeById: new Map(liveRunGraph.nodes.map(node => [String(node.id || ''), node])),
+      renderNodeById: new Map(staleRenderGraph.nodes.map(node => [String(node.id || ''), node])),
+      baseNodeById: new Map(staleRenderGraph.nodes.map(node => [String(node.id || ''), node])),
+      storeNodeById: new Map(staleRenderGraph.nodes.map(node => [String(node.id || ''), node])),
+    },
+    graphForRun: liveRunGraph,
+    writableNodeId: 'compute_summary',
+    registry: [],
+    preserveMaterializedOutputs: false,
+  })
+  const metricValue = connectedInput?.connectedValuesByNodeId.get('compute_summary')?.['properties.input_metric_target']?.value
+  if (metricValue !== 550) {
+    throw new Error(`expected widget Auto/Run connected values to prefer live run graph over stale render graph, got ${String(metricValue)}`)
   }
 }

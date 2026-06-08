@@ -14,7 +14,7 @@ import {
   RICH_MEDIA_ASPECT_MIN_HEIGHT,
   RICH_MEDIA_ASPECT_MIN_WIDTH,
   RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
-} from '@/components/FlowEditor/nodeOverlayEditorShared'
+} from '@/components/FlowEditor/flowWidgetOverlayShared'
 
 type RichMediaPanelInlineContentSize = { width: number; height: number }
 

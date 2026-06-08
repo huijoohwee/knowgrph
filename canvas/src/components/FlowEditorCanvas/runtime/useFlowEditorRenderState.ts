@@ -50,6 +50,10 @@ export function useFlowEditorRenderState(args: {
     })
     draftDocumentKeyRef.current = args.activeDocumentKey
     draftGraphDataRef.current = nextDraft
+    if (nextDraft === base) {
+      setDraftGraphData(prev => (prev === base ? prev : base))
+      return
+    }
     setDraftGraphData(prev => (prev === nextDraft ? prev : nextDraft))
   }, [args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive, args.flowEditorBaseGraphData])
 

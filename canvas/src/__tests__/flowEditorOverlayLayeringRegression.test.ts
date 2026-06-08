@@ -15,10 +15,10 @@ export function testFlowEditorOverlaysDoNotUseFloatingPanelZIndex() {
   if (text.includes('5000') || text.includes('8000')) {
     throw new Error('Expected Flow Editor node overlays to avoid high hardcoded z-index values')
   }
-  if (!text.includes('FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE') || !text.includes('FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED')) {
-    throw new Error('Expected Flow Editor node overlays to use bounded z-index constants')
+  if (!text.includes('FLOW_WIDGET_OVERLAY_Z_INDEX_BASE') || !text.includes('FLOW_WIDGET_OVERLAY_Z_INDEX_SELECTED')) {
+    throw new Error('Expected Flow Editor widget overlays to use bounded z-index constants')
   }
-  const sharedPath = path.resolve(process.cwd(), 'src/components/FlowEditor/nodeOverlayEditorShared.ts')
+  const sharedPath = path.resolve(process.cwd(), 'src/components/FlowEditor/flowWidgetOverlayShared.ts')
   let sharedText = ''
   try {
     sharedText = fs.readFileSync(sharedPath, { encoding: 'utf8' })
@@ -30,7 +30,7 @@ export function testFlowEditorOverlaysDoNotUseFloatingPanelZIndex() {
     || !sharedText.includes('Z_INDEX_GRAPH_OVERLAY_BASE')
     || !sharedText.includes('Z_INDEX_GRAPH_OVERLAY_SELECTED')
   ) {
-    throw new Error('Expected Flow Editor node overlays to reuse shared graph overlay z-index SSOT')
+    throw new Error('Expected Flow Editor widget overlays to reuse shared graph overlay z-index SSOT')
   }
 }
 

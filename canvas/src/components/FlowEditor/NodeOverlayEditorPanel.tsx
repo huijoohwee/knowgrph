@@ -17,7 +17,7 @@ import {
   handleWidgetInnerPanelScrollCapture,
   handleWidgetInnerPanelWheelCapture,
   RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
-} from '@/components/FlowEditor/nodeOverlayEditorShared'
+} from '@/components/FlowEditor/flowWidgetOverlayShared'
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'

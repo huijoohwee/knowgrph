@@ -283,6 +283,27 @@ function readFrontmatterTimelineSectionValue(graphData: GraphData): unknown {
   return frontmatterMeta?.timeline
 }
 
+function graphDataHasFlowTopology(graphData: GraphData | null | undefined): boolean {
+  return (Array.isArray(graphData?.nodes) && graphData!.nodes.length > 0)
+    || (Array.isArray(graphData?.edges) && graphData!.edges.length > 0)
+}
+
+function frontmatterTextHasFlowTopology(rawText: string): boolean {
+  const block = extractYamlFrontmatterBlock(rawText)
+  if (!block) return false
+  try {
+    const parsed = yaml.load(String(block.yamlText || ''))
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false
+    const flow = (parsed as Record<string, unknown>).flow
+    if (!flow || typeof flow !== 'object' || Array.isArray(flow)) return false
+    const record = flow as Record<string, unknown>
+    return (Array.isArray(record.nodes) && record.nodes.length > 0)
+      || (Array.isArray(record.edges) && record.edges.length > 0)
+  } catch {
+    return false
+  }
+}
+
 function upsertTopLevelFrontmatterSectionMarkdownText(args: {
   rawText: string
   sectionKey: string
@@ -308,6 +329,7 @@ function upsertTopLevelFrontmatterSectionMarkdownText(args: {
 
 export function upsertFrontmatterFlowMarkdownText(rawText: string, graphData: GraphData): string {
   const text = String(rawText || '')
+  if (!graphDataHasFlowTopology(graphData) && frontmatterTextHasFlowTopology(text)) return text
   const flowLines = buildFrontmatterFlowBlockLines(graphData)
   const block = extractYamlFrontmatterBlock(text)
   if (!block) {

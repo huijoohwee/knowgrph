@@ -99,6 +99,10 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     if (!editing) return
     const input = inputRef.current
     if (!input) return
+    const ownerWindow = input.ownerDocument?.defaultView as (Window & { HTMLElement?: { prototype?: { attachEvent?: unknown; detachEvent?: unknown } } }) | null
+    const elementProto = ownerWindow?.HTMLElement?.prototype
+    if (elementProto && typeof elementProto.attachEvent !== 'function') elementProto.attachEvent = () => void 0
+    if (elementProto && typeof elementProto.detachEvent !== 'function') elementProto.detachEvent = () => void 0
     input.focus()
     if ('selectionStart' in input && typeof input.value === 'string') {
       const end = input.value.length

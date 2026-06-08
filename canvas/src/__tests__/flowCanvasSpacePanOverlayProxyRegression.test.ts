@@ -30,8 +30,10 @@ export function testFlowCanvasSpacePanCanStartFromOverlay() {
   if (!text.includes('__flowCanvasDebug.lastOverlayProxyPointerDown')) {
     throw new Error('expected FlowCanvas overlay proxy pointerdown path to expose live trace details in flowCanvasDebug')
   }
-  if (!text.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
-    throw new Error('expected FlowCanvas overlay space-pan proxy to reuse shared frontmatter-document mode gate SSOT')
+  const screenAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'screenAuthorityCollectivePan.ts')
+  const screenAuthorityText = readFileSync(screenAuthorityPath, 'utf8')
+  if (!text.includes('shouldUseFlowEditorScreenAuthorityCollectivePan(st)') || !screenAuthorityText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
+    throw new Error('expected FlowCanvas overlay space-pan proxy to reuse the shared Flow Editor screen-authority gate SSOT')
   }
   if (!text.includes('const flowEditorOverlayInteractionMode =')
     || !text.includes("String(st.canvas2dRenderer || '') === 'flowEditor'")) {

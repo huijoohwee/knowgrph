@@ -88,6 +88,7 @@ export function resolveFlowEditorWorkflowConnectedValuesInput(args: {
 
   const candidateGraphs: GraphData[] = []
   if (args.context.renderGraph) candidateGraphs.push(args.context.renderGraph)
+  if (args.graphForRun && args.graphForRun !== args.context.renderGraph) candidateGraphs.unshift(args.graphForRun)
   if (args.graphForRun && !candidateGraphs.includes(args.graphForRun)) candidateGraphs.push(args.graphForRun)
   if (args.context.draftGraph && !candidateGraphs.includes(args.context.draftGraph)) candidateGraphs.push(args.context.draftGraph)
   if (args.context.storeGraph && !candidateGraphs.includes(args.context.storeGraph)) candidateGraphs.push(args.context.storeGraph)

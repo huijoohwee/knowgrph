@@ -54,6 +54,20 @@ The shipped browser and deployed surfaces intentionally differ by trust boundary
 - `flow.subgraphs` is the only canonical grouping authoring surface for graph-producing Markdown
 - local SuperAgent execution remains CLI/local-MCP only unless a future source-owned deployed route
   and live validation prove otherwise
+- Agentic Canvas OS Dashboard remains a planned browser-local document/runtime model: agents may inspect
+  the active dashboard document, run state, approvals, budget, artifacts, and failures, but deployed
+  Pages/WebMCP must not claim write/deploy/payment mutation from that surface
+- Agentic Canvas OS Market Radar and real-browser evidence remain planned local/browser capabilities: agents
+  may inspect source-backed market reports, evidence levels, source cards, screenshots/media
+  artifacts, scoped browser session state, and blocked gates, but must not persist credentials,
+  cookies, private messages, unrelated tabs, or perform social-platform actions
+- Agentic Canvas OS Starter Repo remains a planned dry-run blueprint capability: agents may inspect
+  React frontend, AI-agent backend, auth, gateway/tool policy, IaC, tests, docs, and deployment
+  preflight state, but must not write files, copy external templates, generate secrets, or deploy
+  infrastructure without approval
+- Agentic Canvas OS Learning Loop remains a planned local-first capability: agents may inspect finalized-trace
+  recall cards, candidate/approved skills, learning nudges, and editable identity facets, but deployed
+  Pages/WebMCP must not expose private memory, raw transcripts, hidden prompts, or auto-promote skills
 
 The document is a living PRD/TAD companion. It records the current implemented baseline, the
 acceptance conditions that prove it, and the guardrails that prevent stale downstream patches,
@@ -104,6 +118,11 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 - local CLI/local-MCP SuperAgent harness documentation and source-owner linkage
 - root Commerce discovery for ACP, UCP, MPP, and x402
 - MainPanel `mcp` / `integrations` / `commerce` -> FloatingPanel Chat -> KGC Markdown -> Canvas apply path
+- planned Agentic Canvas OS Dashboard inspection as a Source Files Markdown document plus typed runtime manifest
+- planned Agentic Canvas OS Market Radar inspection as source-backed reports and evidence cards
+- planned local real-browser evidence inspection for scoped dedicated-profile research artifacts
+- planned Agentic Canvas OS Starter Repo inspection for secured full-stack agent app blueprints
+- planned Agentic Canvas OS Learning Loop inspection for finalized-trace recall, reviewed skills, nudges, and identity facets
 - generated production mirror sync and Cloudflare Pages deployment validation
 
 ### Out Of Scope
@@ -130,6 +149,10 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 | PRD-AR-05 | As a knowledge worker, I want MainPanel MCP and integrations actions to route into the existing chat/canvas pipeline. | Given a MainPanel assist action, when FloatingPanel Chat emits LLM output, then KGC Markdown validates from YAML frontmatter or literal MCP `structuredContent` validates as a renderable structured surface before Editor Workspace and Canvas apply. | Source owners remain `SettingsView`, `useFloatingPanelChatSubmit`, KGC/MCP structured-surface validation, `chatResponseStructuredContent`, and `applyChatKgcWorkspaceDocumentToCanvas`; no duplicate pipeline is introduced. |
 | PRD-AR-06 | As maintainer, I want deployment to stay source-owned so production cannot drift from Dev. | Given Dev changes, when build/sync/deploy runs, then prod mirror assets match the generated artifact and live `/knowgrph/` serves that artifact. | `npm run pages:build-sync`, `npm run pages:check-sync`, deploy, and live asset hash comparison pass. |
 | PRD-AR-07 | As a commerce-capable agent, I want payment and checkout discovery before creating a checkout session. | Given the root origin, when Commerce discovery routes are fetched, then ACP, UCP, MPP, and x402 metadata expose protocol, service, capability, endpoint, and payable-operation data. | `agent-ready:check` commerce probes pass and external scan reports `commerce.acp`, `commerce.ucp`, `commerce.mpp`, and `commerce.x402` as `pass`. |
+| PRD-AR-08 | As an Agentic Canvas OS operator, I want the dashboard to be inspectable without exposing mutation. | Given a dashboard document exists, when browser-local agent inspection runs, then the active document path, run state, approvals, budget, artifacts, failures, and demo-pack completeness are readable while file-write, deploy, paid-call, and payment actions remain blocked without approval. | Future implementation proves read-only dashboard inspection and rejects unapproved mutation. |
+| PRD-AR-09 | As an Agentic Canvas OS operator, I want market validation and browser evidence to be inspectable without exposing private browser data. | Given a market report and scoped browser evidence manifest exist, when browser-local agent inspection runs, then evidence levels, source cards, claim ids, screenshots/media hashes, allowed domains, and blocked gates are readable while credentials, cookies, private messages, unrelated tabs, and unscoped network bodies are absent. | Future implementation proves source-card inspection and browser privacy redaction before any richer research tool ships. |
+| PRD-AR-10 | As an Agentic Canvas OS operator, I want self-improving memory to be inspectable and controllable. | Given finalized traces or explicit notes exist, when browser-local learning inspection runs, then recall cards, skill states, learning nudges, identity facets, confidence, expiry, and source trace ids are readable while drafts, rejected memories, hidden prompts, raw transcripts, and private browser data stay excluded. | Future implementation proves local-first learning inspection, skill-promotion approval, and identity-facet edit/delete controls. |
+| PRD-AR-11 | As an Agentic Canvas OS operator, I want starter-repo blueprints to be inspectable before creation. | Given a starter manifest exists, when browser-local inspection runs, then frontend, backend, auth, gateway/tool policy, IaC choice, tests, docs, security checks, and deployment preflight state are readable while file writes, copied scaffolds, generated secrets, and deployment remain blocked without approval. | Future implementation proves starter-repo dry-run inspection and rejects unapproved creation/deploy actions. |
 
 ## Success Metrics
 

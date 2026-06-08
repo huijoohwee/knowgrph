@@ -21,11 +21,18 @@ const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
 export const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
 export const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
+const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 function asString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
+}
+function asStringOrEnvelopeValue(v: unknown): string {
+  const direct = asString(v)
+  if (direct) return direct
+  if (!isRecord(v)) return ''
+  return asString(v.value)
 }
 function isChatKnowgrphFlowContractRelaxed(meta: Record<string, unknown>): boolean {
   if (meta['frontmatter:chatKnowgrphRelaxed'] === true) return true
@@ -54,6 +61,19 @@ function asBoolean(v: unknown): boolean | null {
   }
   return null
 }
+
+function hasLocalComputeWidgetContract(args: {
+  rawNode: Record<string, unknown>
+  normalizedRawNode: Record<string, unknown>
+}): boolean {
+  return (
+    Object.prototype.hasOwnProperty.call(args.rawNode, 'compute')
+    || Object.prototype.hasOwnProperty.call(args.normalizedRawNode, 'compute')
+    || Object.prototype.hasOwnProperty.call(args.rawNode, 'canvas:runAction')
+    || Object.prototype.hasOwnProperty.call(args.normalizedRawNode, 'canvas:runAction')
+  )
+}
+
 function countIndent(rawLine: string): number {
   let i = 0
   while (i < rawLine.length && rawLine[i] === ' ') i += 1
@@ -184,6 +204,44 @@ function extractWidgetFieldSpecsFromFlowNode(args: {
   normalizedRawNode: Record<string, unknown>
 }): Array<{ fieldKey: string; fieldType: string; schemaPath: string }> {
   const nodeType = asString(args.normalizedRawNode.type)
+  const isLocalComputeWidgetContract = hasLocalComputeWidgetContract(args)
+  const mapFromAuthoredFields = () => {
+    const out: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
+    for (const [k, v] of Object.entries(args.rawNode)) {
+      const fieldName = asString(k)
+      if (!fieldName) continue
+      if (!isRecord(v)) continue
+      const rec = v as Record<string, unknown>
+      const fieldKey = asString(rec.key)
+      const fieldType = asString(rec.type)
+      if (!fieldKey || !fieldType) continue
+      if (
+        fieldName === 'id'
+        || fieldName === 'type'
+        || fieldName === 'label'
+        || fieldName === 'pos'
+        || fieldName === 'position'
+        || fieldName === 'handles'
+        || fieldName === FLOW_WIDGET_FORM_ID_KEY
+        || fieldName === 'flow:widgetTypeId'
+        || fieldName === 'flow:portTypes'
+        || fieldName === 'canvas:widgetCard'
+        || fieldName === 'canvas:runAction'
+        || fieldName === 'frontmatter:primitive'
+        || fieldName === 'kgc:readingSummary'
+        || fieldName.startsWith('graph:')
+        || fieldName.startsWith('visual:')
+      ) {
+        continue
+      }
+      out.push({
+        fieldKey,
+        fieldType,
+        schemaPath: fieldName === 'compute' ? 'flow:compute' : fieldName,
+      })
+    }
+    return out
+  }
   const mapFromCanonicalFields = (fields: Array<{ fieldKey: string; fieldType: string; schemaPath?: string }>) => {
     const out: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
     const seen = new Set<string>()
@@ -203,6 +261,10 @@ function extractWidgetFieldSpecsFromFlowNode(args: {
   }
   const canonicalDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId: nodeType })
   if (canonicalDraft) {
+    if (isLocalComputeWidgetContract) {
+      const authoredFields = mapFromAuthoredFields()
+      if (authoredFields.length > 0) return authoredFields
+    }
     return mapFromCanonicalFields(canonicalDraft.fields)
   }
 
@@ -260,6 +322,15 @@ function collectDeclaredFlowNodePropertyValues(args: {
     out[fieldName] = resolved
   }
   return out
+}
+
+function isCanonicalLocalComputeWidgetNode(args: {
+  nodeType: string
+  rawNode: Record<string, unknown>
+  normalizedRawNode: Record<string, unknown>
+}): boolean {
+  if (!buildCanonicalWidgetRegistryDraft({ nodeTypeId: args.nodeType })) return false
+  return hasLocalComputeWidgetContract(args)
 }
 
 function getPathValue(
@@ -636,7 +707,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const outputs = coerceFlowNodePorts(handles?.source)
     const dataResolved = resolveTemplateValue(normalizedRawNode.data, vars, pathCache, declarationCache, resolvedStringCache)
     const dataNormalized = normalizeFlowDataValue(dataResolved)
-    const computeRaw = asString(normalizedRawNode.compute)
+    const computeRaw = asStringOrEnvelopeValue(normalizedRawNode.compute)
     let compute = computeRaw ? resolveTemplateString(computeRaw, vars, pathCache, declarationCache, resolvedStringCache) : ''
     if (allowMixedHandles && compute) {
       flowWarnings.push(`Flow chatKnowgrph contract: compute removed for node ${id}`)
@@ -652,6 +723,13 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       allowMixedHandles,
     })
     const baseProps = isRecord(normalizedRawNode.properties) ? ({ ...normalizedRawNode.properties } as Record<string, unknown>) : {}
+    if (isCanonicalLocalComputeWidgetNode({
+      nodeType: type,
+      rawNode: rawNode as Record<string, unknown>,
+      normalizedRawNode,
+    })) {
+      baseProps[FLOW_WIDGET_FORM_ID_KEY] = `fm:${id}`
+    }
     const widgetFields = extractWidgetFieldSpecsFromFlowNode({
       rawNode: rawNode as Record<string, unknown>,
       normalizedRawNode,
@@ -735,7 +813,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const node = normalizedNodes[i]
     if (!isRecord(node)) continue
     const labelRaw = asString(node.label)
-    const computeRaw = asString(node.compute)
+    const computeRaw = asStringOrEnvelopeValue(node.compute)
     node.label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : asString(node.id)
     node.data = normalizeFlowNodeDataValue(
       resolveTemplateValue(node.data, flowVars, pathCache, declarationCache, resolvedStringCache),

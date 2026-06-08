@@ -29,8 +29,9 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
   dotSizePx?: number
   dotHitPx?: number
   forcePortDots?: boolean
+  extraPlaceholderCell?: boolean
 }) {
-  const { ariaLabel, microLabelClass, rows, showHeader = false, dotSizePx = 10, dotHitPx = 18, forcePortDots } = props
+  const { ariaLabel, microLabelClass, rows, showHeader = false, dotSizePx = 10, dotHitPx = 18, forcePortDots, extraPlaceholderCell = false } = props
 
   const safeDotSize = React.useMemo(() => {
     return Number.isFinite(dotSizePx) ? Math.max(6, Math.floor(dotSizePx)) : 10
@@ -69,10 +70,11 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
           <col style={{ width: `${safeHit}px` }} />
           <col style={FLOW_WIDGET_KV_KEY_COLUMN_STYLE} />
           <col style={FLOW_WIDGET_KV_VALUE_COLUMN_STYLE} />
+          {extraPlaceholderCell ? <col style={{ width: `${safeHit}px` }} /> : null}
           <col style={{ width: `${safeHit}px` }} />
         </colgroup>
         <caption className={cn('sr-only', microLabelClass)}>
-          {UI_LABELS.flowWidgetKeyLabel} / {UI_LABELS.flowWidgetTypeLabel} / {UI_LABELS.flowWidgetValueLabel}
+          {UI_LABELS.flowWidgetKeyLabel} / {UI_LABELS.flowWidgetValueLabel}
         </caption>
 
         {showHeader ? (
@@ -85,6 +87,7 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
               <td className={cn('px-2 py-2 text-left', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                 {UI_LABELS.flowWidgetValueLabel}
               </td>
+              {extraPlaceholderCell ? <td /> : null}
               <td />
             </tr>
           </thead>
@@ -121,6 +124,11 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
               >
                 <section className="w-full min-w-0">{row.valueNode}</section>
               </td>
+              {extraPlaceholderCell ? (
+                <td className={cn('py-2 align-middle', UI_THEME_TOKENS.text.secondary)}>
+                  {forcePortDots ? dot('Placeholder port') : null}
+                </td>
+              ) : null}
               <td
                 className={cn(
                   'py-2 align-middle',

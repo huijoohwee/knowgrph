@@ -104,6 +104,24 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Viewport field groups are read-only views over the existing settings and schema; mutating the underlying behavior remains the responsibility of the Render and Settings panels.
 - Forbid duplicate/legacy “Arrange” surfaces (canvas overlays or editor tabs) that reintroduce conflicting gesture ownership, parallel Interaction UIs, or duplicate actions.
 
+### Agentic Canvas OS Dashboard Document/Runtime Model
+
+- Agentic Canvas OS Dashboard is a Canvas-rendered Source Files Markdown document, not a new Canvas runtime. The canonical document path pattern is `agentic-os/<runId>/dashboard.agentic-os.md`.
+- The dashboard document owns stable frontmatter and human-readable body sections; the run manifest owns volatile runtime facts such as tool attempts, approval states, cost logs, artifacts, and failures.
+- Canvas renders the dashboard through the existing Editor Workspace -> Source Files -> frontmatter-flow -> Flow Editor path. It must not mount a dashboard-only graph store, renderer, preview, inspector, or mutation bridge.
+- The dashboard document may contain `AgenticOSProfile`, `AgenticOSPlan`, `AgenticOSToolCall`, `AgenticOSApprovalGate`, `AgenticOSBudget`, `AgenticOSEvidencePack`, `AgenticOSArtifact`, `AgenticOSFailure`, and `AgenticOSDemoPack` nodes. These are ordinary GraphData nodes projected from frontmatter-flow, not bespoke React component types.
+- Market validation and real-browser research extend the same document model. The dashboard document may also contain `AgenticOSMarketReport`, `AgenticOSSourceCard`, `AgenticOSBrowserSession`, and `AgenticOSMediaEvidence` nodes for source-backed social/community/product research, evidence levels, screenshots/media artifacts, and browser capture status.
+- Starter repo planning extends the same document model. The dashboard document may contain `AgenticOSStarterRepo`, `AgenticOSAuthBoundary`, `AgenticOSGatewayPolicy`, and `AgenticOSDeploymentPreflight` nodes for secured React frontend, agent backend, auth, tool policy, IaC choice, tests, docs, and deployment readiness.
+- Self-improving agent memory extends the same document model. The dashboard document may also contain `AgenticOSLearningLoop`, `AgenticOSRecallCard`, `AgenticOSSkill`, `AgenticOSIdentityFacet`, and `AgenticOSLearningNudge` nodes for finalized-trace learning, bounded past-conversation recall, reviewed skills, editable identity facets, and persistence prompts.
+- Runtime state may be inspected read-only by browser WebMCP, but write, deploy, paid-call, and Stripe/payment actions remain dry-run or blocked unless a source-owned approval contract and focused validation exist.
+- Updating runtime state must write through Source Files or accepted MCP `structuredContent` projection before Canvas apply. Direct external evidence -> Canvas graph mutation is forbidden.
+- Browser evidence nodes are local-only inspection artifacts. They may describe an approved dedicated Chrome profile, scoped domains/tabs, rendered DOM summaries, network provenance, screenshots, and media resources, but must not expose credentials, cookies, private messages, unrelated tabs, unscoped network bodies, or direct social-platform actions.
+- Market report nodes must keep claim ids tied to source-card ids and evidence levels. Canvas can visualize confidence, gaps, and next-test recommendations, but it must not upgrade weak evidence into strong claims or mutate product-roadmap graph state without a separate approved apply step.
+- Starter repo nodes must remain dry-run blueprint state until approval; Canvas may visualize file manifests and preflight gaps, but it must not imply copied scaffolds, generated secrets, or deployed infrastructure.
+- Learning nodes must keep source trace ids, confidence, scope, expiry/review state, redaction status, and approval state visible. Canvas can visualize candidate skills and identity facets, but it must not auto-promote skills, hide identity drift, learn from draft/aborted turns, or send private memory to deployed public MCP surfaces.
+- Detailed lane payloads live in `knowgrph-mcp-agentic-os-prd-tad.companion.md`; this Canvas document owns renderer/path invariants only.
+- The dashboard runtime state machine is bounded to `draft -> profiled -> planned -> dry_run_ready -> approval_required -> approved -> executing -> verified/failed/blocked -> archived`; loops must honor the Agentic Canvas OS max-iteration and token/TCO budget contract.
+
 ### Preview Contract (SSOT)
 
 - **Editor/Table split view**: the Canvas is mounted once (single `CanvasViewport`) and resized into the right-side Canvas pane. The Editor workspace and Graph Data Table must not mount a second “Canvas Preview” instance.

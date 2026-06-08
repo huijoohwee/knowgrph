@@ -9,7 +9,7 @@ import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
-import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel, resolveWidgetRegistryApiDocRef } from '@/features/flow-editor-manager/registryTemplates'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
@@ -431,6 +431,80 @@ export function testMarkdownFlowBlockPreservesFlowWidgetNodeTypesAndFormIds() {
   const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   if (Array.isArray(registry) && registry.some(r => String((r as { formId?: unknown })?.formId || '').startsWith('fm:n-text'))) {
     throw new Error('expected parser not to overwrite widget formId with fm:n-text')
+  }
+}
+
+export function testMarkdownFlowBlockLocalComputeTextGenerationUsesNodeOwnedWidgetRegistry() {
+  const md = [
+    '# Title',
+    '',
+    'flow:',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,  value: "local_text"}',
+    '      type:    {key: type,    type: string,  value: "TextGeneration"}',
+    '      label:   {key: label,   type: string,  value: "Local Text Compute"}',
+    '      handles: {key: handles, type: object,  value: {target: ["prompt_in"], source: ["text_out", "outputSrcDoc"]}}',
+    '      "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "textGeneration"}',
+    '      "canvas:runAction": {key: canvas:runAction, type: object, value: {fn: compute, inputs: [prompt_in], outputs: [text_out, outputSrcDoc]}}',
+    '      output: {key: output, type: markdown, value: "Ready"}',
+    '      outputSrcDoc: {key: outputSrcDoc, type: html_srcdoc, value: ""}',
+    '      compute: {key: compute, type: string, value: "inputs => ({ text_out: String(inputs.prompt_in || \'\'), outputSrcDoc: \'\' })"}',
+    '  edges: []',
+    '---',
+    '',
+    '## Body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('local-compute-text-generation.md', md)
+  if (!res) throw new Error('expected parse result for local compute text generation')
+  const g = res.graphData
+  const node = g.nodes.find(n => String(n.id || '') === 'local_text') || null
+  if (!node) throw new Error('expected local_text node')
+  const props = (node.properties || {}) as Record<string, unknown>
+  if (String(props[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'fm:local_text') {
+    throw new Error(`expected local compute TextGeneration to resolve to fm:local_text, got ${String(props[FLOW_WIDGET_FORM_ID_KEY] || '')}`)
+  }
+  const rawSpecs = props[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
+  const specKeys = Array.isArray(rawSpecs)
+    ? rawSpecs.map(v => (v && typeof v === 'object' && !Array.isArray(v) ? String((v as Record<string, unknown>).fieldKey || '').trim() : '')).filter(Boolean)
+    : []
+  ;['output', 'outputSrcDoc', 'compute'].forEach(key => {
+    if (!specKeys.includes(key)) throw new Error(`expected local compute registry field ${key}`)
+  })
+  if (specKeys.includes('chatAuthMode') || specKeys.includes('chatEndpointUrl') || specKeys.includes('chatModel')) {
+    throw new Error(`expected local compute TextGeneration to avoid provider transport fields, got ${specKeys.join(',')}`)
+  }
+
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+    : []
+  const localEntry = registry.find(entry => String(entry.formId || '') === 'fm:local_text') || null
+  if (!localEntry) throw new Error('expected node-owned registry entry for local_text')
+  const fields = Array.isArray(localEntry.fields) ? (localEntry.fields as Array<Record<string, unknown>>) : []
+  const fieldKeys = fields.map(field => String(field.fieldKey || '').trim()).filter(Boolean)
+  if (fieldKeys.includes('chatAuthMode') || fieldKeys.includes('chatEndpointUrl') || fieldKeys.includes('chatModel')) {
+    throw new Error(`expected node-owned local compute registry to avoid provider fields, got ${fieldKeys.join(',')}`)
+  }
+  const label = getWidgetRegistryEntryLabel({
+    nodeTypeId: localEntry.nodeTypeId,
+    widgetTypeId: localEntry.widgetTypeId,
+    formId: localEntry.formId,
+  })
+  if (label !== 'Widget') {
+    throw new Error(`expected node-owned local compute registry label to stay neutral, got ${label}`)
+  }
+  const outputDocRef = resolveWidgetRegistryApiDocRef({
+    registryEntry: {
+      nodeTypeId: String(localEntry.nodeTypeId || ''),
+      widgetTypeId: String(localEntry.widgetTypeId || ''),
+      formId: String(localEntry.formId || ''),
+    },
+    schemaPath: 'output',
+    fieldKey: 'output',
+  })
+  if (outputDocRef) {
+    throw new Error(`expected node-owned local compute output to avoid provider API refs, got ${JSON.stringify(outputDocRef)}`)
   }
 }
 

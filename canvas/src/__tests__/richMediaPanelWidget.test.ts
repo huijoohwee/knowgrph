@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
@@ -390,7 +390,12 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   const mediaSpecText = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'graph-elements', 'mediaSpec.ts'), 'utf8')
   const srcDocText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaPanelSrcDoc.ts'), 'utf8')
   const richMediaPreviewHookText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'useRichMediaWidgetPreview.ts'), 'utf8')
-  const nodeOverlaySharedText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts'), 'utf8')
+  const widgetOverlaySharedPath = resolve(root, 'src', 'components', 'FlowEditor', 'flowWidgetOverlayShared.ts')
+  const legacyNodeOverlaySharedPath = resolve(root, 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
+  const legacyNodeOverlayEntrypointPath = resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const widgetOverlaySharedText = readFileSync(widgetOverlaySharedPath, 'utf8')
+  const widgetOverlayEntrypointText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'FlowWidgetOverlay.tsx'), 'utf8')
+  const flowEditorCanvasSharedText = readFileSync(resolve(root, 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx'), 'utf8')
   const nodeOverlayPanelText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx'), 'utf8')
   const nodeOverlayFormText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx'), 'utf8')
   const widgetInnerPanelScrollText = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts'), 'utf8')
@@ -471,7 +476,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (
     !richMediaPanelDefaultsText.includes("import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'")
     || !richMediaPanelDefaultsText.includes('RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX = WIDGET_BASE_SIZE.width')
-    || !nodeOverlaySharedText.includes("from '@/lib/render/richMediaPanelDefaults'")
+    || !widgetOverlaySharedText.includes("from '@/lib/render/richMediaPanelDefaults'")
   ) {
     throw new Error('expected Rich Media Panel default width to be owned by the shared default widget width helper')
   }
@@ -486,7 +491,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     throw new Error('expected 2D Rich Media Panel default sizing to reuse the shared widget-width default instead of local literals')
   }
   if (
-    !nodeOverlaySharedText.includes('handleWidgetInnerPanelWheelCapture')
+    !widgetOverlaySharedText.includes('handleWidgetInnerPanelWheelCapture')
     || !widgetInnerPanelScrollText.includes('consumeScrollablePanelWheelEvent')
     || !widgetInnerPanelScrollText.includes('shouldKeepWidgetInnerPanelWheel')
     || !widgetInnerPanelScrollText.includes('WIDGET_INNER_PANEL_SCROLL_SURFACE_SELECTOR')
@@ -494,6 +499,15 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     || !nodeOverlayFormText.includes('handleWidgetInnerPanelWheelCapture')
   ) {
     throw new Error('expected FloatingEditor Rich Media Panel scrolling to reuse the shared widget inner-panel wheel consumer')
+  }
+  if (
+    existsSync(legacyNodeOverlaySharedPath)
+    || existsSync(legacyNodeOverlayEntrypointPath)
+    || !widgetOverlayEntrypointText.includes('flowWidgetOverlayShared')
+    || !flowEditorCanvasSharedText.includes("import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'")
+    || flowEditorCanvasSharedText.includes("from '@/components/FlowEditor/NodeOverlayEditor'")
+  ) {
+    throw new Error('expected Flow Editor widget runtime to use the canonical widget overlay owner without legacy node-overlay duplicates')
   }
   if (!componentText.includes("pointerEvents: 'auto'") || componentText.includes("pointerEvents: allowPanelContentPointerEvents ? 'auto' : 'none'")) {
     throw new Error('expected RichMediaPanel embedded markdown scroll surfaces to stay pointer-targetable instead of falling through to canvas zoom')

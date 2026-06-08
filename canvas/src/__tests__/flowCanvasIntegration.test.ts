@@ -160,7 +160,14 @@ const dispatchFlowCanvasPointerEvent = (
   })
   Object.defineProperty(event, 'pointerId', { configurable: true, value: args.pointerId ?? 1 })
   Object.defineProperty(event, 'pointerType', { configurable: true, value: 'mouse' })
-  target.dispatchEvent(event)
+  const eventTargetCtor = (win as unknown as { EventTarget?: { prototype?: { dispatchEvent?: (event: Event) => boolean } } }).EventTarget
+  const dispatch = typeof target.dispatchEvent === 'function'
+    ? target.dispatchEvent.bind(target)
+    : (eventTargetCtor?.prototype?.dispatchEvent?.bind(target) as ((event: Event) => boolean) | undefined)
+  if (typeof dispatch !== 'function') {
+    throw new Error(`expected pointer target to expose dispatchEvent for ${type}`)
+  }
+  dispatch(event)
 }
 
 const readFlowSceneSignature = (runtime: import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime) => {

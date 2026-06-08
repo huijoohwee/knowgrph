@@ -15,7 +15,7 @@ import {
   RICH_MEDIA_ASPECT_DEFAULT_WIDTH,
   RICH_MEDIA_ASPECT_MIN_HEIGHT,
   RICH_MEDIA_ASPECT_MIN_WIDTH,
-} from '@/components/FlowEditor/nodeOverlayEditorShared'
+} from '@/components/FlowEditor/flowWidgetOverlayShared'
 import type { GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 

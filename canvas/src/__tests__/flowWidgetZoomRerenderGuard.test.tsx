@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
+import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -39,7 +39,7 @@ export async function testFlowWidgetZoomUpdatesDoNotRerenderPanel() {
       React.createElement(
         React.Profiler,
         { id: 'widget', onRender },
-        React.createElement(NodeOverlayEditor, {
+        React.createElement(FlowWidgetOverlay, {
           active: true,
           node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
           edges: [],

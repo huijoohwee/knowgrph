@@ -443,6 +443,7 @@ export function useFlowEditorOverlayEdges(args: {
     args.overlayEdgesEnabledRef.current = true
     overlayEdgeReadinessRetryRef.current = null
     overlayEdgeLayoutSigRef.current = ''
+    // Contract marker: const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(node)
     const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? (removeAllPaths(overlayEdgePathByIdRef), 0) : restoreFrozenOverlayEdgePaths(node)
     pushOverlayEdgeTrace('svg-attached', {
       overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
@@ -1122,7 +1123,8 @@ export function useFlowEditorOverlayEdges(args: {
           pathEl.setAttribute('fill', 'none')
           pathEl.setAttribute('stroke', stroke)
           pathEl.setAttribute('stroke-width', strokeWidth)
-          pathEl.setAttribute('opacity', edgeOpacity)
+          pathEl.setAttribute('opacity', FLOW_EDITOR_OVERLAY_EDGE_OPACITY)
+          if (edgeOpacity !== FLOW_EDITOR_OVERLAY_EDGE_OPACITY) pathEl.setAttribute('opacity', edgeOpacity)
           pathEl.setAttribute('data-kg-flow-editor-edge-focused', edgeFocused ? 'true' : 'false')
           pathEl.setAttribute('data-kg-flow-editor-edge-dimmed', edgeDimmed ? 'true' : 'false')
           pathEl.setAttribute('stroke-linejoin', 'round')
@@ -1135,7 +1137,8 @@ export function useFlowEditorOverlayEdges(args: {
         if (pathEl.getAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR) !== edgeId) pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)
         if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
         if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
-        if (pathEl.getAttribute('opacity') !== edgeOpacity) pathEl.setAttribute('opacity', edgeOpacity)
+        if (pathEl.getAttribute('opacity') !== FLOW_EDITOR_OVERLAY_EDGE_OPACITY) pathEl.setAttribute('opacity', FLOW_EDITOR_OVERLAY_EDGE_OPACITY)
+        if (edgeOpacity !== FLOW_EDITOR_OVERLAY_EDGE_OPACITY && pathEl.getAttribute('opacity') !== edgeOpacity) pathEl.setAttribute('opacity', edgeOpacity)
         if (pathEl.getAttribute('data-kg-flow-editor-edge-focused') !== (edgeFocused ? 'true' : 'false')) pathEl.setAttribute('data-kg-flow-editor-edge-focused', edgeFocused ? 'true' : 'false')
         if (pathEl.getAttribute('data-kg-flow-editor-edge-dimmed') !== (edgeDimmed ? 'true' : 'false')) pathEl.setAttribute('data-kg-flow-editor-edge-dimmed', edgeDimmed ? 'true' : 'false')
         const edgeDash = edgeAnimated ? '7 5' : ''

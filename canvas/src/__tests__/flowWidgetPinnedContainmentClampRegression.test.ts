@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowWidgetPinnedClampsToContainmentGroup() {
-  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
+  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'flowWidgetOverlayShared.ts')
   const placementPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const innerPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
   const sharedText = readFileSync(sharedPath, 'utf8')

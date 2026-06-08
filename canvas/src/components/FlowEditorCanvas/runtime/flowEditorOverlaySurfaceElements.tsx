@@ -54,6 +54,7 @@ export function buildOverlayEditorElements(args: {
   renderGraphMetaKind: string | null
   renderGraphDataOverride: GraphData | null
   lastStableRenderGraphDataOverride: GraphData | null
+  draftGraphDataRef?: React.MutableRefObject<GraphData | null>
   pendingOverlayNodeIdRef: React.MutableRefObject<string | null>
   pendingOverlayNode: GraphNode | null
   overlayEditorNodeIds: readonly string[]
@@ -109,9 +110,10 @@ export function buildOverlayEditorElements(args: {
       ? args.lastStableRenderGraphDataOverride
       : args.renderGraphDataOverride,
   )
-  const graphDataForRunResolution = useStableFrontmatterGraphAuthority
+  const graphDataForRunResolution = args.draftGraphDataRef?.current
+    || (useStableFrontmatterGraphAuthority
     ? args.lastStableRenderGraphDataOverride
-    : args.renderGraphDataOverride
+    : args.renderGraphDataOverride)
   const orderedOverlayEditorNodeIds = orderFlowEditorOverlayNodeIdsByRenderGraph({
     ids: args.overlayEditorNodeIds,
     nodes: (
@@ -152,11 +154,10 @@ export function buildOverlayEditorElements(args: {
       || args.connectedValuesByNodeId.get(identity.actionNodeId)
       || undefined
     const portHandleEdges =
-      args.renderGraphIncidentEdgesByNodeId?.get(id)
-      || args.renderGraphIncidentEdgesByNodeId?.get(identity.actionNodeId)
-      || args.renderGraphIncidentEdgesByNodeId?.get(identity.renderNodeId)
+      args.renderGraphIncidentEdgesByNodeId?.get(actionNodeId)
       || EMPTY_GRAPH_EDGES
-    const overlayGraphInstanceKey = overlayGraphMetaKind === 'frontmatter-flow'
+    const graphMetaKind = overlayGraphMetaKind
+    const overlayGraphInstanceKey = graphMetaKind === 'frontmatter-flow'
       ? String(graphMetaKey || '').trim() || String(args.renderGraphSemanticKey || '').trim() || 'graph'
       : String(args.renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph'
     const overlayInstanceKey = [
@@ -203,6 +204,10 @@ export function buildOverlayEditorElements(args: {
             nodeId: actionNodeId,
             resolveRichMediaKind: resolveRichMediaWidgetKind,
           })
+          if (targetNodeIds.length === 0) {
+            void args.runWorkflowNode(actionNodeId)
+            return
+          }
           for (const targetNodeId of targetNodeIds) {
             void args.runWorkflowNode(targetNodeId)
           }

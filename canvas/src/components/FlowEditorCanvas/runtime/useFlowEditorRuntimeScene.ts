@@ -815,7 +815,10 @@ export function useFlowEditorRuntimeScene(args: {
       ...pinnedById,
       ...activeSurfaceOverlayPinnedById,
     }
-    const resolvePlacementPinnedInCanvas = (id: string): boolean => resolveEffectiveFlowWidgetPinnedInCanvas({ graphMetaKind, node: { id, type: nodeTypeById.get(id) || '' }, pinnedValue: typeof placementPinnedById[id] === 'boolean' ? placementPinnedById[id] : null })
+    const resolvePlacementPinnedInCanvas = (id: string): boolean => {
+      const v = placementPinnedById[id]
+      return typeof v === 'boolean' ? v : defaultPinnedInCanvas
+    }
     const effectiveOrFallbackOpenIds = effectiveOpenIds.length > 0
       ? Array.from(new Set([
           ...effectiveOpenIds.map(id => String(id || '').trim()).filter(Boolean),
@@ -1390,17 +1393,11 @@ export function useFlowEditorRuntimeScene(args: {
     }
     __flowCanvasDebug.widgetWorldRectById = nextWidgetWorldRectById
     syncFlowCanvasDebugWindow()
-    if (!changed && !changedScreenPos) {
-      seededPinnedWidgetWorldPosKeyRef.current = seedKey
-      lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
-      markLayoutRebalanceHandled()
-      return
-    }
+    if (changedScreenPos) st.setFlowWidgetPosByNodeId(nextScreenPos)
+    if (changed) st.setFlowWidgetWorldPosByNodeId(nextWorld)
     seededPinnedWidgetWorldPosKeyRef.current = seedKey
     lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
     markLayoutRebalanceHandled()
-    if (changedScreenPos) st.setFlowWidgetPosByNodeId(nextScreenPos)
-    if (changed) st.setFlowWidgetWorldPosByNodeId(nextWorld)
   }, [
     args.active,
     args.flowEditorSurfaceId,

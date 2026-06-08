@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
+import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -77,7 +77,7 @@ export async function testFlowWidgetUnpinnedReusesCanvasZoomMovement() {
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],
@@ -113,7 +113,7 @@ export async function testFlowWidgetUnpinnedReusesCanvasZoomMovement() {
 
     const nextViewportW = 600
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],
@@ -189,7 +189,7 @@ export async function testFlowWidgetUnpinnedReusesCanvasPanMovement() {
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],
@@ -278,7 +278,7 @@ export async function testFlowWidgetUnpinnedInteractionFrameRefreshesLiveTransfo
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],
@@ -368,7 +368,7 @@ export async function testFlowWidgetUnpinnedReusesPinnedScaleBehavior() {
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],
@@ -459,7 +459,7 @@ export async function testFlowWidgetUnpinnedMaxZoomOutKeepsLayoutWithoutViewport
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
         edges: [],
@@ -549,7 +549,7 @@ export async function testFlowWidgetFloatingScreenPlacementAllowsOffscreenWithou
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         graphMetaKey: graphKey,
         graphMetaKind: 'frontmatter-flow',
@@ -634,7 +634,7 @@ export async function testFrontmatterWidgetStoredWorldPlacementAllowsOffscreenWi
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         graphMetaKey: graphKey,
         graphMetaKind: 'frontmatter-flow',
@@ -716,7 +716,7 @@ export async function testFrontmatterWidgetUnpinKeepsCurrentScreenPlacement() {
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         graphMetaKind: 'frontmatter-flow',
         node: { id: 'n1', label: 'node', type: 'TextGeneration', x: 40, y: 50, properties: {} },
@@ -825,7 +825,7 @@ export async function testFrontmatterWidgetPinKeepsCurrentScreenPlacement() {
     const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 
     root.render(
-      React.createElement(NodeOverlayEditor, {
+      React.createElement(FlowWidgetOverlay, {
         active: true,
         graphMetaKind: 'frontmatter-flow',
         node: { id: 'n1', label: 'node', type: 'TextGeneration', x: 40, y: 50, properties: {} },

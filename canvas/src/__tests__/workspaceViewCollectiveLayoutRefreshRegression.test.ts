@@ -32,11 +32,11 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!text.includes('s.openWidgetNodeIds')) {
     throw new Error('expected Flow Editor collective collision refresh subscription to use openWidgetNodeIds')
   }
-  const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'FlowWidgetOverlay.tsx')
   const editorInnerPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
   const editorPlacementPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const editorViewPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
-  const editorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
+  const editorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'flowWidgetOverlayShared.ts')
   const editorWrapperText = readFileSync(editorPath, 'utf8')
   const editorText = [
     editorWrapperText,
@@ -55,27 +55,27 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     throw new Error('expected direct Flow Editor widget persistence to branch workspace-blocked updates through an explicit in-memory path')
   }
   if (!editorText.includes('resolveFlowEditorWidgetSurfacePointerPolicy')) {
-    throw new Error('expected NodeOverlayEditor to reuse the shared widget surface pointer policy')
+    throw new Error('expected FlowWidgetOverlay to reuse the shared widget surface pointer policy')
   }
   if (!editorText.includes('data-kg-canvas-wheel-ignore={pointerPolicy.canvasWheelIgnore}')) {
-    throw new Error('expected NodeOverlayEditor widget panel wheel routing to come from the shared pointer policy')
+    throw new Error('expected FlowWidgetOverlay widget panel wheel routing to come from the shared pointer policy')
   }
   if (!editorText.includes('className={pointerPolicy.rootClassName}')) {
-    throw new Error('expected NodeOverlayEditor root pointer routing to come from the shared pointer policy')
+    throw new Error('expected FlowWidgetOverlay root pointer routing to come from the shared pointer policy')
   }
   if (!editorText.includes('pointerPolicy.toolbarPointerEventsClassName')) {
-    throw new Error('expected NodeOverlayEditor toolbar pointer routing to come from the shared pointer policy')
+    throw new Error('expected FlowWidgetOverlay toolbar pointer routing to come from the shared pointer policy')
   }
   if (!editorText.includes('className={pointerPolicy.panelPointerEventsClassName}')) {
-    throw new Error('expected NodeOverlayEditor panel pointer routing to come from the shared pointer policy')
+    throw new Error('expected FlowWidgetOverlay panel pointer routing to come from the shared pointer policy')
   }
   if (editorText.includes('interactionPassthrough')) {
-    throw new Error('expected NodeOverlayEditor to remove stale workspace passthrough pointer disabling')
+    throw new Error('expected FlowWidgetOverlay to remove stale workspace passthrough pointer disabling')
   }
   const overlaySharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const overlaySharedText = readFileSync(overlaySharedPath, 'utf8')
   if (overlaySharedText.includes('interactionPassthrough')) {
-    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to stop threading stale interaction passthrough into NodeOverlayEditor')
+    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to stop threading stale interaction passthrough into FlowWidgetOverlay')
   }
   if (!editorText.includes('useGraphStore.setState(prev => {')) {
     throw new Error('expected direct Flow Editor widget persistence to update in-memory widget positions while workspace mutation is blocked')
