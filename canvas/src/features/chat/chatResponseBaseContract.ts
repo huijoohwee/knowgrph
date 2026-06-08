@@ -33,7 +33,6 @@ export const CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC = [
   'open_questions',   // open items that need resolution
 ] as const
 
-
 // ── KGC FULL-DOCUMENT RESPONSE CONTRACT ───────────────────────────────────────
 // Applied when generating a universal, project-agnostic KGC pipeline document.
 //
@@ -76,7 +75,8 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   'When a structured response needs document/demo/capability metadata, put portable top-level frontmatter fields in `response.structuredContent.frontmatter`; keep graph records in nodes/edges/cards/panels/media/widgets so metadata projection never becomes a graph backfill channel.',
   'For Flow Editor, Storyboard, or Strybldr requests that should render widgets, cards, storytree branches, or Rich Media Panels, materialize a neutral dataflow: input/card/story output handles feed a compute widget, compute emits output/imageUrl/audioUrl/videoUrl/outputSrcDoc handles, and Rich Media Panels consume those handles through explicit edges so inline edits recompute downstream panels.',
   'For Flow Editor computing-flow requests, emit `schema: "kgc-computing-flow/v1"`, typed KTV input rows as `{key,type,value}` envelopes, and semantic input keys `input_query`, `input_context`, `input_audience`, `input_format`, `input_constraints`, `input_evidence`, `input_tone`, `input_metric_label`, and `input_metric_target` connected through explicit `sourceHandle` and `targetHandle` edges from `source_input` into `compute_summary`.',
-  'Declare `canvas:runAction.bodyTokens` for `compute_summary.output`, `compute_summary.imageUrl`, `compute_summary.outputSrcDoc`, and every `source_input.input_*` token so Run and Run All can update body projections; the Markdown body is human-facing only: `## Response` with `{{compute_summary.output}}`, then `## Inputs` with dynamic `{{source_input.input_*}}` tokens; do not narrate frontmatter, dataflow, `flow.nodes`, or `flow.edges` in the body.',
+  'Also include typed `flow_diagrams.value.template_gitgraph` with `type: mermaid_gitgraph` so Canvas GitGraph, BottomPanel GitGraph, and FloatingPanel GitGraph can show KTV inputs, merge/convergence into `compute_summary`, Rich Media Panels, and `run_body_tokens` without relying on body narration.',
+  'Declare `canvas:runAction.bodyTokens` for `compute_summary.output`, `compute_summary.imageUrl`, `compute_summary.outputSrcDoc`, and every `source_input.input_*` token so Run and Run All can update body projections; every RichMediaPanel node must carry `flow:widgetFormId: richMediaPanel`, `frontmatter:primitive: node`, explicit handles, typed ports, and the consumed output field as a KTV row; the Markdown body is human-facing only: `## Response` with `{{compute_summary.output}}`, then `## Inputs` with dynamic `{{source_input.input_*}}` tokens; do not narrate frontmatter, dataflow, `flow.nodes`, or `flow.edges` in the body.',
   'For Strybldr/storytree requests, set renderer intent as data (`kgCanvas2dRenderer: "strybldr"` and `kgStrybldrStoryboard: true`) when warranted by the request or active frontmatter; do not paste a static Strybldr demo body.',
   'For Strybldr/storytree requests, express card lineage as data with `storytree_product`, `kgStrybldrStoryboard`, card `parentNodeId`, optional `storytree.nodes[].parentNodeId` / `candidateRuns[].parentNodeId`, and authored edge labels such as `parent_node_id`, `candidateRun`, `candidateOption`, and `candidateScorecard`; never paste static connector geometry or renderer-local edge fixtures.',
   'GitGraph, Gantt, and Geospatial requests are dataflow too: preserve authored diagram source, typed `flow_diagrams` entries such as `type: mermaid_gitgraph` / `type: mermaid_gantt`, or GeoJSON/FeatureCollection payloads; connect source/card/widget -> safe compute -> Rich Media Panel `outputSrcDoc` instead of emitting a static copied panel as authority.',
@@ -96,7 +96,6 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   'If a request-specific detail is absent, keep the prose neutral instead of inventing domain context.',
   'On @flag:correction with failed_rule: V-0x, fix that rule and re-output exact format.',
   '',
-
   // ── GENERATION MODEL: YAML FRONTMATTER ← {{}} → MARKDOWN BODY ─────────────
   '════════ GENERATION MODEL ════════',
   '',
@@ -182,7 +181,6 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   '  · Mention stack, payments, geospatial, workflow, or distribution details only when present in user or workspace context',
   '  · Never duplicate headings or restate the same requested subsection twice under different labels',
   '',
-
   // ── FRONTMATTER BLOCK ORDER ────────────────────────────────────────────────
   '════════ FRONTMATTER — MANDATORY BLOCK ORDER (1–11 then ---) ════════',
   '',
@@ -280,7 +278,6 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   '      The parser projects flow.subgraphs into kg:subgraphs metadata; do not emit separate legacy clusters: aliases.',
   '      Do not add a second grouping registry such as group:, layer:, or clusters: beside flow.subgraphs.',
   '',
-
   // ── BODY SECTION SPEC ─────────────────────────────────────────────────────
   '════════ BODY — SECTION ORDER AND PROJECTION RULES ════════',
   '',
@@ -478,7 +475,6 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   '  · confidence: TBD or — (use only low / medium / high)',
   '  · Secrets or API keys anywhere in output',
   '  · Nested fenced code blocks inside a kgc block',
-
 ].join('\n')
 
 
@@ -488,7 +484,6 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
 // NOT a full KGC document — no frontmatter, no pipeline: / flow: blocks required.
 
 export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
-
   // ── ROLE ──────────────────────────────────────────────────────────────────
   'You are a pipeline AI assistant operating inside a graph workspace canvas.',
   'Strictly follow the project markdown syntax guidelines for sigils, variables, and flow blocks.',

@@ -5,6 +5,7 @@ import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTop
 import type { GraphData } from '@/lib/graph/types'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { shouldPreferScopedGraphDataAuthority } from '@/lib/flowEditor/flowEditorGraphAuthority'
+import { resolveFlowEditorDraftGraphDataForBaseReset } from '@/lib/flowEditor/flowEditorDraftGraphData'
 
 export function useFlowEditorRenderState(args: {
   active: boolean
@@ -21,6 +22,7 @@ export function useFlowEditorRenderState(args: {
 }) {
   const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
   const draftGraphDataRef = React.useRef<GraphData | null>(null)
+  const draftDocumentKeyRef = React.useRef<string | null>(null)
 
   const draftGraphDataRevision = React.useMemo(() => {
     const draft = draftGraphData
@@ -33,14 +35,23 @@ export function useFlowEditorRenderState(args: {
 
   React.useLayoutEffect(() => {
     if (!args.editorRuntimeActive) {
+      const hadDraft = draftGraphDataRef.current !== null || draftDocumentKeyRef.current !== null
       draftGraphDataRef.current = null
-      setDraftGraphData(null)
+      draftDocumentKeyRef.current = null
+      if (hadDraft) setDraftGraphData(null)
       return
     }
     const base = args.flowEditorBaseGraphData as GraphData | null
-    draftGraphDataRef.current = base
-    setDraftGraphData(prev => (prev === base ? prev : base))
-  }, [args.baseGraphDataRevision, args.editorRuntimeActive, args.flowEditorBaseGraphData])
+    const nextDraft = resolveFlowEditorDraftGraphDataForBaseReset({
+      activeDocumentKey: args.activeDocumentKey,
+      previousDocumentKey: draftDocumentKeyRef.current,
+      currentDraftGraphData: draftGraphDataRef.current,
+      nextBaseGraphData: base,
+    })
+    draftDocumentKeyRef.current = args.activeDocumentKey
+    draftGraphDataRef.current = nextDraft
+    setDraftGraphData(prev => (prev === nextDraft ? prev : nextDraft))
+  }, [args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive, args.flowEditorBaseGraphData])
 
   const rawRenderGraphDataOverride = React.useMemo((): GraphData | null => {
     const baseForRender = args.flowEditorBaseGraphData || args.baseGraphData
@@ -79,7 +90,7 @@ export function useFlowEditorRenderState(args: {
 
   React.useLayoutEffect(() => {
     if (!args.active) {
-      setStableRenderGraphOverride(null)
+      if (stableRenderGraphOverride !== null) setStableRenderGraphOverride(null)
       return
     }
     const nextGraph = rawRenderGraphDataOverride
@@ -124,6 +135,7 @@ export function useFlowEditorRenderState(args: {
     args.workspaceMutationBlocked,
     rawRenderGraphDataOverride,
     rawRenderGraphTopologyLayoutSignature,
+    stableRenderGraphOverride,
   ])
 
   const renderGraphDataOverride = React.useMemo((): GraphData | null => {

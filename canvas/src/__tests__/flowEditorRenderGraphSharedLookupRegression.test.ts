@@ -121,8 +121,8 @@ export function testFlowEditorRenderGraphHelperBecomesRuntimeSsot() {
   if (!workflowRichMediaPanelText.includes('const activePanel = panels.find(n => {')) {
     throw new Error('expected shared rich-media panel helper to own active-panel preference before panel creation fallback')
   }
-  if (!workflowRichMediaPanelText.includes('const nextDraft = bumpFlowEditorWorkflowDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })')) {
-    throw new Error('expected shared rich-media panel helper to reuse the shared workflow writeback revision bump helper')
+  if (!workflowRichMediaPanelText.includes('const nextDraft = bumpFlowEditorDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })')) {
+    throw new Error('expected shared rich-media panel helper to reuse the neutral Flow Editor draft revision bump helper')
   }
   if (!workflowRunInputsText.includes('export function resolveFlowEditorWorkflowConnectedValuesInput(args: {')) {
     throw new Error('expected FlowEditor runtime to centralize single-node connected-values input resolution in a shared helper')
@@ -148,8 +148,8 @@ export function testFlowEditorRenderGraphHelperBecomesRuntimeSsot() {
   if (!workflowWritebackText.includes('export function areFlowEditorWorkflowRecordValuesEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean')) {
     throw new Error('expected FlowEditor workflow writeback helper to own semantic property equality checks')
   }
-  if (!workflowWritebackText.includes('export function bumpFlowEditorWorkflowDraftGraphDataRevision(graphData: GraphData): GraphData')) {
-    throw new Error('expected FlowEditor workflow writeback helper to own draft graph revision bumps for writeback invalidation')
+  if (!workflowWritebackText.includes("import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'")) {
+    throw new Error('expected FlowEditor workflow writeback helper to reuse neutral draft graph revision bumps for writeback invalidation')
   }
   if (!workflowWritebackText.includes('if (updated) args.scheduleWorkflowOutputEdgeRefresh()')) {
     throw new Error('expected FlowEditor workflow writeback helper to refresh overlay edges only after actual graph-store writes')
@@ -212,11 +212,13 @@ export function testFlowEditorRenderGraphHelperBecomesRuntimeSsot() {
   if (overlayEdgesText.includes('function buildOverlayNodeHandleSignature(')) {
     throw new Error('expected FlowEditor overlay edges to stop owning local node-handle signature derivation')
   }
-  if (!workflowActionsText.includes('getCachedFlowEditorWorkflowRunPlan,') || !workflowActionsText.includes('getCachedFlowEditorWorkflowNodeResolutionContext,')) {
-    throw new Error('expected FlowEditor workflow actions to consume the shared workflow run-plan and node-resolution helpers')
+  const workflowRunAllPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts')
+  const workflowRunAllText = readFileSync(workflowRunAllPath, 'utf8')
+  if (!workflowRunAllText.includes('getCachedFlowEditorWorkflowRunPlan') || !workflowActionsText.includes('getCachedFlowEditorWorkflowNodeResolutionContext,')) {
+    throw new Error('expected FlowEditor workflow runtime to consume the shared workflow run-plan and node-resolution helpers')
   }
-  if (!workflowActionsText.includes('const runPlan = getCachedFlowEditorWorkflowRunPlan({')) {
-    throw new Error('expected FlowEditor workflow actions to reuse the shared run-all plan instead of rebuilding eligibility locally')
+  if (!workflowRunAllText.includes('const runPlan = getCachedFlowEditorWorkflowRunPlan({')) {
+    throw new Error('expected FlowEditor run-all helper to reuse the shared run-all plan instead of rebuilding eligibility locally')
   }
   if (!workflowActionsText.includes('const workflowNodeResolutionContext = getCachedFlowEditorWorkflowNodeResolutionContext({')) {
     throw new Error('expected FlowEditor workflow actions to reuse the shared node-resolution context instead of rebuilding multi-graph lookup order locally')

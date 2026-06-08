@@ -1,6 +1,7 @@
 import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
 import {
   COMPUTING_FLOW_COMPUTE_NODE_ID,
+  COMPUTING_FLOW_GITGRAPH_ID,
   COMPUTING_FLOW_INPUT_FIELDS,
   COMPUTING_FLOW_OUTPUT_FIELDS,
   COMPUTING_FLOW_SOURCE_NODE_ID,
@@ -143,6 +144,53 @@ const readComputingFlowPortType = (field: string): string => {
   return field === 'input_metric_target' ? 'template_number_signal' : 'template_text_signal'
 }
 
+const buildComputingFlowGitGraphLines = (): string[] => [
+  'flow_diagrams:',
+  '  key: flow_diagrams',
+  '  type: object',
+  '  value:',
+  `    ${COMPUTING_FLOW_GITGRAPH_ID}:`,
+  `      key: ${COMPUTING_FLOW_GITGRAPH_ID}`,
+  '      type: mermaid_gitgraph',
+  '      value: |-',
+  '        gitGraph',
+  '          commit id: "source_input" tag: "KTV inputs"',
+  '          branch request_contract',
+  '          checkout request_contract',
+  '          commit id: "input_query"',
+  '          commit id: "input_context"',
+  '          commit id: "input_evidence"',
+  '          checkout main',
+  '          branch presentation_contract',
+  '          checkout presentation_contract',
+  '          commit id: "input_audience"',
+  '          commit id: "input_format"',
+  '          commit id: "input_tone"',
+  '          checkout main',
+  '          branch guardrail_contract',
+  '          checkout guardrail_contract',
+  '          commit id: "input_constraints"',
+  '          checkout main',
+  '          branch metric_contract',
+  '          checkout metric_contract',
+  '          commit id: "input_metric_label"',
+  '          commit id: "input_metric_target"',
+  '          checkout main',
+  '          merge request_contract id: "merge_request_contract"',
+  '          merge presentation_contract id: "merge_presentation_contract"',
+  '          merge guardrail_contract id: "merge_guardrail_contract"',
+  '          merge metric_contract id: "merge_metric_contract"',
+  '          commit id: "compute_summary" tag: "compute" type: HIGHLIGHT',
+  '          branch rich_media_panels',
+  '          checkout rich_media_panels',
+  '          commit id: "panel_text_output"',
+  '          commit id: "panel_image_output"',
+  '          commit id: "panel_chart_output"',
+  '          checkout main',
+  '          merge rich_media_panels id: "merge_rich_media_panels"',
+  '          commit id: "run_body_tokens" tag: "response"',
+]
+
 const buildSeededComputeOutputLines = (args: {
   profile: ReturnType<typeof analyzeKgcRequest>
   assistantText: string
@@ -163,11 +211,39 @@ const buildSeededComputeOutputLines = (args: {
   ]
 }
 
+const buildRichMediaPanelNodeLines = (args: {
+  id: string
+  label: string
+  position: { x: number; y: number }
+  field: 'output' | 'imageUrl' | 'outputSrcDoc'
+  portType: string
+  fieldType: string
+  readingSummary: string
+  yIndex: number
+}): string[] => [
+  `    - id: ${typedInlineEnvelope('id', 'string', args.id)}`,
+  '      type: {key: type, type: string, value: "RichMediaPanel"}',
+  `      label: ${typedInlineEnvelope('label', 'string', args.label)}`,
+  `      position: ${typedInlineEnvelope('position', 'object', args.position)}`,
+  `      handles: ${typedInlineEnvelope('handles', 'object', { target: [args.field], source: [args.field] })}`,
+  `      "flow:portTypes": ${typedInlineEnvelope('flow:portTypes', 'object', { in: { [args.field]: args.portType }, out: { [args.field]: args.portType } })}`,
+  '      "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "richMediaPanel"}',
+  '      "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}',
+  `      "kgc:readingSummary": ${typedInlineEnvelope('kgc:readingSummary', 'string', args.readingSummary)}`,
+  `      ${args.field}: ${typedInlineEnvelope(args.field, args.fieldType, '')}`,
+  '      "template:nodeType": {key: "template:nodeType", type: string, value: "rich_media_panel"}',
+  '      "visual:importance": {key: "visual:importance", type: number, value: 16}',
+  '      "visual:nodeSize": {key: "visual:nodeSize", type: number, value: 14}',
+  '      "visual:xIndex": {key: "visual:xIndex", type: number, value: 2}',
+  `      "visual:yIndex": {key: "visual:yIndex", type: number, value: ${args.yIndex}}`,
+]
+
 export const buildDeterministicComputingFlowKgcTurn = (args: BaseFallbackArgs): string => {
   const profile = analyzeKgcRequest(args.requestText)
   const fileName = String(args.fileName || '').trim() || 'kgc.md'
   const intent = sanitizeRequestIntent(profile.intent, 260) || 'Summarize the strongest signal in the selected source.'
   const graphId = `md:${slugify(fileName)}-computing-flow`
+  const date = new Date(args.timestampMs || Date.now()).toISOString().slice(0, 10)
   const sourceHandles = JSON.stringify({ source: COMPUTING_FLOW_INPUT_FIELDS })
   const computeHandles = JSON.stringify({ target: COMPUTING_FLOW_INPUT_FIELDS, source: COMPUTING_FLOW_OUTPUT_FIELDS })
   const sourcePortTypes = JSON.stringify({
@@ -237,7 +313,7 @@ export const buildDeterministicComputingFlowKgcTurn = (args: BaseFallbackArgs): 
     `title: ${JSON.stringify(profile.product && profile.product !== '{{product}}' ? `${profile.product} Computing Flow` : 'Flow Editor Computing Flow')}`,
     `graphId: ${JSON.stringify(graphId)}`,
     'doc_type: "Computing Flow Template"',
-    'date: "{{date}}"',
+    `date: ${JSON.stringify(date)}`,
     'lang: "en-US"',
     'schema: "kgc-computing-flow/v1"',
     'kgCanvasSurfaceMode: "2d"',
@@ -260,6 +336,7 @@ export const buildDeterministicComputingFlowKgcTurn = (args: BaseFallbackArgs): 
     '  mode: {key: mode, type: string, value: "local-template"}',
     `  input_fields: {key: input_fields, type: array, value: ${JSON.stringify(COMPUTING_FLOW_INPUT_FIELDS)}}`,
     `  output_fields: {key: output_fields, type: array, value: ${JSON.stringify(COMPUTING_FLOW_OUTPUT_FIELDS)}}`,
+    ...buildComputingFlowGitGraphLines(),
     'flow:',
     '  direction: {key: direction, type: string, value: "LR"}',
     '  edgeType: {key: edgeType, type: string, value: "smoothstep"}',
@@ -294,28 +371,36 @@ export const buildDeterministicComputingFlowKgcTurn = (args: BaseFallbackArgs): 
     '      "kgc:readingSummary": {key: "kgc:readingSummary", type: string, value: "Compute widget with semantic ports for granular inputs and text, image, and outputSrcDoc outputs."}',
     '      "template:nodeType": {key: "template:nodeType", type: string, value: "compute"}',
     ...typedBlockScalarEnvelopeLines('      ', 'compute', 'string', buildComputingFlowComputeSource()),
-    '    - id: {key: id, type: string, value: "panel_text_output"}',
-    '      type: {key: type, type: string, value: "RichMediaPanel"}',
-    '      label: {key: label, type: string, value: "Rich Media Panel - Text Output"}',
-    '      position: {key: position, type: object, value: {"x":760,"y":240}}',
-    '      handles: {key: handles, type: object, value: {"target":["output"],"source":["output"]}}',
-    '      "flow:portTypes": {key: "flow:portTypes", type: object, value: {"in":{"output":"template_text_signal"},"out":{"output":"template_text_signal"}}}',
-    '      output: {key: output, type: textarea, value: ""}',
-    '    - id: {key: id, type: string, value: "panel_image_output"}',
-    '      type: {key: type, type: string, value: "RichMediaPanel"}',
-    '      label: {key: label, type: string, value: "Rich Media Panel - Image Output"}',
-    '      position: {key: position, type: object, value: {"x":760,"y":0}}',
-    '      handles: {key: handles, type: object, value: {"target":["imageUrl"],"source":["imageUrl"]}}',
-    '      "flow:portTypes": {key: "flow:portTypes", type: object, value: {"in":{"imageUrl":"template_image_signal"},"out":{"imageUrl":"template_image_signal"}}}',
-    '      imageUrl: {key: imageUrl, type: text, value: ""}',
-    '    - id: {key: id, type: string, value: "panel_chart_output"}',
-    '      type: {key: type, type: string, value: "RichMediaPanel"}',
-    '      label: {key: label, type: string, value: "Rich Media Panel - Chart Output"}',
-    '      position: {key: position, type: object, value: {"x":760,"y":-240}}',
-    '      handles: {key: handles, type: object, value: {"target":["outputSrcDoc"],"source":["outputSrcDoc"]}}',
-    '      "flow:portTypes": {key: "flow:portTypes", type: object, value: {"in":{"outputSrcDoc":"template_chart_html"},"out":{"outputSrcDoc":"template_chart_html"}}}',
-    '      "kgc:readingSummary": {key: "kgc:readingSummary", type: string, value: "Chart Rich Media Panel receives the outputSrcDoc field."}',
-    '      outputSrcDoc: {key: outputSrcDoc, type: textarea, value: ""}',
+    ...buildRichMediaPanelNodeLines({
+      id: 'panel_text_output',
+      label: 'Rich Media Panel - Text Output',
+      position: { x: 760, y: 240 },
+      field: 'output',
+      portType: 'template_text_signal',
+      fieldType: 'textarea',
+      readingSummary: 'Text Rich Media Panel receives the output field.',
+      yIndex: 1,
+    }),
+    ...buildRichMediaPanelNodeLines({
+      id: 'panel_image_output',
+      label: 'Rich Media Panel - Image Output',
+      position: { x: 760, y: 0 },
+      field: 'imageUrl',
+      portType: 'template_image_signal',
+      fieldType: 'text',
+      readingSummary: 'Image Rich Media Panel receives the imageUrl field.',
+      yIndex: 0,
+    }),
+    ...buildRichMediaPanelNodeLines({
+      id: 'panel_chart_output',
+      label: 'Rich Media Panel - Chart Output',
+      position: { x: 760, y: -240 },
+      field: 'outputSrcDoc',
+      portType: 'template_chart_html',
+      fieldType: 'textarea',
+      readingSummary: 'Chart Rich Media Panel receives the outputSrcDoc field.',
+      yIndex: -2,
+    }),
     '  edges:',
     ...COMPUTING_FLOW_INPUT_FIELDS.map(field => typedComputingFlowEdgeLines({
       id: `edge_${field}_to_compute`,

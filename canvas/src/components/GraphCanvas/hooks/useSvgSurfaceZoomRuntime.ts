@@ -33,6 +33,8 @@ type SvgSurfaceRuntime = {
   }
 }
 
+export type SvgSurfaceFitMode = 'auto' | 'wideTimeline'
+
 type SvgElementSelectionController = {
   cleanup: () => void
   clearSelectedElement: () => void
@@ -48,6 +50,7 @@ type UseSvgSurfaceZoomRuntimeArgs = {
   graphData: GraphData | null
   graphDataRevision: number
   svgSurfaceKey?: string
+  svgFitMode?: SvgSurfaceFitMode
   selectedElementLabel?: string
   readSelectedElementLabel?: (args: {
     svgEl: SVGSVGElement
@@ -67,6 +70,12 @@ type UseSvgSurfaceZoomRuntimeArgs = {
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
+const SVG_SURFACE_WIDE_TIMELINE_ASPECT_MULTIPLIER = 2.4
+const SVG_SURFACE_WIDE_TIMELINE_MIN_CONTENT_WIDTH_MULTIPLIER = 3
+const SVG_SURFACE_WIDE_TIMELINE_TARGET_HEIGHT_RATIO = 0.42
+const SVG_SURFACE_WIDE_TIMELINE_MAX_SCALE = 2
+const SVG_SURFACE_WIDE_TIMELINE_PADDING_PX = 32
+const SVG_SURFACE_OVERLAY_INSET_PX = 16
 
 const parseFiniteNumber = (raw: unknown): number | null => {
   const value = typeof raw === 'number' ? raw : Number(String(raw || '').trim())
@@ -86,9 +95,30 @@ const parseViewBoxBounds = (raw: string | null): SvgSurfaceBounds | null => {
   return { minX, minY, width, height }
 }
 
+const readSvgStoredIntrinsicBounds = (svgEl: SVGSVGElement): SvgSurfaceBounds | null => {
+  const minX = parseFiniteNumber(svgEl.getAttribute('data-kg-svg-intrinsic-x'))
+  const minY = parseFiniteNumber(svgEl.getAttribute('data-kg-svg-intrinsic-y'))
+  const width = parseFiniteNumber(svgEl.getAttribute('data-kg-svg-intrinsic-w'))
+  const height = parseFiniteNumber(svgEl.getAttribute('data-kg-svg-intrinsic-h'))
+  if (minX == null || minY == null || width == null || height == null || width <= 1 || height <= 1) return null
+  return { minX, minY, width, height }
+}
+
+const writeSvgStoredIntrinsicBounds = (svgEl: SVGSVGElement, bounds: SvgSurfaceBounds): void => {
+  svgEl.setAttribute('data-kg-svg-intrinsic-x', String(bounds.minX))
+  svgEl.setAttribute('data-kg-svg-intrinsic-y', String(bounds.minY))
+  svgEl.setAttribute('data-kg-svg-intrinsic-w', String(bounds.width))
+  svgEl.setAttribute('data-kg-svg-intrinsic-h', String(bounds.height))
+}
+
 const readSvgVisualBounds = (svgEl: SVGSVGElement): SvgSurfaceBounds => {
   const fromViewBox = parseViewBoxBounds(svgEl.getAttribute('viewBox'))
-  if (fromViewBox) return fromViewBox
+  if (fromViewBox) {
+    writeSvgStoredIntrinsicBounds(svgEl, fromViewBox)
+    return fromViewBox
+  }
+  const stored = readSvgStoredIntrinsicBounds(svgEl)
+  if (stored) return stored
   const width = parseFiniteNumber(svgEl.getAttribute('width')) || svgEl.clientWidth || 960
   const height = parseFiniteNumber(svgEl.getAttribute('height')) || svgEl.clientHeight || 540
   return {
@@ -164,11 +194,62 @@ const readSvgViewportRect = (svgEl: SVGSVGElement): { width: number; height: num
   }
 }
 
-const prepareSvgForInteractiveViewport = (svgEl: SVGSVGElement): {
+const readSvgSurfaceFitViewportRect = (
+  svgEl: SVGSVGElement,
+  fitMode: SvgSurfaceFitMode,
+  fallback: { width: number; height: number },
+): { width: number; height: number } => {
+  if (fitMode !== 'wideTimeline' || typeof document === 'undefined') return fallback
+  const svgRect = svgEl.getBoundingClientRect()
+  if (
+    !Number.isFinite(svgRect.left) ||
+    !Number.isFinite(svgRect.top) ||
+    !Number.isFinite(svgRect.right) ||
+    !Number.isFinite(svgRect.bottom) ||
+    svgRect.width <= 1 ||
+    svgRect.height <= 1
+  ) {
+    return fallback
+  }
+  let width = fallback.width
+  let height = fallback.height
+  const selectors = [
+    '[data-kg-floating-panel-root="true"]',
+    '[data-kg-strybldr-bottom-timeline-panel="1"]',
+  ].join(',')
+  for (const overlay of Array.from(document.querySelectorAll(selectors))) {
+    const rect = overlay.getBoundingClientRect()
+    if (
+      !Number.isFinite(rect.left) ||
+      !Number.isFinite(rect.top) ||
+      !Number.isFinite(rect.right) ||
+      !Number.isFinite(rect.bottom) ||
+      rect.width <= 1 ||
+      rect.height <= 1
+    ) {
+      continue
+    }
+    const overlapsY = rect.bottom > svgRect.top && rect.top < svgRect.bottom
+    const overlapsX = rect.right > svgRect.left && rect.left < svgRect.right
+    if (overlapsY && rect.left > svgRect.left + 80 && rect.left < svgRect.right) {
+      width = Math.min(width, Math.max(1, rect.left - svgRect.left - SVG_SURFACE_OVERLAY_INSET_PX))
+    }
+    if (overlapsX && rect.top > svgRect.top + 80 && rect.top < svgRect.bottom) {
+      height = Math.min(height, Math.max(1, rect.top - svgRect.top - SVG_SURFACE_OVERLAY_INSET_PX))
+    }
+  }
+  return { width, height }
+}
+
+const prepareSvgForInteractiveViewport = (args: {
+  svgEl: SVGSVGElement
+  fitMode: SvgSurfaceFitMode
+}): {
   group: SVGGElement
   bounds: SvgSurfaceBounds
   viewport: { width: number; height: number }
 } => {
+  const { svgEl } = args
   const fallbackBounds = readSvgVisualBounds(svgEl)
   svgEl.setAttribute('data-kg-svg-surface-root', '1')
   svgEl.setAttribute('width', '100%')
@@ -183,8 +264,9 @@ const prepareSvgForInteractiveViewport = (svgEl: SVGSVGElement): {
   const group = ensureSvgZoomContentGroup(svgEl)
   group.removeAttribute('transform')
   const contentBounds = readSvgContentClientBounds(svgEl, group)
-  const bounds = contentBounds || fallbackBounds
-  svgEl.setAttribute('data-kg-svg-fit-source', contentBounds ? 'content' : 'root')
+  const useIntrinsicBounds = args.fitMode === 'wideTimeline'
+  const bounds = useIntrinsicBounds ? fallbackBounds : (contentBounds || fallbackBounds)
+  svgEl.setAttribute('data-kg-svg-fit-source', useIntrinsicBounds ? 'intrinsic' : contentBounds ? 'content' : 'root')
   svgEl.setAttribute('data-kg-svg-fit-x', String(bounds.minX))
   svgEl.setAttribute('data-kg-svg-fit-y', String(bounds.minY))
   svgEl.setAttribute('data-kg-svg-fit-w', String(bounds.width))
@@ -224,6 +306,36 @@ const buildSvgSurfaceGraphData = (args: {
       sourceGraphKind: String(((args.graphData?.metadata || {}) as Record<string, unknown>).kind || ''),
     },
   }
+}
+
+export const computeSvgSurfaceWideTimelineFitTransform = (args: {
+  bounds: SvgSurfaceBounds
+  viewportWidth: number
+  viewportHeight: number
+}): d3.ZoomTransform | null => {
+  const bounds = args.bounds
+  const viewportWidth = Math.max(1, Number.isFinite(args.viewportWidth) ? args.viewportWidth : 1)
+  const viewportHeight = Math.max(1, Number.isFinite(args.viewportHeight) ? args.viewportHeight : 1)
+  const contentWidth = Math.max(1, bounds.width)
+  const contentHeight = Math.max(1, bounds.height)
+  const viewportAspect = viewportWidth / viewportHeight
+  const contentAspect = contentWidth / contentHeight
+  const isHorizontallyWide =
+    contentAspect > viewportAspect * SVG_SURFACE_WIDE_TIMELINE_ASPECT_MULTIPLIER &&
+    contentWidth > viewportWidth * SVG_SURFACE_WIDE_TIMELINE_MIN_CONTENT_WIDTH_MULTIPLIER
+
+  const maxScaleForViewportHeight = Math.max(0.001, (viewportHeight - SVG_SURFACE_WIDE_TIMELINE_PADDING_PX * 2) / contentHeight)
+  const targetScaleForReadableHeight = Math.max(0.001, (viewportHeight * SVG_SURFACE_WIDE_TIMELINE_TARGET_HEIGHT_RATIO) / contentHeight)
+  const scaleForVisibleWidth = Math.max(0.001, (viewportWidth - SVG_SURFACE_WIDE_TIMELINE_PADDING_PX * 2) / contentWidth)
+  const k = isHorizontallyWide
+    ? Math.max(
+        0.001,
+        Math.min(SVG_SURFACE_WIDE_TIMELINE_MAX_SCALE, maxScaleForViewportHeight, Math.max(1, targetScaleForReadableHeight)),
+      )
+    : Math.max(0.001, Math.min(SVG_SURFACE_WIDE_TIMELINE_MAX_SCALE, maxScaleForViewportHeight, scaleForVisibleWidth))
+  const x = SVG_SURFACE_WIDE_TIMELINE_PADDING_PX - bounds.minX * k
+  const y = viewportHeight / 2 - (bounds.minY + contentHeight / 2) * k
+  return d3.zoomIdentity.translate(x, y).scale(k)
 }
 
 const readSvgElementLabel = (element: Element | null): string => {
@@ -423,6 +535,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     graphData,
     graphDataRevision,
     svgSurfaceKey,
+    svgFitMode = 'auto',
     selectedElementLabel,
     readSelectedElementLabel,
     resolveSelectedElementByLabel,
@@ -487,7 +600,9 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
         collapsedGroupIds,
       })
       const normalizedSurfaceKey = normalizeSvgSurfaceZoomKey(svgSurfaceKey)
-      return base && normalizedSurfaceKey ? `${base}::svg:${normalizedSurfaceKey}` : base
+      const normalizedFitMode = normalizeSvgSurfaceZoomKey(svgFitMode === 'wideTimeline' ? 'wideTimeline:v2' : svgFitMode)
+      const suffix = [normalizedSurfaceKey, normalizedFitMode ? `fit:${normalizedFitMode}` : ''].filter(Boolean).join('::')
+      return base && suffix ? `${base}::svg:${suffix}` : base
     },
     [
       canvas2dRenderer,
@@ -500,6 +615,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
       graphData,
       mediaPanelDensity,
       renderMediaAsNodes,
+      svgFitMode,
       svgSurfaceKey,
     ],
   )
@@ -507,6 +623,10 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
   React.useEffect(() => {
     zoomViewKeyRef.current = zoomViewKey
   }, [zoomViewKey])
+  const graphDataRevisionRef = React.useRef(graphDataRevision)
+  React.useEffect(() => {
+    graphDataRevisionRef.current = graphDataRevision
+  }, [graphDataRevision])
 
   const dimsRef = React.useRef({ width: viewportWidth, height: viewportHeight })
   React.useEffect(() => {
@@ -531,7 +651,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
         transform: pending,
         viewportW: currentDims.width,
         viewportH: currentDims.height,
-        graphDataRevision: store.graphDataRevision,
+        graphDataRevision: graphDataRevisionRef.current,
       })
     }),
   )
@@ -546,7 +666,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
       setRuntime(null)
       return
     }
-    const prepared = prepareSvgForInteractiveViewport(svgEl)
+    const prepared = prepareSvgForInteractiveViewport({ svgEl, fitMode: svgFitMode })
     svgRef.current = svgEl
     groupRef.current = prepared.group
     setRuntime(prev => {
@@ -564,7 +684,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
       }
       return { revision: (prev?.revision || 0) + 1, bounds: prepared.bounds, viewport: prepared.viewport }
     })
-  }, [active, dims.height, dims.width, svgHostRef, svgMarkup])
+  }, [active, dims.height, dims.width, svgFitMode, svgHostRef, svgMarkup])
 
   useZoomEffects({
     svgRef,
@@ -630,7 +750,22 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
       svg.call(zoom.transform as never, d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k))
     } else if (visualGraphData && viewportWidth > 80 && viewportHeight > 80) {
       const mode = readLayoutMode(effectiveSchema)
-      const fitted = fitAllTransform(visualGraphData.nodes, viewportWidth, viewportHeight, {
+      const timelineFitted = svgFitMode === 'wideTimeline'
+        ? (() => {
+            const fitViewport = readSvgSurfaceFitViewportRect(svgEl, svgFitMode, {
+              width: viewportWidth,
+              height: viewportHeight,
+            })
+            svgEl.setAttribute('data-kg-svg-fit-viewport-w', String(fitViewport.width))
+            svgEl.setAttribute('data-kg-svg-fit-viewport-h', String(fitViewport.height))
+            return computeSvgSurfaceWideTimelineFitTransform({
+              bounds: runtime.bounds,
+              viewportWidth: fitViewport.width,
+              viewportHeight: fitViewport.height,
+            })
+          })()
+        : null
+      const fitted = timelineFitted || fitAllTransform(visualGraphData.nodes, viewportWidth, viewportHeight, {
         ...readFitAllOptions({
           schema: effectiveSchema,
           mode,
@@ -639,6 +774,8 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
         }),
         graphData: visualGraphData,
       })
+      svgEl.setAttribute('data-kg-svg-fit-mode', svgFitMode)
+      svgEl.setAttribute('data-kg-svg-fit-policy', timelineFitted ? 'wideTimeline' : 'fitAll')
       svg.call(zoom.transform as never, fitted)
     } else {
       svg.call(zoom.transform as never, d3.zoomIdentity)
@@ -700,6 +837,7 @@ export function useSvgSurfaceZoomRuntime(args: UseSvgSurfaceZoomRuntimeArgs): { 
     readSelectedElementPeers,
     resolveSelectedElementByLabel,
     runtime,
+    svgFitMode,
     svgMarkup,
     viewportHeight,
     viewportControlsPreset,

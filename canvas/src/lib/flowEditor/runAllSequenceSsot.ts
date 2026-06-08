@@ -4,6 +4,7 @@ import {
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config'
+import { readFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 
 export type FlowRunAllPhaseId = 'text' | 'imageFoundation' | 'imageScene' | 'video'
 
@@ -38,6 +39,7 @@ function classifyImageNodePhase(node: GraphNode): FlowRunAllPhaseId {
 }
 
 function classifyRunnablePhase(node: GraphNode): FlowRunAllPhaseId | null {
+  if (readFlowComputeSource(node)) return 'text'
   const typeId = normalizeText(node.type)
   if (typeId === normalizeText(FLOW_TEXT_GENERATION_NODE_TYPE_ID)) return 'text'
   if (typeId === normalizeText(FLOW_IMAGE_GENERATION_NODE_TYPE_ID)) return classifyImageNodePhase(node)
@@ -148,4 +150,3 @@ export function buildFlowRunAllNodeSequence(args: {
     },
   }
 }
-

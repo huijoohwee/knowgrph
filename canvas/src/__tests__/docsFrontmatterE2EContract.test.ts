@@ -16,6 +16,7 @@ const STORYBOARD_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowg
 const STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-product-ui-demo.md')
 const STORYBOARD_NEUTRAL_CONTRACT_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-neutral-schema-contract-demo.md')
 const FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-flow-editor-computing-flow-template.md')
+const MISSALPH_FLOW_EDITOR_DEMO_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-missalph-demo.md')
 const APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS = [
   STORYBOARD_TYPED_WRAPPER_DOC_PATH,
   STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH,
@@ -28,7 +29,7 @@ const APPROVED_TYPED_WRAPPER_DOC_PATHS = [
 ]
 const E2E_TYPED_WRAPPER_DOC_SET = new Set(APPROVED_TYPED_WRAPPER_DOC_PATHS)
 const CANONICAL_PLAIN_YAML_DOC_CONTRACTS = [
-  { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-animatic-demo.md'), renderer: 'animatic', requiresFlow: true },
+  { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-animatic-demo.md'), renderer: 'gantt', requiresFlow: true },
   { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-demo-index.md'), renderer: 'd3', requiresFlow: false },
 ] as const
 const REQUIRED_FLOW_TYPED_SETTING_KEYS = ['direction', 'edgeType', 'snapToGrid', 'computed'] as const
@@ -50,6 +51,22 @@ const REQUIRED_STORYBOARD_TYPED_FIXTURE_PRESET: Record<string, string | boolean>
   kgMultiDimTableModeEnabled: false,
   kgDocumentStructureBaselineLock: false,
 }
+const MISSALPH_SOURCE_INPUT_FIELDS = [
+  'input_horizon',
+  'input_portfolio',
+  'input_factor_spec',
+  'input_skew_pair',
+  'input_macro_catalysts',
+  'input_alpha_hypothesis',
+  'input_coverage_scope',
+  'input_signal_noise_threshold',
+  'input_graph_topology_mode',
+  'input_consensus_benchmark',
+  'input_audience',
+  'input_constraints',
+  'input_tone',
+  'input_metric_label',
+] as const
 
 type PlainRecord = Record<string, unknown>
 type PublishedFlowEditorDocContract = {
@@ -66,6 +83,14 @@ type PublishedFlowEditorDocContract = {
   requiredNodeTargetHandles?: ReadonlyArray<{
     nodeId: string
     handles: readonly string[]
+  }>
+  requiredRunActionInputs?: ReadonlyArray<{
+    nodeId: string
+    inputs: readonly string[]
+  }>
+  requiredBodyTokens?: ReadonlyArray<{
+    nodeId: string
+    tokens: readonly string[]
   }>
   requiredBlankNodeFields?: ReadonlyArray<{
     nodeId: string
@@ -475,6 +500,44 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
       optional: false,
     },
     {
+      filePath: MISSALPH_FLOW_EDITOR_DEMO_DOC_PATH,
+      requiredSummaries: [
+        ['source_input', 'Alpha discovery source'],
+        ['compute_summary', 'Synthesises alpha signals'],
+        ['panel_alpha_map', 'knowledge-graph canvas'],
+      ],
+      requiredNodeTypedFields: [
+        {
+          nodeId: 'source_input',
+          fields: MISSALPH_SOURCE_INPUT_FIELDS,
+        },
+      ],
+      requiredNodeTargetHandles: [
+        {
+          nodeId: 'compute_summary',
+          handles: MISSALPH_SOURCE_INPUT_FIELDS,
+        },
+      ],
+      requiredRunActionInputs: [
+        {
+          nodeId: 'compute_summary',
+          inputs: MISSALPH_SOURCE_INPUT_FIELDS,
+        },
+      ],
+      requiredBodyTokens: [
+        {
+          nodeId: 'compute_summary',
+          tokens: MISSALPH_SOURCE_INPUT_FIELDS.map(field => `source_input.${field}`),
+        },
+      ],
+      forbiddenFragments: [
+        'Frontmatter keeps',
+        'AI Pipeline',
+        'Recompute:',
+      ],
+      optional: false,
+    },
+    {
       filePath: resolveMarkdownDocBySemanticFragments([
         'horizon, portfolio weights',
         'typed compute function',
@@ -587,6 +650,47 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
       for (const handle of required.handles) {
         if (!connectedTargetHandles.has(handle)) {
           violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${required.nodeId} target handle ${handle} to be connected by a typed edge`)
+        }
+      }
+    }
+
+    for (const required of contract.requiredRunActionInputs || []) {
+      const node = meta.flow.nodes.find(candidate => {
+        if (!isPlainRecord(candidate)) return false
+        const idField = candidate.id
+        return isPlainRecord(idField) && idField.value === required.nodeId
+      })
+      if (!isPlainRecord(node)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter node ${required.nodeId}`)
+        continue
+      }
+      const runAction = node['canvas:runAction']
+      const value = isTypedValueWrapper(runAction, 'canvas:runAction') && isPlainRecord(runAction.value) ? runAction.value : null
+      const inputs = new Set(Array.isArray(value?.inputs) ? value.inputs.map(input => String(input || '')) : [])
+      for (const input of required.inputs) {
+        if (!inputs.has(input)) {
+          violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${required.nodeId} canvas:runAction.inputs to include ${input}`)
+        }
+      }
+    }
+
+    for (const required of contract.requiredBodyTokens || []) {
+      const node = meta.flow.nodes.find(candidate => {
+        if (!isPlainRecord(candidate)) return false
+        const idField = candidate.id
+        return isPlainRecord(idField) && idField.value === required.nodeId
+      })
+      if (!isPlainRecord(node)) {
+        violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter node ${required.nodeId}`)
+        continue
+      }
+      const runAction = node['canvas:runAction']
+      const value = isTypedValueWrapper(runAction, 'canvas:runAction') && isPlainRecord(runAction.value) ? runAction.value : null
+      const bodyTokens = Array.isArray(value?.bodyTokens) ? value.bodyTokens.filter(isPlainRecord) : []
+      const tokens = new Set(bodyTokens.map(token => String(token.token || '')))
+      for (const token of required.tokens) {
+        if (!tokens.has(token)) {
+          violations.push(`${toRepoRelativePath(contract.filePath)} expected node ${required.nodeId} canvas:runAction.bodyTokens to include ${token}`)
         }
       }
     }

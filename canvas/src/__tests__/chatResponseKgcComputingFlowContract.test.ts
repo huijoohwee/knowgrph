@@ -1,6 +1,7 @@
 import { CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT } from '@/features/chat/chatResponseBaseContract'
 import {
   COMPUTING_FLOW_COMPUTE_NODE_ID,
+  COMPUTING_FLOW_GITGRAPH_ID,
   COMPUTING_FLOW_INPUT_FIELDS,
   COMPUTING_FLOW_OUTPUT_FIELDS,
   COMPUTING_FLOW_SOURCE_NODE_ID,
@@ -72,9 +73,13 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
     'typed KTV input rows as `{key,type,value}` envelopes',
     '`input_query`, `input_context`, `input_audience`, `input_format`, `input_constraints`, `input_evidence`, `input_tone`, `input_metric_label`, and `input_metric_target`',
     'explicit `sourceHandle` and `targetHandle` edges from `source_input` into `compute_summary`',
+    'typed `flow_diagrams.value.template_gitgraph`',
+    '`type: mermaid_gitgraph`',
+    '`run_body_tokens`',
     '`canvas:runAction.bodyTokens`',
     '`compute_summary.output`, `compute_summary.imageUrl`, `compute_summary.outputSrcDoc`',
     'Run and Run All can update body projections',
+    'every RichMediaPanel node must carry `flow:widgetFormId: richMediaPanel`, `frontmatter:primitive: node`, explicit handles, typed ports',
     '`## Response` with `{{compute_summary.output}}`, then `## Inputs`',
     'do not narrate frontmatter, dataflow, `flow.nodes`, or `flow.edges` in the body',
   ]
@@ -96,6 +101,12 @@ export function testKgcDeterministicFallbackGeneratesComputingFlowKtvBodyTokens(
   const requiredText = [
     'schema: "kgc-computing-flow/v1"',
     'kgCanvas2dRenderer: "flowEditor"',
+    'flow_diagrams:',
+    `key: ${COMPUTING_FLOW_GITGRAPH_ID}`,
+    'type: mermaid_gitgraph',
+    'commit id: "source_input" tag: "KTV inputs"',
+    'commit id: "compute_summary" tag: "compute" type: HIGHLIGHT',
+    'commit id: "run_body_tokens" tag: "response"',
     `value: "${COMPUTING_FLOW_SOURCE_NODE_ID}"`,
     `value: "${COMPUTING_FLOW_COMPUTE_NODE_ID}"`,
     '"canvas:runAction"',
@@ -113,8 +124,11 @@ export function testKgcDeterministicFallbackGeneratesComputingFlowKtvBodyTokens(
       throw new Error(`Expected computing-flow fallback to include ${snippet}`)
     }
   })
+  if (md.includes('date: "{{date}}"')) {
+    throw new Error('Expected generated kgc_*.md computing-flow fallback to use a concrete runnable date, not a template placeholder')
+  }
 
-  for (const forbidden of ['{{source_input.query}}', '{{source_input.context}}', 'flow.nodes', 'flow.edges']) {
+  for (const forbidden of ['{{source_input.query}}', '{{source_input.context}}', 'flow.nodes', 'flow.edges', 'flow_diagrams']) {
     if (extractMarkdownSection(md, '## Response').includes(forbidden)) {
       throw new Error(`Expected computing-flow response body to avoid stale or self-narrating token ${forbidden}`)
     }
@@ -164,6 +178,60 @@ export function testKgcDeterministicFallbackGeneratesComputingFlowKtvBodyTokens(
   ]) {
     if (!declaredTokens.has(token)) {
       throw new Error(`Expected canvas:runAction.bodyTokens to declare ${token}`)
+    }
+  }
+
+  const panelContracts = [
+    { nodeId: 'panel_text_output', field: 'output', portType: 'template_text_signal' },
+    { nodeId: 'panel_image_output', field: 'imageUrl', portType: 'template_image_signal' },
+    { nodeId: 'panel_chart_output', field: 'outputSrcDoc', portType: 'template_chart_html' },
+  ] as const
+  for (const panelContract of panelContracts) {
+    const panelNode = nodes.find(node => readPlainOrTypedValue(node.id) === panelContract.nodeId)
+    if (!panelNode) throw new Error(`Expected computing-flow fallback to declare ${panelContract.nodeId}`)
+    if (readPlainOrTypedValue(panelNode.type) !== 'RichMediaPanel') {
+      throw new Error(`Expected ${panelContract.nodeId} to be a RichMediaPanel node`)
+    }
+    if (readPlainOrTypedValue(panelNode['flow:widgetFormId']) !== 'richMediaPanel') {
+      throw new Error(`Expected ${panelContract.nodeId} to declare flow:widgetFormId richMediaPanel`)
+    }
+    if (readPlainOrTypedValue(panelNode['frontmatter:primitive']) !== 'node') {
+      throw new Error(`Expected ${panelContract.nodeId} to declare frontmatter:primitive node`)
+    }
+    if (readPlainOrTypedValue(panelNode['template:nodeType']) !== 'rich_media_panel') {
+      throw new Error(`Expected ${panelContract.nodeId} to declare template:nodeType rich_media_panel`)
+    }
+    if (typeof readPlainOrTypedValue(panelNode['kgc:readingSummary']) !== 'string') {
+      throw new Error(`Expected ${panelContract.nodeId} to carry kgc:readingSummary`)
+    }
+    const fieldRow = panelNode[panelContract.field]
+    if (!isPlainRecord(fieldRow) || fieldRow.key !== panelContract.field || typeof fieldRow.type !== 'string' || !Object.prototype.hasOwnProperty.call(fieldRow, 'value')) {
+      throw new Error(`Expected ${panelContract.nodeId}.${panelContract.field} to be a consumed KTV field row`)
+    }
+    const handles = readPlainOrTypedValue(panelNode.handles)
+    if (
+      !isPlainRecord(handles)
+      || !Array.isArray(handles.target)
+      || !handles.target.includes(panelContract.field)
+      || !Array.isArray(handles.source)
+      || !handles.source.includes(panelContract.field)
+    ) {
+      throw new Error(`Expected ${panelContract.nodeId} handles to expose ${panelContract.field}`)
+    }
+    const portTypes = readPlainOrTypedValue(panelNode['flow:portTypes'])
+    const inputPorts = isPlainRecord(portTypes) && isPlainRecord(portTypes.in) ? portTypes.in : null
+    const outputPorts = isPlainRecord(portTypes) && isPlainRecord(portTypes.out) ? portTypes.out : null
+    if (inputPorts?.[panelContract.field] !== panelContract.portType || outputPorts?.[panelContract.field] !== panelContract.portType) {
+      throw new Error(`Expected ${panelContract.nodeId} typed ports to expose ${panelContract.field} as ${panelContract.portType}`)
+    }
+    const panelEdge = edges.find(candidate =>
+      readPlainOrTypedValue(candidate.source) === COMPUTING_FLOW_COMPUTE_NODE_ID
+      && readPlainOrTypedValue(candidate.sourceHandle) === panelContract.field
+      && readPlainOrTypedValue(candidate.target) === panelContract.nodeId
+      && readPlainOrTypedValue(candidate.targetHandle) === panelContract.field
+    )
+    if (!panelEdge) {
+      throw new Error(`Expected compute_summary.${panelContract.field} to connect to ${panelContract.nodeId}`)
     }
   }
 
@@ -348,6 +416,43 @@ export function testKgcSubstantiveAssistantAnswerSeedsRichMediaOutputs() {
   }
   if (typeof sampleImageOutput?.value === 'string' && sampleImageOutput.value.startsWith('data:image/svg+xml,')) {
     throw new Error(`Expected sample-like KGC image panel not to synthesize stale image output, got: ${sampleImageOutput.value.slice(0, 80)}`)
+  }
+
+  const changedInputGraphData = {
+    ...parsedGraph.graphData,
+    nodes: parsedGraph.graphData.nodes.map(node => String(node.id || '') === COMPUTING_FLOW_SOURCE_NODE_ID
+      ? {
+        ...node,
+        properties: {
+          ...(node.properties || {}),
+          input_query: 'Updated KTV input query for explicit Run recompute',
+          input_metric_target: 50,
+        },
+      }
+      : node),
+  }
+  const passiveConnected = computeFlowConnectedValuesBySchemaPath({
+    graphData: changedInputGraphData,
+    registry,
+    targetNodeIds: new Set(['panel_text_output']),
+  }).get('panel_text_output')
+  const runConnected = computeFlowConnectedValuesBySchemaPath({
+    graphData: changedInputGraphData,
+    registry,
+    targetNodeIds: new Set([COMPUTING_FLOW_COMPUTE_NODE_ID]),
+    preserveMaterializedOutputs: false,
+  }).get(COMPUTING_FLOW_COMPUTE_NODE_ID)
+  const passiveOutput = String(passiveConnected?.['properties.output']?.value || '')
+  const runOutput = String(runConnected?.['properties.output']?.value || '')
+  const runChart = String(runConnected?.['properties.outputSrcDoc']?.value || '')
+  if (passiveOutput !== output) {
+    throw new Error('Expected passive connected-values preview to preserve materialized compute_summary.output')
+  }
+  if (!runOutput.includes('Updated KTV input query for explicit Run recompute')) {
+    throw new Error(`Expected explicit Run dataflow to recompute from edited KTV input, got: ${runOutput}`)
+  }
+  if (!runChart.includes('50 target')) {
+    throw new Error(`Expected explicit Run dataflow to reflect edited input_metric_target, got: ${runChart}`)
   }
 }
 

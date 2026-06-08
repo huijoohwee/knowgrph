@@ -95,8 +95,8 @@ export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() 
   if (!text.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
     throw new Error('expected FlowEditorCanvas run path to preserve live draft ref as SSOT while React state catches up')
   }
-  if (!workflowWritebackText.includes('export function bumpFlowEditorWorkflowDraftGraphDataRevision(graphData: GraphData): GraphData')) {
-    throw new Error('expected FlowEditor runtime helper to bump draft graph revision for output cache invalidation')
+  if (!workflowWritebackText.includes("import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'")) {
+    throw new Error('expected FlowEditor runtime helper to reuse neutral draft graph revision bumping for output cache invalidation')
   }
 }
 
@@ -612,8 +612,9 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!renderGraphHelperText.includes('export function getCachedFlowEditorWorkflowRunPlan(args: {')) {
     throw new Error('expected FlowEditor runtime helper to centralize run-all workflow plan derivation')
   }
-  if (!text.includes('const runPlan = getCachedFlowEditorWorkflowRunPlan({')) {
-    throw new Error('expected FlowEditor workflow actions to reuse the shared run-all workflow plan')
+  const workflowRunAllText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts'), 'utf8')
+  if (!workflowRunAllText.includes('const runPlan = getCachedFlowEditorWorkflowRunPlan({')) {
+    throw new Error('expected FlowEditor run-all helper to reuse the shared workflow plan')
   }
 }
 

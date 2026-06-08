@@ -21,6 +21,7 @@ import {
 import { UI_COPY, FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config'
 import { clearRichMediaOutputProperties, resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import { createUniqueId } from '@/lib/ids'
+import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
 
 export function useFlowEditorNodeDraftActions(args: {
   active: boolean
@@ -40,6 +41,7 @@ export function useFlowEditorNodeDraftActions(args: {
   setSelectionSource: (src: 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => void
   setGraphDataPreservingLayout: (next: GraphData) => void
   updateOpenWidgetNodeIds: (updater: (prev: string[]) => string[]) => void
+  onNodePropertiesCommittedForAutoRun?: (nodeId: string) => void
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   nodePropsJson: string
   nodeMetaJson: string
@@ -49,6 +51,24 @@ export function useFlowEditorNodeDraftActions(args: {
   workflowContextJson: string
   setJsonError: React.Dispatch<React.SetStateAction<string | null>>
 }) {
+  const updateNodeById = React.useCallback((nodeId: string, patch: Partial<GraphNode>) => {
+    const id = String(nodeId || '').trim()
+    if (!id) return
+    const draft = (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null
+    if (draft && Array.isArray(draft.nodes)) {
+      let changed = false
+      const nodes = draft.nodes.map(node => {
+        if (String(node.id || '') !== id) return node
+        changed = true
+        return { ...node, ...patch }
+      })
+      if (changed) {
+        args.draftGraphDataRef.current = bumpFlowEditorDraftGraphDataRevision(normalizeGraphData({ ...draft, nodes }))
+      }
+    }
+    args.updateNode(id, patch)
+  }, [args])
+
   const removeNodeById = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
     if (!id || !args.draftGraphData) return
@@ -75,22 +95,22 @@ export function useFlowEditorNodeDraftActions(args: {
     if (!node) return
     const kind = resolveRichMediaWidgetKind(node)
     if (kind || String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-      args.updateNode(id, { properties: clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>) as never })
+      updateNodeById(id, { properties: clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>) as never })
       args.upsertUiToast({ id: `flow-editor-clear-output-${id}`, kind: 'neutral', message: kind ? `Cleared ${kind} output.` : 'Cleared rich media panel output.', ttlMs: 2200 })
       return
     }
     if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-      args.updateNode(id, { properties: { ...((node.properties || {}) as Record<string, unknown>), output: '' } as never })
+      updateNodeById(id, { properties: { ...((node.properties || {}) as Record<string, unknown>), output: '' } as never })
       args.upsertUiToast({ id: `flow-editor-clear-output-${id}`, kind: 'neutral', message: 'Cleared text output.', ttlMs: 2200 })
       return
     }
     args.upsertUiToast({ id: `flow-editor-clear-output-${id}`, kind: 'neutral', message: 'Clear output is not implemented in MVP.', ttlMs: 2200 })
-  }, [args])
+  }, [args, updateNodeById])
 
   const setNodeLabelById = React.useCallback((nodeId: string, label: string) => {
     const id = String(nodeId || '').trim()
-    if (id) args.updateNode(id, { label: String(label || '') })
-  }, [args])
+    if (id) updateNodeById(id, { label: String(label || '') })
+  }, [updateNodeById])
 
   const setSelectedNodeLabel = React.useCallback((label: string) => {
     if (args.selectedNodeId) setNodeLabelById(args.selectedNodeId, label)
@@ -98,8 +118,8 @@ export function useFlowEditorNodeDraftActions(args: {
 
   const setNodeTypeById = React.useCallback((nodeId: string, type: string) => {
     const id = String(nodeId || '').trim()
-    if (id) args.updateNode(id, { type: String(type || '').trim() || 'Node' })
-  }, [args])
+    if (id) updateNodeById(id, { type: String(type || '').trim() || 'Node' })
+  }, [updateNodeById])
 
   const setSelectedNodeType = React.useCallback((type: string) => {
     if (args.selectedNodeId) setNodeTypeById(args.selectedNodeId, type)
@@ -108,7 +128,7 @@ export function useFlowEditorNodeDraftActions(args: {
   const patchNodePropertiesById = React.useCallback((nodeId: string, patch: Record<string, unknown>) => {
     const id = String(nodeId || '').trim()
     if (!id) return
-    const cur = useGraphStore.getState().graphData
+    const cur = args.draftGraphDataRef.current || args.draftGraphData || useGraphStore.getState().graphData
     const node = cur?.nodes?.find(n => String(n.id || '') === id) || null
     if (!node) return
     const prevProps = (node.properties || {}) as Record<string, unknown>
@@ -117,8 +137,9 @@ export function useFlowEditorNodeDraftActions(args: {
       if (typeof value === 'undefined') delete nextProps[key]
       else nextProps[key] = value
     }
-    args.updateNode(id, { properties: nextProps as never })
-  }, [args])
+    updateNodeById(id, { properties: nextProps as never })
+    args.onNodePropertiesCommittedForAutoRun?.(id)
+  }, [args, updateNodeById])
 
   const patchSelectedNodeProperties = React.useCallback((patch: Record<string, unknown>) => {
     if (!args.selectedNodeId) return
@@ -173,8 +194,10 @@ export function useFlowEditorNodeDraftActions(args: {
 
   const setNodePropertiesById = React.useCallback((nodeId: string, properties: Record<string, unknown>) => {
     const id = String(nodeId || '').trim()
-    if (id) args.updateNode(id, { properties: (properties || {}) as never })
-  }, [args])
+    if (!id) return
+    updateNodeById(id, { properties: (properties || {}) as never })
+    args.onNodePropertiesCommittedForAutoRun?.(id)
+  }, [args, updateNodeById])
 
   const validateNodeById = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()

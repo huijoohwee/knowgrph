@@ -81,12 +81,16 @@ function buildConnectedValuesGraphKey(args: {
   graph: GraphData
   graphRevision?: number
   graphSemanticKey?: string
+  preserveMaterializedOutputs?: boolean
 }): string {
   const explicitGraphSemanticKey = String(args.graphSemanticKey || '').trim()
   if (explicitGraphSemanticKey) {
     return buildScopedGraphSemanticKey('flow-connected-values-graph', {
       graphRevision: args.graphRevision,
-      graphSemanticKey: explicitGraphSemanticKey,
+      graphSemanticKey: [
+        explicitGraphSemanticKey,
+        args.preserveMaterializedOutputs === false ? 'recompute-materialized-outputs' : 'preserve-materialized-outputs',
+      ].join('|'),
     })
   }
   const graph = args.graph
@@ -95,6 +99,8 @@ function buildConnectedValuesGraphKey(args: {
   const parts: Array<string | number | boolean> = [
     'rev',
     Number.isFinite(args.graphRevision) ? Number(args.graphRevision) : -1,
+    'preserve',
+    args.preserveMaterializedOutputs !== false,
     'nodes',
     nodes.length,
   ]
@@ -363,6 +369,7 @@ function buildConnectedValuesForNode(args: {
   outputPortPaths: Map<string, string>
   schemaMappings: ReadonlyArray<{ fromPath: string; toPath: string; transformId?: string; reduceId?: string }>
   computeEnabled: boolean
+  preserveMaterializedOutputs: boolean
 }): FlowConnectedValuesBySchemaPath {
   const byPath: FlowConnectedValuesBySchemaPath = {}
   const inByPortKey: Record<string, unknown> = {}
@@ -407,7 +414,10 @@ function buildConnectedValuesForNode(args: {
   const allSources = Array.from(args.inbound.values())
     .flat()
     .map(it => ({ edgeId: it.edgeId, nodeId: it.sourceId, portKey: it.sourcePortKey }))
-  const hasMaterializedOutputPort = Array.from(args.outputPortPaths.values()).some(path => isMaterializedFlowOutputValue(getObjectPath(args.node, path)))
+  const hasMaterializedOutputPort = args.preserveMaterializedOutputs
+    && Array.from(args.outputPortPaths.values()).some(path =>
+      isMaterializedFlowOutputValue(getObjectPath(args.node, path)),
+    )
 
   const applyComputedOutputs = (computed: Record<string, unknown>, allowUnregisteredOutputs: boolean): void => {
     for (const [portKeyRaw, value] of Object.entries(computed)) {
@@ -418,7 +428,7 @@ function buildConnectedValuesForNode(args: {
       if (!toPath) continue
       if (typeof value === 'undefined') continue
       const materialized = getObjectPath(args.node, toPath)
-      if (isMaterializedFlowOutputValue(materialized)) continue
+      if (args.preserveMaterializedOutputs && isMaterializedFlowOutputValue(materialized)) continue
       byPath[toPath] = { value, sources: allSources }
     }
   }
@@ -473,6 +483,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   targetNodeIds?: ReadonlySet<string>
   graphRevision?: number
   graphSemanticKey?: string
+  preserveMaterializedOutputs?: boolean
 }): Map<string, FlowConnectedValuesBySchemaPath> {
   const graph = args.graphData
   if (!graph) return new Map()
@@ -484,6 +495,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
     graph,
     graphRevision: args.graphRevision,
     graphSemanticKey: args.graphSemanticKey,
+    preserveMaterializedOutputs: args.preserveMaterializedOutputs,
   })
   const cached = readConnectedValuesResultCache({ graphKey, registryKey, targetKey })
   if (cached) return cached
@@ -558,6 +570,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
         outputPortPaths: portPaths?.output || new Map(),
         schemaMappings: portPaths?.schemaMappings || [],
         computeEnabled,
+        preserveMaterializedOutputs: args.preserveMaterializedOutputs !== false,
       })
       computedByNodeId.set(id, connected)
     }
@@ -631,6 +644,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
         outputPortPaths: portPaths?.output || new Map(),
         schemaMappings: portPaths?.schemaMappings || [],
         computeEnabled,
+        preserveMaterializedOutputs: args.preserveMaterializedOutputs !== false,
       })
       nextComputedByNodeId.set(id, connected)
       nextKeysByNodeId.set(id, connectedKey(connected))

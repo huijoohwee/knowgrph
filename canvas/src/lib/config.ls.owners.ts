@@ -318,6 +318,7 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   graphDragAlphaTarget2d: 'ui.workspace',
   infiniteCanvasInteractionMode: 'ui.workspace',
   canvasWorkspaceSyncMode: 'ui.workspace',
+  canvasRunMode: 'ui.workspace',
   flowEditorSelectionOnDrag: 'ui.workspace',
   flowEditorOverlayWheelProxyEnabled: 'ui.workspace',
   zoomDurationFitMs: 'ui.workspace',

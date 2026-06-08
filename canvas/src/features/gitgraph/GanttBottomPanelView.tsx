@@ -13,8 +13,8 @@ export function GanttBottomPanelView({
       code={code}
       model={ganttModel}
       kind="gantt"
-      title="Gantt"
-      emptyLabel="No Gantt Mermaid frontmatter."
+      title="Gantt-Timeline"
+      emptyLabel="No Gantt-Timeline Mermaid frontmatter."
       rootThemeMode={themeMode}
       compact={compact}
       surface="bottomPanel"

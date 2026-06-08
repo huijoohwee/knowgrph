@@ -1,10 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { buildFlowEditorInlineComputeOutputPatch } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
 import {
   isFlowEditorWorkflowRunnableNode,
   readFlowWidgetCardRunDownstreamTargetIds,
   resolveFlowEditorWorkflowDownstreamRunTargetIds,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowDownstreamRunTargets'
+import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import { isUnsafeFlowComputeSource, readFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
+import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 export function testFlowEditorCanvasRunsFlowComputeBeforeProviderTextBranch() {
@@ -14,14 +20,15 @@ export function testFlowEditorCanvasRunsFlowComputeBeforeProviderTextBranch() {
     'export function buildFlowEditorInlineComputeOutputPatch(args: {',
     "if (!args.node || !readFlowComputeSource(args.node)) return null",
     "const isComputedDataOutput = outputSchemaPaths.size === 0 && schemaPath.startsWith('properties.data.')",
+    "const materializedPath = materializeInlineComputeOutputSchemaPath({ schemaPath, outputSchemaPaths })",
   ]
   for (const snippet of requiredRunInputs) {
     if (!workflowRunInputsText.includes(snippet)) throw new Error(`expected FlowEditor workflow run-input helper to include ${snippet}`)
   }
-  const inlineComputeIndex = workflowActionsText.indexOf("if (typeof rawNodeProperties['flow:compute'] === 'string' && rawNodeProperties['flow:compute'].trim())")
+  const inlineComputeIndex = workflowActionsText.indexOf('if (readFlowComputeSource(node))')
   const providerTextIndex = workflowActionsText.indexOf("if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID)")
   if (inlineComputeIndex < 0 || providerTextIndex < 0 || inlineComputeIndex > providerTextIndex) {
-    throw new Error('expected FlowEditor workflow run path to execute authored flow:compute before provider TextGeneration runs')
+    throw new Error('expected FlowEditor workflow run path to execute authored inline compute before provider TextGeneration runs')
   }
   for (const snippet of [
     'const nextInlinePatch = buildFlowEditorInlineComputeOutputPatch({',
@@ -54,7 +61,7 @@ export function testFlowEditorCanvasRunsFlowComputeBeforeProviderTextBranch() {
     id: 'compute_summary',
     type: 'ComputeWidget',
     label: 'Compute Summary',
-    properties: { 'flow:compute': 'inputs => ({ output: inputs.query })' } as never,
+    properties: { compute: { key: 'compute', type: 'string', value: 'inputs => ({ output: inputs.query })' } } as never,
   } as GraphNode
   const graphData: GraphData = {
     nodes: [sourceNode, computeNode],
@@ -71,6 +78,57 @@ export function testFlowEditorCanvasRunsFlowComputeBeforeProviderTextBranch() {
     throw new Error('expected overlay Run on source widgets to resolve authored downstream compute targets')
   }
   if (!isFlowEditorWorkflowRunnableNode({ node: computeNode })) {
-    throw new Error('expected downstream flow:compute node to be treated as runnable')
+    throw new Error('expected downstream typed compute node to be treated as runnable')
+  }
+  const runAllPlan = buildFlowRunAllNodeSequence({
+    graphData,
+    eligibleNodeIds: new Set(['source_input', 'compute_summary']),
+  })
+  if (runAllPlan.orderedNodeIds.join(',') !== 'compute_summary' || runAllPlan.phaseCounts.text !== 1) {
+    throw new Error(`expected Toolbar Run all to schedule typed compute nodes, got ${JSON.stringify(runAllPlan)}`)
+  }
+
+  const missAlphaPath = resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-missalph-demo.md')
+  const missAlphaMarkdown = readFileSync(missAlphaPath, 'utf8')
+  const missAlphaParsed = tryParseMarkdownFrontmatterFlowGraph('knowgrph-missalph-demo.md', missAlphaMarkdown)
+  if (!missAlphaParsed) throw new Error('expected MissAlpha demo to parse as a frontmatter flow graph')
+  const missAlphaEligible = buildFlowWidgetEligibleNodeIdSet(missAlphaParsed.graphData.nodes)
+  const missAlphaPlan = buildFlowRunAllNodeSequence({
+    graphData: missAlphaParsed.graphData,
+    eligibleNodeIds: missAlphaEligible,
+  })
+  const missAlphaComputeSummary = missAlphaParsed.graphData.nodes.find(node => String(node.id || '') === 'compute_summary')
+  const missAlphaComputeSource = missAlphaComputeSummary ? readFlowComputeSource(missAlphaComputeSummary) : ''
+  if (!missAlphaComputeSource || isUnsafeFlowComputeSource(missAlphaComputeSource)) {
+    throw new Error(`expected MissAlpha compute_summary to retain a runnable inline compute source, got length ${missAlphaComputeSource.length}`)
+  }
+  if (!missAlphaPlan.orderedNodeIds.includes('compute_summary') || missAlphaPlan.phaseCounts.text !== 6) {
+    throw new Error(`expected MissAlpha Toolbar Run all to schedule all six compute nodes, got ${JSON.stringify(missAlphaPlan)}`)
+  }
+
+  const computingTemplatePath = resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-flow-editor-computing-flow-template.md')
+  const computingTemplateMarkdown = readFileSync(computingTemplatePath, 'utf8')
+  const computingTemplateParsed = tryParseMarkdownFrontmatterFlowGraph('knowgrph-flow-editor-computing-flow-template.md', computingTemplateMarkdown)
+  if (!computingTemplateParsed) throw new Error('expected computing-flow template to parse as a frontmatter flow graph')
+  const computingTemplateComputeNode = computingTemplateParsed.graphData.nodes.find(node => String(node.id || '') === 'compute_summary') || null
+  if (!computingTemplateComputeNode) throw new Error('expected computing-flow template to include compute_summary')
+  const computingTemplateRunValues = computeFlowConnectedValuesBySchemaPath({
+    graphData: computingTemplateParsed.graphData,
+    registry: [],
+    targetNodeIds: new Set(['compute_summary']),
+    preserveMaterializedOutputs: false,
+  }).get('compute_summary')
+  const computingTemplatePatch = buildFlowEditorInlineComputeOutputPatch({
+    node: computingTemplateComputeNode,
+    registryEntry: null,
+    connectedValuesBySchemaPath: computingTemplateRunValues,
+    currentProperties: computingTemplateComputeNode.properties || {},
+  })
+  const runSrcDoc = String(computingTemplatePatch?.outputSrcDoc || '')
+  if (!runSrcDoc.includes('3000 target')) {
+    throw new Error(`expected widget Run to materialize recomputed outputSrcDoc from KTV input_metric_target, got ${runSrcDoc}`)
+  }
+  if (runSrcDoc.includes('300 target')) {
+    throw new Error(`expected widget Run to replace stale materialized outputSrcDoc, got ${runSrcDoc}`)
   }
 }

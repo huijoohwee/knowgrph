@@ -10,7 +10,7 @@ import {
   type MermaidDiagramKind,
 } from 'grph-shared/markdown/mermaidInput'
 
-export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'gitgraph' | 'gantt'>
+export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'gitgraph' | 'gantt' | 'timeline'>
 
 export type MermaidDiagramCommandRow = {
   key: string
@@ -32,6 +32,7 @@ export type MermaidDiagramCodeModel = {
 const MERMAID_TYPED_TYPE_BY_KIND: Record<MermaidStructuredDiagramKind, string> = {
   gitgraph: 'mermaid_gitgraph',
   gantt: 'mermaid_gantt',
+  timeline: 'mermaid_timeline',
 }
 
 const MAX_TYPED_SCAN_DEPTH = 8
@@ -170,6 +171,32 @@ const readGanttRowLabel = (trimmed: string, kind: string): string => {
   return trimmed
 }
 
+const readTimelineRowKind = (trimmed: string): string => {
+  if (/^section\b/i.test(trimmed)) return 'section'
+  if (/^title\b/i.test(trimmed)) return 'title'
+  if (/:/.test(trimmed)) return 'event'
+  return 'line'
+}
+
+const readTimelineRowLabel = (trimmed: string, kind: string): string => {
+  if (kind === 'section') return trimmed.replace(/^section\b/i, '').trim() || trimmed
+  if (kind === 'title') return trimmed.replace(/^title\b/i, '').trim() || trimmed
+  if (kind === 'event') return trimmed.split(':', 1)[0]?.trim() || trimmed
+  return trimmed
+}
+
+const readDiagramRowKind = (kind: MermaidStructuredDiagramKind, trimmed: string): string => {
+  if (kind === 'gantt') return readGanttRowKind(trimmed)
+  if (kind === 'timeline') return readTimelineRowKind(trimmed)
+  return trimmed.split(/\s+/, 1)[0] || 'line'
+}
+
+const readDiagramRowLabel = (kind: MermaidStructuredDiagramKind, trimmed: string, rowKind: string): string => {
+  if (kind === 'gantt') return readGanttRowLabel(trimmed, rowKind)
+  if (kind === 'timeline') return readTimelineRowLabel(trimmed, rowKind)
+  return trimmed
+}
+
 export const parseMermaidDiagramCodeModel = (
   code: string,
   kind: MermaidStructuredDiagramKind,
@@ -183,14 +210,14 @@ export const parseMermaidDiagramCodeModel = (
       const raw = String(lines[i] || '')
       const trimmed = raw.trim()
       if (!trimmed || trimmed.startsWith('%%')) continue
-      const rowKind = kind === 'gantt' ? readGanttRowKind(trimmed) : trimmed.split(/\s+/, 1)[0] || 'line'
+      const rowKind = readDiagramRowKind(kind, trimmed)
       rows.push({
         key: `${i}:${rowKind}:${trimmed}`,
         lineIndex: i,
         lineNumber: i + 1,
         raw: trimmed,
         kind: rowKind,
-        label: kind === 'gantt' ? readGanttRowLabel(trimmed, rowKind) : trimmed,
+        label: readDiagramRowLabel(kind, trimmed, rowKind),
       })
     }
   }

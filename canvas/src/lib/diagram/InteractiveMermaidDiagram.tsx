@@ -1,5 +1,5 @@
 import React from 'react'
-import { useSvgSurfaceZoomRuntime } from '@/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime'
+import { useSvgSurfaceZoomRuntime, type SvgSurfaceFitMode } from '@/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime'
 import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 import { applyPlainMermaidDiagramSelection } from '@/features/markdown/ui/PlainMermaidDiagram'
@@ -372,6 +372,7 @@ export function InteractiveMermaidDiagram({
   dimUnselected = false,
   rendererId = 'gitGraph',
   svgSurfaceKey = rendererId,
+  svgFitMode = 'auto',
   onSelectedLabelChange,
   onSelectedRowKeyChange,
 }: {
@@ -383,6 +384,7 @@ export function InteractiveMermaidDiagram({
   dimUnselected?: boolean
   rendererId?: Canvas2dRendererId
   svgSurfaceKey?: string
+  svgFitMode?: SvgSurfaceFitMode
   onSelectedLabelChange?: (label: string) => void
   onSelectedRowKeyChange?: (key: string | null) => void
 }) {
@@ -491,6 +493,7 @@ export function InteractiveMermaidDiagram({
     graphData: null,
     graphDataRevision: selectedSvg.length,
     svgSurfaceKey,
+    svgFitMode,
     selectedElementLabel,
     resolveSelectedElementByLabel,
     readSelectedElementLabel,

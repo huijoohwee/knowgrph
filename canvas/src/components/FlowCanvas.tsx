@@ -24,6 +24,7 @@ import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridCon
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
+import { resolveFlowEditorFocusedEdgeIds } from '@/lib/flowEditor/flowEditorPortRows'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 export { pickGraphDataForFlowRenderer }
@@ -56,6 +57,8 @@ export default function FlowCanvas({
   const drawArgsRef = React.useRef<FlowNativeDrawArgs>({
     selectedNodeIds: [],
     selectedEdgeIds: [],
+    edgeFocusActive: false,
+    focusedEdgeIds: [],
     selectedGroupId: null,
     showGroupResizeHandle: false,
     hideNodeIds: undefined,
@@ -210,6 +213,7 @@ export default function FlowCanvas({
   }
   void flowEditorTransformGuardSnippet
   const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
+  const flowEditorSelectedPortRowKey = useGraphStore(s => s.flowEditorSelectedPortRowKey || '')
   const workspacePreInitDeferredDrawRef = React.useRef(false)
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
@@ -349,6 +353,20 @@ export default function FlowCanvas({
     schema,
     updateOverlayHiddenDrawArgs,
   ])
+
+  const flowEditorFocusedEdges = React.useMemo(
+    () => resolveFlowEditorFocusedEdgeIds(
+      sceneGraphData,
+      canvas2dRenderer === 'flowEditor' ? flowEditorSelectedPortRowKey : '',
+    ),
+    [canvas2dRenderer, flowEditorSelectedPortRowKey, sceneGraphData],
+  )
+
+  React.useEffect(() => {
+    drawArgsRef.current.edgeFocusActive = flowEditorFocusedEdges.active
+    drawArgsRef.current.focusedEdgeIds = flowEditorFocusedEdges.edgeIds
+    scheduleFlowDraw()
+  }, [flowEditorFocusedEdges, scheduleFlowDraw])
 
   const suppressAutoZoomModes = active
     && canvas2dRenderer === 'flowEditor'

@@ -40,6 +40,7 @@ and shared Rich Media Panel owners.
 | Subagents | Role-scoped `AgentContract` entries for planner, research, code, text, image, video, canvas, verifier, and synthesizer workers | Keep scoped context, tools, completion signal, and artifact responsibility explicit. |
 | Sandbox/workspace | Per-run output directory under `data/outputs/*` or caller-provided output path; generated code executes with `python` argv, bounded timeout, and no shell invocation | Keep uploads/workspace/outputs separated; do not hardcode absolute repo paths. |
 | Review gate | verifier, proof manifest, final report, research-agent review audit, KGC apply owner | Accepted artifacts and graph candidates only; no unreviewed active-graph mutation. |
+| Agentic OS handoff | MCP Agentic OS PRD/TAD, Source Files, run manifests, Canvas dashboard | Planned cross-repo build/control dashboard only; profile and plan consumer repos through allowlisted roots, dry-run first, and require approval before writes, deploys, paid calls, or financial actions. |
 
 ## Research-Code-Create Scope
 
@@ -231,6 +232,6 @@ The browser check opens the real Settings -> Integrations surface, verifies PixV
 
 Codex can run the harness directly from `/goal` using `superagent` or the equivalent `run-goal` CLI alias. The local setup guide is [knowgrph-codex-goal-setup.md](knowgrph-codex-goal-setup.md), and the repo-owned goal loop is also available as `npm run goal:run`.
 
-MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact. The local stdio MCP tool contract is owned upstream by [local-tool-contract.js](../../mcp/local-tool-contract.js); usage and surface boundaries live in [README.md](../../mcp/README.md) and [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md).
+MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact. The local stdio MCP tool contract is owned upstream by [local-tool-contract.js](../../mcp/local-tool-contract.js); usage and surface boundaries live in [README.md](../../mcp/README.md), [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md), and the planned Agentic OS dashboard contract in [knowgrph-mcp-agentic-os-prd-tad.md](knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md).
 
 Baseline validation remains offline and deterministic for mock runs. PixVerse live validation adds a focused local smoke path through `python3 -m knowgrph_parser pixverse-smoke` or `npm run superagent:pixverse:smoke`, while the static responsive proof still covers `320x640`, `390x844`, `768x1024`, `1366x768`, and `1920x1080` classes before browser-specific smoke checks are layered on top.

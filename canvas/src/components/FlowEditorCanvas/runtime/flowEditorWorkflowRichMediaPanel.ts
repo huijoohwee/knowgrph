@@ -1,4 +1,5 @@
 import { FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
+import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 import {
@@ -7,7 +8,6 @@ import {
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import {
   areFlowEditorWorkflowRecordValuesEqual,
-  bumpFlowEditorWorkflowDraftGraphDataRevision,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
 
 function listFlowEditorWorkflowRichMediaPanelSearchNodes(args: {
@@ -109,7 +109,7 @@ export function applyFlowEditorWorkflowRichMediaPanelDraftPatch(args: {
   })
   if (!changed) return updatedPanel || currentPanel
 
-  const nextDraft = bumpFlowEditorWorkflowDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })
+  const nextDraft = bumpFlowEditorDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })
   args.commitDraftGraphDataUpdate(currentDraft, nextDraft)
   args.scheduleWorkflowOutputEdgeRefresh()
   return updatedPanel

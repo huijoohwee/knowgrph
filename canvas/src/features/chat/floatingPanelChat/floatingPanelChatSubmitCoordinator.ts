@@ -106,7 +106,6 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         requestTimestampMs: args.requestTimestampMs,
         trimmedInput: args.trimmedInput,
         traceId: args.traceId,
-        persistDraft: upsertChatHistoryWorkspaceDraft,
       }),
     })
 
@@ -263,7 +262,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         setChatKnowgrphWorkspacePath: args.submitArgs.setChatKnowgrphWorkspacePath,
         setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
         persistDraft: upsertChatHistoryWorkspaceDraft,
-        persistWorkspaceDrafts: false,
+        persistWorkspaceDrafts: true,
       })
       const assistantStream = await readAssistantResponse({
         response: res,

@@ -88,7 +88,7 @@ export const useResumeDurableChatStream = (args: {
             args.setStreamingWorkspacePath(String(value?.path || '').trim() || null)
             args.setChatWorkspaceStreamingState?.(value)
           },
-          persistWorkspaceDrafts: false,
+          persistWorkspaceDrafts: true,
         })
         const assistantStream = await readAssistantResponseText({
           response,

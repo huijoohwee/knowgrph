@@ -1,5 +1,5 @@
 import React from 'react'
-import { Compass, Hand, ListChecks, Lock, Unlock } from 'lucide-react'
+import { Compass, Hand, ListChecks, Lock, Play, Unlock } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -12,7 +12,7 @@ type InteractionModeSelectProps = {
 }
 
 type InteractionOption = {
-  key: 'navigate' | 'lock' | 'multi' | 'canvasInteraction'
+  key: 'navigate' | 'lock' | 'multi' | 'canvasInteraction' | 'runMode'
   label: string
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>
 }
@@ -22,9 +22,11 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
     documentStructureBaselineLock,
     selectMode,
     infiniteCanvasInteractionMode,
+    canvasRunMode,
     setDocumentStructureBaselineLock,
     setSelectMode,
     setInfiniteCanvasInteractionMode,
+    setCanvasRunMode,
     setSelectionSource,
     selectNode,
     selectEdge,
@@ -34,9 +36,11 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       selectMode: s.schema?.behavior?.selectMode || 'single',
       infiniteCanvasInteractionMode: s.infiniteCanvasInteractionMode,
+      canvasRunMode: s.canvasRunMode,
       setDocumentStructureBaselineLock: s.setDocumentStructureBaselineLock,
       setSelectMode: s.setSelectMode,
       setInfiniteCanvasInteractionMode: s.setInfiniteCanvasInteractionMode,
+      setCanvasRunMode: s.setCanvasRunMode,
       setSelectionSource: s.setSelectionSource,
       selectNode: s.selectNode,
       selectEdge: s.selectEdge,
@@ -70,8 +74,13 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
               : `${UI_LABELS.canvasInteractionMode}: ${UI_COPY.infiniteCanvasInteractionStaticLabel}`,
           Icon: Hand,
         },
+        {
+          key: 'runMode' as const,
+          label: canvasRunMode === 'auto' ? 'Run Mode: Auto' : 'Run Mode: Manual',
+          Icon: Play,
+        },
       ] satisfies InteractionOption[],
-    [documentStructureBaselineLock, infiniteCanvasInteractionMode, selectMode],
+    [canvasRunMode, documentStructureBaselineLock, infiniteCanvasInteractionMode, selectMode],
   )
 
   const selectedOptionKey: InteractionOption['key'] = 'navigate'
@@ -96,16 +105,22 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         setInfiniteCanvasInteractionMode(infiniteCanvasInteractionMode === 'interactive' ? 'static' : 'interactive')
         return
       }
+      if (key === 'runMode') {
+        setCanvasRunMode(canvasRunMode === 'auto' ? 'manual' : 'auto')
+        return
+      }
       setSelectMode(selectMode === 'multi' || selectMode === 'lasso' ? 'single' : 'multi')
     },
     [
       ensureBaselineUnlocked,
+      canvasRunMode,
       infiniteCanvasInteractionMode,
       selectEdge,
       selectGroup,
       selectMode,
       selectNode,
       setDocumentStructureBaselineLock,
+      setCanvasRunMode,
       setInfiniteCanvasInteractionMode,
       setSelectMode,
       setSelectionSource,
@@ -126,6 +141,8 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
               ? selectMode === 'multi' || selectMode === 'lasso'
               : option.key === 'canvasInteraction'
                 ? infiniteCanvasInteractionMode === 'interactive'
+                : option.key === 'runMode'
+                  ? canvasRunMode === 'auto'
                 : false,
       }))}
       title={UI_LABELS.interactionMode}
@@ -134,7 +151,8 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         documentStructureBaselineLock ||
         selectMode === 'multi' ||
         selectMode === 'lasso' ||
-        infiniteCanvasInteractionMode === 'interactive'
+        infiniteCanvasInteractionMode === 'interactive' ||
+        canvasRunMode === 'auto'
       }
       onSelect={id => apply(id)}
       renderButtonContent={() => <Compass className={iconSizeClass} strokeWidth={iconStrokeWidth} />}

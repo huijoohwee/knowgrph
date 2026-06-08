@@ -26,6 +26,8 @@ export const COMPUTING_FLOW_BODY_TOKEN_KEYS = [
   ...COMPUTING_FLOW_INPUT_FIELDS.map(field => `${COMPUTING_FLOW_SOURCE_NODE_ID}.${field}`),
 ] as const
 
+export const COMPUTING_FLOW_GITGRAPH_ID = 'template_gitgraph'
+
 const COMPUTING_FLOW_BODY_HEADINGS = ['## Response', '## Inputs'] as const
 
 const escapeRegExp = (value: string): string =>
@@ -84,6 +86,9 @@ const hasComputingFlowFrontmatterContract = (frontmatter: string): boolean => {
   const fm = String(frontmatter || '').replace(/\r\n/g, '\n')
   if (!/(^|\n)(?:schema|\$schema)\s*:\s*["']?kgc-computing-flow\/v1["']?/m.test(fm)) return false
   if (!/(^|\n)flow\s*:\s*(\n|$)/m.test(fm)) return false
+  if (!/(^|\n)flow_diagrams\s*:\s*(\n|$)/m.test(fm)) return false
+  if (!/\btype\s*:\s*mermaid_gitgraph\b/.test(fm)) return false
+  if (!new RegExp(`\\b${escapeRegExp(COMPUTING_FLOW_GITGRAPH_ID)}\\b`).test(fm)) return false
   if (!new RegExp(`\\b${escapeRegExp(COMPUTING_FLOW_SOURCE_NODE_ID)}\\b`).test(fm)) return false
   if (!new RegExp(`\\b${escapeRegExp(COMPUTING_FLOW_COMPUTE_NODE_ID)}\\b`).test(fm)) return false
   if (!/canvas:runAction/.test(fm) || !/bodyTokens["']?\s*:/.test(fm)) return false

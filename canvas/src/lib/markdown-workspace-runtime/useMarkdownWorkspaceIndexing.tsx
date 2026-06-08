@@ -47,6 +47,7 @@ import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownW
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { resolveWorkspaceSourceFileInlineText, upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
 import { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
+import { resolveMarkdownWorkspaceIndexingFreshText } from './markdownWorkspaceIndexingFreshText'
 export { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
 
 const WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS = 240_000
@@ -205,16 +206,15 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             const res = sanitizeImportedMarkdownText(rawNext)
             return res.changed ? res.text : null
           })()
-          let nextText = sanitized ?? rawNext
-          const liveLoaded = args.lastLoadedRef.current
-          if (
-            liveLoaded &&
-            liveLoaded !== lastLoaded &&
-            liveLoaded.path === path &&
-            String(liveLoaded.text || '') !== nextText
-          ) {
-            nextText = String(liveLoaded.text || '')
-          }
+          const liveState = useGraphStore.getState()
+          let nextText = resolveMarkdownWorkspaceIndexingFreshText({
+            path,
+            nextText: sanitized ?? rawNext,
+            scheduledLastLoaded: lastLoaded,
+            liveLoaded: args.lastLoadedRef.current,
+            liveMarkdownDocumentName: liveState.markdownDocumentName,
+            liveMarkdownDocumentText: liveState.markdownDocumentText,
+          })
           const textHash = buildSourceFileParseIdentityHash({
             cacheNamespace: `workspace-import:${path}`,
             name: workspaceDocumentKey(path),

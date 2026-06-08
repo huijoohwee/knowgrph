@@ -4,70 +4,18 @@ import { InteractiveMermaidDiagram, type InteractiveMermaidSelectionRow } from '
 import type { MermaidDiagramCodeModel, MermaidStructuredDiagramKind } from '@/lib/mermaid/mermaidDiagramCode'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
-  readDiagramSelectionLabels,
   resolveDiagramRowKey,
-  type DiagramSelectionRow,
 } from '@/lib/diagram/diagramRowSelection'
+import type { DiagramSelectionRow } from '@/lib/diagram/diagramRowSelection'
+import {
+  buildMermaidInteractiveSelectionRows,
+  findMermaidDiagramRowKeyForSvgLabel,
+  readMermaidDirectSelectionLabels,
+} from '@/lib/mermaid/mermaidDiagramSelection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
 export type MermaidDiagramPanelRenderMode = 'diagram' | 'list' | 'split'
-
-const normalizeDiagramInteractionLabel = (value: string | null | undefined): string => {
-  return String(value || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-const selectionLabelMatchesRow = (label: string, row: DiagramSelectionRow): boolean => {
-  const normalizedLabel = normalizeDiagramInteractionLabel(label)
-  if (!normalizedLabel) return false
-  return readDiagramSelectionLabels(row).some(candidate => {
-    const normalizedCandidate = normalizeDiagramInteractionLabel(candidate)
-    if (!normalizedCandidate) return false
-    return normalizedLabel === normalizedCandidate || normalizedLabel.includes(normalizedCandidate) || normalizedCandidate.includes(normalizedLabel)
-  })
-}
-
-const MERMAID_DIRECT_SELECTION_IGNORED_LABELS = new Set([
-  'active',
-  'after',
-  'axisformat',
-  'branch',
-  'checkout',
-  'cherry',
-  'commit',
-  'config',
-  'crit',
-  'dateformat',
-  'done',
-  'excludes',
-  'id',
-  'includes',
-  'merge',
-  'milestone',
-  'reset',
-  'section',
-  'tag',
-  'task',
-  'tickinterval',
-  'title',
-  'todaymarker',
-  'type',
-  'until',
-  'weekday',
-])
-
-const isDirectSelectionNoiseLabel = (label: string): boolean => {
-  const normalized = normalizeDiagramInteractionLabel(label)
-  if (!normalized) return true
-  if (MERMAID_DIRECT_SELECTION_IGNORED_LABELS.has(normalized)) return true
-  if (/^\d{4}\s+\d{2}\s+\d{2}$/.test(normalized)) return true
-  if (/^\d+\s*[dhmsw]$/.test(normalized)) return true
-  return false
-}
-
-const readDirectDiagramSelectionLabels = (row: DiagramSelectionRow | null | undefined): string[] => {
-  return readDiagramSelectionLabels(row).filter(label => !isDirectSelectionNoiseLabel(label))
-}
 
 export function MermaidDiagramRenderPreview({
   code,
@@ -91,14 +39,9 @@ export function MermaidDiagramRenderPreview({
     return rows.findIndex((row, index) => resolveDiagramRowKey(row, index) === selectedRowKey)
   }, [rows, selectedRowKey])
   const selectedRow = selectedRowIndex >= 0 ? rows[selectedRowIndex] || null : null
-  const selectedLabels = React.useMemo(() => readDirectDiagramSelectionLabels(selectedRow), [selectedRow])
+  const selectedLabels = React.useMemo(() => readMermaidDirectSelectionLabels(selectedRow), [selectedRow])
   const selectionRows = React.useMemo<InteractiveMermaidSelectionRow[]>(() => {
-    return rows.map((row, index) => ({
-      key: resolveDiagramRowKey(row, index),
-      labels: readDirectDiagramSelectionLabels(row),
-      kind: row.kind,
-      lineNumber: row.lineNumber,
-    })).filter(row => row.key && row.labels.length)
+    return buildMermaidInteractiveSelectionRows(rows)
   }, [rows])
   const selectRowBySvgLabel = React.useCallback((label: string) => {
     if (!rows.length || !onSelectRowKey) return
@@ -106,15 +49,9 @@ export function MermaidDiagramRenderPreview({
       onSelectRowKey(null)
       return
     }
-    const directRow = selectionRows.find(row => row.key === label)
-    if (directRow) {
-      onSelectRowKey(directRow.key)
-      return
-    }
-    const index = rows.findIndex(row => selectionLabelMatchesRow(label, row))
-    const key = index >= 0 ? resolveDiagramRowKey(rows[index], index) : ''
+    const key = findMermaidDiagramRowKeyForSvgLabel(rows, label)
     if (key) onSelectRowKey(key)
-  }, [onSelectRowKey, rows, selectionRows])
+  }, [onSelectRowKey, rows])
 
   if (!code) return null
   return (
@@ -155,6 +92,7 @@ export function MermaidDiagramPanelView({
   compact = false,
   surface,
   renderMode = surface === 'bottomPanel' ? 'diagram' : 'list',
+  onSelectedRowKeyChange,
 }: {
   code: string
   model: MermaidDiagramCodeModel
@@ -165,6 +103,7 @@ export function MermaidDiagramPanelView({
   compact?: boolean
   surface: 'floatingPanel' | 'bottomPanel'
   renderMode?: MermaidDiagramPanelRenderMode
+  onSelectedRowKeyChange?: (rowKey: string | null) => void
 }) {
   const showDiagram = renderMode !== 'list'
   const showRowList = renderMode !== 'diagram'
@@ -176,7 +115,8 @@ export function MermaidDiagramPanelView({
   )
   const setSelectedRowKey = React.useCallback((rowKey: string | null) => {
     setMermaidDiagramSelectedRowKey(kind, rowKey)
-  }, [kind, setMermaidDiagramSelectedRowKey])
+    onSelectedRowKeyChange?.(rowKey)
+  }, [kind, onSelectedRowKeyChange, setMermaidDiagramSelectedRowKey])
   const rowListRef = React.useRef<HTMLElement | null>(null)
   const panelAriaLabel = showDiagram ? `${title} Mermaid diagram` : `${title} Mermaid rows`
   React.useEffect(() => {

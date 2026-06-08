@@ -1,6 +1,25 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { computeSvgSurfaceWideTimelineFitTransform } from '@/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime'
 import { annotateInteractiveMermaidSelectionRows } from '@/lib/diagram/InteractiveMermaidDiagram'
+import {
+  findMermaidDiagramRowKeyForSvgLabel,
+  readMermaidDirectSelectionLabels,
+} from '@/lib/mermaid/mermaidDiagramSelection'
+import {
+  MERMAID_GANTT_BAR_DRAG_COMMIT_MIN_DELTA_PX,
+  MERMAID_GANTT_BAR_DRAG_EDGE_SCROLL_THRESHOLD_PX,
+  buildMermaidGanttTimelineModel,
+  buildMermaidGanttTimelineTicks,
+  formatMermaidGanttTimelineOffset,
+  isMermaidGanttBarDragMode,
+  resolveMermaidGanttBarDragCommitted,
+  resolveMermaidGanttBarDragPreview,
+  resolveMermaidGanttTimelineRowKeyAtPosition,
+  replaceFirstMermaidGanttFrontmatterCode,
+  shouldExposeMermaidGanttBarInteraction,
+  updateMermaidGanttCodeRowTiming,
+} from '@/lib/mermaid/mermaidGanttBarInteraction'
 import {
   parseMermaidDiagramCodeModel,
   readFrontmatterMermaidDiagramCodes,
@@ -36,6 +55,16 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
     '          title Dynamic compute flow',
     '          section Critical path',
     '          Inline compute :crit, compute, 2026-06-05, 1d',
+    '    chronology_flow:',
+    '      key: chronology_flow',
+    '      type: mermaid_timeline',
+    '      value: |-',
+    '        timeline LR',
+    '          title Dynamic compute chronology',
+    '          section Inputs',
+    '            Source fields : KTV values',
+    '          section Compute',
+    '            Inline compute : Summary output',
     '---',
     '',
     '# Flow diagrams',
@@ -62,6 +91,20 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
   if (!criticalTask) {
     throw new Error('expected Gantt parser model to expose task rows')
   }
+
+  const timelineCode = resolveMermaidDiagramCode(
+    readYamlFrontmatterMermaidDiagramCodes(markdown, 'timeline'),
+    'timeline',
+  )
+  if (!timelineCode.includes('timeline LR')) {
+    throw new Error('expected typed mermaid_timeline frontmatter to resolve Timeline code with direction')
+  }
+
+  const timelineModel = parseMermaidDiagramCodeModel(timelineCode, 'timeline')
+  const computeEvent = timelineModel.rows.find(row => row.kind === 'event' && row.label === 'Inline compute')
+  if (!computeEvent) {
+    throw new Error('expected Timeline parser model to expose chronology event rows')
+  }
 }
 
 export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
@@ -85,6 +128,16 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
                 '  Render Gantt :crit, render, 2026-06-05, 1d',
               ].join('\n'),
             },
+            chronology_flow: {
+              key: 'chronology_flow',
+              type: 'mermaid_timeline',
+              value: [
+                'timeline LR',
+                '  title Runtime chronology',
+                '  section Panels',
+                '    Render Timeline : BottomPanel route',
+              ].join('\n'),
+            },
           },
         },
       },
@@ -97,6 +150,14 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
   )
   if (!ganttCode.includes('Render Gantt :crit')) {
     throw new Error('expected parsed graph frontmatter metadata to resolve typed Gantt code')
+  }
+
+  const timelineCode = resolveMermaidDiagramCode(
+    readFrontmatterMermaidDiagramCodes(graphData, 'timeline'),
+    'timeline',
+  )
+  if (!timelineCode.includes('Render Timeline')) {
+    throw new Error('expected parsed graph frontmatter metadata to resolve typed Timeline code')
   }
 }
 
@@ -158,6 +219,9 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   const canvasViewActionsText = readSource('components', 'toolbar', 'canvasViewActions.ts')
   const canvasViewSelectText = readSource('components', 'toolbar', 'Canvas2dRendererSelect.tsx')
   const canvasViewTypesText = readSource('components', 'toolbar', 'canvasViewTypes.ts')
+  const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
+  const configRenderText = readSource('lib', 'config.render.ts')
+  const uiCopyText = readSource('lib', 'config-copy', 'uiCopy.ts')
   const bottomPanelText = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
   const floatingTypeText = readSource('hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
   const uiInitialStateText = readSource('hooks', 'store', 'uiSliceInitialState.ts')
@@ -165,17 +229,25 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   const iconText = readSource('features', 'panels', 'ui', 'mainPanelHelpIconLibrary.tsx')
   const panelText = readSource('features', 'gitgraph', 'MermaidDiagramPanelView.tsx')
   const gitGraphFloatingText = readSource('features', 'gitgraph', 'GitGraphFloatingPanelView.tsx')
+  const gitGraphCanvasText = readSource('components', 'MermaidGitGraphCanvas.tsx')
+  const ganttCanvasText = readSource('components', 'MermaidGanttCanvas.tsx')
   const ganttFloatingText = readSource('features', 'gitgraph', 'GanttFloatingPanelView.tsx')
+  const timelineFloatingText = readSource('features', 'gitgraph', 'TimelineFloatingPanelView.tsx')
   const gitGraphBottomText = readSource('features', 'gitgraph', 'GitGraphBottomPanelView.tsx')
   const ganttBottomText = readSource('features', 'gitgraph', 'GanttBottomPanelView.tsx')
+  const ganttTransportText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
+  const timelineBottomText = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const resolverText = readSource('lib', 'mermaid', 'mermaidDiagramCode.ts')
   const plainMermaidText = readSource('features', 'markdown', 'ui', 'PlainMermaidDiagram.tsx')
   const interactiveMermaidText = readSource('lib', 'diagram', 'InteractiveMermaidDiagram.tsx')
   const selectionHelperText = readSource('lib', 'diagram', 'diagramRowSelection.ts')
+  const mermaidSelectionText = readSource('lib', 'mermaid', 'mermaidDiagramSelection.ts')
+  const gitGraphSelectionText = readSource('lib', 'mermaid', 'mermaidGitGraphSelection.ts')
   const svgSurfaceZoomRuntimeText = readSource('components', 'GraphCanvas', 'hooks', 'useSvgSurfaceZoomRuntime.ts')
+  const ganttBarInteractionText = readSource('lib', 'mermaid', 'mermaidGanttBarInteraction.ts')
 
-  if (!floatingTypeText.includes("| 'gantt'")) {
-    throw new Error('expected FloatingPanelView to include a first-class Gantt view')
+  if (!floatingTypeText.includes("| 'gantt'") || !floatingTypeText.includes("| 'timeline'")) {
+    throw new Error('expected FloatingPanelView to include first-class Gantt and Timeline views')
   }
   if (
     !floatingTypeText.includes('mermaidDiagramSelectedRowKeyByKind') ||
@@ -183,51 +255,77 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !uiInitialStateText.includes('mermaidDiagramSelectedRowKeyByKind: {}') ||
     !uiInitialStateText.includes('setMermaidDiagramSelectedRowKey')
   ) {
-    throw new Error('expected Mermaid GitGraph/Gantt selected rows to live in shared store state for BottomPanel/FloatingPanel sync')
+    throw new Error('expected Mermaid GitGraph/Gantt/Timeline selected rows to live in shared store state for BottomPanel/FloatingPanel sync')
   }
-  if (!bottomTypeText.includes("'gantt'") || !bottomTypeText.includes("'documentVersionGraph'")) {
-    throw new Error('expected BottomSurfaceTab to keep document-version graph separate from first-class Gantt and GitGraph tabs')
+  if (!bottomTypeText.includes("'gantt'") || !bottomTypeText.includes("'timeline'") || !bottomTypeText.includes("'documentVersionGraph'")) {
+    throw new Error('expected BottomSurfaceTab to keep document-version graph separate from first-class Mermaid tabs')
+  }
+  if (
+    !configRenderText.includes("'gitGraph', 'gantt'") ||
+    !configRenderText.includes("surfaceId: 'gantt'") ||
+    !configRenderText.includes("animatic: {\n    surfaceId: 'gantt'") ||
+    !configRenderText.includes("registryLabel: 'Gantt-timeline'") ||
+    !configRenderText.includes('isGanttCanvas2dRenderer') ||
+    !uiCopyText.includes('2D Renderer: Gantt-timeline') ||
+    !canvasViewMenuText.includes('gantt: ChartGantt') ||
+    !canvasViewMenuText.includes('canvasViewRendererGanttTitle') ||
+    !canvasViewportText.includes('MermaidGanttCanvasLazy') ||
+    !canvasViewportText.includes("active2dSurface === 'gantt'") ||
+    canvasViewportText.includes('AnimaticCanvasLazy') ||
+    canvasViewportText.includes("active2dSurface === 'animatic'")
+  ) {
+    throw new Error('expected Canvas 2D Renderer Gantt-timeline to replace the old Animatic canvas mount')
   }
   if (
     !canvasViewTypesText.includes("'control:gitGraph'") ||
     !canvasViewTypesText.includes("'control:gantt'") ||
+    !canvasViewTypesText.includes("'control:timeline'") ||
     !canvasViewMenuText.includes("id: 'control:gitGraph'") ||
-    !canvasViewMenuText.includes("id: 'control:gantt'")
+    !canvasViewMenuText.includes("id: 'control:gantt'") ||
+    !canvasViewMenuText.includes("id: 'control:timeline'")
   ) {
-    throw new Error('expected Canvas View Display Controls to expose BottomPanel GitGraph and Gantt controls')
+    throw new Error('expected Canvas View Display Controls to expose BottomPanel GitGraph, Gantt, and Timeline controls')
   }
   if (
+    !canvasViewActionsText.includes("const nextTab: BottomSurfaceTab = 'timeline'") ||
     !canvasViewActionsText.includes("id === 'control:gitGraph' || id === 'control:gantt'") ||
     !canvasViewActionsText.includes("setBottomSurfaceTab(nextTab)") ||
     !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)') ||
     !canvasViewSelectText.includes('setBottomSurfaceTab: s.setBottomSurfaceTab')
   ) {
-    throw new Error('expected Canvas View Display Controls to route GitGraph and Gantt through shared bottom-surface setters')
+    throw new Error('expected Canvas View Display Controls to route Mermaid diagrams through shared bottom-surface setters')
   }
   if (
     !toolbarText.includes('GanttFloatingPanelViewLazy') ||
+    !toolbarText.includes('TimelineFloatingPanelViewLazy') ||
     !toolbarText.includes("{ view: 'gantt', title: UI_LABELS.gantt") ||
-    !toolbarText.includes("floatingPanelView === 'gantt'")
+    !toolbarText.includes("{ view: 'timeline', title: UI_LABELS.timeline") ||
+    !toolbarText.includes("floatingPanelView === 'gantt'") ||
+    !toolbarText.includes("floatingPanelView === 'timeline'")
   ) {
-    throw new Error('expected FloatingPanel toolbar to route Gantt through the shared view registry')
+    throw new Error('expected FloatingPanel toolbar to route Gantt and Timeline through the shared view registry')
   }
   if (
     !bottomPanelText.includes('GanttBottomPanelViewLazy') ||
+    !bottomPanelText.includes('TimelineBottomPanelViewLazy') ||
     !bottomPanelText.includes('GitGraphBottomPanelViewLazy') ||
     !bottomPanelText.includes('DocumentVersionGitGraphPanelLazy') ||
     !bottomPanelText.includes("bottomSurfaceTab === 'documentVersionGraph'") ||
     !bottomPanelText.includes("setBottomSurfaceTab('documentVersionGraph')") ||
     !bottomPanelText.includes("bottomSurfaceTab === 'gantt'") ||
+    !bottomPanelText.includes("bottomSurfaceTab === 'timeline'") ||
     !bottomPanelText.includes("view === 'documentVersionGraph'") ||
     !bottomPanelText.includes("view === 'gitGraph'") ||
     !bottomPanelText.includes("view === 'gantt'") ||
+    !bottomPanelText.includes("view === 'timeline'") ||
     !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-document-version-graph-toggle') ||
-    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-gantt-toggle')
+    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-gantt-toggle') ||
+    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-timeline-toggle')
   ) {
-    throw new Error('expected BottomPanel to route separate Version Graph, GitGraph, and Gantt tabs')
+    throw new Error('expected BottomPanel to route separate Version Graph, GitGraph, Gantt, and Timeline tabs')
   }
-  if (!iconText.includes("'floatingPanel.gantt'") || !iconText.includes('ChartGantt')) {
-    throw new Error('expected Gantt icon ownership to live in the shared FloatingPanel type icon registry')
+  if (!iconText.includes("'floatingPanel.gantt'") || !iconText.includes("'floatingPanel.timeline'") || !iconText.includes('ChartGantt') || !iconText.includes('HistoryIcon')) {
+    throw new Error('expected Gantt and Timeline icon ownership to live in the shared FloatingPanel type icon registry')
   }
   if (
     !panelText.includes('InteractiveMermaidDiagram') ||
@@ -253,7 +351,11 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   }
   if (
     !selectionHelperText.includes('resolveDiagramRowKey') ||
-    !panelText.includes('readDiagramSelectionLabels') ||
+    !mermaidSelectionText.includes('readDiagramSelectionLabels') ||
+    !mermaidSelectionText.includes('findMermaidDiagramRowKeyForSvgLabel') ||
+    !mermaidSelectionText.includes('buildMermaidInteractiveSelectionRows') ||
+    !panelText.includes('buildMermaidInteractiveSelectionRows') ||
+    !panelText.includes('findMermaidDiagramRowKeyForSvgLabel') ||
     !panelText.includes('selectionRows={selectionRows}') ||
     !panelText.includes('selectedRowKey={selectedRowKey}') ||
     !panelText.includes('onSelectedRowKeyChange={onSelectRowKey}') ||
@@ -279,14 +381,89 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !svgSurfaceZoomRuntimeText.includes('findNearestSvgSelectionTarget') ||
     !svgSurfaceZoomRuntimeText.includes('resolveSvgSelectionClickCandidate') ||
     !svgSurfaceZoomRuntimeText.includes('readSvgContentClientBounds') ||
+    !svgSurfaceZoomRuntimeText.includes('readSvgStoredIntrinsicBounds') ||
+    !svgSurfaceZoomRuntimeText.includes('readSvgSurfaceFitViewportRect') ||
     !svgSurfaceZoomRuntimeText.includes('readSvgViewportRect') ||
     !svgSurfaceZoomRuntimeText.includes('viewportWidth = runtime?.viewport.width || dims.width') ||
     !svgSurfaceZoomRuntimeText.includes('fitAllTransform(visualGraphData.nodes, viewportWidth, viewportHeight') ||
     !svgSurfaceZoomRuntimeText.includes("group.removeAttribute('transform')") ||
-    !svgSurfaceZoomRuntimeText.includes("data-kg-svg-fit-source', contentBounds ? 'content' : 'root'") ||
+    !svgSurfaceZoomRuntimeText.includes("data-kg-svg-fit-source', useIntrinsicBounds ? 'intrinsic' : contentBounds ? 'content' : 'root'") ||
     !svgSurfaceZoomRuntimeText.includes('{ notify: false }')
   ) {
-    throw new Error('expected GitGraph and Gantt diagrams to reuse direct SVG canvas-to-row selection, interactive SVG dimming, and cached render output')
+    throw new Error('expected GitGraph, Gantt, and Timeline diagrams to reuse direct SVG canvas-to-row selection, interactive SVG dimming, and cached render output')
+  }
+  if (
+    !ganttCanvasText.includes('InteractiveMermaidDiagram') ||
+    !ganttCanvasText.includes('useMermaidGanttDocument') ||
+    !ganttCanvasText.includes("from '@/lib/mermaid/mermaidGanttBarInteraction'") ||
+    !ganttCanvasText.includes('shouldExposeMermaidGanttBarInteraction(selectedRow)') ||
+    !ganttCanvasText.includes('resolveMermaidGanttBarDragPreview') ||
+    !ganttCanvasText.includes('resolveMermaidGanttBarDragCommitted') ||
+    !ganttCanvasText.includes('readGanttMinutesPerPixel') ||
+    !ganttCanvasText.includes('updateMermaidGanttCodeRowTiming') ||
+    !ganttCanvasText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
+    !ganttCanvasText.includes('setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })') ||
+    !ganttCanvasText.includes("setMermaidDiagramSelectedRowKey('gantt', `${dragState.rowLineIndex}:task:${nextLine}`)") ||
+    !ganttCanvasText.includes("element.tagName.toLowerCase() === 'rect'") ||
+    !ganttCanvasText.includes('isVerticalMilestoneRow') ||
+    !ganttCanvasText.includes('setPointerCapture') ||
+    !ganttCanvasText.includes("window.addEventListener('pointermove'") ||
+    !ganttCanvasText.includes('data-kg-gantt-bar-interaction-overlay="1"') ||
+    !ganttCanvasText.includes('data-kg-gantt-bar-drag-mode="move"') ||
+    !ganttCanvasText.includes('data-kg-gantt-bar-drag-mode="resize-start"') ||
+    !ganttCanvasText.includes('data-kg-gantt-bar-drag-mode="resize-end"') ||
+    !ganttCanvasText.includes('data-kg-canvas-pointer-ignore="true"') ||
+    !ganttCanvasText.includes('state.mermaidDiagramSelectedRowKeyByKind.gantt') ||
+    !ganttCanvasText.includes("setMermaidDiagramSelectedRowKey('gantt'") ||
+    !ganttCanvasText.includes('buildMermaidInteractiveSelectionRows') ||
+    !ganttCanvasText.includes('readMermaidDirectSelectionLabels') ||
+    !ganttCanvasText.includes('findMermaidDiagramRowForRowKey') ||
+    !ganttCanvasText.includes('rendererId="gantt"') ||
+    !ganttCanvasText.includes('svgFitMode="wideTimeline"') ||
+    !ganttCanvasText.includes('data-kg-gantt-canvas="1"') ||
+    !ganttCanvasText.includes("setFloatingPanelView('gantt')")
+  ) {
+    throw new Error('expected Canvas Gantt-timeline to share row-key selection state, selected-bar drag handles, and interactive Mermaid selection utilities with BottomPanel and FloatingPanel Gantt-Timeline')
+  }
+  if (
+    ganttCanvasText.includes('TimelineTransportControls') ||
+    ganttCanvasText.includes('useTimelineTransportPlayback') ||
+    ganttCanvasText.includes('data-kg-gantt-timeline-transport') ||
+    ganttCanvasText.includes('data-kg-gantt-timeline-ruler')
+  ) {
+    throw new Error('expected Canvas Gantt-timeline to avoid duplicate bottom playback transport; BottomPanel Timeline owns the scrubber')
+  }
+  if (
+    !ganttBarInteractionText.includes("export type MermaidGanttBarDragMode = 'move' | 'resize-start' | 'resize-end'") ||
+    !ganttBarInteractionText.includes('MERMAID_GANTT_BAR_DRAG_COMMIT_MIN_DELTA_PX') ||
+    !ganttBarInteractionText.includes('MERMAID_GANTT_BAR_DRAG_EDGE_SCROLL_THRESHOLD_PX') ||
+    !ganttBarInteractionText.includes('resolveMermaidGanttBarDragPreview') ||
+    !ganttBarInteractionText.includes('buildMermaidGanttTimelineModel') ||
+    !ganttBarInteractionText.includes('buildMermaidGanttTimelineTicks') ||
+    !ganttBarInteractionText.includes('resolveMermaidGanttTimelineRowKeyAtPosition') ||
+    !ganttBarInteractionText.includes('updateMermaidGanttCodeRowTiming') ||
+    !ganttBarInteractionText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
+    !ganttBarInteractionText.includes('shouldExposeMermaidGanttBarInteraction') ||
+    ganttBarInteractionText.includes('knowgrph-animatic-demo') ||
+    ganttBarInteractionText.includes('/Users/')
+  ) {
+    throw new Error('expected Gantt-timeline drag/resize bar behavior to live in neutral shared Mermaid utilities without fixture paths')
+  }
+  if (
+    !interactiveMermaidText.includes('svgFitMode?: SvgSurfaceFitMode') ||
+    !interactiveMermaidText.includes('svgFitMode,') ||
+    !svgSurfaceZoomRuntimeText.includes("export type SvgSurfaceFitMode = 'auto' | 'wideTimeline'") ||
+    !svgSurfaceZoomRuntimeText.includes('computeSvgSurfaceWideTimelineFitTransform') ||
+    !svgSurfaceZoomRuntimeText.includes("prepareSvgForInteractiveViewport({ svgEl, fitMode: svgFitMode })") ||
+    !svgSurfaceZoomRuntimeText.includes("svgFitMode === 'wideTimeline' ? 'wideTimeline:v2' : svgFitMode") ||
+    !svgSurfaceZoomRuntimeText.includes('[data-kg-floating-panel-root="true"]') ||
+    !svgSurfaceZoomRuntimeText.includes('[data-kg-strybldr-bottom-timeline-panel="1"]') ||
+    !svgSurfaceZoomRuntimeText.includes('data-kg-svg-fit-viewport-w') ||
+    !svgSurfaceZoomRuntimeText.includes('graphDataRevisionRef.current') ||
+    !svgSurfaceZoomRuntimeText.includes("data-kg-svg-fit-policy', timelineFitted ? 'wideTimeline' : 'fitAll'") ||
+    !svgSurfaceZoomRuntimeText.includes("`fit:${normalizedFitMode}`")
+  ) {
+    throw new Error('expected Gantt-timeline Canvas to reuse shared SVG fit policy for readable wide timelines')
   }
   if (
     panelText.includes('resolveDiagramPointerRowIndex') ||
@@ -294,18 +471,36 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     panelText.includes('showRowMarkers') ||
     panelText.includes('data-kg-mermaid-diagram-row-marker')
   ) {
-    throw new Error('expected BottomPanel GitGraph and Gantt to select rows from rendered SVG elements instead of proxy row markers')
+    throw new Error('expected BottomPanel Mermaid diagrams to select rows from rendered SVG elements instead of proxy row markers')
   }
   if (
     gitGraphFloatingText.includes('MermaidDiagramRenderPreview') ||
     !gitGraphFloatingText.includes('data-kg-mermaid-diagram-render-mode="list"') ||
     !gitGraphFloatingText.includes('mermaidDiagramSelectedRowKeyByKind.gitgraph') ||
     !gitGraphFloatingText.includes("setMermaidDiagramSelectedRowKey('gitgraph'") ||
-    !gitGraphFloatingText.includes('resolveDiagramRowKey') ||
+    !gitGraphFloatingText.includes('resolveGitGraphCommandRowKey') ||
     !ganttFloatingText.includes('MermaidDiagramPanelView') ||
-    !ganttFloatingText.includes('renderMode="list"')
+    !ganttFloatingText.includes('renderMode="list"') ||
+    !timelineFloatingText.includes('MermaidDiagramPanelView') ||
+    !timelineFloatingText.includes('kind="timeline"') ||
+    !timelineFloatingText.includes('renderMode="list"')
   ) {
-    throw new Error('expected FloatingPanel GitGraph and Gantt to keep row-list/editor surfaces only and sync through shared selection')
+    throw new Error('expected FloatingPanel Mermaid diagrams to keep row-list/editor surfaces only and sync through shared selection')
+  }
+  if (
+    !gitGraphSelectionText.includes('resolveGitGraphSelectedCommand') ||
+    !gitGraphSelectionText.includes('findGitGraphCommandForRowKey') ||
+    !gitGraphSelectionText.includes('findGitGraphCommandForExactLabel') ||
+    !gitGraphCanvasText.includes('resolveGitGraphSelectedCommand') ||
+    !gitGraphCanvasText.includes("setMermaidDiagramSelectedRowKey('gitgraph'") ||
+    !gitGraphCanvasText.includes('handleDiagramSelectedRowKeyChange(rowKey') ||
+    !gitGraphBottomText.includes('findGitGraphCommandForRowKey') ||
+    !gitGraphBottomText.includes('setGitGraphSelectedCommandLineIndex(command?.lineIndex ?? null)') ||
+    !gitGraphBottomText.includes("setMermaidDiagramSelectedRowKey('gitgraph', rowKey)") ||
+    !gitGraphFloatingText.includes('findGitGraphCommandForRowKey') ||
+    !gitGraphFloatingText.includes('return null')
+  ) {
+    throw new Error('expected Canvas GitGraph, BottomPanel GitGraph, and FloatingPanel GitGraph to share command row-key and line-index selection utilities without surface-local defaults')
   }
   if (
     !gitGraphBottomText.includes('MermaidDiagramPanelView') ||
@@ -323,12 +518,164 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   ) {
     throw new Error('expected BottomPanel Gantt to reuse the shared Mermaid panel utility as the diagram surface')
   }
+  if (
+    !timelineBottomText.includes('MermaidDiagramPanelView') ||
+    !timelineBottomText.includes('kind="timeline"') ||
+    !timelineBottomText.includes('renderMode="diagram"') ||
+    !timelineBottomText.includes('GanttTimelineTransportPanel') ||
+    !timelineBottomText.includes('<GanttTimelineTransportPanel code={ganttCode} compact={compact} />') ||
+    timelineBottomText.includes('TimelineTransportControls') ||
+    timelineBottomText.includes('useTimelineTransportPlayback') ||
+    timelineBottomText.includes('buildMermaidGanttTimelineModel') ||
+    timelineBottomText.includes('data-kg-gantt-timeline-transport')
+  ) {
+    throw new Error('expected BottomPanel Timeline to render Mermaid Timeline and delegate the Gantt-Timeline transport fallback to the shared Gantt transport owner')
+  }
+  if (
+    !ganttTransportText.includes('TimelineTransportControls') ||
+    !ganttTransportText.includes('useTimelineTransportPlayback') ||
+    !ganttTransportText.includes('buildMermaidGanttTimelineModel(code)') ||
+    !ganttTransportText.includes('buildMermaidGanttTimelineTicks(timelineModel)') ||
+    !ganttTransportText.includes('resolveMermaidGanttTimelineRowKeyAtPosition(timelineModel, nextPosition)') ||
+    !ganttTransportText.includes("setMermaidDiagramSelectedRowKey('gantt', rowKey)") ||
+    !ganttTransportText.includes('data-kg-gantt-timeline-transport="bottomPanel"') ||
+    !ganttTransportText.includes('data-kg-gantt-timeline-ruler="bottomPanel"') ||
+    ganttTransportText.includes('aregrid/frame') ||
+    ganttTransportText.includes('/Users/')
+  ) {
+    throw new Error('expected shared Gantt-Timeline transport to own playback/scrub state, row-key sync, and neutral BottomPanel markers without copied fixture/source tokens')
+  }
   if (!resolverText.includes('readTypedMermaidDiagramCodes') || !resolverText.includes('mermaid_gantt')) {
     throw new Error('expected typed Mermaid diagram parsing to live in the shared resolver')
   }
+  if (!resolverText.includes('mermaid_timeline') || !resolverText.includes('readTimelineRowKind')) {
+    throw new Error('expected typed Timeline parsing to live in the shared resolver')
+  }
+  const sharedGanttModel = parseMermaidDiagramCodeModel([
+    'gantt',
+    '  title Shared Gantt',
+    '  section Compute',
+    '  Compute summary :crit, compute_summary, 2026-06-07, 1d',
+  ].join('\n'), 'gantt')
+  const sharedGanttTask = sharedGanttModel.rows.find(row => row.kind === 'task')
+  const sharedGanttRowKey = findMermaidDiagramRowKeyForSvgLabel(sharedGanttModel.rows, 'Compute summary')
+  if (!sharedGanttTask || !sharedGanttRowKey || !readMermaidDirectSelectionLabels(sharedGanttTask).includes('Compute summary')) {
+    throw new Error('expected shared Mermaid Gantt selection helper to resolve task labels into reusable row keys')
+  }
+  const wideTimelineTransform = computeSvgSurfaceWideTimelineFitTransform({
+    bounds: { minX: 0, minY: 0, width: 11869, height: 194.5 },
+    viewportWidth: 1349,
+    viewportHeight: 936,
+  })
+  if (!wideTimelineTransform || wideTimelineTransform.k <= 1 || wideTimelineTransform.x < 20 || wideTimelineTransform.y < 200) {
+    throw new Error(`expected wide Gantt timeline fit to keep readable scale and centered vertical placement, got ${JSON.stringify(wideTimelineTransform)}`)
+  }
+  const visibleFrameGanttTransform = computeSvgSurfaceWideTimelineFitTransform({
+    bounds: { minX: 0, minY: 0, width: 1375, height: 196 },
+    viewportWidth: 925,
+    viewportHeight: 697,
+  })
+  if (
+    !visibleFrameGanttTransform ||
+    visibleFrameGanttTransform.k >= 0.7 ||
+    visibleFrameGanttTransform.x < 20 ||
+    visibleFrameGanttTransform.y < 250
+  ) {
+    throw new Error(`expected ordinary Gantt timeline fit to stay inside unobscured canvas frame, got ${JSON.stringify(visibleFrameGanttTransform)}`)
+  }
   for (const forbidden of ['knowgrph-research-agent-demo', 'knowgrph-missalph-demo', '/Users/']) {
-    if (resolverText.includes(forbidden) || panelText.includes(forbidden)) {
+    if (resolverText.includes(forbidden) || panelText.includes(forbidden) || ganttBarInteractionText.includes(forbidden)) {
       throw new Error(`expected Mermaid panel path to avoid hardcoded fixture token ${forbidden}`)
     }
+  }
+  if (!isMermaidGanttBarDragMode('move') || !isMermaidGanttBarDragMode('resize-start') || isMermaidGanttBarDragMode('legacy')) {
+    throw new Error('expected Gantt bar drag mode guard to accept only current move/resize modes')
+  }
+  if (!shouldExposeMermaidGanttBarInteraction({ kind: 'task' }) || shouldExposeMermaidGanttBarInteraction({ kind: 'config' })) {
+    throw new Error('expected Gantt bar interaction helper to expose handles only for parsed task rows')
+  }
+  const movePreview = resolveMermaidGanttBarDragPreview({ mode: 'move', originClientX: 10, clientX: 18 })
+  const resizeStartPreview = resolveMermaidGanttBarDragPreview({ mode: 'resize-start', originClientX: 10, clientX: 18 })
+  const resizeEndPreview = resolveMermaidGanttBarDragPreview({ mode: 'resize-end', originClientX: 10, clientX: 18 })
+  if (movePreview.offsetPx !== 8 || movePreview.widthDeltaPx !== 0) {
+    throw new Error('expected Gantt move preview to translate without resizing')
+  }
+  if (resizeStartPreview.offsetPx !== 8 || resizeStartPreview.widthDeltaPx !== -8) {
+    throw new Error('expected Gantt resize-start preview to move the leading edge')
+  }
+  if (resizeEndPreview.offsetPx !== 0 || resizeEndPreview.widthDeltaPx !== 8) {
+    throw new Error('expected Gantt resize-end preview to extend the trailing edge')
+  }
+  if (
+    MERMAID_GANTT_BAR_DRAG_COMMIT_MIN_DELTA_PX !== 4 ||
+    MERMAID_GANTT_BAR_DRAG_EDGE_SCROLL_THRESHOLD_PX !== 72 ||
+    resolveMermaidGanttBarDragCommitted(3) ||
+    !resolveMermaidGanttBarDragCommitted(4)
+  ) {
+    throw new Error('expected Gantt drag thresholds to match the reused Animatic interaction contract')
+  }
+  const timelineModel = buildMermaidGanttTimelineModel([
+    'gantt',
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+    '  Initial vert : vert, v1, 17:30, 2m',
+    '  Task A : 3m',
+    '  Task B : 8m',
+    '  Final vert : vert, v2, 17:58, 4m',
+  ].join('\n'))
+  const taskARowKey = resolveMermaidGanttTimelineRowKeyAtPosition(timelineModel, 3)
+  const ticks = buildMermaidGanttTimelineTicks(timelineModel)
+  if (
+    timelineModel.durationMinutes !== 32 ||
+    timelineModel.taskSpans.length !== 4 ||
+    !taskARowKey?.includes('Task A : 3m') ||
+    ticks[0]?.label !== '0:00' ||
+    ticks[ticks.length - 1]?.label !== '0:32' ||
+    formatMermaidGanttTimelineOffset(125) !== '2:05'
+  ) {
+    throw new Error(`expected Gantt scrubber model to normalize HH:mm and relative rows into neutral timeline spans, got ${JSON.stringify({ timelineModel, ticks, taskARowKey })}`)
+  }
+  const editedGanttCode = updateMermaidGanttCodeRowTiming({
+    code: [
+      'gantt',
+      '  dateFormat HH:mm',
+      '  Initial vert : vert, v1, 17:30, 2m',
+    ].join('\n'),
+    rowLineIndex: 2,
+    mode: 'move',
+    deltaMinutes: 3,
+  })
+  if (!editedGanttCode?.includes('Initial vert : vert, v1, 17:33, 2m')) {
+    throw new Error('expected Gantt move drag to update explicit HH:mm task timing')
+  }
+  const resizedGanttCode = updateMermaidGanttCodeRowTiming({
+    code: [
+      'gantt',
+      '  dateFormat HH:mm',
+      '  Initial vert : vert, v1, 17:30, 2m',
+    ].join('\n'),
+    rowLineIndex: 2,
+    mode: 'resize-end',
+    deltaMinutes: 2,
+  })
+  if (!resizedGanttCode?.includes('Initial vert : vert, v1, 17:30, 4m')) {
+    throw new Error('expected Gantt resize-end drag to update explicit minute duration')
+  }
+  const markdownWithGantt = [
+    '---',
+    'flow_diagrams:',
+    '  value:',
+    '    time_flow:',
+    '      type: mermaid_gantt',
+    '      value: |-',
+    '        gantt',
+    '          dateFormat HH:mm',
+    '          Initial vert : vert, v1, 17:30, 2m',
+    '---',
+    '',
+  ].join('\n')
+  const replacedMarkdown = replaceFirstMermaidGanttFrontmatterCode(markdownWithGantt, editedGanttCode || '')
+  if (!replacedMarkdown?.includes('          Initial vert : vert, v1, 17:33, 2m')) {
+    throw new Error('expected Gantt drag commit to rewrite the typed mermaid_gantt frontmatter block without fixture-specific paths')
   }
 }

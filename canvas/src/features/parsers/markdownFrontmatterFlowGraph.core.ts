@@ -1272,7 +1272,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     const socketTypes = readSocketTypes(metaRecord)
     const warnings = [
       ...readFlowWarnings(metaRecord),
-      ...buildConnectionWarnings({ meta: { ...metaRecord, nodes: normalized.nodes }, socketTypes, declared: connParsed.declared }),
+      ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared }),
     ]
     const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
     const registry = mergeWidgetRegistryEntries(readAuthoredWidgetRegistryEntries(metaRecord), normalized.registry)
@@ -1478,7 +1478,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const warnings = [
     ...frontmatterParseWarnings,
     ...readFlowWarnings(metaRecord),
-    ...buildConnectionWarnings({ meta: { ...metaRecord, nodes: normalized.nodes }, socketTypes, declared: connParsed.declared }),
+    ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared }),
     ...collectNodePositionWarnings(rawNodes),
   ]
   const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null

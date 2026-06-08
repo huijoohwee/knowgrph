@@ -7,7 +7,11 @@ export type DiagramSelectionRow = {
   raw?: string
 }
 
-const splitSemanticTokens = (value: string): string[] => {
+export const normalizeDiagramSelectionText = (value: unknown): string => {
+  return String(value || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+export const splitDiagramSelectionTokens = (value: string): string[] => {
   return String(value || '')
     .split(/[^A-Za-z0-9_.-]+/g)
     .map(token => token.trim())
@@ -24,8 +28,8 @@ export const readDiagramSelectionLabels = (row: DiagramSelectionRow | null | und
   }
   push(row.label)
   push(row.raw)
-  for (const token of splitSemanticTokens(String(row.label || ''))) push(token)
-  for (const token of splitSemanticTokens(String(row.raw || ''))) push(token)
+  for (const token of splitDiagramSelectionTokens(String(row.label || ''))) push(token)
+  for (const token of splitDiagramSelectionTokens(String(row.raw || ''))) push(token)
   return out
 }
 

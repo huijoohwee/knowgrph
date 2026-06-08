@@ -12,7 +12,7 @@ export const CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR =
   `[data-kg-flow-node-drag-handle="true"],[data-kg-canvas-overlay-drag-handle="true"],${CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR}`
 
 export const FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR =
-  'input,textarea,select,button,a,[role="textbox"],[role="button"],[contenteditable="true"]'
+  'input,textarea,select,button,a,[role="textbox"],[role="button"],[contenteditable="true"],[data-kg-card-inline-edit="1"]'
 
 export const FLOW_EDITOR_INTERACTION_FRAME_EVENT = 'kg-flow-editor-interaction-frame'
 
@@ -101,7 +101,18 @@ export function readFlowEditorElementSurfaceId(el: Element | null | undefined): 
 }
 
 export function readFlowEditorOverlaySurfaceId(overlayRoot: HTMLElement | null | undefined): string {
-  return readFlowEditorElementSurfaceId(overlayRoot)
+  if (!(overlayRoot instanceof HTMLElement)) return ''
+  const ownSurfaceId = readFlowEditorElementSurfaceId(overlayRoot)
+  if (ownSurfaceId) return ownSurfaceId
+  try {
+    const closestSurface = overlayRoot.closest(`[${FLOW_EDITOR_OVERLAY_SURFACE_ATTR}]`)
+    if (closestSurface instanceof HTMLElement) {
+      return String(closestSurface.dataset.kgFlowEditorSurface || '').trim()
+    }
+  } catch {
+    void 0
+  }
+  return ''
 }
 
 export function isTransientOffscreenRichMediaOverlayRoot(overlayRoot: HTMLElement | null | undefined, rect: DOMRect | null | undefined): boolean {

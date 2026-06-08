@@ -161,7 +161,7 @@ export async function testReadAssistantResponseTextFlushesTraceProgressBeforeCon
   }
   if (
     !firstDraft.text.includes('Provider Stream Trace') ||
-    !firstDraft.text.includes('Final assistant text has not arrived yet') ||
+    !firstDraft.text.includes('Incoming reasoning, tool, and assistant deltas are appended below') ||
     !firstDraft.text.includes('tool_call: use_mcp_tool') ||
     firstDraft.text.includes('_Streaming..._')
   ) {
@@ -170,8 +170,8 @@ export async function testReadAssistantResponseTextFlushesTraceProgressBeforeCon
   const lastDraft = flushed[flushed.length - 1]
   if (
     !lastDraft?.force ||
-    !lastDraft.text.includes('did not return final assistant text') ||
-    lastDraft.text.includes('Final assistant text has not arrived yet')
+    !lastDraft.text.includes('### Terminal Metadata') ||
+    !lastDraft.text.includes('SSE events:')
   ) {
     throw new Error(`Expected final trace-only draft flush to preserve progress text, got: ${JSON.stringify(flushed)}`)
   }
@@ -293,17 +293,18 @@ export async function testReadAssistantResponseTextFormatsKgcDraftAsLiveTraceDur
   if (!assistantStream.assistantText.includes('BTC Pipeline')) {
     throw new Error(`Expected raw assistant text to remain available for validation, got: ${JSON.stringify(assistantStream.assistantText)}`)
   }
-  const contentDraft = flushed.find(draft => draft.text.includes('Assistant Draft'))
+  const contentDraft = flushed.find(draft => draft.text.includes('[assistant]'))
   if (
     !contentDraft ||
     !contentDraft.text.includes('Provider Stream Trace') ||
-    !contentDraft.text.includes('The provider is streaming assistant content') ||
-    !contentDraft.text.includes('```markdown\n---\ntitle: "BTC Pipeline"')
+    !contentDraft.text.includes('Incoming reasoning, tool, and assistant deltas are appended below') ||
+    !contentDraft.text.includes('[reasoning]\nPlanning KGC output.') ||
+    !contentDraft.text.includes('[assistant]\n---\ntitle: "BTC Pipeline"')
   ) {
     throw new Error(`Expected content stream to stay wrapped as a live trace draft, got: ${JSON.stringify(flushed)}`)
   }
   const finalDraft = flushed[flushed.length - 1]
-  if (!finalDraft?.force || !finalDraft.text.includes('The provider returned assistant text with provider trace events.')) {
+  if (!finalDraft?.force || !finalDraft.text.includes('### Terminal Metadata') || !finalDraft.text.includes('Assistant characters:')) {
     throw new Error(`Expected terminal content draft to keep trace wrapper, got: ${JSON.stringify(flushed)}`)
   }
 }
@@ -342,7 +343,7 @@ export async function testReadAssistantResponseTextFailsOnMissingFirstChunk() {
   }
 }
 
-export async function testCreateChatKnowgrphDraftWriterStreamsTraceCompanionWithoutWorkspaceRewrite() {
+export async function testCreateChatKnowgrphDraftWriterPersistsTraceCompanionForRefresh() {
   const followedPaths: string[] = []
   const streamingStates: Array<{ path: string | null; text: string }> = []
   const persistedDrafts: Array<{ requestedPath: string; assistantText: string }> = []
@@ -371,7 +372,7 @@ export async function testCreateChatKnowgrphDraftWriterStreamsTraceCompanionWith
       })
       return '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md'
     },
-    persistWorkspaceDrafts: false,
+    persistWorkspaceDrafts: true,
   })
 
   await flushDraft('partial durable stream', false)
@@ -390,8 +391,12 @@ export async function testCreateChatKnowgrphDraftWriterStreamsTraceCompanionWith
   ) {
     throw new Error(`Expected live workspace streaming state to expose trace companion text, got: ${JSON.stringify(streamingStates)}`)
   }
-  if (persistedDrafts.length !== 0) {
-    throw new Error(`Expected live stream draft writer to avoid workspace rewrite persistence, got: ${JSON.stringify(persistedDrafts)}`)
+  if (
+    persistedDrafts.length !== 1 ||
+    persistedDrafts[0]?.requestedPath !== '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md' ||
+    persistedDrafts[0]?.assistantText !== 'partial durable stream'
+  ) {
+    throw new Error(`Expected live stream draft writer to persist the latest trace text for refresh recovery, got: ${JSON.stringify(persistedDrafts)}`)
   }
 }
 
@@ -501,7 +506,7 @@ export async function testDurableChatStreamFetchBridgesWorkerSseWithoutPersistin
   }
 }
 
-export async function testCreateChatKnowgrphDraftWriterUpdatesLiveStateWithoutWaitingForPersistence() {
+export async function testCreateChatKnowgrphDraftWriterUpdatesEditorWorkspaceAsLiveSurface() {
   const followedPaths: string[] = []
   const streamingStates: Array<{ path: string | null; text: string }> = []
   const persistedDrafts: string[] = []
@@ -528,9 +533,10 @@ export async function testCreateChatKnowgrphDraftWriterUpdatesLiveStateWithoutWa
       persistedDrafts.push(text)
       return '/workspace/chat/20260522T182000Z/kgc_20260522T182000Z.md'
     },
-    persistWorkspaceDrafts: false,
+    persistWorkspaceDrafts: true,
   })
 
+  await flushDraft('first partial', false)
   await flushDraft('first partial', false)
   await flushDraft('second terminal', true)
 
@@ -540,16 +546,18 @@ export async function testCreateChatKnowgrphDraftWriterUpdatesLiveStateWithoutWa
   }
   if (
     streamingStates.length !== 2 ||
+    streamingStates[0]?.path !== tracePath ||
     streamingStates[0]?.text !== 'first partial' ||
+    streamingStates[1]?.path !== tracePath ||
     streamingStates[1]?.text !== 'second terminal'
   ) {
-    throw new Error(`Expected live workspace state to update synchronously while persistence is pending, got ${JSON.stringify(streamingStates)}`)
+    throw new Error(`Expected editor workspace text to update as the live streaming surface, got ${JSON.stringify(streamingStates)}`)
   }
-  if (persistedDrafts.length !== 0) {
-    throw new Error(`Expected live editor stream updates to avoid workspace rewrite persistence, got ${JSON.stringify(persistedDrafts)}`)
+  if (JSON.stringify(persistedDrafts) !== JSON.stringify(['first partial', 'second terminal'])) {
+    throw new Error(`Expected live editor stream updates to persist changed trace snapshots and skip duplicate chunks, got ${JSON.stringify(persistedDrafts)}`)
   }
-  if (followedPaths.length !== 2 || followedPaths.every(path => path === tracePath) !== true) {
-    throw new Error(`Expected both live updates to follow the trace workspace path, got ${JSON.stringify(followedPaths)}`)
+  if (followedPaths.length !== 1 || followedPaths[0] !== tracePath) {
+    throw new Error(`Expected stream writer to follow the trace workspace path only when it first lands, got ${JSON.stringify(followedPaths)}`)
   }
 }
 

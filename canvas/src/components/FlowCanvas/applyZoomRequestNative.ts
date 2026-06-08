@@ -25,7 +25,6 @@ import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanva
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
-import { computeLayoutRectSetViewportCenterShift } from '@/lib/canvas/graph-elements/centroid'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -125,21 +124,23 @@ export function resolveFlowEditorVisibleViewport(args: {
     `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeCssAttrValue(surfaceId)}"]`,
   )
   if (!(surfaceRoot instanceof HTMLElement)) return fallback
-  const rect = surfaceRoot.getBoundingClientRect()
-  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.right) || !Number.isFinite(rect.bottom)) return fallback
+  const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
+  if (!Number.isFinite(surfaceRect?.left) || !Number.isFinite(surfaceRect?.top) || !Number.isFinite(surfaceRect?.right) || !Number.isFinite(surfaceRect?.bottom)) return fallback
   const top = 0
   const left = 0
-  const right = Math.max(left + 1, Math.min(args.viewportW, Math.floor(rect.width)))
-  const bottom = Math.max(top + 1, Math.min(args.viewportH, Math.floor(rect.height)))
+  const right = Math.max(left + 1, Math.min(args.viewportW, Math.floor(Number(surfaceRect?.width) || args.viewportW)))
+  const bottom = Math.max(top + 1, Math.min(args.viewportH, Math.floor(Number(surfaceRect?.height) || args.viewportH)))
   // Editor Workspace is an overlay, not a Flow Editor layout constraint.
-  return normalizeViewportFrame({
-    viewportW: args.viewportW,
-    viewportH: args.viewportH,
+  return {
     left,
     top,
+    right,
+    bottom,
     width: Math.max(1, right - left),
     height: Math.max(1, bottom - top),
-  })
+    centerX: (left + right) / 2,
+    centerY: (top + bottom) / 2,
+  }
 }
 
 export function recenterVisibleFlowEditorOverlayCentroid(args: {
@@ -180,27 +181,20 @@ export function recenterVisibleFlowEditorOverlayCentroid(args: {
       width: Math.max(1, entry.right - entry.left),
       height: Math.max(1, entry.bottom - entry.top),
     })))
-    const clampMetrics = measureLayoutRectSet([{
-      left: bounds.minX,
-      top: bounds.minY,
-      width: Math.max(1, bounds.maxX - bounds.minX),
-      height: Math.max(1, bounds.maxY - bounds.minY),
-    }])
-    const shift = computeLayoutRectSetViewportCenterShift({
-      metrics,
-      clampMetrics,
-      viewportW: visibleViewport.width,
-      viewportH: visibleViewport.height,
-      viewportLeft: visibleViewport.left,
-      viewportTop: visibleViewport.top,
-      viewportRight: visibleViewport.right,
-      viewportBottom: visibleViewport.bottom,
-      viewportCenterX: visibleViewport.centerX,
-      viewportCenterY: visibleViewport.centerY,
-    })
-    if (!shift) return
-    const deltaX = shift.dx
-    const deltaY = shift.dy
+    if (!metrics) return
+    const centroid = { x: metrics.centroidX, y: metrics.centroidY }
+    const desiredDeltaX = visibleViewport.centerX - centroid.x
+    const desiredDeltaY = visibleViewport.centerY - centroid.y
+    const minDeltaX = visibleViewport.left - bounds.minX
+    const maxDeltaX = visibleViewport.right - bounds.maxX
+    const minDeltaY = visibleViewport.top - bounds.minY
+    const maxDeltaY = visibleViewport.bottom - bounds.maxY
+    const deltaX = minDeltaX <= maxDeltaX
+      ? Math.max(minDeltaX, Math.min(maxDeltaX, desiredDeltaX))
+      : desiredDeltaX
+    const deltaY = minDeltaY <= maxDeltaY
+      ? Math.max(minDeltaY, Math.min(maxDeltaY, desiredDeltaY))
+      : desiredDeltaY
     if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
     const current = args.runtime.transform || d3.zoomIdentity
     setFlowNativeTransform(args.runtime, d3.zoomIdentity.translate(current.x + deltaX, current.y + deltaY).scale(current.k))

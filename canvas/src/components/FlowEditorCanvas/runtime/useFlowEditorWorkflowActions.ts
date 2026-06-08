@@ -10,8 +10,6 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/file'
-import { FLOW_RUN_ALL_PHASES } from '@/lib/flowEditor/runAllSequenceSsot'
-import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
@@ -22,7 +20,6 @@ import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidget
 import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
 import {
   getCachedFlowEditorWorkflowNodeResolutionContext,
-  getCachedFlowEditorWorkflowRunPlan,
   resolveFlowEditorWorkflowNodeByIdAcrossGraphs,
   resolveFlowEditorWorkflowRunTarget,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
@@ -42,6 +39,8 @@ import {
   setFlowEditorWorkflowRunLoadingStateForKnownNodeIds,
   updateFlowEditorWorkflowOutputForKnownNodeIds,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
+import { useFlowEditorWorkflowRunAll } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowRunAll'
+import { readFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 
 export function useFlowEditorWorkflowActions(args: {
   flowEditorViewActive: boolean
@@ -203,13 +202,14 @@ export function useFlowEditorWorkflowActions(args: {
       }
 
       const rawNodeProperties = (node.properties || {}) as Record<string, unknown>
-      if (typeof rawNodeProperties['flow:compute'] === 'string' && rawNodeProperties['flow:compute'].trim()) {
+      if (readFlowComputeSource(node)) {
         const inlineRegistryEntry = resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })
         const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({
           context: workflowNodeResolutionContext,
           graphForRun,
           writableNodeId,
           registry: args.widgetRegistry,
+          preserveMaterializedOutputs: false,
         })
         const connectedValuesBySchemaPath = connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId) || null
         const nextInlinePatch = buildFlowEditorInlineComputeOutputPatch({
@@ -554,52 +554,13 @@ export function useFlowEditorWorkflowActions(args: {
     }
   }, [args, scheduleWorkflowOutputEdgeRefresh])
 
-  const runWorkflowAllInFlightRef = React.useRef(false)
-  const runWorkflowAllNodes = React.useCallback(async () => {
-    if (!args.flowEditorViewActive) {
-      args.upsertUiToast({ id: 'flow-editor-run-all-not-active', kind: 'neutral', message: 'Open Flow Editor to run all.', ttlMs: 2200 })
-      return
-    }
-    if (runWorkflowAllInFlightRef.current) return
-    runWorkflowAllInFlightRef.current = true
-    try {
-      const draft = (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null
-      const nodes = Array.isArray(draft?.nodes) ? (draft!.nodes as GraphNode[]) : []
-      if (!draft || nodes.length === 0) {
-        args.upsertUiToast({ id: 'flow-editor-run-all-missing', kind: 'neutral', message: UI_COPY.flowEditorNoDraftGraphToast, ttlMs: 2400 })
-        return
-      }
-      const runPlan = getCachedFlowEditorWorkflowRunPlan({
-        graphData: draft,
-        graphRevision: readGraphDataRevision(draft),
-        preferCurrentGraphDataRefs: true,
-      })
-      const ids = runPlan?.orderedNodeIds || []
-      if (ids.length === 0) {
-        args.upsertUiToast({ id: 'flow-editor-run-all-empty', kind: 'neutral', message: 'No runnable workflow nodes found.', ttlMs: 2400 })
-        return
-      }
-      const phaseCounts = runPlan?.phaseCounts || { text: 0, imageFoundation: 0, imageScene: 0, video: 0 }
-      const phaseSummary = FLOW_RUN_ALL_PHASES.map(phase => `${phase.label}: ${phaseCounts[phase.id] || 0}`).join(' · ')
-      args.upsertUiToast({ id: 'flow-editor-run-all', kind: 'neutral', message: `Running ${ids.length} nodes in sequence. ${phaseSummary}`, ttlMs: 2600 })
-      for (let i = 0; i < ids.length; i += 1) {
-        await runWorkflowNode(ids[i]!, { allowCreateRichMediaPanel: false })
-        if (typeof requestAnimationFrame === 'function') await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-      }
-      args.upsertUiToast({ id: 'flow-editor-run-all-done', kind: 'neutral', message: `Ran ${ids.length} nodes.`, ttlMs: 2200 })
-    } finally {
-      runWorkflowAllInFlightRef.current = false
-    }
-  }, [args, runWorkflowNode])
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    const handler = () => {
-      void runWorkflowAllNodes()
-    }
-    window.addEventListener(WORKFLOW_RUN_ALL_EVENT, handler as EventListener)
-    return () => window.removeEventListener(WORKFLOW_RUN_ALL_EVENT, handler as EventListener)
-  }, [runWorkflowAllNodes])
+  useFlowEditorWorkflowRunAll({
+    flowEditorViewActive: args.flowEditorViewActive,
+    draftGraphData: args.draftGraphData,
+    draftGraphDataRef: args.draftGraphDataRef,
+    upsertUiToast: args.upsertUiToast,
+    runWorkflowNode,
+  })
 
   const exportWorkflowBundle = React.useCallback(async () => {
     try {

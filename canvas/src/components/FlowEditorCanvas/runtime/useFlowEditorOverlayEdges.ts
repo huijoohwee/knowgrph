@@ -49,6 +49,7 @@ import {
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCrowdingLiftPx } from '@/lib/flowEditor/frontmatterCollectiveLayout'
+import { resolveFlowEditorFocusedEdgeIds } from '@/lib/flowEditor/flowEditorPortRows'
 
 function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>) {
   for (const el of ref.current.values()) {
@@ -70,6 +71,7 @@ type FrozenOverlayEdgePathSnapshot = {
 const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()
 const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'
 const FLOW_EDITOR_OVERLAY_EDGE_OPACITY = '0.82'
+const FLOW_EDITOR_OVERLAY_EDGE_DIMMED_OPACITY = '0.16'
 const FLOW_EDITOR_MEDIA_SCROLL_SURFACE_SELECTOR = '[data-kg-media-scroll-surface="1"]'
 const FLOW_EDITOR_RICH_MEDIA_RENDER_SURFACE_SELECTOR = '[data-kg-rich-media-render-surface="1"]'
 
@@ -173,6 +175,7 @@ export function useFlowEditorOverlayEdges(args: {
 }) {
   const schema = args.schema as GraphSchema
   const rankdir: 'LR' | 'TB' = args.frontmatterFlowRenderSettings?.rankdir === 'TB' ? 'TB' : 'LR'
+  const flowEditorSelectedPortRowKey = useGraphStore(s => s.flowEditorSelectedPortRowKey || '')
   const overlayEdgesSvgRef = React.useRef<SVGSVGElement | null>(null)
   const overlayEdgePathByIdRef = React.useRef<Map<string, SVGPathElement>>(new Map())
   const overlayPendingEdgePathRef = React.useRef<SVGPathElement | null>(null)
@@ -719,6 +722,8 @@ export function useFlowEditorOverlayEdges(args: {
       const graphMetaKind = graphLookup?.graphMetaKind || null
       const nodeIds = graphLookup?.nodeIds || new Set<string>()
       const nodes = graphLookup?.nodes || []
+      const focusedEdges = resolveFlowEditorFocusedEdgeIds(graph, flowEditorSelectedPortRowKey)
+      const focusedEdgeIds = new Set(focusedEdges.edgeIds)
       const defaultPortKeyByNodeId = graphLookup?.defaultPortKeyByNodeId || new Map<string, { in: string; out: string }>()
       const edgeCurveById = graphLookup?.edgeCurveById || new Map<string, { bend: number; orbitShift: number; orbital: boolean; phase: -1 | 1 } | null>()
       const edges = (graphLookup?.edges || []).map(edge => {
@@ -920,7 +925,10 @@ export function useFlowEditorOverlayEdges(args: {
           pending.toolMode === 'addEdge' && pending.sourceId && cursor
             ? `${pending.toolMode}:${pending.sourceId}:${String(pending.sourcePortKey || '')}:${round2(cursor.x)}:${round2(cursor.y)}`
             : ''
-        return `${workspaceOverlayOpen ? 'workspace-open' : 'workspace-closed'}:${round2(rootRect.left)}:${round2(rootRect.top)}:${round2(rootRect.width)}:${round2(rootRect.height)}|${graphSemanticKey}|${nodeParts.join(',')}|${edgeParts.join(',')}|${pendingSig}`
+        const focusSig = focusedEdges.active
+          ? `focus:${flowEditorSelectedPortRowKey}:${focusedEdges.edgeIds.join(',')}`
+          : 'focus:none'
+        return `${workspaceOverlayOpen ? 'workspace-open' : 'workspace-closed'}:${round2(rootRect.left)}:${round2(rootRect.top)}:${round2(rootRect.width)}:${round2(rootRect.height)}|${graphSemanticKey}|${nodeParts.join(',')}|${edgeParts.join(',')}|${pendingSig}|${focusSig}`
       })()
       if (overlayEdgeLayoutSigRef.current === layoutSig) return
       overlayEdgeLayoutSigRef.current = layoutSig
@@ -1106,12 +1114,17 @@ export function useFlowEditorOverlayEdges(args: {
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
         const stroke = e.stroke
         const strokeWidth = e.strokeWidth
+        const edgeFocused = focusedEdges.active && focusedEdgeIds.has(edgeId)
+        const edgeDimmed = focusedEdges.active && !focusedEdgeIds.has(edgeId)
+        const edgeOpacity = edgeDimmed ? FLOW_EDITOR_OVERLAY_EDGE_DIMMED_OPACITY : FLOW_EDITOR_OVERLAY_EDGE_OPACITY
         if (!existing) {
           pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)
           pathEl.setAttribute('fill', 'none')
           pathEl.setAttribute('stroke', stroke)
           pathEl.setAttribute('stroke-width', strokeWidth)
-          pathEl.setAttribute('opacity', FLOW_EDITOR_OVERLAY_EDGE_OPACITY)
+          pathEl.setAttribute('opacity', edgeOpacity)
+          pathEl.setAttribute('data-kg-flow-editor-edge-focused', edgeFocused ? 'true' : 'false')
+          pathEl.setAttribute('data-kg-flow-editor-edge-dimmed', edgeDimmed ? 'true' : 'false')
           pathEl.setAttribute('stroke-linejoin', 'round')
           pathEl.setAttribute('stroke-linecap', 'round')
           pathEl.setAttribute('stroke-dasharray', edgeAnimated ? '7 5' : '')
@@ -1122,7 +1135,9 @@ export function useFlowEditorOverlayEdges(args: {
         if (pathEl.getAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR) !== edgeId) pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)
         if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
         if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
-        if (pathEl.getAttribute('opacity') !== FLOW_EDITOR_OVERLAY_EDGE_OPACITY) pathEl.setAttribute('opacity', FLOW_EDITOR_OVERLAY_EDGE_OPACITY)
+        if (pathEl.getAttribute('opacity') !== edgeOpacity) pathEl.setAttribute('opacity', edgeOpacity)
+        if (pathEl.getAttribute('data-kg-flow-editor-edge-focused') !== (edgeFocused ? 'true' : 'false')) pathEl.setAttribute('data-kg-flow-editor-edge-focused', edgeFocused ? 'true' : 'false')
+        if (pathEl.getAttribute('data-kg-flow-editor-edge-dimmed') !== (edgeDimmed ? 'true' : 'false')) pathEl.setAttribute('data-kg-flow-editor-edge-dimmed', edgeDimmed ? 'true' : 'false')
         const edgeDash = edgeAnimated ? '7 5' : ''
         if (pathEl.getAttribute('stroke-dasharray') !== edgeDash) pathEl.setAttribute('stroke-dasharray', edgeDash)
         pathEl.style.animation = edgeAnimated ? 'kg-edge-dash-flow 1.25s linear infinite' : ''
@@ -1176,7 +1191,7 @@ export function useFlowEditorOverlayEdges(args: {
       })
       if (keep.size === 0) overlayEdgeLayoutSigRef.current = ''
     })
-  }, [args.active, args.draftGraphDataRef, args.flowEditorSurfaceId, args.openWidgetNodeIdsRef, args.overlayEdgesEnabledRef, args.overlayEditorNodeIdsRef, args.pendingOverlayNodeIdRef, args.renderGraphDataOverride, args.rootRef, args.widgetRegistryRef, cacheFrozenOverlayEdgePaths, pushOverlayEdgeTrace, rankdir, restoreFrozenOverlayEdgePaths, scheduleOverlayEdgeReadinessRetry, scheduleTransientOverlayEdgeRetry, schema])
+  }, [args.active, args.draftGraphDataRef, args.flowEditorSurfaceId, args.openWidgetNodeIdsRef, args.overlayEdgesEnabledRef, args.overlayEditorNodeIdsRef, args.pendingOverlayNodeIdRef, args.renderGraphDataOverride, args.rootRef, args.widgetRegistryRef, cacheFrozenOverlayEdgePaths, flowEditorSelectedPortRowKey, pushOverlayEdgeTrace, rankdir, restoreFrozenOverlayEdgePaths, scheduleOverlayEdgeReadinessRetry, scheduleTransientOverlayEdgeRetry, schema])
   scheduleOverlayEdgeUpdateRef.current = scheduleOverlayEdgeUpdate
 
   React.useEffect(() => {
@@ -1240,6 +1255,13 @@ export function useFlowEditorOverlayEdges(args: {
     pushOverlayEdgeTrace('theme-change', { resolvedThemeMode: args.resolvedThemeMode })
     scheduleOverlayEdgeUpdate()
   }, [args.active, args.overlayOnlyModeEnabled, args.resolvedThemeMode, pushOverlayEdgeTrace, scheduleOverlayEdgeUpdate])
+
+  React.useEffect(() => {
+    if (!args.active) return
+    if (!args.overlayOnlyModeEnabled) return
+    overlayEdgeLayoutSigRef.current = ''
+    scheduleOverlayEdgeUpdate()
+  }, [args.active, args.overlayOnlyModeEnabled, flowEditorSelectedPortRowKey, scheduleOverlayEdgeUpdate])
 
   React.useEffect(() => {
     if (!args.active) return

@@ -236,7 +236,7 @@ export function testCanvasDocumentModeToolbarActionsNormalizeConflictingFlags() 
     setRenderMediaAsNodes: (value: boolean) => calls.push(`media:${String(value)}`),
     setTimelineEnabled: (value: boolean) => calls.push(`timeline:${String(value)}`),
     setBottomSurfaceCollapsed: (value: boolean) => calls.push(`bottomCollapsed:${String(value)}`),
-    setBottomSurfaceTab: (value: 'stats' | 'history' | 'documentVersionGraph' | 'gitGraph' | 'gantt') => calls.push(`bottomTab:${value}`),
+    setBottomSurfaceTab: (value: 'stats' | 'history' | 'documentVersionGraph' | 'gitGraph' | 'gantt' | 'timeline') => calls.push(`bottomTab:${value}`),
     setDocumentSemanticMode: (value: 'document' | 'keyword') => calls.push(`semantic:${value}`),
     setFrontmatterModeEnabled: (value: boolean) => calls.push(`frontmatter:${String(value)}`),
     setMultiDimTableModeEnabled: (value: boolean) => calls.push(`mdtbl:${String(value)}`),

@@ -385,9 +385,11 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
 
   const workflowPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const workflowRunAllPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts')
   const workflowWritebackPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowWriteback.ts')
   const workflowRichMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRichMediaPanel.ts')
   const workflowText = readUtf8(workflowPath)
+  const workflowRunAllText = readUtf8(workflowRunAllPath)
   const workflowWritebackText = readUtf8(workflowWritebackPath)
   const workflowRichMediaPanelText = readUtf8(workflowRichMediaPanelPath)
   if (!workflowWritebackText.includes('export function areFlowEditorWorkflowRecordValuesEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean')) {
@@ -405,7 +407,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!workflowRichMediaPanelText.includes('if (!args.allowCreateRichMediaPanel) return null')) {
     throw new Error('expected shared Rich Media Panel helper to skip node creation when Run all is output-only')
   }
-  if (!workflowText.includes('await runWorkflowNode(ids[i]!, { allowCreateRichMediaPanel: false })')) {
+  if (!workflowRunAllText.includes('await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false })')) {
     throw new Error('expected Toolbar Run all to write outputs into existing nodes only without appending Rich Media Panel nodes')
   }
   if (!workflowText.includes('const readLiveDraftGraphData = () => (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null')) {
@@ -414,13 +416,13 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!workflowText.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
     throw new Error('expected Run all output writes to update the draft ref synchronously before React state catches up')
   }
-  if (!workflowWritebackText.includes('export function bumpFlowEditorWorkflowDraftGraphDataRevision(graphData: GraphData): GraphData')) {
-    throw new Error('expected shared workflow writeback helper to bump the live draft graph revision for connected-value cache invalidation')
+  if (!workflowWritebackText.includes("import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'")) {
+    throw new Error('expected shared workflow writeback helper to reuse neutral Flow Editor draft revision bumping')
   }
-  if (!workflowWritebackText.includes('const nextDraft = bumpFlowEditorWorkflowDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })')) {
+  if (!workflowWritebackText.includes('const nextDraft = bumpFlowEditorDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })')) {
     throw new Error('expected shared workflow writeback helper to bump revision at the same SSOT draft mutation point')
   }
-  if (workflowText.includes("await runWorkflowNode(ids[i]!, { allowCreateRichMediaPanel: false })\n        scheduleWorkflowOutputEdgeRefresh()")) {
+  if (workflowRunAllText.includes("await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false })\n        scheduleWorkflowOutputEdgeRefresh()")) {
     throw new Error('expected Run all to avoid unconditional overlay edge refresh churn between nodes')
   }
   if (!workflowText.includes('const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>')) {

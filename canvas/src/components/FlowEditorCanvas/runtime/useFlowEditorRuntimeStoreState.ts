@@ -21,6 +21,7 @@ export function useFlowEditorRuntimeStoreState() {
       resolvedThemeMode: (s.resolvedThemeMode || 'light') as 'light' | 'dark',
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
+      canvasRunMode: s.canvasRunMode,
       documentSemanticMode: s.documentSemanticMode,
       frontmatterModeEnabled: s.frontmatterModeEnabled,
       renderMediaAsNodes: s.renderMediaAsNodes,

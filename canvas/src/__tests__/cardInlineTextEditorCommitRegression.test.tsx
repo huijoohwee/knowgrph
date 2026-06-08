@@ -28,12 +28,14 @@ export function testPlainTextInputEditorUsesReactChangeContract() {
 
 export function testCardInlineTextEditorPreservesSharedMultilineCommitContract() {
   const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
+  const flowEditorOverlayProxy = readUtf8('../lib/canvas/flow-editor-overlay-proxy.ts')
   for (const snippet of [
     '<PlainTextInputEditor',
     'value={draft}',
     'onChange={setDraft}',
     "editActivation = 'doubleClick'",
     'data-kg-card-inline-edit-activation={editActivation}',
+    'onPointerDown={event => {',
     "if (editActivation !== 'click') return",
     'onBlur={() => {',
     'commit()',
@@ -43,6 +45,9 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
     if (!cardInlineEditor.includes(snippet)) {
       throw new Error(`expected CardInlineTextEditor to preserve the shared multiline commit contract: ${snippet}`)
     }
+  }
+  if (!flowEditorOverlayProxy.includes('[data-kg-card-inline-edit="1"]')) {
+    throw new Error('expected Flow Editor overlay pointer routing to treat shared card inline editors as interactive controls')
   }
 }
 
@@ -160,10 +165,14 @@ export async function testFlowEditorInlineValueEditorFirstInactiveClickCommits()
   const root = createRoot(container)
   let committed = ''
   let parentClicks = 0
+  let parentPointerDowns = 0
 
   function Harness() {
     const [active, setActive] = React.useState(false)
     return React.createElement('section', {
+      onPointerDown: () => {
+        parentPointerDowns += 1
+      },
       onClick: () => {
         parentClicks += 1
         setActive(true)
@@ -191,10 +200,14 @@ export async function testFlowEditorInlineValueEditorFirstInactiveClickCommits()
     }
 
     await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
 
+    if (parentPointerDowns !== 0) {
+      throw new Error(`expected first inactive Flow Editor value pointer-down to stay local and avoid workspace/indexing activation, got ${parentPointerDowns}`)
+    }
     if (parentClicks !== 0) {
       throw new Error(`expected first inactive Flow Editor value click to stay local and avoid workspace/indexing activation, got ${parentClicks}`)
     }

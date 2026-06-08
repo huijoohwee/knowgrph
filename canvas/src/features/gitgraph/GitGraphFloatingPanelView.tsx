@@ -3,6 +3,7 @@ import { GitBranch, GitCommitHorizontal, GitMerge, PencilLine, Trash2 } from 'lu
 import { useShallow } from 'zustand/react/shallow'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { parseMermaidDiagramCodeModel } from '@/lib/mermaid/mermaidDiagramCode'
 import {
   appendMermaidGitGraphCommand,
   deleteMermaidGitGraphCommandLine,
@@ -10,9 +11,13 @@ import {
   type MermaidGitGraphAddKind,
   type MermaidGitGraphCommand,
 } from '@/lib/mermaid/mermaidGitGraphEdit'
-import { resolveDiagramRowKey } from '@/lib/diagram/diagramRowSelection'
+import {
+  findGitGraphCommandForRowKey,
+  resolveGitGraphCommandRowKey,
+} from '@/lib/mermaid/mermaidGitGraphSelection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
 import { useMermaidGitGraphDocument } from './useMermaidGitGraphDocument'
 
 const GITGRAPH_COMMAND_LABELS: Record<MermaidGitGraphAddKind, string> = {
@@ -46,29 +51,40 @@ export function GitGraphFloatingPanelView() {
       setMermaidDiagramSelectedRowKey: state.setMermaidDiagramSelectedRowKey,
     })),
   )
-  const { code, commitGitGraphCode, gitGraphModel } = useMermaidGitGraphDocument()
+  const { code, commitGitGraphCode, gitGraphModel, graphData } = useMermaidGitGraphDocument()
+  const gitGraphDiagramModel = React.useMemo(() => parseMermaidDiagramCodeModel(code, 'gitgraph'), [code])
+  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+    graphData,
+    diagramModel: gitGraphDiagramModel,
+    kind: 'gitgraph',
+  })
+  const resolveCommandSelectionKey = React.useCallback((command: MermaidGitGraphCommand | null | undefined, index = -1): string => {
+    return resolveGitGraphCommandRowKey(command, index, gitGraphDiagramModel)
+  }, [gitGraphDiagramModel])
   const sharedSelectedCommand = React.useMemo(() => {
-    if (!mermaidDiagramSelectedRowKey) return null
-    return gitGraphModel.commands.find((candidate, index) => resolveDiagramRowKey(candidate, index) === mermaidDiagramSelectedRowKey) || null
-  }, [gitGraphModel.commands, mermaidDiagramSelectedRowKey])
+    return findGitGraphCommandForRowKey(gitGraphModel.commands, mermaidDiagramSelectedRowKey, gitGraphDiagramModel)
+  }, [gitGraphDiagramModel, gitGraphModel.commands, mermaidDiagramSelectedRowKey])
   const selectedCommand = React.useMemo(() => {
     if (sharedSelectedCommand) return sharedSelectedCommand
     if (gitGraphSelectedCommandLineIndex != null) {
       const manual = gitGraphModel.commands.find(command => command.lineIndex === gitGraphSelectedCommandLineIndex)
       if (manual) return manual
     }
-    return gitGraphModel.commands[gitGraphModel.commands.length - 1] || null
+    return null
   }, [gitGraphModel.commands, gitGraphSelectedCommandLineIndex, sharedSelectedCommand])
-  const selectedCommandKey = React.useMemo(() => resolveDiagramRowKey(selectedCommand), [selectedCommand])
+  const selectedCommandKey = React.useMemo(() => resolveCommandSelectionKey(selectedCommand), [resolveCommandSelectionKey, selectedCommand])
   const selectCommand = React.useCallback((command: MermaidGitGraphCommand | null) => {
     if (!command) {
       setGitGraphSelectedCommandLineIndex(null)
       setMermaidDiagramSelectedRowKey('gitgraph', null)
+      handleDiagramSelectedRowKeyChange(null)
       return
     }
+    const rowKey = resolveCommandSelectionKey(command)
     setGitGraphSelectedCommandLineIndex(command.lineIndex)
-    setMermaidDiagramSelectedRowKey('gitgraph', resolveDiagramRowKey(command))
-  }, [setGitGraphSelectedCommandLineIndex, setMermaidDiagramSelectedRowKey])
+    setMermaidDiagramSelectedRowKey('gitgraph', rowKey)
+    handleDiagramSelectedRowKeyChange(rowKey)
+  }, [handleDiagramSelectedRowKeyChange, resolveCommandSelectionKey, setGitGraphSelectedCommandLineIndex, setMermaidDiagramSelectedRowKey])
 
   React.useEffect(() => {
     if (gitGraphSelectedCommandLineIndex == null) return
@@ -78,9 +94,9 @@ export function GitGraphFloatingPanelView() {
 
   React.useEffect(() => {
     if (!mermaidDiagramSelectedRowKey) return
-    if (gitGraphModel.commands.some((command, index) => resolveDiagramRowKey(command, index) === mermaidDiagramSelectedRowKey)) return
+    if (findGitGraphCommandForRowKey(gitGraphModel.commands, mermaidDiagramSelectedRowKey, gitGraphDiagramModel)) return
     setMermaidDiagramSelectedRowKey('gitgraph', null)
-  }, [gitGraphModel.commands, mermaidDiagramSelectedRowKey, setMermaidDiagramSelectedRowKey])
+  }, [gitGraphDiagramModel, gitGraphModel.commands, mermaidDiagramSelectedRowKey, setMermaidDiagramSelectedRowKey])
 
   React.useEffect(() => {
     if (!sharedSelectedCommand) return
@@ -127,9 +143,10 @@ export function GitGraphFloatingPanelView() {
     if (commitGitGraphCode(deleteMermaidGitGraphCommandLine(code, selectedCommand.lineIndex), actionLabel)) {
       setGitGraphSelectedCommandLineIndex(null)
       setMermaidDiagramSelectedRowKey('gitgraph', null)
+      handleDiagramSelectedRowKeyChange(null)
       setEditStatus(actionLabel)
     }
-  }, [code, commitGitGraphCode, selectedCommand, setGitGraphSelectedCommandLineIndex, setMermaidDiagramSelectedRowKey])
+  }, [code, commitGitGraphCode, handleDiagramSelectedRowKeyChange, selectedCommand, setGitGraphSelectedCommandLineIndex, setMermaidDiagramSelectedRowKey])
 
   if (!code) {
     return (
@@ -226,8 +243,9 @@ export function GitGraphFloatingPanelView() {
         className="min-h-0 flex-1 overflow-auto rounded-md border border-[var(--kg-border)]"
         data-kg-gitgraph-command-list="1"
       >
-        {gitGraphModel.commands.map(command => {
+        {gitGraphModel.commands.map((command, index) => {
           const selected = selectedCommand?.lineIndex === command.lineIndex
+          const rowKey = resolveCommandSelectionKey(command, index)
           return (
             <button
               key={command.key}
@@ -246,7 +264,9 @@ export function GitGraphFloatingPanelView() {
               data-kg-gitgraph-command-row="1"
               data-kg-gitgraph-command-kind={command.kind}
               data-kg-gitgraph-command-line={command.lineIndex}
+              data-kg-gitgraph-command-row-key={rowKey || undefined}
               data-kg-gitgraph-command-selected={selected ? '1' : undefined}
+              data-kg-gitgraph-command-dimmed={selectedCommand && !selected ? '1' : undefined}
               onClick={() => selectCommand(command)}
             >
               <span className="w-16 shrink-0 text-[10px] uppercase tracking-normal">{command.kind}</span>

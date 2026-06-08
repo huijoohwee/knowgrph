@@ -1,12 +1,12 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'gitGraph', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'gitGraph', 'gantt', 'flow', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'flow', 'animatic', 'storyboard', 'strybldr', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'storyboard', 'strybldr', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -58,6 +58,14 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuBadges: ['Mermaid', 'History'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
+  gantt: {
+    surfaceId: 'gantt',
+    registryLabel: 'Gantt-timeline',
+    menuLabel: 'Gantt',
+    menuDescription: 'Mermaid Gantt timeline',
+    menuBadges: ['Mermaid', 'Timeline'],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
   flow: {
     surfaceId: 'flow',
     registryLabel: 'Flow Canvas',
@@ -67,12 +75,12 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     sharesFlowEditorFrontmatterSyntax: false,
   },
   animatic: {
-    surfaceId: 'animatic',
-    registryLabel: 'Animatic',
-    menuLabel: 'Animatic',
-    menuDescription: 'Timeline beats',
-    menuBadges: ['Timing', 'Lanes'],
-    sharesFlowEditorFrontmatterSyntax: true,
+    surfaceId: 'gantt',
+    registryLabel: 'Gantt-timeline',
+    menuLabel: 'Gantt',
+    menuDescription: 'Mermaid Gantt timeline',
+    menuBadges: ['Mermaid', 'Timeline'],
+    sharesFlowEditorFrontmatterSyntax: false,
   },
   storyboard: {
     surfaceId: 'storyboard',
@@ -178,6 +186,10 @@ export const isGitGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undef
   return id === 'gitGraph'
 }
 
+export const isGanttCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'gantt'
+}
+
 export const isDashboardCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'dashboard'
 }
@@ -202,9 +214,10 @@ export const supportsToolbarRunAll = (id: Canvas2dRendererId | null | undefined)
   return id === 'flowEditor' || id === 'strybldr'
 }
 
-export type ToolbarRunAllFloatingPanelTab = 'strybldr'
+export type ToolbarRunAllFloatingPanelTab = 'flowEditor' | 'strybldr'
 
 export const getToolbarRunAllFloatingPanelTab = (id: Canvas2dRendererId | null | undefined): ToolbarRunAllFloatingPanelTab | null => {
+  if (id === 'flowEditor') return 'flowEditor'
   return id === 'strybldr' ? 'strybldr' : null
 }
 
@@ -228,7 +241,7 @@ export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined):
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isDashboardCanvas2dRenderer(id) && !isGalleryCanvas2dRenderer(id) && !isFlowchartCanvas2dRenderer(id) && !isGitGraphCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isDashboardCanvas2dRenderer(id) && !isGalleryCanvas2dRenderer(id) && !isFlowchartCanvas2dRenderer(id) && !isGitGraphCanvas2dRenderer(id) && !isGanttCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const
@@ -248,6 +261,12 @@ export const CANVAS_WORKSPACE_SYNC_MODES = ['manual', 'realtime'] as const
 export type CanvasWorkspaceSyncMode = (typeof CANVAS_WORKSPACE_SYNC_MODES)[number]
 
 export const DEFAULT_CANVAS_WORKSPACE_SYNC_MODE: CanvasWorkspaceSyncMode = 'manual'
+
+export const CANVAS_RUN_MODES = ['manual', 'auto'] as const
+
+export type CanvasRunMode = (typeof CANVAS_RUN_MODES)[number]
+
+export const DEFAULT_CANVAS_RUN_MODE: CanvasRunMode = 'manual'
 
 export const FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID = 'kg-flow-editor-inspector-slot'
 

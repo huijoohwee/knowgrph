@@ -12,7 +12,7 @@ import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { ChartGantt, FileDiff, GitGraph, History } from 'lucide-react'
+import { ChartGantt, FileDiff, GitGraph, History, MonitorPlay } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
 
 type TimelineBottomPanelPosition = {
@@ -20,7 +20,7 @@ type TimelineBottomPanelPosition = {
   left: number
 }
 
-type TimelineBottomPanelView = 'timeline' | 'documentVersionGraph' | 'gitGraph' | 'gantt'
+type TimelineBottomPanelView = 'timeline' | 'strybldrTimeline' | 'documentVersionGraph' | 'gitGraph' | 'gantt'
 
 const TIMELINE_BOTTOM_PANEL_VISIBLE_PX = 32
 const TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE = { width: 560, height: 128 } as const
@@ -29,6 +29,9 @@ const GitGraphBottomPanelViewLazy = React.lazy(() =>
 )
 const GanttBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GanttBottomPanelView').then(mod => ({ default: mod.GanttBottomPanelView })),
+)
+const TimelineBottomPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/TimelineBottomPanelView').then(mod => ({ default: mod.TimelineBottomPanelView })),
 )
 const DocumentVersionGitGraphPanelLazy = React.lazy(() =>
   import('@/features/document-versioning/DocumentVersionGitGraphPanel').then(mod => ({ default: mod.DocumentVersionGitGraphPanel })),
@@ -71,7 +74,7 @@ function resolveWorkspaceCanvasLayerInsetLeft({
 
 export function StrybldrTimelineBottomPanel({
   active = true,
-  initialView = 'timeline',
+  initialView = 'strybldrTimeline',
   workspaceEditorOverlayOpen = false,
 }: {
   active?: boolean
@@ -217,9 +220,15 @@ export function StrybldrTimelineBottomPanel({
   const documentVersionGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'documentVersionGraph'
   const mermaidGitGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
   const mermaidGanttRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
-  const bottomSurfaceDiagramRequested = documentVersionGraphRequested || mermaidGitGraphRequested || mermaidGanttRequested
+  const mermaidTimelineRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
+  const bottomSurfaceDiagramRequested = documentVersionGraphRequested || mermaidGitGraphRequested || mermaidGanttRequested || mermaidTimelineRequested
   const showTimelineView = React.useCallback(() => {
     setView('timeline')
+    setBottomSurfaceTab('timeline')
+    setBottomSurfaceCollapsed(false)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  const showStrybldrTimelineView = React.useCallback(() => {
+    setView('strybldrTimeline')
     if (bottomSurfaceDiagramRequested) setBottomSurfaceCollapsed(true)
   }, [bottomSurfaceDiagramRequested, setBottomSurfaceCollapsed])
   const showDocumentVersionGraphView = React.useCallback(() => {
@@ -285,7 +294,7 @@ export function StrybldrTimelineBottomPanel({
 
   const panelHeightStyle = minimized
     ? { height: 'var(--kg-toolbar-compact-surface-height)' }
-    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt'
+    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline'
       ? { maxHeight: 'min(44vh, 24rem)' }
       : { maxHeight: 'min(32vh, 12rem)' }
   const panelPosition = position || getDefaultUnpinnedPosition()
@@ -360,6 +369,23 @@ export function StrybldrTimelineBottomPanel({
               >
                 <History className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
               </IconButton>
+              {active ? (
+                <IconButton
+                  className={cn(
+                    'App-toolbar__btn',
+                    view === 'strybldrTimeline'
+                      ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                      : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                  )}
+                  title="Strybldr Timeline"
+                  showTooltip
+                  aria-pressed={view === 'strybldrTimeline'}
+                  onClick={showStrybldrTimelineView}
+                  data-kg-strybldr-bottom-timeline-strybldr-toggle="1"
+                >
+                  <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+              ) : null}
               <IconButton
                 className={cn(
                   'App-toolbar__btn',
@@ -397,7 +423,7 @@ export function StrybldrTimelineBottomPanel({
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
                 )}
-                title="Gantt"
+                title="Gantt-Timeline"
                 showTooltip
                 aria-pressed={view === 'gantt'}
                 onClick={showGanttView}
@@ -433,6 +459,10 @@ export function StrybldrTimelineBottomPanel({
               ) : view === 'gantt' ? (
                 <React.Suspense fallback={null}>
                   <GanttBottomPanelViewLazy compact />
+                </React.Suspense>
+              ) : view === 'timeline' ? (
+                <React.Suspense fallback={null}>
+                  <TimelineBottomPanelViewLazy compact />
                 </React.Suspense>
               ) : (
                 <StrybldrTimelinePanel active={active} />

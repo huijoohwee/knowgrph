@@ -41,6 +41,8 @@ export function InfiniteCanvasInteractionPanel() {
     wheelZoomCtrlMetaBoostMultiplier,
     graphDragAlphaTarget2d,
     setGraphDragAlphaTarget2d,
+    canvasRunMode,
+    setCanvasRunMode,
     canvasInteractionSpeedMultiplier,
     canvasPanSpeedMultiplier,
     flowWheelZoomSpeedMultiplier,
@@ -69,6 +71,8 @@ export function InfiniteCanvasInteractionPanel() {
       wheelZoomCtrlMetaBoostMultiplier: s.wheelZoomCtrlMetaBoostMultiplier,
       graphDragAlphaTarget2d: s.graphDragAlphaTarget2d,
       setGraphDragAlphaTarget2d: s.setGraphDragAlphaTarget2d,
+      canvasRunMode: s.canvasRunMode,
+      setCanvasRunMode: s.setCanvasRunMode,
       canvasInteractionSpeedMultiplier: s.canvasInteractionSpeedMultiplier,
       canvasPanSpeedMultiplier: s.canvasPanSpeedMultiplier,
       flowWheelZoomSpeedMultiplier: s.flowWheelZoomSpeedMultiplier,
@@ -241,6 +245,38 @@ export function InfiniteCanvasInteractionPanel() {
       </Section>
       <CollapsibleSection title="Interaction" defaultCollapsed={false} stickyHeader={false}>
         <section className="mt-2 space-y-2">
+          <section className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`} aria-label="Run Mode">
+            <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <Tooltip
+                content="Manual runs only when invoked. Auto is available for supported input-change run flows."
+                maxWidthPx={260}
+                contentClassName={tooltipClassName}
+              >
+                <span>Run Mode</span>
+              </Tooltip>
+              <span className="font-mono">{canvasRunMode === 'auto' ? 'Auto' : 'Manual'}</span>
+            </section>
+            <TwoColumnEditorGrid className="mt-2">
+              <button
+                type="button"
+                className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasRunMode !== 'auto' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+                onClick={() => setCanvasRunMode('manual')}
+                aria-label="Manual Run Mode"
+                aria-pressed={canvasRunMode !== 'auto'}
+              >
+                Manual
+              </button>
+              <button
+                type="button"
+                className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasRunMode === 'auto' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+                onClick={() => setCanvasRunMode('auto')}
+                aria-label="Auto Run Mode"
+                aria-pressed={canvasRunMode === 'auto'}
+              >
+                Auto
+              </button>
+            </TwoColumnEditorGrid>
+          </section>
           <section className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
             <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
               <Tooltip

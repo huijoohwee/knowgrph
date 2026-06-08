@@ -8,12 +8,14 @@ import { resolveWidgetIdentity } from '@/features/flow-editor-manager/resolveWid
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
+import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { orderFlowEditorOverlayNodeIdsByRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayNodeOrder'
+import { resolveFlowEditorAutoRunNodeIds } from '@/components/FlowEditorCanvas/runtime/flowEditorAutoRunTargets'
 
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
 
@@ -107,6 +109,9 @@ export function buildOverlayEditorElements(args: {
       ? args.lastStableRenderGraphDataOverride
       : args.renderGraphDataOverride,
   )
+  const graphDataForRunResolution = useStableFrontmatterGraphAuthority
+    ? args.lastStableRenderGraphDataOverride
+    : args.renderGraphDataOverride
   const orderedOverlayEditorNodeIds = orderFlowEditorOverlayNodeIdsByRenderGraph({
     ids: args.overlayEditorNodeIds,
     nodes: (
@@ -193,7 +198,14 @@ export function buildOverlayEditorElements(args: {
         onSetProperties={(props) => args.setNodePropertiesById(actionNodeId, props)}
         onValidate={() => args.validateNodeById(actionNodeId)}
         onRun={() => {
-          void args.runWorkflowNode(actionNodeId)
+          const targetNodeIds = resolveFlowEditorAutoRunNodeIds({
+            graphData: graphDataForRunResolution,
+            nodeId: actionNodeId,
+            resolveRichMediaKind: resolveRichMediaWidgetKind,
+          })
+          for (const targetNodeId of targetNodeIds) {
+            void args.runWorkflowNode(targetNodeId)
+          }
         }}
         onDuplicate={() => {
           const pinnedMap = args.flowWidgetPinnedByNodeId || {}

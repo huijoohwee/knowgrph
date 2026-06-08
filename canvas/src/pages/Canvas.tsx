@@ -108,7 +108,7 @@ export default function CanvasPage() {
   const [toolbarHeaderElevated, setToolbarHeaderElevated] = React.useState(false)
   const toolbarHeaderRef = React.useRef<HTMLElement>(null)
   const editorOverlayRef = React.useRef<HTMLElement>(null)
-  const toolbarHeaderLayerClassName = toolbarHeaderElevated ? 'z-[420]' : 'z-[290]'
+  const toolbarHeaderLayerClassName = toolbarHeaderElevated ? 'z-[400]' : 'z-[290]'
   React.useEffect(() => {
     if (workspaceViewMode !== 'editor') setToolbarHeaderElevated(false)
   }, [workspaceViewMode])

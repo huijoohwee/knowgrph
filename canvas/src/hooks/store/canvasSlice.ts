@@ -4,10 +4,12 @@ import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/req
 import {
   DEFAULT_CANVAS_2D_RENDERER,
   DEFAULT_CANVAS_3D_MODE,
+  DEFAULT_CANVAS_RUN_MODE,
   DEFAULT_INFINITE_CANVAS_INTERACTION_MODE,
   DEFAULT_CANVAS_WORKSPACE_SYNC_MODE,
   type Canvas2dRendererId,
   type Canvas3dModeId,
+  type CanvasRunMode,
   type CanvasWorkspaceSyncMode,
   type InfiniteCanvasInteractionMode,
 } from '@/lib/config.render'
@@ -114,6 +116,11 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     LS_KEYS.canvasWorkspaceSyncMode,
     DEFAULT_CANVAS_WORKSPACE_SYNC_MODE,
     (v): CanvasWorkspaceSyncMode => (v === 'realtime' ? 'realtime' : 'manual'),
+  )
+  const initialCanvasRunMode = lsJson(
+    LS_KEYS.canvasRunMode,
+    DEFAULT_CANVAS_RUN_MODE,
+    (v): CanvasRunMode => (v === 'auto' ? 'auto' : 'manual'),
   )
 
   const initialPinnedStored = lsBool(LS_KEYS.viewportPinned, false)
@@ -348,6 +355,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   viewportControlsPreset: initialViewportControlsPreset,
   infiniteCanvasInteractionMode: initialInfiniteCanvasInteractionMode,
   canvasWorkspaceSyncMode: initialCanvasWorkspaceSyncMode,
+  canvasRunMode: initialCanvasRunMode,
   flowEditorSelectionOnDrag: initialFlowEditorSelectionOnDrag,
   flowEditorOverlayWheelProxyEnabled: initialFlowEditorOverlayWheelProxyEnabled,
   flowWheelZoomSpeedMultiplier: initialFlowWheelZoomSpeedMultiplier,
@@ -648,6 +656,17 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       void 0
     }
     set({ canvasWorkspaceSyncMode: next })
+  },
+  setCanvasRunMode: (mode: CanvasRunMode) => {
+    const next: CanvasRunMode = mode === 'auto' ? 'auto' : 'manual'
+    const cur = get().canvasRunMode
+    if (cur === next) return
+    try {
+      lsSetJsonCoalesced(LS_KEYS.canvasRunMode, next, { signature: String(next) })
+    } catch {
+      void 0
+    }
+    set({ canvasRunMode: next })
   },
   setFlowEditorSelectionOnDrag: (v: boolean) => {
     const next = Boolean(v)

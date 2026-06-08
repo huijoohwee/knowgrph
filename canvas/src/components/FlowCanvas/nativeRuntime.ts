@@ -162,6 +162,8 @@ export type FlowNativeRuntime = {
     selectedNodeIds: Set<string>
     selectedEdgeIdsRef: string[] | null
     selectedEdgeIds: Set<string>
+    focusedEdgeIdsRef: string[] | null
+    focusedEdgeIds: Set<string>
     hideNodeIdsRef: string[] | null
     hideNodeIds: Set<string>
     hidePortHandleNodeIdsRef: string[] | null
@@ -307,6 +309,8 @@ export const createFlowNativeRuntime = (args: {
       selectedNodeIds: new Set<string>(),
       selectedEdgeIdsRef: null,
       selectedEdgeIds: new Set<string>(),
+      focusedEdgeIdsRef: null,
+      focusedEdgeIds: new Set<string>(),
       hideNodeIdsRef: null,
       hideNodeIds: new Set<string>(),
       hidePortHandleNodeIdsRef: null,
@@ -703,6 +707,7 @@ const drawEdge = (
   e: FlowNativeEdge,
   args: {
     selected: boolean
+    dimmed?: boolean
     source: FlowNativeNode
     target: FlowNativeNode
     routingObstacles: Rect[] | null
@@ -716,6 +721,7 @@ const drawEdge = (
   const edgeType = rt.presentation.edges.edgeType
   const edgeColorDefault = rt.presentation.edges.strokeColor || rt.theme.edge
   const edgeAnimated = rt.presentation.edges.animated !== false
+  const dimAlpha = args.dimmed ? 0.16 : 1
 
   const svgPathD = typeof e.svgPathD === 'string' ? e.svgPathD.trim() : ''
   if (edgeType === 'bezier' && svgPathD) {
@@ -723,6 +729,7 @@ const drawEdge = (
       ? Math.max(1, Math.min(12, e.widthPx))
       : Math.max(0.5, Math.min(12, rt.presentation.edges.strokeWidthPx))
     ctx.save()
+    ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * dimAlpha))
     const tx = typeof e.svgPathTx === 'number' && Number.isFinite(e.svgPathTx) ? e.svgPathTx : 0
     const ty = typeof e.svgPathTy === 'number' && Number.isFinite(e.svgPathTy) ? e.svgPathTy : 0
     if (tx || ty) ctx.translate(tx, ty)
@@ -789,6 +796,8 @@ const drawEdge = (
       })
     : []
 
+  ctx.save()
+  ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * dimAlpha))
   ctx.beginPath()
   if (points.length >= 2) {
     ctx.moveTo(points[0].x, points[0].y)
@@ -819,6 +828,7 @@ const drawEdge = (
     ctx.lineDashOffset = 0
   }
   ctx.stroke()
+  ctx.restore()
 }
 
 const buildRoutingObstacles = (rt: FlowNativeRuntime, scene: FlowNativeScene, groupAabbById: Map<string, FlowGroupAabb> | null): Rect[] => {
@@ -923,6 +933,8 @@ const drawEdgeLabels = (
   rt: FlowNativeRuntime,
   args: {
     selectedEdgeIds: Set<string>
+    edgeFocusActive: boolean
+    focusedEdgeIds: Set<string>
     routingObstacles: Rect[] | null
     groupAabbById: Map<string, FlowGroupAabb> | null
     hiddenNodeIds: Set<string>
@@ -1086,7 +1098,7 @@ const drawEdgeLabels = (
     ctx.textBaseline = 'middle'
     ctx.fillStyle = pillBg
     ctx.strokeStyle = args.selectedEdgeIds.has(e.id) ? rt.theme.edgeSelected : (e.color || pillStrokeDefault)
-    ctx.globalAlpha = args.selectedEdgeIds.has(e.id) ? 0.98 : 0.9
+    ctx.globalAlpha = args.edgeFocusActive && !args.focusedEdgeIds.has(e.id) ? 0.24 : (args.selectedEdgeIds.has(e.id) ? 0.98 : 0.9)
     ctx.lineWidth = 1
     ctx.beginPath()
     roundRectPath(ctx, placedRect.x - placedRect.halfW, placedRect.y - placedRect.halfH, placedRect.halfW * 2, placedRect.halfH * 2, 6)
@@ -1211,6 +1223,8 @@ const drawGroups = (rt: FlowNativeRuntime, groupAabbById: Map<string, FlowGroupA
 export type FlowNativeDrawArgs = {
   selectedNodeIds: string[]
   selectedEdgeIds: string[]
+  edgeFocusActive?: boolean
+  focusedEdgeIds?: string[]
   selectedGroupId?: string | null
   showGroupResizeHandle?: boolean
   hideNodeIds?: string[]
@@ -1329,6 +1343,18 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     }
     return idCache.selectedEdgeIds
   })()
+  const focusedEdgeIds = (() => {
+    const ids = Array.isArray(args.focusedEdgeIds) ? args.focusedEdgeIds : []
+    if (idCache.focusedEdgeIdsRef === ids) return idCache.focusedEdgeIds
+    idCache.focusedEdgeIdsRef = ids
+    idCache.focusedEdgeIds.clear()
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) idCache.focusedEdgeIds.add(id)
+    }
+    return idCache.focusedEdgeIds
+  })()
+  const edgeFocusActive = args.edgeFocusActive === true
   const hiddenNodeIds = (() => {
     const ids = Array.isArray(args.hideNodeIds) ? args.hideNodeIds : []
     if (idCache.hideNodeIdsRef === ids) return idCache.hideNodeIds
@@ -1423,7 +1449,7 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     const t = scene.nodeById.get(e.target)
     if (!s || !t) continue
     if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
-    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
+    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), dimmed: edgeFocusActive && !focusedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
   }
 
   fadeEdgesUnderGeometry(rt, groupAabbById)
@@ -1444,9 +1470,9 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     const t = scene.nodeById.get(e.target)
     if (!s || !t) continue
     if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
-    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
+    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), dimmed: edgeFocusActive && !focusedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
   }
-  drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById, hiddenNodeIds })
+  drawEdgeLabels(rt, { selectedEdgeIds, edgeFocusActive, focusedEdgeIds, routingObstacles, groupAabbById, hiddenNodeIds })
 
   if (selectedGroupId) drawGroupResizeHandleOverlay(rt, { groupAabbById, selectedGroupId, enabled: showGroupResizeHandle })
 }

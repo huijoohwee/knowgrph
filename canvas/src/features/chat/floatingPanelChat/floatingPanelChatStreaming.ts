@@ -15,15 +15,20 @@ export type StreamingDraftStateRef = { current: { path: string; text: string } |
 export type AssistantResponseStreamState = {
   assistantText: string
   rawSseEvents: string[]
+  reasoningText?: string | null
   reasoningSteps: string[]
   reasoningPreview: string | null
   reasoningStepCount: number
+  liveTranscriptText?: string | null
   usageSummary: string | null
   finishReason: string | null
   modelId: string | null
 }
 
 const TRACE_ONLY_SIGNAL_LIMIT = 12
+const LIVE_PROVIDER_TRACE_MAX_LINES = 560
+const LIVE_PROVIDER_TRACE_MAX_CHARS = 48_000
+const LIVE_PROVIDER_TRACE_LIMIT_NOTICE = '[stream trace limit reached; final response continues in the canonical KGC file]'
 
 const clampTraceLine = (value: unknown, maxLength = 240): string => {
   const text = String(value || '').replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim()
@@ -41,6 +46,69 @@ const appendReasoningTextDelta = (current: string, delta: string): string => {
   const next = String(delta || '').replace(/\r\n/g, '\n')
   if (!next) return current
   return `${current || ''}${next}`
+}
+
+const isLiveTraceSignalLine = (value: unknown): boolean => {
+  const text = String(value || '').trim().toLowerCase()
+  return (
+    text.startsWith('tool_call:') ||
+    text.startsWith('web_search:') ||
+    text.startsWith('use_mcp_tool') ||
+    text.includes('server_name')
+  )
+}
+
+const appendLiveTraceSignalLines = (current: string, values: readonly string[]): string => {
+  const lines = values.map(value => clampTraceLine(value)).filter(isLiveTraceSignalLine)
+  if (lines.length <= 0) return current
+  let next = current
+  lines.forEach(line => {
+    if (next.toLowerCase().includes(line.toLowerCase())) return
+    const joiner = next && !next.endsWith('\n') ? '\n' : ''
+    next = `${next}${joiner}${line}`
+  })
+  return next
+}
+
+const appendBoundedLiveTranscriptText = (current: string, value: string): string => {
+  const text = String(value || '').replace(/\r\n/g, '\n')
+  if (!text) return current
+  if (current.includes(LIVE_PROVIDER_TRACE_LIMIT_NOTICE)) return current
+
+  const remainingChars = Math.max(0, LIVE_PROVIDER_TRACE_MAX_CHARS - current.length)
+  if (remainingChars <= 0) {
+    const joiner = current && !current.endsWith('\n') ? '\n' : ''
+    return `${current}${joiner}${LIVE_PROVIDER_TRACE_LIMIT_NOTICE}`
+  }
+
+  const candidate = `${current || ''}${text.slice(0, remainingChars)}`
+  const lines = candidate.split('\n')
+  if (lines.length <= LIVE_PROVIDER_TRACE_MAX_LINES && text.length <= remainingChars) return candidate
+
+  const previousLineCount = current ? current.split('\n').length : 1
+  const allowedNewLines = Math.max(0, LIVE_PROVIDER_TRACE_MAX_LINES - previousLineCount - 1)
+  const incomingLines = text.slice(0, remainingChars).split('\n')
+  const suffix = incomingLines.slice(0, allowedNewLines + 1).join('\n')
+  const next = `${current || ''}${suffix}`
+  const joiner = next && !next.endsWith('\n') ? '\n' : ''
+  return `${next}${joiner}${LIVE_PROVIDER_TRACE_LIMIT_NOTICE}`
+}
+
+const appendLiveTranscriptChunk = (
+  current: string,
+  channel: 'assistant' | 'reasoning' | 'signal',
+  value: string,
+  activeChannel: string | null,
+): { text: string; channel: string | null } => {
+  const chunk = String(value || '').replace(/\r\n/g, '\n')
+  if (!chunk) return { text: current, channel: activeChannel }
+  const marker = activeChannel === channel
+    ? ''
+    : channel === 'assistant'
+      ? `${current ? '\n\n' : ''}### Assistant Draft\n\n[assistant]\n`
+      : `${current ? '\n\n' : ''}[${channel}]\n`
+  const next = appendBoundedLiveTranscriptText(current, `${marker}${chunk}`)
+  return { text: next, channel }
 }
 
 const uniqueTraceSignals = (values: readonly string[]): string[] => {
@@ -83,13 +151,77 @@ export const buildTraceOnlyAssistantText = (state: AssistantResponseStreamState)
   return buildProviderStreamDraftText(state, 'terminal')
 }
 
+export const buildLiveProviderStreamDraftText = (state: AssistantResponseStreamState): string => {
+  const liveTranscriptText = String(state.liveTranscriptText || '')
+  if (liveTranscriptText.trim()) {
+    return [
+      '## Provider Stream Trace',
+      '',
+      'The provider stream is active. Incoming reasoning, tool, and assistant deltas are appended below.',
+      '',
+      '### Stream Transcript',
+      '',
+    ].join('\n') + liveTranscriptText
+  }
+  const assistantText = String(state.assistantText || '').replace(/\r\n/g, '\n')
+  if (assistantText.trim()) {
+    return [
+      '## Provider Stream Trace',
+      '',
+      'The provider stream is active. Incoming reasoning, tool, and assistant deltas are appended below.',
+      '',
+      '### Stream Transcript',
+      '',
+      '### Assistant Draft',
+      '',
+      '[assistant]',
+      assistantText,
+    ].join('\n').trimEnd()
+  }
+  const reasoningText = String(state.reasoningText || '').replace(/\r\n/g, '\n')
+  const signals = state.reasoningSteps.map(step => clampTraceLine(step)).filter(Boolean)
+  if (!reasoningText.trim() && signals.length <= 0 && state.rawSseEvents.length <= 0) return ''
+  const transcript = reasoningText.trim()
+    ? `[reasoning]\n${reasoningText}`
+    : signals.length > 0
+      ? `[signal]\n${signals.map(signal => `- ${signal}`).join('\n')}`
+      : '[signal]\n- Stream events are arriving.'
+  return [
+    '## Provider Stream Trace',
+    '',
+    'The provider stream is active. Incoming reasoning, tool, and assistant deltas are appended below.',
+    '',
+    '### Stream Transcript',
+    '',
+    transcript,
+  ].join('\n').trimEnd()
+}
+
 export const buildProviderStreamDraftText = (
   state: AssistantResponseStreamState,
   phase: 'live' | 'terminal',
 ): string => {
+  if (phase === 'live') return buildLiveProviderStreamDraftText(state)
+  const liveText = buildLiveProviderStreamDraftText(state)
   const assistantText = String(state.assistantText || '').replace(/\r\n/g, '\n').trim()
   const hasAssistantText = !!assistantText
   if (!hasAssistantText && !hasTraceOnlyTerminalSignal(state)) return ''
+  if (liveText) {
+    const metadata = [
+      ...(state.modelId ? [`- Model: ${state.modelId}`] : []),
+      ...(state.finishReason ? [`- Finish: ${state.finishReason}`] : []),
+      ...(state.usageSummary ? [`- ${state.usageSummary}`] : []),
+      `- SSE events: ${state.rawSseEvents.length}`,
+      ...(hasAssistantText ? [`- Assistant characters: ${assistantText.length}`] : []),
+    ]
+    return [
+      liveText,
+      '',
+      '### Terminal Metadata',
+      '',
+      ...metadata,
+    ].join('\n').trimEnd()
+  }
   const signals = state.reasoningSteps
     .map(step => clampTraceLine(step))
     .filter(Boolean)
@@ -155,7 +287,7 @@ export const createChatKnowgrphDraftWriter = (args: {
   persistDraft?: typeof upsertChatHistoryWorkspaceDraft
   persistWorkspaceDrafts?: boolean
 }) => {
-  return async (text: string, _force: boolean): Promise<void> => {
+  return async (text: string, force: boolean): Promise<void> => {
     if (args.chatStorageTarget !== 'chatKnowgrph') return
     if (!args.liveKgcPath) return
     const canonicalWorkspacePath = args.liveKgcPath
@@ -165,16 +297,15 @@ export const createChatKnowgrphDraftWriter = (args: {
       args.setChatWorkspaceStreamingState?.({ path: liveWorkspacePath, text: '' })
       return
     }
-    if (
-      args.streamDraftTextRef.current &&
-      args.streamDraftTextRef.current.path === liveWorkspacePath &&
+    const isDuplicateDraft = (
+      args.streamDraftTextRef.current?.path === liveWorkspacePath &&
       args.streamDraftTextRef.current.text === text
-    ) {
-      return
-    }
-    args.followWorkspaceMarkdownPath(liveWorkspacePath)
+    )
+    if (!force && isDuplicateDraft) return
+    const pathChanged = args.streamDraftTextRef.current?.path !== liveWorkspacePath
+    if (pathChanged) args.followWorkspaceMarkdownPath(liveWorkspacePath)
     args.streamDraftTextRef.current = { path: liveWorkspacePath, text }
-    args.setChatWorkspaceStreamingState?.({ path: liveWorkspacePath, text })
+    if (!isDuplicateDraft) args.setChatWorkspaceStreamingState?.({ path: liveWorkspacePath, text })
     if (args.persistWorkspaceDrafts !== true) return
     const persistDraft = args.persistDraft || upsertChatHistoryWorkspaceDraft
     const payload: Parameters<typeof persistDraft>[0] = {
@@ -212,6 +343,7 @@ export const readAssistantResponseText = async (args: {
     rawSseEvents: string[]
     reasoningText: string
     reasoningSteps: string[]
+    liveTranscriptText: string
     usageSummary: string | null
     finishReason: string | null
     modelId: string | null
@@ -224,12 +356,14 @@ export const readAssistantResponseText = async (args: {
     return {
       assistantText: current.assistantText,
       rawSseEvents: [...current.rawSseEvents],
+      reasoningText: current.reasoningText,
       reasoningSteps,
       reasoningPreview:
         reasoningSteps.length > 0
           ? `Reasoning ${reasoningSteps.length}: ${reasoningSteps.slice(-2).join(' | ')}`
           : null,
       reasoningStepCount: reasoningSteps.length,
+      liveTranscriptText: current.liveTranscriptText,
       usageSummary: current.usageSummary,
       finishReason: current.finishReason,
       modelId: current.modelId,
@@ -245,6 +379,7 @@ export const readAssistantResponseText = async (args: {
       rawSseEvents: [],
       reasoningText: streamDelta.reasoningTextDelta,
       reasoningSteps: streamDelta.reasoningStepSummaries,
+      liveTranscriptText: '',
       usageSummary: formatChatStreamUsageSummary(streamDelta.usage),
       finishReason: streamDelta.finishReason,
       modelId: streamDelta.modelId,
@@ -262,6 +397,8 @@ export const readAssistantResponseText = async (args: {
     rawSseEvents: [] as string[],
     reasoningText: '',
     reasoningSteps: [] as string[],
+    liveTranscriptText: '',
+    liveTranscriptChannel: null as string | null,
     usageSummary: null as string | null,
     finishReason: null as string | null,
     modelId: null as string | null,
@@ -355,15 +492,57 @@ export const readAssistantResponseText = async (args: {
             changed = true
           }
           if (next.reasoningStepSummaries.length > 0) {
-            state = { ...state, reasoningSteps: [...state.reasoningSteps, ...next.reasoningStepSummaries] }
+            const signalChunk = next.reasoningStepSummaries
+              .map(step => clampTraceLine(step))
+              .filter(Boolean)
+              .filter(isLiveTraceSignalLine)
+              .map(step => `- ${step}`)
+              .join('\n')
+            const transcript = signalChunk
+              ? appendLiveTranscriptChunk(
+                  state.liveTranscriptText,
+                  'signal',
+                  signalChunk,
+                  state.liveTranscriptChannel,
+                )
+              : { text: state.liveTranscriptText, channel: state.liveTranscriptChannel }
+            state = {
+              ...state,
+              reasoningText: appendLiveTraceSignalLines(state.reasoningText, next.reasoningStepSummaries),
+              reasoningSteps: [...state.reasoningSteps, ...next.reasoningStepSummaries],
+              liveTranscriptText: transcript.text,
+              liveTranscriptChannel: transcript.channel,
+            }
             changed = true
           }
           if (next.reasoningTextDelta) {
-            state = { ...state, reasoningText: appendReasoningTextDelta(state.reasoningText, next.reasoningTextDelta) }
+            const transcript = appendLiveTranscriptChunk(
+              state.liveTranscriptText,
+              'reasoning',
+              next.reasoningTextDelta,
+              state.liveTranscriptChannel,
+            )
+            state = {
+              ...state,
+              reasoningText: appendReasoningTextDelta(state.reasoningText, next.reasoningTextDelta),
+              liveTranscriptText: transcript.text,
+              liveTranscriptChannel: transcript.channel,
+            }
             changed = true
           }
           if (contentDelta) {
-            state = { ...state, assistantText: `${state.assistantText}${contentDelta}` }
+            const transcript = appendLiveTranscriptChunk(
+              state.liveTranscriptText,
+              'assistant',
+              contentDelta,
+              state.liveTranscriptChannel,
+            )
+            state = {
+              ...state,
+              assistantText: `${state.assistantText}${contentDelta}`,
+              liveTranscriptText: transcript.text,
+              liveTranscriptChannel: transcript.channel,
+            }
             changed = true
             flushStateDraftThrottled(false, 'live')
           }

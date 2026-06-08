@@ -31,13 +31,12 @@ import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { useSourceFilesPocketBaseYjsCollaborationRuntime } from '@/features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime'
 import { useMarkdownWorkspaceCollaborationRuntimeBridge } from './useMarkdownWorkspaceCollaborationRuntimeBridge'
+import { useMarkdownWorkspaceStreamingSelectionLock } from './useMarkdownWorkspaceStreamingSelectionLock'
 const EMPTY_STRING_ARRAY: string[] = []
-
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const active = props.active !== false
   const activeRef = React.useRef(active)
   React.useEffect(() => { activeRef.current = active }, [active])
-
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const bottomSurfaceCollapsed = useGraphStore(s => s.bottomSurfaceCollapsed)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
@@ -258,6 +257,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setHighlightedLineRange: () => setHighlightedLineRange(null),
     }),
   )
+  useMarkdownWorkspaceStreamingSelectionLock({ activePath, setActivePathSafe: selectionState.setActivePathSafe, setSelectionPathSafe: selectionState.setSelectionPathSafe })
   const activeJsonSourceText =
     String(jsonSourceDocumentName || '').trim() === String(selectionState.activeDocumentKey || '').trim()
       ? jsonSourceDocumentText

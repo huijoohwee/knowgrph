@@ -9,67 +9,48 @@ export function testAnimaticDemoReusesSharedFlowFrontmatterContract() {
   const text = readFileSync(DEMO_DOC_PATH, 'utf8')
   const preset = parseCanvasWorkspaceFrontmatterPreset(text)
   if (!preset) {
-    throw new Error('expected animatic demo to expose a parseable canvas frontmatter preset')
+    throw new Error('expected Gantt-timeline demo to expose a parseable canvas frontmatter preset')
   }
   if (preset.canvasSurfaceMode !== '2d' || preset.canvasRenderMode !== '2d') {
-    throw new Error(`expected animatic demo to stay on the explicit 2d surface/render preset, got ${JSON.stringify(preset)}`)
+    throw new Error(`expected Gantt-timeline demo to stay on the explicit 2d surface/render preset, got ${JSON.stringify(preset)}`)
   }
-  if (preset.canvas2dRenderer !== 'animatic') {
-    throw new Error(`expected animatic demo to land on the animatic renderer, got ${String(preset.canvas2dRenderer)}`)
+  if (preset.canvas2dRenderer !== 'gantt') {
+    throw new Error(`expected Gantt-timeline demo to land on the Gantt renderer, got ${String(preset.canvas2dRenderer)}`)
   }
   if (preset.documentSemanticMode !== 'document' || preset.frontmatterModeEnabled !== true) {
-    throw new Error(`expected animatic demo to stay document/frontmatter driven, got ${JSON.stringify(preset)}`)
+    throw new Error(`expected Gantt-timeline demo to stay document/frontmatter driven, got ${JSON.stringify(preset)}`)
   }
   if (preset.multiDimTableModeEnabled !== false || preset.documentStructureBaselineLock !== false) {
-    throw new Error(`expected animatic demo to keep non-animatic mode toggles explicit, got ${JSON.stringify(preset)}`)
+    throw new Error(`expected Gantt-timeline demo to keep non-Gantt mode toggles explicit, got ${JSON.stringify(preset)}`)
   }
   if (!text.includes('\nflow:\n')) {
-    throw new Error('expected animatic demo to reuse the shared flow: frontmatter graph contract')
+    throw new Error('expected Gantt-timeline demo to reuse the shared flow: frontmatter graph contract')
   }
-  if (!text.includes('\ntimeline:\n') || !text.includes('\n  beats:\n')) {
-    throw new Error('expected animatic demo to keep additive timing under timeline.beats.*')
+  if (!text.includes('\nflow_diagrams:\n') || !text.includes('type: mermaid_gantt')) {
+    throw new Error('expected Gantt-timeline demo to keep typed Mermaid Gantt source in shared flow_diagrams frontmatter')
   }
-  for (const snippet of ['\n  scale:\n', 'scale: 5', 'scale_split_count: 10', 'scale_width: 160', 'start_left: 20']) {
+  for (const snippet of ['dateFormat HH:mm', 'axisFormat %H:%M', 'Initial vert : vert, v1, 17:30, 2m', 'Task A : 3m', 'Task B : 8m', 'Final vert : vert, v2, 17:58, 4m']) {
     if (!text.includes(snippet)) {
-      throw new Error(`expected animatic demo to keep native scale config snippet: ${snippet}`)
+      throw new Error(`expected Gantt-timeline demo to keep Mermaid Gantt syntax snippet: ${snippet}`)
     }
   }
-  if (!text.includes('id: NODE_TIMELINE') || !text.includes('"flow:sourcePortKey": beat_01_out')) {
-    throw new Error('expected animatic demo to define canonical beat ordering through the shared flow graph')
+  if (!text.includes('GANTT_TIMELINE_SOURCE') || !text.includes('GANTT_TIMELINE_CANVAS') || !text.includes('GANTT_TIMELINE_BOTTOM_PANEL') || !text.includes('GANTT_TIMELINE_FLOATING_PANEL')) {
+    throw new Error('expected Gantt-timeline demo to define Canvas, BottomPanel, and FloatingPanel flow nodes')
   }
-  if (!text.includes('beat_ref: beat_01') || !text.includes('beat_ref: beat_04')) {
-    throw new Error('expected animatic demo flow nodes to carry canonical beat_ref ownership')
-  }
-  if (/^animatic:\s*$/m.test(text)) {
-    throw new Error('expected animatic demo to avoid a parallel animatic-only frontmatter block')
+  if (/^animatic:\s*$/m.test(text) || text.includes('kgCanvas2dRenderer: "animatic"')) {
+    throw new Error('expected Gantt-timeline demo to avoid stale Animatic renderer frontmatter')
   }
 }
 
 export function testAnimaticDemoRetainsReferenceSwitchContractSnippet() {
   const text = readFileSync(DEMO_DOC_PATH, 'utf8')
-  const expectedSnippet = normalizeSpace(`
-    <section class="player-config">
-      <button
-        type="button"
-        role="switch"
-        aria-checked="true"
-        class="ant-switch ant-switch-checked"
-        ant-click-animating="true"
-        style="margin-bottom: 20px;"
-      >
-        <section class="ant-switch-handle"></section>
-        <span class="ant-switch-inner">Enable Runtime Auto Scroll</span>
-        <section class="ant-click-animating-node"></section>
-      </button>
-    </section>
-  `)
   const normalizedText = normalizeSpace(text)
-  if (!normalizedText.includes(expectedSnippet)) {
-    throw new Error('expected animatic demo to retain the exact normalized reference switch snippet')
+  if (!normalizedText.includes('Canvas `2D Renderer: Gantt-timeline`, BottomPanel `Gantt-Timeline`, and FloatingPanel `Gantt-Timeline`')) {
+    throw new Error('expected Gantt-timeline demo body to describe the shared synced surfaces')
   }
-  for (const forbiddenSnippet of ['react-timeline-editor', 'xzdarcy/react-timeline-editor', 'fixture-only demo rows']) {
+  for (const forbiddenSnippet of ['react-timeline-editor', 'xzdarcy/react-timeline-editor', 'fixture-only demo rows', '2D Renderer: Animatic', 'player-config']) {
     if (text.includes(forbiddenSnippet)) {
-      throw new Error(`expected animatic demo to avoid vendor-copy or hardcoded-fixture wording: ${forbiddenSnippet}`)
+      throw new Error(`expected Gantt-timeline demo to avoid stale Animatic/vendor wording: ${forbiddenSnippet}`)
   }
 }
 }

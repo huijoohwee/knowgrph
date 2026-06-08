@@ -180,10 +180,12 @@ export function testDocumentVersioningSurfacesUseSharedOwners() {
     !canvasViewportText.includes("bottomSurfaceTab === 'documentVersionGraph'") ||
     !canvasViewportText.includes("bottomSurfaceTab === 'gitGraph'") ||
     !canvasViewportText.includes("bottomSurfaceTab === 'gantt'") ||
+    !canvasViewportText.includes("bottomSurfaceTab === 'timeline'") ||
     !canvasViewportText.includes('documentVersionGraphBottomPanelVisible') ||
     !canvasViewportText.includes('mermaidGitGraphBottomPanelVisible') ||
     !canvasViewportText.includes('mermaidGanttBottomPanelVisible') ||
-    !canvasViewportText.includes("initialView={mermaidGanttBottomPanelVisible ? 'gantt' : mermaidGitGraphBottomPanelVisible ? 'gitGraph' : documentVersionGraphBottomPanelVisible ? 'documentVersionGraph' : 'timeline'}") ||
+    !canvasViewportText.includes('mermaidTimelineBottomPanelVisible') ||
+    !canvasViewportText.includes("initialView={mermaidTimelineBottomPanelVisible ? 'timeline' : mermaidGanttBottomPanelVisible ? 'gantt' : mermaidGitGraphBottomPanelVisible ? 'gitGraph' : documentVersionGraphBottomPanelVisible ? 'documentVersionGraph' : 'strybldrTimeline'}") ||
     !canvasViewportText.includes('workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}') ||
     !canvasViewportText.includes('strybldrTimelineBottomPanelVisible')
   ) {
@@ -191,26 +193,33 @@ export function testDocumentVersioningSurfacesUseSharedOwners() {
   }
   if (
     !timelineBottomPanelText.includes('DocumentVersionGitGraphPanel') ||
+    !timelineBottomPanelText.includes('TimelineBottomPanelViewLazy') ||
     !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-timeline-toggle="1"') ||
+    !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-strybldr-toggle="1"') ||
     !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-document-version-graph-toggle="1"') ||
     !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-gitgraph-toggle="1"') ||
     !timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-gantt-toggle="1"') ||
     !timelineBottomPanelText.includes('title="Timeline"') ||
+    !timelineBottomPanelText.includes('title="Strybldr Timeline"') ||
     !timelineBottomPanelText.includes('title="Version Graph"') ||
     !timelineBottomPanelText.includes('title="GitGraph"') ||
-    !timelineBottomPanelText.includes('title="Gantt"') ||
+    !timelineBottomPanelText.includes('title="Gantt-Timeline"') ||
     !timelineBottomPanelText.includes('<History') ||
     !timelineBottomPanelText.includes('<FileDiff') ||
     !timelineBottomPanelText.includes('<GitGraph') ||
     !timelineBottomPanelText.includes('<ChartGantt') ||
+    !timelineBottomPanelText.includes('<MonitorPlay') ||
     !timelineBottomPanelText.includes("view === 'documentVersionGraph'") ||
     !timelineBottomPanelText.includes("view === 'gitGraph'") ||
     !timelineBottomPanelText.includes("view === 'gantt'") ||
-    !timelineBottomPanelText.includes("initialView = 'timeline'") ||
+    !timelineBottomPanelText.includes("view === 'timeline'") ||
+    !timelineBottomPanelText.includes("initialView = 'strybldrTimeline'") ||
     !timelineBottomPanelText.includes('showDocumentVersionGraphView') ||
     !timelineBottomPanelText.includes('showGitGraphView') ||
     !timelineBottomPanelText.includes('showGanttView') ||
+    !timelineBottomPanelText.includes('showTimelineView') ||
     !timelineBottomPanelText.includes('setBottomSurfaceTab') ||
+    !timelineBottomPanelText.includes("setBottomSurfaceTab('timeline')") ||
     !timelineBottomPanelText.includes("setBottomSurfaceTab('documentVersionGraph')") ||
     !timelineBottomPanelText.includes("setBottomSurfaceTab('gitGraph')") ||
     !timelineBottomPanelText.includes("setBottomSurfaceTab('gantt')") ||

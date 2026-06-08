@@ -11,7 +11,7 @@ import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
-import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
+import type { Canvas2dRendererId, Canvas3dModeId, CanvasRunMode, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
@@ -164,6 +164,7 @@ export interface GraphStateCanvasRuntime {
   viewportControlsPreset: ViewportControlsPreset;
   infiniteCanvasInteractionMode: InfiniteCanvasInteractionMode;
   canvasWorkspaceSyncMode: CanvasWorkspaceSyncMode;
+  canvasRunMode: CanvasRunMode;
   flowEditorSelectionOnDrag: boolean;
   flowEditorOverlayWheelProxyEnabled: boolean;
   flowWheelZoomSpeedMultiplier: number;
@@ -192,6 +193,7 @@ export interface GraphStateCanvasRuntime {
   setViewportControlsPreset: (preset: ViewportControlsPreset) => void;
   setInfiniteCanvasInteractionMode: (mode: InfiniteCanvasInteractionMode) => void;
   setCanvasWorkspaceSyncMode: (mode: CanvasWorkspaceSyncMode) => void;
+  setCanvasRunMode: (mode: CanvasRunMode) => void;
   setFlowEditorSelectionOnDrag: (v: boolean) => void;
   setFlowEditorOverlayWheelProxyEnabled: (v: boolean) => void;
   setFlowWheelZoomSpeedMultiplier: (v: number) => void;

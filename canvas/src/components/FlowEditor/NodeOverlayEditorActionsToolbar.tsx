@@ -2,6 +2,7 @@ import React from 'react'
 
 import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
 import IconButton from '@/components/IconButton'
+import { commitActiveCardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
@@ -162,6 +163,9 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             title={UI_COPY.flowWidgetRun}
             tooltipContent={UI_COPY.flowWidgetRun}
             showTooltip
+            onPointerDown={() => {
+              commitActiveCardInlineTextEditor()
+            }}
             onClick={onRun}
             className="App-toolbar__btn"
           >

@@ -92,8 +92,10 @@ export const createUiInitialState = (
           || view === 'chat'
           || view === 'geo'
           || view === 'renderer'
+          || view === 'flowEditor'
           || view === 'gitGraph'
           || view === 'gantt'
+          || view === 'timeline'
           || view === 'strybldr'
           || view === 'graphTraversal'
             ? view
@@ -103,9 +105,9 @@ export const createUiInitialState = (
       }),
 
     mermaidDiagramSelectedRowKeyByKind: {},
-    setMermaidDiagramSelectedRowKey: (kind: 'gitgraph' | 'gantt', rowKey: string | null) =>
+    setMermaidDiagramSelectedRowKey: (kind: 'gitgraph' | 'gantt' | 'timeline', rowKey: string | null) =>
       set(state => {
-        const diagramKind = kind === 'gantt' ? 'gantt' : kind === 'gitgraph' ? 'gitgraph' : null
+        const diagramKind = kind === 'gantt' || kind === 'gitgraph' || kind === 'timeline' ? kind : null
         if (!diagramKind) return {}
         const nextKey = String(rowKey || '').trim()
         const prev = state.mermaidDiagramSelectedRowKeyByKind || {}
@@ -114,6 +116,14 @@ export const createUiInitialState = (
         if (nextKey) next[diagramKind] = nextKey
         else delete next[diagramKind]
         return { mermaidDiagramSelectedRowKeyByKind: next } as Partial<GraphState>
+      }),
+
+    flowEditorSelectedPortRowKey: '',
+    setFlowEditorSelectedPortRowKey: (rowKey: string | null) =>
+      set(state => {
+        const next = String(rowKey || '').trim()
+        if (state.flowEditorSelectedPortRowKey === next) return {}
+        return { flowEditorSelectedPortRowKey: next } as Partial<GraphState>
       }),
 
     gitGraphSelectedCommandLineIndex: null,

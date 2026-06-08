@@ -241,6 +241,16 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   }
   if (id === 'control:timeline') {
     if (geospatialEnabled) return
+    if (canvasRenderMode !== '2d' || canvas2dRenderer !== 'strybldr') {
+      const nextTab: BottomSurfaceTab = 'timeline'
+      if (bottomSurfaceCollapsed !== true && bottomSurfaceTab === nextTab) {
+        setBottomSurfaceCollapsed(true)
+        return
+      }
+      setBottomSurfaceTab(nextTab)
+      setBottomSurfaceCollapsed(false)
+      return
+    }
     const nextEnabled = !resolveTimelineEnabled(timelineEnabled)
     if (resolveTimelineEnabled(timelineEnabled) !== nextEnabled) setTimelineEnabled(nextEnabled)
     return

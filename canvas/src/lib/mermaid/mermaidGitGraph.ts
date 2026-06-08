@@ -7,3 +7,7 @@ export const resolveMermaidGitGraphCode = (candidates: ReadonlyArray<string | nu
 export const resolveMermaidGanttCode = (candidates: ReadonlyArray<string | null | undefined>): string => {
   return resolveMermaidDiagramCode(candidates, 'gantt')
 }
+
+export const resolveMermaidTimelineCode = (candidates: ReadonlyArray<string | null | undefined>): string => {
+  return resolveMermaidDiagramCode(candidates, 'timeline')
+}

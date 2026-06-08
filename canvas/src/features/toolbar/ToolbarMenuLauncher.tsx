@@ -124,11 +124,13 @@ export function ToolbarMenuLauncher({
           ? 'chat'
           : tab === 'geo'
             ? 'geo'
-            : tab === 'gitGraph'
-              ? 'gitGraph'
-              : tab === 'strybldr'
-                ? 'strybldr'
-                : null
+            : tab === 'flowEditor'
+              ? 'flowEditor'
+              : tab === 'gitGraph'
+                ? 'gitGraph'
+                : tab === 'strybldr'
+                  ? 'strybldr'
+                  : null
       if (!requested) return
       if (detail?.open === false) {
         closeToolMenu()

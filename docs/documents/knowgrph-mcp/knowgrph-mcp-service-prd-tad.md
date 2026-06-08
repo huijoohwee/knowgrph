@@ -3,8 +3,8 @@ title: Knowgrph MCP Service - PRD & TAD
 id: md:knowgrph-mcp-service-prd-tad
 author: joohwee
 date: 2026-05-20
-updated: 2026-06-04
-version: 0.4.22
+updated: 2026-06-08
+version: 0.4.23
 status: accepted-implemented-baseline
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
@@ -22,6 +22,15 @@ linkedDocs:
   - "{{md:knowgrph-llm-prompt-contract-prd-tad}}"
   - "{{md:kgc-ai-pipeline-prd-tad}}"
 changelog:
+  - version: 0.4.23
+    date: 2026-06-08
+    summary: >
+      Added the Agentic OS direction as a planned control-plane extension over
+      shipped MCP, SuperAgent, MainPanel, FloatingPanel Chat, Source Files, and
+      Canvas owners. The focused Agentic OS PRD/TAD defines Canvas UI and
+      cross-repo agent build/control dashboard requirements, dry-run/HITL
+      boundaries, token/TCO metrics, and AWS, Vercel, Exa, and Stripe adapter
+      lanes without claiming a deployed mutating remote MCP service.
   - version: 0.4.22
     date: 2026-06-04
     summary: >
@@ -96,69 +105,19 @@ changelog:
       MainPanel shell, and FloatingPanel Chat -> KGC/MCP structured response -> Editor Workspace -> Canvas owners remain
       implementation truth; richer remote Worker MCP remains planned and must
       reuse those owners before it can be documented as shipped.
-  - version: 0.4.14
-    date: 2026-05-23
-    summary: >
-      Added browser-local `inspect_local_settings_chat_readiness` plus chat
-      pipeline validation/finalize/apply diagnostics so WebMCP covers the real
-      Settings -> FloatingPanel Chat -> YAML frontmatter or MCP structured response -> Editor Workspace -> Canvas readiness
-      seams without adding a second mutating MCP pipeline.
-  - version: 0.4.13
-    date: 2026-05-23
-    summary: >
-      Added browser-local WebMCP inspection tools for MainPanel state, Editor
-      Workspace and Markdown pane state, and FloatingPanel chat pipeline state
-      so the shipped browser runtime covers the full MainPanel -> FloatingPanel
-      Chat -> Editor Workspace -> Canvas inspection chain.
-  - version: 0.4.12
-    date: 2026-05-23
-    summary: >
-      Recorded `mcp/local-tool-contract.js` as the shipped local stdio tool
-      contract owner and aligned local MCP docs and regression coverage with the
-      shared browser bridge tool inventory.
-  - version: 0.4.11
-    date: 2026-05-23
-    summary: >
-      Consolidated the overview doc back into the canonical MCP PRD/TAD and
-      companion, marked shipped WebMCP readiness as implementation truth instead
-      of future work, and aligned stale path references to the canonical files.
-  - version: 0.4.10
-    date: 2026-05-23
-    summary: >
-      Tightened the implementation-accurate WebMCP story to include app bootstrap,
-      deployed HTML fallback, A2A and agent-skills metadata coverage for the
-      shared tools, and explicit notes that downstream parser compatibility seams
-      are not upstream authoring contracts.
-  - version: 0.4.3-0.4.9
+  - version: 0.4.1-0.4.14
     date: 2026-05-22
     summary: >
-      Added browser-local workspace, canvas, 3d, 2d viewport, and Source Files
-      inspection tools while keeping the deployed Pages/HTTP contract read-only.
-  - version: 0.4.2
-    date: 2026-05-22
-    summary: >
-      Added `inspect_shared_document_structure` to the shipped read-only
-      Pages/browser MCP surface so agents can inspect published shared-document
-      frontmatter/body structure through the canonical share identity and
-      storage-read path.
-  - version: 0.4.1
-    date: 2026-05-22
-    summary: >
-      Rebased the PRD/TAD on the real repo: local stdio MCP is shipped,
-      Pages/browser read-only MCP is shipped, MainPanel MCP and Integrations are
-      shipped as SettingsView shells, and the FloatingPanel Chat to YAML
-      frontmatter to Canvas pipeline is shipped in-browser. Removed stale claims
-      that nonexistent remote Worker modules or D1 shadow graph services are
-      already implemented. Marked WebMCP lifecycle hardening as shipped and
-      aligned the browser MCP contract to late binding, `AbortController`
-      registration, and localhost/current-origin storage resolution.
+      Earlier baselines established shipped local stdio MCP, Pages/browser
+      read-only MCP, MainPanel shells, browser-local inspectors, WebMCP
+      lifecycle hardening, and removal of stale remote-Worker claims.
 ---
 
 # Knowgrph MCP Service - PRD & TAD
 
 > **Document type**: Combined PRD + TAD  
 > **Phase**: Implemented baseline plus planned remote extension  
-> **Version**: 0.4.21
+> **Version**: 0.4.23
 
 ---
 
@@ -183,6 +142,7 @@ This document defines the implemented MCP baseline for Knowgrph and the rules fo
 | MainPanel `integrations` | Shipped | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | Thin `SettingsView mode="integrations"` shell |
 | Shared chat readiness | Shipped | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | Chat preset, routing, model readiness owner |
 | FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | Browser-local validated KGC path |
+| Agentic OS control plane | Planned extension | `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md` | Canvas UI and cross-repo agent build/control dashboard over shipped owners; dry-run first, root-allowlisted, token/TCO budgeted, and HITL-gated |
 | Full remote Worker MCP platform | Planned extension | none in repo yet | Not implemented in repo today |
 
 ### Primary Correction
@@ -205,6 +165,7 @@ Knowgrph should evolve toward a richer MCP platform, but only by:
 - keeping current WebMCP readiness implementation-accurate: tool definitions stay shared, typed, descriptor-complete, page-load installed, and lifecycle-managed through `provideContext({ tools })` and `registerTool(tool, { signal })`
 - keeping MainPanel `mcp` and `integrations` as thin shells over shared settings and chat-routing owners
 - documenting the local long-horizon SuperAgent harness as CLI/local-MCP execution through `knowgrph_parser` and `knowgrph.superagent.run`, with `research.scout`, `code.write_and_run`, bounded sandbox artifacts, and `providerMode` selection, not as a deployed Pages/WebMCP mutation service
+- documenting Agentic OS as an operator-facing Canvas UI and cross-repo build/control dashboard that composes existing MCP, SuperAgent, MainPanel, chat, Source Files, and Canvas owners before any remote mutating service exists
 - treating DeerFlow as conceptual inspiration for message gateway, memory, tools, skills, subagents, sandboxed workspace artifacts, and minutes-to-hours runs without copying DeerFlow code or architecture
 - reusing the shipped FloatingPanel Chat -> KGC or literal MCP structured-surface validation -> Canvas apply helpers instead of introducing a second MCP-only graph pipeline
 - keeping `flow.subgraphs` as the sole upstream grouping authoring surface
@@ -233,6 +194,7 @@ Future MCP work must unify these surfaces into one consistent story:
 - MCP Apps-ready support remains a native in-repo tool/resource contract centered on `ui://knowgrph/agent-ready`, `text/html;profile=mcp-app`, tool `_meta.ui.resourceUri`, `outputSchema`, `structuredContent`, and text fallback
 - MainPanel `mcp` and `integrations` remain the UX bridge into MCP-aware settings, readiness, and chat orchestration
 - any richer remote MCP service wraps the same upstream chat, validation, workspace, parser, and canvas owners that already materialize structured KGC Markdown or literal MCP structured responses into widgets, media panels, cards, compute outputs, edges, subgraphs, groups, and cluster projections
+- Agentic OS cross-repo build/control workflows are dry-run first, root-allowlisted, trace-emitting, token/TCO-budgeted, and human-approved before file writes, deployments, paid model calls, or financial actions
 
 ---
 
@@ -249,6 +211,7 @@ Knowgrph MCP must:
 - preserve zero- or near-zero fixed-cost deployment bias for remote surfaces
 - keep tool contracts SSOT, small, typed, and reusable across stdio, browser, and future remote transports
 - keep MCP Apps-ready resource delivery predeclared, server-owned, sandbox-metadata-backed, and readable without introducing a copied upstream sample server
+- support a planned Agentic OS dashboard contract for consumer repos such as `stryfork`, where profile, plan, evidence, approval, failure, and demo-pack state render through existing Source Files and Canvas paths
 
 ### Non-Goals
 
@@ -258,6 +221,7 @@ This document does not claim that the following are already implemented:
 - a server-side D1 shadow of browser `graphDataSlice` that is already wired into live canvas sync
 - a shipped OAuth 2.1 remote auth flow for Knowgrph-specific tools
 - a shipped Stripe-backed remote MCP monetization surface beyond the MainPanel readiness/docs layer
+- a shipped Agentic OS mutating tool chain, production deploy executor, or financial-action executor
 
 ### Personas
 
@@ -266,6 +230,7 @@ This document does not claim that the following are already implemented:
 - **Persona C - MainPanel operator**: configures MCP, integrations, provider presets, and chat routing through shared MainPanel settings.
 - **Persona D - FloatingPanel Chat user**: asks the LLM to generate canonical KGC Markdown or a literal MCP structured response and expects the result to land in Editor Workspace and materialize on the Canvas without a second manual import path.
 - **Persona E - Future remote MCP client**: should eventually trigger selected richer flows remotely, but only through thin adapters over existing browser/local owners.
+- **Persona F - Agentic OS operator**: uses the Canvas UI to profile an allowlisted consumer repo, plan autonomous agent work, inspect tool decisions, approve risky actions, and export a judging-ready demo pack while keeping mutations dry-run until approved.
 
 ### User Journeys
 
@@ -332,6 +297,11 @@ This document does not claim that the following are already implemented:
 
 - **PRD-MCP5-S1**: As an MCP Apps-capable host, I want Knowgrph tools to link a predeclared `ui://` resource so that the host can fetch and sandbox the UI before or during tool execution.
 - **PRD-MCP5-S2**: As a maintainer, I want server-readiness to be computed from the shared tool/resource contract so that Pages HTTP MCP, local stdio MCP, static artifacts, and live checks cannot drift.
+
+#### Epic MCP-6 - Agentic OS Control Plane
+
+- **PRD-MCP6-S1**: As an Agentic OS operator, I want Knowgrph MCP to profile an allowlisted consumer repo and render stack, scripts, docs, env gaps, deployment targets, budget, and risks on Canvas.
+- **PRD-MCP6-S2**: As a maintainer, I want every Agentic OS write, deployment, paid model call, or financial action to remain dry-run until a human approval state is recorded.
 
 ### Acceptance Criteria
 
@@ -410,6 +380,18 @@ This document does not claim that the following are already implemented:
 **When** readiness is checked,
 **Then** `mcpAppsServerReadiness.ready` is true only when tool/resource linkage, Source Files resource-template discovery, `outputSchema`, text fallback, structured content, sandbox/security metadata, OpenAI output-template/widget metadata, OpenAI widget bridge compatibility, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored no-auth security schemes, read-only/non-destructive/idempotent annotations, widget accessibility, prompt discovery, extension capability, Streamable HTTP JSON-RPC transport, read-only content-aware `search`/`fetch` tools with required output fields, and local stdio transport are all present.
 
+#### PRD-MCP6-S1 - Agentic OS repo profile
+
+**Given** a configured consumer repo root such as `stryfork`,
+**When** Agentic OS profiling runs,
+**Then** it returns a typed profile for stack, scripts, docs, env gaps, deployment targets, token/TCO budget, and risk state without mutating files.
+
+#### PRD-MCP6-S2 - Agentic OS approval gates
+
+**Given** an Agentic OS plan includes file writes, deployment, paid model calls, or Stripe actions,
+**When** the plan reaches execution,
+**Then** the tool returns dry-run output and blocks execution until a human approval state is present.
+
 ---
 
 ## TAD — Technical Architecture
@@ -420,6 +402,7 @@ This document does not claim that the following are already implemented:
 |---|---|---|---|
 | Local MCP transport, tools, and resources | `mcp/server.js` + `mcp/local-tool-contract.js` | Shipped | stdio transport with tool, MCP Apps capability, resource list, and resource read support |
 | Local SuperAgent harness | `knowgrph_parser/superagent_harness.py`, `knowgrph_parser/superagent_plan.py`, `knowgrph_parser/superagent_tools.py`, `knowgrph_parser/superagent_verifier.py` | Shipped | local long-horizon research/code/create artifact loop with trace memory, role-scoped agent contracts, proof manifest, and reviewable artifacts |
+| Agentic OS dashboard contract | `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md` | Planned | cross-repo build/control dashboard requirements, dry-run/HITL policy, adapter lanes, and `/goal` checks |
 | Local MCP docs | `mcp/README.md` | Shipped | must stay aligned with `server.js` |
 | Pages agent-ready MCP route | `cloudflare/pages/knowgrph-agent-ready.mjs` | Shipped | JSON-RPC read-only transport with tools and resources |
 | MCP Apps-ready shared contract | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | Shipped | extension id, resource MIME type, resource URI, tool metadata, resource descriptor/read result, inline HTML, output schema, and readiness payload |
@@ -534,6 +517,7 @@ The next remote MCP layer is planned but not implemented. When it is implemented
 | KGC/MCP response validation | reuse shared recovery, validation, and structured-content extraction rules | accepting prose wrappers, parallel grouping aliases, or synthetic KGC downstream |
 | Canvas apply | reuse existing graph apply boundary and parser owners | new serializer/importer that bypasses `setActiveMarkdownDocument()` |
 | Group rendering | keep subgraphs as source, rendered groups as projection | writing rendered group state as a second source of truth |
+| Agentic OS consumer repos | profile only configured allowlisted roots and render typed run manifests | arbitrary external path traversal, downstream patches, or write/deploy/payment execution without approval |
 
 ### Architecture Diagram
 
@@ -573,6 +557,7 @@ flowchart LR
 - preserve browser WebMCP and MCP Apps parity across app runtime, injected HTML fallback, Pages HTTP MCP, local stdio MCP, static artifacts, and live checks
 - keep MainPanel readiness docs aligned with Stripe MCP and crawler-access MCP SSOT modules
 - introduce remote read-oriented tools before mutation, reusing storage-worker, published-doc, validation, parser, KGC Markdown, and `flow.subgraphs` contracts
+- keep Agentic OS P0 at documentation, profiling, dry-run planning, dashboard manifests, and demo-pack generation until implementation-specific tests exist
 - add targeted validation around transport parity and canvas materialization correctness before any future remote pipeline bridge ships
 
 ---
@@ -585,6 +570,7 @@ flowchart LR
 - [x] Documents `useFloatingPanelChatSubmit.ts` as a thin shell over the coordinator/helper stack
 - [x] Documents canonical KGC validation, literal MCP structured-surface acceptance, and recovery before canvas apply
 - [x] Documents the shipped MCP Apps resource, Source Files resource template, MIME type, extension capability, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored no-auth security schemes, read-only annotations, data-first `search`/`fetch`, prompt/resource handlers, and server-readiness payload
+- [x] Documents Agentic OS as a planned Canvas UI and cross-repo build/control dashboard, not as a shipped mutating remote MCP platform
 - [x] Documents `flow.subgraphs` as the sole upstream grouping authoring surface
 - [x] Forbids stale remote Worker module claims and duplicate graph pipelines
 - [x] Reuses the storage-worker origin rule for future server-side reads
@@ -592,4 +578,4 @@ flowchart LR
 
 ---
 
-*Document ID: `md:knowgrph-mcp-service-prd-tad` · Version: 0.4.22 · Updated: 2026-06-04*
+*Document ID: `md:knowgrph-mcp-service-prd-tad` · Version: 0.4.23 · Updated: 2026-06-08*

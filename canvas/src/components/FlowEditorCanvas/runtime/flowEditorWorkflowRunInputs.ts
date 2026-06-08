@@ -36,6 +36,20 @@ function collectOutputSchemaPaths(entry: WidgetRegistryEntry | null | undefined)
   return out
 }
 
+function materializeInlineComputeOutputSchemaPath(args: {
+  schemaPath: string
+  outputSchemaPaths: ReadonlySet<string>
+}): string {
+  const dataPrefix = 'properties.data.'
+  if (!args.schemaPath.startsWith(dataPrefix)) return args.schemaPath
+  const propertyKey = args.schemaPath.slice(dataPrefix.length).trim()
+  if (!propertyKey) return ''
+  const materializedPath = `properties.${propertyKey}`
+  return args.outputSchemaPaths.size === 0 || args.outputSchemaPaths.has(materializedPath)
+    ? materializedPath
+    : ''
+}
+
 export function buildFlowEditorInlineComputeOutputPatch(args: {
   node: GraphNode | null
   registryEntry?: WidgetRegistryEntry | null
@@ -54,7 +68,9 @@ export function buildFlowEditorInlineComputeOutputPatch(args: {
     const isComputedDataOutput = outputSchemaPaths.size === 0 && schemaPath.startsWith('properties.data.')
     if (!isDeclaredOutput && !isComputedDataOutput) continue
     if (Object.is(connected?.value, undefined)) continue
-    nextRoot = setObjectPath(nextRoot, schemaPath, connected.value)
+    const materializedPath = materializeInlineComputeOutputSchemaPath({ schemaPath, outputSchemaPaths })
+    if (!materializedPath) continue
+    nextRoot = setObjectPath(nextRoot, materializedPath, connected.value)
     changed = true
   }
   return changed ? nextRoot.properties : null
@@ -65,6 +81,7 @@ export function resolveFlowEditorWorkflowConnectedValuesInput(args: {
   graphForRun: GraphData | null
   writableNodeId: string
   registry: WidgetRegistryEntry[]
+  preserveMaterializedOutputs?: boolean
 }): FlowEditorWorkflowConnectedValuesInput | null {
   const writableNodeId = String(args.writableNodeId || '').trim()
   if (!writableNodeId) return null
@@ -85,6 +102,7 @@ export function resolveFlowEditorWorkflowConnectedValuesInput(args: {
       graphRevision: readGraphDataRevision(graphData),
       registry: args.registry,
       targetNodeIds: new Set([resolvedTargetNodeId]),
+      preserveMaterializedOutputs: args.preserveMaterializedOutputs,
     })
     return {
       graphData,

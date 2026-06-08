@@ -1,5 +1,5 @@
 import { parseCanonicalNodeIds } from '@/lib/graph/canonicalNodeIds'
-import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
+import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 export type FlowEditorWorkflowOutputLoadingKind = 'text' | 'image' | 'video' | 'audio'
@@ -10,12 +10,6 @@ export function areFlowEditorWorkflowRecordValuesEqual(a: Record<string, unknown
     if (!Object.is(a[key], b[key])) return false
   }
   return true
-}
-
-export function bumpFlowEditorWorkflowDraftGraphDataRevision(graphData: GraphData): GraphData {
-  const metadata = (graphData.metadata || {}) as Record<string, unknown>
-  const current = readGraphDataRevision(graphData)
-  return { ...graphData, metadata: { ...metadata, graphDataRevision: current + 1 } }
 }
 
 export function collectFlowEditorWorkflowCandidateNodeIds(nodeIds: ReadonlyArray<string>): Set<string> {
@@ -51,7 +45,7 @@ export function updateFlowEditorWorkflowOutputForKnownNodeIds(args: {
       return { ...existing, properties: nextProps as never }
     })
     if (changed) {
-      const nextDraft = bumpFlowEditorWorkflowDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })
+      const nextDraft = bumpFlowEditorDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })
       args.commitDraftGraphDataUpdate(currentDraft, nextDraft)
     }
   }

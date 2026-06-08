@@ -1,6 +1,7 @@
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config'
+import { readFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 
 function cleanString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -108,8 +109,7 @@ export function isFlowEditorWorkflowRunnableNode(args: {
   const node = args.node
   if (!node) return false
   const nodeType = cleanString(node.type)
-  const properties = readPlainRecord(node.properties) || {}
-  if (cleanString(properties['flow:compute'])) return true
+  if (readFlowComputeSource(node)) return true
   if (nodeType === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) return true
   if (nodeType === FLOW_SWARM_PREDICTION_NODE_TYPE_ID) return true
   if (nodeType === FLOW_TEXT_GENERATION_NODE_TYPE_ID) return true

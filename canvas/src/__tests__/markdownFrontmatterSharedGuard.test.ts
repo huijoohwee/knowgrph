@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { resolveCanvas2dRendererId, sharesFlowEditorFrontmatterSyntax } from '@/lib/config.render'
+import {
+  getCanvas2dRendererLabel,
+  getCanvas2dSurfaceId,
+  resolveCanvas2dRendererId,
+  sharesFlowEditorFrontmatterSyntax,
+} from '@/lib/config.render'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 export const testMarkdownFrontmatterReusesSharedPlainObjectGuard = () => {
@@ -80,14 +85,17 @@ export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxO
   if (resolveCanvas2dRendererId('Animatic') !== 'animatic') {
     throw new Error('expected shared renderer normalizer to resolve Animatic upstream')
   }
+  if (getCanvas2dRendererLabel('animatic') !== 'Gantt-timeline' || getCanvas2dSurfaceId('animatic') !== 'gantt') {
+    throw new Error('expected old Animatic renderer id to adapt onto the Gantt-timeline surface')
+  }
   if (!sharesFlowEditorFrontmatterSyntax('flowEditor')) {
     throw new Error('expected Flow Editor to remain on the shared flow-frontmatter syntax owner')
   }
   if (resolveCanvas2dRendererId(legacyTimelineRendererAlias) !== undefined) {
     throw new Error('expected legacy timeline renderer alias to be removed instead of remapped')
   }
-  if (!sharesFlowEditorFrontmatterSyntax('animatic')) {
-    throw new Error('expected Animatic renderer to reuse the shared Flow Editor frontmatter syntax owner')
+  if (sharesFlowEditorFrontmatterSyntax('animatic')) {
+    throw new Error('expected old Animatic renderer id to stop sharing Flow Editor frontmatter syntax after adapting to Gantt-timeline')
   }
   if (sharesFlowEditorFrontmatterSyntax('d3')) {
     throw new Error('expected non-flow renderers to stay outside the shared Flow Editor frontmatter syntax owner')

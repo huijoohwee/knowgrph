@@ -1,10 +1,19 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useSvgSurfaceZoomRuntime } from '@/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime'
+import { useFlowEditorDiagramSelectionBridge } from '@/features/gitgraph/useFlowEditorDiagramSelectionBridge'
 import { useMermaidGitGraphDocument } from '@/features/gitgraph/useMermaidGitGraphDocument'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
-import type { MermaidGitGraphCommand } from '@/lib/mermaid/mermaidGitGraphEdit'
+import { parseMermaidDiagramCodeModel } from '@/lib/mermaid/mermaidDiagramCode'
+import {
+  findGitGraphCommandForExactLabel,
+  normalizeGitGraphComparableLabel,
+  readGitGraphCommandSelectionLabel,
+  readGitGraphCommandSelectionLabelCandidates,
+  resolveGitGraphCommandRowKey,
+  resolveGitGraphSelectedCommand,
+} from '@/lib/mermaid/mermaidGitGraphSelection'
 import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 
@@ -15,48 +24,6 @@ type MermaidGitGraphCanvasProps = {
 type RenderState = {
   svg: string
   error: string | null
-}
-
-const readGitGraphCommandSelectionLabel = (command: MermaidGitGraphCommand | null | undefined): string => {
-  if (!command) return ''
-  return command.commitId || command.tag || command.target || command.label || ''
-}
-
-const normalizeGitGraphComparableLabel = (value: string | null | undefined): string => {
-  return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase()
-}
-
-const readGitGraphCommandSelectionLabelCandidates = (
-  command: MermaidGitGraphCommand | null | undefined,
-): string[] => {
-  if (!command) return []
-  const labels: string[] = []
-  const seen = new Set<string>()
-  const push = (value: string | null | undefined) => {
-    const label = String(value || '').replace(/\s+/g, ' ').trim()
-    const normalized = normalizeGitGraphComparableLabel(label)
-    if (!normalized || seen.has(normalized)) return
-    seen.add(normalized)
-    labels.push(label)
-  }
-  push(command.commitId)
-  push(command.tag)
-  push(command.target)
-  push(command.label)
-  return labels
-}
-
-const findGitGraphCommandForExactLabel = (
-  commands: ReadonlyArray<MermaidGitGraphCommand>,
-  label: string | null | undefined,
-): MermaidGitGraphCommand | null => {
-  const normalized = normalizeGitGraphComparableLabel(label)
-  if (!normalized) return null
-  return commands.find(command => {
-    return readGitGraphCommandSelectionLabelCandidates(command).some(value => {
-      return normalizeGitGraphComparableLabel(value) === normalized
-    })
-  }) || null
 }
 
 const readGitGraphSvgElementChain = (args: {
@@ -167,12 +134,20 @@ export default function MermaidGitGraphCanvas({ active = true }: MermaidGitGraph
   const autoOpenedFloatingPanelRef = React.useRef(false)
   const [state, setState] = React.useState<RenderState>({ svg: '', error: null })
   const { code, gitGraphModel, graphData, graphDataRevision, themeMode } = useMermaidGitGraphDocument()
+  const gitGraphDiagramModel = React.useMemo(() => parseMermaidDiagramCodeModel(code, 'gitgraph'), [code])
+  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+    graphData,
+    diagramModel: gitGraphDiagramModel,
+    kind: 'gitgraph',
+  })
   const {
     floatingPanelOpen,
     setFloatingPanelOpen,
     setFloatingPanelView,
     setGitGraphSelectedCommandLineIndex,
     gitGraphSelectedCommandLineIndex,
+    mermaidDiagramSelectedRowKey,
+    setMermaidDiagramSelectedRowKey,
   } = useGraphStore(
     useShallow(store => ({
       floatingPanelOpen: store.floatingPanelOpen,
@@ -180,13 +155,21 @@ export default function MermaidGitGraphCanvas({ active = true }: MermaidGitGraph
       setFloatingPanelView: store.setFloatingPanelView,
       setGitGraphSelectedCommandLineIndex: store.setGitGraphSelectedCommandLineIndex,
       gitGraphSelectedCommandLineIndex: store.gitGraphSelectedCommandLineIndex,
+      mermaidDiagramSelectedRowKey: store.mermaidDiagramSelectedRowKeyByKind.gitgraph || '',
+      setMermaidDiagramSelectedRowKey: store.setMermaidDiagramSelectedRowKey,
     })),
   )
+  const selectedCommand = React.useMemo(() => {
+    return resolveGitGraphSelectedCommand({
+      commands: gitGraphModel.commands,
+      diagramModel: gitGraphDiagramModel,
+      selectedRowKey: mermaidDiagramSelectedRowKey,
+      selectedLineIndex: gitGraphSelectedCommandLineIndex,
+    })
+  }, [gitGraphDiagramModel, gitGraphModel.commands, gitGraphSelectedCommandLineIndex, mermaidDiagramSelectedRowKey])
   const selectedCommandLabel = React.useMemo(() => {
-    if (gitGraphSelectedCommandLineIndex == null) return ''
-    const command = gitGraphModel.commands.find(item => item.lineIndex === gitGraphSelectedCommandLineIndex)
-    return readGitGraphCommandSelectionLabel(command)
-  }, [gitGraphModel.commands, gitGraphSelectedCommandLineIndex])
+    return readGitGraphCommandSelectionLabel(selectedCommand)
+  }, [selectedCommand])
   const resolveGitGraphSvgElementLabel = React.useCallback((args: {
     svgEl: SVGSVGElement
     target: Element
@@ -231,12 +214,18 @@ export default function MermaidGitGraphCanvas({ active = true }: MermaidGitGraph
       setFloatingPanelView('gitGraph')
       setFloatingPanelOpen(true)
     }
+    const rowKey = command ? resolveGitGraphCommandRowKey(command, gitGraphModel.commands.indexOf(command), gitGraphDiagramModel) : ''
     setGitGraphSelectedCommandLineIndex(command?.lineIndex ?? null)
+    setMermaidDiagramSelectedRowKey('gitgraph', rowKey || null)
+    handleDiagramSelectedRowKeyChange(rowKey || null)
   }, [
+    gitGraphDiagramModel,
     gitGraphModel.commands,
+    handleDiagramSelectedRowKeyChange,
     setFloatingPanelOpen,
     setFloatingPanelView,
     setGitGraphSelectedCommandLineIndex,
+    setMermaidDiagramSelectedRowKey,
   ])
   const { selectedElementLabel } = useSvgSurfaceZoomRuntime({
     active: active && !!state.svg && !state.error,
@@ -258,6 +247,31 @@ export default function MermaidGitGraphCanvas({ active = true }: MermaidGitGraph
     if (gitGraphModel.commands.some(command => command.lineIndex === gitGraphSelectedCommandLineIndex)) return
     setGitGraphSelectedCommandLineIndex(null)
   }, [gitGraphModel.commands, gitGraphSelectedCommandLineIndex, setGitGraphSelectedCommandLineIndex])
+
+  React.useEffect(() => {
+    if (!selectedCommand) return
+    const rowKey = resolveGitGraphCommandRowKey(
+      selectedCommand,
+      gitGraphModel.commands.indexOf(selectedCommand),
+      gitGraphDiagramModel,
+    )
+    if (selectedCommand.lineIndex !== gitGraphSelectedCommandLineIndex) {
+      setGitGraphSelectedCommandLineIndex(selectedCommand.lineIndex)
+    }
+    if (rowKey && rowKey !== mermaidDiagramSelectedRowKey) {
+      setMermaidDiagramSelectedRowKey('gitgraph', rowKey)
+      handleDiagramSelectedRowKeyChange(rowKey)
+    }
+  }, [
+    gitGraphDiagramModel,
+    gitGraphModel.commands,
+    gitGraphSelectedCommandLineIndex,
+    handleDiagramSelectedRowKeyChange,
+    mermaidDiagramSelectedRowKey,
+    selectedCommand,
+    setGitGraphSelectedCommandLineIndex,
+    setMermaidDiagramSelectedRowKey,
+  ])
 
   React.useEffect(() => {
     if (!active || !code || autoOpenedFloatingPanelRef.current) return

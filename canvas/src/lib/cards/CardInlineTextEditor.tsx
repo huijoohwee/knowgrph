@@ -28,6 +28,18 @@ type CardInlineTextEditorProps = {
 }
 
 const normalizeEditorValue = (value: string): string => String(value ?? '').replace(/\r/g, '')
+const CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE = 'data-kg-card-inline-edit-input'
+
+export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null): boolean {
+  const doc = ownerDocument || (typeof document !== 'undefined' ? document : null)
+  const active = doc?.activeElement
+  if (!active) return false
+  const elementCtor = active.ownerDocument?.defaultView?.HTMLElement || (typeof HTMLElement !== 'undefined' ? HTMLElement : null)
+  if (!elementCtor || !(active instanceof elementCtor)) return false
+  if (!active.matches(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`)) return false
+  active.blur()
+  return true
+}
 
 const isElementEventTarget = (target: EventTarget | null): target is Element => {
   const elementCtor = target && 'ownerDocument' in target
@@ -175,6 +187,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         rows={rows ?? (multiline ? 3 : undefined)}
         spellCheck
         className={editorClassName}
+        dataAttributes={{ [CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1' }}
         onDoubleClick={event => {
           event.stopPropagation()
         }}
@@ -197,6 +210,14 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       onDoubleClick={event => {
         if (editActivation !== 'doubleClick') return
         openEditorFromDisplayEvent(event)
+      }}
+      onPointerDown={event => {
+        if (!canEdit) return
+        if (shouldIgnoreInlineEditTarget(event.target)) return
+        if (editActivation !== 'click' && event.detail < 2) return
+        if (stopActivationPropagation) {
+          event.stopPropagation()
+        }
       }}
       onMouseDown={event => {
         if (!canEdit) return

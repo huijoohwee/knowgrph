@@ -653,7 +653,6 @@ export function useFlowEditorOverlaySurface(args: {
     // Pin state switches placement authority; collision layout stays owned by topology,
     // viewport changes, and explicit floating-position updates.
   }, [])
-
   const overlayEditorElements = React.useMemo(() => {
     return buildOverlayEditorElements({
       overlayVisibilityActive,

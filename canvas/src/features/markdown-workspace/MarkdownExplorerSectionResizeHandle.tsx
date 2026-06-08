@@ -1,7 +1,6 @@
 import React from 'react'
-import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { HorizontalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
+import { bindResizeSeparatorDragRuntime } from '@/lib/ui/resizeSeparatorDrag'
 import {
   resolveMarkdownExplorerSectionResize,
   type MarkdownExplorerSectionBoundary,
@@ -27,53 +26,21 @@ export function MarkdownExplorerSectionResizeHandle(props: {
     readCurrentRef.current = readCurrentHeightsPx
   }, [commitHeightsPx, readCurrentHeightsPx, setPreviewHeightsPx])
 
-  const schedulerRef = React.useRef(
-    createRafValueScheduler<MarkdownExplorerSectionHeightsPx>(value => {
-      setPreviewRef.current(value)
-    }),
-  )
-
-  React.useEffect(() => () => schedulerRef.current.cancel(), [])
-
   React.useEffect(() => {
     const el = resizeHandleRef.current
     if (!el) return
-    const handlePointerDown = (ev: PointerEvent) => {
-      if (ev.button !== undefined && ev.button !== 0) return
-      const startHeightsPx = readCurrentRef.current()
-      if (!startHeightsPx) return
-      const startClientY = ev.clientY
-      let pendingHeightsPx = startHeightsPx
-
-      startPointerDrag({
-        ev,
-        cursor: 'row-resize',
-        shouldStart: down => {
-          if (down.button !== undefined && down.button !== 0) return false
-          return true
-        },
-        onMove: move => {
-          pendingHeightsPx = resolveMarkdownExplorerSectionResize({
-            boundary,
-            startHeightsPx,
-            deltaY: move.clientY - startClientY,
-          })
-          schedulerRef.current.schedule(pendingHeightsPx)
-        },
-        onEnd: () => {
-          schedulerRef.current.flush()
-          setPreviewRef.current(pendingHeightsPx)
-          commitRef.current(pendingHeightsPx)
-        },
-        onCancel: () => {
-          schedulerRef.current.flush()
-          setPreviewRef.current(pendingHeightsPx)
-          commitRef.current(pendingHeightsPx)
-        },
-      })
-    }
-    el.addEventListener('pointerdown', handlePointerDown)
-    return () => el.removeEventListener('pointerdown', handlePointerDown)
+    return bindResizeSeparatorDragRuntime<MarkdownExplorerSectionHeightsPx>({
+      resizeHandleEl: el,
+      cursor: 'row-resize',
+      readCurrentValue: () => readCurrentRef.current(),
+      setPreviewValue: next => setPreviewRef.current(next),
+      commitValue: next => commitRef.current(next),
+      resolveNextValueFromPointerDrag: input => resolveMarkdownExplorerSectionResize({
+        boundary,
+        startHeightsPx: input.startValue,
+        deltaY: input.deltaY,
+      }),
+    })
   }, [boundary])
 
   return (

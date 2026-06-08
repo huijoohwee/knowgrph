@@ -326,7 +326,6 @@ export async function testBootstrapKnowgrphSubmitDraftStreamsTraceWorkspaceAndKe
   const streamingStates: Array<{ path: string | null; text: string }> = []
   const followed: string[] = []
   const resolvedPaths: string[] = []
-  const persistedDrafts: Array<{ requestedPath: string; assistantText: string }> = []
   const submitArgs = buildSubmitArgsFixture({
     chatStorageTarget: 'chatKnowgrph',
     chatKnowgrphWorkspacePath: '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md',
@@ -346,13 +345,6 @@ export async function testBootstrapKnowgrphSubmitDraftStreamsTraceWorkspaceAndKe
     trimmedInput: 'Generate KGC',
     traceId: 'trace-preflight',
     ensureWorkspacePath: async () => '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md',
-    persistDraft: async payload => {
-      persistedDrafts.push({
-        requestedPath: String(payload.requestedPath || ''),
-        assistantText: String(payload.assistantText || ''),
-      })
-      return '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md'
-    },
   })
   if (liveKgcPath !== '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md') {
     throw new Error(`Expected preflight bootstrap to resolve the Knowgrph workspace path, got: ${liveKgcPath}`)
@@ -369,13 +361,6 @@ export async function testBootstrapKnowgrphSubmitDraftStreamsTraceWorkspaceAndKe
     streamingStates[0]?.text !== '_Streaming..._'
   ) {
     throw new Error(`Expected preflight bootstrap to expose the trace draft in live workspace state, got: ${JSON.stringify(streamingStates)}`)
-  }
-  if (
-    persistedDrafts.length !== 1 ||
-    persistedDrafts[0]?.requestedPath !== '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md' ||
-    persistedDrafts[0]?.assistantText !== ''
-  ) {
-    throw new Error(`Expected preflight bootstrap to seed one canonical-output draft owner, got: ${JSON.stringify(persistedDrafts)}`)
   }
   if (followed.length !== 1 || followed[0] !== '/workspace/chat/20260522T170000Z/kgc-trace_20260522T170000Z.md') {
     throw new Error(`Expected preflight bootstrap to follow the live KGC trace workspace exactly once, got: ${JSON.stringify(followed)}`)
@@ -444,7 +429,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFinalizesSimp
 
 }
 
-export async function testExecuteFloatingPanelChatSubmitCoordinatorStreamsKgcDraftsWithoutWorkspaceRewrite() {
+export async function testExecuteFloatingPanelChatSubmitCoordinatorPersistsLiveKgcTraceDrafts() {
   const createDraftWriterCalls: Array<{
     liveKgcPath: string | null
     persistWorkspaceDrafts?: boolean
@@ -531,8 +516,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorStreamsKgcDra
   if (!call || call.liveKgcPath !== '/workspace/chat/20260522T181000Z/kgc_20260522T181000Z.md') {
     throw new Error(`Expected coordinator to bind stream drafts to the live KGC path, got: ${JSON.stringify(createDraftWriterCalls)}`)
   }
-  if (call.persistWorkspaceDrafts !== false) {
-    throw new Error(`Expected coordinator to keep live stream drafts in editor state without workspace rewrite churn, got: ${JSON.stringify(call)}`)
+  if (call.persistWorkspaceDrafts !== true) {
+    throw new Error(`Expected coordinator to persist live trace drafts for refresh recovery, got: ${JSON.stringify(call)}`)
   }
   if (draftFlushes.length !== 1 || draftFlushes[0]?.text !== 'partial durable stream') {
     throw new Error(`Expected streamed content to flow through the durable draft writer, got: ${JSON.stringify(draftFlushes)}`)
@@ -1691,6 +1676,7 @@ export function testResolveChatKnowgrphAttemptFinalizesValidatedCanonicalKgc() {
 export async function testCreateChatKnowgrphDraftWriterSkipsDuplicateNonForceWrites() {
   const persisted: string[] = []
   const followed: string[] = []
+  const streamingStates: Array<{ path?: string | null; text?: string | null } | null> = []
   const streamDraftTextRef = { current: null as { path: string; text: string } | null }
   const flushDraft = createChatKnowgrphDraftWriter({
     chatStorageTarget: 'chatKnowgrph',
@@ -1703,6 +1689,7 @@ export async function testCreateChatKnowgrphDraftWriterSkipsDuplicateNonForceWri
     streamDraftTextRef,
     followWorkspaceMarkdownPath: path => { followed.push(path) },
     setChatKnowgrphWorkspacePath: () => {},
+    setChatWorkspaceStreamingState: value => { streamingStates.push(value) },
     persistDraft: async payload => { persisted.push(String(payload.assistantText || '')); return '/workspace/chat/kgc.md' },
   })
   await flushDraft('alpha', false)
@@ -1722,6 +1709,12 @@ export async function testCreateChatKnowgrphDraftWriterSkipsDuplicateNonForceWri
   }
   if (streamDraftTextRef.current?.path !== '/workspace/chat/kgc.md') {
     throw new Error(`Expected live streaming draft state to stay on canonical KGC workspace, got: ${JSON.stringify(streamDraftTextRef.current)}`)
+  }
+  if (
+    streamingStates.length !== 1 ||
+    streamingStates[0]?.text !== 'alpha'
+  ) {
+    throw new Error(`Expected duplicate non-force updates to land the live editor text once, got: ${JSON.stringify(streamingStates)}`)
   }
 }
 

@@ -83,7 +83,13 @@ function compileFlowComputeSource(source: string): FlowComputeFunction | null {
 
 export function readFlowComputeSource(node: GraphNode): string {
   const props = readNodeProperties(node)
-  return cleanString(props?.['flow:compute'])
+  const readSourceValue = (value: unknown): string => {
+    const direct = cleanString(value)
+    if (direct) return direct
+    const record = readPlainObject(value)
+    return cleanString(record?.value)
+  }
+  return readSourceValue(props?.['flow:compute']) || readSourceValue(props?.compute)
 }
 
 export function runFlowComputeSource(

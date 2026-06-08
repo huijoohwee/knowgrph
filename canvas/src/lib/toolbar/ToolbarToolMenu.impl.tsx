@@ -106,17 +106,23 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 })
 
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
+const FlowEditorFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/flow-editor-manager/FlowEditorFloatingPanelView').then(mod => ({ default: mod.FlowEditorFloatingPanelView })),
+)
 const GitGraphFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })),
 )
 const GanttFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GanttFloatingPanelView').then(mod => ({ default: mod.GanttFloatingPanelView })),
 )
+const TimelineFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/TimelineFloatingPanelView').then(mod => ({ default: mod.TimelineFloatingPanelView })),
+)
 const StrybldrFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/strybldr/StrybldrFloatingPanelView').then(mod => ({ default: mod.StrybldrFloatingPanelView })),
 )
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'gitGraph', 'gantt', 'strybldr'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'flowEditor', 'gitGraph', 'gantt', 'timeline', 'strybldr'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -493,8 +499,10 @@ export function ToolbarToolMenu({
       { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
       { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
       { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer },
+      { view: 'flowEditor', title: 'Flow Editor', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.flowEditor },
       { view: 'gitGraph', title: UI_LABELS.gitGraph, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gitGraph },
       { view: 'gantt', title: UI_LABELS.gantt, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gantt },
+      { view: 'timeline', title: UI_LABELS.timeline, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.timeline },
       { view: 'strybldr', title: 'Strybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.strybldr },
     ],
     [],
@@ -712,6 +720,11 @@ export function ToolbarToolMenu({
               />
             )}
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />}
+            {floatingPanelView === 'flowEditor' && (
+              <React.Suspense fallback={null}>
+                <FlowEditorFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
             {floatingPanelView === 'gitGraph' && (
               <React.Suspense fallback={null}>
                 <GitGraphFloatingPanelViewLazy />
@@ -720,6 +733,11 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'gantt' && (
               <React.Suspense fallback={null}>
                 <GanttFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'timeline' && (
+              <React.Suspense fallback={null}>
+                <TimelineFloatingPanelViewLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'strybldr' && (

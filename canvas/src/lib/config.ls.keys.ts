@@ -344,6 +344,7 @@ export const LS_KEYS = {
   graphDragAlphaTarget2d: 'kg:ui:graph:dragAlphaTarget2d',
   infiniteCanvasInteractionMode: 'kg:ui:canvas:interactionMode',
   canvasWorkspaceSyncMode: 'kg:ui:canvas:workspaceSyncMode',
+  canvasRunMode: 'kg:ui:canvas:runMode',
   zoomDurationFitMs: 'kg:ui:zoom:durationFitMs',
   zoomDurationSelectionMs: 'kg:ui:zoom:durationSelectionMs',
   wheelZoomCtrlMetaBoostMultiplier: 'kg:ui:zoom:wheelCtrlMetaBoostMultiplier',

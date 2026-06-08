@@ -27,6 +27,7 @@ type PlainTextInputEditorProps = {
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onSelect?: React.ReactEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onDoubleClick?: React.MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  dataAttributes?: Record<`data-${string}`, string | number | boolean | undefined>
 }
 
 const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAreaElement, PlainTextInputEditorProps>(function PlainTextInputEditor({
@@ -53,10 +54,12 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
   onKeyDown,
   onSelect,
   onDoubleClick,
+  dataAttributes,
 }: PlainTextInputEditorProps, ref) {
   if (multiline) {
     return (
       <textarea
+        {...dataAttributes}
         ref={ref as React.Ref<HTMLTextAreaElement>}
         id={id}
         value={value}
@@ -88,6 +91,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
   }
   return (
     <input
+      {...dataAttributes}
       ref={ref as React.Ref<HTMLInputElement>}
       id={id}
       type={inputType}

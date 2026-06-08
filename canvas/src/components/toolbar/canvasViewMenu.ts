@@ -1,4 +1,4 @@
-import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Images, Magnet, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
+import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, History, Image as ImageIcon, Images, Magnet, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
@@ -47,6 +47,7 @@ const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRen
   gallery: Images,
   flowchart: Columns2,
   gitGraph: GitGraph,
+  gantt: ChartGantt,
   flow: GitMerge,
   animatic: MonitorPlay,
   storyboard: PanelsTopLeft,
@@ -61,6 +62,7 @@ const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   gallery: UI_COPY.canvasViewRendererGalleryTitle,
   flowchart: UI_COPY.canvasViewRendererD3FlowchartTitle,
   gitGraph: UI_COPY.canvasViewRendererGitGraphTitle,
+  gantt: UI_COPY.canvasViewRendererGanttTitle,
   flow: UI_COPY.canvasViewRendererFlowTitle,
   animatic: UI_COPY.canvasViewRendererAnimaticTitle,
   storyboard: UI_COPY.canvasViewRendererStoryboardTitle,
@@ -86,6 +88,7 @@ export const buildCanvasViewOptions = (
   const animationApplicable = isAnimationApplicable(state)
   const timelineEnabled = resolveTimelineEnabled(state.timelineEnabled)
   const bottomSurfaceOpen = state.bottomSurfaceCollapsed !== true
+  const timelineBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'timeline'
   const gitGraphBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gitGraph'
   const ganttBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gantt'
   const minimapSupported = state.canvasRenderMode === '2d' && supportsCanvas2dMinimap(state.canvas2dRenderer)
@@ -408,8 +411,8 @@ export const buildCanvasViewOptions = (
           id: 'control:timeline',
           title: 'Timeline',
           label: 'Time',
-          Icon: MonitorPlay,
-          isActive: timelineEnabled,
+          Icon: state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'strybldr' ? MonitorPlay : History,
+          isActive: state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'strybldr' ? timelineEnabled : timelineBottomPanelVisible,
           disabled: state.geospatialEnabled,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },
@@ -424,7 +427,7 @@ export const buildCanvasViewOptions = (
         },
         {
           id: 'control:gantt',
-          title: 'Gantt',
+          title: 'Gantt-Timeline',
           label: 'Gantt',
           Icon: ChartGantt,
           isActive: ganttBottomPanelVisible,

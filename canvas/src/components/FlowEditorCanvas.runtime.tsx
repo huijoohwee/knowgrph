@@ -19,6 +19,7 @@ import { useFlowEditorNodeDraftActions } from '@/components/FlowEditorCanvas/run
 import { useFlowEditorGraphActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorGraphActions'
 import { useFlowEditorWorkflowActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions'
 import { useFlowEditorRuntimeStoreState } from '@/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeStoreState'
+import { resolveFlowEditorAutoRunNodeIds } from '@/components/FlowEditorCanvas/runtime/flowEditorAutoRunTargets'
 import FlowEditorCanvasSurface from '@/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -31,6 +32,7 @@ import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
+import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 
 export default function FlowEditorCanvasRuntime(
   {
@@ -64,7 +66,7 @@ export default function FlowEditorCanvasRuntime(
 
   const {
     addEdge, addNode, addNodesToUserSubgraph, baseGraphData, baseGraphDataRevision,
-    baseWidgetRegistry, canvasRenderMode, canvas2dRenderer, collapsedGroupIds, createUserSubgraph,
+    baseWidgetRegistry, canvasRenderMode, canvas2dRenderer, canvasRunMode, collapsedGroupIds, createUserSubgraph,
     documentSemanticMode, documentStructureBaselineLock, documentWidgetRegistry, effectiveWidgetRegistry,
     flowEditorLayoutRebalanceRequest, flowWidgetPinnedByNodeId, frontmatterModeEnabled, graphContentRevision, markdownDocumentName,
     markdownDocumentApplyViewPreset, markdownDocumentSourceUrl, mediaPanelDensity, openWidgetNodeIds, removeNodesFromUserSubgraph,
@@ -73,6 +75,7 @@ export default function FlowEditorCanvasRuntime(
     setOpenWidgetNodeIds, setSchema, setSelectionSource, toggleGroupCollapsed, updateEdge, updateNode,
     updateOpenWidgetNodeIds, updateUserSubgraph, upsertUiToast, workspaceMutationBlocked,
   } = useFlowEditorRuntimeStoreState()
+  const runWorkflowNodeRef = React.useRef<((nodeId: string) => Promise<void> | void) | null>(null)
   const setSelectionSourceForActions = React.useCallback(
     (source: 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown' | 'system') => {
       setSelectionSource(source === 'canvas' || source === 'toolbar' ? source : 'editor')
@@ -388,6 +391,28 @@ export default function FlowEditorCanvasRuntime(
     selectedDraftNode,
     selectedDraftEdge,
   })
+  const handleNodePropertiesCommittedForAutoRun = React.useCallback((nodeId: string) => {
+    if (canvasRunMode !== 'auto') return
+    const id = String(nodeId || '').trim()
+    if (!id) return
+    const run = () => {
+      if (runWorkflowNodeRef.current == null) return
+      const graphData = (draftGraphDataRef.current || draftGraphData || baseGraphData || null) as GraphData | null
+      const targetNodeIds = resolveFlowEditorAutoRunNodeIds({
+        graphData,
+        nodeId: id,
+        resolveRichMediaKind: resolveRichMediaWidgetKind,
+      })
+      for (const targetNodeId of targetNodeIds) {
+        void runWorkflowNodeRef.current(targetNodeId)
+      }
+    }
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(run)
+      return
+    }
+    void Promise.resolve().then(run)
+  }, [baseGraphData, canvasRunMode, draftGraphData, draftGraphDataRef])
 
   const {
     applyJsonToDraft,
@@ -425,6 +450,7 @@ export default function FlowEditorCanvasRuntime(
     setSelectionSource: setSelectionSourceForActions,
     setGraphDataPreservingLayout,
     updateOpenWidgetNodeIds,
+    onNodePropertiesCommittedForAutoRun: handleNodePropertiesCommittedForAutoRun,
     upsertUiToast,
     nodePropsJson,
     nodeMetaJson,
@@ -451,6 +477,7 @@ export default function FlowEditorCanvasRuntime(
     upsertUiToast,
     scheduleOverlayEdgeUpdate,
   })
+  runWorkflowNodeRef.current = runWorkflowNode
 
   const { inspectorElement } = useFlowEditorInspectorSurface({
     active,

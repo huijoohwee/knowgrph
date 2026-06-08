@@ -10,7 +10,6 @@ import {
 import {
   ensureChatHistoryWorkspaceFilePath,
   toKgcStreamingWorkspacePath,
-  upsertChatHistoryWorkspaceDraft,
 } from '../chatHistoryWorkspace'
 import { putChatHistoryCache, toShortId } from '../FloatingPanelChat.helpers'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
@@ -109,11 +108,9 @@ export const bootstrapKnowgrphSubmitDraft = async (args: {
   trimmedInput: string
   traceId: string
   ensureWorkspacePath?: typeof ensureChatHistoryWorkspaceFilePath
-  persistDraft?: typeof upsertChatHistoryWorkspaceDraft
 }): Promise<string | null> => {
   if (args.submitArgs.chatStorageTarget !== 'chatKnowgrph') return null
   const ensureWorkspacePath = args.ensureWorkspacePath || ensureChatHistoryWorkspaceFilePath
-  const persistDraft = args.persistDraft || upsertChatHistoryWorkspaceDraft
   const liveKgcPath = await ensureWorkspacePath({
     requestedPath: args.submitArgs.chatKnowgrphWorkspacePath,
     timestampMs: args.requestTimestampMs,
@@ -128,17 +125,5 @@ export const bootstrapKnowgrphSubmitDraft = async (args: {
     text: '_Streaming..._',
   })
   args.submitArgs.followWorkspaceMarkdownPath(liveStreamingPath, { forceReveal: true })
-  void persistDraft({
-    requestedPath: liveKgcPath,
-    onResolvedPath: path => args.submitArgs.setChatKnowgrphWorkspacePath(path),
-    timestampMs: args.requestTimestampMs,
-    providerSummary: args.submitArgs.chatProviderSummary,
-    userText: args.trimmedInput,
-    assistantText: '',
-    storageType: 'chatKnowgrph',
-    defaultLocalRootPath: args.submitArgs.chatLocalStorageRootPath,
-    title: 'Knowledge Graph Canvas Storage',
-    traceId: args.traceId,
-  }).catch(() => undefined)
   return liveKgcPath
 }
