@@ -95,6 +95,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [graphContentRevision, graphSourceLayerHash, graphSourceLayerOrderHash])
   const shouldUseDirectGraphDataFor = (graphData: GraphData | null | undefined) => {
     const meta = ((graphData?.metadata || null) as Record<string, unknown> | null) || null
+    if (!meta) return false
     return String(meta.sourceLayerComposition || '') !== 'compose'
   }
   const directGraphApplyPolicy = React.useMemo(() => {
