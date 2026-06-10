@@ -13,6 +13,7 @@ const reportLimit = 80
 const builtChunkBudgetOverrides = [
   { pattern: /^canvas\/dist\/assets\/index-[A-Za-z0-9_-]+\.js$/, limit: 1800 * 1024, reason: 'canvas app entry chunk' },
   { pattern: /^canvas\/dist\/assets\/SettingsView-[A-Za-z0-9_-]+\.js$/, limit: 700 * 1024, reason: 'lazy Settings panel route' },
+  { pattern: /^canvas\/dist\/assets\/settings-mcp-docs-[A-Za-z0-9_-]+\.js$/, limit: 1800 * 1024, reason: 'lazy MCP settings docs chunk' },
   { pattern: /^canvas\/dist\/assets\/mermaid-[A-Za-z0-9_-]+\.js$/, limit: 2300 * 1024, reason: 'lazy Mermaid runtime vendor chunk' },
   { pattern: /^canvas\/dist\/assets\/monaco-[A-Za-z0-9_-]+\.js$/, limit: 3000 * 1024, reason: 'lazy Monaco editor vendor chunk' },
   { pattern: /^canvas\/dist\/assets\/three-core-[A-Za-z0-9_-]+\.js$/, limit: 800 * 1024, reason: 'lazy Three.js core vendor chunk' },

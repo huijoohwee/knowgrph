@@ -6100,6 +6100,15 @@ export default defineConfig(({ command }) => {
                 if (moduleId.includes('/node_modules/three/')) return 'three-core'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre'
                 if (moduleId.includes('/node_modules/@huggingface/transformers/')) return 'transformers'
+                if (moduleId.includes('/src/features/panels/views/settingsMcpDocEntries.ts')) {
+                  return 'settings-mcp-docs'
+                }
+                const settingsMcpDocModuleMatch = moduleId.match(
+                  /\/src\/features\/panels\/views\/(apiNativeBrowserMcpApiDocs|cloudflareAiGatewayMcpApiDocs|crawlerAccessMcpApiDocs|exaMcpApiDocs|feishuBaseMcpApiDocs|grabmapsMcpApiDocs|larkAppMcpApiDocs|miromindMcpApiDocs|openaiMcpApiDocs|operatorDeployMcpApiDocs|pixverseMcpApiDocs|stripeMcpApiDocs|vdeoxplnMcpApiDocs)\.ts$/,
+                )
+                if (settingsMcpDocModuleMatch) {
+                  return `settings-${settingsMcpDocModuleMatch[1]}`
+                }
                 if (moduleId.includes('/src/')) return undefined
                 return undefined
               },
