@@ -41,6 +41,7 @@
 // Caller_Identity and turns entitlement on.
 
 import {
+  createDefaultManifestStore,
   createNotWiredManifestStore,
   RUN_MANIFEST_READ_DEADLINE_MS,
 } from "../lib/run-manifest-store.js";
@@ -54,10 +55,12 @@ import {
   DENIED_REASON_UNKNOWN_RUN,
   DENIED_REASON_UNENTITLED,
 } from "../lib/run-access-audit.js";
+import { buildCorsHeaders } from "../lib/cors.js";
 
 const JSON_HEADERS = Object.freeze({
   "content-type": "application/json",
   "cache-control": "no-store",
+  ...buildCorsHeaders(),
 });
 
 /** Build a JSON API-Gateway proxy response. */
@@ -102,6 +105,16 @@ function runIdOf(event) {
 /** Resolve the (timer-free) read-elapsed signal for the 1,000 ms deadline. */
 function resolveReadElapsedMs(value) {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
+function isReadableByCaller(record, callerIdentity, runId) {
+  if (isEntitledToRun(callerIdentity, runId)) return true;
+  const ownerPrincipalId = record?.ownerPrincipalId;
+  return (
+    typeof ownerPrincipalId === "string" &&
+    ownerPrincipalId.length > 0 &&
+    ownerPrincipalId === callerIdentity?.principalId
+  );
 }
 
 /**
@@ -206,7 +219,7 @@ export function createRunsHandler(deps = {}) {
     // (Property 29). Entitlement is enforced only when wired on (always in
     // production via `createAuthedRunsHandler`); a bare handler keeps its
     // task 5.6 known-run behavior.
-    if (enforceEntitlement && !isEntitledToRun(event?.callerIdentity, runId)) {
+    if (enforceEntitlement && !isReadableByCaller(record, event?.callerIdentity, runId)) {
       recordDeniedAccess({
         runId,
         principalId: event?.callerIdentity?.principalId,
@@ -283,8 +296,25 @@ export function createAuthedRunsHandler(deps = {}) {
   });
 }
 
+export function createDefaultRunsHandler(deps = {}) {
+  const env = deps.env ?? (typeof process !== "undefined" ? process.env : {}) ?? {};
+  const store = deps.store ?? createDefaultManifestStore({ env, client: deps.client });
+  return createAuthedRunsHandler({
+    secretProvider: deps.secretProvider,
+    clock: deps.clock,
+    expiryWindowSeconds: deps.expiryWindowSeconds,
+    onAuthFailure: deps.onAuthFailure,
+    onError: deps.onError,
+    recordDeniedAccess: deps.recordDeniedAccess,
+    runs: {
+      ...(deps.runs ?? {}),
+      store,
+    },
+  });
+}
+
 /**
  * Default Lambda export — Auth_Token-gated (task 6.1). Durable store wiring is
  * injected by task 9.2; auth verification is always in front.
  */
-export const handler = createAuthedRunsHandler();
+export const handler = createDefaultRunsHandler();

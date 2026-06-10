@@ -1,4 +1,4 @@
-// Run_Manifest read seam for the AWS Agent-API tier.
+// Run_Manifest persistence seam for the AWS Agent-API tier.
 //
 // Spec: knowgrph-acos-mcp-connector, task 5.6 (R12.5; design Agent_Api
 // `GET /runs/{id}`; Data Models -> Run_Manifest).
@@ -21,6 +21,8 @@
 // `null`). The Run_Manifest payload itself is the Director's
 // `{ runId, state, mode, stages[], approvalGates[], budgetMeters, demoPack,
 //    failures[], reconciliationFlags[] }` tree (design Data Models).
+
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 // --- Read deadline (R12.5) --------------------------------------------------
 
@@ -47,6 +49,12 @@ export const RUN_MANIFEST_RECORD_FIELDS = Object.freeze([
   "contractVersion",
   "manifest",
 ]);
+
+/** Internal-only metadata used for same-session run ownership checks. */
+export const RUN_OWNER_PRINCIPAL_FIELD = "ownerPrincipalId";
+
+/** Default S3 prefix for persisted Run_Manifest records. */
+export const DEFAULT_MANIFEST_STORE_PREFIX = "runs";
 
 /** Normalize a run id into a non-empty trimmed string, or `null`. */
 export function normalizeRunId(runId) {
@@ -77,7 +85,37 @@ export function buildManifestRecord(manifest, opts = {}) {
         ? opts.contractVersion
         : manifest?.contractVersion ?? null,
     manifest,
+    ownerPrincipalId:
+      typeof opts.ownerPrincipalId === "string" && opts.ownerPrincipalId.length > 0
+        ? opts.ownerPrincipalId
+        : null,
   };
+}
+
+function normalizeManifestStorePrefix(prefix) {
+  const value = String(prefix ?? "").trim().replace(/^\/+|\/+$/g, "");
+  return value || DEFAULT_MANIFEST_STORE_PREFIX;
+}
+
+export function buildManifestStorageKey(runId, prefix = DEFAULT_MANIFEST_STORE_PREFIX) {
+  const id = normalizeRunId(runId);
+  if (!id) return null;
+  return `${normalizeManifestStorePrefix(prefix)}/${encodeURIComponent(id)}.json`;
+}
+
+function normalizeManifestRecord(value) {
+  if (!value || typeof value !== "object") {
+    throw new Error("run manifest record must be an object");
+  }
+  if ("manifest" in value) {
+    return buildManifestRecord(value.manifest, {
+      runId: value.runId,
+      persistedAt: value.persistedAt,
+      contractVersion: value.contractVersion,
+      ownerPrincipalId: value.ownerPrincipalId,
+    });
+  }
+  return buildManifestRecord(value);
 }
 
 /**
@@ -90,7 +128,7 @@ export function buildManifestRecord(manifest, opts = {}) {
  * @param {object} [seed] map of `runId -> (Run_Manifest | persistence record)`.
  *   A bare Run_Manifest is wrapped via `buildManifestRecord`; a full record
  *   (carrying a `manifest` field) is stored as-is.
- * @returns {{ read: (runId: string) => (object|undefined), seedRun: Function, has: Function }}
+ * @returns {{ read: (runId: string) => (object|undefined), write: (record: object) => object, seedRun: Function, has: Function }}
  */
 export function createInMemoryManifestStore(seed = {}) {
   const records = new Map();
@@ -98,11 +136,13 @@ export function createInMemoryManifestStore(seed = {}) {
   function seedRun(runId, value) {
     const id = normalizeRunId(runId);
     if (!id) throw new Error("createInMemoryManifestStore: runId must be a non-empty string");
-    const record =
+    const record = normalizeManifestRecord(
       value && typeof value === "object" && "manifest" in value
         ? { ...value, runId: normalizeRunId(value.runId) ?? id }
-        : buildManifestRecord(value, { runId: id });
+        : { runId: id, manifest: value },
+    );
     records.set(id, record);
+    return record;
   }
 
   for (const [runId, value] of Object.entries(seed)) seedRun(runId, value);
@@ -113,6 +153,15 @@ export function createInMemoryManifestStore(seed = {}) {
       const id = normalizeRunId(runId);
       if (!id) return undefined;
       return records.get(id);
+    },
+    /** Insert or replace a run's record using the shared persistence shape. */
+    write(record) {
+      const normalized = normalizeManifestRecord(record);
+      if (!normalized.runId) {
+        throw new Error("createInMemoryManifestStore.write: record must carry a non-empty runId");
+      }
+      records.set(normalized.runId, normalized);
+      return normalized;
     },
     /** Test/local helper: insert or replace a run's record. */
     seedRun,
@@ -135,8 +184,102 @@ export function createNotWiredManifestStore() {
     read() {
       return undefined;
     },
+    async write(record) {
+      return normalizeManifestRecord(record);
+    },
     has() {
       return false;
     },
   };
+}
+
+function isMissingObjectError(err) {
+  const code = String(err?.name ?? err?.Code ?? err?.code ?? "");
+  return code === "NoSuchKey" || err?.$metadata?.httpStatusCode === 404;
+}
+
+function parseStoredRecord(text) {
+  const parsed = JSON.parse(text);
+  return normalizeManifestRecord(parsed);
+}
+
+/**
+ * S3-backed durable Run_Manifest store for deployed Agent-API runtimes.
+ *
+ * Reads/writes a JSON record per run under:
+ *   `<prefix>/<encodeURIComponent(runId)>.json`
+ *
+ * The stored shape mirrors the worker persistence record and adds one
+ * Agent-API-only field, `ownerPrincipalId`, which is used only for same-session
+ * read authorization and is never reflected in the `GET /runs/{id}` response.
+ *
+ * @param {{ bucket: string, prefix?: string, client?: S3Client }} params
+ * @returns {{ read: (runId: string) => Promise<object|undefined>, write: (record: object) => Promise<object>, has: (runId: string) => Promise<boolean> }}
+ */
+export function createS3ManifestStore(params = {}) {
+  const bucket = String(params.bucket ?? "").trim();
+  if (!bucket) {
+    throw new Error("createS3ManifestStore: bucket is required");
+  }
+  const prefix = normalizeManifestStorePrefix(params.prefix);
+  const client = params.client ?? new S3Client({});
+
+  return {
+    async read(runId) {
+      const key = buildManifestStorageKey(runId, prefix);
+      if (!key) return undefined;
+      try {
+        const response = await client.send(new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+        }));
+        const text = await response.Body?.transformToString?.();
+        if (typeof text !== "string" || text.length === 0) {
+          return undefined;
+        }
+        return parseStoredRecord(text);
+      } catch (err) {
+        if (isMissingObjectError(err)) return undefined;
+        throw err;
+      }
+    },
+    async write(record) {
+      const normalized = normalizeManifestRecord(record);
+      if (!normalized.runId) {
+        throw new Error("createS3ManifestStore.write: record must carry a non-empty runId");
+      }
+      await client.send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: buildManifestStorageKey(normalized.runId, prefix),
+        Body: JSON.stringify(normalized),
+        ContentType: "application/json",
+      }));
+      return normalized;
+    },
+    async has(runId) {
+      return (await this.read(runId)) !== undefined;
+    },
+  };
+}
+
+/**
+ * Resolve the deployed/default manifest store from environment.
+ *
+ * `ARTIFACT_BUCKET` present -> S3-backed durable store
+ * absent -> not-wired store (fail closed to the unknown-run seam)
+ *
+ * @param {{ env?: Record<string, string|undefined>, client?: S3Client, prefix?: string }} [params]
+ * @returns {ReturnType<typeof createS3ManifestStore> | ReturnType<typeof createNotWiredManifestStore>}
+ */
+export function createDefaultManifestStore(params = {}) {
+  const env = params.env ?? (typeof process !== "undefined" ? process.env : {}) ?? {};
+  const bucket = String(env.ARTIFACT_BUCKET ?? "").trim();
+  if (!bucket) {
+    return createNotWiredManifestStore();
+  }
+  return createS3ManifestStore({
+    bucket,
+    prefix: params.prefix ?? env.RUN_MANIFEST_PREFIX,
+    client: params.client,
+  });
 }

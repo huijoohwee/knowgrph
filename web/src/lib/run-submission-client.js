@@ -96,6 +96,9 @@ export function buildAuthHeader(authToken) {
  * @param {object} submission the client-validated submission `{ referenceUrl, brief, budgetUsd }`
  * @param {object} [opts]
  * @param {string} [opts.authToken] caller-supplied Auth_Token (Bearer)
+ * @param {Array<string|{ gateId: string }>} [opts.approvals] optional approval
+ *   list forwarded unchanged to the Agent_Api when the caller is re-submitting a
+ *   run after user approval.
  * @param {string} [opts.endpoint] `POST /run` URL/path (default `/run`)
  * @returns {{ url: string, method: "POST", headers: object, body: object }}
  */
@@ -116,6 +119,7 @@ export function buildRunSubmitHttpRequest(submission, opts = {}) {
     referenceUrl: src.referenceUrl,
     brief: src.brief,
     budgetUsd: src.budgetUsd,
+    ...(Array.isArray(opts.approvals) ? { approvals: opts.approvals } : {}),
   };
 
   return {
@@ -147,7 +151,7 @@ function resolveSubmitElapsedMs(value) {
  * submission it does NOT forward (R1.2 / Property 5) and returns the structured
  * field errors so the UI can show a field-specific message.
  *
- * @param {{ submission: object, authToken?: string }} args
+ * @param {{ submission: object, authToken?: string, approvals?: Array<string|{ gateId: string }> }} args
  * @param {object} [deps]
  * @param {(req: { url, method, headers, body }) => Promise<unknown>|unknown} [deps.transport]
  *   injectable transport seam (default: not-implemented; live `fetch` is a
@@ -167,7 +171,7 @@ function resolveSubmitElapsedMs(value) {
  * }>}
  */
 export async function submitRun(args = {}, deps = {}) {
-  const { submission, authToken } = args;
+  const { submission, authToken, approvals } = args;
   const transport = typeof deps.transport === "function" ? deps.transport : defaultTransport;
   const endpoint =
     typeof deps.endpoint === "string" && deps.endpoint ? deps.endpoint : RUN_SUBMIT_PATH;
@@ -178,7 +182,7 @@ export async function submitRun(args = {}, deps = {}) {
 
   const guarded = await guardedSubmit(submission, async (validatedBody) => {
     // Reached ONLY when validation passes — build + forward the request.
-    httpRequest = buildRunSubmitHttpRequest(validatedBody, { authToken, endpoint });
+    httpRequest = buildRunSubmitHttpRequest(validatedBody, { authToken, endpoint, approvals });
     // Forward EXACTLY ONCE through the injectable seam (R1.1 / Property 5).
     return transport(httpRequest);
   });

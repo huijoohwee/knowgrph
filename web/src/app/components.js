@@ -239,6 +239,44 @@ export function renderCheckout(view) {
   return nodes;
 }
 
+// --- Embedded knowgrph canvas (canvas consumed over MCP, not rebuilt) -------
+
+/**
+ * Render the embedded knowgrph canvas from a canvas-embed view-model. When the
+ * storyboard canvas is ready and a canvas base is configured, frames the
+ * run-scoped doc-view in a sandboxed, no-referrer iframe; otherwise shows why it
+ * is not yet available. The iframe is cross-origin (Vercel frames
+ * airvio.co/knowgrph) — the doc-view route enforces frame-ancestors + run
+ * entitlement server-side.
+ * @param {{ available: boolean, src: string, sandbox: string, referrerPolicy: string, title: string, reason: string }} view
+ */
+export function renderCanvasEmbed(view) {
+  const nodes = [sectionTitle("Canvas (live knowgrph)")];
+  if (!view.available) {
+    nodes.push(el("p", { class: "muted", text: `Canvas unavailable — ${view.reason}.` }));
+    return nodes;
+  }
+  nodes.push(
+    el("iframe", {
+      class: "canvas-embed",
+      attrs: {
+        src: view.src,
+        title: view.title,
+        sandbox: view.sandbox,
+        referrerpolicy: view.referrerPolicy,
+        loading: "lazy",
+      },
+    }),
+  );
+  nodes.push(
+    el("p", {}, [
+      "Open in knowgrph: ",
+      el("a", { text: view.src, attrs: { href: view.src, target: "_blank", rel: "noopener noreferrer" } }),
+    ]),
+  );
+  return nodes;
+}
+
 // --- Field-level submission errors (R1.2) -----------------------------------
 
 /**

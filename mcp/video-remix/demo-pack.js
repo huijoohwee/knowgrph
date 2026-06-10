@@ -39,6 +39,7 @@
 import { DEMO_SECTIONS } from "./constants.js";
 import { cleanString } from "./helpers.js";
 import { runHealthCheck } from "./health-check.js";
+import { CANVAS_URL_KIND, resolveCanvasDocViewUrl } from "./canvas-embed.js";
 
 // The seven judging dimensions, keyed by the canonical `DEMO_SECTIONS` id
 // (design › User Flow › Hackathon judge; R3.1). Exactly one section per
@@ -97,13 +98,22 @@ const URL_REACHABILITY_DEADLINE_MS = 5000;
 // contains >=1 Frontend URL and >=1 Agent_Api endpoint. `reachable:false` is the
 // seam for task 2.14 (reachability marking flips it after a probe). Off a
 // terminal state the run is still in flight, so no demo urls are emitted.
-function buildDemoUrls({ state, frontendUrl, agentApiUrl, backendHealthUrl }) {
+//
+// `canvasUrl` is OPT-IN: when a run-scoped knowgrph canvas doc-view URL is
+// available (the storyboard stage produced a Kgc_Document and a control-plane
+// canvas base is configured), a `canvas` entry is added so the embedded canvas
+// counts as a judge-facing artifact. Absent a canvasUrl the urls[] shape is
+// unchanged (backward compatible — no canvas entry).
+function buildDemoUrls({ state, frontendUrl, agentApiUrl, backendHealthUrl, canvasUrl }) {
   if (!isTerminalRunState(state)) return [];
-  return [
+  const urls = [
     { kind: FRONTEND_URL_KIND, url: cleanString(frontendUrl, DEFAULT_FRONTEND_URL), reachable: false },
     { kind: "agent-api", url: cleanString(agentApiUrl, DEFAULT_AGENT_API_URL), reachable: false },
     { kind: "agent-api-health", url: cleanString(backendHealthUrl, DEFAULT_AGENT_API_HEALTH_URL), reachable: false },
   ];
+  const canvas = cleanString(canvasUrl);
+  if (canvas) urls.push({ kind: CANVAS_URL_KIND, url: canvas, reachable: false });
+  return urls;
 }
 
 // Explicit, observable marker for an artifact reference that does not exist at
@@ -189,6 +199,11 @@ const URL_KIND_TO_SECTION = Object.freeze({
   [FRONTEND_URL_KIND]: "demo_presentation",
   "agent-api": "demo_presentation",
   "agent-api-health": "demo_presentation",
+  // The embedded knowgrph canvas backs the Actions & Tool Use dimension: the
+  // agent's shot plan is shown live on the real renderer (consumed over MCP,
+  // not rebuilt). Combined with that section's rendered-asset artifact, the
+  // section verifies only when the canvas is reachable AND an asset exists.
+  [CANVAS_URL_KIND]: "actions_tool_use",
 });
 
 function sectionIdForUrl(entry) {
@@ -379,13 +394,35 @@ function buildDemoPack({
   frontendUrl,
   agentApiUrl,
   backendHealthUrl,
+  canvasUrl,
+  canvasBaseUrl,
+  runId,
+  manifest,
   reachability,
   reachabilityDeadlineMs = URL_REACHABILITY_DEADLINE_MS,
   deployApproved = false,
   healthAttempts,
 }) {
   const evidenced = state === "complete" || state === "completed";
-  const urls = buildDemoUrls({ state, frontendUrl, agentApiUrl, backendHealthUrl });
+  // Resolve the run-scoped canvas doc-view URL (opt-in). An explicit `canvasUrl`
+  // wins; otherwise derive it from a configured control-plane canvas base +
+  // runId. Absent both, the canvas entry is omitted (urls[] shape unchanged).
+  // Callers gate availability upstream (pass a canvasUrl only when the
+  // storyboard produced a Kgc_Document — see canvas-embed buildCanvasUrlFromManifest).
+  const resolvedCanvasUrl = cleanString(canvasUrl)
+    || (cleanString(runId) && resolveCanvasDocViewUrl({
+      baseUrl: canvasBaseUrl,
+      runId,
+      docId: manifest && (manifest.storyboardDocId || (manifest.kgcDocument && manifest.kgcDocument.graphId)),
+    }))
+    || "";
+  const urls = buildDemoUrls({
+    state,
+    frontendUrl,
+    agentApiUrl,
+    backendHealthUrl,
+    canvasUrl: resolvedCanvasUrl,
+  });
   // R3.6 / R3.7: reference each of the three artifacts when present, mark "not
   // available" otherwise. Citations default to the Evidence_Pack derivation.
   const artifactReferences = buildArtifactReferences({ citations, sources, assets, checkout });
@@ -455,4 +492,5 @@ export {
   URL_KIND_TO_SECTION,
   ARTIFACT_SECTION_BINDINGS,
   NOT_AVAILABLE,
+  CANVAS_URL_KIND,
 };

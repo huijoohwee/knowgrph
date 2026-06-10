@@ -18,3 +18,11 @@ export const AGENT_API_BASE_URL = "";
 
 /** Optional Cloudflare AI Gateway base (public). Empty when not configured. */
 export const AI_GATEWAY_BASE_URL = "";
+
+/**
+ * knowgrph control-plane canvas base (public), e.g. https://airvio.co/knowgrph.
+ * The product EMBEDS the run-scoped canvas doc-view from this base rather than
+ * reimplementing the renderer. Empty = no canvas embed shown. Injected at build
+ * time from a public env var; never a model key or auth secret.
+ */
+export const CANVAS_BASE_URL = "";

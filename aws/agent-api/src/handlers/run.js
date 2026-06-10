@@ -21,10 +21,17 @@ import { createConcurrencyLimiter } from "../lib/concurrency-limiter.js";
 import { withSafeErrors } from "../lib/safe-error-response.js";
 import { withAuth } from "../lib/auth-verify.js";
 import { createEnvSecretProvider } from "../lib/auth-token.js";
+import { buildCorsHeaders } from "../lib/cors.js";
+import {
+  buildManifestRecord,
+  createDefaultManifestStore,
+  normalizeRunId,
+} from "../lib/run-manifest-store.js";
 
 const JSON_HEADERS = Object.freeze({
   "content-type": "application/json",
   "cache-control": "no-store",
+  ...buildCorsHeaders(),
 });
 
 /** Build a JSON API-Gateway proxy response. */
@@ -63,6 +70,30 @@ function methodOf(event) {
   return event?.httpMethod || event?.requestContext?.http?.method || null;
 }
 
+function extractPersistableManifest(result) {
+  const structured = result?.result?.structuredContent;
+  if (structured && typeof structured === "object") return structured;
+  const manifest = result?.manifest;
+  if (manifest && typeof manifest === "object") return manifest;
+  if (result && typeof result === "object" && normalizeRunId(result.runId)) return result;
+  return null;
+}
+
+async function persistAcceptedRunResult({ store, result, event, clock = Date.now }) {
+  if (!store || typeof store.write !== "function") return null;
+  const manifest = extractPersistableManifest(result);
+  const runId = normalizeRunId(manifest?.runId);
+  if (!manifest || !runId) return null;
+  return store.write(
+    buildManifestRecord(manifest, {
+      runId,
+      persistedAt: new Date(clock()).toISOString(),
+      contractVersion: manifest?.contractVersion ?? null,
+      ownerPrincipalId: event?.callerIdentity?.principalId ?? null,
+    }),
+  );
+}
+
 /**
  * Default forwarding seam (task 5.3). A schema-passing request is forwarded to
  * the McpAgent over MCP Streamable HTTP via `createMcpForwarder`. The default
@@ -88,11 +119,19 @@ const defaultOnValidRequest = createMcpForwarder();
  * @param {(error: unknown) => void} [deps.onError] server-side-only error sink
  *   for the non-disclosing 500 catch-all (task 5.10 / R15.3). The original error
  *   is logged here only; it NEVER reaches the response body.
+ * @param {{ write?: Function }} [deps.manifestStore]
+ *   optional persistence seam for accepted run manifests. When present and the
+ *   forwarded result contains a `runId`, the handler stores a durable manifest
+ *   record keyed by that run before returning the 202 response.
+ * @param {() => number} [deps.clock]
+ *   ms clock used for persisted timestamps when `manifestStore` is active.
  * @returns {(event: object) => Promise<{ statusCode: number, headers: object, body: string }>}
  */
 export function createRunHandler(deps = {}) {
   const onValidRequest = deps.onValidRequest ?? defaultOnValidRequest;
   const limiter = deps.limiter ?? createConcurrencyLimiter();
+  const manifestStore = deps.manifestStore;
+  const clock = typeof deps.clock === "function" ? deps.clock : Date.now;
 
   // task 5.10 / R15.3, R15.6: any UNEXPECTED throw (a non-tagged error from the
   // forwarding seam re-thrown below, or any runtime fault) collapses to a
@@ -153,6 +192,7 @@ export function createRunHandler(deps = {}) {
     // released whether the forward succeeds or fails so capacity is reclaimed.
     try {
       const result = await onValidRequest({ body });
+      await persistAcceptedRunResult({ store: manifestStore, result, event, clock });
       return jsonResponse(202, result ?? { accepted: true });
     } catch (err) {
       if (err.code === "not_implemented") {
@@ -254,12 +294,15 @@ export function createDefaultRunHandler(deps = {}) {
 
   if (liveForwarding) {
     return createLiveForwardingRunHandler({
+      env,
       endpoint: env.MCP_ENDPOINT,
       fetchImpl: deps.fetchImpl,
       clock: deps.clock,
       secretProvider: deps.secretProvider,
       expiryWindowSeconds: deps.expiryWindowSeconds,
       limiter: deps.limiter,
+      manifestStore: deps.manifestStore,
+      s3Client: deps.s3Client,
       onError: deps.onError,
     });
   }
@@ -269,7 +312,12 @@ export function createDefaultRunHandler(deps = {}) {
     expiryWindowSeconds: deps.expiryWindowSeconds,
     clock: deps.clock,
     onError: deps.onError,
-    run: { limiter: deps.limiter, onError: deps.onError },
+    run: {
+      limiter: deps.limiter,
+      manifestStore: deps.manifestStore,
+      clock: deps.clock,
+      onError: deps.onError,
+    },
   });
 }
 
@@ -301,12 +349,19 @@ export const handler = createDefaultRunHandler();
  * @param {unknown} [deps.expiryWindowSeconds] Auth_Token expiry window (R15.8)
  * @param {{ tryAcquire: Function }} [deps.limiter] concurrency limiter (R12.4)
  * @param {(error: unknown) => void} [deps.onError] server-side-only error sink
+ * @param {{ write?: Function }} [deps.manifestStore] optional injected durable store
+ * @param {object} [deps.env] environment used to resolve the default durable store
+ * @param {S3Client} [deps.s3Client] optional injected S3 client for the default durable store
  */
 export function createLiveForwardingRunHandler(deps = {}) {
   const endpoint =
     deps.endpoint ||
     (typeof process !== "undefined" && process.env && process.env.MCP_ENDPOINT) ||
     undefined;
+  const manifestStore = deps.manifestStore ?? createDefaultManifestStore({
+    env: deps.env,
+    client: deps.s3Client,
+  });
   const transport = createFetchMcpTransport({ fetchImpl: deps.fetchImpl });
   const onValidRequest = createMcpForwarder({
     transport,
@@ -319,6 +374,6 @@ export function createLiveForwardingRunHandler(deps = {}) {
     expiryWindowSeconds: deps.expiryWindowSeconds,
     clock: deps.clock,
     onError: deps.onError,
-    run: { onValidRequest, limiter: deps.limiter, onError: deps.onError },
+    run: { onValidRequest, limiter: deps.limiter, manifestStore, clock: deps.clock, onError: deps.onError },
   });
 }

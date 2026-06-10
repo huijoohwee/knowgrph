@@ -92,6 +92,18 @@ test("submitRun: the forwarded body is the validated submission as JSON fields",
   });
 });
 
+test("submitRun: approvals[] is forwarded unchanged on an approval-gated re-submit", async () => {
+  const { transport, calls } = spyTransport();
+  const approvals = ["paid-model-call", "render-action"];
+
+  await submitRun(
+    { submission: validSubmission(), authToken: AUTH_TOKEN, approvals },
+    { transport },
+  );
+
+  assert.deepEqual(calls[0].body.approvals, approvals);
+});
+
 // --- 2. 2,000 ms forward-deadline metadata + past-deadline flag --------------
 
 test("submitRun: the forward-deadline metadata is 2000ms and within-deadline by default", async () => {
@@ -229,6 +241,12 @@ test("buildRunSubmitHttpRequest: honors a custom endpoint and omits Authorizatio
   assert.equal(req.url, "https://api.example.com/run");
   assert.equal(req.method, "POST");
   assert.equal(req.headers.authorization, undefined);
+});
+
+test("buildRunSubmitHttpRequest: includes approvals[] when provided", () => {
+  const approvals = ["paid-model-call"];
+  const req = buildRunSubmitHttpRequest(validSubmission(), { approvals });
+  assert.deepEqual(req.body.approvals, approvals);
 });
 
 test("submitRun: a non-object submission is rejected and does not forward", async () => {

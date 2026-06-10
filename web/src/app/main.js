@@ -15,17 +15,17 @@
 // signing secret. The only credential attached is a caller-supplied Auth_Token
 // read from `window.__AGENT_AUTH_TOKEN__` (opaque bearer), never embedded here.
 
-import { AGENT_API_BASE_URL } from "./config.js";
+import { AGENT_API_BASE_URL, CANVAS_BASE_URL } from "./config.js";
 import { validateSubmission } from "./lib/submission-validation.js";
 import { submitRun } from "./lib/run-submission-client.js";
 import { resolveSubmissionOutcome } from "./lib/submission-error-ux.js";
 import { buildRunInitiationView } from "./lib/run-initiation-view.js";
 import { buildEvidencePackView } from "./lib/evidence-pack-view.js";
 import { buildShotPlanView } from "./lib/shot-plan-view.js";
+import { buildCanvasEmbedView } from "./lib/canvas-embed-view.js";
 import { buildApprovalPromptView } from "./lib/approval-prompt-view.js";
 import { buildRunManifestView } from "./lib/run-manifest-view.js";
 import { buildCheckoutEntryView } from "./lib/checkout-entry-view.js";
-import { transmitApprovalDecision } from "./lib/approval-decision-client.js";
 import { pollRunStatusFallback } from "./lib/run-poll-fallback.js";
 import {
   mount,
@@ -33,6 +33,7 @@ import {
   renderInitiation,
   renderEvidence,
   renderShotPlan,
+  renderCanvasEmbed,
   renderApprovals,
   renderBudgetMeters,
   renderCheckout,
@@ -41,10 +42,18 @@ import {
 
 // --- Runtime HTTP wiring (the ONLY network seam; runtime-only, never at build) ---
 
+const runtimeState = {
+  authToken: null,
+  lastSubmission: null,
+  approvedGateIds: new Set(),
+};
+
 /** Read the caller-supplied Auth_Token (opaque bearer) if the host set one. */
 function authToken() {
-  const token = typeof window !== "undefined" ? window.__AGENT_AUTH_TOKEN__ : undefined;
-  return typeof token === "string" && token ? token : undefined;
+  const explicit = runtimeState.authToken;
+  if (typeof explicit === "string" && explicit) return explicit;
+  const injected = typeof window !== "undefined" ? window.__AGENT_AUTH_TOKEN__ : undefined;
+  return typeof injected === "string" && injected ? injected : undefined;
 }
 
 /** Resolve an Agent_Api URL: env-injected base (or same origin) + request path. */
@@ -74,6 +83,37 @@ async function httpTransport(req) {
   return res.json().catch(() => ({}));
 }
 
+async function ensureAuthToken() {
+  const existing = authToken();
+  if (existing) {
+    runtimeState.authToken = existing;
+    return existing;
+  }
+  const res = await fetch(resolveUrl("/auth/session"), {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: "{}",
+  });
+  if (!res.ok) {
+    const err = new Error(`Agent_Api auth/session responded ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  const payload = await res.json().catch(() => ({}));
+  if (typeof payload?.token !== "string" || payload.token.length === 0) {
+    throw new Error("Agent_Api auth/session returned no token");
+  }
+  runtimeState.authToken = payload.token;
+  return payload.token;
+}
+
+function currentApprovals() {
+  return Array.from(runtimeState.approvedGateIds);
+}
+
 // --- Run rendering: build every view-model, mount every panel ----------------
 
 const panels = {
@@ -81,6 +121,7 @@ const panels = {
   initiation: () => document.getElementById("run-initiation"),
   evidence: () => document.getElementById("evidence-pack"),
   shotPlan: () => document.getElementById("shot-plan"),
+  canvasEmbed: () => document.getElementById("canvas-embed"),
   approvals: () => document.getElementById("approval-prompts"),
   budget: () => document.getElementById("budget-meters"),
   checkout: () => document.getElementById("checkout-entry"),
@@ -88,12 +129,57 @@ const panels = {
 
 /** Transmit an approval decision, then re-render whatever manifest comes back. */
 async function onApprovalDecision(gateId, decision) {
-  const result = await transmitApprovalDecision(
-    { gateId, decision, authToken: authToken() },
+  if (decision !== "approved") {
+    setStatus(`Gate '${gateId}' remains blocked until you approve and re-submit.`, "error");
+    return;
+  }
+  if (!runtimeState.lastSubmission) {
+    setStatus("Re-submit unavailable: no prior run submission is cached in this session.", "error");
+    return;
+  }
+  runtimeState.approvedGateIds.add(gateId);
+  await submitManifestRun(runtimeState.lastSubmission, `Approved '${gateId}'. Re-submitting run…`);
+}
+
+async function submitManifestRun(submission, pendingText = "Submitting run…") {
+  setStatus(pendingText);
+  const token = await ensureAuthToken();
+  const submitResult = await submitRun(
+    {
+      submission,
+      approvals: currentApprovals(),
+      authToken: token,
+    },
     { transport: httpTransport },
   );
-  if (result.succeeded && result.result && typeof result.result === "object") {
-    renderRun(result.result);
+  return submitResult.result;
+}
+
+function rememberSubmission(submission) {
+  runtimeState.lastSubmission = {
+    referenceUrl: submission.referenceUrl,
+    brief: submission.brief,
+    budgetUsd: submission.budgetUsd,
+  };
+}
+
+function resetApprovalState() {
+  runtimeState.approvedGateIds = new Set();
+}
+
+function clearAuthToken() {
+  runtimeState.authToken = null;
+}
+
+async function submitWithOneAuthRefresh(submission, pendingText) {
+  try {
+    return await submitManifestRun(submission, pendingText);
+  } catch (err) {
+    if (err?.status === 401) {
+      clearAuthToken();
+      return submitManifestRun(submission, pendingText);
+    }
+    throw err;
   }
 }
 
@@ -109,6 +195,7 @@ export function renderRun(manifest) {
   mount(panels.initiation(), ...renderInitiation(buildRunInitiationView(manifest)));
   mount(panels.evidence(), ...renderEvidence(buildEvidencePackView(manifest.evidencePack ?? manifest)));
   mount(panels.shotPlan(), ...renderShotPlan(buildShotPlanView(manifest.kgcDocument ?? manifest)));
+  mount(panels.canvasEmbed(), ...renderCanvasEmbed(buildCanvasEmbedView(manifest, { canvasBaseUrl: CANVAS_BASE_URL })));
   mount(panels.approvals(), ...renderApprovals(buildApprovalPromptView(manifest), onApprovalDecision));
   mount(panels.budget(), ...renderBudgetMeters(manifestView));
   mount(panels.checkout(), ...renderCheckout(buildCheckoutEntryView(manifest)));
@@ -148,18 +235,15 @@ async function onSubmit(event) {
     return;
   }
 
-  setStatus("Submitting run…");
   submitBtn.disabled = true;
   const startedAt = Date.now();
+  rememberSubmission(submission);
+  resetApprovalState();
 
   let result;
   let error;
   try {
-    const submitResult = await submitRun(
-      { submission, authToken: authToken() },
-      { transport: httpTransport },
-    );
-    result = submitResult.result; // the run manifest returned by POST /run
+    result = await submitWithOneAuthRefresh(submission, "Submitting run…");
   } catch (err) {
     error = err;
   } finally {

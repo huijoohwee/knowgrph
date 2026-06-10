@@ -8,6 +8,7 @@ const FLOW_DIAGRAMS_KEY = 'flow_diagrams'
 const FLOW_DIAGRAM_SOCKET_TYPE = 'flow_diagram_html'
 const FLOW_DIAGRAM_SOURCE_PORT = 'diagramSource'
 const FLOW_DIAGRAM_OUTPUT_PORT = 'outputSrcDoc'
+const FLOW_PORT_TYPES_KEY = 'flow:portTypes'
 
 const FLOW_DIAGRAM_COMPUTE_SOURCE = `(inputs,context)=>{
 const p=context&&context.node&&context.node.properties&&typeof context.node.properties=="object"?context.node.properties:{},k=String(p.diagramKind||"mermaid"),t=String(p.diagramTitle||k||"Diagram"),s=String(inputs.diagramSource||"").trim(),e=v=>String(v||"").replace(/[&<>"']/g,c=>c=="&"?"&amp;":c=="<"?"&lt;":c==">"?"&gt;":c=='"'?"&quot;":"&#39;"),ls=s.split(/\\r?\\n/).map(l=>l.trim()).filter(Boolean);
@@ -214,12 +215,13 @@ function buildDiagramNodes(args: {
       type: 'FlowDiagramSource',
       label: `${args.spec.title} source`,
       pos: { x: args.base.x, y },
-      outputs: [{ port: FLOW_DIAGRAM_SOURCE_PORT, schemaPath: `properties.${FLOW_DIAGRAM_SOURCE_PORT}` }],
+      outputs: [{ port: FLOW_DIAGRAM_SOURCE_PORT, type: FLOW_DIAGRAM_SOCKET_TYPE, schemaPath: `properties.${FLOW_DIAGRAM_SOURCE_PORT}` }],
       properties: {
         ...common,
         [FLOW_DIAGRAM_SOURCE_PORT]: args.spec.source,
         output: args.spec.source,
         'flow:widgetFormId': `fm:${sourceId}`,
+        [FLOW_PORT_TYPES_KEY]: { out: { [FLOW_DIAGRAM_SOURCE_PORT]: FLOW_DIAGRAM_SOCKET_TYPE } },
       },
     },
     computeNode: {
@@ -227,8 +229,8 @@ function buildDiagramNodes(args: {
       type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
       label: `${args.spec.title} compute`,
       pos: { x: args.base.x + 380, y },
-      inputs: [{ port: FLOW_DIAGRAM_SOURCE_PORT, schemaPath: `properties.${FLOW_DIAGRAM_SOURCE_PORT}` }],
-      outputs: [{ port: FLOW_DIAGRAM_OUTPUT_PORT, schemaPath: `properties.${FLOW_DIAGRAM_OUTPUT_PORT}` }],
+      inputs: [{ port: FLOW_DIAGRAM_SOURCE_PORT, type: FLOW_DIAGRAM_SOCKET_TYPE, from: `${sourceId}.${FLOW_DIAGRAM_SOURCE_PORT}`, schemaPath: `properties.${FLOW_DIAGRAM_SOURCE_PORT}` }],
+      outputs: [{ port: FLOW_DIAGRAM_OUTPUT_PORT, type: FLOW_DIAGRAM_SOCKET_TYPE, schemaPath: `properties.${FLOW_DIAGRAM_OUTPUT_PORT}` }],
       properties: {
         ...common,
         'flow:compute': FLOW_DIAGRAM_COMPUTE_SOURCE,
@@ -236,6 +238,10 @@ function buildDiagramNodes(args: {
         'flow:widgetTypeId': 'default',
         output: '',
         [FLOW_DIAGRAM_OUTPUT_PORT]: '',
+        [FLOW_PORT_TYPES_KEY]: {
+          in: { [FLOW_DIAGRAM_SOURCE_PORT]: FLOW_DIAGRAM_SOCKET_TYPE },
+          out: { [FLOW_DIAGRAM_OUTPUT_PORT]: FLOW_DIAGRAM_SOCKET_TYPE },
+        },
       },
     },
     panelNode: {
@@ -243,8 +249,8 @@ function buildDiagramNodes(args: {
       type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
       label: `${args.spec.title} Rich Media Panel`,
       pos: { x: args.base.x + 760, y },
-      inputs: [{ port: FLOW_DIAGRAM_OUTPUT_PORT, schemaPath: `properties.${FLOW_DIAGRAM_OUTPUT_PORT}` }],
-      outputs: [{ port: FLOW_DIAGRAM_OUTPUT_PORT, schemaPath: `properties.${FLOW_DIAGRAM_OUTPUT_PORT}` }],
+      inputs: [{ port: FLOW_DIAGRAM_OUTPUT_PORT, type: FLOW_DIAGRAM_SOCKET_TYPE, from: `${computeId}.${FLOW_DIAGRAM_OUTPUT_PORT}`, schemaPath: `properties.${FLOW_DIAGRAM_OUTPUT_PORT}` }],
+      outputs: [{ port: FLOW_DIAGRAM_OUTPUT_PORT, type: FLOW_DIAGRAM_SOCKET_TYPE, schemaPath: `properties.${FLOW_DIAGRAM_OUTPUT_PORT}` }],
       properties: {
         ...common,
         richMediaActiveTab: 'auto',
@@ -252,6 +258,7 @@ function buildDiagramNodes(args: {
         output: '',
         [FLOW_DIAGRAM_OUTPUT_PORT]: '',
         'flow:widgetFormId': 'richMediaPanel',
+        [FLOW_PORT_TYPES_KEY]: { in: { [FLOW_DIAGRAM_OUTPUT_PORT]: FLOW_DIAGRAM_SOCKET_TYPE } },
       },
     },
   }
@@ -311,4 +318,23 @@ export function deriveFlowDiagramsWidgets(meta: Record<string, unknown>): void {
 
   meta.nodes = nodes
   meta.connections = connections
+}
+
+/**
+ * Register the built-in flow-diagram socket type used by generated source/compute/panel
+ * edges, so connection validation recognizes it. Must run AFTER any inline markdown-table
+ * socket-type extraction so it never suppresses author-declared legends; only seeds the
+ * type when the document has flow diagrams and omits an explicit entry.
+ */
+export function registerFlowDiagramSocketType(meta: Record<string, unknown>): void {
+  if (readDiagramSpecs(meta[FLOW_DIAGRAMS_KEY]).length === 0) return
+  const socketTypes = isRecord(meta.socket_types) ? (meta.socket_types as Record<string, unknown>) : {}
+  if (Object.prototype.hasOwnProperty.call(socketTypes, FLOW_DIAGRAM_SOCKET_TYPE)) return
+  socketTypes[FLOW_DIAGRAM_SOCKET_TYPE] = {
+    color: '#8b5cf6',
+    edgeWidthPx: 2,
+    handleStrokeWidthPx: 2,
+    accepts: [FLOW_DIAGRAM_SOCKET_TYPE],
+  }
+  meta.socket_types = socketTypes
 }

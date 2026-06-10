@@ -68,6 +68,11 @@ const LAMBDA_ASSET_EXCLUDES = Object.freeze([
   ".gitignore",
 ]);
 
+function readOptionalEnv(name) {
+  const value = process.env[name];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 export class AgentApiStack extends Stack {
   /**
    * @param {import("constructs").Construct} scope
@@ -114,6 +119,22 @@ export class AgentApiStack extends Stack {
       AUTH_JWT_SECRET_ARN: signingSecret.secretArn,
       ARTIFACT_BUCKET: artifactBucket.bucketName,
       NODE_OPTIONS: "--enable-source-maps",
+      ...(readOptionalEnv("MCP_ENDPOINT") ? { MCP_ENDPOINT: readOptionalEnv("MCP_ENDPOINT") } : {}),
+      ...(readOptionalEnv("AGENT_API_LIVE_FORWARDING")
+        ? { AGENT_API_LIVE_FORWARDING: readOptionalEnv("AGENT_API_LIVE_FORWARDING") }
+        : {}),
+      ...(readOptionalEnv("CORS_ALLOW_ORIGIN")
+        ? { CORS_ALLOW_ORIGIN: readOptionalEnv("CORS_ALLOW_ORIGIN") }
+        : {}),
+      ...(readOptionalEnv("CORS_ALLOW_HEADERS")
+        ? { CORS_ALLOW_HEADERS: readOptionalEnv("CORS_ALLOW_HEADERS") }
+        : {}),
+      ...(readOptionalEnv("CORS_ALLOW_METHODS")
+        ? { CORS_ALLOW_METHODS: readOptionalEnv("CORS_ALLOW_METHODS") }
+        : {}),
+      ...(readOptionalEnv("RUN_MANIFEST_PREFIX")
+        ? { RUN_MANIFEST_PREFIX: readOptionalEnv("RUN_MANIFEST_PREFIX") }
+        : {}),
     };
 
     /**
@@ -168,6 +189,15 @@ export class AgentApiStack extends Stack {
     // This is the tightest grant of the four functions (Property 31).
     const healthFn = makeFunction("Health", "src/handlers/health.handler", {
       NODE_OPTIONS: "--enable-source-maps",
+      ...(readOptionalEnv("CORS_ALLOW_ORIGIN")
+        ? { CORS_ALLOW_ORIGIN: readOptionalEnv("CORS_ALLOW_ORIGIN") }
+        : {}),
+      ...(readOptionalEnv("CORS_ALLOW_HEADERS")
+        ? { CORS_ALLOW_HEADERS: readOptionalEnv("CORS_ALLOW_HEADERS") }
+        : {}),
+      ...(readOptionalEnv("CORS_ALLOW_METHODS")
+        ? { CORS_ALLOW_METHODS: readOptionalEnv("CORS_ALLOW_METHODS") }
+        : {}),
     });
 
     // ── API Gateway (REST) ───────────────────────────────────────────────────
@@ -176,6 +206,11 @@ export class AgentApiStack extends Stack {
       description:
         "Thin Agent-API adapter: authenticates callers and forwards MCP calls to the knowgrph control plane. Holds no model keys.",
       deployOptions: { stageName: "v1" },
+      defaultCorsPreflightOptions: {
+        allowOrigins: [readOptionalEnv("CORS_ALLOW_ORIGIN") ?? "*"],
+        allowHeaders: ["authorization", "content-type"],
+        allowMethods: ["GET", "POST", "OPTIONS"],
+      },
     });
 
     const proxy = (fn) => new apigateway.LambdaIntegration(fn, { proxy: true });
@@ -199,6 +234,10 @@ export class AgentApiStack extends Stack {
       description: "Open GET /health liveness probe — expected HTTP 200 within 5s.",
     });
     new CfnOutput(this, "ArtifactBucketName", { value: artifactBucket.bucketName });
+    new CfnOutput(this, "RunManifestPrefix", {
+      value: readOptionalEnv("RUN_MANIFEST_PREFIX") ?? "runs",
+      description: "S3 prefix holding persisted Agent-API run manifests.",
+    });
     new CfnOutput(this, "SigningSecretArn", {
       value: signingSecret.secretArn,
       description: "ARN reference only — the secret value is never exported.",

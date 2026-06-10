@@ -24,6 +24,7 @@
 // response.
 
 import { withSafeErrorsSync } from "../lib/safe-error-response.js";
+import { buildCorsHeaders } from "../lib/cors.js";
 
 /** The structural liveness deadline for `GET /health` (R3.4). */
 export const HEALTH_DEADLINE_MS = 5000;
@@ -34,6 +35,7 @@ export const HEALTH_TRANSPORT = "streamable-http";
 const JSON_HEADERS = Object.freeze({
   "content-type": "application/json",
   "cache-control": "no-store",
+  ...buildCorsHeaders(),
 });
 
 /** Build a JSON API-Gateway proxy response. */

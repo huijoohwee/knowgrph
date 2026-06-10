@@ -2,10 +2,10 @@
 title: "Knowgrph Strytree Storytree - PRD and TAD"
 doc_type: "Combined PRD/TAD"
 id: "knowgrph-strytree-prd-tad"
-version: "0.2.1"
+version: "0.2.2"
 status: "implementation-contract"
 created: "2026-05-30"
-updated: "2026-05-31"
+updated: "2026-06-10"
 author: "airvio / joohwee"
 domain: "knowgrph"
 lang: "en-US"
@@ -33,6 +33,8 @@ constraints:
   - "no new external graph-rendering dependency for the Strytree workbench"
   - "no hosted database dependency outside the Cloudflare topology"
   - "no alternate app hosting path outside Dev -> Prod -> Cloudflare"
+  - "story edge rendering must bind to kgSharedRendererContract@shared-renderer-contract/v1 and buildScopedGraphSemanticKey; no local/downstream/hardcoded edge logic"
+  - "story edge projection must be renderer-agnostic across flowEditor | Storyboard | Strybldr; no per-renderer edge path, hardcode, or fork"
 tags:
   - "strytree"
   - "storytree"
@@ -51,6 +53,51 @@ related:
   - "docs/documents/knowgrph-strybldr-prd-tad.md"
   - "docs/documents/knowgrph-agentic-commerce-prd-tad.md"
   - "docs/documents/knowgrph-mainpanel-commerce-prd-tad.md"
+kgCanvas2dRendererCapability:
+  supportedRenderers: ["flowEditor", "Storyboard", "Strybldr"]
+  selectionModel: "projected-data"          # renderers project this set; they do not branch on it
+  edgeProjectionInvariance: "identical-across-supportedRenderers"
+kgSharedRendererContract:
+  version: "shared-renderer-contract/v1"
+  semanticIdentity: "buildScopedGraphSemanticKey"
+  edgeModel: "active graph edges from the selected source graph"
+  edgeSource: "strytree_nodes.parent_node_id"   # source/upstream derivation, no edge table
+  rendererPolicy: "frontmatter and source payloads own data; renderers project view state only"
+socket_types:
+  idea_signal: {color: "#14b8a6", edgeWidthPx: 2, handleStrokeWidthPx: 2, accepts: [idea_signal]}
+  evidence_signal: {color: "#22c55e", edgeWidthPx: 2, handleStrokeWidthPx: 2, accepts: [evidence_signal]}
+  approval_signal: {color: "#f59e0b", edgeWidthPx: 3, handleStrokeWidthPx: 3, accepts: [approval_signal]}
+  artifact_signal: {color: "#8b5cf6", edgeWidthPx: 2, handleStrokeWidthPx: 2, accepts: [artifact_signal]}
+flow:
+  direction: "LR"
+  edgeType: "smoothstep"
+  # Per-node handles + flow:portTypes are the shared, agnostic edge-projection driver.
+  # For Strytree, each node carries a single inbound handle keyed to its parent_node_id-derived edge.
+  storyEdgeProjection:
+    handleModel: "per-node source/target handles derived from parent_node_id"
+    portTypeDefault: "idea_signal"            # story-edge semantic mapping (single typed projection)
+    semanticKeyRule: "buildScopedGraphSemanticKey(storyId, parentNodeId, childNodeId)"
+edgeContractForbid:
+  - "backfill"
+  - "churn"
+  - "conflict"
+  - "duplicate"
+  - "freeze"
+  - "infinite-loop"
+  - "hardcode"
+  - "legacy"
+  - "re-calculation"
+  - "re-computation"
+  - "re-rendering"
+  - "stale-state"
+  - "renderer-specific-edge-path"
+  - "per-renderer-hardcode"
+  - "alias-stacking"
+  - "local-or-downstream-patch"
+  - "backward-compat-remap"
+edgeContractCleanup:
+  rule: "root/source/upstream neutralization; remove 100% of legacy/stale/conflicting edge spec, hardcoded fixtures, and tests; NO backward-compatibility remapping"
+edgeContractPrinciples: ["universality", "neutrality", "agnosticity", "modularity", "spec-complete-runtime-ready", "forbid-hardcode-in-repo"]
 ---
 
 # Knowgrph Strytree Storytree - PRD and TAD
@@ -71,6 +118,8 @@ The observed page is a static edge-hosted HTML/CSS/vanilla-JS app. It has convin
 # Part A - Source Analysis
 
 ## A1. Observed Strytree Prototype
+
+> **Historical source analysis only.** Part A records observed prototype behavior as historical source analysis only. It is NOT the target implementation contract; the runtime edge contract is defined in the frontmatter `kgSharedRendererContract` + `flow.storyEdgeProjection` and in Part C "Edge Rendering Contract".
 
 ### Delivery Shape
 
@@ -209,8 +258,8 @@ The code includes a real generation path for `/openapi/v2/video/fusion/generate`
 | Hot node color | `likes > 100` |
 | Dropped node color | `status === "dropped"` |
 | Locked state | Special `node_locked` id or not free and no video |
-| Edge existence | `parentId` exists |
-| Edge shape | SVG cubic Bezier from parent card right edge to child card left edge |
+| Edge existence | `parentId` exists (historical prototype only) |
+| Edge shape | SVG cubic Bezier from parent card right edge to child card left edge (historical prototype only) |
 | Layout x | `depth * 240 + 80` |
 | Layout y | Center parent over recursive subtree leaf height with `Y_GAP = 130` |
 | Zoom | SVG root group `scale(k)`, clamped from `0.3` to `2` |
@@ -306,6 +355,8 @@ Given a branch is published, when the server accepts it, then a node row is inse
 Given a node has `parent_node_id`, when the graph is rendered, then the client derives one edge from the parent to child without needing a separate edge table.
 
 > **`/goal` translation**: `graph-render unit tests pass: edge list derived from nodes with non-null parent_node_id exactly matches expected parent-child pairs; no edge table query is made`
+
+The derived edge SHALL be projected through `kgSharedRendererContract@shared-renderer-contract/v1` using `buildScopedGraphSemanticKey` for identity and the `flow` port/handle/`socket_types` model for typing; local/downstream patches, alias stacking, and hardcoded edge logic are forbidden.
 
 ### PRD-STR-E03 - Credit-Token Wallet
 
@@ -587,7 +638,7 @@ The client remains responsible for local interaction, SVG layout, preview UI, an
 | Layer | Component | Responsibility | Implemented Owner |
 |---|---|---|---|
 | UI | Strytree Entry Surface | Opens Strybldr/Storytree mode from existing renderer controls and floating panel. | `canvas/src/features/strybldr/StrybldrFloatingPanelView.tsx`; `canvas/src/components/StoryboardCanvas.tsx` |
-| UI | Storytree SVG Renderer | Renders nodes, parent-derived edges, pan, zoom, and node panel on the existing Storyboard/Strybldr canvas. | `canvas/src/components/StoryboardCanvas.tsx`; `canvas/src/features/strybldr/strybldrStoryboard.ts` |
+| UI | Storytree SVG Renderer | Renders nodes and node panel and PROJECTS parent_node_id-derived edges through the shared renderer contract (view state only; no edge recomputation), with pan and zoom, on the existing Storyboard/Strybldr canvas. | `canvas/src/components/StoryboardCanvas.tsx`; `canvas/src/features/strybldr/strybldrStoryboard.ts` |
 | UI | Generation Action Surface | Collects or drafts continuation prompts through existing storytree card actions and Run all handoff. | `canvas/src/components/StoryboardCanvas.tsx`; `canvas/src/features/strybldr/strytreeWorkflow.ts` |
 | UI | Wallet/Unlock Controls | Displays quote/unlock controls and local proof states while server-owned wallet APIs own mutation. | `canvas/src/components/StoryboardCanvas.tsx`; `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
 | UI | ForkCompare Workbench | Renders up to three private candidate cards, scorecards, merge controls, and publish eligibility inside the existing card/SVG surface. | `canvas/src/components/StoryboardCanvas.tsx`; `canvas/src/features/strybldr/strytreeWorkflow.ts` |
@@ -828,6 +879,14 @@ CREATE TABLE strytree_audit_events (
 ### Edge Strategy
 
 `strytree_nodes.parent_node_id` is the edge SSOT for MVP. A separate `story_edges` table is rejected until there is a measured need for non-tree graph edges, edge labels, branch merges, or graph analytics that cannot be derived cheaply.
+
+### Edge Rendering Contract
+
+**Renderer-projection policy.** Edges are a pure projection of source-owned data. The frontmatter (`kgSharedRendererContract`, `flow.storyEdgeProjection`) and the source payloads (`strytree_nodes.parent_node_id`) own all edge data; renderers project view state only. Renderers MUST NOT re-calculate, re-compute, or re-render source-owned edges, and MUST NOT own, mutate, or duplicate edge data.
+
+**Renderer-agnostic rule.** The same shared `kgSharedRendererContract@shared-renderer-contract/v1` + `buildScopedGraphSemanticKey` (edge identity) + `socket_types` (edge/socket typing) + the `flow` port/handle model (`flow.edgeType`, `flow.direction`, per-node `handles`, `flow:portTypes`) drives edge projection regardless of the active 2D renderer. Any renderer-specific edge code path, per-renderer hardcode, or per-renderer fork of edge logic is forbidden; the supported renderer set is projected data, never a branch target.
+
+**Cross-document unification rule.** Strytree `parent_node_id`-derived edges and the demo flow nodes/handles resolve to the SAME shared edge projection across `flowEditor | Storyboard | Strybldr`. Switching the active renderer among these three MUST produce no recompute, no re-render, no duplicate, and no stale edge state — the same logical edge projects identically for every supported renderer.
 
 ## C5. Access Control Contract
 

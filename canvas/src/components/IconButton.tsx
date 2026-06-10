@@ -101,6 +101,12 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           onMouseDown?.(e)
         }}
         onClick={e => {
+          try {
+            e.preventDefault()
+          } catch {
+            void 0
+          }
+          e.stopPropagation()
           if (e.currentTarget instanceof HTMLElement) {
             try {
               e.currentTarget.focus({ preventScroll: true })
@@ -108,7 +114,6 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
               e.currentTarget.focus()
             }
           }
-          e.stopPropagation()
           onClick?.(e)
         }}
         className={cn(

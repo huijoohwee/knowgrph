@@ -59,6 +59,14 @@ const AI_GATEWAY_ENV_NAMES = [
   "AI_GATEWAY_URL",
 ];
 
+/** Public build-time env var names for the optional knowgrph canvas base URL. */
+const CANVAS_BASE_ENV_NAMES = [
+  "NEXT_PUBLIC_CANVAS_BASE_URL",
+  "VITE_CANVAS_BASE_URL",
+  "PUBLIC_CANVAS_BASE_URL",
+  "CANVAS_BASE_URL",
+];
+
 /** First non-empty env value among `names`, trimmed; "" when none set. */
 function readEnv(names) {
   for (const name of names) {
@@ -92,17 +100,19 @@ function copyFile(from, to) {
   fs.copyFileSync(from, to);
 }
 
-function generateConfig(agentApiUrl, aiGatewayUrl) {
+function generateConfig(agentApiUrl, aiGatewayUrl, canvasBaseUrl) {
   return `// GENERATED at build time by scripts/build.mjs — do not edit.
 // PUBLIC deployment values only (R11.3/R15.7): never a model key or auth secret.
 export const AGENT_API_BASE_URL = ${JSON.stringify(agentApiUrl)};
 export const AI_GATEWAY_BASE_URL = ${JSON.stringify(aiGatewayUrl)};
+export const CANVAS_BASE_URL = ${JSON.stringify(canvasBaseUrl)};
 `;
 }
 
 function main() {
   const agentApiUrl = assertPublicUrl(readEnv(AGENT_API_ENV_NAMES), "Agent_Api base URL");
   const aiGatewayUrl = assertPublicUrl(readEnv(AI_GATEWAY_ENV_NAMES), "AI Gateway base URL");
+  const canvasBaseUrl = assertPublicUrl(readEnv(CANVAS_BASE_ENV_NAMES), "Canvas base URL");
 
   // 1. clean + recreate dist
   rimraf(DIST);
@@ -114,7 +124,7 @@ function main() {
   }
 
   // 3. generate config.js from the public env var (injected, never hard-coded)
-  fs.writeFileSync(path.join(DIST, "config.js"), generateConfig(agentApiUrl, aiGatewayUrl), "utf8");
+  fs.writeFileSync(path.join(DIST, "config.js"), generateConfig(agentApiUrl, aiGatewayUrl, canvasBaseUrl), "utf8");
 
   // 4. copy reused browser-safe lib modules
   const libFiles = fs
@@ -130,6 +140,7 @@ function main() {
     `web build complete -> ${path.relative(WEB_ROOT, DIST)}\n` +
       `  Agent_Api base URL: ${agentApiUrl || "(same origin — none set)"}\n` +
       `  AI Gateway base URL: ${aiGatewayUrl || "(none set)"}\n` +
+      `  Canvas base URL: ${canvasBaseUrl || "(none set — canvas embed hidden)"}\n` +
       `  artifacts (${emitted.length}): ${emitted.join(", ")}\n`,
   );
 }

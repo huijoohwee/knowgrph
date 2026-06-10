@@ -77,6 +77,19 @@ export class AuthSecretError extends Error {
   }
 }
 
+async function defaultFetchSecretFromArn(secretArn) {
+  const { SecretsManagerClient, GetSecretValueCommand } = await import("@aws-sdk/client-secrets-manager");
+  const client = new SecretsManagerClient({});
+  const response = await client.send(new GetSecretValueCommand({ SecretId: secretArn }));
+  if (typeof response.SecretString === "string" && response.SecretString.length > 0) {
+    return response.SecretString;
+  }
+  if (response.SecretBinary) {
+    return Buffer.from(response.SecretBinary).toString("utf8");
+  }
+  throw new AuthSecretError(`signing secret '${secretArn}' has no readable value`);
+}
+
 // --- Secret-provider seams (server-side only; never logged/returned) --------
 
 /**
@@ -98,22 +111,49 @@ export function createStaticSecretProvider(secret) {
 
 /**
  * Lambda-environment secret provider (R15.7). Reads the HS256 signing secret
- * from `process.env` (default key `AUTH_JWT_SECRET`). For a multi-region
- * deployment the CDK wiring (task 5.1) can instead inject a Secrets Manager
- * provider exposing the same `getSecret()` seam — no change to this module.
+ * from `process.env` (default key `AUTH_JWT_SECRET`). When the inline secret is
+ * absent but the corresponding ARN key exists (`AUTH_JWT_SECRET_ARN`), it
+ * fetches the value from AWS Secrets Manager through an injectable seam. This
+ * lets the deployed Lambda use the ARN-based CDK wiring while local tests keep
+ * using a plain env secret.
  *
  * @param {Record<string, string | undefined>} [env]
  * @param {string} [key]
+ * @param {{
+ *   secretArnKey?: string,
+ *   fetchSecretFromArn?: (secretArn: string) => Promise<string>|string,
+ * }} [options]
  */
-export function createEnvSecretProvider(env = process.env, key = "AUTH_JWT_SECRET") {
+export function createEnvSecretProvider(env = process.env, key = "AUTH_JWT_SECRET", options = {}) {
+  const secretArnKey =
+    typeof options.secretArnKey === "string" && options.secretArnKey.length > 0
+      ? options.secretArnKey
+      : `${key}_ARN`;
+  const fetchSecretFromArn =
+    typeof options.fetchSecretFromArn === "function"
+      ? options.fetchSecretFromArn
+      : defaultFetchSecretFromArn;
+  let cachedArnSecretPromise = null;
   return Object.freeze({
     async getSecret() {
       const secret = env[key];
-      if (typeof secret !== "string" || secret.length === 0) {
-        // Note: we reference the secret only by KEY NAME, never its value.
-        throw new AuthSecretError(`signing secret '${key}' is not configured`);
+      if (typeof secret === "string" && secret.length > 0) {
+        return secret;
       }
-      return secret;
+      const secretArn = env[secretArnKey];
+      if (typeof secretArn === "string" && secretArn.length > 0) {
+        if (!cachedArnSecretPromise) {
+          cachedArnSecretPromise = Promise.resolve(fetchSecretFromArn(secretArn)).then((resolved) => {
+            if (typeof resolved !== "string" || resolved.length === 0) {
+              throw new AuthSecretError(`signing secret '${secretArnKey}' resolved to an empty value`);
+            }
+            return resolved;
+          });
+        }
+        return cachedArnSecretPromise;
+      }
+      // Note: we reference the secret only by KEY NAME, never its value.
+      throw new AuthSecretError(`signing secret '${key}' is not configured`);
     },
   });
 }

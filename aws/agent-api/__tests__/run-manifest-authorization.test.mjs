@@ -30,7 +30,7 @@ import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 
 import { createAuthedRunsHandler, createRunsHandler } from "../src/handlers/runs.js";
-import { createInMemoryManifestStore } from "../src/lib/run-manifest-store.js";
+import { buildManifestRecord, createInMemoryManifestStore } from "../src/lib/run-manifest-store.js";
 import { createStaticSecretProvider, JWT_ALGORITHM } from "../src/lib/auth-token.js";
 import {
   buildRunNotFoundResponse,
@@ -151,6 +151,29 @@ test("authz: entitlement is scoped per-run — a caller entitled to one run cann
   assert.equal(audit.entries.length, 1);
   assert.equal(audit.entries[0].reason, DENIED_REASON_UNENTITLED);
   assert.equal(audit.entries[0].runId, "run-b");
+});
+
+test("authz: the same session that created a run can read it back even before token entitlements are refreshed", async () => {
+  const audit = createInMemoryAccessAuditSink();
+  const handler = buildHandler({
+    seed: {
+      "run-owned": {
+        ...buildManifestRecord(sampleManifest({ runId: "run-owned" })),
+        ownerPrincipalId: "sess_owner",
+      },
+    },
+    audit,
+  });
+  const token = signToken({ sub: "sess_owner", entitledRunIds: [] });
+
+  const res = await handler(authedGetEvent("run-owned", token));
+
+  assert.equal(res.statusCode, 200);
+  const payload = JSON.parse(res.body);
+  assert.equal(payload.runId, "run-owned");
+  assert.equal(payload.manifest.runId, "run-owned");
+  assert.equal("ownerPrincipalId" in payload, false, "internal owner metadata never leaks");
+  assert.equal(audit.entries.length, 0);
 });
 
 // --- 2. Unentitled caller + existing run -> canonical 404, denial recorded --

@@ -9,7 +9,7 @@ import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLan
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
-import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/file'
+import { exportWidgetBundleAsJson } from '@/lib/graph/file'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
@@ -535,19 +535,10 @@ export function useFlowEditorWorkflowActions(args: {
         return
       }
 
-      const subgraph = buildSelectionSubgraph(graphForRun, writableNodeId, null) || { ...graphForRun, nodes: [node], edges: [] }
-      const registry = args.widgetRegistry
-      const nodeTypeIds = new Set((subgraph.nodes || []).map(n => String(n.type || '').trim()).filter(Boolean))
-      const registryEntries = registry.filter(e => e && e.isEnabled && nodeTypeIds.has(String(e.nodeTypeId || '').trim()))
-      const fallbackResolved = resolveWidgetRegistryEntry({ node, registry, graphMetaKind: args.baseGraphKind })
-      const entries = registryEntries.length > 0 ? registryEntries : fallbackResolved ? [fallbackResolved] : []
-      await exportWidgetBundleAsJson({
-        graphData: subgraph,
-        registryEntries: entries,
-        suggestedName: `flow-node-${writableNodeId}.widget.bundle.json`,
-        graphRevision: readGraphDataRevision(subgraph),
-      })
-      args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorRunExportedToast, ttlMs: 2200 })
+      // Unknown node type — no handler registered. Log warning and return without side effects.
+      // Do NOT fall through to file download or export for unrecognized nodes.
+      console.warn(`[flowEditor] runWorkflowNode: no handler for node type "${String(node.type || '').trim()}" (id: "${id}"). Skipping.`)
+      return
     } catch (error) {
       const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
       args.upsertUiToast({ id: `flow-editor-run-failed-${String(nodeId || '')}`, kind: 'error', message: detail || UI_COPY.flowEditorRunFailedToast, ttlMs: 4200 })

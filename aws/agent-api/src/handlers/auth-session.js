@@ -21,10 +21,12 @@ import {
   AuthSecretError,
 } from "../lib/auth-token.js";
 import { withSafeErrors } from "../lib/safe-error-response.js";
+import { buildCorsHeaders } from "../lib/cors.js";
 
 const JSON_HEADERS = Object.freeze({
   "content-type": "application/json",
   "cache-control": "no-store",
+  ...buildCorsHeaders(),
 });
 
 /** Build a JSON API-Gateway proxy response. */
