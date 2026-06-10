@@ -1,34 +1,134 @@
-# Knowgrph
+# Agentic Canvas
 
-**Tagline:** What consensus misses, the graph finds.
+**Tagline:** The canvas that runs document like a program
 
-Knowgrph is a MiroMindAI-enabled knowledge graph canvas for uncovering non-consensus investment signals, hidden alpha, and contrarian perspectives. It turns research coverage into an interactive canvas where nodes, clusters, and edges represent portfolio factors, market narratives, skew convergence signals, source evidence, and the relationships that ordinary linear notes miss.
+Knowgrph is an **AI/LLM-agent-native, markdown-based, self-runnable agentic
+widget canvas**. A Knowgrph document is plain Markdown with a typed YAML
+frontmatter flow: nodes are **widgets** (input, compute, rich-media panels),
+edges are typed **sockets**, and the whole document renders as an interactive
+canvas that an agent — or a human — can **run, gate, persist, and replay**.
 
-The project is designed for investment research workflows that need to compare consensus views against graph-surfaced divergences. MiroMindAI integration supports research synthesis, graph-aware chat, structured KGC generation, and source-linked reasoning across portfolio themes, risk factors, catalysts, scenarios, and evidence trails.
+The same file is three things at once:
 
-Knowgrph is a research and analysis workspace, not financial advice.
+- a **human-readable Markdown doc** (read it in any editor or on the web),
+- a **typed widget graph** (`kgc-computing-flow/v1` frontmatter — nodes, edges,
+  sockets, run actions), and
+- a **runnable agent program** (compute nodes, approval gates, budget meters,
+  and media outputs that an LLM/MCP agent can execute end to end).
 
-## Research Model
+Knowgrph is provider-neutral and project-agnostic: it operates on any brief,
+canvas graph, tool schema, or media provider without assuming a particular
+vendor, document, or domain.
 
-Knowgrph treats investment research as a connected system:
+## What "self-runnable agentic widget canvas" means
 
-- **Nodes** represent companies, sectors, assets, macro variables, events, narratives, portfolio exposures, claims, and source documents.
-- **Clusters** group related themes such as factor regimes, policy shocks, liquidity conditions, supply-chain constraints, sentiment pockets, or catalyst windows.
-- **Edges** encode causal, evidential, temporal, contrarian, convergence, divergence, and dependency relationships.
-- **Signals** capture non-consensus patterns such as skew convergence, factor crowding, valuation dislocation, cross-asset inconsistency, narrative fatigue, and hidden alpha candidates.
-- **Canvas views** let researchers move between markdown source files, graph structure, rich media panels, timeline views, and AI-assisted synthesis without breaking source provenance.
+- **Markdown-native.** The source of truth is a Markdown file. Its YAML
+  frontmatter declares the flow (`flow.nodes[]`, `flow.edges[]`, `socket_types`,
+  `modelSelection`) so the document is parseable, diffable, and version-control
+  friendly — no proprietary binary scene format.
+- **Widget canvas.** Nodes are typed widgets — `InputWidget`, `ComputeWidget`,
+  `RichMediaPanel` (text, image, video) — laid out on a balanced, mobile-first
+  canvas with readable, socket-typed edges.
+- **Self-runnable.** Compute widgets carry a `canvas:runAction` (pure,
+  inspectable functions) so a node can run from a button, a chat instruction, an
+  MCP tool call, or a CLI/Codex entrypoint and write its outputs back into the
+  same document.
+- **Agent-native.** Agents reach the canvas over **MCP** (`airvio.co/knowgrph/mcp`),
+  through the Floating Panel chat, or via the parser CLI/Codex. Every model call
+  routes through **Cloudflare AI Gateway**; every spend boundary is gated by a
+  single-use Approval_Token.
+- **Gated, persisted, replayable.** Runs are dry-run by default; live spend halts
+  at the first un-approved gate with zero paid actions. Outputs auto-save to
+  Cloudflare (document → D1, media bytes → R2) and replay from storage with no
+  further model call.
 
-## MiroMindAI Integration
+## The runnable document model
 
-MiroMindAI is used as an AI research layer over the workspace rather than a replacement for the graph. The expected flow is:
+A Knowgrph document's frontmatter flow is the program. Minimal shape:
 
-1. Select source files, nodes, clusters, or workspace context.
-2. Ask MiroMindAI to synthesize, challenge, extend, or structure the research.
-3. Store the response as canonical Source Files artifacts such as KGC markdown, chat logs, traces, and companion outputs.
-4. Project structured responses back into the graph canvas through shared Source Files and workspace-import owners.
-5. Keep provider keys server-managed where possible; never commit API keys or secrets.
+```yaml
+---
+schema: "kgc-computing-flow/v1"
+kgCanvas2dRenderer: "flowEditor"
+socket_types:
+  idea_signal:     {color: "#14b8a6", accepts: [idea_signal]}
+  artifact_signal: {color: "#8b5cf6", accepts: [artifact_signal]}
+flow:
+  nodes:
+    - id: {value: "source_input"}      # InputWidget  — typed inputs
+    - id: {value: "compute_summary"}   # ComputeWidget — canvas:runAction
+    - id: {value: "panel_image"}       # RichMediaPanel — image
+    - id: {value: "panel_video"}       # RichMediaPanel — video
+  edges:
+    - {source: "source_input", target: "compute_summary", type: "idea_signal"}
+    - {source: "compute_summary", target: "panel_image",  type: "artifact_signal"}
+    - {source: "compute_summary", target: "panel_video",  type: "artifact_signal"}
+---
 
-Cloudflare Pages and Worker environments can expose server-managed MiroMindAI access through `MIROMIND_API_KEY`. Local development can use the same provider contract through the app settings and runtime proxy path.
+# Body markdown renders alongside the canvas.
+```
+
+- **Nodes** carry typed handles, a `canvas:widgetCard` (preview + actions), and,
+  for compute nodes, a `canvas:runAction` describing inputs, outputs, and side
+  effects.
+- **Edges** connect source/target handles with a declared `socket_type`, so the
+  canvas can validate and route connections.
+- **Run** a compute node and its outputs (text, image, video, dashboards) flow
+  to the connected `RichMediaPanel` widgets and persist to storage.
+
+## Agent + automation surfaces
+
+| Surface | How an agent uses it |
+| --- | --- |
+| MCP (`airvio.co/knowgrph/mcp`) | Streamable-HTTP tool surface; list/call canvas tools, run flows, read back manifests. |
+| Floating Panel Chat | In-canvas assistant with workspace, selection, and source-aware context. |
+| Parser CLI / Codex | Run documents headlessly from the `knowgrph_parser` CLI or a Codex entrypoint. |
+| Cloudflare AI Gateway | All model/media calls (chat, image, video) route here for cache, token count, fallback, and unified billing. |
+
+Baseline runs are provable **offline with deterministic mock providers**; real
+providers (e.g. BytePlus/ModelArk for chat, `seedream` image, `seedance` video)
+activate only when their keys are wired and the matching gate is approved.
+
+## Quick start: run a document
+
+Execute a Knowgrph canvas document headlessly with the `knowgrph_parser` CLI.
+The default provider mode is a deterministic **mock** — zero network, zero paid
+calls — so this runs offline out of the box:
+
+```bash
+python3 -m knowgrph_parser run-goal \
+  --input docs/documents/your-canvas-doc.md \
+  --goal-file goal \
+  --output-dir data/outputs/my-run \
+  --run-id my-run \
+  --print-summary
+```
+
+This writes the run to the output dir:
+
+```text
+data/outputs/my-run/
+  state.json          # resumable run state
+  trace.jsonl         # step-by-step execution trace
+  final-report.md     # human-readable run report
+  harness-proof.json  # verification manifest
+  artifacts/          # generated text/image/video/canvas artifacts
+```
+
+Useful flags:
+
+- `--provider-mode mock|pixverse` — `mock` (default, offline) or `pixverse` for
+  live media (falls back to mock when unavailable).
+- `--resume` — resume from `output-dir/state.json`.
+- `--stop-after-step N` — checkpoint after N tasks, then stop (interruptible).
+- `--fail-once <tool>` — inject one bounded failure for a tool (recovery testing).
+- `--max-steps` / `--max-retries` / `--max-wall-seconds` — run budgets.
+
+Convenience wrapper (uses the neutral fixture brief):
+
+```bash
+npm run goal:run
+```
 
 ## Repository Role
 
@@ -40,18 +140,20 @@ Prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
 Live: https://airvio.co/knowgrph
 ```
 
-Prod sync and Cloudflare deployment are explicit operator actions. Normal implementation, testing, and documentation work should stay in Dev until publish or deploy is requested.
+Prod sync and Cloudflare deployment are explicit operator actions. Normal
+implementation, testing, and documentation work should stay in Dev until publish
+or deploy is requested.
 
 ## Workspace Surfaces
 
 | Surface | Purpose |
 | --- | --- |
-| Source Files | Canonical markdown, JSON, binary metadata, generated KGC, chat logs, traces, and research documents. |
-| Graph Canvas | Visual exploration of nodes, clusters, edges, layouts, rich media panels, and derived research structures. |
-| Floating Panel Chat | MiroMindAI-enabled research assistant with workspace, selection, and source-aware context. |
+| Source Files | Canonical Markdown documents (the runnable canvases), JSON, binary metadata, generated KGC, chat logs, traces. |
+| Graph Canvas | Visual exploration + execution of the widget flow: nodes, edges, rich-media panels, layouts. |
+| Floating Panel Chat | Agent-native assistant with workspace, selection, and source-aware context. |
 | MainPanel Integrations | Provider, endpoint, model, auth-mode, storage, and runtime configuration. |
-| Flow Editor | Structured graph, media, workflow, and diagram editing over source-backed documents. |
-| Cloudflare Runtime | Pages, Workers, D1, R2, and server-managed provider secrets for hosted operation. |
+| Flow Editor | Structured widget/graph/media/workflow editing over source-backed Markdown documents. |
+| Cloudflare Runtime | Pages, Workers (`McpAgent`), D1, R2, AI Gateway, and server-managed provider secrets. |
 
 ## Repo Layout
 
@@ -61,8 +163,8 @@ Prod sync and Cloudflare deployment are explicit operator actions. Normal implem
 | `knowgrph_parser/` | Python parser and command-line tooling for markdown, GraphRAG, webpage, video, and workflow artifacts. |
 | `grph-shared/` | Runtime-neutral TypeScript contracts for storage, rich media, markdown, payments, browser helpers, cache, and geometry. |
 | `gympgrph/` | Geospatial package consumed by the canvas app. |
-| `cloudflare/` | Pages handlers, Workers, storage routes, D1 migrations, and R2-backed binary storage paths. |
-| `mcp/` | Local MCP contracts and service documentation. |
+| `cloudflare/` | Pages handlers, Workers (incl. the `knowgrph-mcp` `McpAgent`), storage routes, D1 migrations, and R2-backed binary storage. |
+| `mcp/` | MCP contracts, the video-remix agent runtime, and service documentation. |
 | `data/config/` | Canonical config inputs for GraphRAG, schema, orchestrator, and LLM chat boundaries. |
 | `docs/documents/` | Authored product, API, architecture, and feature documents. |
 | `scripts/` | Repo checks, sync helpers, docs generation, storage seeding, payment readiness, and release tooling. |
@@ -97,7 +199,8 @@ npm run api-index:check
 python3 -m knowgrph_parser.webpage_cmd_test
 ```
 
-Avoid broad test, publish, deploy, or remote mutation commands unless the current task requires them.
+Avoid broad test, publish, deploy, or remote mutation commands unless the current
+task requires them.
 
 ## Build, Publish, Deploy
 
@@ -114,23 +217,31 @@ npm run pages:build-sync
 npm run pages:check-sync
 ```
 
-Cloudflare deployment:
+Cloudflare deployment (Pages + Workers + `McpAgent`):
 
 ```bash
 npm run pages:deploy-cloudflare
+npm run mcp:worker:deploy
 ```
 
-Run Cloudflare deployment, D1 mutation, R2 mutation, or production publish commands only after explicit operator instruction.
+Run Cloudflare deployment, D1 mutation, R2 mutation, or production publish
+commands only after explicit operator instruction.
 
 ## Storage And Source Authority
 
-Source Files are the workspace contract. Git-backed authored docs remain the source of truth for repo documents; hosted storage mirrors and generated artifacts must preserve path identity instead of inventing parallel files.
+Source Files are the workspace contract. Git-backed authored Markdown documents
+remain the source of truth; hosted storage mirrors and generated artifacts must
+preserve path identity instead of inventing parallel files.
 
 - Keep GitHub-authored docs authoritative first.
 - Use D1 and public storage routes as hosted mirrors and runtime indexes.
-- Use R2 for binary artifacts and companion outputs that do not belong inline in markdown.
-- Keep generated KGC, chat logs, traces, and output manifests source-file addressable.
-- Do not hardcode provider, path, route, or demo-specific behavior downstream when a shared Source Files or storage owner should handle it upstream.
+- Use R2 for binary artifacts (generated image/video) and companion outputs that
+  do not belong inline in markdown. Persist media bytes to R2 on generate and
+  store the durable R2 URL; never store an ephemeral provider URL as the artifact.
+- Keep generated KGC, chat logs, traces, and output manifests source-file
+  addressable.
+- Do not hardcode provider, path, route, or demo-specific behavior downstream
+  when a shared Source Files or storage owner should handle it upstream.
 
 ## Config And Generated Artifacts
 
@@ -157,7 +268,9 @@ canvas/tmp_*
 logs/
 ```
 
-Do not commit local screenshots, transient previews, duplicate root-level config, local workspace notes, or runtime artifacts unless a specific test fixture contract requires a bounded source artifact.
+Do not commit local screenshots, transient previews, duplicate root-level config,
+local workspace notes, or runtime artifacts unless a specific test fixture
+contract requires a bounded source artifact.
 
 ## Feature Docs
 
@@ -165,7 +278,8 @@ Feature-specific planning belongs in canonical docs instead of the root README:
 
 | Feature | Docs |
 | --- | --- |
-| MiroMindAI | `docs/documents/knowgrph-api-reference/knowgrph-miromind-api-prd-tad.md` |
+| Agentic Canvas OS demo | `docs/documents/knowgrph-mcp-agentic-canvas-os-prd-tad.md` |
+| AI provider layer (MiroMindAI) | `docs/documents/knowgrph-api-reference/knowgrph-miromind-api-prd-tad.md` |
 | MCP | `docs/documents/knowgrph-mcp/` and `mcp/README.md` |
 | Storage sync | `docs/documents/knowgrph-storage-sync-document.companion.md` |
 | Stryfork | `docs/documents/knowgrph-stryfork-prd-tad.md` |
@@ -176,9 +290,15 @@ Feature-specific planning belongs in canonical docs instead of the root README:
 
 ## Hygiene Rules
 
-- Fix root/source owners instead of layering downstream aliases, remaps, or compatibility shims.
-- Keep MiroMindAI, storage, graph, and Source Files behavior provider-neutral and file-agnostic where possible.
-- Reuse shared helpers, semantic keys, and workspace contracts instead of hardcoded repo, file, route, or demo branches.
-- Preserve source provenance for generated research artifacts.
-- Keep secrets out of source and use server-managed environment bindings for hosted provider keys.
-- Keep Dev as the implementation source; publish mirror and Cloudflare outputs are generated from Dev.
+- Fix root/source owners instead of layering downstream aliases, remaps, or
+  compatibility shims.
+- Keep the AI/agent layer, storage, graph, and Source Files behavior
+  provider-neutral and file-agnostic where possible.
+- Reuse shared helpers, semantic keys, and workspace contracts instead of
+  hardcoded repo, file, route, or demo branches.
+- Preserve source provenance for generated artifacts (link them to the goal,
+  brief, plan, tool calls, and verification checks).
+- Keep secrets out of source and use server-managed environment bindings for
+  hosted provider keys.
+- Keep Dev as the implementation source; publish mirror and Cloudflare outputs
+  are generated from Dev.
