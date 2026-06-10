@@ -5,10 +5,12 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_SELECTORS } from '@/lib/config'
 import { WORKSPACE_LEFT_PANE_SELECTOR } from '@/lib/canvas/viewportMeasureElement'
+import { HorizontalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import { bindResizeSeparatorDragRuntime } from '@/lib/ui/resizeSeparatorDrag'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
@@ -31,6 +33,10 @@ type TimelineBottomPanelView =
 
 const TIMELINE_BOTTOM_PANEL_VISIBLE_PX = 32
 const TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE = { width: 560, height: 128 } as const
+const TIMELINE_BOTTOM_PANEL_MIN_HEIGHT_RATIO = 0.18
+const TIMELINE_BOTTOM_PANEL_MAX_HEIGHT_RATIO = 0.62
+const TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX = 672
+const TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX = 384
 const GitGraphBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GitGraphBottomPanelView').then(mod => ({ default: mod.GitGraphBottomPanelView })),
 )
@@ -85,6 +91,11 @@ function resolveWorkspaceCanvasLayerInsetLeft({
   return Math.max(0, Math.min(rootRect.width, insetLeft))
 }
 
+function clampTimelineBottomPanelHeightRatio(value: number) {
+  if (!Number.isFinite(value)) return 0.35
+  return Math.max(TIMELINE_BOTTOM_PANEL_MIN_HEIGHT_RATIO, Math.min(TIMELINE_BOTTOM_PANEL_MAX_HEIGHT_RATIO, value))
+}
+
 export function StrybldrTimelineBottomPanel({
   active = true,
   initialView = 'strybldrTimeline',
@@ -97,6 +108,7 @@ export function StrybldrTimelineBottomPanel({
   const rootLayerRef = React.useRef<HTMLElement | null>(null)
   const layerRef = React.useRef<HTMLElement | null>(null)
   const panelRef = React.useRef<HTMLElement | null>(null)
+  const resizeHandleRef = React.useRef<HTMLHRElement | null>(null)
   const dragStateRef = React.useRef<{
     startX: number
     startY: number
@@ -109,8 +121,10 @@ export function StrybldrTimelineBottomPanel({
   const [position, setPosition] = React.useState<TimelineBottomPanelPosition | null>(null)
   const [workspaceLayerInsetLeft, setWorkspaceLayerInsetLeft] = React.useState(0)
   const bottomSurfaceCollapsed = useGraphStore(s => s.bottomSurfaceCollapsed)
+  const bottomSurfaceHeightRatio = useGraphStore(s => s.bottomSurfaceHeightRatio)
   const bottomSurfaceTab = useGraphStore(s => s.bottomSurfaceTab)
   const setBottomSurfaceCollapsed = useGraphStore(s => s.setBottomSurfaceCollapsed)
+  const setBottomSurfaceHeightRatio = useGraphStore(s => s.setBottomSurfaceHeightRatio)
   const setBottomSurfaceTab = useGraphStore(s => s.setBottomSurfaceTab)
   const setTimelineEnabled = useGraphStore(s => s.setTimelineEnabled)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
@@ -165,6 +179,10 @@ export function StrybldrTimelineBottomPanel({
     }
   }, [updateWorkspaceLayerInsetLeft])
 
+  const readCurrentBottomSurfaceHeightRatio = React.useCallback(() => {
+    return clampTimelineBottomPanelHeightRatio(bottomSurfaceHeightRatio)
+  }, [bottomSurfaceHeightRatio])
+
   const getPanelSize = React.useCallback(() => {
     const rect = panelRef.current?.getBoundingClientRect()
     const width = rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE.width
@@ -182,6 +200,24 @@ export function StrybldrTimelineBottomPanel({
     if (typeof window !== 'undefined') return { width: window.innerWidth, height: window.innerHeight }
     return TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE
   }, [getLayerRect])
+
+  React.useEffect(() => {
+    const el = resizeHandleRef.current
+    if (!el || !pinned || minimized) return undefined
+    return bindResizeSeparatorDragRuntime<number>({
+      resizeHandleEl: el,
+      cursor: 'row-resize',
+      readCurrentValue: readCurrentBottomSurfaceHeightRatio,
+      setPreviewValue: next => setBottomSurfaceHeightRatio(clampTimelineBottomPanelHeightRatio(next)),
+      commitValue: next => setBottomSurfaceHeightRatio(clampTimelineBottomPanelHeightRatio(next)),
+      resolveNextValueFromPointerDrag: input => {
+        const layerHeight = getLayerSize().height
+        if (!Number.isFinite(layerHeight) || layerHeight <= 0) return input.startValue
+        return clampTimelineBottomPanelHeightRatio(input.startValue - input.deltaY / layerHeight)
+      },
+    })
+  }, [getLayerSize, minimized, pinned, readCurrentBottomSurfaceHeightRatio, setBottomSurfaceHeightRatio])
+
   const resolveLayerRelativePosition = React.useCallback((rect: DOMRect) => {
     const layerRect = getLayerRect()
     return {
@@ -323,10 +359,22 @@ export function StrybldrTimelineBottomPanel({
     })
   }, [clampPosition, pinned, resolveLayerRelativePosition])
 
+  const resolvedBottomSurfaceHeightRatio = clampTimelineBottomPanelHeightRatio(bottomSurfaceHeightRatio)
+  const expandedPinnedHeightStyle = {
+    height: `clamp(9rem, ${Math.round(resolvedBottomSurfaceHeightRatio * 10000) / 100}dvh, 24rem)`,
+    maxHeight: 'min(62dvh, 24rem)',
+  }
+  const expandedUnpinnedHeightStyle = {
+    width: `min(${TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX}px, calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)))`,
+    height: `min(${TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX}px, 44dvh)`,
+    maxHeight: 'min(62dvh, 24rem)',
+  }
   const panelHeightStyle = minimized
     ? { height: 'var(--kg-toolbar-compact-surface-height)' }
     : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'architecture' || view === 'eventModeling'
-      ? { maxHeight: 'min(44vh, 24rem)' }
+      ? pinned
+        ? expandedPinnedHeightStyle
+        : expandedUnpinnedHeightStyle
       : { maxHeight: 'min(32vh, 12rem)' }
   const panelPosition = position || getDefaultUnpinnedPosition()
   const layerStyle = React.useMemo(() => ({ left: workspaceLayerInsetLeft }), [workspaceLayerInsetLeft])
@@ -373,7 +421,18 @@ export function StrybldrTimelineBottomPanel({
           data-kg-canvas-wheel-ignore="true"
           data-kg-strybldr-bottom-timeline-panel="1"
           data-kg-strybldr-bottom-timeline-minimized={minimized ? 'true' : 'false'}
+          data-kg-strybldr-bottom-timeline-pinned={pinned ? 'true' : 'false'}
+          data-kg-strybldr-bottom-timeline-drag-enabled={!pinned && !minimized ? 'true' : 'false'}
         >
+          {pinned && !minimized ? (
+            <HorizontalResizeSeparatorHr
+              ref={resizeHandleRef}
+              ariaLabel="Resize bottom surface"
+              className="shrink-0"
+              data-kg-strybldr-bottom-timeline-resize-handle="top"
+              data-kg-resize-handle="n"
+            />
+          ) : null}
           <header
             className={cn('flex select-none items-center justify-between gap-2', !pinned && 'cursor-move')}
             style={{

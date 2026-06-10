@@ -389,6 +389,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["layout.flow.defaultPortKey.prefersTypedPortsByDirection","@/__tests__/flowSchemaFieldPortKeys.test","testFlowDefaultPortKeyPrefersTypedWidgetPortsByDirection"],
   ["schema.flowPorts.validation.schemaPortsAffectCanAddEdge","@/__tests__/flowSchemaPortEdgeValidation.test","testFlowSchemaPortsInfluenceEdgeValidation"],
   ["schema.flowPorts.label.buildDisplayLabelFromPorts","@/__tests__/flowSchemaPortEdgeValidation.test","testFlowSchemaPortsBuildDisplayLabel"],
+  ["ui.strybldrBottomPanel.unpinDrag.reusesResizeRuntime","@/__tests__/strybldrBottomPanelPinDragResizeContract.test","testStrybldrBottomPanelUnpinDragReusesResizeRuntime"],
   ["flow.handles.registryPorts.presentWithoutEdges","@/__tests__/flowHandlesRegistryPorts.test","testFlowHandlesIncludeRegistryPortsWithoutEdges"],
   ["flow.handles.registryPorts.rebalanceRichMediaPanelByActiveTab","@/__tests__/flowHandlesRegistryPorts.test","testFlowHandlesRebalanceRichMediaPanelPortsByActiveTab"],
   ["flow.widgetRegistry.duplicateValuePortRows.uniqueControls","@/__tests__/flowWidgetRegistryDuplicateValuePorts.test","testWidgetRegistryDuplicateValueAndPortRowsUseUniqueControlNames"],
