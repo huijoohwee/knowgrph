@@ -358,3 +358,171 @@ export function runRenderHarness(input, deps = {}) {
     failure,
   };
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Async variant (task 12.4a) — identical semantics to `runRenderHarness` but
+// `await`s the dispatch + ledger seams so a LIVE async render client
+// (`createStrytreeRenderQueueClient`, task 12.4) can be consumed. The sync
+// `runRenderHarness` above remains the default for the deterministic Director /
+// test path. A parity test (`render-harness-async.test.mjs`) asserts the two
+// produce identical results on the same deterministic seams so they cannot
+// drift; keep any change to one mirrored in the other.
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Async sibling of {@link runRenderHarness}. Same contract, same fail-closed
+ * token rejection (R8.2), same routing (R8.5/16), same per-shot ledger+asset
+ * emission (R8.3/8.4), same dispatch-failure / no-asset semantics (R8.6) — the
+ * only difference is that `client.dispatch(...)` and `ledgerClient.record(...)`
+ * are awaited, so an async live client works. Awaiting a synchronous mock seam
+ * is a no-op, so behavior matches the sync variant exactly.
+ */
+export async function runRenderHarnessAsync(input, deps = {}) {
+  const { shots } = validateRenderInput(input);
+  const runId = cleanString(deps.runId, "video-remix-run");
+
+  const verification = verifyRenderToken(input.renderGateToken, {
+    now: deps.now,
+    gateId: RENDER_GATE_ID,
+  });
+  if (!verification.valid) {
+    return buildTokenRejection(verification);
+  }
+
+  const queueClient = deps.queueClient || createDeterministicRenderQueueClient();
+  const mockClient = deps.mockClient || createDeterministicMockProviderClient();
+  const ledgerClient = deps.ledgerClient || createDeterministicLedgerClient();
+  const providerKeyAvailable = Boolean(deps.providerKeyAvailable);
+  const budgetCapCents = deps.budgetCapCents;
+  const outcomes = deps.outcomes;
+
+  const assets = [];
+  const ledgerEvents = [];
+  let cumulativeSpendCents = 0;
+  let providerDispatchCalls = 0;
+  let failure = null;
+
+  for (const shot of shots) {
+    const { shotId } = shot;
+
+    const route = selectRenderProvider({
+      providerKeyAvailable,
+      cumulativeSpendCents,
+      budgetCapCents,
+    });
+    const client = route.useMock ? mockClient : queueClient;
+
+    const outcome = resolveShotOutcome(outcomes, shotId);
+    if (outcome && outcome.failed) {
+      const spentCents = route.useMock
+        ? 0
+        : Number.isFinite(outcome.spentCents)
+          ? Math.max(0, Math.round(outcome.spentCents))
+          : 0;
+      const ledgerEventId = renderLedgerEventId(runId, shotId);
+      const provider = route.useMock ? mockClient.provider : queueClient.provider;
+      const ledgerEvent = await ledgerClient.record({
+        ledgerEventId,
+        runId,
+        shotId,
+        provider,
+        providerSpendCents: spentCents,
+      });
+      ledgerEvents.push(ledgerEvent);
+      cumulativeSpendCents += spentCents;
+      failure = {
+        shotId,
+        reason: cleanString(outcome.reason, RENDER_FAILURE_DISPATCH_ERROR),
+        ledgerEventId,
+        providerSpendCents: spentCents,
+      };
+      break;
+    }
+
+    let dispatchResult;
+    try {
+      dispatchResult = await client.dispatch({ shot, runId });
+    } catch (error) {
+      const ledgerEventId = renderLedgerEventId(runId, shotId);
+      const ledgerEvent = await ledgerClient.record({
+        ledgerEventId,
+        runId,
+        shotId,
+        provider: route.useMock ? mockClient.provider : queueClient.provider,
+        providerSpendCents: 0,
+      });
+      ledgerEvents.push(ledgerEvent);
+      failure = {
+        shotId,
+        reason: cleanString(error && error.message, RENDER_FAILURE_DISPATCH_ERROR),
+        ledgerEventId,
+        providerSpendCents: 0,
+      };
+      break;
+    }
+
+    if (!dispatchResult || !dispatchResult.assetUrl) {
+      const ledgerEventId = renderLedgerEventId(runId, shotId);
+      const ledgerEvent = await ledgerClient.record({
+        ledgerEventId,
+        runId,
+        shotId,
+        provider: route.useMock ? mockClient.provider : queueClient.provider,
+        providerSpendCents: 0,
+      });
+      ledgerEvents.push(ledgerEvent);
+      failure = {
+        shotId,
+        reason: RENDER_FAILURE_NO_ASSET_TIMEOUT,
+        ledgerEventId,
+        providerSpendCents: 0,
+      };
+      break;
+    }
+
+    const costCents = route.useMock ? 0 : Math.max(0, Math.round(Number(dispatchResult.costCents) || 0));
+    const provider = route.useMock ? mockClient.provider : cleanString(dispatchResult.provider, queueClient.provider);
+    if (!route.useMock) providerDispatchCalls += 1;
+
+    const ledgerEventId = renderLedgerEventId(runId, shotId);
+    const ledgerEvent = await ledgerClient.record({
+      ledgerEventId,
+      runId,
+      shotId,
+      provider,
+      providerSpendCents: costCents,
+    });
+    ledgerEvents.push(ledgerEvent);
+    cumulativeSpendCents += costCents;
+
+    assets.push({
+      shotId,
+      assetUrl: dispatchResult.assetUrl,
+      ledgerEventId,
+      costCents,
+      provider,
+      objectKey: dispatchResult.objectKey ?? null,
+      bucket: dispatchResult.bucket ?? null,
+    });
+  }
+
+  const dispatchElapsedMs = Number.isFinite(deps.dispatchElapsedMs)
+    ? Math.max(0, deps.dispatchElapsedMs)
+    : 0;
+
+  return {
+    status: failure ? RENDER_STATUS_FAILED : RENDER_STATUS_COMPLETE,
+    gateId: RENDER_GATE_ID,
+    dispatched: true,
+    dispatchElapsedMs,
+    dispatchWithinDeadline: dispatchElapsedMs <= RENDER_DISPATCH_DEADLINE_MS,
+    dispatchDeadlineMs: RENDER_DISPATCH_DEADLINE_MS,
+    completionTimeoutMs: RENDER_COMPLETION_TIMEOUT_MS,
+    assets,
+    ledgerEvents,
+    providerDispatchCalls,
+    paidProviderCalls: providerDispatchCalls,
+    providerSpendCents: cumulativeSpendCents,
+    failure,
+  };
+}

@@ -35,12 +35,25 @@ import {
   RUN_MANIFEST_PERSISTENCE_DEADLINE_MS,
   RunManifestStore,
 } from "./run-manifest-store.mjs";
+// Env-gated live/mock stage-client resolver (task 12.5). Builds live provider
+// clients only when the Worker env opts in (`KNOWGRPH_LIVE_CLIENTS`) or carries
+// a credential (`EXA_API_KEY`); otherwise the Director uses deterministic mocks.
+import {
+  resolveStageClients,
+  createLiveArgsResolver,
+} from "../../../mcp/video-remix/live-clients.js";
 
 export interface KnowgrphMcpEnv {
   MCP_AGENT: DurableObjectNamespace;
   RUN_MANIFEST_STORE: DurableObjectNamespace;
   KNOWGRPH_MCP_PUBLIC_BASE_URL?: string;
   KNOWGRPH_MCP_TOOL_LIST_NAME?: string;
+  // task 12.5 env gating: live stage clients are enabled when KNOWGRPH_LIVE_CLIENTS
+  // is truthy or a provider credential (EXA_API_KEY) is present; otherwise the
+  // Director runs against deterministic mocks (zero live/paid calls).
+  KNOWGRPH_LIVE_CLIENTS?: string;
+  EXA_API_KEY?: string;
+  EXA_MCP_ENDPOINT?: string;
   // Injectable observability sinks (default to console-backed emitters).
   // `emitPersistenceDiagnostic` is consumed by the RunManifestStore DO
   // (R14.3); `emitStageTransitionDiagnostic` is consumed here on each Director
@@ -277,6 +290,17 @@ async function dispatchToolCall(
         ? env.emitPersistenceDiagnostic
         : defaultPersistenceDiagnosticEmitter,
     readBackPathPrefix: RUNS_PATH_PREFIX,
+    // task 12.5: env-gated live/mock pre-resolution. When the Worker env opts
+    // into live clients, the Director's args gain `sourceCards` fetched from the
+    // live Exa client before execution; otherwise this is a no-op identity and
+    // the Director runs against deterministic mocks.
+    resolveLiveArgs: createLiveArgsResolver(
+      resolveStageClients({
+        KNOWGRPH_LIVE_CLIENTS: env?.KNOWGRPH_LIVE_CLIENTS,
+        EXA_API_KEY: env?.EXA_API_KEY,
+        EXA_MCP_ENDPOINT: env?.EXA_MCP_ENDPOINT,
+      }),
+    ),
   });
 
   return {

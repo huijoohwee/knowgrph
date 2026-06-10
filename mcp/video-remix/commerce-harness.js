@@ -357,3 +357,134 @@ export function runCheckout(input, deps = {}) {
     paidProviderCalls: 1,
   };
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Async variants (task 12.4a) — identical semantics to `runPublish` /
+// `runCheckout` but `await` the publish / Stripe / payout seams so the LIVE
+// async commerce clients (`createStripeCommerceClients`, task 12.4) can be
+// consumed. The sync variants above remain the default for the deterministic
+// Director / test path. A parity test (`commerce-harness-async.test.mjs`)
+// asserts the sync and async variants agree on the same deterministic seams so
+// they cannot drift; keep any change to one mirrored in the other.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Async sibling of {@link runPublish}; awaits the publish seam. */
+export async function runPublishAsync(input, deps = {}) {
+  const { assets } = validatePublishInput(input);
+  const runId = cleanString(deps.runId, "video-remix-run");
+  const publishClient = deps.publishClient || createDeterministicPublishClient();
+
+  const published = await Promise.all(
+    assets.map((asset) => publishClient.publish({ asset, runId })),
+  );
+  const publishedUrls = published.map((entry) => entry.publishedUrl);
+
+  return {
+    status: PUBLISH_STATUS_COMPLETE,
+    gateId: PAYMENT_GATE_ID,
+    published,
+    publishedUrls,
+  };
+}
+
+/**
+ * Async sibling of {@link runCheckout}; awaits the Stripe create + payout settle
+ * seams. Same gate rejection (R9.3), same R9.4 post-approval failure semantics,
+ * same 10s deadline metadata — awaiting a synchronous mock seam is a no-op, so
+ * behavior matches the sync variant exactly.
+ */
+export async function runCheckoutAsync(input, deps = {}) {
+  const { assetUrl, priceId } = validateCheckoutInput(input);
+  const runId = cleanString(deps.runId, "video-remix-run");
+
+  const verification = verifyGateToken(input.paymentGateToken, {
+    gateId: PAYMENT_GATE_ID,
+    now: deps.now,
+  });
+  if (!verification.valid) {
+    return buildGateRejection(verification);
+  }
+
+  const stripeClient = deps.stripeClient || createDeterministicStripeClient();
+  const payoutClient = deps.payoutClient || createDeterministicPayoutClient();
+  const outcome = deps.outcome && typeof deps.outcome === "object" ? deps.outcome : {};
+
+  const checkoutElapsedMs = Number.isFinite(deps.checkoutElapsedMs)
+    ? Math.max(0, deps.checkoutElapsedMs)
+    : 0;
+
+  if (outcome.sessionCreate && outcome.sessionCreate.failed) {
+    return buildOperationFailure(CHECKOUT_FAILURE_SESSION_CREATE, "session_create", {
+      stripeCreateCalls: 0,
+    });
+  }
+
+  let created;
+  try {
+    created = await stripeClient.createCheckoutSession({
+      runId,
+      assetUrl,
+      priceId,
+      amountTotal: deps.amountTotal,
+      currency: deps.currency,
+      workspaceId: deps.workspaceId,
+      agenticCommerceSessionId: deps.agenticCommerceSessionId,
+    });
+  } catch (error) {
+    return buildOperationFailure(CHECKOUT_FAILURE_SESSION_CREATE, "session_create", {
+      stripeCreateCalls: 1,
+    });
+  }
+
+  const session = created && created.session ? created.session : null;
+  const sessionId = session && cleanString(session.id) ? session.id : "";
+  if (!sessionId) {
+    return buildOperationFailure(CHECKOUT_FAILURE_SESSION_CREATE, "session_create", {
+      stripeCreateCalls: 1,
+      session: null,
+    });
+  }
+
+  if (outcome.settlement && outcome.settlement.failed) {
+    return buildOperationFailure(CHECKOUT_FAILURE_SETTLEMENT, "settlement", {
+      stripeCreateCalls: 1,
+      session,
+      sessionId,
+    });
+  }
+
+  let settlement;
+  try {
+    settlement = await payoutClient.settle({
+      sessionId,
+      runId,
+      amountTotal: session.amountTotal,
+      currency: session.currency,
+    });
+  } catch (error) {
+    return buildOperationFailure(CHECKOUT_FAILURE_SETTLEMENT, "settlement", {
+      stripeCreateCalls: 1,
+      session,
+      sessionId,
+    });
+  }
+
+  return {
+    status: CHECKOUT_STATUS_COMPLETE,
+    gateId: PAYMENT_GATE_ID,
+    gateApproved: true,
+    sessionId,
+    session,
+    body: created.body || null,
+    settlement,
+    payoutState: settlement.payoutState,
+    sessionCreated: true,
+    payoutSettled: Boolean(settlement.settled),
+    checkoutElapsedMs,
+    sessionCreatedWithinDeadline: checkoutElapsedMs <= COMMERCE_CHECKOUT_DEADLINE_MS,
+    checkoutDeadlineMs: COMMERCE_CHECKOUT_DEADLINE_MS,
+    stripeCreateCalls: 1,
+    payoutSettleCalls: 1,
+    paidProviderCalls: 1,
+  };
+}

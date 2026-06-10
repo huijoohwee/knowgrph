@@ -13,11 +13,12 @@
 //   * the shared spend-boundary predicate    -> gate-token.js / render-token.js
 //
 // AVOID DOUBLE-VERIFICATION DRIFT (task 4.5 directive): the render harness
-// (`runRenderHarness`) verifies `renderGateToken` internally and the commerce
-// harness (`runCheckout`) verifies `paymentGateToken` internally — that harness
-// check is the SINGLE spend-boundary verification. This module therefore does
-// NOT re-run `verifyGateToken` (which would be a second, potentially divergent
-// check). Instead it READS the harness's own permitted/rejected outcome and:
+// (`runRenderHarnessAsync`) verifies `renderGateToken` internally and the
+// commerce harness (`runCheckoutAsync`) verifies `paymentGateToken` internally
+// — that harness check is the SINGLE spend-boundary verification. This module
+// therefore does NOT re-run `verifyGateToken` (which would be a second,
+// potentially divergent check). Instead it READS the harness's own
+// permitted/rejected outcome and:
 //   * on a PERMITTED use -> applies the issuer's single-use consume seam
 //     strictly AFTER the spend so a second use of the same token fails closed
 //     (R11.8 / Property 1) and attaches the harness result to the manifest;
@@ -30,8 +31,8 @@
 // provider client flow through the harness `deps`, so the local runtime makes
 // ZERO live network calls.
 
-import { runRenderHarness } from "./render-harness.js";
-import { runCheckout } from "./commerce-harness.js";
+import { runRenderHarnessAsync } from "./render-harness.js";
+import { runCheckoutAsync } from "./commerce-harness.js";
 import { RENDER_GATE_ID } from "./render-token.js";
 import { PAYMENT_GATE_ID } from "./commerce-providers.js";
 
@@ -105,7 +106,10 @@ function buildGateEnforcement({ stage, gateId, permitted, result, tokenConsumed 
  */
 export async function enforceRenderGate({ token, shots, consume, deps = {} } = {}) {
   // The harness owns the single spend-boundary verification (R8.2 / Property 1).
-  const result = runRenderHarness({ shots, renderGateToken: token }, deps);
+  // The ASYNC harness variant (task 12.4a) is used so an injected LIVE render
+  // client (an async `dispatch` seam, task 12.4) is awaited; awaiting the
+  // deterministic sync seam is a no-op (parity-guaranteed).
+  const result = await runRenderHarnessAsync({ shots, renderGateToken: token }, deps);
   // Permitted IFF the harness did not fail-closed on the token (a `failed`
   // dispatch still means the token was verified valid — it authorized a spend).
   const permitted = result.rejected !== true;
@@ -141,7 +145,10 @@ export async function enforceRenderGate({ token, shots, consume, deps = {} } = {
  * @returns {Promise<object>} the gate-enforcement outcome.
  */
 export async function enforceCheckoutGate({ token, checkout = {}, consume, deps = {} } = {}) {
-  const result = runCheckout({ ...checkout, paymentGateToken: token }, deps);
+  // ASYNC commerce harness variant (task 12.4a) so an injected LIVE Stripe /
+  // payout client (async seams, task 12.4) is awaited; awaiting the
+  // deterministic sync seam is a no-op (parity-guaranteed).
+  const result = await runCheckoutAsync({ ...checkout, paymentGateToken: token }, deps);
   // Permitted IFF the gate was approved (a post-approval `failed` checkout still
   // means the gate was verified approved — R9.4 — and the token authorized it).
   const permitted = result.gateApproved === true;

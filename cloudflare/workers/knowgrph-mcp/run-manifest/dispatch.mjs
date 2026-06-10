@@ -191,6 +191,7 @@ async function persistDirectorManifestThroughNamespace(
  *   emitStageTransitionDiagnostic?: (d: object) => void,
  *   emitPersistenceDiagnostic?: (d: object) => void,
  *   readBackPathPrefix?: string,
+ *   resolveLiveArgs?: (toolName: string, args: object) => Promise<object>|object,
  * }} options
  */
 export async function dispatchKnowgrphMcpToolCall({
@@ -200,8 +201,23 @@ export async function dispatchKnowgrphMcpToolCall({
   emitStageTransitionDiagnostic = defaultStageTransitionDiagnosticEmitter,
   emitPersistenceDiagnostic = defaultPersistenceDiagnosticEmitter,
   readBackPathPrefix = RUN_MANIFEST_READBACK_PATH_PREFIX,
+  resolveLiveArgs,
 } = {}) {
-  const result = executeKnowgrphMcpTool(toolName, args ?? {});
+  // Env-gated live/mock pre-resolution (task 12.5). Default is the identity
+  // function, so behavior is UNCHANGED unless the Worker injects a resolver
+  // built from `resolveStageClients(env)`. When live, the Director's `args`
+  // gain `sourceCards` fetched from the live Exa client before execution; on
+  // any failure the resolver returns args unchanged (never throws).
+  let effectiveArgs = args ?? {};
+  if (typeof resolveLiveArgs === "function") {
+    try {
+      effectiveArgs = (await resolveLiveArgs(toolName, effectiveArgs)) ?? effectiveArgs;
+    } catch {
+      effectiveArgs = args ?? {};
+    }
+  }
+
+  const result = executeKnowgrphMcpTool(toolName, effectiveArgs);
   const structured = result.structuredContent;
 
   const isDirectorRunWithId =

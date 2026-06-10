@@ -164,6 +164,7 @@ export {
   RenderHarnessInputError,
   validateRenderInput,
   runRenderHarness,
+  runRenderHarnessAsync,
 } from "./video-remix/render-harness.js";
 
 export {
@@ -204,6 +205,11 @@ export {
 } from "./video-remix/director-gates.js";
 
 export {
+  executeLiveStages,
+  plannedShotsFromManifest,
+} from "./video-remix/director-live-run.js";
+
+export {
   APPROVAL_REJECTION_ERROR_CODE,
   APPROVAL_REJECTION_DESCRIPTIONS,
   describeApprovalRejection,
@@ -234,6 +240,8 @@ export {
   validateCheckoutInput,
   runPublish,
   runCheckout,
+  runPublishAsync,
+  runCheckoutAsync,
 } from "./video-remix/commerce-harness.js";
 
 export {

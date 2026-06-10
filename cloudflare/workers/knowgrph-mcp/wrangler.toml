@@ -20,6 +20,20 @@ enabled = true
 [vars]
 KNOWGRPH_MCP_PUBLIC_BASE_URL = "https://airvio.co"
 KNOWGRPH_MCP_TOOL_LIST_NAME = "knowgrph-video-remix"
+# task 12.5 — env-gated live/mock stage clients. Default "0" keeps the Director
+# on deterministic mocks (zero live/paid calls). Flip to "1" to enable live
+# clients, or provide a provider credential as a SECRET (not a var):
+#   npx wrangler secret put EXA_API_KEY --config cloudflare/workers/knowgrph-mcp/wrangler.toml
+# When EXA_API_KEY is present the Exa client uses api-key-header mode; with only
+# KNOWGRPH_LIVE_CLIENTS="1" it uses Exa hosted-free mode. EXA_MCP_ENDPOINT is
+# optional (defaults to https://mcp.exa.ai/mcp).
+KNOWGRPH_LIVE_CLIENTS = "0"
+# task 12.4 live stage clients (optional; set the endpoint + provide the key as
+# a SECRET via `wrangler secret put <NAME>`). Absent → that stage uses its mock.
+#   Storyboard (USABLE NOW): AI_GATEWAY_CHAT_URL + BYTEPLUS_API_KEY (or AI_GATEWAY_TOKEN),
+#     optional BYTEPLUS_CHAT_MODEL (default "skylark-chat").
+#   Render (SCAFFOLD — needs async render harness, task 12.4a): STRYTREE_RENDER_URL + STRYTREE_API_KEY.
+#   Commerce (SCAFFOLD — needs async commerce harness, task 12.4a): KNOWGRPH_PAYMENT_URL + KNOWGRPH_PAYMENT_API_KEY.
 
 # Streamable HTTP transport endpoint per Requirement R14.1.
 [[routes]]

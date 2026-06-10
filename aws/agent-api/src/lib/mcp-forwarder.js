@@ -63,16 +63,106 @@ export class McpForwardError extends Error {
 }
 
 /**
- * Default transport seam. Until MCP Streamable HTTP forwarding is wired to a
- * live `fetch` (task 9.2), invoking the forwarder without an injected transport
- * surfaces a clearly-tagged not-implemented signal rather than silently
- * succeeding or making a live network call.
+ * Default transport seam. Invoking the forwarder without an injected transport
+ * (and without opting into the live `fetch` transport) surfaces a clearly-tagged
+ * not-implemented signal rather than silently succeeding or making a live
+ * network call. The live transport is `createFetchMcpTransport` below; the
+ * default stays inert so an un-wired deployment fails closed (HTTP 501).
  */
 async function defaultTransport() {
   throw new McpForwardError(
-    "MCP Streamable HTTP transport is not wired yet (task 9.2)",
+    "MCP Streamable HTTP transport is not wired (inject createFetchMcpTransport for live forwarding)",
     "not_implemented",
   );
+}
+
+/**
+ * Parse a JSON-RPC payload out of an MCP Streamable HTTP `text/event-stream`
+ * (SSE) body. The MCP Streamable HTTP transport may answer a `tools/call` POST
+ * with an SSE stream whose `data:` lines carry JSON-RPC frames; the final
+ * `data:` frame holds the `tools/call` result. We scan for the last parseable
+ * `data:` JSON object so a single-frame or multi-frame stream both resolve.
+ *
+ * @param {string} text the raw SSE body
+ * @returns {object|null} the last parseable JSON-RPC frame, or null
+ */
+export function parseSseJsonRpc(text) {
+  if (typeof text !== "string" || text.length === 0) return null;
+  let last = null;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trimStart();
+    if (!line.startsWith("data:")) continue;
+    const payload = line.slice("data:".length).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      last = JSON.parse(payload);
+    } catch {
+      // Ignore non-JSON keep-alive / comment frames.
+    }
+  }
+  return last;
+}
+
+/**
+ * Live MCP Streamable HTTP transport seam. This is the drop-in that replaces the
+ * not-implemented default: it performs a single real POST of the JSON-RPC
+ * `tools/call` envelope to the control-plane MCP endpoint and returns the parsed
+ * JSON-RPC response, tolerating either a JSON (`application/json`) or an SSE
+ * (`text/event-stream`) reply per the MCP Streamable HTTP contract.
+ *
+ * Network-free testability: `fetchImpl` is injectable, so tests pass a fake
+ * `fetch` and assert request shaping + response parsing without any live call.
+ *
+ * @param {object} [opts]
+ * @param {typeof fetch} [opts.fetchImpl] fetch implementation (default global `fetch`)
+ * @returns {(req: { url, method, headers, body }) => Promise<object|null>}
+ */
+export function createFetchMcpTransport(opts = {}) {
+  const fetchImpl =
+    typeof opts.fetchImpl === "function" ? opts.fetchImpl : globalThis.fetch;
+  if (typeof fetchImpl !== "function") {
+    throw new McpForwardError(
+      "no fetch implementation available for the live MCP transport",
+      "mcp_forward_failed",
+    );
+  }
+  return async function fetchTransport(req) {
+    let response;
+    try {
+      response = await fetchImpl(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: JSON.stringify(req.body),
+      });
+    } catch (err) {
+      throw new McpForwardError(
+        `MCP Streamable HTTP forward failed: ${err instanceof Error ? err.message : String(err)}`,
+        "mcp_forward_failed",
+      );
+    }
+    const status = typeof response?.status === "number" ? response.status : 0;
+    if (status && (status < 200 || status >= 300)) {
+      throw new McpForwardError(
+        `MCP Streamable HTTP forward returned HTTP ${status}`,
+        "mcp_forward_failed",
+      );
+    }
+    const contentType =
+      (typeof response?.headers?.get === "function"
+        ? response.headers.get("content-type")
+        : "") || "";
+    if (contentType.includes("text/event-stream")) {
+      const text = await response.text();
+      return parseSseJsonRpc(text);
+    }
+    // Default to JSON; fall back to SSE parsing if the body is a stream string.
+    try {
+      return await response.json();
+    } catch {
+      const text = typeof response.text === "function" ? await response.text() : "";
+      return parseSseJsonRpc(text);
+    }
+  };
 }
 
 /**
@@ -175,10 +265,18 @@ function resolveForwardElapsedMs(value) {
  * @param {object} [deps]
  * @param {(req: { url, method, headers, body }) => Promise<unknown>|unknown} [deps.transport]
  *   injectable MCP Streamable HTTP transport seam (default: not-implemented;
- *   live `fetch` wiring is task 9.2). Invoked EXACTLY ONCE per valid request.
+ *   pass `createFetchMcpTransport()` for live forwarding). Invoked EXACTLY ONCE
+ *   per valid request.
  * @param {string} [deps.endpoint] MCP endpoint URL (default airvio.co/knowgrph/mcp)
  * @param {number} [deps.forwardElapsedMs] injected elapsed signal modelling live
- *   forward latency for the 2,000 ms deadline assertion (default 0 — synchronous)
+ *   forward latency for the 2,000 ms deadline assertion (default 0 — synchronous).
+ *   Takes precedence over `measureElapsed` when finite.
+ * @param {boolean} [deps.measureElapsed] when true (and `forwardElapsedMs` is not
+ *   injected), measure the REAL wall-clock elapsed of the transport call via
+ *   `clock` so the 2,000 ms deadline (R12.2) is enforced against actual live
+ *   latency. Defaults to false to keep the deterministic test path timer-free.
+ * @param {() => number} [deps.clock] ms clock used when `measureElapsed` is true
+ *   (default `Date.now`).
  * @param {string} [deps.sessionId] optional Mcp-Session-Id for session resume
  * @param {string|number} [deps.requestId] JSON-RPC request id (default 1)
  * @returns {(args: { body: object }) => Promise<object>} the `onValidRequest` seam
@@ -186,6 +284,8 @@ function resolveForwardElapsedMs(value) {
 export function createMcpForwarder(deps = {}) {
   const transport = typeof deps.transport === "function" ? deps.transport : defaultTransport;
   const endpoint = typeof deps.endpoint === "string" && deps.endpoint ? deps.endpoint : MCP_DEFAULT_ENDPOINT;
+  const measureElapsed = deps.measureElapsed === true;
+  const clock = typeof deps.clock === "function" ? deps.clock : () => Date.now();
 
   return async function forwardValidRequest({ body }) {
     const httpRequest = buildForwardHttpRequest(body, {
@@ -195,11 +295,21 @@ export function createMcpForwarder(deps = {}) {
     });
 
     // Forward EXACTLY ONCE through the injectable seam (R12.2 / Property 6).
+    const startedAt = measureElapsed ? clock() : 0;
     const response = await transport(httpRequest);
     const { result, error } = extractMcpResult(response);
 
-    // 2,000 ms forwarding-deadline metadata (R12.2) — asserted structurally.
-    const forwardElapsedMs = resolveForwardElapsedMs(deps.forwardElapsedMs);
+    // 2,000 ms forwarding-deadline (R12.2). An injected `forwardElapsedMs`
+    // wins (deterministic tests); otherwise, when `measureElapsed` is set, the
+    // REAL transport latency is measured for live enforcement; otherwise 0.
+    let forwardElapsedMs;
+    if (Number.isFinite(deps.forwardElapsedMs)) {
+      forwardElapsedMs = resolveForwardElapsedMs(deps.forwardElapsedMs);
+    } else if (measureElapsed) {
+      forwardElapsedMs = Math.max(0, clock() - startedAt);
+    } else {
+      forwardElapsedMs = 0;
+    }
 
     return {
       forwarded: true,

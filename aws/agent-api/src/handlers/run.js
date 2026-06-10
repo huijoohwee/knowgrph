@@ -16,7 +16,7 @@
 // is out of scope here.
 
 import { validateRunRequest } from "../lib/run-request-schema.js";
-import { createMcpForwarder } from "../lib/mcp-forwarder.js";
+import { createMcpForwarder, createFetchMcpTransport } from "../lib/mcp-forwarder.js";
 import { createConcurrencyLimiter } from "../lib/concurrency-limiter.js";
 import { withSafeErrors } from "../lib/safe-error-response.js";
 import { withAuth } from "../lib/auth-verify.js";
@@ -221,7 +221,104 @@ export function createAuthedRunHandler(deps = {}) {
 }
 
 /**
- * Default Lambda export — Auth_Token-gated (task 6.1). Forwarding/transport
- * wiring is injected by later tasks; auth verification is always in front.
+ * Resolve the default `POST /run` handler from the environment (export-swap
+ * for runtime-readiness step). The product tier must fail CLOSED locally and in
+ * any un-configured deploy — never make an accidental live `fetch` — so the
+ * branch is gated on an explicit endpoint/flag:
+ *
+ *   - When `MCP_ENDPOINT` is set (or `AGENT_API_LIVE_FORWARDING` is "1"/"true"),
+ *     return the LIVE forwarding handler (real `fetch`, real 2,000 ms deadline).
+ *   - Otherwise return the auth-gated handler whose forwarder is the inert
+ *     not-implemented seam, so a valid request fails closed with HTTP 501.
+ *
+ * `env` / `fetchImpl` / `clock` stay injectable so the gating is unit-testable
+ * with ZERO live calls.
+ *
+ * @param {object} [deps]
+ * @param {Record<string,string|undefined>} [deps.env] environment (default `process.env`)
+ * @param {typeof fetch} [deps.fetchImpl] fetch implementation (default global `fetch`)
+ * @param {() => number} [deps.clock] ms clock for real elapsed measurement
+ * @param {object} [deps.secretProvider] HS256 secret provider (default Lambda env)
+ * @param {unknown} [deps.expiryWindowSeconds] Auth_Token expiry window (R15.8)
+ * @param {{ tryAcquire: Function }} [deps.limiter] concurrency limiter (R12.4)
+ * @param {(error: unknown) => void} [deps.onError] server-side-only error sink
+ * @returns {(event: object) => Promise<{ statusCode: number, headers: object, body: string }>}
  */
-export const handler = createAuthedRunHandler();
+export function createDefaultRunHandler(deps = {}) {
+  const env = deps.env ?? (typeof process !== "undefined" ? process.env : {}) ?? {};
+  const liveFlag = String(env.AGENT_API_LIVE_FORWARDING ?? "").toLowerCase();
+  const liveForwarding =
+    (typeof env.MCP_ENDPOINT === "string" && env.MCP_ENDPOINT.length > 0) ||
+    liveFlag === "1" ||
+    liveFlag === "true";
+
+  if (liveForwarding) {
+    return createLiveForwardingRunHandler({
+      endpoint: env.MCP_ENDPOINT,
+      fetchImpl: deps.fetchImpl,
+      clock: deps.clock,
+      secretProvider: deps.secretProvider,
+      expiryWindowSeconds: deps.expiryWindowSeconds,
+      limiter: deps.limiter,
+      onError: deps.onError,
+    });
+  }
+  // Fail-closed default: auth in front, inert not-implemented forwarder (501).
+  return createAuthedRunHandler({
+    secretProvider: deps.secretProvider,
+    expiryWindowSeconds: deps.expiryWindowSeconds,
+    clock: deps.clock,
+    onError: deps.onError,
+    run: { limiter: deps.limiter, onError: deps.onError },
+  });
+}
+
+/**
+ * Default Lambda export — Auth_Token-gated (task 6.1) and ENV-GATED for live
+ * MCP forwarding (runtime-readiness step / task 12.1). With `MCP_ENDPOINT` set
+ * in the deployed Lambda environment this forwards live to the control plane;
+ * unset (local/test/un-configured deploy) it fails closed with HTTP 501 rather
+ * than making an accidental live call.
+ */
+export const handler = createDefaultRunHandler();
+
+/**
+ * RUNTIME-READY live wiring (runtime-readiness path, step 3). Composes:
+ *   Auth_Token verification  →  schema validation  →  concurrency admission  →
+ *   a LIVE MCP Streamable HTTP forward (real `fetch`) to the deployed
+ *   control-plane endpoint, with the REAL 2,000 ms forwarding deadline measured
+ *   (R12.2). This replaces the inert not-implemented default for deployed use.
+ *
+ * The MCP endpoint is read from `MCP_ENDPOINT` (default airvio.co/knowgrph/mcp).
+ * `fetchImpl` / `clock` stay injectable so the live handler is still unit
+ * testable with a fake fetch and a deterministic clock (zero live calls).
+ *
+ * @param {object} [deps]
+ * @param {string} [deps.endpoint] MCP endpoint (default `process.env.MCP_ENDPOINT` or airvio.co/knowgrph/mcp)
+ * @param {typeof fetch} [deps.fetchImpl] fetch implementation (default global `fetch`)
+ * @param {() => number} [deps.clock] ms clock for real elapsed measurement
+ * @param {object} [deps.secretProvider] HS256 secret provider (default Lambda env)
+ * @param {unknown} [deps.expiryWindowSeconds] Auth_Token expiry window (R15.8)
+ * @param {{ tryAcquire: Function }} [deps.limiter] concurrency limiter (R12.4)
+ * @param {(error: unknown) => void} [deps.onError] server-side-only error sink
+ */
+export function createLiveForwardingRunHandler(deps = {}) {
+  const endpoint =
+    deps.endpoint ||
+    (typeof process !== "undefined" && process.env && process.env.MCP_ENDPOINT) ||
+    undefined;
+  const transport = createFetchMcpTransport({ fetchImpl: deps.fetchImpl });
+  const onValidRequest = createMcpForwarder({
+    transport,
+    endpoint,
+    measureElapsed: true, // enforce the REAL 2,000 ms deadline against live latency
+    clock: deps.clock,
+  });
+  return createAuthedRunHandler({
+    secretProvider: deps.secretProvider,
+    expiryWindowSeconds: deps.expiryWindowSeconds,
+    clock: deps.clock,
+    onError: deps.onError,
+    run: { onValidRequest, limiter: deps.limiter, onError: deps.onError },
+  });
+}
