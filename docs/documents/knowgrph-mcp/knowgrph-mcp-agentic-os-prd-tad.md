@@ -31,10 +31,12 @@ linked_docs:
   - "../knowgrph-superagent-harness.md"
   - "../knowgrph-agent-ready-prd-tad.md"
 external_adapters:
-  aws: "backend runtime, storage, observability, and managed agent services"
-  vercel: "frontend deployment and LLM gateway routing"
-  exa: "live web search and retrieval evidence"
+  cloudflare: "control plane (Workers McpAgent, Pages, D1, R2, AI Gateway) — holds all keys"
+  byteplus: "default model/media provider — chat (agnes/seed), image (seedream), video (seedance) via Cloudflare AI Gateway"
   stripe: "payments, subscriptions, and financial workflow readiness"
+forbidden_adapters:
+  vercel: "out of scope — Cloudflare is the only host"
+  aws: "out of scope — Cloudflare is the only host"
 constraints:
   - "solo-dev"
   - "min-viable-max-value"
@@ -71,7 +73,7 @@ The companion is normative for lane payloads, node fields, evidence grades, arti
 | Solo builders need production agents, not prompt demos | Demo quality depends on real frontend, backend, tools, payments, and failure handling | Agentic Canvas OS must generate build dashboards, not only docs |
 | Knowgrph already has MCP, SuperAgent, Source Files, and Canvas proof paths | Reuse gives high ROI and low implementation risk | Extend existing owners before adding remote services |
 | Cross-repo automation can be risky | Unbounded file writes, deployments, payments, and paid calls create high blast radius | Dry-run, repo allowlist, HITL, and typed manifests are mandatory |
-| Vendor stack choices affect TCO and token economics | AWS, Vercel, Exa, and Stripe add value but can add cost | Treat them as explicit adapters with budgets and fallback plans |
+| Vendor stack choices affect TCO and token economics | Cloudflare, BytePlus, and Stripe add value but can add cost | Treat them as explicit adapters with budgets and fallback plans; Vercel and AWS are out of scope |
 | Social research evidence is fragmented across text, comments, images, video, and dynamic pages | A normal LLM summary can overclaim demand without traceable proof | Market Radar must preserve source cards, evidence levels, screenshots/media references, and uncertainty |
 | Some useful evidence requires authenticated rendered pages | Headless/static fetch often misses login-gated, app-like, or media-heavy content | Real-browser backend stays local, dedicated-profile, user-approved, and read-only until stronger contracts exist |
 | Long-horizon agent work loses lessons between sessions | Repeated mistakes, stale preferences, and duplicated tactics waste tokens and time | Learning Loop must convert finalized traces into reviewed skills, recall cards, and identity facets |
@@ -111,7 +113,7 @@ The companion is normative for lane payloads, node fields, evidence grades, arti
 |---|---|---|---|
 | PRD-AOS-1 Repo Profile | As an operator, I can profile an allowlisted sibling repo | Given `stryfork` is configured, when profile runs, then the dashboard shows stack, scripts, docs, env gaps, and deployment targets without mutating files | Must |
 | PRD-AOS-2 Build Plan | As a founder, I can turn a goal into a bounded agent build plan | Given a product goal, when planning runs, then it emits tasks, dependencies, token/TCO estimates, and `/goal` checks | Must |
-| PRD-AOS-3 Tool Adapters | As an operator, I can see AWS, Vercel, Exa, and Stripe as adapter lanes | Given adapters are listed, when a lane is opened, then secrets stay host/server-owned and actions remain dry-run until approved | Must |
+| PRD-AOS-3 Tool Adapters | As an operator, I can see Cloudflare, BytePlus, and Stripe as adapter lanes | Given adapters are listed, when a lane is opened, then secrets stay host/server-owned and actions remain dry-run until approved | Must |
 | PRD-AOS-4 Control Dashboard | As a maintainer, I can inspect decisions and failures on Canvas | Given a run exists, when rendered, then nodes show plan, tool calls, approvals, artifacts, retries, and failure recovery | Must |
 | PRD-AOS-5 Demo Pack | As a judge, I can evaluate the product quickly | Given a run completes, when pack generation runs, then output maps to overview, autonomy, tools, orchestration, HITL, failure handling, and demo | Should |
 | PRD-AOS-6 Dashboard Document Model | As an operator, I can open one source-backed dashboard document | Given a run manifest exists, when the dashboard document is focused, then Canvas renders profile, plan, tools, approvals, budget, failures, artifacts, and demo pack nodes from source-backed frontmatter | Must |
@@ -127,7 +129,7 @@ The companion is normative for lane payloads, node fields, evidence grades, arti
 | Tier | Scope |
 |---|---|
 | Must | repo allowlist, dry-run manifests, Canvas dashboard model, SuperAgent handoff, evidence pack, market validation report, learning loop, past-conversation recall, token/TCO budget, HITL gates |
-| Should | judging pack, real-browser evidence backend, skill promotion workflow, identity facet editor, Vercel/AWS deployment readiness plans, Exa evidence adapter, Stripe payment readiness lane |
+| Should | judging pack, real-browser evidence backend, skill promotion workflow, identity facet editor, Cloudflare deployment readiness plan, BytePlus media adapter, Stripe payment readiness lane |
 | Could | live deployment execution, remote Worker MCP adapter, quota telemetry, run history comparison |
 | Won't | browser-stored secrets, direct graph mutation from external evidence, unapproved deploy/payment actions, compatibility aliases for stale repo paths |
 
@@ -162,7 +164,7 @@ The companion is normative for lane payloads, node fields, evidence grades, arti
 | Runtime manifest contract | Run id, task state, tool attempts, approvals, cost logs, artifacts, and failures | workspace artifact beside the dashboard document; imported into Canvas through the same Source Files/KGC path |
 | Local MCP adapter | Expose profile, plan, dry-run, and dashboard-manifest tools | P0 shipped as `knowgrph.agentic_canvas_os.plan` in `mcp/local-tool-contract.js` and `mcp/server.js`; mutating actions remain blocked |
 | SuperAgent bridge | Run bounded research/code/create tasks and emit trace/proof artifacts | reuse `knowgrph_parser/superagent_*` |
-| Evidence adapter | Turn live search/retrieval into cited, bounded evidence packs | reuse Exa MCP/MainPanel evidence contract; no browser secrets |
+| Evidence adapter | Turn live search/retrieval into cited, bounded evidence packs | reuse the MainPanel evidence contract routed through Cloudflare AI Gateway; no browser secrets |
 | Market Radar harness | Convert social/community/product evidence into source-backed validation reports | P0 local dry-run payload shipped in `mcp/agentic-canvas-os-lanes.js`; live evidence calls require approval |
 | Browser evidence backend | Inspect rendered pages, DOM, network records, screenshots, image/video resources, and comments from a dedicated local Chrome profile | P0 local dry-run scope/redaction manifest shipped; real capture still requires explicit browser approval |
 | Learning Loop harness | Convert finalized traces into proposed skills, recall cards, and identity facets | P0 local dry-run payload shipped; finalized trace ids or explicit notes only |
@@ -170,7 +172,8 @@ The companion is normative for lane payloads, node fields, evidence grades, arti
 | Identity model | Maintain inspectable user/work preferences, constraints, projects, and recurring goals | P0 explicit-note facet payload shipped with source ids, confidence, review state, and approval gate |
 | Conversation recall index | Search past finalized conversations and run traces for bounded context | P0 bounded advisory recall-card payload shipped; full index remains local-first future work |
 | Canvas dashboard | Render run plan, approvals, artifacts, failures, budgets, and demo pack | reuse Source Files, KGC/frontmatter, Flow Editor, and dashboard renderer paths |
-| Cloud adapter plan | Describe AWS backend runtime/storage/observability and Vercel frontend/gateway deployment | P0 readiness payload shipped; live deploy later |
+| Cloud adapter plan | Describe the Cloudflare control plane: Workers McpAgent, Pages UI, D1 manifests, R2 media, and AI Gateway routing | P0 readiness payload shipped; live deploy later. Vercel and AWS are out of scope |
+| Media adapter plan | Describe BytePlus chat/image/video via Cloudflare AI Gateway with persist-on-generate to R2 and replay-without-LLM | P0 readiness payload shipped; paid calls require approval |
 | Payment adapter plan | Describe Stripe checkout/subscription/webhook/payout readiness | P0 readiness payload shipped; human approval required |
 | Starter Repo generator | Emit a secured React + agent-backend repository blueprint, file manifest, policy checks, and deployment preflight | companion-owned lane; dry-run first; no copied external template |
 
@@ -352,9 +355,8 @@ flowchart LR
 
 | Adapter | Allowed in P0 | Requires approval |
 |---|---|---|
-| AWS | runtime/storage/observability plan, env gap report | deploy, mutate IAM, create paid resources |
-| Vercel | frontend/gateway plan, config checklist | production deploy, paid model routing |
-| Exa | cited evidence-pack contract | API-key injection, high-volume search |
+| Cloudflare | control-plane plan (Workers McpAgent, Pages, D1, R2, AI Gateway), env gap report | production deploy, D1/R2 mutation, paid model routing |
+| BytePlus | chat/image/video readiness via Cloudflare AI Gateway; persist-on-generate to R2 | paid model/media calls, key injection, high-volume generation |
 | Stripe | readiness and workflow plan | product/price/session/refund/payout mutation |
 | Browser evidence | dedicated-profile setup checklist, read-only scoped capture manifest, screenshots, DOM summaries, media references | connecting to a daily profile, inspecting authenticated domains, saving screenshots/media, any write/post/comment/follow/like action |
 | Learning Loop | local recall cards, candidate skills, approved skills, editable identity facets, persistence nudges | auto-promoting skills, hidden personality changes, cross-repo/cloud sync, or learning from drafts/private browser data |
