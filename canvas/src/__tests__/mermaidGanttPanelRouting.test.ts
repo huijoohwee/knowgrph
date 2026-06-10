@@ -422,11 +422,23 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   ) {
     throw new Error('expected BottomPanel to route separate Version Graph, GitGraph, Gantt, Timeline, Architecture, and Event Model tabs')
   }
-  if (!iconText.includes("'floatingPanel.gantt'") || !iconText.includes("'floatingPanel.timeline'") || !iconText.includes('ChartGantt') || !iconText.includes('HistoryIcon')) {
-    throw new Error('expected Gantt and Timeline icon ownership to live in the shared FloatingPanel type icon registry')
+  if (
+    !iconText.includes("'floatingPanel.gantt'") ||
+    !iconText.includes("'floatingPanel.timeline'") ||
+    !iconText.includes("'floatingPanel.architecture'") ||
+    !iconText.includes("'floatingPanel.eventModeling'") ||
+    !iconText.includes('ChartGantt') ||
+    !iconText.includes('HistoryIcon') ||
+    !iconText.includes('Network') ||
+    !iconText.includes('Workflow')
+  ) {
+    throw new Error('expected Mermaid diagram icon ownership to live in the shared FloatingPanel type icon registry')
   }
   if (
     !panelText.includes('InteractiveMermaidDiagram') ||
+    !panelText.includes('StructuredMermaidFallbackPreview') ||
+    !panelText.includes('data-kg-mermaid-diagram-renderer="structured-fallback"') ||
+    !panelText.includes("kind === 'architecture' || kind === 'eventmodeling'") ||
     !panelText.includes('data-kg-mermaid-diagram-kind') ||
     !interactiveMermaidText.includes('useSvgSurfaceZoomRuntime({') ||
     !interactiveMermaidText.includes('renderPlainMermaidSvgCached') ||

@@ -118,11 +118,17 @@ const GanttFloatingPanelViewLazy = React.lazy(() =>
 const TimelineFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/TimelineFloatingPanelView').then(mod => ({ default: mod.TimelineFloatingPanelView })),
 )
+const ArchitectureFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/ArchitectureFloatingPanelView').then(mod => ({ default: mod.ArchitectureFloatingPanelView })),
+)
+const EventModelingFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })),
+)
 const StrybldrFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/strybldr/StrybldrFloatingPanelView').then(mod => ({ default: mod.StrybldrFloatingPanelView })),
 )
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'flowEditor', 'gitGraph', 'gantt', 'timeline', 'strybldr'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'flowEditor', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling', 'strybldr'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -503,6 +509,8 @@ export function ToolbarToolMenu({
       { view: 'gitGraph', title: UI_LABELS.gitGraph, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gitGraph },
       { view: 'gantt', title: UI_LABELS.gantt, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gantt },
       { view: 'timeline', title: UI_LABELS.timeline, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.timeline },
+      { view: 'architecture', title: 'Architecture', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.architecture },
+      { view: 'eventModeling', title: 'Event Model', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.eventModeling },
       { view: 'strybldr', title: 'Strybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.strybldr },
     ],
     [],
@@ -738,6 +746,16 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'timeline' && (
               <React.Suspense fallback={null}>
                 <TimelineFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'architecture' && (
+              <React.Suspense fallback={null}>
+                <ArchitectureFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'eventModeling' && (
+              <React.Suspense fallback={null}>
+                <EventModelingFloatingPanelViewLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'strybldr' && (

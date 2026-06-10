@@ -59,6 +59,8 @@ export type FloatingPanelView =
   | 'gitGraph'
   | 'gantt'
   | 'timeline'
+  | 'architecture'
+  | 'eventModeling'
   | 'strybldr'
   | 'graphTraversal'
 

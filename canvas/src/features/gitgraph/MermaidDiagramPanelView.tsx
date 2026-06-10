@@ -17,8 +17,127 @@ import { cn } from '@/lib/utils'
 
 export type MermaidDiagramPanelRenderMode = 'diagram' | 'list' | 'split'
 
+const escapeSvgText = (value: unknown): string => String(value || '')
+  .replace(/[&<>"']/g, char => (
+    char === '&'
+      ? '&amp;'
+      : char === '<'
+        ? '&lt;'
+        : char === '>'
+          ? '&gt;'
+          : char === '"'
+            ? '&quot;'
+            : '&#39;'
+  ))
+
+const trimSvgLabel = (value: unknown, max = 42): string => {
+  const text = String(value || '').replace(/\s+/g, ' ').trim()
+  return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}.` : text
+}
+
+const buildStructuredMermaidFallbackSvg = (
+  model: MermaidDiagramCodeModel,
+  kind: MermaidStructuredDiagramKind,
+): string => {
+  if (kind !== 'architecture' && kind !== 'eventmodeling') return ''
+  const rows = model.rows.filter(row => row.kind !== 'line').slice(0, 18)
+  if (!rows.length) return ''
+  const width = 860
+  const height = kind === 'architecture'
+    ? Math.max(260, 102 + rows.length * 50)
+    : Math.max(260, 166 + Math.ceil(rows.length / 3) * 86)
+  const accentByKind: Record<string, string> = {
+    group: '#0f766e',
+    service: '#2563eb',
+    connection: '#64748b',
+    ui: '#7c3aed',
+    command: '#ea580c',
+    event: '#16a34a',
+    processor: '#0891b2',
+    'read-model': '#9333ea',
+    timeframe: '#64748b',
+  }
+  const title = kind === 'architecture' ? 'Architecture' : 'Event Model'
+  const subtitle = kind === 'architecture'
+    ? 'services, groups, and links parsed from mermaid_architecture'
+    : 'commands, events, processors, and UI steps parsed from mermaid_eventmodeling'
+  let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeSvgText(title)}" xmlns="http://www.w3.org/2000/svg">`
+  svg += '<rect width="100%" height="100%" rx="10" fill="var(--kg-panel-bg,#fff)" stroke="var(--kg-border,#cbd5e1)"/>'
+  svg += `<text x="24" y="34" font-size="18" font-weight="700" fill="currentColor">${escapeSvgText(title)}</text>`
+  svg += `<text x="24" y="58" font-size="12" fill="var(--kg-text-secondary,#64748b)">${escapeSvgText(subtitle)}</text>`
+  rows.forEach((row, index) => {
+    const color = accentByKind[row.kind] || '#64748b'
+    const key = escapeSvgText(resolveDiagramRowKey(row, index))
+    const label = escapeSvgText(trimSvgLabel(row.label, kind === 'architecture' ? 30 : 38))
+    const raw = escapeSvgText(trimSvgLabel(row.raw, 76))
+    svg += `<g data-kg-mermaid-row-key="${key}" data-kg-mermaid-row-label="${label}" data-kg-mermaid-row-kind="${escapeSvgText(row.kind)}" data-kg-mermaid-row-line="${row.lineNumber}" data-kg-mermaid-row-target="1" aria-label="${label}" style="cursor:pointer">`
+    if (kind === 'architecture') {
+      const y = 84 + index * 50
+      const x = row.kind === 'group' ? 34 : row.kind === 'service' ? 258 : row.kind === 'connection' ? 482 : 706
+      svg += `<rect x="${x}" y="${y}" width="190" height="34" rx="6" fill="${color}" fill-opacity=".14" stroke="${color}" stroke-width="1.5"/>`
+      svg += `<text x="${x + 12}" y="${y + 21}" font-size="12" font-weight="650" fill="${color}">${escapeSvgText(row.kind)}</text>`
+      svg += `<text x="${x + 86}" y="${y + 21}" font-size="12" fill="currentColor">${label}</text>`
+      if (row.kind === 'connection') svg += `<path d="M416 ${y + 17} H482" stroke="${color}" stroke-width="2" marker-end="url(#kg-arrow)"/>`
+    } else {
+      const x = 34 + (index % 3) * 268
+      const y = 84 + Math.floor(index / 3) * 86
+      svg += `<rect x="${x}" y="${y}" width="228" height="58" rx="7" fill="${color}" fill-opacity=".13" stroke="${color}" stroke-width="1.5"/>`
+      svg += `<text x="${x + 12}" y="${y + 22}" font-size="11" font-weight="700" fill="${color}">${escapeSvgText(row.kind.toUpperCase())}</text>`
+      svg += `<text x="${x + 12}" y="${y + 43}" font-size="13" fill="currentColor">${label}</text>`
+      if (index > 0 && index % 3 !== 0) {
+        const prevX = 34 + ((index - 1) % 3) * 268 + 228
+        const prevY = 84 + Math.floor((index - 1) / 3) * 86 + 29
+        svg += `<path d="M${prevX} ${prevY} H${x}" stroke="#94a3b8" stroke-width="2" marker-end="url(#kg-arrow)"/>`
+      }
+    }
+    svg += `<title>${raw}</title></g>`
+  })
+  svg += '<defs><marker id="kg-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#94a3b8"/></marker></defs>'
+  svg += '</svg>'
+  return svg
+}
+
+function StructuredMermaidFallbackPreview({
+  model,
+  kind,
+  selectedRowKey,
+  onSelectRowKey,
+  compact,
+}: {
+  model: MermaidDiagramCodeModel
+  kind: MermaidStructuredDiagramKind
+  selectedRowKey?: string
+  onSelectRowKey?: (key: string | null) => void
+  compact?: boolean
+}) {
+  const svg = React.useMemo(() => buildStructuredMermaidFallbackSvg(model, kind), [kind, model])
+  const handleClick = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    const target = event.target instanceof Element ? event.target.closest('[data-kg-mermaid-row-key]') : null
+    const key = String(target?.getAttribute('data-kg-mermaid-row-key') || '').trim()
+    if (key) onSelectRowKey?.(key)
+  }, [onSelectRowKey])
+  if (!svg) return null
+  return (
+    <section
+      className={cn(
+        'relative min-h-0 overflow-auto rounded-md border',
+        compact ? 'max-h-36' : 'min-h-36 flex-1',
+        UI_THEME_TOKENS.panel.border,
+        UI_THEME_TOKENS.panel.bg,
+      )}
+      data-kg-mermaid-diagram-render="1"
+      data-kg-mermaid-diagram-renderer="structured-fallback"
+      data-kg-mermaid-diagram-kind={kind}
+      data-kg-mermaid-diagram-selected-row={selectedRowKey || undefined}
+      onClick={handleClick}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
+
 export function MermaidDiagramRenderPreview({
   code,
+  model,
   kind,
   rootThemeMode,
   compact = false,
@@ -27,6 +146,7 @@ export function MermaidDiagramRenderPreview({
   onSelectRowKey,
 }: {
   code: string
+  model: MermaidDiagramCodeModel
   kind: MermaidStructuredDiagramKind
   rootThemeMode: 'light' | 'dark'
   compact?: boolean
@@ -54,6 +174,17 @@ export function MermaidDiagramRenderPreview({
   }, [onSelectRowKey, rows])
 
   if (!code) return null
+  if (kind === 'architecture' || kind === 'eventmodeling') {
+    return (
+      <StructuredMermaidFallbackPreview
+        model={model}
+        kind={kind}
+        selectedRowKey={selectedRowKey}
+        onSelectRowKey={onSelectRowKey}
+        compact={compact}
+      />
+    )
+  }
   return (
     <section
       className={cn(
@@ -171,6 +302,7 @@ export function MermaidDiagramPanelView({
       {showDiagram ? (
         <MermaidDiagramRenderPreview
           code={code}
+          model={model}
           kind={kind}
           rootThemeMode={rootThemeMode}
           compact={compact && showRowList}

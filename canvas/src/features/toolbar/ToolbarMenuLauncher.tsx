@@ -129,9 +129,13 @@ export function ToolbarMenuLauncher({
               ? 'flowEditor'
               : tab === 'gitGraph'
                 ? 'gitGraph'
-                : tab === 'strybldr'
-                  ? 'strybldr'
-                  : null
+                : tab === 'architecture'
+                  ? 'architecture'
+                  : tab === 'eventModeling'
+                    ? 'eventModeling'
+                    : tab === 'strybldr'
+                      ? 'strybldr'
+                      : null
       if (!requested) return
       if (detail?.open === false) {
         closeToolMenu()

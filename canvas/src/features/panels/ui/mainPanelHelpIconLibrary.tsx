@@ -2,7 +2,8 @@ import React from 'react'
 import {
   ArrowRightLeft, BarChart3, Braces, CalendarClock, ChartGantt, Copy, CreditCard, Eraser, Film, GitBranch, Globe2, Hand, Hash,
   HelpCircle, History as HistoryIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
-  Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
+  Network, Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
+  Workflow,
 } from 'lucide-react'
 import type { MainPanelTabKey } from '@/features/panels/mainPanelTabs'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
@@ -67,6 +68,8 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.gitGraph',
   'floatingPanel.gantt',
   'floatingPanel.timeline',
+  'floatingPanel.architecture',
+  'floatingPanel.eventModeling',
   'floatingPanel.strybldr',
   'floatingPanel.graphTraversal',
   'field.scope.node',
@@ -358,6 +361,16 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Timeline',
     Icon: HistoryIcon,
   },
+  'floatingPanel.architecture': {
+    category: 'FloatingPanel surface',
+    label: 'Architecture',
+    Icon: Network,
+  },
+  'floatingPanel.eventModeling': {
+    category: 'FloatingPanel surface',
+    label: 'Event Model',
+    Icon: Workflow,
+  },
   'floatingPanel.strybldr': {
     category: 'FloatingPanel surface',
     label: 'Strybldr',
@@ -494,6 +507,8 @@ export type FloatingPanelTypeIconView =
   | 'gitGraph'
   | 'gantt'
   | 'timeline'
+  | 'architecture'
+  | 'eventModeling'
   | 'strybldr'
   | 'graphTraversal'
 
@@ -509,6 +524,8 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   gitGraph: 'floatingPanel.gitGraph',
   gantt: 'floatingPanel.gantt',
   timeline: 'floatingPanel.timeline',
+  architecture: 'floatingPanel.architecture',
+  eventModeling: 'floatingPanel.eventModeling',
   strybldr: 'floatingPanel.strybldr',
   graphTraversal: 'floatingPanel.graphTraversal',
 } satisfies Record<FloatingPanelTypeIconView, MainPanelTypeIconKey>
