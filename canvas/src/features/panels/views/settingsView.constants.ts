@@ -24,6 +24,8 @@ import {
   CLOUDFLARE_AI_GATEWAY_MCP_DOCS_URL,
 } from './cloudflareAiGatewayMcpApiDocs'
 import { OPENAI_MCP_DOC_AREA, OPENAI_MCP_DOCS_URL } from './openaiMcpApiDocs'
+import { OPERATOR_DEPLOY_MCP_DOC_AREA, OPERATOR_DEPLOY_MCP_DOCS_URL } from './operatorDeployMcpApiDocs'
+import { OPERATOR_DEPLOY_SETTING_KEYS } from '@/features/settings/operatorDeploySsot'
 import { EXA_MCP_DOC_AREA, EXA_MCP_DOCS_URL } from './exaMcpApiDocs'
 import { FEISHU_BASE_MCP_DOC_AREA, FEISHU_BASE_MCP_DOCS_URL } from './feishuBaseMcpApiDocs'
 import { LARK_APP_MCP_DOC_AREA, LARK_APP_MCP_DOCS_URL } from './larkAppMcpApiDocs'
@@ -163,6 +165,12 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
 }
 
 export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
+  [OPERATOR_DEPLOY_MCP_DOC_AREA]: {
+    docsUrl: OPERATOR_DEPLOY_MCP_DOCS_URL,
+    docsLabel: 'Open Operator Deploy Runbook',
+    panelLabel: 'Open MainPanel MCP',
+    openPanel: () => emitMainPanelOpen({ tab: 'mcp', searchQuery: OPERATOR_DEPLOY_SETTING_KEYS.mcpEndpoint }),
+  },
   [API_NATIVE_BROWSER_MCP_DOC_AREA]: {
     docsUrl: 'https://github.com/unbrowse-ai/unbrowse',
     docsLabel: 'Open API-Native Browser MCP Reference',

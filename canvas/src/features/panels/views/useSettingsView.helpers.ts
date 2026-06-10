@@ -38,6 +38,7 @@ import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
+import { OPERATOR_DEPLOY_MCP_DOC_AREA } from '@/features/settings/operatorDeploySsot'
 import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA } from '@/features/integrations/pixverseVideoGenerationSsot'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
@@ -89,6 +90,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   LARK_APP_MCP_DOC_AREA,
   STRIPE_MCP_DOC_AREA,
   KNOWGRPH_VDEOXPLN_DOC_AREA,
+  OPERATOR_DEPLOY_MCP_DOC_AREA,
   MAPS_GRABMAPS_MCP_DOC_AREA,
   MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA,
   MAPS_GEO_DOC_AREA,
@@ -157,6 +159,7 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === OPENAI_CHAT_API_DOC_AREA
     || area === OPENAI_IMAGES_API_DOC_AREA
     || area === DEERFLOW_API_DOC_AREA
+    || area === OPERATOR_DEPLOY_MCP_DOC_AREA
   ) {
     return true
   }
@@ -196,6 +199,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === PIXVERSE_MCP_DOC_AREA) return true
   if (area === MIROMIND_MCP_DOC_AREA) return true
   if (area === KNOWGRPH_VDEOXPLN_DOC_AREA) return true
+  if (area === OPERATOR_DEPLOY_MCP_DOC_AREA) return true
   return key.includes('.mcp.')
 }
 

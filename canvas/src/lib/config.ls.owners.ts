@@ -47,6 +47,7 @@ export type LsKeyOwner =
   | 'payments.stripe'
   | 'payments.stripe.mcp'
   | 'openai.mcp'
+  | 'operator.deploy.mcp'
   | 'search.exa.mcp'
   | 'search.feishuBase.mcp';
 
@@ -255,6 +256,15 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   openAiMcpVectorStoreEnv: 'openai.mcp',
   openAiMcpServerPort: 'openai.mcp',
   openAiMcpRequireToolReview: 'openai.mcp',
+  operatorDeployMcpEndpoint: 'operator.deploy.mcp',
+  operatorDeployAgentApiUrl: 'operator.deploy.mcp',
+  operatorDeployAgentCoreEndpoint: 'operator.deploy.mcp',
+  operatorDeployFrontendUrl: 'operator.deploy.mcp',
+  operatorDeployAwsRegion: 'operator.deploy.mcp',
+  operatorDeployAuthJwtSecretName: 'operator.deploy.mcp',
+  operatorDeployMode: 'operator.deploy.mcp',
+  operatorDeployLiveClientsEnabled: 'operator.deploy.mcp',
+  operatorDeployCloudDeployApproved: 'operator.deploy.mcp',
   orchestratorTraversalDelayMs: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagMaxFull: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagHead: 'orchestrator.prefs',
