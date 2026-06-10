@@ -3,6 +3,13 @@
 Short operator checklist for the live `knowgrph` Cloudflare Pages + MCP deploy.
 This is the compact follow-up to the full [deploy runbook](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/knowgrph-acos-deploy-runbook.md).
 
+For the hosted AWS REST proof path (`POST /auth/session` -> `POST /run` ->
+`GET /runs/{id}`), the fastest path is `npm run runtime:flow` from the main
+deploy runbook. The individual commands `runtime:proof`, `runtime:demo-pack`,
+`runtime:submission-brief`, and `runtime:bundle` remain available for targeted
+re-runs. This checklist stays focused on the Cloudflare `/knowgrph` surface and
+direct MCP verification.
+
 ## Scope
 
 Use this after publishing from `knowgrph` into `../huijoohwee` and deploying to

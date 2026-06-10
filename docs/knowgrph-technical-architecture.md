@@ -599,6 +599,15 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `openai.mcp.vectorStoreEnv` | string | localStorage |  |  |
 | `openai.mcp.serverPort` | number | localStorage |  |  |
 | `openai.mcp.requireToolReview` | boolean | localStorage |  |  |
+| `operatorDeploy.mcp.endpoint` | string | localStorage |  |  |
+| `operatorDeploy.mcp.agentApiUrl` | string | localStorage |  |  |
+| `operatorDeploy.mcp.agentCoreEndpoint` | string | localStorage |  |  |
+| `operatorDeploy.mcp.frontendUrl` | string | localStorage |  |  |
+| `operatorDeploy.mcp.awsRegion` | string | localStorage |  |  |
+| `operatorDeploy.mcp.authJwtSecretName` | string | localStorage |  |  |
+| `operatorDeploy.mcp.mode` | string | localStorage |  |  |
+| `operatorDeploy.mcp.liveClientsEnabled` | boolean | localStorage |  |  |
+| `operatorDeploy.mcp.cloudDeployApproved` | boolean | localStorage |  |  |
 | `payments.stripe.mode` | string | localStorage |  |  |
 | `payments.stripe.secretKey` | string | backendEnv |  |  |
 | `payments.stripe.publishableKey` | string | localStorage |  |  |

@@ -63,11 +63,17 @@ aws secretsmanager create-secret --name knowgrph/agent-api/auth-jwt-secret \
 Install tier deps (so node_modules ships in the Lambda asset) and deploy:
 ```
 npm run agent-api:install
-CDK_DEFAULT_ACCOUNT=<acct> CDK_DEFAULT_REGION=<region> npm run agent-api:cdk:deploy
+CDK_DEFAULT_ACCOUNT=<acct> \
+CDK_DEFAULT_REGION=<region> \
+MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+CORS_ALLOW_ORIGIN=<https://your-vercel-app.vercel.app> \
+# optional: RUN_MANIFEST_PREFIX=runs
+npm run agent-api:cdk:deploy
 ```
-Set the control-plane endpoint on the Lambda env so the forwarder goes live
-(export-swap gate, task 12.1): add `MCP_ENDPOINT=https://airvio.co/knowgrph/mcp`
-to the run/runs Lambda environment (CDK `environment` or console). Verify:
+The Agent-API now picks up `MCP_ENDPOINT`, `CORS_ALLOW_ORIGIN`, and optional
+`RUN_MANIFEST_PREFIX` from the deploy environment, so the preferred path is to
+set them **before** `cdk deploy` rather than patching Lambda env vars manually
+after deploy. Verify:
 ```
 curl -fsS <ApiUrl>/health                          # expect 200 within 5s
 ```
@@ -100,17 +106,103 @@ sample Demo_Pack `urls[]`. When `AGENTCORE_MCP_URL` is set, the additive AWS
 AgentCore `/ping` liveness URL and `/mcp` URL are included in the same
 Demo_Pack block. Exit 0 = AC-7 reachability satisfied for every supplied URL.
 
-**One approved live end-to-end run (task 12.7):**
-1. `POST /auth/session` on the AWS API → Auth_Token.
-2. `POST /run` with `{ referenceUrl, brief, budgetUsd, approvals: [] }` and the
-   Auth_Token → confirm it halts `blocked` with ≥5 approval gates and **zero**
-   spend (AC-1 / Property 2).
-3. Approve each gate (issue Approval_Tokens via the HITL service), re-run with
-   the approvals → the live path executes research (Exa) → storyboard (BytePlus)
-   → render (Strytree/BytePlus) → publish → checkout (Stripe) via
-   `executeLiveStages` (task 12.5a), gated by `enforceDirector*` (task 12.5).
-4. Read back `GET /runs/{id}` → persisted terminal Run_Manifest + 7/7 Demo_Pack.
-5. Capture the manifest + reachable URLs as the canonical judging artifact.
+**Hosted blocked-path proof (immediate, high-ROI):**
+Fastest operator path: run the entire hosted artifact flow in one command after
+deploy:
+```bash
+AGENT_API_URL=<ApiUrl> \
+FRONTEND_URL=<vercel-url> \
+MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+REFERENCE_URL=https://example.com/reference-video.mp4 \
+BRIEF='Hosted proof run: blocked path plus same-session persisted read-back.' \
+BUDGET_USD=10 \
+ARTIFACTS_DIR=./artifacts \
+SUBMISSION_TITLE='Knowgrph Hackathon Submission Brief' \
+npm run runtime:flow
+```
+This runs `runtime:verify` -> `runtime:proof` -> `runtime:demo-pack` ->
+`runtime:submission-brief` -> `runtime:bundle` and writes the complete artifact
+set under `ARTIFACTS_DIR`.
+
+For operator review without making network calls first:
+```bash
+AGENT_API_URL=<ApiUrl> \
+FRONTEND_URL=<vercel-url> \
+npm run runtime:flow -- --dry-run
+```
+
+Equivalent step-by-step commands remain available below if you want to inspect
+or re-run an individual phase.
+
+**Step-by-step equivalent:**
+```bash
+AGENT_API_URL=<ApiUrl> \
+FRONTEND_URL=<vercel-url> \
+MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+REFERENCE_URL=https://example.com/reference-video.mp4 \
+BRIEF='Hosted proof run: blocked path plus same-session persisted read-back.' \
+BUDGET_USD=10 \
+PROOF_OUTPUT_PATH=./artifacts/runtime-proof.json \
+npm run runtime:proof
+```
+This performs the minimum hosted proof sequence end to end:
+1. `POST /auth/session` on the deployed AWS API.
+2. `POST /run` with `approvals: []`.
+3. `GET /runs/{id}` with the **same** Auth_Token.
+4. Writes a proof JSON artifact when `PROOF_OUTPUT_PATH` is set.
+
+Then turn the saved proof into a judging-ready Demo_Pack artifact:
+```bash
+PROOF_INPUT_PATH=./artifacts/runtime-proof.json \
+DEMO_PACK_OUTPUT_PATH=./artifacts/runtime-demo-pack.json \
+npm run runtime:demo-pack
+```
+This reads the persisted manifest payload from the proof file, builds the
+Demo_Pack through the existing SSOT manifest-to-pack path, validates it against
+the canonical contract, and writes the final artifact JSON when
+`DEMO_PACK_OUTPUT_PATH` is set.
+
+Then export a polished markdown submission brief:
+```bash
+DEMO_PACK_INPUT_PATH=./artifacts/runtime-demo-pack.json \
+SUBMISSION_BRIEF_OUTPUT_PATH=./artifacts/runtime-submission-brief.md \
+SUBMISSION_TITLE='Knowgrph Hackathon Submission Brief' \
+npm run runtime:submission-brief
+```
+This converts the contract-valid Demo_Pack artifact into a human-readable brief
+ you can paste into a hackathon form, PR comment, doc, or review packet.
+
+Finally, package everything into one portable submission bundle directory:
+```bash
+PROOF_INPUT_PATH=./artifacts/runtime-proof.json \
+DEMO_PACK_INPUT_PATH=./artifacts/runtime-demo-pack.json \
+SUBMISSION_BRIEF_INPUT_PATH=./artifacts/runtime-submission-brief.md \
+SUBMISSION_BUNDLE_DIR=./artifacts/submission-bundle \
+npm run runtime:bundle
+```
+This copies the three source artifacts into a single directory and generates:
+`index.md`, `summary.html`, and `bundle-manifest.json` for judge-friendly review
+and handoff.
+
+Pass criteria for the hosted blocked-path proof:
+1. `/auth/session` returns `201` with a non-empty token.
+2. `/run` returns `202` with a non-empty `runId`.
+3. `/runs/{id}` returns `200` for the same session.
+4. `runId`, `state`, and `mode` match between submit and read-back.
+5. The proof JSON captures frontend/API/control-plane URLs for the Demo_Pack.
+6. `runtime:demo-pack` emits a contract-valid Demo_Pack artifact JSON.
+7. `runtime:submission-brief` emits a polished markdown brief from that artifact.
+8. `runtime:bundle` emits a portable submission folder with an index and HTML summary page.
+
+**One approved live end-to-end run (follow-on judging capture):**
+1. Start with the hosted blocked-path proof above and keep the same browser
+   session/Auth_Token.
+2. Re-submit `POST /run` with the required `approvals[]` after each operator
+   decision.
+3. Let the live path execute research → storyboard → render → publish →
+   checkout.
+4. Read back `GET /runs/{id}` again and capture the terminal Run_Manifest.
+5. Use the terminal manifest + reachable URLs as the canonical judging artifact.
 
 ## 5. AWS AgentCore Runtime — MCP tier (tasks 13.9, 13.10) — OPTIONAL / ADDITIVE
 
