@@ -1,0 +1,16 @@
+{
+  "name": "@knowgrph/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "agentic-canvas-os Vercel Frontend tier: collects creator intent, validates submissions client-side as the first gate, renders approval prompts and the Run_Manifest. Holds no model provider keys; framework-agnostic pure logic lives in src/lib. Ships as a zero-dependency static SPA built offline into dist/.",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test": "node --test __tests__/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

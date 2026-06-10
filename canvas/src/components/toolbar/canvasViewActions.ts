@@ -255,9 +255,16 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     if (resolveTimelineEnabled(timelineEnabled) !== nextEnabled) setTimelineEnabled(nextEnabled)
     return
   }
-  if (id === 'control:gitGraph' || id === 'control:gantt') {
+  if (id === 'control:gitGraph' || id === 'control:gantt' || id === 'control:architecture' || id === 'control:eventModeling') {
     if (geospatialEnabled) return
-    const nextTab: BottomSurfaceTab = id === 'control:gitGraph' ? 'gitGraph' : 'gantt'
+    const nextTab: BottomSurfaceTab =
+      id === 'control:gitGraph'
+        ? 'gitGraph'
+        : id === 'control:gantt'
+          ? 'gantt'
+          : id === 'control:architecture'
+            ? 'architecture'
+            : 'eventModeling'
     if (bottomSurfaceCollapsed !== true && bottomSurfaceTab === nextTab) {
       setBottomSurfaceCollapsed(true)
       return

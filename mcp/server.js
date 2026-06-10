@@ -16,6 +16,7 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { runAgenticCanvasOsPlan } from "./agentic-canvas-os-runtime.js";
+import { runVideoRemix } from "./video-remix-runtime.js";
 import { callBrowserApiRuntime } from "./browser-api-runtime.js";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "./local-tool-contract.js";
 import { buildKnowgrphAgentReadyPromptContracts, getKnowgrphAgentReadyPrompt } from "../canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs";
@@ -498,6 +499,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsPlan) {
       const result = await runAgenticCanvasOsPlan(args, { rootDir: KNOWGRPH_ROOT });
+      return {
+        content: [{ type: "text", text: truncate(result.text) }],
+        structuredContent: result.payload,
+        isError: !result.payload.validation?.ok,
+      };
+    }
+
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun) {
+      const result = runVideoRemix(args);
       return {
         content: [{ type: "text", text: truncate(result.text) }],
         structuredContent: result.payload,

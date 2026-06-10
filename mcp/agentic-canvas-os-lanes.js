@@ -300,6 +300,13 @@ function buildGoalCoverage({ validation, demoPack, marketRadar, browserEvidence,
   return Object.entries(coverage).map(([goal, ok]) => ({ goal, ok: Boolean(ok) }));
 }
 
+// Named exports for the four Director skeleton builders. The Director
+// `AgentWorkflow` skeleton (`mcp/director-workflow.js`, spec task 2.1) wires
+// these as the orchestration seams; their internal logic is reused unchanged
+// (reuse-not-rebuild). Detailed stage behaviors (ordering enforcement, retry,
+// budget, cost-log) land in spec tasks 2.2-2.16.
+export { buildPlanner, buildToolCalls, buildApprovalGates, buildFailureHandling };
+
 export function buildAgenticCanvasOsLanePayloads({ args, goal, repoProfile, lanes, budgets, artifactPaths }) {
   const nowIso = new Date().toISOString();
   const sourceCards = normalizeSourceCards(args.sourceCards, nowIso);

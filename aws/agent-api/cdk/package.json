@@ -1,0 +1,26 @@
+{
+  "name": "@knowgrph/agent-api-cdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AWS CDK infrastructure-as-code for the agentic-canvas-os Agent-API tier: API Gateway + Lambda + S3 with least-privilege IAM and NO model provider keys. The HS256 signing secret is referenced from AWS Secrets Manager, never inlined.",
+  "license": "MIT",
+  "bin": {
+    "agent-api-cdk": "bin/app.js"
+  },
+  "scripts": {
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.100.0",
+    "constructs": "10.3.0"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.100.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

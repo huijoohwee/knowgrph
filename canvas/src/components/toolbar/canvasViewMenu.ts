@@ -1,4 +1,4 @@
-import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, History, Image as ImageIcon, Images, Magnet, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
+import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, History, Image as ImageIcon, Images, Magnet, Map, MonitorPlay, Network, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags, Workflow } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
@@ -91,6 +91,8 @@ export const buildCanvasViewOptions = (
   const timelineBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'timeline'
   const gitGraphBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gitGraph'
   const ganttBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gantt'
+  const architectureBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'architecture'
+  const eventModelingBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'eventModeling'
   const minimapSupported = state.canvasRenderMode === '2d' && supportsCanvas2dMinimap(state.canvas2dRenderer)
   const minimapVisible = minimapSupported && state.minimapCollapsed !== true
   const nodeShapeMode = state.schema.behavior?.nodeShapeMode
@@ -431,6 +433,24 @@ export const buildCanvasViewOptions = (
           label: 'Gantt',
           Icon: ChartGantt,
           isActive: ganttBottomPanelVisible,
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+        },
+        {
+          id: 'control:architecture',
+          title: 'Architecture',
+          label: 'Arch',
+          Icon: Network,
+          isActive: architectureBottomPanelVisible,
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+        },
+        {
+          id: 'control:eventModeling',
+          title: 'Event Model',
+          label: 'Event',
+          Icon: Workflow,
+          isActive: eventModelingBottomPanelVisible,
           disabled: state.geospatialEnabled,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },

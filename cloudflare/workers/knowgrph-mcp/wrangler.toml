@@ -1,0 +1,52 @@
+# Cloudflare Worker: knowgrph-mcp
+#
+# Hosts the Agents SDK `McpAgent` exposing MCP Streamable HTTP transport at
+# airvio.co/knowgrph/mcp (see knowgrph-acos-mcp-connector spec, ADR-7).
+#
+# Migration note (task 1.1): this Worker takes precedence over the legacy
+# Pages-handled `${APP_BASE_PATH}/mcp` route in
+# `cloudflare/pages/knowgrph-agent-ready.mjs`. The Pages route remains the
+# discovery surface (.well-known/*, OpenAPI, A2A card, health) and forwards
+# tool semantics onto this Worker via the same external URL.
+
+name = "knowgrph-mcp"
+main = "index.ts"
+compatibility_date = "2026-05-29"
+compatibility_flags = [ "nodejs_compat" ]
+
+[observability]
+enabled = true
+
+[vars]
+KNOWGRPH_MCP_PUBLIC_BASE_URL = "https://airvio.co"
+KNOWGRPH_MCP_TOOL_LIST_NAME = "knowgrph-video-remix"
+
+# Streamable HTTP transport endpoint per Requirement R14.1.
+[[routes]]
+pattern = "airvio.co/knowgrph/mcp"
+zone_name = "airvio.co"
+
+[[routes]]
+pattern = "airvio.co/knowgrph/mcp/*"
+zone_name = "airvio.co"
+
+# McpAgent maintains per-session state in a Durable Object. Task 1.2 adds a
+# separate `RunManifestStore` DO that persists each Director Run_Manifest
+# under one DO instance per `runId`, so a `GET /knowgrph/mcp/runs/{id}`
+# read-back returns the latest persisted state with read-after-write
+# consistency (R14.2 / Property 25).
+[[durable_objects.bindings]]
+name = "MCP_AGENT"
+class_name = "KnowgrphMcpAgent"
+
+[[durable_objects.bindings]]
+name = "RUN_MANIFEST_STORE"
+class_name = "RunManifestStore"
+
+[[migrations]]
+tag = "v1_knowgrph_mcp_agent"
+new_sqlite_classes = [ "KnowgrphMcpAgent" ]
+
+[[migrations]]
+tag = "v2_run_manifest_store"
+new_sqlite_classes = [ "RunManifestStore" ]

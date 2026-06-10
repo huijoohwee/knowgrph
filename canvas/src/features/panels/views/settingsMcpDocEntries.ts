@@ -16,6 +16,13 @@ import {
   getCrawlerAccessMcpApiRowAnchorId,
 } from './crawlerAccessMcpApiDocs'
 import {
+  CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA,
+  CLOUDFLARE_AI_GATEWAY_MCP_DOC_ENTRIES,
+  CLOUDFLARE_AI_GATEWAY_MCP_REMOTE_CONFIG_KEY,
+  buildCloudflareAiGatewayMcpRemoteConfigJson,
+  getCloudflareAiGatewayMcpApiRowAnchorId,
+} from './cloudflareAiGatewayMcpApiDocs'
+import {
   OPENAI_MCP_CHATGPT_APP_CONFIG_KEY,
   OPENAI_MCP_DOC_AREA,
   OPENAI_MCP_DOC_ENTRIES,
@@ -86,6 +93,7 @@ export function buildMcpDocEntries(
   return [
     ...API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
+    ...CLOUDFLARE_AI_GATEWAY_MCP_DOC_ENTRIES,
     ...OPENAI_MCP_DOC_ENTRIES,
     ...EXA_MCP_DOC_ENTRIES,
     ...FEISHU_BASE_MCP_DOC_ENTRIES,
@@ -109,6 +117,8 @@ export function buildMcpVirtualEntry(
       ? getApiNativeBrowserMcpApiRowAnchorId(entry.meta.key)
       : area === CRAWLER_ACCESS_MCP_DOC_AREA
         ? getCrawlerAccessMcpApiRowAnchorId(entry.meta.key)
+      : area === CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA
+        ? getCloudflareAiGatewayMcpApiRowAnchorId(entry.meta.key)
       : area === OPENAI_MCP_DOC_AREA
         ? getOpenAiMcpApiRowAnchorId(entry.meta.key)
       : area === EXA_MCP_DOC_AREA
@@ -132,6 +142,8 @@ export function buildMcpVirtualEntry(
       ? buildApiNativeBrowserMcpAgentConfigJson(values)
       : entry.meta.key === API_NATIVE_BROWSER_MCP_BRIDGE_CONFIG_KEY
         ? buildBrowserBridgeMcpConfigJson(values)
+        : entry.meta.key === CLOUDFLARE_AI_GATEWAY_MCP_REMOTE_CONFIG_KEY
+          ? buildCloudflareAiGatewayMcpRemoteConfigJson()
         : entry.meta.key === OPENAI_MCP_RESPONSES_TOOL_CONFIG_KEY
           ? buildOpenAiMcpResponsesToolConfigJson(values)
           : entry.meta.key === OPENAI_MCP_RESPONSES_REQUEST_KEY

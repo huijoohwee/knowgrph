@@ -10,7 +10,7 @@ import {
   type MermaidDiagramKind,
 } from 'grph-shared/markdown/mermaidInput'
 
-export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'gitgraph' | 'gantt' | 'timeline'>
+export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'>
 
 export type MermaidDiagramCommandRow = {
   key: string
@@ -33,6 +33,8 @@ const MERMAID_TYPED_TYPE_BY_KIND: Record<MermaidStructuredDiagramKind, string> =
   gitgraph: 'mermaid_gitgraph',
   gantt: 'mermaid_gantt',
   timeline: 'mermaid_timeline',
+  architecture: 'mermaid_architecture',
+  eventmodeling: 'mermaid_eventmodeling',
 }
 
 const MAX_TYPED_SCAN_DEPTH = 8
@@ -185,15 +187,55 @@ const readTimelineRowLabel = (trimmed: string, kind: string): string => {
   return trimmed
 }
 
+const readArchitectureRowKind = (trimmed: string): string => {
+  if (/^group\b/i.test(trimmed)) return 'group'
+  if (/^service\b/i.test(trimmed)) return 'service'
+  if (/^junction\b/i.test(trimmed)) return 'junction'
+  if (/--|<--|-->/.test(trimmed)) return 'connection'
+  return 'line'
+}
+
+const readArchitectureRowLabel = (trimmed: string, kind: string): string => {
+  if (kind === 'group') return trimmed.replace(/^group\b/i, '').trim() || trimmed
+  if (kind === 'service') {
+    const match = /^service\s+([^\s(]+)/i.exec(trimmed)
+    return match?.[1]?.trim() || trimmed
+  }
+  if (kind === 'junction') return trimmed.replace(/^junction\b/i, '').trim() || trimmed
+  return trimmed
+}
+
+const readEventModelingRowKind = (trimmed: string): string => {
+  if (/^(?:timeframe|tf)\b/i.test(trimmed)) {
+    if (/\b(?:ui)\b/i.test(trimmed)) return 'ui'
+    if (/\b(?:command|cmd)\b/i.test(trimmed)) return 'command'
+    if (/\b(?:event|evt)\b/i.test(trimmed)) return 'event'
+    if (/\b(?:processor|pcr)\b/i.test(trimmed)) return 'processor'
+    if (/\b(?:readmodel|rmo)\b/i.test(trimmed)) return 'read-model'
+    return 'timeframe'
+  }
+  if (/^(?:rf)\b/i.test(trimmed)) return 'reference'
+  return 'line'
+}
+
+const readEventModelingRowLabel = (trimmed: string): string => {
+  const tokens = trimmed.split(/\s+/).filter(Boolean)
+  return tokens[tokens.length - 1] || trimmed
+}
+
 const readDiagramRowKind = (kind: MermaidStructuredDiagramKind, trimmed: string): string => {
   if (kind === 'gantt') return readGanttRowKind(trimmed)
   if (kind === 'timeline') return readTimelineRowKind(trimmed)
+  if (kind === 'architecture') return readArchitectureRowKind(trimmed)
+  if (kind === 'eventmodeling') return readEventModelingRowKind(trimmed)
   return trimmed.split(/\s+/, 1)[0] || 'line'
 }
 
 const readDiagramRowLabel = (kind: MermaidStructuredDiagramKind, trimmed: string, rowKind: string): string => {
   if (kind === 'gantt') return readGanttRowLabel(trimmed, rowKind)
   if (kind === 'timeline') return readTimelineRowLabel(trimmed, rowKind)
+  if (kind === 'architecture') return readArchitectureRowLabel(trimmed, rowKind)
+  if (kind === 'eventmodeling') return readEventModelingRowLabel(trimmed)
   return trimmed
 }
 

@@ -111,6 +111,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const mermaidGitGraphBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
   const mermaidGanttBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
   const mermaidTimelineBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
+  const mermaidArchitectureBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'architecture'
+  const mermaidEventModelingBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'eventModeling'
   const { paywallEnabled, floatingPanelOpen, floatingPanelView } = useGraphStore(
     useShallow(s => ({
       paywallEnabled: s.paymentsStripePaywallEnabled === true,
@@ -135,7 +137,14 @@ export function CanvasViewport(props: CanvasViewportProps) {
     geospatialOverlayOwnsViewport,
     timelineEnabled,
   })
-  const timelineBottomPanelVisible = documentVersionGraphBottomPanelVisible || mermaidGitGraphBottomPanelVisible || mermaidGanttBottomPanelVisible || mermaidTimelineBottomPanelVisible || strybldrTimelineBottomPanelVisible
+  const timelineBottomPanelVisible =
+    documentVersionGraphBottomPanelVisible ||
+    mermaidGitGraphBottomPanelVisible ||
+    mermaidGanttBottomPanelVisible ||
+    mermaidTimelineBottomPanelVisible ||
+    mermaidArchitectureBottomPanelVisible ||
+    mermaidEventModelingBottomPanelVisible ||
+    strybldrTimelineBottomPanelVisible
   const paywallOverlayActive = paywallEnabled && floatingPanelOpen && floatingPanelView === 'chat'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -220,7 +229,21 @@ export function CanvasViewport(props: CanvasViewportProps) {
             {timelineBottomPanelVisible ? (
               <StrybldrTimelineBottomPanelLazy
                 active={strybldrTimelineBottomPanelVisible}
-                initialView={mermaidTimelineBottomPanelVisible ? 'timeline' : mermaidGanttBottomPanelVisible ? 'gantt' : mermaidGitGraphBottomPanelVisible ? 'gitGraph' : documentVersionGraphBottomPanelVisible ? 'documentVersionGraph' : 'strybldrTimeline'}
+                initialView={
+                  mermaidEventModelingBottomPanelVisible
+                    ? 'eventModeling'
+                    : mermaidArchitectureBottomPanelVisible
+                      ? 'architecture'
+                      : mermaidTimelineBottomPanelVisible
+                        ? 'timeline'
+                        : mermaidGanttBottomPanelVisible
+                          ? 'gantt'
+                          : mermaidGitGraphBottomPanelVisible
+                            ? 'gitGraph'
+                            : documentVersionGraphBottomPanelVisible
+                              ? 'documentVersionGraph'
+                              : 'strybldrTimeline'
+                }
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />
             ) : null}

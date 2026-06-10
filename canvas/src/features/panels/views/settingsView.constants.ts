@@ -19,6 +19,10 @@ import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } fro
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
+import {
+  CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA,
+  CLOUDFLARE_AI_GATEWAY_MCP_DOCS_URL,
+} from './cloudflareAiGatewayMcpApiDocs'
 import { OPENAI_MCP_DOC_AREA, OPENAI_MCP_DOCS_URL } from './openaiMcpApiDocs'
 import { EXA_MCP_DOC_AREA, EXA_MCP_DOCS_URL } from './exaMcpApiDocs'
 import { FEISHU_BASE_MCP_DOC_AREA, FEISHU_BASE_MCP_DOCS_URL } from './feishuBaseMcpApiDocs'
@@ -162,6 +166,12 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [API_NATIVE_BROWSER_MCP_DOC_AREA]: {
     docsUrl: 'https://github.com/unbrowse-ai/unbrowse',
     docsLabel: 'Open API-Native Browser MCP Reference',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA]: {
+    docsUrl: CLOUDFLARE_AI_GATEWAY_MCP_DOCS_URL,
+    docsLabel: 'Open Cloudflare AI Gateway Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },

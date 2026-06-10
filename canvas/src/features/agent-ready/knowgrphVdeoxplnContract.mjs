@@ -16,6 +16,7 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   graphragPipeline: "knowgrph.graphrag_pipeline",
   superagentRun: "knowgrph.superagent.run",
   agenticCanvasOsPlan: "knowgrph.agentic_canvas_os.plan",
+  videoRemixRun: "knowgrph.video_remix.run",
   browserApiRun: "knowgrph.browser_api.run",
   vdeoxplnList: "knowgrph.vdeoxpln.list",
 });
@@ -187,17 +188,18 @@ const RAW_VDEOXPLN = Object.freeze([
   {
     id: KNOWGRPH_VDEOXPLN_IDS.localMcp,
     title: "Knowgrph Local MCP",
-    purpose: "Expose local UI launch, pipeline, GraphRAG, superagent, Agentic Canvas OS planning, browser bridge, and vdeoxpln inspection tools through the stdio MCP server.",
+    purpose: "Expose local UI launch, pipeline, GraphRAG, superagent, Agentic Canvas OS planning, video-remix run planning, browser bridge, and vdeoxpln inspection tools through the stdio MCP server.",
     scope: "local-stdio",
     mutation: "local-confirmed",
-    triggers: ["local mcp", "launch canvas", "run pipeline", "graphrag", "superagent", "agentic canvas os", "browser api", "list vdeoxpln"],
-    inputs: ["local root", "workspace file", "graph data", "pipeline config", "browser API runtime"],
-    outputs: ["local tool result", "pipeline artifact", "superagent report", "agentic canvas os dashboard plan", "vdeoxpln registry snapshot"],
+    triggers: ["local mcp", "launch canvas", "run pipeline", "graphrag", "superagent", "agentic canvas os", "video remix", "browser api", "list vdeoxpln"],
+    inputs: ["local root", "workspace file", "graph data", "pipeline config", "reference URL", "source cards", "browser API runtime"],
+    outputs: ["local tool result", "pipeline artifact", "superagent report", "agentic canvas os dashboard plan", "video remix run manifest", "vdeoxpln registry snapshot"],
     owners: [
       "mcp/local-tool-contract.js",
       "mcp/server.js",
       "mcp/agentic-canvas-os-runtime.js",
       "mcp/agentic-canvas-os-lanes.js",
+      "mcp/video-remix-runtime.js",
       "mcp/README.md",
       "knowgrph_parser/superagent_harness.py",
       "canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs",
@@ -214,6 +216,7 @@ const RAW_VDEOXPLN = Object.freeze([
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline,
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsPlan,
+        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
         KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
       ],
@@ -221,6 +224,7 @@ const RAW_VDEOXPLN = Object.freeze([
     workflow: [
       "List local tools from the shared local MCP contract.",
       "Run only path-guarded local-root operations.",
+      "Run video-remix orchestration as an approval-gated local manifest before any paid provider call.",
       "Summarize artifacts and registry metadata in the MCP result.",
     ],
     aiPolicy: {

@@ -42,6 +42,26 @@ const AGENTIC_CANVAS_OS_PLAN_OUTPUT_SCHEMA = Object.freeze({
   },
 });
 
+const VIDEO_REMIX_RUN_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: true,
+  required: ["contractVersion", "runId", "state", "mode", "approvalGates", "evidencePack", "storyboard", "budgetMeters", "validation"],
+  properties: {
+    contractVersion: { type: "string" },
+    runId: { type: "string" },
+    state: { type: "string" },
+    mode: { type: "string" },
+    approvalGates: {
+      type: "array",
+      items: { type: "object", additionalProperties: true },
+    },
+    evidencePack: { type: "object", additionalProperties: true },
+    storyboard: { type: "object", additionalProperties: true },
+    budgetMeters: { type: "object", additionalProperties: true },
+    validation: { type: "object", additionalProperties: true },
+  },
+});
+
 const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 }).filter((tool) =>
@@ -370,6 +390,78 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           maxIterations: { type: "number", description: "Agent loop iteration budget. Default: 8." },
           tokenBudget: { type: "number", description: "Evidence/planning token budget. Default: 8000." },
           tcoBudgetUsd: { type: "number", description: "Default fixed monthly TCO budget before live adapters. Default: 0." },
+        },
+      },
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
+      description:
+        "Use this when a local MCP host needs to produce an approval-gated video-remix run manifest from a reference URL, brief, source cards, storyboard plan, render/checkout gates, token/TCO budget, and failure evidence before any paid provider call.",
+      outputSchema: VIDEO_REMIX_RUN_OUTPUT_SCHEMA,
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["referenceUrl", "brief"],
+        properties: {
+          referenceUrl: {
+            type: "string",
+            description: "Absolute reference video URL supplied by the creator user.",
+          },
+          brief: {
+            type: "string",
+            description: "Creative intent for the remix run.",
+          },
+          mode: {
+            type: "string",
+            enum: ["dry-run", "live"],
+            default: "dry-run",
+            description: "Run mode. live still blocks before spend unless matching approval tokens are supplied.",
+          },
+          approvals: {
+            type: "array",
+            items: {
+              oneOf: [
+                { type: "string" },
+                { type: "object", additionalProperties: true },
+              ],
+            },
+            description: "Approval gate ids or token objects. Missing gates keep paid/render/payment/deploy actions blocked.",
+          },
+          sourceCards: {
+            type: "array",
+            items: { type: "object", additionalProperties: true },
+            description: "Already-captured source cards with sourceId, url, platform, title, evidenceLevel, and observedFields; the local runtime never fabricates live Exa results.",
+          },
+          budgetUsd: {
+            type: "number",
+            default: 0,
+            description: "Run budget cap used for local budget-meter accounting.",
+          },
+          shotCount: {
+            type: "number",
+            default: 4,
+            description: "Number of storyboard shots to plan, bounded by the runtime.",
+          },
+          runId: {
+            type: "string",
+            description: "Optional stable run id.",
+          },
+          failOnceTool: {
+            type: "string",
+            description: "Optional tool name for bounded failure-handling injection.",
+          },
+          maxIterations: {
+            type: "number",
+            description: "Agent loop iteration budget. Default: 8.",
+          },
+          frontendUrl: {
+            type: "string",
+            description: "Optional Vercel frontend URL to record in the demo pack after all live gates are approved.",
+          },
+          backendHealthUrl: {
+            type: "string",
+            description: "Optional AWS backend health URL to record in the demo pack after all live gates are approved.",
+          },
         },
       },
     }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),

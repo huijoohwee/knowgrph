@@ -48,7 +48,15 @@ export type LayoutPositionCacheKey = string;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
 
-export type BottomSurfaceTab = 'stats' | 'history' | 'documentVersionGraph' | 'gitGraph' | 'gantt' | 'timeline'
+export type BottomSurfaceTab =
+  | 'stats'
+  | 'history'
+  | 'documentVersionGraph'
+  | 'gitGraph'
+  | 'gantt'
+  | 'timeline'
+  | 'architecture'
+  | 'eventModeling'
 
 export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
 

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>agentic-canvas-os — Video Remix</title>
+    <meta
+      name="description"
+      content="Submit a reference video URL plus a creative brief and budget; review the gated research-to-sale plan."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app" class="app">
+      <header class="app__header">
+        <h1 class="app__title">Video Remix</h1>
+        <p class="app__subtitle">
+          Paste a reference video URL, a creative brief, and a budget cap. Review the
+          plan and approve spend — no infrastructure to touch.
+        </p>
+      </header>
+
+      <!-- Submission form (R1.1, R1.2): client-side validated before POST /run. -->
+      <section class="card" aria-labelledby="submit-heading">
+        <h2 id="submit-heading" class="card__title">Start a run</h2>
+        <form id="run-form" class="form" novalidate>
+          <div class="field">
+            <label class="field__label" for="referenceUrl">Reference video URL</label>
+            <input
+              class="field__input"
+              id="referenceUrl"
+              name="referenceUrl"
+              type="url"
+              autocomplete="off"
+              placeholder="https://example.com/video"
+            />
+            <p class="field__error" data-error-for="referenceUrl" hidden></p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="brief">Creative brief</label>
+            <textarea
+              class="field__input field__input--area"
+              id="brief"
+              name="brief"
+              rows="4"
+              placeholder="Describe the remix you want…"
+            ></textarea>
+            <p class="field__error" data-error-for="brief" hidden></p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="budgetUsd">Budget cap (USD)</label>
+            <input
+              class="field__input"
+              id="budgetUsd"
+              name="budgetUsd"
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="25.00"
+            />
+            <p class="field__error" data-error-for="budgetUsd" hidden></p>
+          </div>
+
+          <button class="btn btn--primary" id="submit-btn" type="submit">
+            Submit run
+          </button>
+          <p class="form__status" id="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <!-- Run output surfaces, rendered from the reused web/src/lib view builders. -->
+      <section id="run-output" class="run-output" hidden aria-live="polite">
+        <div id="run-state" class="card" data-panel="run-state"></div>
+        <div id="run-initiation" class="card" data-panel="initiation"></div>
+        <div id="evidence-pack" class="card" data-panel="evidence"></div>
+        <div id="shot-plan" class="card" data-panel="shot-plan"></div>
+        <div id="approval-prompts" class="card" data-panel="approvals"></div>
+        <div id="budget-meters" class="card" data-panel="budget"></div>
+        <div id="checkout-entry" class="card" data-panel="checkout"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

@@ -11,3 +11,11 @@ export const resolveMermaidGanttCode = (candidates: ReadonlyArray<string | null 
 export const resolveMermaidTimelineCode = (candidates: ReadonlyArray<string | null | undefined>): string => {
   return resolveMermaidDiagramCode(candidates, 'timeline')
 }
+
+export const resolveMermaidArchitectureCode = (candidates: ReadonlyArray<string | null | undefined>): string => {
+  return resolveMermaidDiagramCode(candidates, 'architecture')
+}
+
+export const resolveMermaidEventModelingCode = (candidates: ReadonlyArray<string | null | undefined>): string => {
+  return resolveMermaidDiagramCode(candidates, 'eventmodeling')
+}

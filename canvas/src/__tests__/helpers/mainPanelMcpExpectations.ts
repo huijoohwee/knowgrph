@@ -39,6 +39,18 @@ import {
   EXA_MCP_REMOTE_URL,
 } from 'grph-shared/search/exaMcpSsot'
 import {
+  CLOUDFLARE_AI_GATEWAY_ACCOUNT_HEADER,
+  CLOUDFLARE_AI_GATEWAY_MCP_DOCS_URL,
+  CLOUDFLARE_AI_GATEWAY_MCP_GITHUB_URL,
+  CLOUDFLARE_AI_GATEWAY_MCP_REMOTE_URL,
+  CLOUDFLARE_AI_GATEWAY_MCP_SERVER_KEY,
+  CLOUDFLARE_AI_GATEWAY_MCP_TOOL_NAMES,
+  CLOUDFLARE_AI_GATEWAY_OPENAI_ENDPOINT,
+  CLOUDFLARE_AI_GATEWAY_PRODUCT_URL,
+  CLOUDFLARE_AI_GATEWAY_UNIVERSAL_ENDPOINT,
+  CLOUDFLARE_MCP_SERVER_GITHUB_URL,
+} from '@/features/panels/views/cloudflareAiGatewayMcpApiDocs'
+import {
   FEISHU_BASE_MCP_DEFAULT_AUTH_BOUNDARY,
   FEISHU_BASE_MCP_DEFAULT_CONNECTION_MODE,
   FEISHU_BASE_MCP_DEFAULT_PHASE,
@@ -540,6 +552,74 @@ export function assertMcpHubSurfacesExaMcpConfig(container: Element): void {
     .filter(Boolean)
   if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-exa-'))) {
     throw new Error(`expected Exa MCP rows to use Exa MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesCloudflareAiGatewayMcpConfig(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  ;[
+    'Cloudflare AI Gateway MCP Configuration',
+    'cloudflareAiGatewayMcp.server_key',
+    'cloudflareAiGatewayMcp.remote.url',
+    'cloudflareAiGatewayMcp.transport.primary',
+    'cloudflareAiGatewayMcp.account.header',
+    'cloudflareAiGatewayMcp.gateway.universal_endpoint',
+    'cloudflareAiGatewayMcp.gateway.openai_endpoint',
+    'cloudflareAiGatewayMcp.capability.dynamic_routing',
+    'cloudflareAiGatewayMcp.capability.caching',
+    'cloudflareAiGatewayMcp.capability.observability',
+    'cloudflareAiGatewayMcp.capability.controls',
+    'cloudflareAiGatewayMcp.tool.list_gateways',
+    'cloudflareAiGatewayMcp.tool.list_logs',
+    'cloudflareAiGatewayMcp.tool.get_log_details',
+    'cloudflareAiGatewayMcp.tool.get_log_request_body',
+    'cloudflareAiGatewayMcp.tool.get_log_response_body',
+    'cloudflareAiGatewayMcp.remote_config.generic',
+    'cloudflareAiGatewayMcp.readiness_manifest',
+    'cloudflareAiGatewayMcp.docs.product_url',
+    'cloudflareAiGatewayMcp.docs.api_url',
+    'cloudflareAiGatewayMcp.docs.mcp_server_repo',
+    'cloudflareAiGatewayMcp.docs.ai_gateway_mcp_repo',
+    CLOUDFLARE_AI_GATEWAY_MCP_SERVER_KEY,
+    CLOUDFLARE_AI_GATEWAY_MCP_REMOTE_URL,
+    CLOUDFLARE_AI_GATEWAY_ACCOUNT_HEADER,
+    CLOUDFLARE_AI_GATEWAY_UNIVERSAL_ENDPOINT,
+    CLOUDFLARE_AI_GATEWAY_OPENAI_ENDPOINT,
+    CLOUDFLARE_AI_GATEWAY_PRODUCT_URL,
+    CLOUDFLARE_AI_GATEWAY_MCP_DOCS_URL,
+    CLOUDFLARE_MCP_SERVER_GITHUB_URL,
+    CLOUDFLARE_AI_GATEWAY_MCP_GITHUB_URL,
+    'streamable-http /mcp',
+    'dynamic routing with provider fallbacks',
+    'response caching',
+    'logs, metrics, usage analytics, evaluations',
+    'rate limiting and safety guardrails',
+    'Open Cloudflare AI Gateway Docs',
+    'Open FloatingPanel Chat UI',
+    ...CLOUDFLARE_AI_GATEWAY_MCP_TOOL_NAMES,
+  ].forEach(token => {
+    if (!searchableText.includes(token)) {
+      throw new Error(`expected MCP hub to include Cloudflare AI Gateway MCP config token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;[
+    'CLOUDFLARE_API_TOKEN=',
+    'Authorization: Bearer',
+    'sk-',
+    'YOUR_CLOUDFLARE_API_TOKEN',
+    'YOUR_OPENAI_API_KEY',
+    '170e89fdb8679ff2fcc2900e25ed04f4',
+  ].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected Cloudflare AI Gateway MCP surface to avoid embedded secret/account token ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-cloudflare-ai-gateway-'))) {
+    throw new Error(`expected Cloudflare AI Gateway MCP rows to use Cloudflare MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
   }
 }
 

@@ -34,6 +34,8 @@ export type CanvasViewOptionId =
   | 'control:timeline'
   | 'control:gitGraph'
   | 'control:gantt'
+  | 'control:architecture'
+  | 'control:eventModeling'
   | 'view:geospatial'
 
 export type CanvasViewOption = {

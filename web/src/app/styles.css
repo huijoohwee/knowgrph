@@ -1,0 +1,227 @@
+/* Minimal, dependency-free styling for the agentic-canvas-os Vercel Frontend.
+ * Spec: knowgrph-acos-mcp-connector, task 11.3 (Vercel Frontend build target).
+ * Presentation only — all logic lives in the reused web/src/lib view builders. */
+
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-border: #30363d;
+  --text: #e6edf3;
+  --muted: #9da7b3;
+  --accent: #2f81f7;
+  --accent-text: #ffffff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.app__title {
+  margin: 0 0 4px;
+  font-size: 28px;
+}
+
+.app__subtitle {
+  margin: 0 0 24px;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.card__title {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field__label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.field__input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+}
+
+.field__input--area {
+  resize: vertical;
+}
+
+.field__input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field__error {
+  margin: 6px 0 0;
+  color: var(--err);
+  font-size: 13px;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--panel-border);
+  color: var(--text);
+}
+
+.form__status {
+  margin: 12px 0 0;
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form__status[data-tone="error"] {
+  color: var(--err);
+}
+
+.form__status[data-tone="ok"] {
+  color: var(--ok);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.list__item:last-child {
+  border-bottom: none;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #21262d;
+  color: var(--muted);
+}
+
+.tag--state {
+  background: rgba(47, 129, 247, 0.16);
+  color: var(--accent);
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.meters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.meter {
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.meter__label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.meter__value {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.approval {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.approval:last-child {
+  border-bottom: none;
+}
+
+.approval__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.checkout__cta {
+  display: inline-block;
+  margin-top: 8px;
+}
+
+[hidden] {
+  display: none !important;
+}

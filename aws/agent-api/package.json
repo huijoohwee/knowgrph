@@ -1,0 +1,17 @@
+{
+  "name": "@knowgrph/agent-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "agentic-canvas-os AWS Agent-API tier: thin, stateless adapter that authenticates callers and forwards MCP calls to the knowgrph control plane. Holds no model provider keys.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test __tests__/*.test.mjs"
+  },
+  "dependencies": {
+    "jsonwebtoken": "9.0.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

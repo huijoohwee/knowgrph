@@ -1,0 +1,150 @@
+// Unit tests for the knowgrph control-plane McpAgent tool registry
+// (knowgrph-acos-mcp-connector spec, task 1.1).
+//
+// These tests validate the structural guarantees needed for tasks beyond
+// task 1.1 to build on:
+//
+//   - Property 26 / R14.4: every listed tool exposes both its inputSchema
+//     and its outputSchema.
+//   - Property 1 / R14.6 (narrow boundary slice): a remote invocation of an
+//     approval-gated stage tool before approval returns "approval_required",
+//     leaves Run_Manifest state unchanged, and records zero paid-provider
+//     calls.
+//
+// Full property-based coverage of Properties 1 and 26 lives in spec task 9.1
+// (fast-check). These tests are example-based smoke checks for task 1.1.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  buildKnowgrphMcpToolDefinitions,
+  collectApprovedGateIds,
+  executeKnowgrphMcpTool,
+  KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
+  KNOWGRPH_MCP_STAGE_GATES,
+  KNOWGRPH_MCP_STAGE_TOOL_NAMES,
+} from "../tool-registry.mjs";
+
+test("tool surface lists the Director plus all five stage tools", () => {
+  const definitions = buildKnowgrphMcpToolDefinitions();
+  const names = definitions.map((tool) => tool.name);
+  assert.ok(names.includes(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME));
+  for (const stageName of Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES)) {
+    assert.ok(names.includes(stageName), `missing stage tool: ${stageName}`);
+  }
+  assert.equal(definitions.length, 6);
+});
+
+test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AND output schema", () => {
+  const definitions = buildKnowgrphMcpToolDefinitions();
+
+  // The listing surface must cover the Director plus all five stage tools.
+  const expectedNames = [
+    KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
+    ...Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES),
+  ];
+  const listedNames = definitions.map((tool) => tool.name);
+  for (const expected of expectedNames) {
+    assert.ok(
+      listedNames.includes(expected),
+      `tool surface is missing ${expected}`,
+    );
+  }
+
+  const hasNonEmptyProperties = (schema, label) => {
+    assert.ok(schema, `${label} is missing`);
+    assert.equal(schema.type, "object", `${label} must be an object schema`);
+    assert.equal(
+      typeof schema.properties,
+      "object",
+      `${label} must declare properties`,
+    );
+    assert.ok(
+      Object.keys(schema.properties).length > 0,
+      `${label} must be non-empty`,
+    );
+  };
+
+  for (const tool of definitions) {
+    assert.equal(typeof tool.name, "string");
+    // R14.4: each listed tool includes its input schema AND its output schema.
+    hasNonEmptyProperties(tool.inputSchema, `${tool.name} inputSchema`);
+    hasNonEmptyProperties(tool.outputSchema, `${tool.name} outputSchema`);
+  }
+});
+
+test("collectApprovedGateIds normalizes string and object entries", () => {
+  const approved = collectApprovedGateIds([
+    "paid-model-call",
+    { gateId: "render-action", token: "tok-render", approvalState: "approved" },
+    { gateId: "payment-action", approvalState: "rejected", token: "tok-payment" },
+    { gateId: "cloud-deploy" },
+    "  ",
+    null,
+  ]);
+  assert.deepEqual(
+    [...approved].sort(),
+    ["cloud-deploy", "paid-model-call", "render-action"].sort(),
+  );
+});
+
+for (const [stageName, gateId] of Object.entries(KNOWGRPH_MCP_STAGE_GATES)) {
+  test(`Property 1: ${stageName} pre-approval invocation returns approval_required and records 0 paid calls`, () => {
+    const result = executeKnowgrphMcpTool(stageName, { approvals: [] });
+    assert.equal(result.ok, false);
+    const envelope = result.structuredContent;
+    assert.ok(envelope, "structuredContent must be present");
+    assert.equal(envelope.status, "approval_required");
+    assert.equal(envelope.gateId, gateId);
+    assert.equal(envelope.paidProviderCalls, 0);
+    assert.equal(envelope.runManifestStateChanged, false);
+    assert.equal(envelope.error?.code, "approval_required");
+  });
+}
+
+test("Property 1 boundary: an approved stage call passes the McpAgent boundary without a paid call", () => {
+  const result = executeKnowgrphMcpTool(
+    KNOWGRPH_MCP_STAGE_TOOL_NAMES.research,
+    { approvals: ["paid-model-call"], referenceUrl: "https://example.com/clip" },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.structuredContent?.status, "deferred_to_director");
+  assert.equal(result.structuredContent?.paidProviderCalls, 0);
+  assert.equal(result.structuredContent?.runManifestStateChanged, false);
+});
+
+test("Director tool runs the existing video-remix runtime end-to-end (dry-run)", () => {
+  const result = executeKnowgrphMcpTool(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME, {
+    referenceUrl: "https://example.com/reference.mp4",
+    brief: "Remix the reference clip with three shots highlighting the hero.",
+    mode: "dry-run",
+    shotCount: 3,
+  });
+  assert.equal(result.ok, true);
+  const payload = result.structuredContent;
+  assert.equal(payload.mode, "dry-run");
+  assert.ok(Array.isArray(payload.approvalGates));
+  assert.ok(payload.approvalGates.length >= 5);
+  assert.equal(payload.budgetMeters.estimatedCostUsd, 0);
+});
+
+test("Director tool: live mode without approvals halts with zero paid calls (Property 2 / R2.3 sanity check)", () => {
+  const result = executeKnowgrphMcpTool(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME, {
+    referenceUrl: "https://example.com/reference.mp4",
+    brief: "Live mode without any approval tokens.",
+    mode: "live",
+    approvals: [],
+  });
+  const payload = result.structuredContent;
+  assert.equal(payload.state, "blocked");
+  assert.equal(payload.budgetMeters.estimatedCostUsd, 0);
+  assert.ok(Array.isArray(payload.approvalGates));
+  assert.ok(payload.approvalGates.length >= 5);
+});
+
+test("unknown tool name yields an unknown_tool envelope", () => {
+  const result = executeKnowgrphMcpTool("knowgrph.unknown.tool", {});
+  assert.equal(result.ok, false);
+  assert.equal(result.structuredContent?.status, "unknown_tool");
+});

@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, Agentic Canvas OS dry-run planning, local browser API bridge, vdeoxpln registry inspection
+   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, Agentic Canvas OS dry-run planning, approval-gated video-remix run manifests, local browser API bridge, vdeoxpln registry inspection
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -108,12 +108,17 @@ Canonical local tool inventory owner:
    - Emits a dry-run Agentic Canvas OS dashboard document model plus typed run manifest for repo profile, build plan, tool calls, approval gates, token/TCO budget, adapter readiness, Market Radar, browser evidence, market-to-artifact, Learning Loop, starter-repo blueprint, demo pack, failure handling, and `/goal` coverage lanes
    - Default behavior writes no files; `writeArtifacts=true` writes only `dashboard.agentic-os.md` and `run-manifest.json` under `KNOWGRPH_ROOT/data/outputs/agentic-canvas-os/<runId>` or another `outputDir` inside `KNOWGRPH_ROOT`
    - Does not write into the consumer repo, deploy, call paid services, extract credentials, or perform payment actions
-5. `knowgrph.browser_api.run`
+5. `knowgrph.video_remix.run`
+   - Produces an approval-gated video-remix run manifest for `referenceUrl`, `brief`, `sourceCards`, budget meters, storyboard flow, render/checkout gates, demo-pack coverage, and bounded failure handling
+   - `mode="live"` without approval tokens returns `state="blocked"`, at least five approval gates, zero estimated cost, and no provider execution log entries
+   - Research evidence is source-card driven in the local runtime; it never fabricates Exa results or calls paid providers during local validation
+   - Storyboard output emits `kgc-computing-flow/v1` Markdown with one flow node per planned shot
+6. `knowgrph.browser_api.run`
    - Calls a configurable local API-native browser runtime, using an Unbrowse-compatible shape without copying its implementation
    - Typical use: health-check the runtime, search/resolve first-party browser API routes, list cached skills, login through a local browser session, run guarded cookie import, send feedback/verification, execute a resolved route with `dryRun=true` by default, or fall back to native browser capture/action operations such as `go`, `snap`, `click`, `fill`, `screenshot`, `text`, `markdown`, `sync`, and `close`
    - Default runtime URL: `http://localhost:6969` or `KNOWGRPH_BROWSER_API_RUNTIME_URL`; non-loopback hosts are rejected unless `KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME=1` is set on the MCP server
    - Browser target URLs are normalized before runtime calls; only `http` and `https` targets without embedded credentials are forwarded
-6. `knowgrph.vdeoxpln.list`
+7. `knowgrph.vdeoxpln.list`
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.
@@ -195,6 +200,8 @@ Then you can call:
 - `knowgrph.superagent.run` with `{ "inputPath": "docs/documents/my-input.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example", "providerMode": "mock" }`
 - `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Build a production-ready agent app with frontend, backend, live evidence, and approval-gated actions", "consumerRepoPath": "../stryfork", "consumerRepo": "stryfork", "allowExternalRepo": true, "lanes": ["market_radar", "browser_evidence", "market_to_artifact", "learning_loop", "starter_repo"], "writeArtifacts": false }`
 - `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Create a starter repository plan for a secured React frontend connected to an AI-agent backend", "runId": "agentic-os-starter-dry-run", "writeArtifacts": true, "iac": "cdk" }`
+- `knowgrph.video_remix.run` with `{ "mode": "live", "referenceUrl": "https://example.com/reference-video", "brief": "Remix this into a sellable launch teaser", "budgetUsd": 20 }`
+- `knowgrph.video_remix.run` with `{ "mode": "live", "referenceUrl": "https://example.com/reference-video", "brief": "Remix this into a sellable launch teaser", "approvals": ["paid-model-call", "render-action", "payment-action", "cloud-deploy"], "sourceCards": [{ "url": "https://example.com/a" }, { "url": "https://example.com/b" }, { "url": "https://example.com/c" }] }`
 - `knowgrph.browser_api.run` with `{ "operation": "resolve", "targetUrl": "<TARGET_URL>", "intent": "find the current account profile JSON endpoint" }`
 - `knowgrph.browser_api.run` with `{ "operation": "execute", "skillId": "resolved-skill-id", "payload": {}, "dryRun": true, "confirmUnsafe": false, "confirmThirdPartyTerms": false }`
 - `knowgrph.browser_api.run` with `{ "operation": "cookieImport", "targetUrl": "<TARGET_URL>", "dryRun": false, "confirmCookieImport": true, "confirmUnsafe": true, "confirmThirdPartyTerms": true }`

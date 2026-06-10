@@ -1,0 +1,21 @@
+{
+  "name": "@knowgrph/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-agnostic, dependency-free canonical contracts (SSOT) shared by the knowgrph control plane (Cloudflare worker / McpAgent / Director) and the agentic-canvas-os product tier (AWS Agent-API / Vercel web). See knowgrph-acos-mcp-connector spec, Section 8.",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./run-manifest": "./run-manifest.schema.js",
+    "./approval": "./approval.schema.js",
+    "./auth": "./auth.schema.js",
+    "./cost-log": "./cost-log.schema.js",
+    "./credit-ledger": "./credit-ledger.schema.js",
+    "./kgc-document": "./kgc-document.schema.js",
+    "./demo-pack": "./demo-pack.schema.js"
+  },
+  "scripts": {
+    "test": "node --test __tests__/*.test.mjs"
+  }
+}

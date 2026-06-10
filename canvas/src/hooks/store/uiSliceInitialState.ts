@@ -105,7 +105,7 @@ export const createUiInitialState = (
       }),
 
     mermaidDiagramSelectedRowKeyByKind: {},
-    setMermaidDiagramSelectedRowKey: (kind: 'gitgraph' | 'gantt' | 'timeline', rowKey: string | null) =>
+    setMermaidDiagramSelectedRowKey: (kind: 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling', rowKey: string | null) =>
       set(state => {
         const diagramKind = kind === 'gantt' || kind === 'gitgraph' || kind === 'timeline' ? kind : null
         if (!diagramKind) return {}

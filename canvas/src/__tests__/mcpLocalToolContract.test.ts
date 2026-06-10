@@ -90,6 +90,7 @@ type AgenticCanvasOsRuntimeModule = {
     args: Record<string, unknown>,
     context: { rootDir: string },
   ) => Promise<{ payload: Record<string, any>, text: string }>
+  runVideoRemix: (args: Record<string, unknown>) => { payload: Record<string, any>, text: string }
 }
 
 const importLocalToolContract = async (): Promise<LocalToolContractModule> => {
@@ -109,7 +110,11 @@ const importResourceContract = async (): Promise<ResourceContractModule> => {
 
 const importAgenticCanvasOsRuntime = async (): Promise<AgenticCanvasOsRuntimeModule> => {
   const runtimeUrl = pathToFileURL(path.resolve(process.cwd(), '..', 'mcp', 'agentic-canvas-os-runtime.js')).href
-  return await import(runtimeUrl) as AgenticCanvasOsRuntimeModule
+  const videoRemixRuntimeUrl = pathToFileURL(path.resolve(process.cwd(), '..', 'mcp', 'video-remix-runtime.js')).href
+  return {
+    ...await import(runtimeUrl),
+    ...await import(videoRemixRuntimeUrl),
+  } as AgenticCanvasOsRuntimeModule
 }
 
 export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
@@ -128,6 +133,7 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsPlan,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
   ]
@@ -220,6 +226,19 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     throw new Error(`expected Agentic Canvas OS tool to expose structured dashboard output, got ${JSON.stringify(agenticCanvasOsTool.outputSchema)}`)
   }
 
+  const videoRemixTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun)
+  if (!videoRemixTool) throw new Error('expected Video Remix runner tool')
+  assertAnnotations(videoRemixTool, { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true })
+  if (!String(videoRemixTool.description || '').includes('approval-gated video-remix run manifest')) {
+    throw new Error(`expected Video Remix tool to describe approval-gated manifest scope, got ${JSON.stringify(videoRemixTool.description)}`)
+  }
+  if (!videoRemixTool.inputSchema.properties?.referenceUrl || !videoRemixTool.inputSchema.properties?.sourceCards) {
+    throw new Error(`expected Video Remix tool schema to expose referenceUrl and sourceCards, got ${JSON.stringify(videoRemixTool.inputSchema.properties)}`)
+  }
+  if (videoRemixTool.outputSchema?.type !== 'object' || !videoRemixTool.outputSchema.required?.includes('storyboard')) {
+    throw new Error(`expected Video Remix tool to expose structured storyboard output, got ${JSON.stringify(videoRemixTool.outputSchema)}`)
+  }
+
   const superagentTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun)
   if (!superagentTool) {
     throw new Error('expected knowgrph.superagent.run tool definition')
@@ -266,6 +285,67 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   }
   if (!String(vdeoxplnProperties.intentText.description || '').includes('Route names and file paths are ignored')) {
     throw new Error('expected vdeoxpln intentText schema to forbid route/file based routing')
+  }
+}
+
+export async function testKnowgrphVideoRemixRuntimeCoversPrdTadAcceptanceShape() {
+  const runtime = await importAgenticCanvasOsRuntime()
+  const blocked = runtime.runVideoRemix({
+    mode: 'live',
+    referenceUrl: 'https://example.com/reference-video',
+    brief: 'Remix the reference into a sellable launch teaser.',
+    budgetUsd: 20,
+    runId: 'video-remix-blocked-contract-test',
+  }).payload
+
+  if (blocked.state !== 'blocked') throw new Error(`expected live run without approvals to block, got ${blocked.state}`)
+  if (blocked.approvalGates.length < 5) throw new Error(`expected at least five approval gates, got ${JSON.stringify(blocked.approvalGates)}`)
+  if (blocked.budgetMeters.estimatedCostUsd !== 0) throw new Error(`expected unapproved live run cost to stay zero, got ${JSON.stringify(blocked.budgetMeters)}`)
+  if (blocked.executionLog.length !== 0) throw new Error(`expected unapproved live run to log no provider calls, got ${JSON.stringify(blocked.executionLog)}`)
+
+  const sourceCards = [
+    { sourceId: 'source-a', url: 'https://example.com/a', platform: 'exa', evidenceLevel: 'A' },
+    { sourceId: 'source-b', url: 'https://example.com/b', platform: 'exa', evidenceLevel: 'B' },
+    { sourceId: 'source-c', url: 'https://example.com/c', platform: 'exa', evidenceLevel: 'B' },
+  ]
+  const sourced = runtime.runVideoRemix({
+    mode: 'live',
+    referenceUrl: 'https://example.com/reference-video',
+    brief: 'Remix the reference into a sellable launch teaser.',
+    approvals: ['paid-model-call', 'render-action', 'payment-action', 'cloud-deploy'],
+    sourceCards,
+    shotCount: 3,
+    budgetUsd: 20,
+    runId: 'video-remix-sourced-contract-test',
+  }).payload
+
+  if (sourced.evidencePack.sources.length !== 3) throw new Error(`expected three sourced evidence cards, got ${JSON.stringify(sourced.evidencePack.sources)}`)
+  if (!sourced.marketRadar.claims.every((claim: { sourceCardIds?: string[] }) => claim.sourceCardIds && claim.sourceCardIds.length > 0)) {
+    throw new Error(`expected every downstream claim to carry source ids, got ${JSON.stringify(sourced.marketRadar.claims)}`)
+  }
+  if (!String(sourced.storyboard.canvasDocumentMarkdown || '').includes('kgc-computing-flow/v1')) {
+    throw new Error('expected storyboard to emit kgc-computing-flow/v1 markdown')
+  }
+  if (sourced.storyboard.flow.nodes.length !== 3 || sourced.storyboard.flow.nodes.length !== sourced.storyboard.plannedShots.length) {
+    throw new Error(`expected storyboard nodes to match planned shots, got ${JSON.stringify(sourced.storyboard.flow)}`)
+  }
+  if (!sourced.commerce.checkout.sessionId || sourced.commerce.checkout.payoutSettled !== true) {
+    throw new Error(`expected payment-approved live run to create checkout and settle payout, got ${JSON.stringify(sourced.commerce.checkout)}`)
+  }
+
+  const failed = runtime.runVideoRemix({
+    mode: 'live',
+    referenceUrl: 'https://example.com/reference-video',
+    brief: 'Remix the reference into a sellable launch teaser.',
+    approvals: ['paid-model-call'],
+    sourceCards,
+    failOnceTool: 'video.generate.mock',
+    maxIterations: 2,
+    runId: 'video-remix-failure-contract-test',
+  }).payload
+  const injectedFailure = failed.failureHandling.failures[0]
+  if (failed.state !== 'blocked' || !injectedFailure || injectedFailure.retryCount < 1 || injectedFailure.retryCount > failed.maxIterations) {
+    throw new Error(`expected injected failure to retry within maxIterations and fail closed, got ${JSON.stringify(failed.failureHandling)}`)
   }
 }
 

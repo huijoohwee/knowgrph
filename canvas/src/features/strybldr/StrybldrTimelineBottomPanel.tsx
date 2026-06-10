@@ -12,7 +12,7 @@ import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { ChartGantt, FileDiff, GitGraph, History, MonitorPlay } from 'lucide-react'
+import { ChartGantt, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
 
 type TimelineBottomPanelPosition = {
@@ -20,7 +20,14 @@ type TimelineBottomPanelPosition = {
   left: number
 }
 
-type TimelineBottomPanelView = 'timeline' | 'strybldrTimeline' | 'documentVersionGraph' | 'gitGraph' | 'gantt'
+type TimelineBottomPanelView =
+  | 'timeline'
+  | 'strybldrTimeline'
+  | 'documentVersionGraph'
+  | 'gitGraph'
+  | 'gantt'
+  | 'architecture'
+  | 'eventModeling'
 
 const TIMELINE_BOTTOM_PANEL_VISIBLE_PX = 32
 const TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE = { width: 560, height: 128 } as const
@@ -32,6 +39,12 @@ const GanttBottomPanelViewLazy = React.lazy(() =>
 )
 const TimelineBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/TimelineBottomPanelView').then(mod => ({ default: mod.TimelineBottomPanelView })),
+)
+const ArchitectureBottomPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/ArchitectureBottomPanelView').then(mod => ({ default: mod.ArchitectureBottomPanelView })),
+)
+const EventModelingBottomPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/EventModelingBottomPanelView').then(mod => ({ default: mod.EventModelingBottomPanelView })),
 )
 const DocumentVersionGitGraphPanelLazy = React.lazy(() =>
   import('@/features/document-versioning/DocumentVersionGitGraphPanel').then(mod => ({ default: mod.DocumentVersionGitGraphPanel })),
@@ -221,7 +234,15 @@ export function StrybldrTimelineBottomPanel({
   const mermaidGitGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
   const mermaidGanttRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
   const mermaidTimelineRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
-  const bottomSurfaceDiagramRequested = documentVersionGraphRequested || mermaidGitGraphRequested || mermaidGanttRequested || mermaidTimelineRequested
+  const mermaidArchitectureRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'architecture'
+  const mermaidEventModelingRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'eventModeling'
+  const bottomSurfaceDiagramRequested =
+    documentVersionGraphRequested ||
+    mermaidGitGraphRequested ||
+    mermaidGanttRequested ||
+    mermaidTimelineRequested ||
+    mermaidArchitectureRequested ||
+    mermaidEventModelingRequested
   const showTimelineView = React.useCallback(() => {
     setView('timeline')
     setBottomSurfaceTab('timeline')
@@ -244,6 +265,16 @@ export function StrybldrTimelineBottomPanel({
   const showGanttView = React.useCallback(() => {
     setView('gantt')
     setBottomSurfaceTab('gantt')
+    setBottomSurfaceCollapsed(false)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  const showArchitectureView = React.useCallback(() => {
+    setView('architecture')
+    setBottomSurfaceTab('architecture')
+    setBottomSurfaceCollapsed(false)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  const showEventModelingView = React.useCallback(() => {
+    setView('eventModeling')
+    setBottomSurfaceTab('eventModeling')
     setBottomSurfaceCollapsed(false)
   }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
   const handleClose = React.useCallback(() => {
@@ -294,7 +325,7 @@ export function StrybldrTimelineBottomPanel({
 
   const panelHeightStyle = minimized
     ? { height: 'var(--kg-toolbar-compact-surface-height)' }
-    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline'
+    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'architecture' || view === 'eventModeling'
       ? { maxHeight: 'min(44vh, 24rem)' }
       : { maxHeight: 'min(32vh, 12rem)' }
   const panelPosition = position || getDefaultUnpinnedPosition()
@@ -431,6 +462,36 @@ export function StrybldrTimelineBottomPanel({
               >
                 <ChartGantt className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
               </IconButton>
+              <IconButton
+                className={cn(
+                  'App-toolbar__btn',
+                  view === 'architecture'
+                    ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                    : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                )}
+                title="Architecture"
+                showTooltip
+                aria-pressed={view === 'architecture'}
+                onClick={showArchitectureView}
+                data-kg-strybldr-bottom-timeline-architecture-toggle="1"
+              >
+                <Network className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                className={cn(
+                  'App-toolbar__btn',
+                  view === 'eventModeling'
+                    ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                    : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                )}
+                title="Event Model"
+                showTooltip
+                aria-pressed={view === 'eventModeling'}
+                onClick={showEventModelingView}
+                data-kg-strybldr-bottom-timeline-event-modeling-toggle="1"
+              >
+                <Workflow className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
             </section>
             <HeaderActions
               onPinToggle={handlePinToggle}
@@ -463,6 +524,14 @@ export function StrybldrTimelineBottomPanel({
               ) : view === 'timeline' ? (
                 <React.Suspense fallback={null}>
                   <TimelineBottomPanelViewLazy compact />
+                </React.Suspense>
+              ) : view === 'architecture' ? (
+                <React.Suspense fallback={null}>
+                  <ArchitectureBottomPanelViewLazy compact />
+                </React.Suspense>
+              ) : view === 'eventModeling' ? (
+                <React.Suspense fallback={null}>
+                  <EventModelingBottomPanelViewLazy compact />
                 </React.Suspense>
               ) : (
                 <StrybldrTimelinePanel active={active} />

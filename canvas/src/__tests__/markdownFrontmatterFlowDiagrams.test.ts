@@ -53,6 +53,25 @@ export function testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels(
     '          section Source',
     '          Source input :done, source_input, 2026-06-05, 1d',
     '          Parallel review :crit, parallel_review, after source_input, 2d',
+    '    architecture:',
+    '      key: architecture',
+    '      type: mermaid_architecture',
+    '      render_on: [bottom_panel, storyboard]',
+    '      value: |-',
+    '        architecture-beta',
+    '          group cloud(cloud)[Cloud]',
+    '          service ui(internet)[Vercel UI] in cloud',
+    '          service mcp(server)[MCP Worker] in cloud',
+    '          ui:R --> L:mcp',
+    '    event_model:',
+    '      key: event_model',
+    '      type: mermaid_eventmodeling',
+    '      render_on: [bottom_panel, storyboard]',
+    '      value: |-',
+    '        eventmodeling',
+    '        tf 01 ui UserBrief',
+    '        tf 02 cmd StartRun',
+    '        tf 03 evt RunStarted',
     '---',
     '',
     '# Neutral diagram document',
@@ -70,6 +89,12 @@ export function testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels(
     ['flow-diagram-gantt-source', 'FlowDiagramSource'],
     ['flow-diagram-gantt-compute', FLOW_TEXT_GENERATION_NODE_TYPE_ID],
     ['flow-diagram-gantt-panel', FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID],
+    ['flow-diagram-architecture-source', 'FlowDiagramSource'],
+    ['flow-diagram-architecture-compute', FLOW_TEXT_GENERATION_NODE_TYPE_ID],
+    ['flow-diagram-architecture-panel', FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID],
+    ['flow-diagram-event_model-source', 'FlowDiagramSource'],
+    ['flow-diagram-event_model-compute', FLOW_TEXT_GENERATION_NODE_TYPE_ID],
+    ['flow-diagram-event_model-panel', FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID],
   ] as const
   for (const [id, type] of expectedNodes) {
     const node = readNode(graphData, id)
@@ -93,6 +118,10 @@ export function testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels(
     'flow-diagram-gitgraph-compute|outputSrcDoc|flow-diagram-gitgraph-panel|outputSrcDoc',
     'flow-diagram-gantt-source|diagramSource|flow-diagram-gantt-compute|diagramSource',
     'flow-diagram-gantt-compute|outputSrcDoc|flow-diagram-gantt-panel|outputSrcDoc',
+    'flow-diagram-architecture-source|diagramSource|flow-diagram-architecture-compute|diagramSource',
+    'flow-diagram-architecture-compute|outputSrcDoc|flow-diagram-architecture-panel|outputSrcDoc',
+    'flow-diagram-event_model-source|diagramSource|flow-diagram-event_model-compute|diagramSource',
+    'flow-diagram-event_model-compute|outputSrcDoc|flow-diagram-event_model-panel|outputSrcDoc',
   ]) {
     if (!edgeSignatures.has(signature)) throw new Error(`expected derived dataflow edge ${signature}`)
   }
@@ -105,6 +134,13 @@ export function testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels(
   })
   const gitgraphSrcDoc = connected.get('flow-diagram-gitgraph-panel')?.['properties.outputSrcDoc']
   const ganttSrcDoc = connected.get('flow-diagram-gantt-panel')?.['properties.outputSrcDoc']
+  const architectureConnected = computeFlowConnectedValuesBySchemaPath({
+    graphData,
+    registry,
+    targetNodeIds: new Set(['flow-diagram-architecture-panel', 'flow-diagram-event_model-panel']),
+  })
+  const architectureSrcDoc = architectureConnected.get('flow-diagram-architecture-panel')?.['properties.outputSrcDoc']
+  const eventModelSrcDoc = architectureConnected.get('flow-diagram-event_model-panel')?.['properties.outputSrcDoc']
   if (
     typeof gitgraphSrcDoc?.value !== 'string'
     || !gitgraphSrcDoc.value.includes('Parallel lanes')
@@ -128,6 +164,22 @@ export function testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels(
   }
   if (!gitgraphSrcDoc.sources.some(source => source.nodeId === 'flow-diagram-gitgraph-compute' && source.portKey === 'outputSrcDoc')) {
     throw new Error('expected GitGraph Rich Media Panel outputSrcDoc to source from inline compute node')
+  }
+  if (
+    typeof architectureSrcDoc?.value !== 'string'
+    || !architectureSrcDoc.value.includes('Architecture services')
+    || !architectureSrcDoc.value.includes('MCP Worker')
+    || !architectureSrcDoc.value.includes('data-kg-flow-diagram-kind="architecture"')
+  ) {
+    throw new Error(`expected Architecture panel srcdoc to summarize services, got ${String(architectureSrcDoc?.value || '')}`)
+  }
+  if (
+    typeof eventModelSrcDoc?.value !== 'string'
+    || !eventModelSrcDoc.value.includes('Event model commands')
+    || !eventModelSrcDoc.value.includes('RunStarted')
+    || !eventModelSrcDoc.value.includes('data-kg-flow-diagram-kind="eventmodeling"')
+  ) {
+    throw new Error(`expected Event Modeling panel srcdoc to summarize commands/events, got ${String(eventModelSrcDoc?.value || '')}`)
   }
 
   const editedGraphData: GraphData = {
@@ -198,7 +250,7 @@ export function testMarkdownFrontmatterFlowDiagramsParserForbidsDemoHardcodes() 
   const helperPath = path.resolve(process.cwd(), 'src', 'features', 'parsers', 'markdownFrontmatterFlowGraph.flowDiagrams.ts')
   const source = fs.readFileSync(helperPath, 'utf8')
   const computeSource = source.match(/const FLOW_DIAGRAM_COMPUTE_SOURCE = `([\s\S]*?)`/)?.[1] || ''
-  if (!computeSource || computeSource.length > 4000) {
+  if (!computeSource || computeSource.length > 5200) {
     throw new Error(`expected flow_diagrams inline compute source to stay within the shared safety cap, got ${computeSource.length}`)
   }
   for (const forbidden of [

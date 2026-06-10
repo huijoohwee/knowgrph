@@ -65,6 +65,23 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
     '            Source fields : KTV values',
     '          section Compute',
     '            Inline compute : Summary output',
+    '    system_architecture:',
+    '      key: system_architecture',
+    '      type: mermaid_architecture',
+    '      value: |-',
+    '        architecture-beta',
+    '          group cloud(cloud)[Cloud]',
+    '          service agent(server)[Agent API] in cloud',
+    '          service mcp(server)[MCP Worker] in cloud',
+    '          agent:R --> L:mcp',
+    '    run_events:',
+    '      key: run_events',
+    '      type: mermaid_eventmodeling',
+    '      value: |-',
+    '        eventmodeling',
+    '        tf 01 ui UserBrief',
+    '        tf 02 cmd StartRun',
+    '        tf 03 evt RunStarted',
     '---',
     '',
     '# Flow diagrams',
@@ -105,6 +122,32 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
   if (!computeEvent) {
     throw new Error('expected Timeline parser model to expose chronology event rows')
   }
+
+  const architectureCode = resolveMermaidDiagramCode(
+    readYamlFrontmatterMermaidDiagramCodes(markdown, 'architecture'),
+    'architecture',
+  )
+  if (!architectureCode.includes('architecture-beta') || !architectureCode.includes('service agent')) {
+    throw new Error('expected typed mermaid_architecture frontmatter to resolve Architecture code')
+  }
+  const architectureModel = parseMermaidDiagramCodeModel(architectureCode, 'architecture')
+  const serviceRow = architectureModel.rows.find(row => row.kind === 'service' && row.label === 'agent')
+  if (!serviceRow) {
+    throw new Error('expected Architecture parser model to expose service rows')
+  }
+
+  const eventModelingCode = resolveMermaidDiagramCode(
+    readYamlFrontmatterMermaidDiagramCodes(markdown, 'eventmodeling'),
+    'eventmodeling',
+  )
+  if (!eventModelingCode.includes('eventmodeling') || !eventModelingCode.includes('RunStarted')) {
+    throw new Error('expected typed mermaid_eventmodeling frontmatter to resolve Event Modeling code')
+  }
+  const eventModel = parseMermaidDiagramCodeModel(eventModelingCode, 'eventmodeling')
+  const eventRow = eventModel.rows.find(row => row.kind === 'event' && row.label === 'RunStarted')
+  if (!eventRow) {
+    throw new Error('expected Event Modeling parser model to expose event rows')
+  }
 }
 
 export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
@@ -138,6 +181,25 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
                 '    Render Timeline : BottomPanel route',
               ].join('\n'),
             },
+            system_architecture: {
+              key: 'system_architecture',
+              type: 'mermaid_architecture',
+              value: [
+                'architecture-beta',
+                '  group cloud(cloud)[Cloud]',
+                '  service mcp(server)[MCP Worker] in cloud',
+              ].join('\n'),
+            },
+            run_events: {
+              key: 'run_events',
+              type: 'mermaid_eventmodeling',
+              value: [
+                'eventmodeling',
+                'tf 01 ui UserBrief',
+                'tf 02 cmd StartRun',
+                'tf 03 evt RunStarted',
+              ].join('\n'),
+            },
           },
         },
       },
@@ -158,6 +220,22 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
   )
   if (!timelineCode.includes('Render Timeline')) {
     throw new Error('expected parsed graph frontmatter metadata to resolve typed Timeline code')
+  }
+
+  const architectureCode = resolveMermaidDiagramCode(
+    readFrontmatterMermaidDiagramCodes(graphData, 'architecture'),
+    'architecture',
+  )
+  if (!architectureCode.includes('MCP Worker')) {
+    throw new Error('expected parsed graph frontmatter metadata to resolve typed Architecture code')
+  }
+
+  const eventModelingCode = resolveMermaidDiagramCode(
+    readFrontmatterMermaidDiagramCodes(graphData, 'eventmodeling'),
+    'eventmodeling',
+  )
+  if (!eventModelingCode.includes('RunStarted')) {
+    throw new Error('expected parsed graph frontmatter metadata to resolve typed Event Modeling code')
   }
 }
 
@@ -257,7 +335,13 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   ) {
     throw new Error('expected Mermaid GitGraph/Gantt/Timeline selected rows to live in shared store state for BottomPanel/FloatingPanel sync')
   }
-  if (!bottomTypeText.includes("'gantt'") || !bottomTypeText.includes("'timeline'") || !bottomTypeText.includes("'documentVersionGraph'")) {
+  if (
+    !bottomTypeText.includes("'gantt'") ||
+    !bottomTypeText.includes("'timeline'") ||
+    !bottomTypeText.includes("'architecture'") ||
+    !bottomTypeText.includes("'eventModeling'") ||
+    !bottomTypeText.includes("'documentVersionGraph'")
+  ) {
     throw new Error('expected BottomSurfaceTab to keep document-version graph separate from first-class Mermaid tabs')
   }
   if (
@@ -280,15 +364,21 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !canvasViewTypesText.includes("'control:gitGraph'") ||
     !canvasViewTypesText.includes("'control:gantt'") ||
     !canvasViewTypesText.includes("'control:timeline'") ||
+    !canvasViewTypesText.includes("'control:architecture'") ||
+    !canvasViewTypesText.includes("'control:eventModeling'") ||
     !canvasViewMenuText.includes("id: 'control:gitGraph'") ||
     !canvasViewMenuText.includes("id: 'control:gantt'") ||
-    !canvasViewMenuText.includes("id: 'control:timeline'")
+    !canvasViewMenuText.includes("id: 'control:timeline'") ||
+    !canvasViewMenuText.includes("id: 'control:architecture'") ||
+    !canvasViewMenuText.includes("id: 'control:eventModeling'")
   ) {
-    throw new Error('expected Canvas View Display Controls to expose BottomPanel GitGraph, Gantt, and Timeline controls')
+    throw new Error('expected Canvas View Display Controls to expose BottomPanel GitGraph, Gantt, Timeline, Architecture, and Event Model controls')
   }
   if (
     !canvasViewActionsText.includes("const nextTab: BottomSurfaceTab = 'timeline'") ||
-    !canvasViewActionsText.includes("id === 'control:gitGraph' || id === 'control:gantt'") ||
+    !canvasViewActionsText.includes("id === 'control:gitGraph' || id === 'control:gantt' || id === 'control:architecture' || id === 'control:eventModeling'") ||
+    !canvasViewActionsText.includes("? 'architecture'") ||
+    !canvasViewActionsText.includes(": 'eventModeling'") ||
     !canvasViewActionsText.includes("setBottomSurfaceTab(nextTab)") ||
     !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)') ||
     !canvasViewSelectText.includes('setBottomSurfaceTab: s.setBottomSurfaceTab')
@@ -308,21 +398,29 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   if (
     !bottomPanelText.includes('GanttBottomPanelViewLazy') ||
     !bottomPanelText.includes('TimelineBottomPanelViewLazy') ||
+    !bottomPanelText.includes('ArchitectureBottomPanelViewLazy') ||
+    !bottomPanelText.includes('EventModelingBottomPanelViewLazy') ||
     !bottomPanelText.includes('GitGraphBottomPanelViewLazy') ||
     !bottomPanelText.includes('DocumentVersionGitGraphPanelLazy') ||
     !bottomPanelText.includes("bottomSurfaceTab === 'documentVersionGraph'") ||
     !bottomPanelText.includes("setBottomSurfaceTab('documentVersionGraph')") ||
     !bottomPanelText.includes("bottomSurfaceTab === 'gantt'") ||
     !bottomPanelText.includes("bottomSurfaceTab === 'timeline'") ||
+    !bottomPanelText.includes("bottomSurfaceTab === 'architecture'") ||
+    !bottomPanelText.includes("bottomSurfaceTab === 'eventModeling'") ||
     !bottomPanelText.includes("view === 'documentVersionGraph'") ||
     !bottomPanelText.includes("view === 'gitGraph'") ||
     !bottomPanelText.includes("view === 'gantt'") ||
     !bottomPanelText.includes("view === 'timeline'") ||
+    !bottomPanelText.includes("view === 'architecture'") ||
+    !bottomPanelText.includes("view === 'eventModeling'") ||
     !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-document-version-graph-toggle') ||
     !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-gantt-toggle') ||
-    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-timeline-toggle')
+    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-timeline-toggle') ||
+    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-architecture-toggle') ||
+    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-event-modeling-toggle')
   ) {
-    throw new Error('expected BottomPanel to route separate Version Graph, GitGraph, Gantt, and Timeline tabs')
+    throw new Error('expected BottomPanel to route separate Version Graph, GitGraph, Gantt, Timeline, Architecture, and Event Model tabs')
   }
   if (!iconText.includes("'floatingPanel.gantt'") || !iconText.includes("'floatingPanel.timeline'") || !iconText.includes('ChartGantt') || !iconText.includes('HistoryIcon')) {
     throw new Error('expected Gantt and Timeline icon ownership to live in the shared FloatingPanel type icon registry')
@@ -550,6 +648,14 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   }
   if (!resolverText.includes('mermaid_timeline') || !resolverText.includes('readTimelineRowKind')) {
     throw new Error('expected typed Timeline parsing to live in the shared resolver')
+  }
+  if (
+    !resolverText.includes('mermaid_architecture') ||
+    !resolverText.includes('mermaid_eventmodeling') ||
+    !resolverText.includes('readArchitectureRowKind') ||
+    !resolverText.includes('readEventModelingRowKind')
+  ) {
+    throw new Error('expected typed Architecture and Event Modeling parsing to live in the shared resolver')
   }
   const sharedGanttModel = parseMermaidDiagramCodeModel([
     'gantt',
