@@ -1,6 +1,6 @@
-# Knowgrph
+# Agentic Canvas
 
-**Tagline:** The document is the program. The canvas runs itself.
+**Tagline:** The canvas that runs document like a program
 
 Knowgrph is an **AI/LLM-agent-native, markdown-based, self-runnable agentic
 widget canvas**. A Knowgrph document is plain Markdown with a typed YAML
