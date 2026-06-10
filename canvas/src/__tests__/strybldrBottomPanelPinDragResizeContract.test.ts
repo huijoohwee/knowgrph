@@ -18,6 +18,8 @@ export function testStrybldrBottomPanelUnpinDragReusesResizeRuntime() {
     'clampOverlayTopLeftToViewport',
     'data-kg-strybldr-bottom-timeline-pinned',
     'data-kg-strybldr-bottom-timeline-drag-enabled',
+    'data-kg-floating-panel-root="true"',
+    "data-kg-canvas-overlay-drag-handle={!pinned && !minimized ? 'true' : undefined}",
     '<RichMediaPanelResizeHandle placement="panel"',
     "pinned && 'kg-canvas-bottom-panel--pinned'",
     "!pinned && 'cursor-move'",
