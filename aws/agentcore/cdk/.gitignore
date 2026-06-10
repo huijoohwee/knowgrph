@@ -1,0 +1,6 @@
+# CDK synth output and local deps — never committed.
+cdk.out/
+node_modules/
+*.d.ts
+*.js.snapshot/
+.cdk.staging/

@@ -1,0 +1,20 @@
+{
+  "name": "@knowgrph/agentcore",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgentCore Runtime artifact for the agentic-canvas-os AWS tier: a thin, stateless streamable-HTTP MCP server (0.0.0.0:8000/mcp) that forwards to the knowgrph Cloudflare control plane. Holds no model provider keys and invokes no paid model directly (R11 / decision 13.0).",
+  "license": "MIT",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test __tests__/*.test.mjs",
+    "agentcore:test": "node --test __tests__/*.test.mjs",
+    "agentcore:configure": "agentcore configure --entrypoint src/server.js --protocol MCP --arm64"
+  },
+  "devDependencies": {
+    "@aws/agentcore": "0.19.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@knowgrph/agentcore-cdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AWS CDK infrastructure-as-code for the AWS Bedrock AgentCore Runtime execution role: least-privilege ECR pull + CloudWatch Logs + S3 artifact access, with NO bedrock:InvokeModel* and NO model provider keys (knowgrph-acos-mcp-connector task 13.3).",
+  "license": "MIT",
+  "bin": {
+    "agentcore-cdk": "bin/app.js"
+  },
+  "scripts": {
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.100.0",
+    "constructs": "10.3.0"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.100.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

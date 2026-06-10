@@ -1,0 +1,11 @@
+# Build context is `knowgrph/aws/`; keep the image minimal and keyless.
+**/node_modules
+**/__tests__
+**/__pbt__
+**/coverage
+**/.git
+**/.env
+**/.env.*
+**/*.log
+agent-api/cdk
+agentcore/README.md
