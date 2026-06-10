@@ -13,6 +13,9 @@
     "@aws-sdk/client-secrets-manager": "3.940.0",
     "jsonwebtoken": "9.0.2"
   },
+  "overrides": {
+    "fast-xml-parser": "5.8.0"
+  },
   "engines": {
     "node": ">=18"
   }
