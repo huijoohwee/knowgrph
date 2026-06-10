@@ -1,7 +1,20 @@
 /*
-  X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+
+# The /knowgrph canvas is embedded by the agentic-canvas-os Vercel product
+# tier (airvio.co/knowgrph framed by *.vercel.app for 100% fidelity).
+# frame-ancestors replaces X-Frame-Options: DENY on the canvas paths only.
+# All other paths remain non-embeddable (frame-ancestors 'self' is restrictive).
+/knowgrph*
+  Content-Security-Policy: frame-ancestors 'self' https://*.vercel.app https://*.joohwee.pages.dev
+  X-Content-Type-Options: nosniff
+
+/knowgrph/doc-view
+  Cache-Control: no-store, no-cache, must-revalidate
+  Content-Security-Policy: frame-ancestors 'self' https://*.vercel.app https://*.joohwee.pages.dev
+
+# All other routes stay frame-denied
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
