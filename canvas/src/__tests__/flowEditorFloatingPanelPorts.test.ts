@@ -254,9 +254,9 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     || !toolbarLauncherText.includes("? 'flowEditor'")) {
     throw new Error('expected shared floating-panel open bridge to accept FlowEditor without a local alias')
   }
-  if (!configRenderText.includes("ToolbarRunAllFloatingPanelTab = 'flowEditor' | 'strybldr'")
-    || !configRenderText.includes("if (id === 'flowEditor') return 'flowEditor'")) {
-    throw new Error('expected FlowEditor Run All to mount the shared FloatingPanel consumer')
+  if (!configRenderText.includes("ToolbarRunAllFloatingPanelTab = 'strybldr'")
+    || configRenderText.includes("if (id === 'flowEditor') return 'flowEditor'")) {
+    throw new Error('expected FlowEditor Run All to keep its always-mounted canvas runtime consumer')
   }
   if (!panelText.includes('KeyTypeValueHeader')
     || !panelText.includes('KeyTypeValueRow')

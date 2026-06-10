@@ -403,7 +403,7 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(supportsToolbarRunAll('flowEditor'), 'expected Flow Editor to keep Toolbar Run All dispatch')
   assert(canvasViewportText.includes('StrybldrTimelineBottomPanelLazy'), 'expected Strybldr timeline to mount as the CanvasViewport bottom panel')
   assert(canvasViewportText.includes('workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}'), 'expected Timeline bottom panel to receive Editor Workspace overlay state from CanvasViewport')
-  assert(!floatingPanelText.includes("floatingPanelView === 'timeline'"), 'expected Timeline to stay out of the FloatingPanel view registry')
+  assert(floatingPanelText.includes("floatingPanelView === 'timeline'"), 'expected Timeline to remain in the FloatingPanel view registry')
   assert(timelineVisibilityText.includes('TIMELINE_ENABLED_DEFAULT'), 'expected Timeline visibility default to live in shared timeline utils')
   assert(timelineVisibilityText.includes('shouldRenderTimelineSurface'), 'expected Timeline visibility gating to live in shared timeline utils')
   assert(timelineBottomPanelText.includes('HeaderActions'), 'expected Timeline bottom panel to reuse shared panel header actions')
