@@ -13,6 +13,8 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
 const FLOW_DIAGRAM_SAMPLE_PATHS_ENV = 'FLOW_DIAGRAM_SAMPLE_PATHS'
+const AGENTIC_CANVAS_OS_DEMO_SAMPLE_PATH_ENV = 'KNOWGRPH_ACOS_DEMO_DOC_PATH'
+const CHARTED_FLOW_DIAGRAM_KINDS = new Set(['gitgraph', 'gantt'])
 
 const parsePathList = (raw: string): string[] => (
   String(raw || '')
@@ -124,6 +126,19 @@ const readPublishedFlowDiagramSamplePaths = (): string[] => {
   return Array.from(new Set(discovered)).sort((a, b) => a.localeCompare(b))
 }
 
+const readAgenticCanvasOsDemoSamplePaths = (): string[] => {
+  const explicit = String(process.env[AGENTIC_CANVAS_OS_DEMO_SAMPLE_PATH_ENV] || '').trim()
+  if (explicit && isFile(path.resolve(explicit))) return [path.resolve(explicit)]
+  const out: string[] = []
+  for (const root of readPublishedDocsRootCandidates()) {
+    for (const basename of ['knowgrph-mcp-agentic-canvas-os-demo.md', 'knowgrph-agentic-canvas-os-demo.md']) {
+      const candidate = path.join(root, basename)
+      if (isFile(candidate)) out.push(candidate)
+    }
+  }
+  return Array.from(new Set(out))
+}
+
 const RENDER_PORT_KEYS = ['output', 'imageUrl', 'audioUrl', 'videoUrl', 'outputSrcDoc'] as const
 
 const readProps = (node: GraphNode | null | undefined): Record<string, unknown> => (
@@ -160,6 +175,7 @@ const validateDynamicRichMediaDataflow = (args: {
   graphData: GraphData
   registry: WidgetRegistryEntry[]
   samplePath: string
+  diagramOnly?: boolean
 }): {
   connectedPanelCount: number
   inlineComputeBackedPanelCount: number
@@ -171,6 +187,8 @@ const validateDynamicRichMediaDataflow = (args: {
   for (const edge of args.graphData.edges) {
     const targetNode = nodesById.get(String(edge.target || ''))
     if (!targetNode || !isRichMediaPanelNode(targetNode)) continue
+    const targetProps = readProps(targetNode)
+    if (args.diagramOnly && !String(targetProps.diagramKind || '').trim()) continue
     const targetPort = readEdgePort(edge, FLOW_EDGE_TARGET_PORT_KEY)
     if (!isRenderablePort(targetPort)) continue
     const sourcePort = readEdgePort(edge, FLOW_EDGE_SOURCE_PORT_KEY)
@@ -229,13 +247,14 @@ const validateDynamicRichMediaDataflow = (args: {
         }
       }
       if (diagramKind && portKey === 'outputSrcDoc') {
-        if (
+        const missingSharedMarkup =
           !rendered.includes(`data-kg-flow-diagram-kind="${diagramKind}"`)
           || !rendered.includes('First-class terms')
-          || !rendered.includes("data-kg-flow-diagram-chart='1'")
           || !rendered.includes('data-kg-mermaid-source="1"')
-        ) {
-          throw new Error(`expected ${args.samplePath} diagram panel ${panelId} to render computed ${diagramKind} chart, source, and term coverage`)
+        const missingChartMarkup = CHARTED_FLOW_DIAGRAM_KINDS.has(diagramKind)
+          && !rendered.includes("data-kg-flow-diagram-chart='1'")
+        if (missingSharedMarkup || missingChartMarkup) {
+          throw new Error(`expected ${args.samplePath} diagram panel ${panelId} to render computed ${diagramKind} source and term coverage`)
         }
         diagramKinds.add(diagramKind)
       }
@@ -295,5 +314,27 @@ export function testMarkdownFrontmatterFlowGraphFidelityPublishedFlowDiagramDocs
   }
   if (samplesWithGitGraphAndGanttPanels < checked) {
     throw new Error(`expected every available published sample to compute GitGraph and Gantt Rich Media Panels, got ${samplesWithGitGraphAndGanttPanels} across ${checked}`)
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphPublishedAgenticCanvasOsDemoArchitectureAndEventModeling() {
+  const samplePaths = readAgenticCanvasOsDemoSamplePaths()
+  if (samplePaths.length === 0) return
+  for (const samplePath of samplePaths) {
+    const md = fs.readFileSync(samplePath, 'utf8')
+    if (!/\btype\s*:\s*mermaid_architecture\b/i.test(md) || !/\btype\s*:\s*mermaid_eventmodeling\b/i.test(md)) {
+      throw new Error(`expected ${samplePath} to declare typed Architecture and Event Modeling flow_diagrams`)
+    }
+    assertNoStaleRenderablePanelAuthority(samplePath, md)
+    assertNoAuthoredGeneratedFlowDiagramBackfill(samplePath, md)
+    const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+    if (!res) throw new Error(`expected frontmatter parse result for ${samplePath}`)
+    const registry = Array.isArray((res.graphData.metadata || {})[FLOW_WIDGET_REGISTRY_METADATA_KEY])
+      ? (res.graphData.metadata || {})[FLOW_WIDGET_REGISTRY_METADATA_KEY] as WidgetRegistryEntry[]
+      : []
+    const result = validateDynamicRichMediaDataflow({ graphData: res.graphData, registry, samplePath, diagramOnly: true })
+    if (!result.diagramKinds.has('architecture') || !result.diagramKinds.has('eventmodeling')) {
+      throw new Error(`expected ${samplePath} to compute Architecture and Event Modeling Rich Media Panels`)
+    }
   }
 }

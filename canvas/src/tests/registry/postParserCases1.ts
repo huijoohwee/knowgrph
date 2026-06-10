@@ -598,6 +598,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["markdown.frontmatterFlowGraph.flowDiagrams.largeMarkdownParserPath","@/__tests__/markdownFrontmatterFlowDiagrams.test","testMarkdownFrontmatterFlowDiagramsKeepLargeMarkdownOnFlowParserPath"],
   ["markdown.frontmatterFlowGraph.flowDiagrams.forbidsDemoHardcodes","@/__tests__/markdownFrontmatterFlowDiagrams.test","testMarkdownFrontmatterFlowDiagramsParserForbidsDemoHardcodes"],
   ["markdown.frontmatterFlowGraph.fidelity.publishedFlowDiagramDocs.dynamicPanels","@/__tests__/markdownFrontmatterFlowGraphPublishedDynamicPanels.test","testMarkdownFrontmatterFlowGraphFidelityPublishedFlowDiagramDocsDynamicPanels"],
+  ["markdown.frontmatterFlowGraph.fidelity.agenticCanvasOsDemo.architectureEventModeling","@/__tests__/markdownFrontmatterFlowGraphPublishedDynamicPanels.test","testMarkdownFrontmatterFlowGraphPublishedAgenticCanvasOsDemoArchitectureAndEventModeling"],
   ["parser.mermaid.typedDiagrams.frontmatterGitGraphAndGantt","@/__tests__/mermaidGanttPanelRouting.test","testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter"],
   ["parser.mermaid.typedDiagrams.graphMetadata","@/__tests__/mermaidGanttPanelRouting.test","testTypedMermaidDiagramResolverReadsParsedGraphMetadata"],
   ["ui.mermaidPanels.gitGraphGantt.directSvgGeometrySelection","@/__tests__/mermaidGanttPanelRouting.test","testInteractiveMermaidSelectionAnnotatesSiblingChartGeometry"],

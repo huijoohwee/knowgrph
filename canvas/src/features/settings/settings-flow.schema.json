@@ -10050,6 +10050,114 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-openai-mcp.ts:L84"
   },
+  "operatorDeploy.mcp.endpoint": {
+    "area": "—",
+    "responsibility": "endpoint",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.agentApiUrl": {
+    "area": "—",
+    "responsibility": "agent api url",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.agentCoreEndpoint": {
+    "area": "—",
+    "responsibility": "agent core endpoint",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.frontendUrl": {
+    "area": "—",
+    "responsibility": "frontend url",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.awsRegion": {
+    "area": "—",
+    "responsibility": "aws region",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.authJwtSecretName": {
+    "area": "—",
+    "responsibility": "auth jwt secret name",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.mode": {
+    "area": "—",
+    "responsibility": "mode",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.liveClientsEnabled": {
+    "area": "—",
+    "responsibility": "live clients enabled",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "operatorDeploy.mcp.cloudDeployApproved": {
+    "area": "—",
+    "responsibility": "cloud deploy approved",
+    "notes": "",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
   "payments.stripe.mode": {
     "area": "Stripe Payment API",
     "responsibility": "Stripe mode label (test vs live)",

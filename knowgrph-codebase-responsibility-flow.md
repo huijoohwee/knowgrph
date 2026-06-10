@@ -284,6 +284,15 @@
 | OpenAI MCP Server Configuration | Remote MCP server_url for ChatGPT Apps and Responses API | `canvas/src/features/settings/registry-openai-mcp.ts` | `` | `` | `openai.mcp.serverUrl` | `localStorage` |  | `canvas/src/features/settings/registry-openai-mcp.ts:L27` |
 | OpenAI MCP Server Configuration | Remote MCP transport for the custom server | `canvas/src/features/settings/registry-openai-mcp.ts` | `` | `` | `openai.mcp.transport` | `localStorage` |  | `canvas/src/features/settings/registry-openai-mcp.ts:L33` |
 | OpenAI MCP Server Configuration | Server-side vector store id env var name (VECTOR_STORE_ID) | `canvas/src/features/settings/registry-openai-mcp.ts` | `` | `` | `openai.mcp.vectorStoreEnv` | `localStorage` |  | `canvas/src/features/settings/registry-openai-mcp.ts:L70` |
+| — | agent api url | `` | `` | `` | `operatorDeploy.mcp.agentApiUrl` | `localStorage` |  | `` |
+| — | agent core endpoint | `` | `` | `` | `operatorDeploy.mcp.agentCoreEndpoint` | `localStorage` |  | `` |
+| — | auth jwt secret name | `` | `` | `` | `operatorDeploy.mcp.authJwtSecretName` | `localStorage` |  | `` |
+| — | aws region | `` | `` | `` | `operatorDeploy.mcp.awsRegion` | `localStorage` |  | `` |
+| — | cloud deploy approved | `` | `` | `` | `operatorDeploy.mcp.cloudDeployApproved` | `localStorage` |  | `` |
+| — | endpoint | `` | `` | `` | `operatorDeploy.mcp.endpoint` | `localStorage` |  | `` |
+| — | frontend url | `` | `` | `` | `operatorDeploy.mcp.frontendUrl` | `localStorage` |  | `` |
+| — | live clients enabled | `` | `` | `` | `operatorDeploy.mcp.liveClientsEnabled` | `localStorage` |  | `` |
+| — | mode | `` | `` | `` | `operatorDeploy.mcp.mode` | `localStorage` |  | `` |
 | Orchestrator Traversal | Delay between traversal steps in Orchestrator (ms) | `` | `` | `` | `orchestratorTraversalDelayMs` | `localStorage` |  | `` |
 | Stripe Payment API | Stripe account id (optional, Connect) | `canvas/src/features/settings/registry-payments.ts` | `` | `` | `payments.stripe.accountId` | `localStorage` |  | `canvas/src/features/settings/registry-payments.ts:L65` |
 | — | checkout url | `canvas/src/features/settings/registry-payments.ts, canvas/src/hooks/store/store-types/graph-state-chat-import.ts, canvas/src/hooks/store/uiSliceInitialState.ts` | `` | `setPaymentsStripeCheckoutUrl` | `payments.stripe.checkoutUrl` | `zustand` |  | `canvas/src/features/settings/registry-payments.ts:L87; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L195; canvas/src/hooks/store/uiSliceInitialState.ts:L187` |

@@ -100,7 +100,10 @@ function readDiagramSpecs(rawFlowDiagrams: unknown): DiagramSpec[] {
   const specs: DiagramSpec[] = []
   const seenKeys = new Set<string>()
   for (const [entryKey, rawEntry] of Object.entries(rootRecord)) {
-    const entry = asRecord(unwrapTypedEnvelope(rawEntry, entryKey))
+    const rawEntryRecord = asRecord(rawEntry)
+    const entry = rawEntryRecord && (Object.prototype.hasOwnProperty.call(rawEntryRecord, 'type') || Object.prototype.hasOwnProperty.call(rawEntryRecord, 'value'))
+      ? rawEntryRecord
+      : asRecord(unwrapTypedEnvelope(rawEntry, entryKey))
     if (!entry) continue
     const key = asString(entry.key) || entryKey
     const cleanKey = cleanIdPart(key)
