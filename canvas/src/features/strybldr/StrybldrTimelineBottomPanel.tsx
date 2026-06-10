@@ -5,21 +5,25 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_SELECTORS } from '@/lib/config'
 import { WORKSPACE_LEFT_PANE_SELECTOR } from '@/lib/canvas/viewportMeasureElement'
-import { HorizontalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
+import { beginRichMediaPanelResizeDrag, RichMediaPanelResizeHandle } from '@/components/RichMediaPanel'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
-import { bindResizeSeparatorDragRuntime } from '@/lib/ui/resizeSeparatorDrag'
+import { beginOverlayPanelPositionDrag } from '@/lib/ui/overlayPanelDrag'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { ChartGantt, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
 
 type TimelineBottomPanelPosition = {
   top: number
   left: number
+}
+
+type TimelineBottomPanelSize = {
+  width: number
+  height: number
 }
 
 type TimelineBottomPanelView =
@@ -37,6 +41,8 @@ const TIMELINE_BOTTOM_PANEL_MIN_HEIGHT_RATIO = 0.18
 const TIMELINE_BOTTOM_PANEL_MAX_HEIGHT_RATIO = 0.62
 const TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX = 672
 const TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX = 384
+const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_WIDTH_PX = 320
+const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_HEIGHT_PX = 112
 const GitGraphBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GitGraphBottomPanelView').then(mod => ({ default: mod.GitGraphBottomPanelView })),
 )
@@ -108,17 +114,12 @@ export function StrybldrTimelineBottomPanel({
   const rootLayerRef = React.useRef<HTMLElement | null>(null)
   const layerRef = React.useRef<HTMLElement | null>(null)
   const panelRef = React.useRef<HTMLElement | null>(null)
-  const resizeHandleRef = React.useRef<HTMLHRElement | null>(null)
-  const dragStateRef = React.useRef<{
-    startX: number
-    startY: number
-    startTop: number
-    startLeft: number
-  } | null>(null)
+  const resizeStateRef = React.useRef<TimelineBottomPanelSize | null>(null)
   const [pinned, setPinned] = React.useState(true)
   const [minimized, setMinimized] = React.useState(false)
   const [view, setView] = React.useState<TimelineBottomPanelView>(initialView)
   const [position, setPosition] = React.useState<TimelineBottomPanelPosition | null>(null)
+  const [panelSizePx, setPanelSizePx] = React.useState<TimelineBottomPanelSize | null>(null)
   const [workspaceLayerInsetLeft, setWorkspaceLayerInsetLeft] = React.useState(0)
   const bottomSurfaceCollapsed = useGraphStore(s => s.bottomSurfaceCollapsed)
   const bottomSurfaceHeightRatio = useGraphStore(s => s.bottomSurfaceHeightRatio)
@@ -179,10 +180,6 @@ export function StrybldrTimelineBottomPanel({
     }
   }, [updateWorkspaceLayerInsetLeft])
 
-  const readCurrentBottomSurfaceHeightRatio = React.useCallback(() => {
-    return clampTimelineBottomPanelHeightRatio(bottomSurfaceHeightRatio)
-  }, [bottomSurfaceHeightRatio])
-
   const getPanelSize = React.useCallback(() => {
     const rect = panelRef.current?.getBoundingClientRect()
     const width = rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE.width
@@ -200,23 +197,6 @@ export function StrybldrTimelineBottomPanel({
     if (typeof window !== 'undefined') return { width: window.innerWidth, height: window.innerHeight }
     return TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE
   }, [getLayerRect])
-
-  React.useEffect(() => {
-    const el = resizeHandleRef.current
-    if (!el || !pinned || minimized) return undefined
-    return bindResizeSeparatorDragRuntime<number>({
-      resizeHandleEl: el,
-      cursor: 'row-resize',
-      readCurrentValue: readCurrentBottomSurfaceHeightRatio,
-      setPreviewValue: next => setBottomSurfaceHeightRatio(clampTimelineBottomPanelHeightRatio(next)),
-      commitValue: next => setBottomSurfaceHeightRatio(clampTimelineBottomPanelHeightRatio(next)),
-      resolveNextValueFromPointerDrag: input => {
-        const layerHeight = getLayerSize().height
-        if (!Number.isFinite(layerHeight) || layerHeight <= 0) return input.startValue
-        return clampTimelineBottomPanelHeightRatio(input.startValue - input.deltaY / layerHeight)
-      },
-    })
-  }, [getLayerSize, minimized, pinned, readCurrentBottomSurfaceHeightRatio, setBottomSurfaceHeightRatio])
 
   const resolveLayerRelativePosition = React.useCallback((rect: DOMRect) => {
     const layerRect = getLayerRect()
@@ -245,6 +225,19 @@ export function StrybldrTimelineBottomPanel({
       left: (layerSize.width - width) / 2,
     })
   }, [clampPosition, getLayerSize, getPanelSize])
+
+  const clampPanelSize = React.useCallback((next: TimelineBottomPanelSize) => {
+    const layerSize = getLayerSize()
+    const maxWidth = Math.max(TIMELINE_BOTTOM_PANEL_MIN_RESIZE_WIDTH_PX, layerSize.width - TIMELINE_BOTTOM_PANEL_VISIBLE_PX)
+    const maxHeight = Math.max(
+      TIMELINE_BOTTOM_PANEL_MIN_RESIZE_HEIGHT_PX,
+      Math.min(layerSize.height * TIMELINE_BOTTOM_PANEL_MAX_HEIGHT_RATIO, TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX),
+    )
+    return {
+      width: Math.max(TIMELINE_BOTTOM_PANEL_MIN_RESIZE_WIDTH_PX, Math.min(maxWidth, next.width)),
+      height: Math.max(TIMELINE_BOTTOM_PANEL_MIN_RESIZE_HEIGHT_PX, Math.min(maxHeight, next.height)),
+    }
+  }, [getLayerSize])
 
   React.useEffect(() => {
     if (pinned) return
@@ -324,49 +317,60 @@ export function StrybldrTimelineBottomPanel({
   const handleHeaderPointerDown = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     event.stopPropagation()
     if (pinned) return
-    if (event.pointerType === 'mouse' && event.button !== 0) return
     const target = event.target
     if (target instanceof Element && target.closest(UI_SELECTORS.draggablePanelIgnorePointerDown)) return
     const rect = panelRef.current?.getBoundingClientRect()
     if (!rect) return
-    const relativePosition = resolveLayerRelativePosition(rect)
-    dragStateRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      startTop: relativePosition.top,
-      startLeft: relativePosition.left,
-    }
     const scheduler = dragSchedulerRef.current
-    startPointerDrag({
-      ev: event.nativeEvent,
+    beginOverlayPanelPositionDrag({
+      event,
       cursor: 'grabbing',
-      onMove: moveEvent => {
-        const state = dragStateRef.current
-        if (!state) return
-        scheduler.schedule(clampPosition({
-          top: state.startTop + moveEvent.clientY - state.startY,
-          left: state.startLeft + moveEvent.clientX - state.startX,
-        }))
+      readStartPosition: () => {
+        const currentRect = panelRef.current?.getBoundingClientRect()
+        return currentRect ? resolveLayerRelativePosition(currentRect) : null
       },
-      onEnd: () => {
-        dragStateRef.current = null
-        scheduler.flush()
-      },
-      onCancel: () => {
-        dragStateRef.current = null
-        scheduler.cancel()
-      },
+      clampPosition,
+      schedulePosition: next => scheduler.schedule(next),
+      flushPosition: () => scheduler.flush(),
+      cancelPosition: () => scheduler.cancel(),
     })
   }, [clampPosition, pinned, resolveLayerRelativePosition])
 
+  const handleResizePointerDown = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    beginRichMediaPanelResizeDrag({
+      event,
+      onResizeStart: () => {
+        resizeStateRef.current = clampPanelSize(getPanelSize())
+      },
+      onResize: ({ dx, dy }) => {
+        const start = resizeStateRef.current
+        if (!start) return
+        const next = clampPanelSize({
+          width: start.width + dx,
+          height: start.height + dy,
+        })
+        setPanelSizePx(next)
+        if (!pinned) return
+        const layerHeight = getLayerSize().height
+        if (Number.isFinite(layerHeight) && layerHeight > 0) {
+          setBottomSurfaceHeightRatio(clampTimelineBottomPanelHeightRatio(next.height / layerHeight))
+        }
+      },
+      onResizeEnd: () => {
+        resizeStateRef.current = null
+      },
+    })
+  }, [clampPanelSize, getLayerSize, getPanelSize, pinned, setBottomSurfaceHeightRatio])
+
   const resolvedBottomSurfaceHeightRatio = clampTimelineBottomPanelHeightRatio(bottomSurfaceHeightRatio)
   const expandedPinnedHeightStyle = {
-    height: `clamp(9rem, ${Math.round(resolvedBottomSurfaceHeightRatio * 10000) / 100}dvh, 24rem)`,
+    width: panelSizePx ? `${panelSizePx.width}px` : undefined,
+    height: panelSizePx ? `${panelSizePx.height}px` : `clamp(9rem, ${Math.round(resolvedBottomSurfaceHeightRatio * 10000) / 100}dvh, 24rem)`,
     maxHeight: 'min(62dvh, 24rem)',
   }
   const expandedUnpinnedHeightStyle = {
-    width: `min(${TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX}px, calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)))`,
-    height: `min(${TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX}px, 44dvh)`,
+    width: panelSizePx ? `${panelSizePx.width}px` : `min(${TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX}px, calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)))`,
+    height: panelSizePx ? `${panelSizePx.height}px` : `min(${TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX}px, 44dvh)`,
     maxHeight: 'min(62dvh, 24rem)',
   }
   const panelHeightStyle = minimized
@@ -410,7 +414,7 @@ export function StrybldrTimelineBottomPanel({
           ariaLabel="Strybldr Timeline"
           ariaExpanded={!minimized}
           className={cn(
-            'pointer-events-auto ModalContainer flex min-h-0 flex-col overflow-hidden p-0',
+            'pointer-events-auto ModalContainer relative flex min-h-0 flex-col overflow-hidden p-0',
             UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME,
             pinned && 'kg-canvas-bottom-panel--pinned',
             UI_THEME_TOKENS.panel.bg,
@@ -424,15 +428,6 @@ export function StrybldrTimelineBottomPanel({
           data-kg-strybldr-bottom-timeline-pinned={pinned ? 'true' : 'false'}
           data-kg-strybldr-bottom-timeline-drag-enabled={!pinned && !minimized ? 'true' : 'false'}
         >
-          {pinned && !minimized ? (
-            <HorizontalResizeSeparatorHr
-              ref={resizeHandleRef}
-              ariaLabel="Resize bottom surface"
-              className="shrink-0"
-              data-kg-strybldr-bottom-timeline-resize-handle="top"
-              data-kg-resize-handle="n"
-            />
-          ) : null}
           <header
             className={cn('flex select-none items-center justify-between gap-2', !pinned && 'cursor-move')}
             style={{
@@ -596,6 +591,9 @@ export function StrybldrTimelineBottomPanel({
                 <StrybldrTimelinePanel active={active} />
               )}
             </section>
+          ) : null}
+          {!minimized ? (
+            <RichMediaPanelResizeHandle placement="panel" onPointerDown={handleResizePointerDown} />
           ) : null}
         </FloatingPanel>
       </section>

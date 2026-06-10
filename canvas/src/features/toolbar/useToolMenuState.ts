@@ -3,7 +3,7 @@ import type React from 'react'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
-import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { beginOverlayPanelPositionDrag } from '@/lib/ui/overlayPanelDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -26,12 +26,6 @@ export function useToolMenuState() {
   const toolMenuButtonRef = useRef<HTMLButtonElement | null>(null)
   const toolMenuCardRef = useRef<HTMLElement | null>(null)
   const [toolMenuDragPos, setToolMenuDragPos] = useState<ToolMenuDragPosition | null>(null)
-  const toolMenuDragStateRef = useRef<{
-    startX: number
-    startY: number
-    startTop: number
-    startLeft: number
-  } | null>(null)
   const dragSchedulerRef = useRef(createRafValueScheduler((pos: ToolMenuDragPosition) => setToolMenuDragPos(pos)))
 
   const clampToolMenuPos = useCallback((pos: ToolMenuDragPosition): ToolMenuDragPosition => {
@@ -59,47 +53,22 @@ export function useToolMenuState() {
 
   const handleToolMenuCardPointerDown = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
-      if (event.pointerType === 'mouse' && event.button !== 0) return
       const el = toolMenuCardRef.current
       if (!el) return
 
-      const rect = el.getBoundingClientRect()
-      toolMenuDragStateRef.current = {
-        startX: event.clientX,
-        startY: event.clientY,
-        startTop: rect.top,
-        startLeft: rect.left,
-      }
-
       const scheduler = dragSchedulerRef.current
 
-      startPointerDrag({
-        ev: event.nativeEvent,
+      beginOverlayPanelPositionDrag({
+        event,
         cursor: 'grabbing',
-        shouldStart: down => {
-          if (down.pointerType === 'mouse' && down.button !== 0) return false
-          return true
+        readStartPosition: () => {
+          const rect = el.getBoundingClientRect()
+          return { top: rect.top, left: rect.left }
         },
-        onMove: mv => {
-          const state = toolMenuDragStateRef.current
-          if (!state) return
-          const dx = mv.clientX - state.startX
-          const dy = mv.clientY - state.startY
-          scheduler.schedule(
-            clampToolMenuPos({
-              top: state.startTop + dy,
-              left: state.startLeft + dx,
-            }),
-          )
-        },
-        onEnd: () => {
-          toolMenuDragStateRef.current = null
-          scheduler.flush()
-        },
-        onCancel: () => {
-          toolMenuDragStateRef.current = null
-          scheduler.cancel()
-        },
+        clampPosition: clampToolMenuPos,
+        schedulePosition: position => scheduler.schedule(position),
+        flushPosition: () => scheduler.flush(),
+        cancelPosition: () => scheduler.cancel(),
       })
     },
     [clampToolMenuPos],

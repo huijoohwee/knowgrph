@@ -3,7 +3,7 @@ import { LS_KEYS, UI_LAYOUT } from '@/lib/config';
 import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
 import { usePinnedLs } from '@/lib/ui/panelPinned';
 import { clampOverlayCenterToViewport } from '@/lib/ui/overlayClamp';
-import { startPointerDrag } from 'grph-shared/dom/pointerDrag';
+import { beginOverlayPanelPositionDrag } from '@/lib/ui/overlayPanelDrag';
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler';
 import type { MainPanelTabKey } from '@/features/panels/mainPanelTabs';
 
@@ -25,12 +25,6 @@ export function useMainPanelDrag() {
   const [mainPanelRequestedAnchorSeq, setMainPanelRequestedAnchorSeq] = useState(0);
   const [mainPanelRequestedWorkflowManagerTab, setMainPanelRequestedWorkflowManagerTab] = useState<WorkflowManagerTabKey>('graph');
   const mainPanelCardRef = useRef<HTMLElement>(null);
-  const mainPanelDragStateRef = useRef<{
-    startX: number;
-    startY: number;
-    startTop: number;
-    startLeft: number;
-  } | null>(null);
   const mainPanelDragPosRef = useRef<{ top: number; left: number } | null>(null);
   const dragSchedulerRef = useRef(createRafValueScheduler((pos: { top: number; left: number }) => setMainPanelDragPosSynced(pos)));
   const { pinned: mainPanelPinned, setPinned: setMainPanelPinned } = usePinnedLs(LS_KEYS.mainPanelPinned, true);
@@ -126,48 +120,30 @@ export function useMainPanelDrag() {
   }, [clampMainPanelPos, setMainPanelDragPosSynced]);
 
   const handleMainPanelHeaderDragStart = useCallback((event: React.PointerEvent<HTMLElement>) => {
-    if (event.button !== 0) return;
     const el = mainPanelCardRef.current;
     if (!el) return;
-    const native = event.nativeEvent;
-    try {
-      event.preventDefault();
-    } catch {
-      void 0;
-    }
-    const rect = el.getBoundingClientRect();
-    const startTop = rect.top + rect.height / 2;
-    const startLeft = rect.left + rect.width / 2;
-    mainPanelDragStateRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      startTop,
-      startLeft,
-    };
-    setMainPanelDragPosSynced(clampMainPanelPos({ top: startTop, left: startLeft }));
 
     const scheduler = dragSchedulerRef.current;
 
-    startPointerDrag({
-      ev: native,
+    beginOverlayPanelPositionDrag({
+      event,
       cursor: 'grabbing',
-      onMove: e => {
-        const state = mainPanelDragStateRef.current;
-        if (!state) return;
-        const dx = e.clientX - state.startX;
-        const dy = e.clientY - state.startY;
-        scheduler.schedule(clampMainPanelPos({ top: state.startTop + dy, left: state.startLeft + dx }));
+      readStartPosition: () => {
+        const rect = el.getBoundingClientRect();
+        return {
+          top: rect.top + rect.height / 2,
+          left: rect.left + rect.width / 2,
+        };
       },
-      onEnd: () => {
-        mainPanelDragStateRef.current = null;
-        scheduler.flush();
+      clampPosition: clampMainPanelPos,
+      schedulePosition: position => scheduler.schedule(position),
+      flushPosition: () => scheduler.flush(),
+      cancelPosition: () => scheduler.cancel(),
+      onDragStart: position => setMainPanelDragPosSynced(position),
+      onDragEnd: () => {
         const pos = mainPanelDragPosRef.current;
         if (!pos) return;
         persistMainPanelPos(pos);
-      },
-      onCancel: () => {
-        mainPanelDragStateRef.current = null;
-        scheduler.cancel();
       },
     });
   }, [clampMainPanelPos, persistMainPanelPos, setMainPanelDragPosSynced]);
