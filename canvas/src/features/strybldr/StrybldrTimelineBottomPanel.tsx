@@ -423,6 +423,8 @@ export function StrybldrTimelineBottomPanel({
           style={panelStyle}
           data-kg-canvas-pointer-ignore="true"
           data-kg-canvas-wheel-ignore="true"
+          data-kg-floating-panel-root="true"
+          data-kg-canvas-overlay-drag-handle={!pinned && !minimized ? 'true' : undefined}
           data-kg-strybldr-bottom-timeline-panel="1"
           data-kg-strybldr-bottom-timeline-minimized={minimized ? 'true' : 'false'}
           data-kg-strybldr-bottom-timeline-pinned={pinned ? 'true' : 'false'}
