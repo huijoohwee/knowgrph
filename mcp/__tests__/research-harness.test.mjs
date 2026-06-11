@@ -160,8 +160,14 @@ test("the deterministic default emits unique sourceIds (does not violate the 3.2
 // ---------------------------------------------------------------------------
 
 test("the default clients are deterministic and record zero paid-provider calls", async () => {
-  const a = await runResearchHarness(VALID_INPUT);
-  const b = await runResearchHarness(VALID_INPUT);
+  // Pin the clock so `captureTime` (set via `new Date().toISOString()` when no
+  // `deps.now` is injected) is identical across both calls — otherwise two calls
+  // at different milliseconds produce different `captureTime` fields and
+  // `deepEqual` fails intermittently. The production harness uses the real clock
+  // on deployed runs; this is a test-only seam.
+  const pinnedNow = () => "2026-01-01T00:00:00.000Z";
+  const a = await runResearchHarness(VALID_INPUT, { now: pinnedNow });
+  const b = await runResearchHarness(VALID_INPUT, { now: pinnedNow });
   assert.equal(a.paidProviderCalls, 0);
   assert.deepEqual(a.evidencePack, b.evidencePack, "same input must yield the same Evidence_Pack");
 });
