@@ -13,7 +13,7 @@ export function ArchitectureFloatingPanelView() {
         emptyLabel="No Architecture Mermaid frontmatter."
         rootThemeMode={themeMode}
         surface="floatingPanel"
-        renderMode="split"
+        renderMode="list"
       />
     </section>
   )

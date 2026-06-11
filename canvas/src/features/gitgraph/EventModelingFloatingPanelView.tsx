@@ -13,7 +13,7 @@ export function EventModelingFloatingPanelView() {
         emptyLabel="No Event Modeling Mermaid frontmatter."
         rootThemeMode={themeMode}
         surface="floatingPanel"
-        renderMode="split"
+        renderMode="list"
       />
     </section>
   )
