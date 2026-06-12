@@ -239,6 +239,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["docs.canonicalAnimaticAndStoryboard.usePlainYamlFrontmatter","@/__tests__/docsFrontmatterE2EContract.test.ts","testCanonicalAnimaticAndStoryboardDocsUsePlainYamlFrontmatter"],
   ["docs.guidelines.describeCanonicalAndNormalizedFrontmatterContracts","@/__tests__/docsFrontmatterE2EContract.test.ts","testGuidelinesDescribeCanonicalAndNormalizedFrontmatterContracts"],
   ["docs.flowEditor.publishedDocsMachineSsot","@/__tests__/docsFrontmatterE2EContract.test.ts","testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot"],
+  ["docs.flowEditor.runnableDemoCompliance","@/__tests__/docsFrontmatterE2EContract.test.ts","testFlowEditorDemoRunnableStructure"],
+  ["docs.compute.integrity","@/__tests__/docsFrontmatterE2EContract.test.ts","testFlowEditorComputeIntegrity"],
   ["markdown.frontmatterParse.reportsYamlFailureWarnings","@/__tests__/markdownFrontmatterParseDiagnostics.test.ts","testMarkdownFrontmatterParseReportsYamlFailureWarnings"],
   ["markdown.frontmatterParse.repairsInlineComputeBlockScalarEnvelope","@/__tests__/markdownFrontmatterParseDiagnostics.test.ts","testMarkdownFrontmatterParseRepairsInlineComputeBlockScalarEnvelope"],
   ["markdown.parser.carriesFrontmatterParseWarnings","@/__tests__/markdownFrontmatterParseDiagnostics.test.ts","testMarkdownParserCarriesFrontmatterParseWarningsThroughParserResult"],

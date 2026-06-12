@@ -718,3 +718,211 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
     throw new Error(`Expected published Flow Editor docs to keep frontmatter as the machine SSOT:\n${violations.join('\n')}`)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Runnable compliance: all flowEditor *-demo.md docs must carry the required
+// template keys and declare correct panel routing on every typed diagram entry.
+// ---------------------------------------------------------------------------
+
+const FLOW_EDITOR_DEMO_GLOB = path.join(HUIJOOHWEE_DOCS_ROOT, '*-demo.md')
+
+const listFlowEditorDemoDocs = (): string[] => {
+  if (!fs.existsSync(HUIJOOHWEE_DOCS_ROOT)) return []
+  return fs
+    .readdirSync(HUIJOOHWEE_DOCS_ROOT)
+    .filter(name => name.endsWith('-demo.md'))
+    .map(name => path.join(HUIJOOHWEE_DOCS_ROOT, name))
+    .filter(fp => {
+      const text = fs.readFileSync(fp, 'utf8')
+      return /kgCanvas2dRenderer:\s*["']?flowEditor["']?/m.test(text)
+    })
+}
+
+const RUNNABLE_REQUIRED_KEYS = [
+  'schema: "kgc-computing-flow/v1"',
+  'kgWorkflowManagerModeEnabled: true',
+  'kgAutoSaveEnabled: true',
+  'kgAutoSaveDebounceMs',
+  'kgAutoSaveOn',
+] as const
+
+type DiagramPanelContract = { floatingPanelView: string; bottomPanelTab: string }
+const DIAGRAM_TYPE_PANEL_CONTRACTS: Record<string, DiagramPanelContract> = {
+  mermaid_architecture:  { floatingPanelView: 'architecture',  bottomPanelTab: 'architecture'  },
+  mermaid_eventmodeling: { floatingPanelView: 'eventModeling', bottomPanelTab: 'eventModeling' },
+  mermaid_gitgraph:      { floatingPanelView: 'gitGraph',      bottomPanelTab: 'gitGraph'      },
+  mermaid_gantt:         { floatingPanelView: 'gantt',         bottomPanelTab: 'gantt'         },
+}
+
+export function testFlowEditorDemoRunnableStructure() {
+  const demoPaths = listFlowEditorDemoDocs()
+  const violations: string[] = []
+
+  for (const filePath of demoPaths) {
+    const rel = toRepoRelativePath(filePath)
+    const text = fs.readFileSync(filePath, 'utf8')
+
+    // 1. Required template keys
+    for (const key of RUNNABLE_REQUIRED_KEYS) {
+      if (!text.includes(key)) {
+        violations.push(`${rel}: missing required key "${key}"`)
+      }
+    }
+
+    // 2. Parses as a frontmatter flow graph
+    const parsed = tryParseMarkdownFrontmatterFlowGraph(path.basename(filePath), text)
+    if (!parsed) {
+      violations.push(`${rel}: does not parse as a frontmatter flow graph`)
+      continue
+    }
+
+    const nodes: readonly { id?: unknown; type?: unknown; properties?: unknown }[] =
+      parsed.graphData.nodes || []
+    const nodeById = new Map(
+      nodes.map(n => [String((n.properties as Record<string, unknown> | null)?.id ?? n.id ?? ''), n]),
+    )
+
+    // 3. At least one InputWidget with canvas:widgetCard
+    const hasInput = nodes.some(n => {
+      const props = (n.properties || {}) as Record<string, unknown>
+      return (
+        String(n.type || props['type'] || '').includes('InputWidget') &&
+        typeof props['canvas:widgetCard'] === 'object'
+      )
+    })
+    if (!hasInput) {
+      violations.push(`${rel}: no InputWidget node with canvas:widgetCard`)
+    }
+
+    // 4. At least one compute node with non-empty inline compute source
+    const { readFlowComputeSource, isUnsafeFlowComputeSource } = require('@/lib/flowEditor/flowComputeInline')
+    const computeNodes = nodes.filter(n => {
+      const props = (n.properties || {}) as Record<string, unknown>
+      const t = String(n.type || props['type'] || '')
+      return t === 'ComputeWidget' || t === 'TextGeneration'
+    })
+    if (computeNodes.length === 0) {
+      violations.push(`${rel}: no ComputeWidget or TextGeneration nodes found`)
+    }
+    for (const n of computeNodes) {
+      const source = readFlowComputeSource(n as never)
+      if (!source) {
+        const id = String((n.properties as Record<string, unknown> | null)?.id ?? n.id ?? '?')
+        violations.push(`${rel}: compute node "${id}" has no inline compute source`)
+        continue
+      }
+      if (isUnsafeFlowComputeSource(source)) {
+        const id = String((n.properties as Record<string, unknown> | null)?.id ?? n.id ?? '?')
+        violations.push(`${rel}: compute node "${id}" inline compute source is unsafe`)
+      }
+    }
+
+    // 5. Image/video RichMediaPanel nodes must use typed handles
+    for (const n of nodes) {
+      const props = (n.properties || {}) as Record<string, unknown>
+      if (String(n.type || props['type'] || '') !== 'RichMediaPanel') continue
+      const mediaType = String(props['media_type'] || '')
+      if (mediaType === 'image' && typeof props['imageAssetUrl'] === 'undefined') {
+        const id = String(props['id'] ?? n.id ?? '?')
+        violations.push(`${rel}: image RichMediaPanel "${id}" missing typed imageAssetUrl field`)
+      }
+      if (mediaType === 'video' && typeof props['videoUrl'] === 'undefined') {
+        const id = String(props['id'] ?? n.id ?? '?')
+        violations.push(`${rel}: video RichMediaPanel "${id}" missing typed videoUrl field`)
+      }
+    }
+
+    // 6. flow_diagrams entries with typed diagram kinds must declare panel routing
+    const frontmatterMeta = ((parsed.graphData.metadata || {}) as Record<string, unknown>).frontmatterMeta as Record<string, unknown> | null
+    const flowDiagramsRaw = frontmatterMeta?.flow_diagrams
+    if (isPlainRecord(flowDiagramsRaw)) {
+      const diagrams = isPlainRecord(flowDiagramsRaw.value) ? flowDiagramsRaw.value : flowDiagramsRaw
+      for (const [key, entry] of Object.entries(diagrams)) {
+        if (!isPlainRecord(entry)) continue
+        const diagramType = String(entry.type || '')
+        const contract = DIAGRAM_TYPE_PANEL_CONTRACTS[diagramType]
+        if (!contract) continue
+        if (!entry.floatingPanelView) {
+          violations.push(`${rel}: flow_diagrams.${key} (${diagramType}) missing floatingPanelView`)
+        } else if (entry.floatingPanelView !== contract.floatingPanelView) {
+          violations.push(`${rel}: flow_diagrams.${key} floatingPanelView should be "${contract.floatingPanelView}", got "${String(entry.floatingPanelView)}"`)
+        }
+        if (entry.floatingPanelOpen !== true) {
+          violations.push(`${rel}: flow_diagrams.${key} (${diagramType}) missing floatingPanelOpen: true`)
+        }
+        if (!entry.bottomPanelTab) {
+          violations.push(`${rel}: flow_diagrams.${key} (${diagramType}) missing bottomPanelTab`)
+        } else if (entry.bottomPanelTab !== contract.bottomPanelTab) {
+          violations.push(`${rel}: flow_diagrams.${key} bottomPanelTab should be "${contract.bottomPanelTab}", got "${String(entry.bottomPanelTab)}"`)
+        }
+        if (entry.bottomPanelOpen !== true) {
+          violations.push(`${rel}: flow_diagrams.${key} (${diagramType}) missing bottomPanelOpen: true`)
+        }
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(
+      `Runnable demo compliance violations (${violations.length}):\n${violations.map(v => `  - ${v}`).join('\n')}\n\nSee huijoohwee.github.io/guidelines/yaml-frontmatter-guidelines.md#runnable-demo-compliance`,
+    )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Compute integrity: forbid stale * 1000 multipliers, hardcoded inflated values,
+// and frozen run_status:done outputs across all huijoohwee/docs/*.md files.
+// ---------------------------------------------------------------------------
+
+export function testFlowEditorComputeIntegrity() {
+  if (!fs.existsSync(HUIJOOHWEE_DOCS_ROOT)) return
+
+  const allDocs = fs
+    .readdirSync(HUIJOOHWEE_DOCS_ROOT)
+    .filter(name => name.endsWith('.md'))
+    .map(name => path.join(HUIJOOHWEE_DOCS_ROOT, name))
+
+  const violations: string[] = []
+
+  for (const filePath of allDocs) {
+    const rel = toRepoRelativePath(filePath)
+    const text = fs.readFileSync(filePath, 'utf8')
+
+    // 1. Stale * 1000 scaling in compute functions
+    if (/const\s+rev0\s*=\s*rn\([^)]+\)\s*\*\s*1000/.test(text)) {
+      violations.push(`${rel}: stale "rev0 * 1000" multiplier — use real dollar inputs directly`)
+    }
+    if (/const\s+thr\s*=\s*mt\s*\*\s*1000/.test(text)) {
+      violations.push(`${rel}: stale "thr = mt * 1000" multiplier — metric_target is already a dollar amount`)
+    }
+
+    // 2. Hardcoded inflated output values from a prior * 1000 run
+    const staleOutputPatterns: Array<{ pattern: RegExp; label: string }> = [
+      { pattern: /\$150,529,352/, label: '$150,529,352 (inflated by * 1000)' },
+      { pattern: /\$350,000,000/, label: '$350,000,000 (inflated threshold)' },
+      { pattern: /\$360,944,612/, label: '$360,944,612 (inflated upside)' },
+      { pattern: /\$1,061,546.*at 37%/, label: '$1,061,546 at 37% (inflated downside)' },
+    ]
+    for (const { pattern, label } of staleOutputPatterns) {
+      if (pattern.test(text)) {
+        violations.push(`${rel}: stale hardcoded output value ${label}`)
+      }
+    }
+
+    // 3. Compute nodes with run_status "done" and frozen markdown output
+    // A done status with a non-empty output block means the output is from a
+    // prior run and will NOT update on next Run unless the user manually resets.
+    // Per the universality/neutrality contract, idle is the only valid initial state.
+    const hasDoneStatus = /run_status: \{key: run_status, type: string, value: "done"\}/.test(text)
+    const hasFrozenOutput = /output:\s*\n\s+key: output\s*\n\s+type: markdown\s*\n\s+value: \|\s*\n\s+## /.test(text)
+    if (hasDoneStatus && hasFrozenOutput) {
+      violations.push(`${rel}: compute node has run_status "done" with frozen markdown output — reset to idle or clear output before committing`)
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(
+      `Compute integrity violations (${violations.length}):\n${violations.map(v => `  - ${v}`).join('\n')}\n\nSee huijoohwee.github.io/guidelines/yaml-frontmatter-guidelines.md#compute-integrity`,
+    )
+  }
+}

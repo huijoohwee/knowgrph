@@ -30,6 +30,8 @@ type DiagramSpec = {
   title: string
   renderOn: string[]
   source: string
+  /** When true the diagram routes to FloatingPanel (row list) + BottomPanel (chart); skip RichMediaPanel derivation */
+  routedToPanelSurfaces: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -115,6 +117,21 @@ function readDiagramSpecs(rawFlowDiagrams: unknown): DiagramSpec[] {
     if (!source) continue
     seenKeys.add(cleanKey)
     const kind = inferDiagramKind(type, source)
+    // Entries that declare both floatingPanelView and bottomPanelTab route their
+    // diagram to FloatingPanel (row list, renderMode="list") and BottomPanel
+    // (chart, renderMode="diagram"). For architecture and eventmodeling this
+    // avoids a duplicate rendering surface. gitgraph and gantt still derive
+    // their RichMediaPanel because the panel shows a different chart format
+    // than the BottomPanel chart.
+    const floatingPanelView = asString(entry.floatingPanelView)
+    const bottomPanelTab = asString(entry.bottomPanelTab)
+    // When both floatingPanelView and bottomPanelTab are declared the entry opts
+    // into FloatingPanel (row list, renderMode="list") + BottomPanel (chart,
+    // renderMode="diagram") as its exclusive render surfaces. Skip the derived
+    // RichMediaPanel node for ALL diagram kinds in that case — the author has
+    // explicitly routed the diagram to the panel surfaces and does not want a
+    // duplicate canvas node. Without routing keys the panel is always derived.
+    const routedToPanelSurfaces = !!(floatingPanelView && bottomPanelTab)
     specs.push({
       key: cleanKey,
       type,
@@ -122,6 +139,7 @@ function readDiagramSpecs(rawFlowDiagrams: unknown): DiagramSpec[] {
       title: asString(entry.title) || `${kind} flow diagram`,
       renderOn: readRenderOn(entry.render_on ?? entry.renderOn),
       source,
+      routedToPanelSurfaces,
     })
   }
   return specs
@@ -284,7 +302,16 @@ export function deriveFlowDiagramsWidgets(meta: Record<string, unknown>): void {
 
   const base = readAppendBasePosition(nodes)
   for (let i = 0; i < specs.length; i += 1) {
-    const built = buildDiagramNodes({ spec: specs[i]!, index: i, base })
+    const spec = specs[i]!
+    const built = buildDiagramNodes({ spec, index: i, base })
+
+    // Entries routed to FloatingPanel (row list) + BottomPanel (chart) need NO
+    // canvas nodes at all — the panel surfaces read directly from the raw
+    // frontmatter YAML text via useMermaidStructuredDiagramDocument.
+    // Deriving source, compute, or panel nodes would produce unwanted canvas
+    // widgets and duplicate rendering surfaces.
+    if (spec.routedToPanelSurfaces) continue
+
     appendNodeIfMissing({ nodes, nodeIds, node: built.sourceNode })
     appendNodeIfMissing({ nodes, nodeIds, node: built.computeNode })
     appendNodeIfMissing({ nodes, nodeIds, node: built.panelNode })

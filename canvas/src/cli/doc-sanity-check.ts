@@ -87,6 +87,141 @@ const resolveGuidelinesPath = (): string => {
   return direct
 }
 
+function checkComputeIntegrity(): string {
+  const canvasRoot = path.resolve(process.cwd())
+  const repoRoot = path.resolve(canvasRoot, '..')
+  const githubRoot = path.resolve(repoRoot, '..')
+  const docsDir = path.join(githubRoot, 'huijoohwee', 'docs')
+  if (!fs.existsSync(docsDir)) return 'Compute integrity: skipped (huijoohwee/docs not found)'
+
+  const violations: string[] = []
+  const entries = fs.readdirSync(docsDir, { withFileTypes: true })
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue
+    const fullPath = path.join(docsDir, entry.name)
+    const content = fs.readFileSync(fullPath, 'utf8')
+
+    // 1. Forbid stale * 1000 scaling in compute functions
+    if (/const\s+rev0\s*=\s*rn\([^)]+\)\s*\*\s*1000/.test(content)) {
+      violations.push(`${entry.name}: stale "rev0 * 1000" multiplier in compute — use real dollar inputs directly`)
+    }
+    if (/const\s+thr\s*=\s*mt\s*\*\s*1000/.test(content)) {
+      violations.push(`${entry.name}: stale "thr = mt * 1000" multiplier in compute — metric_target is already a dollar amount`)
+    }
+
+    // 2. Forbid stale hardcoded large output values that flag a prior * 1000 run
+    const staleValues = [
+      { pattern: /\$150,529,352/, label: '$150,529,352 (inflated by * 1000)' },
+      { pattern: /\$350,000,000/, label: '$350,000,000 (inflated threshold)' },
+      { pattern: /\$360,944,612/, label: '$360,944,612 (inflated upside)' },
+      { pattern: /\$1,061,546.*at 37%/, label: '$1,061,546 at 37% (inflated downside)' },
+    ]
+    for (const { pattern, label } of staleValues) {
+      if (pattern.test(content)) {
+        violations.push(`${entry.name}: stale hardcoded output value ${label} — clear or re-run compute`)
+      }
+    }
+
+    // 3. Forbid compute nodes with run_status "done" but static/frozen output bodies
+    // A compute node with run_status: done should have its output fields re-runnable
+    // Detect: run_status done but output block starts with ## and is never updated on run
+    // (This is a heuristic — we just check for "done" with non-empty frozen output)
+    const doneWithFrozen = /run_status: \{key: run_status, type: string, value: "done"\}/.test(content)
+      && /output:\s*\n\s+key: output\s*\n\s+type: markdown\s*\n\s+value: \|\s*\n\s+## /.test(content)
+    if (doneWithFrozen) {
+      violations.push(`${entry.name}: compute node has run_status "done" with frozen markdown output — reset to idle or clear output`)
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(
+      `Compute integrity violations (${violations.length}):\n${violations.map(v => `  - ${v}`).join('\n')}\n\nSee huijoohwee.github.io/guidelines/yaml-frontmatter-guidelines.md#runnable-demo-compliance`,
+    )
+  }
+  return `Compute integrity: OK (${entries.filter(e => e.isFile() && e.name.endsWith('.md')).length} docs checked)`
+}
+
+function checkRunnableFlowEditorDemoCompliance(): string {
+  // Resolve from the repo root (two levels up from canvas/src/cli)
+  const canvasRoot = path.resolve(process.cwd())
+  const repoRoot = path.resolve(canvasRoot, '..')
+  const githubRoot = path.resolve(repoRoot, '..')
+  const docsDir = path.join(githubRoot, 'huijoohwee', 'docs')
+  if (!fs.existsSync(docsDir)) return 'Runnable demo compliance: skipped (huijoohwee/docs not found)'
+
+  const REQUIRED_KEYS = [
+    { check: (c: string) => /^schema:\s*["']?kgc-computing-flow\/v1["']?/m.test(c), display: 'schema: "kgc-computing-flow/v1"' },
+    { check: (c: string) => c.includes('kgWorkflowManagerModeEnabled: true'), display: 'kgWorkflowManagerModeEnabled: true' },
+    { check: (c: string) => c.includes('kgAutoSaveEnabled: true'), display: 'kgAutoSaveEnabled: true' },
+    { check: (c: string) => /kgAutoSaveDebounceMs/.test(c), display: 'kgAutoSaveDebounceMs' },
+    { check: (c: string) => /kgAutoSaveOn/.test(c), display: 'kgAutoSaveOn' },
+  ]
+
+  const DIAGRAM_TYPE_TO_PANEL: Record<string, { floatingPanelView: string; bottomPanelTab: string }> = {
+    mermaid_architecture: { floatingPanelView: 'architecture', bottomPanelTab: 'architecture' },
+    mermaid_eventmodeling: { floatingPanelView: 'eventModeling', bottomPanelTab: 'eventModeling' },
+    mermaid_gitgraph: { floatingPanelView: 'gitGraph', bottomPanelTab: 'gitGraph' },
+    mermaid_gantt: { floatingPanelView: 'gantt', bottomPanelTab: 'gantt' },
+  }
+
+  const entries = fs.readdirSync(docsDir, { withFileTypes: true })
+  const violations: string[] = []
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('-demo.md')) continue
+    const fullPath = path.join(docsDir, entry.name)
+    const content = fs.readFileSync(fullPath, 'utf8')
+
+    // Only enforce on flowEditor docs
+    if (!/kgCanvas2dRenderer:\s*["']?flowEditor["']?/m.test(content)) continue
+
+    for (const { check, display } of REQUIRED_KEYS) {
+      if (!check(content)) {
+        violations.push(`${entry.name}: missing required key "${display}"`)
+      }
+    }
+
+    // Check per-diagram panel routing keys
+    for (const [diagramType, panelKeys] of Object.entries(DIAGRAM_TYPE_TO_PANEL)) {
+      if (!new RegExp(`type:\\s*${diagramType}\\b`).test(content)) continue
+      // Extract only the flow_diagrams frontmatter block to avoid false positives in body tables
+      const flowDiagramsMatch = content.match(/^flow_diagrams:\s*\n([\s\S]*?)(?=^[a-zA-Z\$_]|\Z)/m)
+      const flowDiagramsSection = flowDiagramsMatch ? flowDiagramsMatch[0] : content
+      // Find each indented diagram entry block containing this diagram type
+      const entryPattern = new RegExp(
+        `((?:^[ \\t]+\\S[\\s\\S]*?(?=^[ \\t]{4}\\w|\\Z))*)`,
+        'gm',
+      )
+      // Simple approach: split flowDiagrams section on 8-space indented keys (diagram entry starts)
+      const entryBlocks = flowDiagramsSection.split(/\n(?=        \w)/g)
+      for (const block of entryBlocks) {
+        if (!new RegExp(`type:\\s*${diagramType}\\b`).test(block)) continue
+        if (!block.includes(`floatingPanelView: "${panelKeys.floatingPanelView}"`)) {
+          violations.push(`${entry.name}: ${diagramType} block missing floatingPanelView: "${panelKeys.floatingPanelView}"`)
+        }
+        if (!block.includes('floatingPanelOpen: true')) {
+          violations.push(`${entry.name}: ${diagramType} block missing floatingPanelOpen: true`)
+        }
+        if (!block.includes(`bottomPanelTab: "${panelKeys.bottomPanelTab}"`)) {
+          violations.push(`${entry.name}: ${diagramType} block missing bottomPanelTab: "${panelKeys.bottomPanelTab}"`)
+        }
+        if (!block.includes('bottomPanelOpen: true')) {
+          violations.push(`${entry.name}: ${diagramType} block missing bottomPanelOpen: true`)
+        }
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(
+      `Runnable demo compliance violations (${violations.length}):\n${violations.map(v => `  - ${v}`).join('\n')}\n\nSee huijoohwee.github.io/guidelines/yaml-frontmatter-guidelines.md#runnable-demo-compliance`,
+    )
+  }
+
+  return 'Runnable demo compliance: OK (all flowEditor *-demo.md files pass)'
+}
+
 function checkDocsMaintainability(): string {
   const docsDir = path.resolve(process.cwd(), '..', 'docs', 'documents')
   const entries = fs.readdirSync(docsDir, { withFileTypes: true })
@@ -243,6 +378,8 @@ function main() {
   lines.push(checkSettingsRegistry())
   lines.push(checkAgenticRagSchemaFilesTable())
   lines.push(checkDocsMaintainability())
+  lines.push(checkComputeIntegrity())
+  lines.push(checkRunnableFlowEditorDemoCompliance())
   process.stdout.write(`${lines.join('\n')}\n`)
 }
 
