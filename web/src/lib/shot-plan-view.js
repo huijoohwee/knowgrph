@@ -1,4 +1,4 @@
-// Kgc_Document shot-plan display view-model for the agentic-canvas-os Vercel
+// Kgc_Document shot-plan display view-model for the knowgrph Cloudflare Pages
 // Frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.5 (R1.5; design Correctness

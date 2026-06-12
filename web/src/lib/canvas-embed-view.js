@@ -1,6 +1,6 @@
-// Embedded knowgrph canvas view-model for the agentic-canvas-os Vercel Frontend.
+// Embedded knowgrph canvas view-model for the knowgrph Cloudflare Pages frontend.
 //
-// Capability: "agentic-canvas-os (AWS + Vercel) calls knowgrph MCP for the
+// Capability: "knowgrph canvas (Cloudflare) calls knowgrph MCP for the
 // canvas." When the Storyboard_Harness produces a Kgc_Document, the product tier
 // EMBEDS the live knowgrph canvas doc-view (scoped to the run) rather than
 // reimplementing the renderer — knowgrph owns the canvas engine, the product is

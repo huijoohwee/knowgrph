@@ -1,4 +1,4 @@
-// Client-side submission validation for the agentic-canvas-os Vercel Frontend.
+// Client-side submission validation for the knowgrph Cloudflare Pages frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.1 (R1.2; design Frontend
 // `submitRun`; Correctness Property 5).

@@ -1,4 +1,4 @@
-// Post-render checkout entry-point view-model for the agentic-canvas-os Vercel
+// Post-render checkout entry-point view-model for the knowgrph Cloudflare Pages
 // Frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.8 (R1.7; design Correctness

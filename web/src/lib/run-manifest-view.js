@@ -1,4 +1,4 @@
-// Run_Manifest rendering view-model for the agentic-canvas-os Vercel Frontend.
+// Run_Manifest rendering view-model for the knowgrph Cloudflare Pages frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.10 (R1.9, R13.4; design Correctness
 // Property 32; design Frontend `renderManifest`).

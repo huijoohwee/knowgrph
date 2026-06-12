@@ -1,6 +1,6 @@
-// Thin DOM render layer for the agentic-canvas-os Vercel Frontend.
+// Thin DOM render layer for the knowgrph Cloudflare Pages frontend.
 //
-// Spec: knowgrph-acos-mcp-connector, task 11.3 (Vercel Frontend build target;
+// Spec: knowgrph-widget-canvas-media (Cloudflare Pages frontend;
 // R1, R13). This module is INTENTIONALLY THIN: it consumes the render-ready
 // view-models produced by the REUSED pure builders in `web/src/lib/*` and turns
 // them into DOM nodes. It contains NO view logic of its own — no validation, no
@@ -245,7 +245,7 @@ export function renderCheckout(view) {
  * Render the embedded knowgrph canvas from a canvas-embed view-model. When the
  * storyboard canvas is ready and a canvas base is configured, frames the
  * run-scoped doc-view in a sandboxed, no-referrer iframe; otherwise shows why it
- * is not yet available. The iframe is cross-origin (Vercel frames
+ * is not yet available. The iframe is cross-origin (Cloudflare Pages frames
  * airvio.co/knowgrph) — the doc-view route enforces frame-ancestors + run
  * entitlement server-side.
  * @param {{ available: boolean, src: string, sandbox: string, referrerPolicy: string, title: string, reason: string }} view

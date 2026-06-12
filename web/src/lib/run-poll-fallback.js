@@ -1,4 +1,4 @@
-// 503 polling-fallback driver for the agentic-canvas-os Vercel Frontend.
+// 503 polling-fallback driver for the knowgrph Cloudflare Pages frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.11 (R13.5; design Frontend "503
 // fallback"; Error Handling › "Agent_Api saturation (R12.4) → Frontend falls

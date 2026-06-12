@@ -1,4 +1,4 @@
-// Approval-prompt rendering view-model for the agentic-canvas-os Vercel
+// Approval-prompt rendering view-model for the knowgrph Cloudflare Pages
 // Frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.6 (R1.6, R13.1; design Correctness

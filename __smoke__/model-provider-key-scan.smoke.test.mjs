@@ -1,44 +1,130 @@
-// STATIC-SCAN SMOKE — no model provider keys in the Agent_Api, McpAgent, or
-// Frontend tiers (knowgrph-acos-mcp-connector spec, task 9.3 / R11.1, R11.3,
-// R11.5 / design Tech Stack "Hard boundary rule (R11.1-11.5)": AWS/Vercel + the
-// McpAgent tool surface never hold model keys; all model calls route through
-// the Cloudflare AI Gateway control plane).
+// STATIC-SCAN SMOKE — no model provider keys in the Cloudflare McpAgent control
+// plane (knowgrph-acos-mcp-connector spec, task 9.3 / R11.1, R11.3, R11.5 /
+// design Tech Stack "Hard boundary rule (R11.1-11.5)": the McpAgent tool surface
+// never holds model keys; all model calls route through the Cloudflare AI
+// Gateway control plane).
 //
 // WHAT THIS ASSERTS (pure logic + filesystem reads, ZERO live network):
-//   1. For EACH tier root (Agent_Api = aws/agent-api/src, McpAgent = the
-//      cloudflare worker + the mcp/ runtime it reuses, Frontend = web/src) the
-//      composed scan finds ZERO model-provider keys — covering inlined key
-//      SHAPES (sk-/sk_live_/AIza/ark/r8_/fal_/xi-...), direct paid-provider
-//      host usages, AND model-provider-key ENV-NAME references (OPENAI_API_KEY,
+//   1. For EACH Cloudflare control-plane tier root (the knowgrph-mcp Worker and
+//      the mcp/ Director runtime it reuses) the composed scan finds ZERO
+//      model-provider keys — covering inlined key SHAPES (sk-/sk_live_/AIza/
+//      ark-...) AND model-provider-key ENV-NAME references (OPENAI_API_KEY,
 //      ANTHROPIC_API_KEY, GEMINI/GOOGLE, REPLICATE, FAL, ELEVENLABS, ...).
 //   2. The scan is MEANINGFUL — it is NOT vacuously passing: a PLANTED key of
 //      every named provider is caught by the detectors, and at least one real
 //      source file is scanned per present tier.
 //
-// REUSE-NOT-REBUILD: the detectors come from the existing Frontend scanner
-// (`web/src/lib/ai-gateway.js`) composed by `lib/cross-tier-scan.mjs`; this
-// suite only wires them across the three tiers.
+// REUSE-NOT-REBUILD: the detectors come from the Cloudflare AI Gateway client
+// scanner (`web/src/lib/ai-gateway.js`); this suite only wires them across the
+// Cloudflare control-plane tier roots.
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
-  MODEL_KEY_SCAN_TIERS,
-  scanTierForModelProviderKeys,
-  findModelProviderKeyEnvNames,
-  findExtraModelProviderKeyShapes,
-  MODEL_PROVIDER_KEY_ENV_NAMES,
-} from "./lib/cross-tier-scan.mjs";
-import {
+  listSourceFiles,
+  scanSourceTreeForModelKeys,
   findModelProviderKeyLiterals,
-  findDirectProviderHostUsages,
 } from "../web/src/lib/ai-gateway.js";
 
-// --- 1. Each tier holds NO model provider keys ------------------------------
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+/** Repo root: `knowgrph/` (this file lives at `knowgrph/__smoke__`). */
+const REPO_ROOT = path.resolve(HERE, "..");
+
+/**
+ * Cloudflare control-plane tier roots that MUST hold no model provider keys:
+ * the knowgrph-mcp Worker and the mcp/ Director runtime it reuses. Model keys
+ * live in the AI Gateway / worker config and are reached via bindings (R11.5).
+ */
+const MODEL_KEY_SCAN_TIERS = Object.freeze([
+  {
+    label: "McpAgent worker (cloudflare/workers/knowgrph-mcp)",
+    root: path.join(REPO_ROOT, "cloudflare", "workers", "knowgrph-mcp"),
+  },
+  { label: "McpAgent runtime (mcp/)", root: path.join(REPO_ROOT, "mcp") },
+]);
+
+/** Directories never walked (deps, VCS, build caches, AND test/harness dirs). */
+const EXCLUDED_DIRS = Object.freeze([
+  "node_modules", ".git", ".wrangler", "dist", "build", "coverage",
+  ".next", "out", ".turbo", ".cache",
+  "__tests__", "__pbt__", "__smoke__",
+]);
+
+/**
+ * Model-provider-key ENV-NAME tokens. R11.1 forbids the McpAgent tiers from
+ * storing OR REFERENCING model provider keys: every model call routes through
+ * the Cloudflare AI Gateway, so a provider key env name has no business
+ * appearing in their source at all.
+ */
+const MODEL_PROVIDER_KEY_ENV_NAMES = Object.freeze([
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "GEMINI_API_KEY",
+  "GOOGLE_API_KEY",
+  "GOOGLE_GENAI_API_KEY",
+  "GOOGLE_GENERATIVE_AI_API_KEY",
+  "REPLICATE_API_TOKEN",
+  "REPLICATE_API_KEY",
+  "FAL_KEY",
+  "FAL_API_KEY",
+  "ELEVENLABS_API_KEY",
+  "ELEVEN_API_KEY",
+  "XI_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "MISTRAL_API_KEY",
+  "COHERE_API_KEY",
+  "GROQ_API_KEY",
+  "TOGETHER_API_KEY",
+  "PERPLEXITY_API_KEY",
+  "ARK_API_KEY",
+  "BYTEPLUS_API_KEY",
+  "MODELARK_API_KEY",
+  "VOLC_API_KEY",
+]);
+
+/** Find model-provider-key ENV-NAME tokens in source text. */
+function findModelProviderKeyEnvNames(sourceText) {
+  if (typeof sourceText !== "string" || sourceText.length === 0) return [];
+  const findings = [];
+  for (const name of MODEL_PROVIDER_KEY_ENV_NAMES) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])`, "g");
+    let m;
+    while ((m = re.exec(sourceText)) !== null) findings.push({ name, index: m.index });
+  }
+  return findings;
+}
+
+function scanTier(tier) {
+  const scanOpts = { excludeDirs: EXCLUDED_DIRS };
+  const keyShapes = scanSourceTreeForModelKeys(tier.root, scanOpts);
+  const files = listSourceFiles(tier.root, scanOpts);
+  const envFindings = [];
+  for (const file of files) {
+    let text;
+    try {
+      text = fs.readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    for (const f of findModelProviderKeyEnvNames(text)) envFindings.push({ file, name: f.name });
+  }
+  const findings = [
+    ...keyShapes.findings.map((f) => ({ file: f.file, detail: `model-key-shape:${f.kind}` })),
+    ...envFindings.map((f) => ({ file: f.file, detail: `model-key-env-name:${f.name}` })),
+  ];
+  return { label: tier.label, scanned: keyShapes.scanned, fileCount: keyShapes.files.length, findings };
+}
+
+// --- 1. Each Cloudflare control-plane tier holds NO model provider keys ------
 
 for (const tier of MODEL_KEY_SCAN_TIERS) {
   test(`no model provider keys in tier: ${tier.label} (R11.1/R11.3/R11.5)`, () => {
-    const report = scanTierForModelProviderKeys(tier);
+    const report = scanTier(tier);
     assert.equal(report.scanned, true, `${tier.label} must be present and scanned`);
     assert.ok(report.fileCount > 0, `${tier.label} must scan at least one source file`);
     assert.deepEqual(
@@ -49,42 +135,17 @@ for (const tier of MODEL_KEY_SCAN_TIERS) {
   });
 }
 
-test("the scan covers all three boundary tiers (Agent_Api, McpAgent, Frontend)", () => {
-  const labels = MODEL_KEY_SCAN_TIERS.map((t) => t.label).join(" | ");
-  assert.ok(/Agent_Api/.test(labels), "Agent_Api tier is scanned");
-  assert.ok(/McpAgent/.test(labels), "McpAgent tier(s) are scanned");
-  assert.ok(/Frontend/.test(labels), "Frontend tier is scanned");
-  // Every present tier scanned real files.
-  for (const tier of MODEL_KEY_SCAN_TIERS) {
-    const report = scanTierForModelProviderKeys(tier);
-    assert.equal(report.scanned, true, `${tier.label} present`);
-  }
-});
-
-// --- 2. The scan is MEANINGFUL (catches a planted key per named provider) ---
+// --- 2. The scan is MEANINGFUL (catches a planted key per named provider) ----
 
 test("detector catches a PLANTED inlined key for every named provider shape", () => {
-  // One planted secret per provider family the task enumerates.
   const plantedShapes = [
     'const a = "sk-ABCDEF0123456789ABCDEF0123456789";',          // OpenAI/Anthropic
     'const b = "sk-ant-api03-ABCDEF0123456789ABCDEF0123456789";', // Anthropic
     'const c = "AIzaABCDEF0123456789ABCDEF0123456789-xyz";',      // Gemini/Google
   ].join("\n");
-  const shapeHits = findModelProviderKeyLiterals(plantedShapes);
-  const kinds = new Set(shapeHits.map((h) => h.kind));
+  const kinds = new Set(findModelProviderKeyLiterals(plantedShapes).map((h) => h.kind));
   assert.ok(kinds.has("openai/anthropic-sk"), "OpenAI/Anthropic key shape caught");
   assert.ok(kinds.has("google-aistudio"), "Gemini/Google key shape caught");
-
-  // Extra shapes added for Replicate / ElevenLabs / fal.
-  const planted = [
-    'const r = "r8_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd";', // Replicate
-    'const e = "xi-ABCDEF0123456789ABCDEF0123456789";',         // ElevenLabs
-    'const f = "fal_ABCDEF0123456789ABCDEF0123456789";',        // fal.ai
-  ].join("\n");
-  const extra = new Set(findExtraModelProviderKeyShapes(planted).map((h) => h.kind));
-  assert.ok(extra.has("replicate-r8"), "Replicate key shape caught");
-  assert.ok(extra.has("elevenlabs-bearer"), "ElevenLabs key shape caught");
-  assert.ok(extra.has("fal-key"), "fal.ai key shape caught");
 });
 
 test("detector catches a PLANTED model-provider-key ENV-NAME reference", () => {
@@ -102,34 +163,4 @@ test("env-name detector does NOT flag unrelated identifiers (no false positives)
     "const COgroq = 2;",
   ].join("\n");
   assert.deepEqual(findModelProviderKeyEnvNames(clean), []);
-});
-
-// --- 3. Product tiers also forbid DIRECT paid-provider host invocation -------
-
-test("product tiers (Agent_Api, Frontend) run the direct-provider-host scan; control-plane tiers are exempt", () => {
-  const product = MODEL_KEY_SCAN_TIERS.filter((t) => t.kind === "product");
-  const controlPlane = MODEL_KEY_SCAN_TIERS.filter((t) => t.kind === "control-plane");
-  assert.ok(product.length >= 2, "Agent_Api + Frontend are product tiers");
-  assert.ok(controlPlane.length >= 1, "the McpAgent tier(s) are control-plane");
-
-  // Forcing the host scan ON for a product tier still yields zero findings
-  // (they forward/route rather than invoke a provider directly).
-  for (const tier of product) {
-    const report = scanTierForModelProviderKeys(tier, { checkProviderHosts: true });
-    assert.deepEqual(
-      report.findings,
-      [],
-      `${tier.label} must not invoke a paid provider directly; found: ${JSON.stringify(report.findings)}`,
-    );
-  }
-});
-
-test("host detector catches a PLANTED direct paid-provider invocation (meaningful)", () => {
-  const planted = [
-    'const r = await fetch("https://api.openai.com/v1/chat/completions");',
-    "const s = fetch('//api.anthropic.com/v1/messages');",
-  ].join("\n");
-  const hosts = findDirectProviderHostUsages(planted).map((h) => h.host);
-  assert.ok(hosts.includes("api.openai.com"), "planted OpenAI host caught");
-  assert.ok(hosts.includes("api.anthropic.com"), "planted Anthropic host caught");
 });

@@ -1,4 +1,4 @@
-// `POST /run` submission client for the agentic-canvas-os Vercel Frontend.
+// `POST /run` submission client for the knowgrph Cloudflare Pages frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.2 (R1.1, R15 caller side; design
 // Frontend `submitRun`; Correctness Property 5 forwarding decision).

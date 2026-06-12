@@ -149,6 +149,7 @@ export {
   PROVIDER_MOCK,
   DEFAULT_SHOT_SPEND_CENTS,
   mediaObjectKey,
+  buildDurableMediaAssetUrl,
   buildMediaAssetReference,
   renderJobId,
   renderLedgerEventId,
@@ -156,6 +157,8 @@ export {
   createDeterministicMockProviderClient,
   createDeterministicLedgerClient,
   selectRenderProvider,
+  createBytePlusImageProvider,
+  createBytePlusVideoProvider,
 } from "./video-remix/render-providers.js";
 
 export {

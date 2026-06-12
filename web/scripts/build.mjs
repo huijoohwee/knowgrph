@@ -43,8 +43,10 @@ const APP_FILES = ["index.html", "main.js", "components.js", "styles.css"];
  */
 const LIB_EXCLUDE = new Set(["ai-gateway.js"]);
 
-/** Public build-time env var names for the Agent_Api base URL (first set wins). */
+/** Public build-time env var names for the Worker/MCP base URL (first set wins). */
 const AGENT_API_ENV_NAMES = [
+  "MCP_ENDPOINT",
+  "WORKER_URL",
   "NEXT_PUBLIC_AGENT_API_URL",
   "VITE_AGENT_API_URL",
   "PUBLIC_AGENT_API_URL",

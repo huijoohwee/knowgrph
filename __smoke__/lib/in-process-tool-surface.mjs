@@ -14,13 +14,14 @@
 //   tools/call -> dispatchKnowgrphMcpToolCall(...)        (the shared dispatch
 //                                                          path index.ts runs)
 //
-// It REUSES the in-memory `RUN_MANIFEST_STORE` namespace built from the real
-// `RunManifestStore` DO class (`__integration__/lib/in-process-mcp-adapter.mjs`)
-// — no fork. The transport is injectable so task 11.4 can swap it for a real
-// `fetch` against the live endpoint with no caller changes.
+// It builds an in-memory `RUN_MANIFEST_STORE` namespace from the real
+// `RunManifestStore` Durable Object class (the worker's own persistence layer)
+// — no fork, no live network. The transport is injectable so the same seam can
+// later be pointed at a real `fetch` against the live endpoint with no caller
+// changes.
 
-import { createInMemoryRunManifestNamespace } from "../../__integration__/lib/in-process-mcp-adapter.mjs";
 import { dispatchKnowgrphMcpToolCall } from "../../cloudflare/workers/knowgrph-mcp/run-manifest/dispatch.mjs";
+import { RunManifestStore } from "../../cloudflare/workers/knowgrph-mcp/run-manifest/persistence.mjs";
 import {
   buildKnowgrphMcpToolDefinitions,
   KNOWGRPH_MCP_CONTRACT_VERSION,
@@ -28,6 +29,46 @@ import {
 
 /** The MCP Streamable HTTP endpoint the deployed Worker serves (R14.1). */
 export const MCP_STREAMABLE_HTTP_URL = "https://airvio.co/knowgrph/mcp";
+
+/**
+ * Build an in-memory `RUN_MANIFEST_STORE` Durable Object namespace from the
+ * real `RunManifestStore` class. Each `idFromName` -> `get` pair returns a
+ * persistent DO stub backed by a `Map` storage shim implementing the async
+ * `get(key)` / `put(batch)` surface the persistence layer expects. Pure and
+ * network-free.
+ *
+ * @returns {{ idFromName: (name: string) => { name: string }, get: (id: { name: string }) => RunManifestStore }}
+ */
+export function createInMemoryRunManifestNamespace() {
+  const stores = new Map();
+  const makeStorage = () => {
+    const map = new Map();
+    return {
+      async get(key) {
+        return map.get(key);
+      },
+      async put(keyOrBatch, value) {
+        if (keyOrBatch && typeof keyOrBatch === "object" && value === undefined) {
+          for (const [k, v] of Object.entries(keyOrBatch)) map.set(k, v);
+          return;
+        }
+        map.set(keyOrBatch, value);
+      },
+    };
+  };
+  return {
+    idFromName(name) {
+      return { name: String(name) };
+    },
+    get(id) {
+      const name = id && typeof id === "object" ? String(id.name) : String(id);
+      if (!stores.has(name)) {
+        stores.set(name, new RunManifestStore({ storage: makeStorage() }, {}));
+      }
+      return stores.get(name);
+    },
+  };
+}
 
 const JSON_RPC_INVALID_REQUEST = -32600;
 const JSON_RPC_METHOD_NOT_FOUND = -32601;

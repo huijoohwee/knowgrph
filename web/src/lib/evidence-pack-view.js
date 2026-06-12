@@ -1,4 +1,4 @@
-// Evidence_Pack display view-model for the agentic-canvas-os Vercel Frontend.
+// Evidence_Pack display view-model for the knowgrph Cloudflare Pages frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.4 (R1.4; design Correctness
 // Property 32; design Frontend `renderManifest`).

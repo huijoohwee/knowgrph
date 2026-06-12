@@ -1,4 +1,4 @@
-// Approval-decision transmission client for the agentic-canvas-os Vercel
+// Approval-decision transmission client for the knowgrph Cloudflare Pages
 // Frontend.
 //
 // Spec: knowgrph-acos-mcp-connector, task 7.7 (R13.2, R13.3; design Frontend
