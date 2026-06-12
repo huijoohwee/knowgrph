@@ -284,10 +284,6 @@
 | OpenAI MCP Server Configuration | Remote MCP server_url for ChatGPT Apps and Responses API | `canvas/src/features/settings/registry-openai-mcp.ts` | `` | `` | `openai.mcp.serverUrl` | `localStorage` |  | `canvas/src/features/settings/registry-openai-mcp.ts:L27` |
 | OpenAI MCP Server Configuration | Remote MCP transport for the custom server | `canvas/src/features/settings/registry-openai-mcp.ts` | `` | `` | `openai.mcp.transport` | `localStorage` |  | `canvas/src/features/settings/registry-openai-mcp.ts:L33` |
 | OpenAI MCP Server Configuration | Server-side vector store id env var name (VECTOR_STORE_ID) | `canvas/src/features/settings/registry-openai-mcp.ts` | `` | `` | `openai.mcp.vectorStoreEnv` | `localStorage` |  | `canvas/src/features/settings/registry-openai-mcp.ts:L70` |
-| — | agent api url | `` | `` | `` | `operatorDeploy.mcp.agentApiUrl` | `localStorage` |  | `` |
-| — | agent core endpoint | `` | `` | `` | `operatorDeploy.mcp.agentCoreEndpoint` | `localStorage` |  | `` |
-| — | auth jwt secret name | `` | `` | `` | `operatorDeploy.mcp.authJwtSecretName` | `localStorage` |  | `` |
-| — | aws region | `` | `` | `` | `operatorDeploy.mcp.awsRegion` | `localStorage` |  | `` |
 | — | cloud deploy approved | `` | `` | `` | `operatorDeploy.mcp.cloudDeployApproved` | `localStorage` |  | `` |
 | — | endpoint | `` | `` | `` | `operatorDeploy.mcp.endpoint` | `localStorage` |  | `` |
 | — | frontend url | `` | `` | `` | `operatorDeploy.mcp.frontendUrl` | `localStorage` |  | `` |

@@ -10062,57 +10062,9 @@
     ],
     "lineRange": ""
   },
-  "operatorDeploy.mcp.agentApiUrl": {
-    "area": "—",
-    "responsibility": "agent api url",
-    "notes": "",
-    "modules": [],
-    "classes": [],
-    "functions": [],
-    "imports": [
-      "localStorage"
-    ],
-    "lineRange": ""
-  },
-  "operatorDeploy.mcp.agentCoreEndpoint": {
-    "area": "—",
-    "responsibility": "agent core endpoint",
-    "notes": "",
-    "modules": [],
-    "classes": [],
-    "functions": [],
-    "imports": [
-      "localStorage"
-    ],
-    "lineRange": ""
-  },
   "operatorDeploy.mcp.frontendUrl": {
     "area": "—",
     "responsibility": "frontend url",
-    "notes": "",
-    "modules": [],
-    "classes": [],
-    "functions": [],
-    "imports": [
-      "localStorage"
-    ],
-    "lineRange": ""
-  },
-  "operatorDeploy.mcp.awsRegion": {
-    "area": "—",
-    "responsibility": "aws region",
-    "notes": "",
-    "modules": [],
-    "classes": [],
-    "functions": [],
-    "imports": [
-      "localStorage"
-    ],
-    "lineRange": ""
-  },
-  "operatorDeploy.mcp.authJwtSecretName": {
-    "area": "—",
-    "responsibility": "auth jwt secret name",
     "notes": "",
     "modules": [],
     "classes": [],
