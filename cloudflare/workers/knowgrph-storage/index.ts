@@ -37,6 +37,7 @@ import {
 } from './db'
 import { handleCrawlerSourceFiles, isKnowgrphStorageCrawlerRoute } from './crawler'
 import { handleBlobRead, handleBlobUpload, isKnowgrphStorageBlobRoute } from './blob'
+import { handleMediaRead, handleMediaWrite, isKnowgrphStorageMediaRoute } from './media'
 import {
   KNOWGRPH_STORAGE_DOC_VIEW_HEADERS,
   readPublishedMarkdown,
@@ -538,6 +539,10 @@ export const createKnowgrphStorageWorker = () => ({
     try {
       if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.collabSave) {
         return await handleCollaborationSave(request, env)
+      }
+      if (isKnowgrphStorageMediaRoute(url.pathname)) {
+        if (request.method === 'PUT' || request.method === 'POST') return await handleMediaWrite(request, env)
+        if (request.method === 'GET' || request.method === 'HEAD') return await handleMediaRead(request, env)
       }
       if (isKnowgrphStorageBlobRoute(url.pathname)) {
         if (request.method === 'POST') return await handleBlobUpload(request, env)

@@ -60,13 +60,13 @@ test("urls[] always includes at least one Frontend URL and one Agent_Api endpoin
 test("deployed Frontend + Agent_Api endpoint hints flow into urls[]", () => {
   const demoPack = buildDemoPack({
     ...TERMINAL_ARGS,
-    frontendUrl: "https://acos.vercel.app",
-    agentApiUrl: "https://api.acos.aws",
-    backendHealthUrl: "https://api.acos.aws/health",
+    frontendUrl: "https://airvio.co/knowgrph",
+    workerUrl: "https://airvio.co/knowgrph/mcp",
+    workerHealthUrl: "https://airvio.co/knowgrph/mcp/health",
   });
-  assert.ok(demoPack.urls.some((u) => u.kind === FRONTEND_URL_KIND && u.url === "https://acos.vercel.app"));
-  assert.ok(demoPack.urls.some((u) => u.kind === "agent-api" && u.url === "https://api.acos.aws"));
-  assert.ok(demoPack.urls.some((u) => u.kind === "agent-api-health" && u.url === "https://api.acos.aws/health"));
+  assert.ok(demoPack.urls.some((u) => u.kind === FRONTEND_URL_KIND && u.url === "https://airvio.co/knowgrph"));
+  assert.ok(demoPack.urls.some((u) => u.kind === "worker" && u.url === "https://airvio.co/knowgrph/mcp"));
+  assert.ok(demoPack.urls.some((u) => u.kind === "worker-health" && u.url === "https://airvio.co/knowgrph/mcp/health"));
 });
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ test("a 200 returned within the 5s deadline verifies the section", () => {
 
 test("a non-200 URL marks its section unverified and records the failing URL", () => {
   const urls = buildDemoUrls({ state: "complete" });
-  const agentApi = urls.find((u) => u.kind === "agent-api").url;
+  const agentApi = urls.find((u) => u.kind === "worker").url;
 
   const reachability = urls.map((u) => ({
     url: u.url,
@@ -115,7 +115,7 @@ test("a non-200 URL marks its section unverified and records the failing URL", (
 
 test("a 200 that arrives AFTER the 5s deadline is a timeout failure", () => {
   const urls = buildDemoUrls({ state: "complete" });
-  const health = urls.find((u) => u.kind === "agent-api-health").url;
+  const health = urls.find((u) => u.kind === "worker-health").url;
 
   // The health route answers 200 but only after 5.5s — past the 5s deadline.
   const reachability = urls.map((u) => ({
@@ -133,7 +133,7 @@ test("a 200 that arrives AFTER the 5s deadline is a timeout failure", () => {
 
 test("an explicit timedOut flag is a timeout failure regardless of latency field", () => {
   const urls = buildDemoUrls({ state: "complete" });
-  const agentApi = urls.find((u) => u.kind === "agent-api").url;
+  const agentApi = urls.find((u) => u.kind === "worker").url;
 
   const reachability = urls.map((u) => ({
     url: u.url,
@@ -173,14 +173,14 @@ test("the reachability deadline is injectable per call", () => {
 test("markReachability honors an injected deadline on a probe function", () => {
   const urls = [
     { kind: FRONTEND_URL_KIND, url: "https://fe.example", reachable: false },
-    { kind: "agent-api", url: "https://api.example", reachable: false },
+    { kind: "worker", url: "https://airvio.co/knowgrph/mcp", reachable: false },
   ];
   const sections = [{ id: DEMO_SECTION_ID, dimension: "Demo & Presentation", verified: false }];
 
-  // fe answers fast (1s), api answers slow (6s) — only api should fail @5s.
-  const probe = (url) => ({ status: 200, latencyMs: url === "https://api.example" ? 6000 : 1000 });
+  // fe answers fast (1s), api answers slow (6s) — only worker should fail @5s.
+  const probe = (url) => ({ status: 200, latencyMs: url === "https://airvio.co/knowgrph/mcp" ? 6000 : 1000 });
   const marked = markReachability({ urls, sections, reachability: probe, deadlineMs: URL_REACHABILITY_DEADLINE_MS });
 
-  assert.deepEqual(marked.failingUrls, ["https://api.example"]);
+  assert.deepEqual(marked.failingUrls, ["https://airvio.co/knowgrph/mcp"]);
   assert.equal(marked.sections[0].verified, false);
 });

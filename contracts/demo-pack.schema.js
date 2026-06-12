@@ -79,28 +79,33 @@ export const DEMO_PACK_SECTION_COUNT = DEMO_PACK_DIMENSIONS.length; // 7
 /** Frontend (Vercel) URL kind — the R3.2 ">=1 Frontend URL" requirement. */
 export const DEMO_PACK_FRONTEND_URL_KIND = "frontend";
 
-/**
- * URL kinds that count as an Agent_Api endpoint for the R3.2 ">=1 Agent_Api
- * endpoint" requirement. Mirrors `AGENT_API_URL_KINDS` in
- * `mcp/video-remix/demo-pack.js`: the base endpoint and its open `GET /health`
- * liveness route both qualify.
- */
-export const DEMO_PACK_AGENT_API_URL_KINDS = Object.freeze([
-  "agent-api",
-  "agent-api-health",
-]);
+/** Cloudflare Worker (knowgrph-mcp) URL kind — the ">=1 Worker endpoint" requirement. */
+export const DEMO_PACK_WORKER_URL_KIND = "worker";
 
 /**
- * Canonical Demo_Pack url kinds. `frontend` + the two agent-api kinds are
- * REQUIRED-coverage kinds (R3.2); `asset` and `stripe-session` are the
- * additional artifact surfaces a judge may follow (design › Demo_Pack
- * references the rendered asset reference and the Stripe session id).
+ * URL kinds that count as a Worker endpoint for the ">=1 Worker endpoint"
+ * requirement. The base MCP endpoint and its open `GET /health` liveness route
+ * both qualify.
+ */
+export const DEMO_PACK_WORKER_URL_KINDS = Object.freeze([
+  "worker",
+  "worker-health",
+]);
+
+// Backward-compatible alias — callers that imported the old name keep working.
+export const DEMO_PACK_AGENT_API_URL_KINDS = DEMO_PACK_WORKER_URL_KINDS;
+
+/**
+ * Canonical Demo_Pack url kinds. `frontend` + the two worker kinds are
+ * REQUIRED-coverage kinds; `asset`, `stripe-session`, and `canvas` are the
+ * additional artifact surfaces a judge may follow.
  */
 export const DEMO_PACK_URL_KINDS = Object.freeze([
   DEMO_PACK_FRONTEND_URL_KIND,
-  ...DEMO_PACK_AGENT_API_URL_KINDS,
+  ...DEMO_PACK_WORKER_URL_KINDS,
   "asset",
   "stripe-session",
+  "canvas",
 ]);
 
 // -----------------------------------------------------------------------------
@@ -120,7 +125,7 @@ function isFrontendKind(kind) {
 }
 
 function isAgentApiKind(kind) {
-  return DEMO_PACK_AGENT_API_URL_KINDS.includes(kind);
+  return DEMO_PACK_WORKER_URL_KINDS.includes(kind);
 }
 
 // -----------------------------------------------------------------------------
@@ -204,12 +209,12 @@ function validateUrls(urls, add) {
   });
 
   if (!hasFrontend) {
-    add("urls", "must contain at least one Frontend URL (kind 'frontend') (R3.2)");
+    add("urls", "must contain at least one Frontend URL (kind 'frontend')");
   }
   if (!hasAgentApi) {
     add(
       "urls",
-      `must contain at least one Agent_Api endpoint (kind one of ${DEMO_PACK_AGENT_API_URL_KINDS.join(", ")}) (R3.2)`,
+      `must contain at least one Worker endpoint (kind one of ${DEMO_PACK_WORKER_URL_KINDS.join(", ")})`,
     );
   }
 }
@@ -303,8 +308,8 @@ export function createDemoPack(init = {}) {
   const urls = Array.isArray(source.urls) && source.urls.length > 0
     ? source.urls
     : [
-      { kind: DEMO_PACK_FRONTEND_URL_KIND, url: "https://agentic-canvas-os.vercel.app" },
-      { kind: "agent-api", url: "https://agentic-canvas-os.example.aws" },
+      { kind: DEMO_PACK_FRONTEND_URL_KIND, url: "https://airvio.co/knowgrph" },
+      { kind: "worker", url: "https://airvio.co/knowgrph/mcp" },
     ];
   const evidence = isPlainObject(source.evidence) ? source.evidence : {};
   const verified = isPlainObject(source.verified) ? source.verified : {};

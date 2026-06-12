@@ -222,14 +222,14 @@ test("endpoint hints and injected reachability are forwarded to the assembler (n
   const { payload } = runVideoRemix(COMPLETE_LIVE_ARGS);
   const demoPack = buildDemoPackFromManifest(payload, {
     frontendUrl: "https://my-frontend.example",
-    agentApiUrl: "https://my-agent-api.example",
-    backendHealthUrl: "https://my-agent-api.example/health",
+    workerUrl: "https://airvio.co/knowgrph/mcp",
+    workerHealthUrl: "https://airvio.co/knowgrph/mcp/health",
     // Deterministic injected probe: every url returns 503 (no socket opened).
     reachability: () => ({ status: 503 }),
   });
 
   assert.ok(demoPack.urls.some((u) => u.kind === FRONTEND_URL_KIND && u.url === "https://my-frontend.example"));
-  assert.ok(demoPack.urls.some((u) => u.kind === "agent-api" && u.url === "https://my-agent-api.example"));
+  assert.ok(demoPack.urls.some((u) => u.kind === "worker" && u.url === "https://airvio.co/knowgrph/mcp"));
   // A confirmed non-200 marks the demo_presentation section unverified + records the failing url.
   assert.ok(demoPack.failingUrls.length >= 1);
   const demoSection = demoPack.sections.find((s) => s.id === "demo_presentation");

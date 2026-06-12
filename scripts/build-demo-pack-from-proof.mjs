@@ -29,8 +29,8 @@ async function main() {
 
   const artifact = buildHostedDemoPackArtifact(proof, {
     frontendUrl: process.env.FRONTEND_URL,
-    agentApiUrl: process.env.AGENT_API_URL,
-    backendHealthUrl: process.env.AGENT_API_HEALTH_URL,
+    workerUrl: process.env.MCP_ENDPOINT || process.env.WORKER_URL,
+    workerHealthUrl: process.env.WORKER_HEALTH_URL,
   });
 
   if (!artifact.demoPackValidation.valid) {

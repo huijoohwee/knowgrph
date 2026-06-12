@@ -8,14 +8,13 @@ import {
 
 test("resolveHostedSubmissionFlowConfig derives deterministic output paths", () => {
   const config = resolveHostedSubmissionFlowConfig({
-    AGENT_API_URL: "https://api.example.aws",
-    FRONTEND_URL: "https://app.example.vercel.app",
+    FRONTEND_URL: "https://airvio.co/knowgrph",
     MCP_ENDPOINT: "https://airvio.co/knowgrph/mcp",
     ARTIFACTS_DIR: "./tmp-artifacts",
   });
 
-  assert.equal(config.agentApiUrl, "https://api.example.aws");
-  assert.equal(config.frontendUrl, "https://app.example.vercel.app");
+  assert.equal(config.frontendUrl, "https://airvio.co/knowgrph");
+  assert.equal(config.mcpEndpoint, "https://airvio.co/knowgrph/mcp");
   assert.match(config.proofOutputPath, /tmp-artifacts\/runtime-proof\.json$/);
   assert.match(config.demoPackOutputPath, /tmp-artifacts\/runtime-demo-pack\.json$/);
   assert.match(config.submissionBriefOutputPath, /tmp-artifacts\/runtime-submission-brief\.md$/);
@@ -24,8 +23,7 @@ test("resolveHostedSubmissionFlowConfig derives deterministic output paths", () 
 
 test("buildHostedSubmissionFlowSteps returns the full ordered deployed flow", () => {
   const config = resolveHostedSubmissionFlowConfig({
-    AGENT_API_URL: "https://api.example.aws",
-    FRONTEND_URL: "https://app.example.vercel.app",
+    FRONTEND_URL: "https://airvio.co/knowgrph",
   });
   const steps = buildHostedSubmissionFlowSteps(config);
 
@@ -42,13 +40,9 @@ test("buildHostedSubmissionFlowSteps returns the full ordered deployed flow", ()
   ]);
 });
 
-test("resolveHostedSubmissionFlowConfig requires live deployment urls", () => {
+test("resolveHostedSubmissionFlowConfig requires FRONTEND_URL", () => {
   assert.throws(
-    () => resolveHostedSubmissionFlowConfig({ FRONTEND_URL: "https://app.example.vercel.app" }),
-    /AGENT_API_URL/,
-  );
-  assert.throws(
-    () => resolveHostedSubmissionFlowConfig({ AGENT_API_URL: "https://api.example.aws" }),
+    () => resolveHostedSubmissionFlowConfig({}),
     /FRONTEND_URL/,
   );
 });

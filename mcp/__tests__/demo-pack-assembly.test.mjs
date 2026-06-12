@@ -158,10 +158,10 @@ test("buildDemoUrls honors endpoint hint overrides at a terminal state", () => {
   const urls = buildDemoUrls({
     state: "complete",
     frontendUrl: "https://my-frontend.example",
-    agentApiUrl: "https://my-agent-api.example",
-    backendHealthUrl: "https://my-agent-api.example/health",
+    workerUrl: "https://airvio.co/knowgrph/mcp",
+    workerHealthUrl: "https://airvio.co/knowgrph/mcp/health",
   });
   assertRequiredUrls(urls);
   assert.ok(urls.some((u) => u.kind === FRONTEND_URL_KIND && u.url === "https://my-frontend.example"));
-  assert.ok(urls.some((u) => u.kind === "agent-api" && u.url === "https://my-agent-api.example"));
+  assert.ok(urls.some((u) => u.kind === "worker" && u.url === "https://airvio.co/knowgrph/mcp"));
 });

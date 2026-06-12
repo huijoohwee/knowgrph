@@ -73,16 +73,17 @@ function isTerminalRunState(state) {
   return TERMINAL_RUN_STATES.includes(state);
 }
 
-// Default demo endpoints (overridable via run args). Frontend = Vercel app;
-// Agent_Api = AWS API Gateway base + its open `GET /health` liveness route.
-const DEFAULT_FRONTEND_URL = "https://agentic-canvas-os.vercel.app";
-const DEFAULT_AGENT_API_URL = "https://agentic-canvas-os.example.aws";
-const DEFAULT_AGENT_API_HEALTH_URL = "https://agentic-canvas-os.example.aws/health";
+// Default demo endpoints (Cloudflare-only). Frontend = Pages app at airvio.co/knowgrph;
+// Worker = knowgrph-mcp Worker base endpoint + its open `GET /health` liveness route.
+const DEFAULT_FRONTEND_URL = "https://airvio.co/knowgrph";
+const DEFAULT_WORKER_URL = "https://airvio.co/knowgrph/mcp";
+const DEFAULT_WORKER_HEALTH_URL = "https://airvio.co/knowgrph/mcp/health";
 
-// Url kinds that count as an Agent_Api endpoint for the R3.2 ">=1 Agent_Api"
-// requirement (the base endpoint and its health route both qualify).
+// Url kinds that count as a Worker endpoint for the ">=1 Worker" requirement.
 const FRONTEND_URL_KIND = "frontend";
-const AGENT_API_URL_KINDS = Object.freeze(["agent-api", "agent-api-health"]);
+const WORKER_URL_KINDS = Object.freeze(["worker", "worker-health"]);
+// Backward-compatible alias for callers that imported the old name.
+const AGENT_API_URL_KINDS = WORKER_URL_KINDS;
 
 // EXPLICIT, INJECTABLE 5-second reachability deadline (R3.2, R3.3 — a url is
 // reachable ONLY when it returns HTTP 200 "within 5 seconds"). This is the
@@ -104,12 +105,12 @@ const URL_REACHABILITY_DEADLINE_MS = 5000;
 // canvas base is configured), a `canvas` entry is added so the embedded canvas
 // counts as a judge-facing artifact. Absent a canvasUrl the urls[] shape is
 // unchanged (backward compatible — no canvas entry).
-function buildDemoUrls({ state, frontendUrl, agentApiUrl, backendHealthUrl, canvasUrl }) {
+function buildDemoUrls({ state, frontendUrl, workerUrl, workerHealthUrl, canvasUrl }) {
   if (!isTerminalRunState(state)) return [];
   const urls = [
     { kind: FRONTEND_URL_KIND, url: cleanString(frontendUrl, DEFAULT_FRONTEND_URL), reachable: false },
-    { kind: "agent-api", url: cleanString(agentApiUrl, DEFAULT_AGENT_API_URL), reachable: false },
-    { kind: "agent-api-health", url: cleanString(backendHealthUrl, DEFAULT_AGENT_API_HEALTH_URL), reachable: false },
+    { kind: "worker", url: cleanString(workerUrl, DEFAULT_WORKER_URL), reachable: false },
+    { kind: "worker-health", url: cleanString(workerHealthUrl, DEFAULT_WORKER_HEALTH_URL), reachable: false },
   ];
   const canvas = cleanString(canvasUrl);
   if (canvas) urls.push({ kind: CANVAS_URL_KIND, url: canvas, reachable: false });
@@ -148,7 +149,7 @@ function buildSectionEvidence(id, ctx) {
       return `Director resolved each spend boundary autonomously under a dry-run-first policy, ` +
         `escalating to a human Approval_Gate only at paid actions; ${sourceCount} research source(s) informed planning; ${citationsText}.`;
     case "actions_tool_use":
-      return `Tool calls exercised: research (Exa via AI Gateway), storyboard (BytePlus), render, publish, checkout; ` +
+      return `Tool calls exercised: research (via Cloudflare AI Gateway), storyboard (BytePlus), render, publish, checkout; ` +
         `${assetCount} rendered asset reference(s) produced through the existing Strytree/BytePlus queue; ${assetText}.`;
     case "orchestration":
       return `Strict stage ordering enforced (each stage begins only after the prior reaches completed), ` +
@@ -199,11 +200,10 @@ const URL_KIND_TO_SECTION = Object.freeze({
   [FRONTEND_URL_KIND]: "demo_presentation",
   "agent-api": "demo_presentation",
   "agent-api-health": "demo_presentation",
-  // The embedded knowgrph canvas backs the Actions & Tool Use dimension: the
-  // agent's shot plan is shown live on the real renderer (consumed over MCP,
-  // not rebuilt). Combined with that section's rendered-asset artifact, the
-  // section verifies only when the canvas is reachable AND an asset exists.
+  // The embedded knowgrph canvas backs the Actions & Tool Use dimension.
   [CANVAS_URL_KIND]: "actions_tool_use",
+  "worker": "demo_presentation",
+  "worker-health": "demo_presentation",
 });
 
 function sectionIdForUrl(entry) {
@@ -392,8 +392,8 @@ function buildDemoPack({
   assets = [],
   checkout = {},
   frontendUrl,
-  agentApiUrl,
-  backendHealthUrl,
+  workerUrl,
+  workerHealthUrl,
   canvasUrl,
   canvasBaseUrl,
   runId,
@@ -404,11 +404,6 @@ function buildDemoPack({
   healthAttempts,
 }) {
   const evidenced = state === "complete" || state === "completed";
-  // Resolve the run-scoped canvas doc-view URL (opt-in). An explicit `canvasUrl`
-  // wins; otherwise derive it from a configured control-plane canvas base +
-  // runId. Absent both, the canvas entry is omitted (urls[] shape unchanged).
-  // Callers gate availability upstream (pass a canvasUrl only when the
-  // storyboard produced a Kgc_Document — see canvas-embed buildCanvasUrlFromManifest).
   const resolvedCanvasUrl = cleanString(canvasUrl)
     || (cleanString(runId) && resolveCanvasDocViewUrl({
       baseUrl: canvasBaseUrl,
@@ -419,12 +414,10 @@ function buildDemoPack({
   const urls = buildDemoUrls({
     state,
     frontendUrl,
-    agentApiUrl,
-    backendHealthUrl,
+    workerUrl,
+    workerHealthUrl,
     canvasUrl: resolvedCanvasUrl,
   });
-  // R3.6 / R3.7: reference each of the three artifacts when present, mark "not
-  // available" otherwise. Citations default to the Evidence_Pack derivation.
   const artifactReferences = buildArtifactReferences({ citations, sources, assets, checkout });
   const ctx = {
     state,
@@ -434,29 +427,11 @@ function buildDemoPack({
     sessionId: checkout && checkout.sessionId ? checkout.sessionId : "",
     artifactReferences,
   };
-  // Task 2.14 / R3.3 / Property 23: fold in url reachability. With no injected
-  // `reachability` (the runtime default — no real network call) every url stays
-  // `reachable:false`, every url-backed section stays `verified:false`, and
-  // `failingUrls` is empty (an UNPROBED url is not a CONFIRMED failure). When a
-  // probe result set is injected, a confirmed non-200/timeout marks its section
-  // unverified and records the failing url.
   const marked = markReachability({ urls, sections: buildSections(ctx), reachability, deadlineMs: reachabilityDeadlineMs });
-  // Task 2.15 / R3.6 / R3.7 / Property 23 (artifact half): drive each
-  // artifact-backed section's `verified` from artifact presence, composing with
-  // the reachability half for the dimension that is both url- and
-  // artifact-backed. Only at a terminal Run_State (off-terminal runs are still
-  // in flight, so their sections remain unverified per the 2.13 seam).
   const sections = isTerminalRunState(state)
     ? markArtifactCompleteness({ sections: marked.sections, artifactReferences })
     : marked.sections;
-  // Task 2.16 / R3.4 / R3.5: health-route retry/record. The probe runs ONLY at
-  // a terminal Run_State AND after the deploy Approval_Gate(s) are approved;
-  // it retries `GET /health` up to 3 times against an INJECTABLE attempt
-  // sequence (no real network/timer in the runtime — the live probe is wired
-  // in integration task 9.2). When all (up to 3) attempts fail to return HTTP
-  // 200 within 5s, `healthCheck.failureRecorded` is true (R3.5). The url stays
-  // consistent with the 2.14 `agent-api-health` entry.
-  const healthUrl = cleanString(backendHealthUrl, DEFAULT_AGENT_API_HEALTH_URL);
+  const healthUrl = cleanString(workerHealthUrl, DEFAULT_WORKER_HEALTH_URL);
   const healthCheck = runHealthCheck({
     deployApproved: isTerminalRunState(state) && deployApproved === true,
     url: healthUrl,
@@ -487,6 +462,7 @@ export {
   JUDGING_DIMENSIONS,
   TERMINAL_RUN_STATES,
   FRONTEND_URL_KIND,
+  WORKER_URL_KINDS,
   AGENT_API_URL_KINDS,
   URL_REACHABILITY_DEADLINE_MS,
   URL_KIND_TO_SECTION,

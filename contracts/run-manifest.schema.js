@@ -9,10 +9,10 @@
 // The Run_Manifest shape was previously MIRRORED ad-hoc across tiers:
 //   - worker:  cloudflare/workers/knowgrph-mcp/run-manifest/*.mjs (persistence)
 //   - mcp:     mcp/director-workflow.js + mcp/video-remix-runtime.js (producer)
-//   - aws:     aws/agent-api/src/lib/run-manifest-store.js (durable read/write)
-//   - web:     Vercel view builders (render Run_State / stages / budgetMeters)
+//   - web:     web/src/lib/* view builders (render Run_State / stages / budgetMeters)
 //
-// This module is the SINGLE SOURCE OF TRUTH for that shape. It is:
+// This module is the SINGLE SOURCE OF TRUTH for that shape. Platform target is
+// Cloudflare-only. It is:
 //   - framework-agnostic and dependency-free (no JSON-schema lib),
 //   - plain ESM ("type":"module") reachable by every tier (.js / .mjs),
 //   - a PURE validator: `validateRunManifest(m) -> { valid, errors:[{path,reason}] }`
@@ -331,8 +331,8 @@ function validateReconciliationFlags(m, add) {
 
 // -----------------------------------------------------------------------------
 // Convenience factory — a minimal, schema-valid Run_Manifest skeleton.
-// Mirrors the producer default (Director live-without-approvals baseline) and
-// the AWS/durable read shape so callers can build from a known-valid base.
+// Mirrors the producer default (Director live-without-approvals baseline)
+// so callers can build from a known-valid base.
 // -----------------------------------------------------------------------------
 
 /**
@@ -359,21 +359,18 @@ export function createRunManifest(init = {}) {
 // =============================================================================
 // 1. runId + mode: the task title enumerates state/stages/approvalGates/
 //    budgetMeters/demoPack/failures/reconciliationFlags, but the design Data
-//    Models and the AWS durable read shape (aws/agent-api tests + store) BOTH
-//    carry `runId` and `mode`. They are included here as required fields so the
-//    SSOT mirrors what the tiers actually persist/read (true SSOT).
+//    Models carry `runId` and `mode`. They are included here as required fields
+//    so the SSOT mirrors what the tiers actually persist/read.
 // 2. ApprovalGate.gateId enum: design Data Models lists SIX gate ids (adds
 //    `render-action`); the requirements Glossary lists five. Design is the SSOT
 //    per its "Resolved Decisions" note (render keeps a gate distinct from
-//    `paid-model-call`). The AWS mcp-error-mapping path already uses
-//    `render-action`, so six is the reconciled set.
-// 3. mcp `agentic-canvas-os-lanes.js` buildApprovalGates() emits a richer
-//    *planning/lane* gate object ({ id, actionKind, risk, dryRunArtifact,
-//    approvalState:"required" }). That is a dry-run PLAN artifact, NOT the
-//    Run_Manifest ApprovalGate. The canonical Run_Manifest ApprovalGate is the
-//    design/AWS shape { gateId, approvalState(pending|approved|rejected),
-//    estimatedCostUsd, token } validated above. The lane builder is left
-//    untouched; re-pointing happens in later integration tasks.
+//    `paid-model-call`). Six is the reconciled set.
+// 3. mcp `director-lanes.js` buildApprovalGates() emits a richer *planning/lane*
+//    gate object ({ id, actionKind, risk, dryRunArtifact, approvalState:"required" }).
+//    That is a dry-run PLAN artifact, NOT the Run_Manifest ApprovalGate. The
+//    canonical Run_Manifest ApprovalGate is the design shape
+//    { gateId, approvalState(pending|approved|rejected), estimatedCostUsd, token }
+//    validated above. Re-pointing happens in later integration tasks.
 // 4. costLog / demoPack / token: validated here only at the SSOT shape level
 //    (object|null). Their full field-domain schemas are owned by sibling
 //    Section-8 tasks (8.2 Approval_Token, 8.4 Cost_Log) and the Demo_Pack

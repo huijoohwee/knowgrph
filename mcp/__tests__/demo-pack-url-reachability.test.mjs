@@ -62,8 +62,8 @@ test("an all-200 reachability set flips urls reachable and leaves the section ve
 test("a non-200 URL marks its section unverified and records the failing URL", () => {
   const urls = buildDemoUrls({ state: "complete" });
   const frontend = urls.find((u) => u.kind === FRONTEND_URL_KIND).url;
-  const agentApi = urls.find((u) => u.kind === "agent-api").url;
-  const health = urls.find((u) => u.kind === "agent-api-health").url;
+  const agentApi = urls.find((u) => u.kind === "worker").url;
+  const health = urls.find((u) => u.kind === "worker-health").url;
 
   // Frontend + health OK; the agent-api base returns 503.
   const reachability = {
@@ -89,7 +89,7 @@ test("a non-200 URL marks its section unverified and records the failing URL", (
 
 test("a timed-out URL is recorded as a failing URL and unverifies its section", () => {
   const urls = buildDemoUrls({ state: "complete" });
-  const health = urls.find((u) => u.kind === "agent-api-health").url;
+  const health = urls.find((u) => u.kind === "worker-health").url;
 
   const reachability = urls.map((u) => ({
     url: u.url,
@@ -137,13 +137,13 @@ test("non-terminal state has no urls so reachability marking is a no-op", () => 
 test("markReachability accepts boolean / array / object / Map result shapes", () => {
   const urls = [
     { kind: FRONTEND_URL_KIND, url: "https://fe.example", reachable: false },
-    { kind: "agent-api", url: "https://api.example", reachable: false },
+    { kind: "worker", url: "https://airvio.co/knowgrph/mcp", reachable: false },
   ];
   const sections = [{ id: "demo_presentation", dimension: "Demo & Presentation", verified: false }];
 
   // Boolean probe fn.
   const byFn = markReachability({ urls, sections, reachability: (u) => u === "https://fe.example" });
-  assert.deepEqual(byFn.failingUrls, ["https://api.example"]);
+  assert.deepEqual(byFn.failingUrls, ["https://airvio.co/knowgrph/mcp"]);
   assert.equal(byFn.sections[0].verified, false);
 
   // Array of results.
@@ -152,7 +152,7 @@ test("markReachability accepts boolean / array / object / Map result shapes", ()
     sections,
     reachability: [
       { url: "https://fe.example", ok: true },
-      { url: "https://api.example", ok: true },
+      { url: "https://airvio.co/knowgrph/mcp", ok: true },
     ],
   });
   assert.deepEqual(byArr.failingUrls, []);
@@ -162,9 +162,9 @@ test("markReachability accepts boolean / array / object / Map result shapes", ()
   const byObj = markReachability({
     urls,
     sections,
-    reachability: { "https://fe.example": true, "https://api.example": false },
+    reachability: { "https://fe.example": true, "https://airvio.co/knowgrph/mcp": false },
   });
-  assert.deepEqual(byObj.failingUrls, ["https://api.example"]);
+  assert.deepEqual(byObj.failingUrls, ["https://airvio.co/knowgrph/mcp"]);
 
   // Map keyed by url.
   const byMap = markReachability({
@@ -172,10 +172,10 @@ test("markReachability accepts boolean / array / object / Map result shapes", ()
     sections,
     reachability: new Map([
       ["https://fe.example", { status: 200 }],
-      ["https://api.example", { status: 404 }],
+      ["https://airvio.co/knowgrph/mcp", { status: 404 }],
     ]),
   });
-  assert.deepEqual(byMap.failingUrls, ["https://api.example"]);
+  assert.deepEqual(byMap.failingUrls, ["https://airvio.co/knowgrph/mcp"]);
   assert.equal(byMap.sections[0].verified, false);
 });
 

@@ -20,7 +20,7 @@
 // `AgentWorkflow`-shaped skeleton that WRAPS the existing
 // `runVideoRemix(...)` composition (`mcp/video-remix-runtime.js`) and WIRES the
 // four builders (`buildPlanner`, `buildToolCalls`, `buildApprovalGates`,
-// `buildFailureHandling`) exported from `mcp/agentic-canvas-os-lanes.js`. Each
+// `buildFailureHandling`) exported from `mcp/director-lanes.js`. Each
 // workflow step exposes a clean seam (`DIRECTOR_SEAMS`) where the detailed
 // behaviors implemented in spec tasks 2.2-2.16 plug in.
 //
@@ -38,7 +38,7 @@ import {
   buildToolCalls,
   buildApprovalGates,
   buildFailureHandling,
-} from "./agentic-canvas-os-lanes.js";
+} from "./director-lanes.js";
 
 export const DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 

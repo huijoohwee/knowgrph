@@ -1,20 +1,17 @@
 #!/usr/bin/env node
-// Post-deploy runtime-readiness verifier (knowgrph-acos-mcp-connector
-// runtime-readiness path, step 4 — AC-7 live proof helper / tasks 11.2, 11.4).
+// Post-deploy runtime-readiness verifier (Cloudflare-only topology).
 //
-// Probes the deployed surfaces of the live product path and prints a
-// PASS/FAIL readiness report plus a sample Demo_Pack `urls[]` block:
-//   1. AWS Agent-API   GET {AGENT_API_URL}/health   -> HTTP 200 within 5s (R3.4)
-//   2. Cloudflare MCP  GET {MCP_ENDPOINT}/health     -> HTTP 200 within 5s (R14.1)
-//   3. Vercel Frontend GET {FRONTEND_URL}            -> reachable HTTP 200 (R3.2)
-//   4. AgentCore MCP   GET {AGENTCORE_URL}/ping       -> HTTP 200 within 5s (R3.4)
+// Probes the deployed Cloudflare surfaces and prints a PASS/FAIL readiness
+// report plus a sample Demo_Pack `urls[]` block:
+//   1. Cloudflare Pages  GET {FRONTEND_URL}               -> HTTP 200 within 5s
+//   2. Cloudflare MCP    GET {MCP_ENDPOINT}/health        -> HTTP 200 within 5s
+//   3. Storage Worker    GET {STORAGE_WORKER_URL}/health  -> HTTP 200 within 5s (optional)
 //
 // This script makes REAL outbound GETs to URLs YOU supply (no code/secrets are
 // transmitted). It runs nothing automatically — invoke it after a gated deploy:
 //
-//   AGENT_API_URL=https://xxxx.execute-api.us-east-1.amazonaws.com/v1 \
 //   MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
-//   FRONTEND_URL=https://agentic-canvas-os.vercel.app \
+//   FRONTEND_URL=https://airvio.co/knowgrph \
 //   node scripts/verify-runtime-ready.mjs
 //
 // Exit code 0 when every supplied URL passes; 1 otherwise. Unset URLs are
@@ -56,47 +53,41 @@ async function probe(label, url, { expectJsonStatusPass = false } = {}) {
   }
 }
 
-function joinUrl(base, path) {
+function joinUrl(base, suffix) {
   if (!base) return null;
-  return `${String(base).replace(/\/+$/, "")}${path}`;
+  return `${String(base).replace(/\/+$/, "")}${suffix}`;
 }
 
 async function main() {
-  const agentApi = process.env.AGENT_API_URL;
-  const mcpEndpoint = process.env.MCP_ENDPOINT || "https://airvio.co/knowgrph/mcp";
-  const frontend = process.env.FRONTEND_URL;
-  const agentcore = process.env.AGENTCORE_MCP_URL || process.env.AGENTCORE_URL;
-  const agentcorePing = process.env.AGENTCORE_PING_URL || joinUrl(agentcore, "/ping");
-  const agentcoreMcp = process.env.AGENTCORE_MCP_PATH_URL || joinUrl(agentcore, "/mcp");
+  const frontend     = process.env.FRONTEND_URL      || "https://airvio.co/knowgrph";
+  const mcpEndpoint  = process.env.MCP_ENDPOINT      || "https://airvio.co/knowgrph/mcp";
+  const storageUrl   = process.env.STORAGE_WORKER_URL || null;
 
   const results = await Promise.all([
-    probe("AWS Agent-API /health", joinUrl(agentApi, "/health"), { expectJsonStatusPass: true }),
+    probe("Cloudflare Pages (frontend)", frontend),
     probe("Cloudflare MCP /health", joinUrl(mcpEndpoint, "/health"), { expectJsonStatusPass: true }),
-    probe("Vercel Frontend", frontend),
-    probe("AWS AgentCore /ping", agentcorePing, { expectJsonStatusPass: true }),
+    probe("Cloudflare Storage Worker /health", joinUrl(storageUrl, "/health"), { expectJsonStatusPass: true }),
   ]);
 
-  console.log("\n  Runtime-Readiness Verification (AC-7)\n  " + "-".repeat(48));
+  console.log("\n  Runtime-Readiness Verification (Cloudflare)\n  " + "-".repeat(48));
   for (const r of results) {
     const mark = r.status === "PASS" ? "✓" : r.status === "SKIP" ? "–" : "✗";
     console.log(`  ${mark} ${r.status.padEnd(4)} ${r.label}`);
     console.log(`        ${r.url ?? "(no URL provided)"} — ${r.detail}`);
   }
 
-  // Sample Demo_Pack urls[] block (R3.2): >=1 Frontend URL + >=1 Agent_Api endpoint.
+  // Sample Demo_Pack urls[] block: >=1 frontend + >=1 worker endpoint.
   const demoUrls = [];
-  if (frontend) demoUrls.push({ url: frontend, kind: "frontend" });
-  if (agentApi) demoUrls.push({ url: joinUrl(agentApi, "/health"), kind: "agent_api" });
-  if (mcpEndpoint) demoUrls.push({ url: joinUrl(mcpEndpoint, "/health"), kind: "control_plane" });
-  if (agentcorePing) demoUrls.push({ url: agentcorePing, kind: "agentcore_ping" });
-  if (agentcoreMcp) demoUrls.push({ url: agentcoreMcp, kind: "agentcore_mcp" });
+  if (frontend)    demoUrls.push({ url: frontend, kind: "frontend" });
+  if (mcpEndpoint) demoUrls.push({ url: mcpEndpoint, kind: "worker" });
+  if (mcpEndpoint) demoUrls.push({ url: joinUrl(mcpEndpoint, "/health"), kind: "worker-health" });
   console.log("\n  Sample Demo_Pack urls[]:");
   console.log("  " + JSON.stringify(demoUrls));
 
   const probed = results.filter((r) => r.status !== "SKIP");
-  const failed = probed.filter((r) => r.status === "FAIL");
+  const failed  = probed.filter((r) => r.status === "FAIL");
   if (probed.length === 0) {
-    console.log("\n  No URLs supplied. Set AGENT_API_URL / MCP_ENDPOINT / FRONTEND_URL.\n");
+    console.log("\n  No URLs supplied. Set MCP_ENDPOINT / FRONTEND_URL.\n");
     process.exit(1);
   }
   if (failed.length > 0) {

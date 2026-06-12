@@ -9,3 +9,4 @@ export * from "./cost-log.schema.js";
 export * from "./credit-ledger.schema.js";
 export * from "./kgc-document.schema.js";
 export * from "./demo-pack.schema.js";
+export * from "./media-artifact.schema.js";

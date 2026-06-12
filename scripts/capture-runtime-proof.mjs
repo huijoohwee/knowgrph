@@ -80,7 +80,7 @@ async function getJson(url, headers = {}) {
 }
 
 async function main() {
-  const agentApiUrl = requireEnv("AGENT_API_URL");
+  const agentApiUrl = optionalEnv("MCP_ENDPOINT", "https://airvio.co/knowgrph/mcp");
   const referenceUrl = optionalEnv("REFERENCE_URL", "https://example.com/reference-video.mp4");
   const brief = optionalEnv(
     "BRIEF",
@@ -149,7 +149,7 @@ async function main() {
   const proof = {
     proofVersion: "1",
     generatedAt: new Date().toISOString(),
-    agentApiUrl,
+    workerUrl: agentApiUrl,
     frontendUrl: frontendUrl ?? null,
     mcpEndpoint,
     authSession: {
@@ -182,8 +182,8 @@ async function main() {
     },
     demoPackUrls: [
       ...(frontendUrl ? [{ url: frontendUrl, kind: "frontend" }] : []),
-      { url: joinUrl(agentApiUrl, "/health"), kind: "agent_api" },
-      { url: joinUrl(agentApiUrl, `/runs/${encodeURIComponent(runId)}`), kind: "agent_api_run_readback" },
+      { url: joinUrl(agentApiUrl, "/health"), kind: "worker" },
+      { url: joinUrl(agentApiUrl, `/runs/${encodeURIComponent(runId)}`), kind: "worker-run-readback" },
       ...(mcpEndpoint ? [{ url: joinUrl(mcpEndpoint, "/health"), kind: "control_plane" }] : []),
     ],
   };

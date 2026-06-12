@@ -11,9 +11,8 @@ import {
 function printPlan(config, steps) {
   console.log("\n  Hosted Submission Flow");
   console.log("  " + "-".repeat(48));
-  console.log(`  AGENT_API_URL: ${config.agentApiUrl}`);
-  console.log(`  FRONTEND_URL:  ${config.frontendUrl}`);
   console.log(`  MCP_ENDPOINT:  ${config.mcpEndpoint}`);
+  console.log(`  FRONTEND_URL:  ${config.frontendUrl}`);
   console.log(`  ARTIFACTS_DIR: ${config.outputDir}`);
   console.log("\n  Steps:");
   for (const [index, step] of steps.entries()) {

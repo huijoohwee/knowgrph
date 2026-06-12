@@ -16,6 +16,7 @@ import {
   DEMO_PACK_SECTION_COUNT,
   DEMO_PACK_URL_KINDS,
   DEMO_PACK_FRONTEND_URL_KIND,
+  DEMO_PACK_WORKER_URL_KINDS,
   DEMO_PACK_AGENT_API_URL_KINDS,
 } from "../demo-pack.schema.js";
 
@@ -33,9 +34,9 @@ const pathsOf = (result) => result.errors.map((e) => e.path);
 function completePack(overrides = {}) {
   return {
     urls: [
-      { kind: "frontend", url: "https://app.example.vercel.app" },
-      { kind: "agent-api", url: "https://api.example.aws" },
-      { kind: "agent-api-health", url: "https://api.example.aws/health" },
+      { kind: "frontend", url: "https://airvio.co/knowgrph" },
+      { kind: "worker", url: "https://airvio.co/knowgrph/mcp" },
+      { kind: "worker-health", url: "https://airvio.co/knowgrph/mcp/health" },
     ],
     sections: DEMO_PACK_DIMENSIONS.map((dimension) => ({
       dimension,
@@ -73,9 +74,11 @@ test("canonical dimension catalog is the seven judging dimensions in fixed order
 
 test("canonical url kinds include the required-coverage kinds", () => {
   assert.ok(DEMO_PACK_URL_KINDS.includes(DEMO_PACK_FRONTEND_URL_KIND));
-  for (const k of DEMO_PACK_AGENT_API_URL_KINDS) {
+  for (const k of DEMO_PACK_WORKER_URL_KINDS) {
     assert.ok(DEMO_PACK_URL_KINDS.includes(k));
   }
+  // backward-compat alias points to the same set
+  assert.deepEqual(DEMO_PACK_AGENT_API_URL_KINDS, DEMO_PACK_WORKER_URL_KINDS);
 });
 
 // --- 1. a valid Demo_Pack passes --------------------------------------------
@@ -193,7 +196,7 @@ test("url entry with non-canonical kind is flagged with path", () => {
 
 test("non-object url entry is flagged", () => {
   const pack = completePack();
-  pack.urls[0] = "https://app.example.vercel.app";
+  pack.urls[0] = "https://airvio.co/knowgrph";
   const result = validateDemoPack(pack);
   assert.equal(result.valid, false);
   assert.ok(pathsOf(result).includes("urls[0]"));
@@ -206,9 +209,9 @@ test("asset and stripe-session are accepted canonical url kinds", () => {
   assert.equal(validateDemoPack(pack).valid, true);
 });
 
-// --- 6. >=1 frontend URL + >=1 agent-api URL present (R3.2) -----------------
+// --- 6. >=1 frontend URL + >=1 worker URL present ----------------------------
 
-test("missing a frontend URL is flagged (R3.2)", () => {
+test("missing a frontend URL is flagged", () => {
   const pack = completePack();
   pack.urls = pack.urls.filter((u) => u.kind !== "frontend");
   const result = validateDemoPack(pack);
@@ -217,20 +220,20 @@ test("missing a frontend URL is flagged (R3.2)", () => {
   assert.ok(result.errors.some((e) => /Frontend/.test(e.reason)));
 });
 
-test("missing an agent-api endpoint is flagged (R3.2)", () => {
+test("missing a worker endpoint is flagged", () => {
   const pack = completePack();
-  pack.urls = pack.urls.filter((u) => !DEMO_PACK_AGENT_API_URL_KINDS.includes(u.kind));
+  pack.urls = pack.urls.filter((u) => !DEMO_PACK_WORKER_URL_KINDS.includes(u.kind));
   const result = validateDemoPack(pack);
   assert.equal(result.valid, false);
   assert.ok(pathsOf(result).includes("urls"));
-  assert.ok(result.errors.some((e) => /Agent_Api/.test(e.reason)));
+  assert.ok(result.errors.some((e) => /Worker/.test(e.reason)));
 });
 
-test("agent-api-health alone satisfies the agent-api coverage requirement (R3.2)", () => {
+test("worker-health alone satisfies the worker coverage requirement", () => {
   const pack = completePack();
   pack.urls = [
-    { kind: "frontend", url: "https://app.example.vercel.app" },
-    { kind: "agent-api-health", url: "https://api.example.aws/health" },
+    { kind: "frontend", url: "https://airvio.co/knowgrph" },
+    { kind: "worker-health", url: "https://airvio.co/knowgrph/mcp/health" },
   ];
   assert.equal(validateDemoPack(pack).valid, true);
 });
@@ -297,8 +300,7 @@ test("RECONCILIATION: a terminal-state runtime Demo_Pack passes validateDemoPack
     sources: [{ sourceId: "s1", url: "https://src.example/1" }],
     assets: [{ assetUrl: "https://media.example/a.mp4", ledgerEventId: "led_1" }],
     checkout: { sessionId: "sess_123" },
-  });
-  const result = validateDemoPack(runtimePack);
+  });  const result = validateDemoPack(runtimePack);
   assert.equal(result.valid, true, JSON.stringify(result.errors));
 });
 

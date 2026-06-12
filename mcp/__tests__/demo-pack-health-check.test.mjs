@@ -148,7 +148,7 @@ test("non-terminal state does not probe health even when deploy is approved", ()
 // ---------------------------------------------------------------------------
 
 test("runHealthCheck records the supplied url and the 5s deadline on failure", () => {
-  const url = "https://acos.example.aws/health";
+  const url = "https://airvio.co/knowgrph/mcp/health";
   const hc = runHealthCheck({
     deployApproved: true,
     url,
@@ -201,7 +201,7 @@ test("a slow first attempt fails but a fast 200 within 5s on retry passes", () =
 test("runHealthCheck treats every non-200 status within the budget as a failed attempt", () => {
   const hc = runHealthCheck({
     deployApproved: true,
-    url: "https://acos.example.aws/health",
+    url: "https://airvio.co/knowgrph/mcp/health",
     attempts: [{ status: 500 }, { status: 404 }, { status: 503 }],
   });
   assert.equal(hc.passed, false, "no attempt returned HTTP 200");

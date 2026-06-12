@@ -29,8 +29,8 @@ const MAX_HEALTH_ATTEMPTS = 3;
 // model is timer-free; a real scheduler enforces this on the live probe.
 const HEALTH_DEADLINE_MS = 5000;
 // Default `GET /health` endpoint, kept consistent with the Demo_Pack
-// `agent-api-health` url (demo-pack.js DEFAULT_AGENT_API_HEALTH_URL).
-const DEFAULT_HEALTH_URL = "https://agentic-canvas-os.example.aws/health";
+// `worker-health` url (demo-pack.js DEFAULT_WORKER_HEALTH_URL).
+const DEFAULT_HEALTH_URL = "https://airvio.co/knowgrph/mcp/health";
 
 // Read a probe-reported latency (ms) from any of the accepted aliases, kept
 // consistent with the 2.14 reachability resolver in demo-pack.js. Returns a

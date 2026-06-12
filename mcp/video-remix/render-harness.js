@@ -52,6 +52,7 @@ import {
   renderLedgerEventId,
   selectRenderProvider,
 } from "./render-providers.js";
+import { assertComplete } from "./provenance.js";
 
 // Structural dispatch deadline (R8.1): generation must be dispatched within 5s
 // of stage invocation. Timer-free here — the deterministic seam dispatches
@@ -68,6 +69,35 @@ const RENDER_STATUS_FAILED = "failed";
 
 const RENDER_FAILURE_DISPATCH_ERROR = "dispatch_error";
 const RENDER_FAILURE_NO_ASSET_TIMEOUT = "no_asset_within_timeout";
+
+/**
+ * Attach provenance to an asset record (R6.1, R6.3, R6.6).
+ * When `provenanceBuilder` is a function, calls it and attaches the chain.
+ * If the chain is incomplete and `failIfProvenanceIncomplete` is true, returns
+ * `{ failure }` so the caller can break the loop; otherwise `{ failure: null }`.
+ */
+function applyProvenance({ asset, shot, runId, dispatchResult, provenanceBuilder, failIfProvenanceIncomplete, ledgerEventId }) {
+  if (typeof provenanceBuilder !== "function") return { failure: null };
+  let chain;
+  try {
+    chain = provenanceBuilder(shot, runId, dispatchResult);
+  } catch (err) {
+    if (failIfProvenanceIncomplete) {
+      return { failure: { shotId: shot.shotId, reason: cleanString(err && err.message, "provenance_incomplete"), ledgerEventId, providerSpendCents: asset.costCents } };
+    }
+    return { failure: null };
+  }
+  if (chain == null) return { failure: null };
+  if (failIfProvenanceIncomplete) {
+    try {
+      assertComplete(chain);
+    } catch (err) {
+      return { failure: { shotId: shot.shotId, reason: cleanString(err && err.message, "provenance_incomplete"), ledgerEventId, providerSpendCents: asset.costCents } };
+    }
+  }
+  asset.provenance = chain;
+  return { failure: null };
+}
 
 /**
  * Typed input-validation error for the Render_Harness contract. Mirrors
@@ -187,6 +217,11 @@ function resolveShotOutcome(outcomes, shotId) {
  * @param {number}  [deps.dispatchElapsedMs]     - models live dispatch latency
  *   for the 5s deadline assertion (default 0 — synchronous).
  * @param {object}  [deps.outcomes]              - per-shot failure/spend overrides.
+ * @param {Function} [deps.provenanceBuilder]   - `(shot, runId, dispatchResult) => ProvenanceChain|null`
+ *   called per shot; attaches `provenance` to the asset record (R6.1, R6.3).
+ *   Omitted for backward compatibility.
+ * @param {boolean} [deps.failIfProvenanceIncomplete] - when true (default false),
+ *   a missing or incomplete provenance chain fails the shot (R6.6).
  * @returns {{ status, assets, ledgerEvents, ... }} the render result envelope.
  */
 export function runRenderHarness(input, deps = {}) {
@@ -209,6 +244,8 @@ export function runRenderHarness(input, deps = {}) {
   const providerKeyAvailable = Boolean(deps.providerKeyAvailable);
   const budgetCapCents = deps.budgetCapCents;
   const outcomes = deps.outcomes;
+  const provenanceBuilder = deps.provenanceBuilder ?? null;
+  const failIfProvenanceIncomplete = Boolean(deps.failIfProvenanceIncomplete);
 
   const assets = [];
   const ledgerEvents = [];
@@ -324,15 +361,23 @@ export function runRenderHarness(input, deps = {}) {
     // resolvable under the knowgrph media bucket, carrying its single ledger
     // event id. The contract fields are `{ shotId, assetUrl, ledgerEventId,
     // costCents }`; `provider`/`objectKey`/`bucket` are observable metadata.
-    assets.push({
+    const asset = {
       shotId,
       assetUrl: dispatchResult.assetUrl,
+      durableR2Url: dispatchResult.durableR2Url ?? dispatchResult.assetUrl,
       ledgerEventId,
       costCents,
       provider,
       objectKey: dispatchResult.objectKey ?? null,
       bucket: dispatchResult.bucket ?? null,
+    };
+    // R6.1, R6.3, R6.6: attach provenance before marking step complete.
+    const { failure: provenanceFailure } = applyProvenance({
+      asset, shot, runId, dispatchResult,
+      provenanceBuilder, failIfProvenanceIncomplete, ledgerEventId,
     });
+    if (provenanceFailure) { failure = provenanceFailure; break; }
+    assets.push(asset);
   }
 
   const dispatchElapsedMs = Number.isFinite(deps.dispatchElapsedMs)
@@ -395,6 +440,8 @@ export async function runRenderHarnessAsync(input, deps = {}) {
   const providerKeyAvailable = Boolean(deps.providerKeyAvailable);
   const budgetCapCents = deps.budgetCapCents;
   const outcomes = deps.outcomes;
+  const provenanceBuilder = deps.provenanceBuilder ?? null;
+  const failIfProvenanceIncomplete = Boolean(deps.failIfProvenanceIncomplete);
 
   const assets = [];
   const ledgerEvents = [];
@@ -495,15 +542,23 @@ export async function runRenderHarnessAsync(input, deps = {}) {
     ledgerEvents.push(ledgerEvent);
     cumulativeSpendCents += costCents;
 
-    assets.push({
+    const asset = {
       shotId,
       assetUrl: dispatchResult.assetUrl,
+      durableR2Url: dispatchResult.durableR2Url ?? dispatchResult.assetUrl,
       ledgerEventId,
       costCents,
       provider,
       objectKey: dispatchResult.objectKey ?? null,
       bucket: dispatchResult.bucket ?? null,
+    };
+    // R6.1, R6.3, R6.6: attach provenance before marking step complete.
+    const { failure: provenanceFailure } = applyProvenance({
+      asset, shot, runId, dispatchResult,
+      provenanceBuilder, failIfProvenanceIncomplete, ledgerEventId,
     });
+    if (provenanceFailure) { failure = provenanceFailure; break; }
+    assets.push(asset);
   }
 
   const dispatchElapsedMs = Number.isFinite(deps.dispatchElapsedMs)

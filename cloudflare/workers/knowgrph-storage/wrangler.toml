@@ -19,3 +19,7 @@ migrations_dir = "../../d1/migrations"
 [[r2_buckets]]
 binding = "KNOWGRPH_STORAGE_BLOB_BUCKET"
 bucket_name = "knowgrph-storage-blobs"
+
+[[r2_buckets]]
+binding = "KNOWGRPH_MEDIA_BUCKET"
+bucket_name = "knowgrph-media"

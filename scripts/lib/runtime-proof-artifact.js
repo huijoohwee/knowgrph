@@ -28,8 +28,7 @@ export function extractManifestFromProof(proof) {
 export function buildReachabilityFromProof(proof) {
   const results = {};
   const frontendUrl = cleanString(proof?.frontendUrl);
-  const agentApiUrl = cleanString(proof?.agentApiUrl);
-  const readbackUrl = cleanString(proof?.demoPackUrls?.find?.((entry) => entry?.kind === "agent_api_run_readback")?.url);
+  const workerUrl = cleanString(proof?.workerUrl || proof?.agentApiUrl);
   const demoPackUrls = Array.isArray(proof?.demoPackUrls) ? proof.demoPackUrls : [];
 
   for (const entry of demoPackUrls) {
@@ -38,11 +37,10 @@ export function buildReachabilityFromProof(proof) {
     results[url] = { status: 200 };
   }
   if (frontendUrl) results[frontendUrl] = { status: 200 };
-  if (agentApiUrl) {
-    results[agentApiUrl] = { status: 200 };
-    results[joinUrl(agentApiUrl, "/health")] = { status: 200 };
+  if (workerUrl) {
+    results[workerUrl] = { status: 200 };
+    results[joinUrl(workerUrl, "/health")] = { status: 200 };
   }
-  if (readbackUrl) results[readbackUrl] = { status: 200 };
   return results;
 }
 
@@ -53,14 +51,14 @@ export function buildHostedDemoPackArtifact(proof, options = {}) {
   }
 
   const frontendUrl = cleanString(options.frontendUrl || proof?.frontendUrl);
-  const agentApiUrl = cleanString(options.agentApiUrl || proof?.agentApiUrl);
-  const backendHealthUrl = cleanString(options.backendHealthUrl || joinUrl(agentApiUrl, "/health"));
+  const workerUrl = cleanString(options.workerUrl || options.agentApiUrl || proof?.workerUrl || proof?.agentApiUrl);
+  const workerHealthUrl = cleanString(options.workerHealthUrl || options.backendHealthUrl || joinUrl(workerUrl, "/health"));
   const reachability = options.reachability ?? buildReachabilityFromProof(proof);
 
   const demoPack = buildDemoPackFromManifest(manifest, {
     frontendUrl,
-    agentApiUrl,
-    backendHealthUrl,
+    workerUrl,
+    workerHealthUrl,
     reachability,
   });
   const validation = validateDemoPack(demoPack);
@@ -73,7 +71,7 @@ export function buildHostedDemoPackArtifact(proof, options = {}) {
     manifestState: cleanString(manifest.state),
     manifestMode: cleanString(manifest.mode),
     proofSummary: {
-      agentApiUrl: agentApiUrl || null,
+      workerUrl: workerUrl || null,
       frontendUrl: frontendUrl || null,
       mcpEndpoint: cleanString(proof?.mcpEndpoint) || null,
       authSessionStatus: proof?.authSession?.status ?? null,
