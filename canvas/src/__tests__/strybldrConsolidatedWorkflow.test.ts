@@ -4,6 +4,11 @@ import { resolve } from 'node:path'
 type StoryboardPayload = {
   sources?: Array<{ sourceUnitId?: string }>
   elements?: Array<{ id?: string; sourceUnitId?: string; order?: number }>
+  edges?: Array<{ id?: string; source?: string; target?: string; label?: string }>
+  workflow?: {
+    fork?: { id?: string; branches?: string[] }
+    publish?: { id?: string }
+  }
   storytree?: unknown
 }
 
@@ -48,10 +53,15 @@ assert(storyboardMatch, 'Strybldr demo must include a strybldr-storyboard JSON p
 const storyboard = JSON.parse(storyboardMatch[1] || '{}') as StoryboardPayload
 const sources = storyboard.sources || []
 const elements = storyboard.elements || []
+const edges = storyboard.edges || []
+const workflow = storyboard.workflow
 const storytree = storyboard.storytree
 
 assert(sources.length === 5, `expected five SenseNova+VideoDB E2E sources, got ${sources.length}`)
-assert(elements.length === 17, `expected seventeen SenseNova+VideoDB E2E element cards, got ${elements.length}`)
+assert(elements.length === 19, `expected nineteen SenseNova+VideoDB E2E element cards, got ${elements.length}`)
+assert(edges.length >= 8, `expected explicit Strybldr workflow edges for source/storyboard/elements/fork/publish, got ${edges.length}`)
+assert(workflow?.fork?.id === 'workflow-fork-rest-or-mcp', 'storyboard must keep the operator-approved REST/MCP fork metadata')
+assert(workflow?.publish?.id === 'workflow-local-publish-packet', 'storyboard must keep the local publish packet metadata')
 assert(storytree === undefined, '77FAnT935IE-only demo must not include unrelated storytree payloads')
 
 assert(
@@ -91,12 +101,25 @@ for (const requiredVideodbCard of [
   'videodb-recreate-source-setup-card',
   'videodb-recreate-storyboard-card',
   'videodb-recreate-api-mcp-execution-card',
+  'sensenova-media-output-card',
+  'workflow-fork-rest-mcp-card',
   'videodb-recreate-review-card',
   'videodb-recreate-publish-card',
 ]) {
   assert(
     elements.some(element => element.id === requiredVideodbCard),
     `storyboard must include the VideoDB API+MCP recreate card ${requiredVideodbCard}`,
+  )
+}
+
+for (const requiredEdge of [
+  ['validation-input-source-card', 'videodb-recreate-storyboard-card', 'source_to_storyboard'],
+  ['videodb-recreate-api-mcp-execution-card', 'workflow-fork-rest-mcp-card', 'operator_fork'],
+  ['videodb-recreate-review-card', 'videodb-recreate-publish-card', 'review_to_publish'],
+] as const) {
+  assert(
+    edges.some(edge => edge.source === requiredEdge[0] && edge.target === requiredEdge[1] && edge.label === requiredEdge[2]),
+    `storyboard must include workflow edge ${requiredEdge.join(' -> ')}`,
   )
 }
 
