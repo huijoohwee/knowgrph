@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
-  SENSENOVA_ACCESS_KEY_ENV,
+  SENSENOVA_API_KEY_ENV,
   SENSENOVA_API_DOC_AREA,
   SENSENOVA_API_DOC_ENTRIES,
   SENSENOVA_BASE_URL,
@@ -9,7 +9,6 @@ import {
   SENSENOVA_IMAGE_GENERATION_PATH,
   SENSENOVA_PLATFORM_URL,
   SENSENOVA_PROVIDER_ID,
-  SENSENOVA_SECRET_KEY_ENV,
   SENSENOVA_VIDEO_GENERATION_PATH,
   SENSENOVA_CHAT_COMPLETIONS_PATH,
   getSensenovaApiRowAnchorId,
@@ -35,8 +34,7 @@ const requiredKeys = [
   'provider_id',
   'base_url',
   'platform_url',
-  'credential.access_key_env',
-  'credential.secret_key_env',
+  'credential.api_key_env',
   'auth.method',
   'text.chat_completions',
   'text.default_model',
@@ -60,11 +58,10 @@ for (const key of requiredKeys) {
   )
 }
 
-const accessEnvEntry = SENSENOVA_API_DOC_ENTRIES.find(entry => entry.meta.key === 'sensenova.credential.access_key_env')
-const secretEnvEntry = SENSENOVA_API_DOC_ENTRIES.find(entry => entry.meta.key === 'sensenova.credential.secret_key_env')
-assert(accessEnvEntry?.value === SENSENOVA_ACCESS_KEY_ENV, 'SenseNova access key row must expose only the env var name')
-assert(secretEnvEntry?.value === SENSENOVA_SECRET_KEY_ENV, 'SenseNova secret key row must expose only the env var name')
-assert(String(secretEnvEntry?.details.notes || '').includes('Never persist'), 'SenseNova secret key row must forbid persisted credentials')
+const apiKeyEnvEntry = SENSENOVA_API_DOC_ENTRIES.find(entry => entry.meta.key === 'sensenova.credential.api_key_env')
+assert(apiKeyEnvEntry?.value === SENSENOVA_API_KEY_ENV, 'SenseNova API key row must expose only the server-managed env var name')
+assert(String(apiKeyEnvEntry?.details.notes || '').includes('Server Managed Key'), 'SenseNova API key row must label the server-managed key mode')
+assert(String(apiKeyEnvEntry?.details.notes || '').includes('never be persisted'), 'SenseNova API key row must forbid persisted credentials')
 
 assert(isIntegrationsOwnedSetting('sensenova.text.chat_completions', SENSENOVA_API_DOC_AREA), 'SenseNova text row must be owned by MainPanel Integrations')
 assert(isIntegrationsOwnedSetting('sensenova.image.generations', SENSENOVA_API_DOC_AREA), 'SenseNova image row must be owned by MainPanel Integrations')
@@ -78,8 +75,8 @@ const prdTadText = readFileSync(prdTadPath, 'utf8')
 for (const requiredText of [
   'SenseNova AI API',
   SENSENOVA_BASE_URL,
-  SENSENOVA_ACCESS_KEY_ENV,
-  SENSENOVA_SECRET_KEY_ENV,
+  SENSENOVA_API_KEY_ENV,
+  'Server Managed Key',
   'HMAC-SHA256 signed JWT',
   'POST /v1/llm/chat-completions',
   'POST /v1/images/generations',
@@ -107,6 +104,6 @@ for (const requiredText of [
   assert(demoText.includes(requiredText), `Strybldr demo missing SenseNova E2E text: ${requiredText}`)
 }
 assert(
-  !/SENSENOVA_ACCESS_KEY_ID\\s*[:=]\\s*["'][^$]|SENSENOVA_SECRET_ACCESS_KEY\\s*[:=]\\s*["'][^$]|signed-jwt-|stream\\.videodb\\.io|job-upload-|job-index-|job-generation-|\\bzapier\\b|\\bnotion\\b|客家/i.test(demoText),
+  !/SENSENOVA_API_KEY\\s*[:=]\\s*["'][^$]|SENSENOVA_ACCESS_KEY_ID|SENSENOVA_SECRET_ACCESS_KEY|signed-jwt-|stream\\.videodb\\.io|job-upload-|job-index-|job-generation-|\\bzapier\\b|\\bnotion\\b|客家/i.test(demoText),
   'Strybldr demo must not contain raw SenseNova credentials, fabricated runtime values, copied external-workflow terms, or unrelated content',
 )

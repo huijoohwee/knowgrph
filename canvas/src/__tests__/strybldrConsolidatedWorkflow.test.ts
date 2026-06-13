@@ -21,7 +21,9 @@ assert(!existsSync(legacyVideodbDemoPath), 'legacy knowgrph-videodb-demo.md must
 
 for (const requiredText of [
   'videodb_workflow_status: "VideoDB API + MCP workflow integrated into full SenseNova Text, Image, Video to VideoDB E2E pipeline"',
-  'sensenova_workflow_status: "SenseNova API Text, Image, Video generation feeds VideoDB upload, index, search, stream, and local publish packet workflow"',
+  'sensenova_workflow_status: "SenseNova API Text, Image, Video generation feeds VideoDB upload, index, search, stream, and local publish packet workflow; uncredentialed demo runs generate a local knowgrph animatic"',
+  'sensenova_credential_policy: "Server Managed Key uses host SENSENOVA_API_KEY',
+  'videodb_credential_policy: "Server Managed Key uses host VIDEODB_API_KEY',
   '2D Renderer: Strybldr',
   '2D Renderer: Storyboard',
   '2D Renderer: Flow Editor',
@@ -49,7 +51,7 @@ const elements = storyboard.elements || []
 const storytree = storyboard.storytree
 
 assert(sources.length === 5, `expected five SenseNova+VideoDB E2E sources, got ${sources.length}`)
-assert(elements.length === 16, `expected sixteen SenseNova+VideoDB E2E element cards, got ${elements.length}`)
+assert(elements.length === 17, `expected seventeen SenseNova+VideoDB E2E element cards, got ${elements.length}`)
 assert(storytree === undefined, '77FAnT935IE-only demo must not include unrelated storytree payloads')
 
 assert(

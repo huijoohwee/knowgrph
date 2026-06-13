@@ -46,7 +46,11 @@ for (const key of requiredKeys) {
   )
 }
 const apiKeyEntry = VIDEODB_API_DOC_ENTRIES.find(entry => entry.meta.key === 'videodb.api_key')
-assert(apiKeyEntry?.value === '', 'VideoDB API key entry must remain empty by default')
+assert(apiKeyEntry?.value === 'VIDEODB_API_KEY', 'VideoDB API key entry must expose the server-managed env var name')
+assert(
+  String(apiKeyEntry?.details.notes || '').includes('Server Managed Key'),
+  'VideoDB API key entry must label the server-managed key mode',
+)
 assert(
   String(apiKeyEntry?.details.notes || '').includes('Never hardcode'),
   'VideoDB API key entry must forbid hardcoded credential literals',

@@ -46,8 +46,7 @@ source_references:
   sensenova_video_generation_path: "/v1/video/generations"
   sensenova_text_to_image_path: "/v1/images/text2img"
   sensenova_auth_method: "HMAC-SHA256 signed JWT — access_key_id + secret_access_key"
-  sensenova_access_key_env: "SENSENOVA_ACCESS_KEY_ID"
-  sensenova_secret_key_env: "SENSENOVA_SECRET_ACCESS_KEY"
+  sensenova_api_key_env: "SENSENOVA_API_KEY"
   sensenova_provider_id: "sensenova"
   sensenova_pypi_package: "sensenova"
   sensenova_text_models:
@@ -87,10 +86,8 @@ integration:
   image_gen_path:    {key: image_gen_path,     type: string, value: "/v1/images/generations"}
   video_gen_path:    {key: video_gen_path,     type: string, value: "/v1/video/generations"}
   auth_method:       {key: auth_method,        type: string, value: "HMAC-SHA256 signed JWT"}
-  access_key_env:    {key: access_key_env,     type: string, value: "SENSENOVA_ACCESS_KEY_ID"}
-  secret_key_env:    {key: secret_key_env,     type: string, value: "SENSENOVA_SECRET_ACCESS_KEY"}
-  access_key_placeholder:  {key: access_key_placeholder,  type: string, value: "${SENSENOVA_ACCESS_KEY_ID}"}
-  secret_key_placeholder:  {key: secret_key_placeholder,  type: string, value: "${SENSENOVA_SECRET_ACCESS_KEY}"}
+  api_key_env:        {key: api_key_env,        type: string, value: "SENSENOVA_API_KEY"}
+  api_key_placeholder:{key: api_key_placeholder,type: string, value: "${SENSENOVA_API_KEY}"}
   auth_header:       {key: auth_header,        type: string, value: "Authorization: Bearer <signed-jwt>"}
   default_text_model:  {key: default_text_model,  type: string, value: "SenseChat-5"}
   default_image_model: {key: default_image_model, type: string, value: "artist-xl"}
@@ -108,7 +105,7 @@ pipeline:
     node: n-auth
     label: "SenseNova auth boundary"
     actor: ["operator", "system"]
-    user_action: "Operator sets SENSENOVA_ACCESS_KEY_ID and SENSENOVA_SECRET_ACCESS_KEY in server environment or BYOK; never pastes raw keys into MainPanel browser UI."
+    user_action: "Operator sets SENSENOVA_API_KEY in the server environment; never pastes raw keys into MainPanel browser UI."
     sys_event: "Auth JWT is generated from HMAC-SHA256(access_key_id, secret_access_key); token is injected at request time only; browser stores no raw credential."
     data_in: "access_key_id + secret_access_key from operator environment"
     data_out: "auth_jwt_pkg {bearer_token, expiry_hint}"
@@ -170,7 +167,7 @@ mermaid: |
     Operator(["Operator"])
     MainPanelInt[/"MainPanel Integrations\nsensenovaApiDocs.ts rows"/]
     SharedSSOT[("sensenovaApiDocs.ts\nSenseNova SSOT (planned)")]
-    AuthBoundary[/"Auth boundary\nHMAC-SHA256 JWT\nSENSENOVA_ACCESS_KEY_ID + SECRET"/]
+    AuthBoundary[/"Auth boundary\nServer Managed Key\nSENSENOVA_API_KEY"/]
     TextEndpoint[/"Text: POST /v1/llm/chat-completions\nSSE stream → KGC → canvas"/]
     ImageEndpoint[/"Image: POST /v1/images/generations\nsynchronous → Rich Media Panel"/]
     VideoEndpoint[/"Video: POST /v1/video/generations\nasync job → poll → Rich Media Panel"/]
@@ -221,14 +218,14 @@ Combined with the VideoDB pipeline (upload → index → search → stream), thi
 | Fact | Source | Contract Impact |
 |---|---|---|
 | Base URL is `https://api.sensenova.cn`. | Platform docs | `CHAT_SENSENOVA_BASE` and all endpoint URLs anchor to this host. |
-| Auth uses HMAC-SHA256 signed JWT from `SENSENOVA_ACCESS_KEY_ID` + `SENSENOVA_SECRET_ACCESS_KEY`. | PyPI package, platform docs | NOT simple Bearer API key. Requires a JWT signer function; secret never stored in browser. |
+| Auth uses a server-managed `SENSENOVA_API_KEY` and keeps signing/proxy auth server-side. | PyPI package, platform docs | Browser surfaces display only the env-key name; the secret value never reaches browser storage. |
 | Chat completions: `POST /v1/llm/chat-completions` with `messages`, `model`, `max_new_tokens`, `stream`. | Platform docs | Follows OpenAI-compatible message format; SSE stream is `text/event-stream`. |
 | Image generation: `POST /v1/images/generations` with `prompt`, `model` (`artist-xl`), `n`, `width`, `height`. | Platform docs | Synchronous response; `data[].url` contains image URL or base64. |
 | Video generation: `POST /v1/video/generations` with `prompt`, `model` (`SenseAnim`), async job pattern. | Platform docs | Async job id returned; poll task status endpoint until completed. |
 | Text models include `SenseChat-5`, `SenseChat-Turbo`, `SenseChat-Vision-5`, `nova-ptc-xl-v1`, `nova-ptc-s-v2`. | Platform docs | Model options surface in `sensenova.text.model` dropdown in MainPanel Integrations. |
 | Image model: `artist-xl` (primary), `senseNova-img-enhance`. | Platform docs | Image model options surface in `sensenova.image.model` dropdown. |
 | Video models: `SenseAnim`, `SenseAnim-Pro`. | Platform docs | Video model options surface in `sensenova.video.model` dropdown. |
-| Python SDK available at PyPI as `sensenova`; env vars are `SENSENOVA_ACCESS_KEY_ID` and `SENSENOVA_SECRET_ACCESS_KEY`. | PyPI package | Env var names define the placeholder convention for MainPanel Integrations. |
+| Python SDK available at PyPI as `sensenova`; knowgrph MainPanel Integrations uses the server-managed env-key placeholder `SENSENOVA_API_KEY`. | PyPI package | Env var names define the placeholder convention for MainPanel Integrations. |
 
 ### Local Repo Truth
 
@@ -255,7 +252,7 @@ Knowgrph already integrates OpenAI, MiroMind, Agnes, Qwen, BytePlus, and Gemini 
 The product risks are:
 - **Auth complexity**: SenseNova uses HMAC-SHA256 signed JWT, not a simple Bearer API key. A new JWT signer function is required upstream; the downstream pipeline is unchanged.
 - **Dual-provider drift**: SenseNova text, image, and video rows must share one `sensenovaApiDocs.ts` SSOT with consistent `sensenova.*` key namespacing across all three modalities.
-- **Credential exposure**: `SENSENOVA_ACCESS_KEY_ID` and `SENSENOVA_SECRET_ACCESS_KEY` must never reach the browser as raw values; only the derived JWT enters requests.
+- **Credential exposure**: `SENSENOVA_API_KEY` must never reach the browser as a raw value; only the server-managed request path may use it.
 
 The integration must:
 - add SenseNova upstream at the provider boundary only (`chatEndpoint.ts`, `sensenovaApiDocs.ts`)
@@ -304,7 +301,7 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 | Video producer | Generate video clips from approved story beats | Video widget runs `SenseAnim`; async poll completes within 36×10s; `videoUrl` flows to Rich Media Panel video tab. |
 | Strybldr user | Run the full Text→Image→Video→VideoDB E2E pipeline | Approved Strybldr card → SenseNova text → SenseNova image → SenseNova video → VideoDB upload/index/search/stream → local publish packet. |
 | Maintainer | Keep SenseNova constants in one SSOT | `sensenovaApiDocs.ts` drives all three modality rows; `chatEndpoint.ts` resolves host/base/endpoint from one source. |
-| Auditor | Confirm no raw SenseNova credentials in browser or repo | `SENSENOVA_ACCESS_KEY_ID` and `SENSENOVA_SECRET_ACCESS_KEY` never in `localStorage`/`sessionStorage`; only derived JWT in requests. |
+| Auditor | Confirm no raw SenseNova credentials in browser or repo | `SENSENOVA_API_KEY` never in `localStorage`/`sessionStorage`; only the server-managed request path uses the value. |
 
 ### User Journey Flow
 
@@ -328,7 +325,7 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 | PRD-SN-04 | As a video producer, I can generate video clips using `SenseAnim`. | Given the SenseNova video widget is configured, when I run it, then `POST /v1/video/generations` starts an async job, polling resolves within 36×10s, and the video URL flows to the Rich Media Panel video tab. | Must |
 | PRD-SN-05 | As a Strybldr user, I can run the full Text→Image→Video E2E pipeline with SenseNova. | Given approved Strybldr story beats, when I dispatch the generation sequence, then text, image, and video outputs land in the Strybldr publish packet alongside the VideoDB stream URL. | Should |
 | PRD-SN-06 | As a maintainer, I can update SenseNova constants once. | Given endpoint URLs, model names, or auth method change, when I update `sensenovaApiDocs.ts`, then MainPanel rows, widget defaults, tests, and docs read the same constants. | Must |
-| PRD-SN-07 | As an auditor, I can confirm no raw SenseNova credentials are stored in browser or repository. | Given the integration is configured, when I inspect browser storage, docs, and test fixtures, then no `SENSENOVA_ACCESS_KEY_ID` literal value or `SENSENOVA_SECRET_ACCESS_KEY` literal value appears. | Must |
+| PRD-SN-07 | As an auditor, I can confirm no raw SenseNova credentials are stored in browser or repository. | Given the integration is configured, when I inspect browser storage, docs, and test fixtures, then no raw `SENSENOVA_API_KEY` value appears. | Must |
 
 ### Acceptance Criteria And Goal Conditions
 
@@ -338,7 +335,7 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 | AC-02 | Text generation via shared SSE path | `sensenova` provider selected, auth env set | FloatingPanel Chat SSE completes → workspace/canvas updated through existing KGC path | `/goal SenseNova chat completions SSE is parsed by the shared parser without a new finalize path` |
 | AC-03 | Image generation via widget | Image widget configured with `artist-xl` | `imageUrl` returned synchronously → Rich Media Panel image tab | `/goal SenseNova image generation returns a non-empty imageUrl verified by image pipeline test` |
 | AC-04 | Video generation via widget (async, 36×10s poll) | Video widget configured with `SenseAnim` | Async job completes within circuit-breaker; `videoUrl` → Rich Media Panel video tab | `/goal SenseNova video async polling terminates at ≤36 iterations and returns videoUrl or structured failure` |
-| AC-05 | No raw credentials in browser or repo | Integration configured | No `SENSENOVA_ACCESS_KEY_ID` or `SENSENOVA_SECRET_ACCESS_KEY` literal in browser storage, docs, or fixtures | `/goal repo grep for SENSENOVA_ACCESS_KEY_ID and SENSENOVA_SECRET_ACCESS_KEY returns only env-var name strings and placeholder text, never literal values` |
+| AC-05 | No raw credentials in browser or repo | Integration configured | No raw `SENSENOVA_API_KEY` value in browser storage, docs, or fixtures | `/goal repo grep for SENSENOVA_API_KEY returns only env-var name strings and placeholder text, never literal values` |
 
 ### MoSCoW Scope
 
@@ -354,7 +351,7 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 | Should | Pipe SenseNova `videoUrl` to VideoDB `upload_video` in the Strybldr → VideoDB E2E handoff. |
 | Could | Add SenseNova-specific `mainPanel.sectionDescription` in `knowgrph-mainpanel-section-descriptions.md`. |
 | Could | Add SenseNova provider to Cloudflare Pages chat proxy allowlist alongside Agnes/MiroMind. |
-| Won't | Store `SENSENOVA_ACCESS_KEY_ID` or `SENSENOVA_SECRET_ACCESS_KEY` raw values in browser localStorage, sessionStorage, or any repo file. |
+| Won't | Store raw `SENSENOVA_API_KEY` values in browser localStorage, sessionStorage, or any repo file. |
 | Won't | Add a new MainPanel tab or parallel graph-mutation path for SenseNova. |
 | Won't | Create a new SSE parser or KGC validation path for SenseNova text output. |
 
@@ -363,7 +360,7 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 | Metric | Target |
 |---|---:|
 | SenseNova text/image/video rows rendered from shared SSOT | 100% |
-| Raw `SENSENOVA_ACCESS_KEY_ID` or `SENSENOVA_SECRET_ACCESS_KEY` in browser storage, docs, or tests | 0 |
+| Raw `SENSENOVA_API_KEY` in browser storage, docs, or tests | 0 |
 | New SSE parser or KGC validation paths introduced | 0 |
 | SenseNova video async polling circuit-breaker violations | 0 |
 | Operator setup time to first text generation | < 2 minutes |
@@ -391,8 +388,7 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 
 SenseNova does NOT use a simple Bearer API key. Authentication requires a JWT signed with HMAC-SHA256 from two operator-supplied credentials:
 
-- `SENSENOVA_ACCESS_KEY_ID` — the key identifier (like a username)
-- `SENSENOVA_SECRET_ACCESS_KEY` — the HMAC signing secret (never transmitted; used only to sign)
+- `SENSENOVA_API_KEY` — the server-managed SenseNova credential env key; the value stays outside browser state.
 
 The derived JWT is placed in the `Authorization: Bearer <jwt>` header. The signing logic must live in a pure TypeScript function `buildSenseNovaAuthHeader(accessKeyId, secretAccessKey, expirySeconds?)` that:
 1. Constructs a JWT payload with `{ iss: accessKeyId, exp: Date.now() + expirySeconds, nbf: Date.now() - 5000 }` (or equivalent platform-documented fields)
@@ -400,7 +396,7 @@ The derived JWT is placed in the `Authorization: Bearer <jwt>` header. The signi
 3. Returns the `Authorization: Bearer <signed-jwt>` header string
 4. Never persists raw `accessKeyId` or `secretAccessKey` in browser storage or any source file
 
-Both env vars use the `${SENSENOVA_ACCESS_KEY_ID}` and `${SENSENOVA_SECRET_ACCESS_KEY}` placeholder convention in docs, tests, and MainPanel copy rows — never literal values.
+The env var uses the `${SENSENOVA_API_KEY}` placeholder convention in docs, tests, and MainPanel copy rows — never literal values.
 
 ### Text Integration Contract
 
@@ -471,7 +467,7 @@ sequenceDiagram
 
   Operator->>Int: Configure SenseNova provider
   Int->>SSOT: Resolve model options, labels, endpoint URLs
-  Operator->>Auth: Supply SENSENOVA_ACCESS_KEY_ID + SECRET from env
+  Operator->>Auth: Supply SENSENOVA_API_KEY from env
   Auth-->>Text: Authorization: Bearer <jwt>
   Auth-->>Image: Authorization: Bearer <jwt>
   Auth-->>Video: Authorization: Bearer <jwt>
@@ -523,7 +519,7 @@ sequenceDiagram
 
 | Failure | Response |
 |---|---|
-| `SENSENOVA_ACCESS_KEY_ID` or `SENSENOVA_SECRET_ACCESS_KEY` empty | Fail readiness check before any API call; surface in MainPanel Integrations readiness row |
+| `SENSENOVA_API_KEY` empty | Fail readiness check before any API call; surface in MainPanel Integrations readiness row |
 | JWT signing error | Return auth failure immediately; surface structured error; do not retry with empty/malformed token |
 | Text SSE stream error | Shared SSE retry (1 attempt); surface provider error in chat history |
 | Image request error | Surface API error in image widget; keep previous `imageUrl` unchanged |
@@ -532,9 +528,9 @@ sequenceDiagram
 
 ### Security And Governance
 
-- `SENSENOVA_ACCESS_KEY_ID` and `SENSENOVA_SECRET_ACCESS_KEY` must live in server environment or BYOK local env. Never paste into MainPanel browser UI, `localStorage`, `sessionStorage`, or any repo source file.
+- `SENSENOVA_API_KEY` must live in the server environment. Never paste the raw value into MainPanel browser UI, `localStorage`, `sessionStorage`, or any repo source file.
 - The `buildSenseNovaAuthHeader` signer derives a time-limited JWT; the raw secret is never transmitted, logged, or stored.
-- Placeholder strings `${SENSENOVA_ACCESS_KEY_ID}` and `${SENSENOVA_SECRET_ACCESS_KEY}` are the only forms of these identifiers that may appear in docs, tests, or copy rows.
+- Placeholder string `${SENSENOVA_API_KEY}` is the only value-like form of this identifier that may appear in docs, tests, or copy rows.
 - Video async polling uses the same 36 × 10s circuit-breaker as Gemini Veo and VideoDB — prevents runaway cost.
 
 ### Quality Attributes
@@ -587,9 +583,9 @@ sequenceDiagram
 
 ### Property 1: Auth Secret Isolation
 
-No `SENSENOVA_ACCESS_KEY_ID` or `SENSENOVA_SECRET_ACCESS_KEY` literal value SHALL appear in browser `localStorage`, `sessionStorage`, Knowgrph source files, documentation, or test fixtures. Both identifiers appear only as env var names or placeholder strings.
+No raw `SENSENOVA_API_KEY` value SHALL appear in browser `localStorage`, `sessionStorage`, Knowgrph source files, documentation, or test fixtures. The identifier appears only as an env var name or placeholder string.
 
-**VCC**: `/goal grep -r "SENSENOVA_ACCESS_KEY_ID\|SENSENOVA_SECRET_ACCESS_KEY" canvas/src docs/ tests/ returns only env-var name strings and ${...} placeholder text, never a literal credential value`
+**VCC**: `/goal grep -r "SENSENOVA_API_KEY" canvas/src docs/ tests/ returns only env-var name strings and ${...} placeholder text, never a literal credential value`
 
 ### Property 2: Upstream-Only Integration
 

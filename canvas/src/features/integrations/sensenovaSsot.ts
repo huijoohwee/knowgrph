@@ -10,8 +10,7 @@ export const SENSENOVA_PLATFORM_URL = 'https://platform.sensenova.cn'
 export const SENSENOVA_CHAT_COMPLETIONS_PATH = '/v1/llm/chat-completions'
 export const SENSENOVA_IMAGE_GENERATION_PATH = '/v1/images/generations'
 export const SENSENOVA_VIDEO_GENERATION_PATH = '/v1/video/generations'
-export const SENSENOVA_ACCESS_KEY_ENV = 'SENSENOVA_ACCESS_KEY_ID'
-export const SENSENOVA_SECRET_KEY_ENV = 'SENSENOVA_SECRET_ACCESS_KEY'
+export const SENSENOVA_API_KEY_ENV = 'SENSENOVA_API_KEY'
 export const SENSENOVA_POLL_MAX_ITERATIONS = 36
 export const SENSENOVA_POLL_INTERVAL_MS = 10000
 
@@ -88,22 +87,13 @@ export const SENSENOVA_DOC_ROWS: ReadonlyArray<SensenovaDocRow> = [
     searchHints: ['platform console docs'],
   }),
   row({
-    key: 'credential.access_key_env',
+    key: 'credential.api_key_env',
     typeLabel: 'env',
-    value: SENSENOVA_ACCESS_KEY_ENV,
-    responsibility: 'Host-owned access key variable -> identify the env name used for JWT signing -> keep raw access key out of browser storage.',
-    notes: 'Placeholder only. The actual value must stay in host/server environment.',
-    tooltipDefaultValue: SENSENOVA_ACCESS_KEY_ENV,
-    searchHints: ['credential env access key host only'],
-  }),
-  row({
-    key: 'credential.secret_key_env',
-    typeLabel: 'env',
-    value: SENSENOVA_SECRET_KEY_ENV,
-    responsibility: 'Host-owned secret key variable -> identify the env name used for JWT signing -> keep raw secret out of browser storage.',
-    notes: 'Placeholder only. Never persist the secret access key in localStorage, markdown, tests, fixtures, or source.',
-    tooltipDefaultValue: SENSENOVA_SECRET_KEY_ENV,
-    searchHints: ['credential env secret key host only'],
+    value: SENSENOVA_API_KEY_ENV,
+    responsibility: 'Server-managed API key variable -> identify the env name used by the server integration proxy -> keep raw SenseNova keys out of browser storage.',
+    notes: 'Server Managed Key only. The actual value must stay in the host/server environment and must never be persisted in localStorage, markdown, tests, fixtures, or source.',
+    tooltipDefaultValue: SENSENOVA_API_KEY_ENV,
+    searchHints: ['credential env api key server managed host only'],
   }),
   row({
     key: 'auth.method',
