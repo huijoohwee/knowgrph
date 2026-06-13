@@ -1,16 +1,54 @@
+---
+title: "Knowgrph Storage & Sync"
+id: "md:knowgrph-storage-sync-document"
+author: "airvio / joohwee"
+date: "2026-06-01"
+updated: "2026-06-13"
+version: "3.0.0"
+status: "deployed-dev; prod/cloudflare deploy remains manual"
+doc_type: "Combined PRD/TAD"
+lang: "en-US"
+frontmatter_contract: "required"
+domain: "knowgrph"
+orientation:
+  - "solo-dev"
+  - "AI-native"
+  - "min-viable-max-value"
+  - "TCO-zero"
+  - "FOSS-first"
+  - "token-economical"
+constraints:
+  - "universal"
+  - "neutral"
+  - "agnostic"
+  - "modular"
+  - "spec-complete to runtime-ready"
+  - "no hardcoded credentials, workspace IDs, or route paths"
+  - "no downstream local patch stacks"
+supersedes:
+  - "knowgrph-storage-document.md"
+  - "knowgrph-storage-document-runtime-and-conflict-ux.md"
+  - "knowgrph-storage-document-schemas-and-topology.md"
+  - "knowgrph-sync-infrastructure-prd-tad.md"
+owner: "Knowgrph canonical docs"
+kgDocumentSemanticMode: "document"
+kgFrontmatterModeEnabled: true
+kgCanvasSurfaceMode: "2d"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "flowEditor"
+traceability:
+  prd: "PRD-STORAGE-SYNC"
+  tad: "TAD-STORAGE-SYNC"
+  repo: "huijoohwee/knowgrph"
+  feature_surface: "Storage Sync"
+  doc_path: "docs/documents/knowgrph-storage-sync-document.md"
+---
+
 # Knowgrph Storage & Sync
 
 **Context**: Canonical markdown documents, configurable local docs mirror sync, optional D1-backed Worker storage, PocketBase + Yjs collaborative editing, minimal browser cache, and Cloudflare deployment.
 **Intent**: Keep one canonical storage decision, one shared sync contract, and one conflict-resolution UX path.
 **Directive**: Keep GitHub `docs/**` canonical for Storage Sync. Use the local docs mirror as a working projection, use PocketBase + Yjs as the concurrent-editing layer, and use Cloudflare Worker + D1 only for explicit runtime/read-cache endpoints. Collaborators never touch Git; a server-side bridge commits saved CRDT snapshots back to GitHub. Never let two users edit raw JSON simultaneously without CRDT wrapping.
-
----
-
-**Version**: 2.9.0
-**Date**: 2026-06-01
-**Status**: Deployed storage baseline; concurrent editing implemented in Dev (PocketBase + Yjs + GitHub save bridge); Prod/Cloudflare deploy remains manual
-**Owner**: Knowgrph canonical docs
-**Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
 ## Companion Files
 
