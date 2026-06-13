@@ -2,6 +2,7 @@ import React from 'react'
 import { Check, Clapperboard, Film, Heart, LocateFixed, Lock, Play, RefreshCw, Wand2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,7 @@ const readString = (value: unknown): string => String(value ?? '').trim()
 const LOCAL_ANALYSIS_SOURCE_TIMEOUT_MS = 12000
 const LOCAL_ANALYSIS_DETR_BATCH_BYTE_LIMIT = 8 * 1024 * 1024
 const VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS + 60000
+const STRYBLDR_RUN_ALL_DEDUPE_WINDOW_MS = 1000
 const STRYTREE_PANEL_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'hot', label: 'Hot' },
@@ -84,9 +86,13 @@ const storytreeCardMatchesPanelFilter = (card: ReturnType<typeof buildStoryboard
   return tags.includes(filter)
 }
 
-export function StrybldrFloatingPanelView() {
+export function StrybldrFloatingPanelView({
+  runAllRequestSeq,
+}: {
+  runAllRequestSeq?: number
+} = {}) {
   const {
-    graphData,
+    graphData: rawGraphData,
     graphDataRevision,
     canvas2dRenderer,
     setCanvasRenderMode,
@@ -118,8 +124,12 @@ export function StrybldrFloatingPanelView() {
       chatAuthMode: s.chatAuthMode,
     })),
   )
+  const activeGraphData = useActiveGraphRenderData(true)
+  const graphData = activeGraphData || rawGraphData
   const [running, setRunning] = React.useState(false)
   const [videoRunning, setVideoRunning] = React.useState(false)
+  const lastRunAllAtRef = React.useRef(0)
+  const lastMountedRunAllRequestSeqRef = React.useRef<number | undefined>(undefined)
   const [selectedCardId, setSelectedCardId] = React.useState('')
   const [selectedStorytreeCardId, setSelectedStorytreeCardId] = React.useState('')
   const [storytreePanelFilter, setStorytreePanelFilter] = React.useState('all')
@@ -320,7 +330,7 @@ export function StrybldrFloatingPanelView() {
   }, [commitStrytreeResult, graphData, selectedStorytreeCard])
 
   const runVideoHandoff = React.useCallback(async () => {
-    if (running || videoRunning) return
+    if (videoRunning) return
     const handoff = buildStrybldrVideoHandoffFromGraphData(graphData)
     if (handoff.cards.length === 0 || !handoff.prompt) {
       pushUiToast({ id: 'strybldr:video:empty', kind: 'warning', message: 'No approved Strybldr cards to send.' })
@@ -328,6 +338,7 @@ export function StrybldrFloatingPanelView() {
     }
     const started = performance.now()
     const provider = normalizeChatProviderId(chatProvider)
+    let artifactProvider: string = provider
     let paidCallCount = 0
     let status: 'generated' | 'copied' | 'fallback' = 'fallback'
     let model: string | null = null
@@ -335,18 +346,10 @@ export function StrybldrFloatingPanelView() {
     let sourceUrl: string | null = null
     let errorReason: string | null = null
     let copyReason: string | null = null
+    const hasLocalAnimatic = !!readString(handoff.localAnimaticHtml)
     setVideoRunning(true)
     try {
-      if (handoff.sourceVideoUrl && handoff.renderVideoUrl) {
-        status = 'copied'
-        sourceUrl = handoff.sourceVideoUrl
-        renderUrl = handoff.renderVideoUrl
-        copyReason = 'Copied the imported source video as the runnable Strybldr video artifact.'
-      } else if (provider !== CHAT_PROVIDER_BYTEPLUS) {
-        errorReason = 'BytePlus ModelArk is not the active provider.'
-      } else if (chatAuthMode === 'byok' && !readString(chatApiKey)) {
-        errorReason = 'BytePlus BYOK API key is not configured.'
-      } else {
+      if (provider === CHAT_PROVIDER_BYTEPLUS && !(chatAuthMode === 'byok' && !readString(chatApiKey))) {
         const asset = await runStrybldrProviderWithTimeout(
           generateRunVideoWithBytePlus({
             config: {
@@ -371,11 +374,22 @@ export function StrybldrFloatingPanelView() {
         } else {
           errorReason = 'BytePlus returned no video asset.'
         }
+      } else if (hasLocalAnimatic) {
+        status = 'generated'
+        artifactProvider = 'knowgrph-local-animatic'
+        model = 'strybldr-local-animatic-v1'
+        sourceUrl = handoff.sourceVideoUrl || null
+        renderUrl = handoff.renderVideoUrl || null
+        paidCallCount = 0
+      } else if (provider !== CHAT_PROVIDER_BYTEPLUS) {
+        errorReason = 'BytePlus ModelArk is not the active provider.'
+      } else if (chatAuthMode === 'byok' && !readString(chatApiKey)) {
+        errorReason = 'BytePlus BYOK API key is not configured.'
       }
     } catch (e) {
       errorReason = String((e as { message?: unknown })?.message ?? e)
     }
-    if (status !== 'generated' && status !== 'copied' && handoff.sourceVideoUrl && handoff.renderVideoUrl) {
+    if (status === 'fallback' && handoff.sourceVideoUrl && handoff.renderVideoUrl) {
       status = 'copied'
       sourceUrl = handoff.sourceVideoUrl
       renderUrl = handoff.renderVideoUrl
@@ -393,7 +407,7 @@ export function StrybldrFloatingPanelView() {
         text: buildStrybldrVideoHandoffMarkdown({
           handoff,
           status,
-          provider,
+          provider: artifactProvider,
           model,
           renderUrl,
           sourceUrl,
@@ -426,16 +440,35 @@ export function StrybldrFloatingPanelView() {
     } finally {
       setVideoRunning(false)
     }
-  }, [addHistory, chatApiKey, chatAuthMode, chatEndpointUrl, chatProvider, graphData, pushUiToast, running, videoRunning])
+  }, [addHistory, chatApiKey, chatAuthMode, chatEndpointUrl, chatProvider, graphData, pushUiToast, videoRunning])
+
+  const runAllFromMountedPanel = React.useCallback(() => {
+      const now = performance.now()
+      if (now - lastRunAllAtRef.current < STRYBLDR_RUN_ALL_DEDUPE_WINDOW_MS) return
+      const handoff = buildStrybldrVideoHandoffFromGraphData(graphData)
+      if (videoRunning || handoff.cards.length === 0 || !handoff.prompt) {
+        void runVideoHandoff()
+        return
+      }
+      lastRunAllAtRef.current = now
+      void runVideoHandoff()
+  }, [graphData, runVideoHandoff, videoRunning])
+
+  React.useEffect(() => {
+    if (typeof runAllRequestSeq !== 'number' || runAllRequestSeq <= 0) return
+    if (lastMountedRunAllRequestSeqRef.current === runAllRequestSeq) return
+    lastMountedRunAllRequestSeqRef.current = runAllRequestSeq
+    runAllFromMountedPanel()
+  }, [runAllFromMountedPanel, runAllRequestSeq])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handleRunAll = () => {
-      void runVideoHandoff()
+      runAllFromMountedPanel()
     }
     window.addEventListener(WORKFLOW_RUN_ALL_EVENT, handleRunAll)
     return () => window.removeEventListener(WORKFLOW_RUN_ALL_EVENT, handleRunAll)
-  }, [runVideoHandoff])
+  }, [runAllFromMountedPanel])
 
   return (
     <section className="h-full flex flex-col" aria-label="Strybldr panel">

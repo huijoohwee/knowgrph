@@ -54,7 +54,6 @@ function readStrybldrLocalImportInput(): { name: string; text: string } {
   const inputPath = String(
     process.env.KNOWGRPH_STRYTREE_DEMO_INPUT ||
     process.env.KNOWGRPH_STRYBLDR_DEMO_INPUT ||
-    process.env.KNOWGRPH_STRYFORK_DEMO_INPUT ||
     '',
   ).trim()
   if (inputPath) {

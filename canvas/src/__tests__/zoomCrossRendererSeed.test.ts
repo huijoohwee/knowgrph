@@ -1,4 +1,5 @@
 import { canSeedZoomStateAcross2dRenderers, pickZoomStateWithCrossRendererFallback } from '@/lib/canvas/zoomSeed'
+import { isFlowCanvas2dRenderer, isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 
 export const testZoomCrossRendererSeedFallsBackToOther2dRenderer = () => {
   const suffix = ['schema', '0', 'document', 'meta', '0', 'dense', 'cg'].join('|')
@@ -63,6 +64,12 @@ export const testZoomCrossRendererSeedIsolatesFlowEditorAndFlowCanvas = () => {
   }
   if (canSeedZoomStateAcross2dRenderers({ targetRenderer: 'flow', sourceRenderer: 'flowEditor' })) {
     throw new Error('expected renderer-switch zoom seeding to forbid Flow Editor -> Flow Canvas')
+  }
+  if (isFlowCanvas2dRenderer('flowEditor')) {
+    throw new Error('expected Flow Editor to stay outside the Flow Canvas renderer family')
+  }
+  if (!isFlowEditorCanvas2dRenderer('flowEditor')) {
+    throw new Error('expected Flow Editor renderer identity to remain explicit')
   }
   if (!canSeedZoomStateAcross2dRenderers({ targetRenderer: 'd3', sourceRenderer: 'flow' })) {
     throw new Error('expected non-Flow-Editor renderer zoom fallback to remain available')

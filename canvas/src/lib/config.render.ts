@@ -199,7 +199,7 @@ export const isGalleryCanvas2dRenderer = (id: Canvas2dRendererId | null | undefi
 }
 
 export const isFlowCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'flow' || id === 'flowEditor'
+  return id === 'flow'
 }
 
 export const isAnimaticCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {

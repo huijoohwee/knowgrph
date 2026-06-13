@@ -33,6 +33,7 @@ import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA, PIXVERSE_MCP_DOCS_URL } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA, MIROMIND_MCP_DOCS_URL } from './miromindMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
+import { VIDEODB_MCP_DOC_AREA, VIDEODB_MCP_DOCS_URL } from './videodbMcpApiDocs'
 import { STRIPE_MCP_DOCS_URL } from 'grph-shared/payments/stripeMcpSsot'
 import { KTV_DEFAULT_HEADER_LABELS, type KtvHeaderLabels } from 'grph-shared/ui/keyTypeValueRows'
 
@@ -228,6 +229,12 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [KNOWGRPH_VDEOXPLN_DOC_AREA]: {
     docsUrl: '/knowgrph/.well-known/agent-skills/index.json',
     docsLabel: 'Open Agent Skills Index',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [VIDEODB_MCP_DOC_AREA]: {
+    docsUrl: VIDEODB_MCP_DOCS_URL,
+    docsLabel: 'Open VideoDB MCP Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },

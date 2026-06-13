@@ -145,6 +145,11 @@ function readDiagramSpecs(rawFlowDiagrams: unknown): DiagramSpec[] {
   return specs
 }
 
+export function hasOnlyRoutedFlowDiagramSpecs(meta: Record<string, unknown>): boolean {
+  const specs = readDiagramSpecs(meta[FLOW_DIAGRAMS_KEY])
+  return specs.length > 0 && specs.every(spec => spec.routedToPanelSurfaces)
+}
+
 function readNodeId(value: unknown): string {
   if (!isRecord(value)) return ''
   return asString(value.id)

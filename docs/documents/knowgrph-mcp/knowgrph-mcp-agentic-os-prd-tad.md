@@ -56,7 +56,7 @@ constraints:
 
 ## Executive Summary
 
-Knowgrph MCP should become the **Agentic Canvas OS** control plane for building, inspecting, and operating real agent products from the Canvas UI. The first consumer is a sibling repo such as `stryfork`, but the contract is repo-agnostic: Knowgrph reads a root-allowlisted consumer repo, profiles its stack, turns goals into source-backed plans, runs local harnesses, and renders an operator dashboard with decisions, traces, artifacts, token/TCO budgets, approval gates, and source-backed market validation.
+Knowgrph MCP should become the **Agentic Canvas OS** control plane for building, inspecting, and operating real agent products from the Canvas UI. The first consumer is a sibling repo such as `strybldr`, but the contract is repo-agnostic: Knowgrph reads a root-allowlisted consumer repo, profiles its stack, turns goals into source-backed plans, runs local harnesses, and renders an operator dashboard with decisions, traces, artifacts, token/TCO budgets, approval gates, and source-backed market validation.
 
 This is not a new graph runtime, not a replacement for the shipped stdio MCP server, and not a claim that remote mutating MCP is already deployed. Agentic Canvas OS is a thin orchestration and dashboard layer over the existing MCP, SuperAgent, MainPanel, FloatingPanel Chat, Source Files, KGC/frontmatter, and Canvas owners.
 
@@ -111,7 +111,7 @@ The companion is normative for lane payloads, node fields, evidence grades, arti
 
 | Epic | Story | Acceptance criteria | Priority |
 |---|---|---|---|
-| PRD-AOS-1 Repo Profile | As an operator, I can profile an allowlisted sibling repo | Given `stryfork` is configured, when profile runs, then the dashboard shows stack, scripts, docs, env gaps, and deployment targets without mutating files | Must |
+| PRD-AOS-1 Repo Profile | As an operator, I can profile an allowlisted sibling repo | Given `strybldr` is configured, when profile runs, then the dashboard shows stack, scripts, docs, env gaps, and deployment targets without mutating files | Must |
 | PRD-AOS-2 Build Plan | As a founder, I can turn a goal into a bounded agent build plan | Given a product goal, when planning runs, then it emits tasks, dependencies, token/TCO estimates, and `/goal` checks | Must |
 | PRD-AOS-3 Tool Adapters | As an operator, I can see Cloudflare, BytePlus, and Stripe as adapter lanes | Given adapters are listed, when a lane is opened, then secrets stay host/server-owned and actions remain dry-run until approved | Must |
 | PRD-AOS-4 Control Dashboard | As a maintainer, I can inspect decisions and failures on Canvas | Given a run exists, when rendered, then nodes show plan, tool calls, approvals, artifacts, retries, and failure recovery | Must |
@@ -208,8 +208,8 @@ kgSchema: kgc-computing-flow/v1
 kgCanvasSurfaceMode: 2d
 kgCanvas2dRenderer: flowEditor
 agenticOs:
-  runId: stryfork-launch-001
-  consumerRepo: stryfork
+  runId: strybldr-launch-001
+  consumerRepo: strybldr
   status: approval_required
   capabilityLanes:
     - build_control

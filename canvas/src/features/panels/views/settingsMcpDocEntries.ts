@@ -86,6 +86,17 @@ import {
   getOperatorDeployMcpApiRowAnchorId,
 } from './operatorDeployMcpApiDocs'
 import {
+  VIDEODB_MCP_CLAUDE_CODE_COMMAND_KEY,
+  VIDEODB_MCP_DOC_AREA,
+  VIDEODB_MCP_DOC_ENTRIES,
+  VIDEODB_MCP_PIPX_CONFIG_KEY,
+  VIDEODB_MCP_UVX_CONFIG_KEY,
+  buildVideodbClaudeCodeMcpCommand,
+  buildVideodbPipxMcpConfigJson,
+  buildVideodbUvxMcpConfigJson,
+  getVideodbMcpApiRowAnchorId,
+} from './videodbMcpApiDocs'
+import {
   buildDocMappedEntry,
   isMcpOwnedSetting,
   normalizeSettingsAreaLabel,
@@ -108,6 +119,7 @@ export function buildMcpDocEntries(
     ...MIROMIND_MCP_DOC_ENTRIES,
     ...KNOWGRPH_VDEOXPLN_DOC_ENTRIES,
     ...OPERATOR_DEPLOY_MCP_DOC_ENTRIES,
+    ...VIDEODB_MCP_DOC_ENTRIES,
     ...mapsAndMcpDocEntries.filter(entry => isMcpOwnedSetting(entry.meta.key, entry.details.area)),
     ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
   ]
@@ -143,6 +155,8 @@ export function buildMcpVirtualEntry(
         ? getKnowgrphVdeoxplnRowAnchorId(entry.meta.key)
       : area === OPERATOR_DEPLOY_MCP_DOC_AREA
         ? getOperatorDeployMcpApiRowAnchorId(entry.meta.key)
+      : area === VIDEODB_MCP_DOC_AREA
+        ? getVideodbMcpApiRowAnchorId(entry.meta.key)
         : getGrabMapsMcpApiRowAnchorId(entry.meta.key)
   const mappedEntry = buildDocMappedEntry(entry, values, anchorId)
   const configJson =
@@ -170,6 +184,12 @@ export function buildMcpVirtualEntry(
                   ? buildLarkAppRemoteMcpConfigJson()
                 : entry.meta.key === PIXVERSE_MCP_LOCAL_CONFIG_KEY
                   ? buildPixVerseLocalMcpConfigJson(values)
+                  : entry.meta.key === VIDEODB_MCP_UVX_CONFIG_KEY
+                    ? buildVideodbUvxMcpConfigJson(values)
+                    : entry.meta.key === VIDEODB_MCP_PIPX_CONFIG_KEY
+                      ? buildVideodbPipxMcpConfigJson(values)
+                      : entry.meta.key === VIDEODB_MCP_CLAUDE_CODE_COMMAND_KEY
+                        ? buildVideodbClaudeCodeMcpCommand(values)
                   : ''
   if (!configJson) return mappedEntry
   return {

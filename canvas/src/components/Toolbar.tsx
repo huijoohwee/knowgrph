@@ -14,8 +14,10 @@ import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSel
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect';
 import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { emitFloatingPanelOpen, emitWorkflowRunAll } from '@/features/canvas/utils'
 import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
+import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 import {
   UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME,
@@ -39,6 +41,9 @@ const ToolbarMenuLauncherLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarMenuLauncher').then(mod => ({ default: mod.ToolbarMenuLauncher })),
 );
 const TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS = 120
+const TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS = 520
+
+const emitToolbarRunAll = () => emitWorkflowRunAll({ source: 'toolbar' })
 
 export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
   const {
@@ -72,8 +77,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     canvas2dRenderer,
   } = useCanvasToolbarContext({ onReset, onZoomSelection })
   const pushUiToast = useGraphStore(s => s.pushUiToast)
-  const floatingPanelOpen = useGraphStore(s => s.floatingPanelOpen)
-  const floatingPanelView = useGraphStore(s => s.floatingPanelView)
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchBtnRef = useRef<HTMLButtonElement>(null);
@@ -81,7 +84,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
   const runAllFloatingPanelTab = getToolbarRunAllFloatingPanelTab(canvas2dRenderer)
-  const runAllFloatingPanelConsumerMounted = !!runAllFloatingPanelTab && floatingPanelOpen === true && floatingPanelView === runAllFloatingPanelTab
+  const strybldrRunAllGraphData = useActiveGraphRenderData(canRunAll && runAllFloatingPanelTab === 'strybldr')
+  const [strybldrToolbarRunAllRunning, setStrybldrToolbarRunAllRunning] = useState(false)
   const handleToolbarZoomIn = React.useCallback(() => {
     if (onZoomIn) {
       onZoomIn()
@@ -103,6 +107,37 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     }
     useGraphStore.getState().requestZoom('reset')
   }, [onReset])
+  const runStrybldrToolbarRunAll = React.useCallback(async () => {
+    if (strybldrToolbarRunAllRunning) return
+    setStrybldrToolbarRunAllRunning(true)
+    try {
+      const result = await createStrybldrLocalVideoArtifactFromGraphData(strybldrRunAllGraphData || useGraphStore.getState().graphData)
+      if ('reason' in result) {
+        const reason = result.reason
+        pushUiToast({
+          id: 'toolbar-run-all-strybldr-empty',
+          kind: 'warning',
+          message: reason,
+          dismissible: true,
+        })
+        return
+      }
+      pushUiToast({
+        id: 'toolbar-run-all-strybldr-generated',
+        kind: 'success',
+        message: 'Strybldr video handoff saved.',
+      })
+    } catch (error) {
+      pushUiToast({
+        id: 'toolbar-run-all-strybldr-error',
+        kind: 'error',
+        message: `Strybldr Run all failed: ${String((error as { message?: unknown })?.message ?? error)}`,
+        dismissible: true,
+      })
+    } finally {
+      setStrybldrToolbarRunAllRunning(false)
+    }
+  }, [pushUiToast, strybldrRunAllGraphData, strybldrToolbarRunAllRunning])
 
   useEffect(() => {
     const root = document.documentElement
@@ -276,15 +311,20 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
             return
           }
           if (runAllFloatingPanelTab) {
-            if (runAllFloatingPanelConsumerMounted) {
-              emitWorkflowRunAll({ source: 'toolbar' })
+            const graphStore = useGraphStore.getState()
+            graphStore.setFloatingPanelView(runAllFloatingPanelTab)
+            graphStore.setFloatingPanelOpen(true)
+            if (runAllFloatingPanelTab === 'strybldr') {
+              emitFloatingPanelOpen({ tab: runAllFloatingPanelTab, open: true })
+              void runStrybldrToolbarRunAll()
               return
             }
-            emitFloatingPanelOpen({ tab: runAllFloatingPanelTab, open: true })
-            window.setTimeout(() => emitWorkflowRunAll({ source: 'toolbar' }), TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS)
+            emitFloatingPanelOpen({ tab: runAllFloatingPanelTab, open: true, runAllOnOpen: true })
+            window.setTimeout(emitToolbarRunAll, TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS)
+            window.setTimeout(emitToolbarRunAll, TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS)
             return
           }
-          emitWorkflowRunAll({ source: 'toolbar' })
+          emitToolbarRunAll()
         }}
         showTooltip
       >

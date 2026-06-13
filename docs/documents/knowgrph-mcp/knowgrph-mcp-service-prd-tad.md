@@ -211,7 +211,7 @@ Knowgrph MCP must:
 - preserve zero- or near-zero fixed-cost deployment bias for remote surfaces
 - keep tool contracts SSOT, small, typed, and reusable across stdio, browser, and future remote transports
 - keep MCP Apps-ready resource delivery predeclared, server-owned, sandbox-metadata-backed, and readable without introducing a copied upstream sample server
-- support a planned Agentic Canvas OS dashboard contract for consumer repos such as `stryfork`, where profile, plan, market/browser evidence, artifact pipeline state, secured starter-repo blueprint state, learning-loop memory, approval, failure, and demo-pack state render through existing Source Files and Canvas paths
+- support a planned Agentic Canvas OS dashboard contract for consumer repos such as `strybldr`, where profile, plan, market/browser evidence, artifact pipeline state, secured starter-repo blueprint state, learning-loop memory, approval, failure, and demo-pack state render through existing Source Files and Canvas paths
 
 ### Non-Goals
 
@@ -386,7 +386,7 @@ This document does not claim that the following are already implemented:
 
 #### PRD-MCP6-S1 - Agentic Canvas OS repo profile
 
-**Given** a configured consumer repo root such as `stryfork`,
+**Given** a configured consumer repo root such as `strybldr`,
 **When** Agentic Canvas OS profiling runs,
 **Then** it returns a typed profile for stack, scripts, docs, env gaps, deployment targets, token/TCO budget, and risk state without mutating files.
 

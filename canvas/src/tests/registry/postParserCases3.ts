@@ -580,6 +580,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["queryableCorpus.chat.evidencePackContext","@/__tests__/queryableCorpus.test","testQueryableCorpusEvidencePackFeedsChatRequestContext"],
   ["queryableCorpus.e2e.importSourceFilesCanvasChatReadiness","@/__tests__/queryableCorpus.test","testQueryableCorpusImportAppliesToSourceFilesCanvasAndChatReadiness"],
   ["strybldr.markdown.parseStoryboardGraph","@/__tests__/strybldr.test","testStrybldrStoryboardMarkdownParsesToStoryboardGraph"],
+  ["strybldr.markdown.consolidatedDemoRoutesPanelsAndStoryboardRenderers","@/__tests__/strybldr.test","testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRenderers"],
+  ["strybldr.markdown.workspaceStructuredGraphFeedsStoryboardRenderers","@/__tests__/strybldr.test","testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers"],
   ["strybldr.markdown.parseStrytreeStorytreeSnapshot","@/__tests__/strybldr.test","testStrybldrStoryboardParsesStrytreeStorytreeSnapshot"],
   ["strybldr.storytree.workflowActions","@/__tests__/strybldr.test","testStrybldrStorytreeWorkflowActionsMutateGraphState"],
   ["strybldr.storytree.forkCompareWorkflowActions","@/__tests__/strybldr.test","testStrybldrForkCompareCandidateWorkflowActions"],
@@ -601,6 +603,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["strybldr.launchImage.floatingPanelOwners","@/__tests__/strybldr.test","testStrybldrImportImageAndFloatingPanelOwnersAreWired"],
   ["strybldr.videoHandoff.byteplusFallbackArtifact","@/__tests__/strybldr.test","testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArtifact"],
   ["strybldr.videoHandoff.providerBackedRecreationReachable","@/__tests__/strybldr.test","testStrybldrVideoHandoffKeepsProviderBackedRecreationReachable"],
+  ["strybldr.videoHandoff.consolidatedDemoLocalAnimatic","@/__tests__/strybldr.test","testStrybldrConsolidatedDemoGeneratesLocalPlayableAnimatic"],
   ["strybldr.videoSource.renderableMediaAcrossMergeHandoff","@/__tests__/strybldr.test","testStrybldrVideoSourceKeepsRenderableMediaAcrossMergeAndHandoff"],
   ["strybldr.visionHarness.requiredProvidersPrivacyGuard","@/__tests__/strybldr.test","testStrybldrVisionHarnessUsesRequiredProvidersWithPrivacyGuard"],
 ]

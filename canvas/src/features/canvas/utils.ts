@@ -20,6 +20,7 @@ export type PropsPanelOpenEventDetail = {
 export type FloatingPanelOpenEventDetail = {
   tab?: 'inspector' | 'node' | 'view' | 'chat' | 'geo' | 'flowEditor' | 'gitGraph' | 'architecture' | 'eventModeling' | 'strybldr'
   open?: boolean
+  runAllOnOpen?: boolean
 }
 
 export type ChatInputAppendEventDetail = {
@@ -33,21 +34,37 @@ export type WorkflowRunAllEventDetail = {
 
 function emitCanvasCustomEvent<TDetail>(eventName: string, detail?: TDetail): void {
   if (typeof window === 'undefined') return
+  const fallbackDocument = window.document || (typeof document === 'undefined' ? null : document)
   try {
     const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
     window.dispatchEvent(new CustomEventCtor(eventName, { detail }))
+    return
   } catch {
-    void 0
+    try {
+      const event = fallbackDocument?.createEvent('CustomEvent') as CustomEvent<TDetail> | undefined
+      event?.initCustomEvent(eventName, false, false, detail)
+      if (event) window.dispatchEvent(event)
+    } catch {
+      void 0
+    }
   }
 }
 
 function emitCanvasEvent(eventName: string): void {
   if (typeof window === 'undefined') return
+  const fallbackDocument = window.document || (typeof document === 'undefined' ? null : document)
   try {
     const EventCtor = typeof window.Event === 'function' ? window.Event : Event
     window.dispatchEvent(new EventCtor(eventName))
+    return
   } catch {
-    void 0
+    try {
+      const event = fallbackDocument?.createEvent('Event') as Event | undefined
+      event?.initEvent(eventName, false, false)
+      if (event) window.dispatchEvent(event)
+    } catch {
+      void 0
+    }
   }
 }
 

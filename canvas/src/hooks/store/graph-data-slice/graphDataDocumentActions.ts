@@ -25,6 +25,7 @@ import {
   withGraphDataRevision,
 } from '@/hooks/store/graphDataSliceUtils'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { isStrybldrStoryboardMarkdown } from '@/features/strybldr/strybldrStoryboard'
 
 type PendingMarkdownApplyRequest = {
   name: string
@@ -221,6 +222,22 @@ function resetFrontmatterFlowWidgetRuntimeState(get: GetGraph, graphData: GraphD
     Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
   ) as Record<string, boolean>
   state.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
+}
+
+function canReuseParsedMarkdownSourceGraph(args: {
+  text: string
+  graphData: GraphData | null | undefined
+}): boolean {
+  const graphData = args.graphData || null
+  if (!graphData) return false
+  if (!isStrybldrStoryboardMarkdown(args.text)) return true
+  const metadata = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+    ? (graphData.metadata as Record<string, unknown>)
+    : null
+  const parserId = String(metadata?.parserId || '').trim()
+  const kind = String(metadata?.kind || graphData.context || '').trim()
+  if (parserId !== 'strybldr-storyboard' && kind !== 'strybldr-storyboard') return false
+  return Array.isArray(graphData.nodes) && graphData.nodes.length > 0
 }
 
 export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
@@ -478,7 +495,10 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         exactSourceFile &&
         exactSourceFile.status === 'parsed' &&
         String(exactSourceFile.text || '') === nextText &&
-        exactSourceFile.parsedGraphData
+        canReuseParsedMarkdownSourceGraph({
+          text: nextText,
+          graphData: exactSourceFile.parsedGraphData as GraphData | null | undefined,
+        })
       )
       const parsedTextPreset = request.preset === undefined
         ? parseCanvasWorkspaceFrontmatterPreset(nextText)

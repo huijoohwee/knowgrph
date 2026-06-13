@@ -941,10 +941,14 @@ export function testMarkdownApplyUsesDirectParserPathForActiveText() {
   if (!documentActionsText.includes('const canReuseParsedSourceGraph = !!(') || !documentActionsText.includes('if (canReuseParsedSourceGraph) {')) {
     throw new Error('expected applyMarkdownDocumentToGraph to fast-path reuse of already-parsed matching source-file graph snapshots and avoid duplicate reparsing churn')
   }
-  if (!documentActionsText.includes('String(exactSourceFile.text || \'\') === nextText') || !documentActionsText.includes('exactSourceFile.parsedGraphData')) {
-    throw new Error('expected applyMarkdownDocumentToGraph parsed-graph reuse guard to require exact source-text match and parsed graph availability')
+  if (
+    !documentActionsText.includes('String(exactSourceFile.text || \'\') === nextText') ||
+    !documentActionsText.includes('canReuseParsedMarkdownSourceGraph({') ||
+    !documentActionsText.includes('graphData: exactSourceFile.parsedGraphData as GraphData | null | undefined')
+  ) {
+    throw new Error('expected applyMarkdownDocumentToGraph parsed-graph reuse guard to require exact source-text match plus parser-aware graph availability')
   }
-  if (!documentActionsText.includes('const reusedGraph = exactSourceFile.parsedGraphData as GraphData') || !documentActionsText.includes('get().setGraphData(reusedGraph)')) {
+  if (!documentActionsText.includes('const reusedGraph = withMarkdownDocumentSourceMetadata(exactSourceFile.parsedGraphData as GraphData') || !documentActionsText.includes('get().setGraphData(reusedGraph)')) {
     throw new Error('expected applyMarkdownDocumentToGraph parsed-graph reuse path to commit the reused graph directly before parser fallback')
   }
   if (!documentActionsText.includes('let markdownApplyInFlight = false') || !documentActionsText.includes('let queuedMarkdownApplyRequest: PendingMarkdownApplyRequest | null = null')) {

@@ -29,6 +29,7 @@ import {
   parseWorkspaceFrontmatterFlowGraphDataCached,
   parseWorkspaceFrontmatterMermaidGraphDataCached,
   parseWorkspaceKgcSemanticGraphDataCached,
+  parseWorkspaceStrybldrStoryboardGraphDataCached,
   parseWorkspaceJsonGraphDataCached,
   WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS,
 } from './workspaceStructuredGraph'
@@ -202,6 +203,13 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       markdownText: debouncedStructuredMarkdownText,
     })
   }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
+  const workspaceStrybldrStoryboardGraphData = React.useMemo(() => {
+    if (!enabled || wantsApiGraphFlowchart) return null
+    return parseWorkspaceStrybldrStoryboardGraphDataCached({
+      markdownName,
+      markdownText: debouncedStructuredMarkdownText,
+    })
+  }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
   const activeMarkdownBaseGraph = React.useMemo(
     () =>
       resolveActiveMarkdownBaseGraph({
@@ -213,8 +221,9 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   )
   const baseGraphData = React.useMemo(() => {
     if (!frontmatterOnlyPolicyActive) {
-      return workspaceJsonGraphData || workspaceFrontmatterFlowGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
+      return workspaceJsonGraphData || workspaceStrybldrStoryboardGraphData || workspaceFrontmatterFlowGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
     }
+    if (workspaceStrybldrStoryboardGraphData) return workspaceStrybldrStoryboardGraphData
     if (workspaceFrontmatterFlowGraphData) return workspaceFrontmatterFlowGraphData
     if (isFrontmatterFlowGraph(activeMarkdownBaseGraph)) return activeMarkdownBaseGraph
     return buildPendingActiveMarkdownGraph({ markdownName })
@@ -222,14 +231,15 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     activeMarkdownBaseGraph,
     frontmatterOnlyPolicyActive,
     markdownName,
+    workspaceStrybldrStoryboardGraphData,
     workspaceFrontmatterFlowGraphData,
     workspaceFrontmatterMermaidGraphData,
     workspaceJsonGraphData,
     workspaceKgcSemanticGraphData,
   ])
   const hasStructuredWorkspaceGraph = frontmatterOnlyPolicyActive
-    ? !!workspaceFrontmatterFlowGraphData
-    : !!workspaceJsonGraphData || !!workspaceFrontmatterFlowGraphData || !!workspaceKgcSemanticGraphData || !!workspaceFrontmatterMermaidGraphData
+    ? !!workspaceStrybldrStoryboardGraphData || !!workspaceFrontmatterFlowGraphData
+    : !!workspaceJsonGraphData || !!workspaceStrybldrStoryboardGraphData || !!workspaceFrontmatterFlowGraphData || !!workspaceKgcSemanticGraphData || !!workspaceFrontmatterMermaidGraphData
   const { graphData: apiGraphFlowchart } = useApiGraphFlowchartGraphData(wantsApiGraphFlowchart)
 
   const lastRef = React.useRef<GraphData | null>(null)

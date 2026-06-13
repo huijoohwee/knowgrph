@@ -179,7 +179,7 @@ const demoInputPath = String(
   process.env.KNOWGRPH_STRYBLDR_DEMO_INPUT ||
   '',
 ).trim() ||
-  readRequiredEnv('KNOWGRPH_STRYFORK_DEMO_INPUT')
+  readRequiredEnv('KNOWGRPH_STRYBLDR_DEMO_INPUT')
 const demoInputBasename = basename(demoInputPath)
 const demoText = await readFile(demoInputPath, 'utf8')
 const expectRemoteVideoReferences = /(?:youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(`${demoText}\n${process.env.KNOWGRPH_STRYTREE_IMPORT_URL || ''}\n${process.env.KNOWGRPH_STRYBLDR_IMPORT_URL || ''}`)
@@ -188,7 +188,6 @@ const expectStorytreeParentEdges = /"parentNodeId"\s*:\s*"[^"]+"/.test(demoText)
 const flowMode = String(
   process.env.KNOWGRPH_STRYTREE_E2E_MODE ||
   process.env.KNOWGRPH_STRYBLDR_E2E_MODE ||
-  process.env.KNOWGRPH_STRYFORK_E2E_MODE ||
   'import-url',
 ).trim().toLowerCase()
 if (flowMode !== 'import-url' && flowMode !== 'local-file') {
@@ -197,7 +196,6 @@ if (flowMode !== 'import-url' && flowMode !== 'local-file') {
 const importUrl = String(
   process.env.KNOWGRPH_STRYTREE_IMPORT_URL ||
   process.env.KNOWGRPH_STRYBLDR_IMPORT_URL ||
-  process.env.KNOWGRPH_STRYFORK_IMPORT_URL ||
   parseFrontmatter(demoText).kgWebpageUrl ||
   '',
 ).trim()
@@ -259,7 +257,7 @@ try {
     await waitForStrybldrSurface(page, { expectStorytreeLane, expectStorytreeParentEdges })
     if (expectStorytreeLane) await exerciseStorytreeWorkflow(page)
   } catch (error) {
-    const screenshotPath = join(tmpdir(), `knowgrph-stryfork-generated-video-e2e-surface-${Date.now().toString(36)}.png`)
+    const screenshotPath = join(tmpdir(), `knowgrph-strybldr-generated-video-e2e-surface-${Date.now().toString(36)}.png`)
     await page.screenshot({ path: screenshotPath, fullPage: false }).catch(() => null)
     const diagnostic = await page.evaluate(() => ({
       url: window.location.href,

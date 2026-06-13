@@ -18,6 +18,7 @@ import {
 } from '@/features/strybldr/strytreeWorkflow'
 import { getCanvas2dSurfaceId, getToolbarRunAllFloatingPanelTab, isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId, supportsToolbarRunAll } from '@/lib/config.render'
 import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS } from '@/features/chat/byteplusRunGeneration'
+import { parseWorkspaceStrybldrStoryboardGraphDataCached } from '@/hooks/active-graph-data/workspaceStructuredGraph'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -58,6 +59,64 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
   const board = buildStoryboardBoardModel({ graphData: parsed.graphData, graphRevision: 1 })
   assert(board.totalCards >= 2, `expected Storyboard canvas cards from Strybldr graph, got ${board.totalCards}`)
   assert(board.lanes.some(lane => lane.id === 'Elements'), 'expected element lane in Strybldr board')
+}
+
+export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRenderers() {
+  const demoPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs/knowgrph-strybldr-demo.md')
+  const text = fs.readFileSync(demoPath, 'utf8')
+  const parsed = await loadGraphDataFromTextViaParser('knowgrph-strybldr-demo.md', text, {
+    applyToStore: false,
+    syncMarkdownDocument: false,
+  })
+  assert(parsed?.parserId === 'strybldr-storyboard', `expected Strybldr demo to use Strybldr parser, got ${parsed?.parserId}`)
+  const graph = parsed.graphData
+  assert(graph, 'expected parsed Strybldr graph')
+  assert((graph.nodes || []).length > 0, 'expected Strybldr graph nodes for 2D renderers')
+  assert((graph.edges || []).length > 0, 'expected Strybldr graph edges for Flow Editor projection')
+  const metadata = (graph.metadata || {}) as Record<string, unknown>
+  assert(String(metadata.kind || '') === 'strybldr-storyboard', `expected Strybldr graph kind to remain strybldr-storyboard, got ${String(metadata.kind || '')}`)
+  assert(String(metadata.kgCanvas2dRenderer || '') === 'strybldr', 'expected Strybldr graph to advertise Strybldr renderer intent')
+  const frontmatterMeta = metadata.frontmatterMeta as Record<string, unknown> | undefined
+  assert(frontmatterMeta && String(frontmatterMeta.kgCanvas2dRenderer || '') === 'strybldr', 'expected Strybldr graph to preserve frontmatter renderer metadata')
+  const flowDiagrams = frontmatterMeta?.flow_diagrams as Record<string, unknown> | undefined
+  assert(flowDiagrams && typeof flowDiagrams === 'object', 'expected Strybldr graph to preserve routed flow_diagrams metadata')
+  const flowDiagramEntries = Object.values((flowDiagrams.value || flowDiagrams) as Record<string, unknown>)
+  for (const kind of ['mermaid_gitgraph', 'mermaid_architecture', 'mermaid_eventmodeling', 'mermaid_flowchart']) {
+    assert(
+      flowDiagramEntries.some(entry => String((entry as Record<string, unknown>)?.type || '') === kind),
+      `expected Strybldr routed diagram metadata for ${kind}`,
+    )
+  }
+  const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
+  assert(board.totalCards > 0, `expected Storyboard/Strybldr board cards from Strybldr graph, got ${board.totalCards}`)
+  assert(board.lanes.some(lane => lane.id === 'Source'), 'expected 77FAnT935IE Strybldr board to expose source lane')
+  assert(board.lanes.some(lane => lane.id === 'Elements'), 'expected 77FAnT935IE Strybldr board to expose element/recreation cards')
+  assert(!board.lanes.some(lane => lane.id === 'Storytree' || lane.id === 'ForkCompare'), 'expected cleaned 77FAnT935IE demo to omit unrelated Storytree and ForkCompare lanes')
+}
+
+export function testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers() {
+  const demoName = 'knowgrph-strybldr-demo.md'
+  const demoPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', demoName)
+  const text = fs.readFileSync(demoPath, 'utf8')
+  const graph = parseWorkspaceStrybldrStoryboardGraphDataCached({
+    markdownName: demoName,
+    markdownText: text,
+  })
+  assert(graph, 'expected workspace structured parser to reuse the Strybldr parser graph')
+  const metadata = (graph.metadata || {}) as Record<string, unknown>
+  assert(String(graph.context || '') === 'strybldr-storyboard', `expected Strybldr context, got ${String(graph.context || '')}`)
+  assert(String(metadata.kind || '') === 'strybldr-storyboard', `expected Strybldr graph kind, got ${String(metadata.kind || '')}`)
+  assert(String(metadata.source || '') === `markdown:${demoName}`, `expected workspace markdown source metadata, got ${String(metadata.source || '')}`)
+  assert((graph.nodes || []).length > 0, 'expected workspace Strybldr graph nodes for Storyboard/Strybldr renderers')
+  const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
+  assert(board.totalCards > 0, `expected workspace Strybldr graph to feed Storyboard/Strybldr board cards, got ${board.totalCards}`)
+
+  const activeGraphHook = readSource('hooks', 'active-graph-data', 'useActiveGraphData.impl.ts')
+  assert(activeGraphHook.includes('parseWorkspaceStrybldrStoryboardGraphDataCached'), 'expected active graph hook to reuse workspace Strybldr structured parser')
+  assert(
+    activeGraphHook.includes('if (workspaceStrybldrStoryboardGraphData) return workspaceStrybldrStoryboardGraphData'),
+    'expected frontmatter-only renderers to prefer Strybldr storyboard graph over pending Markdown',
+  )
 }
 
 export async function testStrybldrStoryboardParsesStrytreeStorytreeSnapshot() {
@@ -478,9 +537,13 @@ export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
   assert(actionsText.includes('registerStrybldrImageFiles'), 'expected image import to register selected image Files for same-session local analysis')
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('availableSourceUnitIds'), 'expected local analysis to address every registered imported image')
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('Save card update'), 'expected Strybldr panel to expose the user update gate before generation')
+  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('useActiveGraphRenderData(true)'), 'expected Strybldr panel Run All to reuse the active renderer graph projection')
+  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('const graphData = activeGraphData || rawGraphData'), 'expected Strybldr panel to fall back to raw graph only when no active document graph exists')
   assert(readSource('components', 'Toolbar.tsx').includes('supportsToolbarRunAll'), 'expected toolbar Run All support to use the shared renderer helper')
   assert(readSource('components', 'Toolbar.tsx').includes('getToolbarRunAllFloatingPanelTab'), 'expected toolbar Run All panel mount to use the shared renderer helper')
+  assert(readSource('components', 'Toolbar.tsx').includes('TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS'), 'expected toolbar Run All to retry after lazy Strybldr panel mount')
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('WORKFLOW_RUN_ALL_EVENT'), 'expected Strybldr panel to consume the shared Run All event')
+  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('STRYBLDR_RUN_ALL_DEDUPE_WINDOW_MS'), 'expected Strybldr panel to dedupe toolbar Run All retry events')
   assert(!readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes("canvas2dRenderer !== 'strybldr'"), 'expected mounted Strybldr panel to keep its Run All event consumer registered')
 }
 
@@ -626,8 +689,9 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
   assert(panelText.includes('BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS'), 'expected Strybldr video handoff to reuse the BytePlus bounded polling window')
   assert(panelText.includes('BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS + 60000'), 'expected Strybldr handoff timeout to include task polling plus asset download slack')
   assert(!panelText.includes('VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = 6000'), 'expected Strybldr handoff not to force legitimate provider runs into fallback after six seconds')
-  assert(panelText.includes('if (handoff.sourceVideoUrl && handoff.renderVideoUrl)'), 'expected Strybldr source-video handoff to copy/fork without a paid provider call first')
-  assert(panelText.indexOf('if (handoff.sourceVideoUrl && handoff.renderVideoUrl)') < panelText.indexOf('generateRunVideoWithBytePlus({'), 'expected source-video copy path to run before BytePlus generation')
+  assert(panelText.includes("artifactProvider = 'knowgrph-local-animatic'"), 'expected unconfigured Strybldr runs to generate a local animatic instead of a fallback-only handoff')
+  assert(panelText.includes("model = 'strybldr-local-animatic-v1'"), 'expected local Strybldr animatic generation to expose a stable model label')
+  assert(panelText.indexOf("artifactProvider = 'knowgrph-local-animatic'") < panelText.indexOf("status = 'copied'"), 'expected local generated animatic to run before source-video copy fallback')
   assert(panelText.includes("status = 'generated'"), 'expected provider-backed Strybldr video recreation to remain a generated outcome, not fallback-only')
   assert(panelText.includes("status === 'fallback' ? 'strybldr-video-fallback'"), 'expected playable Strybldr videos to write non-fallback artifacts')
   assert(generatedMarkdown.includes('status: "generated"'), 'expected generated handoff markdown status')
@@ -708,6 +772,42 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
   })
   assert(youtubeCopiedMarkdown.includes(`<iframe src="${youtubeRenderUrl}"`), 'expected copied YouTube handoff to render the embeddable source video')
   assert(youtubeCopiedMarkdown.includes(`[Open source video](${youtubeSourceUrl})`), 'expected copied YouTube handoff to retain the source link')
+}
+
+export async function testStrybldrConsolidatedDemoGeneratesLocalPlayableAnimatic() {
+  const demoPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs/knowgrph-strybldr-demo.md')
+  const text = fs.readFileSync(demoPath, 'utf8')
+  const parsed = await loadGraphDataFromTextViaParser('knowgrph-strybldr-demo.md', text, { applyToStore: false })
+  assert(parsed?.parserId === 'strybldr-storyboard', `expected consolidated demo to parse as Strybldr, got ${String(parsed?.parserId || '')}`)
+  assert(text.includes('videodb_character_clips_contract'), 'expected consolidated demo to include the VideoDB character clips contract')
+  assert(text.includes('video.generate_stream(timeline=subject_timeline_ranges)'), 'expected consolidated demo to include the VideoDB timeline stream primitive')
+  assert(text.includes('subject_clip_urls:'), 'expected consolidated demo to keep subject clip URLs in the publish packet schema')
+  assert(text.includes('clip: ""'), 'expected consolidated demo to keep character clip URLs blank until live VideoDB responses')
+  const handoff = buildStrybldrVideoHandoffFromGraphData(parsed.graphData)
+  assert(handoff.cards.length >= 12, `expected consolidated demo handoff cards, got ${handoff.cards.length}`)
+  assert(handoff.cards.some(card => card.id === 'videodb-character-clips-card'), 'expected consolidated demo handoff to include the VideoDB character clips card')
+  assert(String(handoff.sourceVideoUrl || '').includes('77FAnT935IE'), `expected demo handoff to preserve import URL video source, got ${String(handoff.sourceVideoUrl || '')}`)
+  assert(String(handoff.renderVideoUrl || '').includes('/embed/77FAnT935IE'), `expected demo handoff to preserve renderable source preview, got ${String(handoff.renderVideoUrl || '')}`)
+  assert(String(handoff.localAnimaticHtml || '').includes('Strybldr Local Generated Video'), 'expected demo handoff to include generated local animatic HTML')
+  assert(String(handoff.localAnimaticHtml || '').includes('knowgrph local animatic'), 'expected generated local animatic to identify the local generator')
+  assert(String(handoff.localAnimaticHtml || '').includes('Chapter clips'), 'expected generated local animatic to expose runnable chapter clips')
+  assert(!String(handoff.localAnimaticHtml || '').includes('stream.videodb.io'), 'expected local generated animatic not to fabricate VideoDB stream URLs')
+  const markdown = buildStrybldrVideoHandoffMarkdown({
+    handoff,
+    status: 'generated',
+    provider: 'knowgrph-local-animatic',
+    model: 'strybldr-local-animatic-v1',
+    renderUrl: handoff.renderVideoUrl,
+    sourceUrl: handoff.sourceVideoUrl,
+    elapsedMs: 25,
+    paidCallCount: 0,
+    cacheHit: false,
+  })
+  assert(markdown.includes('status: "generated"'), 'expected local generated animatic artifact status')
+  assert(markdown.includes('provider: "knowgrph-local-animatic"'), 'expected local generated animatic provider')
+  assert(markdown.includes('paidCallCount: 0'), 'expected local generated animatic to avoid paid calls')
+  assert(markdown.includes('srcdoc='), 'expected local generated animatic to render as an embedded playable artifact')
+  assert(markdown.includes('[Open source video](https://www.youtube.com/watch?v=77FAnT935IE)'), 'expected generated artifact to preserve import URL provenance')
 }
 
 export async function testStrybldrVideoSourceKeepsRenderableMediaAcrossMergeAndHandoff() {

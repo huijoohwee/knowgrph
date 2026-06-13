@@ -299,6 +299,7 @@ export function ToolbarToolMenu({
   onHeaderPointerDown,
   requestedFloatingPanelView,
   requestedFloatingPanelViewSeq,
+  requestedFloatingPanelRunAllSeq,
   onClose,
 }: ToolbarToolMenuProps) {
   const { pinned: floatingPanelPinned, togglePinned: toggleFloatingPanelPinned } = usePinnedLs(LS_KEYS.floatingPanelPinned, true)
@@ -769,7 +770,7 @@ export function ToolbarToolMenu({
             )}
             {floatingPanelView === 'strybldr' && (
               <React.Suspense fallback={null}>
-                <StrybldrFloatingPanelViewLazy />
+                <StrybldrFloatingPanelViewLazy runAllRequestSeq={requestedFloatingPanelRunAllSeq} />
               </React.Suspense>
             )}
             {floatingPanelView === 'graphTraversal' && (

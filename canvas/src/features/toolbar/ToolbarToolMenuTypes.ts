@@ -9,5 +9,6 @@ export interface ToolbarToolMenuProps {
   onHeaderPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   requestedFloatingPanelView?: FloatingPanelView
   requestedFloatingPanelViewSeq?: number
+  requestedFloatingPanelRunAllSeq?: number
   onClose: () => void
 }

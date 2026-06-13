@@ -4,7 +4,7 @@ import IconButton from '@/components/IconButton'
 import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
 import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { PropsPanelOpenEventDetail, FloatingPanelOpenEventDetail } from '@/features/canvas/utils'
+import { FLOATING_PANEL_OPEN_EVENT, type PropsPanelOpenEventDetail, type FloatingPanelOpenEventDetail } from '@/features/canvas/utils'
 import { LS_KEYS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
@@ -47,6 +47,7 @@ export function ToolbarMenuLauncher({
     {
       view: FloatingPanelRequestedView
       seq: number
+      runAllOnOpen: boolean
     } | null
   >(null)
 
@@ -75,11 +76,12 @@ export function ToolbarMenuLauncher({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const openRequestedFloatingPanel = (view: FloatingPanelRequestedView) => {
+    const openRequestedFloatingPanel = (view: FloatingPanelRequestedView, options?: { runAllOnOpen?: boolean }) => {
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
         view,
         seq: floatingPanelRequestSeqRef.current,
+        runAllOnOpen: options?.runAllOnOpen === true,
       })
       setIsToolMenuOpen(true)
     }
@@ -141,14 +143,22 @@ export function ToolbarMenuLauncher({
         closeToolMenu()
         return
       }
-      openRequestedFloatingPanel(requested)
+      openRequestedFloatingPanel(requested, { runAllOnOpen: detail?.runAllOnOpen === true })
     }
 
-    return installFloatingPanelBridge({
+    const handleFloatingPanelOpenEvent = (event: Event) => {
+      openFloatingPanel((event as CustomEvent<FloatingPanelOpenEventDetail>).detail)
+    }
+    window.addEventListener(FLOATING_PANEL_OPEN_EVENT, handleFloatingPanelOpenEvent)
+    const cleanupBridge = installFloatingPanelBridge({
       openPropsPanel,
       openFloatingPanel,
       openRendererPanel,
     })
+    return () => {
+      window.removeEventListener(FLOATING_PANEL_OPEN_EVENT, handleFloatingPanelOpenEvent)
+      cleanupBridge()
+    }
   }, [_onOpenMainPanel, closeToolMenu, setIsToolMenuOpen, setToolMenuDragPos])
 
   const uiIconScale = useGraphStore(s => s.uiIconScale)
@@ -194,6 +204,7 @@ export function ToolbarMenuLauncher({
             onHeaderPointerDown={handleToolMenuCardPointerDown}
             requestedFloatingPanelView={floatingPanelRequestedView?.view}
             requestedFloatingPanelViewSeq={floatingPanelRequestedView?.seq}
+            requestedFloatingPanelRunAllSeq={floatingPanelRequestedView?.runAllOnOpen ? floatingPanelRequestedView.seq : undefined}
             pipelineStatus={null}
             exportStatus={null}
             onClose={closeToolMenu}

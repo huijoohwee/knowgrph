@@ -46,6 +46,11 @@ const htmlAttr = (value: string): string => String(value || '')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
 
+const htmlText = (value: string): string => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+
 const readCorpusMediaKind = (value: unknown): CorpusSourceUnit['mediaKind'] => {
   const raw = cleanText(value)
   return CORPUS_MEDIA_KINDS.has(raw) ? raw as CorpusSourceUnit['mediaKind'] : 'unknown'
@@ -1304,13 +1309,97 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     })
     .find(value => /^https?:\/\//i.test(value)) || null
 
-  return {
+  const handoff: StrybldrVideoHandoff = {
     cards,
     prompt: promptLines.join('\n').trim(),
     referenceImageUrl: mediaUrl,
     sourceVideoUrl: sourceVideo?.sourceUrl || null,
     renderVideoUrl: sourceVideo?.renderUrl || null,
   }
+  handoff.localAnimaticHtml = buildStrybldrLocalAnimaticHtml(handoff)
+  return handoff
+}
+
+export const buildStrybldrLocalAnimaticHtml = (handoff: Pick<StrybldrVideoHandoff, 'cards' | 'referenceImageUrl' | 'sourceVideoUrl' | 'renderVideoUrl'>): string => {
+  const cards = (Array.isArray(handoff.cards) ? handoff.cards : []).slice(0, 8)
+  if (cards.length === 0) return ''
+  const durationSeconds = Math.max(8, cards.length * 4)
+  const referenceImageUrl = cleanText(handoff.referenceImageUrl)
+  const sourceVideoUrl = cleanText(handoff.sourceVideoUrl)
+  const renderVideoUrl = cleanText(handoff.renderVideoUrl)
+  const slides = cards.map((card, index) => {
+    const offset = `${Math.round((index / Math.max(1, cards.length)) * 1000) / 10}%`
+    const next = `${Math.round(((index + 1) / Math.max(1, cards.length)) * 1000) / 10}%`
+    const title = htmlText(card.title || `Beat ${index + 1}`)
+    const lane = htmlText(card.lane || 'Storyboard')
+    const summary = htmlText(card.summary || card.prompt || card.action || 'Approved Strybldr beat.')
+    const action = htmlText(card.action || card.prompt || '')
+    return [
+      `<section class="kg-slide" style="--i:${index};--start:${offset};--end:${next}">`,
+      `<p class="kg-kicker">${lane} / Beat ${index + 1}</p>`,
+      `<h1>${title}</h1>`,
+      `<p>${summary}</p>`,
+      action ? `<p class="kg-action">${action}</p>` : '',
+      '</section>',
+    ].filter(Boolean).join('')
+  }).join('')
+  const chapters = cards.map((card, index) => {
+    const start = index * 4
+    const end = start + 4
+    return [
+      '<li>',
+      `<span>${htmlText(`${start}s-${end}s`)}</span>`,
+      `<strong>${htmlText(card.title || `Beat ${index + 1}`)}</strong>`,
+      '</li>',
+    ].join('')
+  }).join('')
+  const poster = referenceImageUrl ? `<img class="kg-poster" src="${htmlAttr(referenceImageUrl)}" alt="Reference image" />` : ''
+  const sourceLink = sourceVideoUrl ? `<a class="kg-source" href="${htmlAttr(sourceVideoUrl)}">Imported source</a>` : ''
+  const renderLink = renderVideoUrl && renderVideoUrl !== sourceVideoUrl ? `<a class="kg-source" href="${htmlAttr(renderVideoUrl)}">Source preview</a>` : ''
+  return [
+    '<!doctype html>',
+    '<html lang="en">',
+    '<head>',
+    '<meta charset="utf-8" />',
+    '<meta name="viewport" content="width=device-width,initial-scale=1" />',
+    '<title>Strybldr Local Generated Video</title>',
+    '<style>',
+    ':root{color-scheme:light;--ink:#172033;--muted:#5f6675;--line:#d7dde8;--paper:#f8fafc;--accent:#0f766e;--warm:#f59e0b}',
+    '*{box-sizing:border-box}body{margin:0;background:#e5e7eb;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}',
+    '.kg-stage{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 34%;gap:28px;min-height:100vh;padding:34px;background:linear-gradient(135deg,#f8fafc 0%,#eef2ff 48%,#ecfdf5 100%);overflow:hidden}',
+    '.kg-slides{position:relative;min-height:520px;border:1px solid var(--line);background:rgba(255,255,255,.82);box-shadow:0 18px 42px rgba(15,23,42,.14);overflow:hidden}',
+    '.kg-slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:56px;opacity:0;transform:translateX(5%) scale(.98);animation:kgSlide var(--duration) linear infinite}',
+    '.kg-slide:before{content:"";position:absolute;inset:24px;border:1px solid rgba(15,118,110,.2);pointer-events:none}',
+    '.kg-kicker{margin:0;font-size:13px;text-transform:uppercase;color:var(--accent);font-weight:800;letter-spacing:0}',
+    'h1{margin:0;max-width:840px;font-size:44px;line-height:1.02;letter-spacing:0}p{margin:0;max-width:760px;font-size:20px;line-height:1.45;color:var(--muted)}.kg-action{color:#7c2d12;font-weight:700}',
+    '.kg-side{display:flex;min-width:0;flex-direction:column;justify-content:space-between;gap:18px}.kg-poster{width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid var(--line);background:#111827}',
+    '.kg-meter{height:8px;background:#dbe4ef;overflow:hidden}.kg-meter:before{content:"";display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--accent),var(--warm));transform-origin:left;animation:kgMeter var(--duration) linear infinite}',
+    '.kg-meta{display:grid;gap:12px}.kg-label{font-size:12px;text-transform:uppercase;color:var(--muted);font-weight:800;letter-spacing:0}.kg-value{font-size:16px;font-weight:800}.kg-source{color:#0f766e;text-decoration:none;font-weight:800;overflow-wrap:anywhere}',
+    '.kg-chapters{display:grid;gap:8px;margin:0;padding:0;list-style:none}.kg-chapters li{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:8px}.kg-chapters span{font-size:12px;color:var(--muted);font-weight:800}.kg-chapters strong{font-size:13px;line-height:1.3}',
+    '@keyframes kgMeter{from{transform:scaleX(0)}to{transform:scaleX(1)}}',
+    '@keyframes kgSlide{0%,100%{opacity:0;transform:translateX(5%) scale(.98)}4%,22%{opacity:1;transform:translateX(0) scale(1)}26%{opacity:0;transform:translateX(-5%) scale(.98)}}',
+    cards.map((_, index) => `.kg-slide:nth-child(${index + 1}){animation-delay:calc(var(--duration) * ${index / Math.max(1, cards.length)} * -1)}`).join(''),
+    '@media(max-width:860px){.kg-stage{grid-template-columns:1fr;padding:18px}.kg-slides{min-height:480px}.kg-slide{padding:34px}h1{font-size:34px}p{font-size:17px}}',
+    '</style>',
+    '</head>',
+    `<body style="--duration:${durationSeconds}s">`,
+    '<main class="kg-stage" aria-label="Strybldr local generated video">',
+    `<section class="kg-slides">${slides}</section>`,
+    '<aside class="kg-side">',
+    poster,
+    '<section class="kg-meta">',
+    '<section><div class="kg-label">Generator</div><div class="kg-value">knowgrph local animatic</div></section>',
+    `<section><div class="kg-label">Chapter clips</div><ol class="kg-chapters">${chapters}</ol></section>`,
+    `<section><div class="kg-label">Approved cards</div><div class="kg-value">${cards.length}</div></section>`,
+    '<section><div class="kg-label">Runtime</div><div class="kg-meter"></div></section>',
+    sourceLink,
+    renderLink,
+    '</section>',
+    '</aside>',
+    '</main>',
+    '</body>',
+    '</html>',
+  ].filter(Boolean).join('')
 }
 
 export const buildStrybldrVideoHandoffMarkdown = (args: {
@@ -1338,7 +1427,18 @@ export const buildStrybldrVideoHandoffMarkdown = (args: {
   const videoUrl = sourceKind === 'video' || renderKind === 'video'
     ? renderUrl || sourceUrl
     : ''
-  const playableLines = renderUrl || sourceUrl
+  const localAnimaticHtml = cleanMultilineText(args.handoff.localAnimaticHtml)
+  const playableLines = localAnimaticHtml
+    ? [
+        '## Video',
+        '',
+        `<iframe srcdoc="${htmlAttr(localAnimaticHtml)}" title="Strybldr local generated video" width="100%" height="405" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+        '',
+        sourceUrl ? `[Open source video](${sourceUrl})` : '',
+        renderUrl && renderUrl !== sourceUrl ? `[Open render URL](${renderUrl})` : '',
+        '',
+      ].filter(line => line !== '')
+    : renderUrl || sourceUrl
     ? [
         '## Video',
         '',

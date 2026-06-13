@@ -60,6 +60,25 @@ export const testCanvasActionEmittersReuseSharedCustomEventDispatcher = async ()
   expectEvent(CHAT_INPUT_APPEND_EVENT, 'text', 'hello')
   expectEvent(WORKFLOW_RUN_ALL_EVENT, 'source', 'toolbar')
 
+  const fallbackSeen: Array<Record<string, unknown> | null> = []
+  const fallbackHandler = (event: Event) => {
+    fallbackSeen.push(((event as CustomEvent<Record<string, unknown>>).detail || null) as Record<string, unknown> | null)
+  }
+  const OriginalCustomEvent = dom.window.CustomEvent
+  Object.defineProperty(dom.window, 'CustomEvent', {
+    configurable: true,
+    value: function BrokenCustomEvent() {
+      throw new Error('CustomEvent constructor unavailable')
+    },
+  })
+  dom.window.addEventListener(WORKFLOW_RUN_ALL_EVENT, fallbackHandler as EventListener)
+  emitWorkflowRunAll({ source: 'toolbar' })
+  dom.window.removeEventListener(WORKFLOW_RUN_ALL_EVENT, fallbackHandler as EventListener)
+  Object.defineProperty(dom.window, 'CustomEvent', { configurable: true, value: OriginalCustomEvent })
+  if (fallbackSeen.length !== 1 || fallbackSeen[0]?.source !== 'toolbar') {
+    throw new Error(`expected workflow Run All emitter to dispatch through document.createEvent fallback, got ${JSON.stringify(fallbackSeen)}`)
+  }
+
   cleanup.forEach(fn => fn())
 }
 
@@ -76,6 +95,9 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   }
   if (!utilsText.includes('new CustomEventCtor(eventName, { detail })')) {
     throw new Error('expected canvas utils shared dispatcher to own CustomEvent construction')
+  }
+  if (!utilsText.includes("fallbackDocument?.createEvent('CustomEvent')")) {
+    throw new Error('expected canvas utils shared dispatcher to fall back when CustomEvent constructors are unavailable')
   }
   if (utilsText.includes('new CustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT')) {
     throw new Error('expected props panel emitter to stop owning raw CustomEvent construction')

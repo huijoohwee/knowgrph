@@ -1,4 +1,5 @@
 import { filterGraphByExcludedNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { getCanvas2dSurfaceId, resolveCanvas2dRendererId } from '@/lib/config.render'
 import { buildCanonicalNodeIdSet, canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData } from '@/lib/graph/types'
@@ -99,6 +100,29 @@ function listFrontmatterFlowOwnedRenderNodeIds(graphData: GraphData | null | und
   return out
 }
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function readDeclaredCanvas2dRenderer(graphData: GraphData | null | undefined): ReturnType<typeof resolveCanvas2dRendererId> {
+  const metadata = readRecord(graphData?.metadata)
+  const frontmatterMeta = readRecord(metadata?.frontmatterMeta)
+  return (
+    resolveCanvas2dRendererId(frontmatterMeta?.kgCanvas2dRenderer)
+    || resolveCanvas2dRendererId(metadata?.kgCanvas2dRenderer)
+  )
+}
+
+function shouldPartitionForeignRendererGraphFromFlowCanvas(graphData: GraphData | null | undefined): boolean {
+  if (!graphData || isFrontmatterFlowGraph(graphData)) return false
+  const renderer = readDeclaredCanvas2dRenderer(graphData)
+  if (!renderer) return false
+  const surface = getCanvas2dSurfaceId(renderer)
+  return surface !== 'flow' && surface !== 'flowEditor'
+}
+
 export function buildFlowCanvasGraphDataOverride(args: {
   renderGraphDataOverride: GraphData | null
   frontmatterOverlayVisualIsolation: FrontmatterOverlayVisualIsolation
@@ -122,6 +146,12 @@ export function buildFlowCanvasGraphDataOverride(args: {
     return filterGraphByExcludedNodeIds({
       graphData: renderGraphDataOverride,
       excludedNodeIds: frontmatterFlowOwnedNodeIds,
+    })
+  }
+  if (shouldPartitionForeignRendererGraphFromFlowCanvas(renderGraphDataOverride)) {
+    return filterGraphByExcludedNodeIds({
+      graphData: renderGraphDataOverride,
+      excludedNodeIds: listFrontmatterFlowOwnedRenderNodeIds(renderGraphDataOverride),
     })
   }
 

@@ -282,7 +282,7 @@ Feature-specific planning belongs in canonical docs instead of the root README:
 | AI provider layer (MiroMindAI) | `docs/documents/knowgrph-api-reference/knowgrph-miromind-api-prd-tad.md` |
 | MCP | `docs/documents/knowgrph-mcp/` and `mcp/README.md` |
 | Storage sync | `docs/documents/knowgrph-storage-sync-document.companion.md` |
-| Stryfork | `docs/documents/knowgrph-stryfork-prd-tad.md` |
+| Strybldr | `docs/documents/knowgrph-strybldr-prd-tad.md` |
 | Strybldr | `docs/documents/knowgrph-strybldr-prd-tad.md` |
 | Strytree | `docs/documents/knowgrph-strytree-prd-tad.md` |
 | Repo hygiene | `docs/documents/knowgrph-repo-hygiene-document.md` |

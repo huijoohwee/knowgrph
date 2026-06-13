@@ -38,8 +38,11 @@ import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
+import { VIDEODB_MCP_DOC_AREA } from './videodbMcpApiDocs'
 import { OPERATOR_DEPLOY_MCP_DOC_AREA } from '@/features/settings/operatorDeploySsot'
 import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA } from '@/features/integrations/pixverseVideoGenerationSsot'
+import { VIDEODB_API_DOC_AREA } from '@/features/integrations/videodbSsot'
+import { SENSENOVA_API_DOC_AREA } from '@/features/integrations/sensenovaSsot'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type SettingsEntry = {
@@ -91,6 +94,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   STRIPE_MCP_DOC_AREA,
   KNOWGRPH_VDEOXPLN_DOC_AREA,
   OPERATOR_DEPLOY_MCP_DOC_AREA,
+  VIDEODB_MCP_DOC_AREA,
   MAPS_GRABMAPS_MCP_DOC_AREA,
   MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA,
   MAPS_GEO_DOC_AREA,
@@ -109,6 +113,8 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   GEMINI_VIDEO_GENERATION_API_DOC_AREA,
+  SENSENOVA_API_DOC_AREA,
+  VIDEODB_API_DOC_AREA,
   MIROMIND_API_DOC_AREA,
   AGNES_API_DOC_AREA,
   QWEN_API_DOC_AREA,
@@ -152,6 +158,8 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
     || area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
     || area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
+    || area === SENSENOVA_API_DOC_AREA
+    || area === VIDEODB_API_DOC_AREA
     || area === MIROMIND_API_DOC_AREA
     || area === AGNES_API_DOC_AREA
     || area === QWEN_API_DOC_AREA
@@ -200,6 +208,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === MIROMIND_MCP_DOC_AREA) return true
   if (area === KNOWGRPH_VDEOXPLN_DOC_AREA) return true
   if (area === OPERATOR_DEPLOY_MCP_DOC_AREA) return true
+  if (area === VIDEODB_MCP_DOC_AREA) return true
   return key.includes('.mcp.')
 }
 

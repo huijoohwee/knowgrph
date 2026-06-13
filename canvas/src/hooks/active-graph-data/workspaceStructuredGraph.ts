@@ -15,6 +15,7 @@ import {
   mergeKgcSemanticGraphIntoGraphData,
   parseKgcSemanticGraphFromMarkdown,
 } from '@/features/parsers/kgcSemanticGraph'
+import { strybldrStoryboardSpec } from '@/features/strybldr/parserSpecs'
 
 export const WORKSPACE_GRAPH_CONTEXT = 'workspace:graph'
 export const WORKSPACE_GRAPH_SOURCE = 'workspace:graph'
@@ -25,10 +26,11 @@ const workspaceJsonGraphParseCache = new LRUCache<string, { graphData: GraphData
 const workspaceFrontmatterFlowParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 const workspaceFrontmatterMermaidParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 const workspaceKgcSemanticGraphParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
+const workspaceStrybldrStoryboardParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 export const WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS = 120
 
 const buildWorkspaceStructuredParseKey = (args: {
-  parseKind: 'json-graph' | 'frontmatter-flow' | 'frontmatter-mermaid' | 'kgc-semantic'
+  parseKind: 'json-graph' | 'frontmatter-flow' | 'frontmatter-mermaid' | 'kgc-semantic' | 'strybldr-storyboard'
   markdownName: string | null
   markdownText: string | null
 }): string => {
@@ -269,6 +271,37 @@ export const parseWorkspaceFrontmatterFlowGraphDataCached = (args: {
     graphData = null
   }
   workspaceFrontmatterFlowParseCache.set(key, { graphData })
+  return graphData
+}
+
+export const parseWorkspaceStrybldrStoryboardGraphDataCached = (args: {
+  markdownName: string | null
+  markdownText: string | null
+}): GraphData | null => {
+  const text = String(args.markdownText || '')
+  if (!text.trim()) return null
+  if (!strybldrStoryboardSpec.match(args.markdownName || 'workspace:strybldr-storyboard.md', text)) return null
+  const key = buildWorkspaceStructuredParseKey({
+    parseKind: 'strybldr-storyboard',
+    markdownName: args.markdownName,
+    markdownText: args.markdownText,
+  })
+  const cached = workspaceStrybldrStoryboardParseCache.get(key)
+  if (cached) return cached.graphData
+  let graphData: GraphData | null = null
+  try {
+    const parsed = strybldrStoryboardSpec.parse(args.markdownName || 'workspace:strybldr-storyboard.md', text)
+    graphData = parsed?.graphData
+      ? withWorkspaceMarkdownSourceMetadata({
+          graphData: parsed.graphData,
+          markdownName: args.markdownName,
+          fallbackSourceKind: 'strybldr-storyboard',
+        })
+      : null
+  } catch {
+    graphData = null
+  }
+  workspaceStrybldrStoryboardParseCache.set(key, { graphData })
   return graphData
 }
 

@@ -106,3 +106,76 @@ export function testFlowEditorFrontmatterFlowGraphPartitionExcludesAllRenderNode
     throw new Error('expected native scene clear draw to happen before Flow Editor workspace pre-init/deferred draw gates')
   }
 }
+
+export function testFlowEditorForeignRendererGraphPartitionExcludesNativeFlowCanvasNodes() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    metadata: {
+      kind: 'strybldr-storyboard',
+      kgCanvas2dRenderer: 'strybldr',
+      frontmatterMeta: {
+        kgCanvas2dRenderer: 'strybldr',
+        kgRendererCompatibility: [
+          '2D Renderer: Strybldr',
+          '2D Renderer: Storyboard',
+          '2D Renderer: Flow Editor',
+        ],
+      },
+      [KG_SUBGRAPHS_KEY]: [
+        {
+          id: 'storytree',
+          label: 'Storytree',
+          memberNodeIds: ['source', 'fork'],
+          kind: 'cluster',
+        },
+      ],
+    },
+    nodes: [
+      { id: 'source', type: 'StrybldrImageSource', label: 'Source', properties: {} },
+      { id: 'fork', type: 'StorytreeNode', label: 'Fork', properties: {} },
+    ],
+    edges: [
+      { id: 'e1', source: 'source', target: 'fork', label: 'forks', type: 'containsElement', properties: {} },
+    ],
+  }
+  const partitioned = buildFlowCanvasGraphDataOverride({
+    renderGraphDataOverride: graphData,
+    frontmatterOverlayVisualIsolation: {
+      kind: 'strybldr-storyboard',
+      visibleNodeIds: [],
+      hasFullOverlayCoverageForVisibleNodes: true,
+    },
+    overlayEditorNodeIdsSnapshot: [],
+    overlayOnlyActive: false,
+  })
+  const nodeIds = Array.isArray(partitioned?.nodes) ? partitioned.nodes.map(node => String(node?.id || '').trim()).filter(Boolean) : []
+  const edgeIds = Array.isArray(partitioned?.edges) ? partitioned.edges.map(edge => String(edge?.id || '').trim()).filter(Boolean) : []
+  const subgraphIds = readSubgraphs(partitioned).map(subgraph => subgraph.id)
+  if (nodeIds.length !== 0) throw new Error(`expected Flow Editor to keep Strybldr-owned graph nodes out of FlowCanvas, got ${nodeIds.join(',')}`)
+  if (edgeIds.length !== 0) throw new Error(`expected Flow Editor to keep Strybldr-owned graph edges out of FlowCanvas, got ${edgeIds.join(',')}`)
+  if (subgraphIds.length !== 0) throw new Error(`expected Flow Editor to prune Strybldr-owned graph groups from FlowCanvas, got ${subgraphIds.join(',')}`)
+
+  const flowEditorGraph: GraphData = {
+    ...graphData,
+    metadata: {
+      ...graphData.metadata,
+      kind: 'flow-editor',
+      kgCanvas2dRenderer: 'flowEditor',
+      frontmatterMeta: { kgCanvas2dRenderer: 'flowEditor' },
+    },
+  }
+  const retained = buildFlowCanvasGraphDataOverride({
+    renderGraphDataOverride: flowEditorGraph,
+    frontmatterOverlayVisualIsolation: {
+      kind: 'flow-editor',
+      visibleNodeIds: [],
+      hasFullOverlayCoverageForVisibleNodes: true,
+    },
+    overlayEditorNodeIdsSnapshot: [],
+    overlayOnlyActive: false,
+  })
+  const retainedNodeIds = Array.isArray(retained?.nodes) ? retained.nodes.map(node => String(node?.id || '').trim()).filter(Boolean) : []
+  if (retainedNodeIds.join('|') !== 'source|fork') {
+    throw new Error(`expected Flow Editor-owned graphs to retain native FlowCanvas backing nodes, got ${retainedNodeIds.join(',')}`)
+  }
+}

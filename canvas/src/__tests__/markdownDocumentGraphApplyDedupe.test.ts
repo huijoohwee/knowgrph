@@ -72,3 +72,102 @@ export const testMarkdownDocumentGraphApplyDedupeUsesSharedSemanticKey = () => {
     throw new Error('expected markdown graph apply dedupe to reuse the shared semantic-key helper')
   }
 }
+
+export const testMarkdownDocumentGraphApplyRejectsStaleStrybldrSourceGraph = async () => {
+  useGraphStore.getState().resetAll()
+  const demoPath = resolve(process.cwd(), '../..', 'huijoohwee/docs/knowgrph-strybldr-demo.md')
+  const text = readFileSync(demoPath, 'utf8')
+  const name = 'knowgrph-strybldr-demo.md'
+  const staleGraph = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      parserId: 'markdown',
+    },
+  }
+  useGraphStore.setState({
+    sourceFiles: [
+      {
+        id: 'sf-stale-strybldr',
+        name,
+        text,
+        enabled: true,
+        status: 'parsed',
+        parsedParserId: 'markdown',
+        parsedGraphData: staleGraph,
+        source: { kind: 'local', path: `workspace:/docs/${name}` },
+      },
+    ],
+  })
+
+  const ok = await useGraphStore.getState().setActiveMarkdownDocument({
+    name,
+    text,
+    applyViewPreset: true,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+    normalizeMermaidMmd: false,
+  })
+  if (!ok) throw new Error('expected Strybldr markdown graph apply to succeed after rejecting stale source graph')
+  const graph = useGraphStore.getState().graphData
+  const meta = (graph?.metadata || {}) as Record<string, unknown>
+  if (String(meta.kind || '') !== 'strybldr-storyboard') {
+    throw new Error(`expected active graph to reparse as strybldr-storyboard, got ${String(meta.kind || graph?.context || '')}`)
+  }
+  if ((graph?.nodes || []).length === 0) {
+    throw new Error('expected active Strybldr graph to contain renderer nodes instead of stale zero-node frontmatter-flow graph')
+  }
+}
+
+export const testMarkdownDocumentGraphApplyRejectsEmptyCachedStrybldrSourceGraph = async () => {
+  useGraphStore.getState().resetAll()
+  const demoPath = resolve(process.cwd(), '../..', 'huijoohwee/docs/knowgrph-strybldr-demo.md')
+  const text = readFileSync(demoPath, 'utf8')
+  const name = 'knowgrph-strybldr-demo.md'
+  const staleGraph = {
+    type: 'Graph',
+    context: 'strybldr-storyboard',
+    nodes: [],
+    edges: [],
+    metadata: {
+      kind: 'strybldr-storyboard',
+      parserId: 'strybldr-storyboard',
+      kgCanvas2dRenderer: 'strybldr',
+    },
+  }
+  useGraphStore.setState({
+    sourceFiles: [
+      {
+        id: 'sf-empty-strybldr',
+        name,
+        text,
+        enabled: true,
+        status: 'parsed',
+        parsedParserId: 'strybldr-storyboard',
+        parsedGraphData: staleGraph,
+        source: { kind: 'local', path: `workspace:/docs/${name}` },
+      },
+    ],
+  })
+
+  const ok = await useGraphStore.getState().setActiveMarkdownDocument({
+    name,
+    text,
+    applyViewPreset: true,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+    normalizeMermaidMmd: false,
+  })
+  if (!ok) throw new Error('expected Strybldr markdown graph apply to reject the empty cached Strybldr graph and reparse')
+  const graph = useGraphStore.getState().graphData
+  const meta = (graph?.metadata || {}) as Record<string, unknown>
+  if (String(meta.kind || '') !== 'strybldr-storyboard') {
+    throw new Error(`expected active graph to reparse as strybldr-storyboard, got ${String(meta.kind || graph?.context || '')}`)
+  }
+  if ((graph?.nodes || []).length === 0) {
+    throw new Error('expected active Strybldr graph to contain renderer nodes after rejecting empty cached graph')
+  }
+}

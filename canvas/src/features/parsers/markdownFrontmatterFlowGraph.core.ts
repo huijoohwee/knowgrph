@@ -54,7 +54,11 @@ import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
 import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 import { mergeWidgetRegistryEntries, readAuthoredWidgetRegistryEntries } from '@/features/parsers/markdownFrontmatterFlowGraph.widgetRegistry'
-import { deriveFlowDiagramsWidgets, registerFlowDiagramSocketType } from '@/features/parsers/markdownFrontmatterFlowGraph.flowDiagrams'
+import {
+  deriveFlowDiagramsWidgets,
+  hasOnlyRoutedFlowDiagramSpecs,
+  registerFlowDiagramSocketType,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.flowDiagrams'
 
 function guessJsonTypeLabel(value: unknown): string {
   if (value == null) return 'null'
@@ -1403,7 +1407,9 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   }
   registerFlowDiagramSocketType(metaRecord)
 
-  const normalized = normalizeNodes(metaRecord)
+  const normalized = normalizeNodes(metaRecord) || (hasOnlyRoutedFlowDiagramSpecs(metaRecord)
+    ? { nodes: [], registry: [] }
+    : null)
   if (!normalized) return null
 
   const hasFlowDerivedNodes = isRecord(metaRecord.flow)

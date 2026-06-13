@@ -7,6 +7,11 @@ import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/grap
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { hasRegisteredFlowWidgetCompute } from '@/lib/flowEditor/widgetComputeRegistry'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import {
+  parseMermaidDiagramCodeModel,
+  readYamlFrontmatterMermaidDiagramCodes,
+  type MermaidStructuredDiagramKind,
+} from '@/lib/mermaid/mermaidDiagramCode'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { isCanvas2dRendererId } from '@/lib/config.render'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -15,6 +20,14 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 const FLOW_DIAGRAM_SAMPLE_PATHS_ENV = 'FLOW_DIAGRAM_SAMPLE_PATHS'
 const AGENTIC_CANVAS_OS_DEMO_SAMPLE_PATH_ENV = 'KNOWGRPH_ACOS_DEMO_DOC_PATH'
 const CHARTED_FLOW_DIAGRAM_KINDS = new Set(['gitgraph', 'gantt'])
+const STRYBLDR_DIAGRAM_KINDS = ['flowchart', 'gitgraph', 'architecture', 'eventmodeling'] as const
+
+const DIAGRAM_PANEL_CONTRACT_BY_KIND: Record<typeof STRYBLDR_DIAGRAM_KINDS[number], { type: string; floatingPanelView: string; bottomPanelTab: string }> = {
+  flowchart: { type: 'mermaid_flowchart', floatingPanelView: 'flowchart', bottomPanelTab: 'flowchart' },
+  gitgraph: { type: 'mermaid_gitgraph', floatingPanelView: 'gitGraph', bottomPanelTab: 'gitGraph' },
+  architecture: { type: 'mermaid_architecture', floatingPanelView: 'architecture', bottomPanelTab: 'architecture' },
+  eventmodeling: { type: 'mermaid_eventmodeling', floatingPanelView: 'eventModeling', bottomPanelTab: 'eventModeling' },
+}
 
 const parsePathList = (raw: string): string[] => (
   String(raw || '')
@@ -137,6 +150,33 @@ const readAgenticCanvasOsDemoSamplePaths = (): string[] => {
     }
   }
   return Array.from(new Set(out))
+}
+
+const readPublishedStrybldrDiagramSamplePaths = (): string[] => {
+  const out: string[] = []
+  for (const root of readPublishedDocsRootCandidates()) {
+    for (const filePath of listMarkdownFiles(root)) {
+      let text = ''
+      try {
+        text = fs.readFileSync(filePath, 'utf8')
+      } catch {
+        continue
+      }
+      if (!/kgCanvas2dRenderer:\s*["']?strybldr["']?/im.test(text)) continue
+      if (!/kgStrybldrStoryboard:\s*true/im.test(text)) continue
+      if (!/\bflow_diagrams\s*:/m.test(text)) continue
+      const hasAllRoutedKinds = STRYBLDR_DIAGRAM_KINDS.every(kind => {
+        const contract = DIAGRAM_PANEL_CONTRACT_BY_KIND[kind]
+        return (
+          new RegExp(`\\btype\\s*:\\s*${contract.type}\\b`, 'i').test(text)
+          && new RegExp(`\\bfloatingPanelView\\s*:\\s*[\"']?${contract.floatingPanelView}[\"']?`, 'i').test(text)
+          && new RegExp(`\\bbottomPanelTab\\s*:\\s*[\"']?${contract.bottomPanelTab}[\"']?`, 'i').test(text)
+        )
+      })
+      if (hasAllRoutedKinds) out.push(filePath)
+    }
+  }
+  return Array.from(new Set(out)).sort((a, b) => a.localeCompare(b))
 }
 
 const RENDER_PORT_KEYS = ['output', 'imageUrl', 'audioUrl', 'videoUrl', 'outputSrcDoc'] as const
@@ -397,6 +437,73 @@ export function testMarkdownFrontmatterFlowGraphPublishedAgenticCanvasOsDemoArch
           `expected ${samplePath} routed ${kind} entry to NOT derive canvas node ${id} — routed entries use FloatingPanel/BottomPanel only`
         )
       }
+    }
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphPublishedStrybldrDemosRouteStructuredDiagrams() {
+  const samplePaths = readPublishedStrybldrDiagramSamplePaths()
+  if (samplePaths.length === 0) return
+
+  for (const samplePath of samplePaths) {
+    const md = fs.readFileSync(samplePath, 'utf8')
+    assertNoStaleRenderablePanelAuthority(samplePath, md)
+    assertNoAuthoredGeneratedFlowDiagramBackfill(samplePath, md)
+
+    const preset = parseCanvasWorkspaceFrontmatterPreset(md)
+    if (preset?.canvas2dRenderer !== 'strybldr') {
+      throw new Error(`expected ${samplePath} to preserve Strybldr renderer intent, got ${String(preset?.canvas2dRenderer || '')}`)
+    }
+
+    const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+    if (!res) throw new Error(`expected Strybldr diagram demo to parse as frontmatter-flow: ${samplePath}`)
+
+    const frontmatterMeta = ((res.graphData.metadata || {}) as Record<string, unknown>).frontmatterMeta as Record<string, unknown> | null
+    const flowDiagrams = frontmatterMeta?.flow_diagrams
+    const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+    const asStr = (v: unknown): string => typeof v === 'string' ? v.trim() : ''
+    const diagramsRoot = isRecord(flowDiagrams) && isRecord(flowDiagrams.value) ? flowDiagrams.value : isRecord(flowDiagrams) ? flowDiagrams : null
+    if (!diagramsRoot) throw new Error(`expected ${samplePath} to preserve flow_diagrams frontmatter`)
+
+    const foundRoutedKinds = new Set<MermaidStructuredDiagramKind>()
+    for (const [, entry] of Object.entries(diagramsRoot)) {
+      if (!isRecord(entry)) continue
+      const entryType = asStr(entry.type)
+      for (const kind of STRYBLDR_DIAGRAM_KINDS) {
+        const contract = DIAGRAM_PANEL_CONTRACT_BY_KIND[kind]
+        if (entryType !== contract.type) continue
+        if (asStr(entry.floatingPanelView) !== contract.floatingPanelView) {
+          throw new Error(`expected ${samplePath} ${kind} floatingPanelView=${contract.floatingPanelView}`)
+        }
+        if (entry.floatingPanelOpen !== true) {
+          throw new Error(`expected ${samplePath} ${kind} floatingPanelOpen: true`)
+        }
+        if (asStr(entry.bottomPanelTab) !== contract.bottomPanelTab) {
+          throw new Error(`expected ${samplePath} ${kind} bottomPanelTab=${contract.bottomPanelTab}`)
+        }
+        if (entry.bottomPanelOpen !== true) {
+          throw new Error(`expected ${samplePath} ${kind} bottomPanelOpen: true`)
+        }
+        const codes = readYamlFrontmatterMermaidDiagramCodes(md, kind)
+        if (codes.length === 0) throw new Error(`expected ${samplePath} ${kind} Mermaid code to resolve from typed frontmatter`)
+        const model = parseMermaidDiagramCodeModel(codes[0]!, kind)
+        if (model.declarationLineIndex < 0) throw new Error(`expected ${samplePath} ${kind} diagram declaration`)
+        if (model.rows.length === 0) throw new Error(`expected ${samplePath} ${kind} diagram rows for FloatingPanel list`)
+        foundRoutedKinds.add(kind)
+      }
+    }
+
+    for (const kind of STRYBLDR_DIAGRAM_KINDS) {
+      if (!foundRoutedKinds.has(kind)) {
+        throw new Error(`expected ${samplePath} to declare routed ${kind} flow_diagrams entry`)
+      }
+    }
+
+    const derivedDiagramNodes = (res.graphData.nodes || []).filter(node => String(node.id || '').startsWith('flow-diagram-'))
+    if (derivedDiagramNodes.length > 0) {
+      throw new Error(
+        `expected routed Strybldr diagram entries to use FloatingPanel/BottomPanel only, got derived nodes: ${derivedDiagramNodes.map(node => String(node.id || '')).join(', ')}`,
+      )
     }
   }
 }

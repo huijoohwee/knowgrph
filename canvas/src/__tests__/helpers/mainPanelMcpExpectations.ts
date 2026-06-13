@@ -130,6 +130,17 @@ import {
   SETTINGS_DEFAULT_KTV_HEADER_LABELS,
   SETTINGS_MCP_KTV_HEADER_LABELS,
 } from '@/features/panels/views/settingsView.constants'
+import {
+  VIDEODB_MCP_AI_TOOLS,
+  VIDEODB_MCP_CREDENTIAL_ENV,
+  VIDEODB_MCP_CREDENTIAL_PLACEHOLDER,
+  VIDEODB_MCP_DOCS_URL,
+  VIDEODB_MCP_PACKAGE,
+  VIDEODB_MCP_POLL_INTERVAL_MS,
+  VIDEODB_MCP_POLL_MAX_ITERATIONS,
+  VIDEODB_MCP_SERVER_KEY,
+  VIDEODB_MCP_UVX_COMMAND,
+} from '@/features/panels/views/videodbMcpApiDocs'
 
 const readRenderedFormValues = (container: Element): string => (
   Array.from(container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select'))
@@ -791,5 +802,76 @@ export function assertMcpHubSurfacesLarkAppMcpConfig(container: Element): void {
     .filter(Boolean)
   if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-lark-app-'))) {
     throw new Error(`expected Lark App MCP rows to use Lark App MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesVideodbMcpConfig(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  ;[
+    'VideoDB Director MCP',
+    'videodb.mcp.server_key',
+    'videodb.mcp.uvx.command',
+    'videodb.mcp.pipx.command',
+    'videodb.mcp.package',
+    'videodb.mcp.python.prerequisite',
+    'videodb.mcp.api.base_url',
+    'videodb.mcp.credential.env',
+    'videodb.mcp.credential.placeholder',
+    'videodb.mcp.tool.core',
+    'videodb.mcp.tool.search',
+    'videodb.mcp.tool.index',
+    'videodb.mcp.tool.stream',
+    'videodb.mcp.tool.transcript',
+    'videodb.mcp.tool.ai_generation',
+    'videodb.mcp.tool.async',
+    'videodb.mcp.tool.confirmation_required',
+    'videodb.mcp.async.circuit_breaker',
+    'videodb.mcp.config.uvx',
+    'videodb.mcp.config.pipx',
+    'videodb.mcp.command.claude_code',
+    'videodb.mcp.publish.packet_schema',
+    'mcpServers',
+    VIDEODB_MCP_SERVER_KEY,
+    VIDEODB_MCP_PACKAGE,
+    VIDEODB_MCP_UVX_COMMAND,
+    VIDEODB_MCP_CREDENTIAL_ENV,
+    VIDEODB_MCP_CREDENTIAL_PLACEHOLDER,
+    VIDEODB_MCP_DOCS_URL,
+    `${VIDEODB_MCP_POLL_MAX_ITERATIONS} x ${VIDEODB_MCP_POLL_INTERVAL_MS}ms`,
+    'upload_video',
+    'get_async_response',
+    'index_video',
+    'search_videos',
+    'stream_video',
+    'human confirmation',
+    'Open VideoDB MCP Docs',
+    'Open FloatingPanel Chat UI',
+    ...VIDEODB_MCP_AI_TOOLS,
+  ].forEach(token => {
+    if (!searchableText.includes(String(token))) {
+      throw new Error(`expected MCP hub to include VideoDB MCP token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;[
+    'sk_',
+    'vdb_live_',
+    'vdb_test_',
+    'YOUR_VIDEODB_API_KEY',
+    'your_api_key',
+    'stream.videodb.io',
+    'job-upload-',
+    'job-index-',
+    'job-generation-',
+  ].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected VideoDB MCP surface to avoid secret or fabricated runtime token ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-videodb-'))) {
+    throw new Error(`expected VideoDB MCP rows to use VideoDB MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
   }
 }

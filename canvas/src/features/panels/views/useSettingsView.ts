@@ -114,6 +114,16 @@ import {
   getPixVerseVideoGenerationApiRowAnchorId,
 } from './pixverseVideoGenerationApiDocs'
 import {
+  VIDEODB_API_DOC_AREA,
+  VIDEODB_API_DOC_ENTRIES,
+  getVideodbApiRowAnchorId,
+} from './videodbApiDocs'
+import {
+  SENSENOVA_API_DOC_AREA,
+  SENSENOVA_API_DOC_ENTRIES,
+  getSensenovaApiRowAnchorId,
+} from './sensenovaApiDocs'
+import {
   MAPS_API_DOC_ENTRIES,
   getMapsApiRowAnchorId,
 } from './mapsApiDocs'
@@ -175,6 +185,8 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...GEMINI_VIDEO_GENERATION_API_DOC_ENTRIES,
   ...PIXVERSE_VIDEO_GENERATION_API_DOC_ENTRIES,
+  ...SENSENOVA_API_DOC_ENTRIES,
+  ...VIDEODB_API_DOC_ENTRIES,
   ...MIROMIND_API_DOC_ENTRIES,
   ...AGNES_API_DOC_ENTRIES,
   ...QWEN_API_DOC_ENTRIES,
@@ -1062,6 +1074,10 @@ export function useSettingsView({
             ? getGeminiVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
             ? getPixVerseVideoGenerationApiRowAnchorId(entry.meta.key)
+          : area === SENSENOVA_API_DOC_AREA
+            ? getSensenovaApiRowAnchorId(entry.meta.key)
+          : area === VIDEODB_API_DOC_AREA
+            ? getVideodbApiRowAnchorId(entry.meta.key)
           : area === MIROMIND_API_DOC_AREA
             ? getMiroMindApiRowAnchorId(entry.meta.key)
           : area === AGNES_API_DOC_AREA
@@ -1268,6 +1284,16 @@ export function useSettingsView({
           title: PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
           searchIndex: normalizeText('PixVerse Video Generation local harness mcp stdio provider_mode pixverse image-to-video transition-video'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
+        },
+        {
+          title: SENSENOVA_API_DOC_AREA,
+          searchIndex: normalizeText('SenseNova API SenseTime text image video SenseChat artist-xl SenseAnim HMAC-SHA256 JWT MainPanel Integrations Strybldr VideoDB E2E'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === SENSENOVA_API_DOC_AREA,
+        },
+        {
+          title: VIDEODB_API_DOC_AREA,
+          searchIndex: normalizeText('VideoDB API upload index search stream async response collection video transcription scene x-access-token videodb'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === VIDEODB_API_DOC_AREA,
         },
         {
           title: BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,

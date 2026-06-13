@@ -165,4 +165,5 @@ export type StrybldrVideoHandoff = {
   referenceImageUrl: string | null
   sourceVideoUrl?: string | null
   renderVideoUrl?: string | null
+  localAnimaticHtml?: string | null
 }
