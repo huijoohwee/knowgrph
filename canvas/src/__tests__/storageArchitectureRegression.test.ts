@@ -17,9 +17,11 @@ export function testRootPackageDeclaresDrizzleForKnowgrphStorageWorker() {
 
 export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
   const packagePath = resolve(process.cwd(), '..', 'package.json')
+  const seedScriptPath = resolve(process.cwd(), '..', 'scripts', 'seed-storage-docs-to-cloudflare.mjs')
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
     scripts?: Record<string, string>
   }
+  const seedScriptText = readFileSync(seedScriptPath, 'utf8')
   const scripts = packageJson.scripts || {}
   if (!scripts['storage:d1:seed:docs']?.includes('seed-storage-docs-to-cloudflare.mjs')) {
     throw new Error('expected storage:d1:seed:docs to own docs mirror seeding into D1')
@@ -32,6 +34,11 @@ export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
   }
   if (scripts['workers:deploy'] !== 'npm run storage:deploy && npm run payment:worker:deploy') {
     throw new Error('expected workers:deploy to reuse storage:deploy so D1 migrations, Worker deploy, and docs seeding stay together')
+  }
+  if (!seedScriptText.includes('buildReconciliationMutations')
+    || !seedScriptText.includes('stale-source-files=')
+    || !seedScriptText.includes('Source Files mismatch after seed')) {
+    throw new Error('expected D1 docs seeding to reconcile stale Source Files instead of leaving an append-only Cloudflare cache')
   }
 }
 

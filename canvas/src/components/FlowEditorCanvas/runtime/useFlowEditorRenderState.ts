@@ -114,6 +114,11 @@ export function useFlowEditorRenderState(args: {
           && prev.topologyLayoutSignature.length > 0
           && prev.topologyLayoutSignature === nextTopologyLayoutSignature
         if (preserveStableGraphAcrossFlowViewClose) return prev
+        if (
+          prev?.documentKey === args.activeDocumentKey
+          && prev.topologyLayoutSignature.length > 0
+          && prev.topologyLayoutSignature === nextTopologyLayoutSignature
+        ) return prev
         if (prev?.documentKey === args.activeDocumentKey && prev.graphData === nextGraph) return prev
         return {
           documentKey: args.activeDocumentKey,

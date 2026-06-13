@@ -40,7 +40,7 @@ const ensureNoUnknownArgs = () => {
 
 const printHelp = () => {
   console.log(`
-Seed huijoohwee/docs Source Files into Cloudflare D1 through knowgrph storage Worker.
+Seed Source Files into Cloudflare D1 through the knowgrph storage Worker.
 
 Usage:
   node ./scripts/seed-storage-docs-to-cloudflare.mjs [options]
@@ -65,6 +65,7 @@ const deviceId = normalizeString(getArgValue('--device-id')) || 'seed:canonical-
 const dryRun = hasFlag('--dry-run')
 
 const SUPPORTED_DOCS_FILE_EXTENSIONS = new Set(['.md', '.gltf', '.glb'])
+const DEFAULT_CANONICAL_DOCS_ROOT = 'huijoohwee/docs'
 
 const contentHash = (text) => createHash('sha256').update(text).digest('hex')
 
@@ -113,7 +114,7 @@ const buildMutation = async (args) => {
   const stats = await fs.stat(args.filePath)
   const fileContent = await readDocsSourceFileContent(args.filePath)
   const relPath = toPosixRel(args.docsRoot, args.filePath)
-  const canonicalPath = `huijoohwee/docs/${relPath}`
+  const canonicalPath = `${DEFAULT_CANONICAL_DOCS_ROOT}/${relPath}`
   const revision = Math.max(1, Math.floor(stats.mtimeMs))
   const documentId = `docs:${contentHash(canonicalPath).slice(0, 24)}`
   const graphId = `docs-graph:${contentHash(canonicalPath).slice(0, 24)}`
@@ -142,6 +143,60 @@ const buildMutation = async (args) => {
       deleted: false,
     },
   }
+}
+
+const buildDeleteMutation = (args) => {
+  const canonicalPath = normalizeString(args.document?.canonicalPath)
+  const recordId = normalizeString(args.document?.id)
+  if (!canonicalPath || !recordId) return null
+  const title = normalizeString(args.document?.title) || path.basename(canonicalPath)
+  const updatedAtMs = Date.now()
+  return {
+    mutationId: `seed-delete:${updatedAtMs}:${contentHash(`${canonicalPath}:${recordId}`).slice(0, 12)}`,
+    workspaceId: args.workspaceId,
+    entity: 'document',
+    op: 'delete',
+    recordId,
+    baseRevision: null,
+    record: {
+      id: recordId,
+      workspaceId: args.workspaceId,
+      canonicalPath,
+      title,
+      docType: normalizeString(args.document?.docType) || 'markdown',
+      lang: args.document?.lang ?? null,
+      graphId: args.document?.graphId ?? null,
+      sourceKind: 'markdown',
+      contentMd: '',
+      contentHash: normalizeString(args.document?.contentHash) || contentHash(''),
+      parserVersion: 'seed-storage-docs-to-cloudflare:v1',
+      revision: Math.max(1, Number(args.document?.revision || 1)),
+      updatedAtMs,
+      deleted: true,
+    },
+  }
+}
+
+const buildReconciliationMutations = (args) => {
+  const exportedDocuments = Array.isArray(args.exported?.documents) ? args.exported.documents : []
+  const canonicalPathSet = new Set(args.mutations.map(mutation => normalizeString(mutation?.record?.canonicalPath)).filter(Boolean))
+  const deletes = []
+  for (const document of exportedDocuments) {
+    if (document?.deleted === true) continue
+    const canonicalPath = normalizeString(document?.canonicalPath)
+    if (!canonicalPath || canonicalPathSet.has(canonicalPath)) continue
+    const deleteMutation = buildDeleteMutation({
+      workspaceId: args.workspaceId,
+      document,
+    })
+    if (deleteMutation) deletes.push(deleteMutation)
+  }
+  return deletes
+}
+
+const countActiveExportedDocuments = (exported) => {
+  const documents = Array.isArray(exported?.documents) ? exported.documents : []
+  return documents.filter(document => document && document.deleted !== true).length
 }
 
 const pushMutations = async (args) => {
@@ -202,7 +257,7 @@ const executeD1SqlFile = async (sqlText) => {
       'npx',
       [
         '--yes',
-        'wrangler',
+        'wrangler@latest',
         'd1',
         'execute',
         'knowgrph-storage',
@@ -220,7 +275,7 @@ const executeD1SqlFile = async (sqlText) => {
     )
     if (result.status !== 0) {
       const message = (result.stderr || result.stdout || '').trim()
-      throw new Error(message || 'npx wrangler d1 execute failed')
+      throw new Error(message || 'npx wrangler@latest d1 execute failed')
     }
   } finally {
     await fs.rm(tempFile, { force: true }).catch(() => void 0)
@@ -284,6 +339,25 @@ const seedDocumentsDirectlyToD1 = async (args) => {
     ].join('\n')
     await executeD1SqlFile(sql)
   }
+  for (let i = 0; i < args.deleteMutations.length; i += 1) {
+    const mutation = args.deleteMutations[i]
+    if (!mutation || mutation.entity !== 'document' || mutation.op !== 'delete') continue
+    const record = mutation.record
+    const updatedAtIso = new Date(Math.max(1, Number(record.updatedAtMs || Date.now()))).toISOString()
+    const sql = [
+      'PRAGMA foreign_keys = ON;',
+      `UPDATE documents SET`,
+      `  deleted = 1,`,
+      `  content_md = '',`,
+      `  content_hash = ${toSqlString(record.contentHash)},`,
+      `  parser_version = ${toSqlString(record.parserVersion)},`,
+      `  revision = CASE WHEN revision >= ${Math.max(1, Number(record.revision || 1))} THEN revision + 1 ELSE ${Math.max(1, Number(record.revision || 1))} END,`,
+      `  updated_at = ${toSqlString(updatedAtIso)}`,
+      `WHERE workspace_id = ${toSqlString(record.workspaceId)}`,
+      `  AND (id = ${toSqlString(record.id)} OR canonical_path = ${toSqlString(record.canonicalPath)});`,
+    ].join('\n')
+    await executeD1SqlFile(sql)
+  }
 }
 
 const run = async () => {
@@ -321,7 +395,18 @@ const run = async () => {
     }
     return
   }
+  let deleteMutations = []
   try {
+    const beforeExport = await exportWorkspace({ baseUrl, workspaceId })
+    deleteMutations = buildReconciliationMutations({
+      exported: beforeExport,
+      mutations,
+      workspaceId,
+    })
+    if (deleteMutations.length > 0) {
+      console.log(`[knowgrph] stale-source-files=${deleteMutations.length}`)
+      mutations.push(...deleteMutations)
+    }
     const pushJson = await pushMutations({
       baseUrl,
       workspaceId,
@@ -334,8 +419,11 @@ const run = async () => {
     const rejected = acknowledgements.filter(item => item && item.status === 'rejected').length
     console.log(`[knowgrph] push complete: applied=${applied}, conflict=${conflict}, rejected=${rejected}`)
     const exported = await exportWorkspace({ baseUrl, workspaceId })
-    const documentCount = Array.isArray(exported.documents) ? exported.documents.length : 0
+    const documentCount = countActiveExportedDocuments(exported)
     console.log(`[knowgrph] export verification: documents=${documentCount}`)
+    if (documentCount !== docsSourceFiles.length) {
+      throw new Error(`Source Files mismatch after seed: local=${docsSourceFiles.length}, remote=${documentCount}`)
+    }
     return
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -345,7 +433,14 @@ const run = async () => {
   await seedDocumentsDirectlyToD1({
     workspaceId,
     mutations,
+    deleteMutations,
   })
+  const exported = await exportWorkspace({ baseUrl, workspaceId })
+  const documentCount = countActiveExportedDocuments(exported)
+  console.log(`[knowgrph] export verification: documents=${documentCount}`)
+  if (documentCount !== docsSourceFiles.length) {
+    throw new Error(`Source Files mismatch after direct D1 seed: local=${docsSourceFiles.length}, remote=${documentCount}`)
+  }
   console.log('[knowgrph] direct D1 seed complete')
 }
 

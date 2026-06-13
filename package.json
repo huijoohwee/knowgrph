@@ -26,7 +26,7 @@
     "pages:sync": "node ./scripts/sync-pages-knowgrph.mjs",
     "pages:build-sync": "npm run pages:build && npm run pages:sync",
     "pages:functions:build": "node ./scripts/build-pages-functions-worker.mjs",
-    "pages:deploy-cloudflare": "npm run pages:build-sync && npm run pages:functions:build && npx wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true && npm run storage:d1:seed:docs",
+    "pages:deploy-cloudflare": "npm run pages:build-sync && npm run pages:functions:build && npx --yes wrangler@latest pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true && npm run storage:d1:seed:docs",
     "pages:github-write:configure": "node ./scripts/configure-pages-github-write.mjs",
     "e2e:github-canonical-storage:dev": "npm -C canvas run test:ci:unit -- sourceFiles.githubWrite",
     "e2e:github-canonical-storage:prod": "node ./scripts/e2e-github-canonical-storage-sync.mjs",
