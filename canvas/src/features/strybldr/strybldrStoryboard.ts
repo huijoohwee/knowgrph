@@ -17,6 +17,8 @@ import type {
   StrybldrExplainerVideoPanel,
   StrybldrExplainerVideoPanelTab,
   StrybldrExplainerVideoSnapshot,
+  StrybldrWorkflow,
+  StrybldrWorkflowEdge,
   StrybldrVideoHandoff,
   StrybldrVideoHandoffCard,
   StrybldrSource,
@@ -288,12 +290,17 @@ const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => 
         })
         .filter((item): item is StrybldrElement => !!item)
     : []
+  const elementIds = new Set(elements.map(element => element.id))
+  const edges = readStrybldrWorkflowEdges((rec as Record<string, unknown>).edges, elementIds)
+  const workflow = readStrybldrWorkflow((rec as Record<string, unknown>).workflow)
   return {
     version: 1,
     runId: cleanText(rec.runId) || buildStrybldrRunId(sources),
     createdAtMs: Number.isFinite(Number(rec.createdAtMs)) ? Number(rec.createdAtMs) : 0,
     sources,
     elements: elements.length > 0 ? elements : sources.flatMap(createFallbackElements),
+    edges,
+    workflow,
     notes: cleanText(rec.notes) || null,
     storytree: readStrytreeSnapshot((rec as Record<string, unknown>).storytree),
     explainerVideo: readExplainerVideoSnapshot((rec as Record<string, unknown>).explainerVideo),
@@ -321,6 +328,71 @@ const createEdge = (source: string, target: string, label: string): GraphEdge =>
     confidence: asJson('medium'),
   },
 })
+
+const createWorkflowEdge = (edge: StrybldrWorkflowEdge): GraphEdge => ({
+  id: cleanText(edge.id) || `strybldr:workflow-edge:${shortHash(`${edge.source}:${edge.label}:${edge.target}`)}`,
+  source: edge.source,
+  target: edge.target,
+  label: edge.label,
+  properties: {
+    evidenceKind: asJson('workflow-contract'),
+    confidence: asJson('high'),
+    strybldrWorkflowEdge: asJson(true),
+  },
+})
+
+const readStrybldrWorkflowEdges = (value: unknown, elementIds: ReadonlySet<string>): StrybldrWorkflowEdge[] => {
+  if (!Array.isArray(value) || elementIds.size === 0) return []
+  const out: StrybldrWorkflowEdge[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const rec = item as Record<string, unknown>
+    const source = cleanText(rec.source)
+    const target = cleanText(rec.target)
+    const label = cleanText(rec.label)
+    if (!source || !target || !label) continue
+    if (!elementIds.has(source) || !elementIds.has(target)) continue
+    const id = cleanText(rec.id) || `strybldr:workflow-edge:${shortHash(`${source}:${label}:${target}`)}`
+    const key = `${source}\u0000${label}\u0000${target}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ id, source, target, label })
+  }
+  return out
+}
+
+const readStrybldrWorkflow = (value: unknown): StrybldrWorkflow | null => {
+  if (!value || typeof value !== 'object') return null
+  const rec = value as Record<string, unknown>
+  const stages = Array.isArray(rec.stages)
+    ? uniqueCleanTexts(rec.stages)
+    : []
+  const forkRec = rec.fork && typeof rec.fork === 'object' ? rec.fork as Record<string, unknown> : null
+  const publishRec = rec.publish && typeof rec.publish === 'object' ? rec.publish as Record<string, unknown> : null
+  const forkId = cleanText(forkRec?.id)
+  const publishId = cleanText(publishRec?.id)
+  const workflow: StrybldrWorkflow = {
+    stages,
+    fork: forkId
+      ? {
+          id: forkId,
+          label: cleanText(forkRec?.label) || null,
+          policy: cleanText(forkRec?.policy) || null,
+          branches: Array.isArray(forkRec?.branches) ? uniqueCleanTexts(forkRec?.branches) : [],
+        }
+      : null,
+    publish: publishId
+      ? {
+          id: publishId,
+          label: cleanText(publishRec?.label) || null,
+          policy: cleanText(publishRec?.policy) || null,
+        }
+      : null,
+  }
+  if (workflow.stages.length === 0 && !workflow.fork && !workflow.publish) return null
+  return workflow
+}
 
 const isExplainerVideoXrMode = (doc: StrybldrStoryboardDocument): boolean => cleanText(doc.explainerVideo?.mode).toLowerCase() === 'xr'
 
@@ -1164,6 +1236,18 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     edges.push(createEdge(frameNodeId, elementId, 'containsElement'))
   }
 
+  if (Array.isArray(doc.edges) && doc.edges.length > 0) {
+    const graphNodeIds = new Set(nodes.map(node => cleanText(node.id)))
+    const existingEdgeKeys = new Set(edges.map(edge => `${edge.source}\u0000${edge.label || ''}\u0000${edge.target}`))
+    for (const workflowEdge of doc.edges) {
+      if (!graphNodeIds.has(workflowEdge.source) || !graphNodeIds.has(workflowEdge.target)) continue
+      const key = `${workflowEdge.source}\u0000${workflowEdge.label}\u0000${workflowEdge.target}`
+      if (existingEdgeKeys.has(key)) continue
+      existingEdgeKeys.add(key)
+      edges.push(createWorkflowEdge(workflowEdge))
+    }
+  }
+
   appendStrytreeGraphData({ doc, nodes, edges })
   appendExplainerVideoGraphData({ doc, nodes, edges, sourceNodeIdByUnit })
 
@@ -1183,6 +1267,11 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
       strytreeStoryId: doc.storytree?.storyId || null,
       strytreeNodesCount: doc.storytree?.nodes.length || 0,
       strytreeCandidateRunsCount: doc.storytree?.candidateRuns?.length || 0,
+      workflowStages: doc.workflow?.stages || [],
+      workflowForkId: doc.workflow?.fork?.id || null,
+      workflowForkBranches: doc.workflow?.fork?.branches || [],
+      workflowPublishId: doc.workflow?.publish?.id || null,
+      workflowEdgesCount: doc.edges?.length || 0,
       explainerVideoPanelsCount: doc.explainerVideo?.panels.length || 0,
       textArtifactToExplainerVideo: doc.explainerVideo ? true : false,
       kgCanvasSurfaceMode: isXr ? 'xr' : '2d',

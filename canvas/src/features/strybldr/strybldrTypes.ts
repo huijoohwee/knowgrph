@@ -47,6 +47,28 @@ export type StrybldrElement = {
   summary?: string | null
 }
 
+export type StrybldrWorkflowEdge = {
+  id: string
+  source: string
+  target: string
+  label: string
+}
+
+export type StrybldrWorkflow = {
+  stages: string[]
+  fork?: {
+    id: string
+    label?: string | null
+    policy?: string | null
+    branches: string[]
+  } | null
+  publish?: {
+    id: string
+    label?: string | null
+    policy?: string | null
+  } | null
+}
+
 export type StrytreeStoryNode = {
   nodeId: string
   parentNodeId?: string | null
@@ -142,6 +164,8 @@ export type StrybldrStoryboardDocument = {
   createdAtMs: number
   sources: StrybldrSource[]
   elements: StrybldrElement[]
+  edges?: StrybldrWorkflowEdge[]
+  workflow?: StrybldrWorkflow | null
   notes?: string | null
   storytree?: StrytreeStorySnapshot | null
   explainerVideo?: StrybldrExplainerVideoSnapshot | null

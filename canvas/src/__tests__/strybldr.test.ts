@@ -76,6 +76,17 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
   const metadata = (graph.metadata || {}) as Record<string, unknown>
   assert(String(metadata.kind || '') === 'strybldr-storyboard', `expected Strybldr graph kind to remain strybldr-storyboard, got ${String(metadata.kind || '')}`)
   assert(String(metadata.kgCanvas2dRenderer || '') === 'strybldr', 'expected Strybldr graph to advertise Strybldr renderer intent')
+  assert(String(metadata.workflowForkId || '') === 'workflow-fork-rest-or-mcp', 'expected Strybldr graph metadata to preserve workflow fork')
+  assert(String(metadata.workflowPublishId || '') === 'workflow-local-publish-packet', 'expected Strybldr graph metadata to preserve workflow publish packet')
+  assert(Number(metadata.workflowEdgesCount || 0) >= 8, 'expected Strybldr graph metadata to count restored workflow edges')
+  assert(
+    (graph.edges || []).some(edge => edge.source === 'videodb-recreate-api-mcp-execution-card' && edge.target === 'workflow-fork-rest-mcp-card' && edge.label === 'operator_fork'),
+    'expected parsed Strybldr graph to preserve the explicit REST/MCP fork edge',
+  )
+  assert(
+    (graph.edges || []).some(edge => edge.source === 'videodb-recreate-review-card' && edge.target === 'videodb-recreate-publish-card' && edge.label === 'review_to_publish'),
+    'expected parsed Strybldr graph to preserve the explicit publish edge',
+  )
   const frontmatterMeta = metadata.frontmatterMeta as Record<string, unknown> | undefined
   assert(frontmatterMeta && String(frontmatterMeta.kgCanvas2dRenderer || '') === 'strybldr', 'expected Strybldr graph to preserve frontmatter renderer metadata')
   const flowDiagrams = frontmatterMeta?.flow_diagrams as Record<string, unknown> | undefined
