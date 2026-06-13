@@ -52,6 +52,7 @@ export type BottomSurfaceTab =
   | 'stats'
   | 'history'
   | 'documentVersionGraph'
+  | 'flowchart'
   | 'gitGraph'
   | 'gantt'
   | 'timeline'

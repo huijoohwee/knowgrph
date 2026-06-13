@@ -65,6 +65,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.geo',
   'floatingPanel.renderer',
   'floatingPanel.flowEditor',
+  'floatingPanel.flowchart',
   'floatingPanel.gitGraph',
   'floatingPanel.gantt',
   'floatingPanel.timeline',
@@ -346,6 +347,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Flow Editor',
     Icon: Braces,
   },
+  'floatingPanel.flowchart': {
+    category: 'FloatingPanel surface',
+    label: 'Flowchart',
+    Icon: LayoutGrid,
+  },
   'floatingPanel.gitGraph': {
     category: 'FloatingPanel surface',
     label: 'GitGraph',
@@ -504,6 +510,7 @@ export type FloatingPanelTypeIconView =
   | 'geo'
   | 'renderer'
   | 'flowEditor'
+  | 'flowchart'
   | 'gitGraph'
   | 'gantt'
   | 'timeline'
@@ -521,6 +528,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   geo: 'floatingPanel.geo',
   renderer: 'floatingPanel.renderer',
   flowEditor: 'floatingPanel.flowEditor',
+  flowchart: 'floatingPanel.flowchart',
   gitGraph: 'floatingPanel.gitGraph',
   gantt: 'floatingPanel.gantt',
   timeline: 'floatingPanel.timeline',

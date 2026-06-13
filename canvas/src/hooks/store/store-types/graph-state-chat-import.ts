@@ -56,6 +56,7 @@ export type FloatingPanelView =
   | 'geo'
   | 'renderer'
   | 'flowEditor'
+  | 'flowchart'
   | 'gitGraph'
   | 'gantt'
   | 'timeline'
@@ -64,7 +65,7 @@ export type FloatingPanelView =
   | 'strybldr'
   | 'graphTraversal'
 
-export type MermaidDiagramSelectionKind = 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'
+export type MermaidDiagramSelectionKind = 'flowchart' | 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'
 
 export type MermaidDiagramSelectedRowKeyByKind = Partial<Record<MermaidDiagramSelectionKind, string>>
 

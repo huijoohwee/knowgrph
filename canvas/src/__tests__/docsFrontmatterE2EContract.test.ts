@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
+import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 
 const GITHUB_ROOT = path.resolve(process.cwd(), '..', '..')
 const HUIJOOHWEE_DOCS_ROOT = path.join(GITHUB_ROOT, 'huijoohwee', 'docs')

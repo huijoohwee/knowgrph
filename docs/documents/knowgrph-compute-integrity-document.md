@@ -1,6 +1,6 @@
 # Knowgrph — Flow Diagrams: Parser Logic, Routing Keys, Diagram Kinds, and Surfaces
 
-**Version**: 2.0.0
+**Version**: 2.1.0
 **Date**: 2026-06-12
 **Status**: Canonical — supersedes `knowgrph-compute-integrity-document.md` v1.0.0
 **Owner**: Knowgrph canonical docs
@@ -10,29 +10,28 @@
 
 ## Parser Logic: `deriveFlowDiagramsWidgets`
 
-`markdownFrontmatterFlowGraph.flowDiagrams.ts` reads every `flow_diagrams` entry and derives canvas nodes. The derivation path depends on the diagram kind and whether the entry declares `floatingPanelView` + `bottomPanelTab` routing keys.
+`markdownFrontmatterFlowGraph.flowDiagrams.ts` reads every `flow_diagrams` entry and either routes it to diagram panels or derives fallback canvas nodes. The path depends on the diagram kind and whether the entry declares `floatingPanelView` + `bottomPanelTab` routing keys.
 
-### Standard derivation (all kinds by default)
+### Fallback derivation (only when routing keys are absent)
 
 ```
 FlowDiagramSource  →  TextGeneration (compute)  →  RichMediaPanel
 flow-diagram-{key}-source  flow-diagram-{key}-compute  flow-diagram-{key}-panel
 ```
 
-The `TextGeneration` compute node runs a shared inline compute that parses the Mermaid source and emits:
+Without routing keys, the `TextGeneration` compute node runs a shared inline compute that parses the Mermaid source and emits:
 - `output` — fenced Mermaid code block + term summary
 - `outputSrcDoc` — HTML panel with parsed terms, chart (gitgraph/gantt), and raw source
 
-### Routed derivation (architecture and eventmodeling only, when routing keys are declared)
+### Routed diagram surfaces (all typed diagram kinds, when routing keys are declared)
 
-When a `mermaid_architecture` or `mermaid_eventmodeling` entry declares **both** `floatingPanelView` and `bottomPanelTab`, `routedToPanelSurfaces = true`:
+When a typed diagram entry declares **both** `floatingPanelView` and `bottomPanelTab`, `routedToPanelSurfaces = true`:
 
 ```
-FlowDiagramSource  →  TextGeneration (compute)   [no RichMediaPanel derived]
-flow-diagram-{key}-source  flow-diagram-{key}-compute
+[no FlowDiagramSource, TextGeneration, RichMediaPanel, or edges derived]
 ```
 
-The chart and row list are served by the dedicated BottomPanel and FloatingPanel views instead.
+The row list and chart are served by the existing FloatingPanel and BottomPanel diagram views instead.
 
 ### `routedToPanelSurfaces` guard
 
@@ -57,13 +56,13 @@ if (!spec.routedToPanelSurfaces) {
 if (spec.routedToPanelSurfaces) continue  // skip all: source, compute, panel, edges
 ```
 
-**Critical invariant**: `routedToPanelSurfaces` is `false` for gitgraph and gantt regardless of whether they carry routing keys. Their `RichMediaPanel` node is always derived.
+**Critical invariant**: `routedToPanelSurfaces` is kind-agnostic. If routing keys are present, Flowchart, GitGraph, Architecture, EventModeling, Gantt, and Timeline all skip derived canvas fallback nodes for that entry.
 
 ### Pre-authored node guard
 
 `appendNodeIfMissing` skips any node whose ID already exists in `meta.nodes`. If a `flow-diagram-{key}-source/compute/panel` node is pre-authored in the `flow:` block, the parser never re-derives it — and the `routedToPanelSurfaces` skip logic never fires.
 
-**Consequence**: stale pre-authored `flow-diagram-*` nodes in the `flow:` block bypass all routing-key checks and cause architecture/eventmodeling panels to appear in the canvas. **They must be removed.**
+**Consequence**: stale pre-authored `flow-diagram-*` nodes in the `flow:` block bypass routing-key checks and cause typed diagrams to appear in the canvas or Rich Media Panel path. **They must be removed.**
 
 The `doc:sanity` check (`checkRunnableFlowEditorDemoCompliance`) and the Kiro hook enforce this by forbidding authored `flow-diagram-*` nodes in committed documents.
 
@@ -75,8 +74,8 @@ The `doc:sanity` check (`checkRunnableFlowEditorDemoCompliance`) and the Kiro ho
 |---|---|---|---|---|
 | `mermaid_architecture` | `architecture` | ✓ `ArchitectureFloatingPanelView` | ✓ `ArchitectureBottomPanelView` | ✗ skipped when routing keys set |
 | `mermaid_eventmodeling` | `eventmodeling` | ✓ `EventModelingFloatingPanelView` | ✓ `EventModelingBottomPanelView` | ✗ skipped when routing keys set |
-| `mermaid_flowchart` | `mermaid` | ✓ reuses `gitGraph` surface (node/edge row list) | ✓ reuses `gitGraph` surface (topology chart) | ✗ skipped when routing keys set |
-| `mermaid_gitgraph` | `gitgraph` | ✓ `GitGraphBottomPanelView` (row list) | ✓ `GitGraphBottomPanelView` (chart) | ✗ skipped when routing keys set |
+| `mermaid_flowchart` | `flowchart` | ✓ `FlowchartFloatingPanelView` | ✓ `FlowchartBottomPanelView` | ✗ skipped when routing keys set |
+| `mermaid_gitgraph` | `gitgraph` | ✓ `GitGraphFloatingPanelView` | ✓ `GitGraphBottomPanelView` | ✗ skipped when routing keys set |
 | `mermaid_gantt` | `gantt` | ✓ `GanttBottomPanelView` (row list) | ✓ `GanttBottomPanelView` (chart) | ✗ skipped when routing keys set |
 | `mermaid_timeline` | `timeline` | ✓ `TimelineBottomPanelView` | ✓ `TimelineBottomPanelView` | ✗ skipped when routing keys set |
 | any type (no routing keys) | — | — | — | ✓ always derived |
@@ -97,7 +96,7 @@ Every `flow_diagrams` entry that should appear in FloatingPanel/BottomPanel must
 flow_diagrams:
   value:
     my_diagram:
-      type: mermaid_architecture       # or mermaid_eventmodeling / mermaid_gitgraph / mermaid_gantt
+      type: mermaid_architecture       # or mermaid_eventmodeling / mermaid_flowchart / mermaid_gitgraph / mermaid_gantt
       floatingPanelView: "architecture" # exact string from BottomSurfaceTab / FloatingPanelView type
       floatingPanelOpen: true           # open FloatingPanel on load
       bottomPanelTab: "architecture"    # exact string from BottomSurfaceTab type
@@ -113,7 +112,7 @@ Valid values per diagram type:
 |---|---|---|
 | `mermaid_architecture` | `"architecture"` | `"architecture"` |
 | `mermaid_eventmodeling` | `"eventModeling"` | `"eventModeling"` |
-| `mermaid_flowchart` | `"gitGraph"` | `"gitGraph"` |
+| `mermaid_flowchart` | `"flowchart"` | `"flowchart"` |
 | `mermaid_gitgraph` | `"gitGraph"` | `"gitGraph"` |
 | `mermaid_gantt` | `"gantt"` | `"gantt"` |
 | `mermaid_timeline` | `"timeline"` | `"timeline"` |
@@ -126,7 +125,7 @@ The document should also carry doc-level keys that control which panel is open o
 
 ```yaml
 kgBottomPanelOpen: true
-kgBottomPanelTab: "eventModeling"   # or "architecture", "gitGraph", "gantt"
+kgBottomPanelTab: "eventModeling"   # or "architecture", "flowchart", "gitGraph", "gantt"
 kgFloatingPanelOpen: true
 kgFloatingPanelView: "eventModeling"
 ```
@@ -187,8 +186,8 @@ Forbidden hardcoded inflated values: `$150,529,352`, `$350,000,000`, `$360,944,6
 | `doc:sanity` `checkRunnableFlowEditorDemoCompliance()` | Required template keys, diagram routing keys per entry | Every `prebuild` |
 | `test:ci` `testFlowEditorComputeIntegrity()` | Same as `checkComputeIntegrity` | Every CI run |
 | `test:ci` `testFlowEditorDemoRunnableStructure()` | InputWidget, compute nodes, typed handles, routing keys | Every CI run |
-| `test:ci` `testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels()` | Parser correctly derives source/compute/panel for all kinds | Every CI run |
-| `test:ci` `testMarkdownFrontmatterFlowGraphPublishedAgenticCanvasOsDemoArchitectureAndEventModeling()` | Architecture/eventmodeling routing keys present; no derived panel node for routed entries | Every CI run |
+| `test:ci` `testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels()` | Parser derives source/compute/panel fallback only for unrouted kinds | Every CI run |
+| `test:ci` `testMarkdownFrontmatterFlowGraphPublishedAgenticCanvasOsDemoArchitectureAndEventModeling()` | Typed diagram routing keys present; no derived fallback nodes for routed entries | Every CI run |
 | Kiro hook `runnable-demo-compliance-check` | Runs `doc:sanity` on every `*-demo.md` save | File save |
 
 ---
@@ -202,6 +201,8 @@ Forbidden hardcoded inflated values: `$150,529,352`, `$350,000,000`, `$360,944,6
 | `src/features/gitgraph/ArchitectureBottomPanelView.tsx` | BottomPanel chart view (`renderMode="diagram"`) |
 | `src/features/gitgraph/EventModelingFloatingPanelView.tsx` | FloatingPanel row-list view (`renderMode="list"`) |
 | `src/features/gitgraph/EventModelingBottomPanelView.tsx` | BottomPanel chart view (`renderMode="diagram"`) |
+| `src/features/gitgraph/FlowchartFloatingPanelView.tsx` | FloatingPanel row-list view (`renderMode="list"`) |
+| `src/features/gitgraph/FlowchartBottomPanelView.tsx` | BottomPanel chart view (`renderMode="diagram"`) |
 | `src/hooks/store/store-types/core.ts` | `BottomSurfaceTab` union type — all valid `bottomPanelTab` values |
 | `src/hooks/store/store-types/graph-state-chat-import.ts` | `FloatingPanelView` union type — all valid `floatingPanelView` values |
 | `huijoohwee.github.io/guidelines/yaml-frontmatter-guidelines.md` | Full authoring contract, routing table, compute integrity rules |

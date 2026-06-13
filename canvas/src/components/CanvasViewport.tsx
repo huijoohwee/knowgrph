@@ -108,6 +108,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     })),
   )
   const documentVersionGraphBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'documentVersionGraph'
+  const mermaidFlowchartBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'flowchart'
   const mermaidGitGraphBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
   const mermaidGanttBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
   const mermaidTimelineBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
@@ -139,6 +140,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   })
   const timelineBottomPanelVisible =
     documentVersionGraphBottomPanelVisible ||
+    mermaidFlowchartBottomPanelVisible ||
     mermaidGitGraphBottomPanelVisible ||
     mermaidGanttBottomPanelVisible ||
     mermaidTimelineBottomPanelVisible ||
@@ -240,9 +242,11 @@ export function CanvasViewport(props: CanvasViewportProps) {
                           ? 'gantt'
                           : mermaidGitGraphBottomPanelVisible
                             ? 'gitGraph'
-                            : documentVersionGraphBottomPanelVisible
-                              ? 'documentVersionGraph'
-                              : 'strybldrTimeline'
+                            : mermaidFlowchartBottomPanelVisible
+                              ? 'flowchart'
+                              : documentVersionGraphBottomPanelVisible
+                                ? 'documentVersionGraph'
+                                : 'strybldrTimeline'
                 }
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />

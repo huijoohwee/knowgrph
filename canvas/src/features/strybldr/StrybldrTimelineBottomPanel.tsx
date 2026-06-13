@@ -13,7 +13,7 @@ import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { beginOverlayPanelPositionDrag } from '@/lib/ui/overlayPanelDrag'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { ChartGantt, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
+import { ChartGantt, Columns2, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
 
 type TimelineBottomPanelPosition = {
@@ -30,6 +30,7 @@ type TimelineBottomPanelView =
   | 'timeline'
   | 'strybldrTimeline'
   | 'documentVersionGraph'
+  | 'flowchart'
   | 'gitGraph'
   | 'gantt'
   | 'architecture'
@@ -45,6 +46,9 @@ const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_WIDTH_PX = 320
 const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_HEIGHT_PX = 112
 const GitGraphBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GitGraphBottomPanelView').then(mod => ({ default: mod.GitGraphBottomPanelView })),
+)
+const FlowchartBottomPanelViewLazy = React.lazy(() =>
+  import('@/features/gitgraph/FlowchartBottomPanelView').then(mod => ({ default: mod.FlowchartBottomPanelView })),
 )
 const GanttBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/GanttBottomPanelView').then(mod => ({ default: mod.GanttBottomPanelView })),
@@ -260,6 +264,7 @@ export function StrybldrTimelineBottomPanel({
   const handleMinimize = React.useCallback(() => setMinimized(true), [])
   const handleRestore = React.useCallback(() => setMinimized(false), [])
   const documentVersionGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'documentVersionGraph'
+  const mermaidFlowchartRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'flowchart'
   const mermaidGitGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
   const mermaidGanttRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
   const mermaidTimelineRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
@@ -267,6 +272,7 @@ export function StrybldrTimelineBottomPanel({
   const mermaidEventModelingRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'eventModeling'
   const bottomSurfaceDiagramRequested =
     documentVersionGraphRequested ||
+    mermaidFlowchartRequested ||
     mermaidGitGraphRequested ||
     mermaidGanttRequested ||
     mermaidTimelineRequested ||
@@ -284,6 +290,11 @@ export function StrybldrTimelineBottomPanel({
   const showDocumentVersionGraphView = React.useCallback(() => {
     setView('documentVersionGraph')
     setBottomSurfaceTab('documentVersionGraph')
+    setBottomSurfaceCollapsed(false)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  const showFlowchartView = React.useCallback(() => {
+    setView('flowchart')
+    setBottomSurfaceTab('flowchart')
     setBottomSurfaceCollapsed(false)
   }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
   const showGitGraphView = React.useCallback(() => {
@@ -491,6 +502,21 @@ export function StrybldrTimelineBottomPanel({
               <IconButton
                 className={cn(
                   'App-toolbar__btn',
+                  view === 'flowchart'
+                    ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                    : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                )}
+                title="Flowchart"
+                showTooltip
+                aria-pressed={view === 'flowchart'}
+                onClick={showFlowchartView}
+                data-kg-strybldr-bottom-timeline-flowchart-toggle="1"
+              >
+                <Columns2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                className={cn(
+                  'App-toolbar__btn',
                   view === 'gitGraph'
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
@@ -568,6 +594,10 @@ export function StrybldrTimelineBottomPanel({
                     fallbackToLatest
                     themeMode={resolvedThemeMode}
                   />
+                </React.Suspense>
+              ) : view === 'flowchart' ? (
+                <React.Suspense fallback={null}>
+                  <FlowchartBottomPanelViewLazy compact />
                 </React.Suspense>
               ) : view === 'gitGraph' ? (
                 <React.Suspense fallback={null}>

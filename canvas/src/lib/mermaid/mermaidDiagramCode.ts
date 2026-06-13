@@ -10,7 +10,7 @@ import {
   type MermaidDiagramKind,
 } from 'grph-shared/markdown/mermaidInput'
 
-export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'>
+export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'flowchart' | 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'>
 
 export type MermaidDiagramCommandRow = {
   key: string
@@ -30,6 +30,7 @@ export type MermaidDiagramCodeModel = {
 }
 
 const MERMAID_TYPED_TYPE_BY_KIND: Record<MermaidStructuredDiagramKind, string> = {
+  flowchart: 'mermaid_flowchart',
   gitgraph: 'mermaid_gitgraph',
   gantt: 'mermaid_gantt',
   timeline: 'mermaid_timeline',

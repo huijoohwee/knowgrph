@@ -32,6 +32,7 @@ export type CanvasViewOptionId =
   | 'control:grid'
   | 'control:snapGrid'
   | 'control:timeline'
+  | 'control:flowchart'
   | 'control:gitGraph'
   | 'control:gantt'
   | 'control:architecture'

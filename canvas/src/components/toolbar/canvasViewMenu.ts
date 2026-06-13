@@ -89,6 +89,7 @@ export const buildCanvasViewOptions = (
   const timelineEnabled = resolveTimelineEnabled(state.timelineEnabled)
   const bottomSurfaceOpen = state.bottomSurfaceCollapsed !== true
   const timelineBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'timeline'
+  const flowchartBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'flowchart'
   const gitGraphBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gitGraph'
   const ganttBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'gantt'
   const architectureBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'architecture'
@@ -415,6 +416,15 @@ export const buildCanvasViewOptions = (
           label: 'Time',
           Icon: state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'strybldr' ? MonitorPlay : History,
           isActive: state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'strybldr' ? timelineEnabled : timelineBottomPanelVisible,
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+        },
+        {
+          id: 'control:flowchart',
+          title: 'Flowchart',
+          label: 'Flow',
+          Icon: Columns2,
+          isActive: flowchartBottomPanelVisible,
           disabled: state.geospatialEnabled,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },
