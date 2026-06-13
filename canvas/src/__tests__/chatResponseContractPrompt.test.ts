@@ -989,7 +989,7 @@ export function testKgcDeterministicFallbackProjectsHeadlessStrybldrResponseFirs
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 5, 5, 23, 46, 28),
     workspacePath: '/chat-log/20260605T234628Z/kgc_20260605T234628Z.md',
-    requestText: 'Create a headless structured MCP response for 2D Renderer: Strybldr with gitGraph, Gantt frontmatter, inline compute runner, dataflow, and Rich Media Panels.',
+    requestText: 'Create a headless structured MCP response for 2D Renderer: Storyboard with gitGraph, Gantt frontmatter, inline compute runner, dataflow, and Rich Media Panels.',
     assistantText: [
       '## Provider Stream Trace',
       '',
@@ -1000,7 +1000,7 @@ export function testKgcDeterministicFallbackProjectsHeadlessStrybldrResponseFirs
       '',
       '### Reasoning and Tool Signals',
       '',
-      '- Evaluate Strybldr renderer dataflow and Rich Media Panel outputSrcDoc handoff.',
+      '- Evaluate Strybldr workflow dataflow and Rich Media Panel outputSrcDoc handoff.',
     ].join('\n'),
   })
   if (!isKgcStructuredMarkdown(md)) {
@@ -1012,12 +1012,12 @@ export function testKgcDeterministicFallbackProjectsHeadlessStrybldrResponseFirs
     throw new Error('Expected fallback body to lead with query response projection before workflow metadata')
   }
   const requiredSnippets = [
-    'kgCanvas2dRenderer: "strybldr"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgStrybldrStoryboard: true',
     'response:',
     'status: "trace_only"',
     'markdown_body:',
-    'renderer: "strybldr"',
+    'renderer: "storyboard"',
     'This document does not invent the missing answer',
     'mcp-response-headless-compute',
     'mcp-response-rich-media-panel',

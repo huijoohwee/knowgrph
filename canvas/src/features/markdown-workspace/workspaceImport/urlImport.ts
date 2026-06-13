@@ -196,7 +196,7 @@ export async function importWorkspaceUrl(args: {
     jsonSourceDocuments.push(...csvJsonDerived.jsonSourceDocuments)
   }
   let effectiveApplyToGraph = applyToGraph
-  if (args.canvas2dRenderer === 'strybldr') {
+  if (args.canvas2dRenderer === 'storyboard') {
     const storyDoc = buildStrybldrStoryboardDocument({
       sourceUnits: [sourceUnit],
       mediaUrlBySourceUnitId: { [sourceUnit.id]: sourceUrl },

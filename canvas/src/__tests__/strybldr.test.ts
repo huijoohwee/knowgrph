@@ -50,7 +50,7 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
   const text = serializeStrybldrStoryboardMarkdown(doc)
   const parsed = await loadGraphDataFromTextViaParser('demo.strybldr.md', text, { applyToStore: false })
   assert(parsed?.parserId === 'strybldr-storyboard', `expected strybldr parser, got ${parsed?.parserId}`)
-  assert(parsed.graphData?.metadata && String((parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') === 'strybldr', 'expected Strybldr renderer metadata')
+  assert(parsed.graphData?.metadata && String((parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') === 'storyboard', 'expected Strybldr graph to advertise Storyboard renderer metadata')
   assert(String((parsed.graphData.metadata as Record<string, unknown>).graphSemanticKey || '').length > 0, 'expected shared graph semantic key metadata')
   assert((parsed.graphData.nodes || []).some(node => String(node.type || '') === 'StoryboardElement'), 'expected storyboard element nodes')
   assert((parsed.graphData.nodes || []).some(node => String(node.properties?.strybldrSourceUnitId || '') === 'corpus-source-demo'), 'expected provenance source-unit id on cards')
@@ -75,7 +75,7 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
   assert((graph.edges || []).length > 0, 'expected Strybldr graph edges for Flow Editor projection')
   const metadata = (graph.metadata || {}) as Record<string, unknown>
   assert(String(metadata.kind || '') === 'strybldr-storyboard', `expected Strybldr graph kind to remain strybldr-storyboard, got ${String(metadata.kind || '')}`)
-  assert(String(metadata.kgCanvas2dRenderer || '') === 'strybldr', 'expected Strybldr graph to advertise Strybldr renderer intent')
+  assert(String(metadata.kgCanvas2dRenderer || '') === 'storyboard', 'expected Strybldr graph to advertise Storyboard renderer intent')
   assert(String(metadata.workflowForkId || '') === 'workflow-fork-rest-or-mcp', 'expected Strybldr graph metadata to preserve workflow fork')
   assert(String(metadata.workflowPublishId || '') === 'workflow-local-publish-packet', 'expected Strybldr graph metadata to preserve workflow publish packet')
   assert(Number(metadata.workflowEdgesCount || 0) >= 8, 'expected Strybldr graph metadata to count restored workflow edges')
@@ -100,9 +100,21 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
   }
   const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
   assert(board.totalCards > 0, `expected Storyboard/Strybldr board cards from Strybldr graph, got ${board.totalCards}`)
-  assert(board.lanes.some(lane => lane.id === 'Source'), 'expected 77FAnT935IE Strybldr board to expose source lane')
-  assert(board.lanes.some(lane => lane.id === 'Elements'), 'expected 77FAnT935IE Strybldr board to expose element/recreation cards')
+  const laneIds = new Set(board.lanes.map(lane => lane.id))
+  for (const laneId of ['Source', 'Storyboard', 'Elements', 'Runtime', 'Fork', 'Review', 'Publish']) {
+    assert(laneIds.has(laneId), `expected 77FAnT935IE Strybldr board to expose ${laneId} lane, got ${Array.from(laneIds).join(', ')}`)
+  }
+  const forkLane = board.lanes.find(lane => lane.id === 'Fork')
+  assert(forkLane?.cards.some(card => card.title === 'Workflow fork: REST or MCP'), 'expected REST/MCP fork card to render in the Fork lane')
+  const runtimeLane = board.lanes.find(lane => lane.id === 'Runtime')
+  assert(runtimeLane?.cards.some(card => card.title === 'SenseNova media outputs'), 'expected SenseNova media output card to render in the Runtime lane')
+  const reviewLane = board.lanes.find(lane => lane.id === 'Review')
+  assert(reviewLane?.cards.some(card => card.title === 'Review search and stream'), 'expected review/search card to render in the Review lane')
+  const publishLane = board.lanes.find(lane => lane.id === 'Publish')
+  assert(publishLane?.cards.some(card => card.title === 'Local publish packet'), 'expected local publish packet card to render in the Publish lane')
   assert(!board.lanes.some(lane => lane.id === 'Storytree' || lane.id === 'ForkCompare'), 'expected cleaned 77FAnT935IE demo to omit unrelated Storytree and ForkCompare lanes')
+  const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
+  assert(storyboardCanvasText.includes('strybldrWorkflowEdge'), 'expected Storyboard/Strybldr canvas edge layer to render graph-marked Strybldr workflow edges')
 }
 
 export function testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers() {
@@ -118,7 +130,7 @@ export function testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers() {
   assert(String(graph.context || '') === 'strybldr-storyboard', `expected Strybldr context, got ${String(graph.context || '')}`)
   assert(String(metadata.kind || '') === 'strybldr-storyboard', `expected Strybldr graph kind, got ${String(metadata.kind || '')}`)
   assert(String(metadata.source || '') === `markdown:${demoName}`, `expected workspace markdown source metadata, got ${String(metadata.source || '')}`)
-  assert((graph.nodes || []).length > 0, 'expected workspace Strybldr graph nodes for Storyboard/Strybldr renderers')
+  assert((graph.nodes || []).length > 0, 'expected workspace Strybldr graph nodes for Storyboard renderer')
   const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
   assert(board.totalCards > 0, `expected workspace Strybldr graph to feed Storyboard/Strybldr board cards, got ${board.totalCards}`)
 
@@ -135,7 +147,7 @@ export async function testStrybldrStoryboardParsesStrytreeStorytreeSnapshot() {
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "strybldr"',
+    'kgCanvas2dRenderer: "storyboard"',
     '---',
     '',
     '# Strytree fixture',
@@ -290,7 +302,7 @@ export async function testStrybldrStorytreeWorkflowActionsMutateGraphState() {
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "strybldr"',
+    'kgCanvas2dRenderer: "storyboard"',
     '---',
     '',
     '```json strybldr-storyboard',
@@ -383,7 +395,7 @@ export async function testStrybldrForkCompareCandidateWorkflowActions() {
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "strybldr"',
+    'kgCanvas2dRenderer: "storyboard"',
     '---',
     '',
     '```json strybldr-storyboard',
@@ -455,22 +467,43 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   const renderConfigText = readSource('lib', 'config.render.ts')
   const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
   const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
+  const canvasViewMenuText = readSource('components', 'toolbar', 'canvasViewMenu.ts')
+  const uiCopyText = readSource('lib', 'config-copy', 'uiCopy.ts')
+  const strybldrStoryboardText = readSource('features', 'strybldr', 'strybldrStoryboard.ts')
+  const importPresetsText = readSource('features', 'markdown-workspace', 'workspaceImport', 'canvasPresets.ts')
+  const rendererDocText = fs.readFileSync(path.resolve(process.cwd(), '..', 'docs/documents/knowgrph-renderer-document.md'), 'utf8')
+  const strybldrDocText = fs.readFileSync(path.resolve(process.cwd(), '..', 'docs/documents/knowgrph-strybldr-prd-tad.md'), 'utf8')
   const floatingPanelText = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const timelineVisibilityText = readSource('lib', 'timeline', 'timelineVisibility.ts')
   const timelineBottomPanelText = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
   const timelinePanelText = readSource('features', 'strybldr', 'StrybldrTimelinePanel.tsx')
   const storyboardTimelineText = readSource('components', 'StoryboardCanvas', 'storyboardTimeline.ts')
   const retiredRendererId = ['story', 'bldr'].join('')
-  assert(resolveCanvas2dRendererId('strybldr') === 'strybldr', 'expected canonical strybldr renderer id')
+  assert(resolveCanvas2dRendererId('strybldr') === undefined, 'expected Strybldr to be retired as a renderer id')
   assert(resolveCanvas2dRendererId(retiredRendererId) === undefined, 'expected no retired renderer remap')
+  assert(resolveCanvas2dRendererId('storyboard') === 'storyboard', 'expected Storyboard to be the canonical Strybldr host renderer')
+  const staleStorybldrText = ['story', 'bldr'].join('')
+  for (const [label, text] of [
+    ['renderer registry', renderConfigText],
+    ['canvas view menu', canvasViewMenuText],
+    ['ui copy', uiCopyText],
+    ['strybldr markdown serializer', strybldrStoryboardText],
+    ['workspace import presets', importPresetsText],
+    ['renderer docs', rendererDocText],
+    ['strybldr docs', strybldrDocText],
+  ] as const) {
+    assert(!new RegExp(staleStorybldrText, 'i').test(text), `expected ${label} to use storyboard, not stale storybldr naming`)
+  }
   assert(!renderConfigText.includes('aliases:'), 'expected renderer registry to avoid per-renderer alias lists')
   assert(!renderConfigText.includes('CANVAS_2D_RENDERER_ID_BY_ALIAS'), 'expected renderer lookup to use canonical normalized tokens only')
-  assert(getCanvas2dSurfaceId('strybldr') === 'storyboard', 'expected Strybldr mode to reuse the Storyboard surface')
-  assert(isStoryboardCanvas2dRenderer('strybldr'), 'expected shared Storyboard renderer helper to include Strybldr mode')
-  assert(supportsToolbarRunAll('strybldr'), 'expected Strybldr to reuse Toolbar Run All dispatch')
-  assert(getToolbarRunAllFloatingPanelTab('strybldr') === 'strybldr', 'expected Strybldr Run All to mount its shared floating panel consumer')
+  assert(getCanvas2dSurfaceId('storyboard') === 'storyboard', 'expected Storyboard to own the Strybldr-capable surface')
+  assert(isStoryboardCanvas2dRenderer('storyboard'), 'expected shared Storyboard renderer helper to include Storyboard mode')
+  assert(supportsToolbarRunAll('storyboard'), 'expected Storyboard to reuse Toolbar Run All dispatch')
+  assert(getToolbarRunAllFloatingPanelTab('storyboard') === 'strybldr', 'expected Storyboard Run All to mount its Strybldr workflow consumer')
   assert(getToolbarRunAllFloatingPanelTab('flowEditor') === null, 'expected Flow Editor Run All to keep its always-mounted canvas runtime consumer')
   assert(supportsToolbarRunAll('flowEditor'), 'expected Flow Editor to keep Toolbar Run All dispatch')
+  assert(!renderConfigText.includes("'strybldr',"), 'expected renderer registry to remove the Strybldr renderer id')
+  assert(!renderConfigText.includes("registryLabel: 'Strybldr'"), 'expected renderer registry to remove the Strybldr renderer menu entry')
   assert(canvasViewportText.includes('StrybldrTimelineBottomPanelLazy'), 'expected Strybldr timeline to mount as the CanvasViewport bottom panel')
   assert(canvasViewportText.includes('workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}'), 'expected Timeline bottom panel to receive Editor Workspace overlay state from CanvasViewport')
   assert(floatingPanelText.includes("floatingPanelView === 'timeline'"), 'expected Timeline to remain in the FloatingPanel view registry')
@@ -537,11 +570,12 @@ export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
   assert(imageBridgeText.includes('launch:import:localImages:bridge'), 'expected Launch image import to surface a bridge retry warning only after workspace-open retry fails')
   assert(bridgeText.includes('importLocalImages'), 'expected workspace action bridge to expose image import')
   assert(actionsText.includes('buildStrybldrStoryboardDocument'), 'expected image import to generate Strybldr storyboard document through the feature owner')
-  assert(actionsText.includes('activateStrybldrImportSurface'), 'expected image import to switch to Strybldr mode through the shared import-surface owner')
+  assert(actionsText.includes('activateStrybldrImportSurface'), 'expected image import to switch to Storyboard mode through the shared import-surface owner')
   assert(actionsText.includes('storyPath || createdPath'), 'expected image import focus to land on the generated Strybldr artifact, not a raw image source file')
-  assert(canvasPresetsText.includes("'strybldr'"), 'expected Import URL renderer presets to expose Strybldr without a new renderer alias')
-  assert(urlImportText.includes("args.canvas2dRenderer === 'strybldr'"), 'expected URL import to create Strybldr storyboard documents through the workspace import owner')
-  assert(actionsText.includes("selectedCanvas2dRenderer === 'strybldr'"), 'expected renderer-selected URL import to activate the Strybldr surface')
+  assert(canvasPresetsText.includes("'storyboard'"), 'expected Import URL renderer presets to expose Storyboard without a Strybldr renderer alias')
+  assert(!canvasPresetsText.includes("'strybldr'"), 'expected Import URL renderer presets to remove the Strybldr renderer option')
+  assert(urlImportText.includes("args.canvas2dRenderer === 'storyboard'"), 'expected URL import to create Strybldr storyboard documents through the workspace import owner')
+  assert(actionsText.includes("selectedCanvas2dRenderer === 'storyboard'"), 'expected renderer-selected URL import to activate the Strybldr surface')
   assert(!fallbackText.includes(`importLocalImages${'Fallback'}`), 'expected no duplicate image import fallback outside workspace owner')
   assert(floatingPanelText.includes('StrybldrFloatingPanelView'), 'expected Floating Panel to render the Strybldr owner view')
   assert(floatingPanelText.includes("view: 'strybldr'"), 'expected Floating Panel view registry to include Strybldr')
@@ -555,7 +589,7 @@ export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
   assert(readSource('components', 'Toolbar.tsx').includes('TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS'), 'expected toolbar Run All to retry after lazy Strybldr panel mount')
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('WORKFLOW_RUN_ALL_EVENT'), 'expected Strybldr panel to consume the shared Run All event')
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('STRYBLDR_RUN_ALL_DEDUPE_WINDOW_MS'), 'expected Strybldr panel to dedupe toolbar Run All retry events')
-  assert(!readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes("canvas2dRenderer !== 'strybldr'"), 'expected mounted Strybldr panel to keep its Run All event consumer registered')
+  assert(!readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes("canvas2dRenderer !== 'storyboard'"), 'expected mounted Strybldr panel to keep its Run All event consumer registered')
 }
 
 export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArtifact() {

@@ -29,8 +29,37 @@ constraints:
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgCanvasSurfaceMode: "2d"
+kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "flowEditor"
 kgDocumentStructureBaselineLock: false
+kgParserRoutingContract:
+  version: "knowgrph-parser-routing/v1"
+  parserLogic: "opening frontmatter and authored source payloads are SSOT; parsers materialize graphData without renderer-local aliases"
+  routingKeys:
+    surface: "kgCanvasSurfaceMode"
+    renderMode: "kgCanvasRenderMode"
+    renderer: "kgCanvas2dRenderer"
+    semanticMode: "kgDocumentSemanticMode"
+    frontmatterMode: "kgFrontmatterModeEnabled"
+    flowGraph: "flow"
+    flowNodes: "flow.nodes"
+    flowEdges: "flow.edges"
+    mermaidBlocks: "flow_diagrams"
+    strybldrStoryboard: "kgStrybldrStoryboard"
+  diagramKinds:
+    - "mermaid_flowchart"
+    - "mermaid_gitgraph"
+    - "mermaid_architecture"
+    - "mermaid_eventmodeling"
+    - "mermaid_gantt"
+    - "frontmatter_flow"
+    - "strybldr_storyboard"
+  surfaces:
+    - "2D Renderer: Flow Editor"
+    - "2D Renderer: Storyboard"
+    - "BottomPanel/FloatingPanel Mermaid panels"
+  edgePolicy: "explicit graphData.edges, flow.edges, workflow.edges, and diagram edges are source-owned SSOT; renderers project visible connectors only"
+  forkPolicy: "fork, branch, candidate, and publish metadata remain authored source fields and surface through parsed graph edges without downstream remapping"
 traceability:
   prd: "PRD-VIDEODB-MCP"
   tad: "TAD-VIDEODB-MCP"
@@ -69,7 +98,7 @@ mcp:
   pipx_command:          {key: pipx_command,          type: string,  value: "pipx run videodb-director-mcp"}
   pip_package:           {key: pip_package,           type: string,  value: "videodb-director-mcp"}
   credential_env:        {key: credential_env,        type: string,  value: "VIDEODB_API_KEY"}
-  credential_placeholder:{key: credential_placeholder,type: string,  value: "${VIDEODB_API_KEY}"}
+  credential_placeholder: {key: credential_placeholder, type: string,  value: "${VIDEODB_API_KEY}"}
   api_base_url:          {key: api_base_url,          type: url,     value: "https://api.videodb.io"}
   docs_url:              {key: docs_url,              type: url,     value: "https://docs.videodb.io/pages/build-with-agents/mcp-server.md"}
   api_reference_url:     {key: api_reference_url,     type: url,     value: "https://docs.videodb.io/api-reference/introduction.md"}

@@ -121,6 +121,10 @@ export function testFlowEditorRuntimeUsesActiveSourceGraphAuthority() {
   if (runtimeStoreStateText.includes('baseGraphData: s.graphData')) {
     throw new Error('expected Flow Editor runtime state to avoid exposing raw store graph as render authority')
   }
+  if (!activeGraphDataText.includes("if (canvas2dRenderer === 'flowEditor') {")
+    || !activeGraphDataText.includes('return workspaceFrontmatterFlowGraphData || workspaceJsonGraphData || workspaceStrybldrStoryboardGraphData')) {
+    throw new Error('expected Flow Editor active graph selection to prefer authored frontmatter-flow before Strybldr storyboard graph data')
+  }
   if (!activeGraphDataText.includes('if (!frontmatterOnlyPolicyActive) {')
     || !activeGraphDataText.includes('if (workspaceFrontmatterFlowGraphData) return workspaceFrontmatterFlowGraphData')
     || !activeGraphDataText.includes('if (isFrontmatterFlowGraph(activeMarkdownBaseGraph)) return activeMarkdownBaseGraph')

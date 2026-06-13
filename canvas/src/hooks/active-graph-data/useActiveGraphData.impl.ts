@@ -220,6 +220,9 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     [baseGraphDataRaw, markdownName, markdownText],
   )
   const baseGraphData = React.useMemo(() => {
+    if (canvas2dRenderer === 'flowEditor') {
+      return workspaceFrontmatterFlowGraphData || workspaceJsonGraphData || workspaceStrybldrStoryboardGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
+    }
     if (!frontmatterOnlyPolicyActive) {
       return workspaceJsonGraphData || workspaceStrybldrStoryboardGraphData || workspaceFrontmatterFlowGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
     }
@@ -229,6 +232,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     return buildPendingActiveMarkdownGraph({ markdownName })
   }, [
     activeMarkdownBaseGraph,
+    canvas2dRenderer,
     frontmatterOnlyPolicyActive,
     markdownName,
     workspaceStrybldrStoryboardGraphData,

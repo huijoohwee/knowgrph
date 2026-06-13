@@ -1,14 +1,14 @@
 import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 
-export const WORKSPACE_URL_IMPORT_CANVAS_RENDERERS = ['d3', 'design', 'strybldr'] as const
+export const WORKSPACE_URL_IMPORT_CANVAS_RENDERERS = ['d3', 'design', 'storyboard'] as const
 export const WORKSPACE_URL_IMPORT_DOCUMENT_MODES = ['document', 'keyword'] as const
 
 export type WorkspaceUrlImportCanvasRendererId = (typeof WORKSPACE_URL_IMPORT_CANVAS_RENDERERS)[number]
 export type WorkspaceUrlImportDocumentModeId = (typeof WORKSPACE_URL_IMPORT_DOCUMENT_MODES)[number]
 
 export function isWorkspaceUrlImportCanvasRendererId(value: unknown): value is WorkspaceUrlImportCanvasRendererId {
-  return value === 'd3' || value === 'design' || value === 'strybldr'
+  return value === 'd3' || value === 'design' || value === 'storyboard'
 }
 
 export function isWorkspaceUrlImportDocumentModeId(value: unknown): value is WorkspaceUrlImportDocumentModeId {
@@ -21,7 +21,7 @@ export function normalizeWorkspaceUrlImportDocumentMode(value: unknown): Workspa
 
 export function getWorkspaceUrlImportCanvasRendererLabel(value: WorkspaceUrlImportCanvasRendererId): string {
   if (value === 'd3') return 'D3 Graph'
-  if (value === 'strybldr') return 'Strybldr'
+  if (value === 'storyboard') return 'Storyboard'
   return 'Design'
 }
 
@@ -50,7 +50,7 @@ export const DESIGN_URL_IMPORT_CANVAS_PRESET: CanvasWorkspaceFrontmatterPreset =
 export const STRYBLDR_URL_IMPORT_CANVAS_PRESET: CanvasWorkspaceFrontmatterPreset = {
   canvasSurfaceMode: '2d',
   canvasRenderMode: '2d',
-  canvas2dRenderer: 'strybldr',
+  canvas2dRenderer: 'storyboard',
   documentSemanticMode: 'document',
   frontmatterModeEnabled: false,
   multiDimTableModeEnabled: false,
@@ -67,6 +67,6 @@ export const getWorkspaceUrlImportCanvasPreset = (
   const mode = normalizeWorkspaceUrlImportDocumentMode(documentSemanticMode)
   if (canvas2dRenderer === 'd3') return { ...D3_URL_IMPORT_CANVAS_PRESET, documentSemanticMode: mode }
   if (canvas2dRenderer === 'design') return { ...DESIGN_URL_IMPORT_CANVAS_PRESET, documentSemanticMode: mode }
-  if (canvas2dRenderer === 'strybldr') return { ...STRYBLDR_URL_IMPORT_CANVAS_PRESET, documentSemanticMode: mode }
+  if (canvas2dRenderer === 'storyboard') return { ...STRYBLDR_URL_IMPORT_CANVAS_PRESET, documentSemanticMode: mode }
   return null
 }

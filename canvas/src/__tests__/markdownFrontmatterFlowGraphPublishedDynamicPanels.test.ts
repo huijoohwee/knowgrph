@@ -451,8 +451,8 @@ export function testMarkdownFrontmatterFlowGraphPublishedStrybldrDemosRouteStruc
     assertNoAuthoredGeneratedFlowDiagramBackfill(samplePath, md)
 
     const preset = parseCanvasWorkspaceFrontmatterPreset(md)
-    if (preset?.canvas2dRenderer !== 'strybldr') {
-      throw new Error(`expected ${samplePath} to preserve Strybldr renderer intent, got ${String(preset?.canvas2dRenderer || '')}`)
+    if (preset?.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected ${samplePath} to preserve Storyboard renderer intent, got ${String(preset?.canvas2dRenderer || '')}`)
     }
 
     const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)

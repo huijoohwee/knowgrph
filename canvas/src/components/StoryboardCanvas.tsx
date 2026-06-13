@@ -110,6 +110,15 @@ function readStoryboardBool(value: unknown): boolean {
   return value === true || String(value || '').trim().toLowerCase() === 'true'
 }
 
+function shouldRenderStoryboardEdge(edge: unknown, label: string): boolean {
+  if (STORYBOARD_RENDERED_EDGE_LABELS.has(label)) return true
+  const properties = edge && typeof edge === 'object' && !Array.isArray(edge)
+    ? (edge as { properties?: unknown }).properties
+    : null
+  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return false
+  return readStoryboardBool((properties as Record<string, unknown>).strybldrWorkflowEdge)
+}
+
 function storytreeCardMatchesFilter(card: StoryboardCardModel, props: Record<string, unknown>, filter: string): boolean {
   if (card.lane !== 'Storytree' || filter === 'all') return true
   const status = readStoryboardScalar(props.strytreeStatus || props.branchStatus).toLowerCase()
@@ -411,7 +420,7 @@ export default function StoryboardCanvas({
       const edges: StoryboardRenderedEdge[] = []
       for (const edge of graphEdges) {
         const label = readStoryboardScalar(edge?.label)
-        if (!STORYBOARD_RENDERED_EDGE_LABELS.has(label)) continue
+        if (!shouldRenderStoryboardEdge(edge, label)) continue
         const sourceId = readStoryboardScalar(edge?.source)
         const targetId = readStoryboardScalar(edge?.target)
         if (!sourceId || !targetId || !visible.has(sourceId) || !visible.has(targetId)) continue

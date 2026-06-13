@@ -10,7 +10,6 @@ import {
   supportsCanvas2dMinimap,
 } from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
-import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 import {
   CANVAS_GRID_DISPLAY_CONTROL_DESCRIPTION,
   CANVAS_GRID_DISPLAY_CONTROL_ID,
@@ -51,7 +50,6 @@ const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRen
   flow: GitMerge,
   animatic: MonitorPlay,
   storyboard: PanelsTopLeft,
-  strybldr: ImageIcon,
   design: Palette,
   flowEditor: Pencil,
 }
@@ -66,7 +64,6 @@ const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   flow: UI_COPY.canvasViewRendererFlowTitle,
   animatic: UI_COPY.canvasViewRendererAnimaticTitle,
   storyboard: UI_COPY.canvasViewRendererStoryboardTitle,
-  strybldr: UI_COPY.canvasViewRendererStrybldrTitle,
   design: UI_COPY.canvasViewRendererDesignTitle,
   flowEditor: UI_COPY.canvasViewRendererFlowEditorTitle,
 }
@@ -86,7 +83,6 @@ export const buildCanvasViewOptions = (
   rendererOptions: CanvasViewRendererOption[],
 ): CanvasViewOption[] => {
   const animationApplicable = isAnimationApplicable(state)
-  const timelineEnabled = resolveTimelineEnabled(state.timelineEnabled)
   const bottomSurfaceOpen = state.bottomSurfaceCollapsed !== true
   const timelineBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'timeline'
   const flowchartBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'flowchart'
@@ -414,8 +410,8 @@ export const buildCanvasViewOptions = (
           id: 'control:timeline',
           title: 'Timeline',
           label: 'Time',
-          Icon: state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'strybldr' ? MonitorPlay : History,
-          isActive: state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'strybldr' ? timelineEnabled : timelineBottomPanelVisible,
+          Icon: History,
+          isActive: timelineBottomPanelVisible,
           disabled: state.geospatialEnabled,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },

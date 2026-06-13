@@ -126,6 +126,7 @@ Acceptance criteria:
 
 - Given Strybldr evidence, when the parser runs, then it creates graph nodes with `title`, `summary`, `action`, `prompt`, `mediaUrl`, `references`, `lane`, `order`, `strybldrRunId`, `strybldrSourceUnitId`, `strybldrElementId`, `sourceBox`, `confidence`, and `evidenceKind`.
 - Given Strybldr Mode is active, when cards render, then Source, Storyboard, and Elements lanes are visible through the shared Storyboard surface.
+- Given a runtime-ready Strybldr demo declares `kgParserRoutingContract`, when the parser runs, then parser logic, routing keys, diagram kinds, surfaces, edges, and fork policy come from opening frontmatter rather than filename heuristics or body-side graph mirrors.
 - Given a user edits card text/order, when the graph updates, then video prompt compilation reads the updated graph rather than a detached prompt.
 - `/goal`: Storyboard canvas displays cards derived from image evidence with editable properties.
 
@@ -138,6 +139,7 @@ Acceptance criteria:
 - Given approved cards, when Toolbar Run All or Generate Video is requested in Strybldr Mode, then only approved card text and references are compiled.
 - Given BytePlus ModelArk is configured, when the run is submitted, then existing video task settings and endpoint owners are reused.
 - Given credentials are missing or the provider fails, when generation is requested, then the fallback includes approved storyboard, compiled prompt, and error reason.
+- Given the workflow contains fork, review, runtime, or publish edges, when Storyboard/Strybldr surfaces render, then those edges remain source-owned `graphData.edges` projected through the shared surface and are not rewritten into renderer-local aliases.
 - `/goal`: approved storyboard compiles into one video task or structured fallback.
 
 #### PRD-STB-E05 - Observability And Economics
@@ -212,7 +214,7 @@ The base loop remains TCO-zero. Paid spend is opt-in and visible.
 | Workspace Bridge | `canvas/src/features/markdown-explorer/workspaceActionBridge.ts` | Provide `importLocalImages` without coupling Launch to workspace internals. |
 | Strybldr Feature Owner | `canvas/src/features/strybldr/*` | Types, Markdown serialization, parser, local file registry, local vision harness, panel view. |
 | Parser Registry | `canvas/src/features/parsers/default.ts` | Register Strybldr parser before generic Markdown. |
-| Renderer Registry | `canvas/src/lib/config.render.ts` | Define canonical `strybldr` renderer mapped to the shared Storyboard surface. |
+| Renderer Registry | `canvas/src/lib/config.render.ts` | Keep canonical `storyboard` renderer ownership; Strybldr remains parser/workflow/panel identity on the shared Storyboard surface. |
 | Storyboard Surface | `canvas/src/components/StoryboardCanvas*` | Render cards through existing storyboard model and kanban editing. |
 | Floating Panel | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx` | Host Strybldr review and analysis controls. |
 | Toolbar Run All | `canvas/src/components/Toolbar.tsx` and `canvas/src/features/canvas/utils.ts` | Reuse the shared workflow Run All event for Flow Editor and Strybldr. |
@@ -283,7 +285,7 @@ Strybldr artifacts are normal Markdown files with YAML frontmatter and a fenced 
 ---
 kgStrybldrStoryboard: true
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "strybldr"
+kgCanvas2dRenderer: "storyboard"
 strybldrRunId: "strybldr-..."
 ---
 
@@ -316,9 +318,11 @@ Parser output must include graph metadata:
 
 ### ADR-STB-001 - Reuse Storyboard Surface
 
-Decision: `strybldr` is the canonical 2D renderer ID that maps to the existing `storyboard` surface.
+Decision: `storyboard` is the canonical 2D renderer ID for Strybldr-capable documents; Strybldr-specific behavior is identified by `kgStrybldrStoryboard`, `strybldr-storyboard` parser metadata, and the Strybldr panel/workflow owners.
 
 Rationale: new UX label, no duplicate renderer. Lower build time, lower regression risk, no extra bundle surface.
+
+Naming directive: use `storyboard` for renderer ids, Canvas View labels, generated frontmatter, and import presets. Strybldr remains a workflow and panel name only; do not add storyboard aliases or compatibility remaps.
 
 TCO/FOSS: zero new service, zero paid cost.
 

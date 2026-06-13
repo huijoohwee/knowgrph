@@ -481,10 +481,10 @@ export function StrybldrFloatingPanelView({
           <button
             type="button"
             className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
-            title="Switch to Strybldr Mode"
+            title="Switch to Storyboard Mode"
             onClick={() => {
               setCanvasRenderMode('2d')
-              setCanvas2dRenderer('strybldr')
+              setCanvas2dRenderer('storyboard')
               setFloatingPanelView('strybldr')
             }}
           >

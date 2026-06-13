@@ -132,3 +132,262 @@ Required production runtime configuration lives on `knowgrph-payment`, not on Cl
 The explicit `--deploy-visible-vars --apply --yes --confirm=apply-stripe-payment-worker-config` configure path can deploy a freshly written checkout price authority before live Checkout smoke.
 
 Checkout creation accepts `successUrl`, `cancelUrl`, optional `workspaceId`, and optional `agenticCommerceSessionId`. Agentic hosted Checkout also requires `expectedAmountTotal` and `expectedCurrency`; the ACP create route derives those from the checkout session before persistence. The Worker validates both return URLs against `STRIPE_CHECKOUT_RETURN_ORIGIN` when set, otherwise against the Checkout route origin; caller `Origin` headers never define hosted Checkout redirect authority. The ACP create route can also include `stripe_checkout { success_url, cancel_url, workspace_id }`; the Worker creates hosted Checkout through the same server-owned helper and returns `session.stripe_checkout.url`. Inline price tuples are checked against the ACP total before Stripe is called; Price-ID-backed sessions are checked against Stripe's returned `amount_total`/`currency`, and mismatched open Sessions are expired before any ACP session or Stripe audit row is written. If the local Stripe checkout audit row cannot be persisted after Stripe creation, the Worker expires the hosted Session before returning 500 so human and agentic callers do not receive an untracked Checkout URL. If Stripe creation succeeds but ACP session persistence fails before the handoff is owned, the Worker expires the hosted Session before returning 500 and refreshes the Stripe audit row to `expired` when D1 is still writable. The Worker appends `session_id={CHECKOUT_SESSION_ID}` to success URLs that omit it, sends `metadata[workspace_id]`, `metadata[acp_session_id]`, `metadata[expected_amount_total]`, and `metadata[expected_currency]` to Stripe when present, uses the ACP session id as `client_reference_id` for agentic reconciliation, and sends that same non-sensitive ACP id as Stripe `Idempotency-Key` so agentic Checkout retries cannot create duplicate hosted Sessions. Human Paywall Checkout intentionally omits Stripe idempotency so each Open Checkout action creates a fresh Session. Stripe webhook settlement claims each Stripe event id as `processing` with nullable `processed_at`, acknowledges same-payload `processing` or `processed` duplicate event ids without rewriting Checkout audit rows or replaying side effects, rejects conflicting payloads for an already recorded event id with 409, marks successful side effects `processed`, and marks failed side effects `failed` so Stripe retries can process the same event id later. Stale `processing` claims are reclaimed instead of being acknowledged forever. First-time settlement requires `metadata[acp_session_id]`, `client_reference_id`, amount, and currency to match the same fiat ACP checkout session; `checkout.session.async_payment_failed` marks the matching fiat ACP session `payment_failed`, refreshes the embedded `stripe_checkout` summary, and writes no proof. `checkout.session.expired` and status-route live refreshes that return `status=expired` mark the matching fiat ACP session `cancelled`, refresh `stripe_checkout`, trace `knowgrph.commerce.checkout_expired`, and write no proof. Later paid Stripe events for a `cancelled` or `payment_failed` ACP session update the Stripe audit row but cannot complete ACP, call OpenBOX, or write proof. Oversized `client_reference_id` values fail closed before the Stripe API call. Direct ACP delegate-token completion is accepted only for fiat sessions that did not request hosted Stripe Checkout and are not already `cancelled` or `payment_failed`; hosted Checkout sessions must complete through verified Stripe webhook or status refresh. Solana Pay ACP checkout sessions use `payment_rail="solana_pay"` and return `session.solana_pay.url` with a deterministic session reference, memo, recipient, amount, network, and SPL token when configured; the session remains `pending_onchain` until the Worker validates a submitted transaction signature through `SOLANA_PAY_RPC_URL`. Solana Pay settlement accepts the dedicated route or canonical checkout completion path, requires the generated reference and memo to appear in the confirmed transaction, validates recipient and amount against SPL token balance deltas or SOL lamport deltas, writes the normal ACP proof, and rejects the generic commerce webhook so an unverified callback cannot complete Solana Pay. If the browser or agent returns before Stripe delivers the webhook, the status route retrieves Stripe live status only for an existing locally-owned Checkout Session row, persists server-side Stripe audit fields in D1, returns only minimal payment state in public JSON, and settles the matching ACP fiat session only when `payment_status` is `paid` or `no_payment_required` and `metadata[acp_session_id]`, `client_reference_id`, amount, and currency still match; the route accepts only the canonical `session_id` query parameter, unknown `session_id` values fail with 404 before Stripe is called, legacy `id` aliases fail with 400, and `status=complete` alone does not unlock payment. Public status JSON omits customer identifiers, Stripe metadata, hosted Checkout URLs, and workspace ids; those values remain server-side in D1 for webhook/ACP reconciliation. The Canvas paywall creates a fresh server-managed Session through the Worker for each Open Checkout action, redirects the current browser window to the hosted Checkout URL, and treats that URL as session-only runtime state rather than a browser setting. Any Checkout return clears the transient URL; only paid or no-payment-required returns close the paywall, while cancelled/expired/unpaid returns remain locked. Run `npm run payment:stripe:configure` to validate operator-supplied environment values and dry-run the Worker secret names that would be applied; it rejects Stripe credential names in visible Worker `[vars]`, writes checkout price authority to `wrangler.toml` only with `-- --write-visible-vars --yes --confirm=apply-stripe-payment-worker-config`, rejects `STRIPE_CHECKOUT_MODE` and `STRIPE_CHECKOUT_RETURN_ORIGIN` process input because mode and return origin are non-secret Worker `[vars]` config that readiness must inspect, and never creates Stripe Products, Prices, Checkout Sessions, webhook endpoints, or D1 migrations. Mutating Cloudflare Worker secrets requires `-- --apply --yes --confirm=apply-stripe-payment-worker-config`; deploy `payment:worker:deploy` after visible Worker `[vars]` changes before live Checkout smoke. Apply D1 migrations separately with `npx wrangler d1 migrations apply knowgrph-storage --remote --config cloudflare/workers/knowgrph-payment/wrangler.toml`; the Stripe webhook processing migration rebuilds `stripe_webhook_events` so `processed_at` can stay `NULL` while an event is claimed as `processing`. Run `npm run payment:stripe:readiness` to check Worker secret names, visible Worker `[vars]` checkout mode, return origin, and price authority, plus remote D1 payment tables/columns/constraints without creating Stripe sessions; it fails if Stripe credentials appear in visible Worker `[vars]` and fails if checkout price authority, checkout mode, or return origin is hidden as a Worker secret. Add `-- --live-checkout-create` only for an intentional bounded hosted Checkout create-and-expire smoke after production config and schema are approved; the Worker creates, persists, expires, and withholds the hosted URL for that test Session. Use `-- --live-checkout-timeout-ms=<ms>` only when intentionally adjusting the smoke timeout. Current live context as of 2026-06-04: `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are configured on `knowgrph-payment`, and remote D1 has no pending payment migrations; checkout still fails closed until visible Worker `[vars]` checkout price authority is configured and deployed.
+
+---
+
+## API Credential Management
+
+### Overview
+
+Knowgrph integrates with external AI, video, map, payment, and local MCP providers across `MainPanel Integrations`, `MainPanel MCP`, Vite middleware, local stdio MCP, and Cloudflare Workers. Provider credentials must flow through the owning server, host, or in-memory BYOK path without hardcoded literals, generated fixture credentials, browser persistence, downstream mirror patches, or compatibility aliases.
+
+This section is the canonical API credential contract for Dev. Prod mirrors and Cloudflare deployments consume validated artifacts only after the Dev owner is updated and proven.
+
+---
+
+### Credential Model: Auth Modes
+
+Two auth modes govern how credentials reach the upstream provider:
+
+| Mode | Description | Credential owner | Operator action |
+|---|---|---|---|
+| `serverManaged` | Dev proxy, Worker, or MCP host injects the credential immediately before the upstream call | Server environment, Worker secret, or MCP host process environment | Set the canonical env var on the owning runtime and restart or redeploy that runtime |
+| `byok` | Operator supplies a temporary key for a single browser runtime | `GraphState.chatApiKey` in RAM only | Type the key into Settings; re-enter after reload |
+
+The `serverManaged` default is correct and preferred for production and development. `byok` is the operator escape hatch for local experimentation.
+
+**Hard invariant from `SettingsFallbackDetails.ts`:**
+> `chatApiKey: { responsibility: 'BYOK API key (in-memory only, never localStorage)' }`
+
+This invariant must be preserved across all provider additions.
+
+---
+
+### Provider Credential Inventory
+
+All credentials are operator-supplied. No credential literal appears in source files, tests, documentation, generated publish artifacts, or browser storage. The names below are the contract names; any currently shipped fallback env reads are cleanup debt at the owning runtime, not a new public contract.
+
+| Surface | Auth type | Canonical credential owner | BYOK capable | Browser persistence |
+|---|---|---|---|---|
+| OpenAI chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
+| BytePlus ModelArk chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
+| MiroMind chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
+| Agnes AI chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_AGNES_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
+| Qwen chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_QWEN_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
+| Google Cloud / Gemini chat proxy | OAuth access token | `KNOWGRPH_CHAT_PROXY_GOOGLE_CLOUD_ACCESS_TOKEN` on the Vite or server proxy runtime | Yes | RAM only |
+| GrabMaps API | Bearer token | `KNOWGRPH_GRABMAPS_API_TOKEN` on the API proxy runtime | Yes | RAM only |
+| GrabMaps MCP | Bearer token | `KNOWGRPH_GRABMAPS_MCP_TOKEN` on the MCP host process | No browser path | Never |
+| Stripe Checkout and webhook | Restricted or secret API key | Worker secret `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY` on `knowgrph-payment` | No | Never |
+| Solana Pay settlement | RPC URL or private binding | Worker secret/private binding `SOLANA_PAY_RPC_URL` on `knowgrph-payment` | No | Never |
+| PixVerse SuperAgent provider mode | MCP/provider credential | Local MCP/provider host environment | No browser path | Never |
+| VideoDB API and MCP | Bearer API key | `VIDEODB_API_KEY` on the server integration proxy or MCP host process | No browser path | Never |
+| SenseNova API | HMAC-SHA256 signed JWT source credential | `SENSENOVA_API_KEY` on the server integration proxy | No browser path | Never |
+
+**Env var naming convention:** chat-proxy credentials use `KNOWGRPH_CHAT_PROXY_<PROVIDER>_<TYPE>`. Provider-specific MCP and server-integration credentials use the upstream-recognized server or host env name documented by their SSOT row, such as `VIDEODB_API_KEY` and `SENSENOVA_API_KEY`. Do not add fallback env aliases; remove stale aliases at the source owner when touching the integration.
+
+---
+
+### Auth Architecture
+
+```mermaid
+flowchart LR
+  classDef op    fill:#EEF2FF,stroke:#6366F1,color:#1E1B4B
+  classDef mem   fill:#F0FDF4,stroke:#22C55E,color:#14532D
+  classDef srv   fill:#FFF7ED,stroke:#F59E0B,color:#78350F
+  classDef ext   fill:#F1F5F9,stroke:#94A3B8,color:#334155
+
+  Operator(["Operator"])
+  MainPanel[/"MainPanel Integrations\nchatAuthMode + chatApiKey RAM only"/]
+  DevProxy[/"Dev chat proxy\n/__chat_proxy injects server key or RAM BYOK"/]
+  ProviderAllowlist[/"Trusted host allowlist\nparseAllowedChatProxyHosts()"/]
+  MpcHost[/"Local MCP host\nstdio tool runtime env"/]
+  WorkerSecret[/"Cloudflare Worker secret\npayment and settlement keys"/]
+  Provider[/"Upstream provider\nchat, video, map, payment"/]
+
+  Operator -->|"serverManaged: set env var\nbyok: type key in Settings"| MainPanel
+  Operator -->|"host env only"| MpcHost
+  Operator -->|"Worker secret or visible non-secret var"| WorkerSecret
+  MainPanel -->|"BYOK: x-kg-chat-api-key header\nserverManaged: no browser key"| DevProxy
+  DevProxy --> ProviderAllowlist
+  ProviderAllowlist -->|"Authorization: Bearer <key>"| Provider
+  MpcHost -->|"host-owned credential"| Provider
+  WorkerSecret -->|"server-owned credential"| Provider
+
+  class Operator op
+  class MainPanel mem
+  class DevProxy,ProviderAllowlist,MpcHost srv
+  class Provider,WorkerSecret ext
+```
+
+**Proxy host allowlist** (`parseAllowedChatProxyHosts()` in `vite.config.ts`): every provider host must be explicitly listed. The proxy rejects requests to unlisted hosts, preventing open-proxy abuse. Adding a new provider requires adding its host to this allowlist.
+
+---
+
+### SenseNova HMAC-JWT Auth Flow
+
+SenseNova requires a server-owned signing boundary rather than a browser-stored static key. The MainPanel surface documents the env-key name and endpoint contract only; the browser never stores or derives the signing material.
+
+```mermaid
+sequenceDiagram
+  actor Operator
+  participant Host as Server integration proxy
+  participant Signer as SenseNova signer
+  participant Cache as Server JWT cache
+  participant API as api.sensenova.cn
+
+  Operator->>Host: Set SENSENOVA_API_KEY in runtime env
+  Host->>Signer: Request Authorization header
+  Signer->>Cache: Check valid signed token
+  alt JWT cached and not expired
+    Cache-->>Signer: Return cached JWT
+  else JWT missing or expired
+    Signer->>Signer: Derive signed JWT from server-owned credential
+    Signer->>Cache: Store JWT with 30s TTL
+  end
+  Signer-->>Host: Authorization: Bearer <signed-jwt>
+  Host->>API: Forward approved request
+  Note over Host,API: Raw credential never reaches browser state, docs, tests, fixtures, or publish artifacts
+```
+
+**Security invariants for HMAC-JWT providers:**
+- Signing material is used only by the server integration owner, never by browser Settings.
+- The derived JWT may be cached only in the owning server process and only until expiry.
+- Cache invalidation is tied to runtime credential changes or process restart.
+
+---
+
+### Data Flow: BYOK Key Lifecycle
+
+| Stage | Component | Input | Output | Persistence | Error Handling |
+|---|---|---|---|---|---|
+| Entry | MainPanel Settings field | Raw key string from operator | `setChatApiKey(key)` -> `GraphState.chatApiKey` | RAM only; lost on reload | Reject empty string; surface preflight error |
+| Preflight | `resolveChatSubmitRequestUrlOrSetErrorText` | `chatApiKey`, `chatAuthMode`, provider | Validated request URL or error | None | Set `connectivity: 'error'`; block submission |
+| Proxy injection | Dev chat proxy | `x-kg-chat-api-key` header (BYOK) or `process.env.KNOWGRPH_*` (serverManaged) | `Authorization: Bearer <key>` | None | Return 400 with provider-specific error message if key missing |
+| Request | Upstream provider | `Authorization` header | API response | None | Surface upstream 401/403 to the UI |
+| Reload | Page hydration | — | `chatApiKey` defaults to `null` | Nothing to hydrate (RAM-only) | Operator must re-enter BYOK key; serverManaged mode works without re-entry |
+
+---
+
+### Security Invariants
+
+These invariants must hold for every current and future provider. They are verified by repo tests (see `chatApiKeyAuthModeAutoByok.test.ts`, `chatResponseContractPrompt.test.ts`).
+
+| Invariant | Rule | Verification |
+|---|---|---|
+| No key in browser persistence | `chatApiKey` is never written to `localStorage` or `sessionStorage` | `SettingsFallbackDetails.chatApiKey` documents `in-memory only, never localStorage`; targeted store tests assert the write path |
+| No key in source | Literal credential values never appear in `.ts`, `.md`, fixture, or test files | Repo grep assertions in CI for known env var name patterns |
+| BYOK preflight | Empty BYOK key blocks submission before any API call | `chatResponseContractPrompt.test.ts` asserts rejection for each provider |
+| Host allowlist | Dev proxy rejects requests to hosts not in `parseAllowedChatProxyHosts()` | `vite.config.ts` `allowedChatProxyHosts` set; new providers must be added explicitly |
+| Stripe server-only | Stripe credentials are Worker secrets only; `payment:stripe:readiness` fails if Stripe key appears in visible Worker `[vars]` | `stripeCheckoutSecurity.test.ts` asserts server-managed-route-only paths |
+| HMAC raw key isolation | For HMAC-JWT providers, raw signing material never reaches browser state; only derived JWT is forwarded | SenseNova server-integration contract; JWT cache holds derived token only |
+| Proxy auth injection only | The proxy adds `Authorization`; the browser client never reads or echoes the key back | CORS policy and proxy response stripping prevent key reflection |
+
+---
+
+### Runtime-Ready Implementation Rules
+
+New or changed API integrations must be implemented at the shared owner for that surface. Do not add demo-local adapters, downstream publish patches, fixture backfills, compatibility aliases, or route-name inference.
+
+#### 1. Shared owner first
+
+Use the narrowest canonical owner:
+
+- Vite middleware routes: `canvas/vite.config.ts`
+- Chat endpoint and provider normalization: `canvas/src/lib/chatEndpoint.ts`
+- MainPanel settings docs rows: `canvas/src/features/integrations/*Ssot.ts` or `canvas/src/features/panels/views/*ApiDocs.ts`
+- Local MCP tools: `mcp/local-tool-contract.js` plus the shared agent-ready contract imported by it
+- Production storage/payment routes: `cloudflare/workers/*`
+
+#### 2. Canonical credential names only
+
+Use one documented env key per credential owner. If an owner still reads old fallback names, remove those reads in the same source area before documenting the integration as runtime-ready.
+
+#### 3. Runtime data only from live responses
+
+Docs, tests, and fixtures may contain env-var placeholders and schema examples, but must not contain fabricated live ids such as `video_id`, `job_id`, `stream_url`, checkout URLs, transcript bodies, or API response payloads that look like provider output.
+
+#### 4. Responsive metadata is part of the API
+
+Wrappers that create or return canvas/workspace artifacts must return responsive proof metadata, artifact paths, and validation status beside the main payload. Mobile and desktop behavior must be fixed at the shared renderer/workspace owner, never by route-specific publish patches.
+
+#### 5. Bounded execution
+
+Every API or MCP path that polls, downloads, imports, transcodes, generates, or proxies remote data must use bounded timeouts, size limits, terminal status checks, and explicit error output. No API route may loop until success or recompute unchanged artifacts.
+
+#### 6. Lazy readiness
+
+Readiness checks should run on explicit action, first use, or focused validation commands. Do not run provider health checks on every panel open or renderer switch.
+
+---
+
+### Anti-Patterns (Forbidden)
+
+| Anti-pattern | Why Forbidden | Correct Alternative |
+|---|---|---|
+| Persist raw API key to `localStorage` | Keys survive logout, browser profile sharing, and extension access | Store BYOK in RAM (`GraphState.chatApiKey`) or use serverManaged |
+| Persist raw API key to `sessionStorage` | Browser session persistence still exposes secrets outside the active React state lifecycle | Keep BYOK in RAM only; use serverManaged for durable setups |
+| Log `Authorization` header in proxy | Exposes credential in server logs accessible to any process with filesystem read | Strip `Authorization` from logs; log only the provider name and response status code |
+| Hardcode API key in `.env.example` | Leaks a real or plausible key; misleads contributors | Use `${KNOWGRPH_<PROVIDER>_API_KEY}` placeholder text |
+| Send raw HMAC secret over the wire | Exposes the signing secret permanently | Sign server-side; forward only the derived JWT |
+| Add a new provider host without updating the allowlist | Exposes the proxy as an open relay for any host | Always add the provider's canonical hostname to `parseAllowedChatProxyHosts()` |
+| Store Stripe or payment keys in visible Worker `[vars]` | Violates least-privilege; payment readiness check fails | Keep payment keys as Worker secrets only |
+| Add fallback env aliases | Masks stale local configuration and creates conflicting ownership | Use the canonical env key; delete fallback reads at the source owner |
+| Backfill provider output fixtures | Lets tests pass on fabricated ids or URLs | Use deterministic mocks that are labeled as mocks, or live response evidence from an approved run |
+
+---
+
+### ADRs
+
+#### ADR-CRED-001 - In-Memory Only BYOK
+
+**Decision:** BYOK API keys are stored in `GraphState` RAM only. No write to `localStorage` or `sessionStorage` is allowed.
+
+**Rationale:** `localStorage` persists across sessions and browser profiles. An operator's credential would survive logout, shared-computer use, and browser extension access. RAM-only storage ensures keys are scoped to the current page lifecycle.
+
+**TCO/FOSS:** zero cost; pure state management change.
+
+**Tradeoff:** operators must re-enter BYOK keys after page reload. Durable credentials belong to the `serverManaged` path.
+
+#### ADR-CRED-002 - Server-Managed Durability
+
+**Decision:** credential durability is server-managed, host-managed, or Worker-managed. Browser session persistence is not a credential durability mechanism.
+
+**Rationale:** the browser is an interactive control surface, not the source of truth for provider secrets. Keeping durable secrets in the runtime owner prevents settings, localStorage, sessionStorage, generated docs, and publish artifacts from becoming credential stores.
+
+**TCO/FOSS:** zero cost.
+
+**Tradeoff:** local experimentation may require env setup or BYOK re-entry. This is intentional because it keeps secret ownership explicit.
+
+#### ADR-CRED-003 - Trusted Host Allowlist for Chat Proxy
+
+**Decision:** the dev/preview chat proxy enforces an explicit allowlist of trusted upstream hostnames. Any provider not on the list is rejected with HTTP 400 before the request is forwarded.
+
+**Rationale:** without an allowlist, `/__chat_proxy` is an open relay that any client-side code can use to send credentialed requests to arbitrary third-party hosts. The allowlist limits blast radius to known provider endpoints.
+
+**TCO/FOSS:** zero cost; already implemented.
+
+**Rule:** every new provider integration MUST add its canonical hostname to `parseAllowedChatProxyHosts()` as part of the same PR that adds the provider to `CHAT_PROVIDER_OPTIONS`.
+
+#### ADR-CRED-004 - Server-Side HMAC-JWT Derivation for Signing-Key Providers
+
+**Decision:** for providers that use HMAC-signed JWTs instead of static Bearer keys, the raw signing material is used only by the owning server integration. The derived JWT may be cached in that runtime with its expiry TTL. The raw credential never reaches browser RAM, browser storage, repo files, tests, fixtures, docs, or publish artifacts.
+
+**Rationale:** static Bearer keys and HMAC-signed JWTs have the same `Authorization: Bearer <value>` wire format. The signing material must never be sent or exposed to browser Settings; only the signed token derived from it may be forwarded.
+
+**TCO/FOSS:** zero cost when implemented with the server runtime crypto APIs already available to the owning integration.
+
+---
+
+### Validation Checklist
+
+Before any new API integration is merged, verify:
+
+- [ ] Provider hostname added to `parseAllowedChatProxyHosts()` in `vite.config.ts`
+- [ ] Provider canonical env var is singular for the credential owner; no fallback alias is introduced or documented
+- [ ] `chatApiKey` remains in-memory only; no `localStorage` or `sessionStorage` write introduced
+- [ ] BYOK preflight rejects empty key and sets `connectivity: 'error'` before any upstream call
+- [ ] For HMAC providers: raw secret is used only inside the signer function; derived token is forwarded
+- [ ] No literal credential appears in source, fixture, test, or doc files
+- [ ] `SettingsFallbackDetails` entry added for any new credential-related settings key
+- [ ] Focused test asserts BYOK preflight rejection and credential-absent-from-output conditions
+- [ ] `.env.example`, docs, tests, and settings rows use placeholder strings only, never literal secret values

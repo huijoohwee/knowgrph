@@ -33,6 +33,7 @@ The implementation is Dev-only. It does not claim a Prod mirror sync or Cloudfla
 | Typed `flow_diagrams` frontmatter | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.flowDiagrams.ts` | Routed `mermaid_flowchart`, `mermaid_gitgraph`, `mermaid_architecture`, and `mermaid_eventmodeling` entries render in FloatingPanel row-list and BottomPanel chart surfaces without filename checks, static backfill, or Rich Media Panel fallback. |
 | Canvas mount | `canvas/src/components/CanvasViewport.tsx` | Mounts the GitGraph surface only when the active 2D surface is `gitGraph`. |
 | Toolbar and registry | `canvas/src/lib/config.render.ts`, `canvas/src/components/toolbar/canvasViewMenu.ts`, `canvas/src/components/toolbar/canvasViewActions.ts`, `canvas/src/lib/config-copy/uiCopy.ts` | Registers canonical renderer id `gitGraph`, label `2D Renderer: GitGraph`, menu metadata, icon, normalized canonical-token resolution, and Canvas View Display Controls that open BottomPanel GitGraph/Gantt through the shared bottom-surface store. |
+| Parser routing contract | opening frontmatter `kgParserRoutingContract` | Names parser logic, routing keys, diagram kinds, surfaces, edge policy, and fork policy for runtime-ready demos without renderer-local aliases, stale carryover, or body-side topology mirrors. |
 
 ## Product Requirements
 
@@ -65,6 +66,7 @@ Acceptance criteria:
 - Given a document with both `flow:` and `mermaid: | gitGraph`, when it parses as `frontmatter-flow`, then `metadata.frontmatterMeta.mermaid` preserves the GitGraph code.
 - Given that graph is rendered with `kgCanvas2dRenderer: "gitGraph"`, then the renderer reads the preserved Mermaid metadata instead of depending on Flowchart topology nodes.
 - Given normalized `{key, type, value}` wrappers appear in Flow validation fixtures, then they remain fixture-only and do not become the canonical GitGraph authoring contract.
+- Given a runtime-ready demo declares `kgParserRoutingContract`, when Source Files routes the document, then routing keys, diagram kinds, surfaces, edges, and fork policy remain source-owned and do not require renderer-local fallback aliases.
 
 ### PRD-GG-E04 - Interactive Dynamic Canvas
 

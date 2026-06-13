@@ -93,6 +93,18 @@ export const isStrybldrStoryboardMarkdown = (text: string): boolean => {
   return /^\s*---[\s\S]*?\bkgStrybldrStoryboard:\s*true\b[\s\S]*?---/m.test(raw) || STRYBLDR_JSON_FENCE_RE.test(raw)
 }
 
+export const isStrybldrStoryboardGraphData = (graphData: GraphData | null | undefined): boolean => {
+  const metadata = graphData?.metadata && typeof graphData.metadata === 'object'
+    ? graphData.metadata as Record<string, unknown>
+    : {}
+  if (String(graphData?.context || '') === 'strybldr-storyboard') return true
+  if (String(metadata.kind || '') === 'strybldr-storyboard') return true
+  if (String(metadata.parserId || '') === 'strybldr-storyboard') return true
+  if (metadata.kgStrybldrStoryboard === true) return true
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  return nodes.some(node => String(node?.properties?.strybldrRunId || node?.properties?.strybldrSourceUnitId || '').trim().length > 0)
+}
+
 export const buildStrybldrRunId = (sources: readonly Pick<StrybldrSource, 'sourceUnitId' | 'workspacePath' | 'textHash'>[]): string => {
   const signature = sources
     .map(source => [source.sourceUnitId, source.workspacePath, source.textHash].map(v => cleanText(v)).join(':'))
@@ -225,7 +237,7 @@ export const serializeStrybldrStoryboardMarkdown = (doc: StrybldrStoryboardDocum
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "strybldr"',
+    'kgCanvas2dRenderer: "storyboard"',
     `strybldrRunId: ${yamlQuote(doc.runId)}`,
     '---',
     '',
@@ -392,6 +404,36 @@ const readStrybldrWorkflow = (value: unknown): StrybldrWorkflow | null => {
   }
   if (workflow.stages.length === 0 && !workflow.fork && !workflow.publish) return null
   return workflow
+}
+
+const resolveStrybldrElementLane = (args: {
+  element: StrybldrElement
+  workflow: StrybldrWorkflow | null | undefined
+}): string => {
+  const element = args.element
+  const primaryText = [
+    element.id,
+    element.label,
+    element.evidenceKind,
+    element.provider,
+  ].map(value => cleanText(value).toLowerCase()).filter(Boolean).join(' ')
+  const bodyText = [
+    element.summary,
+    element.action,
+    element.prompt,
+  ].map(value => cleanText(value).toLowerCase()).filter(Boolean).join(' ')
+  if (/\bfork|operator[_ -]?fork|operator[_ -]?approval|operator[_ -]?approved\b/i.test(primaryText)) return 'Fork'
+  if (/\bpublish|packet|release|export\b/i.test(primaryText)) return 'Publish'
+  if (/\breview|search|stream|moderation|scorecard\b/i.test(primaryText)) return 'Review'
+  if (/\bruntime|handoff|generate|generation|poll|api|mcp|rest|upload|index|sensenova|videodb|provider|media output|execution|readiness\b/i.test(primaryText)) return 'Runtime'
+  if (/\bsource[_ -]?metadata|user[_ -]?edit|fallback\b/i.test(primaryText)) {
+    const stages = Array.isArray(args.workflow?.stages) ? args.workflow.stages.map(stage => cleanText(stage)).filter(Boolean) : []
+    return stages.find(stage => stage.toLowerCase() === 'elements') || 'Elements'
+  }
+  if (/\breview|search|stream|moderation|scorecard\b/i.test(bodyText)) return 'Review'
+  if (/\bruntime|handoff|generate|generation|poll|api|mcp|rest|upload|index|sensenova|videodb|provider|media output|execution|readiness\b/i.test(bodyText)) return 'Runtime'
+  const stages = Array.isArray(args.workflow?.stages) ? args.workflow.stages.map(stage => cleanText(stage)).filter(Boolean) : []
+  return stages.find(stage => stage.toLowerCase() === 'elements') || 'Elements'
 }
 
 const isExplainerVideoXrMode = (doc: StrybldrStoryboardDocument): boolean => cleanText(doc.explainerVideo?.mode).toLowerCase() === 'xr'
@@ -1211,7 +1253,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
       type: 'StoryboardElement',
       properties: {
         title: asJson(element.label),
-        lane: asJson('Elements'),
+        lane: asJson(resolveStrybldrElementLane({ element, workflow: doc.workflow })),
         order: asJson(element.order),
         summary: asJson(element.summary || `${element.label} extracted from ${source?.originalName || 'image source'}.`),
         action: asJson(element.action || 'Edit this element before video generation.'),
@@ -1277,7 +1319,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
       kgCanvasSurfaceMode: isXr ? 'xr' : '2d',
       kgCanvasRenderMode: isXr ? '3d' : '2d',
       kgCanvas3dMode: isXr ? 'xr' : null,
-      kgCanvas2dRenderer: isXr ? null : 'strybldr',
+      kgCanvas2dRenderer: isXr ? null : 'storyboard',
     } as unknown as GraphData['metadata'],
   }
   const graphSemanticKey = buildScopedGraphSemanticKey('strybldr-storyboard', { graphData: baseGraph })

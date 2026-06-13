@@ -60,6 +60,15 @@ VideoDB credentials and runtime identifiers are operator-supplied settings exclu
 | SSOT sync directive | `docs/documents/knowgrph-integrations-ssot-sync-directives.md` | VideoDB integration rows, Workflow Manager schema fields, and Props Panel widget fields must stay generated from one VideoDB TS SSOT. Forbid duplicate local row maps and manual row edits. |
 | Operator-supplied runtime values | `canvas/src/features/panels/views/SettingsView.tsx`; `canvas/src/features/integrations/videodbSsot.ts` | `x-access-token` values, collection IDs, and video IDs are operator-supplied settings and are never hardcoded in the repository. Literal `x-access-token` values, collection IDs, and video IDs must not be embedded anywhere in the codebase or this document. All path parameters containing `{id}` are runtime operator-supplied values. |
 
+## Canvas Parser Routing Overlay
+
+VideoDB workflow demos that are opened through Source Files must route through the same source-owned parser contract as other Canvas demos.
+
+- `kgParserRoutingContract` in opening frontmatter names parser logic, routing keys, diagram kinds, surfaces, edge policy, and fork policy for the demo document.
+- Direct REST rows in MainPanel Integrations and VideoDB MCP tool calls converge on the same Strybldr publish packet schema; they must not create parallel graph contracts.
+- Strybldr workflow edges such as source -> storyboard, storyboard -> elements, elements -> fork, fork -> REST/MCP runtime, runtime -> review, and review -> publish remain authored source topology and are preserved as `graphData.edges`.
+- Missing credentials keep runtime execution readiness-gated, but they do not remove source, edge, fork, review, or publish cards from the runnable local canvas.
+
 ## Async vs Synchronous Operation Notes
 
 VideoDB uses a shared async response pattern. Operations that require significant processing time return a job identifier immediately; the caller must poll `GET /async-response/{id}` until the job reaches a terminal state.

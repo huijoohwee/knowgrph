@@ -15,6 +15,7 @@ import { getCanvas2dSurfaceId, isFlowEditorCanvas2dRenderer, supportsCanvas2dMin
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { isStrybldrStoryboardGraphData } from '@/features/strybldr/strybldrStoryboard'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
@@ -132,7 +133,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
   })
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
   const geospatialOverlayOwnsViewport = geospatialModeEnabled && !(workspaceEditorOverlayOpen && active2dSurface === 'flowEditor')
-  const strybldrTimelineBottomPanelVisible = canvas2dRenderer === 'strybldr' && shouldRenderTimelineSurface({
+  const strybldrTimelineBottomPanelVisible = canvas2dRenderer === 'storyboard'
+    && (
+      isStrybldrStoryboardGraphData(activeGraphData)
+      || isStrybldrStoryboardGraphData(activeSourceFile?.parsedGraphData)
+    )
+    && shouldRenderTimelineSurface({
     activeSurface,
     documentSwitchPending: documentSwitchBlocksCanvas,
     geospatialOverlayOwnsViewport,

@@ -135,7 +135,7 @@ export const testMarkdownDocumentGraphApplyRejectsEmptyCachedStrybldrSourceGraph
     metadata: {
       kind: 'strybldr-storyboard',
       parserId: 'strybldr-storyboard',
-      kgCanvas2dRenderer: 'strybldr',
+      kgCanvas2dRenderer: 'storyboard',
     },
   }
   useGraphStore.setState({

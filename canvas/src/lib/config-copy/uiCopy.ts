@@ -18,11 +18,10 @@ const CANVAS_VIEW_RENDERER_GANTT_TITLE = '2D Renderer: Gantt-timeline'
 const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow Canvas'
 const CANVAS_VIEW_RENDERER_ANIMATIC_TITLE = '2D Renderer: Gantt-timeline'
 const CANVAS_VIEW_RENDERER_STORYBOARD_TITLE = '2D Renderer: Storyboard'
-const CANVAS_VIEW_RENDERER_STRYBLDR_TITLE = '2D Renderer: Strybldr'
 const CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE = '2D Renderer: Flow Editor'
 const CANVAS_VIEW_RENDERER_DESIGN_TITLE = '2D Renderer: Design'
 const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP =
-  '2D Renderer: switch between D3, Dashboard, Flowchart, GitGraph, Gantt-timeline, Flow Canvas, Storyboard, Strybldr, Design, and Flow Editor.'
+  '2D Renderer: switch between D3, Dashboard, Flowchart, GitGraph, Gantt-timeline, Flow Canvas, Storyboard, Design, and Flow Editor.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -221,7 +220,6 @@ export const UI_COPY = {
   canvasViewRendererFlowTitle: CANVAS_VIEW_RENDERER_FLOW_TITLE,
   canvasViewRendererAnimaticTitle: CANVAS_VIEW_RENDERER_ANIMATIC_TITLE,
   canvasViewRendererStoryboardTitle: CANVAS_VIEW_RENDERER_STORYBOARD_TITLE,
-  canvasViewRendererStrybldrTitle: CANVAS_VIEW_RENDERER_STRYBLDR_TITLE,
   canvasViewRendererFlowEditorTitle: CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE,
   canvasViewRendererDesignTitle: CANVAS_VIEW_RENDERER_DESIGN_TITLE,
   canvasViewRendererToggleTooltip: CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP,

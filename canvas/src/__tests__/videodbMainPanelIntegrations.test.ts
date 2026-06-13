@@ -88,7 +88,7 @@ for (const requiredText of [
   'publish_packet_path: ""',
   '2D Renderer: Flow Editor',
   '2D Renderer: Storyboard',
-  '2D Renderer: Strybldr',
+  '2D Renderer: Storyboard',
   '```json strybldr-storyboard',
   'POST /video/{id}/generate/video',
   'POST /video/{id}/index/',

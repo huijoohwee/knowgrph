@@ -606,7 +606,7 @@ export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
 export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
   const options = buildCanvasViewOptions(
     {
-      canvas2dRenderer: 'strybldr',
+      canvas2dRenderer: 'storyboard',
       canvas3dMode: '3d',
       canvasRenderMode: '2d',
       documentSemanticMode: 'document',
@@ -664,7 +664,7 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     onOpenGeospatialMode: () => {
       throw new Error('Expected Timeline toggle to avoid opening Geospatial Mode')
     },
-    canvas2dRenderer: 'strybldr',
+    canvas2dRenderer: 'storyboard',
     canvas3dMode: '3d',
     canvasRenderMode: '2d',
     documentSemanticMode: 'document',
@@ -699,7 +699,7 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     onOpenGeospatialMode: () => {
       throw new Error('Expected Timeline toggle to avoid opening Geospatial Mode')
     },
-    canvas2dRenderer: 'strybldr',
+    canvas2dRenderer: 'storyboard',
     canvas3dMode: '3d',
     canvasRenderMode: '2d',
     documentSemanticMode: 'document',
@@ -730,7 +730,7 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     onOpenGeospatialMode: () => {
       throw new Error('Expected Gantt toggle to avoid opening Geospatial Mode')
     },
-    canvas2dRenderer: 'strybldr',
+    canvas2dRenderer: 'storyboard',
     canvas3dMode: '3d',
     canvasRenderMode: '2d',
     documentSemanticMode: 'document',
@@ -765,7 +765,7 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     onOpenGeospatialMode: () => {
       throw new Error('Expected GitGraph toggle to avoid opening Geospatial Mode')
     },
-    canvas2dRenderer: 'strybldr',
+    canvas2dRenderer: 'storyboard',
     canvas3dMode: '3d',
     canvasRenderMode: '2d',
     documentSemanticMode: 'document',

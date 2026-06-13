@@ -1,4 +1,4 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
@@ -6,7 +6,7 @@ export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'gitGraph', 'ga
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'storyboard', 'strybldr', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'storyboard', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -88,14 +88,6 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Story',
     menuDescription: 'Storyboard lanes',
     menuBadges: ['Cards', 'Stages'],
-    sharesFlowEditorFrontmatterSyntax: false,
-  },
-  strybldr: {
-    surfaceId: 'storyboard',
-    registryLabel: 'Strybldr',
-    menuLabel: 'Strybldr',
-    menuDescription: 'Image to storyboard',
-    menuBadges: ['Image', 'Elements'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   flowEditor: {
@@ -207,17 +199,17 @@ export const isAnimaticCanvas2dRenderer = (id: Canvas2dRendererId | null | undef
 }
 
 export const isStoryboardCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'storyboard' || id === 'strybldr'
+  return id === 'storyboard'
 }
 
 export const supportsToolbarRunAll = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'flowEditor' || id === 'strybldr'
+  return id === 'flowEditor' || id === 'storyboard'
 }
 
 export type ToolbarRunAllFloatingPanelTab = 'strybldr'
 
 export const getToolbarRunAllFloatingPanelTab = (id: Canvas2dRendererId | null | undefined): ToolbarRunAllFloatingPanelTab | null => {
-  return id === 'strybldr' ? 'strybldr' : null
+  return id === 'storyboard' ? 'strybldr' : null
 }
 
 export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {

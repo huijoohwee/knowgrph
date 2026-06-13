@@ -112,11 +112,11 @@ export function testFlowEditorForeignRendererGraphPartitionExcludesNativeFlowCan
     type: 'Graph',
     metadata: {
       kind: 'strybldr-storyboard',
-      kgCanvas2dRenderer: 'strybldr',
+      kgCanvas2dRenderer: 'storyboard',
       frontmatterMeta: {
-        kgCanvas2dRenderer: 'strybldr',
+        kgCanvas2dRenderer: 'storyboard',
         kgRendererCompatibility: [
-          '2D Renderer: Strybldr',
+          '2D Renderer: Storyboard',
           '2D Renderer: Storyboard',
           '2D Renderer: Flow Editor',
         ],

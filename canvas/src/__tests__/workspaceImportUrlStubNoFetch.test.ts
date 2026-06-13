@@ -265,7 +265,7 @@ export async function testWorkspaceImportUrlYouTubeStrybldrCreatesStoryboardDocu
     const res = await importWorkspaceUrl({
       fs,
       urlRaw: watchUrl,
-      canvas2dRenderer: 'strybldr',
+      canvas2dRenderer: 'storyboard',
       documentSemanticMode: 'document',
     })
     if (res.applyToGraph !== true) throw new Error('expected Strybldr URL import to apply the generated storyboard graph')
@@ -277,12 +277,12 @@ export async function testWorkspaceImportUrlYouTubeStrybldrCreatesStoryboardDocu
     const focusPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
     if (focusPath !== storyPath) throw new Error(`expected import focus helper to preserve created path priority, got ${String(focusPath || '<none>')}`)
     const storyText = String((await fs.readFileText(storyPath)) || '')
-    if (!storyText.includes('kgCanvas2dRenderer: "strybldr"')) throw new Error('expected generated Strybldr frontmatter')
+    if (!storyText.includes('kgCanvas2dRenderer: "storyboard"')) throw new Error('expected generated Strybldr frontmatter')
     if (!storyText.includes(`"mediaKind": "video"`)) throw new Error('expected URL source unit to preserve video media kind')
     if (!storyText.includes(watchUrl)) throw new Error('expected generated Strybldr source to preserve normalized URL provenance')
     const parsed = await loadGraphDataFromTextViaParser('youtube.strybldr.md', storyText, { applyToStore: false })
     if (parsed?.parserId !== 'strybldr-storyboard') throw new Error(`expected Strybldr parser, got ${String(parsed?.parserId || '')}`)
-    if (String(parsed.graphData?.metadata && (parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') !== 'strybldr') throw new Error('expected parsed storyboard graph to activate Strybldr renderer metadata')
+    if (String(parsed.graphData?.metadata && (parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') !== 'storyboard') throw new Error('expected parsed storyboard graph to activate Storyboard renderer metadata')
     const board = buildStoryboardBoardModel({ graphData: parsed.graphData, graphRevision: 1 })
     const cards = board.lanes.flatMap(lane => lane.cards)
     if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) throw new Error(`expected generated Strybldr YouTube graph to expose renderable iframe media, got ${JSON.stringify(cards.map(card => card.media))}`)

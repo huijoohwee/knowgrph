@@ -1051,8 +1051,8 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
     if (afterApply.canvasRenderMode !== '2d') {
       throw new Error(`expected local Strybldr import apply to set 2d render mode, got ${String(afterApply.canvasRenderMode || '')}`)
     }
-    if (afterApply.canvas2dRenderer !== 'strybldr') {
-      throw new Error(`expected local Strybldr import apply to set Strybldr renderer, got ${String(afterApply.canvas2dRenderer || '')}`)
+    if (afterApply.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected local Strybldr import apply to set Storyboard renderer, got ${String(afterApply.canvas2dRenderer || '')}`)
     }
     if (afterApply.floatingPanelOpen !== true || afterApply.floatingPanelView !== 'strybldr') {
       throw new Error('expected local Strybldr import apply to mount the Strybldr run consumer panel')
@@ -1061,7 +1061,7 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
     await activateFirstImportedWorkspaceFile({ fs, createdPaths: result.createdPaths, applyToGraph: true })
     const next = useGraphStore.getState()
     if (useMarkdownExplorerStore.getState().activePath !== importedPath) throw new Error(`expected local Strybldr activation to focus imported file, got ${String(useMarkdownExplorerStore.getState().activePath || '')}`)
-    if (next.canvas2dRenderer !== 'strybldr') throw new Error(`expected local Strybldr activation to keep Strybldr renderer, got ${String(next.canvas2dRenderer || '')}`)
+    if (next.canvas2dRenderer !== 'storyboard') throw new Error(`expected local Strybldr activation to keep Storyboard renderer, got ${String(next.canvas2dRenderer || '')}`)
     if (next.floatingPanelOpen !== true || next.floatingPanelView !== 'strybldr') throw new Error('expected local Strybldr activation to keep the Strybldr Run all consumer mounted')
 
     const renderGraph = resolveActiveMarkdownBaseGraph({

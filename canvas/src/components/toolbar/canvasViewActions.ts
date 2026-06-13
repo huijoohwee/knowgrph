@@ -15,7 +15,6 @@ import {
   isTableGraphCanvas2dRenderer,
   supportsCanvas2dMinimap,
 } from '@/lib/config.render'
-import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 
 type CanvasViewActionParams = {
   id: CanvasViewOptionId
@@ -63,7 +62,6 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
     renderMediaAsNodes,
-    timelineEnabled,
     bottomSurfaceCollapsed,
     bottomSurfaceTab,
     minimapCollapsed = false,
@@ -74,7 +72,6 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setSchema,
     setBehavior,
     setRenderMediaAsNodes,
-    setTimelineEnabled,
     setBottomSurfaceCollapsed,
     setBottomSurfaceTab,
     setMinimapCollapsed,
@@ -241,18 +238,13 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   }
   if (id === 'control:timeline') {
     if (geospatialEnabled) return
-    if (canvasRenderMode !== '2d' || canvas2dRenderer !== 'strybldr') {
-      const nextTab: BottomSurfaceTab = 'timeline'
-      if (bottomSurfaceCollapsed !== true && bottomSurfaceTab === nextTab) {
-        setBottomSurfaceCollapsed(true)
-        return
-      }
-      setBottomSurfaceTab(nextTab)
-      setBottomSurfaceCollapsed(false)
+    const nextTab: BottomSurfaceTab = 'timeline'
+    if (bottomSurfaceCollapsed !== true && bottomSurfaceTab === nextTab) {
+      setBottomSurfaceCollapsed(true)
       return
     }
-    const nextEnabled = !resolveTimelineEnabled(timelineEnabled)
-    if (resolveTimelineEnabled(timelineEnabled) !== nextEnabled) setTimelineEnabled(nextEnabled)
+    setBottomSurfaceTab(nextTab)
+    setBottomSurfaceCollapsed(false)
     return
   }
   if (id === 'control:flowchart' || id === 'control:gitGraph' || id === 'control:gantt' || id === 'control:architecture' || id === 'control:eventModeling') {
