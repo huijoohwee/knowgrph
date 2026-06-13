@@ -9,6 +9,15 @@ import {
   buildKnowgrphMcpAppsToolMeta,
   buildKnowgrphMcpNoauthSecuritySchemes,
 } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
+import {
+  KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES,
+  MEMORY_ADD_INPUT_SCHEMA,
+  MEMORY_ADD_OUTPUT_SCHEMA,
+  MEMORY_SEARCH_INPUT_SCHEMA,
+  MEMORY_SEARCH_OUTPUT_SCHEMA,
+  PROMPT_ASSEMBLER_INPUT_SCHEMA,
+  PROMPT_ASSEMBLER_OUTPUT_SCHEMA,
+} from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
 
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
@@ -331,6 +340,27 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       },
     }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults(BROWSER_API_TOOL, BROWSER_API_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.add,
+      description:
+        "Use this when a local MCP host needs to persist an explicitly scoped user, agent, run, or app memory through the Knowgrph memory harness without storing credentials or hardcoded IDs.",
+      outputSchema: MEMORY_ADD_OUTPUT_SCHEMA,
+      inputSchema: MEMORY_ADD_INPUT_SCHEMA,
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.search,
+      description:
+        "Use this when a local MCP host needs to retrieve top-K explicitly scoped memories through the Knowgrph memory harness before agent prompt assembly.",
+      outputSchema: MEMORY_SEARCH_OUTPUT_SCHEMA,
+      inputSchema: MEMORY_SEARCH_INPUT_SCHEMA,
+    }, READ_ONLY_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.assemblePrompt,
+      description:
+        "Use this when a local MCP host needs to inject ranked memory results into a bounded system-message context section without exposing internal memory IDs or scores.",
+      outputSchema: PROMPT_ASSEMBLER_OUTPUT_SCHEMA,
+      inputSchema: PROMPT_ASSEMBLER_INPUT_SCHEMA,
+    }, READ_ONLY_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
       description:

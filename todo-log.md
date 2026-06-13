@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-06-13
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Nested documentation sync into AgenticRAG map | Keep newly added API-reference and companion docs visible in the cross-repo docs graph | Make the AgenticRAG docs-map sync recurse through `docs/documents/**`, preserve relative document paths, regenerate the map, and mirror the recursive-source rule in shared schema notes instead of hand-patching generated graph artifacts. | `knowgrph/{todo-log.md,docs/documents/knowgrph-api-reference/knowgrph-ai-agents-memory-layer-prd-tad.md}`, `huijoohwee.github.io/schema/AgenticRAG/{sync_map.py,README.md,knowgrph-documents-map.graph.jsonld}`, `huijoohwee.github.io/docs/documents/hjh-workspace-todo-log.md` | Docs sync map contract | `iter_doc_rel_paths`, `get_node_doc_rel_path`, `sync_map.py --mode write` | Nested docs under `docs/documents/**` including `knowgrph-api-reference/*` and future sharded companions | Refreshed docs map with nested relative-path document nodes plus updated schema guidance | Fix missing nested docs at the sync root once; generated map artifacts stay derived from recursive canonical docs, and hand-added downstream nodes or filename-only assumptions remain forbidden. | Re-run `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check` after future nested doc additions, sharding moves, or companion-folder growth. | 2026-06-13 |
+
 ## 2026-06-05
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

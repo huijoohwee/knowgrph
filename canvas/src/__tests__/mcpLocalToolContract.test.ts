@@ -128,6 +128,9 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
   ]
 
@@ -205,6 +208,30 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   const browserApiTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun)
   if (!browserApiTool) throw new Error('expected browser API runtime tool')
   assertAnnotations(browserApiTool, { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false })
+
+  const memoryAddTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd)
+  if (!memoryAddTool) throw new Error('expected memory add tool')
+  assertAnnotations(memoryAddTool, { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: false })
+  if (!String(memoryAddTool.description || '').includes('explicitly scoped')) {
+    throw new Error(`expected memory add tool to require explicit scope, got ${JSON.stringify(memoryAddTool.description)}`)
+  }
+  if (!memoryAddTool.inputSchema.properties?.user_id || !memoryAddTool.inputSchema.properties?.messages) {
+    throw new Error(`expected memory add schema to expose user_id and messages, got ${JSON.stringify(memoryAddTool.inputSchema.properties)}`)
+  }
+
+  const memorySearchTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch)
+  if (!memorySearchTool) throw new Error('expected memory search tool')
+  assertAnnotations(memorySearchTool, { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true })
+  if (memorySearchTool.outputSchema?.type !== 'object' || !memorySearchTool.outputSchema.required?.includes('results')) {
+    throw new Error(`expected memory search output schema to expose results, got ${JSON.stringify(memorySearchTool.outputSchema)}`)
+  }
+
+  const memoryPromptTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt)
+  if (!memoryPromptTool) throw new Error('expected memory prompt assembly tool')
+  assertAnnotations(memoryPromptTool, { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true })
+  if (!memoryPromptTool.inputSchema.properties?.max_memory_tokens) {
+    throw new Error(`expected memory prompt schema to expose max_memory_tokens, got ${JSON.stringify(memoryPromptTool.inputSchema.properties)}`)
+  }
 
   const videoRemixTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun)
   if (!videoRemixTool) throw new Error('expected Video Remix runner tool')

@@ -17,6 +17,11 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { runVideoRemix } from "./video-remix-runtime.js";
 import { callBrowserApiRuntime } from "./browser-api-runtime.js";
+import {
+  addMemoryLayerMemory,
+  assembleMemoryLayerPrompt,
+  searchMemoryLayerMemories,
+} from "./memory-layer-runtime.js";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "./local-tool-contract.js";
 import { buildKnowgrphAgentReadyPromptContracts, getKnowgrphAgentReadyPrompt } from "../canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs";
 import { buildKnowgrphAgentReadyResourceTemplateContracts, buildKnowgrphSourceFileResourceReadResult, parseKnowgrphSourceFileResourceUri } from "../canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs";
@@ -81,6 +86,7 @@ const LOCAL_MCP_APP_RESOURCE = buildKnowgrphMcpAppsResourceDescriptor({
   appUrl: LOCAL_MCP_APP_URL,
   updatedAt: "local",
 });
+const MEMORY_TOOL_HANDLERS = Object.freeze({ [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd]: (args) => addMemoryLayerMemory(args, { rootDir: KNOWGRPH_ROOT }), [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch]: (args) => searchMemoryLayerMemories(args, { rootDir: KNOWGRPH_ROOT }), [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt]: (args) => assembleMemoryLayerPrompt(args) });
 
 function resolveRootDir() {
   const envRoot = process.env.KNOWGRPH_ROOT?.trim();
@@ -271,6 +277,8 @@ function formatCommand(command, args, cwd) {
   const quoted = args.map((arg) => (arg.includes(" ") ? JSON.stringify(arg) : arg));
   return `${command} ${quoted.join(" ")}${cwd ? `  (cwd: ${cwd})` : ""}`;
 }
+
+const jsonToolResult = (payload, isError = false) => ({ content: [{ type: "text", text: JSON.stringify(payload, null, 2) }], structuredContent: payload, isError });
 
 const server = new Server(
   {
@@ -509,6 +517,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await callBrowserApiRuntime(args, { maxOutputChars: MAX_OUTPUT_CHARS });
     }
 
+    if (MEMORY_TOOL_HANDLERS[toolName]) return jsonToolResult(await MEMORY_TOOL_HANDLERS[toolName](args));
+
     if (
       toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search
       || toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch
@@ -518,11 +528,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error(`Missing local published Source Files executor: ${toolName}`);
       }
       const payload = await execute(args);
-      return {
-        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-        structuredContent: payload,
-        isError: false,
-      };
+      return jsonToolResult(payload);
     }
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList) {
@@ -570,11 +576,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           registry: vdeoxplnEntries,
         }),
       };
-      return {
-        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-        structuredContent: payload,
-        isError: !validation.ok,
-      };
+      return jsonToolResult(payload, !validation.ok);
     }
 
     throw new Error(`Unknown tool: ${toolName}`);

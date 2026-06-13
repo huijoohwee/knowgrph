@@ -118,7 +118,12 @@ Canonical local tool inventory owner:
    - Typical use: health-check the runtime, search/resolve first-party browser API routes, list cached skills, login through a local browser session, run guarded cookie import, send feedback/verification, execute a resolved route with `dryRun=true` by default, or fall back to native browser capture/action operations such as `go`, `snap`, `click`, `fill`, `screenshot`, `text`, `markdown`, `sync`, and `close`
    - Default runtime URL: `http://localhost:6969` or `KNOWGRPH_BROWSER_API_RUNTIME_URL`; non-loopback hosts are rejected unless `KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME=1` is set on the MCP server
    - Browser target URLs are normalized before runtime calls; only `http` and `https` targets without embedded credentials are forwarded
-7. `knowgrph.vdeoxpln.list`
+7. Memory layer tools
+   - `knowgrph.memory.add` persists explicitly scoped memory text or messages through the provider-neutral memory harness
+   - `knowgrph.memory.search` returns top-K scoped memory results for prompt augmentation
+   - `knowgrph.memory.assemble_prompt` injects ranked memory results into a bounded `## Relevant Context` system-message section
+   - Dev default uses local JSON storage at `KNOWGRPH_MEMORY_STORE_PATH` or `data/memory-layer/local-memory-store.json`; Mem0 credentials and provider config remain host-owned runtime inputs
+8. `knowgrph.vdeoxpln.list`
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.
@@ -183,6 +188,7 @@ Add a server entry similar to:
         "KNOWGRPH_ROOT": "/ABS/PATH/TO/WORKSPACE_ROOT",
         "KNOWGRPH_PYTHON": "/ABS/PATH/TO/PYTHON",
         "KNOWGRPH_MCP_TIMEOUT_MS": "600000",
+        "KNOWGRPH_MEMORY_STORE_PATH": "data/memory-layer/local-memory-store.json",
         "KNOWGRPH_BROWSER_API_RUNTIME_URL": "http://localhost:6969"
       }
     }
@@ -206,6 +212,9 @@ Then you can call:
 - `knowgrph.browser_api.run` with `{ "operation": "execute", "skillId": "resolved-skill-id", "payload": {}, "dryRun": true, "confirmUnsafe": false, "confirmThirdPartyTerms": false }`
 - `knowgrph.browser_api.run` with `{ "operation": "cookieImport", "targetUrl": "<TARGET_URL>", "dryRun": false, "confirmCookieImport": true, "confirmUnsafe": true, "confirmThirdPartyTerms": true }`
 - `knowgrph.browser_api.run` with `{ "operation": "click", "sessionId": "session-id", "selector": "#submit", "dryRun": false, "confirmUnsafe": true }`
+- `knowgrph.memory.add` with `{ "text": "Prefer local-first memory and operator-gated deploys.", "user_id": "runtime-user-id", "metadata": { "memory_key": "deployment-boundary" } }`
+- `knowgrph.memory.search` with `{ "query": "Should deploys happen automatically?", "user_id": "runtime-user-id", "top_k": 3 }`
+- `knowgrph.memory.assemble_prompt` with `{ "base_system_message": "Answer directly.", "memories": [{ "id": "memory-id", "memory": "Prefer local-first memory.", "score": 1, "created_at": "2026-06-13T00:00:00.000Z" }], "max_memory_tokens": 80 }`
 - `knowgrph.vdeoxpln.list` with `{ "includeMarkdown": true }`
 
 ## Relationship to MainPanel MCP
