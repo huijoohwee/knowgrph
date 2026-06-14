@@ -63,6 +63,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeNormalizesAndCanvasViewSelectionActivatesSurface()
   })
+  await execTest(results, 'canvas.viewSelection.shared3dSurfaceModeOwner', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testCanvasSurfaceMode3dSelectionUsesSharedOwner()
+  })
   await execTest(results, 'canvas.renderSettings.xrModeSelect', async () => {
     const mod = await modCanvas3dMode()
     await mod.testRenderSettings3dModeSelectPreservesXrMode()

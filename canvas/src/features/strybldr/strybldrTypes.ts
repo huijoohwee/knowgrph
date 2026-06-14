@@ -178,6 +178,7 @@ export type StrybldrVideoHandoffCard = {
   summary: string
   action: string
   prompt: string
+  camera: string
   references: string[]
   order: number
   sourceUnitId: string

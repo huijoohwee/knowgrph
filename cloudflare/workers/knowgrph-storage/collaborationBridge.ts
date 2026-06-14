@@ -285,7 +285,7 @@ export const handleCollaborationSave = async (request: Request, env: KnowgrphSto
       documentKind: body.documentKind,
       serializedText: body.serializedText,
       activePeerCount: pocketBaseSnapshot?.activePeerCount ?? body.activePeerCount,
-      yjsStateBase64: pocketBaseSnapshot?.yjsStateBase64 || body.yjsStateBase64,
+      yjsStateBase64: body.yjsStateBase64 || pocketBaseSnapshot?.yjsStateBase64 || '',
     })
     if (canonical.error) return errorResponse(409, 'conflict', canonical.error)
     const result = await commitCollaborationSnapshotToGitHub({

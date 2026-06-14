@@ -3,7 +3,11 @@ import { useShallow } from 'zustand/react/shallow'
 import { Box, Columns2, Cuboid, Glasses } from 'lucide-react'
 import type { Canvas3dModeId } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getVoxelModeInapplicableReason, isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
+import {
+  applyCanvasSurfaceModeSelection,
+  getCanvasSurfaceModeDisabledCopy,
+  type CanvasSurfaceModeId,
+} from '@/lib/canvas/canvas3dMode'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 type Canvas3dModeSelectProps = {
@@ -16,7 +20,7 @@ type Canvas3dModeSelectProps = {
 }
 
 type ThreeModeOption = {
-  id: '2d' | Canvas3dModeId
+  id: CanvasSurfaceModeId
   title: string
   label: string
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>
@@ -49,100 +53,43 @@ export function Canvas3dModeSelect({
         schema: s.schema,
       })),
     )
-  const voxelApplicable = isVoxelModeApplicable({
-    canvas2dRenderer,
-    documentSemanticMode,
-    frontmatterModeEnabled,
-    multiDimTableModeEnabled,
-    geospatialEnabled,
-    schema,
-  })
-  const inapplicableReason = getVoxelModeInapplicableReason({
-    canvas2dRenderer,
-    documentSemanticMode,
-    frontmatterModeEnabled,
-    multiDimTableModeEnabled,
-    geospatialEnabled,
-    schema,
-  })
-  const disabledReason = React.useMemo(() => {
-    if (inapplicableReason === 'geospatial') {
-      return {
-        reason: 'Disabled in Geospatial Mode',
-        hint: 'Switch to Document Mode to enable',
-      }
-    }
-    if (inapplicableReason === 'renderer') {
-      return {
-        reason: 'Requires 2D Renderer: D3 Flowchart',
-        hint: 'Switch 2D Renderer to D3 Flowchart',
-      }
-    }
-    if (inapplicableReason === 'semantic') {
-      return {
-        reason: 'Voxel Mode requires Document/Keyword, Frontmatter, or Multi-dimensional Table mode',
-        hint: 'Enable one semantic mode, then retry',
-      }
-    }
-    if (inapplicableReason === 'layout') {
-      return {
-        reason: 'Voxel Mode is disabled in Radial Layout',
-        hint: 'Set layout mode to Block',
-      }
-    }
-    return null
-  }, [inapplicableReason])
-  const threeDisabledReason = React.useMemo(() => {
-    if (schema?.layout?.mode === 'radial') {
-      return {
-        reason: '3D Mode is disabled in Radial Layout',
-        hint: 'Set layout mode to Block',
-      }
-    }
-    return null
-  }, [schema])
-  const xrDisabledReason = React.useMemo(() => {
-    if (geospatialEnabled) {
-      return {
-        reason: 'Disabled in Geospatial Mode',
-        hint: 'Switch to Document Mode to enable',
-      }
-    }
-    return threeDisabledReason
-  }, [geospatialEnabled, threeDisabledReason])
+  const surfaceModeArgs = React.useMemo(
+    () => ({
+      canvas2dRenderer,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      geospatialEnabled,
+      schema,
+    }),
+    [
+      canvas2dRenderer,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      geospatialEnabled,
+      multiDimTableModeEnabled,
+      schema,
+    ],
+  )
   const options = React.useMemo(
-    () =>
-      [
+    () => {
+      const specs = [
         { id: '2d', title: '2D Mode', label: '2D', Icon: Columns2 },
-        {
-          id: '3d',
-          title: '3D Mode',
-          label: '3D',
-          Icon: Box,
-          disabled: !!threeDisabledReason,
-          disabledReason: threeDisabledReason?.reason,
-          enableHint: threeDisabledReason?.hint,
-        },
-        {
-          id: 'xr',
-          title: 'XR Mode',
-          label: 'XR',
-          Icon: Glasses,
-          disabled: !!xrDisabledReason,
-          disabledReason: xrDisabledReason?.reason,
-          enableHint: xrDisabledReason?.hint,
-        },
-        {
-          id: 'voxel',
-          title: 'Voxel Mode',
-          label: 'Voxel',
-          Icon: Cuboid,
-          disabled: !schema,
-          disabledReason: !schema ? 'Graph schema is not ready yet' : !voxelApplicable ? disabledReason?.reason : undefined,
-          enableHint: !schema ? 'Wait for graph initialization, then retry' : !voxelApplicable ? disabledReason?.hint : undefined,
-        },
-      ] satisfies ThreeModeOption[],
-    [disabledReason?.hint, disabledReason?.reason, schema, threeDisabledReason, voxelApplicable, xrDisabledReason],
+        { id: '3d', title: '3D Mode', label: '3D', Icon: Box },
+        { id: 'xr', title: 'XR Mode', label: 'XR', Icon: Glasses },
+        { id: 'voxel', title: 'Voxel Mode', label: 'Voxel', Icon: Cuboid },
+      ] satisfies Array<Omit<ThreeModeOption, 'disabled' | 'disabledReason' | 'enableHint'>>
+      return specs.map(spec => {
+        const disabledCopy = getCanvasSurfaceModeDisabledCopy(surfaceModeArgs, spec.id)
+        return {
+          ...spec,
+          disabled: !!disabledCopy,
+          disabledReason: disabledCopy?.reason,
+          enableHint: disabledCopy?.hint,
+        } satisfies ThreeModeOption
+      })
+    },
+    [surfaceModeArgs],
   )
   const selectedModeId = (canvasRenderMode === '3d' ? canvas3dMode : '2d') as ThreeModeOption['id']
 
@@ -156,42 +103,15 @@ export function Canvas3dModeSelect({
       isButtonActive={canvasRenderMode === '3d'}
       onSelect={id => {
         if (!ensureBaselineUnlocked()) return
-        if (id === '2d') {
-          setCanvasRenderMode('2d')
-          return
-        }
-        if (id === 'voxel') {
-          if (geospatialEnabled) {
-            onOpenGeospatialMode()
-            return
-          }
-          if (schema && schema.layout?.mode !== 'block') {
-            setSchema({
-              ...schema,
-              layout: {
-                ...(schema.layout || {}),
-                mode: 'block',
-              },
-            })
-          }
-          if (canvas2dRenderer !== 'flowchart') {
-            setCanvas2dRenderer('flowchart')
-          }
-          setCanvas3dMode('voxel')
-          setCanvasRenderMode('3d')
-          return
-        }
-        if (id === 'xr') {
-          if (geospatialEnabled) {
-            onOpenGeospatialMode()
-            return
-          }
-          setCanvas3dMode('xr')
-          setCanvasRenderMode('3d')
-          return
-        }
-        setCanvas3dMode(id)
-        setCanvasRenderMode('3d')
+        applyCanvasSurfaceModeSelection({
+          ...surfaceModeArgs,
+          mode: id,
+          onOpenGeospatialMode,
+          setCanvas2dRenderer,
+          setCanvas3dMode,
+          setCanvasRenderMode,
+          setSchema,
+        })
       }}
       renderButtonContent={activeOption => (
         <section className="flex items-center gap-1">

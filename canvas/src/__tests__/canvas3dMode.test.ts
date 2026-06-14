@@ -1,4 +1,4 @@
-import { getVoxelModeInapplicableReason, isVoxelModeApplicable, normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { applyCanvasSurfaceModeSelection, getCanvasSurfaceModeDisabledCopy, getVoxelModeInapplicableReason, isVoxelModeApplicable, normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
@@ -108,6 +108,56 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   }
 }
 
+export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
+  const toolbarModeSelectText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/Canvas3dModeSelect.tsx'), 'utf8')
+  const canvasViewActionsText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewActions.ts'), 'utf8')
+  const canvasViewMenuText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewMenu.ts'), 'utf8')
+  if (!toolbarModeSelectText.includes('applyCanvasSurfaceModeSelection') || !canvasViewActionsText.includes('applyCanvasSurfaceModeSelection')) {
+    throw new Error('Expected both standalone 3D mode selector and Canvas View Surface Mode actions to reuse the shared surface-mode selection owner')
+  }
+  if (!toolbarModeSelectText.includes('getCanvasSurfaceModeDisabledCopy') || !canvasViewMenuText.includes('getCanvasSurfaceModeDisabledCopy')) {
+    throw new Error('Expected both 3D mode selector and Canvas View Surface Mode menu to reuse shared surface-mode disabled copy')
+  }
+  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || toolbarModeSelectText.includes("setCanvas3dMode('3d')")) {
+    throw new Error('Expected UI surfaces to avoid local direct 3D-mode setter sequences outside the shared owner')
+  }
+
+  const calls: string[] = []
+  const selected = applyCanvasSurfaceModeSelection({
+    mode: '3d',
+    canvas2dRenderer: 'flowEditor',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    geospatialEnabled: false,
+    layoutMode: 'block',
+    schema: BLOCK_SCHEMA,
+    onOpenGeospatialMode: () => {
+      throw new Error('Expected direct 3D selection to avoid opening Geospatial Mode when geospatial is disabled')
+    },
+    setCanvas2dRenderer: () => calls.push('renderer'),
+    setCanvas3dMode: mode => calls.push(`3d:${mode}`),
+    setCanvasRenderMode: mode => calls.push(`render:${mode}`),
+    setSchema: () => calls.push('schema'),
+  })
+  if (!selected || calls.join('|') !== '3d:3d|render:3d') {
+    throw new Error(`Expected shared 3D surface selection to activate 3D exactly once, got selected=${String(selected)} calls=${calls.join('|')}`)
+  }
+
+  const radialDisabled = getCanvasSurfaceModeDisabledCopy({
+    canvas2dRenderer: 'flowEditor',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    geospatialEnabled: false,
+    layoutMode: 'radial',
+    schema: { ...BLOCK_SCHEMA, layout: { mode: 'radial' } } as GraphSchema,
+  }, '3d')
+  if (radialDisabled?.reason !== '3D Mode is disabled in Radial Layout') {
+    throw new Error(`Expected shared 3D disabled copy to cover radial layout, got ${JSON.stringify(radialDisabled)}`)
+  }
+}
+
 export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
   const flowEditorState = {
     canvas2dRenderer: 'flowEditor',
@@ -125,8 +175,6 @@ export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
     schema: BLOCK_SCHEMA,
     frontmatterOnlyAllowed: false,
     isD3Like2dLayoutToggle: false,
-    voxelApplicable: false,
-    voxelDisabledReason: null,
   } satisfies CanvasViewModelState
   const flowEditorOptions = buildCanvasViewOptions(flowEditorState, getCanvasViewRendererOptions())
   const flowEditorLayout = flowEditorOptions.find(option => option.id === 'layout:menu')
@@ -548,8 +596,6 @@ export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelSt
       schema: BLOCK_SCHEMA,
       frontmatterOnlyAllowed: false,
       isD3Like2dLayoutToggle: true,
-      voxelApplicable: true,
-      voxelDisabledReason: null,
     },
     getCanvasViewRendererOptions(),
   )
@@ -588,8 +634,6 @@ export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
       schema: BLOCK_SCHEMA,
       frontmatterOnlyAllowed: false,
       isD3Like2dLayoutToggle: true,
-      voxelApplicable: true,
-      voxelDisabledReason: null,
     },
     getCanvasViewRendererOptions(),
   )
@@ -621,8 +665,6 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
       schema: BLOCK_SCHEMA,
       frontmatterOnlyAllowed: false,
       isD3Like2dLayoutToggle: true,
-      voxelApplicable: true,
-      voxelDisabledReason: null,
     },
     getCanvasViewRendererOptions(),
   )

@@ -9,6 +9,13 @@ import {
   mergeStrybldrElementsIntoGraphData,
   serializeStrybldrStoryboardMarkdown,
 } from '@/features/strybldr/strybldrStoryboard'
+import { STRYBLDR_CAMERA_PROPERTY_KEY, readStrybldrCameraSettings, resolveStrybldrCameraOrbit, serializeStrybldrCameraSettings } from '@/features/strybldr/strybldrCamera'
+import {
+  resolveCameraOrbitFrameRay,
+  resolveCameraOrbitSphereGridMeridianGeometry,
+  resolveCameraOrbitSpherePointFromGridPoint,
+  type CameraOrbitSphereConfig,
+} from '@/lib/camera/orbitSphere'
 import {
   createStrytreeCandidateRunAction,
   createStrytreeContinuationDraftAction,
@@ -478,6 +485,7 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   const timelineBottomPanelText = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
   const timelinePanelText = readSource('features', 'strybldr', 'StrybldrTimelinePanel.tsx')
   const storyboardTimelineText = readSource('components', 'StoryboardCanvas', 'storyboardTimeline.ts')
+  const uiSliceInitialStateText = readSource('hooks', 'store', 'uiSliceInitialState.ts')
   const retiredRendererId = ['story', 'bldr'].join('')
   assert(resolveCanvas2dRendererId('strybldr') === undefined, 'expected Strybldr to be retired as a renderer id')
   assert(resolveCanvas2dRendererId(retiredRendererId) === undefined, 'expected no retired renderer remap')
@@ -548,9 +556,83 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(storyboardCanvasText.includes('createStrytreeCandidateRunAction'), 'expected ForkCompare fan-out action to stay in the Storyboard surface')
   assert(storyboardCanvasText.includes('publishStrytreeCandidateAction'), 'expected ForkCompare publish action to stay in the Storyboard surface')
   const strybldrPanelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
+  const strybldrCameraFloatingPanelText = readSource('features', 'strybldr', 'StrybldrCameraFloatingPanelView.tsx')
+  const strybldrCameraPanelText = readSource('features', 'strybldr', 'StrybldrCameraPanel.tsx')
+  const strybldrCameraModelText = readSource('features', 'strybldr', 'strybldrCamera.ts')
+  const cameraOrbitSphereText = readSource('lib', 'camera', 'orbitSphere.ts')
+  const toolbarMenuLauncherText = readSource('features', 'toolbar', 'ToolbarMenuLauncher.tsx')
+  const canvasUtilsText = readSource('features', 'canvas', 'utils.ts')
   assert(strybldrPanelText.includes('Strybldr storytree workflow') && strybldrPanelText.includes("STRYBLDR_STORYTREE_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-2 gap-1 sm:grid-cols-4'") && !strybldrPanelText.includes('grid grid-cols-4 gap-1'), 'expected Strytree workflow actions to be reachable from the active Strybldr panel with a mobile-first action grid owner')
   assert(strybldrPanelText.includes('Strybldr storytree filter'), 'expected Strytree filters to be reachable from the active Strybldr panel')
   assert(strybldrPanelText.includes('Strybldr ForkCompare candidates'), 'expected ForkCompare candidate run to be reachable from the active Strybldr panel')
+  assert(!strybldrPanelText.includes('StrybldrCameraPanel') && !strybldrPanelText.includes('STRYBLDR_CAMERA_PROPERTY_KEY'), 'expected Strybldr FloatingPanel to omit duplicate Camera controls owned by the top-level Camera panel')
+  assert(floatingPanelText.indexOf("{ view: 'view'") < floatingPanelText.indexOf("{ view: 'camera'"), 'expected FloatingPanel Camera to sit immediately to the right of View in the primary view registry')
+  assert(floatingPanelText.includes("floatingPanelView === 'camera'") && floatingPanelText.includes('StrybldrCameraFloatingPanelViewLazy'), 'expected FloatingPanel Camera to render as a top-level panel view')
+  assert(toolbarMenuLauncherText.includes("tab === 'camera'") && canvasUtilsText.includes("'view' | 'camera' | 'chat'"), 'expected shared FloatingPanel open bridge to support the top-level Camera view')
+  assert(uiSliceInitialStateText.includes("view === 'camera'"), 'expected store-level FloatingPanel view guard to allow the top-level Camera view')
+  assert(strybldrCameraFloatingPanelText.includes('aria-label="Camera panel"') && strybldrCameraFloatingPanelText.includes('StrybldrCameraPanel') && strybldrCameraFloatingPanelText.includes('STRYBLDR_CAMERA_PROPERTY_KEY'), 'expected top-level Camera panel to reuse the Strybldr camera owner and persist graph metadata')
+  assert(strybldrCameraModelText.includes('Left Side') && strybldrCameraModelText.includes('Right Side') && strybldrCameraModelText.includes('Eye Level') && strybldrCameraModelText.includes('Wide') && strybldrCameraModelText.includes('Medium') && strybldrCameraModelText.includes('Close-up'), 'expected Camera model to own side, eye-level, and shot-size labels')
+  assert(strybldrCameraModelText.includes('resolveStrybldrCameraOrbit') && strybldrCameraModelText.includes('orbitX') && strybldrCameraModelText.includes('orbitY'), 'expected Camera model to own reusable orbit-to-label mapping')
+  assert(strybldrCameraPanelText.includes('Strybldr camera orbit sphere') && strybldrCameraPanelText.includes('onPointerDown') && strybldrCameraPanelText.includes('setPointerCapture') && strybldrCameraPanelText.includes('onPointerMove'), 'expected Camera preview to support dragging the camera around the sphere')
+  assert(strybldrCameraPanelText.includes('role="tablist"') && strybldrCameraPanelText.includes('role="tab"') && strybldrCameraPanelText.includes('aria-selected={selected}') && strybldrCameraPanelText.includes('data-kg-strybldr-camera-shot-tabs'), 'expected Camera Wide/Medium/Close-up control to use Boords-like tab semantics')
+  assert(strybldrCameraPanelText.includes('data-kg-strybldr-camera-selected-overlay="1"') && strybldrCameraPanelText.includes('clipPath: `inset(0 ${rightClipPercent}% 0 ${leftClipPercent}% round 6px)`') && strybldrCameraPanelText.includes("transition: 'clip-path 150ms ease-out'"), 'expected Camera shot-size selected state to use a clipped overlay highlight')
+  assert(strybldrCameraPanelText.includes('STRYBLDR_CAMERA_SHOT_FRAMES') && strybldrCameraPanelText.includes('x: 99.25') && strybldrCameraPanelText.includes('y: 97.078125') && strybldrCameraPanelText.includes('width: 81.5') && strybldrCameraPanelText.includes('height: 45.84375'), 'expected Camera Medium shot to own the Boords-like SVG image frame geometry')
+  assert(strybldrCameraPanelText.includes('data-kg-strybldr-camera-shot-frame={shot}') && strybldrCameraPanelText.includes('shot={draft.shot}') && !strybldrCameraPanelText.includes('const STRYBLDR_CAMERA_FRAME ='), 'expected Camera shot-size selection to drive the sphere image frame without a stale fixed frame constant')
+  assert(!strybldrCameraPanelText.includes('text-type-subdued') && !strybldrCameraPanelText.includes('bg-surface-add_frame') && !strybldrCameraPanelText.includes('bg-surface-light'), 'expected Camera shot-size parity to stay repo-native without copying Boords class names')
+  assert(strybldrCameraPanelText.includes('STRYBLDR_CAMERA_HANDLE_BODY_RECT') && strybldrCameraPanelText.includes('isPointOnStrybldrCameraHandle') && strybldrCameraPanelText.indexOf('if (!isPointOnStrybldrCameraHandle(point, draft)) return') < strybldrCameraPanelText.indexOf('event.currentTarget.setPointerCapture(event.pointerId)'), 'expected Camera dragging to start from the black camera handle rather than whole-sphere click repositioning')
+  assert(strybldrCameraPanelText.includes('dragOffsetRef') && strybldrCameraPanelText.includes('point.x - pose.cameraX') && strybldrCameraPanelText.includes('resolveCameraOrbitSphereGridPointFromRenderedPoint') && !strybldrCameraPanelText.includes('Math.min(rect.width, rect.height) * 0.42'), 'expected Camera drag math to preserve the handle offset and resolve from rendered degree-grid points instead of stale DOM-radius pointer mapping')
+  assert(strybldrCameraPanelText.indexOf('if (draggingCamera) setDraftFromPreviewPoint(event.clientX, event.clientY)') < strybldrCameraPanelText.indexOf('dragOffsetRef.current = { x: 0, y: 0 }'), 'expected Camera pointer-up to commit the final rendered degree-grid target before clearing drag state')
+  assert(cameraOrbitSphereText.includes('Math.atan2(ray.rayLookTargetY - cameraPoint.cameraY, ray.rayLookTargetX - cameraPoint.cameraX) * 180 / Math.PI'), 'expected Camera glyph rotation to point from the degree-grid camera handle toward the storyboard frame center')
+  assert(strybldrCameraPanelText.includes('data-kg-strybldr-camera-handle-body="1"') && strybldrCameraPanelText.includes('x: -7') && strybldrCameraPanelText.includes('width: 11') && strybldrCameraPanelText.includes('radius: 1.5'), 'expected Camera body handle to preserve the Boords-like black rect geometry')
+  assert(strybldrCameraPanelText.includes('StrybldrCameraSphereGraphic') && strybldrCameraPanelText.includes('viewBox="0 0 280 240"') && strybldrCameraPanelText.includes('<linearGradient') && strybldrCameraPanelText.includes('<polygon') && strybldrCameraPanelText.includes('active:cursor-grabbing'), 'expected Camera preview to render a Boords-like 3D sphere grid with camera ray fidelity, not a flat 2D circle')
+  assert(!strybldrCameraPanelText.includes('<clipPath') && strybldrCameraPanelText.indexOf('<image') < strybldrCameraPanelText.indexOf('<polygon'), 'expected Camera SVG child ordering to mirror the live Boords reference without stale clip-path layering')
+  assert(strybldrCameraPanelText.includes("from '@/lib/camera/orbitSphere'") && cameraOrbitSphereText.includes('resolveCameraOrbitFrameAwarePoint') && cameraOrbitSphereText.includes('isPointWithinCameraOrbitRect({ x: cameraPoint.cameraX, y: cameraPoint.cameraY }, frame)') && strybldrCameraPanelText.includes('clearance: STRYBLDR_CAMERA_HANDLE_BODY_RECT.height * 0.36') && cameraOrbitSphereText.includes('rotation: Math.atan2(ray.rayLookTargetY - cameraPoint.cameraY, ray.rayLookTargetX - cameraPoint.cameraX) * 180 / Math.PI') && !strybldrCameraPanelText.includes('STRYBLDR_CAMERA_FRONT_EYE_LEVEL_CAMERA_POINT') && !strybldrCameraPanelText.includes('STRYBLDR_CAMERA_FRONT_EYE_LEVEL_CAMERA_POSE'), 'expected Camera handle point to be frame-aware from shared degree-grid geometry without a front eye-level hardcode')
+  assert(cameraOrbitSphereText.includes('resolveCameraOrbitFrameRay') && cameraOrbitSphereText.includes('resolveCameraOrbitFrameRayTarget(cameraPoint, frame, options.projection)') && cameraOrbitSphereText.includes('resolveCameraOrbitFrameRayDirection') && cameraOrbitSphereText.includes('orbitVectorZ * depthPitchRatio') && cameraOrbitSphereText.includes('resolveCameraOrbitFrameRayFootprint') && cameraOrbitSphereText.includes('rayEdgeStartX') && cameraOrbitSphereText.includes('rayEdgeEndY') && !cameraOrbitSphereText.includes('resolveCameraOrbitFrameEdgePoints'), 'expected Camera ray to target the storyboard frame from shared 3D orbit-vector geometry with a clamped polygon footprint')
+  assert(cameraOrbitSphereText.includes('resolveCameraOrbitSmoothPath') && cameraOrbitSphereText.includes('pathD: resolveCameraOrbitSmoothPath(meridianPoints)') && cameraOrbitSphereText.includes('const vector = resolveCameraOrbitSphereVectorFromGridPoint(gridPoint)') && cameraOrbitSphereText.includes('cameraX: config.centerX + latitudeGeometry.rx * Math.sin(longitudeRadians)') && cameraOrbitSphereText.includes('cameraY: latitudeGeometry.cy + latitudeGeometry.ry * Math.cos(longitudeRadians)') && !cameraOrbitSphereText.includes('Math.sqrt(Math.max(0, 1 - yProgress ** 2))'), 'expected Camera meridians, handle positions, and ray vectors to share the tuned degree-grid latitude ellipse intersections')
+  assert(strybldrCameraPanelText.includes('STRYBLDR_CAMERA_SPHERE_LATITUDE_ROWS') && strybldrCameraPanelText.includes('STRYBLDR_CAMERA_SPHERE_LATITUDE_DEGREES = [-90, -45, 0, 45, 90]') && strybldrCameraPanelText.includes('resolveCameraOrbitSphereGridHighlight(STRYBLDR_CAMERA_ORBIT_SPHERE_CONFIG, orbitX, orbitY)') && strybldrCameraPanelText.includes('data-kg-strybldr-camera-grid-latitude={row.degree}') && strybldrCameraPanelText.includes("data-kg-strybldr-camera-grid-active={active ? '1' : undefined}"), 'expected Camera sphere grid to preserve the tuned five-band latitude geometry with degree-based highlight behavior')
+  assert(strybldrCameraPanelText.includes('STRYBLDR_CAMERA_SPHERE_ACTIVE_STROKE_OPACITY') && strybldrCameraPanelText.includes('activeLatitudeGeometry') && strybldrCameraPanelText.includes('data-kg-strybldr-camera-grid-active-latitude={activeLatitudeGeometry.degree}') && !strybldrCameraPanelText.includes('cx="140" cy="120" rx="82" ry="16.400000000000002" opacity="0.58"'), 'expected Camera sphere highlight overlay to follow the active latitude degree instead of hardcoding the center row')
+  assert(strybldrCameraPanelText.includes('STRYBLDR_CAMERA_SPHERE_LONGITUDE_DEGREES = [0, 45, 90, 135, 180, 225, 270, 315]') && strybldrCameraPanelText.includes('STRYBLDR_CAMERA_ORBIT_LONGITUDE_SPAN_DEGREES = 180') && cameraOrbitSphereText.includes('resolveCameraOrbitSphereGridPoints') && strybldrCameraPanelText.includes('resolveCameraOrbitSphereGridMeridianGeometry(STRYBLDR_CAMERA_ORBIT_SPHERE_CONFIG, longitude)') && cameraOrbitSphereText.includes('resolveCameraOrbitSpherePointFromGridPoint(config, gridPoint)') && strybldrCameraPanelText.includes('resolveCameraOrbitSphereOrbitFromGridPoint(STRYBLDR_CAMERA_ORBIT_SPHERE_CONFIG, gridPoint)') && cameraOrbitSphereText.includes('normalizeCameraOrbitDegrees(orbitX * config.longitudeSpanDegrees)') && cameraOrbitSphereText.includes('signedLongitude / config.longitudeSpanDegrees') && cameraOrbitSphereText.includes('sweepFlag: normalizedLongitude > 180 ? 0 : 1') && strybldrCameraPanelText.includes('data-kg-strybldr-camera-grid-longitude={longitude}') && strybldrCameraPanelText.includes('data-kg-strybldr-camera-grid-active-meridian={activeMeridianGeometry.longitude}') && strybldrCameraPanelText.includes('STRYBLDR_CAMERA_SPHERE_ACTIVE_MERIDIAN_OPACITY') && !strybldrCameraPanelText.includes('normalizeStrybldrCameraDegrees(orbitX * 90)') && !strybldrCameraPanelText.includes('<line x1="140" y1="38" x2="140" y2="202" opacity="0.68"'), 'expected Camera active meridian highlight and draggable handle to round-trip the full degree-grid longitude span from shared geometry')
+  assert(strybldrCameraPanelText.includes('aria-label="Strybldr camera preview"') && !strybldrCameraPanelText.includes("cn('rounded-md border p-2'") && !strybldrCameraPanelText.includes('<span className={UI_THEME_TOKENS.text.tertiary}>Camera</span>'), 'expected Camera preview wrapper to avoid a duplicate inner frame and duplicate Camera angle heading around the orbit sphere')
+  assert(strybldrCameraPanelText.includes('<image') && strybldrCameraPanelText.includes('xlinkHref={previewImageUrl}') && strybldrCameraPanelText.includes('preserveAspectRatio="xMidYMid slice"'), 'expected Camera sphere frame to render the selected storyboard card preview image via SVG image semantics')
+  assert(strybldrCameraFloatingPanelText.includes('resolveStrybldrCameraPreviewImageUrl') && strybldrCameraFloatingPanelText.includes('media?.thumbnailUrl') && strybldrCameraFloatingPanelText.includes("reference.kind === 'image'"), 'expected top-level Camera owner to source preview images from storyboard media and image references')
+  assert(strybldrCameraPanelText.includes('Add a note (optional)') && strybldrCameraPanelText.includes('Reframe') && strybldrCameraPanelText.includes('data-kg-strybldr-camera-panel="1"'), 'expected Camera panel to expose note and Reframe controls with a validation marker')
+  assert(strybldrCameraModelText.includes("STRYBLDR_CAMERA_PROPERTY_KEY = 'strybldrCamera'") && strybldrStoryboardText.includes('buildStrybldrCameraHandoffLine'), 'expected Camera metadata to stay graph-owned and feed the Strybldr video handoff compiler')
+  const draggedCameraOrbit = resolveStrybldrCameraOrbit(-0.66, -0.44)
+  assert(draggedCameraOrbit.angle === 'left-side' && draggedCameraOrbit.level === 'high-angle' && draggedCameraOrbit.orbitX === -0.66 && draggedCameraOrbit.orbitY === -0.44, 'expected Camera orbit drag to resolve left-side high-angle framing')
+  const rightCameraSettings = readStrybldrCameraSettings({ angle: 'right-side', level: 'low-angle', shot: 'medium' })
+  assert(rightCameraSettings.orbitX === 0.25 && rightCameraSettings.orbitY === 0.5, 'expected saved right-side low-angle settings to hydrate onto the 45-degree longitude grid')
+  const testCameraOrbitConfig: CameraOrbitSphereConfig<0 | 45 | 90 | 135 | 180 | 225 | 270 | 315, -90 | -45 | 0 | 45 | 90> = {
+    centerX: 140,
+    centerY: 120,
+    radius: 82,
+    longitudeSpanDegrees: 180,
+    longitudeDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
+    latitudeDegrees: [-90, -45, 0, 45, 90],
+    latitudeRows: [
+      { degree: -90, key: 'bottom-pole', cy: 187.53994388482693, rx: 43.4533796671228, ry: 8.690675933424561 },
+      { degree: -45, key: 'bottom', cy: 161, rx: 71.01408311032398, ry: 14.202816622064796 },
+      { degree: 0, key: 'equator', cy: 120, rx: 82, ry: 16.400000000000002 },
+      { degree: 45, key: 'upper', cy: 80.25, rx: 71.01408311032398, ry: 14.202816622064796 },
+      { degree: 90, key: 'top', cy: 52.460056115173074, rx: 43.4533796671228, ry: 8.690675933424561 },
+    ],
+  }
+  const frontEyeLevelPoint = resolveCameraOrbitSpherePointFromGridPoint(testCameraOrbitConfig, { longitude: 0, latitude: 0 })
+  assert(Math.abs(frontEyeLevelPoint.cameraX - 140) < 0.001 && Math.abs(frontEyeLevelPoint.cameraY - 136.4) < 0.001, 'expected front eye-level camera point to intersect the equator latitude ellipse at longitude zero')
+  assert(Math.abs(frontEyeLevelPoint.orbitVectorX) < 0.001 && Math.abs(frontEyeLevelPoint.orbitVectorY) < 0.001 && Math.abs(frontEyeLevelPoint.orbitVectorZ - 1) < 0.001, 'expected front eye-level ray vector to keep the camera on the 3D meridian origin')
+  const rightLowAnglePoint = resolveCameraOrbitSpherePointFromGridPoint(testCameraOrbitConfig, { longitude: 45, latitude: -45 })
+  assert(Math.abs(rightLowAnglePoint.cameraX - 190.214) < 0.001 && Math.abs(rightLowAnglePoint.cameraY - 171.043) < 0.001, 'expected diagonal camera point to intersect both longitude 45 and latitude -45 without row-center offset')
+  assert(Math.abs(rightLowAnglePoint.orbitVectorX - 0.5) < 0.001 && Math.abs(rightLowAnglePoint.orbitVectorY + 0.707) < 0.001 && Math.abs(rightLowAnglePoint.orbitVectorZ - 0.5) < 0.001, 'expected diagonal ray vector to preserve longitude, latitude, and depth instead of reusing the flat SVG offset')
+  const rightMeridian = resolveCameraOrbitSphereGridMeridianGeometry(testCameraOrbitConfig, 45)
+  assert(rightMeridian.kind === 'curve' && rightMeridian.pathD.includes(`${rightLowAnglePoint.cameraX.toFixed(3)} ${rightLowAnglePoint.cameraY.toFixed(3)}`), 'expected active meridian curve to pass through the rendered diagonal latitude intersection')
+  const mediumFrame = { x: 99.25, y: 97.078125, width: 81.5, height: 45.84375 }
+  const frontEyeLevelRay = resolveCameraOrbitFrameRay(frontEyeLevelPoint, mediumFrame)
+  const frontRayWidth = frontEyeLevelRay.rayEdgeEndX - frontEyeLevelRay.rayEdgeStartX
+  assert(Math.abs(frontEyeLevelRay.rayTargetX - 140) < 0.001 && Math.abs(frontEyeLevelRay.rayTargetY - (mediumFrame.y + mediumFrame.height)) < 0.001 && frontRayWidth > mediumFrame.width * 0.4 && frontRayWidth < mediumFrame.width * 0.5, 'expected meridian-zero ray polygon to stay centered and clamped instead of spanning the full frame edge')
+  const rightLowRay = resolveCameraOrbitFrameRay(rightLowAnglePoint, mediumFrame)
+  assert(rightLowRay.rayTargetX > 152 && rightLowRay.rayTargetX < 153 && Math.abs(rightLowRay.rayTargetY - (mediumFrame.y + mediumFrame.height)) < 0.001, 'expected lower-right diagonal ray to intersect the bottom frame edge from the shared 3D longitude-latitude vector')
+  const leftHighAnglePoint = resolveCameraOrbitSpherePointFromGridPoint(testCameraOrbitConfig, { longitude: 315, latitude: 45 })
+  const leftHighRay = resolveCameraOrbitFrameRay(leftHighAnglePoint, mediumFrame)
+  assert(leftHighRay.rayTargetX > 116 && leftHighRay.rayTargetX < 117 && Math.abs(leftHighRay.rayTargetY - mediumFrame.y) < 0.001 && Math.abs(leftHighRay.rayEdgeStartY - mediumFrame.y) < 0.001 && Math.abs(leftHighRay.rayEdgeEndY - mediumFrame.y) < 0.001, 'expected upper-left diagonal ray polygon to intersect the top frame edge from the shared 3D longitude-latitude vector')
 }
 
 export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
@@ -626,7 +708,26 @@ export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArt
     ],
   })
   const parsed = await loadGraphDataFromTextViaParser('reference.strybldr.md', serializeStrybldrStoryboardMarkdown(doc), { applyToStore: false })
-  const handoff = buildStrybldrVideoHandoffFromGraphData(parsed?.graphData)
+  const graphWithCamera = parsed?.graphData
+    ? {
+      ...parsed.graphData,
+      nodes: (parsed.graphData.nodes || []).map(node => node.id === 'approved-card'
+        ? {
+          ...node,
+          properties: {
+            ...(node.properties || {}),
+            [STRYBLDR_CAMERA_PROPERTY_KEY]: serializeStrybldrCameraSettings({
+              angle: 'front',
+              level: 'eye-level',
+              shot: 'close-up',
+              note: 'Keep lens stable.',
+            }),
+          },
+        }
+        : node),
+    }
+    : null
+  const handoff = buildStrybldrVideoHandoffFromGraphData(graphWithCamera)
   const markdown = buildStrybldrVideoHandoffMarkdown({
     handoff,
     status: 'fallback',
@@ -637,6 +738,8 @@ export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArt
   })
   const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
   assert(handoff.prompt.includes('Approved edited product card.'), 'expected handoff prompt to read updated graph card text')
+  assert(handoff.prompt.includes('Camera: Front · Eye Level · Close-up · Keep lens stable.'), 'expected handoff prompt to include saved Strybldr camera metadata')
+  assert(handoff.cards.some(card => card.camera === 'Camera: Front · Eye Level · Close-up · Keep lens stable.'), 'expected handoff card to preserve camera settings as data')
   assert(handoff.cards.some(card => card.sourceUnitId === 'corpus-source-video'), 'expected handoff cards to preserve source-unit provenance')
   assert(markdown.includes('kgStrybldrVideoHandoff: true'), 'expected fallback artifact frontmatter')
   assert(markdown.includes('paidCallCount: 0'), 'expected handoff cost evidence')
@@ -715,6 +818,7 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
           summary: 'Approved generated summary.',
           action: 'Render the edited beat.',
           prompt: 'Use the approved card fields.',
+          camera: '',
           references: [],
           order: 1,
           sourceUnitId: 'generated-source',
@@ -761,6 +865,7 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
           summary: 'Approved source video.',
           action: 'Fork the source motion.',
           prompt: 'Use the imported source video as the playable fork.',
+          camera: '',
           references: [sourceUrl],
           order: 1,
           sourceUnitId: 'copied-source',
@@ -800,6 +905,7 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
           summary: 'Approved source video.',
           action: 'Fork the source motion.',
           prompt: 'Use the imported source video as the playable fork.',
+          camera: '',
           references: [youtubeSourceUrl],
           order: 1,
           sourceUnitId: 'copied-youtube-source',

@@ -254,6 +254,7 @@ export const createPocketBaseYjsSourceFileRoom = async (
   let activePeerCount = 1
   let disconnected = false
   let localCaretLine: number | null = null
+  let snapshotPersistQueued = false
 
   const emitPresence = () => {
     const peers = Array.from(peersById.values()).sort((left, right) => left.displayName.localeCompare(right.displayName))
@@ -298,8 +299,32 @@ export const createPocketBaseYjsSourceFileRoom = async (
     if (!disconnected) void upsertLocalAwareness().catch(() => void 0)
   }, AWARENESS_HEARTBEAT_MS)
 
+  const persistRoomSnapshot = async () => {
+    if (disconnected) return
+    await roomService.update(roomId, {
+      yjsStateBase64: encodeCollaborationYDocStateBase64(doc),
+      updatedAtMs: nowMs(),
+    })
+  }
+
+  const queueRoomSnapshotPersist = () => {
+    if (snapshotPersistQueued || disconnected) return
+    snapshotPersistQueued = true
+    const flush = () => {
+      snapshotPersistQueued = false
+      void persistRoomSnapshot().catch(() => void 0)
+    }
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(flush)
+      return
+    }
+    globalThis.setTimeout(flush, 0)
+  }
+
   const docUpdateHandler = (update: Uint8Array, origin: unknown) => {
-    if (disconnected || origin === REMOTE_ORIGIN || origin === SNAPSHOT_ORIGIN) return
+    if (disconnected || origin === SNAPSHOT_ORIGIN) return
+    queueRoomSnapshotPersist()
+    if (origin === REMOTE_ORIGIN) return
     const updateBase64 = encodeYjsUpdateBase64(update)
     void updateService.create({
       roomId,

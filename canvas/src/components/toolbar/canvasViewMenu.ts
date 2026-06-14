@@ -22,6 +22,7 @@ import {
   readCanvasGridDisplayControlActive,
   readSnapGridDisplayControlActive,
 } from '@/lib/canvas/canvasGridDisplayControls'
+import { getCanvasSurfaceModeDisabledCopy, type CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
   if (
@@ -92,6 +93,20 @@ export const buildCanvasViewOptions = (
   const eventModelingBottomPanelVisible = bottomSurfaceOpen && state.bottomSurfaceTab === 'eventModeling'
   const minimapSupported = state.canvasRenderMode === '2d' && supportsCanvas2dMinimap(state.canvas2dRenderer)
   const minimapVisible = minimapSupported && state.minimapCollapsed !== true
+  const surfaceModeArgs = {
+    canvas2dRenderer: state.canvas2dRenderer,
+    documentSemanticMode: state.documentSemanticMode,
+    frontmatterModeEnabled: state.frontmatterModeEnabled,
+    multiDimTableModeEnabled: state.multiDimTableModeEnabled,
+    geospatialEnabled: state.geospatialEnabled,
+    layoutMode: state.layoutMode,
+    schema: state.schema,
+  }
+  const getSurfaceModeDisabledCopy = (mode: CanvasSurfaceModeId) => getCanvasSurfaceModeDisabledCopy(surfaceModeArgs, mode)
+  const surfaceMode2dDisabledCopy = getSurfaceModeDisabledCopy('2d')
+  const surfaceMode3dDisabledCopy = getSurfaceModeDisabledCopy('3d')
+  const surfaceModeXrDisabledCopy = getSurfaceModeDisabledCopy('xr')
+  const surfaceModeVoxelDisabledCopy = getSurfaceModeDisabledCopy('voxel')
   const nodeShapeMode = state.schema.behavior?.nodeShapeMode
   const nodeShapeIcon =
     nodeShapeMode === 'rect'
@@ -252,55 +267,36 @@ export const buildCanvasViewOptions = (
           title: '2D Mode',
           label: '2D',
           Icon: Columns2,
-          disabled: state.geospatialEnabled,
-          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+          disabled: !!surfaceMode2dDisabledCopy,
+          disabledReason: surfaceMode2dDisabledCopy?.reason,
+          enableHint: surfaceMode2dDisabledCopy?.hint,
         },
         {
           id: 'surface:3d',
           title: '3D Mode',
           label: '3D',
           Icon: Box,
-          disabled: state.geospatialEnabled || state.layoutMode === 'radial',
-          disabledReason: state.geospatialEnabled
-            ? 'Disabled in Geospatial Mode'
-            : state.layoutMode === 'radial'
-              ? '3D Mode is disabled in Radial Layout'
-              : undefined,
-          enableHint: state.layoutMode === 'radial' ? 'Switch layout mode to Block' : undefined,
+          disabled: !!surfaceMode3dDisabledCopy,
+          disabledReason: surfaceMode3dDisabledCopy?.reason,
+          enableHint: surfaceMode3dDisabledCopy?.hint,
         },
         {
           id: 'surface:xr',
           title: 'XR Mode',
           label: 'XR',
           Icon: Glasses,
-          disabled: state.geospatialEnabled || state.layoutMode === 'radial',
-          disabledReason: state.geospatialEnabled
-            ? 'Disabled in Geospatial Mode'
-            : state.layoutMode === 'radial'
-              ? 'XR Mode is disabled in Radial Layout'
-              : undefined,
-          enableHint: state.layoutMode === 'radial' ? 'Switch layout mode to Block' : undefined,
+          disabled: !!surfaceModeXrDisabledCopy,
+          disabledReason: surfaceModeXrDisabledCopy?.reason,
+          enableHint: surfaceModeXrDisabledCopy?.hint,
         },
         {
           id: 'surface:voxel',
           title: 'Voxel Mode',
           label: 'Voxel',
           Icon: Cuboid,
-          disabled: state.geospatialEnabled || !state.schema || !state.voxelApplicable,
-          disabledReason: state.geospatialEnabled
-            ? 'Disabled in Geospatial Mode'
-            : !state.schema
-              ? 'Graph schema is not ready yet'
-              : !state.voxelApplicable
-                ? state.voxelDisabledReason?.reason
-                : undefined,
-          enableHint: state.geospatialEnabled
-            ? 'Switch to Document Mode to enable'
-            : !state.schema
-              ? 'Wait for graph initialization, then retry'
-              : !state.voxelApplicable
-                ? state.voxelDisabledReason?.hint
-                : undefined,
+          disabled: !!surfaceModeVoxelDisabledCopy,
+          disabledReason: surfaceModeVoxelDisabledCopy?.reason,
+          enableHint: surfaceModeVoxelDisabledCopy?.hint,
         },
         {
           id: 'view:geospatial',

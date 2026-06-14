@@ -17,6 +17,57 @@ import {
 import {
   shouldSavePocketBaseYjsSnapshotForWorkspacePath,
 } from '@/features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime'
+import {
+  createPocketBaseYjsSourceFileRoom,
+  type PocketBaseLike,
+} from '@/features/source-files/sourceFilesPocketBaseYjsRoom'
+
+type FakePocketBaseRecord = Record<string, unknown> & { id: string }
+
+const waitForMicrotasks = async () => {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+const createFakePocketBaseClient = () => {
+  const collections = new Map<string, FakePocketBaseRecord[]>()
+  const readCollection = (name: string): FakePocketBaseRecord[] => {
+    const existing = collections.get(name)
+    if (existing) return existing
+    const records: FakePocketBaseRecord[] = []
+    collections.set(name, records)
+    return records
+  }
+  let nextId = 1
+  const client: PocketBaseLike = {
+    collection: name => ({
+      getList: async () => ({ items: readCollection(name) }),
+      create: async body => {
+        const record = { id: `${name}_${nextId++}`, ...body }
+        readCollection(name).push(record)
+        return record
+      },
+      update: async (id, body) => {
+        const records = readCollection(name)
+        const index = records.findIndex(record => record.id === id)
+        if (index < 0) throw new Error(`missing fake PocketBase record ${id}`)
+        records[index] = { ...records[index], ...body }
+        return records[index]!
+      },
+      delete: async id => {
+        const records = readCollection(name)
+        const index = records.findIndex(record => record.id === id)
+        if (index >= 0) records.splice(index, 1)
+        return true
+      },
+      subscribe: async () => async () => void 0,
+    }),
+  }
+  return {
+    client,
+    records: (name: string) => readCollection(name),
+  }
+}
 
 const readStorageWorker = (): { fetch: (request: Request, env: Record<string, unknown>) => Promise<Response> } => {
   const candidate = storageWorker as unknown as {
@@ -122,6 +173,38 @@ export function testPocketBaseYjsSaveSnapshotRequiresPathDocumentKeyMatch() {
     savePath: null,
   })) {
     throw new Error('expected active document key fallback to allow matching saves')
+  }
+}
+
+export async function testPocketBaseYjsRoomPersistsLatestRoomSnapshotAfterLocalUpdate() {
+  const fake = createFakePocketBaseClient()
+  const room = await createPocketBaseYjsSourceFileRoom({
+    workspaceId: 'kgws:test',
+    documentKey: 'docs/shared.md',
+    documentKind: 'markdown',
+    initialText: 'Before',
+    peerId: 'peer:a',
+    displayName: 'A',
+    client: fake.client,
+  })
+  try {
+    if (!room.applyLocalText('After')) throw new Error('expected local Yjs text update to apply')
+    await waitForMicrotasks()
+    const roomRecord = fake.records('collab_rooms')[0]
+    const yjsStateBase64 = String(roomRecord?.yjsStateBase64 || '')
+    if (!yjsStateBase64) throw new Error('expected room snapshot to persist yjsStateBase64 after local update')
+    const snapshotDoc = createCollaborationYDoc({
+      documentKey: 'docs/shared.md',
+      documentKind: 'markdown',
+      initialText: '',
+    })
+    applyYjsUpdateBase64({ doc: snapshotDoc, updateBase64: yjsStateBase64 })
+    const snapshotText = serializeCollaborationYDoc({ doc: snapshotDoc, documentKind: 'markdown' })
+    if (snapshotText !== 'After') {
+      throw new Error(`expected persisted room snapshot to contain latest text, got ${JSON.stringify(snapshotText)}`)
+    }
+  } finally {
+    await room.disconnect()
   }
 }
 
@@ -261,6 +344,72 @@ export async function testCollaborationSaveBridgeIgnoresStalePocketBaseAwareness
     }
     if (!requests.some(request => request.method === 'PUT')) {
       throw new Error('expected bridge to commit after filtering stale PocketBase awareness peers')
+    }
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+}
+
+export async function testCollaborationSaveBridgePrefersRequestYjsStateOverStalePocketBaseState() {
+  const requests: Array<{ url: string; method: string; body: Record<string, unknown> | null }> = []
+  const previousFetch = globalThis.fetch
+  const staleDoc = createCollaborationYDoc({
+    documentKey: '/docs/shared.json',
+    documentKind: 'json',
+    initialText: '{"z":1}',
+  })
+  const freshDoc = createCollaborationYDoc({
+    documentKey: '/docs/shared.json',
+    documentKind: 'json',
+    initialText: '{"z":2}',
+  })
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    const method = String(init?.method || 'GET')
+    const body = typeof init?.body === 'string' ? JSON.parse(init.body) as Record<string, unknown> : null
+    requests.push({ url, method, body })
+    if (url.includes('pocketbase.test/api/collections/collab_rooms/records/room_a')) {
+      return new Response(JSON.stringify({ id: 'room_a', yjsStateBase64: encodeCollaborationYDocStateBase64(staleDoc) }), { status: 200 })
+    }
+    if (url.includes('pocketbase.test/api/collections/collab_awareness/records')) {
+      return new Response(JSON.stringify({ items: [{ peerId: 'peer_a', lastSeenAtMs: Date.now() }, { peerId: 'peer_b', lastSeenAtMs: Date.now() }] }), { status: 200 })
+    }
+    if (method === 'GET') return new Response(JSON.stringify({ sha: 'base-sha' }), { status: 200 })
+    return new Response(JSON.stringify({ content: { sha: 'content-sha' }, commit: { sha: 'commit-sha' } }), { status: 200 })
+  }) as typeof fetch
+  try {
+    const response = await readStorageWorker().fetch(
+      new Request(`https://example.com${buildKnowgrphCollaborationSavePath()}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+          workspaceId: 'kgws:test',
+          documentKey: '/docs/shared.json',
+          documentKind: 'json',
+          serializedText: '{"rawEditorTextMustNotWin":true}',
+          yjsStateBase64: encodeCollaborationYDocStateBase64(freshDoc),
+          activePeerCount: 2,
+          pocketBaseRoomId: 'room_a',
+          savedByPeerId: 'peer_a',
+          saveBoundary: 'explicit',
+        } satisfies KnowgrphCollaborationSaveRequest),
+      }),
+      {
+        KNOWGRPH_STORAGE_GITHUB_TOKEN: 'test-token',
+        KNOWGRPH_STORAGE_GITHUB_OWNER: 'owner',
+        KNOWGRPH_STORAGE_GITHUB_REPO: 'repo',
+        KNOWGRPH_STORAGE_POCKETBASE_URL: 'https://pocketbase.test',
+      },
+    )
+    const result = await response.json() as { ok?: boolean; code?: string; error?: string }
+    if (!response.ok || result.ok !== true) {
+      throw new Error(`expected bridge to save fresh request snapshot, got ${JSON.stringify(result)}`)
+    }
+    const putRequest = requests.find(request => request.method === 'PUT')
+    const decoded = Buffer.from(String(putRequest?.body?.content || ''), 'base64').toString('utf8')
+    if (decoded !== '{\n  "z": 2\n}\n') {
+      throw new Error(`expected request Yjs state to win over stale PocketBase state, got ${JSON.stringify(decoded)}`)
     }
   } finally {
     globalThis.fetch = previousFetch

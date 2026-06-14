@@ -2,10 +2,10 @@
 title: "Knowgrph Strybldr - PRD and TAD"
 doc_type: "Combined PRD/TAD"
 id: "knowgrph-strybldr-prd-tad"
-version: "0.2.0"
+version: "0.2.1"
 status: "implementation-contract"
 created: "2026-05-29"
-updated: "2026-05-30"
+updated: "2026-06-14"
 author: "airvio / joohwee"
 domain: "knowgrph"
 lang: "en-US"
@@ -128,6 +128,8 @@ Acceptance criteria:
 - Given Strybldr Mode is active, when cards render, then Source, Storyboard, and Elements lanes are visible through the shared Storyboard surface.
 - Given a runtime-ready Strybldr demo declares `kgParserRoutingContract`, when the parser runs, then parser logic, routing keys, diagram kinds, surfaces, edges, and fork policy come from opening frontmatter rather than filename heuristics or body-side graph mirrors.
 - Given a user edits card text/order, when the graph updates, then video prompt compilation reads the updated graph rather than a detached prompt.
+- Given a user drags the camera handle around the Floating Panel Camera sphere and clicks `Reframe`, then camera orbit coordinates, angle, level, shot size, and optional note persist on the selected graph node as `strybldrCamera` and the bounded media handoff reads that metadata instead of duplicating prompt-local camera text.
+- Given the Camera sphere renders, when the active camera is at longitude `0`, `45`, `90`, `135`, `180`, `225`, `270`, or `315` and latitude `-90`, `-45`, `0`, `45`, or `90`, then the draggable handle, active meridian, active latitude, SVG ray polygon, and selected Wide/Medium/Close-up image frame all resolve from the shared 3D degree-grid camera geometry owner rather than renderer-local 2D offsets.
 - `/goal`: Storyboard canvas displays cards derived from image evidence with editable properties.
 
 #### PRD-STB-E04 - Bounded Video Handoff
@@ -213,6 +215,8 @@ The base loop remains TCO-zero. Paid spend is opt-in and visible.
 | Workspace Image Action | `canvas/src/features/markdown-workspace/useWorkspaceFileActions/importActions.ts` | Import image through shared local import, generate Strybldr Markdown, switch UI to Strybldr. |
 | Workspace Bridge | `canvas/src/features/markdown-explorer/workspaceActionBridge.ts` | Provide `importLocalImages` without coupling Launch to workspace internals. |
 | Strybldr Feature Owner | `canvas/src/features/strybldr/*` | Types, Markdown serialization, parser, local file registry, local vision harness, panel view. |
+| Strybldr Camera Owner | `canvas/src/features/strybldr/strybldrCamera.ts`, `canvas/src/features/strybldr/StrybldrCameraFloatingPanelView.tsx`, `canvas/src/features/strybldr/StrybldrCameraPanel.tsx` | Own the top-level FloatingPanel Camera surface, render selected-card media inside the SVG sphere frame, map draggable sphere orbit coordinates into graph-owned camera angle, eye level, shot size, and note metadata for selected cards, and compile it into media handoff prompts. |
+| Shared Camera Geometry | `canvas/src/lib/camera/orbitSphere.ts` | Resolve degree-grid longitude/latitude points, 3D orbit vectors, frame-aware handle positions, ray target intersections, polygon footprints, hit-testing, drag snap, and active latitude/meridian metadata for FloatingPanel Camera and future renderer-neutral camera panels. |
 | Parser Registry | `canvas/src/features/parsers/default.ts` | Register Strybldr parser before generic Markdown. |
 | Renderer Registry | `canvas/src/lib/config.render.ts` | Keep canonical `storyboard` renderer ownership; Strybldr remains parser/workflow/panel identity on the shared Storyboard surface. |
 | Storyboard Surface | `canvas/src/components/StoryboardCanvas*` | Render cards through existing storyboard model and kanban editing. |
@@ -368,6 +372,7 @@ TCO/FOSS: no external identity service; no biometric data retention.
 | Parser/unit | `strybldr.markdown.parseStoryboardGraph` | Strybldr Markdown parses to Storyboard graph cards. |
 | Renderer registry | `strybldr.renderer.sharedSurfaceRegistry` | `strybldr` maps to Storyboard surface. |
 | Launch/panel | `strybldr.launchImage.floatingPanelOwners` | Launch, workspace bridge, and Floating Panel owners are wired. |
+| Camera geometry | `strybldr.renderer.sharedSurfaceRegistry` focused camera checks | FloatingPanel Camera uses shared 3D degree-grid orbit vectors for handle, meridian/latitude highlight, frame-aware ray polygon, and Wide/Medium/Close-up frame alignment across front and diagonal poses. |
 | Harness | `strybldr.visionHarness.requiredProvidersPrivacyGuard` | DETR/Human imports and privacy guards exist. |
 | Typecheck | `npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false` | Exit 0. |
 | Hygiene | `npm run hygiene:check` | Exit 0. |
@@ -401,6 +406,7 @@ TCO/FOSS: no external identity service; no biometric data retention.
 - `Strybldr` exists in Floating Panel.
 - Imported images generate Strybldr Markdown artifacts with source-unit provenance.
 - Strybldr parser emits Storyboard-compatible GraphData with evidence properties.
+- FloatingPanel Camera reads and writes `strybldrCamera` through graph metadata, uses shared 3D degree-grid geometry for draggable handle, active meridian/latitude, SVG ray polygon, and selected shot frame alignment, and avoids renderer-local camera math.
 - DETR/Human harness files are present and privacy-safe.
 - Focused tests and TypeScript pass.
 - Dev -> Prod -> Cloudflare status is reported with exact publish result.

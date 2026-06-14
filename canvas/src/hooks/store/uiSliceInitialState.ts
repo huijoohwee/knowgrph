@@ -88,6 +88,7 @@ export const createUiInitialState = (
         const next =
           view === 'interaction'
           || view === 'view'
+          || view === 'camera'
           || view === 'design'
           || view === 'chat'
           || view === 'geo'

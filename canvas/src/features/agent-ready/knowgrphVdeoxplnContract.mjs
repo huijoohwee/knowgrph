@@ -295,7 +295,7 @@ const RAW_VDEOXPLN = Object.freeze([
     mutation: "browser-local-user-mediated",
     triggers: ["strybldr", "storyboard", "image to storyboard", "media handoff", "visual brief"],
     inputs: ["image source unit", "media metadata", "workspace document", "storyboard graph"],
-    outputs: ["Strybldr Markdown", "Storyboard graph cards", "media handoff prompt", "canvas snapshot"],
+    outputs: ["Strybldr Markdown", "Storyboard graph cards", "camera-aware media handoff prompt", "canvas snapshot"],
     owners: [
       "canvas/src/features/strybldr/strybldrStoryboard.ts",
       "canvas/src/features/strybldr",
@@ -318,6 +318,7 @@ const RAW_VDEOXPLN = Object.freeze([
     workflow: [
       "Import media through existing workspace/source owners.",
       "Build Strybldr cards with source-unit provenance.",
+      "Persist Camera reframe settings on selected graph cards.",
       "Render through the shared Storyboard surface.",
       "Compile bounded media handoff only after user approval.",
     ],
@@ -330,7 +331,7 @@ const RAW_VDEOXPLN = Object.freeze([
     artifactPolicy: {
       persistence: "workspace-fs-and-source-files",
       graphMaterialization: "storyboard-graph",
-      semanticKeyInputs: ["sourceUnitId", "strybldrRunId", "graphSemanticKey"],
+      semanticKeyInputs: ["sourceUnitId", "strybldrRunId", "graphSemanticKey", "strybldrCamera"],
     },
     validation: ["strybldr", "rendererPipelineNeutrality", "vdeoxpln:check"],
     publish: ["mainpanel-mcp", "browser-webmcp"],

@@ -1,4 +1,4 @@
-import type { Canvas2dRendererId } from '@/lib/config'
+import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { BottomSurfaceTab } from '@/hooks/store/store-types/core'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
@@ -15,6 +15,7 @@ import {
   isTableGraphCanvas2dRenderer,
   supportsCanvas2dMinimap,
 } from '@/lib/config.render'
+import { applyCanvasSurfaceModeSelection } from '@/lib/canvas/canvas3dMode'
 
 type CanvasViewActionParams = {
   id: CanvasViewOptionId
@@ -35,7 +36,7 @@ type CanvasViewActionParams = {
   schema: GraphSchema
   setCanvas2dRenderer: (id: Canvas2dRendererId) => void
   setCanvasRenderMode: (mode: '2d' | '3d') => void
-  setCanvas3dMode: (mode: string) => void
+  setCanvas3dMode: (mode: Canvas3dModeId) => void
   setSchema: (schema: GraphSchema) => void
   setBehavior?: (behavior: Partial<GraphSchema['behavior']>) => void
   setRenderMediaAsNodes: (enabled: boolean) => void
@@ -170,42 +171,71 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     return
   }
   if (id === 'surface:2d') {
-    setCanvasRenderMode('2d')
+    applyCanvasSurfaceModeSelection({
+      mode: '2d',
+      geospatialEnabled,
+      onOpenGeospatialMode,
+      canvas2dRenderer,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      schema,
+      setCanvas2dRenderer,
+      setCanvasRenderMode,
+      setCanvas3dMode,
+      setSchema,
+    })
     return
   }
   if (id === 'surface:voxel') {
-    if (geospatialEnabled) {
-      onOpenGeospatialMode()
-      return
-    }
-    if (schema.layout?.mode !== 'block') {
-      setSchema({
-        ...schema,
-        layout: {
-          ...(schema.layout || {}),
-          mode: 'block',
-        },
-      })
-    }
-    if (canvas2dRenderer !== 'flowchart') {
-      setCanvas2dRenderer('flowchart')
-    }
-    setCanvas3dMode('voxel')
-    setCanvasRenderMode('3d')
+    applyCanvasSurfaceModeSelection({
+      mode: 'voxel',
+      geospatialEnabled,
+      onOpenGeospatialMode,
+      canvas2dRenderer,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      schema,
+      setCanvas2dRenderer,
+      setCanvasRenderMode,
+      setCanvas3dMode,
+      setSchema,
+    })
     return
   }
   if (id === 'surface:3d') {
-    setCanvas3dMode('3d')
-    setCanvasRenderMode('3d')
+    applyCanvasSurfaceModeSelection({
+      mode: '3d',
+      geospatialEnabled,
+      onOpenGeospatialMode,
+      canvas2dRenderer,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      schema,
+      setCanvas2dRenderer,
+      setCanvasRenderMode,
+      setCanvas3dMode,
+      setSchema,
+    })
     return
   }
   if (id === 'surface:xr') {
-    if (geospatialEnabled) {
-      onOpenGeospatialMode()
-      return
-    }
-    setCanvas3dMode('xr')
-    setCanvasRenderMode('3d')
+    applyCanvasSurfaceModeSelection({
+      mode: 'xr',
+      geospatialEnabled,
+      onOpenGeospatialMode,
+      canvas2dRenderer,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      schema,
+      setCanvas2dRenderer,
+      setCanvasRenderMode,
+      setCanvas3dMode,
+      setSchema,
+    })
     return
   }
   if (id === 'animation:force' || id === 'animation:orbit') {

@@ -6,7 +6,6 @@ import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import { isD3Like2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
-import { getVoxelModeInapplicableReason, isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
 import type { CanvasViewOptionId, CanvasViewModelState } from '@/components/toolbar/canvasViewTypes'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions, getCanvasViewTriggerState } from '@/components/toolbar/canvasViewMenu'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
@@ -65,50 +64,6 @@ export function Canvas2dRendererSelect({
     canvas2dRenderer: state.canvas2dRenderer,
   })
   const isD3Like2dLayoutToggle = isD3Like2dRenderer(state.canvas2dRenderer)
-  const voxelApplicable = isVoxelModeApplicable({
-    canvas2dRenderer: state.canvas2dRenderer,
-    documentSemanticMode: state.documentSemanticMode,
-    frontmatterModeEnabled: state.frontmatterModeEnabled,
-    multiDimTableModeEnabled: state.multiDimTableModeEnabled,
-    geospatialEnabled,
-    schema: state.schema,
-  })
-  const inapplicableReason = getVoxelModeInapplicableReason({
-    canvas2dRenderer: state.canvas2dRenderer,
-    documentSemanticMode: state.documentSemanticMode,
-    frontmatterModeEnabled: state.frontmatterModeEnabled,
-    multiDimTableModeEnabled: state.multiDimTableModeEnabled,
-    geospatialEnabled,
-    schema: state.schema,
-  })
-  const voxelDisabledReason = React.useMemo(() => {
-    if (inapplicableReason === 'geospatial') {
-      return {
-        reason: 'Disabled in Geospatial Mode',
-        hint: 'Switch to Document Mode to enable',
-      }
-    }
-    if (inapplicableReason === 'renderer') {
-      return {
-        reason: 'Requires Canvas View Mode: Flowchart renderer',
-        hint: 'Switch renderer to Flowchart',
-      }
-    }
-    if (inapplicableReason === 'semantic') {
-      return {
-        reason: 'Voxel Mode requires Document/Keyword, Frontmatter, or Multi-dimensional Table mode',
-        hint: 'Enable one semantic mode, then retry',
-      }
-    }
-    if (inapplicableReason === 'layout') {
-      return {
-        reason: 'Voxel Mode is disabled in Radial Layout',
-        hint: 'Set layout mode to Block',
-      }
-    }
-    return null
-  }, [inapplicableReason])
-
   const modelState = React.useMemo(
     () =>
       ({
@@ -128,8 +83,6 @@ export function Canvas2dRendererSelect({
         schema: state.schema,
         frontmatterOnlyAllowed,
         isD3Like2dLayoutToggle,
-        voxelApplicable,
-        voxelDisabledReason,
       }) satisfies CanvasViewModelState,
     [
       frontmatterOnlyAllowed,
@@ -148,8 +101,6 @@ export function Canvas2dRendererSelect({
       state.bottomSurfaceCollapsed,
       state.bottomSurfaceTab,
       state.schema,
-      voxelApplicable,
-      voxelDisabledReason,
     ],
   )
 

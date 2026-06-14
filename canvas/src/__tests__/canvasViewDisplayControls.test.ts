@@ -85,8 +85,6 @@ export function testCanvasViewMinimapToggleUsesDisplayControlOption() {
       schema: BLOCK_SCHEMA,
       frontmatterOnlyAllowed: false,
       isD3Like2dLayoutToggle: false,
-      voxelApplicable: true,
-      voxelDisabledReason: null,
     },
     getCanvasViewRendererOptions(),
   ).find(option => option.id === 'control:menu')
@@ -152,8 +150,6 @@ export function testDashboardRendererGridToggleUsesSharedDisplayControl() {
       schema: BLOCK_SCHEMA,
       frontmatterOnlyAllowed: false,
       isD3Like2dLayoutToggle: false,
-      voxelApplicable: true,
-      voxelDisabledReason: null,
     },
     getCanvasViewRendererOptions(),
   ).find(option => option.id === 'control:menu')

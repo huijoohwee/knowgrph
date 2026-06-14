@@ -130,8 +130,11 @@ const EventModelingFloatingPanelViewLazy = React.lazy(() =>
 const StrybldrFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/strybldr/StrybldrFloatingPanelView').then(mod => ({ default: mod.StrybldrFloatingPanelView })),
 )
+const StrybldrCameraFloatingPanelViewLazy = React.lazy(() =>
+  import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })),
+)
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'flowEditor', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling', 'strybldr'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'camera', 'chat', 'geo', 'interaction', 'flowEditor', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling', 'strybldr'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -504,6 +507,7 @@ export function ToolbarToolMenu({
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
       { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
+      { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
       { view: 'interaction', title: 'Interaction', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.interaction },
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
       { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
@@ -701,6 +705,11 @@ export function ToolbarToolMenu({
           <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
             {floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />}
+            {floatingPanelView === 'camera' && (
+              <React.Suspense fallback={null}>
+                <StrybldrCameraFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
             {floatingPanelView === 'interaction' && (
               <section className="h-full flex flex-col" aria-label="Interaction panel">
                 <header className={`flex items-center justify-between gap-2 w-full select-none ${UI_THEME_TOKENS.panel.divider}`}>

@@ -9,6 +9,7 @@ import {
 } from '@/lib/graph/mediaUrlKind'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
+import { STRYBLDR_CAMERA_PROPERTY_KEY, buildStrybldrCameraHandoffLine, hasStrybldrCameraSettings, readStrybldrCameraSettings } from './strybldrCamera'
 import type {
   StrybldrBox,
   StrybldrDetectionProvider,
@@ -1407,6 +1408,9 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
       const thumbnailUrl = cleanText(props.thumbnailUrl)
       const fallbackThumbnailUrl = buildRenderableMediaThumbnailUrl(mediaUrl)
       const references = uniqueCleanTexts([...readNodeReferences(props.references), cleanText(props.sourceUrl), mediaUrl, thumbnailUrl, fallbackThumbnailUrl])
+      const camera = hasStrybldrCameraSettings(props[STRYBLDR_CAMERA_PROPERTY_KEY])
+        ? buildStrybldrCameraHandoffLine(readStrybldrCameraSettings(props[STRYBLDR_CAMERA_PROPERTY_KEY]))
+        : ''
       return {
         id: cleanText(node.id) || `strybldr-card-${index + 1}`,
         lane: cleanText(props.lane) || 'Storyboard',
@@ -1414,6 +1418,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
         summary: cleanText(props.summary),
         action: cleanText(props.action),
         prompt: cleanText(props.prompt),
+        camera,
         references,
         order: Number.isFinite(Number(props.order)) ? Number(props.order) : index,
         sourceUnitId: cleanText(props.strybldrSourceUnitId),
@@ -1426,6 +1431,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     card.summary ? `Summary: ${card.summary}` : '',
     card.action ? `Action: ${card.action}` : '',
     card.prompt ? `Prompt: ${card.prompt}` : '',
+    card.camera,
     card.references.length > 0 ? `References: ${card.references.join(', ')}` : '',
   ].filter(Boolean).join('\n'))]
 

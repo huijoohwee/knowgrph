@@ -123,6 +123,8 @@ export function ToolbarMenuLauncher({
       const requested =
         tab === 'view'
           ? 'view'
+          : tab === 'camera'
+            ? 'camera'
           : tab === 'chat'
           ? 'chat'
           : tab === 'geo'

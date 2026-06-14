@@ -80,6 +80,4 @@ export type CanvasViewModelState = {
   schema: GraphSchema
   frontmatterOnlyAllowed: boolean
   isD3Like2dLayoutToggle: boolean
-  voxelApplicable: boolean
-  voxelDisabledReason: { reason: string; hint: string } | null
 }
