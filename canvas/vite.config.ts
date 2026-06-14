@@ -11,6 +11,7 @@ import { createRequire } from 'node:module'
 import { existsSync, createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import { unwrapUserProvidedText } from 'grph-shared/url'
+import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 import {
   STRIPE_PAYMENT_ROUTE_PATHS,
@@ -5948,7 +5949,731 @@ function createYoutubeConvertHandler(): import('vite').Connect.NextHandleFunctio
   }
 }
 
+const VIDEO_DOWNLOAD_LOCAL_ROUTE_PATH = '/__video_download'
+const VIDEO_DOWNLOAD_FILE_ROUTE_PATH = '/__video_download_file'
+const VIDEO_DOWNLOAD_MAX_BODY_BYTES = 16 * 1024
+const VIDEO_DOWNLOAD_TIMEOUT_MS = 10 * 60 * 1000
+const VIDEO_DOWNLOAD_MAX_MEDIA_BYTES = 1024 * 1024 * 1024
+const VIDEO_DOWNLOAD_MAX_HTML_BYTES = 2 * 1024 * 1024
+const VIDEO_DOWNLOAD_DEFAULT_OUTPUT_ROOT = path.resolve(workspaceRoot, 'huijoohwee', 'video')
+const VIDEO_DOWNLOAD_YOUTUBE_ORIGIN = 'https://www.youtube.com'
+const VIDEO_DOWNLOAD_YOUTUBE_PLAYER_PATH = '/youtubei/v1/player'
+const VIDEO_DOWNLOAD_YOUTUBE_ANDROID_CLIENT = {
+  clientName: 'ANDROID',
+  clientVersion: '20.10.38',
+  androidSdkVersion: 30,
+  userAgent: 'com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip',
+  hl: 'en',
+  timeZone: 'UTC',
+  utcOffsetMinutes: 0,
+} as const
+
+type VideoDownloadYouTubeFormat = {
+  itag?: unknown
+  url?: unknown
+  mimeType?: unknown
+  qualityLabel?: unknown
+  audioQuality?: unknown
+  bitrate?: unknown
+  width?: unknown
+  height?: unknown
+  contentLength?: unknown
+}
+
+type VideoDownloadYouTubeCandidate = {
+  url: string
+  mimeType: string
+  itag: string
+  hasVideo: boolean
+  hasAudio: boolean
+  height: number
+  bitrate: number
+  contentLength: number
+}
+
+function sanitizeVideoDownloadServerError(value: unknown, max = 300): string {
+  return String(value || 'download_failed')
+    .replace(/\bat\s+[^\n()]+(?:\([^)]*\))?/g, '')
+    .replace(/\bfile:\/\/\S+/g, '')
+    .replace(/(?:\/[^\s/]+)+\/[^\s]+\.(?:m?js|ts|tsx|jsx)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max) || 'download_failed'
+}
+
+function writeVideoDownloadJson(res: import('node:http').ServerResponse, statusCode: number, body: Record<string, unknown>): void {
+  res.statusCode = statusCode
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-store')
+  res.end(JSON.stringify(body))
+}
+
+function readVideoDownloadBody(req: import('node:http').IncomingMessage): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    let total = 0
+    const chunks: Buffer[] = []
+    req.on('data', chunk => {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      total += buf.length
+      if (total > VIDEO_DOWNLOAD_MAX_BODY_BYTES) {
+        reject(new Error('request_too_large'))
+        req.destroy()
+        return
+      }
+      chunks.push(buf)
+    })
+    req.on('error', reject)
+    req.on('end', () => {
+      try {
+        const text = Buffer.concat(chunks).toString('utf8')
+        resolve(text ? JSON.parse(text) : null)
+      } catch {
+        reject(new Error('invalid_json'))
+      }
+    })
+  })
+}
+
+function validateVideoDownloadRequest(body: unknown): { ok: true; url: string; format?: string; mediaKind?: string; quality?: string; subtitleLang?: string; outputDir?: string } | { ok: false; error: string } {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, error: 'request_body_must_be_object' }
+  const record = body as Record<string, unknown>
+  const url = typeof record.url === 'string' ? record.url.trim() : ''
+  if (!url || url.length > 2048) return { ok: false, error: 'invalid_url' }
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return { ok: false, error: 'invalid_url' }
+  } catch {
+    return { ok: false, error: 'invalid_url' }
+  }
+  const format = typeof record.format === 'string' ? record.format.trim().slice(0, 64) : ''
+  const mediaKind = record.mediaKind === 'audio' || record.mediaKind === 'video-audio' ? record.mediaKind : ''
+  const quality = /^(best|1080p|720p|480p|360p|audio-best|audio-compact)$/.test(String(record.quality || '')) ? String(record.quality) : ''
+  const subtitleLang = typeof record.subtitleLang === 'string' ? record.subtitleLang.trim().slice(0, 35) : ''
+  const outputDir = typeof record.outputDir === 'string' ? record.outputDir.trim().replace(/\\/g, '/').replace(/\/+$/, '').slice(0, 4096) : ''
+  return {
+    ok: true,
+    url,
+    ...(format ? { format } : {}),
+    ...(mediaKind ? { mediaKind } : {}),
+    ...(quality ? { quality } : {}),
+    ...(subtitleLang ? { subtitleLang } : {}),
+    ...(outputDir ? { outputDir } : {}),
+  }
+}
+
+function videoDownloadMimeType(fileName: string): string {
+  const lower = String(fileName || '').toLowerCase()
+  if (lower.endsWith('.mp4')) return 'video/mp4'
+  if (lower.endsWith('.webm')) return 'video/webm'
+  if (lower.endsWith('.mkv')) return 'video/x-matroska'
+  if (lower.endsWith('.mp3')) return 'audio/mpeg'
+  if (lower.endsWith('.m4a')) return 'audio/mp4'
+  return 'application/octet-stream'
+}
+
+function isVideoDownloadMediaContentType(value: unknown): boolean {
+  const contentType = String(value || '').split(';')[0]?.trim().toLowerCase() || ''
+  return contentType.startsWith('video/') || contentType.startsWith('audio/') || contentType === 'application/octet-stream'
+}
+
+function isVideoDownloadHtmlContentType(value: unknown): boolean {
+  const contentType = String(value || '').split(';')[0]?.trim().toLowerCase() || ''
+  return contentType === 'text/html' || contentType === 'application/xhtml+xml'
+}
+
+function videoDownloadExtFromContentType(contentTypeRaw: unknown): string {
+  const contentType = String(contentTypeRaw || '').split(';')[0]?.trim().toLowerCase() || ''
+  if (contentType === 'video/mp4') return 'mp4'
+  if (contentType === 'video/webm') return 'webm'
+  if (contentType === 'video/x-matroska') return 'mkv'
+  if (contentType === 'audio/mpeg') return 'mp3'
+  if (contentType === 'audio/mp4' || contentType === 'audio/x-m4a') return 'm4a'
+  if (contentType === 'audio/wav' || contentType === 'audio/x-wav') return 'wav'
+  if (contentType === 'audio/ogg' || contentType === 'video/ogg') return 'ogg'
+  return ''
+}
+
+function videoDownloadExtFromUrl(url: string): string {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase()
+    const match = /\.([a-z0-9]{2,5})$/.exec(pathname)
+    const ext = match?.[1] || ''
+    return /^(mp4|webm|mkv|mov|mp3|m4a|wav|ogg)$/.test(ext) ? ext : ''
+  } catch {
+    return ''
+  }
+}
+
+function sanitizeVideoDownloadFileName(value: unknown, fallback: string): string {
+  const base = String(value || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .pop() || fallback
+  const cleaned = base
+    .normalize('NFKD')
+    .replace(/[^\w.-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 160)
+  return cleaned || fallback
+}
+
+function deriveVideoDownloadFileName(url: string, contentType: string): string {
+  const ext = videoDownloadExtFromUrl(url) || videoDownloadExtFromContentType(contentType) || 'bin'
+  let stem = 'download'
+  try {
+    const pathname = new URL(url).pathname
+    const rawName = pathname.split('/').filter(Boolean).pop() || ''
+    stem = rawName.replace(/\.[a-z0-9]{2,5}$/i, '') || stem
+  } catch {
+    void 0
+  }
+  const safeStem = sanitizeVideoDownloadFileName(stem, 'download').replace(/\.[a-z0-9]{2,5}$/i, '')
+  return `${safeStem}.${ext}`
+}
+
+function deriveVideoDownloadFileNameFromHint(value: string, url: string, contentType: string): string {
+  const ext = videoDownloadExtFromUrl(value) || videoDownloadExtFromContentType(contentType) || videoDownloadExtFromUrl(url) || 'bin'
+  const stem = sanitizeVideoDownloadFileName(value, 'download').replace(/\.[a-z0-9]{2,5}$/i, '')
+  return `${stem || 'download'}.${ext}`
+}
+
+function isVideoDownloadPathWithinRoot(rootPath: string, filePath: string): boolean {
+  const root = path.resolve(rootPath)
+  const resolved = path.resolve(filePath)
+  const relative = path.relative(root, resolved)
+  return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
+function resolveVideoDownloadOutputRoot(outputDir?: string): string {
+  const raw = String(outputDir || '').trim()
+  const resolved = raw ? path.resolve(raw) : VIDEO_DOWNLOAD_DEFAULT_OUTPUT_ROOT
+  if (!isVideoDownloadPathWithinRoot(workspaceRoot, resolved)) throw new Error('invalid_output_dir')
+  return resolved
+}
+
+function buildVideoDownloadFileRoute(filePath: string): string {
+  if (!isVideoDownloadPathWithinRoot(workspaceRoot, filePath)) return ''
+  const relative = path.relative(workspaceRoot, path.resolve(filePath)).replace(/\\/g, '/')
+  return `${VIDEO_DOWNLOAD_FILE_ROUTE_PATH}?path=${encodeURIComponent(relative)}`
+}
+
+function decodeVideoDownloadHtmlAttr(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function extractVideoDownloadMediaCandidates(html: string, baseUrl: string): string[] {
+  const out: string[] = []
+  const pushCandidate = (raw: string) => {
+    const value = decodeVideoDownloadHtmlAttr(raw).trim()
+    if (!value || value.startsWith('data:') || value.startsWith('blob:')) return
+    try {
+      const resolved = new URL(value, baseUrl)
+      if (resolved.protocol === 'http:' || resolved.protocol === 'https:') out.push(resolved.toString())
+    } catch {
+      void 0
+    }
+  }
+  const sourcePattern = /<(?:video|audio|source)\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi
+  let sourceMatch: RegExpExecArray | null
+  while ((sourceMatch = sourcePattern.exec(html))) pushCandidate(sourceMatch[1] || '')
+  const metaPattern = /<meta\b[^>]*(?:property|name)\s*=\s*["'](?:og:video(?::url)?|og:audio(?::url)?|twitter:player:stream)["'][^>]*\bcontent\s*=\s*["']([^"']+)["'][^>]*>/gi
+  let metaMatch: RegExpExecArray | null
+  while ((metaMatch = metaPattern.exec(html))) pushCandidate(metaMatch[1] || '')
+  return Array.from(new Set(out))
+}
+
+function isVideoDownloadRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function readVideoDownloadString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function readVideoDownloadNumber(value: unknown): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+function extractVideoDownloadJsonObjectFromHtml(html: string, variableName: string): Record<string, unknown> | null {
+  let searchStart = 0
+  while (searchStart < html.length) {
+    const markerIndex = html.indexOf(variableName, searchStart)
+    if (markerIndex < 0) return null
+    const braceStart = html.indexOf('{', markerIndex + variableName.length)
+    if (braceStart < 0) return null
+    if (braceStart - (markerIndex + variableName.length) > 64) {
+      searchStart = markerIndex + variableName.length
+      continue
+    }
+    let depth = 0
+    let inString = false
+    let escaped = false
+    for (let index = braceStart; index < html.length; index += 1) {
+      const char = html[index]
+      if (inString) {
+        if (escaped) escaped = false
+        else if (char === '\\') escaped = true
+        else if (char === '"') inString = false
+        continue
+      }
+      if (char === '"') {
+        inString = true
+      } else if (char === '{') {
+        depth += 1
+      } else if (char === '}') {
+        depth -= 1
+        if (depth === 0) {
+          try {
+            const parsed = JSON.parse(html.slice(braceStart, index + 1))
+            return isVideoDownloadRecord(parsed) ? parsed : null
+          } catch {
+            break
+          }
+        }
+      }
+    }
+    searchStart = markerIndex + variableName.length
+  }
+  return null
+}
+
+function extractVideoDownloadYouTubeApiKey(html: string): string {
+  return readVideoDownloadString(/"INNERTUBE_API_KEY"\s*:\s*"([a-zA-Z0-9_-]+)"/.exec(html)?.[1])
+}
+
+function extractVideoDownloadYouTubeFormats(player: unknown): VideoDownloadYouTubeFormat[] {
+  if (!isVideoDownloadRecord(player) || !isVideoDownloadRecord(player.streamingData)) return []
+  const formats = Array.isArray(player.streamingData.formats) ? player.streamingData.formats : []
+  const adaptiveFormats = Array.isArray(player.streamingData.adaptiveFormats) ? player.streamingData.adaptiveFormats : []
+  return [...formats, ...adaptiveFormats].filter(isVideoDownloadRecord)
+}
+
+function explainVideoDownloadYouTubePlayability(player: unknown): string {
+  if (!isVideoDownloadRecord(player) || !isVideoDownloadRecord(player.playabilityStatus)) return ''
+  const status = readVideoDownloadString(player.playabilityStatus.status)
+  if (!status || status.toUpperCase() === 'OK') return ''
+  return readVideoDownloadString(player.playabilityStatus.reason) || `video_unavailable_${status.toLowerCase()}`
+}
+
+function toVideoDownloadYouTubeCandidate(format: VideoDownloadYouTubeFormat): VideoDownloadYouTubeCandidate | null {
+  const url = readVideoDownloadString(format.url)
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+  } catch {
+    return null
+  }
+  const mimeType = readVideoDownloadString(format.mimeType).toLowerCase()
+  const mediaType = mimeType.split(';')[0]?.trim() || ''
+  if (!mediaType.startsWith('video/') && !mediaType.startsWith('audio/')) return null
+  const codecs = readVideoDownloadString(/codecs="([^"]+)"/i.exec(mimeType)?.[1]).toLowerCase()
+  const hasVideo = mediaType.startsWith('video/')
+  const hasAudio = mediaType.startsWith('audio/')
+    || !!readVideoDownloadString(format.audioQuality)
+    || /\b(?:mp4a|opus|vorbis)\b/.test(codecs)
+  const qualityHeight = readVideoDownloadNumber(format.height)
+    || readVideoDownloadNumber(/(\d{3,4})p/i.exec(readVideoDownloadString(format.qualityLabel))?.[1])
+  return {
+    url,
+    mimeType: mediaType,
+    itag: readVideoDownloadString(format.itag),
+    hasVideo,
+    hasAudio,
+    height: qualityHeight,
+    bitrate: readVideoDownloadNumber(format.bitrate),
+    contentLength: readVideoDownloadNumber(format.contentLength),
+  }
+}
+
+function rankVideoDownloadYouTubeCandidate(candidate: VideoDownloadYouTubeCandidate): number {
+  const progressiveBonus = candidate.hasVideo && candidate.hasAudio ? 10_000_000 : 0
+  const videoBonus = candidate.hasVideo ? 1_000_000 : 0
+  const audioBonus = candidate.hasAudio ? 500_000 : 0
+  return progressiveBonus + videoBonus + audioBonus + candidate.height * 1_000 + candidate.bitrate
+}
+
+function readVideoDownloadQualityHeight(quality: string | undefined): number {
+  return readVideoDownloadNumber(/^(\d{3,4})p$/.exec(readVideoDownloadString(quality))?.[1])
+}
+
+function sortVideoDownloadByScore(values: VideoDownloadYouTubeCandidate[]): VideoDownloadYouTubeCandidate[] {
+  return [...values].sort((a, b) => rankVideoDownloadYouTubeCandidate(b) - rankVideoDownloadYouTubeCandidate(a))
+}
+
+function pickVideoDownloadByQuality(
+  candidates: VideoDownloadYouTubeCandidate[],
+  quality: string | undefined,
+): VideoDownloadYouTubeCandidate | null {
+  const normalizedQuality = readVideoDownloadString(quality || 'best').toLowerCase() || 'best'
+  if (normalizedQuality === 'audio-compact') {
+    return [...candidates].sort((a, b) => {
+      const bitrateDelta = (a.bitrate || Number.MAX_SAFE_INTEGER) - (b.bitrate || Number.MAX_SAFE_INTEGER)
+      return bitrateDelta || rankVideoDownloadYouTubeCandidate(a) - rankVideoDownloadYouTubeCandidate(b)
+    })[0] || null
+  }
+  const height = readVideoDownloadQualityHeight(normalizedQuality)
+  if (height > 0) {
+    const withinHeight = candidates.filter(candidate => candidate.hasVideo && candidate.height > 0 && candidate.height <= height)
+    return sortVideoDownloadByScore(withinHeight)[0] || sortVideoDownloadByScore(candidates.filter(candidate => candidate.hasVideo))[0] || null
+  }
+  return sortVideoDownloadByScore(candidates)[0] || null
+}
+
+function pickVideoDownloadYouTubeCandidate(
+  formats: VideoDownloadYouTubeFormat[],
+  requestedFormat: string | undefined,
+  requestedMediaKind: string | undefined,
+  requestedQuality: string | undefined,
+): VideoDownloadYouTubeCandidate | null {
+  const candidates = formats.map(toVideoDownloadYouTubeCandidate).filter((value): value is VideoDownloadYouTubeCandidate => !!value)
+  const format = readVideoDownloadString(requestedFormat || 'best').toLowerCase() || 'best'
+  const mediaKind = readVideoDownloadString(requestedMediaKind).toLowerCase()
+  const quality = readVideoDownloadString(requestedQuality || 'best').toLowerCase() || 'best'
+  const byQuality = (values: VideoDownloadYouTubeCandidate[]) => pickVideoDownloadByQuality(values, quality)
+  if (/^\d+$/.test(format)) return candidates.find(candidate => candidate.itag === format) || null
+  if (format === 'bestvideo+bestaudio') throw new Error('native_merge_required')
+  if (mediaKind === 'audio' || format === 'mp3') {
+    const audioOnly = candidates.filter(candidate => candidate.hasAudio && !candidate.hasVideo)
+    return byQuality(audioOnly.filter(candidate => candidate.mimeType === 'audio/mp4'))
+      || byQuality(audioOnly)
+  }
+  if (format === 'mp4') {
+    return byQuality(candidates.filter(candidate => candidate.hasVideo && candidate.hasAudio && candidate.mimeType === 'video/mp4'))
+      || byQuality(candidates.filter(candidate => candidate.hasVideo && candidate.mimeType === 'video/mp4'))
+  }
+  if (format.includes('audio')) return byQuality(candidates.filter(candidate => candidate.hasAudio && !candidate.hasVideo))
+  if (format.includes('webm')) return byQuality(candidates.filter(candidate => candidate.mimeType.includes('webm')))
+  if (format.includes('m4a')) return byQuality(candidates.filter(candidate => candidate.mimeType === 'audio/mp4'))
+  return byQuality(candidates.filter(candidate => candidate.hasVideo && candidate.hasAudio))
+    || byQuality(candidates.filter(candidate => candidate.hasVideo))
+    || byQuality(candidates.filter(candidate => candidate.hasAudio))
+}
+
+async function fetchVideoDownloadYouTubePlayer(videoId: string, apiKey: string, signal: AbortSignal): Promise<Record<string, unknown> | null> {
+  if (!videoId || !apiKey) return null
+  const response = await fetch(`${VIDEO_DOWNLOAD_YOUTUBE_ORIGIN}${VIDEO_DOWNLOAD_YOUTUBE_PLAYER_PATH}?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    signal,
+    headers: {
+      'content-type': 'application/json',
+      'user-agent': VIDEO_DOWNLOAD_YOUTUBE_ANDROID_CLIENT.userAgent,
+    },
+    body: JSON.stringify({
+      context: { client: VIDEO_DOWNLOAD_YOUTUBE_ANDROID_CLIENT },
+      videoId,
+      playbackContext: { contentPlaybackContext: { html5Preference: 'HTML5_PREF_WANTS' } },
+    }),
+  })
+  if (!response.ok) return null
+  const parsed = await response.json().catch(() => null)
+  return isVideoDownloadRecord(parsed) ? parsed : null
+}
+
+async function resolveVideoDownloadYouTubeCandidate(args: {
+  sourceUrl: string
+  html: string
+  format?: string
+  mediaKind?: string
+  quality?: string
+  signal: AbortSignal
+}): Promise<{ mediaUrl: string; fileNameHint: string } | null> {
+  const videoId = getYouTubeId(args.sourceUrl)
+  if (!videoId) return null
+  const watchPlayer = extractVideoDownloadJsonObjectFromHtml(args.html, 'ytInitialPlayerResponse')
+  const watchPlayability = explainVideoDownloadYouTubePlayability(watchPlayer)
+  if (watchPlayability) throw new Error(watchPlayability)
+  const apiKey = extractVideoDownloadYouTubeApiKey(args.html)
+  const player = apiKey ? await fetchVideoDownloadYouTubePlayer(videoId, apiKey, args.signal) : null
+  const innertubePlayability = explainVideoDownloadYouTubePlayability(player)
+  if (innertubePlayability) throw new Error(innertubePlayability)
+  const candidate = pickVideoDownloadYouTubeCandidate([
+    ...extractVideoDownloadYouTubeFormats(player),
+    ...extractVideoDownloadYouTubeFormats(watchPlayer),
+  ], args.format, args.mediaKind, args.quality)
+  if (!candidate) throw new Error('native_youtube_direct_url_unavailable')
+  const playerDetails = isVideoDownloadRecord(player?.videoDetails) ? player.videoDetails : null
+  const watchDetails = isVideoDownloadRecord(watchPlayer?.videoDetails) ? watchPlayer.videoDetails : null
+  const title = readVideoDownloadString(playerDetails?.title)
+    || readVideoDownloadString(watchDetails?.title)
+    || `youtube-${videoId}`
+  return { mediaUrl: candidate.url, fileNameHint: `${title}-${videoId}` }
+}
+
+async function readVideoDownloadHtml(response: Response): Promise<string> {
+  if (!response.body) return ''
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  while (true) {
+    const next = await reader.read()
+    if (next.done) break
+    const chunk = next.value
+    total += chunk.byteLength
+    if (total > VIDEO_DOWNLOAD_MAX_HTML_BYTES) throw new Error('html_too_large')
+    chunks.push(chunk)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+async function writeVideoDownloadResponseToFile(args: {
+  response: Response
+  sourceUrl: string
+  outputDir: string
+  fileNameHint?: string
+  reportedSourceUrl?: string
+}): Promise<{ filePath: string; fileName: string; mimeType: string; sizeBytes: number; sourceUrl: string; fileUrl: string }> {
+  if (!args.response.body) throw new Error('empty_media_response')
+  const contentType = args.response.headers.get('content-type') || videoDownloadMimeType(args.sourceUrl)
+  const fileName = args.fileNameHint
+    ? deriveVideoDownloadFileNameFromHint(args.fileNameHint, args.sourceUrl, contentType)
+    : deriveVideoDownloadFileName(args.sourceUrl, contentType)
+  const filePath = path.join(args.outputDir, fileName)
+  const file = await fs.open(filePath, 'w')
+  let sizeBytes = 0
+  try {
+    const reader = args.response.body.getReader()
+    while (true) {
+      const next = await reader.read()
+      if (next.done) break
+      const chunk = Buffer.from(next.value)
+      sizeBytes += chunk.byteLength
+      if (sizeBytes > VIDEO_DOWNLOAD_MAX_MEDIA_BYTES) throw new Error('media_too_large')
+      await file.write(chunk)
+    }
+  } finally {
+    await file.close()
+  }
+  if (sizeBytes <= 0) throw new Error('empty_media_response')
+  return {
+    filePath,
+    fileName,
+    mimeType: isVideoDownloadMediaContentType(contentType) ? contentType.split(';')[0]!.trim() : videoDownloadMimeType(fileName),
+    sizeBytes,
+    sourceUrl: args.reportedSourceUrl || args.sourceUrl,
+    fileUrl: buildVideoDownloadFileRoute(filePath),
+  }
+}
+
+async function fetchVideoDownloadResponse(url: string, signal: AbortSignal): Promise<Response> {
+  const response = await fetch(url, {
+    method: 'GET',
+    redirect: 'follow',
+    signal,
+    headers: {
+      'user-agent': 'Mozilla/5.0 Knowgrph native video downloader',
+      accept: 'video/*,audio/*,text/html;q=0.8,*/*;q=0.2',
+    },
+  })
+  if (!response.ok) throw new Error(`source_http_${response.status}`)
+  return response
+}
+
+async function runLocalVideoDownload(request: { url: string; format?: string; mediaKind?: string; quality?: string; subtitleLang?: string; outputDir?: string }) {
+  const outputRoot = resolveVideoDownloadOutputRoot(request.outputDir)
+  await fs.mkdir(outputRoot, { recursive: true })
+  const outputDir = await fs.mkdtemp(path.join(outputRoot, 'download-'))
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), VIDEO_DOWNLOAD_TIMEOUT_MS)
+  let response: Response | null = null
+  try {
+    response = await fetchVideoDownloadResponse(request.url, controller.signal)
+    const contentType = response.headers.get('content-type') || ''
+    if (isVideoDownloadMediaContentType(contentType) || videoDownloadExtFromUrl(response.url || request.url)) {
+      return {
+        ok: true,
+        ...(await writeVideoDownloadResponseToFile({ response, sourceUrl: response.url || request.url, outputDir })),
+      }
+    }
+    if (!isVideoDownloadHtmlContentType(contentType)) throw new Error('unsupported_media_source')
+    const html = await readVideoDownloadHtml(response)
+    const youtubeCandidate = await resolveVideoDownloadYouTubeCandidate({
+      sourceUrl: response.url || request.url,
+      html,
+      format: request.format,
+      mediaKind: request.mediaKind,
+      quality: request.quality,
+      signal: controller.signal,
+    })
+    if (youtubeCandidate) {
+      const mediaResponse = await fetchVideoDownloadResponse(youtubeCandidate.mediaUrl, controller.signal)
+      const mediaContentType = mediaResponse.headers.get('content-type') || ''
+      if (!isVideoDownloadMediaContentType(mediaContentType) && !videoDownloadExtFromUrl(mediaResponse.url || youtubeCandidate.mediaUrl)) {
+        throw new Error('unsupported_media_source')
+      }
+      return {
+        ok: true,
+        ...(await writeVideoDownloadResponseToFile({
+          response: mediaResponse,
+          sourceUrl: mediaResponse.url || youtubeCandidate.mediaUrl,
+          outputDir,
+          fileNameHint: youtubeCandidate.fileNameHint,
+          reportedSourceUrl: request.url,
+        })),
+      }
+    }
+    const candidates = extractVideoDownloadMediaCandidates(html, response.url || request.url)
+    for (const candidate of candidates) {
+      const mediaResponse = await fetchVideoDownloadResponse(candidate, controller.signal)
+      const mediaContentType = mediaResponse.headers.get('content-type') || ''
+      if (!isVideoDownloadMediaContentType(mediaContentType) && !videoDownloadExtFromUrl(mediaResponse.url || candidate)) continue
+      return {
+        ok: true,
+        ...(await writeVideoDownloadResponseToFile({ response: mediaResponse, sourceUrl: mediaResponse.url || candidate, outputDir })),
+      }
+    }
+    throw new Error('native_extractor_required')
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function classifyVideoDownloadError(message: string): { status: number; errorCode: string } {
+  const lower = String(message || '').toLowerCase()
+  if (lower.includes('native_merge_required')) return { status: 422, errorCode: 'native_merge_required' }
+  if (lower.includes('native_youtube_direct_url_unavailable')) return { status: 422, errorCode: 'native_youtube_direct_url_unavailable' }
+  if (lower.includes('native_extractor_required')) return { status: 422, errorCode: 'native_extractor_required' }
+  if (lower.includes('invalid_output_dir')) return { status: 400, errorCode: 'invalid_output_dir' }
+  if (lower.includes('unsupported_media_source')) return { status: 422, errorCode: 'unsupported_media_source' }
+  if (lower.includes('unavailable') || lower.includes('geo') || lower.includes('private') || lower.includes('copyright')) return { status: 422, errorCode: 'video_unavailable' }
+  if (lower.includes('timeout') || lower.includes('abort')) return { status: 504, errorCode: 'download_timeout' }
+  if (lower.includes('too_large')) return { status: 413, errorCode: 'source_too_large' }
+  return { status: 500, errorCode: 'download_failed' }
+}
+
+function explainVideoDownloadError(errorCode: string, fallback: string): string {
+  if (errorCode === 'native_merge_required') return 'Native download can save directly exposed media streams, but this format requires merging separate video and audio tracks.'
+  if (errorCode === 'native_youtube_direct_url_unavailable') return 'YouTube did not expose a direct audio/video URL for this request.'
+  if (errorCode === 'native_extractor_required') return 'Native downloader supports direct audio/video URLs and pages that expose media source URLs. This source requires extractor logic that is not implemented in-repo.'
+  if (errorCode === 'invalid_output_dir') return 'Download output directory must stay inside the local workspace root.'
+  if (errorCode === 'unsupported_media_source') return 'No downloadable audio/video source was exposed by this URL.'
+  return fallback
+}
+
+function createVideoDownloadFileHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      next()
+      return
+    }
+    try {
+      const parsed = new URL(req.url || '/', 'http://localhost')
+      const rawPath = String(parsed.searchParams.get('path') || '').trim().replace(/\\/g, '/')
+      if (!rawPath || rawPath.startsWith('/') || rawPath.split('/').includes('..')) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Invalid path' }))
+        return
+      }
+      const filePath = path.resolve(workspaceRoot, rawPath)
+      if (!isVideoDownloadPathWithinRoot(workspaceRoot, filePath)) {
+        res.statusCode = 403
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Forbidden path' }))
+        return
+      }
+      const stat = await fs.stat(filePath)
+      if (!stat.isFile()) throw new Error('Asset not found')
+      const size = stat.size
+      const range = String(req.headers.range || '').trim()
+      const match = /^bytes=(\d*)-(\d*)$/i.exec(range)
+      let start = 0
+      let end = Math.max(0, size - 1)
+      let partial = false
+      if (match) {
+        const rawStart = match[1] || ''
+        const rawEnd = match[2] || ''
+        if (rawStart) start = Math.max(0, Number(rawStart) || 0)
+        if (rawEnd) end = Math.min(end, Number(rawEnd) || end)
+        if (!rawStart && rawEnd) start = Math.max(0, size - (Number(rawEnd) || size))
+        partial = start <= end && start < size
+      }
+      if (!partial && range) {
+        res.statusCode = 416
+        res.setHeader('Content-Range', `bytes */${size}`)
+        res.end('')
+        return
+      }
+      const contentLength = end - start + 1
+      res.statusCode = partial ? 206 : 200
+      res.setHeader('Content-Type', videoDownloadMimeType(filePath))
+      res.setHeader('Accept-Ranges', 'bytes')
+      res.setHeader('Cache-Control', 'no-store')
+      res.setHeader('Content-Length', String(contentLength))
+      if (partial) res.setHeader('Content-Range', `bytes ${start}-${end}/${size}`)
+      if (req.method === 'HEAD') {
+        res.end('')
+        return
+      }
+      const stream = createReadStream(filePath, { start, end })
+      stream.on('error', () => {
+        try {
+          if (!res.headersSent) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+          }
+          res.end(JSON.stringify({ ok: false, error: 'Asset not found' }))
+        } catch {
+          void 0
+        }
+      })
+      stream.pipe(res)
+    } catch (error) {
+      const message = sanitizeVideoDownloadServerError((error as { message?: unknown })?.message ?? error)
+      res.statusCode = 404
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify({ ok: false, error: message }))
+    }
+  }
+}
+
+function createVideoDownloadHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.end()
+      return
+    }
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    try {
+      const validated = validateVideoDownloadRequest(await readVideoDownloadBody(req))
+      if (!validated.ok) {
+        writeVideoDownloadJson(res, 400, { ok: false, error: validated.error })
+        return
+      }
+      writeVideoDownloadJson(res, 200, { result: await runLocalVideoDownload(validated) })
+    } catch (error) {
+      const message = sanitizeVideoDownloadServerError((error as { message?: unknown })?.message ?? error)
+      const classified = classifyVideoDownloadError(message)
+      writeVideoDownloadJson(res, classified.status, { ok: false, errorCode: classified.errorCode, error: explainVideoDownloadError(classified.errorCode, message) })
+    }
+  }
+}
+
 const youtubeConvertDevPlugin = { name: 'knowgrph-youtube-convert-dev', configureServer(server: import('vite').ViteDevServer) { server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler()) }, configurePreviewServer(server: import('vite').PreviewServer) { server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler()) } }
+const videoDownloadDevPlugin = {
+  name: 'knowgrph-video-download-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use(VIDEO_DOWNLOAD_LOCAL_ROUTE_PATH, createVideoDownloadHandler())
+    server.middlewares.use(VIDEO_DOWNLOAD_FILE_ROUTE_PATH, createVideoDownloadFileHandler())
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use(VIDEO_DOWNLOAD_LOCAL_ROUTE_PATH, createVideoDownloadHandler())
+    server.middlewares.use(VIDEO_DOWNLOAD_FILE_ROUTE_PATH, createVideoDownloadFileHandler())
+  },
+}
 const remoteVideoFrameDevPlugin = { name: 'knowgrph-remote-video-frame-dev', configureServer(server: import('vite').ViteDevServer) { const handler = createRemoteVideoFrameHandler({ repoRoot, workspaceRoot, getPythonBin, withRepoPythonPath }); server.middlewares.use('/__video_frame', handler); server.middlewares.use(REMOTE_VIDEO_FRAME_PUBLIC_PREFIX, createRemoteVideoFramePublicAssetHandler({ workspaceRoot })) }, configurePreviewServer(server: import('vite').PreviewServer) { const handler = createRemoteVideoFrameHandler({ repoRoot, workspaceRoot, getPythonBin, withRepoPythonPath }); server.middlewares.use('/__video_frame', handler); server.middlewares.use(REMOTE_VIDEO_FRAME_PUBLIC_PREFIX, createRemoteVideoFramePublicAssetHandler({ workspaceRoot })) } }
 
 function readViteDevPortHint(): string {
@@ -6310,6 +7035,7 @@ export default defineConfig(({ command }) => {
           pdfWorkspaceDevPlugin,
           websiteImportDevPlugin,
           youtubeConvertDevPlugin,
+          videoDownloadDevPlugin,
           remoteVideoFrameDevPlugin,
         ]),
   ],

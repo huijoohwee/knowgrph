@@ -13,6 +13,7 @@ import {
   readWorkspaceAutoRefreshEnabledSetting,
   readWorkspaceImportDefaultSourceUrlSetting,
   readWorkspaceImportShareExportRootPathSetting,
+  readWorkspaceImportVideoDownloadOutputDirSetting,
   readWorkspaceSeedSyncEnabledSetting,
   readWorkspaceSeedSyncIdleMaxMsSetting,
   readWorkspaceSeedSyncPollMsSetting,
@@ -22,6 +23,7 @@ import {
   writeWorkspaceDocsMirrorRootPathSetting,
   writeWorkspaceImportDefaultSourceUrlSetting,
   writeWorkspaceImportShareExportRootPathSetting,
+  writeWorkspaceImportVideoDownloadOutputDirSetting,
   writeWorkspaceSeedSyncEnabledSetting,
   writeWorkspaceSeedSyncIdleMaxMsSetting,
   writeWorkspaceSeedSyncPollMsSetting,
@@ -150,5 +152,15 @@ export const uiWorkspaceSettingsRegistry: SettingMeta[] = [
       writeWorkspaceImportShareExportRootPathSetting(String(value ?? ''))
     },
     default: () => '/docs_',
+  },
+  {
+    key: 'workspace.import.videoDownload.outputDir',
+    type: 'string',
+    source: 'localStorage',
+    read: () => readWorkspaceImportVideoDownloadOutputDirSetting(),
+    write: value => {
+      writeWorkspaceImportVideoDownloadOutputDirSetting(String(value ?? ''))
+    },
+    default: () => readWorkspaceImportVideoDownloadOutputDirSetting(),
   },
 ]

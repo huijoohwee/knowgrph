@@ -1,10 +1,12 @@
 import React from 'react'
-import { BarChart3, ChevronDown, CloudDownload, FolderOpen, FolderPlus, Globe, Image as ImageIcon, Link, Palette, Save, Sparkles, Upload, Workflow } from 'lucide-react'
+import { BarChart3, ChevronDown, CloudDownload, Download, FolderOpen, FolderPlus, Globe, Image as ImageIcon, Link, Palette, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { readEnvString } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
 import {
@@ -13,10 +15,14 @@ import {
   UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
+import { VideoDownloadOptionsPanel } from '@/features/toolbar/VideoDownloadOptionsPanel'
 import {
   type WorkspaceUrlImportCanvasRendererId,
   type WorkspaceUrlImportDocumentModeId,
 } from '@/features/markdown-workspace/workspaceImport/canvasPresets'
+import type { VideoDownloadOptions } from '@/lib/video-download/types'
+import { isVideoDownloadEligible } from '@/lib/video-download/isVideoDownloadEligible'
+import { resolveVideoDownloadEndpoint } from '@/lib/video-download/videoDownloadResolver'
 import {
   LaunchDropdownExportMenu,
   hasLaunchDropdownExportActions,
@@ -34,6 +40,12 @@ import { importLocalImagesWithWorkspaceBridgeRetry } from './launchImageImportBr
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'
+const DEFAULT_VIDEO_DOWNLOAD_OPTIONS: VideoDownloadOptions = {
+  format: 'best',
+  mediaKind: 'video-audio',
+  quality: 'best',
+  subtitleLang: '',
+}
 
 type LaunchDropdownProps = {
   anchorRef: React.RefObject<HTMLElement>
@@ -78,7 +90,11 @@ export function LaunchDropdown({
   const [importUrlRenderer, setImportUrlRenderer] = React.useState<ImportUrlRendererSelection>('default')
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = React.useState(false)
+  const [downloadOptionsOpen, setDownloadOptionsOpen] = React.useState(false)
+  const [downloadOptions, setDownloadOptions] = React.useState<VideoDownloadOptions>(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
+  const [isDownloading, setIsDownloading] = React.useState(false)
   const importUrlControlsId = React.useId()
+  const endpointWarningShownRef = React.useRef(false)
 
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -87,14 +103,48 @@ export function LaunchDropdown({
   const setFlowchartDataSource = useGraphStore(s => s.setFlowchartDataSource)
 
   const bridge = getMarkdownWorkspaceActionBridge()
+  const hasBridgeVideoDownload = typeof bridge.downloadVideo === 'function'
+  const endpointConfigured = React.useMemo(() => {
+    const value = resolveVideoDownloadEndpoint(readEnvString('VITE_VIDEO_DOWNLOAD_ENDPOINT', '').trim() || null)
+    if (!value) return false
+    try {
+      const url = new URL(value)
+      return url.protocol === 'http:' || url.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }, [])
+  const isVideoEligible = isVideoDownloadEligible(urlDraft)
 
   React.useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setDownloadOptionsOpen(false)
+      setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
+      setIsDownloading(false)
+      endpointWarningShownRef.current = false
+      return
+    }
     setUrlInputOpen(false)
     setImportUrlRenderer(canvas2dRenderer === 'design' ? DESIGN_IMPORT_URL_RENDERER_SELECTION : 'default')
     setExportMenuOpen(false)
     setPdfMenuOpen(false)
+    setDownloadOptionsOpen(false)
+    setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
+    setIsDownloading(false)
+    endpointWarningShownRef.current = false
   }, [canvas2dRenderer, open])
+
+  React.useEffect(() => {
+    if (!downloadOptionsOpen || endpointConfigured || hasBridgeVideoDownload || endpointWarningShownRef.current) return
+    endpointWarningShownRef.current = true
+    pushUiToast({
+      id: 'launch:video-download:not-configured',
+      kind: 'warning',
+      message: 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading',
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
+      dismissible: true,
+    })
+  }, [downloadOptionsOpen, endpointConfigured, hasBridgeVideoDownload, pushUiToast])
 
   const openExportMenu = React.useCallback(() => {
     setUrlInputOpen(false)
@@ -191,6 +241,40 @@ export function LaunchDropdown({
     },
     [importUrlDeerFlowFallback, importUrlRenderer, onClose],
   )
+
+  const runVideoDownload = React.useCallback(async () => {
+    const next = String(urlDraft || '').trim()
+    if (!next || isDownloading) return
+    if (!isVideoDownloadEligible(next)) {
+      pushUiToast({
+        id: 'launch:video-download:ineligible',
+        kind: 'warning',
+        message: 'URL is not eligible for local video download',
+        ttlMs: UI_TOAST_TTL_MS.warningExtended,
+        dismissible: true,
+      })
+      return
+    }
+    if (!endpointConfigured && typeof getMarkdownWorkspaceActionBridge().downloadVideo !== 'function') {
+      pushUiToast({
+        id: 'launch:video-download:not-configured',
+        kind: 'warning',
+        message: 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading',
+        ttlMs: UI_TOAST_TTL_MS.warningExtended,
+        dismissible: true,
+      })
+      return
+    }
+    setIsDownloading(true)
+    try {
+      const mod = await loadLaunchDropdownFallbackModule()
+      await mod.videoDownloadFallback({ url: next, options: downloadOptions, pushUiToast })
+      setDownloadOptionsOpen(false)
+      setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
+    } finally {
+      setIsDownloading(false)
+    }
+  }, [downloadOptions, endpointConfigured, isDownloading, pushUiToast, urlDraft])
 
   const createNewFolderFallback = React.useCallback(async () => {
     const mod = await loadLaunchDropdownFallbackModule()
@@ -415,6 +499,9 @@ export function LaunchDropdown({
                 const draft = String(urlDraft || '').trim()
                 if (urlInputOpen) {
                   setUrlInputOpen(false)
+                  setDownloadOptionsOpen(false)
+                  setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
+                  setIsDownloading(false)
                   return
                 }
                 if (!draft) {
@@ -468,6 +555,26 @@ export function LaunchDropdown({
                         value={importUrlRenderer}
                         onChange={setImportUrlRenderer}
                       />
+                      {isVideoEligible ? (
+                        <button
+                          type="button"
+                          className={cn(
+                            UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
+                            'rounded border',
+                            downloadOptionsOpen ? cn(UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText) : UI_THEME_TOKENS.button.text,
+                            UI_THEME_TOKENS.input.border,
+                            UI_THEME_TOKENS.button.hoverBg,
+                          )}
+                          title="Download local video"
+                          aria-label="Download local video"
+                          aria-pressed={downloadOptionsOpen}
+                          onClick={() => {
+                            setDownloadOptionsOpen(prev => !prev)
+                          }}
+                        >
+                          <Download className={menuIconClass} strokeWidth={1.6} aria-hidden="true" />
+                        </button>
+                      ) : null}
                       {typeof bridge.importWebsite === 'function' ? (
                         <button
                           type="button"
@@ -514,6 +621,21 @@ export function LaunchDropdown({
                     </section>
                   }
                 />
+                {downloadOptionsOpen ? (
+                  <VideoDownloadOptionsPanel
+                    options={downloadOptions}
+                    onOptionsChange={setDownloadOptions}
+                    onConfirm={() => {
+                      void runVideoDownload()
+                    }}
+                    onCancel={() => {
+                      setDownloadOptionsOpen(false)
+                      setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
+                    }}
+                    isDownloading={isDownloading}
+                    endpointConfigured={endpointConfigured || hasBridgeVideoDownload}
+                  />
+                ) : null}
               </section>
             ) : null}
           </li>

@@ -14,6 +14,7 @@ import {
   getSensenovaApiRowAnchorId,
 } from '@/features/integrations/sensenovaSsot'
 import { isIntegrationsOwnedSetting } from '@/features/panels/views/useSettingsView.helpers'
+import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
 
 const repoRoot = resolve(process.cwd(), '..')
 const prdTadPath = resolve(repoRoot, 'docs/documents/knowgrph-mcp/knowgrph-sensenova-api-prd-tad.md')
@@ -87,9 +88,12 @@ for (const requiredText of [
 }
 
 const demoText = readFileSync(demoPath, 'utf8')
+const demoFrontmatterBlock = extractYamlFrontmatterHeaderBlock(demoText)
+const demoVideoId = demoFrontmatterBlock ? readYamlFrontmatterValue(demoFrontmatterBlock.rawBlock, 'kgYoutubeVideoId').trim() : ''
+assert(demoVideoId, 'Strybldr demo must declare kgYoutubeVideoId in validation input frontmatter')
 for (const requiredText of [
   'SenseNova API Lane (Text, Image, Video)',
-  'VideoDB API + MCP Recreate 77FAnT935IE Lane',
+  `VideoDB API + MCP Recreate ${demoVideoId} Lane`,
   'SenseNova API Text, Image, Video generation feeds VideoDB upload, index, search, stream, and local publish packet workflow',
   'local_animatic_status: "Toolbar Run all and Strybldr Generate Video create a generated, playable, zero-paid-call local animatic from approved cards when live credentials are unavailable"',
   'provider: "knowgrph-local-animatic"',

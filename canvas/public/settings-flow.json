@@ -4653,7 +4653,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L61"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L63"
   },
   "workspace.sync.seed.enabled": {
     "area": "Workspace Storage Sync",
@@ -4667,7 +4667,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L71"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L73"
   },
   "workspace.sync.seed.pollMs": {
     "area": "Workspace Storage Sync",
@@ -4681,7 +4681,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L81"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L83"
   },
   "workspace.sync.seed.idleMaxMs": {
     "area": "Workspace Storage Sync",
@@ -4695,7 +4695,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L91"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L93"
   },
   "workspace.sync.autoRefresh.enabled": {
     "area": "Workspace Storage Sync",
@@ -4709,7 +4709,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L101"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L103"
   },
   "workspace.sync.sourceFiles.docsOnly": {
     "area": "Source File Management",
@@ -4723,7 +4723,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L111"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L113"
   },
   "workspace.sync.sourceFiles.debounceMs": {
     "area": "Source File Management",
@@ -4737,7 +4737,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L121"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L123"
   },
   "workspace.import.defaultSourceUrl": {
     "area": "Source File Management",
@@ -4757,7 +4757,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L131; canvas/src/hooks/store/canvasSlice.ts:L649; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L195"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L133; canvas/src/hooks/store/canvasSlice.ts:L649; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L195"
   },
   "workspace.import.shareExportRootPath": {
     "area": "Import / Export",
@@ -4771,7 +4771,21 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L145"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L147"
+  },
+  "workspace.import.videoDownload.outputDir": {
+    "area": "—",
+    "responsibility": "output dir",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L157"
   },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",

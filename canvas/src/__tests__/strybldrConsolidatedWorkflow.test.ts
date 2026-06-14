@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
 
 type StoryboardPayload = {
   sources?: Array<{ sourceUnitId?: string }>
@@ -24,8 +25,15 @@ const assert = (condition: unknown, message: string) => {
 
 const demoText = readFileSync(strybldrDemoPath, 'utf8')
 const flowEditorParseResult = tryParseMarkdownFrontmatterFlowGraph('knowgrph-strybldr-demo.md', demoText)
+const demoFrontmatterBlock = extractYamlFrontmatterHeaderBlock(demoText)
+const readDemoFrontmatterValue = (key: string): string => demoFrontmatterBlock ? readYamlFrontmatterValue(demoFrontmatterBlock.rawBlock, key).trim() : ''
+const demoVideoId = readDemoFrontmatterValue('kgYoutubeVideoId')
+const demoWatchUrl = readDemoFrontmatterValue('kgWebpageUrl')
+const demoSourceUnitId = `videodb-recreate-${demoVideoId}-source`
 
 assert(!existsSync(legacyVideodbDemoPath), 'legacy knowgrph-videodb-demo.md must remain removed')
+assert(demoVideoId, 'Strybldr demo must declare kgYoutubeVideoId in validation input frontmatter')
+assert(demoWatchUrl, 'Strybldr demo must declare kgWebpageUrl in validation input frontmatter')
 
 for (const requiredText of [
   'videodb_workflow_status: "VideoDB API + MCP workflow integrated into full SenseNova Text, Image, Video to VideoDB E2E pipeline"',
@@ -36,14 +44,14 @@ for (const requiredText of [
   '2D Renderer: Storyboard',
   '2D Renderer: Flow Editor',
   'SenseNova API Lane (Text, Image, Video)',
-  'VideoDB API + MCP Recreate 77FAnT935IE Lane',
+  `VideoDB API + MCP Recreate ${demoVideoId} Lane`,
   'Confirm MainPanel Integrations exposes SenseNova API readiness',
   'MainPanel MCP exposes `VideoDB Director MCP`',
-  'kgWebpageUrl: "https://www.youtube.com/watch?v=77FAnT935IE"',
+  `kgWebpageUrl: "${demoWatchUrl}"`,
   'SenseNova API readiness',
   'VideoDB Director MCP',
   'videodbMcpApiDocs.ts',
-  'videodb-recreate-77FAnT935IE-source',
+  demoSourceUnitId,
   'Source, Storyboard, Elements, Runtime, Review, and Publish cards',
   'No Prod, Cloudflare, or external publication claim exists until the operator explicitly authorizes it',
 ]) {
@@ -65,7 +73,7 @@ assert(elements.length === 19, `expected nineteen SenseNova+VideoDB E2E element 
 assert(edges.length >= 8, `expected explicit Strybldr workflow edges for source/storyboard/elements/fork/publish, got ${edges.length}`)
 assert(workflow?.fork?.id === 'workflow-fork-rest-or-mcp', 'storyboard must keep the operator-approved REST/MCP fork metadata')
 assert(workflow?.publish?.id === 'workflow-local-publish-packet', 'storyboard must keep the local publish packet metadata')
-assert(storytree === undefined, '77FAnT935IE-only demo must not include unrelated storytree payloads')
+assert(storytree === undefined, 'Strybldr demo must not include unrelated storytree payloads')
 
 assert(
   sources.some(source => source.sourceUnitId === 'validation-input-import-url-source'),
@@ -96,7 +104,7 @@ assert(
   'storyboard must include the VideoDB API reference source',
 )
 assert(
-  sources.some(source => source.sourceUnitId === 'videodb-recreate-77FAnT935IE-source'),
+  sources.some(source => source.sourceUnitId === demoSourceUnitId),
   'storyboard must include the VideoDB recreate source',
 )
 for (const requiredVideodbCard of [

@@ -8,6 +8,18 @@ export function isHttpUrl(value: unknown): boolean {
   return /^https?:\/\//i.test(raw)
 }
 
+export function normalizeImportUrlInput(value: unknown): string {
+  const raw = typeof value === 'string' ? (unwrapUserProvidedText(value) || value.trim()) : ''
+  if (!raw || raw.length > 2048) return ''
+  if (/^(?:download|import)\s+failed\s*:/i.test(raw)) return ''
+  try {
+    const url = new URL(raw)
+    return (url.protocol === 'http:' || url.protocol === 'https:') ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
 export function normalizeCodebaseRelPath(relPath: string): string {
   const trimmed = String(relPath || '')
     .trim()

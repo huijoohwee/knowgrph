@@ -7,6 +7,7 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { bulkSetWorkspaceEntrySources, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
+import { normalizeImportUrlInput } from '@/lib/url'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import {
   getWorkspaceUrlImportCanvasRendererLabel,
@@ -341,8 +342,12 @@ export function useWorkspaceImportActions(args: {
 
   const handleImportUrl = React.useCallback(
     async (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }) => {
-      const url = String(urlRaw || '').trim()
-      if (!url) return
+      const url = normalizeImportUrlInput(urlRaw)
+      if (!url) {
+        status.setStatusError('Import failed: enter a valid http(s) URL')
+        useGraphStore.getState().pushUiLog({ kind: 'warning', message: 'Import URL rejected: invalid URL input', source: 'workspace:importUrl' })
+        return
+      }
       const selectedCanvas2dRenderer = isWorkspaceUrlImportCanvasRendererId(opts?.canvas2dRenderer) ? opts?.canvas2dRenderer : null
       const selectedDocumentSemanticMode = selectedCanvas2dRenderer ? normalizeWorkspaceUrlImportDocumentMode(opts?.documentSemanticMode) : null
       const importKindLabel = selectedCanvas2dRenderer

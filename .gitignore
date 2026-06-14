@@ -19,6 +19,7 @@ git-error-*
 data/outputs/
 data/knowgrph-workflow-preview/
 data/_tmp_md_smoke/
+data/video-downloads/
 logs/
 .wrangler/
 *.log

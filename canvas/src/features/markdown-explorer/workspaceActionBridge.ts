@@ -1,5 +1,6 @@
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import type { WorkspaceUrlImportDocumentModeId } from '@/features/markdown-workspace/workspaceImport/canvasPresets'
+import type { VideoDownloadOptions, VideoDownloadResult } from '@/lib/video-download/types'
 
 export type WorkspaceImportUrlOpts = {
   canvas2dRenderer?: Canvas2dRendererId | null
@@ -29,6 +30,7 @@ export type MarkdownWorkspaceActionBridge = {
   importLocalFolder?: (files: WorkspaceFileSelection) => WorkspaceBridgeImportReturn
   importUrl?: (url: string, opts?: WorkspaceImportUrlOpts) => void
   importWebsite?: (url: string, opts?: WorkspaceImportWebsiteOpts) => void
+  downloadVideo?: (url: string, options: VideoDownloadOptions) => Promise<VideoDownloadResult>
   createNewFolder?: () => void
   save?: () => void
 
@@ -67,6 +69,7 @@ export function getMarkdownWorkspaceActionBridge(): MarkdownWorkspaceActionBridg
     if (bridge.importLocalFolder) merged.importLocalFolder = bridge.importLocalFolder
     if (bridge.importUrl) merged.importUrl = bridge.importUrl
     if (bridge.importWebsite) merged.importWebsite = bridge.importWebsite
+    if (bridge.downloadVideo) merged.downloadVideo = bridge.downloadVideo
     if (bridge.createNewFolder) merged.createNewFolder = bridge.createNewFolder
     if (bridge.save) merged.save = bridge.save
     if (bridge.export) {

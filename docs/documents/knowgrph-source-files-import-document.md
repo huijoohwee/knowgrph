@@ -197,6 +197,7 @@ sequenceDiagram
 | Utilities | URL normalization | `url.ts` → `normalizeGitHubBlobLikeUrl` | Built |
 | Fetch | Bounded remote fetch | `fetchRemoteText.ts` → `fetchRemoteTextDetailed` | Built |
 | Import | YouTube pipeline | `youtube_cmd.py` | Built |
+| Import | Local video download | `canvas/src/lib/video-download/*` + `cloudflare/pages/video-download.mjs` | Built |
 | Import | Webpage proxy | `/__webpage_proxy` route | Built |
 | Import | Website import | `/__website_import/start` route | Built |
 | Import | Geo upload | `/__geo_upload` route | Built |
@@ -215,6 +216,20 @@ sequenceDiagram
 - **Output Format**: Respects the `youtubeTranscriptOutputFormat` setting (Markdown with embedded thumbnail or raw JSON).
 - **Error Handling**: Returns structured JSON errors (`{ "ok": false, "error": "..." }`) even on failure, ensuring the UI displays specific messages (e.g., "Transcript unavailable" due to IP blocking) instead of generic request failures.
 - **Thumbnail**: Extracts high-res thumbnails via oEmbed or fallback URL construction.
+
+### Import URL Local Video Download
+
+**From/To**: Toolbar -> Launch -> Import URL -> Download local -> `VITE_VIDEO_DOWNLOAD_ENDPOINT` or same-origin `/__video_download` in Dev/Preview -> native in-repo downloader -> workspace download record.
+
+**Decision Logic**:
+- **Eligibility**: `canvas/src/lib/video-download/isVideoDownloadEligible.ts` owns the only eligible-domain set. Launch UI calls the helper and shows the download affordance only for matching video hosts.
+- **Transport**: `resolveVideoDownload` checks `workspaceActionBridge.downloadVideo` first, then falls back to an HTTP POST endpoint read from `VITE_VIDEO_DOWNLOAD_ENDPOINT`; if unset in a browser Dev/Preview runtime, it derives the same-origin `/__video_download` endpoint. The client does not import server, Cloudflare, MCP, or Node runtime modules.
+- **Request contract**: POST JSON contains `url` plus optional `format`, `mediaKind`, `quality`, `subtitleLang`, and `outputDir`. Real validation URLs must come from runtime env or operator input, never from committed tests or fixtures.
+- **Output location**: MainPanel Settings exposes `workspace.import.videoDownload.outputDir`. The local default is `/Users/huijoohwee/Documents/GitHub/huijoohwee/video`, and the Dev/Preview endpoint validates configured paths against the local workspace root before writing.
+- **Native runtime**: The local `/__video_download` route is inspired by mature downloader safety defaults (bounded output naming, no playlist expansion, best-available default semantics) but does not copy or invoke yt-dlp. It downloads direct audio/video URLs, HTML pages that expose media sources, and YouTube pages whose player metadata exposes direct media URLs through the in-repo native resolver.
+- **Local file access**: Dev/Preview results include a browser-local `fileUrl` served through `/__video_download_file` with workspace-root bounded path resolution and byte-range support. Workspace registration writes a visible media document containing a playable video embed and open link.
+- **Native boundary**: Requests that require unsupported muxing, transcoding, or unavailable direct media URLs return sanitized native error codes with clean messages instead of invoking external tools or surfacing stack traces.
+- **Workspace registration**: successful downloads persist `fileName`, `filePath`, `mimeType`, `sizeBytes`, and `sourceUrl` into a workspace document and source index entry.
 
 ### Webpage Import (URL/Local Path → Markdown SSOT + HTML/JSON Viewer)
 

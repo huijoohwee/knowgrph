@@ -12,6 +12,7 @@ const SOURCE_FILES_SYNC_DEBOUNCE_MIN_MS = 100
 const SOURCE_FILES_SYNC_DEBOUNCE_MAX_MS = 10_000
 const WINDOWS_DRIVE_PREFIX_RE = /^[A-Za-z]:[\\/]/
 const WORKSPACE_IMPORT_SHARE_EXPORT_ROOT_PATH_DEFAULT = '/docs_'
+export const WORKSPACE_IMPORT_VIDEO_DOWNLOAD_OUTPUT_DIR_DEFAULT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/video'
 
 const parseEnvBoolean = (name: string, fallback: boolean): boolean => {
   const raw = String(readEnvString(name, fallback ? 'true' : 'false') || '')
@@ -232,6 +233,35 @@ export const writeWorkspaceImportDefaultSourceUrlSetting = (next: string): void 
     } else {
       storage.removeItem(LS_KEYS.workspaceImportDefaultSourceUrl)
     }
+    notifyWorkspaceStoreSyncSettingsChanged()
+  } catch {
+    void 0
+  }
+}
+
+export const normalizeWorkspaceImportVideoDownloadOutputDirSetting = (next: string): string => {
+  const normalized = normalizeFilesystemRootPath(next)
+  return normalized || WORKSPACE_IMPORT_VIDEO_DOWNLOAD_OUTPUT_DIR_DEFAULT
+}
+
+export const readWorkspaceImportVideoDownloadOutputDirSetting = (): string => {
+  const storage = getLocalStorage()
+  if (!storage) return WORKSPACE_IMPORT_VIDEO_DOWNLOAD_OUTPUT_DIR_DEFAULT
+  try {
+    return normalizeWorkspaceImportVideoDownloadOutputDirSetting(
+      String(storage.getItem(LS_KEYS.workspaceImportVideoDownloadOutputDir) || ''),
+    )
+  } catch {
+    return WORKSPACE_IMPORT_VIDEO_DOWNLOAD_OUTPUT_DIR_DEFAULT
+  }
+}
+
+export const writeWorkspaceImportVideoDownloadOutputDirSetting = (next: string): void => {
+  const storage = getLocalStorage()
+  if (!storage) return
+  try {
+    const value = normalizeWorkspaceImportVideoDownloadOutputDirSetting(next)
+    storage.setItem(LS_KEYS.workspaceImportVideoDownloadOutputDir, value)
     notifyWorkspaceStoreSyncSettingsChanged()
   } catch {
     void 0

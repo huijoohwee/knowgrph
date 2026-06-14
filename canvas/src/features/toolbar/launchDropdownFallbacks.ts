@@ -2,8 +2,10 @@ import type { UiToastInput } from '@/hooks/store/types'
 import type { WorkspaceBridgeImportResult } from '@/features/markdown-explorer/workspaceActionBridge'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import type { VideoDownloadOptions } from '@/lib/video-download/types'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
+import { normalizeImportUrlInput } from '@/lib/url'
 import {
   getWorkspaceUrlImportCanvasRendererLabel,
   isWorkspaceUrlImportCanvasRendererId,
@@ -165,8 +167,17 @@ export async function importUrlFallback(args: {
   documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   pushUiToast: PushUiToast
 }): Promise<void> {
-  const url = String(args.urlRaw || '').trim()
-  if (!url) return
+  const url = normalizeImportUrlInput(args.urlRaw)
+  if (!url) {
+    args.pushUiToast({
+      id: 'launch:import:url',
+      kind: 'warning',
+      message: 'Enter a valid http(s) URL before importing',
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
+      dismissible: true,
+    })
+    return
+  }
   const canvas2dRenderer = isWorkspaceUrlImportCanvasRendererId(args.canvas2dRenderer) ? args.canvas2dRenderer : null
   const documentSemanticMode = canvas2dRenderer ? normalizeWorkspaceUrlImportDocumentMode(args.documentSemanticMode) : null
   const rendererLabel = canvas2dRenderer ? getWorkspaceUrlImportCanvasRendererLabel(canvas2dRenderer) : ''
@@ -243,8 +254,17 @@ export async function importUrlDeerFlowFallback(args: {
   documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   pushUiToast: PushUiToast
 }): Promise<void> {
-  const url = String(args.urlRaw || '').trim()
-  if (!url) return
+  const url = normalizeImportUrlInput(args.urlRaw)
+  if (!url) {
+    args.pushUiToast({
+      id: 'launch:import:url:deerflow',
+      kind: 'warning',
+      message: 'Enter a valid http(s) URL before importing',
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
+      dismissible: true,
+    })
+    return
+  }
   const toastId = 'launch:import:url:deerflow'
   args.pushUiToast({ id: toastId, kind: 'neutral', message: 'Importing URL (DeerFlow)…', ttlMs: null, dismissible: false })
   try {
@@ -291,6 +311,76 @@ export async function createNewFolderFallback(args: {
       id: toastId,
       kind: 'error',
       message: `Failed: ${String((e as { message?: unknown })?.message ?? e)}`,
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
+      dismissible: true,
+    })
+  }
+}
+
+export async function videoDownloadFallback(args: {
+  url: string
+  options: VideoDownloadOptions
+  pushUiToast: PushUiToast
+}): Promise<void> {
+  const url = String(args.url || '').trim()
+  if (!url) return
+  const toastId = 'launch:video-download'
+  args.pushUiToast({
+    id: toastId,
+    kind: 'neutral',
+    message: 'Downloading video…',
+    ttlMs: null,
+    dismissible: false,
+    busy: true,
+  })
+  try {
+    const [
+      { resolveVideoDownload },
+      { registerVideoDownloadInWorkspace },
+      { getWorkspaceFs },
+    ] = await Promise.all([
+      import('@/lib/video-download/videoDownloadResolver') as Promise<typeof import('@/lib/video-download/videoDownloadResolver')>,
+      import('@/lib/video-download/registerVideoDownloadInWorkspace') as Promise<typeof import('@/lib/video-download/registerVideoDownloadInWorkspace')>,
+      import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
+    ])
+    const download = await resolveVideoDownload(url, args.options)
+    if (download.ok === false) {
+      args.pushUiToast({
+        id: toastId,
+        kind: download.errorCode === 'not_configured' ? 'warning' : 'error',
+        message: download.errorCode === 'not_configured'
+          ? 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading'
+          : `Download failed: ${download.error}`,
+        ttlMs: UI_TOAST_TTL_MS.warningExtended,
+        dismissible: true,
+      })
+      return
+    }
+    const fs = await getWorkspaceFs()
+    const registration = await registerVideoDownloadInWorkspace({ result: download.result, fs })
+    if (registration.ok === false) {
+      args.pushUiToast({
+        id: toastId,
+        kind: 'warning',
+        message: `Downloaded, but workspace registration failed: ${registration.error}`,
+        ttlMs: UI_TOAST_TTL_MS.warningExtended,
+        dismissible: true,
+      })
+      return
+    }
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: [registration.workspacePath], applyToGraph: false })
+    args.pushUiToast({
+      id: toastId,
+      kind: 'success',
+      message: `Downloaded ${download.result.fileName}`,
+      ttlMs: UI_TOAST_TTL_MS.actionFeedback,
+      dismissible: false,
+    })
+  } catch (error) {
+    args.pushUiToast({
+      id: toastId,
+      kind: 'error',
+      message: `Download failed: ${String((error as { message?: unknown })?.message ?? error)}`,
       ttlMs: UI_TOAST_TTL_MS.warningExtended,
       dismissible: true,
     })

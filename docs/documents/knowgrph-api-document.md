@@ -60,6 +60,15 @@ Responsive output contract:
 - Purpose: convert YouTube transcripts/subtitles/captions into Markdown for the Markdown Editor/Preview/Slides and return a transcript JSON payload for JSON-backed markdown workspace and UI Editor flows.
 - Implementation: [vite.config.ts](../../canvas/vite.config.ts)
 
+### Import URL local video download
+
+- Endpoint source: `VITE_VIDEO_DOWNLOAD_ENDPOINT`, read by `canvas/src/lib/video-download/videoDownloadResolver.ts`; Dev/Preview falls back to same-origin `/__video_download` when the env var is unset.
+- Client owner: Toolbar Launch Import URL calls `workspaceActionBridge.downloadVideo` first, then HTTP POST fallback.
+- Download folder setting: MainPanel Settings exposes `workspace.import.videoDownload.outputDir`; the Dev/Preview default resolves to `/Users/huijoohwee/Documents/GitHub/huijoohwee/video`.
+- Request: `POST` JSON with `url` plus optional `format`, `mediaKind`, `quality`, `subtitleLang`, and `outputDir`; no committed video URL fixtures or credentials. `mediaKind` accepts `video-audio` or `audio`; `quality` accepts `best`, common video heights, or audio quality presets.
+- Response: `Download_Result` with `ok`, `filePath`, `fileName`, `mimeType`, `sizeBytes`, `sourceUrl`, and optional browser-local `fileUrl`; errors return `ok: false`, `error`, and optional `errorCode`.
+- Server implementation: `canvas/vite.config.ts` owns the local `/__video_download` middleware and range-capable `/__video_download_file` asset route; `cloudflare/pages/video-download.mjs` owns the Pages endpoint source. The Dev/Preview route uses native in-repo `fetch`, bounded file writes, generic media-source discovery, and a native YouTube player resolver for direct audio/video URLs; it does not invoke yt-dlp or any external downloader. Sources that require unsupported native muxing/transcoding return sanitized errors without stack traces.
+
 ## Production note
 
 These middleware endpoints exist for local development and preview builds. Current production is split by concern:

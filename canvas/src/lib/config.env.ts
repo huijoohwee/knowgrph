@@ -33,6 +33,7 @@ export function readEnvString(key: string, defaultValue: string): string {
         VITE_WORKSPACE_IMPORT_URL_TEST: import.meta.env.VITE_WORKSPACE_IMPORT_URL_TEST,
         VITE_WORKSPACE_SEED_SYNC_ENABLED: import.meta.env.VITE_WORKSPACE_SEED_SYNC_ENABLED,
         VITE_WORKSPACE_SEED_SYNC_POLL_MS: import.meta.env.VITE_WORKSPACE_SEED_SYNC_POLL_MS,
+        VITE_VIDEO_DOWNLOAD_ENDPOINT: import.meta.env.VITE_VIDEO_DOWNLOAD_ENDPOINT,
       } satisfies Record<string, unknown>
     } catch {
       return undefined

@@ -1,6 +1,13 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
+  ["toolbar.importUrl.videoDownload.eligibility","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadEligibilityIsPureAndDomainOwned"],
+  ["toolbar.importUrl.videoDownload.codec","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadResultCodecRoundTripAndErrors"],
+  ["toolbar.importUrl.videoDownload.resolver","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadResolverRequestDedupAndSanitization"],
+  ["toolbar.importUrl.videoDownload.localEndpoint","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadResolverDerivesLocalBrowserEndpoint"],
+  ["toolbar.importUrl.videoDownload.workspaceRegistration","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadWorkspaceRegistrationPreservesFields"],
+  ["toolbar.importUrl.videoDownload.sourceContracts","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadLaunchAndEndpointSourceContracts"],
+  ["toolbar.importUrl.videoDownload.rejectsStatusText","@/__tests__/videoDownloadImportUrl.test","testImportUrlRejectsDownloadFailureStatusText"],
   ["toolbar.interaction.runMode.control","@/__tests__/canvasRunModeInteractionPanel.test","testToolbarInteractionPanelIncludesRunModeControl"],
   ["toolbar.interaction.runMode.persistedManualDefault","@/__tests__/canvasRunModeInteractionPanel.test","testCanvasRunModeUsesPersistedManualDefault"],
   ["floatingPanel.flowEditor.portRows.typedHandles","@/__tests__/flowEditorFloatingPanelPorts.test","testFlowEditorFloatingPanelPortRowsUseTypedHandles"],
