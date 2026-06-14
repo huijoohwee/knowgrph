@@ -16,7 +16,8 @@ import { resolveWorkspaceSiblingArtifactPath, writeWorkspaceBlobArtifactAtPath, 
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
-import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspaceFs } from '@/features/workspace-fs/types'
+import type { UploadGeneratedWorkspaceBlobToKnowgrphStorageResult } from '@/features/source-files/sourceFilesBinaryStorage'
 
 export type RichMediaWidgetKind = 'image' | 'video'
 
@@ -51,6 +52,7 @@ export type RichMediaWidgetRunResult = {
   asset: GeneratedBinaryAsset
   outputPath: string | null
   outputManifestPath: string | null
+  outputStorageUrl?: string | null
 }
 
 const DEFAULT_IMAGE_PROMPT = 'Generate an image responsive to the active request.'
@@ -343,6 +345,54 @@ const persistGeneratedAsset = async (args: {
   return null
 }
 
+const readWorkspacePathName = (workspacePath: string): string => {
+  const parts = String(workspacePath || '').split('/').filter(Boolean)
+  return cleanString(parts[parts.length - 1]) || 'generated-media-output.md'
+}
+
+const readWorkspacePathParent = (workspacePath: string): string => {
+  const parts = String(workspacePath || '').split('/').filter(Boolean)
+  const parent = parts.slice(0, -1).join('/')
+  return parent ? `/${parent}` : '/'
+}
+
+const uploadRichMediaBinaryToStorage = async (args: {
+  outputPath: string
+  blob: Blob
+}): Promise<UploadGeneratedWorkspaceBlobToKnowgrphStorageResult | null> => {
+  try {
+    const { uploadGeneratedWorkspaceBlobToKnowgrphStorage } = await import('@/features/source-files/sourceFilesBinaryStorage')
+    return await uploadGeneratedWorkspaceBlobToKnowgrphStorage({
+      workspacePath: args.outputPath,
+      blob: args.blob,
+    })
+  } catch {
+    return null
+  }
+}
+
+const publishRichMediaManifestToStorage = async (args: {
+  outputManifestPath: string
+  manifestText: string
+}): Promise<void> => {
+  try {
+    const { publishGeneratedWorkspaceEntriesToKnowgrphStorage } = await import('@/features/source-files/sourceFileShareUrl')
+    const entry: WorkspaceEntry = {
+      kind: 'file',
+      path: args.outputManifestPath,
+      parentPath: readWorkspacePathParent(args.outputManifestPath),
+      name: readWorkspacePathName(args.outputManifestPath),
+      text: args.manifestText,
+      updatedAtMs: Date.now(),
+    }
+    await publishGeneratedWorkspaceEntriesToKnowgrphStorage({
+      entries: [entry],
+    })
+  } catch {
+    void 0
+  }
+}
+
 const escapeMarkdownTableCell = (value: unknown): string => {
   return String(value ?? '')
     .replace(/\r\n?/g, '\n')
@@ -363,6 +413,7 @@ const buildGeneratedMediaManifestMarkdown = (args: {
   kind: RichMediaWidgetKind
   outputPath: string
   asset: GeneratedBinaryAsset
+  storage?: UploadGeneratedWorkspaceBlobToKnowgrphStorageResult | null
 }): string => {
   const title = cleanString(args.node.label) || cleanString(args.node.id) || `${args.kind} output`
   const savedName = args.outputPath.split('/').filter(Boolean).pop() || args.outputPath
@@ -374,6 +425,12 @@ const buildGeneratedMediaManifestMarkdown = (args: {
     ['mimeType', mimeType],
     ['model', cleanString(args.asset.model)],
     ['sourceUrl', cleanString(args.asset.sourceUrl)],
+    ['storageUrl', cleanString(args.storage?.publicUrl)],
+    ['storageCanonicalPath', cleanString(args.storage?.canonicalPath)],
+    ['r2ObjectKey', cleanString(args.storage?.objectKey)],
+    ['contentHash', cleanString(args.storage?.contentHash)],
+    ['sizeBytes', args.storage?.sizeBytes == null ? '' : String(args.storage.sizeBytes)],
+    ['etag', cleanString(args.storage?.etag)],
   ]
   const rows = rawRows.filter(([, value]) => cleanString(value))
   const dataTable = rows.length
@@ -400,7 +457,7 @@ export const writeRichMediaWidgetRunOutputArtifact = async (args: {
   extension: string
   asset: GeneratedBinaryAsset
   fs?: WorkspaceFs | null
-}): Promise<{ outputPath: string | null; outputManifestPath: string | null }> => {
+}): Promise<{ outputPath: string | null; outputManifestPath: string | null; outputStorageUrl?: string | null }> => {
   const outputPath = await persistGeneratedAsset({
     workspacePath: args.workspacePath,
     node: args.node,
@@ -409,6 +466,10 @@ export const writeRichMediaWidgetRunOutputArtifact = async (args: {
     asset: args.asset,
   })
   if (!outputPath) return { outputPath, outputManifestPath: null }
+  const storage = await uploadRichMediaBinaryToStorage({
+    outputPath,
+    blob: args.asset.blob,
+  })
   const manifestName = buildSuggestedArtifactFileName({
     workspacePath: args.workspacePath,
     node: args.node,
@@ -421,17 +482,25 @@ export const writeRichMediaWidgetRunOutputArtifact = async (args: {
     fileName: manifestName,
   })
   if (!manifestPath) return { outputPath, outputManifestPath: null }
+  const manifestText = buildGeneratedMediaManifestMarkdown({
+    node: args.node,
+    kind: args.kind,
+    outputPath,
+    asset: args.asset,
+    storage,
+  })
   const outputManifestPath = await writeWorkspaceTextArtifactAtPath({
     absolutePath: manifestPath,
-    text: buildGeneratedMediaManifestMarkdown({
-      node: args.node,
-      kind: args.kind,
-      outputPath,
-      asset: args.asset,
-    }),
+    text: manifestText,
     fs: args.fs,
   })
   if (!outputManifestPath) return { outputPath, outputManifestPath: null }
+  if (storage) {
+    await publishRichMediaManifestToStorage({
+      outputManifestPath,
+      manifestText,
+    })
+  }
   try {
     const fs = args.fs || await getWorkspaceFs()
     await applyWorkspaceImportToCanvas({
@@ -442,7 +511,7 @@ export const writeRichMediaWidgetRunOutputArtifact = async (args: {
   } catch {
     void 0
   }
-  return { outputPath, outputManifestPath }
+  return { outputPath, outputManifestPath, outputStorageUrl: storage?.publicUrl || null }
 }
 
 export const writeTextWidgetRunOutputArtifact = async (args: {
@@ -591,8 +660,11 @@ export const runRichMediaWidgetGeneration = async (args: {
   })
   return {
     kind: request.kind,
-    asset: resolvedAsset,
+    asset: outputArtifact.outputStorageUrl
+      ? { ...resolvedAsset, renderUrl: outputArtifact.outputStorageUrl }
+      : resolvedAsset,
     outputPath: outputArtifact.outputPath,
     outputManifestPath: outputArtifact.outputManifestPath,
+    outputStorageUrl: outputArtifact.outputStorageUrl || null,
   }
 }

@@ -84,6 +84,54 @@ export function testStorageSyncDocumentDeclaresPocketBaseYjsGitHubSsotContract()
   }
 }
 
+export function testStorageSyncDocumentDeclaresGeneratedBinaryArtifactPersistenceContract() {
+  const storageDocPath = resolve(process.cwd(), '..', 'docs', 'documents', 'knowgrph-storage-sync-document.md')
+  const companionPath = resolve(process.cwd(), '..', 'docs', 'documents', 'knowgrph-storage-sync-document.companion.md')
+  const topologyPath = resolve(process.cwd(), '..', 'docs', 'documents', 'knowgrph-cross-repo-publish-topology.md')
+  const storageDocText = readFileSync(storageDocPath, 'utf8')
+  const companionText = readFileSync(companionPath, 'utf8')
+  const topologyText = readFileSync(topologyPath, 'utf8')
+  const requiredStorageDocFragments = [
+    '**Generated binary artifact store**: Cloudflare R2 owns generated image/video/binary bytes',
+    '**Generated artifact publication path**: Generated workspace artifact blob ⇄ `/api/storage/blob/:workspaceId/:canonicalPath*` ⇄ R2 object',
+    'A generated image/video/binary artifact is considered synced across Dev, Prod, and Cloudflare only when both checks pass',
+    '### Path G — Generated Image/Video/Binary Artifact Persistence (R2 + D1 Manifest)',
+    '`uploadGeneratedWorkspaceBlobToKnowgrphStorage()` posts the Blob to `/api/storage/blob/:workspaceId/:canonicalPath*`',
+    'Acceptance requires both reads to succeed: manifest through `/api/storage/doc/:workspaceId/:manifestPath*`, bytes or metadata through `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*`',
+    '`features/source-files/sourceFilesBinaryStorage.ts`',
+    '`features/chat/chatHistoryWorkspace.output.ts`',
+    '`sourceFiles.storageSync.r2BlobRoute.storesBinaryObject`',
+    '`chat.responseContract.storage.kgcBinaryOutputPublishesR2Manifest`',
+  ]
+  for (const fragment of requiredStorageDocFragments) {
+    if (!storageDocText.includes(fragment)) {
+      throw new Error(`expected storage sync document to declare generated binary persistence fragment: ${fragment}`)
+    }
+  }
+  const requiredCompanionFragments = [
+    'Generated-media author',
+    'Generated binary artifact R2 + D1 manifest publication',
+    'bytes upload to R2 through `/api/storage/blob/`; a sibling manifest document is written to D1',
+    'chat.responseContract.storage.richMediaBinaryOutputPublishesR2Manifest',
+    '### Generated Binary Artifact Contract',
+    '`POST /api/storage/blob/:workspaceId/:canonicalPath*` with `x-knowgrph-content-kind: generated-binary-artifact`',
+    'If runtime sync is off, upload fails, or manifest publication fails, keep the local artifact evidence and do not claim Cloudflare persistence',
+    'Generated image/video artifacts are considered persisted across Dev, Prod, and Cloudflare only when the Worker blob route returns the bytes or metadata and the sibling D1 manifest route returns the Markdown manifest.',
+  ]
+  for (const fragment of requiredCompanionFragments) {
+    if (!companionText.includes(fragment)) {
+      throw new Error(`expected storage sync companion to declare generated binary persistence fragment: ${fragment}`)
+    }
+  }
+  if (storageDocText.includes('Cloudflare persistence is inferred from local artifact path')
+    || companionText.includes('Cloudflare persistence is inferred from local artifact path')) {
+    throw new Error('expected generated binary persistence docs to forbid inferring Cloudflare sync from local artifact paths')
+  }
+  if (!topologyText.includes('generated image/video/binary bytes to R2 when runtime storage is enabled')) {
+    throw new Error('expected cross-repo publish topology to keep generated artifact R2 mirror ownership aligned')
+  }
+}
+
 export function testBrowserCacheLegacyShimFilesAreRemoved() {
   const storagePath = resolve(process.cwd(), 'src', 'lib', 'storage', 'rxdbStorage.ts')
   const recoveryPath = resolve(process.cwd(), 'src', 'lib', 'storage', 'rxdbRecovery.ts')

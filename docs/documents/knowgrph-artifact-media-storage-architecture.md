@@ -1,7 +1,37 @@
+---
+title: "Knowgrph Artifact & Media Storage Architecture"
+id: "md:knowgrph-artifact-media-storage-architecture"
+author: "airvio / joohwee"
+date: "2026-06-11"
+updated: "2026-06-14"
+version: "1.1.0"
+status: "canonical"
+doc_type: "Technical Architecture Documentation"
+lang: "en-US"
+frontmatter_contract: "required"
+domain: "knowgrph"
+orientation:
+  - "solo-dev"
+  - "AI-native"
+  - "TCO-zero"
+  - "FOSS-first"
+constraints:
+  - "universal"
+  - "neutral"
+  - "agnostic"
+  - "modular"
+  - "no hardcoded credentials, workspace IDs, or route paths"
+owner: "Knowgrph canonical docs"
+traceability:
+  prd: "PRD-STORAGE-SYNC-S7"
+  tad: "TAD-STORAGE-SYNC-GeneratedBinaryArtifact"
+  canonical_storage_doc: "docs/documents/knowgrph-storage-sync-document.md"
+---
+
 # Knowgrph — Artifact & Media Storage Architecture
 
-**Version**: 1.0.0
-**Date**: 2026-06-11
+**Version**: 1.1.0
+**Date**: 2026-06-14
 **Status**: Canonical — supersedes any inline architecture notes in demo docs
 **Owner**: Knowgrph canonical docs
 **Scope**: Artifact and media storage, access, auto-save, replay, and infrastructure constraints for all agentic canvas runs
@@ -126,7 +156,7 @@ Image and video outputs are **separate canvas nodes** — never merged into one 
   replayWithoutLlm: true
   imageAssetUrl:
     type: image_url
-    value: "https://airvio.co/knowgrph/r2/runs/{runId}/image/shot-1.png"
+    value: "https://airvio.co/api/storage/blob/{workspaceId}/{canonicalImagePath}"
 
 - id: panel_video_output
   type: RichMediaPanel
@@ -141,7 +171,7 @@ Image and video outputs are **separate canvas nodes** — never merged into one 
   replayWithoutLlm: true
   videoUrl:
     type: video_url
-    value: "https://airvio.co/knowgrph/r2/runs/{runId}/video/shot-1.mp4"
+    value: "https://airvio.co/api/storage/blob/{workspaceId}/{canonicalVideoPath}"
 ```
 
 ---
@@ -152,21 +182,21 @@ BytePlus media URLs are **ephemeral** (short-lived signed URLs). On generation s
 
 1. Downloads the media bytes from the BytePlus response URL.
 2. Computes a SHA-256 content hash for deduplication.
-3. Uploads to **Cloudflare R2** under the key scheme:
+3. Uploads to **Cloudflare R2** through the Storage Worker blob route:
    ```
-   runs/{runId}/{stageId}/{shotId}.{ext}
+   POST /api/storage/blob/{workspaceId}/{canonicalArtifactPath}
    ```
-4. Records the **durable R2 URL** in the `RunManifest DO` and D1.
-5. Returns only the R2 URL to the canvas node — the ephemeral BytePlus URL is discarded.
+4. Records the Worker blob URL and R2 object key in the sibling Markdown manifest stored in D1.
+5. Returns only the Worker blob URL to the canvas node — the ephemeral provider URL is discarded.
 
-R2 base URL: `https://airvio.co/knowgrph/r2`
+Durable read URL template: `https://airvio.co/api/storage/blob/{workspaceId}/{canonicalArtifactPath}`
 
 **Key scheme examples:**
 
 | Asset | R2 key |
 |---|---|
-| Shot 1 image | `runs/kg_acos_run_20260611/render/shot-1.png` |
-| Shot 2 video | `runs/kg_acos_run_20260611/render/shot-2.mp4` |
+| Shot 1 image | Storage Worker-derived object key for `{workspaceId}/{canonicalImagePath}` |
+| Shot 2 video | Storage Worker-derived object key for `{workspaceId}/{canonicalVideoPath}` |
 
 ---
 
@@ -192,13 +222,13 @@ kgAutoSaveEnabled: true
 kgAutoSaveDebounceMs: 1500
 kgAutoSaveOn: ["nodeEdit", "runComplete", "approval", "assetReady"]
 kgStorageTarget: "cloudflare"
-kgStorageAccountId: "<cf-account-id>"
-kgStorageWorkspaceId: "kgws:canonical-docs"
-kgStorageDocPath: "huijoohwee/docs/<filename>.md"
+kgStorageAccountId: "<cloudflare-account-id>"
+kgStorageWorkspaceId: "<workspace-id>"
+kgStorageDocPath: "<canonical-document-path>"
 kgStorageDocTarget: "cloudflare-d1"
-kgStorageMediaBucket: "knowgrph-media"
-kgStorageMediaBaseUrl: "https://airvio.co/knowgrph/r2"
-kgStorageMediaKeyScheme: "runs/{runId}/{stageId}/{shotId}.{ext}"
+kgStorageMediaBucketBinding: "KNOWGRPH_STORAGE_BLOB_BUCKET"
+kgStorageMediaBaseUrl: "https://airvio.co/api/storage/blob"
+kgStorageMediaKeyScheme: "{workspaceId}/{canonicalArtifactPath}"
 kgMediaPersistPolicy: "copy-on-generate"
 kgProviderUrlEphemeral: true
 kgMediaDedupeBy: "sha256"
@@ -209,7 +239,7 @@ kgForbidPlatform: ["vercel", "aws"]
 
 ## Replay Without Calling the LLM
 
-Once assets exist in R2, panels **replay by embedding the durable R2 URL directly** — no BytePlus call, no AI Gateway request, no LLM invocation.
+Once assets exist in R2, panels **replay by embedding the durable Worker blob URL directly** — no provider call, no AI Gateway request, no LLM invocation.
 
 ```yaml
 kgReplayEnabled: true
@@ -220,10 +250,10 @@ kgReplayAccessScope: "run-entitled"
 
 **Replay access contract:**
 
-- R2 assets are served only to the entitled run (Worker entitlement check or signed short-TTL URL).
+- R2 assets are served through the Storage Worker blob route or a run-entitled media route; buckets remain private.
 - The bucket is **not public**.
 - Re-opening a panel, sharing a run link, or returning after days all read from R2 — zero BytePlus or LLM cost.
-- Replay is deterministic: the same `runId` always resolves the same R2 keys.
+- Replay is deterministic: the same workspace id and canonical artifact path resolve the same blob route and R2 object.
 
 **Panel behaviour on replay:**
 
@@ -232,6 +262,8 @@ kgReplayAccessScope: "run-entitled"
 | Image (`imageAssetUrl`) | Receives R2 URL from Worker, renders `<img>` | Reads saved R2 URL from D1/manifest, renders `<img>` — no model call |
 | Video (`videoUrl`) | Receives R2 URL from Worker, renders `<video>` | Reads saved R2 URL from D1/manifest, renders `<video>` — no model call |
 | Text / srcdoc | Rendered from saved markdown / HTML in D1 | Re-renders from D1 row — no model call |
+
+**Persistence claim boundary**: Local artifact paths, browser object URLs, provider URLs, and embedded `srcdoc` prove only that Dev generated an output. A generated artifact is persisted across Dev, Prod, and Cloudflare only after both the D1 manifest route and the Worker blob route are readable for the same artifact.
 
 ---
 

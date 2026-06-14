@@ -3,8 +3,8 @@ title: "Knowgrph Storage & Sync"
 id: "md:knowgrph-storage-sync-document"
 author: "airvio / joohwee"
 date: "2026-06-01"
-updated: "2026-06-13"
-version: "3.0.0"
+updated: "2026-06-14"
+version: "3.1.0"
 status: "deployed-dev; prod/cloudflare deploy remains manual"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -69,7 +69,7 @@ traceability:
 3. **Concurrent edit layer**: PocketBase + Yjs when ≥2 users edit the same file at the same time
 4. **Save bridge**: server-side bridge serializes saved Yjs state and commits to GitHub; collaborators never touch Git directly
 5. **Explicit shared/runtime store**: Cloudflare D1 through a Cloudflare Worker sync API owned by Drizzle schema/contracts for read/export/runtime metadata only
-6. **Optional large-asset spillover**: Cloudflare R2 when assets stop fitting cleanly in document rows
+6. **Generated binary artifact store**: Cloudflare R2 owns generated image/video/binary bytes; D1 owns the sibling Markdown manifest that points to the R2 object through the Worker blob route
 7. **Future scale-up path**: PostgreSQL only when server-side retrieval clearly outgrows D1/PocketBase responsibilities
 
 ### SSOT Transition
@@ -128,8 +128,11 @@ Toolbar → Workspace View → `Storage Sync` is the runtime gate for two storag
 
 1. **Solo/local path**: Editor Workspace `/docs/**` ⇄ Source Files ⇄ configured local docs mirror.
 2. **Concurrent path**: Editor Workspace `/docs/**` ⇄ Yjs document room ⇄ PocketBase realtime relay ⇄ GitHub save bridge.
+3. **Generated artifact publication path**: Generated workspace artifact blob ⇄ `/api/storage/blob/:workspaceId/:canonicalPath*` ⇄ R2 object, plus a sibling Markdown manifest pushed through the Source Files storage publication helper into D1.
 
 When on, the app keeps the workspace seed refresh loop active and allows same-file collaborative rooms to sync through PocketBase + Yjs. When off, seed refresh and collaboration room sync are paused; local Source Files persistence and graph composition remain local.
+
+Generated artifact publication remains explicitly opt-in through the runtime storage setting. A generated image/video/binary artifact is considered synced across Dev, Prod, and Cloudflare only when both checks pass: the Worker blob URL responds through `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*`, and the sibling manifest is readable through the D1 document route. Local generated files, browser object URLs, provider URLs, and embedded `srcdoc` alone are proof of Dev output only, not Cloudflare persistence.
 
 ### Why This Remains The Default
 
@@ -143,6 +146,7 @@ When on, the app keeps the workspace seed refresh loop active and allows same-fi
 - Auto-clear of stale outbox conflicts after pull eliminates manual resolution after re-seeds.
 - Yjs CRDT (Y.Text/Y.Map) eliminates destructive Git merge conflicts for concurrent sessions; raw minified JSON must never be Git-merged across simultaneous edits.
 - GitHub save bridge auto-commits saved Yjs snapshots — GitHub SSOT is maintained without any manual Git workflow for collaborators.
+- Generated binary artifacts reuse the same Storage Worker and Source Files storage publication owners: R2 stores bytes, D1 stores manifests, and Cloudflare persistence is never claimed without a readable blob route and manifest route.
 
 ---
 
@@ -197,6 +201,7 @@ flowchart TB
     subgraph Edge["Cloudflare Edge (airvio.co/knowgrph)"]
         pages["Pages: static SPA"]
         workerDeployed["Worker: /api/storage/*"]
+        blobRoute["Worker blob route<br/>/api/storage/blob/*"]
         subgraph d1r["D1 (remote SQLite)"]
             r1["workspaces"]
             r2["documents"]
@@ -204,6 +209,9 @@ flowchart TB
             r4["graph_snapshots"]
             r5["sync_devices"]
             r6["sync_events"]
+        end
+        subgraph r2b["R2"]
+            rb1["generated binary artifacts"]
         end
     end
 
@@ -223,6 +231,9 @@ flowchart TB
     end
 
     Browser -->|"push/pull"| Edge
+    Browser -->|"generated artifact upload/read"| blobRoute
+    blobRoute --> rb1
+    blobRoute -->|"sibling manifest via storage publication"| r2
     Browser -->|"Yjs updates + awareness"| pb
     pb -->|"save snapshot"| gitBridge
     gitBridge -->|"auto-commit on save"| githubDocs
@@ -319,6 +330,20 @@ flowchart TB
 6. Neither User A nor User B touches Git — bridge owns all commits
 7. GitHub docs branch/main stays SSOT; D1 stays runtime export/read cache
 ```
+
+### Path G — Generated Image/Video/Binary Artifact Persistence (R2 + D1 Manifest)
+
+```
+1. A runtime owner generates a binary artifact from a workspace path, for example image/video bytes for a KGC or rich-media output
+2. Runtime storage sync is explicitly enabled and the artifact has a workspace id plus canonical path
+3. `uploadGeneratedWorkspaceBlobToKnowgrphStorage()` posts the Blob to `/api/storage/blob/:workspaceId/:canonicalPath*`
+4. The Storage Worker stores the bytes in R2 using the same workspace/canonical-path identity and returns the object key, content type, hash, size, and public Worker path
+5. The generated output owner writes a sibling Markdown manifest through `writeKgcCompanionOutputBlob()` or the shared Source Files storage publication helper
+6. D1 stores the manifest as a normal document; R2 stores the binary bytes
+7. Acceptance requires both reads to succeed: manifest through `/api/storage/doc/:workspaceId/:manifestPath*`, bytes or metadata through `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*`
+```
+
+**Constraint**: Do not infer Cloudflare persistence from a local artifact path, provider URL, browser object URL, or embedded `srcdoc`. Those are Dev/runtime evidence only until the R2 blob route and D1 manifest route are readable.
 
 ---
 
@@ -433,6 +458,8 @@ flowchart TB
 | SF ↔ Storage | Push bridge | `features/source-files/sourceFilesStorageSync.ts` | Built |
 | SF ↔ Storage | Pull apply | `features/source-files/sourceFilesInboundStorageApply.ts` | Built |
 | SF ↔ Storage | Runtime bootstrap | `features/source-files/SourceFilesPersistenceBootstrap.tsx` | Built |
+| Generated binary artifacts | Blob upload owner | `features/source-files/sourceFilesBinaryStorage.ts` | Built; runtime-sync opt-in; posts generated image/video/binary bytes to the Storage Worker blob route |
+| Generated binary artifacts | KGC binary manifest owner | `features/chat/chatHistoryWorkspace.output.ts` | Built; writes sibling Markdown manifest after R2 upload succeeds |
 | Cache store | Storage collections | `lib/storage/knowgrphStorageDb.ts` | Built |
 | Sync engine | Client push/pull/loop | `lib/storage/knowgrphStorageClientSync.ts` | Built |
 | Sync contract | Constants + builders | `lib/storage/knowgrphStorageSyncContract.ts` | Built |
@@ -456,6 +483,7 @@ flowchart TB
 |---|---|---|---|
 | Worker | Request handlers | `workers/knowgrph-storage/index.ts` | Built |
 | Worker | Public doc view route | `workers/knowgrph-storage/index.ts` (`/api/storage/doc/`) | **Built** — see ADR-009 |
+| Worker | Generated binary blob route | `workers/knowgrph-storage/blob.ts` (`/api/storage/blob/`) | **Built** — stores bytes in R2 and serves artifact bodies/metadata through Worker-owned routes |
 | Worker | Collaboration save bridge | `workers/knowgrph-storage/index.ts` (`/api/storage/collab/save`) | **Built in Dev** — reads PocketBase room state when configured, formats JSON, requires Yjs state for concurrent JSON, commits through GitHub Contents API |
 | Canvas | Deep link runtime | `features/canvas/CanvasDocDeepLinkRuntime.tsx` | **Built** — renders `/doc/{workspaceId}/{path}` in canvas |
 | Worker | D1 query helpers | `workers/knowgrph-storage/db.ts` | Built |
@@ -474,6 +502,10 @@ flowchart TB
 | Deploy | Static build + sync | `npm run pages:build-sync` | Built |
 | Deploy | Static + Workers deploy | `npm run pages:build-sync-cloudflare` -> `npm run workers:deploy` -> `npm run storage:deploy` | Built; storage deploy applies migrations, deploys the Worker, and re-seeds D1 docs |
 | Test | D1 fake | `__tests__/helpers/fakeKnowgrphStorageD1.ts` | Built |
+| Test | R2 fake | `__tests__/helpers/fakeKnowgrphStorageR2.ts` | Built |
+| Test | Generated binary manifest flow | `__tests__/chatHistoryWorkspaceOutput.test.ts` (`chat.responseContract.storage.kgcBinaryOutputPublishesR2Manifest`) | Built |
+| Test | Rich-media binary manifest flow | `__tests__/chatHistoryWorkspaceOutput.test.ts` (`chat.responseContract.storage.richMediaBinaryOutputPublishesR2Manifest`) | Built |
+| Test | Worker blob route | `__tests__/sourceFilesStorageBlobSync.test.ts` (`sourceFiles.storageSync.r2BlobRoute.storesBinaryObject`) | Built |
 | Test | PocketBase/Yjs collaboration + bridge guard | `__tests__/sourceFilesPocketBaseYjsCollaboration.test.ts` | Built |
 | Future | PostgreSQL backend | — | Deferred |
 

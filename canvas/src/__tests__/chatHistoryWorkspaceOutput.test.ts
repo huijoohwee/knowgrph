@@ -319,3 +319,96 @@ export async function testWriteRichMediaWidgetRunOutputArtifactLandsManifestInSo
     restoreWindow()
   }
 }
+
+export async function testWriteRichMediaWidgetRunOutputArtifactUploadsR2AndPublishesManifestWhenRuntimeSyncEnabled() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const originalFetch = globalThis.fetch
+  const previousRuntimeSync = process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const workspaceId = 'kgws:test-rich-media-binary-manifest'
+  try {
+    resetWorkspaceFsForTests()
+    await __resetKnowgrphStorageDbForTests()
+    process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED = '1'
+    process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://example.com'
+    process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = workspaceId
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input || '')
+      if (url === '/__kg_fs_write') {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      const request = input instanceof Request
+        ? input
+        : new Request(url.startsWith('/api/storage/') ? `https://example.com${url}` : String(input), init)
+      return readStorageWorker().fetch(request, env as never)
+    }) as typeof fetch
+
+    const result = await writeRichMediaWidgetRunOutputArtifact({
+      workspacePath: '/workspace/current.md',
+      node: {
+        id: 'image-widget-1',
+        type: 'ImageGeneration',
+        label: 'Image Widget',
+        properties: {},
+      },
+      kind: 'image',
+      extension: 'png',
+      asset: {
+        blob: new Blob([Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10])], { type: 'image/png' }),
+        renderUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        sourceUrl: 'https://example.invalid/generated.png',
+        model: 'test-image-model',
+      },
+      fs,
+    })
+
+    if (result.outputPath !== '/workspace/current-image-widget.png') {
+      throw new Error(`expected rich-media binary output path, got ${String(result.outputPath || '')}`)
+    }
+    if (result.outputManifestPath !== '/workspace/current-image-widget-image-output.md') {
+      throw new Error(`expected rich-media manifest output path, got ${String(result.outputManifestPath || '')}`)
+    }
+    if (!result.outputStorageUrl || !result.outputStorageUrl.includes('/api/storage/blob/')) {
+      throw new Error(`expected rich-media helper to return durable storage URL, got ${String(result.outputStorageUrl || '')}`)
+    }
+    if (env.KNOWGRPH_STORAGE_BLOB_BUCKET.objects.size !== 1) {
+      throw new Error(`expected rich-media output to upload one R2 object, got ${env.KNOWGRPH_STORAGE_BLOB_BUCKET.objects.size}`)
+    }
+    const manifestText = await fs.readFileText('/workspace/current-image-widget-image-output.md')
+    if (!manifestText || !manifestText.includes('| storageUrl | /api/storage/blob/') || !manifestText.includes('| r2ObjectKey |')) {
+      throw new Error(`expected rich-media manifest to include R2 storage metadata, got ${String(manifestText || '')}`)
+    }
+    const docResponse = await readStorageWorker().fetch(
+      new Request(`https://example.com${buildKnowgrphStorageDocPath(workspaceId, 'workspace/current-image-widget-image-output.md')}`),
+      env as never,
+    )
+    if (!docResponse.ok) {
+      throw new Error(`expected rich-media manifest to publish to D1, got ${docResponse.status}`)
+    }
+    const published = await docResponse.text()
+    if (!published.includes('storageUrl') || !published.includes('current-image-widget.png')) {
+      throw new Error(`expected published rich-media manifest to expose storage URL and binary path, got ${published}`)
+    }
+  } finally {
+    await __resetKnowgrphStorageDbForTests()
+    resetWorkspaceFsForTests()
+    globalThis.fetch = originalFetch
+    if (typeof previousRuntimeSync === 'string') process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED = previousRuntimeSync
+    else delete process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+    restoreDom()
+    restoreWindow()
+  }
+}
