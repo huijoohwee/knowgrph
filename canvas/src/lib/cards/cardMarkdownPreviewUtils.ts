@@ -3,6 +3,14 @@ const CARD_MARKDOWN_STRUCTURAL_PATTERN = /(^|\n)\s*(?:>+|```|\|[^\n]*\|)|!\[[^\]
 export const CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME = 'overflow-y-auto overflow-x-hidden max-h-full'
 export const CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME = 'm-0'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME = 'max-w-full h-auto object-contain'
+export const CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME =
+  'inline-flex items-center gap-1 rounded-full border border-[color:var(--kg-border)] px-2 py-1 text-[10px] text-[color:var(--kg-text-secondary)]'
+export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME =
+  'inline-block !h-3 !w-3 shrink-0 rounded-full object-cover'
+export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME =
+  `${CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME} max-w-full overflow-hidden`
+export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME =
+  'min-w-0 max-w-[9rem] truncate'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME = 'bg-transparent'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-frame'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-embed-frame'
@@ -25,6 +33,12 @@ export const CARD_MARKDOWN_PREVIEW_MERMAID_SURFACE_CLASS_NAME =
 
 export function hasCardMarkdownPreviewSyntax(raw: string): boolean {
   return CARD_MARKDOWN_STRUCTURAL_PATTERN.test(String(raw || ''))
+}
+
+export function readCardMarkdownPreviewMediaLabel(raw: unknown, fallback: string): string {
+  const compact = String(raw ?? '').replace(/\s+/g, ' ').trim()
+  if (compact && !/^(?:thumbnail|preview|media)$/i.test(compact)) return compact.slice(0, 80)
+  return fallback
 }
 
 type CardMarkdownPreviewTextBlock = {

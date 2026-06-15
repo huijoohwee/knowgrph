@@ -95,6 +95,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
   const [collapsedBySection, setCollapsedBySection] = React.useState<Record<HelpStepKey, boolean>>({
     shortcuts: true,
     cheatsheet: true,
+    commandMenu: true,
     panelTour: true,
     workflowLinks: true,
     icons: true,
@@ -104,6 +105,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
     setCollapsedBySection({
       shortcuts: true,
       cheatsheet: true,
+      commandMenu: true,
       panelTour: true,
       workflowLinks: true,
       icons: true,
@@ -114,6 +116,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
     setCollapsedBySection({
       shortcuts: false,
       cheatsheet: false,
+      commandMenu: false,
       panelTour: false,
       workflowLinks: false,
       icons: false,

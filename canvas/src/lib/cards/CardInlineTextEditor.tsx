@@ -8,6 +8,7 @@ import {
 import { hasCardMarkdownPreviewSyntax } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from '@/lib/markdown-core/ui/markdownInlineEditActivation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type CardInlineTextEditActivation = 'doubleClick' | 'click'
@@ -227,9 +228,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     setCommandQuery('')
   }, [value])
 
-  const openEditorFromDisplayEvent = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+  const openEditorFromDisplayEvent = React.useCallback((event: React.MouseEvent<HTMLElement>, options?: { useMarkdownViewerActivation?: boolean }) => {
     if (!canEdit) return false
-    if (shouldIgnoreInlineEditTarget(event.target)) return false
+    if (!options?.useMarkdownViewerActivation && shouldIgnoreInlineEditTarget(event.target)) return false
     event.preventDefault()
     if (stopActivationPropagation) {
       event.stopPropagation()
@@ -353,24 +354,29 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       }}
       onPointerDown={event => {
         if (!canEdit) return
-        if (shouldIgnoreInlineEditTarget(event.target)) return
-        if (editActivation !== 'click' && event.detail < 2) return
+        const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
+        if (!useMarkdownViewerActivation && shouldIgnoreInlineEditTarget(event.target)) return
+        if (editActivation !== 'click' && !useMarkdownViewerActivation && event.detail < 2) return
         if (stopActivationPropagation) {
           event.stopPropagation()
         }
       }}
       onMouseDown={event => {
         if (!canEdit) return
-        if (shouldIgnoreInlineEditTarget(event.target)) return
-        if (editActivation !== 'click' && event.detail < 2) return
+        const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
+        if (!useMarkdownViewerActivation && shouldIgnoreInlineEditTarget(event.target)) return
+        if (editActivation !== 'click' && !useMarkdownViewerActivation && event.detail < 2) return
         if (stopActivationPropagation) {
           event.stopPropagation()
         }
       }}
       onClick={event => {
         if (!canEdit) return
-        if (editActivation !== 'click') return
-        openEditorFromDisplayEvent(event)
+        const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
+        if (editActivation !== 'click') {
+          if (!useMarkdownViewerActivation) return
+        }
+        openEditorFromDisplayEvent(event, { useMarkdownViewerActivation })
       }}
       onDragStart={event => {
         event.preventDefault()

@@ -36,8 +36,8 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
     "editActivation = 'doubleClick'",
     'data-kg-card-inline-edit-activation={editActivation}',
     'onPointerDown={event => {',
-    "if (editActivation !== 'click') return",
-    'onBlur={() => {',
+    'shouldOpenMarkdownViewerInlineEditorFromReadClick',
+    'onBlur={event => {',
     'commit()',
     "if (multiline && event.key === 'Enter' && (event.metaKey || event.ctrlKey))",
     'onCommit?.(next)',
@@ -428,6 +428,64 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
     }
     if (!activeTextarea.value.includes('![Image alt](image-url)')) {
       throw new Error(`expected unresolved @ Image insertion to add an editable markdown placeholder, got ${JSON.stringify(activeTextarea.value)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefaultEditor() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Review evidence 123 ![image](https://media.example.test/poster.jpg)',
+          ariaLabel: 'Action text',
+          placeholder: 'Add action',
+          canEdit: true,
+          multiline: true,
+          markdownPreview: 'auto',
+          onCommit: () => {},
+        }),
+      )
+      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="doubleClick"]')
+    if (!(display instanceof dom.window.HTMLElement)) {
+      throw new Error('expected shared card editor display surface to preserve default double-click activation')
+    }
+    const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
+    if (!(previewRoot instanceof dom.window.HTMLElement)) {
+      throw new Error('expected markdown preview read surface to render inside the shared card editor display')
+    }
+    const previewImage = previewRoot.querySelector('img[data-kg-media-thumbnail="1"]')
+    if (!(previewImage instanceof dom.window.HTMLImageElement)) {
+      throw new Error('expected markdown preview media thumbnail to render inside the shared card editor display')
+    }
+
+    await act(async () => {
+      previewRoot.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, detail: 1 }))
+      previewRoot.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 1 }))
+      previewRoot.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Action text"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) {
+      throw new Error('expected one click on the markdown preview read surface to reopen the default shared inline editor')
+    }
+    if (!textarea.value.includes('![image](https://media.example.test/poster.jpg)')) {
+      throw new Error(`expected reopened editor to preserve the inserted image markdown, got ${JSON.stringify(textarea.value)}`)
     }
   } finally {
     await act(async () => {

@@ -196,6 +196,7 @@ export function testRichMediaSsotConsistencyRegression() {
   const markdownMediaUiText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownMediaUi.impl.tsx'), 'utf8')
   const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
   const previewPanelText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx'), 'utf8')
+  const commandMenuRichMediaInventoryText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'command-menu', 'commandMenuRichMediaInventory.ts'), 'utf8')
   const threeText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'useThreeRichMediaOverlayController.tsx'), 'utf8')
   const panelFrameText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'ui', 'panelFrame.ts'), 'utf8')
 
@@ -533,23 +534,26 @@ export function testRichMediaSsotConsistencyRegression() {
   ) {
     throw new Error('expected Preview panel rich media mounts to reuse canonical Rich Media panel state and writeback helpers')
   }
-  if (!previewPanelText.includes('const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)')) {
-    throw new Error('expected PreviewPanelView graph media path to reuse the effective widget registry SSOT')
+  if (!previewPanelText.includes('useCommandMenuRichMediaInventory()')) {
+    throw new Error('expected PreviewPanelView to consume the shared Command Menu rich-media inventory instead of owning a duplicate media list')
   }
-  if (!previewPanelText.includes("cacheScope: 'preview-panel-graph-media'") || !previewPanelText.includes('getCachedGraphLookup({')) {
-    throw new Error('expected PreviewPanelView graph media path to reuse the shared graph lookup helper instead of rebuilding a local node map')
+  if (!commandMenuRichMediaInventoryText.includes('const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)')) {
+    throw new Error('expected Command Menu rich-media inventory to reuse the effective widget registry SSOT')
   }
-  if (!previewPanelText.includes('nodeById: graphLookup?.nodeById || undefined')) {
-    throw new Error('expected PreviewPanelView graph media path to pass the shared graph lookup into Rich Media overlay derivation')
+  if (!commandMenuRichMediaInventoryText.includes("cacheScope: 'command-menu-rich-media'") || !commandMenuRichMediaInventoryText.includes('getCachedGraphLookup({')) {
+    throw new Error('expected Command Menu rich-media inventory to reuse the shared graph lookup helper instead of rebuilding a local node map')
   }
-  if (previewPanelText.includes('const effectiveNodeById = new Map(')) {
-    throw new Error('expected PreviewPanelView graph media path to stop rebuilding a duplicate effective node-id map locally')
+  if (!commandMenuRichMediaInventoryText.includes('nodeById: graphLookup?.nodeById || undefined')) {
+    throw new Error('expected Command Menu rich-media inventory to pass the shared graph lookup into Rich Media overlay derivation')
   }
-  if (previewPanelText.includes('buildDataflowWidgetRegistry')) {
-    throw new Error('expected PreviewPanelView to avoid rebuilding a duplicate merged widget registry locally')
+  if (previewPanelText.includes('const effectiveNodeById = new Map(') || commandMenuRichMediaInventoryText.includes('const effectiveNodeById = new Map(')) {
+    throw new Error('expected rich-media inventory paths to stop rebuilding a duplicate effective node-id map locally')
   }
-  if (!previewPanelText.includes('registry: widgetRegistry,')) {
-    throw new Error('expected PreviewPanelView connected-value computation to consume the effective widget registry directly')
+  if (previewPanelText.includes('buildDataflowWidgetRegistry') || commandMenuRichMediaInventoryText.includes('buildDataflowWidgetRegistry')) {
+    throw new Error('expected rich-media inventory paths to avoid rebuilding a duplicate merged widget registry locally')
+  }
+  if (!commandMenuRichMediaInventoryText.includes('registry: widgetRegistry,')) {
+    throw new Error('expected Command Menu rich-media inventory connected-value computation to consume the effective widget registry directly')
   }
   if (!markdownDesignOverlayText.includes("buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: snippet })")) {
     throw new Error('expected markdown design overlay text previews to reuse the shared static Rich Media panel builder')

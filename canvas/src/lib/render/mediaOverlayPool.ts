@@ -157,6 +157,7 @@ function buildOverlayTitle(args: {
 function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }): number {
   const props = (node.properties || {}) as Record<string, unknown>
   let score = 0
+  const nodeTypeId = String(node.type || '').trim()
 
   const hasExplicit =
     typeof props.media_url === 'string' ||
@@ -172,10 +173,10 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
     typeof props.media === 'string'
   if (hasExplicit) score += 100
 
-  const typeRaw = String(node.type || '').toLowerCase()
+  const typeRaw = nodeTypeId.toLowerCase()
   // Keep Rich Media Panel as canonical renderer when media URLs collide with source widgets.
-  if (typeRaw === 'richmediapanel' || typeRaw === 'rich media panel') {
-    score += 160
+  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID || typeRaw === 'richmediapanel' || typeRaw === 'rich media panel') {
+    score += 1000
   }
   if (typeRaw === 'image' || typeRaw === 'video' || typeRaw === 'audio' || typeRaw === 'iframe' || typeRaw === 'webpageelement' || typeRaw === 'link') {
     score += 20

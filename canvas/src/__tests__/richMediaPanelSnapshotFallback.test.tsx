@@ -425,6 +425,7 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   const animaticCanvasText = readSource('components', 'AnimaticCanvas.tsx')
   const markdownMediaUiText = readSource('lib', 'markdown-core', 'ui', 'MarkdownMediaUi.impl.tsx')
   const markdownInlineRendererText = readSource('lib', 'markdown-core', 'ui', 'MarkdownInlineRenderer.impl.tsx')
+  const markdownInlineMediaDownloadText = readSource('lib', 'markdown-core', 'ui', 'MarkdownInlineMediaDownload.tsx')
   const safeHtmlRendererText = readSource('lib', 'markdown-core', 'ui', 'markdownPreviewLinks.safeHtml.render.tsx')
   const markdownPreviewViewerText = readSource('lib', 'markdown-core', 'ui', 'MarkdownPreviewViewer.impl.tsx')
   const markdownTokenRendererText = readSource('features', 'markdown', 'ui', 'MarkdownTokenRenderer.tsx')
@@ -639,11 +640,46 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
     }
   }
   if (
-    !markdownCodeBlockText.includes("cardPreviewMode\n    ? (isMermaidLang ? 'render' : defaultMode)")
+    !sharedCardMarkdownUtilsText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME')
+    || !sharedCardMarkdownUtilsText.includes('CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME')
+    || !sharedCardMarkdownUtilsText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME')
+    || !sharedCardMarkdownUtilsText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME')
+    || !sharedCardMarkdownUtilsText.includes('readCardMarkdownPreviewMediaLabel')
+    || !markdownInlineRendererText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME')
+    || !markdownInlineRendererText.includes('CardPreviewInlineMediaPill')
+    || !markdownInlineRendererText.includes("fit={cardPreviewMode ? 'cover' : 'contain'}")
+    || !markdownInlineRendererText.includes('fallbackLabel="Image"')
+    || !markdownInlineRendererText.includes('fallbackLabel="Video"')
+    || !safeHtmlRendererText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME')
+    || !safeHtmlRendererText.includes('renderCardPreviewInlineMediaPill')
+    || !safeHtmlRendererText.includes("fit={cardPreviewMode ? 'cover' : 'contain'}")
+    || !markdownMediaUiText.includes("fit={cardPreviewMode === true ? 'cover' : 'contain'}")
+  ) {
+    throw new Error('expected card-preview inline image and video surfaces to use shared mention-style media pill classes')
+  }
+  if (
+    !sharedCardMarkdownUtilsText.includes('rounded-full')
+    || !sharedCardMarkdownUtilsText.includes('h-3')
+    || !sharedCardMarkdownUtilsText.includes('px-2 py-1 text-[10px]')
+    || !sharedCardMarkdownUtilsText.includes('max-w-[9rem]')
+    || !sharedCardMarkdownUtilsText.includes('border-[color:var(--kg-border)]')
+    || !sharedCardMarkdownUtilsText.includes('text-[color:var(--kg-text-secondary)]')
+  ) {
+    throw new Error('expected card-preview inline image and video surfaces to reuse the shared Open brief chip styling with thumbnail and label')
+  }
+  if (
+    !markdownInlineMediaDownloadText.includes('if (args.cardPreviewMode === true) return args.children')
+    || !safeHtmlRendererText.includes('if (cardPreviewMode === true) return null')
+  ) {
+    throw new Error('expected Card markdown previews to keep media download affordances out of inline @ thumbnail pills')
+  }
+  if (
+    !markdownCodeBlockText.includes('const baseMode: AnnotateDisplayMode = cardPreviewMode')
+    || !markdownCodeBlockText.includes("? (isMermaidLang ? 'render' : defaultMode)")
     || !markdownCodeBlockText.includes('enablePanZoom={!cardPreviewMode}')
     || !plainMermaidDiagramText.includes('CARD_MARKDOWN_PREVIEW_MERMAID_SURFACE_CLASS_NAME')
     || !plainMermaidDiagramText.includes("style={cardPreviewMode ? { touchAction: 'pan-y' } : undefined}")
-    || !plainMermaidDiagramText.includes("dangerouslySetInnerHTML={{ __html: svg }}")
+    || !plainMermaidDiagramText.includes("dangerouslySetInnerHTML={{ __html: selectedSvg }}")
   ) {
     throw new Error('expected MarkdownCodeBlock Card preview mode to render Mermaid as inline SVG while keeping non-Mermaid code fences as code')
   }
@@ -898,6 +934,10 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
     const videoClassName = String((video as HTMLElement).getAttribute('class') || '')
     if (/\brounded\b|\bborder\b|\bshadow-sm\b/.test(videoClassName)) {
       throw new Error(`expected Card markdown video media to avoid nested rounded border shadow chrome, class=${videoClassName}`)
+    }
+    const cardDownloadLink = cardMarkdownPreview.querySelector('a[download][aria-label="Download media"]')
+    if (cardDownloadLink) {
+      throw new Error(`expected Card markdown preview to move media download affordance out of inline @ thumbnail pills, html=${container.innerHTML}`)
     }
 
     await unmountReactRoot(root, { window: dom.window })

@@ -6,6 +6,7 @@ import {
   shouldFlushKeyTypeValueSectionTop,
 } from '@/features/panels/ui/KeyTypeValueRow';
 import { HelpCheatsheetSection } from './HelpCheatsheetSection';
+import { HelpCommandMenuSection } from './HelpCommandMenuSection';
 import { HelpIconsSection } from './HelpIconsSection';
 import { HelpPanelTourSection } from './HelpPanelTourSection';
 import { HelpShortcutsSection } from './HelpShortcutsSection';
@@ -48,6 +49,10 @@ export function HelpSections({
         <HelpCheatsheetSection
           collapsed={collapsedBySection.cheatsheet}
           onToggle={next => onToggleSection('cheatsheet', next)}
+        />
+        <HelpCommandMenuSection
+          collapsed={collapsedBySection.commandMenu}
+          onToggle={next => onToggleSection('commandMenu', next)}
         />
         <HelpPanelTourSection
           collapsed={collapsedBySection.panelTour}

@@ -1,59 +1,24 @@
 import React from 'react'
-import type {
-  TokensParagraph,
-  TokensGeneric,
-  TokensLink,
-  TokensCode,
-  TokensHTML,
-  TokensImage,
-} from '@/features/markdown/ui/MarkdownTokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
-import {
-  type TokenWithLines,
-} from '@/features/markdown/ui/markdownPreviewLex'
-import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
-import {
-  buildMarkdownPreviewMediaKey,
-  extractAttr,
-  isAbsoluteWebUrl,
-  isSafeHref,
-  isSafeMediaSrc,
-  isVideoUrl,
-  looksLikeSingleTagBlock,
-  resolveHref,
-} from '@/features/markdown/ui/markdownPreviewLinks'
-import { buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
-import { extractScriptEmbedAnchorHref, pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 import { splitMermaidIntoDiagrams } from 'grph-shared/markdown/mermaidBlocks'
-import { normalizeWebpageLikeUrl } from 'grph-shared/url'
 import {
   type MermaidInitConfig,
-  parseMermaidConfigFromFrontmatter,
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
-import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { listMediaOverlayNodes, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildStaticRichMediaPanelOverlayState, commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
-import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
+import {
+  type CommandMenuRichMediaItem,
+  useCommandMenuRichMediaInventory,
+} from '@/lib/command-menu/commandMenuRichMediaInventory'
 
-const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
-const previewPlaceholderClassName = `flex-1 w-full flex items-center justify-center rounded ${UI_THEME_TOKENS.button.neutralMuted} text-[10px] ${UI_THEME_TOKENS.text.secondary} px-2 text-center`
 const previewEmptyStateClassName = `w-full h-full flex items-center justify-center text-xs ${UI_THEME_TOKENS.text.tertiary}`
 const previewActionButtonClassName = `text-xs px-3 py-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const previewPanelHeaderClassName = `shrink-0 border-b ${UI_THEME_TOKENS.panel.divider} bg-[color:var(--kg-panel-bg)]/60`
-const previewMetaBadgeClassName = `absolute right-1 top-1 rounded bg-[color:var(--kg-panel-bg)]/80 dark:bg-black/80 ${UI_THEME_TOKENS.text.primary} px-1 py-0.5 text-[9px] border ${UI_THEME_TOKENS.panel.border}`
-export const PREVIEW_PANEL_MEDIA_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'
 export const PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME = `kg-preview-panel-media-frame rounded border ${UI_THEME_TOKENS.panel.border}`
 const PREVIEW_PANEL_EMBED_FRAME_CLASS_NAME = `${PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME} bg-black/5`
 const MermaidDiagramLazy = React.lazy(() =>
@@ -62,37 +27,23 @@ const MermaidDiagramLazy = React.lazy(() =>
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
-  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || '')
   const mermaidFocusCode = useGraphStore(s => s.markdownPreviewMermaidFocusCode || '')
   const mermaidFocusConfig = useGraphStore(s => s.markdownPreviewMermaidFocusConfig || null)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const activeMediaKey = useGraphStore(s => s.markdownPreviewActiveMediaKey || null)
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
-  const selectNode = useGraphStore(s => s.selectNode)
-  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateNode = useGraphStore(s => s.updateNode)
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
-  const graphData = useActiveGraphRenderData()
-  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
-  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const rootThemeMode = useRootThemeMode()
-  const graphSemanticKey = React.useMemo(
-    () => buildScopedGraphSemanticKey('preview-panel-graph', { graphData, graphRevision: graphDataRevision }),
-    [graphData, graphDataRevision],
-  )
-  const graphLookup = React.useMemo(
-    () => getCachedGraphLookup({
-      cacheScope: 'preview-panel-graph-media',
-      graphData,
-      graphRevision: graphDataRevision,
-      graphSemanticKey,
-      preferCurrentGraphDataRefs: true,
-    }),
-    [graphData, graphDataRevision, graphSemanticKey],
-  )
+  const {
+    items: mediaItems,
+    mermaidFrontmatterConfig,
+    frontmatterMermaidCode,
+    frontmatterMermaidDiagrams,
+  } = useCommandMenuRichMediaInventory()
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
   const [overlayPortalTarget, setOverlayPortalTarget] = React.useState<HTMLElement | null>(null)
@@ -111,26 +62,6 @@ export default function PreviewPanelView() {
   React.useEffect(() => {
     setLoadedEmbedKey(prev => (activeMediaKey ? (prev === activeMediaKey ? prev : '') : ''))
   }, [activeMediaKey])
-
-  const { tokens, meta } = useMarkdownPreviewLexedMarkdown(
-    markdownText || '',
-    undefined,
-    markdownDocumentName || '',
-    false,
-  )
-
-  const mermaidFrontmatterConfig = React.useMemo(
-    () => parseMermaidConfigFromFrontmatter(meta),
-    [meta],
-  )
-  const frontmatterMermaidCode = React.useMemo(
-    () => String((meta as Record<string, unknown>).mermaid || '').trim(),
-    [meta],
-  )
-  const frontmatterMermaidDiagrams = React.useMemo(
-    () => (frontmatterMermaidCode ? splitMermaidIntoDiagrams(frontmatterMermaidCode) : []),
-    [frontmatterMermaidCode],
-  )
 
   React.useEffect(() => {
     if (!frontmatterModeEnabled) return
@@ -154,367 +85,6 @@ export default function PreviewPanelView() {
     setMermaidFocus,
   ])
 
-  const isStandaloneLinkParagraph = (token: TokenWithLines): string | null => {
-    const p = token as unknown as TokensParagraph
-    const inner = Array.isArray(p.tokens) ? p.tokens : []
-    if (inner.length !== 1) return null
-    const only = inner[0] as unknown as TokensGeneric
-    if (only.type !== 'link') return null
-    const link = only as unknown as TokensLink
-    const href = String(link.href || '').trim()
-    return href || null
-  }
-
-  const isStandaloneTextUrlParagraph = (token: TokenWithLines): string | null => {
-    const p = token as unknown as TokensParagraph
-    const inner = Array.isArray(p.tokens) ? p.tokens : []
-    if (inner.length !== 1) return null
-    const only = inner[0] as unknown as TokensGeneric
-    if (only.type !== 'text') return null
-    const rawText = String((only as unknown as { text?: unknown }).text || '').trim()
-    if (!rawText) return null
-    const cleaned = rawText.replace(/^<|>$/g, '').trim()
-    if (!/^https?:\/\//i.test(cleaned)) return null
-    return cleaned
-  }
-
-  type MediaKind = 'mermaid' | 'image' | 'video' | 'audio' | 'iframe' | 'youtube' | 'vimeo' | 'webpage' | 'tweet'
-
-  type MediaSource = 'markdown' | 'graph'
-
-  type MediaItem = {
-    key: string
-    kind: MediaKind
-    source: MediaSource
-    startLine: number
-    label: string
-    panelTitle?: string
-    nodeId?: string
-    code?: string
-    mermaidConfig?: MermaidInitConfig | null
-    src?: string
-    srcDoc?: string
-    openUrl?: string
-    alt?: string
-    panel?: RichMediaPanelOverlayState
-  }
-
-  const mediaItems: MediaItem[] = React.useMemo(() => {
-    const list: MediaItem[] = []
-    const docPath = markdownDocumentName || ''
-    const frontmatterMermaid = frontmatterMermaidCode
-    const looksImageUrl = (href: string) =>
-      /^data:image\//i.test(href) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(href)
-    const looksAudioUrl = (href: string) =>
-      /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(href)
-    const pushHtmlMediaItem = (kind: 'iframe' | 'video' | 'audio', srcRaw: string | null, startLine: number) => {
-      if (!srcRaw || !isSafeHref(srcRaw) || !isSafeMediaSrc(srcRaw)) return
-      const src = resolveHref(srcRaw, docPath)
-      list.push({
-        key: buildMarkdownPreviewMediaKey(kind, startLine, srcRaw),
-        kind,
-        source: 'markdown',
-        startLine,
-        label: `${kind === 'iframe' ? 'Embedded content' : kind === 'video' ? 'Video' : 'Audio'} ${list.length + 1}`,
-        src,
-        openUrl: src,
-      })
-    }
-
-    if (frontmatterMermaid) {
-      const diagrams = frontmatterMermaidDiagrams
-      for (let i = 0; i < diagrams.length; i += 1) {
-        const code = diagrams[i]
-        const key = `frontmatter-mermaid:${i}`
-        list.push({
-          key,
-          kind: 'mermaid',
-          source: 'markdown',
-          startLine: 1,
-          label: diagrams.length > 1 ? `Mermaid diagram from frontmatter (${i + 1}/${diagrams.length})` : 'Mermaid diagram from frontmatter',
-          code,
-          mermaidConfig: mermaidFrontmatterConfig,
-        })
-      }
-    }
-
-    for (let i = 0; i < tokens.length; i += 1) {
-      const t = tokens[i]
-      const tt = t as unknown as TokensGeneric
-
-      if (tt.type === 'code') {
-        const c = t as unknown as TokensCode
-        const lang = String((c as unknown as { lang?: unknown }).lang || '').trim().toLowerCase()
-        if (lang === 'mermaid' || lang === 'mmd') {
-          const raw = String(c.text || '')
-          const diagrams = splitMermaidIntoDiagrams(raw)
-          for (let j = 0; j < diagrams.length; j += 1) {
-            const code = diagrams[j]
-            const key = buildMarkdownPreviewMediaKey('mermaid', t.startLine, `${j}:${code}`)
-            list.push({
-              key,
-              kind: 'mermaid',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `Mermaid diagram ${list.length + 1}`,
-              code,
-              mermaidConfig: mermaidFrontmatterConfig,
-            })
-          }
-        }
-        continue
-      }
-
-      if (tt.type === 'html') {
-        const html = String((t as unknown as TokensHTML).text || '').trim()
-
-        if (looksLikeSingleTagBlock(html, 'iframe') || looksLikeSingleTagBlock(html, 'embed') || looksLikeSingleTagBlock(html, 'object')) {
-          const isIframe = looksLikeSingleTagBlock(html, 'iframe')
-          const srcRaw = isIframe
-            ? extractAttr(html, 'src') || extractAttr(html, 'data-src')
-            : extractAttr(html, 'src') || extractAttr(html, 'data') || extractAttr(html, 'data-src')
-          pushHtmlMediaItem('iframe', srcRaw, t.startLine)
-          continue
-        }
-
-        if (looksLikeSingleTagBlock(html, 'video') || looksLikeSingleTagBlock(html, 'audio')) {
-          const kind = looksLikeSingleTagBlock(html, 'video') ? 'video' : 'audio'
-          const srcRaw = extractAttr(html, 'src') || extractAttr(html, 'data-src')
-          pushHtmlMediaItem(kind, srcRaw, t.startLine)
-          continue
-        }
-
-        if (looksLikeSingleTagBlock(html, 'img')) {
-          const srcRaw = extractAttr(html, 'src') || extractAttr(html, 'data-src')
-          const srcsetRaw = extractAttr(html, 'srcset') || extractAttr(html, 'data-srcset')
-          const srcCandidate = srcRaw || pickFirstSrcsetUrl(srcsetRaw)
-          if (srcCandidate && isSafeHref(srcCandidate) && isSafeMediaSrc(srcCandidate)) {
-            const src = resolveHref(srcCandidate, docPath)
-            const alt = extractAttr(html, 'alt')
-            const key = buildMarkdownPreviewMediaKey('image', t.startLine, srcCandidate)
-            list.push({
-              key,
-              kind: 'image',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: alt || `Image ${list.length + 1}`,
-              src,
-              openUrl: src,
-              alt,
-            })
-          }
-          continue
-        }
-
-        const scriptEmbedHref = extractScriptEmbedAnchorHref(html)
-        if (scriptEmbedHref && isSafeHref(scriptEmbedHref) && isSafeMediaSrc(scriptEmbedHref)) {
-          const src = resolveHref(scriptEmbedHref, docPath)
-          const key = buildMarkdownPreviewMediaKey('webpage', t.startLine, scriptEmbedHref)
-          list.push({
-            key,
-            kind: 'webpage',
-            source: 'markdown',
-            startLine: t.startLine,
-            label: `Webpage ${list.length + 1}`,
-            src,
-            openUrl: src,
-          })
-          continue
-        }
-
-        continue
-      }
-
-      if (tt.type === 'paragraph') {
-        const href = isStandaloneLinkParagraph(t) || isStandaloneTextUrlParagraph(t)
-        if (href && isSafeHref(href) && isAbsoluteWebUrl(href)) {
-          const youtube = buildYouTubeEmbedUrl(href, { noCookie: true, includeOrigin: false })
-          if (youtube) {
-            const src = youtube
-            const key = buildMarkdownPreviewMediaKey('youtube', t.startLine, href)
-            list.push({
-              key,
-              kind: 'youtube',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `YouTube ${list.length + 1}`,
-              src,
-              openUrl: href,
-            })
-            continue
-          }
-          const vimeo = buildVimeoEmbedUrl(href)
-          if (vimeo) {
-            const src = vimeo
-            const key = buildMarkdownPreviewMediaKey('vimeo', t.startLine, href)
-            list.push({
-              key,
-              kind: 'vimeo',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `Vimeo ${list.length + 1}`,
-              src,
-              openUrl: href,
-            })
-            continue
-          }
-          if (isVideoUrl(href)) {
-            const src = resolveHref(href, docPath)
-            const key = buildMarkdownPreviewMediaKey('video', t.startLine, href)
-            list.push({
-              key,
-              kind: 'video',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `Video ${list.length + 1}`,
-              src,
-              openUrl: href,
-            })
-            continue
-          }
-
-          const normalizedHref = normalizeWebpageLikeUrl(href)
-          const tweet = buildTwitterEmbedUrl(normalizedHref)
-          if (tweet) {
-            const theme = String(rootThemeMode || '').toLowerCase() === 'dark' ? 'dark' : 'light'
-            const src = `${tweet}&theme=${theme}`
-            const key = buildMarkdownPreviewMediaKey('tweet', t.startLine, href)
-            list.push({
-              key,
-              kind: 'tweet',
-              source: 'markdown',
-              startLine: t.startLine,
-              label: `X ${list.length + 1}`,
-              src,
-              openUrl: href,
-            })
-            continue
-          }
-
-          const src = resolveHref(normalizedHref, docPath)
-          const key = buildMarkdownPreviewMediaKey('webpage', t.startLine, href)
-          list.push({
-            key,
-            kind: 'webpage',
-            source: 'markdown',
-            startLine: t.startLine,
-            label: `Webpage ${list.length + 1}`,
-            src,
-            openUrl: href,
-          })
-          continue
-        }
-
-        const p = t as unknown as TokensParagraph
-        const inner = Array.isArray(p.tokens) ? p.tokens : []
-        for (let j = 0; j < inner.length; j += 1) {
-          const it = inner[j] as unknown as TokensGeneric
-          if (it.type !== 'image') continue
-          const img = it as unknown as TokensImage
-          const hrefRaw = String(img.href || '').trim()
-          if (!hrefRaw) continue
-          if (!isSafeHref(hrefRaw) || !isSafeMediaSrc(hrefRaw)) continue
-          const alt = img.text
-          const altNorm = String(alt || '').trim().toLowerCase()
-          const normalizedHref = normalizeWebpageLikeUrl(hrefRaw)
-          const treatAsWebpage =
-            /^https?:\/\//i.test(hrefRaw) &&
-            !altNorm.startsWith('iframe') &&
-            !altNorm.startsWith('video') &&
-            !altNorm.startsWith('audio') &&
-            !looksImageUrl(hrefRaw) &&
-            !isVideoUrl(hrefRaw) &&
-            !looksAudioUrl(hrefRaw)
-          const src = resolveHref(treatAsWebpage ? normalizedHref : hrefRaw, docPath)
-          const idHint = `${hrefRaw}#${j}`
-          const kind: MediaKind = treatAsWebpage
-            ? 'webpage'
-            : altNorm.startsWith('audio') || looksAudioUrl(hrefRaw)
-              ? 'audio'
-              : 'image'
-          const key = buildMarkdownPreviewMediaKey(kind, t.startLine, idHint)
-          const fallbackLabel = kind === 'audio' ? `Audio ${list.length + 1}` : treatAsWebpage ? `Webpage ${list.length + 1}` : `Image ${list.length + 1}`
-          list.push({
-            key,
-            kind,
-            source: 'markdown',
-            startLine: t.startLine,
-            label: alt || fallbackLabel,
-            src,
-            openUrl: hrefRaw,
-            alt,
-          })
-        }
-      }
-    }
-
-    if (graphData && Array.isArray(graphData.nodes) && graphData.nodes.length > 0) {
-      const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
-        graphData,
-        registry: widgetRegistry,
-        graphRevision: graphDataRevision,
-        graphSemanticKey,
-      })
-      const effectiveNodes = graphData.nodes.map(node => {
-        const nodeId = String(node?.id || '').trim()
-        return applyConnectedValuesToNodeForRender({
-          node,
-          connectedValuesBySchemaPath: nodeId ? connectedValuesByNodeId.get(nodeId) || undefined : undefined,
-        })
-      })
-      const canonicalGraphMedia = listMediaOverlayNodes({
-        enabled: true,
-        nodes: effectiveNodes,
-        poolMax: effectiveNodes.length,
-        connectedValuesByNodeId,
-        nodeById: graphLookup?.nodeById || undefined,
-      })
-
-      for (let i = 0; i < canonicalGraphMedia.length; i += 1) {
-        const item = canonicalGraphMedia[i]
-        if (!item) continue
-        const nodeId = String(item.id || '').trim()
-        if (!nodeId) continue
-        const src = String(item.url || '').trim()
-        if (!src && !String(item.srcDoc || '').trim()) continue
-        const node = graphLookup?.nodeById.get(nodeId) || null
-        const baseLabel = String(node?.label || nodeId).trim()
-        const label = String(item.title || '').trim() || (baseLabel ? `Node media: ${baseLabel}` : 'Node media')
-        const kind: MediaKind = item.kind === 'svg' ? 'image' : item.kind === 'video' || item.kind === 'audio' || item.kind === 'iframe' ? item.kind : 'image'
-        const openUrl = String(item.openUrl || item.url || '').trim()
-        const key = `graph-node-media:${nodeId}:${kind}:${openUrl || src || 'srcdoc'}`
-        list.push({
-          key,
-          kind,
-          source: 'graph',
-          startLine: 0,
-          label: `Node media: ${label}`,
-          panelTitle: label,
-          src,
-          srcDoc: String(item.srcDoc || '').trim() || undefined,
-          openUrl: openUrl || undefined,
-          alt: baseLabel || undefined,
-          nodeId,
-          panel: item.panel,
-        })
-      }
-    }
-
-    return list
-  }, [
-    frontmatterMermaidCode,
-    frontmatterMermaidDiagrams,
-    graphData,
-    graphDataRevision,
-    graphLookup,
-    graphSemanticKey,
-    markdownDocumentName,
-    mermaidFrontmatterConfig,
-    rootThemeMode,
-    tokens,
-    widgetRegistry,
-  ])
-
   const hasMermaidFocus = !!mermaidFocusCode
 
   const activeMediaFromKey = React.useMemo(
@@ -523,71 +93,11 @@ export default function PreviewPanelView() {
   )
 
   const activeMedia = hasMermaidFocus || frontmatterModeEnabled ? null : activeMediaFromKey || mediaItems[0] || null
-  const previewPanelState = React.useMemo<RichMediaPanelOverlayState | null>(() => {
+  const previewPanelState = React.useMemo<CommandMenuRichMediaItem['panel'] | null>(() => {
     if (!activeMedia || activeMedia.kind === 'mermaid') return null
     if (activeMedia.panel) return activeMedia.panel
     return buildStaticRichMediaPanelOverlayState({ renderKind: activeMedia.kind })
   }, [activeMedia])
-
-  const handleSelectMedia = (item: MediaItem) => {
-    if (item.kind === 'mermaid') {
-      setActiveMediaKey(null)
-      setMermaidFocus({
-        code: item.code || '',
-        frontmatterConfig: item.mermaidConfig || mermaidFrontmatterConfig,
-      })
-    } else {
-      setMermaidFocus(null)
-      setActiveMediaKey(item.key)
-    }
-    if (item.source === 'graph' && item.nodeId) {
-      try {
-        setSelectionSource('toolbar')
-        selectNode(item.nodeId)
-        openMarkdownWorkspaceEditorPane(useGraphStore.getState())
-      } catch {
-        void 0
-      }
-    }
-  }
-
-  const renderMiniPreview = (item: MediaItem) => {
-    if (item.kind === 'image' && item.src) {
-      return (
-        <section className="flex-1 w-full flex items-center justify-center overflow-hidden rounded bg-black/5">
-          <img
-            src={item.src}
-            alt={item.alt || item.label}
-            className="max-w-full max-h-full object-contain"
-          />
-        </section>
-      )
-    }
-
-    if (item.kind === 'mermaid') {
-      const code = String(item.code || '').trim()
-      if (!code) {
-        return (
-          <section className="flex-1 w-full flex items-center justify-center rounded bg-slate-900 text-[10px] text-slate-50 px-2">
-            Mermaid
-          </section>
-        )
-      }
-      const lines = code
-        .split('\n')
-        .map(l => l.trim())
-        .filter(Boolean)
-      const first = lines[0] || ''
-      const text = first.length > 60 ? `${first.slice(0, 57)}…` : first
-      return (
-        <section className="flex-1 w-full flex items-center justify-center rounded bg-slate-900 text-[10px] text-slate-50 px-2 text-center">
-          <span className="font-mono truncate w-full">{text || 'Mermaid'}</span>
-        </section>
-      )
-    }
-
-    return <section className={previewPlaceholderClassName}><span className="truncate w-full">{renderMarkdownSigilInlineText(item.label)}</span></section>
-  }
 
   const renderActiveMedia = () => {
     if (!activeMedia) {
@@ -673,55 +183,12 @@ export default function PreviewPanelView() {
             <header className={previewPanelHeaderClassName}>
               <section className="px-3 py-2 flex items-center justify-between">
                 <section className={['text-xs font-medium', UI_THEME_TOKENS.text.primary, uiPanelTextFontClass].join(' ')}>
-                  Preview: Mermaid diagrams and rich media
+                  Preview: selected Mermaid diagram or rich media
                 </section>
                 <section className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
-                  {mediaItems.length ? `${mediaItems.length} item${mediaItems.length === 1 ? '' : 's'}` : 'No media items'}
+                  Open Command Menu for @ media
                 </section>
               </section>
-              {mediaItems.length > 0 ? (
-                <section className="px-3 pb-3">
-                  <section className={PREVIEW_PANEL_MEDIA_GRID_CLASS_NAME}>
-                    {mediaItems.map(item => {
-                      const isActiveMermaid =
-                        hasMermaidFocus &&
-                        item.kind === 'mermaid' &&
-                        item.code &&
-                        item.code === mermaidFocusCode
-                      const isActiveGallery =
-                        !hasMermaidFocus && activeMedia && activeMedia.key === item.key
-                      const isActive = isActiveMermaid || isActiveGallery
-                      return (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() => handleSelectMedia(item)}
-                          className={[
-                            'relative flex flex-col items-stretch justify-between rounded border text-left text-[11px] px-2 py-2 transition-colors',
-                            'aspect-video',
-                            isActive
-                              ? UI_THEME_TOKENS.table.rowSelected
-                              : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHover}`,
-                          ].join(' ')}
-                        >
-                          <section className="absolute left-1 top-1 rounded bg-black/60 text-white px-1 py-0.5 text-[10px]">
-                            {item.kind}
-                          </section>
-                          <section className={previewMetaBadgeClassName}>
-                            {item.source === 'markdown' ? 'Markdown' : 'Graph'}
-                          </section>
-                          <section className="flex-1 w-full mb-1">
-                            {renderMiniPreview(item)}
-                          </section>
-                          <section className={`mt-1 mx-1 line-clamp-2 ${UI_THEME_TOKENS.text.primary}`}>
-                            {renderMarkdownSigilInlineText(item.label)}
-                          </section>
-                        </button>
-                      )
-                    })}
-                  </section>
-                </section>
-              ) : null}
             </header>
             <section className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg}`}>
               {hasMermaidFocus ? (

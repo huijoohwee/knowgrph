@@ -261,7 +261,7 @@ export const PANEL_SURFACE_ROLE_OWNERS: Record<PanelSurfaceRoleKey, PanelSurface
   history: 'bottomSurface.history',
 }
 
-export type HelpStepKey = 'shortcuts' | 'cheatsheet' | 'panelTour' | 'workflowLinks' | 'icons'
+export type HelpStepKey = 'shortcuts' | 'cheatsheet' | 'commandMenu' | 'panelTour' | 'workflowLinks' | 'icons'
 
 export interface HelpStepCopy {
   id: HelpStepKey
@@ -286,6 +286,14 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
       'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-based D3 visualizations work together.',
     descriptionLong:
       `Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-driven D3 visualizations work together. The cheatsheet pairs canvas gestures with panel and workspace behavior plus selection-aware mini-charts (${MARKDOWN_DATA_VIEW_COPY.titleDefault} aggregates, dataset inspector distributions, hierarchy, cluster layers, and path visualizations) so selections and creation flows stay predictable as you switch between modes.`,
+  },
+  commandMenu: {
+    id: 'commandMenu',
+    title: 'Command Menu',
+    descriptionShort:
+      'Reference the shared `/` and `@` command catalog used by inline editors, Workflow Manager graph fields, canvas cards, widgets, and Markdown Viewer blocks.',
+    descriptionLong:
+      'The Command Menu section is the reference owner for shared slash actions, variable actions, reference actions, and media insertion commands. Runtime insertion still happens in the active editor; FloatingPanel Command Menu owns the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list.',
   },
   panelTour: {
     id: 'panelTour',

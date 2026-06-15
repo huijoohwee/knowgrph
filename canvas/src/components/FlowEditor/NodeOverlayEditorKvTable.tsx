@@ -87,7 +87,11 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
               <td className={cn('px-2 py-2 text-left', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                 {UI_LABELS.flowWidgetValueLabel}
               </td>
-              {extraPlaceholderCell ? <td /> : null}
+              {extraPlaceholderCell ? (
+                <td className={cn('px-2 py-2 text-left', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+                  {UI_LABELS.flowWidgetTypeLabel}
+                </td>
+              ) : null}
               <td />
             </tr>
           </thead>

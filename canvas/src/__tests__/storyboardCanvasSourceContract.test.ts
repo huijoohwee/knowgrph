@@ -5,6 +5,11 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   for (const snippet of [
     'Visual Brief',
     'Reference Pack',
+    'buildMarkdownMediaDownloadHref',
+    'data-kg-storyboard-reference-download="1"',
+    'StoryboardMentionPill',
+    'CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME',
+    'CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME',
     'selectNode(card.id)',
     'buildStoryboardBoardModel',
     'useKanbanDragAndDrop',

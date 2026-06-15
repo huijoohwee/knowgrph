@@ -188,6 +188,15 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!commandMenuText.includes('filterMarkdownInlineCommandItems') || !commandMenuText.includes("event.key === 'ArrowDown'") || !commandMenuText.includes("event.key === 'Enter'")) {
     throw new Error('expected markdown inline command menu to own filtered items and keyboard selection')
   }
+  if (
+    !commandMenuText.includes('data-kg-inline-command-thumbnail')
+    || !commandMenuText.includes('rounded-full')
+    || !commandMenuText.includes('UI_THEME_TOKENS.panel.border')
+    || !commandMenuText.includes('UI_THEME_TOKENS.input.bg')
+    || !commandMenuText.includes('shadow-sm')
+  ) {
+    throw new Error('expected markdown inline @ media thumbnails to render as tokenized mention-style pills')
+  }
   if (!blockText.includes('slashMenuRef') || !blockText.includes('active && slashNode && slashNode.contains(active)')) {
     throw new Error('expected slash command menu focus to participate in the upstream inline-edit blur guard')
   }

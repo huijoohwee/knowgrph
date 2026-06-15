@@ -37,6 +37,10 @@ import {
   CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import {
+  readOverlayPointerTargetState,
+  shouldBlockOverlayPanTarget,
+} from 'grph-shared/dom/overlayPointerGuards'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
@@ -577,8 +581,20 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     return startRichMediaPanelHeaderDrag(native, props)
   }, [installHeaderDrag, props, selectSelf])
   const handleRootDragStartCapture = React.useCallback((e: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>): boolean => {
+    const targetEl = e.target instanceof Element ? e.target : null
+    const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header="1"]')
+    const pointerTarget = readOverlayPointerTargetState(targetEl)
+    const scrollSurfaceCanForwardPointer = forwardModifierWheelZoomOnly || props.forwardWheelBeforeScrollableTarget === true
+    const nativePointerEvent = e.nativeEvent as PointerEvent | undefined
+    const canForwardPointerDown =
+      typeof props.forwardPointerTo === 'function'
+      && typeof props.shouldForwardPointerDown === 'function'
+      && typeof nativePointerEvent === 'object'
+      && nativePointerEvent !== null
+      && props.shouldForwardPointerDown(nativePointerEvent)
+    if (!isHeaderTarget && shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer }) && !canForwardPointerDown) return false
     return handleRichMediaPanelOverlayDragStartCapture({ event: e, installHeaderDrag, installOverlayPan, selectSelf, startHeaderDrag, handlers: props })
-  }, [installHeaderDrag, installOverlayPan, props, selectSelf, startHeaderDrag])
+  }, [forwardModifierWheelZoomOnly, installHeaderDrag, installOverlayPan, props, selectSelf, startHeaderDrag])
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
     const handled = handleRootDragStartCapture(e)
     if (!handled) return

@@ -123,12 +123,14 @@ export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueC
   const flowCanvasStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
   const overlays2dPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts')
   const previewPanelPath = resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx')
+  const commandMenuRichMediaInventoryPath = resolve(process.cwd(), 'src', 'lib', 'command-menu', 'commandMenuRichMediaInventory.ts')
   const graphTableInspectorPath = resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableInspector.tsx')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const flowDataflowText = readFileSync(flowDataflowPath, 'utf8')
   const flowCanvasStateText = readFileSync(flowCanvasStatePath, 'utf8')
   const overlays2dText = readFileSync(overlays2dPath, 'utf8')
   const previewPanelText = readFileSync(previewPanelPath, 'utf8')
+  const commandMenuRichMediaInventoryText = readFileSync(commandMenuRichMediaInventoryPath, 'utf8')
   const graphTableInspectorText = readFileSync(graphTableInspectorPath, 'utf8')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
 
@@ -156,8 +158,8 @@ export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueC
   if (overlays2dText.includes('const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]')) {
     throw new Error('expected D3 rich media overlay path to stop parsing widget registry metadata inline')
   }
-  if (!previewPanelText.includes('graphSemanticKey,')) {
-    throw new Error('expected PreviewPanelView graph media path to thread a semantic graph key into connected-value caching')
+  if (!previewPanelText.includes('useCommandMenuRichMediaInventory()') || !commandMenuRichMediaInventoryText.includes('graphSemanticKey,')) {
+    throw new Error('expected PreviewPanelView graph media path to thread semantic graph key caching through the shared Command Menu rich-media inventory')
   }
   if (!graphTableInspectorText.includes('graphSemanticKey,')) {
     throw new Error('expected GraphTableInspector widget preview path to thread a semantic graph key into connected-value caching')

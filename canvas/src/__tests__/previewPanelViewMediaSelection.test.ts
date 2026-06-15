@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import PreviewPanelView from '@/features/panels/views/PreviewPanelView'
+import CommandMenuCatalogPanel from '@/features/command-menu/CommandMenuCatalogPanel'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -14,11 +15,11 @@ const buildGraphWithMediaNode = (): GraphData => ({
   nodes: [
     {
       id: 'n1',
-      type: 'Image',
+      type: 'RichMediaPanel',
       label: 'Example media node',
       properties: {
-        media_kind: 'image',
-        image: 'https://example.com/example.png',
+        richMediaActiveTab: 'image',
+        imageUrl: 'https://example.com/example.png',
       },
       metadata: {
         documentPath: 'doc.md',
@@ -82,7 +83,18 @@ const buildMarkdown = (): string =>
     '',
   ].join('\n')
 
-export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
+const readCommandMenuMediaRowName = (row: Element): string => {
+  const input = row.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
+  return String(input?.value || row.textContent || '')
+}
+
+const setInputValue = (window: Window, input: HTMLInputElement, value: string) => {
+  const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
+  descriptor?.set?.call(input, value)
+  input.dispatchEvent(new window.Event('input', { bubbles: true }))
+}
+
+export async function testCommandMenuGraphMediaSelectionSelectsPreviewMedia() {
   const storage = new MemoryStorage()
   const { dom, restore: restoreDom } = initJsdomHarness()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -96,35 +108,25 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
 
     const state = useGraphStore.getState()
     try {
-      state.setCanvasRenderMode('2d')
-      state.setCanvas2dRenderer('d3')
-      state.setDocumentSemanticMode('document')
-    } catch {
-      void 0
-    }
-    try {
       state.setFrontmatterModeEnabled(false)
     } catch {
       void 0
     }
     const graph = buildGraphWithMediaNode()
     state.setGraphData(graph)
-    state.setMarkdownDocument('doc.md', buildMarkdown())
+    state.setMarkdownDocument('doc.md', '')
     state.setWorkspaceViewMode('canvas')
     state.selectNode(null)
     state.setSelectionSource(null)
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
 
-    await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
+    await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
 
-    const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
-    const graphCard = buttons.find(btn => {
-      const text = btn.textContent || ''
-      return text.includes('Node media:')
-    })
+    const rows = Array.from(doc.querySelectorAll('[data-kg-command-menu-media-source="graph"]')) as HTMLElement[]
+    const graphCard = rows.find(row => readCommandMenuMediaRowName(row).includes('Node media:'))
     if (!graphCard) {
-      throw new Error('graph media gallery card not found')
+      throw new Error('graph media Command Menu row not found')
     }
 
     await act(async () => {
@@ -140,9 +142,6 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     if (after.selectionSource !== 'toolbar') {
       throw new Error(`expected selectionSource "toolbar", got ${String(after.selectionSource)}`)
     }
-    if (after.workspaceViewMode !== 'editor') {
-      throw new Error(`expected workspaceViewMode "editor", got ${String(after.workspaceViewMode)}`)
-    }
     const expectedKey = 'graph-node-media:n1:image:https://example.com/example.png'
     if (after.markdownPreviewActiveMediaKey !== expectedKey) {
       throw new Error(
@@ -150,6 +149,18 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
           after.markdownPreviewActiveMediaKey,
         )}`,
       )
+    }
+
+    const nameInput = graphCard.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
+    if (!nameInput) throw new Error('expected graph media row to expose inline name edit input')
+    await act(async () => {
+      setInputValue(dom.window, nameInput, 'Renamed graph media')
+      nameInput.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+    const renamedNode = useGraphStore.getState().graphData?.nodes?.find(node => node.id === 'n1')
+    if (renamedNode?.label !== 'Renamed graph media') {
+      throw new Error(`expected graph media inline rename to update node label, got ${String(renamedNode?.label || '')}`)
     }
 
     await unmountReactRoot(root, { window: dom.window })
@@ -196,15 +207,32 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
 
-    await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
+    await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
 
-    const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
-    const webpageCard = buttons.find(btn => String(btn.textContent || '').toLowerCase().includes('webpage'))
-    if (!webpageCard) throw new Error('webpage gallery card not found')
+    const rows = Array.from(doc.querySelectorAll('[data-kg-command-menu-media-source="markdown"]')) as HTMLElement[]
+    const webpageCard = rows.find(row => readCommandMenuMediaRowName(row).toLowerCase().includes('article'))
+    if (!webpageCard) throw new Error('webpage Command Menu row not found')
+
+    const webpageNameInput = webpageCard.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
+    if (!webpageNameInput) throw new Error('expected markdown media row to expose inline name edit input')
+    await act(async () => {
+      setInputValue(dom.window, webpageNameInput, 'Renamed article')
+      webpageNameInput.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+    const renamedMarkdown = String(useGraphStore.getState().markdownDocumentText || '')
+    if (!renamedMarkdown.includes('[Renamed article](https://www.aljazeera.com/news/2026/2/19/visualising-ai-spending-how-does-it-compare-with-historys-mega-projects)')) {
+      throw new Error(`expected markdown media inline rename to persist into link text, got ${renamedMarkdown}`)
+    }
 
     await act(async () => {
       webpageCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
       await waitForNextFrame(dom.window)
+    })
+
+    await act(async () => {
+      root.render(React.createElement(PreviewPanelView))
+      await waitForFrames(dom.window, 4)
     })
 
     const loadButtons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
@@ -239,9 +267,13 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
       )
     }
 
-    const buttonsAfter = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
-    const tweetCard = buttonsAfter.find(btn => String(btn.textContent || '').toLowerCase().includes('tweet'))
-    if (!tweetCard) throw new Error('tweet gallery card not found')
+    await act(async () => {
+      root.render(React.createElement(CommandMenuCatalogPanel))
+      await waitForFrames(dom.window, 4)
+    })
+    const rowsAfter = Array.from(doc.querySelectorAll('[data-kg-command-menu-media-source="markdown"]')) as HTMLElement[]
+    const tweetCard = rowsAfter.find(row => readCommandMenuMediaRowName(row).toLowerCase().includes('tweet'))
+    if (!tweetCard) throw new Error('tweet Command Menu row not found')
 
     await act(async () => {
       tweetCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -287,20 +319,20 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
 
-    await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
+    await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
 
-    const graphCards = (Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]).filter(btn =>
-      String(btn.textContent || '').includes('Node media:'),
+    const graphCards = (Array.from(doc.querySelectorAll('[data-kg-command-menu-media-source="graph"]')) as HTMLElement[]).filter(row =>
+      readCommandMenuMediaRowName(row).includes('Node media:'),
     )
     if (graphCards.length !== 1) {
-      throw new Error(`expected one canonical graph media card after dedupe, got ${graphCards.length}`)
+      throw new Error(`expected one canonical graph media Command Menu row after dedupe, got ${graphCards.length}`)
     }
     const graphCardText = String(graphCards[0]?.textContent || '')
     if (!graphCardText.includes('Rich Media Panel')) {
-      throw new Error(`expected canonical graph media card to keep Rich Media Panel version, got ${graphCardText || '<empty>'}`)
+      throw new Error(`expected canonical graph media row to keep Rich Media Panel version, got ${graphCardText || '<empty>'}`)
     }
     if (graphCardText.includes('Rich Media Panel for ')) {
-      throw new Error(`expected graph media card title to stay on the single Rich Media Panel SSOT, got ${graphCardText}`)
+      throw new Error(`expected graph media row title to stay on the single Rich Media Panel SSOT, got ${graphCardText}`)
     }
 
     await unmountReactRoot(root, { window: dom.window })
@@ -341,12 +373,6 @@ export async function testPreviewPanelGraphRichMediaPanelTextPreviewUsesCanonica
 
     await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
 
-    const graphCards = (Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]).filter(btn =>
-      String(btn.textContent || '').includes('Node media:'),
-    )
-    if (graphCards.length !== 1) {
-      throw new Error(`expected one graph-backed rich media card, got ${graphCards.length}`)
-    }
     const after = useGraphStore.getState()
     if (after.markdownPreviewActiveMediaKey !== expectedKey) {
       throw new Error(`expected markdownPreviewActiveMediaKey "${expectedKey}", got ${String(after.markdownPreviewActiveMediaKey)}`)

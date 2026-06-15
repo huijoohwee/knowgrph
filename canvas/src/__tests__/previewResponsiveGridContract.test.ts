@@ -9,8 +9,8 @@ export function testPreviewPanelAndGalleryGridsUseResponsiveOwners() {
   const indexCssText = readUtf8('src/index.css')
   const previewPanelCssText = readUtf8('src/styles/preview-panel-responsive.css')
 
-  if (!panelText.includes("PREVIEW_PANEL_MEDIA_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'") || panelText.includes('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2')) {
-    throw new Error('expected Preview Panel media grid to use a mobile-first responsive owner')
+  if (panelText.includes('PREVIEW_PANEL_MEDIA_GRID_CLASS_NAME') || panelText.includes('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2')) {
+    throw new Error('expected Preview Panel to avoid owning a duplicate media grid after Command Menu consolidation')
   }
   if (!galleryText.includes("PREVIEW_GALLERY_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2'") || galleryText.includes('grid grid-cols-1 md:grid-cols-2 gap-3')) {
     throw new Error('expected Preview Gallery grid layout to use a mobile-first responsive owner')

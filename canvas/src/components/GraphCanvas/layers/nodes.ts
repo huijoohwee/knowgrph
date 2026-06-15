@@ -100,13 +100,11 @@ export const createNodesLayer = (args: {
   const preferDomMediaOverlays = args.preferDomMediaOverlays === true
   const mediaOverlayNodeIdSet = args.mediaOverlayNodeIdSet
   const panelOnlyNodeIdSet = args.panelOnlyNodeIdSet
-  const overlayHiddenNodeIdSet = preferDomMediaOverlays ? mediaOverlayNodeIdSet : null
   const renderNodes = (() => {
-    if (!panelOnlyNodeIdSet && !overlayHiddenNodeIdSet) return nodes
+    if (!panelOnlyNodeIdSet) return nodes
     return nodes.filter(n => {
       const id = String(n.id)
       if (panelOnlyNodeIdSet?.has(id)) return false
-      if (overlayHiddenNodeIdSet?.has(id)) return false
       return true
     })
   })()
@@ -246,13 +244,11 @@ export const createNodesLayer = (args: {
     .style('display', (d: GraphNode) => {
       const id = String(d.id)
       if (panelOnlyNodeIdSet?.has(id)) return 'none'
-      if (overlayHiddenNodeIdSet?.has(id)) return 'none'
       return null
     })
     .style('pointer-events', (d: GraphNode) => {
       const id = String(d.id)
       if (panelOnlyNodeIdSet?.has(id)) return 'none'
-      if (overlayHiddenNodeIdSet?.has(id)) return 'none'
       return 'all'
     })
      .attr('fill', (d: GraphNode) => (shouldHideNodeBody(d) ? 'transparent' : getNodeBaseFill(d, schema)))

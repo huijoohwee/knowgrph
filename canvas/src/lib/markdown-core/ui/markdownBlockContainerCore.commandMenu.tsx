@@ -182,14 +182,14 @@ export const MarkdownBlockContainerCommandMenu = (props: {
                 >
                   {item.thumbnailUrl ? (
                     <span
-                      className="relative flex h-10 w-14 shrink-0 overflow-hidden rounded border border-black/10 bg-black/[0.04] dark:border-white/10 dark:bg-white/10"
+                      className={`relative flex h-8 w-14 shrink-0 overflow-hidden rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.input.bg} p-[2px] shadow-sm`}
                       aria-hidden="true"
                       data-kg-inline-command-thumbnail={item.thumbnailKind || 'image'}
                     >
                       <img
                         src={item.thumbnailUrl}
                         alt=""
-                        className="h-full w-full object-cover"
+                        className="h-full w-full rounded-full object-cover"
                         loading="lazy"
                         draggable={false}
                       />
@@ -201,7 +201,7 @@ export const MarkdownBlockContainerCommandMenu = (props: {
                     </span>
                   ) : item.thumbnailKind ? (
                     <span
-                      className={`grid h-10 w-14 shrink-0 place-items-center rounded border border-black/10 bg-black/[0.04] ${UI_THEME_TOKENS.text.tertiary}`}
+                      className={`grid h-8 w-14 shrink-0 place-items-center rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.tertiary} shadow-sm`}
                       aria-hidden="true"
                       data-kg-inline-command-thumbnail={item.thumbnailKind}
                     >

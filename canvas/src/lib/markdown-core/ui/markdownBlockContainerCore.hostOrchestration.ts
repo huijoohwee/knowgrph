@@ -1,4 +1,5 @@
 import React from 'react'
+import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from './markdownInlineEditActivation'
 
 export const useMarkdownBlockContainerHostOrchestration = (args: {
   editing: boolean
@@ -52,7 +53,7 @@ export const useMarkdownBlockContainerHostOrchestration = (args: {
       if (isTargetInsideEditor(event.target)) return
       return
     }
-    if (event.detail >= 2) return
+    if (!shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })) return
     args.openEditor(event)
   }, [args, isTargetInsideEditor])
 

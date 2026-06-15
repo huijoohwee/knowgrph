@@ -158,7 +158,7 @@ export const MediaWrapper = ({
         </>
       )}
       {children}
-      {downloadHref ? (
+      {downloadHref && opts.markdownCardPreviewMode !== true ? (
         <a
           href={downloadHref}
           download={downloadFilename || undefined}

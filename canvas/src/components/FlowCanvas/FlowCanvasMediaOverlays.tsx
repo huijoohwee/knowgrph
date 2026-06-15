@@ -14,7 +14,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
-import { canonicalNodeIdSetHas, isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { Z_INDEX_GRAPH_MEDIA_LAYER, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
@@ -55,20 +55,6 @@ function escapeSelectorAttrValue(value: string): string {
 function readMediaLayoutMeasureKey(value: unknown): string {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) ? String(Math.round(n)) : ''
-}
-
-function readGraphDataNodeProperties(graphData: GraphData | null | undefined, nodeId: string): Record<string, unknown> | null {
-  const id = String(nodeId || '').trim()
-  if (!id || !Array.isArray(graphData?.nodes)) return null
-  for (let i = 0; i < graphData.nodes.length; i += 1) {
-    const node = graphData.nodes[i]
-    if (!node || !isCanonicalNodeIdEqual(node.id, id)) continue
-    const props = node.properties
-    return props && typeof props === 'object' && !Array.isArray(props)
-      ? { ...(props as Record<string, unknown>) }
-      : {}
-  }
-  return null
 }
 
 function readMediaLayoutNodePropsSignature(
@@ -183,6 +169,7 @@ export default function FlowCanvasMediaOverlays(args: {
     pointerId: number
     startW: number
     startH: number
+    bodyAspect: number
     startScale: number
     frameMetrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
     lastW: number
@@ -518,7 +505,7 @@ export default function FlowCanvasMediaOverlays(args: {
       minPanelH: 24,
     })
     const nextW = Math.max(24, Math.round(nextFrame.panelW))
-    const nextH = Math.max(24, Math.round(nextFrame.panelH))
+    const nextH = Math.max(24, Math.round(nextW * drag.bodyAspect))
     drag.lastW = nextW
     drag.lastH = nextH
     mediaOverlayPanelSizeOverrideRef.current.set(id, { w: nextW * scale, h: nextH * scale })
@@ -565,7 +552,8 @@ export default function FlowCanvasMediaOverlays(args: {
     const frameMetrics = readRichMediaPanelFrameMetrics(el)
     const stableFrame = computePanelFrameSizeFromWidth16x9({ panelW: startW, metrics: frameMetrics })
     const stableH = Math.max(24, Math.round(stableFrame.panelH))
-    mediaOverlayResizeRef.current = { id, pointerId, startW, startH: stableH, startScale: scale, frameMetrics, lastW: startW, lastH: stableH }
+    const bodyAspect = stableH > 0 && startW > 0 ? stableH / startW : 9 / 16
+    mediaOverlayResizeRef.current = { id, pointerId, startW, startH: stableH, bodyAspect, startScale: scale, frameMetrics, lastW: startW, lastH: stableH }
     mediaOverlayPanelSizeOverrideRef.current.set(id, { w: startW * scale, h: stableH * scale })
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: startW, h: stableH })
     writeRichMediaResizeTrace(['phase=start', `id=${id}`, `pid=${pointerId}`, `startW=${startW}`, `startH=${stableH}`])
@@ -856,7 +844,8 @@ export default function FlowCanvasMediaOverlays(args: {
                     graphData?: GraphData | null
                     updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void
                   }
-                  const baseProps = readGraphDataNodeProperties(store.graphData, node.id) || sceneNodePropsByIdRef.current.get(node.id) || {}
+                  const baseProps = sceneNodePropsByIdRef.current.get(node.id) || {}
+                  void store.graphData
                   store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })
                 } catch {
                   void 0

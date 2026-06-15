@@ -45,11 +45,29 @@ import { normalizeSvgDataUriForImg } from './markdownSvgDataUri'
 import {
   CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
+  readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
+
+function CardPreviewInlineMediaPill(props: {
+  children: React.ReactElement
+  label: string
+  fallbackLabel: string
+}) {
+  const label = readCardMarkdownPreviewMediaLabel(props.label, props.fallbackLabel)
+  return (
+    <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} title={label} data-kg-card-inline-media-pill="1">
+      {props.children}
+      <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{label}</span>
+    </span>
+  )
+}
 
 const loadKatexModule = async (): Promise<KatexModule> => {
   if (!katexModulePromise) {
@@ -539,8 +557,18 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         )
       }
       if (isVideo && src && isSafeMediaSrc(src)) {
+        const videoNode = (
+          <MediaVideo
+            src={src}
+            controls={!cardPreviewMode}
+            cardPreviewMode={cardPreviewMode}
+            className={cardPreviewMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : undefined}
+          />
+        )
         return renderInlineMediaWithDownload({
-          children: <MediaVideo src={src} controls cardPreviewMode={cardPreviewMode} />,
+          children: cardPreviewMode
+            ? <CardPreviewInlineMediaPill label={alt} fallbackLabel="Video">{videoNode}</CardPreviewInlineMediaPill>
+            : videoNode,
           insideLink,
           kind: 'video',
           nodeKey: key,
@@ -570,10 +598,10 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           url={src}
           title={alt}
           interactive={false}
-          fit="contain"
+          fit={cardPreviewMode ? 'cover' : 'contain'}
           mediaThumbnailDataAttr
           mediaClassName={[
-            cardPreviewMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME : 'max-w-full h-auto rounded border object-contain',
+            cardPreviewMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'max-w-full h-auto rounded border object-contain',
             isViewportBoundedImage ? UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME : '',
             isSvgImage && !cardPreviewMode ? 'bg-black/5 dark:bg-white/5' : '',
             cardPreviewMode ? '' : UI_THEME_TOKENS.panel.border,
@@ -582,7 +610,16 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
             .join(' ')}
         />
       )
-      return renderInlineMediaWithDownload({ children: imageNode, insideLink, kind: 'image', nodeKey: key, src: resolved || src, cardPreviewMode })
+      return renderInlineMediaWithDownload({
+        children: cardPreviewMode
+          ? <CardPreviewInlineMediaPill label={alt} fallbackLabel="Image">{imageNode}</CardPreviewInlineMediaPill>
+          : imageNode,
+        insideLink,
+        kind: 'image',
+        nodeKey: key,
+        src: resolved || src,
+        cardPreviewMode,
+      })
     }
     if (tt.type === 'code') {
       const semanticToken = renderInlineCodeSemanticToken((t as unknown as TokensCode).text, key, activeDocumentPath)

@@ -1482,6 +1482,8 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesPath = path.resolve(root, 'src', 'hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
   const uiSliceInitialStatePath = path.resolve(root, 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const commandCatalogPanelPath = path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx')
+  const helpSectionsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpSections.tsx')
+  const helpCommandMenuSectionPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpCommandMenuSection.tsx')
   const launcherPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarMenuLauncher.tsx')
   const typesPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarToolMenuTypes.ts')
   const text = readUtf8(filePath)
@@ -1489,6 +1491,8 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesText = readUtf8(floatingPanelTypesPath)
   const uiSliceInitialStateText = readUtf8(uiSliceInitialStatePath)
   const commandCatalogPanelText = readUtf8(commandCatalogPanelPath)
+  const helpSectionsText = readUtf8(helpSectionsPath)
+  const helpCommandMenuSectionText = readUtf8(helpCommandMenuSectionPath)
   const launcherText = readUtf8(launcherPath)
   const typesText = readUtf8(typesPath)
   if (text.includes("view: 'designLayers'")) {
@@ -1504,7 +1508,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
     throw new Error('Expected FloatingPanel to render the dedicated View settings surface')
   }
   if (!text.includes("floatingPanelView === 'commandMenu'") || !text.includes('<CommandMenuCatalogPanelLazy />')) {
-    throw new Error('Expected FloatingPanel to render the shared Command Menu catalog view')
+    throw new Error('Expected FloatingPanel to render the Command Menu media view')
   }
   if (!iconLibraryText.includes('floatingPanel.commandMenu') || !iconLibraryText.includes('commandMenu: \'floatingPanel.commandMenu\'')) {
     throw new Error('Expected FloatingPanel icon SSOT to include Command Menu')
@@ -1515,11 +1519,34 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!uiSliceInitialStateText.includes("view === 'commandMenu'")) {
     throw new Error('Expected FloatingPanel view setter whitelist to accept Command Menu')
   }
-  if (!commandCatalogPanelText.includes('INLINE_SLASH_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_VARIABLE_COMMAND_ACTIONS')) {
-    throw new Error('Expected Command Menu panel to render from the shared inline command catalog')
+  if (!helpSectionsText.includes('<HelpCommandMenuSection') || !helpCommandMenuSectionText.includes('<CommandMenuReferenceCatalog')) {
+    throw new Error('Expected MainPanel Help to own the shared Command Menu reference catalog section')
   }
-  if (!commandCatalogPanelText.includes('data-kg-command-menu-prefix')) {
-    throw new Error('Expected Command Menu panel to expose shared prefix rows for / and @ media commands')
+  if (!commandCatalogPanelText.includes('INLINE_SLASH_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_VARIABLE_COMMAND_ACTIONS')) {
+    throw new Error('Expected Command Menu reference catalog to render from the shared inline command catalog')
+  }
+  if (!commandCatalogPanelText.includes('data-kg-command-menu-reference-catalog') || !commandCatalogPanelText.includes('data-kg-command-menu-prefix')) {
+    throw new Error('Expected MainPanel Help Command Menu reference catalog to expose shared prefix rows for / and @ actions')
+  }
+  if (!commandCatalogPanelText.includes('useCommandMenuRichMediaInventory') || !commandCatalogPanelText.includes('data-kg-command-menu-media-panel') || !commandCatalogPanelText.includes('data-kg-command-menu-media-list')) {
+    throw new Error('Expected FloatingPanel Command Menu to own the shared @ rich-media candidate list')
+  }
+  if (
+    !commandCatalogPanelText.includes('data-kg-command-menu-media-thumbnail')
+    || !commandCatalogPanelText.includes('rounded-full')
+    || !commandCatalogPanelText.includes('UI_THEME_TOKENS.panel.border')
+    || !commandCatalogPanelText.includes('UI_THEME_TOKENS.input.bg')
+    || !commandCatalogPanelText.includes('shadow-sm')
+  ) {
+    throw new Error('Expected FloatingPanel Command Menu media thumbnails to use tokenized mention-style pill chrome')
+  }
+  if (
+    !commandCatalogPanelText.includes('data-kg-command-menu-media-name-input')
+    || !commandCatalogPanelText.includes('renameCommandMenuRichMediaMarkdownLine')
+    || !commandCatalogPanelText.includes("owner.type === 'graphNodeLabel'")
+    || !commandCatalogPanelText.includes('setMarkdownDocument(markdownDocumentName, nextText')
+  ) {
+    throw new Error('Expected FloatingPanel Command Menu media names to be inline-editable through graph and markdown owners')
   }
   if (!commandCatalogPanelText.includes('KeyTypeValueHeader') || !commandCatalogPanelText.includes('KeyTypeValueRow') || !commandCatalogPanelText.includes('KeyTypeValueSectionStack')) {
     throw new Error('Expected Command Menu panel to reuse the FloatingPanel KTV layout primitives')

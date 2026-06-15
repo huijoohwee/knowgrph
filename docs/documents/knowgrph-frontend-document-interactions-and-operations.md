@@ -75,13 +75,16 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 - `@` opens shared variable, reference, image, and video insertion actions.
 
 **Media Behavior**:
-- `@` image and video insertion rows must display derived thumbnails or previews when available from shared media/reference candidates.
+- `@` media rows must display derived thumbnails or previews when available from shared media/reference candidates.
 - Image/video picks insert persistent inline content, not transient overlay state.
 - Indexed or imported media references must survive blur, block rerender, canvas card reprojection, and document reload through the same owner-path persistence used by the active text surface.
+- Inserted inline image/video references inside Cards and Widgets render as font-height tokenized thumbnail pills using shared knowgrph border, panel background, and shadow tokens.
+- Floating Panel `@` media rows render compact list thumbnails with the same token family, but may be larger than inline text-height inserts.
+- Floating Panel `Command Menu` media names are inline-editable: graph media names commit through the owning graph node label, and markdown media names commit through the owning link or image-alt line.
 
-**Floating Panel Relationship**:
-- Floating Panel `Command Menu` is a discovery and inspection view over the same command catalog used inline.
-- It may present commands in a richer right-side panel layout, but command keys, prefixes, descriptions, grouping, thumbnails, insertion payloads, and persistence rules remain shared.
+**Command Menu Surfaces**:
+- MainPanel Help `Command Menu` is the discovery and inspection view over the full shared `/` and `@` command catalog used inline.
+- Floating Panel `Command Menu` is the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list. It is the rich-media browsing SSOT, may show derived thumbnails and source URLs, and feeds Preview Panel selection without duplicating the media gallery there; command keys, prefixes, media candidate resolution, insertion payloads, and persistence rules remain shared.
 
 ### Full Screen Presentation
 

@@ -46,15 +46,15 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | mainPanel.commerce | mainPanel.commerce | Commerce operations | MainPanel tab for ACP, Stripe, Web3, OpenBOX, proof, and trace readiness. |
 | mainPanel.research | mainPanel.research | Thesis compiler | MainPanel tab for compiling selected Source Files into reviewable thesis candidates. |
 | mainPanel.design | mainPanel.design | Design surface | MainPanel tab for design renderer and page/component inspection. |
-| mainPanel.workflowManager | mainPanel.workflowManager | Workflow curation | MainPanel tab for graph fields, shared `/` and `@` command inventory, mappings, and workflow registry management. |
+| mainPanel.workflowManager | mainPanel.workflowManager | Workflow curation | MainPanel tab for graph fields, mappings, and workflow registry management. |
 | mainPanel.dashboard | mainPanel.dashboard | Surface summary | MainPanel tab for runtime status and dashboard metrics. |
 | mainPanel.preview | mainPanel.preview | Rendered preview | MainPanel tab for previewing rendered output. |
 | mainPanel.settings | mainPanel.settings | Shared settings | MainPanel tab for all settings rows and settings-derived hub views. |
 | mainPanel.history | mainPanel.history | Event review | MainPanel tab for history and log review. |
-| mainPanel.help | mainPanel.help | Operator reference | MainPanel tab for shortcuts, workflow links, panel tour, and icon library. |
+| mainPanel.help | mainPanel.help | Operator reference | MainPanel tab for shortcuts, Command Menu catalog, workflow links, panel tour, and icon library. |
 | floatingPanel.propsPanel | floatingPanel.propsPanel | Selection properties | FloatingPanel view for node, edge, widget, and media properties. |
 | floatingPanel.view | floatingPanel.view | Data view controls | FloatingPanel view for workspace data-view settings. |
-| floatingPanel.commandMenu | floatingPanel.commandMenu | Shared command catalog | FloatingPanel view for browsing the shared `/` and `@` command inventory used by inline editors, Workflow Manager graph fields, and media insertion flows. |
+| floatingPanel.commandMenu | floatingPanel.commandMenu | Media command list | FloatingPanel view and SSOT for current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media candidates; the full `/` and `@` command catalog lives in MainPanel Help → Command Menu. |
 | floatingPanel.camera | floatingPanel.camera | Camera framing | FloatingPanel view for shared camera pose, framing, and shot metadata controls. |
 | floatingPanel.interaction | floatingPanel.interaction | Canvas controls | FloatingPanel view for pointer, pan, zoom, and interaction settings. |
 | floatingPanel.design | floatingPanel.design | Design controls | FloatingPanel view for design layers, inspector, tokens, and DOM views. |

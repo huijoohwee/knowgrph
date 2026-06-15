@@ -15,13 +15,6 @@ const DOWNLOAD_CLASS = [
   'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
 ].join(' ')
 
-const CARD_PREVIEW_DOWNLOAD_CLASS = [
-  `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME} absolute right-1 top-1 z-10 rounded`,
-  UI_THEME_TOKENS.panel.bg,
-  UI_THEME_TOKENS.text.primary,
-  'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
-].join(' ')
-
 export const renderInlineMediaWithDownload = (args: {
   children: React.ReactElement
   insideLink: boolean
@@ -30,6 +23,7 @@ export const renderInlineMediaWithDownload = (args: {
   src: string
   cardPreviewMode?: boolean
 }): React.ReactNode => {
+  if (args.cardPreviewMode === true) return args.children
   const href = args.insideLink ? '' : buildMarkdownMediaDownloadHref(args.src)
   if (!href) return args.children
   return (
@@ -40,7 +34,7 @@ export const renderInlineMediaWithDownload = (args: {
         download={deriveMarkdownMediaDownloadFilename(args.src, args.kind) || undefined}
         title="Download media"
         aria-label="Download media"
-        className={args.cardPreviewMode === true ? CARD_PREVIEW_DOWNLOAD_CLASS : DOWNLOAD_CLASS}
+        className={DOWNLOAD_CLASS}
         onClick={event => {
           try { event.stopPropagation() } catch { void 0 }
         }}

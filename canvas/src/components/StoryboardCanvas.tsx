@@ -2,6 +2,7 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   Check,
+  Download,
   ExternalLink,
   FileText,
   GitBranch,
@@ -46,12 +47,21 @@ import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdow
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import {
+  CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
+import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename } from '@/lib/markdown-core/ui/mediaDownload'
 import {
   UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME,
   UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME,
   UI_RESPONSIVE_KANBAN_LANE_CLASSNAME,
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME,
+  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME,
   UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
   UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
   UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME,
@@ -88,6 +98,13 @@ const EMPTY_STORYBOARD_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4'
 const STORYBOARD_SCORECARD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 text-[11px] sm:grid-cols-2'
 const STORYBOARD_CANONICAL_TEXT_FIELDS = { summary: { propertyKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS, canonicalKey: 'summary' }, output: { propertyKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS, canonicalKey: 'output' }, action: { propertyKeys: STORYBOARD_ACTION_PROPERTY_KEYS, canonicalKey: 'action' }, dialogue: { propertyKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS, canonicalKey: 'dialogue' } } as const
+const STORYBOARD_REFERENCE_DOWNLOAD_CLASS_NAME = [
+  `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME} absolute right-1 top-1 z-10 rounded border shadow-sm`,
+  UI_THEME_TOKENS.panel.border,
+  UI_THEME_TOKENS.panel.bg,
+  UI_THEME_TOKENS.text.primary,
+  'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
+].join(' ')
 
 const STORYTREE_FILTERS = [
   { id: 'all', label: 'All' },
@@ -197,6 +214,45 @@ function StoryboardMediaPreview(props: {
   )
 }
 
+function StoryboardMentionPill(props: {
+  label: string
+  title?: string
+  href?: string
+  children: React.ReactElement
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>
+}) {
+  const content = (
+    <>
+      {props.children}
+      <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{props.label}</span>
+    </>
+  )
+  if (props.href) {
+    return (
+      <a
+        href={props.href}
+        target="_blank"
+        rel="noreferrer"
+        className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+        draggable={false}
+        data-kg-card-inline-media-pill="1"
+        onClick={props.onClick}
+        onDragStart={event => {
+          event.preventDefault()
+        }}
+        title={props.title || props.label}
+      >
+        {content}
+      </a>
+    )
+  }
+  return (
+    <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} title={props.title || props.label} data-kg-card-inline-media-pill="1">
+      {content}
+    </span>
+  )
+}
+
 function StoryboardDetailRow(props: {
   icon: React.ReactNode
   label: string
@@ -256,30 +312,47 @@ function StoryboardReferenceStrip(props: {
         {visible.map((reference, index) => {
           const key = `${props.cardId}:reference:${index}`
           if (reference.kind === 'image' || reference.kind === 'svg') {
+            const downloadHref = buildMarkdownMediaDownloadHref(reference.url)
             return (
-              <a
-                key={key}
-                href={reference.url}
-                target="_blank"
-                rel="noreferrer"
-                className="block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-white"
-                title={reference.url}
-                draggable={false}
-                onDragStart={event => {
-                  event.preventDefault()
-                }}
-              >
-                <CardMediaPreview
-                  kind={reference.kind}
-                  url={reference.url}
-                  title="Reference"
+              <span key={key} className="group relative block h-14 w-14 shrink-0">
+                <a
                   href={reference.url}
-                  interactive={false}
-                  fit="cover"
-                  className="h-full w-full"
-                  mediaClassName="h-full w-full"
-                />
-              </a>
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block h-14 w-14 overflow-hidden rounded-lg border border-black/10 bg-white"
+                  title={reference.url}
+                  draggable={false}
+                  onDragStart={event => {
+                    event.preventDefault()
+                  }}
+                >
+                  <CardMediaPreview
+                    kind={reference.kind}
+                    url={reference.url}
+                    title="Reference"
+                    href={reference.url}
+                    interactive={false}
+                    fit="cover"
+                    className="h-full w-full"
+                    mediaClassName="h-full w-full"
+                  />
+                </a>
+                {downloadHref ? (
+                  <a
+                    href={downloadHref}
+                    download={deriveMarkdownMediaDownloadFilename(reference.url, 'image') || undefined}
+                    title="Download media"
+                    aria-label="Download media"
+                    className={STORYBOARD_REFERENCE_DOWNLOAD_CLASS_NAME}
+                    data-kg-storyboard-reference-download="1"
+                    onClick={event => {
+                      try { event.stopPropagation() } catch { void 0 }
+                    }}
+                  >
+                    <Download className={UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME} strokeWidth={1.8} aria-hidden="true" />
+                  </a>
+                ) : null}
+              </span>
             )
           }
           return (
@@ -876,6 +949,7 @@ export default function StoryboardCanvas({
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
+                    const visualBriefReference = card.references.find(reference => reference.kind === 'image' || reference.kind === 'svg') || null
                     const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(card)
                     const cardParagraphEntries = buildCardParagraphEntries([
                       { id: 'summary', label: 'Summary', value: card.summary },
@@ -1215,17 +1289,30 @@ export default function StoryboardCanvas({
                                   ) : null}
                                   <section className="mt-2 flex items-center gap-2">
                                     {card.references.length > 0 ? (
-                                      <span className={['inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
-                                        <ImageIcon className="h-3 w-3" aria-hidden="true" />
-                                        {card.references.length} refs
-                                      </span>
+                                      <StoryboardMentionPill label={`${card.references.length} refs`} title={`${card.references.length} references`}>
+                                        {visualBriefReference ? (
+                                          <CardMediaPreview
+                                            kind={visualBriefReference.kind}
+                                            url={visualBriefReference.url}
+                                            title="Reference"
+                                            interactive={false}
+                                            fit="cover"
+                                            mediaThumbnailDataAttr
+                                            mediaClassName={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME}
+                                          />
+                                        ) : (
+                                          <span className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME, 'inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]'].join(' ')}>
+                                            <ImageIcon className="h-3 w-3" aria-hidden="true" />
+                                          </span>
+                                        )}
+                                      </StoryboardMentionPill>
                                     ) : null}
                                     {card.href ? (
                                       <a
                                         href={card.href}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className={['inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                        className={CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME}
                                         draggable={false}
                                         onClick={event => {
                                           event.stopPropagation()

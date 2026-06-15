@@ -452,7 +452,7 @@ export const MediaVideo = ({
       url={activeSrc}
       title="Video"
       interactive={showControls}
-      fit="contain"
+      fit={cardPreviewMode === true ? 'cover' : 'contain'}
       videoControls={showControls}
       videoMuted={muted}
       videoAutoPlay={autoPlay}
