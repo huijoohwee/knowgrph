@@ -44,6 +44,7 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | mainPanel.mcp | mainPanel.mcp | Tool configuration | MainPanel tab for browser, crawler, provider, and payment MCP readiness. |
 | mainPanel.maps | mainPanel.maps | Geospatial configuration | MainPanel tab for map providers, directions, and GeoJSON settings. |
 | mainPanel.commerce | mainPanel.commerce | Commerce operations | MainPanel tab for ACP, Stripe, Web3, OpenBOX, proof, and trace readiness. |
+| mainPanel.research | mainPanel.research | Thesis compiler | MainPanel tab for compiling selected Source Files into reviewable thesis candidates. |
 | mainPanel.design | mainPanel.design | Design surface | MainPanel tab for design renderer and page/component inspection. |
 | mainPanel.workflowManager | mainPanel.workflowManager | Workflow curation | MainPanel tab for graph fields, shared `/` and `@` command inventory, mappings, and workflow registry management. |
 | mainPanel.dashboard | mainPanel.dashboard | Surface summary | MainPanel tab for runtime status and dashboard metrics. |
@@ -54,12 +55,19 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | floatingPanel.propsPanel | floatingPanel.propsPanel | Selection properties | FloatingPanel view for node, edge, widget, and media properties. |
 | floatingPanel.view | floatingPanel.view | Data view controls | FloatingPanel view for workspace data-view settings. |
 | floatingPanel.commandMenu | floatingPanel.commandMenu | Shared command catalog | FloatingPanel view for browsing the shared `/` and `@` command inventory used by inline editors, Workflow Manager graph fields, and media insertion flows. |
+| floatingPanel.camera | floatingPanel.camera | Camera framing | FloatingPanel view for shared camera pose, framing, and shot metadata controls. |
 | floatingPanel.interaction | floatingPanel.interaction | Canvas controls | FloatingPanel view for pointer, pan, zoom, and interaction settings. |
 | floatingPanel.design | floatingPanel.design | Design controls | FloatingPanel view for design layers, inspector, tokens, and DOM views. |
 | floatingPanel.chat | floatingPanel.chat | Assistant interface | FloatingPanel view for chat runs and KGC output creation. |
 | floatingPanel.geo | floatingPanel.geo | Map interaction | FloatingPanel view for geospatial inspection and map interaction. |
 | floatingPanel.renderer | floatingPanel.renderer | Rendering controls | FloatingPanel view for renderer presets and visualization controls. |
+| floatingPanel.flowEditor | floatingPanel.flowEditor | Flow editing | FloatingPanel view for Flow Editor field and graph editing controls. |
+| floatingPanel.flowchart | floatingPanel.flowchart | Flowchart inspection | FloatingPanel view for flowchart-oriented diagram controls and inspection. |
 | floatingPanel.gitGraph | floatingPanel.gitGraph | Git history graph | FloatingPanel view for GitGraph history, branch topology, and commit inspection. |
+| floatingPanel.gantt | floatingPanel.gantt | Gantt planning | FloatingPanel view for Gantt-timeline inspection and planning controls. |
+| floatingPanel.timeline | floatingPanel.timeline | Timeline playback | FloatingPanel view for timeline playback and review controls. |
+| floatingPanel.architecture | floatingPanel.architecture | Architecture diagram | FloatingPanel view for architecture diagram inspection and structured rows. |
+| floatingPanel.eventModeling | floatingPanel.eventModeling | Event modeling | FloatingPanel view for event-modeling diagram inspection and structured rows. |
 | floatingPanel.strybldr | floatingPanel.strybldr | Image storyboard orchestration | FloatingPanel view for image reverse engineering, element cards, and video handoff. |
 | floatingPanel.graphTraversal | floatingPanel.graphTraversal | Path reasoning | FloatingPanel view for graph traversal and orchestrator workflow controls. |
 | field.scope.node | field.scope.node | Node-level property | Field attached to nodes; use for node attributes such as title or type. |
