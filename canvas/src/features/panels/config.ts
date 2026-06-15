@@ -302,9 +302,9 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
   icons: {
     id: 'icons',
     title: 'Icon Library',
-    descriptionShort: `These icons appear in MainPanel Collaboration Type rows, settings-derived MainPanel tabs, FloatingPanel view buttons, and the ${UI_LABELS.graphFields} section header/table. Icons in this legend reuse the same UI Density: Icons settings so panel and data-view surfaces stay visually aligned.`,
+    descriptionShort: `These icons appear in MainPanel Collaboration Type rows, settings-derived MainPanel tabs, FloatingPanel view buttons including Command Menu, and the ${UI_LABELS.graphFields} section header/table. Icons in this legend reuse the same UI Density: Icons settings so panel and data-view surfaces stay visually aligned.`,
     descriptionLong:
-      `The Icon Library documents how MainPanel type icons, FloatingPanel view icons, scope, origin, visibility, and field-type icons map to shared panel concepts so Collaboration, Integrations, MCP, Maps, Commerce, Settings, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, Schema Configurator, and AgenticRAG pipelines interpret the same visual language consistently. The legend follows the shared UI Density: Icons settings so toolbar, header, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, and tooltip icons remain visually aligned.`,
+      `The Icon Library documents how MainPanel type icons, FloatingPanel view icons including Command Menu, scope, origin, visibility, and field-type icons map to shared panel concepts so Collaboration, Integrations, MCP, Maps, Commerce, Settings, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, Workflow Manager graph fields, Schema Configurator, and AgenticRAG pipelines interpret the same visual language consistently. The legend follows the shared UI Density: Icons settings so toolbar, header, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, and tooltip icons remain visually aligned.`,
   },
 }
 

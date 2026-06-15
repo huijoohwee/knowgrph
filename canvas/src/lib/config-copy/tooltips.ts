@@ -491,10 +491,10 @@ export const IGNORE_CODEBASE_PATHS_TOOLTIP =
 export const GRAPH_FIELDS_ICON_LEGEND_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Help Icon Library legend',
   actions: [
-    'align scope, origin, visibility, and field-type badges with AgenticRAG-style node and edge properties',
+    'align FloatingPanel Command Menu, scope, origin, visibility, and field-type badges with shared panel and graph-field semantics',
   ],
   outcome:
-    `keep schema design, curation flows, and ${MARKDOWN_DATA_VIEW_COPY.titleDefault} behavior grounded in the same JSON-LD-backed graph schema.`,
+    `keep Workflow Manager, inline command flows, schema design, and ${MARKDOWN_DATA_VIEW_COPY.titleDefault} behavior grounded in the same JSON-LD-backed graph schema.`,
 });
 
 export const WORKFLOW_LINKS_TOOLTIP = buildRoleActionOutcomeTooltip({

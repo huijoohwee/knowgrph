@@ -69,7 +69,7 @@ export const SPOTLIGHT_STEPS: SpotlightStepConfig[] = [
   },
   {
     id: 6,
-    title: 'Graph Fields Icon Library',
+    title: 'Help Icon Library',
     body:
       GRAPH_FIELDS_ICON_LEGEND_TOOLTIP,
     targetSelector: '[data-kg-anchor="graph-fields:icons"]',
