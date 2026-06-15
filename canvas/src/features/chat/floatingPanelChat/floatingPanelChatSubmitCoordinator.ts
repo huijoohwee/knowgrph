@@ -218,22 +218,32 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       const res = transport.response
       if (!res.ok) {
         const statusText = UI_COPY.chatRequestFailedStatus(res.status)
-        const suffix = transport.detail ? ` ${transport.detail}` : ''
+        const detailText = transport.detail
+          ? resolveRuntimeFriendly({
+              raw: transport.detail,
+              endpointUrl: args.submitArgs.chatEndpointUrl,
+              chatProvider: args.submitArgs.chatProvider,
+              chatAuthMode: args.submitArgs.chatAuthMode,
+            })
+          : ''
+        const suffix = detailText ? ` ${detailText}` : ''
+        const responseText = `${statusText}${suffix}`.trim()
+        const connectivityDetail = [`Chat endpoint returned ${res.status}.`, detailText].filter(Boolean).join(' ').trim()
         handleIssueExit({
           assistantMessageId: args.assistantMessageId,
           requestText: args.trimmedInput,
-          responseText: `${statusText}${suffix}`.trim(),
+          responseText,
           status: 'error',
           modelId: effectiveModel,
           timestampMs: Date.now(),
           setStreamingAssistant: args.submitArgs.setStreamingAssistant,
           setMessages: args.submitArgs.setMessages,
           setErrorText: args.submitArgs.setErrorText,
-          errorText: `${statusText}${suffix}`.trim(),
+          errorText: responseText,
           setConnectivity: args.submitArgs.setConnectivity,
           connectivity: 'error',
           setConnectivityDetail: args.submitArgs.setConnectivityDetail,
-          connectivityDetail: `Chat endpoint returned ${res.status}.`,
+          connectivityDetail,
           setIsLoading: args.submitArgs.setIsLoading,
           abortRef: args.submitArgs.abortRef,
           setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,
@@ -242,6 +252,11 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           streamDraftTextRef: args.submitArgs.streamDraftTextRef,
           pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
           persistChatExchangeLog: args.submitArgs.persistChatExchangeLog,
+          pushUiLog: args.submitArgs.pushUiLog,
+          requestHistorySubTab: args.submitArgs.requestHistorySubTab,
+          chatProvider: args.submitArgs.chatProvider,
+          chatAuthMode: args.submitArgs.chatAuthMode,
+          endpointUrl: args.submitArgs.chatEndpointUrl,
           shouldReportIssue: false,
         })
         finishDurableRun()
@@ -324,6 +339,11 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           streamDraftTextRef: args.submitArgs.streamDraftTextRef,
           pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
           persistChatExchangeLog: args.submitArgs.persistChatExchangeLog,
+          pushUiLog: args.submitArgs.pushUiLog,
+          requestHistorySubTab: args.submitArgs.requestHistorySubTab,
+          chatProvider: args.submitArgs.chatProvider,
+          chatAuthMode: args.submitArgs.chatAuthMode,
+          endpointUrl: args.submitArgs.chatEndpointUrl,
         })
         finishDurableRun()
         return
@@ -407,6 +427,11 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         streamDraftTextRef: args.submitArgs.streamDraftTextRef,
         pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
         persistChatExchangeLog: args.submitArgs.persistChatExchangeLog,
+        pushUiLog: args.submitArgs.pushUiLog,
+        requestHistorySubTab: args.submitArgs.requestHistorySubTab,
+        chatProvider: args.submitArgs.chatProvider,
+        chatAuthMode: args.submitArgs.chatAuthMode,
+        endpointUrl: args.submitArgs.chatEndpointUrl,
       })
       return
     }
@@ -414,6 +439,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       raw,
       endpointUrl: args.submitArgs.chatEndpointUrl,
       chatProvider: args.submitArgs.chatProvider,
+      chatAuthMode: args.submitArgs.chatAuthMode,
     })
     handleIssueExit({
       assistantMessageId: args.assistantMessageId,
@@ -438,6 +464,11 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       streamDraftTextRef: args.submitArgs.streamDraftTextRef,
       pushChatExchangeLog: args.submitArgs.pushChatExchangeLog,
       persistChatExchangeLog: args.submitArgs.persistChatExchangeLog,
+      pushUiLog: args.submitArgs.pushUiLog,
+      requestHistorySubTab: args.submitArgs.requestHistorySubTab,
+      chatProvider: args.submitArgs.chatProvider,
+      chatAuthMode: args.submitArgs.chatAuthMode,
+      endpointUrl: args.submitArgs.chatEndpointUrl,
     })
     finishDurableRun()
   }

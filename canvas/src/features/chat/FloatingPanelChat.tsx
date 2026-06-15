@@ -58,10 +58,7 @@ import {
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
 } from '@/features/panels/ui/KeyTypeValueRow'
 import {
-  CHAT_SKILL_OPTIONS,
-  DEFAULT_CHAT_SKILL_ID,
-  resolveChatSkillOption,
-  type ChatSkillId,
+  parseChatSkillSlashInvocation,
 } from './chatSkillRegistry'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -104,6 +101,8 @@ export default function FloatingPanelChat() {
   const chatContextScope = useGraphStore(s => s.chatContextScope || 'hybrid')
   const setChatModel = useGraphStore(s => s.setChatModel)
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
+  const pushUiLog = useGraphStore(s => s.pushUiLog)
+  const requestHistorySubTab = useGraphStore(s => s.requestHistorySubTab)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
 
   const chatStorageTarget = useGraphStore(s => (s.chatStorageTarget === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph'))
@@ -128,7 +127,6 @@ export default function FloatingPanelChat() {
   const [connectivity, setConnectivity] = React.useState<'unknown' | 'ok' | 'error'>('unknown')
   const [connectivityDetail, setConnectivityDetail] = React.useState<string | null>(null)
   const [streamingAssistant, setStreamingAssistant] = React.useState<StreamingAssistantState | null>(null)
-  const [chatSkillId, setChatSkillId] = React.useState<ChatSkillId>(DEFAULT_CHAT_SKILL_ID)
   const [streamingInsights, setStreamingInsights] = React.useState<{
     reasoningPreview: string | null
     reasoningStepCount: number
@@ -175,7 +173,7 @@ export default function FloatingPanelChat() {
     if (chatProviderHint && pixverseHint) return `${chatProviderHint} ${pixverseHint}`
     return pixverseHint || chatProviderHint
   }, [chatProviderHint, pixverseVideoConfig.enabled, pixverseVideoConfig.strategy])
-  const selectedChatSkill = React.useMemo(() => resolveChatSkillOption(chatSkillId), [chatSkillId])
+  const invokedChatSkill = React.useMemo(() => parseChatSkillSlashInvocation(input), [input])
   const shouldShowChatApiKeyPrompt = shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })
 
   React.useEffect(() => {
@@ -620,7 +618,7 @@ export default function FloatingPanelChat() {
     chatGraphSummaryMaxTokens,
     chatGuidelineDigestMaxTokens,
     chatSystemPrompt,
-    chatSkillId: selectedChatSkill.id,
+    chatSkillId: invokedChatSkill?.skill.id || null,
     chatContextScope: (chatContextScope === 'selection' || chatContextScope === 'workspace') ? chatContextScope : 'hybrid',
     chatStorageTarget,
     chatLocalStorageRootPath,
@@ -647,6 +645,8 @@ export default function FloatingPanelChat() {
     finalizeAssistantSuccess,
     pushChatExchangeLog,
     persistChatExchangeLog,
+    pushUiLog,
+    requestHistorySubTab,
     setStreamingInsights,
   })
 
@@ -735,9 +735,6 @@ export default function FloatingPanelChat() {
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}
         onModelChanged={setChatModel}
-        skillId={selectedChatSkill.id}
-        skillOptions={CHAT_SKILL_OPTIONS}
-        onSkillChanged={setChatSkillId}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModelSelect.modelId}

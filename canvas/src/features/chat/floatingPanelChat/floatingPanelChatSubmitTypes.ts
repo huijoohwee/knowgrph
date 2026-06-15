@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { SourceFile } from '@/hooks/store/types'
+import type { UiLogEntryInput } from '@/hooks/store/types'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
 import type { ChatSkillId } from '../chatSkillRegistry'
 
@@ -106,4 +107,6 @@ export type FloatingPanelChatSubmitArgs = {
     model: string
     timestampMs: number
   }) => Promise<void>
+  pushUiLog?: (entry: UiLogEntryInput) => void
+  requestHistorySubTab?: (subTab: string | null) => void
 }

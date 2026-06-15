@@ -7,7 +7,7 @@ import {
   CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
   CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC,
 } from '@/features/chat/chatResponseBaseContract'
-import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
+import { CHAT_SKILL_OPTIONS, parseChatSkillSlashInvocation } from '@/features/chat/chatSkillRegistry'
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
 import { isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
 import { normalizeKgcFrontmatterIdentityToFileName } from '@/features/chat/chatHistoryWorkspace.kgc.normalize'
@@ -151,9 +151,20 @@ export function testBuildChatSubmitPayloadMessagesPlacesCorrectionBetweenSystemA
 export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() {
   const storybuilding = CHAT_SKILL_OPTIONS.find(option => option.id === 'storybuilding')
   if (!storybuilding) throw new Error('Expected Storybuilding chat skill to be registered')
+  if (storybuilding.slashCommand !== '/storybuilding') {
+    throw new Error(`Expected Storybuilding to expose the /storybuilding slash command, got ${storybuilding.slashCommand}`)
+  }
+  const invocation = parseChatSkillSlashInvocation('/storybuilding build source-backed demo')
+  if (invocation?.skill.id !== 'storybuilding' || invocation.query !== 'build source-backed demo') {
+    throw new Error(`Expected /storybuilding to resolve to Storybuilding with the remaining query, got ${JSON.stringify(invocation)}`)
+  }
+  if (parseChatSkillSlashInvocation('/unknown build source-backed demo')) {
+    throw new Error('Expected unknown slash commands not to resolve a chat skill')
+  }
   const prompt = storybuilding.systemPrompt
   for (const snippet of [
     'Skill: Storybuilding.',
+    'If the user message starts with `/storybuilding`',
     'source-backed storybuilding runbook',
     'story/card lineage',
     'validation checklist',
@@ -193,6 +204,18 @@ export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() 
   })
   if (!context.systemMessages.some(message => message.content === prompt)) {
     throw new Error('Expected chatKnowgrph request context to include the selected Storybuilding skill prompt')
+  }
+
+  const inactiveSkillContext = await buildChatSubmitRequestContext({
+    submitArgs: buildSubmitArgsFixture({
+      chatStorageTarget: 'chatKnowgrph',
+      chatSkillId: null,
+    }),
+    nextMessages: [{ id: 'user-1', role: 'user', content: 'Plain KGC chat' }],
+    assistantMessageId: 'assistant-pending',
+  })
+  if (inactiveSkillContext.systemMessages.some(message => message.content === prompt)) {
+    throw new Error('Expected Storybuilding skill prompt to require an explicit slash invocation or selected skill id')
   }
 
   const chatHistoryContext = await buildChatSubmitRequestContext({
@@ -1908,6 +1931,18 @@ export function testResolveSubmitRuntimeFriendlyMessageUsesPreparationTimeoutCop
   }
 }
 
+export function testResolveSubmitRuntimeFriendlyMessageMapsAgnesInvalidTokenForServerManagedAuth() {
+  const friendly = resolveSubmitRuntimeFriendlyMessage({
+    raw: '无效的令牌 (request id: abc123)',
+    endpointUrl: 'https://apihub.agnes-ai.com/v1/chat/completions',
+    chatProvider: 'agnes-ai',
+    chatAuthMode: 'serverManaged',
+  })
+  if (!friendly.includes('Agnes') || !friendly.includes('server-managed chat proxy API key')) {
+    throw new Error(`Expected Agnes invalid-token submit message to explain the server-managed key diagnosis, got: ${friendly}`)
+  }
+}
+
 export async function testExecuteFloatingPanelChatSubmitCoordinatorFailsOnPreparationTimeout() {
   const errors: Array<string | null> = []
   const connectivity: Array<'unknown' | 'ok' | 'error'> = []
@@ -1961,6 +1996,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFailsOnPrepar
 export function testHandleSubmitIssueExitReportsDismissesAndFinalizes() {
   const logs: string[] = []
   const persisted: string[] = []
+  const uiLogs: string[] = []
+  const historySubTabs: Array<string | null> = []
   const errors: Array<string | null> = []
   const connectivity: Array<'unknown' | 'ok' | 'error'> = []
   const connectivityDetail: Array<string | null> = []
@@ -1993,6 +2030,11 @@ export function testHandleSubmitIssueExitReportsDismissesAndFinalizes() {
     streamDraftTextRef,
     pushChatExchangeLog: payload => { logs.push(`${payload.status}:${payload.response}`) },
     persistChatExchangeLog: async payload => { persisted.push(`${payload.status}:${payload.response}`) },
+    pushUiLog: entry => { uiLogs.push(String(entry.message || '')) },
+    requestHistorySubTab: value => { historySubTabs.push(value) },
+    chatProvider: 'agnes-ai',
+    chatAuthMode: 'serverManaged',
+    endpointUrl: '/__chat_proxy/v1/chat/completions',
   })
   if (errors[0] !== 'Synthetic submit failure') {
     throw new Error(`Expected issue exit helper to write error text, got: ${JSON.stringify(errors)}`)
@@ -2002,6 +2044,12 @@ export function testHandleSubmitIssueExitReportsDismissesAndFinalizes() {
   }
   if (logs.length !== 1 || persisted.length !== 1) {
     throw new Error(`Expected issue exit helper to report exactly one log and one persisted issue, got logs=${logs.length}, persisted=${persisted.length}`)
+  }
+  if (uiLogs.length !== 1 || !uiLogs[0]?.includes('Agnes') || !uiLogs[0]?.includes('Synthetic submit failure')) {
+    throw new Error(`Expected issue exit helper to push one Agnes diagnosis into the UI log, got: ${JSON.stringify(uiLogs)}`)
+  }
+  if (historySubTabs[0] !== 'log') {
+    throw new Error(`Expected issue exit helper to bias History toward the Log subtab, got: ${JSON.stringify(historySubTabs)}`)
   }
   if (messages.some(message => message.id === 'assistant-pending')) {
     throw new Error('Expected issue exit helper to remove the pending assistant placeholder')
@@ -2014,6 +2062,7 @@ export function testHandleSubmitIssueExitReportsDismissesAndFinalizes() {
 export function testHandleSubmitIssueExitCanSkipReportingForEndpointFailure() {
   const logs: string[] = []
   const persisted: string[] = []
+  const uiLogs: string[] = []
   let messages: Array<{ id: string }> = [{ id: 'assistant-pending' }]
   handleSubmitIssueExit({
     assistantMessageId: 'assistant-pending',
@@ -2037,10 +2086,18 @@ export function testHandleSubmitIssueExitCanSkipReportingForEndpointFailure() {
     streamDraftTextRef: { current: null },
     pushChatExchangeLog: payload => { logs.push(payload.response) },
     persistChatExchangeLog: async payload => { persisted.push(payload.response) },
+    pushUiLog: entry => { uiLogs.push(String(entry.message || '')) },
+    requestHistorySubTab: () => {},
+    chatProvider: 'agnes-ai',
+    chatAuthMode: 'serverManaged',
+    endpointUrl: '/__chat_proxy/v1/chat/completions',
     shouldReportIssue: false,
   })
   if (logs.length !== 0 || persisted.length !== 0) {
     throw new Error(`Expected endpoint-style issue exit to skip reporting, got logs=${logs.length}, persisted=${persisted.length}`)
+  }
+  if (uiLogs.length !== 1 || !uiLogs[0]?.includes('Endpoint status text')) {
+    throw new Error(`Expected endpoint-style issue exit to still push the diagnosis to the UI log, got: ${JSON.stringify(uiLogs)}`)
   }
   if (messages.length !== 0) {
     throw new Error('Expected endpoint-style issue exit to still dismiss the pending assistant placeholder')
