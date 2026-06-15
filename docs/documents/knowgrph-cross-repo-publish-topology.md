@@ -36,6 +36,14 @@ Public route ownership remains `airvio.co/api/storage/*`, but server-side reads 
 
 `huijoohwee/content/knowgrph` is the primary Prod artifact mirror. `huijoohwee/knowgrph` is a generated public-route compatibility surface for managed root files such as `index.html`, `llms.txt`, `manifest.webmanifest`, `settings-flow.json`, `sw.js`, and `assets/**`; it is not the source owner. Cloudflare Pages control files remain authoritative only at the publish repo root: `huijoohwee/_headers` and `huijoohwee/_redirects`. Mirrored nested `_headers` or `_redirects` under `content/knowgrph` are not deploy authority and should not be synced.
 
+### 2026-06-15 Release Record
+
+- Source repo `knowgrph` shipped commit `fcd0ea5f` (`feat: modularize chat skill prompt handling`).
+- Publish repo `huijoohwee` shipped commit `f0422135` (`chore: sync knowgrph production publish`).
+- Cloudflare Pages deploy ran through `npm run pages:deploy-cloudflare` from `knowgrph` and completed with preview URL `https://84f45986.joohwee.pages.dev`.
+- Post-deploy route proof passed with `https://airvio.co/knowgrph` -> `308` and `https://airvio.co/knowgrph/` -> `200`.
+- The deploy also completed `storage:d1:seed:docs` with `applied=37`, `conflict=0`, and `rejected=0`.
+
 ## Directives
 
 | Surface | Directive | SSOT | Publish Target | Public Route |

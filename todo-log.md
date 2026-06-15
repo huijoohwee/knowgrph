@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-06-15
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Chat skill prompt modularization release follow-up | Record the Dev -> Prod -> Cloudflare release trail and keep downstream docs-map indexing canonical | Keep chat skill prompt modularization source-owned in `knowgrph`, publish only through generated mirror sync, log paired source/publish commits plus live route proof in canonical docs, and regenerate the AgenticRAG docs map from authored release-note sources only. | `knowgrph/{canvas/src/features/chat,docs/documents,todo-log.md}`, `huijoohwee/{content/knowgrph,knowgrph}`, `huijoohwee.github.io/schema/AgenticRAG/{sync_map.py,knowgrph-documents-map.graph.jsonld}` | Chat skill registry + release ledger | `pages:build-sync`, `pages:deploy-cloudflare`, `sync_map.py --mode write` | Source commit `fcd0ea5f`, publish commit `f0422135`, deployed route `https://airvio.co/knowgrph/`, preview deploy `https://84f45986.joohwee.pages.dev` | Added release note, updated topology/ledger trail, regenerated docs map entry for the new release document | Release evidence belongs in canonical upstream docs and generated schema mirrors only; do not hand-edit publish artifacts or downstream graph nodes when the authored release note is the real source. | Re-run `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check` after future release-note additions, publish-topology changes, or companion-doc sharding. | 2026-06-15 |
+
 ## 2026-06-13
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
