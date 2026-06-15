@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bot, ChevronDown, KeyRound } from 'lucide-react'
+import { Bot, ChevronDown, KeyRound, Sparkles } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import type { GraphNode } from '@/lib/graph/types'
@@ -15,6 +15,7 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import type { ChatSkillId, ChatSkillOption } from './chatSkillRegistry'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 export type StreamingAssistantState = {
@@ -275,6 +276,9 @@ type FooterProps = {
   modelId: string
   modelOptions: string[]
   onModelChanged: (modelId: string) => void
+  skillId: ChatSkillId
+  skillOptions: ChatSkillOption[]
+  onSkillChanged: (skillId: ChatSkillId) => void
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
   isSubmitDisabled: boolean
@@ -297,6 +301,9 @@ export function FloatingPanelChatFooter({
   modelId,
   modelOptions,
   onModelChanged,
+  skillId,
+  skillOptions,
+  onSkillChanged,
   uiPanelTextFontClass,
   uiPanelMicroLabelTextSizeClass,
   isSubmitDisabled,
@@ -308,6 +315,7 @@ export function FloatingPanelChatFooter({
 }: FooterProps) {
   const chatModelSelectId = React.useId()
   const chatApiKeyInputId = React.useId()
+  const chatSkillSelectId = React.useId()
   const [isApiKeyExpanded, setIsApiKeyExpanded] = React.useState(false)
 
   React.useEffect(() => {
@@ -426,6 +434,42 @@ export function FloatingPanelChatFooter({
             placeholder="Enter API key"
             className={`${UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME} ${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
           />
+        </section>
+      ) : null}
+      {skillOptions.length > 0 ? (
+        <section className={UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME} data-kg-chat-skill-control="true">
+          <span
+            aria-hidden="true"
+            data-kg-chat-skill-icon="true"
+            className={[
+              'App-toolbar__btn pointer-events-none',
+              UI_RESPONSIVE_CONTROL_ICON_CELL_CLASSNAME,
+              uiPanelMicroLabelTextSizeClass,
+              UI_THEME_TOKENS.button.text,
+            ].join(' ')}
+          >
+            <Sparkles className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
+          </span>
+          <select
+            id={chatSkillSelectId}
+            aria-label="Skills"
+            data-kg-chat-skill-select="true"
+            value={skillId}
+            onChange={event => {
+              const next = String(event.target.value || '').trim()
+              const option = skillOptions.find(entry => entry.id === next)
+              if (!option) return
+              onSkillChanged(option.id)
+            }}
+            disabled={isLoading || skillOptions.length <= 1}
+            className={`${UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME} ${UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME} rounded border ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
+          >
+            {skillOptions.map(option => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </section>
       ) : null}
 

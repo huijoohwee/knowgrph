@@ -7,6 +7,7 @@ import {
   CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
   CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC,
 } from '@/features/chat/chatResponseBaseContract'
+import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
 import { isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
 import { normalizeKgcFrontmatterIdentityToFileName } from '@/features/chat/chatHistoryWorkspace.kgc.normalize'
@@ -144,6 +145,66 @@ export function testBuildChatSubmitPayloadMessagesPlacesCorrectionBetweenSystemA
   }
   if (payload[2]?.role !== 'user') {
     throw new Error(`Expected conversation message to remain after correction prompt, got: ${JSON.stringify(payload)}`)
+  }
+}
+
+export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() {
+  const storybuilding = CHAT_SKILL_OPTIONS.find(option => option.id === 'storybuilding')
+  if (!storybuilding) throw new Error('Expected Storybuilding chat skill to be registered')
+  const prompt = storybuilding.systemPrompt
+  for (const snippet of [
+    'Skill: Storybuilding.',
+    'source-backed storybuilding runbook',
+    'story/card lineage',
+    'validation checklist',
+    'existing chat-log/KGC artifact flow',
+  ]) {
+    if (!prompt.includes(snippet)) throw new Error(`Expected Storybuilding skill prompt to include: ${snippet}`)
+  }
+  const forbiddenDemoPath = [
+    '',
+    'Users',
+    'huijoohwee',
+    'Documents',
+    'GitHub',
+    'huijoohwee',
+    'docs',
+    ['knowgrph', 'strybldr', 'demo.md'].join('-'),
+  ].join('/')
+  const forbiddenVideoId = ['77FAn', 'T935', '1E'].join('')
+  const forbiddenCredentialKeys = [
+    ['VIDEO', 'DB_API', 'KEY'].join('_'),
+    ['SENSE', 'NOVA_API', 'KEY'].join('_'),
+  ]
+  for (const forbidden of [forbiddenDemoPath, forbiddenVideoId, ...forbiddenCredentialKeys]) {
+    if (prompt.includes(forbidden)) throw new Error(`Storybuilding prompt must not hardcode demo fixture detail: ${forbidden}`)
+  }
+
+  const context = await buildChatSubmitRequestContext({
+    submitArgs: buildSubmitArgsFixture({
+      chatStorageTarget: 'chatKnowgrph',
+      chatSkillId: 'storybuilding',
+    }),
+    nextMessages: [
+      { id: 'assistant-pending', role: 'assistant', content: '' },
+      { id: 'user-1', role: 'user', content: 'Generate a Strybldr storybuilding demo runbook from selected source evidence.' },
+    ],
+    assistantMessageId: 'assistant-pending',
+  })
+  if (!context.systemMessages.some(message => message.content === prompt)) {
+    throw new Error('Expected chatKnowgrph request context to include the selected Storybuilding skill prompt')
+  }
+
+  const chatHistoryContext = await buildChatSubmitRequestContext({
+    submitArgs: buildSubmitArgsFixture({
+      chatStorageTarget: 'chatHistory',
+      chatSkillId: 'storybuilding',
+    }),
+    nextMessages: [{ id: 'user-1', role: 'user', content: 'Plain chat' }],
+    assistantMessageId: 'assistant-pending',
+  })
+  if (chatHistoryContext.systemMessages.some(message => message.content === prompt)) {
+    throw new Error('Expected Storybuilding skill prompt to stay scoped to chatKnowgrph artifact generation')
   }
 }
 

@@ -306,6 +306,7 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `workspace.sync.sourceFiles.debounceMs` | number | localStorage |  |  |
 | `workspace.import.defaultSourceUrl` | string | localStorage |  |  |
 | `workspace.import.shareExportRootPath` | string | localStorage |  |  |
+| `workspace.import.videoDownload.outputDir` | string | localStorage |  |  |
 | `pdfImportIncludeImages` | boolean | store | `kg:import:pdf:includeImages` | `import.pdf` |
 | `pdfImportMaxPages` | number | store | `kg:import:pdf:maxPages` | `import.pdf` |
 | `pdfImportMaxPdfBytes` | number | store | `kg:import:pdf:maxPdfBytes` | `import.pdf` |
@@ -600,11 +601,7 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `openai.mcp.serverPort` | number | localStorage |  |  |
 | `openai.mcp.requireToolReview` | boolean | localStorage |  |  |
 | `operatorDeploy.mcp.endpoint` | string | localStorage |  |  |
-| `operatorDeploy.mcp.agentApiUrl` | string | localStorage |  |  |
-| `operatorDeploy.mcp.agentCoreEndpoint` | string | localStorage |  |  |
 | `operatorDeploy.mcp.frontendUrl` | string | localStorage |  |  |
-| `operatorDeploy.mcp.awsRegion` | string | localStorage |  |  |
-| `operatorDeploy.mcp.authJwtSecretName` | string | localStorage |  |  |
 | `operatorDeploy.mcp.mode` | string | localStorage |  |  |
 | `operatorDeploy.mcp.liveClientsEnabled` | boolean | localStorage |  |  |
 | `operatorDeploy.mcp.cloudDeployApproved` | boolean | localStorage |  |  |

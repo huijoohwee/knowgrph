@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 import FloatingPanelChat from '@/features/chat/FloatingPanelChat'
+import { CHAT_SKILL_OPTIONS, DEFAULT_CHAT_SKILL_ID } from '@/features/chat/chatSkillRegistry'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
 import { FloatingPanelChatFooter } from '@/features/chat/FloatingPanelChatSections'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -32,6 +33,9 @@ export async function testFloatingPanelChatFooterModelSelectStaysNativeLabeledAn
         modelId: 'gpt-5-nano',
         modelOptions: ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'],
         onModelChanged: modelId => changedModels.push(modelId),
+        skillId: DEFAULT_CHAT_SKILL_ID,
+        skillOptions: CHAT_SKILL_OPTIONS,
+        onSkillChanged: () => undefined,
         uiPanelTextFontClass: 'text-sm',
         uiPanelMicroLabelTextSizeClass: 'text-xs',
         isSubmitDisabled: true,
@@ -58,6 +62,16 @@ export async function testFloatingPanelChatFooterModelSelectStaysNativeLabeledAn
 
     if (container.querySelector('[data-kg-chat-api-key-toggle="true"]') || container.querySelector('[data-kg-chat-api-key-input="true"]')) {
       throw new Error('expected non-BYOK footer not to render API-key controls')
+    }
+    const skillControl = container.querySelector('[data-kg-chat-skill-control="true"]')
+    const skillSelect = container.querySelector('[data-kg-chat-skill-select="true"]') as HTMLSelectElement | null
+    if (!skillControl || !skillSelect) throw new Error('expected chat footer to render the Skills control row')
+    if (skillSelect.getAttribute('aria-label') !== 'Skills') throw new Error('expected Skills select to expose a semantic label')
+    if (skillSelect.value !== 'storybuilding' || skillSelect.options[0]?.text !== 'Storybuilding') {
+      throw new Error(`expected Storybuilding to be the provisioned chat skill, got ${JSON.stringify({ value: skillSelect.value, label: skillSelect.options[0]?.text })}`)
+    }
+    if (!skillSelect.className.includes('kg-responsive-control-inline-fill') || !skillSelect.className.includes('kg-responsive-compact-panel-field-input')) {
+      throw new Error('expected Skills select to use shared fill and compact field owners')
     }
 
     await act(async () => {
@@ -163,6 +177,9 @@ export async function testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIco
         modelId: 'mirothinker-1-7-deepresearch-mini',
         modelOptions: ['mirothinker-1-7-deepresearch-mini', 'mirothinker-1-7-deepresearch', 'gpt-5-nano'],
         onModelChanged: () => undefined,
+        skillId: DEFAULT_CHAT_SKILL_ID,
+        skillOptions: CHAT_SKILL_OPTIONS,
+        onSkillChanged: () => undefined,
         uiPanelTextFontClass: 'text-sm',
         uiPanelMicroLabelTextSizeClass: 'text-xs',
         isSubmitDisabled: true,
@@ -199,8 +216,12 @@ export async function testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIco
     const prompt = container.querySelector('[data-kg-chat-api-key-prompt="true"]') as HTMLElement | null
     const keyIcon = container.querySelector('[data-kg-chat-api-key-icon="true"]') as HTMLElement | null
     const keyInput = container.querySelector('[data-kg-chat-api-key-input="true"]') as HTMLInputElement | null
+    const skillControl = container.querySelector('[data-kg-chat-skill-control="true"]') as HTMLElement | null
     if (!prompt || !keyIcon || !keyInput) {
       throw new Error('expected model-icon toggle to expand the API-key row')
+    }
+    if (!skillControl || (prompt.compareDocumentPosition(skillControl) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING) === 0) {
+      throw new Error('expected Skills row to render below the expanded API-key row')
     }
     if (prompt.querySelector('[data-kg-chat-api-key-toggle="true"]')) {
       throw new Error('expected expanded API-key row not to contain the collapse toggle')

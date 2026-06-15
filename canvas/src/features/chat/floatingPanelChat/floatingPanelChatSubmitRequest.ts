@@ -13,6 +13,7 @@ import {
   CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT,
   CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
 } from '../chatResponseBaseContract'
+import { resolveChatSkillOption } from '../chatSkillRegistry'
 import {
   buildBoundedGraphSystemPrompt,
   buildMarkdownNodeSnippetPrompt,
@@ -148,6 +149,10 @@ export const buildChatSubmitRequestContext = async (args: {
   }
   if (args.submitArgs.chatSystemPrompt && typeof args.submitArgs.chatSystemPrompt === 'string' && args.submitArgs.chatSystemPrompt.trim()) {
     systemMessages.push({ role: 'system', content: args.submitArgs.chatSystemPrompt })
+  }
+  if (args.submitArgs.chatStorageTarget === 'chatKnowgrph') {
+    const skill = resolveChatSkillOption(args.submitArgs.chatSkillId)
+    if (skill.systemPrompt.trim()) systemMessages.push({ role: 'system', content: skill.systemPrompt })
   }
   if (includeSelectionContext) {
     const markdownSnippet = buildMarkdownNodeSnippetPrompt(

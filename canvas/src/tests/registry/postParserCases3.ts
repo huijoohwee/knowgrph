@@ -32,6 +32,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.panels.container.usesKgPanelBg","@/__tests__/panelSemanticContract.test","testMainPanelContainerUsesKgPanelBg"],
   ["ui.panels.shell.responsiveRowScrolling","@/__tests__/panelSemanticContract.test","testPanelShellUsesResponsiveRowScrolling"],
   ["ui.floatingPanelChat.modelSelect.nativeLabeled","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterModelSelectStaysNativeLabeledAndChangeable"],
+  ["ui.floatingPanelChat.skills.storybuildingPrompt","@/__tests__/chatResponseContractPrompt.test","testChatStorybuildingSkillPromptIsModularAndPathNeutral"],
   ["ui.floatingPanelChat.sourceFilesLink","@/__tests__/floatingPanelChatSourceFileLink.test","testFloatingPanelChatRendersSourceFilesWorkspaceLinks"],
   ["ui.floatingPanelChat.streamingStatusTop","@/__tests__/floatingPanelChatStreamingStatusPlacement.test","testFloatingPanelChatStreamsReasoningStatusAtTopOfChat"],
   ["ui.workspace.responsiveBoundedSurfaces","@/__tests__/panelSemanticContract.test","testResponsiveWorkspaceAndTableSurfacesStayBounded"],

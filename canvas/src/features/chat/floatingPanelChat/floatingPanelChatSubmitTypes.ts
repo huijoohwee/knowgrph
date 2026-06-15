@@ -2,6 +2,7 @@ import type React from 'react'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { SourceFile } from '@/hooks/store/types'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
+import type { ChatSkillId } from '../chatSkillRegistry'
 
 export type FloatingPanelChatSubmitArgs = {
   historyKey: string
@@ -40,6 +41,7 @@ export type FloatingPanelChatSubmitArgs = {
   chatGraphSummaryMaxTokens: unknown
   chatGuidelineDigestMaxTokens: unknown
   chatSystemPrompt: string | null
+  chatSkillId?: ChatSkillId | null
   chatContextScope: 'selection' | 'workspace' | 'hybrid'
 
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'

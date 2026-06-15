@@ -57,6 +57,12 @@ import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
 } from '@/features/panels/ui/KeyTypeValueRow'
+import {
+  CHAT_SKILL_OPTIONS,
+  DEFAULT_CHAT_SKILL_ID,
+  resolveChatSkillOption,
+  type ChatSkillId,
+} from './chatSkillRegistry'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -122,6 +128,7 @@ export default function FloatingPanelChat() {
   const [connectivity, setConnectivity] = React.useState<'unknown' | 'ok' | 'error'>('unknown')
   const [connectivityDetail, setConnectivityDetail] = React.useState<string | null>(null)
   const [streamingAssistant, setStreamingAssistant] = React.useState<StreamingAssistantState | null>(null)
+  const [chatSkillId, setChatSkillId] = React.useState<ChatSkillId>(DEFAULT_CHAT_SKILL_ID)
   const [streamingInsights, setStreamingInsights] = React.useState<{
     reasoningPreview: string | null
     reasoningStepCount: number
@@ -168,6 +175,7 @@ export default function FloatingPanelChat() {
     if (chatProviderHint && pixverseHint) return `${chatProviderHint} ${pixverseHint}`
     return pixverseHint || chatProviderHint
   }, [chatProviderHint, pixverseVideoConfig.enabled, pixverseVideoConfig.strategy])
+  const selectedChatSkill = React.useMemo(() => resolveChatSkillOption(chatSkillId), [chatSkillId])
   const shouldShowChatApiKeyPrompt = shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })
 
   React.useEffect(() => {
@@ -612,6 +620,7 @@ export default function FloatingPanelChat() {
     chatGraphSummaryMaxTokens,
     chatGuidelineDigestMaxTokens,
     chatSystemPrompt,
+    chatSkillId: selectedChatSkill.id,
     chatContextScope: (chatContextScope === 'selection' || chatContextScope === 'workspace') ? chatContextScope : 'hybrid',
     chatStorageTarget,
     chatLocalStorageRootPath,
@@ -726,6 +735,9 @@ export default function FloatingPanelChat() {
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}
         onModelChanged={setChatModel}
+        skillId={selectedChatSkill.id}
+        skillOptions={CHAT_SKILL_OPTIONS}
+        onSkillChanged={setChatSkillId}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModelSelect.modelId}
