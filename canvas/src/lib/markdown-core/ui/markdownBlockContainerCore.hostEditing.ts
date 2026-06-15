@@ -40,6 +40,7 @@ export const useMarkdownBlockContainerHostEditing = (args: {
   blurCommitTimerRef: React.MutableRefObject<number>
   selectionSyncSuspendUntilRef: React.MutableRefObject<number>
   toolbarRef: React.RefObject<HTMLElement | null>
+  slashMenuRef: React.RefObject<HTMLElement | null>
   variableMenuRef: React.RefObject<HTMLElement | null>
   commit: () => void
   toolbarInteractionUntilRef: React.MutableRefObject<number>
@@ -121,6 +122,7 @@ export const useMarkdownBlockContainerHostEditing = (args: {
     blurCommitTimerRef: args.blurCommitTimerRef,
     selectionSyncSuspendUntilRef: args.selectionSyncSuspendUntilRef,
     toolbarRef: args.toolbarRef,
+    slashMenuRef: args.slashMenuRef,
     variableMenuRef: args.variableMenuRef,
     commit: args.commit,
     toolbarInteractingRef: args.toolbarInteractingRef,

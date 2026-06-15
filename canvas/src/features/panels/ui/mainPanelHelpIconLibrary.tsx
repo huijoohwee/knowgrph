@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Copy, CreditCard, Eraser, Film, GitBranch, Globe2, Hand, Hash,
+  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Command as CommandIcon, Copy, CreditCard, Eraser, Film, GitBranch, Globe2, Hand, Hash,
   HelpCircle, History as HistoryIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
   Network, Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
   Workflow,
@@ -59,6 +59,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'mainPanel.help',
   'floatingPanel.propsPanel',
   'floatingPanel.view',
+  'floatingPanel.commandMenu',
   'floatingPanel.camera',
   'floatingPanel.interaction',
   'floatingPanel.design',
@@ -318,6 +319,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'View',
     Icon: LayoutGrid,
   },
+  'floatingPanel.commandMenu': {
+    category: 'FloatingPanel surface',
+    label: 'Command Menu',
+    Icon: CommandIcon,
+  },
   'floatingPanel.camera': {
     category: 'FloatingPanel surface',
     label: 'Camera',
@@ -510,6 +516,7 @@ export const MAIN_PANEL_TAB_TYPE_ICON_BY_KEY = Object.fromEntries(
 export type FloatingPanelTypeIconView =
   | 'propsPanel'
   | 'view'
+  | 'commandMenu'
   | 'camera'
   | 'interaction'
   | 'design'
@@ -529,6 +536,7 @@ export type FloatingPanelTypeIconView =
 export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   propsPanel: 'floatingPanel.propsPanel',
   view: 'floatingPanel.view',
+  commandMenu: 'floatingPanel.commandMenu',
   camera: 'floatingPanel.camera',
   interaction: 'floatingPanel.interaction',
   design: 'floatingPanel.design',

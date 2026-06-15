@@ -376,6 +376,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     if (panelFreezeConnectedOutput) return panelDraftText || panel.text || panel.connectedText || ''
     return panel.connectedText || panel.text || ''
   }, [panel, panelDraftText, panelFreezeConnectedOutput, panelSelectedTab])
+  const panelMarkdownCommandContextText = React.useMemo(() => {
+    return [
+      kind === 'image' || kind === 'svg' ? `imageUrl: "${rawUrl}"` : '',
+      kind === 'video' ? `videoUrl: "${rawUrl}"` : '',
+      openUrl && openUrl !== rawUrl ? `sourceUrl: "${openUrl}"` : '',
+      effectiveInlineSrcDoc ? `srcDoc: "${title}"` : '',
+    ].filter(Boolean).join('\n')
+  }, [effectiveInlineSrcDoc, kind, openUrl, rawUrl, title])
   const panelMarkdownDocumentPath = React.useMemo(() => {
     const base = String(props.overlayId || title || 'rich-media-panel').trim() || 'rich-media-panel'
     return `/__rich_media_panel/${encodeURIComponent(base)}.md`
@@ -758,6 +766,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             multiline
             rows={8}
             markdownPreview="auto"
+            markdownCommandMenus
+            markdownCommandContextText={panelMarkdownCommandContextText}
             onCommit={nextValue => {
               const next = String(nextValue || '')
               setPanelDraftText(next)

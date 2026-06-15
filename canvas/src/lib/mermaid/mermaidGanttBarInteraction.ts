@@ -16,6 +16,12 @@ export type MermaidGanttTimelineTaskSpan = {
   startMinutes: number
 }
 
+export type MermaidGanttTimelineDragPreview = {
+  durationMinutes: number
+  rowKey: string
+  startMinutes: number
+}
+
 export type MermaidGanttTimelineModel = {
   durationMinutes: number
   endMinutes: number
@@ -79,6 +85,56 @@ export function resolveMermaidGanttBarDragCommitted(deltaPx: number): boolean {
   return Math.abs(deltaPx) >= MERMAID_GANTT_BAR_DRAG_COMMIT_MIN_DELTA_PX
 }
 
+export function resolveMermaidGanttTimelineDragPreviewSpan(args: {
+  deltaMinutes: number
+  maxMinutes: number
+  mode: MermaidGanttBarDragMode
+  span: MermaidGanttTimelineTaskSpan
+}): MermaidGanttTimelineDragPreview {
+  const durationMinutes = Math.max(1, args.span.durationMinutes)
+  const endMinutes = args.span.startMinutes + durationMinutes
+  const deltaMinutes = Math.round(args.deltaMinutes)
+  const maxMinutes = Math.max(0, Math.round(args.maxMinutes))
+  if (args.mode === 'resize-start') {
+    const nextStartMinutes = clampGanttTimelineMinutes(args.span.startMinutes + deltaMinutes, 0, Math.max(0, endMinutes - 1))
+    return {
+      durationMinutes: Math.max(1, endMinutes - nextStartMinutes),
+      rowKey: args.span.rowKey,
+      startMinutes: nextStartMinutes,
+    }
+  }
+  if (args.mode === 'resize-end') {
+    return {
+      durationMinutes: clampGanttTimelineMinutes(durationMinutes + deltaMinutes, 1, Math.max(1, maxMinutes - args.span.startMinutes)),
+      rowKey: args.span.rowKey,
+      startMinutes: args.span.startMinutes,
+    }
+  }
+  return {
+    durationMinutes,
+    rowKey: args.span.rowKey,
+    startMinutes: clampGanttTimelineMinutes(args.span.startMinutes + deltaMinutes, 0, Math.max(0, maxMinutes - durationMinutes)),
+  }
+}
+
+export function resolveMermaidGanttTimelineDragEffectiveDelta(args: {
+  deltaMinutes: number
+  maxMinutes: number
+  mode: MermaidGanttBarDragMode
+  span: MermaidGanttTimelineTaskSpan
+}): number {
+  const preview = resolveMermaidGanttTimelineDragPreviewSpan(args)
+  if (args.mode === 'resize-end') {
+    return preview.durationMinutes - Math.max(1, args.span.durationMinutes)
+  }
+  return preview.startMinutes - args.span.startMinutes
+}
+
+function clampGanttTimelineMinutes(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min
+  return Math.min(max, Math.max(min, value))
+}
+
 function parseGanttClockTime(value: string): GanttTimeParts | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim())
   if (!match) return null
@@ -124,6 +180,16 @@ function readGanttTaskTokens(line: string): string[] {
   const colonIndex = line.indexOf(':')
   if (colonIndex < 0) return []
   return line.slice(colonIndex + 1).split(',').map(token => token.trim()).filter(Boolean)
+}
+
+function readBaseClockMinutes(lines: string[]): number | null {
+  for (const line of lines) {
+    const tokens = readGanttTaskTokens(String(line || '').trim())
+    const clockToken = tokens.find(token => readClockMinutes(token) != null)
+    const minutes = clockToken ? readClockMinutes(clockToken) : null
+    if (minutes != null) return minutes
+  }
+  return null
 }
 
 function resolveGanttTimelineTickStep(totalMinutes: number): number {
@@ -230,7 +296,12 @@ export function updateMermaidGanttCodeRowTiming(args: {
   const tokens = tokenText.split(',').map(token => token.trim())
   const timeTokenIndex = tokens.findIndex(token => readClockMinutes(token) != null)
   const durationTokenIndex = tokens.length - 1
-  const startMinutes = timeTokenIndex >= 0 ? readClockMinutes(tokens[timeTokenIndex] || '') : null
+  const explicitStartMinutes = timeTokenIndex >= 0 ? readClockMinutes(tokens[timeTokenIndex] || '') : null
+  const timelineSpan = buildMermaidGanttTimelineModel(args.code).taskSpans.find(span => span.lineIndex === args.rowLineIndex)
+  const baseClockMinutes = readBaseClockMinutes(lines)
+  const startMinutes = explicitStartMinutes == null && timelineSpan && baseClockMinutes != null
+    ? baseClockMinutes + timelineSpan.startMinutes
+    : explicitStartMinutes
   const durationMinutes = readDurationMinutes(tokens[durationTokenIndex] || '')
   if (startMinutes == null || durationMinutes == null) return null
   let nextStartMinutes = startMinutes
@@ -248,8 +319,17 @@ export function updateMermaidGanttCodeRowTiming(args: {
     nextDurationMinutes = 1
     if (args.mode === 'resize-start') nextStartMinutes += durationFloorDelta
   }
-  tokens[timeTokenIndex] = formatClockMinutes(nextStartMinutes)
-  tokens[durationTokenIndex] = formatDurationMinutes(nextDurationMinutes)
+  if (timeTokenIndex >= 0) {
+    tokens[timeTokenIndex] = formatClockMinutes(nextStartMinutes)
+  } else if (args.mode === 'resize-end') {
+    tokens[durationTokenIndex] = formatDurationMinutes(nextDurationMinutes)
+    lines[args.rowLineIndex] = `${prefix} ${tokens.join(', ')}`
+    return lines.join('\n')
+  } else {
+    tokens.splice(durationTokenIndex, 0, formatClockMinutes(nextStartMinutes))
+  }
+  const nextDurationTokenIndex = timeTokenIndex >= 0 ? durationTokenIndex : durationTokenIndex + 1
+  tokens[nextDurationTokenIndex] = formatDurationMinutes(nextDurationMinutes)
   lines[args.rowLineIndex] = `${prefix} ${tokens.join(', ')}`
   return lines.join('\n')
 }

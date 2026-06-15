@@ -342,6 +342,43 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
   })
 }
 
+export async function testMarkdownWorkspaceViewerBubbleToolbarCommandMenusExposeSlashAndVariableActions() {
+  await runViewerToolbarActionCase({
+    activeText: ['Viewer command menu line', '', 'Viewer sync line two'].join('\n'),
+    expectedMarkdownSnippet: '- [ ] Viewer command menu line',
+    expectedJsonSnippet: '[ ] Viewer command menu line',
+    action: async ({ dom, doc, toolbar }) => {
+      const button = toolbar.querySelector('button[title="Slash commands"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected slash command button')
+      await pressToolbarControl(dom, button, 4)
+      const input = doc.querySelector('section[aria-label="Slash commands"] input[placeholder="Type a command"]') as HTMLInputElement | null
+      if (!input) throw new Error(`expected searchable slash command input; html=${doc.body.innerHTML}`)
+      const commandButtons = Array.from(doc.querySelectorAll('section[aria-label="Slash commands"] button')) as HTMLButtonElement[]
+      const codeBlockButton = commandButtons.find(candidate => String(candidate.textContent || '').includes('Code block')) || null
+      if (!codeBlockButton) throw new Error('expected slash command menu to expose Code block action')
+      const checklistButton = commandButtons.find(candidate => String(candidate.textContent || '').includes('Checklist')) || null
+      if (!checklistButton) throw new Error('expected slash command menu to expose Checklist action')
+      await pressToolbarControl(dom, checklistButton)
+    },
+  })
+
+  await runViewerToolbarActionCase({
+    activeText: ['Viewer variable command line', '', 'Viewer sync line two'].join('\n'),
+    expectedMarkdownSnippet: 'Viewer variable command line',
+    expectedJsonSnippet: 'Viewer variable command line',
+    action: async ({ dom, doc, toolbar }) => {
+      const button = toolbar.querySelector('button[title="Variable commands"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected variable command button')
+      await pressToolbarControl(dom, button, 4)
+      const input = doc.querySelector('section[aria-label="Variable toolbar"] input[placeholder="Find variable or action"]') as HTMLInputElement | null
+      if (!input) throw new Error(`expected searchable variable command input; html=${doc.body.innerHTML}`)
+      const commandText = String(doc.querySelector('section[aria-label="Variable toolbar"]')?.textContent || '')
+      if (!commandText.includes('New variable')) throw new Error(`expected variable command menu to expose New variable action; text=${JSON.stringify(commandText)}`)
+      if (!commandText.includes('Fallback reference')) throw new Error(`expected variable command menu to expose Fallback reference action; text=${JSON.stringify(commandText)}`)
+    },
+  })
+}
+
 
 export async function testMarkdownWorkspaceViewerCommentPreviewReusesMarkdownTimestampLinkPreview() {
   const timestampUrl = 'https://youtu.be/dQw4w9WgXcQ?t=421'

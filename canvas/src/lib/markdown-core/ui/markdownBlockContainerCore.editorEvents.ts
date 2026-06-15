@@ -53,6 +53,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   blurCommitTimerRef: React.MutableRefObject<number>
   selectionSyncSuspendUntilRef: React.MutableRefObject<number>
   toolbarRef: React.RefObject<HTMLElement | null>
+  slashMenuRef: React.RefObject<HTMLElement | null>
   variableMenuRef: React.RefObject<HTMLElement | null>
   commit: () => void
   toolbarInteractingRef: React.MutableRefObject<boolean>
@@ -155,6 +156,8 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
         if (active && currentRoot.contains(active)) return
         const toolbarNode = args.toolbarRef.current
         if (active && toolbarNode && toolbarNode.contains(active)) return
+        const slashNode = args.slashMenuRef.current
+        if (active && slashNode && slashNode.contains(active)) return
         const variableNode = args.variableMenuRef.current
         if (active && variableNode && variableNode.contains(active)) return
         args.setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
@@ -169,8 +172,9 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     const rootForGuard = args.editorRef.current
     if (nextFocusForGuard && rootForGuard && !rootForGuard.contains(nextFocusForGuard)) {
       const toolbarNode = args.toolbarRef.current
+      const slashNode = args.slashMenuRef.current
       const variableNode = args.variableMenuRef.current
-      if (!(toolbarNode && toolbarNode.contains(nextFocusForGuard)) && !(variableNode && variableNode.contains(nextFocusForGuard))) {
+      if (!(toolbarNode && toolbarNode.contains(nextFocusForGuard)) && !(slashNode && slashNode.contains(nextFocusForGuard)) && !(variableNode && variableNode.contains(nextFocusForGuard))) {
         args.toolbarInteractingRef.current = false
         args.toolbarInteractionUntilRef.current = 0
       }
@@ -197,11 +201,14 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
       if (nextFocus && root.contains(nextFocus)) return
       const toolbarNode = args.toolbarRef.current
       if (nextFocus && toolbarNode && toolbarNode.contains(nextFocus)) return
+      const slashNode = args.slashMenuRef.current
+      if (nextFocus && slashNode && slashNode.contains(nextFocus)) return
       const variableNode = args.variableMenuRef.current
       if (nextFocus && variableNode && variableNode.contains(nextFocus)) return
       const active = document.activeElement
       if (active && root.contains(active)) return
       if (active && toolbarNode && toolbarNode.contains(active)) return
+      if (active && slashNode && slashNode.contains(active)) return
       if (active && variableNode && variableNode.contains(active)) return
       const selNow = typeof window !== 'undefined' ? window.getSelection() : null
       if (!nextFocus && hasExpandedSelectionInRoot({ root, selection: selNow })) return
@@ -214,8 +221,9 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     args.lastDocumentPointerDownTargetRef.current = null
     if (!pointerTarget) return scheduleBlurCommit(40)
     const toolbarNode = args.toolbarRef.current
+    const slashNode = args.slashMenuRef.current
     const variableNode = args.variableMenuRef.current
-    if ((root && root.contains(pointerTarget)) || (toolbarNode && toolbarNode.contains(pointerTarget)) || (variableNode && variableNode.contains(pointerTarget))) {
+    if ((root && root.contains(pointerTarget)) || (toolbarNode && toolbarNode.contains(pointerTarget)) || (slashNode && slashNode.contains(pointerTarget)) || (variableNode && variableNode.contains(pointerTarget))) {
       return
     }
     const pointerEl = pointerTarget.nodeType === Node.ELEMENT_NODE ? (pointerTarget as Element) : pointerTarget.parentElement
@@ -337,6 +345,10 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
       event.preventDefault()
       if (args.variableMenu.show) {
         args.setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
+        return
+      }
+      if (args.slashMenu.show) {
+        args.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
         return
       }
       args.cancel()

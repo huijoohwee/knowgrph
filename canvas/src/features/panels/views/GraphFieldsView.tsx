@@ -22,6 +22,7 @@ import {
   GRAPH_FIELDS_MAIN_SETTINGS_PANE_CLASS_NAME,
   GRAPH_FIELDS_MAIN_SPLIT_GRID_CLASS_NAME,
 } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
+import { resolveGraphFieldsEntryCommandTarget } from '@/features/panels/views/graph-fields/graphFieldsEntryCommands'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -163,42 +164,11 @@ export default function GraphFieldsView({
 
   React.useEffect(() => {
     if (!entryOpenRequest || !graphData || fields.length === 0) return
-    const label = normalized(entryOpenRequest.entryLabel).toLowerCase()
-    const rendererHint = label.includes('renderer')
-    const nodeHint = label.includes('node')
-    const edgeOnly = label.includes('edge')
-    const clusterHint = label.includes('cluster') || label.includes('sample') || label.includes('group')
-    const layerHint = label.includes('layer')
-    const flowHint = label.includes('workflow') || label.includes('step') || label.includes('tier b') || label.includes('runtime') || label.includes('pipeline') || label.includes('mermaid') || label.includes('flow')
-    const inspectorHint = label.includes('inspector')
-
-    const byScope = (scope: 'node' | 'edge') => fields.find(f => f.scope === scope) || null
-    const byScopeNonChunkText = (scope: 'node' | 'edge') =>
-      fields.find(f => f.scope === scope && !normalized(f.key).includes('chunk_text')) || null
-    const byKeyContains = (parts: string[]) => {
-      for (const part of parts) {
-        const hit = fields.find(f => normalized(f.key).includes(normalized(part)))
-        if (hit) return hit
-      }
-      return null
-    }
-
-    let target: GraphField | null = null
-    if (edgeOnly) {
-      target = byScope('edge')
-    } else if (rendererHint) {
-      target = byKeyContains(['renderer', 'layout', 'style', 'theme', 'color']) || byScopeNonChunkText('node') || byScope('node')
-    } else if (layerHint) {
-      target = byKeyContains(['layer', 'cluster', 'group', 'subgraph']) || byScopeNonChunkText('node') || byScope('node')
-    } else if (nodeHint) {
-      target = byScope('node')
-    } else if (clusterHint) {
-      target = byKeyContains(['cluster', 'group', 'layer']) || byScopeNonChunkText('node') || byScope('node')
-    } else if (flowHint || inspectorHint) {
-      target = byKeyContains(['flow', 'pipeline', 'runtime', 'step', 'node']) || byScope('node')
-    }
-    if (!target && selectedFieldId) target = fields.find(f => f.id === selectedFieldId) || null
-    if (!target) target = fields[0] || null
+    const target = resolveGraphFieldsEntryCommandTarget({
+      entryLabel: entryOpenRequest.entryLabel,
+      fields,
+      selectedFieldId,
+    })
     if (!target) return
 
     setSelectedGlobalView(prev => (prev === null ? prev : null))

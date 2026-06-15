@@ -4,6 +4,11 @@ import {
   collectMarkdownVariableBrowseRows,
   findMarkdownVariableTokenAtOffset,
 } from '@/features/markdown/ui/markdownVariableReferences'
+import {
+  buildInlineMediaEmbed,
+  collectInlineMediaCommandCandidates,
+  type InlineMediaCommandCandidate,
+} from '@/lib/command-menu/inlineCommandMenuCatalog'
 
 export const useMarkdownBlockContainerVariableActions = (args: {
   editable: boolean
@@ -169,6 +174,55 @@ export const useMarkdownBlockContainerVariableActions = (args: {
     queueMicrotask(() => args.editorRef.current?.focus())
   }, [applyVariableFrontmatterCrud, args])
 
+  const applyMediaCommandCandidate = React.useCallback((candidate: InlineMediaCommandCandidate) => {
+    const text = (() => {
+      const el = args.editorRef.current
+      if (el) {
+        const rawText = typeof (el as HTMLElement).innerText === 'string'
+          ? (el as HTMLElement).innerText
+          : String(el.textContent || '')
+        const normalized = rawText.replace(/\r/g, '')
+        if (normalized) return normalized
+      }
+      return args.getDraft()
+    })()
+    const selection = args.getSelectionOffsets()
+    const fallbackOffset = Math.max(0, String(text || '').length)
+    const startOffset = selection?.startOffset ?? fallbackOffset
+    const endOffset = selection?.endOffset ?? fallbackOffset
+    const a = Math.max(0, Math.min(text.length, startOffset))
+    const b = Math.max(0, Math.min(text.length, endOffset))
+    const start = Math.min(a, b)
+    const end = Math.max(a, b)
+    const lineStartIdx = text.lastIndexOf('\n', Math.max(0, end) - 1) + 1
+    const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, end)))
+    const atQueryMatch = /@([A-Za-z0-9_.-]{0,96})$/.exec(preceding)
+    const atQueryStart = atQueryMatch ? end - atQueryMatch[0].length : -1
+    const rangeStart = start !== end ? start : atQueryMatch ? atQueryStart : end
+    const rangeEnd = start !== end ? end : end
+    const selected = start !== end ? text.slice(start, end) : ''
+    const replacement = buildInlineMediaEmbed({
+      kind: candidate.kind,
+      url: candidate.url,
+      thumbnailUrl: candidate.thumbnailUrl,
+      selectedText: selected,
+      sourceKey: candidate.sourceKey,
+    })
+    const nextText = `${text.slice(0, Math.max(0, rangeStart))}${replacement}${text.slice(Math.max(0, rangeEnd))}`
+    const cursor = Math.max(0, rangeStart) + replacement.length
+    args.setDraftToDom(nextText, { startOffset: cursor, endOffset: cursor })
+    queueMicrotask(() => {
+      const el = args.editorRef.current
+      if (!el) return
+      const renderedNow = String(el.textContent || '').replace(/\r/g, '')
+      if (renderedNow.includes(replacement)) return
+      el.textContent = nextText
+    })
+    args.setVariableMenu(prev => ({ ...prev, show: false, query: '', keyInput: '', mode: 'ref' }))
+    args.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
+    queueMicrotask(() => args.editorRef.current?.focus())
+  }, [args])
+
   const variableSuggestions = React.useMemo(() => {
     if (!args.variableMenu.show) return []
     const query = String(args.variableMenu.keyInput || args.variableMenu.query || '').trim().toLowerCase()
@@ -180,9 +234,28 @@ export const useMarkdownBlockContainerVariableActions = (args: {
     return all.filter(row => row.key.toLowerCase().includes(query)).slice(0, 8)
   }, [args])
 
+  const mediaCommandCandidates = React.useMemo(() => {
+    if (!args.variableMenu.show) return []
+    const query = String(args.variableMenu.keyInput || args.variableMenu.query || '').trim().toLowerCase()
+    const all = collectInlineMediaCommandCandidates({
+      sourceLines: args.sourceLines,
+      draftText: args.getDraft(),
+    })
+    if (!query) return all.slice(0, 8)
+    return all
+      .filter(candidate => (
+        candidate.label.toLowerCase().includes(query)
+        || candidate.url.toLowerCase().includes(query)
+        || candidate.sourceKey?.toLowerCase().includes(query)
+      ))
+      .slice(0, 8)
+  }, [args])
+
   return {
     applyVariableFrontmatterCrud,
     applyVariableToken,
+    applyMediaCommandCandidate,
+    mediaCommandCandidates,
     variableSuggestions,
   }
 }

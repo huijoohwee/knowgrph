@@ -20,10 +20,22 @@ export type TimelineTransportControlsProps = {
   rangeClassName?: string
   shellClassName?: string
   step: number
+  totalLabel?: string
   value: number
   onPlaybackRateChange: (rate: TimelineTransportPlaybackRate) => void
   onTogglePlayback: () => void
   onValueChange: (value: number) => void
+}
+
+export type TimelineTransportChromeProps = TimelineTransportControlsProps & {
+  chromeClassName?: string
+  headerAside?: React.ReactNode
+  rootProps?: Omit<React.HTMLAttributes<HTMLElement>, 'children' | 'className'>
+  ruler?: React.ReactNode
+  rulerClassName?: string
+  rulerProps?: Omit<React.HTMLAttributes<HTMLElement>, 'children' | 'className'>
+  subtitleLabel?: React.ReactNode
+  titleLabel?: React.ReactNode
 }
 
 export function TimelineTransportControls(props: TimelineTransportControlsProps) {
@@ -39,13 +51,25 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
     rangeClassName,
     shellClassName,
     step,
+    totalLabel,
     value,
     onPlaybackRateChange,
     onTogglePlayback,
     onValueChange,
   } = props
+  const playbackRateSelectId = React.useId()
+  const progressPercent = React.useMemo(() => {
+    const span = Math.max(0, max - min)
+    if (span <= 0) return 0
+    const clampedValue = Math.min(max, Math.max(min, value))
+    return ((clampedValue - min) / span) * 100
+  }, [max, min, value])
   return (
-    <section className={cn('timeline-transport-shell', shellClassName)} data-kg-timeline-transport="shared">
+    <section
+      className={cn('timeline-transport-shell', shellClassName)}
+      data-kg-timeline-transport="shared"
+      style={{ '--kg-timeline-progress': `${progressPercent}%` } as React.CSSProperties}
+    >
       <section className="timeline-player">
         <button
           type="button"
@@ -57,14 +81,24 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
         >
           {playing ? <Pause className="h-4 w-4" strokeWidth={2} aria-hidden={true} /> : <Play className="h-4 w-4" strokeWidth={2} aria-hidden={true} />}
         </button>
-        <section className="time">{currentLabel}</section>
+        <section className="time timeline-timecode" aria-live="polite">
+          <time className="timeline-timecode-current">{currentLabel}</time>
+          {totalLabel ? (
+            <>
+              <span className="timeline-timecode-divider" aria-hidden="true">
+                |
+              </span>
+              <time className="timeline-timecode-total">{totalLabel}</time>
+            </>
+          ) : null}
+        </section>
         <section className="rate-control">
-          <label className="sr-only" htmlFor="timeline-transport-playback-rate">
+          <label className="sr-only" htmlFor={playbackRateSelectId}>
             Playback rate
           </label>
           <section className="timeline-rate-select ant-select ant-select-sm ant-select-single ant-select-show-arrow">
             <select
-              id="timeline-transport-playback-rate"
+              id={playbackRateSelectId}
               className="ant-select-selection-native"
               value={String(playbackRate)}
               disabled={disabled}
@@ -90,6 +124,7 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
         </section>
       </section>
       <section className={cn('timeline-player-range', rangeClassName)}>
+        <section className="timeline-player-range-rail" aria-hidden="true"></section>
         <input
           aria-label={ariaLabel}
           className="timeline-player-range-input"
@@ -102,6 +137,48 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
           onChange={event => onValueChange(Number(event.target.value || 0))}
         />
       </section>
+    </section>
+  )
+}
+
+export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
+  const {
+    chromeClassName,
+    headerAside,
+    rootProps,
+    ruler,
+    rulerClassName,
+    rulerProps,
+    subtitleLabel,
+    titleLabel,
+    ...transportProps
+  } = props
+  const rootClassName = cn('timeline-transport-chrome', chromeClassName)
+  const rulerRootClassName = cn('timeline-transport-ruler', rulerClassName)
+  return (
+    <section
+      {...rootProps}
+      className={rootClassName}
+      data-kg-timeline-transport-chrome="shared"
+    >
+      {titleLabel || subtitleLabel || headerAside ? (
+        <header className="timeline-transport-chrome-header">
+          <section className="timeline-transport-chrome-title-block">
+            {titleLabel ? <section className="timeline-transport-chrome-title">{titleLabel}</section> : null}
+            {subtitleLabel ? <section className="timeline-transport-chrome-subtitle">{subtitleLabel}</section> : null}
+          </section>
+          {headerAside ? <section className="timeline-transport-chrome-header-aside">{headerAside}</section> : null}
+        </header>
+      ) : null}
+      <TimelineTransportControls {...transportProps} />
+      {ruler ? (
+        <section
+          {...rulerProps}
+          className={rulerRootClassName}
+        >
+          {ruler}
+        </section>
+      ) : null}
     </section>
   )
 }

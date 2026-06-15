@@ -16,30 +16,10 @@ import {
   UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_ROW_CLASSNAME,
   UI_RESPONSIVE_FLOW_MANAGER_TABLE_FRAME_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
-
-const GRAPH_FIELDS_SHORTCUT_LABELS = [
-  'Renderer',
-  'Node',
-  'Edges',
-  'Clusters',
-  'Layer Mode',
-] as const
-
-const WORKFLOW_SHORTCUT_LABELS = [
-  ...GRAPH_FIELDS_SHORTCUT_LABELS,
-  'Workflow sections mode',
-  'Workflow Sections',
-  'Steps',
-  'Tier B',
-  'runtime',
-  'pipeline',
-  'mermaid',
-  'flow',
-  'Nodes · Widget Gallery',
-  'Edges',
-  'Clusters · Samples',
-  'Inspector',
-] as const
+import {
+  GRAPH_FIELDS_COMMAND_ENTRY_LABELS,
+  WORKFLOW_MANAGER_GRAPH_FIELDS_COMMAND_ENTRY_LABELS,
+} from '@/features/panels/views/graph-fields/graphFieldsEntryCommands'
 
 export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }: { searchQuery: string; workflowMode?: boolean }) {
   const panelTypography = usePanelTypography()
@@ -81,7 +61,7 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
                   searchQuery={searchQuery}
                   embedded={true}
                   entryOpenRequest={entryOpenRequest}
-                  entryShortcutLabels={WORKFLOW_SHORTCUT_LABELS}
+                  entryShortcutLabels={WORKFLOW_MANAGER_GRAPH_FIELDS_COMMAND_ENTRY_LABELS}
                   onEntryShortcutClick={openEntryInFieldSettings}
                 />
               </section>
@@ -115,7 +95,7 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
                   searchQuery={searchQuery}
                   embedded={true}
                   entryOpenRequest={entryOpenRequest}
-                  entryShortcutLabels={GRAPH_FIELDS_SHORTCUT_LABELS}
+                  entryShortcutLabels={GRAPH_FIELDS_COMMAND_ENTRY_LABELS}
                   onEntryShortcutClick={openEntryInFieldSettings}
                 />
               )}

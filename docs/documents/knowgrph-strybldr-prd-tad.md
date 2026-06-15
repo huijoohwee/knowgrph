@@ -5,7 +5,7 @@ id: "knowgrph-strybldr-prd-tad"
 version: "0.2.1"
 status: "implementation-contract"
 created: "2026-05-29"
-updated: "2026-06-14"
+updated: "2026-06-15"
 author: "airvio / joohwee"
 domain: "knowgrph"
 lang: "en-US"
@@ -128,6 +128,8 @@ Acceptance criteria:
 - Given Strybldr Mode is active, when cards render, then Source, Storyboard, and Elements lanes are visible through the shared Storyboard surface.
 - Given a runtime-ready Strybldr demo declares `kgParserRoutingContract`, when the parser runs, then parser logic, routing keys, diagram kinds, surfaces, edges, and fork policy come from opening frontmatter rather than filename heuristics or body-side graph mirrors.
 - Given a user edits card text/order, when the graph updates, then video prompt compilation reads the updated graph rather than a detached prompt.
+- Given a user invokes `/` or `@` while inline-editing a Source, Storyboard, Runtime, Publish, or Elements card field, when the shared command menu opens, then the same slash, variable, image, and video actions used by Markdown Viewer/WYSIWYG and Workflow Manager graph fields are available without a Strybldr-local command fork.
+- Given a user chooses `@` image or video insertion from inline card editing, when the command resolves an imported or indexed media candidate, then the inserted media persists through markdown/frontmatter-backed card overrides and reappears with thumbnail-backed references after Storyboard or Strybldr reprojection.
 - Given a user drags the camera handle around the Floating Panel Camera sphere and clicks `Reframe`, then camera orbit coordinates, angle, level, shot size, and optional note persist on the selected graph node as `strybldrCamera` and the bounded media handoff reads that metadata instead of duplicating prompt-local camera text.
 - Given the Camera sphere renders, when the active camera is at longitude `0`, `45`, `90`, `135`, `180`, `225`, `270`, or `315` and latitude `-90`, `-45`, `0`, `45`, or `90`, then the draggable handle, active meridian, active latitude, SVG ray polygon, and selected Wide/Medium/Close-up image frame all resolve from the shared 3D degree-grid camera geometry owner rather than renderer-local 2D offsets.
 - `/goal`: Storyboard canvas displays cards derived from image evidence with editable properties.
@@ -220,7 +222,10 @@ The base loop remains TCO-zero. Paid spend is opt-in and visible.
 | Parser Registry | `canvas/src/features/parsers/default.ts` | Register Strybldr parser before generic Markdown. |
 | Renderer Registry | `canvas/src/lib/config.render.ts` | Keep canonical `storyboard` renderer ownership; Strybldr remains parser/workflow/panel identity on the shared Storyboard surface. |
 | Storyboard Surface | `canvas/src/components/StoryboardCanvas*` | Render cards through existing storyboard model and kanban editing. |
+| Shared Command Menu Catalog | `canvas/src/lib/command-menu/*` | Centralize `/` and `@` command definitions, search, grouping, and media/reference insertion payloads for Storyboard cards, Workflow Manager graph fields, and Markdown surfaces. |
+| Card Inline Command Bridge | `canvas/src/lib/cards/CardInlineTextCommandMenus.tsx`, `canvas/src/lib/cards/CardInlineTextEditor.tsx` | Bind shared `/` and `@` command menus into inline card editing and commit accepted actions through card-owner persistence. |
 | Floating Panel | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx` | Host Strybldr review and analysis controls. |
+| Floating Panel Command Menu | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx` | Host the right-of-`View` command-browser surface using the shared FloatingPanel Geo KTV-style layout and the same command catalog consumed inline. |
 | Toolbar Run All | `canvas/src/components/Toolbar.tsx` and `canvas/src/features/canvas/utils.ts` | Reuse the shared workflow Run All event for Flow Editor and Strybldr. |
 | BytePlus Video Owner | `canvas/src/features/chat/byteplusRunGeneration.ts` | Existing bounded video task generation and polling. |
 

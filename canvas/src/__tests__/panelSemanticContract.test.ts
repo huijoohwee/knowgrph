@@ -1478,9 +1478,17 @@ export const testWorkflowManagerReusesWorkspaceTableSsotForMultiDimView = () => 
 export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsolidation = () => {
   const root = process.cwd()
   const filePath = path.resolve(root, 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const iconLibraryPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'mainPanelHelpIconLibrary.tsx')
+  const floatingPanelTypesPath = path.resolve(root, 'src', 'hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
+  const uiSliceInitialStatePath = path.resolve(root, 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
+  const commandCatalogPanelPath = path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx')
   const launcherPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarMenuLauncher.tsx')
   const typesPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarToolMenuTypes.ts')
   const text = readUtf8(filePath)
+  const iconLibraryText = readUtf8(iconLibraryPath)
+  const floatingPanelTypesText = readUtf8(floatingPanelTypesPath)
+  const uiSliceInitialStateText = readUtf8(uiSliceInitialStatePath)
+  const commandCatalogPanelText = readUtf8(commandCatalogPanelPath)
   const launcherText = readUtf8(launcherPath)
   const typesText = readUtf8(typesPath)
   if (text.includes("view: 'designLayers'")) {
@@ -1489,8 +1497,35 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!text.includes("view: 'view'")) {
     throw new Error('Expected FloatingPanel to expose a dedicated View tab beside Props Panel')
   }
+  if (text.indexOf("view: 'commandMenu'") <= text.indexOf("view: 'view'")) {
+    throw new Error('Expected FloatingPanel to place Command Menu immediately after View in the primary view list')
+  }
   if (!text.includes("floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />")) {
     throw new Error('Expected FloatingPanel to render the dedicated View settings surface')
+  }
+  if (!text.includes("floatingPanelView === 'commandMenu'") || !text.includes('<CommandMenuCatalogPanelLazy />')) {
+    throw new Error('Expected FloatingPanel to render the shared Command Menu catalog view')
+  }
+  if (!iconLibraryText.includes('floatingPanel.commandMenu') || !iconLibraryText.includes('commandMenu: \'floatingPanel.commandMenu\'')) {
+    throw new Error('Expected FloatingPanel icon SSOT to include Command Menu')
+  }
+  if (!floatingPanelTypesText.includes("| 'commandMenu'")) {
+    throw new Error('Expected FloatingPanel view type to include Command Menu')
+  }
+  if (!uiSliceInitialStateText.includes("view === 'commandMenu'")) {
+    throw new Error('Expected FloatingPanel view setter whitelist to accept Command Menu')
+  }
+  if (!commandCatalogPanelText.includes('INLINE_SLASH_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_VARIABLE_COMMAND_ACTIONS')) {
+    throw new Error('Expected Command Menu panel to render from the shared inline command catalog')
+  }
+  if (!commandCatalogPanelText.includes('data-kg-command-menu-prefix')) {
+    throw new Error('Expected Command Menu panel to expose shared prefix rows for / and @ media commands')
+  }
+  if (!commandCatalogPanelText.includes('KeyTypeValueHeader') || !commandCatalogPanelText.includes('KeyTypeValueRow') || !commandCatalogPanelText.includes('KeyTypeValueSectionStack')) {
+    throw new Error('Expected Command Menu panel to reuse the FloatingPanel KTV layout primitives')
+  }
+  if (!commandCatalogPanelText.includes('data-kg-command-menu-ktv-layout')) {
+    throw new Error('Expected Command Menu panel to expose the KTV layout verification marker')
   }
   if (text.includes("floatingPanelView === 'designLayers'")) {
     throw new Error('Expected FloatingPanel to avoid rendering designLayers branch after consolidation')
@@ -1513,8 +1548,8 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (typesText.includes("'discovery'")) {
     throw new Error('Expected ToolbarToolMenuProps to remove legacy discovery requested-view type support')
   }
-  if (!typesText.includes("'view'")) {
-    throw new Error('Expected ToolbarToolMenuProps to include the dedicated View floating panel type')
+  if (!typesText.includes("import type { FloatingPanelView }") || !typesText.includes('requestedFloatingPanelView?: FloatingPanelView')) {
+    throw new Error('Expected ToolbarToolMenuProps to use the shared FloatingPanelView type owner')
   }
 }
 
@@ -1522,14 +1557,31 @@ export const testWorkflowManagerConsolidatedEntriesReuseGraphFieldsRightPane = (
   const root = process.cwd()
   const flowEditorGraphTabPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
   const graphFieldsViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx')
+  const graphFieldsCommandsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'graphFieldsEntryCommands.ts')
   const graphTabText = readUtf8(flowEditorGraphTabPath)
   const graphFieldsText = readUtf8(graphFieldsViewPath)
+  const graphFieldsCommandsText = readUtf8(graphFieldsCommandsPath)
 
-  if (!graphTabText.includes('entryShortcutLabels={WORKFLOW_SHORTCUT_LABELS}')) {
+  if (!graphTabText.includes('entryShortcutLabels={WORKFLOW_MANAGER_GRAPH_FIELDS_COMMAND_ENTRY_LABELS}')) {
     throw new Error('Expected Workflow Manager to pass consolidated workflow shortcut labels into GraphFieldsView')
+  }
+  if (!graphTabText.includes('GRAPH_FIELDS_COMMAND_ENTRY_LABELS')) {
+    throw new Error('Expected non-workflow graph tab to reuse shared Graph Fields command entry labels')
   }
   if (!graphTabText.includes('entryOpenRequest={entryOpenRequest}')) {
     throw new Error('Expected Workflow Manager to pass entry open requests into GraphFieldsView')
+  }
+  if (!graphFieldsText.includes('resolveGraphFieldsEntryCommandTarget')) {
+    throw new Error('Expected GraphFieldsView to route entry commands through the shared Graph Fields command helper')
+  }
+  if (!graphFieldsCommandsText.includes('WORKFLOW_MANAGER_GRAPH_FIELDS_COMMAND_ENTRY_LABELS') || !graphFieldsCommandsText.includes('resolveGraphFieldsEntryCommandTarget')) {
+    throw new Error('Expected Graph Fields command helper to own workflow labels and target routing')
+  }
+  if (!graphFieldsCommandsText.includes('INLINE_MEDIA_COMMAND_ENTRY_LABELS')) {
+    throw new Error('Expected Graph Fields command helper to reuse shared media command labels')
+  }
+  if (!graphFieldsCommandsText.includes("label.includes('image')") || !graphFieldsCommandsText.includes("label.includes('video')")) {
+    throw new Error('Expected Graph Fields command helper to route image/video command entries')
   }
   if (!graphFieldsText.includes('entryOpenRequest?:')) {
     throw new Error('Expected GraphFieldsView to accept consolidated entry open requests')

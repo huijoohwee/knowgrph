@@ -1,13 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
-import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext } from '@/components/StoryboardCanvas/storyboardModel'
+import { collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import {
   buildStrybldrStoryboardDocument,
   buildStrybldrVideoHandoffFromGraphData,
   buildStrybldrVideoHandoffMarkdown,
   mergeStrybldrElementsIntoGraphData,
   serializeStrybldrStoryboardMarkdown,
+  updateStrybldrStoryboardMarkdownCardOverride,
 } from '@/features/strybldr/strybldrStoryboard'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
@@ -142,6 +144,27 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
   assert(!board.lanes.some(lane => lane.id === 'Storytree' || lane.id === 'ForkCompare'), 'expected cleaned Strybldr demo to omit unrelated Storytree and ForkCompare lanes')
   const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
   assert(storyboardCanvasText.includes('strybldrWorkflowEdge'), 'expected Storyboard/Strybldr canvas edge layer to render graph-marked Strybldr workflow edges')
+  const sourceCard = board.lanes.find(lane => lane.id === 'Source')?.cards.find(card => card.title === 'Import Url Source')
+  assert(sourceCard, 'expected Strybldr demo Source lane to expose the imported URL source card')
+  const commandContextText = buildStoryboardInlineMediaCommandContext(sourceCard)
+  const mediaCommandCandidates = collectInlineMediaCommandCandidates({ draftText: commandContextText })
+  const sourceWatchUrl = String(sourceCard.media?.sourceUrl || sourceCard.href || '').trim()
+  assert(sourceWatchUrl && mediaCommandCandidates.some(candidate => candidate.kind === 'video' && candidate.url === sourceWatchUrl), 'expected Source card @ media commands to resolve the source video URL from storyboard media context')
+  assert(mediaCommandCandidates.some(candidate => candidate.kind === 'image' && candidate.thumbnailUrl), 'expected Source card @ media commands to resolve an image thumbnail from storyboard media context')
+  const nextSourceAction = `Review source evidence with ${sourceWatchUrl}`
+  const updatedText = updateStrybldrStoryboardMarkdownCardOverride({
+    text,
+    nodeId: sourceCard.id,
+    patch: { action: nextSourceAction },
+  })
+  assert(updatedText && updatedText !== text, 'expected Strybldr Source card action update to persist into the markdown payload')
+  const updatedParsed = await loadGraphDataFromTextViaParser('knowgrph-strybldr-demo.md', updatedText, {
+    applyToStore: false,
+    syncMarkdownDocument: false,
+  })
+  const updatedBoard = buildStoryboardBoardModel({ graphData: updatedParsed.graphData, graphRevision: 2 })
+  const updatedSourceCard = updatedBoard.lanes.find(lane => lane.id === 'Source')?.cards.find(card => card.id === sourceCard.id)
+  assert(updatedSourceCard?.action === nextSourceAction, 'expected updated Strybldr markdown payload to regenerate the Source card action')
 }
 
 export function testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers() {
@@ -556,7 +579,10 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(timelineBottomPanelText.includes('style={layerStyle}'), 'expected Timeline bottom panel layer to apply measured workspace inset')
   assert(timelineBottomPanelText.includes("position: 'absolute' as const"), 'expected Timeline bottom panel geometry to be CanvasViewport-relative')
   assert(!timelineBottomPanelText.includes('className="fixed inset-0 z-[230] pointer-events-none"'), 'expected Timeline bottom panel to avoid viewport-fixed layer ownership')
-  assert(timelinePanelText.includes('TimelineTransportControls'), 'expected Strybldr timeline panel to reuse the shared timeline transport control')
+  assert(timelinePanelText.includes('TimelineTransportChrome'), 'expected Strybldr timeline panel to reuse the shared timeline transport chrome')
+  assert(timelinePanelText.includes('splitTimelineTransportCurrentTotalLabel'), 'expected Strybldr timeline panel to reuse shared current/total label splitting')
+  assert(timelinePanelText.includes('resolveTimelineTransportPlayheadPercent'), 'expected Strybldr timeline panel to reuse shared transport playhead normalization')
+  assert(timelinePanelText.includes('data-kg-timeline-transport-playhead-percent'), 'expected Strybldr timeline panel to expose shared playhead state without local chrome drift')
   assert(timelinePanelText.includes('useTimelineTransportPlayback'), 'expected Strybldr timeline panel to reuse the shared playback loop')
   assert(timelinePanelText.includes('buildStoryboardBoardModel'), 'expected Strybldr timeline panel to reuse the Storyboard board model')
   assert(timelinePanelText.includes('board.semanticKey'), 'expected Strybldr timeline state to reset from the shared Storyboard semantic key')

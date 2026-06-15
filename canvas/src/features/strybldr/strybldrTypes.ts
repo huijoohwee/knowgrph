@@ -47,6 +47,18 @@ export type StrybldrElement = {
   summary?: string | null
 }
 
+export type StrybldrCardOverride = {
+  nodeId: string
+  title?: string | null
+  lane?: string | null
+  order?: number | null
+  summary?: string | null
+  output?: string | null
+  action?: string | null
+  dialogue?: string | null
+  prompt?: string | null
+}
+
 export type StrybldrWorkflowEdge = {
   id: string
   source: string
@@ -164,6 +176,7 @@ export type StrybldrStoryboardDocument = {
   createdAtMs: number
   sources: StrybldrSource[]
   elements: StrybldrElement[]
+  cards?: StrybldrCardOverride[]
   edges?: StrybldrWorkflowEdge[]
   workflow?: StrybldrWorkflow | null
   notes?: string | null

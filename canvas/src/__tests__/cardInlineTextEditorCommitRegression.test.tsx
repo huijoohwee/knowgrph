@@ -65,6 +65,7 @@ export async function testCardInlineTextEditorAllowsSharedClickActivation() {
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
+  const committedValues: string[] = []
 
   try {
     await act(async () => {
@@ -149,6 +150,284 @@ export async function testCardInlineTextEditorCanPropagateActivationClick() {
     const input = container.querySelector('input[aria-label="Metric target"]')
     if (!(input instanceof dom.window.HTMLInputElement)) {
       throw new Error('expected propagated activation click to still open the editable input')
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndVariableActions() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Widget panel text',
+          ariaLabel: 'Widget text',
+          placeholder: 'Add text',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          markdownCommandContextText: [
+            'imageUrl: "https://media.example.test/poster.jpg"',
+            'videoUrl: "https://www.youtube.com/watch?v=demoVideoId"',
+          ].join('\n'),
+          onCommit: next => {
+            committedValues.push(next)
+          },
+        }),
+      )
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) {
+      throw new Error('expected shared card editor display surface')
+    }
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Widget text"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) {
+      throw new Error('expected multiline card editor textarea')
+    }
+    const slashButton = container.querySelector('button[title="Slash commands"]')
+    const variableButton = container.querySelector('button[title="Variable commands"]')
+    if (!(slashButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected slash command launcher')
+    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
+
+    await act(async () => {
+      slashButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      slashButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const slashInput = dom.window.document.querySelector('input[placeholder="Type a command"]')
+    if (!(slashInput instanceof dom.window.HTMLInputElement)) throw new Error('expected slash command search input')
+    const checklistButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card slash commands"] button')) as HTMLButtonElement[]).find(
+      el => String(el.textContent || '').includes('Checklist'),
+    )
+    if (!(checklistButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected Checklist slash command')
+    await act(async () => {
+      checklistButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      checklistButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    if (!textarea.value.includes('- [ ] Widget panel text')) {
+      throw new Error(`expected slash command to transform widget panel text into a checklist item, got ${JSON.stringify(textarea.value)}`)
+    }
+
+    await act(async () => {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      variableButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const variableInput = dom.window.document.querySelector('input[placeholder="Find variable or action"]')
+    if (!(variableInput instanceof dom.window.HTMLInputElement)) throw new Error('expected variable command search input')
+    const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set
+    if (!setter) throw new Error('expected input value setter')
+    await act(async () => {
+      setter.call(variableInput, 'venue')
+      Simulate.change(variableInput)
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const insertReferenceButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]).find(
+      el => String(el.textContent || '').includes('Insert reference'),
+    )
+    if (!(insertReferenceButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected Insert reference variable command')
+    await act(async () => {
+      insertReferenceButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      insertReferenceButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    if (!textarea.value.includes('{{venue}}')) {
+      throw new Error(`expected variable command to insert markdown variable token, got ${JSON.stringify(textarea.value)}`)
+    }
+    await act(async () => {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      variableButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const imageInsertButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]).find(
+      el => String(el.textContent || '').includes('Image: imageUrl') && String(el.textContent || '').includes('https://media.example.test/poster.jpg'),
+    )
+    if (!(imageInsertButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected Image @ media insertion command with resolved URL')
+    const imageThumbnail = imageInsertButton.querySelector('[data-kg-inline-command-thumbnail="image"] img')
+    if (!(imageThumbnail instanceof dom.window.HTMLImageElement)) throw new Error('expected Image @ media insertion command to show a thumbnail')
+    if (imageThumbnail.getAttribute('src') !== 'https://media.example.test/poster.jpg') {
+      throw new Error(`expected Image @ media thumbnail to use the resolved image URL, got ${JSON.stringify(imageThumbnail.getAttribute('src'))}`)
+    }
+    await act(async () => {
+      imageInsertButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      imageInsertButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    if (!textarea.value.includes('![image](https://media.example.test/poster.jpg)')) {
+      throw new Error(`expected @ Image command to insert resolved image embed, got ${JSON.stringify(textarea.value)}`)
+    }
+    if (!committedValues.some(value => value.includes('![image](https://media.example.test/poster.jpg)'))) {
+      throw new Error(`expected @ Image command to persist the resolved image embed immediately, got ${JSON.stringify(committedValues)}`)
+    }
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const activeTextareaAfterImageInsert = container.querySelector('textarea[aria-label="Widget text"]')
+    if (activeTextareaAfterImageInsert) {
+      throw new Error('expected persisted @ Image insertion to close the editor so the saved thumbnail preview can render')
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorVideoCommandPersistsPosterThumbnail() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Send approved sequence to video generation.',
+          ariaLabel: 'Action text',
+          placeholder: 'Add action',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          markdownCommandContextText: 'videoUrl: "https://www.youtube.com/watch?v=demoVideoId"',
+          onCommit: next => {
+            committedValues.push(next)
+          },
+        }),
+      )
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Action text"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
+    const variableButton = container.querySelector('button[title="Variable commands"]')
+    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
+
+    await act(async () => {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      variableButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const videoInsertButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]).find(
+      el => el.id === 'Card variable commands-insert-video' && String(el.textContent || '').includes('https://www.youtube.com/watch?v=demoVideoId'),
+    )
+    if (!(videoInsertButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected generic Video @ media insertion command to resolve the contextual URL')
+    const videoThumbnail = videoInsertButton.querySelector('[data-kg-inline-command-thumbnail="video"] img')
+    if (!(videoThumbnail instanceof dom.window.HTMLImageElement)) throw new Error('expected Video @ media insertion command to show a thumbnail')
+    if (videoThumbnail.getAttribute('src') !== 'https://i.ytimg.com/vi/demoVideoId/hqdefault.jpg') {
+      throw new Error(`expected Video @ media thumbnail to use derived poster URL, got ${JSON.stringify(videoThumbnail.getAttribute('src'))}`)
+    }
+
+    await act(async () => {
+      Simulate.blur(textarea, { relatedTarget: null })
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    if (!dom.window.document.querySelector('#Card\\ variable\\ commands-insert-video')) {
+      throw new Error('expected @ Video command menu to stay open across null relatedTarget blur')
+    }
+
+    await act(async () => {
+      videoInsertButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      videoInsertButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const persisted = committedValues.find(value => value.includes('<video'))
+    if (!persisted) throw new Error(`expected @ Video command to persist a video embed, got ${JSON.stringify(committedValues)}`)
+    if (!persisted.includes('poster="https://i.ytimg.com/vi/demoVideoId/hqdefault.jpg"')) {
+      throw new Error(`expected persisted @ Video embed to include a poster thumbnail, got ${JSON.stringify(persisted)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditable() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Inline media placeholder',
+          ariaLabel: 'Action text',
+          placeholder: 'Add action',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          onCommit: () => {},
+        }),
+      )
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Action text"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
+    const variableButton = container.querySelector('button[title="Variable commands"]')
+    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
+
+    await act(async () => {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      variableButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const imageInsertButton = dom.window.document.querySelector('#Card\\ variable\\ commands-insert-image')
+    if (!(imageInsertButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected generic Image @ media insertion command')
+
+    await act(async () => {
+      imageInsertButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      imageInsertButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const activeTextarea = container.querySelector('textarea[aria-label="Action text"]')
+    if (!(activeTextarea instanceof dom.window.HTMLTextAreaElement)) {
+      throw new Error('expected unresolved @ Image insertion to stay in the inline text box')
+    }
+    if (!activeTextarea.value.includes('![Image alt](image-url)')) {
+      throw new Error(`expected unresolved @ Image insertion to add an editable markdown placeholder, got ${JSON.stringify(activeTextarea.value)}`)
     }
   } finally {
     await act(async () => {

@@ -8,15 +8,15 @@ import {
   formatStoryboardTimelinePositionLabel,
   resolveStoryboardTimelineIndex,
 } from '@/components/StoryboardCanvas/storyboardTimeline'
-import { TimelineTransportControls } from '@/components/timeline/TimelineTransportControls'
+import { TimelineTransportChrome } from '@/components/timeline/TimelineTransportControls'
 import {
   TIMELINE_TRANSPORT_PLAYBACK_RATES,
   clampTimelineTransportValue,
+  resolveTimelineTransportPlayheadPercent,
+  splitTimelineTransportCurrentTotalLabel,
   type TimelineTransportPlaybackRate,
   useTimelineTransportPlayback,
 } from '@/components/timeline/timelineTransport'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { cn } from '@/lib/utils'
 
 const STRYBLDR_TIMELINE_UNIT_MS = 1000
 
@@ -37,7 +37,12 @@ export function StrybldrTimelinePanel({ active = true }: { active?: boolean }) {
   const maxPosition = Math.max(0, timelineItems.length - 1)
   const activeIndex = resolveStoryboardTimelineIndex(position, timelineItems.length)
   const activeItem = activeIndex >= 0 ? timelineItems[activeIndex] || null : null
-  const currentLabel = formatStoryboardTimelinePositionLabel(activeIndex, timelineItems.length)
+  const positionLabel = formatStoryboardTimelinePositionLabel(activeIndex, timelineItems.length)
+  const { currentLabel, totalLabel } = React.useMemo(
+    () => splitTimelineTransportCurrentTotalLabel(positionLabel),
+    [positionLabel],
+  )
+  const playheadPercent = resolveTimelineTransportPlayheadPercent(position, Math.max(1, maxPosition))
 
   React.useEffect(() => {
     setPosition(current => clampTimelineTransportValue(current, 0, maxPosition))
@@ -87,34 +92,28 @@ export function StrybldrTimelinePanel({ active = true }: { active?: boolean }) {
   if (timelineItems.length === 0) return null
 
   return (
-    <section
-      className="flex h-full min-h-0 w-full flex-col gap-2 p-1"
-      aria-label="Strybldr timeline"
-      data-kg-strybldr-timeline-panel="1"
-    >
-      <section className="flex min-w-0 items-center justify-between gap-3 px-1">
-        <section className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>
-          Strybldr timeline
-        </section>
-        <section className={cn('min-w-0 truncate text-[11px]', UI_THEME_TOKENS.text.secondary)} title={activeItem?.title || ''}>
-          {activeItem ? `${activeItem.laneLabel}: ${activeItem.title}` : 'No active card'}
-        </section>
-      </section>
-      <TimelineTransportControls
-        ariaLabel="Strybldr storyboard timeline"
-        currentLabel={currentLabel}
-        disabled={timelineItems.length <= 1}
-        max={maxPosition}
-        playbackRate={playbackRate}
-        playbackRates={TIMELINE_TRANSPORT_PLAYBACK_RATES}
-        playing={playing}
-        rangeClassName="mt-2"
-        step={1}
-        value={position}
-        onPlaybackRateChange={setPlaybackRate}
-        onTogglePlayback={handleTogglePlayback}
-        onValueChange={handleTimelineValueChange}
-      />
-    </section>
+    <TimelineTransportChrome
+      ariaLabel="Strybldr storyboard timeline"
+      chromeClassName="h-full min-h-0 p-1"
+      currentLabel={currentLabel}
+      disabled={timelineItems.length <= 1}
+      max={maxPosition}
+      playbackRate={playbackRate}
+      playbackRates={TIMELINE_TRANSPORT_PLAYBACK_RATES}
+      playing={playing}
+      rootProps={{
+        'aria-label': 'Strybldr timeline',
+        'data-kg-strybldr-timeline-panel': '1',
+        'data-kg-timeline-transport-playhead-percent': String(Math.round(playheadPercent)),
+      } as React.HTMLAttributes<HTMLElement>}
+      step={1}
+      subtitleLabel={activeItem ? `${activeItem.laneLabel}: ${activeItem.title}` : 'No active card'}
+      titleLabel="Strybldr timeline"
+      totalLabel={totalLabel}
+      value={position}
+      onPlaybackRateChange={setPlaybackRate}
+      onTogglePlayback={handleTogglePlayback}
+      onValueChange={handleTimelineValueChange}
+    />
   )
 }

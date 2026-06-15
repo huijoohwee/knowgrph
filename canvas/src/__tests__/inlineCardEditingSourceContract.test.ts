@@ -15,9 +15,16 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   const sharedCardFields = readUtf8('../lib/cards/graphNodeCardFields.ts')
   const graphStoreSync = readUtf8('../features/graph-table/lib/applyCellUpdateToGraphStore.ts')
   const graphTableDb = readUtf8('../lib/graph-table-db/graphTableDb.impl.ts')
+  const commandMenus = readUtf8('../lib/cards/CardInlineTextCommandMenus.tsx')
+  const blockInlineMenus = readUtf8('../lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx')
+  const commandCatalog = readUtf8('../lib/command-menu/inlineCommandMenuCatalog.ts')
+  const storyboardModel = readUtf8('../components/StoryboardCanvas/storyboardModel.ts')
 
   for (const snippet of [
     'PlainTextInputEditor',
+    'CardInlineTextCommandMenus',
+    'markdownCommandMenus = true',
+    'markdownCommandMenus !== false && multiline === true',
     'onDoubleClick',
     'editActivation',
     "editActivation = 'doubleClick'",
@@ -29,6 +36,70 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   ]) {
     if (!sharedEditor.includes(snippet)) {
       throw new Error(`expected shared inline card editor contract snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'MarkdownBlockContainerCommandMenu',
+    'Slash commands',
+    'Variable commands',
+    'buildMarkdownVariableToken',
+    'INLINE_SLASH_COMMAND_ACTIONS',
+    'INLINE_VARIABLE_COMMAND_ACTIONS',
+    'INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID',
+    'INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID',
+    'parseInlineVariableCommandQuery',
+    'collectInlineMediaCommandCandidates',
+    'buildInlineMediaEmbed',
+    'thumbnailKind: candidate.kind',
+    'thumbnailUrl: candidate.thumbnailUrl',
+    'fallbackCandidate?.thumbnailUrl',
+    'insert-image',
+    'insert-video',
+  ]) {
+    if (!commandMenus.includes(snippet)) {
+      throw new Error(`expected shared card command menu contract snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'INLINE_SLASH_COMMAND_ACTIONS',
+    'INLINE_VARIABLE_COMMAND_ACTIONS',
+    'INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID',
+    'INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID',
+    'mediaCommandCandidates',
+    'applyMediaCommandCandidate(candidate)',
+    'thumbnailKind: candidate.kind',
+    'thumbnailUrl: candidate.thumbnailUrl',
+    'fallbackCandidate ? applyMediaCommandCandidate(fallbackCandidate) : applyTurnInto(kind)',
+    'applyTurnInto(kind)',
+  ]) {
+    if (!blockInlineMenus.includes(snippet)) {
+      throw new Error(`expected markdown block command menu to reuse shared inline command catalog: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'INLINE_SLASH_COMMAND_ACTIONS',
+    'INLINE_VARIABLE_COMMAND_ACTIONS',
+    'INLINE_MEDIA_COMMAND_ENTRY_LABELS',
+    'INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID',
+    'INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID',
+    'collectInlineMediaCommandCandidates',
+    'buildInlineMediaEmbed',
+    'resolveInlineMediaThumbnailUrl',
+    'parseInlineVariableCommandQuery',
+    'isInlineVariableKey',
+  ]) {
+    if (!commandCatalog.includes(snippet)) {
+      throw new Error(`expected shared inline command catalog to own ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'buildStoryboardInlineMediaCommandContext',
+    'STORYBOARD_INLINE_MEDIA_CONTEXT_VIDEO_KINDS',
+    "pushUrl('videoUrl', media.sourceUrl || media.url)",
+    "pushUrl('thumbnailUrl', media.thumbnailUrl)",
+  ]) {
+    if (!storyboardModel.includes(snippet)) {
+      throw new Error(`expected Storyboard model to own inline media command context snippet: ${snippet}`)
     }
   }
 
@@ -66,6 +137,8 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
     "canonicalKey: 'output'",
     "canonicalKey: 'action'",
     "canonicalKey: 'dialogue'",
+    'setGraphDataPreservingLayout({',
+    'nodes: graphData.nodes.map(node =>',
   ]) {
     if (!storyboard.includes(snippet)) {
       throw new Error(`expected storyboard inline editing to canonicalize text properties through shared property keys: ${snippet}`)

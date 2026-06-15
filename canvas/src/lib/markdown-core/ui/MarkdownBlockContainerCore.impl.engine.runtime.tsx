@@ -340,6 +340,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     variableAnchorRef,
     linkAnchorRef,
     commentAnchorRef,
+    slashMenuRef,
     bubbleRafRef,
     bubbleScheduleKey,
     editorMouseUpSyncScheduleKey,
@@ -457,7 +458,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       cleanupByIndicator.clear()
     }
   }, [closeCommentPreview, editing, editorPresentation, editorRef, openCommentPreviewFromIndicator])
-  const { applyVariableToken, variableSuggestions } = useMarkdownBlockContainerVariableActions({
+  const { applyVariableToken, applyMediaCommandCandidate, mediaCommandCandidates, variableSuggestions } = useMarkdownBlockContainerVariableActions({
     editable,
     sourceLines,
     editStartLine,
@@ -694,6 +695,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     blurCommitTimerRef,
     selectionSyncSuspendUntilRef,
     toolbarRef,
+    slashMenuRef,
     variableMenuRef,
     commit,
     toolbarInteractionUntilRef,
@@ -754,6 +756,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         linkAnchorRef={linkAnchorRef}
         commentAnchorRef={commentAnchorRef}
         toolbarRef={toolbarRef}
+        slashMenuRef={slashMenuRef}
         variableMenuRef={variableMenuRef}
         editDisableRichUi={editDisableRichUi}
         hasCachedSelection={hasCachedSelection}
@@ -795,6 +798,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         setVariableMenu={setVariableMenu}
         variableSuggestions={variableSuggestions}
         applyVariableToken={applyVariableToken}
+        mediaCommandCandidates={mediaCommandCandidates}
+        applyMediaCommandCandidate={applyMediaCommandCandidate}
         onLinkSubmit={handleLinkSubmit}
         onLinkHrefChange={handleLinkHrefChange}
         onLinkInputKeyDown={handleLinkInputKeyDown}

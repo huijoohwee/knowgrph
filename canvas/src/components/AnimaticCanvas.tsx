@@ -558,6 +558,7 @@ export default function AnimaticCanvas({
     return beatEditSession.requestKey
   }, [beatEditSession])
   const currentTimeLabel = timelineModel.usesAbsoluteTiming ? formatAnimaticTimelineTimestamp(playbackPosition) : formatAnimaticTimelineTimestamp(playbackPosition * 1000)
+  const totalTimeLabel = timelineModel.usesAbsoluteTiming ? formatAnimaticTimelineTimestamp(timelineModel.totalSpan) : formatAnimaticTimelineTimestamp(timelineModel.totalSpan * 1000)
   const timelineEditorTimeUnits = React.useMemo(
     () =>
       buildTimelineEditorTimeUnits({
@@ -1601,9 +1602,9 @@ export default function AnimaticCanvas({
   }
 
   return (
-    <section className="w-full h-full bg-[#0b0f17] text-slate-100 select-none">
+    <section className="timeline-bottom-panel w-full h-full bg-[#0b0f17] text-slate-100 select-none">
       <section className="flex h-full min-h-0 flex-col">
-        <header className="shrink-0 border-b border-slate-800 bg-[#0f1625]/95 px-4 pt-4 pb-2 backdrop-blur">
+        <header className="timeline-bottom-panel-header shrink-0 border-b border-slate-800 bg-[#0f1625]/95 px-4 pt-4 pb-2 backdrop-blur">
           <section className="player-config">
             <button
               type="button"
@@ -1627,6 +1628,7 @@ export default function AnimaticCanvas({
             playing={playing}
             rangeClassName="mt-3"
             step={timelineModel.usesAbsoluteTiming ? 10 : 0.01}
+            totalLabel={totalTimeLabel}
             value={playbackPosition}
             onPlaybackRateChange={setPlaybackRate}
             onTogglePlayback={handleTogglePlayback}
@@ -1635,7 +1637,7 @@ export default function AnimaticCanvas({
               setPlaybackPosition(nextValue)
             }}
           />
-          <section className="mt-2 flex flex-wrap items-center gap-1.5">
+          <section className="timeline-tool-strip mt-2 flex flex-wrap items-center gap-1.5">
             <IconButton title="Prev Beat (Left Arrow)" showTooltip className={getTimelineCompactIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
               <SkipBack className={compactToolbarIconClassName} />
             </IconButton>
@@ -1723,7 +1725,7 @@ export default function AnimaticCanvas({
                 </button>
               ))}
             </section>
-            <section className="ml-auto flex items-center gap-1.5 text-sm text-slate-300">
+            <section className="timeline-status-strip ml-auto flex items-center gap-1.5 text-sm text-slate-300">
               {timelineModel.usesAbsoluteTiming ? (
                 <span className={getTimelineCompactStatusChipClassName()}>
                   Grid {snapStepMs}ms
@@ -1835,16 +1837,16 @@ export default function AnimaticCanvas({
             </section>
           </section>
         </header>
-        <section className="flex min-h-0 flex-1 overflow-hidden">
-          <aside className="w-44 shrink-0 border-r border-slate-800 bg-[#111827]">
+        <section className="timeline-bottom-panel-editor flex min-h-0 flex-1 overflow-hidden">
+          <aside className="timeline-lane-sidebar w-44 shrink-0 border-r border-slate-800 bg-[#111827]">
             <section
-              className="flex items-center border-b border-slate-800 px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
+              className="timeline-lane-sidebar-scale flex items-center border-b border-slate-800 px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"
               style={{ height: SCALE_ROW_HEIGHT_PX }}
             >
               Scale
             </section>
             <section
-              className="flex items-center border-b border-slate-800 px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400"
+              className="timeline-lane-sidebar-beats flex items-center border-b border-slate-800 px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400"
               style={{ height: BEAT_HEADER_HEIGHT_PX }}
             >
               Timeline

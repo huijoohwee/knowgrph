@@ -32,6 +32,7 @@ import {
   STORYBOARD_OUTPUT_PROPERTY_KEYS,
   STORYBOARD_PROMPT_PROPERTY_KEYS,
   STORYBOARD_SUMMARY_PROPERTY_KEYS,
+  buildStoryboardInlineMediaCommandContext,
   type StoryboardCardModel,
   type StoryboardCardReference,
 } from '@/components/StoryboardCanvas/storyboardModel'
@@ -63,6 +64,8 @@ import {
   toggleStrytreeLikeAction,
   unlockStrytreeNodeAction,
 } from '@/features/strybldr/strytreeWorkflow'
+import { updateStrybldrStoryboardMarkdownCardOverride } from '@/features/strybldr/strybldrStoryboard'
+import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 
 type StoryboardDisplayMedia = { kind: 'image' | 'svg' | 'video' | 'audio' | 'iframe'; url: string; srcDoc?: string }
 
@@ -200,6 +203,7 @@ function StoryboardDetailRow(props: {
   value: string
   canEdit?: boolean
   placeholder?: string
+  markdownCommandContextText?: string
   onCommit?: (nextValue: string) => void
 }) {
   const displayValue = readMarkdownSigilDisplayText(props.value)
@@ -218,6 +222,7 @@ function StoryboardDetailRow(props: {
           canEdit={props.canEdit}
           multiline
           markdownPreview="auto"
+          markdownCommandContextText={props.markdownCommandContextText}
           rows={3}
           onCommit={props.onCommit}
           displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
@@ -305,16 +310,19 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { graphRevision, selectedNodeId, selectNode, updateNode, setGraphDataPreservingLayout, addHistory, upsertUiToast, dismissUiToast, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
+  const { graphRevision, selectedNodeId, selectNode, updateNode, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
     useShallow(s => ({
       graphRevision: s.graphDataRevision || 0,
       selectedNodeId: String(s.selectedNodeId || '').trim(),
       selectNode: s.selectNode,
       updateNode: s.updateNode,
       setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
+      setMarkdownDocument: s.setMarkdownDocument,
       addHistory: s.addHistory,
       upsertUiToast: s.upsertUiToast,
       dismissUiToast: s.dismissUiToast,
+      markdownDocumentName: s.markdownDocumentName || null,
+      markdownDocumentText: s.markdownDocumentText || null,
       documentWidgetRegistry: Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
       effectiveWidgetRegistry: Array.isArray(s.effectiveWidgetRegistry) ? s.effectiveWidgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
       baseWidgetRegistry: Array.isArray(s.widgetRegistry) ? s.widgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
@@ -540,21 +548,75 @@ export default function StoryboardCanvas({
     canonicalKey: string
     nextValue: string
   }) => {
+    const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+      text: markdownDocumentText || '',
+      nodeId: args.cardId,
+      patch: { [args.canonicalKey]: args.nextValue },
+    })
+    if (nextMarkdownText && markdownDocumentName && nextMarkdownText !== markdownDocumentText) {
+      setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: useGraphStore.getState(),
+        sourceFiles: useGraphStore.getState().sourceFiles || [],
+        text: nextMarkdownText,
+        label: `Storyboard ${args.canonicalKey}`,
+      })
+      addHistory(`Storyboard ${args.canonicalKey}`)
+      return
+    }
     const currentProperties = currentPropertiesByCardId.get(args.cardId) || {}
-    updateNode(args.cardId, {
-      properties: buildGraphNodeCanonicalTextPatch({
-        currentProperties,
-        propertyKeys: args.propertyKeys,
-        canonicalKey: args.canonicalKey,
-        nextValue: args.nextValue,
-      }) as never,
+    const nextProperties = buildGraphNodeCanonicalTextPatch({
+      currentProperties,
+      propertyKeys: args.propertyKeys,
+      canonicalKey: args.canonicalKey,
+      nextValue: args.nextValue,
     })
-  }, [currentPropertiesByCardId, updateNode])
+    if (graphData?.nodes?.some(node => readStoryboardScalar(node?.id) === args.cardId)) {
+      setGraphDataPreservingLayout({
+        ...graphData,
+        nodes: graphData.nodes.map(node => (
+          readStoryboardScalar(node?.id) === args.cardId
+            ? { ...node, properties: nextProperties as never }
+            : node
+        )),
+      })
+      addHistory(`Storyboard ${args.canonicalKey}`)
+      return
+    }
+    updateNode(args.cardId, { properties: nextProperties as never })
+  }, [addHistory, currentPropertiesByCardId, graphData, markdownDocumentName, markdownDocumentText, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
   const updateStoryboardTitle = React.useCallback((cardId: string, nextValue: string) => {
-    updateNode(cardId, {
-      label: String(nextValue || '').trim(),
+    const label = String(nextValue || '').trim()
+    const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+      text: markdownDocumentText || '',
+      nodeId: cardId,
+      patch: { title: label },
     })
-  }, [updateNode])
+    if (nextMarkdownText && markdownDocumentName && nextMarkdownText !== markdownDocumentText) {
+      setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: useGraphStore.getState(),
+        sourceFiles: useGraphStore.getState().sourceFiles || [],
+        text: nextMarkdownText,
+        label: 'Storyboard title',
+      })
+      addHistory('Storyboard title')
+      return
+    }
+    if (graphData?.nodes?.some(node => readStoryboardScalar(node?.id) === cardId)) {
+      setGraphDataPreservingLayout({
+        ...graphData,
+        nodes: graphData.nodes.map(node => (
+          readStoryboardScalar(node?.id) === cardId
+            ? { ...node, label }
+            : node
+        )),
+      })
+      addHistory('Storyboard title')
+      return
+    }
+    updateNode(cardId, { label })
+  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
   const isStoryboardMoveNoOp = React.useCallback((move: {
     rowId: string
     sourceGroupKey: string
@@ -814,6 +876,7 @@ export default function StoryboardCanvas({
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
+                    const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(card)
                     const cardParagraphEntries = buildCardParagraphEntries([
                       { id: 'summary', label: 'Summary', value: card.summary },
                       { id: 'output', label: 'Output', value: card.output },
@@ -992,6 +1055,7 @@ export default function StoryboardCanvas({
                                     canEdit={canEditCard}
                                     multiline
                                     markdownPreview="auto"
+                                    markdownCommandContextText={storyboardCommandContextText}
                                     rows={3}
                                     onCommit={commitCardProperty('summary')}
                                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
@@ -1008,6 +1072,7 @@ export default function StoryboardCanvas({
                                   value={row.value}
                                   canEdit={canEditCard}
                                   onCommit={commitCardProperty(row.fieldId)}
+                                  markdownCommandContextText={storyboardCommandContextText}
                                 />
                               ))}
 
@@ -1134,6 +1199,7 @@ export default function StoryboardCanvas({
                                       canEdit={typeof updateNode === 'function'}
                                       multiline
                                       markdownPreview="auto"
+                                      markdownCommandContextText={storyboardCommandContextText}
                                       rows={3}
                                       onCommit={nextValue => {
                                         updateStoryboardCanonicalProperty({

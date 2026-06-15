@@ -106,6 +106,7 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 })
 
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
+const CommandMenuCatalogPanelLazy = React.lazy(() => import('@/features/command-menu/CommandMenuCatalogPanel'))
 const FlowEditorFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/flow-editor-manager/FlowEditorFloatingPanelView').then(mod => ({ default: mod.FlowEditorFloatingPanelView })),
 )
@@ -507,6 +508,7 @@ export function ToolbarToolMenu({
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
       { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
+      { view: 'commandMenu', title: 'Command Menu', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.commandMenu },
       { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
       { view: 'interaction', title: 'Interaction', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.interaction },
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
@@ -705,6 +707,11 @@ export function ToolbarToolMenu({
           <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
             {floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />}
+            {floatingPanelView === 'commandMenu' && (
+              <React.Suspense fallback={null}>
+                <CommandMenuCatalogPanelLazy />
+              </React.Suspense>
+            )}
             {floatingPanelView === 'camera' && (
               <React.Suspense fallback={null}>
                 <StrybldrCameraFloatingPanelViewLazy />

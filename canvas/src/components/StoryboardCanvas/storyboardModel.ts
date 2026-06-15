@@ -200,6 +200,41 @@ const uniqueStrings = (values: readonly string[]): string[] => {
   return out
 }
 
+const STORYBOARD_INLINE_MEDIA_CONTEXT_IMAGE_KINDS = new Set<UrlMediaKind>(['image', 'svg'])
+const STORYBOARD_INLINE_MEDIA_CONTEXT_VIDEO_KINDS = new Set<UrlMediaKind>(['video', 'iframe'])
+
+export function buildStoryboardInlineMediaCommandContext(card: StoryboardCardModel): string {
+  const lines: string[] = []
+  const seen = new Set<string>()
+  const pushUrl = (key: string, url: unknown) => {
+    const text = readString(url)
+    if (!text) return
+    const dedupeKey = `${key}:${text}`.toLowerCase()
+    if (seen.has(dedupeKey)) return
+    seen.add(dedupeKey)
+    lines.push(`${key}: "${text}"`)
+  }
+
+  const media = card.media
+  if (media) {
+    if (STORYBOARD_INLINE_MEDIA_CONTEXT_IMAGE_KINDS.has(media.kind)) pushUrl('imageUrl', media.url)
+    if (STORYBOARD_INLINE_MEDIA_CONTEXT_VIDEO_KINDS.has(media.kind)) pushUrl('videoUrl', media.sourceUrl || media.url)
+    if (media.thumbnailUrl) pushUrl('thumbnailUrl', media.thumbnailUrl)
+  }
+
+  card.references.forEach((reference, referenceIndex) => {
+    if (reference.kind === 'image' || reference.kind === 'svg') {
+      pushUrl(`referenceImageUrl${referenceIndex + 1}`, reference.url)
+      return
+    }
+    if (reference.kind === 'video' || reference.kind === 'iframe') {
+      pushUrl(`referenceVideoUrl${referenceIndex + 1}`, reference.url)
+    }
+  })
+
+  return lines.join('\n')
+}
+
 const readPropertyLists = (properties: GraphNodeProperties, keys: readonly string[]): string[] => {
   return uniqueStrings(keys.flatMap(key => readStringList(properties[key])))
 }

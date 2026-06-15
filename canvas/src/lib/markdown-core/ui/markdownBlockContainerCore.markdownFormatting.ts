@@ -170,9 +170,31 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
     const nextEnd = nextStart + selected.length
     args.setDraftToDom(nextText, { startOffset: nextStart, endOffset: nextEnd })
     queueMicrotask(() => args.editorRef.current?.focus())
-  }, [applySerializedDraftMutation, args])
+  }, [applyHtmlStructuralMutation, applySerializedDraftMutation, args])
 
   const applyTurnInto = React.useCallback((next: string) => {
+    const applyInlineMediaInsert = (kind: 'image' | 'video') => {
+      const current = args.getDraft()
+      const selection = args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
+      const startOffset = selection?.startOffset ?? 0
+      const endOffset = selection?.endOffset ?? 0
+      const a = Math.max(0, Math.min(current.length, startOffset))
+      const b = Math.max(0, Math.min(current.length, endOffset))
+      const start = Math.min(a, b)
+      const end = Math.max(a, b)
+      const selected = current.slice(start, end).trim()
+      const replacement = kind === 'image'
+        ? `![${selected || 'Image alt'}](image-url)`
+        : `<video src="${selected || 'video-url'}" controls></video>`
+      const nextText = `${current.slice(0, start)}${replacement}${current.slice(end)}`
+      const cursor = start + replacement.length
+      args.setDraftToDom(nextText, { startOffset: cursor, endOffset: cursor })
+      queueMicrotask(() => args.editorRef.current?.focus())
+    }
+    if (next === 'image' || next === 'video') {
+      applyInlineMediaInsert(next)
+      return
+    }
     const applyTransformAndCommit = (action: MarkdownFormatAction | 'codeBlock' | 'heading1' | 'heading3') => {
       if (!args.editable || !args.onReplaceLineRange) return
       const root = args.editorRef.current

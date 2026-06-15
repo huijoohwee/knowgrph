@@ -120,6 +120,8 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Mermaid `click` directives targeting `#anchor` must map to edges from diagram nodes to Anchor nodes generated from body anchors; Canvas and exported HTML viewers use the same mapping so clicking from Mermaid or Graph views lands on the same markdown location.
   - Graph nodes that carry document anchor metadata may be surfaced as clickable targets or overlay entries that navigate back into the Markdown Viewer using `documentPath` + anchor id; exports must preserve this mapping without requiring absolute filesystem paths.
   - Rich Media overlays (2D/3D) must keep their node ids and anchor links intact across live Canvas and HTML exports; toggling Rich Media On/Off is view-only and must not change the underlying graph or markdown links.
+  - Shared inline command menus (`/` and `@`) are renderer-adjacent authoring affordances, not renderer-local state owners: command acceptance must commit through shared markdown/frontmatter or graph-field owners so the next render pass re-derives identical Rich Media nodes, references, and inline compute payloads.
+  - `@` media insertion must reuse shared media-candidate resolution for imported files, indexed URLs, thumbnails, and reference packs; renderer surfaces may project those previews, but must not fork their own thumbnail derivation or persistence path.
   - FloatingPanel Chat structured-content payloads stay renderer-neutral: authored `edges[]` and safe `flow:compute` remain authoritative; otherwise source cards/widgets plus panel targets synthesize one neutral inline compute widget and explicit handle edges before Flow Editor, Storyboard, Cards, and Rich Media Panels render connected values.
   - Exported HTML Canvas viewer exposes a compact HUD for renderer/Rich Media/Frontmatter toggles (2D↔3D, Rich, Media, FM). HUD toggles are strictly view‑only, reuse the same SSOT GraphData/fit/zoom semantics as Canvas mode, and support desktop+mobile via full‑viewport canvas with pointer/touch pan/drag/pinch.
 
@@ -140,6 +142,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Quick controls for `renderer:palette` and hover tooltip content.
   - The full Render Settings section (collapsible) for layout, camera, selection, and presets.
 - Renderer ownership stays in the Floating Panel renderer view; no secondary bottom-surface tab or duplicate renderer controls are allowed.
+- Floating Panel `commandMenu` is the canonical command-browser surface for `/` and `@` inventory. It reuses the same command definitions and media/reference groupings consumed by inline editors and Workflow Manager fields; it does not own a second insertion pipeline.
 - Tooltip semantics are standardized:
   - Key tooltips follow Role → Actions → Outcome.
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).

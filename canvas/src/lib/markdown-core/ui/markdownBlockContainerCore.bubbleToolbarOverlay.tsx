@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   AlignLeft,
+  AtSign,
   Bold,
   Code,
   Eraser,
@@ -17,6 +18,7 @@ import {
   Strikethrough,
   Subscript,
   Superscript,
+  Slash,
   Underline,
 } from 'lucide-react'
 import { AnchorOverlay } from '@/lib/ui/overlay'
@@ -63,6 +65,8 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
   applyClearFormatting: () => void
   applyChecklist: () => void
   applyDivider: () => void
+  openSlashCommandMenu: () => void
+  openVariableCommandMenu: () => void
   handleDuplicate: () => void
   handleDelete: () => void
   selectionActions?: {
@@ -260,6 +264,8 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
         <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('bulletList'))} title="Bulleted List"><List className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('numberedList'))} title="Numbered List"><ListOrdered className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('blockquote'))} title="Quote"><Quote className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, props.openSlashCommandMenu)} title="Slash commands"><Slash className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, props.openVariableCommandMenu)} title="Variable commands"><AtSign className={markdownBubbleToolbarIconClassName} strokeWidth={1.8} /></button>
         {renderToolbarMenu({
           key: 'align',
           ariaLabel: 'Align',

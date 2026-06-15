@@ -12,6 +12,7 @@ import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, pars
 import { STRYBLDR_CAMERA_PROPERTY_KEY, buildStrybldrCameraHandoffLine, hasStrybldrCameraSettings, readStrybldrCameraSettings } from './strybldrCamera'
 import type {
   StrybldrBox,
+  StrybldrCardOverride,
   StrybldrDetectionProvider,
   StrybldrElement,
   StrybldrEvidenceKind,
@@ -34,6 +35,9 @@ const DEFAULT_STRYBLDR_REMOTE_VIDEO_FRAME_SECONDS = 0
 const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
+
+const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt'] as const
+const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 
@@ -251,6 +255,79 @@ export const serializeStrybldrStoryboardMarkdown = (doc: StrybldrStoryboardDocum
   ].join('\n')
 }
 
+export const replaceStrybldrStoryboardMarkdownPayload = (text: string, doc: StrybldrStoryboardDocument): string | null => {
+  const raw = String(text || '')
+  if (!STRYBLDR_JSON_FENCE_RE.test(raw)) return null
+  return raw.replace(STRYBLDR_JSON_FENCE_RE, [
+    '```json strybldr-storyboard',
+    JSON.stringify(doc, null, 2),
+    '```',
+  ].join('\n'))
+}
+
+const replaceStrybldrStoryboardMarkdownRawPayload = (text: string, payload: Record<string, unknown>): string | null => {
+  const raw = String(text || '')
+  if (!STRYBLDR_JSON_FENCE_RE.test(raw)) return null
+  return raw.replace(STRYBLDR_JSON_FENCE_RE, [
+    '```json strybldr-storyboard',
+    JSON.stringify(payload, null, 2),
+    '```',
+  ].join('\n'))
+}
+
+const readStrybldrStoryboardRawPayload = (text: string): Record<string, unknown> | null => {
+  const match = String(text || '').match(STRYBLDR_JSON_FENCE_RE)
+  if (!match) return null
+  try {
+    const parsed = JSON.parse(match[1] || '')
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null
+  } catch {
+    return null
+  }
+}
+
+export const updateStrybldrStoryboardMarkdownCardOverride = (args: {
+  text: string
+  nodeId: string
+  patch: Omit<Partial<StrybldrCardOverride>, 'nodeId'>
+}): string | null => {
+  const rawPayload = readStrybldrStoryboardRawPayload(args.text)
+  const doc = rawPayload ? readParsedObject(rawPayload) : null
+  const nodeId = cleanText(args.nodeId)
+  if (!doc || !nodeId) return null
+  const currentCards = Array.isArray(rawPayload?.cards) ? rawPayload.cards as unknown[] : []
+  const index = currentCards.findIndex(card => (
+    !!card
+    && typeof card === 'object'
+    && !Array.isArray(card)
+    && cleanText((card as Partial<StrybldrCardOverride>).nodeId) === nodeId
+  ))
+  const current = index >= 0 && currentCards[index] && typeof currentCards[index] === 'object' && !Array.isArray(currentCards[index])
+    ? currentCards[index] as StrybldrCardOverride
+    : { nodeId }
+  const next: StrybldrCardOverride = { ...current, nodeId }
+  for (const key of STRYBLDR_CARD_OVERRIDE_TEXT_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(args.patch, key)) continue
+    const value = cleanMultilineText(args.patch[key])
+    if (value) next[key] = value
+    else delete next[key]
+  }
+  for (const key of STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(args.patch, key)) continue
+    const value = Number(args.patch[key])
+    if (Number.isFinite(value)) next[key] = value
+    else delete next[key]
+  }
+  const hasOverride = STRYBLDR_CARD_OVERRIDE_TEXT_KEYS.some(key => cleanMultilineText(next[key])) || STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS.some(key => Number.isFinite(Number(next[key])))
+  const nextCards = index >= 0 ? currentCards.slice() : currentCards.concat(next)
+  if (hasOverride) nextCards[index >= 0 ? index : nextCards.length - 1] = next
+  else if (index >= 0) nextCards.splice(index, 1)
+  const nextPayload = { ...rawPayload }
+  if (nextCards.length > 0) nextPayload.cards = nextCards
+  else delete nextPayload.cards
+  return replaceStrybldrStoryboardMarkdownRawPayload(args.text, nextPayload)
+}
+
 const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => {
   if (!value || typeof value !== 'object') return null
   const rec = value as Partial<StrybldrStoryboardDocument>
@@ -306,12 +383,31 @@ const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => 
   const elementIds = new Set(elements.map(element => element.id))
   const edges = readStrybldrWorkflowEdges((rec as Record<string, unknown>).edges, elementIds)
   const workflow = readStrybldrWorkflow((rec as Record<string, unknown>).workflow)
+  const cards = Array.isArray((rec as Record<string, unknown>).cards)
+    ? ((rec as Record<string, unknown>).cards as unknown[])
+        .map((item): StrybldrCardOverride | null => {
+          if (!item || typeof item !== 'object') return null
+          const card = item as Partial<StrybldrCardOverride>
+          const nodeId = cleanText(card.nodeId)
+          if (!nodeId) return null
+          const out: StrybldrCardOverride = { nodeId }
+          for (const key of STRYBLDR_CARD_OVERRIDE_TEXT_KEYS) {
+            const value = cleanMultilineText(card[key])
+            if (value) out[key] = value
+          }
+          const order = Number(card.order)
+          if (Number.isFinite(order)) out.order = order
+          return out
+        })
+        .filter((item): item is StrybldrCardOverride => !!item)
+    : []
   return {
     version: 1,
     runId: cleanText(rec.runId) || buildStrybldrRunId(sources),
     createdAtMs: Number.isFinite(Number(rec.createdAtMs)) ? Number(rec.createdAtMs) : 0,
     sources,
     elements: elements.length > 0 ? elements : sources.flatMap(createFallbackElements),
+    ...(cards.length > 0 ? { cards } : {}),
     edges,
     workflow,
     notes: cleanText(rec.notes) || null,
@@ -1168,11 +1264,48 @@ const readStrybldrElementFromNode = (node: GraphNode, index: number): StrybldrEl
   }
 }
 
+const buildStrybldrCardOverrideMap = (cards: readonly StrybldrCardOverride[] | null | undefined): Map<string, StrybldrCardOverride> => {
+  const out = new Map<string, StrybldrCardOverride>()
+  for (const card of Array.isArray(cards) ? cards : []) {
+    const nodeId = cleanText(card.nodeId)
+    if (nodeId) out.set(nodeId, card)
+  }
+  return out
+}
+
+const applyStrybldrCardOverride = (
+  node: GraphNode,
+  override: StrybldrCardOverride | null | undefined,
+): GraphNode => {
+  if (!override) return node
+  const properties = {
+    ...(node.properties || {}),
+  } as Record<string, JSONValue>
+  for (const key of STRYBLDR_CARD_OVERRIDE_TEXT_KEYS) {
+    const value = cleanMultilineText(override[key])
+    if (!value) continue
+    if (key === 'title') {
+      properties.title = asJson(value)
+      continue
+    }
+    properties[key] = asJson(value)
+  }
+  const order = Number(override.order)
+  if (Number.isFinite(order)) properties.order = asJson(order)
+  const title = cleanMultilineText(override.title)
+  return {
+    ...node,
+    ...(title ? { label: title } : {}),
+    properties,
+  }
+}
+
 export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphData => {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
   const sourceNodeIdByUnit = new Map<string, string>()
   const frameNodeIdByUnit = new Map<string, string>()
+  const cardOverridesByNodeId = buildStrybldrCardOverrideMap(doc.cards)
 
   for (let index = 0; index < doc.sources.length; index += 1) {
     const source = doc.sources[index]!
@@ -1183,7 +1316,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     const media = buildStrybldrSourceMediaFields(source)
     sourceNodeIdByUnit.set(source.sourceUnitId, sourceNodeId)
     frameNodeIdByUnit.set(source.sourceUnitId, frameNodeId)
-    nodes.push({
+    nodes.push(applyStrybldrCardOverride({
       id: sourceNodeId,
       label: title,
       type: 'StrybldrImageSource',
@@ -1209,8 +1342,8 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         confidence: asJson(1),
         evidenceKind: asJson('source-metadata'),
       },
-    })
-    nodes.push({
+    }, cardOverridesByNodeId.get(sourceNodeId)))
+    nodes.push(applyStrybldrCardOverride({
       id: frameNodeId,
       label: `${title} Frame`,
       type: 'StoryboardFrame',
@@ -1236,7 +1369,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         confidence: asJson(0.5),
         evidenceKind: asJson('source-metadata'),
       },
-    })
+    }, cardOverridesByNodeId.get(frameNodeId)))
     edges.push(createEdge(sourceNodeId, frameNodeId, 'frames'))
   }
 
@@ -1248,7 +1381,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     const elementId = cleanText(element.id) || `strybldr:element:${shortHash(`${element.sourceUnitId}:${element.label}:${element.order}`)}`
     const media = source ? buildStrybldrSourceMediaFields(source) : null
     const mediaUrl = media?.mediaUrl || cleanText(source?.originalName)
-    nodes.push({
+    nodes.push(applyStrybldrCardOverride({
       id: elementId,
       label: element.label,
       type: 'StoryboardElement',
@@ -1275,7 +1408,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         evidenceKind: asJson(element.evidenceKind),
         provider: asJson(element.provider),
       },
-    })
+    }, cardOverridesByNodeId.get(elementId)))
     edges.push(createEdge(frameNodeId, elementId, 'containsElement'))
   }
 

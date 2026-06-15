@@ -1,8 +1,17 @@
 import React from 'react'
 
 export const TIMELINE_TRANSPORT_PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const
+export const TIMELINE_TRANSPORT_ZOOM_LEVELS = [1, 1.5, 2, 3, 4] as const
+export const TIMELINE_TRANSPORT_AUTOMATION_INTENTS = [
+  'zoom-out',
+  'zoom-in',
+  'fit-timeline',
+  'center-playhead',
+] as const
 
 export type TimelineTransportPlaybackRate = (typeof TIMELINE_TRANSPORT_PLAYBACK_RATES)[number]
+export type TimelineTransportZoomLevel = (typeof TIMELINE_TRANSPORT_ZOOM_LEVELS)[number]
+export type TimelineTransportAutomationIntent = (typeof TIMELINE_TRANSPORT_AUTOMATION_INTENTS)[number]
 
 export function clampTimelineTransportValue(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min
@@ -19,6 +28,37 @@ export function resolveTimelineTransportPlaybackRate(
     : fallback
 }
 
+export function clampTimelineTransportZoomIndex(index: number): number {
+  if (!Number.isFinite(index)) return 0
+  return Math.min(TIMELINE_TRANSPORT_ZOOM_LEVELS.length - 1, Math.max(0, Math.round(index)))
+}
+
+export function resolveTimelineTransportZoom(index: number): TimelineTransportZoomLevel {
+  return TIMELINE_TRANSPORT_ZOOM_LEVELS[clampTimelineTransportZoomIndex(index)] || 1
+}
+
+export function resolveTimelineTransportNextZoomIndex(index: number, direction: -1 | 1): number {
+  return clampTimelineTransportZoomIndex(clampTimelineTransportZoomIndex(index) + direction)
+}
+
+export function resolveTimelineTransportPlayheadPercent(position: number, max: number): number {
+  if (!Number.isFinite(max) || max <= 0) return 0
+  return (clampTimelineTransportValue(position, 0, max) / max) * 100
+}
+
+export function resolveTimelineTransportPlayheadScrollLeft(args: {
+  contentWidth: number
+  max: number
+  position: number
+  viewportWidth: number
+}): number {
+  const contentWidth = Number.isFinite(args.contentWidth) && args.contentWidth > 0 ? args.contentWidth : 0
+  const viewportWidth = Number.isFinite(args.viewportWidth) && args.viewportWidth > 0 ? args.viewportWidth : 0
+  if (contentWidth <= 0 || viewportWidth <= 0 || args.max <= 0) return 0
+  const playheadX = (resolveTimelineTransportPlayheadPercent(args.position, args.max) / 100) * contentWidth
+  return clampTimelineTransportValue(playheadX - viewportWidth / 2, 0, Math.max(0, contentWidth - viewportWidth))
+}
+
 export function resolveTimelineTransportUnitsPerMs(args: {
   usesAbsoluteTiming: boolean
   ordinalUnitMs: number
@@ -26,6 +66,20 @@ export function resolveTimelineTransportUnitsPerMs(args: {
   if (args.usesAbsoluteTiming) return 1
   const safeUnitMs = Number.isFinite(args.ordinalUnitMs) && args.ordinalUnitMs > 0 ? args.ordinalUnitMs : 1000
   return 1 / safeUnitMs
+}
+
+export function splitTimelineTransportCurrentTotalLabel(label: string): {
+  currentLabel: string
+  totalLabel?: string
+} {
+  const normalizedLabel = String(label || '').trim()
+  if (!normalizedLabel) return { currentLabel: '' }
+  const parts = normalizedLabel.split(/\s*[|/]\s*/).map(part => part.trim()).filter(Boolean)
+  if (parts.length !== 2) return { currentLabel: normalizedLabel }
+  return {
+    currentLabel: parts[0] || normalizedLabel,
+    totalLabel: parts[1],
+  }
 }
 
 export function useTimelineTransportPlayback(args: {

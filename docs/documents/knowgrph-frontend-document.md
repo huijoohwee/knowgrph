@@ -157,11 +157,13 @@ selection_state:
 
 - Floating Panel (tool menu) hosts the Props/Inspector/etc views.
 - Floating Panel default geometry is top-right canvas aligned through `floatingPanelGeometry.ts`; its default width is 20% wider (`0.3` viewport ratio / `21.6rem` minimum), and its right inset reuses the same canvas edge-gap token as the toolbar top inset. GitGraph command CRUD is hosted as the `gitGraph` FloatingPanel view instead of a duplicate canvas-local command panel.
+- Floating Panel hosts a dedicated `commandMenu` view to the right of `View`, and that view reuses the same Geo KTV-style lightweight layout contract as other structured FloatingPanel views instead of introducing a foreign command-palette shell.
 - Document versioning records bounded local snapshots from Editor Workspace saves, Source Files writeback, and GitGraph CRUD through `documentVersioning.ts`; Source Files rows expose version counts, Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in GitGraph view after `[ ] Markdown`, and the bottom panel exposes GitGraph immediately to the right of the Timeline icon. MainPanel History does not own a document-version Docs surface.
 - Interaction controls for infinite-canvas workflows live in a dedicated **Interaction** floating panel that is positioned adjacent to the Floating Panel when the Props view is active.
 - Forbid any legacy “Arrange” panels (canvas overlays, editor tabs, or floating panels) that duplicate Interaction/Arrange actions.
 - Shared panel activation events, default panel sizing, and panel-role ownership must live under `canvas/src/features/panels/*`; forbid a parallel `features/bottom-panel/*` helper namespace or duplicate bottom-surface ownership labels in shared config.
 - Bottom-surface tabs stay thin surfaces over the shared panel contract: lightweight tabs render local quick-review content only, without duplicating workspace or renderer ownership.
+- Shared inline command management belongs to one owner path. `/` slash actions and `@` variable or media actions must reuse the same command catalog, search, item rendering, and insertion contracts across MainPanel Workflow Manager graph fields, canvas card inline editors, Markdown Viewer or WYSIWYG blocks, and Floating Panel command browsing.
 
 #### Floating Panel Lightweight View Pattern (Props Panel Contract)
 
@@ -181,6 +183,14 @@ Floating Panel views must reuse the same lightweight embedding pattern as Props 
   - Components reused across surfaces must expose an explicit “embedded” mode (example: Inspector supports a parent-scroll embedding mode so it can be mounted inside the Floating Panel without nested scroll/background).
 - **Tokenized styling only**:
   - Forbid hardcoded Tailwind palette classes infloating panel bodies (e.g. `bg-gray-*`, `text-gray-*`); use `UI_THEME_TOKENS` so dark mode and density stay consistent.
+
+#### Shared `/` And `@` Command Menu Contract
+
+- `/` opens text-structure and action commands from one shared catalog.
+- `@` opens variable, reference, image, and video insertion commands from that same shared catalog and search runtime.
+- The Floating Panel `commandMenu` view is a browser over the same command definitions used inline; it must not maintain a second list, second persistence path, or second media-resolution heuristic.
+- `@` media rows must expose thumbnails or media previews when the shared media candidate resolver can derive them, including imported references and indexed image/video URLs.
+- Accepting a command from any supported surface must commit through the owning text or graph-field write path so inserted media, placeholders, and references survive blur, rerender, parser reprojection, and Storyboard or Strybldr regeneration.
 
 **Configuration Schema (core sections)**:
 

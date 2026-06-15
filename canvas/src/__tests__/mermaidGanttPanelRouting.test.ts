@@ -15,6 +15,8 @@ import {
   isMermaidGanttBarDragMode,
   resolveMermaidGanttBarDragCommitted,
   resolveMermaidGanttBarDragPreview,
+  resolveMermaidGanttTimelineDragEffectiveDelta,
+  resolveMermaidGanttTimelineDragPreviewSpan,
   resolveMermaidGanttTimelineRowKeyAtPosition,
   replaceFirstMermaidGanttFrontmatterCode,
   shouldExposeMermaidGanttBarInteraction,
@@ -507,9 +509,13 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !ganttCanvasText.includes('useMermaidGanttDocument') ||
     !ganttCanvasText.includes("from '@/lib/mermaid/mermaidGanttBarInteraction'") ||
     !ganttCanvasText.includes('shouldExposeMermaidGanttBarInteraction(selectedRow)') ||
+    !ganttCanvasText.includes('buildMermaidGanttTimelineModel') ||
     !ganttCanvasText.includes('resolveMermaidGanttBarDragPreview') ||
     !ganttCanvasText.includes('resolveMermaidGanttBarDragCommitted') ||
+    !ganttCanvasText.includes('resolveMermaidGanttTimelineDragEffectiveDelta') ||
     !ganttCanvasText.includes('readGanttMinutesPerPixel') ||
+    !ganttCanvasText.includes('const timelineSpan = timelineModel.taskSpans.find(span => span.lineIndex === dragState.rowLineIndex)') ||
+    !ganttCanvasText.includes('deltaMinutes: effectiveDeltaMinutes') ||
     !ganttCanvasText.includes('updateMermaidGanttCodeRowTiming') ||
     !ganttCanvasText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
     !ganttCanvasText.includes('setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })') ||
@@ -518,6 +524,12 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !ganttCanvasText.includes('isVerticalMilestoneRow') ||
     !ganttCanvasText.includes('setPointerCapture') ||
     !ganttCanvasText.includes("window.addEventListener('pointermove'") ||
+    !ganttCanvasText.includes('let maxMovedPx = 0') ||
+    !ganttCanvasText.includes('maxMovedPx = Math.max(maxMovedPx, Math.abs(preview.deltaPx))') ||
+    !ganttCanvasText.includes('!resolveMermaidGanttBarDragCommitted(maxMovedPx)') ||
+    !ganttCanvasText.includes('const onPointerCancel = (event: PointerEvent)') ||
+    !ganttCanvasText.includes("window.addEventListener('pointercancel', onPointerCancel") ||
+    !ganttCanvasText.includes('stopGanttHandleClick') ||
     !ganttCanvasText.includes('data-kg-gantt-bar-interaction-overlay="1"') ||
     !ganttCanvasText.includes('data-kg-gantt-bar-drag-mode="move"') ||
     !ganttCanvasText.includes('data-kg-gantt-bar-drag-mode="resize-start"') ||
@@ -642,14 +654,45 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     throw new Error('expected BottomPanel Timeline to render Mermaid Timeline and delegate the Gantt-Timeline transport fallback to the shared Gantt transport owner')
   }
   if (
-    !ganttTransportText.includes('TimelineTransportControls') ||
+    !ganttTransportText.includes('TimelineTransportChrome') ||
     !ganttTransportText.includes('useTimelineTransportPlayback') ||
     !ganttTransportText.includes('buildMermaidGanttTimelineModel(code)') ||
     !ganttTransportText.includes('buildMermaidGanttTimelineTicks(timelineModel)') ||
     !ganttTransportText.includes('resolveMermaidGanttTimelineRowKeyAtPosition(timelineModel, nextPosition)') ||
+    !ganttTransportText.includes('resolveMermaidGanttBarDragPreview') ||
+    !ganttTransportText.includes('resolveMermaidGanttBarDragCommitted') ||
+    !ganttTransportText.includes('resolveMermaidGanttTimelineDragEffectiveDelta') ||
+    !ganttTransportText.includes('resolveMermaidGanttTimelineDragPreviewSpan') ||
+    !ganttTransportText.includes('deltaMinutes: effectiveDeltaMinutes') ||
+    !ganttTransportText.includes('updateMermaidGanttCodeRowTiming') ||
+    !ganttTransportText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
+    !ganttTransportText.includes('isMermaidGanttTimelineVerticalMarker') ||
+    !ganttTransportText.includes('TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
+    !ganttTransportText.includes('resolveTimelineTransportNextZoomIndex') ||
+    !ganttTransportText.includes('resolveTimelineTransportPlayheadPercent') ||
+    !ganttTransportText.includes('resolveTimelineTransportPlayheadScrollLeft') ||
+    !ganttTransportText.includes('resolveTimelineTransportZoom') ||
+    !ganttTransportText.includes('centerTimelinePlayhead') ||
+    !ganttTransportText.includes('timeline-transport-chrome--mermaid-gantt') ||
+    !ganttTransportText.includes('timeline-transport-track-clip--milestone') ||
+    !ganttTransportText.includes('timeline-transport-chrome-actions') ||
+    !ganttTransportText.includes('timeline-transport-playhead') ||
+    !ganttTransportText.includes("top: verticalMarker ? '0px' : `${24 + (index % 2) * 16}px`") ||
+    !ganttTransportText.includes("width: verticalMarker ? '14px'") ||
+    !ganttTransportText.includes('data-kg-gantt-timeline-ruler-content="1"') ||
+    !ganttTransportText.includes('data-kg-gantt-timeline-playhead="1"') ||
+    !ganttTransportText.includes('data-kg-gantt-timeline-track-drag-mode="move"') ||
+    !ganttTransportText.includes('data-kg-gantt-timeline-track-drag-mode="resize-start"') ||
+    !ganttTransportText.includes('data-kg-gantt-timeline-track-drag-mode="resize-end"') ||
     !ganttTransportText.includes("setMermaidDiagramSelectedRowKey('gantt', rowKey)") ||
-    !ganttTransportText.includes('data-kg-gantt-timeline-transport="bottomPanel"') ||
-    !ganttTransportText.includes('data-kg-gantt-timeline-ruler="bottomPanel"') ||
+    !ganttTransportText.includes('const totalLabel = formatMermaidGanttTimelineOffset(maxMinutes)') ||
+    !ganttTransportText.includes('totalLabel={totalLabel}') ||
+    !ganttTransportText.includes("'data-kg-gantt-timeline-transport': 'bottomPanel'") ||
+    !ganttTransportText.includes("'data-kg-gantt-timeline-ruler': 'bottomPanel'") ||
+    !ganttTransportText.includes('timeline-transport-ruler-tick') ||
+    !ganttTransportText.includes('timeline-transport-ruler-tick-line') ||
+    ganttTransportText.includes('timeline-transport-chrome--capcut') ||
+    ganttTransportText.includes('GANTT_TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
     ganttTransportText.includes('aregrid/frame') ||
     ganttTransportText.includes('/Users/')
   ) {
@@ -778,6 +821,39 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   })
   if (!resizedGanttCode?.includes('Initial vert : vert, v1, 17:30, 4m')) {
     throw new Error('expected Gantt resize-end drag to update explicit minute duration')
+  }
+  const initialSpan = timelineModel.taskSpans.find(span => span.label === 'Initial vert')
+  if (!initialSpan) {
+    throw new Error('expected Gantt timeline model to expose the initial milestone span')
+  }
+  const initialPreview = resolveMermaidGanttTimelineDragPreviewSpan({
+    deltaMinutes: -5,
+    maxMinutes: timelineModel.durationMinutes,
+    mode: 'move',
+    span: initialSpan,
+  })
+  const initialEffectiveDelta = resolveMermaidGanttTimelineDragEffectiveDelta({
+    deltaMinutes: -5,
+    maxMinutes: timelineModel.durationMinutes,
+    mode: 'move',
+    span: initialSpan,
+  })
+  if (initialPreview.startMinutes !== 0 || initialEffectiveDelta !== 0) {
+    throw new Error('expected Gantt timeline transport to suppress source mutation when a start-boundary milestone cannot visually move')
+  }
+  const relativeMovedGanttCode = updateMermaidGanttCodeRowTiming({
+    code: [
+      'gantt',
+      '  dateFormat HH:mm',
+      '  Initial vert : vert, v1, 17:30, 2m',
+      '  Task A : 3m',
+    ].join('\n'),
+    rowLineIndex: 3,
+    mode: 'move',
+    deltaMinutes: 4,
+  })
+  if (!relativeMovedGanttCode?.includes('Task A : 17:36, 3m')) {
+    throw new Error('expected Gantt move drag to promote relative task rows to explicit HH:mm timing')
   }
   const markdownWithGantt = [
     '---',

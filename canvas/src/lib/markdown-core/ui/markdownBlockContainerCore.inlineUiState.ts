@@ -29,6 +29,7 @@ export const useMarkdownBlockContainerInlineUiState = (args: {
   const variableAnchorRef = React.useRef<HTMLSpanElement | null>(null)
   const linkAnchorRef = React.useRef<HTMLSpanElement | null>(null)
   const commentAnchorRef = React.useRef<HTMLSpanElement | null>(null)
+  const slashMenuRef = React.useRef<HTMLElement | null>(null)
   const bubbleRafRef = React.useRef(0)
   const rangeToken = React.useMemo(
     () => toMarkdownBlockInlineEditRangeToken(args.startLine, args.endLine),
@@ -67,6 +68,7 @@ export const useMarkdownBlockContainerInlineUiState = (args: {
     variableAnchorRef,
     linkAnchorRef,
     commentAnchorRef,
+    slashMenuRef,
     bubbleRafRef,
     bubbleScheduleKey,
     editorMouseUpSyncScheduleKey,

@@ -25,6 +25,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   const blockMarkdownFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.markdownFormatting.ts')
   const blockHtmlFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.htmlFormatting.ts')
   const blockBubbleToolbarOverlayPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.bubbleToolbarOverlay.tsx')
+  const blockInlineMenusOverlayPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.inlineMenusOverlay.tsx')
+  const blockCommandMenuPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.commandMenu.tsx')
   const blockCommitPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.commit.ts')
   const blockSelectionPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.selection.ts')
   const blockToolbarPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.toolbar.ts')
@@ -46,6 +48,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
     fs.existsSync(blockMarkdownFormattingPath) ? readUtf8(blockMarkdownFormattingPath) : '',
     fs.existsSync(blockHtmlFormattingPath) ? readUtf8(blockHtmlFormattingPath) : '',
     fs.existsSync(blockBubbleToolbarOverlayPath) ? readUtf8(blockBubbleToolbarOverlayPath) : '',
+    fs.existsSync(blockInlineMenusOverlayPath) ? readUtf8(blockInlineMenusOverlayPath) : '',
+    fs.existsSync(blockCommandMenuPath) ? readUtf8(blockCommandMenuPath) : '',
     fs.existsSync(blockCommitPath) ? readUtf8(blockCommitPath) : '',
     fs.existsSync(blockSelectionPath) ? readUtf8(blockSelectionPath) : '',
     fs.existsSync(blockToolbarPath) ? readUtf8(blockToolbarPath) : '',
@@ -172,6 +176,20 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!bubbleToolbarText.includes("title: 'Text color'") || !bubbleToolbarText.includes('preventDefaultPointerDown(event)')) {
     throw new Error('expected text color menu summary to preserve editor focus/selection on pointer down')
+  }
+  if (!bubbleToolbarText.includes('title="Slash commands"') || !bubbleToolbarText.includes('title="Variable commands"')) {
+    throw new Error('expected bubble toolbar to expose / and @ command menu triggers')
+  }
+  const inlineMenusText = readUtf8(blockInlineMenusOverlayPath)
+  const commandMenuText = readUtf8(blockCommandMenuPath)
+  if (!inlineMenusText.includes('MarkdownBlockContainerCommandMenu') || !inlineMenusText.includes('placeholder="Type a command"') || !inlineMenusText.includes('placeholder="Find variable or action"')) {
+    throw new Error('expected inline / and @ menus to reuse the shared command-menu owner with searchable action lists')
+  }
+  if (!commandMenuText.includes('filterMarkdownInlineCommandItems') || !commandMenuText.includes("event.key === 'ArrowDown'") || !commandMenuText.includes("event.key === 'Enter'")) {
+    throw new Error('expected markdown inline command menu to own filtered items and keyboard selection')
+  }
+  if (!blockText.includes('slashMenuRef') || !blockText.includes('active && slashNode && slashNode.contains(active)')) {
+    throw new Error('expected slash command menu focus to participate in the upstream inline-edit blur guard')
   }
   if (blockText.includes('<span style="color:')) {
     throw new Error('expected text color action to avoid html span style insertion and emit markdown sigil instead')

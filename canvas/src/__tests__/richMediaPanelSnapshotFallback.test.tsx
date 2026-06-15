@@ -965,6 +965,12 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
     if (editor.value !== 'Connected panel text') {
       throw new Error(`expected inline editor to open with connected panel text, got ${JSON.stringify(editor.value)}`)
     }
+    if (!container.querySelector('button[title="Slash commands"]')) {
+      throw new Error('expected RichMediaPanel text mode to enable shared slash commands')
+    }
+    if (!container.querySelector('button[title="Variable commands"]')) {
+      throw new Error('expected RichMediaPanel text mode to enable shared variable commands')
+    }
 
     await unmountReactRoot(root, { window: dom.window })
   } finally {

@@ -20,6 +20,7 @@ import {
 import { MarkdownBlockContainerBubbleToolbarOverlay } from './markdownBlockContainerCore.bubbleToolbarOverlay'
 import { MarkdownBlockContainerCommentPreviewOverlay } from './markdownBlockContainerCore.commentPreviewOverlay'
 import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContainerCore.inlineMenusOverlay'
+import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 
 export const MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS =
   '[caret-color:inherit] focus:outline-none focus-visible:outline-none'
@@ -46,6 +47,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   linkAnchorRef: React.RefObject<HTMLSpanElement | null>
   commentAnchorRef: React.RefObject<HTMLSpanElement | null>
   toolbarRef: React.RefObject<HTMLElement | null>
+  slashMenuRef: React.RefObject<HTMLElement | null>
   variableMenuRef: React.RefObject<HTMLElement | null>
   editDisableRichUi: boolean
   hasCachedSelection: boolean
@@ -82,6 +84,8 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   setVariableMenu: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number; query: string; keyInput: string; valueInput: string; fallbackInput: string; mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete' }>>
   variableSuggestions: Array<{ key: string; value?: string | null; source?: string }>
   applyVariableToken: (mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete', forcedKey?: string) => void
+  mediaCommandCandidates: InlineMediaCommandCandidate[]
+  applyMediaCommandCandidate: (candidate: InlineMediaCommandCandidate) => void
   onLinkSubmit: (event: React.FormEvent) => void
   onLinkHrefChange: (value: string) => void
   onLinkInputKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -192,6 +196,14 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         applyClearFormatting={props.applyClearFormatting}
         applyChecklist={props.applyChecklist}
         applyDivider={props.applyDivider}
+        openSlashCommandMenu={() => {
+          props.setSlashMenuStable({ show: true, leftPx: props.bubble.leftPx, topPx: props.bubble.topPx })
+          props.setVariableMenu(prev => ({ ...prev, show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' }))
+        }}
+        openVariableCommandMenu={() => {
+          props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
+          props.setVariableMenu(prev => ({ ...prev, show: true, leftPx: props.bubble.leftPx, topPx: props.bubble.topPx, query: '', keyInput: '', mode: 'ref' }))
+        }}
         handleDuplicate={props.handleDuplicate}
         handleDelete={props.handleDelete}
         selectionActions={props.selectionActions}
@@ -256,15 +268,21 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         slashAnchorRef={props.slashAnchorRef}
         variableAnchorRef={props.variableAnchorRef}
         linkAnchorRef={props.linkAnchorRef}
+        slashMenuRef={props.slashMenuRef}
         variableMenuRef={props.variableMenuRef}
         onToolbarInteract={props.holdToolbarInteraction}
         onVariableMenuMouseDownCapture={props.onVariableMenuMouseDownCapture}
         setSlashMenuStable={props.setSlashMenuStable}
+        applyTurnInto={props.applyTurnInto}
         applyDraftAction={(action) => props.applyDraftAction(action)}
         applyToggleHeading={props.applyToggleHeading}
+        applyChecklist={props.applyChecklist}
+        applyDivider={props.applyDivider}
         setVariableMenu={props.setVariableMenu}
         variableSuggestions={props.variableSuggestions}
         applyVariableToken={props.applyVariableToken}
+        mediaCommandCandidates={props.mediaCommandCandidates}
+        applyMediaCommandCandidate={props.applyMediaCommandCandidate}
         floatingMenuLeftW220ClassName={FLOATING_MENU_LEFT_W220_CLASSNAME}
         floatingMenuButtonClassName={FLOATING_MENU_BUTTON_CLASSNAME}
         floatingMenuButtonDangerClassName={FLOATING_MENU_BUTTON_DANGER_CLASSNAME}

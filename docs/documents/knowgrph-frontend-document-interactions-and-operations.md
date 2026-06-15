@@ -62,6 +62,27 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 **Apply Shortcut**: In Editor/Viewer layout modes, Cmd/Ctrl+Enter toggles Editor↔Viewer. When in Editor, it applies and then switches to Viewer.
 
+### Shared Inline Command Invocation
+
+**Supported Surfaces**:
+- Canvas card inline editors (including Storyboard and Strybldr cards)
+- Markdown Viewer / WYSIWYG editable blocks
+- Workflow Manager graph fields
+- Renderer-adjacent rich media text fields that commit through shared markdown/frontmatter or graph-field owners
+
+**Triggers**:
+- `/` opens shared slash actions such as headings, lists, quotes, code blocks, and media placeholders.
+- `@` opens shared variable, reference, image, and video insertion actions.
+
+**Media Behavior**:
+- `@` image and video insertion rows must display derived thumbnails or previews when available from shared media/reference candidates.
+- Image/video picks insert persistent inline content, not transient overlay state.
+- Indexed or imported media references must survive blur, block rerender, canvas card reprojection, and document reload through the same owner-path persistence used by the active text surface.
+
+**Floating Panel Relationship**:
+- Floating Panel `Command Menu` is a discovery and inspection view over the same command catalog used inline.
+- It may present commands in a richer right-side panel layout, but command keys, prefixes, descriptions, grouping, thumbnails, insertion payloads, and persistence rules remain shared.
+
 ### Full Screen Presentation
 
 **Entry**: Dedicated "Enter Full Screen" button (`Maximize2`) in toolbar when in Presentation mode. Gallery is selected through Canvas View Mode as `2D Renderer: Gallery`.
@@ -117,6 +138,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 | Selection Sync       | Maintain bidirectional link     | - [ ] Track provenance metadata; update both views; forbid desync                          | MarkdownSection  | syncSelection   | selection event      | updated views       | Provenance lookup + scroll       |
 | Auto-Scroll          | Position source in viewport     | - [ ] Calculate line offset; scroll to top; apply flash; forbid mid-viewport placement    | MonacoEditor     | scrollToLine    | line number          | scroll position     | Line to pixel + viewport offset  |
 | Token Sharing        | Optimize rendering              | - [ ] Lex once; share tokens; preserve line maps; forbid redundant lexing                 | MarkdownTokens   | useTokens       | markdown text        | shared tokens       | Marked lexer + memoization       |
+| Inline Command Menus | Keep text actions consistent    | - [ ] Reuse one `/` and `@` catalog across card, viewer, and workflow fields; persist through owner writes; forbid surface-local command forks | Inline editors + Workflow Manager | invokeCommandMenu | trigger + selection + media candidates | inserted text or media payload | Shared catalog lookup + owner-path commit |
 | Fullscreen Toggle    | Maximize presentation           | - [ ] Enter native fullscreen; auto-hide sidebar; reset zoom; forbid jarring transitions  | Presentation     | enterFullscreen | void                 | fullscreen state    | Fullscreen API + state updates   |
 
 ---

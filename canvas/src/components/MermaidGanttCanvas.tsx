@@ -11,12 +11,14 @@ import {
 } from '@/lib/mermaid/mermaidDiagramSelection'
 import { resolveDiagramRowKey } from '@/lib/diagram/diagramRowSelection'
 import {
+  buildMermaidGanttTimelineModel,
   MERMAID_GANTT_BAR_MIN_INTERACTION_HEIGHT_PX,
   MERMAID_GANTT_BAR_MIN_INTERACTION_WIDTH_PX,
   MermaidGanttBarDragMode,
   replaceFirstMermaidGanttFrontmatterCode,
   resolveMermaidGanttBarDragCommitted,
   resolveMermaidGanttBarDragPreview,
+  resolveMermaidGanttTimelineDragEffectiveDelta,
   shouldExposeMermaidGanttBarInteraction,
   updateMermaidGanttCodeRowTiming,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
@@ -196,6 +198,7 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
 
   React.useEffect(() => {
     if (!dragState) return
+    let maxMovedPx = 0
     const onPointerMove = (event: PointerEvent) => {
       if (event.pointerId !== dragState.pointerId) return
       const preview = resolveMermaidGanttBarDragPreview({
@@ -203,6 +206,7 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
         originClientX: dragState.originClientX,
         clientX: event.clientX,
       })
+      maxMovedPx = Math.max(maxMovedPx, Math.abs(preview.deltaPx))
       setDragPreview({
         left: Math.max(0, dragState.originRect.left + preview.offsetPx),
         top: dragState.originRect.top,
@@ -220,18 +224,32 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
       const committed = resolveMermaidGanttBarDragCommitted(preview.deltaPx)
       setDragState(null)
       setDragPreview(null)
-      if (!committed) return
+      if (!committed || !resolveMermaidGanttBarDragCommitted(maxMovedPx)) return
       if (dragState.markdownDocumentName !== markdownDocumentName || dragState.markdownText !== markdownText) {
         setInteractionRect(resolveGanttInteractionRect(rootRef.current, selectedRowKey))
         return
       }
       const minutesPerPixel = readGanttMinutesPerPixel(rootRef.current)
       const deltaMinutes = minutesPerPixel == null ? 0 : Math.round(preview.deltaPx * minutesPerPixel)
+      const timelineModel = buildMermaidGanttTimelineModel(code)
+      const timelineSpan = timelineModel.taskSpans.find(span => span.lineIndex === dragState.rowLineIndex)
+      const effectiveDeltaMinutes = timelineSpan
+        ? resolveMermaidGanttTimelineDragEffectiveDelta({
+          deltaMinutes,
+          maxMinutes: timelineModel.durationMinutes,
+          mode: dragState.mode,
+          span: timelineSpan,
+        })
+        : deltaMinutes
+      if (effectiveDeltaMinutes === 0) {
+        setInteractionRect(resolveGanttInteractionRect(rootRef.current, selectedRowKey))
+        return
+      }
       const nextCode = dragState.rowLineIndex == null ? null : updateMermaidGanttCodeRowTiming({
         code,
         rowLineIndex: dragState.rowLineIndex,
         mode: dragState.mode,
-        deltaMinutes,
+        deltaMinutes: effectiveDeltaMinutes,
       })
       const nextMarkdownText = nextCode ? replaceFirstMermaidGanttFrontmatterCode(markdownText, nextCode) : null
       if (nextMarkdownText && nextMarkdownText !== markdownText) {
@@ -242,13 +260,19 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
         setInteractionRect(resolveGanttInteractionRect(rootRef.current, selectedRowKey))
       }
     }
+    const onPointerCancel = (event: PointerEvent) => {
+      if (event.pointerId !== dragState.pointerId) return
+      setDragState(null)
+      setDragPreview(null)
+      setInteractionRect(resolveGanttInteractionRect(rootRef.current, selectedRowKey))
+    }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     window.addEventListener('pointerup', onPointerUp, { passive: true })
-    window.addEventListener('pointercancel', onPointerUp, { passive: true })
+    window.addEventListener('pointercancel', onPointerCancel, { passive: true })
     return () => {
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
-      window.removeEventListener('pointercancel', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerCancel)
     }
   }, [code, dragState, markdownDocumentName, markdownText, selectedRowKey, setMarkdownDocument, setMermaidDiagramSelectedRowKey])
 
@@ -269,6 +293,11 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
       rowLineIndex: selectedLineIndex,
     })
   }, [interactionRect, markdownDocumentName, markdownText, selectedLineIndex])
+
+  const stopGanttHandleClick = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }, [])
 
   const activeInteractionRect = dragPreview || interactionRect
   const interactionStyle = activeInteractionRect ? ({
@@ -323,6 +352,7 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
             className="absolute -left-1 top-0 h-full w-2 cursor-ew-resize rounded-sm border border-[var(--kg-accent)] bg-[var(--kg-canvas-bg)]"
             data-kg-canvas-pointer-ignore="true"
             data-kg-gantt-bar-drag-mode="resize-start"
+            onClick={stopGanttHandleClick}
             onPointerDown={event => handleBarPointerStart(event, 'resize-start')}
           />
           <button
@@ -331,6 +361,7 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
             className="absolute inset-y-0 left-2 right-2 cursor-grab rounded-sm"
             data-kg-canvas-pointer-ignore="true"
             data-kg-gantt-bar-drag-mode="move"
+            onClick={stopGanttHandleClick}
             onPointerDown={event => handleBarPointerStart(event, 'move')}
           />
           <button
@@ -339,6 +370,7 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
             className="absolute -right-1 top-0 h-full w-2 cursor-ew-resize rounded-sm border border-[var(--kg-accent)] bg-[var(--kg-canvas-bg)]"
             data-kg-canvas-pointer-ignore="true"
             data-kg-gantt-bar-drag-mode="resize-end"
+            onClick={stopGanttHandleClick}
             onPointerDown={event => handleBarPointerStart(event, 'resize-end')}
           />
         </section>

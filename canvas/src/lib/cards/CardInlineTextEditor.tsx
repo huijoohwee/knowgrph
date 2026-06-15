@@ -1,6 +1,10 @@
 import React from 'react'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
+import {
+  CardInlineTextCommandMenus,
+  type CardInlineTextCommandMenuMode,
+} from '@/lib/cards/CardInlineTextCommandMenus'
 import { hasCardMarkdownPreviewSyntax } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -21,6 +25,8 @@ type CardInlineTextEditorProps = {
   editorClassName?: string
   emptyClassName?: string
   markdownPreview?: boolean | 'auto'
+  markdownCommandMenus?: boolean
+  markdownCommandContextText?: string
   rows?: number
   stopActivationPropagation?: boolean
   onCommit?: (nextValue: string) => void
@@ -29,6 +35,30 @@ type CardInlineTextEditorProps = {
 
 const normalizeEditorValue = (value: string): string => String(value ?? '').replace(/\r/g, '')
 const CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE = 'data-kg-card-inline-edit-input'
+const CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE = 'data-kg-card-inline-command-root'
+const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
+
+function readInputSelection(input: HTMLInputElement | HTMLTextAreaElement | null): { start: number; end: number } {
+  if (!input) return { start: 0, end: 0 }
+  const length = String(input.value || '').length
+  const rawStart = typeof input.selectionStart === 'number' ? input.selectionStart : length
+  const rawEnd = typeof input.selectionEnd === 'number' ? input.selectionEnd : rawStart
+  const start = Math.max(0, Math.min(length, rawStart))
+  const end = Math.max(0, Math.min(length, rawEnd))
+  return { start: Math.min(start, end), end: Math.max(start, end) }
+}
+
+function focusInputSelectionSoon(input: HTMLInputElement | HTMLTextAreaElement | null, start: number, end: number = start) {
+  if (!input) return
+  window.requestAnimationFrame(() => {
+    try {
+      input.focus({ preventScroll: true })
+      input.setSelectionRange(start, end)
+    } catch {
+      void 0
+    }
+  })
+}
 
 export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null): boolean {
   const doc = ownerDocument || (typeof document !== 'undefined' ? document : null)
@@ -36,7 +66,13 @@ export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null
   if (!active) return false
   const elementCtor = active.ownerDocument?.defaultView?.HTMLElement || (typeof HTMLElement !== 'undefined' ? HTMLElement : null)
   if (!elementCtor || !(active instanceof elementCtor)) return false
-  if (!active.matches(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`)) return false
+  if (!active.matches(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`)) {
+    const commandRoot = active.closest(`[${CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE}]`)
+    const commandInput = commandRoot?.querySelector(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`) as HTMLElement | null
+    if (!commandInput) return false
+    commandInput.blur()
+    return true
+  }
   active.blur()
   return true
 }
@@ -79,6 +115,8 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     editorClassName,
     emptyClassName,
     markdownPreview = false,
+    markdownCommandMenus = true,
+    markdownCommandContextText = '',
     rows,
     stopActivationPropagation = true,
     onCommit,
@@ -86,13 +124,26 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   } = props
   const [editing, setEditing] = React.useState(false)
   const [draft, setDraft] = React.useState(() => normalizeEditorValue(value))
+  const [commandMode, setCommandMode] = React.useState<CardInlineTextCommandMenuMode | null>(null)
+  const [commandQuery, setCommandQuery] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+  const commandRootRef = React.useRef<HTMLElement | null>(null)
   const lastEditRequestKeyRef = React.useRef<string | number | null>(null)
   const lastEditingRef = React.useRef(editing)
+  const lastCommandPersistedDraftRef = React.useRef('')
+  const commandSelectionRef = React.useRef<{ start: number; end: number }>({ start: 0, end: 0 })
+
+  const isCommandMenuTarget = React.useCallback((target: EventTarget | null): boolean => {
+    if (!isElementEventTarget(target)) return false
+    return !!commandRootRef.current?.contains(target) || !!target.closest(`[${CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE}]`)
+  }, [])
 
   React.useEffect(() => {
     if (editing) return
     setDraft(normalizeEditorValue(value))
+    if (lastCommandPersistedDraftRef.current === normalizeEditorValue(value)) {
+      lastCommandPersistedDraftRef.current = ''
+    }
   }, [editing, value])
 
   React.useEffect(() => {
@@ -131,13 +182,49 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const commit = React.useCallback(() => {
     const next = normalizeEditorValue(inputRef.current?.value ?? draft)
     setEditing(false)
+    setCommandMode(null)
+    setCommandQuery('')
     if (next === normalizeEditorValue(value)) return
+    if (next === lastCommandPersistedDraftRef.current) return
     onCommit?.(next)
   }, [draft, onCommit, value])
+
+  React.useEffect(() => {
+    if (!editing || !commandMode) return
+    const ownerDocument = inputRef.current?.ownerDocument || (typeof document !== 'undefined' ? document : null)
+    if (!ownerDocument) return
+    const onDocumentPointerDown = (event: PointerEvent) => {
+      if (isCommandMenuTarget(event.target)) return
+      commit()
+    }
+    ownerDocument.addEventListener('pointerdown', onDocumentPointerDown, true)
+    return () => {
+      ownerDocument.removeEventListener('pointerdown', onDocumentPointerDown, true)
+    }
+  }, [commandMode, commit, editing, isCommandMenuTarget])
+
+  const persistCommandDraft = React.useCallback((nextValue: string) => {
+    const next = normalizeEditorValue(nextValue)
+    const input = inputRef.current
+    if (input && input.value !== next) input.value = next
+    if (next === normalizeEditorValue(value)) return
+    if (next === lastCommandPersistedDraftRef.current) return
+    lastCommandPersistedDraftRef.current = next
+    onCommit?.(next)
+  }, [onCommit, value])
+
+  const finishCommandDraft = React.useCallback((nextValue: string) => {
+    persistCommandDraft(nextValue)
+    setEditing(false)
+    setCommandMode(null)
+    setCommandQuery('')
+  }, [persistCommandDraft])
 
   const cancel = React.useCallback(() => {
     setDraft(normalizeEditorValue(value))
     setEditing(false)
+    setCommandMode(null)
+    setCommandQuery('')
   }, [value])
 
   const openEditorFromDisplayEvent = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
@@ -157,45 +244,94 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const showMarkdownPreview =
     !showPlaceholder
     && (markdownPreview === true || (markdownPreview === 'auto' && hasCardMarkdownPreviewSyntax(value)))
+  const enableMarkdownCommandMenus = markdownCommandMenus !== false && multiline === true
+
+  const openCommandMenu = React.useCallback((mode: CardInlineTextCommandMenuMode, seedQuery: string = '') => {
+    commandSelectionRef.current = readInputSelection(inputRef.current)
+    setCommandMode(mode)
+    setCommandQuery(seedQuery)
+  }, [])
+
+  const closeCommandMenu = React.useCallback(() => {
+    setCommandMode(null)
+    setCommandQuery('')
+    focusInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
+  }, [])
 
   if (editing && canEdit) {
     return (
-      <PlainTextInputEditor
-        id={id}
-        ref={inputRef}
-        value={draft}
-        onChange={setDraft}
-        onBlur={() => {
-          commit()
-        }}
-        onKeyDown={event => {
-          event.stopPropagation()
-          if (event.key === 'Escape') {
-            event.preventDefault()
-            cancel()
-            return
-          }
-          if (!multiline && event.key === 'Enter') {
-            event.preventDefault()
+      <section
+        ref={commandRootRef}
+        className="relative h-full min-h-0 w-full"
+        {...{ [CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE]: '1' }}
+      >
+        <PlainTextInputEditor
+          id={id}
+          ref={inputRef}
+          value={draft}
+          onChange={setDraft}
+          onBlur={event => {
+            const relatedTarget = event.relatedTarget
+            if (isCommandMenuTarget(relatedTarget)) return
+            if (commandMode) return
             commit()
-            return
-          }
-          if (multiline && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-            event.preventDefault()
-            commit()
-          }
-        }}
-        placeholder={placeholder}
-        ariaLabel={ariaLabel}
-        multiline={multiline}
-        rows={rows ?? (multiline ? 3 : undefined)}
-        spellCheck
-        className={editorClassName}
-        dataAttributes={{ [CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1' }}
-        onDoubleClick={event => {
-          event.stopPropagation()
-        }}
-      />
+          }}
+          onKeyDown={event => {
+            event.stopPropagation()
+            if (event.key === 'Escape') {
+              if (commandMode) {
+                event.preventDefault()
+                closeCommandMenu()
+                return
+              }
+              event.preventDefault()
+              cancel()
+              return
+            }
+            if (enableMarkdownCommandMenus && !event.metaKey && !event.ctrlKey && !event.altKey && (event.key === '/' || event.key === '@')) {
+              event.preventDefault()
+              openCommandMenu(event.key === '/' ? 'slash' : 'variable')
+              return
+            }
+            if (!multiline && event.key === 'Enter') {
+              event.preventDefault()
+              commit()
+              return
+            }
+            if (multiline && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault()
+              commit()
+            }
+          }}
+          placeholder={placeholder}
+          ariaLabel={ariaLabel}
+          multiline={multiline}
+          rows={rows ?? (multiline ? 3 : undefined)}
+          spellCheck
+          className={editorClassName}
+          dataAttributes={{ [CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1' }}
+          onDoubleClick={event => {
+            event.stopPropagation()
+          }}
+        />
+        {enableMarkdownCommandMenus ? (
+          <CardInlineTextCommandMenus
+            commandMode={commandMode}
+            commandQuery={commandQuery}
+            commandSelectionRef={commandSelectionRef}
+            commandContextText={markdownCommandContextText}
+            draft={draft}
+            inputRef={inputRef}
+            openCommandMenu={openCommandMenu}
+            closeCommandMenu={closeCommandMenu}
+            setCommandQuery={setCommandQuery}
+            setCommandMode={setCommandMode}
+            setDraft={setDraft}
+            onCommandDraftChange={persistCommandDraft}
+            onCommandDraftApplied={finishCommandDraft}
+          />
+        ) : null}
+      </section>
     )
   }
 
