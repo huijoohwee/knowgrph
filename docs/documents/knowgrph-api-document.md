@@ -83,6 +83,62 @@ Production API work must keep root-owned configuration, path policy, provider di
 
 ## Production Worker API
 
+### Pages Chat Relay: `__chat_proxy`
+
+Route owner: `huijoohwee/functions/__chat_proxy/[[path]].js`. Public route: `airvio.co/__chat_proxy/*`. Shared helper owner: `huijoohwee/functions/api/_integrationHub.js`. Deploy owner: `npm run pages:deploy-cloudflare` from `knowgrph`, which uploads the `huijoohwee` publish repo to Cloudflare Pages project `joohwee`.
+
+This route is a Cloudflare Pages Function relay, not a persistence owner. It enforces the provider host allowlist, injects BYOK or server-managed Authorization headers, bounds the upstream timeout, and returns `cache-control: no-store`. It does not create user identity, workspace membership, role-based authorization, or a collaboration room record.
+
+#### Current Route Contract
+
+| Surface | Current owner | Public route | Runtime persistence | Secret/config owner |
+|---|---|---|---|---|
+| Chat relay | `huijoohwee/functions/__chat_proxy/[[path]].js` | `airvio.co/__chat_proxy/*` | None; stateless proxy only | Cloudflare Pages project `joohwee` |
+| Shared integration helpers | `huijoohwee/functions/api/_integrationHub.js` | Internal helper | None | Cloudflare Pages project `joohwee` |
+| Route manifest | `huijoohwee/_routes.json` | `airvio.co/__chat_proxy/*` inclusion | Generated deploy artifact | Cloudflare Pages bundle |
+
+#### Cloudflare Pages Variables And Secrets For This Route
+
+| Name | Role | Source owner |
+|---|---|---|
+| `KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY` | Server-managed OpenAI proxy key | Cloudflare Pages project secret |
+| `KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY` | Server-managed MiroMind proxy key | Cloudflare Pages project secret |
+| `KNOWGRPH_CHAT_PROXY_AGNES_API_KEY` | Server-managed Agnes proxy key | Cloudflare Pages project secret |
+| `KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY` | Server-managed BytePlus proxy key | Cloudflare Pages project secret |
+| `OPENAI_API_KEY` | Fallback OpenAI proxy key alias | Cloudflare Pages project secret; cleanup debt only |
+| `MIROMIND_API_KEY` | Fallback MiroMind proxy key alias | Cloudflare Pages project secret; cleanup debt only |
+| `AGNES_API_KEY` | Fallback Agnes proxy key alias | Cloudflare Pages project secret; cleanup debt only |
+| `BYTEPLUS_API_KEY` | Fallback BytePlus proxy key alias | Cloudflare Pages project secret; cleanup debt only |
+| `KNOWGRPH_CHAT_PROXY_UPSTREAM` | Optional upstream base override | Cloudflare Pages project variable |
+| `KNOWGRPH_CHAT_PROXY_TIMEOUT_MS` | Upstream timeout override | Cloudflare Pages project variable |
+| `KNOWGRPH_INTEGRATION_ALLOWED_HOSTS` | Canonical additional host allowlist | Cloudflare Pages project variable |
+| `KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS` | Legacy host allowlist alias | Cloudflare Pages project variable; cleanup debt only |
+
+#### GitHub To Cloudflare Deploy Chain For This Route
+
+1. Edit the production route owner in `huijoohwee/functions/__chat_proxy/[[path]].js` or update the canonical source/deploy logic in `knowgrph`.
+2. From `knowgrph`, run `npm run pages:build-sync` so the publish repo mirror stays aligned.
+3. From `knowgrph`, run `npm run pages:functions:build` to build the Pages Functions bundle and regenerate `huijoohwee/_worker.js` plus `huijoohwee/_routes.json`.
+4. From `knowgrph`, run `npm run pages:deploy-cloudflare`, which executes `wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true`.
+5. Cloudflare Pages project `joohwee` serves the updated `__chat_proxy` route at `airvio.co/__chat_proxy/*`.
+
+#### Recommended Successor Route
+
+The browser should stop calling `airvio.co/__chat_proxy/*` directly once authenticated multi-user collaboration is promoted to production. Keep `__chat_proxy` as the narrow upstream relay and introduce a source-owned authenticated server route:
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/chat/relay` | Authenticate the caller, resolve workspace membership, enforce per-provider policy/quota, append audit rows, then delegate to the current `__chat_proxy` relay logic |
+| GET | `/api/chat/policies/{workspaceId}` | Return the provider modes, quotas, and auth capabilities visible to the current member |
+| GET | `/api/chat/audit/{workspaceId}` | Return bounded workspace-scoped relay audit entries to owners/admins only |
+
+#### Migration Contract
+
+- Phase 1: keep `__chat_proxy` available for Dev, BYOK experiments, and internal server delegation.
+- Phase 2: route the browser MainPanel chat submit path through `/api/chat/relay` whenever the workspace has authenticated membership enabled.
+- Phase 3: deny direct browser use of server-managed provider mode on `__chat_proxy`; allow only server-internal delegation or explicit BYOK fallback.
+- Phase 4: treat `__chat_proxy` as infrastructure-only and move all user-facing authz, quota, and audit semantics to `/api/chat/relay`.
+
 ### Storage Worker: `knowgrph-storage`
 
 Route owner: `cloudflare/workers/knowgrph-storage`. Cloudflare route: `airvio.co/api/storage/*`. The Worker owns the D1 schema/query layer through Drizzle; browser storage is cache-only and is not the canonical persistence surface.
@@ -100,8 +156,22 @@ Canonical public/browser URL space stays on `https://airvio.co/api/storage/*`. S
 | GET | `/api/storage/source-files/{workspaceId}` | Serve a workspace-scoped Source Files crawler index |
 | GET | `/api/storage/llms.txt` | Serve the default LLM crawler entrypoint |
 | GET | `/api/storage/source-files/{workspaceId}/llms.txt` | Serve a workspace-scoped LLM crawler entrypoint |
+| GET | `/api/storage/chat/session` | Resolve the authenticated browser caller and workspace memberships from the storage auth session |
+| GET | `/api/storage/chat/policies/{workspaceId}` | Return workspace-scoped provider policy for the authenticated caller |
+| POST | `/api/storage/chat/relay` | Authenticate the browser caller, authorize provider access, append audit rows, then delegate internally to `__chat_proxy` |
+| GET | `/api/storage/chat/audit/{workspaceId}` | Return bounded workspace-scoped chat relay audit rows for owner/provider-admin |
 
 Crawler access is read-only. It reads existing D1 document rows and doc-view links; it does not import, parse, render, mutate storage, or emulate Cloudflare Pay Per Crawl.
+
+Browser chat relay opt-in is Dev-scoped and fail-closed. The current client only activates the storage relay after all three browser env vars are present and the browser successfully resolves both the authenticated storage chat session and the workspace provider policies:
+
+| Browser env | Purpose |
+|---|---|
+| `VITE_KNOWGRPH_STORAGE_BASE_URL` | Absolute origin for storage Worker browser calls |
+| `VITE_KNOWGRPH_STORAGE_WORKSPACE_ID` | Workspace identity resolved by the browser storage/chat client |
+| `VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN` | Authenticated chat session token forwarded as `Authorization: Bearer ...` to `/api/storage/chat/*` |
+
+When any of the three values is absent, unsupported, or invalid, the browser falls back to the existing direct `__chat_proxy` submit path. When the env is present but the authenticated workspace policy is still loading or explicitly blocks the selected provider/auth mode, submit fails closed in the browser instead of bypassing policy with a direct proxy POST. The current storage relay path is non-streaming and unwraps the upstream JSON body back into the existing chat response parser contract.
 
 Pay Per Crawl headers are Cloudflare-owned:
 

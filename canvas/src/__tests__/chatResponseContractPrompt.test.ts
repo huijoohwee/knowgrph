@@ -29,7 +29,10 @@ import {
   resolvePreferredFallbackModel,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTransport'
 import type { FloatingPanelChatSubmitArgs } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTypes'
-import { buildSubmitArgsFixture } from '@/__tests__/helpers/chatSubmitArgsFixture'
+import {
+  buildStorageChatRelayDecisionFixture,
+  buildSubmitArgsFixture,
+} from '@/__tests__/helpers/chatSubmitArgsFixture'
 import {
   buildChatSubmitPayloadMessages,
   buildChatSubmitRequestContext,
@@ -295,6 +298,63 @@ export function testResolveChatSubmitRequestUrlOrSetErrorRejectsMissingAgnesByok
   }
 }
 
+export function testResolveChatSubmitRequestUrlOrSetErrorPrefersStorageRelayWhenConfigured() {
+  const errors: Array<string | null> = []
+  const connectivity: Array<'unknown' | 'ok' | 'error'> = []
+  const connectivityDetail: Array<string | null> = []
+  const requestUrl = resolveChatSubmitRequestUrlOrSetError({
+    chatModel: 'agnes-2.0-flash',
+    chatEndpointUrl: 'https://apihub.agnes-ai.com/v1/chat/completions',
+    chatProvider: 'agnes-ai',
+    chatAuthMode: 'serverManaged',
+    chatApiKey: null,
+    storageChatRelayDecision: buildStorageChatRelayDecisionFixture({
+      kind: 'ready',
+      providerId: 'agnes-ai',
+    }),
+    setErrorText: value => { errors.push(typeof value === 'function' ? null : value) },
+    setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
+    setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
+  })
+  if (requestUrl !== 'https://storage.example.test/api/storage/chat/relay') {
+    throw new Error(`Expected chat submit preflight to prefer configured storage relay URL, got ${String(requestUrl)}`)
+  }
+  if (errors.length > 0 || connectivity.length > 0 || connectivityDetail.length > 0) {
+    throw new Error(`Expected relay preflight to succeed without mutating error/connectivity state, got ${JSON.stringify({ errors, connectivity, connectivityDetail })}`)
+  }
+}
+
+export function testResolveChatSubmitRequestUrlOrSetErrorBlocksStorageRelayWhenWorkspacePolicyDisallowsMode() {
+  const errors: Array<string | null> = []
+  const connectivity: Array<'unknown' | 'ok' | 'error'> = []
+  const connectivityDetail: Array<string | null> = []
+  const requestUrl = resolveChatSubmitRequestUrlOrSetError({
+    chatModel: 'agnes-2.0-flash',
+    chatEndpointUrl: 'https://apihub.agnes-ai.com/v1/chat/completions',
+    chatProvider: 'agnes-ai',
+    chatAuthMode: 'serverManaged',
+    chatApiKey: null,
+    storageChatRelayDecision: buildStorageChatRelayDecisionFixture({
+      kind: 'blocked',
+      providerId: 'agnes-ai',
+      authMode: 'serverManaged',
+      detail: 'Agnes AI server-managed relay is not enabled for this workspace.',
+    }),
+    setErrorText: value => { errors.push(typeof value === 'function' ? null : value) },
+    setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
+    setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
+  })
+  if (requestUrl !== null) {
+    throw new Error(`Expected blocked storage relay preflight to stop submit, got ${String(requestUrl)}`)
+  }
+  if (errors[0] !== 'Agnes AI server-managed relay is not enabled for this workspace.') {
+    throw new Error(`Expected blocked relay preflight to publish the policy error, got ${JSON.stringify(errors)}`)
+  }
+  if (connectivity[0] !== 'error' || connectivityDetail[0] !== errors[0]) {
+    throw new Error(`Expected blocked relay preflight to set error connectivity, got ${JSON.stringify({ connectivity, connectivityDetail })}`)
+  }
+}
+
 export function testInitializeChatSubmitOptimisticStateInsertsPendingAssistantAndCachesHistory() {
   const errorWrites: Array<string | null> = []
   const connectivityDetailWrites: Array<string | null> = []
@@ -402,6 +462,100 @@ export async function testCreateChatSubmitRequestSenderBuildsKnowgrphPayloadWith
   }
   if (captured.body.stream !== true) {
     throw new Error(`Expected request sender helper to force streaming payloads, got: ${String(captured.body.stream)}`)
+  }
+}
+
+export async function testCreateChatSubmitRequestSenderUsesStorageRelayWhenSessionEnvIsPresent() {
+  let capturedRelayRequest: {
+    url: string
+    method: string
+    authorization: string
+    requestId: string
+    body: Record<string, unknown>
+  } | null = null
+  const submitArgs = buildSubmitArgsFixture({
+    chatProvider: 'agnes-ai',
+    chatAuthMode: 'serverManaged',
+    chatStorageTarget: 'chatKnowgrph',
+    chatEndpointUrl: 'https://apihub.agnes-ai.com/v1/chat/completions',
+    chatModel: 'agnes-2.0-flash',
+    chatMaxCompletionTokens: 100,
+    chatTopP: 0.5,
+    storageChatRelayDecision: buildStorageChatRelayDecisionFixture({
+      kind: 'ready',
+      providerId: 'agnes-ai',
+      authMode: 'serverManaged',
+    })
+  })
+  const sender = createChatSubmitRequestSender({
+    submitArgs,
+    requestUrl: 'https://storage.example.test/api/storage/chat/relay',
+    controller: new AbortController(),
+    fetchFn: async (input, init) => {
+      capturedRelayRequest = {
+        url: String(input),
+        method: String(init?.method || ''),
+        authorization: String(new Headers(init?.headers).get('authorization') || ''),
+        requestId: String(new Headers(init?.headers).get('x-client-request-id') || ''),
+        body: JSON.parse(String(init?.body || '{}')) as Record<string, unknown>,
+      }
+      return new Response(JSON.stringify({
+        ok: true,
+        apiVersion: '2026-05-04',
+        workspaceId: 'kgws:test-chat',
+        providerId: 'agnes-ai',
+        authMode: 'serverManaged',
+        upstreamStatus: 200,
+        relayStatus: 'allowed',
+        body: {
+          choices: [{ message: { role: 'assistant', content: 'relay-ok' } }],
+        },
+      }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    },
+  })
+  const response = await sender('agnes-2.0-flash', [{ role: 'user', content: 'ping' }], 'max_tokens')
+  const responseJson = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
+  if (response.status !== 200 || responseJson.choices?.[0]?.message?.content !== 'relay-ok') {
+    throw new Error(`Expected storage relay sender to unwrap upstream body into chat payload shape, got ${JSON.stringify({ status: response.status, responseJson })}`)
+  }
+  if (!capturedRelayRequest) {
+    throw new Error('Expected storage relay sender to invoke storage relay URL')
+  }
+  if (capturedRelayRequest.url !== 'https://storage.example.test/api/storage/chat/relay') {
+    throw new Error(`Expected storage relay sender to post to storage relay URL, got ${capturedRelayRequest.url}`)
+  }
+  if (capturedRelayRequest.method !== 'POST') {
+    throw new Error(`Expected storage relay sender to use POST, got ${capturedRelayRequest.method}`)
+  }
+  if (capturedRelayRequest.authorization !== 'Bearer sess:test') {
+    throw new Error(`Expected storage relay sender to forward bearer session token, got ${capturedRelayRequest.authorization}`)
+  }
+  if (!capturedRelayRequest.requestId.startsWith('kg-chat-')) {
+    throw new Error(`Expected storage relay sender to emit a client request id, got ${capturedRelayRequest.requestId}`)
+  }
+  if (capturedRelayRequest.body.apiVersion !== '2026-05-04') {
+    throw new Error(`Expected storage relay sender to use storage API version payload, got ${JSON.stringify(capturedRelayRequest.body)}`)
+  }
+  if (capturedRelayRequest.body.workspaceId !== 'kgws:test-chat') {
+    throw new Error(`Expected storage relay sender to pass workspace id from relay decision, got ${JSON.stringify(capturedRelayRequest.body)}`)
+  }
+  if (capturedRelayRequest.body.providerId !== 'agnes-ai') {
+    throw new Error(`Expected storage relay sender to pass provider id, got ${JSON.stringify(capturedRelayRequest.body)}`)
+  }
+  if (capturedRelayRequest.body.authMode !== 'serverManaged') {
+    throw new Error(`Expected storage relay sender to pass auth mode, got ${JSON.stringify(capturedRelayRequest.body)}`)
+  }
+  if (capturedRelayRequest.body.stream !== false) {
+    throw new Error(`Expected storage relay sender to force non-stream relay payload, got ${JSON.stringify(capturedRelayRequest.body)}`)
+  }
+  const providerOptions = capturedRelayRequest.body.providerOptions as Record<string, unknown> | null
+  if (!providerOptions || providerOptions.max_tokens !== 4000) {
+    throw new Error(`Expected storage relay sender to preserve chatKnowgrph token floor inside provider options, got ${JSON.stringify(capturedRelayRequest.body)}`)
   }
 }
 

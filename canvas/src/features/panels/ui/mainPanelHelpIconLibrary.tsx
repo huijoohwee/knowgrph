@@ -51,6 +51,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'mainPanel.commerce',
   'mainPanel.research',
   'mainPanel.design',
+  'mainPanel.skillsCommands',
   'mainPanel.workflowManager',
   'mainPanel.dashboard',
   'mainPanel.preview',
@@ -279,6 +280,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Design',
     Icon: Palette,
   },
+  'mainPanel.skillsCommands': {
+    category: 'MainPanel surface',
+    label: 'Skills & Commands',
+    Icon: CommandIcon,
+  },
   'mainPanel.workflowManager': {
     category: 'MainPanel surface',
     label: 'Workflow Manager',
@@ -494,6 +500,7 @@ export const MAIN_PANEL_TAB_TYPE_ICON_KEY_BY_TAB = {
   commerce: 'mainPanel.commerce',
   research: 'mainPanel.research',
   design: 'mainPanel.design',
+  skillsCommands: 'mainPanel.skillsCommands',
   workflowManager: 'mainPanel.workflowManager',
   dashboard: 'mainPanel.dashboard',
   preview: 'mainPanel.preview',

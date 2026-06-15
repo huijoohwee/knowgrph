@@ -49,6 +49,7 @@ const EMPTY_HISTORY: HistoryEntry[] = []
 const EMPTY_RECENT_FILES: RecentFileEntry[] = []
 const EMPTY_UI_LOG_ENTRIES: UiLogEntry[] = []
 const EMPTY_CHAT_EXCHANGE_LOG_ENTRIES: ChatExchangeLogEntry[] = []
+type LogFilter = 'all' | 'relay'
 
 function useSemanticSnapshot<T>(value: T, signature: string): T {
   const ref = React.useRef<{ signature: string; value: T } | null>(null)
@@ -183,12 +184,16 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     })),
   )
   const [tab, setTab] = React.useState<HistorySubTab>('chat')
+  const [logFilter, setLogFilter] = React.useState<LogFilter>('all')
   React.useEffect(() => {
     if (!requestedHistorySubTab) return
     const valid = requestedHistorySubTab === 'chat' || requestedHistorySubTab === 'history' || requestedHistorySubTab === 'log'
     if (valid) setTab(requestedHistorySubTab as HistorySubTab)
     requestHistorySubTab(null)
   }, [requestedHistorySubTab, requestHistorySubTab])
+  React.useEffect(() => {
+    if (tab !== 'log' && logFilter !== 'all') setLogFilter('all')
+  }, [logFilter, tab])
   const [expandedChatLogIds, setExpandedChatLogIds] = React.useState<Record<string, boolean>>({})
   const normalizedQuery = normalizeText(searchQuery).trim()
   const historySignature = React.useMemo(() => buildHistoryEntriesSignature(historyRaw), [historyRaw])
@@ -227,12 +232,19 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
         : recentFiles,
     [normalizedQuery, recentFiles, tab],
   )
+  const hasRelayLogEntries = React.useMemo(
+    () => uiLogEntries.some(row => String(row.source || '').trim() === 'chat:relay'),
+    [uiLogEntries],
+  )
   const filteredLog = React.useMemo(() => {
     const rows = uiLogEntries
     if (tab !== 'log') return rows
-    if (!normalizedQuery) return rows
-    return rows.filter(r => normalizeText([r.kind, r.message, String(r.tsMs), r.source || ''].join(' ')).includes(normalizedQuery))
-  }, [normalizedQuery, tab, uiLogEntries])
+    const scopedRows = logFilter === 'relay'
+      ? rows.filter(r => String(r.source || '').trim() === 'chat:relay')
+      : rows
+    if (!normalizedQuery) return scopedRows
+    return scopedRows.filter(r => normalizeText([r.kind, r.message, String(r.tsMs), r.source || ''].join(' ')).includes(normalizedQuery))
+  }, [logFilter, normalizedQuery, tab, uiLogEntries])
   const filteredChatLogs = React.useMemo(() => {
     const rows = chatExchangeLogs
     if (tab !== 'chat') return rows
@@ -462,6 +474,26 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
             <h3 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.secondary} mb-2 uppercase tracking-wider`}>
               {UI_LABELS.log}
             </h3>
+            {hasRelayLogEntries ? (
+              <section className="mb-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  data-kg-history-log-filter="all"
+                  className={`App-toolbar__btn ${logFilter === 'all' ? uiPrimaryPillActiveClassName : uiPrimaryIconInactiveClassName}`}
+                  onClick={() => setLogFilter('all')}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  data-kg-history-log-filter="relay"
+                  className={`App-toolbar__btn ${logFilter === 'relay' ? uiPrimaryPillActiveClassName : uiPrimaryIconInactiveClassName}`}
+                  onClick={() => setLogFilter('relay')}
+                >
+                  Relay
+                </button>
+              </section>
+            ) : null}
             {filteredLog.length === 0 ? (
               <section className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>No log entries.</section>
             ) : (

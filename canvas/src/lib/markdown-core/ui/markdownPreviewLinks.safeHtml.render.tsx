@@ -373,10 +373,10 @@ export const renderSafeHtmlBlockImpl = (
           />
         )
         return (
-          <section key={key} className="relative inline-block group max-w-full">
+          <span key={key} className="relative inline-block group max-w-full align-middle">
             {renderCardPreviewInlineMediaPill({ child: media, label, fallbackLabel: 'Video', cardPreviewMode })}
             {renderDownloadControl(sourceCandidate, 'video', `${key}-download`, cardPreviewMode)}
-          </section>
+          </span>
         )
       }
 
@@ -533,6 +533,7 @@ export const renderSafeHtmlBlockImpl = (
     if (shouldWrapRootAsImplicitGrid) {
       return <section className={opts.uiPanelTextFontClass} style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: '0.75rem', alignItems: 'start' }}>{renderedRootChildren}</section>
     }
+    if (cardPreviewMode) return <React.Fragment>{renderedRootChildren}</React.Fragment>
     return <section className="space-y-1">{renderedRootChildren}</section>
   } catch {
     return null

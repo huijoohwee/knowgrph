@@ -8,6 +8,7 @@ export type MainPanelTabKey =
   | 'commerce'
   | 'research'
   | 'design'
+  | 'skillsCommands'
   | 'workflowManager'
   | 'help'
   | 'dashboard'
@@ -71,6 +72,13 @@ const MAIN_PANEL_TAB_METADATA: MainPanelTabMeta[] = [
     label: 'Design',
     searchable: false,
     footerLabel: 'Design',
+  },
+  {
+    key: 'skillsCommands',
+    label: 'Skills & Commands',
+    searchable: true,
+    searchPlaceholder: UI_LABELS.search,
+    footerLabel: 'Skills & Commands',
   },
   {
     key: 'workflowManager',

@@ -38,6 +38,12 @@ export type TokensForSelectedNodes = {
   topTokens: TokenCount[]
 }
 
+export type StatsKeywordTerm = {
+  term: string
+  count: number
+  nodeIds: string[]
+}
+
 export type StatsCommunity = {
   id: number
   count: number

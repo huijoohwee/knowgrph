@@ -50,6 +50,7 @@ export type StrybldrElement = {
 export type StrybldrCardOverride = {
   nodeId: string
   title?: string | null
+  type?: string | null
   lane?: string | null
   order?: number | null
   summary?: string | null

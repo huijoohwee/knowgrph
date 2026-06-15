@@ -28,6 +28,14 @@ import {
   type DurableChatStreamRequestMetadata,
 } from './floatingPanelChatDurableStream'
 import {
+  KNOWGRPH_STORAGE_API_VERSION,
+  type KnowgrphStorageChatRelayRequest,
+  type KnowgrphStorageChatRelayResponse,
+} from '@/lib/storage/knowgrphStorageSyncContract'
+import {
+  toKnowgrphStorageChatProviderId,
+} from '@/lib/storage/knowgrphStorageChatClient'
+import {
   buildKnowgrphVdeoxplnChatSystemPrompt,
   buildKnowgrphVdeoxplnRoutingPlan,
 } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
@@ -152,7 +160,7 @@ export const buildChatSubmitRequestContext = async (args: {
   }
   if (args.submitArgs.chatStorageTarget === 'chatKnowgrph') {
     const skill = resolveChatSkillOption(args.submitArgs.chatSkillId)
-    if (skill.systemPrompt.trim()) systemMessages.push({ role: 'system', content: skill.systemPrompt })
+    if (skill?.systemPrompt.trim()) systemMessages.push({ role: 'system', content: skill.systemPrompt })
   }
   if (includeSelectionContext) {
     const markdownSnippet = buildMarkdownNodeSnippetPrompt(
@@ -216,15 +224,7 @@ export const createChatSubmitRequestSender = (args: {
     messages: ChatSubmitMessage[],
     tokenLimitKey: ChatSubmitTokenLimitKey = resolveChatSubmitTokenLimitKey(args.submitArgs.chatProvider),
   ): Promise<Response> => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...buildChatProxyHeaders({
-        provider: args.submitArgs.chatProvider,
-        apiKey: args.submitArgs.chatAuthMode === 'byok' ? args.submitArgs.chatApiKey : null,
-        endpointUrl: args.submitArgs.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
-        clientRequestId: `kg-chat-${toShortId()}`,
-      }),
-    }
+    const clientRequestId = `kg-chat-${toShortId()}`
     const tokenLimit = clampChatCompletionTokens(args.submitArgs.chatMaxCompletionTokens)
     const effectiveTokenLimit =
       args.submitArgs.chatStorageTarget === 'chatKnowgrph'
@@ -254,6 +254,59 @@ export const createChatSubmitRequestSender = (args: {
       chatToolsJson: args.submitArgs.chatToolsJson,
       chatToolChoiceJson: args.submitArgs.chatToolChoiceJson,
     })
+    const tokenLimitOptions =
+      tokenLimitKey === 'max_completion_tokens'
+        ? { max_completion_tokens: effectiveTokenLimit }
+        : { max_tokens: effectiveTokenLimit }
+    const storageRelayProviderId = toKnowgrphStorageChatProviderId(args.submitArgs.chatProvider)
+    const storageRelayConfig = args.submitArgs.storageChatRelayDecision?.kind === 'ready'
+      ? args.submitArgs.storageChatRelayDecision.config
+      : null
+    if (storageRelayConfig && storageRelayProviderId && args.requestUrl === storageRelayConfig.relayUrl) {
+      const relayPayload: KnowgrphStorageChatRelayRequest = {
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: storageRelayConfig.workspaceId,
+        providerId: storageRelayProviderId,
+        authMode: args.submitArgs.chatAuthMode,
+        endpointUrl: args.submitArgs.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+        model,
+        messages,
+        stream: false,
+        byokApiKey: args.submitArgs.chatAuthMode === 'byok' ? args.submitArgs.chatApiKey : null,
+        providerOptions: {
+          ...providerOptions,
+          ...tokenLimitOptions,
+        },
+      }
+      const relayResponse = await fetchFn(storageRelayConfig.relayUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${storageRelayConfig.sessionToken}`,
+          'x-client-request-id': clientRequestId,
+        },
+        body: JSON.stringify(relayPayload),
+        signal: args.controller.signal,
+      })
+      if (!relayResponse.ok) return relayResponse
+      const relayBody = await relayResponse.json() as KnowgrphStorageChatRelayResponse
+      return new Response(JSON.stringify(relayBody.body ?? null), {
+        status: relayBody.upstreamStatus || 200,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store',
+        },
+      })
+    }
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...buildChatProxyHeaders({
+        provider: args.submitArgs.chatProvider,
+        apiKey: args.submitArgs.chatAuthMode === 'byok' ? args.submitArgs.chatApiKey : null,
+        endpointUrl: args.submitArgs.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+        clientRequestId,
+      }),
+    }
     const init: RequestInit = {
       method: 'POST',
       headers,
@@ -262,9 +315,7 @@ export const createChatSubmitRequestSender = (args: {
         messages,
         stream: true,
         ...providerOptions,
-        ...(tokenLimitKey === 'max_completion_tokens'
-          ? { max_completion_tokens: effectiveTokenLimit }
-          : { max_tokens: effectiveTokenLimit }),
+        ...tokenLimitOptions,
       }),
       signal: args.controller.signal,
     }

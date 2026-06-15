@@ -4,7 +4,12 @@ import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
+import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
+import { renderSafeHtmlBlock } from '@/features/markdown/ui/markdownPreviewLinks'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { waitForFrames } from '@/tests/lib/reactRootHarness'
 
 const readUtf8 = (relativePath: string) => {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -51,6 +56,28 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
   }
 }
 
+export function testInlineKeywordCommandsReuseCompleteDashboardKeywordContext() {
+  const dashboardKeywords = Array.from({ length: 36 }, (_, index) => `#Reusabletype${String(index).padStart(2, '0')}`)
+  const candidates = collectInlineKeywordCommandCandidates({
+    draftText: [
+      ...dashboardKeywords,
+      '#Strybldrimagesource',
+      '#Storyboardframe',
+      '#Storyboardelement',
+      '#Fork',
+      '#Review',
+      '#Publish',
+      'Review element cards, revise prompts, then send the approved sequence to video generation.',
+    ].join('\n'),
+  })
+  const labels = new Set(candidates.map(candidate => candidate.label))
+  for (const expectedLabel of ['Strybldrimagesource', 'Storyboardframe', 'Storyboardelement', 'Fork', 'Review', 'Publish']) {
+    if (!labels.has(expectedLabel)) {
+      throw new Error(`expected inline # command menu to include Dashboard keyword ${expectedLabel}, got ${JSON.stringify(candidates.map(candidate => candidate.label))}`)
+    }
+  }
+}
+
 export function testCardInlineTextEditorAvoidsRuntimeFocusPolyfill() {
   const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
   for (const fragment of ['attach' + 'Event', 'detach' + 'Event']) {
@@ -79,7 +106,7 @@ export async function testCardInlineTextEditorAllowsSharedClickActivation() {
           onCommit: () => void 0,
         }),
       )
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await waitForFrames(dom.window, 8)
     })
 
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
@@ -203,8 +230,10 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
     }
     const slashButton = container.querySelector('button[title="Slash commands"]')
     const variableButton = container.querySelector('button[title="Variable commands"]')
+    const keywordButton = container.querySelector('button[title="Keyword commands"]')
     if (!(slashButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected slash command launcher')
     if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
+    if (!(keywordButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected keyword command launcher')
 
     await act(async () => {
       slashButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
@@ -255,6 +284,31 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
     }
     await act(async () => {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      keywordButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      keywordButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const keywordInput = dom.window.document.querySelector('input[placeholder="Find keyword"]')
+    if (!(keywordInput instanceof dom.window.HTMLInputElement)) throw new Error('expected keyword command search input')
+    await act(async () => {
+      setter.call(keywordInput, 'story')
+      Simulate.change(keywordInput)
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const storyboardKeywordButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card keyword commands"] button')) as HTMLButtonElement[]).find(
+      el => String(el.textContent || '').includes('Storyboard'),
+    )
+    if (!(storyboardKeywordButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected Storyboard keyword command')
+    await act(async () => {
+      storyboardKeywordButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      storyboardKeywordButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    if (!textarea.value.includes('#storyboard')) {
+      throw new Error(`expected keyword command to insert #storyboard token, got ${JSON.stringify(textarea.value)}`)
+    }
+    await act(async () => {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
       variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       variableButton.click()
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -273,10 +327,10 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
       imageInsertButton.click()
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-    if (!textarea.value.includes('![image](https://media.example.test/poster.jpg)')) {
+    if (!textarea.value.includes('](https://media.example.test/poster.jpg)')) {
       throw new Error(`expected @ Image command to insert resolved image embed, got ${JSON.stringify(textarea.value)}`)
     }
-    if (!committedValues.some(value => value.includes('![image](https://media.example.test/poster.jpg)'))) {
+    if (!committedValues.some(value => value.includes('](https://media.example.test/poster.jpg)'))) {
       throw new Error(`expected @ Image command to persist the resolved image embed immediately, got ${JSON.stringify(committedValues)}`)
     }
     await act(async () => {
@@ -428,6 +482,177 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
     }
     if (!activeTextarea.value.includes('![Image alt](image-url)')) {
       throw new Error(`expected unresolved @ Image insertion to add an editable markdown placeholder, got ${JSON.stringify(activeTextarea.value)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuRenameDraft() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const renamedUrl = 'https://www.youtube.com/watch?v=commandMenuRenameDraft'
+  const committedValues: string[] = []
+
+  try {
+    writeCommandMenuMediaNameDraft(renamedUrl, 'sd1')
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Review storyboard media',
+          ariaLabel: 'Action text',
+          placeholder: 'Add action',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          markdownPreview: 'auto',
+          markdownCommandContextText: `videoUrl: "${renamedUrl}"`,
+          onCommit: next => {
+            committedValues.push(next)
+          },
+        }),
+      )
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Action text"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
+    const variableButton = container.querySelector('button[title="Variable commands"]')
+    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
+
+    await act(async () => {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      variableButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const mediaButtons = Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]
+    const renamedMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('sd1') && String(button.textContent || '').includes(renamedUrl))
+    if (!(renamedMediaButton instanceof dom.window.HTMLButtonElement)) {
+      const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
+      throw new Error(`expected @ media dropdown to use shared Command Menu rename draft, got ${buttonText}`)
+    }
+    await act(async () => {
+      renamedMediaButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      renamedMediaButton.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const persisted = committedValues.find(value => value.includes('<video'))
+    if (!persisted || !persisted.includes('title="sd1"')) {
+      throw new Error(`expected @ media insertion to persist the shared media name as the video label, got ${JSON.stringify(committedValues)}`)
+    }
+  } finally {
+    writeCommandMenuMediaNameDraft(renamedUrl, '')
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(React.Fragment, null, renderSafeHtmlBlock(
+          'Review source <video src="https://example.com/demo.mp4" title="sd123" controls></video> evidence into editable storyboard elements.',
+          {
+            activeDocumentPath: 'workspace:/card.md',
+            uiPanelTextFontClass: 'font-sans',
+            uiPanelMonospaceTextClass: 'font-mono',
+            markdownPresentationMode: false,
+            markdownCardPreviewMode: true,
+            renderNodeText: (text, key) => React.createElement(React.Fragment, { key }, text),
+            fragmentOptions: null,
+          },
+        )),
+      )
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const chip = container.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (!(chip instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected inline video chip in card preview, html=${container.innerHTML}`)
+    }
+    if (!chip.className.includes('mr-1') || !chip.className.includes('items-center') || !chip.className.includes('align-middle') || !chip.className.includes('text-[11px]')) {
+      throw new Error(`expected inline video chip to use centered spacing classes, got ${chip.className}`)
+    }
+    const stackWrapper = chip.closest('.space-y-1')
+    if (stackWrapper) {
+      throw new Error(`expected inline media chip to avoid vertical stack wrapper inside card paragraph, html=${container.innerHTML}`)
+    }
+    const text = String(container.textContent || '').replace(/\s+/g, ' ').trim()
+    if (text !== 'Review source sd123 evidence into editable storyboard elements.') {
+      throw new Error(`expected inline media chip to remain spaced inside paragraph text flow, got ${JSON.stringify(text)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: '#storyboard',
+          ariaLabel: 'Output text',
+          placeholder: 'Add output',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          markdownPreview: 'auto',
+          onCommit: () => void 0,
+        }),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const chip = container.querySelector('[data-kg-card-inline-keyword-pill="1"]')
+    if (!(chip instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected #keyword token to render as inline chip on the shared card display path, html=${container.innerHTML}`)
+    }
+    for (const expectedClass of DATA_VIEW_CHIP_ROW_CLASSNAME.split(' ')) {
+      if (expectedClass && !chip.className.includes(expectedClass)) {
+        throw new Error(`expected inline keyword chip to reuse DataView chip class ${expectedClass}, got ${chip.className}`)
+      }
+    }
+    for (const expectedClass of resolveDataViewChipClass('storyboard').split(' ')) {
+      if (expectedClass && !chip.className.includes(expectedClass)) {
+        throw new Error(`expected inline keyword chip to reuse storyboard chip tone class ${expectedClass}, got ${chip.className}`)
+      }
+    }
+    if (chip.className.includes('rounded-full')) {
+      throw new Error(`expected inline keyword chip to restore rectangular chip radius, got ${chip.className}`)
+    }
+    const text = String(container.textContent || '').replace(/\s+/g, ' ').trim()
+    if (text !== 'storyboard') {
+      throw new Error(`expected inline keyword chip preview to preserve token text, got ${JSON.stringify(text)}`)
     }
   } finally {
     await act(async () => {

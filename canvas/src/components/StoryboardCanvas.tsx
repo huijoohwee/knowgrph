@@ -22,7 +22,11 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
-import { DataViewStatusChip, DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
+import {
+  DATA_VIEW_CHIP_ROW_CLASSNAME,
+  DataViewTagChip,
+  resolveDataViewChipClass,
+} from '@/features/markdown/ui/MarkdownDataViewChips'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import {
@@ -76,6 +80,7 @@ import {
 } from '@/features/strybldr/strytreeWorkflow'
 import { updateStrybldrStoryboardMarkdownCardOverride } from '@/features/strybldr/strybldrStoryboard'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
+import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, collectGraphKeywordTermStats } from '@/lib/graph/keywordTerms'
 
 type StoryboardDisplayMedia = { kind: 'image' | 'svg' | 'video' | 'audio' | 'iframe'; url: string; srcDoc?: string }
 
@@ -276,6 +281,7 @@ function StoryboardDetailRow(props: {
           ariaLabel={props.label}
           placeholder={props.placeholder || `Add ${props.label.toLowerCase()}`}
           canEdit={props.canEdit}
+          editActivation="click"
           multiline
           markdownPreview="auto"
           markdownCommandContextText={props.markdownCommandContextText}
@@ -408,6 +414,11 @@ export default function StoryboardCanvas({
   const [storytreeFilter, setStorytreeFilter] = React.useState<string>('all')
   const widgetRegistry = React.useMemo(() => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry }), [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry])
   const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }), [graphData, graphRevision, widgetRegistry])
+  const storyboardKeywordCommandContextText = React.useMemo(() => {
+    return collectGraphKeywordTermStats(graphData)
+      .map(entry => `#${entry.term}`)
+      .join('\n')
+  }, [graphData])
   const rowIdToLaneKey = React.useMemo(() => {
     const map = new Map<string, string>()
     for (const lane of board.lanes) {
@@ -690,6 +701,46 @@ export default function StoryboardCanvas({
     }
     updateNode(cardId, { label })
   }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
+  const updateStoryboardType = React.useCallback((cardId: string, nextValue: string) => {
+    const type = String(nextValue || '').trim()
+    const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+      text: markdownDocumentText || '',
+      nodeId: cardId,
+      patch: { type },
+    })
+    if (nextMarkdownText && markdownDocumentName && nextMarkdownText !== markdownDocumentText) {
+      setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: useGraphStore.getState(),
+        sourceFiles: useGraphStore.getState().sourceFiles || [],
+        text: nextMarkdownText,
+        label: 'Storyboard type',
+      })
+      addHistory('Storyboard type')
+      return
+    }
+    if (graphData?.nodes?.some(node => readStoryboardScalar(node?.id) === cardId)) {
+      setGraphDataPreservingLayout({
+        ...graphData,
+        nodes: graphData.nodes.map(node => (
+          readStoryboardScalar(node?.id) === cardId
+            ? { ...node, type }
+            : node
+        )),
+      })
+      addHistory('Storyboard type')
+      return
+    }
+    updateNode(cardId, { type })
+  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
+  const updateStoryboardLane = React.useCallback((card: StoryboardCardModel, nextValue: string) => {
+    updateStoryboardCanonicalProperty({
+      cardId: card.id,
+      propertyKeys: GRAPH_KEYWORD_LANE_PROPERTY_KEYS,
+      canonicalKey: 'lane',
+      nextValue,
+    })
+  }, [updateStoryboardCanonicalProperty])
   const isStoryboardMoveNoOp = React.useCallback((move: {
     rowId: string
     sourceGroupKey: string
@@ -950,7 +1001,10 @@ export default function StoryboardCanvas({
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
                     const visualBriefReference = card.references.find(reference => reference.kind === 'image' || reference.kind === 'svg') || null
-                    const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(card)
+                    const storyboardCommandContextText = [
+                      storyboardKeywordCommandContextText,
+                      buildStoryboardInlineMediaCommandContext(card),
+                    ].filter(Boolean).join('\n')
                     const cardParagraphEntries = buildCardParagraphEntries([
                       { id: 'summary', label: 'Summary', value: card.summary },
                       { id: 'output', label: 'Output', value: card.output },
@@ -1076,14 +1130,55 @@ export default function StoryboardCanvas({
                                     <span className={`${UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME} inline-flex items-center justify-center rounded-md border border-black/10 bg-black/[0.03] px-2 py-1 text-[10px] font-semibold text-black/70`}>
                                       {displayIndex}
                                     </span>
-                                    <DataViewTagChip value={card.typeLabel} />
-                                    <DataViewStatusChip value={card.lane} checked={selected} hideIcon />
+                                    <CardInlineTextEditor
+                                      value={card.typeLabel}
+                                      ariaLabel={`Storyboard type for ${card.id}`}
+                                      placeholder="Add type"
+                                      canEdit={canEditCard}
+                                      editActivation="click"
+                                      onCommit={nextValue => {
+                                        updateStoryboardType(card.id, nextValue)
+                                      }}
+                                      displayClassName={[
+                                        DATA_VIEW_CHIP_ROW_CLASSNAME,
+                                        'inline-flex max-w-full items-center',
+                                        resolveDataViewChipClass(card.typeLabel),
+                                      ].join(' ')}
+                                      editorClassName={[
+                                        'min-w-[6rem] rounded border px-2 py-0.5 text-[10px] font-medium',
+                                        UI_THEME_TOKENS.input.bg,
+                                        UI_THEME_TOKENS.input.border,
+                                        UI_THEME_TOKENS.input.text,
+                                      ].join(' ')}
+                                    />
+                                    <CardInlineTextEditor
+                                      value={card.lane}
+                                      ariaLabel={`Storyboard lane for ${card.id}`}
+                                      placeholder="Add lane"
+                                      canEdit={canEditCard}
+                                      editActivation="click"
+                                      onCommit={nextValue => {
+                                        updateStoryboardLane(card, nextValue)
+                                      }}
+                                      displayClassName={[
+                                        DATA_VIEW_CHIP_ROW_CLASSNAME,
+                                        'inline-flex max-w-full items-center',
+                                        resolveDataViewChipClass(card.lane),
+                                      ].join(' ')}
+                                      editorClassName={[
+                                        'min-w-[4.5rem] rounded border px-2 py-0.5 text-[10px] font-medium',
+                                        UI_THEME_TOKENS.input.bg,
+                                        UI_THEME_TOKENS.input.border,
+                                        UI_THEME_TOKENS.input.text,
+                                      ].join(' ')}
+                                    />
                                   </section>
                                   <CardInlineTextEditor
                                     value={card.title}
                                     ariaLabel={`Storyboard title for ${card.id}`}
                                     placeholder="Add title"
                                     canEdit={canEditCard}
+                                    editActivation="click"
                                     onCommit={nextValue => {
                                       updateStoryboardTitle(card.id, nextValue)
                                     }}
@@ -1127,6 +1222,7 @@ export default function StoryboardCanvas({
                                     ariaLabel={`Summary for ${card.id}`}
                                     placeholder="Add summary"
                                     canEdit={canEditCard}
+                                    editActivation="click"
                                     multiline
                                     markdownPreview="auto"
                                     markdownCommandContextText={storyboardCommandContextText}
@@ -1271,6 +1367,7 @@ export default function StoryboardCanvas({
                                       ariaLabel={`Visual brief for ${card.id}`}
                                       placeholder="Add visual brief"
                                       canEdit={typeof updateNode === 'function'}
+                                      editActivation="click"
                                       multiline
                                       markdownPreview="auto"
                                       markdownCommandContextText={storyboardCommandContextText}

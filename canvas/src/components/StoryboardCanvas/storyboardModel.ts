@@ -11,6 +11,7 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import { computeRichMediaOverlayConnectedValuesByNodeId } from '@/lib/render/richMediaSsot'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
+import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, readGraphKeywordTermsFromProperties } from '@/lib/graph/keywordTerms'
 import {
   GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
   GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS,
@@ -23,13 +24,12 @@ import {
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
 const STORYBOARD_NODE_TYPE_RE = /\b(scene|shot|frame|panel|story|beat|sequence)\b/i
-const LANE_PROPERTY_KEYS = ['status', 'stage', 'column', 'lane', 'phase', 'track', 'swimlane', 'group', 'bucket', 'category', 'columnKey'] as const
+const LANE_PROPERTY_KEYS = GRAPH_KEYWORD_LANE_PROPERTY_KEYS
 export const STORYBOARD_TITLE_PROPERTY_KEYS = GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS
 export const STORYBOARD_SUMMARY_PROPERTY_KEYS = GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS
 export const STORYBOARD_OUTPUT_PROPERTY_KEYS = GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS
 const ORDER_PROPERTY_KEYS = ['order', 'sort', 'sequence', 'sceneOrder', 'shotOrder', 'index', 'rank'] as const
 const INDEX_PROPERTY_KEYS = ['frame', 'frameNumber', 'sceneNumber', 'shotNumber', 'panelNumber', 'number', 'index', 'step', 'stepNumber', 'sequenceNumber', 'position', 'ordinal'] as const
-const TAG_PROPERTY_KEYS = ['tags', 'keywords'] as const
 const META_PROPERTY_KEYS = ['owner', 'priority'] as const
 const MEDIA_PROPERTY_KEYS = ['renderUrl', 'embedUrl', 'media_url', 'mediaUrl', 'image', 'imageUrl', 'video', 'videoUrl', 'audio', 'audioUrl', 'audio_url', 'src', 'url'] as const
 const LINK_PROPERTY_KEYS = ['url', 'href', 'link', 'sourceUrl', 'source_url', 'briefUrl', 'assetUrl', 'documentUrl'] as const
@@ -380,8 +380,7 @@ const readCardStyle = (properties: GraphNodeProperties): string => {
 }
 
 const readCardTags = (properties: GraphNodeProperties): string[] => {
-  const values = TAG_PROPERTY_KEYS.flatMap(key => readStringList(properties[key]))
-  return uniqueStrings(values)
+  return readGraphKeywordTermsFromProperties(properties as Record<string, unknown>)
 }
 
 const readCardMeta = (properties: GraphNodeProperties): string[] => {

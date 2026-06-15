@@ -9,6 +9,10 @@ import {
   collectInlineMediaCommandCandidates,
   type InlineMediaCommandCandidate,
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import {
+  applyCommandMenuMediaNameDraftsToInlineCandidates,
+  useCommandMenuMediaNameDrafts,
+} from '@/lib/command-menu/commandMenuMediaNameSync'
 
 export const useMarkdownBlockContainerVariableActions = (args: {
   editable: boolean
@@ -41,6 +45,7 @@ export const useMarkdownBlockContainerVariableActions = (args: {
   setSessionEditLineRange: (next: { startLine: number; endLine: number } | null) => void
   editorRef: React.RefObject<HTMLElement | null>
 }) => {
+  const mediaNameDrafts = useCommandMenuMediaNameDrafts()
   const applyVariableFrontmatterCrud = React.useCallback((mode: 'create' | 'update' | 'delete', keyRaw: string, valueRaw?: string) => {
     if (!args.editable || !args.onReplaceLineRange || !Array.isArray(args.sourceLines)) return false
     const key = String(keyRaw || '').trim()
@@ -205,6 +210,7 @@ export const useMarkdownBlockContainerVariableActions = (args: {
       kind: candidate.kind,
       url: candidate.url,
       thumbnailUrl: candidate.thumbnailUrl,
+      label: candidate.label,
       selectedText: selected,
       sourceKey: candidate.sourceKey,
     })
@@ -237,10 +243,10 @@ export const useMarkdownBlockContainerVariableActions = (args: {
   const mediaCommandCandidates = React.useMemo(() => {
     if (!args.variableMenu.show) return []
     const query = String(args.variableMenu.keyInput || args.variableMenu.query || '').trim().toLowerCase()
-    const all = collectInlineMediaCommandCandidates({
+    const all = applyCommandMenuMediaNameDraftsToInlineCandidates(collectInlineMediaCommandCandidates({
       sourceLines: args.sourceLines,
       draftText: args.getDraft(),
-    })
+    }), mediaNameDrafts)
     if (!query) return all.slice(0, 8)
     return all
       .filter(candidate => (
@@ -249,7 +255,7 @@ export const useMarkdownBlockContainerVariableActions = (args: {
         || candidate.sourceKey?.toLowerCase().includes(query)
       ))
       .slice(0, 8)
-  }, [args])
+  }, [args, mediaNameDrafts])
 
   return {
     applyVariableFrontmatterCrud,

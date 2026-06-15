@@ -79,7 +79,7 @@ function decodeRemoteFetchProxyUrl(raw: string): string {
   }
 }
 
-function canonicalMediaDedupUrl(raw: string): string {
+export function canonicalMediaDedupUrl(raw: string): string {
   let current = String(raw || '').trim()
   if (!current) return ''
   for (let i = 0; i < 3; i += 1) {

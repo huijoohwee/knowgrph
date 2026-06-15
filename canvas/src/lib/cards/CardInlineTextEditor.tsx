@@ -289,9 +289,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
               cancel()
               return
             }
-            if (enableMarkdownCommandMenus && !event.metaKey && !event.ctrlKey && !event.altKey && (event.key === '/' || event.key === '@')) {
+            if (enableMarkdownCommandMenus && !event.metaKey && !event.ctrlKey && !event.altKey && (event.key === '/' || event.key === '@' || event.key === '#')) {
               event.preventDefault()
-              openCommandMenu(event.key === '/' ? 'slash' : 'variable')
+              openCommandMenu(event.key === '/' ? 'slash' : event.key === '@' ? 'variable' : 'keyword')
               return
             }
             if (!multiline && event.key === 'Enter') {

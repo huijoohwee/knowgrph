@@ -2,6 +2,7 @@ import type React from 'react'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { SourceFile } from '@/hooks/store/types'
 import type { UiLogEntryInput } from '@/hooks/store/types'
+import type { KnowgrphStorageChatRelayDecision } from '@/lib/storage/knowgrphStorageChatClient'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
 import type { ChatSkillId } from '../chatSkillRegistry'
 
@@ -48,6 +49,7 @@ export type FloatingPanelChatSubmitArgs = {
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'
   chatLocalStorageRootPath: string
   chatKnowgrphWorkspacePath: string | null
+  storageChatRelayDecision?: KnowgrphStorageChatRelayDecision | null
   setChatKnowgrphWorkspacePath: (path: string) => void
   setChatWorkspaceStreamingState?: (value: { path?: string | null; text?: string | null } | null) => void
   chatProviderSummary: string

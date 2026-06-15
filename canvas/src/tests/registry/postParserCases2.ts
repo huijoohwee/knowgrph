@@ -191,6 +191,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["webpageLayoutToGraph.centersAndFilters","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphCentersAndFilters"],
   ["webpageLayoutToGraph.addsMediaProps","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphAddsMediaProps"],
   ["commandMenu.graphMediaSelection.selectsPreviewMedia","@/__tests__/previewPanelViewMediaSelection.test","testCommandMenuGraphMediaSelectionSelectsPreviewMedia"],
+  ["commandMenu.markdownMediaRename.syncsWorkspaceHrefReferences","@/__tests__/previewPanelViewMediaSelection.test","testCommandMenuMarkdownMediaRenameSyncsWorkspaceHrefReferences"],
+  ["commandMenu.mediaInventory.deduplicatesMarkdownAndGraphSameUrl","@/__tests__/previewPanelViewMediaSelection.test","testCommandMenuMediaInventoryDeduplicatesMarkdownAndGraphSameUrl"],
   ["preview.panel.graphMediaSelection.deduplicatesBytePlusVideoToCanonicalRichMediaPanel","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetToCanonicalRichMediaPanel"],
   ["preview.panel.graphMediaSelection.textPreviewCanonicalPanelSurface","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelGraphRichMediaPanelTextPreviewUsesCanonicalPanelSurface"],
   ["preview.panel.standaloneLinks.webpageAndTweetSelectable","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelStandaloneLinkWebpageAndTweetSelectable"],

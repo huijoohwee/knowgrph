@@ -1,4 +1,4 @@
-export type InlineCommandMenuKind = 'slash' | 'variable'
+export type InlineCommandMenuKind = 'slash' | 'variable' | 'keyword'
 
 export type InlineSlashCommandId =
   | 'heading'
@@ -27,6 +27,23 @@ export type InlineVariableCommandId =
   | 'fallback-reference'
   | 'delete-variable'
 
+export type InlineKeywordCommandId =
+  | 'source'
+  | 'storyboard'
+  | 'runtime'
+  | 'fork'
+  | 'output'
+  | 'action'
+  | 'dialogue'
+  | 'visual-brief'
+  | 'reference-pack'
+  | 'media'
+  | 'image'
+  | 'video'
+  | 'graph'
+  | 'canvas'
+  | 'workflow'
+
 export type InlineCommandMenuActionSpec<Id extends string = string> = {
   id: Id
   kind: InlineCommandMenuKind
@@ -53,6 +70,15 @@ export type InlineMediaCommandCandidate = {
   thumbnailUrl?: string
   label: string
   sourceKey?: string
+  description: string
+  keywords: string[]
+}
+
+export type InlineKeywordCommandCandidate = {
+  id: string
+  label: string
+  token: string
+  group: string
   description: string
   keywords: string[]
 }
@@ -173,6 +199,24 @@ export const INLINE_SLASH_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<
     description: 'Insert a horizontal divider',
     keywords: ['hr', 'separator', 'rule'],
   },
+] as const
+
+export const INLINE_KEYWORD_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<InlineKeywordCommandId>[] = [
+  { id: 'source', kind: 'keyword', label: 'Source', group: 'Canvas keywords', description: 'Insert #source', keywords: ['lane', 'input', 'evidence'] },
+  { id: 'storyboard', kind: 'keyword', label: 'Storyboard', group: 'Canvas keywords', description: 'Insert #storyboard', keywords: ['card', 'frame', 'strybldr'] },
+  { id: 'runtime', kind: 'keyword', label: 'Runtime', group: 'Canvas keywords', description: 'Insert #runtime', keywords: ['execution', 'api', 'operator'] },
+  { id: 'fork', kind: 'keyword', label: 'Fork', group: 'Canvas keywords', description: 'Insert #fork', keywords: ['branch', 'compare'] },
+  { id: 'output', kind: 'keyword', label: 'Output', group: 'Card fields', description: 'Insert #output', keywords: ['result', 'response'] },
+  { id: 'action', kind: 'keyword', label: 'Action', group: 'Card fields', description: 'Insert #action', keywords: ['task', 'step'] },
+  { id: 'dialogue', kind: 'keyword', label: 'Dialogue', group: 'Card fields', description: 'Insert #dialogue', keywords: ['script', 'voice'] },
+  { id: 'visual-brief', kind: 'keyword', label: 'Visual brief', group: 'Card fields', description: 'Insert #visual-brief', keywords: ['prompt', 'style'] },
+  { id: 'reference-pack', kind: 'keyword', label: 'Reference pack', group: 'Media keywords', description: 'Insert #reference-pack', keywords: ['refs', 'evidence'] },
+  { id: 'media', kind: 'keyword', label: 'Media', group: 'Media keywords', description: 'Insert #media', keywords: ['asset', 'rich media'] },
+  { id: 'image', kind: 'keyword', label: 'Image', group: 'Media keywords', description: 'Insert #image', keywords: ['photo', 'thumbnail'] },
+  { id: 'video', kind: 'keyword', label: 'Video', group: 'Media keywords', description: 'Insert #video', keywords: ['clip', 'youtube'] },
+  { id: 'graph', kind: 'keyword', label: 'Graph', group: 'Graph keywords', description: 'Insert #graph', keywords: ['node', 'edge'] },
+  { id: 'canvas', kind: 'keyword', label: 'Canvas', group: 'Graph keywords', description: 'Insert #canvas', keywords: ['view', 'surface'] },
+  { id: 'workflow', kind: 'keyword', label: 'Workflow', group: 'Graph keywords', description: 'Insert #workflow', keywords: ['process', 'stage'] },
 ] as const
 
 export const INLINE_VARIABLE_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<InlineVariableCommandId>[] = [
@@ -355,6 +399,87 @@ function normalizeInlineMediaUrl(raw: string): string {
     .replace(/[.,;:]+$/g, '')
 }
 
+const INLINE_KEYWORD_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'for',
+  'from',
+  'into',
+  'of',
+  'or',
+  'the',
+  'then',
+  'this',
+  'to',
+  'with',
+])
+
+export function buildInlineKeywordToken(raw: string): string {
+  const token = String(raw || '')
+    .normalize('NFKC')
+    .trim()
+    .replace(/^#+/, '')
+    .replace(/[^\p{L}\p{N}_ -]+/gu, ' ')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
+  return token ? `#${token}` : ''
+}
+
+function readInlineKeywordLabel(raw: string): string {
+  const compact = String(raw || '').normalize('NFKC').replace(/\s+/g, ' ').trim()
+  return compact ? compact.slice(0, 48) : ''
+}
+
+export function collectInlineKeywordCommandCandidates(args: {
+  draftText?: string
+  limit?: number | null
+}): InlineKeywordCommandCandidate[] {
+  const seen = new Set<string>()
+  const candidates: InlineKeywordCommandCandidate[] = []
+  const limit = args.limit == null
+    ? null
+    : Number.isFinite(args.limit) && Number(args.limit) > 0
+      ? Number(args.limit)
+      : 0
+  const reachedLimit = () => limit !== null && candidates.length >= limit
+  const push = (labelRaw: string, group: string, description?: string, keywords?: string[]) => {
+    if (reachedLimit()) return
+    const label = readInlineKeywordLabel(labelRaw)
+    const token = buildInlineKeywordToken(label)
+    if (!token || seen.has(token)) return
+    seen.add(token)
+    candidates.push({
+      id: `keyword-${token.slice(1)}`,
+      label,
+      token,
+      group,
+      description: description || `Insert ${token}`,
+      keywords: [token, label, ...(keywords || [])],
+    })
+  }
+  const text = String(args.draftText || '')
+  for (const match of text.matchAll(/#([\p{L}\p{N}_-]{2,48})/gu)) {
+    push(match[1] || '', 'Dashboard keywords')
+    if (reachedLimit()) return candidates
+  }
+  for (const action of INLINE_KEYWORD_COMMAND_ACTIONS) {
+    push(action.label, action.group, action.description, [...action.keywords])
+    if (reachedLimit()) return candidates
+  }
+  for (const match of text.matchAll(/[\p{L}\p{N}][\p{L}\p{N}_-]{2,47}/gu)) {
+    const word = match[0] || ''
+    if (INLINE_KEYWORD_STOP_WORDS.has(word.toLowerCase())) continue
+    push(word, 'Context keywords')
+    if (reachedLimit()) return candidates
+  }
+  return candidates
+}
+
 export function collectInlineMediaCommandCandidates(args: {
   sourceLines?: string[]
   draftText?: string
@@ -407,26 +532,31 @@ export function buildInlineMediaEmbed(args: {
   kind: InlineMediaKind
   url?: string
   thumbnailUrl?: string
+  label?: string
   selectedText?: string
   sourceKey?: string
 }): string {
   const selected = String(args.selectedText || '').trim()
   const url = String(args.url || '').trim()
+  const label = String(args.label || selected || '').trim()
   if (args.kind === 'image') {
     const sourceKey = String(args.sourceKey || '').trim()
-    const alt = (selected || (sourceKey ? sourceKey.replace(/Url$/i, '') : 'Image alt'))
+    const alt = (label || (sourceKey ? sourceKey.replace(/Url$/i, '') : 'Image alt'))
       .replace(/[[\]\n\r]/g, ' ')
       .trim() || 'Image alt'
     return `![${alt}](${url || 'image-url'})`
   }
   const poster = String(args.thumbnailUrl || '').trim()
   const posterAttr = poster ? ` poster="${poster.replace(/"/g, '&quot;')}"` : ''
-  return `<video src="${url || selected || 'video-url'}"${posterAttr} controls></video>`
+  const title = label.replace(/[\n\r<>]/g, ' ').replace(/"/g, '&quot;').trim()
+  const titleAttr = title ? ` title="${title}"` : ''
+  return `<video src="${url || selected || 'video-url'}"${posterAttr}${titleAttr} controls></video>`
 }
 
 export function getInlineCommandMenuCatalog() {
   return {
     slash: INLINE_SLASH_COMMAND_ACTIONS,
     variable: INLINE_VARIABLE_COMMAND_ACTIONS,
+    keyword: INLINE_KEYWORD_COMMAND_ACTIONS,
   } as const
 }

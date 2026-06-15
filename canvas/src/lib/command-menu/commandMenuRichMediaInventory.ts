@@ -33,7 +33,7 @@ import {
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { splitMarkdownLines } from '@/lib/markdown'
-import { listMediaOverlayNodes, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
+import { canonicalMediaDedupUrl, listMediaOverlayNodes, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
@@ -88,8 +88,21 @@ function replaceMarkdownLineMediaName(line: string, owner: Extract<CommandMenuRi
     const imagePattern = new RegExp(`!\\[[^\\]]*\\]\\(\\s*${hrefPattern}\\s*\\)`)
     return line.replace(imagePattern, `![${label}](${href})`)
   }
-  const linkPattern = new RegExp(`\\[[^\\]]*\\]\\(\\s*${hrefPattern}\\s*\\)`)
-  return line.replace(linkPattern, `[${label}](${href})`)
+  const linkPattern = new RegExp(`(^|[^!])\\[[^\\]]*\\]\\(\\s*${hrefPattern}\\s*\\)`)
+  return line.replace(linkPattern, (_match, prefix: string) => `${prefix}[${label}](${href})`)
+}
+
+function replaceMarkdownLineMediaNameByHref(line: string, href: string, nextName: string): string {
+  const normalizedHref = String(href || '').trim()
+  if (!normalizedHref) return line
+  const ownerBase = { startLine: 1, href: normalizedHref } as const
+  let nextLine = replaceMarkdownLineMediaName(line, { ...ownerBase, syntax: 'image' }, nextName)
+  nextLine = replaceMarkdownLineMediaName(nextLine, { ...ownerBase, syntax: 'link' }, nextName)
+  const trimmed = nextLine.trim()
+  if (trimmed === normalizedHref || trimmed === `<${normalizedHref}>`) {
+    return replaceMarkdownLineMediaName(nextLine, { ...ownerBase, syntax: 'standaloneUrl' }, nextName)
+  }
+  return nextLine
 }
 
 export function renameCommandMenuRichMediaMarkdownLine(args: {
@@ -109,6 +122,26 @@ export function renameCommandMenuRichMediaMarkdownLine(args: {
   if (nextLine === current) return args.markdownText
   lines[lineIndex] = nextLine
   return lines.join('\n')
+}
+
+export function renameCommandMenuRichMediaMarkdownHref(args: {
+  markdownText: string
+  item: CommandMenuRichMediaItem
+  nextName: string
+}): string {
+  const owner = args.item.renameOwner
+  if (!owner || owner.type !== 'markdownLine') return args.markdownText
+  const nextName = String(args.nextName || '').trim()
+  const href = String(owner.href || '').trim()
+  if (!nextName || !href) return args.markdownText
+  const lines = splitMarkdownLines(args.markdownText)
+  let changed = false
+  const nextLines = lines.map(line => {
+    const nextLine = replaceMarkdownLineMediaNameByHref(line, href, nextName)
+    if (nextLine !== line) changed = true
+    return nextLine
+  })
+  return changed ? nextLines.join('\n') : args.markdownText
 }
 
 function readInlineTokenText(tokens: readonly unknown[] | undefined): string {
@@ -164,6 +197,49 @@ function resolveRichMediaThumbnailUrl(item: Pick<CommandMenuRichMediaItem, 'kind
   const youtubeId = readYoutubeVideoId(item.openUrl || item.src || '')
   if (youtubeId) return `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
   return undefined
+}
+
+function getRichMediaItemDedupKey(item: CommandMenuRichMediaItem): string {
+  if (item.kind === 'mermaid') return ''
+  const url = canonicalMediaDedupUrl(item.openUrl || item.src || '')
+  if (url) return `url:${url}`
+  const srcDoc = String(item.srcDoc || '').trim()
+  return srcDoc ? `srcdoc:${item.kind}:${srcDoc}` : ''
+}
+
+function scoreRichMediaItemForDedup(item: CommandMenuRichMediaItem): number {
+  let score = item.source === 'graph' ? 100 : 0
+  if (item.renameOwner?.type === 'markdownLine') score += 20
+  if (item.panel) score += 50
+  if (String(item.thumbnailUrl || '').trim()) score += 10
+  if (String(item.openUrl || '').trim()) score += 6
+  if (String(item.src || '').trim()) score += 4
+  if (String(item.srcDoc || '').trim()) score += 3
+  if (String(item.panelTitle || '').trim()) score += 2
+  return score
+}
+
+export function dedupeCommandMenuRichMediaItems(items: CommandMenuRichMediaItem[]): CommandMenuRichMediaItem[] {
+  const unique: CommandMenuRichMediaItem[] = []
+  const indexByKey = new Map<string, number>()
+  for (const item of items) {
+    const dedupKey = getRichMediaItemDedupKey(item)
+    if (!dedupKey) {
+      unique.push(item)
+      continue
+    }
+    const previousIndex = indexByKey.get(dedupKey)
+    if (previousIndex == null) {
+      indexByKey.set(dedupKey, unique.length)
+      unique.push(item)
+      continue
+    }
+    const previous = unique[previousIndex]
+    if (!previous || scoreRichMediaItemForDedup(item) > scoreRichMediaItemForDedup(previous)) {
+      unique[previousIndex] = item
+    }
+  }
+  return unique
 }
 
 export function useCommandMenuRichMediaInventory(): {
@@ -451,7 +527,7 @@ export function useCommandMenuRichMediaInventory(): {
       }
     }
 
-    return list
+    return dedupeCommandMenuRichMediaItems(list)
   }, [
     frontmatterMermaidCode,
     frontmatterMermaidDiagrams,

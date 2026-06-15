@@ -1,5 +1,5 @@
 import React from 'react'
-import { AtSign, FileAudio, FileCode2, ImageIcon, Slash, Video, type LucideIcon } from 'lucide-react'
+import { AtSign, FileAudio, FileCode2, Hash, ImageIcon, Slash, Video, type LucideIcon } from 'lucide-react'
 import {
   KeyTypeValueHeader,
   KeyTypeValueRow,
@@ -7,16 +7,23 @@ import {
 } from '@/features/panels/ui/KeyTypeValueRow'
 import {
   INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID,
+  INLINE_KEYWORD_COMMAND_ACTIONS,
   INLINE_SLASH_COMMAND_ACTIONS,
   INLINE_VARIABLE_COMMAND_ACTIONS,
   type InlineCommandMenuActionSpec,
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import {
   type CommandMenuRichMediaItem,
-  renameCommandMenuRichMediaMarkdownLine,
+  renameCommandMenuRichMediaMarkdownHref,
   useCommandMenuRichMediaInventory,
 } from '@/lib/command-menu/commandMenuRichMediaInventory'
+import {
+  readCommandMenuMediaNameDraft,
+  useCommandMenuMediaNameDrafts,
+  writeCommandMenuMediaNameDraft,
+} from '@/lib/command-menu/commandMenuMediaNameSync'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
@@ -24,6 +31,7 @@ import { cn } from '@/lib/utils'
 const commandMenuCatalogGroups = [
   { key: 'slash', label: '/', title: 'Slash commands', Icon: Slash, actions: INLINE_SLASH_COMMAND_ACTIONS },
   { key: 'variable', label: '@', title: 'Variable commands', Icon: AtSign, actions: INLINE_VARIABLE_COMMAND_ACTIONS },
+  { key: 'keyword', label: '#', title: 'Keyword commands', Icon: Hash, actions: INLINE_KEYWORD_COMMAND_ACTIONS },
 ] as const
 
 function CommandPrefixType({
@@ -95,6 +103,12 @@ function getMediaIcon(kind: CommandMenuRichMediaItem['kind']): LucideIcon {
   return Video
 }
 
+function getMediaNameSyncKey(item: CommandMenuRichMediaItem): string {
+  const owner = item.renameOwner
+  if (owner?.type === 'markdownLine') return String(owner.href || '').trim()
+  return String(item.openUrl || item.src || '').trim()
+}
+
 function MediaCandidateThumb({ item }: { item: CommandMenuRichMediaItem }) {
   const thumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
   if (thumbnail) {
@@ -114,11 +128,15 @@ function MediaCandidateThumb({ item }: { item: CommandMenuRichMediaItem }) {
 
 function MediaCandidateRow({
   item,
+  displayName,
   onSelect,
+  onNameDraftChange,
   onRename,
 }: {
   item: CommandMenuRichMediaItem
+  displayName: string
   onSelect: (item: CommandMenuRichMediaItem) => void
+  onNameDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
 }) {
   const Icon = getMediaIcon(item.kind)
@@ -139,7 +157,12 @@ function MediaCandidateRow({
           <span className="flex min-w-0 items-center gap-2">
             <MediaCandidateThumb item={item} />
             <span className="flex min-w-0 flex-col leading-4">
-              <MediaCandidateNameInput item={item} onRename={onRename} />
+              <MediaCandidateNameInput
+                item={item}
+                displayName={displayName}
+                onDraftChange={onNameDraftChange}
+                onRename={onRename}
+              />
               <span className={cn('truncate font-mono text-[11px] font-normal', UI_THEME_TOKENS.text.tertiary)}>{item.kind}</span>
             </span>
           </span>
@@ -160,30 +183,30 @@ function MediaCandidateRow({
 
 function MediaCandidateNameInput({
   item,
+  displayName,
+  onDraftChange,
   onRename,
 }: {
   item: CommandMenuRichMediaItem
+  displayName: string
+  onDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
 }) {
-  const [draft, setDraft] = React.useState(item.label)
-  React.useEffect(() => {
-    setDraft(item.label)
-  }, [item.label, item.key])
-
   const commitValue = React.useCallback((value: string) => {
     const next = String(value || '').trim()
-    if (!next || next === item.label) {
-      setDraft(item.label)
+    if (!next) {
+      onDraftChange(item, item.label)
       return
     }
+    if (next === item.label) return
     onRename(item, next)
-  }, [item, onRename])
+  }, [item, onDraftChange, onRename])
 
   return (
     <input
       type="text"
-      value={draft}
-      aria-label={`Rename ${item.label}`}
+      value={displayName}
+      aria-label={`Rename ${displayName}`}
       className={cn(
         'min-w-0 max-w-full truncate rounded border border-transparent bg-transparent px-1 py-0 text-xs font-semibold outline-none',
         UI_THEME_TOKENS.text.primary,
@@ -192,7 +215,8 @@ function MediaCandidateNameInput({
       data-kg-command-menu-media-name-input={item.key}
       onClick={event => event.stopPropagation()}
       onPointerDown={event => event.stopPropagation()}
-      onChange={event => setDraft(event.target.value)}
+      onChange={event => onDraftChange(item, event.target.value)}
+      onInput={event => onDraftChange(item, event.currentTarget.value)}
       onBlur={event => commitValue(event.currentTarget.value)}
       onKeyDown={event => {
         if (event.key === 'Enter') {
@@ -203,7 +227,7 @@ function MediaCandidateNameInput({
         }
         if (event.key === 'Escape') {
           event.preventDefault()
-          setDraft(item.label)
+          onDraftChange(item, item.label)
           event.currentTarget.blur()
         }
       }}
@@ -245,7 +269,7 @@ function MediaActionRow({ action }: { action: InlineCommandMenuActionSpec }) {
 export function CommandMenuReferenceCatalog({
   className,
   title = 'Command Menu',
-  subtitle = '/ and @ actions',
+  subtitle = '/, @, and # actions',
   compactHeader = false,
 }: {
   className?: string
@@ -303,11 +327,14 @@ export function CommandMenuCatalogPanel() {
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || '')
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
+  const sourceFiles = useGraphStore(s => s.sourceFiles)
+  const setSourceFiles = useGraphStore(s => s.setSourceFiles)
   const { items } = useCommandMenuRichMediaInventory()
   const mediaItems = React.useMemo(
     () => items.filter(item => item.kind !== 'mermaid'),
     [items],
   )
+  const mediaNameDrafts = useCommandMenuMediaNameDrafts()
   const mediaActions = React.useMemo(
     () => INLINE_VARIABLE_COMMAND_ACTIONS.filter(action => action.id === 'insert-image' || action.id === 'insert-video'),
     [],
@@ -320,22 +347,55 @@ export function CommandMenuCatalogPanel() {
       selectNode(item.nodeId)
     }
   }, [selectNode, setActiveMediaKey, setMermaidFocus, setSelectionSource])
+  const handleMediaNameDraftChange = React.useCallback((item: CommandMenuRichMediaItem, nextName: string) => {
+    const syncKey = getMediaNameSyncKey(item)
+    writeCommandMenuMediaNameDraft(syncKey, nextName)
+  }, [])
   const handleRenameMedia = React.useCallback((item: CommandMenuRichMediaItem, nextName: string) => {
     const owner = item.renameOwner
     const name = String(nextName || '').trim()
     if (!owner || !name) return
+    const mediaNameSyncKey = getMediaNameSyncKey(item)
+    const markdownRenameItem: CommandMenuRichMediaItem = owner.type === 'markdownLine'
+      ? item
+      : mediaNameSyncKey
+        ? {
+            ...item,
+            renameOwner: {
+              type: 'markdownLine',
+              startLine: item.startLine || 1,
+              href: mediaNameSyncKey,
+              syntax: 'link',
+            },
+          }
+        : item
     if (owner.type === 'graphNodeLabel') {
       updateNode(owner.nodeId, { label: name })
-      return
     }
-    const nextText = renameCommandMenuRichMediaMarkdownLine({
+    const nextText = renameCommandMenuRichMediaMarkdownHref({
       markdownText: markdownDocumentText,
-      item,
+      item: markdownRenameItem,
       nextName: name,
     })
-    if (nextText === markdownDocumentText) return
-    setMarkdownDocument(markdownDocumentName, nextText, { applyViewPreset: false })
-  }, [markdownDocumentName, markdownDocumentText, setMarkdownDocument, updateNode])
+    let sourceFilesChanged = false
+    const nextSourceFiles = sourceFiles.map(file => {
+      const fileText = String(file?.text || '')
+      const renamedText = renameCommandMenuRichMediaMarkdownHref({
+        markdownText: fileText,
+        item: markdownRenameItem,
+        nextName: name,
+      })
+      if (renamedText === fileText) return file
+      sourceFilesChanged = true
+      const nextFile = { ...file, text: renamedText, parsedTextHash: '' }
+      writeWorkspaceSourceTextIfPresent(nextFile, renamedText, 'Command Menu media rename')
+      return nextFile
+    })
+    if (sourceFilesChanged) setSourceFiles(nextSourceFiles)
+    if (nextText !== markdownDocumentText) {
+      setMarkdownDocument(markdownDocumentName, nextText, { applyViewPreset: false })
+    }
+  }, [markdownDocumentName, markdownDocumentText, setMarkdownDocument, setSourceFiles, sourceFiles, updateNode])
 
   return (
     <section className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Command Menu" data-kg-command-menu-ktv-layout="1" data-kg-command-menu-media-panel="1">
@@ -357,7 +417,14 @@ export function CommandMenuCatalogPanel() {
         <KeyTypeValueHeader keyLabel="Media" typeLabel="Prefix" valueLabel="Source / action" stickyOffsetClassName="top-0" />
         <KeyTypeValueSectionStack>
           {mediaItems.map(item => (
-            <MediaCandidateRow key={item.key} item={item} onSelect={handleSelectMedia} onRename={handleRenameMedia} />
+            <MediaCandidateRow
+              key={item.key}
+              item={item}
+              displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
+              onSelect={handleSelectMedia}
+              onNameDraftChange={handleMediaNameDraftChange}
+              onRename={handleRenameMedia}
+            />
           ))}
           {mediaActions.map(action => (
             <MediaActionRow key={action.id} action={action} />

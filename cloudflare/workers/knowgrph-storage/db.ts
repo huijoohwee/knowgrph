@@ -110,6 +110,69 @@ const syncEventsTable = sqliteTable('sync_events', {
   created_at: text('created_at').notNull(),
 })
 
+const usersTable = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  display_name: text('display_name').notNull(),
+  status: text('status').notNull(),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+})
+
+const authSessionsTable = sqliteTable('auth_sessions', {
+  id: text('id').primaryKey(),
+  user_id: text('user_id').notNull(),
+  session_hash: text('session_hash').notNull(),
+  expires_at: text('expires_at').notNull(),
+  revoked_at: text('revoked_at'),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+})
+
+const workspaceMembershipsTable = sqliteTable('workspace_memberships', {
+  id: text('id').primaryKey(),
+  workspace_id: text('workspace_id').notNull(),
+  user_id: text('user_id').notNull(),
+  role: text('role').notNull(),
+  status: text('status').notNull(),
+  invited_by_user_id: text('invited_by_user_id'),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+})
+
+const workspaceProviderPoliciesTable = sqliteTable('workspace_provider_policies', {
+  id: text('id').primaryKey(),
+  workspace_id: text('workspace_id').notNull(),
+  provider_id: text('provider_id').notNull(),
+  allow_server_managed: integer('allow_server_managed').notNull(),
+  allow_byok: integer('allow_byok').notNull(),
+  monthly_request_limit: integer('monthly_request_limit'),
+  monthly_token_limit: integer('monthly_token_limit'),
+  monthly_spend_limit_cents: integer('monthly_spend_limit_cents'),
+  default_model: text('default_model'),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+})
+
+const chatProxyAuditTable = sqliteTable('chat_proxy_audit', {
+  id: text('id').primaryKey(),
+  workspace_id: text('workspace_id').notNull(),
+  user_id: text('user_id').notNull(),
+  membership_id: text('membership_id').notNull(),
+  provider_id: text('provider_id').notNull(),
+  auth_mode: text('auth_mode').notNull(),
+  request_id: text('request_id'),
+  upstream_status: integer('upstream_status'),
+  relay_status: text('relay_status').notNull(),
+  model_id: text('model_id'),
+  request_bytes: integer('request_bytes'),
+  response_bytes: integer('response_bytes'),
+  latency_ms: integer('latency_ms'),
+  error_code: text('error_code'),
+  error_message: text('error_message'),
+  created_at: text('created_at').notNull(),
+})
+
 const createKnowgrphStorageDrizzleDb = (db: D1DatabaseLike) => drizzle(db as never, {
   schema: {
     workspacesTable,
@@ -118,6 +181,11 @@ const createKnowgrphStorageDrizzleDb = (db: D1DatabaseLike) => drizzle(db as nev
     graphSnapshotsTable,
     syncDevicesTable,
     syncEventsTable,
+      usersTable,
+      authSessionsTable,
+      workspaceMembershipsTable,
+      workspaceProviderPoliciesTable,
+      chatProxyAuditTable,
   },
 })
 
@@ -172,6 +240,69 @@ export type CrawlerDocumentRow = {
   revision: number
   updated_at: string
   content_length: number
+}
+
+export type UserRow = {
+  id: string
+  email: string
+  display_name: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type AuthSessionRow = {
+  id: string
+  user_id: string
+  session_hash: string
+  expires_at: string
+  revoked_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type WorkspaceMembershipRow = {
+  id: string
+  workspace_id: string
+  user_id: string
+  role: string
+  status: string
+  invited_by_user_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type WorkspaceProviderPolicyRow = {
+  id: string
+  workspace_id: string
+  provider_id: string
+  allow_server_managed: number
+  allow_byok: number
+  monthly_request_limit: number | null
+  monthly_token_limit: number | null
+  monthly_spend_limit_cents: number | null
+  default_model: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ChatProxyAuditRow = {
+  id: string
+  workspace_id: string
+  user_id: string
+  membership_id: string
+  provider_id: string
+  auth_mode: string
+  request_id: string | null
+  upstream_status: number | null
+  relay_status: string
+  model_id: string | null
+  request_bytes: number | null
+  response_bytes: number | null
+  latency_ms: number | null
+  error_code: string | null
+  error_message: string | null
+  created_at: string
 }
 
 export const ensureWorkspaceRow = async (db: D1DatabaseLike, workspaceId: string, nowIso: string): Promise<void> => {
@@ -232,6 +363,202 @@ export const writeSyncEvent = async (
       created_at: args.nowIso,
     })
 }
+
+export const readActiveAuthSessionByHash = async (
+  db: D1DatabaseLike,
+  sessionHash: string,
+  nowIso: string,
+): Promise<(AuthSessionRow & { user_email: string; user_display_name: string; user_status: string }) | null> =>
+  await queryFirst<AuthSessionRow & { user_email: string; user_display_name: string; user_status: string }>(
+    db,
+    `select
+      auth_sessions.id,
+      auth_sessions.user_id,
+      auth_sessions.session_hash,
+      auth_sessions.expires_at,
+      auth_sessions.revoked_at,
+      auth_sessions.created_at,
+      auth_sessions.updated_at,
+      users.email as user_email,
+      users.display_name as user_display_name,
+      users.status as user_status
+    from auth_sessions
+    join users on users.id = auth_sessions.user_id
+    where auth_sessions.session_hash = ?
+      and auth_sessions.revoked_at is null
+      and auth_sessions.expires_at > ?
+    limit 1`,
+    [sessionHash, nowIso],
+  )
+
+export const readWorkspaceMembershipRow = async (
+  db: D1DatabaseLike,
+  workspaceId: string,
+  userId: string,
+): Promise<WorkspaceMembershipRow | null> =>
+  await queryFirst<WorkspaceMembershipRow>(
+    db,
+    `select
+      id,
+      workspace_id,
+      user_id,
+      role,
+      status,
+      invited_by_user_id,
+      created_at,
+      updated_at
+    from workspace_memberships
+    where workspace_id = ?
+      and user_id = ?
+      and status = 'active'
+    limit 1`,
+    [workspaceId, userId],
+  )
+
+export const readWorkspaceMembershipRowsByUser = async (
+  db: D1DatabaseLike,
+  userId: string,
+): Promise<WorkspaceMembershipRow[]> =>
+  await queryAll<WorkspaceMembershipRow>(
+    db,
+    `select
+      id,
+      workspace_id,
+      user_id,
+      role,
+      status,
+      invited_by_user_id,
+      created_at,
+      updated_at
+    from workspace_memberships
+    where user_id = ?
+    order by workspace_id asc`,
+    [userId],
+  )
+
+export const readWorkspaceProviderPolicyRow = async (
+  db: D1DatabaseLike,
+  workspaceId: string,
+  providerId: string,
+): Promise<WorkspaceProviderPolicyRow | null> =>
+  await queryFirst<WorkspaceProviderPolicyRow>(
+    db,
+    `select
+      id,
+      workspace_id,
+      provider_id,
+      allow_server_managed,
+      allow_byok,
+      monthly_request_limit,
+      monthly_token_limit,
+      monthly_spend_limit_cents,
+      default_model,
+      created_at,
+      updated_at
+    from workspace_provider_policies
+    where workspace_id = ?
+      and provider_id = ?
+    limit 1`,
+    [workspaceId, providerId],
+  )
+
+export const readWorkspaceProviderPolicyRows = async (
+  db: D1DatabaseLike,
+  workspaceId: string,
+): Promise<WorkspaceProviderPolicyRow[]> =>
+  await queryAll<WorkspaceProviderPolicyRow>(
+    db,
+    `select
+      id,
+      workspace_id,
+      provider_id,
+      allow_server_managed,
+      allow_byok,
+      monthly_request_limit,
+      monthly_token_limit,
+      monthly_spend_limit_cents,
+      default_model,
+      created_at,
+      updated_at
+    from workspace_provider_policies
+    where workspace_id = ?
+    order by provider_id asc`,
+    [workspaceId],
+  )
+
+export const writeChatProxyAuditRow = async (
+  db: D1DatabaseLike,
+  args: {
+    id: string
+    workspaceId: string
+    userId: string
+    membershipId: string
+    providerId: string
+    authMode: string
+    requestId?: string | null
+    upstreamStatus?: number | null
+    relayStatus: string
+    modelId?: string | null
+    requestBytes?: number | null
+    responseBytes?: number | null
+    latencyMs?: number | null
+    errorCode?: string | null
+    errorMessage?: string | null
+    createdAt: string
+  },
+): Promise<void> => {
+  await createKnowgrphStorageDrizzleDb(db)
+    .insert(chatProxyAuditTable)
+    .values({
+      id: args.id,
+      workspace_id: args.workspaceId,
+      user_id: args.userId,
+      membership_id: args.membershipId,
+      provider_id: args.providerId,
+      auth_mode: args.authMode,
+      request_id: normalizeNullableString(args.requestId),
+      upstream_status: args.upstreamStatus == null ? null : normalizeNumber(args.upstreamStatus),
+      relay_status: args.relayStatus,
+      model_id: normalizeNullableString(args.modelId),
+      request_bytes: args.requestBytes == null ? null : normalizeNumber(args.requestBytes),
+      response_bytes: args.responseBytes == null ? null : normalizeNumber(args.responseBytes),
+      latency_ms: args.latencyMs == null ? null : normalizeNumber(args.latencyMs),
+      error_code: normalizeNullableString(args.errorCode),
+      error_message: normalizeNullableString(args.errorMessage),
+      created_at: args.createdAt,
+    })
+}
+
+export const readChatProxyAuditRows = async (
+  db: D1DatabaseLike,
+  workspaceId: string,
+  limit: number,
+): Promise<ChatProxyAuditRow[]> =>
+  await queryAll<ChatProxyAuditRow>(
+    db,
+    `select
+      id,
+      workspace_id,
+      user_id,
+      membership_id,
+      provider_id,
+      auth_mode,
+      request_id,
+      upstream_status,
+      relay_status,
+      model_id,
+      request_bytes,
+      response_bytes,
+      latency_ms,
+      error_code,
+      error_message,
+      created_at
+    from chat_proxy_audit
+    where workspace_id = ?
+    order by created_at desc
+    limit ?`,
+    [workspaceId, Math.max(1, Math.min(200, Math.floor(limit || 50)))],
+  )
 
 export const readPullChangeRows = async (
   db: D1DatabaseLike,

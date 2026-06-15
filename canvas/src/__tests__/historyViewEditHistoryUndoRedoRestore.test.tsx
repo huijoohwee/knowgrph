@@ -112,3 +112,90 @@ export function testHistoryViewUsesScopedStoreSelectionAndSemanticSignatures() {
     throw new Error('expected HistoryView icon-only tabs to preserve tab semantics and tooltips')
   }
 }
+
+export async function testHistoryViewRelayQuickFilterScopesLogRows() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  const store = useGraphStore.getState()
+  let root: ReturnType<typeof createRoot> | null = null
+  try {
+    store.resetAll()
+    store.pushUiLog({
+      kind: 'neutral',
+      source: 'chat:relay',
+      message: 'Agnes AI workspace relay is ready. (workspace=kgws:test-chat, role=editor, auth=server-managed)',
+    })
+    store.pushUiLog({
+      kind: 'warning',
+      source: 'storage:sync',
+      message: 'Workspace sync retried after stale revision.',
+    })
+
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    root = createRoot(container)
+
+    await act(async () => {
+      root!.render(<HistoryView searchQuery="" />)
+    })
+    await tick()
+
+    const logTab = dom.window.document.querySelector(
+      'button[data-kg-history-section-tab="log"]',
+    ) as HTMLButtonElement | null
+    if (!logTab) throw new Error('expected Log tab')
+    await act(async () => {
+      logTab.click()
+      await tick()
+    })
+
+    const allFilter = dom.window.document.querySelector(
+      'button[data-kg-history-log-filter="all"]',
+    ) as HTMLButtonElement | null
+    const relayFilter = dom.window.document.querySelector(
+      'button[data-kg-history-log-filter="relay"]',
+    ) as HTMLButtonElement | null
+    if (!allFilter || !relayFilter) {
+      throw new Error('expected HistoryView log filter buttons when relay diagnostics exist')
+    }
+
+    const readVisibleRows = () =>
+      Array.from(dom.window.document.querySelectorAll('tbody tr')).map(row => String(row.textContent || ''))
+
+    const allRows = readVisibleRows()
+    if (!allRows.some(text => text.includes('chat:relay'))) {
+      throw new Error(`expected all log rows to include the relay diagnostic entry, got ${JSON.stringify(allRows)}`)
+    }
+    if (!allRows.some(text => text.includes('storage:sync'))) {
+      throw new Error(`expected all log rows to include the non-relay diagnostic entry, got ${JSON.stringify(allRows)}`)
+    }
+
+    await act(async () => {
+      relayFilter.click()
+      await tick()
+    })
+
+    const relayRows = readVisibleRows()
+    if (relayRows.length !== 1) {
+      throw new Error(`expected Relay filter to narrow the log table to one row, got ${relayRows.length}`)
+    }
+    if (!relayRows[0]?.includes('chat:relay')) {
+      throw new Error(`expected Relay filter to keep only relay diagnostics, got ${JSON.stringify(relayRows)}`)
+    }
+    if (relayRows[0]?.includes('storage:sync')) {
+      throw new Error(`expected Relay filter to exclude non-relay diagnostics, got ${JSON.stringify(relayRows)}`)
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root?.unmount()
+      })
+      await tick()
+    } catch {
+      void 0
+    }
+    restore()
+    restoreWindow()
+  }
+}

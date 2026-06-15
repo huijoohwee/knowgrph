@@ -32,6 +32,7 @@ export const useFloatingPanelChatSubmit = (
       chatProvider: args.chatProvider,
       chatAuthMode: args.chatAuthMode,
       chatApiKey: args.chatApiKey,
+      storageChatRelayDecision: args.storageChatRelayDecision,
       setErrorText: args.setErrorText,
       setConnectivity: args.setConnectivity,
       setConnectivityDetail: args.setConnectivityDetail,

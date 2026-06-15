@@ -4,6 +4,10 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   push: '/api/storage/push',
   pull: '/api/storage/pull',
   collabSave: '/api/storage/collab/save',
+  chatSession: '/api/storage/chat/session',
+  chatRelay: '/api/storage/chat/relay',
+  chatPoliciesPrefix: '/api/storage/chat/policies/',
+  chatAuditPrefix: '/api/storage/chat/audit/',
   exportPrefix: '/api/storage/export/',
   docPrefix: '/api/storage/doc/',
   defaultDocPrefix: '/api/storage/doc-default/',
@@ -190,6 +194,123 @@ export type KnowgrphStorageErrorResponse = {
   code: 'bad_request' | 'conflict' | 'forbidden' | 'not_found' | 'server_error'
 }
 
+export type KnowgrphStorageChatRole =
+  | 'viewer'
+  | 'editor'
+  | 'owner'
+  | 'provider-admin'
+
+export type KnowgrphStorageChatProviderId =
+  | 'openai'
+  | 'miromind'
+  | 'agnes-ai'
+  | 'byteplus-modelark'
+  | 'qwen'
+  | 'google-cloud'
+
+export type KnowgrphStorageChatAuthMode = 'serverManaged' | 'byok'
+
+export type KnowgrphStorageChatPolicyRecord = {
+  workspaceId: string
+  providerId: KnowgrphStorageChatProviderId
+  allowServerManaged: boolean
+  allowByok: boolean
+  monthlyRequestLimit: number | null
+  monthlyTokenLimit: number | null
+  monthlySpendLimitCents: number | null
+  defaultModel: string | null
+  updatedAtMs: number | null
+}
+
+export type KnowgrphStorageChatSessionMembership = {
+  workspaceId: string
+  role: KnowgrphStorageChatRole
+  status: string
+}
+
+export type KnowgrphStorageChatSessionResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  user: {
+    id: string
+    email: string
+    displayName: string
+    status: string
+  }
+  session: {
+    id: string
+    expiresAt: string
+  }
+  memberships: KnowgrphStorageChatSessionMembership[]
+}
+
+export type KnowgrphStorageChatPoliciesResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  membership: {
+    userId: string
+    role: KnowgrphStorageChatRole
+    status: string
+  }
+  policies: KnowgrphStorageChatPolicyRecord[]
+}
+
+export type KnowgrphStorageChatAuditEntry = {
+  id: string
+  workspaceId: string
+  userId: string
+  membershipId: string
+  providerId: string
+  authMode: KnowgrphStorageChatAuthMode
+  requestId: string | null
+  upstreamStatus: number | null
+  relayStatus: string
+  modelId: string | null
+  requestBytes: number | null
+  responseBytes: number | null
+  latencyMs: number | null
+  errorCode: string | null
+  errorMessage: string | null
+  createdAtMs: number | null
+}
+
+export type KnowgrphStorageChatAuditResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  entries: KnowgrphStorageChatAuditEntry[]
+}
+
+export type KnowgrphStorageChatRelayMessage = {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+}
+
+export type KnowgrphStorageChatRelayRequest = {
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  providerId: KnowgrphStorageChatProviderId
+  authMode: KnowgrphStorageChatAuthMode
+  endpointUrl?: string | null
+  model: string
+  messages: KnowgrphStorageChatRelayMessage[]
+  stream?: boolean
+  byokApiKey?: string | null
+  providerOptions?: Record<string, unknown> | null
+}
+
+export type KnowgrphStorageChatRelayResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  providerId: KnowgrphStorageChatProviderId
+  authMode: KnowgrphStorageChatAuthMode
+  upstreamStatus: number
+  relayStatus: 'allowed'
+  body: unknown
+}
+
 export type KnowgrphStoragePullRequest = {
   apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
   workspaceId: string
@@ -287,6 +408,7 @@ export type KnowgrphStorageR2BucketLike = {
 export type KnowgrphStorageWorkerEnv = {
   DB: unknown
   KNOWGRPH_STORAGE_SIGNING_SECRET?: string
+  KNOWGRPH_STORAGE_CHAT_PROXY_BASE_URL?: string
   KNOWGRPH_STORAGE_BLOB_BUCKET?: KnowgrphStorageR2BucketLike
   KNOWGRPH_STORAGE_BLOB_MAX_BYTES?: string
   KNOWGRPH_STORAGE_GITHUB_TOKEN?: string
@@ -315,6 +437,18 @@ export const buildKnowgrphStoragePullRequest = (args: {
 
 export const buildKnowgrphCollaborationSavePath = (): string =>
   KNOWGRPH_STORAGE_ROUTE_PATHS.collabSave
+
+export const buildKnowgrphStorageChatSessionPath = (): string =>
+  KNOWGRPH_STORAGE_ROUTE_PATHS.chatSession
+
+export const buildKnowgrphStorageChatRelayPath = (): string =>
+  KNOWGRPH_STORAGE_ROUTE_PATHS.chatRelay
+
+export const buildKnowgrphStorageChatPoliciesPath = (workspaceId: string): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.chatPoliciesPrefix}${encodeURIComponent(String(workspaceId || '').trim())}`
+
+export const buildKnowgrphStorageChatAuditPath = (workspaceId: string): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.chatAuditPrefix}${encodeURIComponent(String(workspaceId || '').trim())}`
 
 export const buildKnowgrphStorageExportPath = (workspaceId: string): string =>
   `/api/storage/export/${encodeURIComponent(String(workspaceId || '').trim())}`

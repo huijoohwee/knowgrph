@@ -35,6 +35,11 @@ export class FakeKnowgrphStorageD1Database {
   graphSnapshots = new Map<string, FakeRow>()
   syncDevices = new Map<string, FakeRow>()
   syncEvents = new Map<string, FakeRow>()
+  users = new Map<string, FakeRow>()
+  authSessions = new Map<string, FakeRow>()
+  workspaceMemberships = new Map<string, FakeRow>()
+  workspaceProviderPolicies = new Map<string, FakeRow>()
+  chatProxyAudit = new Map<string, FakeRow>()
   stripeCheckoutSessions = new Map<string, FakeRow>()
   stripeWebhookEvents = new Map<string, FakeRow>()
   agenticCommerceSessions = new Map<string, FakeRow>()
@@ -91,6 +96,45 @@ export class FakeKnowgrphStorageD1Database {
         device_id: deviceId,
         event_type: eventType,
         payload_json: payloadJson,
+        created_at: createdAt,
+      })
+      return
+    }
+    if (normalizedSql.includes('insert into chat_proxy_audit')) {
+      const [
+        id,
+        workspaceId,
+        userId,
+        membershipId,
+        providerId,
+        authMode,
+        requestId,
+        upstreamStatus,
+        relayStatus,
+        modelId,
+        requestBytes,
+        responseBytes,
+        latencyMs,
+        errorCode,
+        errorMessage,
+        createdAt,
+      ] = values
+      this.chatProxyAudit.set(String(id), {
+        id,
+        workspace_id: workspaceId,
+        user_id: userId,
+        membership_id: membershipId,
+        provider_id: providerId,
+        auth_mode: authMode,
+        request_id: requestId ?? null,
+        upstream_status: upstreamStatus ?? null,
+        relay_status: relayStatus,
+        model_id: modelId ?? null,
+        request_bytes: requestBytes ?? null,
+        response_bytes: responseBytes ?? null,
+        latency_ms: latencyMs ?? null,
+        error_code: errorCode ?? null,
+        error_message: errorMessage ?? null,
         created_at: createdAt,
       })
       return
@@ -406,6 +450,62 @@ export class FakeKnowgrphStorageD1Database {
 
   private readRows(sql: string, values: unknown[]): FakeRow[] {
     const normalizedSql = normalizeSql(sql)
+    if (normalizedSql.includes('from auth_sessions') && normalizedSql.includes('join users on users.id = auth_sessions.user_id')) {
+      const [sessionHash, nowIso] = values
+      const session = Array.from(this.authSessions.values()).find(row =>
+        row.session_hash === sessionHash
+        && (row.revoked_at == null || row.revoked_at === '')
+        && String(row.expires_at || '') > String(nowIso || ''),
+      )
+      if (!session) return []
+      const user = this.users.get(String(session.user_id || ''))
+      if (!user) return []
+      return [{
+        id: session.id,
+        user_id: session.user_id,
+        session_hash: session.session_hash,
+        expires_at: session.expires_at,
+        revoked_at: session.revoked_at ?? null,
+        created_at: session.created_at,
+        updated_at: session.updated_at,
+        user_email: user.email,
+        user_display_name: user.display_name,
+        user_status: user.status,
+      }]
+    }
+    if (normalizedSql.includes('from workspace_memberships') && normalizedSql.includes('where workspace_id = ?') && normalizedSql.includes('and user_id = ?') && normalizedSql.includes("and status = 'active'")) {
+      const [workspaceId, userId] = values
+      const rows = Array.from(this.workspaceMemberships.values()).filter(row =>
+        row.workspace_id === workspaceId && row.user_id === userId && row.status === 'active',
+      )
+      return rows.slice(0, 1)
+    }
+    if (normalizedSql.includes('from workspace_memberships') && normalizedSql.includes('where user_id = ?') && normalizedSql.includes('order by workspace_id asc')) {
+      const [userId] = values
+      return Array.from(this.workspaceMemberships.values())
+        .filter(row => row.user_id === userId)
+        .sort((a, b) => String(a.workspace_id || '').localeCompare(String(b.workspace_id || '')))
+    }
+    if (normalizedSql.includes('from workspace_provider_policies') && normalizedSql.includes('where workspace_id = ?') && normalizedSql.includes('and provider_id = ?')) {
+      const [workspaceId, providerId] = values
+      const rows = Array.from(this.workspaceProviderPolicies.values()).filter(row =>
+        row.workspace_id === workspaceId && row.provider_id === providerId,
+      )
+      return rows.slice(0, 1)
+    }
+    if (normalizedSql.includes('from workspace_provider_policies') && normalizedSql.includes('where workspace_id = ?') && normalizedSql.includes('order by provider_id asc')) {
+      const [workspaceId] = values
+      return Array.from(this.workspaceProviderPolicies.values())
+        .filter(row => row.workspace_id === workspaceId)
+        .sort((a, b) => String(a.provider_id || '').localeCompare(String(b.provider_id || '')))
+    }
+    if (normalizedSql.includes('from chat_proxy_audit') && normalizedSql.includes('where workspace_id = ?') && normalizedSql.includes('order by created_at desc')) {
+      const [workspaceId, limit] = values
+      return Array.from(this.chatProxyAudit.values())
+        .filter(row => row.workspace_id === workspaceId)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .slice(0, Number(limit || 50))
+    }
     if (
       normalizedSql.includes('select id, content_md from documents')
       && normalizedSql.includes('documents.workspace_id = ?')

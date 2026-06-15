@@ -157,13 +157,13 @@ selection_state:
 
 - Floating Panel (tool menu) hosts the Props/Inspector/etc views.
 - Floating Panel default geometry is top-right canvas aligned through `floatingPanelGeometry.ts`; its default width is 20% wider (`0.3` viewport ratio / `21.6rem` minimum), and its right inset reuses the same canvas edge-gap token as the toolbar top inset. GitGraph command CRUD is hosted as the `gitGraph` FloatingPanel view instead of a duplicate canvas-local command panel.
-- Floating Panel hosts a dedicated `commandMenu` view to the right of `View`, and that view reuses the same Geo KTV-style lightweight layout contract as other structured FloatingPanel views instead of introducing a foreign command-palette shell. FloatingPanel `commandMenu` is the SSOT for current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media browsing; MainPanel Help → Command Menu owns the full `/` and `@` catalog reference.
+- Floating Panel hosts a dedicated `commandMenu` view to the right of `View`, and that view reuses the same Geo KTV-style lightweight layout contract as other structured FloatingPanel views instead of introducing a foreign command-palette shell. FloatingPanel `commandMenu` is the SSOT for current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media browsing; MainPanel Help → Command Menu owns the full `/`, `@`, and `#` catalog reference.
 - Document versioning records bounded local snapshots from Editor Workspace saves, Source Files writeback, and GitGraph CRUD through `documentVersioning.ts`; Source Files rows expose version counts, Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in GitGraph view after `[ ] Markdown`, and the bottom panel exposes GitGraph immediately to the right of the Timeline icon. MainPanel History does not own a document-version Docs surface.
 - Interaction controls for infinite-canvas workflows live in a dedicated **Interaction** floating panel that is positioned adjacent to the Floating Panel when the Props view is active.
 - Forbid any legacy “Arrange” panels (canvas overlays, editor tabs, or floating panels) that duplicate Interaction/Arrange actions.
 - Shared panel activation events, default panel sizing, and panel-role ownership must live under `canvas/src/features/panels/*`; forbid a parallel `features/bottom-panel/*` helper namespace or duplicate bottom-surface ownership labels in shared config.
 - Bottom-surface tabs stay thin surfaces over the shared panel contract: lightweight tabs render local quick-review content only, without duplicating workspace or renderer ownership.
-- Shared inline command management belongs to one owner path. `/` slash actions and `@` variable or media actions must reuse the same command catalog, search, item rendering, and insertion contracts across MainPanel Help Command Menu, MainPanel Workflow Manager graph fields, canvas card inline editors, Markdown Viewer or WYSIWYG blocks, and Floating Panel media browsing.
+- Shared inline command management belongs to one owner path. `/` slash actions, `@` variable or media actions, and `#` keyword actions must reuse the same command catalog, search, item rendering, and insertion contracts across MainPanel Help Command Menu, MainPanel Workflow Manager graph fields, canvas card inline editors, Markdown Viewer or WYSIWYG blocks, and Floating Panel media browsing.
 
 #### Floating Panel Lightweight View Pattern (Props Panel Contract)
 
@@ -173,6 +173,9 @@ Floating Panel views must reuse the same lightweight embedding pattern as Props 
   - Default: the Floating Panel body owns scrolling via `FLOATING_PANEL_SCROLL_CLASSNAME`.
   - Embedded views must be content-only (no `h-full`, no nested `overflow-*` scrollers).
   - If a view must own its own internal scroller (e.g. chat message list), the Floating Panel body must switch to `overflow-hidden` for that view to prevent double-scroll.
+  - FloatingPanelChat footer status rows must keep transport connectivity and authenticated relay-policy state separate; relay loading/ready/blocked text must not overwrite the generic endpoint connectivity line.
+  - When authenticated relay is active, FloatingPanelChat footer may render a second relay summary row for workspace/policy context (`workspaceId`, resolved role when known, requested auth mode, default model when present) without collapsing that detail into the primary relay status sentence.
+  - Relay summary context may expose a lightweight action that reuses the existing History -> Log navigation path for diagnostics; do not fork a separate relay-debug panel for the same log surface.
 - **No redundant shell styling**:
   - The Floating Panel shell owns background and base typography (`UI_THEME_TOKENS.panel.bg`, `UI_THEME_TOKENS.text.*`).
   - Embedded views must not re-apply panel background, “card” borders/rounded/shadow, or fixed widths unless the shell explicitly requires it.
@@ -184,14 +187,17 @@ Floating Panel views must reuse the same lightweight embedding pattern as Props 
 - **Tokenized styling only**:
   - Forbid hardcoded Tailwind palette classes infloating panel bodies (e.g. `bg-gray-*`, `text-gray-*`); use `UI_THEME_TOKENS` so dark mode and density stay consistent.
 
-#### Shared `/` And `@` Command Menu Contract
+#### Shared `/`, `@`, And `#` Command Menu Contract
 
 - `/` opens text-structure and action commands from one shared catalog.
 - `@` opens variable, reference, image, and video insertion commands from that same shared catalog and search runtime.
+- `#` opens keyword commands from that same shared catalog and inserts stable hash tokens for canvas lanes, card fields, media keywords, and graph workflow tags.
 - MainPanel Help → Command Menu is the browser over the same command definitions used inline; it must not maintain a second list, second persistence path, or second media-resolution heuristic.
 - The Floating Panel `commandMenu` view is the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list. It must reuse the shared media candidate resolver, feed Preview Panel selection without duplicating the gallery there, and must not display the full `/` command catalog.
 - `@` media rows must expose thumbnails or media previews when the shared media candidate resolver can derive them, including imported references and indexed image/video URLs.
 - Floating Panel `@` media row names are editable inline and commit through the owning graph node label or markdown link/image-alt line.
+- `@` image insertion persists as `![alt](url)`. `@` video insertion persists as `<video src="..." poster="..." title="..." controls></video>` so source URL, optional poster, and human-readable media title remain explicit in authored text.
+- MainPanel Dashboard `Keywords` is a full-graph reusable inventory. Its `#` chips and the inline `#` command menu must continue to expose centralized graph tags, keywords, lane/status values, and typed node categories even when other stats sections are scoped to `Selection`.
 - Accepting a command from any supported surface must commit through the owning text or graph-field write path so inserted media, placeholders, and references survive blur, rerender, parser reprojection, and Storyboard or Strybldr regeneration.
 
 **Configuration Schema (core sections)**:

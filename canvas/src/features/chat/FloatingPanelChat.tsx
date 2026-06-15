@@ -36,6 +36,7 @@ import {
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
+import { buildStorageChatRelayLogDescriptor } from '@/features/chat/floatingPanelChat/floatingPanelChatRelayDiagnostics'
 import {
   abortDurableChatStreamRun,
   clearActiveDurableChatStreamRun,
@@ -53,6 +54,20 @@ import {
   clearLocalChatPipelineSurfaceSnapshot,
   publishLocalChatPipelineSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import {
+  fetchKnowgrphStorageChatPolicies,
+  fetchKnowgrphStorageChatSession,
+  isKnowgrphStorageChatAuthModeAllowed,
+  readKnowgrphStorageChatRelayConfig,
+  resolveKnowgrphStorageChatPolicy,
+  toKnowgrphStorageChatProviderId,
+  type KnowgrphStorageChatRelayDecision,
+} from '@/lib/storage/knowgrphStorageChatClient'
+import type {
+  KnowgrphStorageChatPoliciesResponse,
+  KnowgrphStorageChatSessionMembership,
+  KnowgrphStorageChatSessionResponse,
+} from '@/lib/storage/knowgrphStorageSyncContract'
 import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
@@ -103,6 +118,8 @@ export default function FloatingPanelChat() {
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
   const pushUiLog = useGraphStore(s => s.pushUiLog)
   const requestHistorySubTab = useGraphStore(s => s.requestHistorySubTab)
+  const setBottomSurfaceCollapsed = useGraphStore(s => s.setBottomSurfaceCollapsed)
+  const setBottomSurfaceTab = useGraphStore(s => s.setBottomSurfaceTab)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
 
   const chatStorageTarget = useGraphStore(s => (s.chatStorageTarget === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph'))
@@ -142,6 +159,17 @@ export default function FloatingPanelChat() {
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
   const streamFollowRef = React.useRef<{ path: string; atMs: number } | null>(null)
   const streamDraftTextRef = React.useRef<{ path: string; text: string } | null>(null)
+  const lastRelayLogSignatureRef = React.useRef<string | null>(null)
+  const storageChatRelayConfig = React.useMemo(() => readKnowgrphStorageChatRelayConfig(), [])
+  const [storageChatSession, setStorageChatSession] = React.useState<KnowgrphStorageChatSessionResponse | null>(null)
+  const [storageChatPolicies, setStorageChatPolicies] = React.useState<KnowgrphStorageChatPoliciesResponse | null>(null)
+  const [storageChatRelayBootstrap, setStorageChatRelayBootstrap] = React.useState<{
+    status: 'disabled' | 'loading' | 'ready' | 'blocked'
+    detail: string | null
+  }>({
+    status: storageChatRelayConfig ? 'loading' : 'disabled',
+    detail: storageChatRelayConfig ? 'Checking workspace relay policy...' : null,
+  })
   React.useEffect(() => {
     if (isLoading) return
     setChatWorkspaceStreamingState(null)
@@ -149,6 +177,53 @@ export default function FloatingPanelChat() {
     setStreamingWorkspacePath(null)
   }, [isLoading, setChatWorkspaceStreamingState])
   const streamRevealSeqRef = React.useRef(0)
+
+  React.useEffect(() => {
+    if (!storageChatRelayConfig) {
+      setStorageChatSession(null)
+      setStorageChatPolicies(null)
+      setStorageChatRelayBootstrap({ status: 'disabled', detail: null })
+      return
+    }
+    let cancelled = false
+    setStorageChatRelayBootstrap({
+      status: 'loading',
+      detail: 'Checking workspace relay policy...',
+    })
+    setStorageChatSession(null)
+    setStorageChatPolicies(null)
+    void (async () => {
+      try {
+        const session = await fetchKnowgrphStorageChatSession({ config: storageChatRelayConfig })
+        if (cancelled) return
+        const membership = session.memberships.find(entry => entry.workspaceId === storageChatRelayConfig.workspaceId)
+        if (!membership) {
+          setStorageChatRelayBootstrap({
+            status: 'blocked',
+            detail: 'Workspace relay session is not a member of the configured storage workspace.',
+          })
+          return
+        }
+        const policies = await fetchKnowgrphStorageChatPolicies({ config: storageChatRelayConfig })
+        if (cancelled) return
+        setStorageChatSession(session)
+        setStorageChatPolicies(policies)
+        setStorageChatRelayBootstrap({
+          status: 'ready',
+          detail: 'Workspace relay policy loaded.',
+        })
+      } catch (error) {
+        if (cancelled) return
+        setStorageChatRelayBootstrap({
+          status: 'blocked',
+          detail: error instanceof Error ? error.message : 'Storage chat relay bootstrap failed.',
+        })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [storageChatRelayConfig])
 
   const historyKey = React.useMemo(() => buildHistoryKey(graphData), [graphData])
 
@@ -173,6 +248,162 @@ export default function FloatingPanelChat() {
     if (chatProviderHint && pixverseHint) return `${chatProviderHint} ${pixverseHint}`
     return pixverseHint || chatProviderHint
   }, [chatProviderHint, pixverseVideoConfig.enabled, pixverseVideoConfig.strategy])
+  const storageChatProviderId = React.useMemo(
+    () => toKnowgrphStorageChatProviderId(chatProvider),
+    [chatProvider],
+  )
+  const storageChatMembership = React.useMemo<KnowgrphStorageChatSessionMembership | null>(() => {
+    if (!storageChatRelayConfig || !storageChatSession) return null
+    return storageChatSession.memberships.find(entry => entry.workspaceId === storageChatRelayConfig.workspaceId) || null
+  }, [storageChatRelayConfig, storageChatSession])
+  const storageChatPolicy = React.useMemo(() => {
+    if (!storageChatRelayConfig || !storageChatProviderId || !storageChatPolicies) return null
+    return resolveKnowgrphStorageChatPolicy({
+      workspaceId: storageChatRelayConfig.workspaceId,
+      providerId: storageChatProviderId,
+      policies: storageChatPolicies.policies,
+    })
+  }, [storageChatPolicies, storageChatProviderId, storageChatRelayConfig])
+  const storageChatRelayDecision = React.useMemo<KnowgrphStorageChatRelayDecision>(() => {
+    if (!storageChatRelayConfig) return { kind: 'disabled' }
+    if (!storageChatProviderId) return { kind: 'disabled' }
+    if (storageChatRelayBootstrap.status === 'loading') {
+      return {
+        kind: 'loading',
+        detail: storageChatRelayBootstrap.detail || 'Checking workspace relay policy...',
+      }
+    }
+    if (storageChatRelayBootstrap.status === 'blocked') {
+      return {
+        kind: 'blocked',
+        detail: storageChatRelayBootstrap.detail || 'Storage chat relay is unavailable.',
+        policy: storageChatPolicy,
+      }
+    }
+    if (!storageChatMembership) {
+      return {
+        kind: 'blocked',
+        detail: 'Workspace relay session is not a member of the configured storage workspace.',
+        policy: storageChatPolicy,
+      }
+    }
+    if (!storageChatPolicy) {
+      return {
+        kind: 'blocked',
+        detail: 'Workspace relay policy is unavailable for the selected provider.',
+        policy: null,
+      }
+    }
+    if (!isKnowgrphStorageChatAuthModeAllowed(storageChatPolicy, chatAuthMode)) {
+      return {
+        kind: 'blocked',
+        detail: chatAuthMode === 'byok'
+          ? `${chatProviderLabel} BYOK relay is not enabled for this workspace.`
+          : `${chatProviderLabel} server-managed relay is not enabled for this workspace.`,
+        policy: storageChatPolicy,
+      }
+    }
+    return {
+      kind: 'ready',
+      detail: `${chatProviderLabel} workspace relay is ready.`,
+      config: storageChatRelayConfig,
+      membership: storageChatMembership,
+      policy: storageChatPolicy,
+    }
+  }, [
+    chatAuthMode,
+    chatProviderLabel,
+    storageChatMembership,
+    storageChatPolicy,
+    storageChatProviderId,
+    storageChatRelayBootstrap.detail,
+    storageChatRelayBootstrap.status,
+    storageChatRelayConfig,
+  ])
+  const visibleRelayStatus = React.useMemo<{
+    tone: 'info' | 'ok' | 'error'
+    detail: string
+  } | null>(() => {
+    if (storageChatRelayDecision.kind === 'disabled') return null
+    if (!storageChatRelayDecision.detail) return null
+    if (storageChatRelayDecision.kind === 'ready') {
+      return {
+        tone: 'ok',
+        detail: storageChatRelayDecision.detail,
+      }
+    }
+    if (storageChatRelayDecision.kind === 'blocked') {
+      return {
+        tone: 'error',
+        detail: storageChatRelayDecision.detail,
+      }
+    }
+    return {
+      tone: 'info',
+      detail: storageChatRelayDecision.detail,
+    }
+  }, [storageChatRelayDecision])
+  const visibleRelaySummary = React.useMemo<string | null>(() => {
+    if (storageChatRelayDecision.kind === 'disabled') return null
+    const parts: string[] = []
+    const workspaceId = String(storageChatRelayConfig?.workspaceId || '').trim()
+    if (workspaceId) parts.push(`Workspace ${workspaceId}`)
+    if (storageChatRelayDecision.kind === 'ready') {
+      parts.push(`Role ${storageChatRelayDecision.membership.role}`)
+      parts.push(`Auth ${chatAuthMode === 'byok' ? 'BYOK' : 'server-managed'}`)
+      if (storageChatRelayDecision.policy.defaultModel) {
+        parts.push(`Default model ${storageChatRelayDecision.policy.defaultModel}`)
+      }
+      return parts.join(' · ')
+    }
+    if (chatAuthMode === 'byok' || chatAuthMode === 'serverManaged') {
+      parts.push(`Requested auth ${chatAuthMode === 'byok' ? 'BYOK' : 'server-managed'}`)
+    }
+    if (storageChatPolicy?.defaultModel) {
+      parts.push(`Default model ${storageChatPolicy.defaultModel}`)
+    }
+    return parts.length > 0 ? parts.join(' · ') : null
+  }, [chatAuthMode, storageChatPolicy, storageChatRelayConfig, storageChatRelayDecision])
+  const openRelayLogView = React.useCallback(() => {
+    try {
+      setBottomSurfaceCollapsed(false)
+    } catch {
+      void 0
+    }
+    try {
+      setBottomSurfaceTab('history')
+    } catch {
+      void 0
+    }
+    try {
+      requestHistorySubTab('log')
+    } catch {
+      void 0
+    }
+  }, [requestHistorySubTab, setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  React.useEffect(() => {
+    const relayLogDescriptor = buildStorageChatRelayLogDescriptor({
+      relayDecision: storageChatRelayDecision,
+      workspaceId: storageChatRelayConfig?.workspaceId || null,
+      providerLabel: chatProviderLabel,
+      authMode: chatAuthMode,
+      policy: storageChatPolicy,
+    })
+    if (!relayLogDescriptor) {
+      lastRelayLogSignatureRef.current = null
+      return
+    }
+    if (lastRelayLogSignatureRef.current === relayLogDescriptor.signature) return
+    lastRelayLogSignatureRef.current = relayLogDescriptor.signature
+    pushUiLog(relayLogDescriptor.entry)
+  }, [
+    chatAuthMode,
+    chatProviderLabel,
+    pushUiLog,
+    storageChatPolicy,
+    storageChatRelayConfig,
+    storageChatRelayDecision,
+  ])
   const invokedChatSkill = React.useMemo(() => parseChatSkillSlashInvocation(input), [input])
   const shouldShowChatApiKeyPrompt = shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })
 
@@ -623,6 +854,7 @@ export default function FloatingPanelChat() {
     chatStorageTarget,
     chatLocalStorageRootPath,
     chatKnowgrphWorkspacePath,
+    storageChatRelayDecision,
     setChatKnowgrphWorkspacePath,
     setChatWorkspaceStreamingState,
     chatProviderSummary,
@@ -730,6 +962,9 @@ export default function FloatingPanelChat() {
         errorText={errorText}
         connectivity={connectivity}
         connectivityDetail={connectivityDetail}
+        relayStatus={visibleRelayStatus}
+        relaySummary={visibleRelaySummary}
+        relayAction={visibleRelayStatus || visibleRelaySummary ? { label: 'Open Log', onClick: openRelayLogView } : null}
         apiKeyPrompt={shouldShowChatApiKeyPrompt ? { providerLabel: chatProviderLabel, value: chatApiKey || '', onChange: setChatApiKey } : null}
         currentNode={currentNode}
         modelId={chatModelSelect.modelId}

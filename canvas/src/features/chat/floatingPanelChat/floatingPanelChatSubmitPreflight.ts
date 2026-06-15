@@ -21,6 +21,7 @@ export const resolveChatSubmitRequestUrlOrSetError = (args: {
   chatProvider: string
   chatAuthMode: 'byok' | 'serverManaged'
   chatApiKey: string | null
+  storageChatRelayDecision?: FloatingPanelChatSubmitArgs['storageChatRelayDecision']
   setErrorText: React.Dispatch<React.SetStateAction<string | null>>
   setConnectivity: React.Dispatch<React.SetStateAction<'unknown' | 'ok' | 'error'>>
   setConnectivityDetail: React.Dispatch<React.SetStateAction<string | null>>
@@ -40,6 +41,21 @@ export const resolveChatSubmitRequestUrlOrSetError = (args: {
     args.setErrorText(detail)
     args.setConnectivity('error')
     args.setConnectivityDetail(detail)
+    return null
+  }
+  if (args.storageChatRelayDecision?.kind === 'ready') {
+    return args.storageChatRelayDecision.config.relayUrl
+  }
+  if (args.storageChatRelayDecision?.kind === 'loading') {
+    args.setErrorText(args.storageChatRelayDecision.detail)
+    args.setConnectivity('unknown')
+    args.setConnectivityDetail(args.storageChatRelayDecision.detail)
+    return null
+  }
+  if (args.storageChatRelayDecision?.kind === 'blocked') {
+    args.setErrorText(args.storageChatRelayDecision.detail)
+    args.setConnectivity('error')
+    args.setConnectivityDetail(args.storageChatRelayDecision.detail)
     return null
   }
   const requestUrl = resolveChatEndpointForRequest(

@@ -36,7 +36,7 @@ const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
 
-const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt'] as const
+const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
@@ -1288,14 +1288,19 @@ const applyStrybldrCardOverride = (
       properties.title = asJson(value)
       continue
     }
+    if (key === 'type') {
+      continue
+    }
     properties[key] = asJson(value)
   }
   const order = Number(override.order)
   if (Number.isFinite(order)) properties.order = asJson(order)
   const title = cleanMultilineText(override.title)
+  const type = cleanMultilineText(override.type)
   return {
     ...node,
     ...(title ? { label: title } : {}),
+    ...(type ? { type } : {}),
     properties,
   }
 }

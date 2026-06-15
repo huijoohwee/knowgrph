@@ -11,4 +11,9 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["richMedia.panel.markdownScrollSurfaceCanPanCanvas","@/__tests__/richMediaPanelMarkdownScrollSurfacePan.test","testRichMediaPanelMarkdownScrollSurfaceCanPanCanvasWhenForwarded"],
   ["ui.floatingPanelChat.apiKeyPrompt.byokOnly","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatApiKeyPromptIsByokOnly"],
   ["ui.floatingPanelChat.apiKey.modelIconAlignment","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIconAndAlignsInput"],
+  ["ui.floatingPanelChat.relayStatus.visibleSeparateFromConnectivity","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterShowsRelayStatusSeparatelyFromEndpointConnectivity"],
+  ["ui.floatingPanelChat.relaySummary.workspacePolicyContext","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterShowsRelayWorkspacePolicySummary"],
+  ["ui.floatingPanelChat.relaySummary.openLogAction","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterRelaySummaryActionOpensLogCallback"],
+  ["ui.floatingPanelChat.relayDiagnostics.disabledAndLoadingSkipSharedLogRows","@/__tests__/floatingPanelChatRelayDiagnostics.test","testBuildStorageChatRelayLogDescriptorReturnsNullForDisabledAndLoadingStates"],
+  ["ui.floatingPanelChat.relayDiagnostics.readyAndBlockedUseSharedLogRows","@/__tests__/floatingPanelChatRelayDiagnostics.test","testBuildStorageChatRelayLogDescriptorBuildsReadyAndBlockedEntries"],
 ]

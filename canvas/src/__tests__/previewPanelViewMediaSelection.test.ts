@@ -4,6 +4,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import PreviewPanelView from '@/features/panels/views/PreviewPanelView'
 import CommandMenuCatalogPanel from '@/features/command-menu/CommandMenuCatalogPanel'
+import { dedupeCommandMenuRichMediaItems, type CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -91,7 +92,11 @@ const readCommandMenuMediaRowName = (row: Element): string => {
 const setInputValue = (window: Window, input: HTMLInputElement, value: string) => {
   const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
   descriptor?.set?.call(input, value)
-  input.dispatchEvent(new window.Event('input', { bubbles: true }))
+  const InputEventCtor = (window as unknown as { InputEvent?: typeof InputEvent }).InputEvent
+  input.dispatchEvent(InputEventCtor
+    ? new InputEventCtor('input', { bubbles: true, inputType: 'insertText', data: value })
+    : new window.Event('input', { bubbles: true }))
+  input.dispatchEvent(new window.Event('change', { bubbles: true }))
 }
 
 export async function testCommandMenuGraphMediaSelectionSelectsPreviewMedia() {
@@ -292,6 +297,174 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
           afterTweet.markdownPreviewActiveMediaKey,
         )}`,
       )
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testCommandMenuMarkdownMediaRenameSyncsWorkspaceHrefReferences() {
+  const storage = new MemoryStorage()
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const href = 'https://example.com/seedance.mp4'
+    const markdown = [
+      '# Media source',
+      '',
+      `[${href}](${href})`,
+      '',
+      `[Video reference](${href})`,
+      '',
+    ].join('\n')
+    const workspacePeerText = [
+      '# Storyboard card',
+      '',
+      `[Old storyboard media](${href})`,
+      '',
+    ].join('\n')
+
+    const state = useGraphStore.getState()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [] })
+    state.setSourceFiles([
+      {
+        id: 'active-media-source',
+        name: 'import-url-source.md',
+        text: markdown,
+        enabled: true,
+        status: 'idle',
+        source: { kind: 'local', path: 'workspace:/import-url-source.md' },
+      },
+      {
+        id: 'storyboard-media-peer',
+        name: 'storyboard-card.md',
+        text: workspacePeerText,
+        enabled: true,
+        status: 'idle',
+        source: { kind: 'local', path: 'workspace:/storyboard-card.md' },
+      },
+    ])
+    state.setMarkdownDocument('workspace:/import-url-source.md', markdown)
+    state.setMarkdownPreviewMermaidFocus(null)
+    state.setMarkdownPreviewActiveMediaKey(null)
+
+    await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
+
+    const nameInput = Array
+      .from(doc.querySelectorAll('[data-kg-command-menu-media-name-input]') as NodeListOf<HTMLInputElement>)
+      .find(input => input.value === href)
+    if (!nameInput) throw new Error('expected Command Menu media row to expose the URL-derived media name')
+
+    await act(async () => {
+      setInputValue(dom.window, nameInput, 'Seedance source media')
+      await waitForNextFrame(dom.window)
+    })
+    const syncedDraftInputs = Array
+      .from(doc.querySelectorAll('[data-kg-command-menu-media-name-input]') as NodeListOf<HTMLInputElement>)
+      .filter(input => input.value === 'Seedance source media')
+    if (syncedDraftInputs.length !== 1) {
+      const values = Array
+        .from(doc.querySelectorAll('[data-kg-command-menu-media-name-input]') as NodeListOf<HTMLInputElement>)
+        .map(input => input.value)
+      throw new Error(`expected same-href media rows to collapse to one live draft row, got ${syncedDraftInputs.length}; values=${JSON.stringify(values)}`)
+    }
+
+    await act(async () => {
+      nameInput.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+
+    const after = useGraphStore.getState()
+    const activeText = String(after.markdownDocumentText || '')
+    if (!activeText.includes(`[Seedance source media](${href})`)) {
+      throw new Error(`expected active markdown link label to be renamed, got ${activeText}`)
+    }
+    if (!activeText.includes(`[Seedance source media](${href})\n\n[Seedance source media](${href})`)) {
+      throw new Error(`expected active markdown same-href link labels to sync to renamed media name, got ${activeText}`)
+    }
+    const sourceFiles = after.sourceFiles || []
+    const activeSource = sourceFiles.find(file => file.id === 'active-media-source')
+    const peerSource = sourceFiles.find(file => file.id === 'storyboard-media-peer')
+    if (!String(activeSource?.text || '').includes(`[Seedance source media](${href})\n\n[Seedance source media](${href})`)) {
+      throw new Error(`expected active Source Files entry to sync media rename, got ${String(activeSource?.text || '')}`)
+    }
+    if (!String(peerSource?.text || '').includes(`[Seedance source media](${href})`)) {
+      throw new Error(`expected peer Source Files entry to sync same-href media rename, got ${String(peerSource?.text || '')}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    useGraphStore.getState().setSourceFiles([])
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testCommandMenuMediaInventoryDeduplicatesMarkdownAndGraphSameUrl() {
+  const storage = new MemoryStorage()
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const href = 'https://example.com/example.png'
+    const markdown = [
+      '# Media source',
+      '',
+      `![Seedance source](${href})`,
+      '',
+    ].join('\n')
+
+    const state = useGraphStore.getState()
+    state.setGraphData(buildGraphWithMediaNode())
+    state.setSourceFiles([])
+    state.setMarkdownDocument('workspace:/import-url-source.md', markdown)
+    state.setMarkdownPreviewMermaidFocus(null)
+    state.setMarkdownPreviewActiveMediaKey(null)
+
+    await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
+
+    const mediaRows = Array.from(doc.querySelectorAll('[data-kg-command-menu-media-candidate]')) as HTMLElement[]
+    if (mediaRows.length !== 1) {
+      const rowText = mediaRows.map(row => String(row.textContent || '').replace(/\s+/g, ' ').trim())
+      throw new Error(`expected graph and markdown same-URL media to collapse to one row, got ${mediaRows.length}; rows=${JSON.stringify(rowText)}`)
+    }
+    const deduped = dedupeCommandMenuRichMediaItems([
+      {
+        key: 'markdown:image',
+        kind: 'image',
+        source: 'markdown',
+        startLine: 3,
+        label: 'Seedance source',
+        src: href,
+        openUrl: href,
+      },
+      {
+        key: 'graph:image',
+        kind: 'image',
+        source: 'graph',
+        startLine: 0,
+        label: 'Node media: Example media node',
+        src: href,
+        openUrl: href,
+        nodeId: 'n1',
+      },
+    ] satisfies CommandMenuRichMediaItem[])
+    if (deduped.length !== 1 || deduped[0]?.source !== 'graph') {
+      throw new Error(`expected shared media inventory dedupe to keep graph owner, got ${JSON.stringify(deduped.map(item => item.source))}`)
     }
 
     await unmountReactRoot(root, { window: dom.window })

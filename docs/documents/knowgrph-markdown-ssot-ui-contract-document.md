@@ -178,6 +178,9 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Slash commands:
   - Typing `/` near the caret at the start of a line (or after whitespace) may open a lightweight slash-command menu aligned with the caret. The menu reuses the same floating menu SSOT styles and triggers the same heading/list/quote/code transforms as the bubble toolbar.
   - Slash detection must be local to the active line and must not scan the full document repeatedly; hide the menu when the trailing slash context is removed or when focus leaves the editor.
+- `@` and `#` commands:
+  - `@` must reuse the shared variable/media command catalog. Image insertion emits `![alt](url)` and video insertion emits `<video src="..." poster="..." title="..." controls></video>` using the owner write path of the active text surface.
+  - `#` must reuse the shared keyword catalog plus centralized full-graph keyword inventory; reusable keyword browsing must not degrade to selection-only terms when a selection subgraph is active elsewhere in the UI.
 - In-place editing + bubble/command menus must be:
   - Selection-scoped and view-only: all actions are pure Markdown text transforms; no hidden graph or layout derivations are allowed.
   - Bounded and debounced: avoid recomputation loops by memoizing selection offsets, gating selection-change listeners with `requestAnimationFrame`, and skipping redundant bubble repositioning when geometry is unchanged.

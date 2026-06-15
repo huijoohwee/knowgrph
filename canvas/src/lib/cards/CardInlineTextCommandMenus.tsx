@@ -1,6 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { AtSign, Slash } from 'lucide-react'
+import { AtSign, Hash, Slash } from 'lucide-react'
 import { buildMarkdownVariableToken, collectMarkdownVariableBrowseRows } from '@/features/markdown/ui/markdownVariableReferences'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 import { MarkdownBlockContainerCommandMenu, type MarkdownInlineCommandMenuItem } from '@/lib/markdown-core/ui/markdownBlockContainerCore.commandMenu'
@@ -9,19 +9,25 @@ import {
   INLINE_VARIABLE_COMMAND_ACTIONS,
   INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID,
   INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID,
+  buildInlineKeywordToken,
   buildInlineMediaEmbed,
+  collectInlineKeywordCommandCandidates,
   collectInlineMediaCommandCandidates,
   isInlineVariableKey,
   parseInlineVariableCommandQuery,
   type InlineSlashCommandId,
   type InlineVariableCommandId,
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import {
+  applyCommandMenuMediaNameDraftsToInlineCandidates,
+  useCommandMenuMediaNameDrafts,
+} from '@/lib/command-menu/commandMenuMediaNameSync'
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
 
-export type CardInlineTextCommandMenuMode = 'slash' | 'variable'
+export type CardInlineTextCommandMenuMode = 'slash' | 'variable' | 'keyword'
 
 const cardInlineCommandButtonClassName = [
   'inline-flex h-6 w-6 items-center justify-center rounded border',
@@ -141,6 +147,7 @@ export function CardInlineTextCommandMenus(props: {
     setDraft,
   } = props
   const [menuFrame, setMenuFrame] = React.useState<CardInlineCommandMenuFrame | null>(null)
+  const mediaNameDrafts = useCommandMenuMediaNameDrafts()
 
   React.useLayoutEffect(() => {
     if (!commandMode) {
@@ -245,9 +252,9 @@ export function CardInlineTextCommandMenus(props: {
   const variableCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const parsed = parseInlineVariableCommandQuery(commandQuery)
     const queryKey = parsed.key
-    const mediaCandidates = collectInlineMediaCommandCandidates({
+    const mediaCandidates = applyCommandMenuMediaNameDraftsToInlineCandidates(collectInlineMediaCommandCandidates({
       draftText: [commandContextText, draft].filter(Boolean).join('\n'),
-    }).slice(0, 6)
+    }), mediaNameDrafts).slice(0, 6)
     const mediaCandidateItems = mediaCandidates
       .filter(candidate => !queryKey || candidate.label.toLowerCase().includes(queryKey.toLowerCase()) || candidate.url.toLowerCase().includes(queryKey.toLowerCase()))
       .map(candidate => ({
@@ -265,6 +272,7 @@ export function CardInlineTextCommandMenus(props: {
             kind: candidate.kind,
             url: candidate.url,
             thumbnailUrl: candidate.thumbnailUrl,
+            label: candidate.label,
             selectedText: selected,
             sourceKey: candidate.sourceKey,
           }), { closeAfterApply: true })
@@ -307,6 +315,7 @@ export function CardInlineTextCommandMenus(props: {
             kind,
             url: fallbackCandidate?.url,
             thumbnailUrl: fallbackCandidate?.thumbnailUrl,
+            label: fallbackCandidate?.label,
             selectedText: selected,
             sourceKey: fallbackCandidate?.sourceKey,
           }), { closeAfterApply: !!fallbackCandidate?.url })
@@ -334,28 +343,64 @@ export function CardInlineTextCommandMenus(props: {
       { id: fallbackReference.id, label: fallbackReference.label, group: fallbackReference.group, description: fallbackReference.description, keywords: [parsed.key, ...fallbackReference.keywords].filter(Boolean) as string[], disabled: !canFallback, onSelect: () => { const token = buildMarkdownVariableToken({ mode: 'fallback', key: parsed.key, fallback: parsed.fallback }); if (token) replaceCommandSelection(token) } },
       ...mediaActions,
     ]
-  }, [commandContextText, commandQuery, commandSelectionRef, draft, replaceCommandSelection])
+  }, [commandContextText, commandQuery, commandSelectionRef, draft, mediaNameDrafts, replaceCommandSelection])
+
+  const keywordCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
+    return collectInlineKeywordCommandCandidates({
+      draftText: [commandContextText, draft].filter(Boolean).join('\n'),
+    }).map(candidate => ({
+      id: candidate.id,
+      label: candidate.label,
+      group: candidate.group,
+      description: candidate.description,
+      keywords: candidate.keywords,
+      onSelect: () => replaceCommandSelection(candidate.token || buildInlineKeywordToken(candidate.label)),
+    }))
+  }, [commandContextText, draft, replaceCommandSelection])
+
+  const commandMenuConfig = commandMode === 'slash'
+    ? {
+        ariaLabel: 'Card slash commands',
+        items: slashCommandItems,
+        placeholder: 'Type a command',
+        emptyLabel: 'No commands',
+      }
+    : commandMode === 'variable'
+    ? {
+        ariaLabel: 'Card variable commands',
+        items: variableCommandItems,
+        placeholder: 'Find variable or action',
+        emptyLabel: 'No variable commands',
+      }
+    : commandMode === 'keyword'
+    ? {
+        ariaLabel: 'Card keyword commands',
+        items: keywordCommandItems,
+        placeholder: 'Find keyword',
+        emptyLabel: 'No keyword commands',
+      }
+    : null
 
   const commandMenu = commandMode ? (
     <section
-      aria-label={commandMode === 'slash' ? 'Card slash commands' : 'Card variable commands'}
+      aria-label={commandMenuConfig?.ariaLabel || 'Card commands'}
       className={`fixed z-[1000] rounded border p-2 shadow-lg ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}
       style={menuFrame ? { left: menuFrame.left, top: menuFrame.top, width: menuFrame.width } : undefined}
       {...{ [CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE]: commandMode }}
       onMouseDown={preventDefaultMouseDown}
     >
       <MarkdownBlockContainerCommandMenu
-        ariaLabel={commandMode === 'slash' ? 'Card slash commands' : 'Card variable commands'}
-        items={commandMode === 'slash' ? slashCommandItems : variableCommandItems}
+        ariaLabel={commandMenuConfig?.ariaLabel || 'Card commands'}
+        items={commandMenuConfig?.items || []}
         query={commandQuery}
         onQueryChange={setCommandQuery}
         onCancel={closeCommandMenu}
-        placeholder={commandMode === 'slash' ? 'Type a command' : 'Find variable or action'}
+        placeholder={commandMenuConfig?.placeholder || 'Find command'}
         inputClassName="w-full bg-transparent text-xs outline-none"
         itemClassName={cardInlineCommandMenuItemClassName}
         itemDangerClassName={cardInlineCommandMenuDangerClassName}
         itemDisabledClassName={cardInlineCommandMenuDisabledClassName}
-        emptyLabel={commandMode === 'slash' ? 'No commands' : 'No variable commands'}
+        emptyLabel={commandMenuConfig?.emptyLabel || 'No commands'}
       />
     </section>
   ) : null
@@ -372,6 +417,11 @@ export function CardInlineTextCommandMenus(props: {
         <li className="list-none">
           <button type="button" className={cardInlineCommandButtonClassName} title="Variable commands" onMouseDown={preventDefaultMouseDown} onClick={() => openCommandMenu('variable')}>
             <AtSign className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} strokeWidth={1.8} />
+          </button>
+        </li>
+        <li className="list-none">
+          <button type="button" className={cardInlineCommandButtonClassName} title="Keyword commands" onMouseDown={preventDefaultMouseDown} onClick={() => openCommandMenu('keyword')}>
+            <Hash className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} strokeWidth={1.8} />
           </button>
         </li>
       </menu>

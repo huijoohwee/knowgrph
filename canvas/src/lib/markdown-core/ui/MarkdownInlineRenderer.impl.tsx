@@ -35,6 +35,13 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'
 import { parseMarkdownInlineCodeSemantic, parseMarkdownSigil, readMarkdownSigilInlineStyle } from '@/features/markdown/ui/markdownSigil'
 import {
+  DATA_VIEW_CHIP_ROW_CLASSNAME,
+  readInlineKeywordChipLabel,
+  readInlineKeywordChipToneValue,
+  resolveDataViewChipClass,
+  splitInlineKeywordChipTokens,
+} from '@/features/markdown/ui/dataViewChipStyles'
+import {
   buildMarkdownVariableSsotAnchorId,
   parseMarkdownVariableTokens,
 } from '@/features/markdown/ui/markdownVariableReferences'
@@ -52,6 +59,7 @@ import {
   readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
 
@@ -401,34 +409,49 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
                 </a>
               )
             }
-            const parts = splitPlainUrls(segment.value)
-            return parts.map((p, j) => {
-              const k = `${baseKey}:${j}`
-              if (p.kind !== 'url') return <React.Fragment key={k}>{p.value}</React.Fragment>
-              const hrefRaw = p.value.trim()
-              if (!hrefRaw || !isAbsoluteWebUrl(hrefRaw) || !isSafeHref(hrefRaw)) {
-                return <React.Fragment key={k}>{p.value}</React.Fragment>
-              }
-              const anchor = buildAnchorAttrs(hrefRaw)
-              const preview = buildYouTubeTimestampPreviewDescriptor(hrefRaw)
-              if (preview) {
+            return splitInlineKeywordChipTokens(segment.value).map((keywordSegment, keywordIndex) => {
+              const keywordKey = `${baseKey}:keyword:${keywordIndex}`
+              if (keywordSegment.kind === 'keyword') {
                 return (
-                  <YouTubeTimestampPreviewLink key={k} href={hrefRaw} anchor={anchor} preview={preview}>
-                    {hrefRaw}
-                  </YouTubeTimestampPreviewLink>
+                  <span
+                    key={keywordKey}
+                    className={[DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass(readInlineKeywordChipToneValue(keywordSegment.value))].join(' ')}
+                    title={keywordSegment.value}
+                    data-kg-card-inline-keyword-pill="1"
+                  >
+                    <span className={UI_TEXT_TRUNCATE_CHIP}>{readInlineKeywordChipLabel(keywordSegment.value)}</span>
+                  </span>
                 )
               }
-              return (
-                <a
-                  key={k}
-                  href={hrefRaw}
-                  target={anchor.target}
-                  rel={anchor.rel}
-                  className={anchor.className}
-                >
-                  {hrefRaw}
-                </a>
-              )
+              const parts = splitPlainUrls(keywordSegment.value)
+              return parts.map((p, j) => {
+                const k = `${keywordKey}:${j}`
+                if (p.kind !== 'url') return <React.Fragment key={k}>{p.value}</React.Fragment>
+                const hrefRaw = p.value.trim()
+                if (!hrefRaw || !isAbsoluteWebUrl(hrefRaw) || !isSafeHref(hrefRaw)) {
+                  return <React.Fragment key={k}>{p.value}</React.Fragment>
+                }
+                const anchor = buildAnchorAttrs(hrefRaw)
+                const preview = buildYouTubeTimestampPreviewDescriptor(hrefRaw)
+                if (preview) {
+                  return (
+                    <YouTubeTimestampPreviewLink key={k} href={hrefRaw} anchor={anchor} preview={preview}>
+                      {hrefRaw}
+                    </YouTubeTimestampPreviewLink>
+                  )
+                }
+                return (
+                  <a
+                    key={k}
+                    href={hrefRaw}
+                    target={anchor.target}
+                    rel={anchor.rel}
+                    className={anchor.className}
+                  >
+                    {hrefRaw}
+                  </a>
+                )
+              })
             })
           })}
         </React.Fragment>

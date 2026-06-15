@@ -10,8 +10,9 @@ import {
   getStatsTokenizationConfig,
 } from '@/lib/graph/statsUtils'
 import { getNodeBaseFill } from '@/components/GraphCanvas/helpers'
-import type { TokensByGraphLayerRow, StatsCommunity, TokensForSelectedNode, TokensForSelectedNodes } from '@/features/graph-stats/types'
+import type { TokensByGraphLayerRow, StatsCommunity, StatsKeywordTerm, TokensForSelectedNode, TokensForSelectedNodes } from '@/features/graph-stats/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { collectGraphKeywordTermStats } from '@/lib/graph/keywordTerms'
 
 const EMPTY_STRING_ARRAY: string[] = []
 
@@ -249,6 +250,11 @@ export function useStatsDerivedData({
     return list
   }, [effectiveGraph, maxListItems, schema, tokenCfg])
 
+  const dashboardKeywordTerms = React.useMemo<StatsKeywordTerm[]>(() => {
+    const graph = data as GraphData | null
+    return collectGraphKeywordTermStats(graph)
+  }, [data])
+
   return {
     datasetStats,
     agenticContext,
@@ -268,6 +274,7 @@ export function useStatsDerivedData({
     tokensForSelectedNodes,
     selectedEdge,
     selectedEdgeTokenCounts,
+    dashboardKeywordTerms,
     topSemanticEdges,
     semanticEdgeColor,
     neutralBarColor,

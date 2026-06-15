@@ -8,6 +8,7 @@ import CommunitiesStatsSection from '@/features/graph-stats/sections/Communities
 import EdgesStatsSection from '@/features/graph-stats/sections/EdgesStatsSection'
 import NodeWordFrequenciesSection from '@/features/graph-stats/sections/NodeWordFrequenciesSection'
 import KeywordEntitiesSection from '@/features/graph-stats/sections/KeywordEntitiesSection'
+import GraphKeywordTermsSection from '@/features/graph-stats/sections/GraphKeywordTermsSection'
 import GraphRagCentralityStatsSection from '@/features/graph-stats/sections/GraphRagCentralityStatsSection'
 import type { StatsUiClasses } from '@/features/graph-stats/types'
 import { useStatsSelection } from '@/features/graph-stats/hooks/useStatsSelection'
@@ -81,6 +82,7 @@ export default function GraphStatsPanel() {
     setCommunityTokenFilter,
     communityTokenSort,
     setCommunityTokenSort,
+    dashboardKeywordTerms,
     tokensForSelectedNode,
     tokensForSelectedNodes,
     selectedEdge,
@@ -308,6 +310,13 @@ export default function GraphStatsPanel() {
       />
 
       <GraphRagCentralityStatsSection ui={ui} neutralBarColor={neutralBarColor} />
+
+      <GraphKeywordTermsSection
+        ui={ui}
+        terms={dashboardKeywordTerms}
+        selectedNodeIdSet={selectedNodeIdSet}
+        selectNodeIds={selectNodeIds}
+      />
 
       {semanticMode === 'keyword' ? (
         <KeywordEntitiesSection

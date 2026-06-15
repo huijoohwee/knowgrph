@@ -660,7 +660,11 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   if (
     !sharedCardMarkdownUtilsText.includes('rounded-full')
     || !sharedCardMarkdownUtilsText.includes('h-3')
-    || !sharedCardMarkdownUtilsText.includes('px-2 py-1 text-[10px]')
+    || !sharedCardMarkdownUtilsText.includes('items-center')
+    || !sharedCardMarkdownUtilsText.includes('align-middle')
+    || !sharedCardMarkdownUtilsText.includes('px-2 py-0.5 text-[11px] leading-4')
+    || !sharedCardMarkdownUtilsText.includes('mr-1')
+    || !sharedCardMarkdownUtilsText.includes('truncate leading-4')
     || !sharedCardMarkdownUtilsText.includes('max-w-[9rem]')
     || !sharedCardMarkdownUtilsText.includes('border-[color:var(--kg-border)]')
     || !sharedCardMarkdownUtilsText.includes('text-[color:var(--kg-text-secondary)]')
@@ -1010,6 +1014,9 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
     }
     if (!container.querySelector('button[title="Variable commands"]')) {
       throw new Error('expected RichMediaPanel text mode to enable shared variable commands')
+    }
+    if (!container.querySelector('button[title="Keyword commands"]')) {
+      throw new Error('expected RichMediaPanel text mode to enable shared keyword commands')
     }
 
     await unmountReactRoot(root, { window: dom.window })

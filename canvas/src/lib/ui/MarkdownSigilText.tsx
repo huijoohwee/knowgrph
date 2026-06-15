@@ -1,16 +1,19 @@
 import React from 'react'
 import {
+  DATA_VIEW_CHIP_ROW_CLASSNAME,
+  readInlineKeywordChipLabel,
+  readInlineKeywordChipToneValue,
+  resolveDataViewChipClass,
+  splitInlineKeywordChipTokens,
+} from '@/features/markdown/ui/dataViewChipStyles'
+import {
   extractMarkdownAnnotationsFromText,
   hasMarkdownAnnotationSyntax,
   readMarkdownSigilInlineStyle,
   type MarkdownAnnotation,
 } from '@/lib/markdown/markdownSigil'
-import {
-  getSemanticHighlightSurfaceAttributes,
-  getSemanticHighlightSurfaceClassName,
-  resolveSemanticHighlightColors,
-  SEMANTIC_HIGHLIGHT_SURFACES,
-} from '@/lib/ui/semanticHighlight'
+import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { getSemanticHighlightSurfaceAttributes, getSemanticHighlightSurfaceClassName, resolveSemanticHighlightColors, SEMANTIC_HIGHLIGHT_SURFACES } from '@/lib/ui/semanticHighlight'
 
 type MarkdownSigilTextOptions = {
   maxAnnotations?: number
@@ -38,13 +41,30 @@ export const renderMarkdownSigilInlineText = (
   options?: MarkdownSigilTextOptions,
 ): React.ReactNode => {
   const text = String(raw ?? '')
-  if (!text || !hasMarkdownAnnotationSyntax(text)) return text
+  if (!text) return text
   const annotations = extractMarkdownAnnotationsFromText(
     text,
     options?.maxAnnotations ?? 24,
     options?.maxScanChars ?? 4000,
   )
-  if (annotations.length === 0) return text
+  const hasSigils = hasMarkdownAnnotationSyntax(text) && annotations.length > 0
+  if (!hasSigils) {
+    const keywordSegments = splitInlineKeywordChipTokens(text)
+    if (keywordSegments.every(segment => segment.kind === 'text')) return text
+    return keywordSegments.map((segment, index) => {
+      if (segment.kind === 'text') return <React.Fragment key={`text-${index}`}>{segment.value}</React.Fragment>
+      return (
+        <span
+          key={`keyword-${index}`}
+          className={[DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass(readInlineKeywordChipToneValue(segment.value))].join(' ')}
+          title={segment.value}
+          data-kg-card-inline-keyword-pill="1"
+        >
+          <span className={UI_TEXT_TRUNCATE_CHIP}>{readInlineKeywordChipLabel(segment.value)}</span>
+        </span>
+      )
+    })
+  }
 
   const out: React.ReactNode[] = []
   let cursor = 0

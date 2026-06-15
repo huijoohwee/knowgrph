@@ -235,6 +235,55 @@ The larger authenticated collaboration model remains a planned extension. It mus
 | Server-backed activity/audit trail | D1 sync-event user attribution |
 | Durable multi-peer room service | Durable Object or Worker-backed room owner |
 
+### Planned Authenticated Chat Relay Boundary
+
+The current production `airvio.co/__chat_proxy/*` Pages Function is a shared provider relay, not the collaboration trust boundary. True multi-user collaboration requires a server-owned auth and workspace-authorization layer that decides who may invoke server-managed providers and under which quota policy.
+
+| Surface | Current state | Required production owner before acceptance |
+|---|---|---|
+| `__chat_proxy` Pages Function | Stateless provider relay with Cloudflare-held provider secrets | Keep as infrastructure-only relay; no browser-auth truth |
+| Browser chat submit path | Can target a public proxy route | Move to authenticated `/api/chat/relay` server route |
+| Workspace identity | Not implemented in shipped collaboration baseline | `users`, `auth_sessions`, `workspace_memberships` D1 schema plus auth middleware |
+| Provider usage policy | Implicit/shared via Cloudflare secrets | `workspace_provider_policies` D1 owner plus focused policy tests |
+| Relay audit and quota | Not implemented | `chat_proxy_audit` D1 owner plus bounded admin views |
+
+#### Recommended Route Plan
+
+| Method | Path | Responsibility |
+|---|---|---|
+| POST | `/api/auth/session` | Validate browser session cookie or token and resolve the active `userId` |
+| GET | `/api/workspaces/{workspaceId}/membership` | Resolve the caller's workspace membership and role |
+| GET | `/api/chat/policies/{workspaceId}` | Return provider capabilities and whether `serverManaged` or `byok` is allowed |
+| POST | `/api/chat/relay` | Authenticate the caller, authorize workspace/provider access, enforce quota, append audit rows, then delegate internally to `__chat_proxy` |
+| GET | `/api/chat/audit/{workspaceId}` | Return bounded relay audit entries for `owner` and `provider-admin` only |
+
+#### Recommended D1 Owners
+
+| Table | Responsibility |
+|---|---|
+| `users` | Canonical user identity owner |
+| `auth_sessions` | Revocable session owner; stores only hashed session material |
+| `workspace_memberships` | Workspace membership and role owner |
+| `workspace_provider_policies` | Per-workspace provider policy and quota owner |
+| `chat_proxy_audit` | Relay audit, quota accounting, and operator diagnosis owner |
+
+#### Migration Plan
+
+1. Keep the current browser-native P2P collaboration pilot intact and preserve public BYOK experiments during the migration.
+2. Introduce `users`, `auth_sessions`, `workspace_memberships`, `workspace_provider_policies`, and `chat_proxy_audit` in D1 with focused Worker ownership tests.
+3. Add `/api/auth/session`, `/api/workspaces/{workspaceId}/membership`, and `/api/chat/policies/{workspaceId}` so the browser can resolve identity and provider capabilities before relay.
+4. Add `/api/chat/relay` and make MainPanel chat submit call it whenever a workspace has authenticated collaboration enabled.
+5. Restrict direct browser use of server-managed mode on `__chat_proxy`; keep `__chat_proxy` for server-internal delegation and explicit BYOK fallback only.
+6. Add bounded owner/admin audit views before calling authenticated collaboration production-ready.
+
+#### Acceptance Conditions For The Planned Extension
+
+- Browser chat relay requests fail closed when the session is missing, expired, or not a member of the target workspace.
+- `serverManaged` provider mode is impossible without an explicit `workspace_provider_policies` allow rule.
+- Every server-managed chat relay writes one `chat_proxy_audit` row with `workspace_id`, `user_id`, `provider_id`, `auth_mode`, `relay_status`, and `latency_ms`.
+- Collaboration UI shows workspace-scoped provider availability from `/api/chat/policies/{workspaceId}` instead of assuming a shared global proxy.
+- `__chat_proxy` remains deployable as infrastructure-only relay code, but browser user flows no longer depend on it as the trust boundary.
+
 ## Deployment Strategy
 
 This document is Dev-scoped. Do not deploy, publish to the Prod mirror, or push to Cloudflare until the user explicitly requests it. Runtime validation stays local through focused unit tests, docs guards, TypeScript, and the app-level E2E smoke command.
@@ -283,3 +332,4 @@ Technical architecture continues in [knowgrph-multi-user-collaboration-prd.tad.c
 | 1.1.0 | 2026-05-29 | joohwee | Promoted implemented no-server P2P Collaboration pilot and moved D1/JWT auth to planned extension boundary |
 | 1.1.1 | 2026-06-06 | Codex | Aligned the combined PRD/TAD with YAML frontmatter, ROI/TCO, ADR, workflow, data-flow, traceability, and `/goal` guideline requirements |
 | 1.1.2 | 2026-06-06 | Codex | Added app-level Collaboration panel-open and host-invite E2E validation to the implementation contract |
+| 1.1.3 | 2026-06-15 | Codex | Added the authenticated chat relay route plan, D1 owner tables, and migration criteria for turning the Pages chat proxy into a true multi-user collaboration boundary |

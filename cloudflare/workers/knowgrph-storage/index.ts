@@ -43,6 +43,13 @@ import {
   readPublishedMarkdown,
 } from '../shared/publishedDoc'
 import { handleCollaborationSave } from './collaborationBridge'
+import {
+  handleChatAudit,
+  handleChatPolicies,
+  handleChatRelay,
+  handleChatSession,
+  isKnowgrphStorageChatRoute,
+} from './chatAuth'
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
@@ -540,16 +547,32 @@ export const createKnowgrphStorageWorker = () => ({
       if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.collabSave) {
         return await handleCollaborationSave(request, env)
       }
+      const db = readDb(env)
+      if (!db) return errorResponse(500, 'server_error', 'missing Cloudflare D1 binding DB')
+      if (isKnowgrphStorageChatRoute(url.pathname)) {
+        if (request.method === 'GET' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.chatSession) {
+          return await handleChatSession(request, db)
+        }
+        if (request.method === 'GET' && url.pathname.startsWith(KNOWGRPH_STORAGE_ROUTE_PATHS.chatPoliciesPrefix)) {
+          return await handleChatPolicies(request, db)
+        }
+        if (request.method === 'GET' && url.pathname.startsWith(KNOWGRPH_STORAGE_ROUTE_PATHS.chatAuditPrefix)) {
+          return await handleChatAudit(request, db)
+        }
+        if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.chatRelay) {
+          return await handleChatRelay(request, env, db)
+        }
+        return errorResponse(405, 'bad_request', 'unsupported chat route method')
+      }
       if (isKnowgrphStorageMediaRoute(url.pathname)) {
         if (request.method === 'PUT' || request.method === 'POST') return await handleMediaWrite(request, env)
+        if (request.method === 'GET' || request.method === 'HEAD') return await handleMediaRead(request, env)
         if (request.method === 'GET' || request.method === 'HEAD') return await handleMediaRead(request, env)
       }
       if (isKnowgrphStorageBlobRoute(url.pathname)) {
         if (request.method === 'POST') return await handleBlobUpload(request, env)
         if (request.method === 'GET' || request.method === 'HEAD') return await handleBlobRead(request, env)
       }
-      const db = readDb(env)
-      if (!db) return errorResponse(500, 'server_error', 'missing Cloudflare D1 binding DB')
       if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.push) {
         return await handlePush(request, env, db)
       }

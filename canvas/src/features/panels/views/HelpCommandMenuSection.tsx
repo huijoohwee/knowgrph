@@ -33,10 +33,9 @@ export function HelpCommandMenuSection({ collapsed, onToggle }: HelpCommandMenuS
       <CommandMenuReferenceCatalog
         className="max-h-[min(58vh,34rem)]"
         title="Command Menu"
-        subtitle="/ and @ actions"
+        subtitle="/, @, and # actions"
         compactHeader
       />
     </CollapsibleSection>
   )
 }
-

@@ -2,7 +2,6 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 import FloatingPanelChat from '@/features/chat/FloatingPanelChat'
-import { CHAT_SKILL_OPTIONS, DEFAULT_CHAT_SKILL_ID } from '@/features/chat/chatSkillRegistry'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
 import { FloatingPanelChatFooter } from '@/features/chat/FloatingPanelChatSections'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -33,9 +32,6 @@ export async function testFloatingPanelChatFooterModelSelectStaysNativeLabeledAn
         modelId: 'gpt-5-nano',
         modelOptions: ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'],
         onModelChanged: modelId => changedModels.push(modelId),
-        skillId: DEFAULT_CHAT_SKILL_ID,
-        skillOptions: CHAT_SKILL_OPTIONS,
-        onSkillChanged: () => undefined,
         uiPanelTextFontClass: 'text-sm',
         uiPanelMicroLabelTextSizeClass: 'text-xs',
         isSubmitDisabled: true,
@@ -63,15 +59,8 @@ export async function testFloatingPanelChatFooterModelSelectStaysNativeLabeledAn
     if (container.querySelector('[data-kg-chat-api-key-toggle="true"]') || container.querySelector('[data-kg-chat-api-key-input="true"]')) {
       throw new Error('expected non-BYOK footer not to render API-key controls')
     }
-    const skillControl = container.querySelector('[data-kg-chat-skill-control="true"]')
-    const skillSelect = container.querySelector('[data-kg-chat-skill-select="true"]') as HTMLSelectElement | null
-    if (!skillControl || !skillSelect) throw new Error('expected chat footer to render the Skills control row')
-    if (skillSelect.getAttribute('aria-label') !== 'Skills') throw new Error('expected Skills select to expose a semantic label')
-    if (skillSelect.value !== 'storybuilding' || skillSelect.options[0]?.text !== 'Storybuilding') {
-      throw new Error(`expected Storybuilding to be the provisioned chat skill, got ${JSON.stringify({ value: skillSelect.value, label: skillSelect.options[0]?.text })}`)
-    }
-    if (!skillSelect.className.includes('kg-responsive-control-inline-fill') || !skillSelect.className.includes('kg-responsive-compact-panel-field-input')) {
-      throw new Error('expected Skills select to use shared fill and compact field owners')
+    if (container.querySelector('[data-kg-chat-skill-control="true"]') || container.querySelector('[data-kg-chat-skill-select="true"]')) {
+      throw new Error('expected FloatingPanel chat footer not to render the deprecated Skills dropdown')
     }
 
     await act(async () => {
@@ -177,9 +166,6 @@ export async function testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIco
         modelId: 'mirothinker-1-7-deepresearch-mini',
         modelOptions: ['mirothinker-1-7-deepresearch-mini', 'mirothinker-1-7-deepresearch', 'gpt-5-nano'],
         onModelChanged: () => undefined,
-        skillId: DEFAULT_CHAT_SKILL_ID,
-        skillOptions: CHAT_SKILL_OPTIONS,
-        onSkillChanged: () => undefined,
         uiPanelTextFontClass: 'text-sm',
         uiPanelMicroLabelTextSizeClass: 'text-xs',
         isSubmitDisabled: true,
@@ -216,12 +202,11 @@ export async function testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIco
     const prompt = container.querySelector('[data-kg-chat-api-key-prompt="true"]') as HTMLElement | null
     const keyIcon = container.querySelector('[data-kg-chat-api-key-icon="true"]') as HTMLElement | null
     const keyInput = container.querySelector('[data-kg-chat-api-key-input="true"]') as HTMLInputElement | null
-    const skillControl = container.querySelector('[data-kg-chat-skill-control="true"]') as HTMLElement | null
     if (!prompt || !keyIcon || !keyInput) {
       throw new Error('expected model-icon toggle to expand the API-key row')
     }
-    if (!skillControl || (prompt.compareDocumentPosition(skillControl) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING) === 0) {
-      throw new Error('expected Skills row to render below the expanded API-key row')
+    if (container.querySelector('[data-kg-chat-skill-control="true"]') || container.querySelector('[data-kg-chat-skill-select="true"]')) {
+      throw new Error('expected BYOK footer not to render the deprecated Skills dropdown')
     }
     if (prompt.querySelector('[data-kg-chat-api-key-toggle="true"]')) {
       throw new Error('expected expanded API-key row not to contain the collapse toggle')
@@ -252,6 +237,170 @@ export async function testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIco
     }
     if (!container.querySelector('[data-kg-chat-model-select="true"]')) {
       throw new Error('expected model select to remain visible after API-key collapse')
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
+export async function testFloatingPanelChatFooterShowsRelayStatusSeparatelyFromEndpointConnectivity() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('section')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatFooter, {
+        input: '',
+        setInput: () => undefined,
+        isLoading: false,
+        errorText: null,
+        connectivity: 'unknown',
+        connectivityDetail: null,
+        relayStatus: {
+          tone: 'error',
+          detail: 'Agnes AI server-managed relay is not enabled for this workspace.',
+        },
+        currentNode: null,
+        modelId: 'agnes-2.0-flash',
+        modelOptions: ['agnes-2.0-flash'],
+        onModelChanged: () => undefined,
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        isSubmitDisabled: true,
+        onSubmit: event => event.preventDefault(),
+        onStop: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const relayStatus = container.querySelector('[data-kg-chat-relay-status="true"]') as HTMLElement | null
+    if (!relayStatus) {
+      throw new Error('expected footer to render a dedicated relay status row')
+    }
+    if (!String(relayStatus.textContent || '').includes('relay is not enabled for this workspace')) {
+      throw new Error(`expected footer relay status row to expose the workspace policy detail, got ${JSON.stringify(relayStatus.textContent)}`)
+    }
+    if (!relayStatus.className.includes('text-yellow-700')) {
+      throw new Error(`expected blocked relay status to use warning styling, got ${relayStatus.className}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
+export async function testFloatingPanelChatFooterShowsRelayWorkspacePolicySummary() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('section')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatFooter, {
+        input: '',
+        setInput: () => undefined,
+        isLoading: false,
+        errorText: null,
+        connectivity: 'unknown',
+        connectivityDetail: null,
+        relayStatus: {
+          tone: 'ok',
+          detail: 'Agnes AI workspace relay is ready.',
+        },
+        relaySummary: 'Workspace kgws:test-chat · Role editor · Auth server-managed · Default model agnes-2.0-flash',
+        currentNode: null,
+        modelId: 'agnes-2.0-flash',
+        modelOptions: ['agnes-2.0-flash'],
+        onModelChanged: () => undefined,
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        isSubmitDisabled: true,
+        onSubmit: event => event.preventDefault(),
+        onStop: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const relaySummary = container.querySelector('[data-kg-chat-relay-summary="true"]') as HTMLElement | null
+    if (!relaySummary) {
+      throw new Error('expected footer to render a dedicated relay policy summary row')
+    }
+    const summaryText = String(relaySummary.textContent || '')
+    for (const snippet of ['Workspace kgws:test-chat', 'Role editor', 'Auth server-managed', 'Default model agnes-2.0-flash']) {
+      if (!summaryText.includes(snippet)) {
+        throw new Error(`expected relay summary row to include ${snippet}, got ${JSON.stringify(summaryText)}`)
+      }
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
+export async function testFloatingPanelChatFooterRelaySummaryActionOpensLogCallback() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('section')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  let openLogCount = 0
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatFooter, {
+        input: '',
+        setInput: () => undefined,
+        isLoading: false,
+        errorText: null,
+        connectivity: 'unknown',
+        connectivityDetail: null,
+        relayStatus: {
+          tone: 'error',
+          detail: 'Agnes AI server-managed relay is not enabled for this workspace.',
+        },
+        relaySummary: 'Workspace kgws:test-chat · Requested auth server-managed',
+        relayAction: {
+          label: 'Open Log',
+          onClick: () => { openLogCount += 1 },
+        },
+        currentNode: null,
+        modelId: 'agnes-2.0-flash',
+        modelOptions: ['agnes-2.0-flash'],
+        onModelChanged: () => undefined,
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        isSubmitDisabled: true,
+        onSubmit: event => event.preventDefault(),
+        onStop: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const actionButton = container.querySelector('[data-kg-chat-relay-action="true"]') as HTMLButtonElement | null
+    if (!actionButton) {
+      throw new Error('expected footer to render a relay action button')
+    }
+    if (String(actionButton.textContent || '').trim() !== 'Open Log') {
+      throw new Error(`expected relay action button label to stay explicit, got ${JSON.stringify(actionButton.textContent)}`)
+    }
+    await act(async () => {
+      actionButton.click()
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+    if (openLogCount !== 1) {
+      throw new Error(`expected relay action button to invoke the log callback exactly once, got ${openLogCount}`)
     }
   } finally {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })

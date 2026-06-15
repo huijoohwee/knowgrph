@@ -28,6 +28,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'const currentSourceGroupKey = rowIdToLaneKey.get(move.rowId) || move.sourceGroupKey || \'\'',
     'const nextOrderedRowIds = reorderKanbanRowIds({',
     'isNoOpMove: isStoryboardMoveNoOp',
+    'editActivation="click"',
   ]) {
     if (!source.includes(snippet)) {
       throw new Error(`expected StoryboardCanvas to retain native storyboard contract snippet: ${snippet}`)

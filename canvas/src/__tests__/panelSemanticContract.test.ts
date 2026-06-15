@@ -1522,11 +1522,11 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!helpSectionsText.includes('<HelpCommandMenuSection') || !helpCommandMenuSectionText.includes('<CommandMenuReferenceCatalog')) {
     throw new Error('Expected MainPanel Help to own the shared Command Menu reference catalog section')
   }
-  if (!commandCatalogPanelText.includes('INLINE_SLASH_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_VARIABLE_COMMAND_ACTIONS')) {
+  if (!commandCatalogPanelText.includes('INLINE_SLASH_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_VARIABLE_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_KEYWORD_COMMAND_ACTIONS')) {
     throw new Error('Expected Command Menu reference catalog to render from the shared inline command catalog')
   }
   if (!commandCatalogPanelText.includes('data-kg-command-menu-reference-catalog') || !commandCatalogPanelText.includes('data-kg-command-menu-prefix')) {
-    throw new Error('Expected MainPanel Help Command Menu reference catalog to expose shared prefix rows for / and @ actions')
+    throw new Error('Expected MainPanel Help Command Menu reference catalog to expose shared prefix rows for /, @, and # actions')
   }
   if (!commandCatalogPanelText.includes('useCommandMenuRichMediaInventory') || !commandCatalogPanelText.includes('data-kg-command-menu-media-panel') || !commandCatalogPanelText.includes('data-kg-command-menu-media-list')) {
     throw new Error('Expected FloatingPanel Command Menu to own the shared @ rich-media candidate list')
@@ -1542,7 +1542,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   }
   if (
     !commandCatalogPanelText.includes('data-kg-command-menu-media-name-input')
-    || !commandCatalogPanelText.includes('renameCommandMenuRichMediaMarkdownLine')
+    || !commandCatalogPanelText.includes('renameCommandMenuRichMediaMarkdownHref')
     || !commandCatalogPanelText.includes("owner.type === 'graphNodeLabel'")
     || !commandCatalogPanelText.includes('setMarkdownDocument(markdownDocumentName, nextText')
   ) {

@@ -293,7 +293,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Reference the shared `/` and `@` command catalog used by inline editors, Workflow Manager graph fields, canvas cards, widgets, and Markdown Viewer blocks.',
     descriptionLong:
-      'The Command Menu section is the reference owner for shared slash actions, variable actions, reference actions, and media insertion commands. Runtime insertion still happens in the active editor; FloatingPanel Command Menu owns the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list.',
+      'The Command Menu section is the reference owner for shared slash actions, variable actions, reference actions, keyword actions, and media insertion commands. Runtime insertion still happens in the active editor; FloatingPanel Command Menu owns the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list.',
   },
   panelTour: {
     id: 'panelTour',

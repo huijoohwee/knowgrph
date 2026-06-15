@@ -73,17 +73,21 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 **Triggers**:
 - `/` opens shared slash actions such as headings, lists, quotes, code blocks, and media placeholders.
 - `@` opens shared variable, reference, image, and video insertion actions.
+- `#` opens shared keyword actions such as canvas lanes, card fields, media keywords, and graph workflow tags.
 
 **Media Behavior**:
 - `@` media rows must display derived thumbnails or previews when available from shared media/reference candidates.
 - Image/video picks insert persistent inline content, not transient overlay state.
+- `@` image picks insert Markdown image syntax `![alt](url)`, where `alt` comes from the shared media name or a source-key-derived fallback.
+- `@` video picks insert `<video src="..." poster="..." title="..." controls></video>`. `title` carries the shared media name and `poster` is included only when the shared resolver can derive one.
 - Indexed or imported media references must survive blur, block rerender, canvas card reprojection, and document reload through the same owner-path persistence used by the active text surface.
 - Inserted inline image/video references inside Cards and Widgets render as font-height tokenized thumbnail pills using shared knowgrph border, panel background, and shadow tokens.
 - Floating Panel `@` media rows render compact list thumbnails with the same token family, but may be larger than inline text-height inserts.
 - Floating Panel `Command Menu` media names are inline-editable: graph media names commit through the owning graph node label, and markdown media names commit through the owning link or image-alt line.
+- `#` keyword browsing is backed by the full active graph keyword inventory in MainPanel Dashboard and by the same centralized graph-wide context when inline card editors open the `#` command menu. Reusable keyword browsing must not collapse to only the currently selected subgraph.
 
 **Command Menu Surfaces**:
-- MainPanel Help `Command Menu` is the discovery and inspection view over the full shared `/` and `@` command catalog used inline.
+- MainPanel Help `Command Menu` is the discovery and inspection view over the full shared `/`, `@`, and `#` command catalog used inline.
 - Floating Panel `Command Menu` is the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list. It is the rich-media browsing SSOT, may show derived thumbnails and source URLs, and feeds Preview Panel selection without duplicating the media gallery there; command keys, prefixes, media candidate resolution, insertion payloads, and persistence rules remain shared.
 
 ### Full Screen Presentation
@@ -141,7 +145,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 | Selection Sync       | Maintain bidirectional link     | - [ ] Track provenance metadata; update both views; forbid desync                          | MarkdownSection  | syncSelection   | selection event      | updated views       | Provenance lookup + scroll       |
 | Auto-Scroll          | Position source in viewport     | - [ ] Calculate line offset; scroll to top; apply flash; forbid mid-viewport placement    | MonacoEditor     | scrollToLine    | line number          | scroll position     | Line to pixel + viewport offset  |
 | Token Sharing        | Optimize rendering              | - [ ] Lex once; share tokens; preserve line maps; forbid redundant lexing                 | MarkdownTokens   | useTokens       | markdown text        | shared tokens       | Marked lexer + memoization       |
-| Inline Command Menus | Keep text actions consistent    | - [ ] Reuse one `/` and `@` catalog across card, viewer, and workflow fields; persist through owner writes; forbid surface-local command forks | Inline editors + Workflow Manager | invokeCommandMenu | trigger + selection + media candidates | inserted text or media payload | Shared catalog lookup + owner-path commit |
+| Inline Command Menus | Keep text actions consistent    | - [ ] Reuse one `/`, `@`, and `#` catalog across card, viewer, and workflow fields; persist through owner writes; forbid surface-local command forks | Inline editors + Workflow Manager | invokeCommandMenu | trigger + selection + media candidates | inserted text or media payload | Shared catalog lookup + owner-path commit |
 | Fullscreen Toggle    | Maximize presentation           | - [ ] Enter native fullscreen; auto-hide sidebar; reset zoom; forbid jarring transitions  | Presentation     | enterFullscreen | void                 | fullscreen state    | Fullscreen API + state updates   |
 
 ---
