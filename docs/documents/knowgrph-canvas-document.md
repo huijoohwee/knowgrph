@@ -167,22 +167,15 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 ### Multi-dimensional Table / Graph Data Table (Editor Workspace) Contract
 
 - Document Mode “Multi-dimensional Table Mode” controls only canvas `multiDimTableModeEnabled` for graph layout; it must not open or configure the Graph Data Table workspace, and must stay renderer/layout scoped rather than acting as a second entry-point into Workspace Editor table views.
-- The Graph Data Table inside Editor mode (the **Workspace: Multi-dimensional Table** workspace) is **not** the extracted `singabldr` Graph Data Table surface; it is a host-owned workspace tool backed by the minimal persisted `GraphTableDb` cache (`kg:graph-table`) over JSON `GraphData`.
+- The **Workspace: Multi-dimensional Table** view is owned by the Markdown workspace data-view renderer. Canvas View Mode “2D Renderer: Multi-dimensional Table” and Workflow Manager both mount the shared `MultiDimTableSurface`, which delegates to `MarkdownWorkspaceDerivedViewer` with `viewerMode="multiDimTable"`.
 - The table surface must remain self-contained and drift-resistant:
-  - Rendering uses a canvas-based fast grid with an overflow scroll viewport (single scroll owner).
-  - View shaping is toolbar-driven (Fields/Filter/Group/Sort/Row height) and persisted via namespaced LS keys (`kg:ui:graphTable:*`).
-  - Column resizing is pointer-drag based and must not reflow the app (only recompute layout for the grid).
-  - Scrolling correctness is mandatory: native vertical/horizontal scroll must work for large datasets and must not induce scroll/resize feedback loops.
-  - Visual correctness is mandatory: pinned header band and pinned columns must be fully opaque and must not show scrolled text underneath.
--  - Sync semantics are controlled by Workspace Sync Mode and the `(revision, collapsedGroupIdsKey, viewKey)` sync key:
-    - In **Manual** mode, auto sync is disabled; the Graph Table header exposes a single **Sync now** button that runs a bounded GraphData→GraphTableDb sync using the derived view graph (including collapsed groups) and revision gating.
-    - In **Real-time** mode, the same sync pipeline is invoked automatically when the relevant graph revision changes; sync gates must ignore no-op writes and must key by viewKey to avoid cross-view churn.
-- Split/Inspector:
-  - The table grid and the Record Inspector are split by a draggable vertical `<hr>`; inspector open state and width persist via `LS_KEYS.graphTableInspectorOpen` and `LS_KEYS.graphTableInspectorWidthPx`.
+  - Rendering uses the Markdown data-view table/kanban/multi-dimensional table utilities with a single scroll owner.
+  - View shaping is driven by the data-view header/settings and persisted through workspace data-view config, not removed graph-table workspace local-storage keys.
+  - Canvas and Workflow Manager must not open or warm a separate graph-table workspace route for this mode.
 
 ### Record Inspector (SSOT)
 
-- The Record Inspector UI is a host-owned SSOT component (`GraphTableInspector`) and must be reused across Canvas mode (Floating Panel) and Graph Table workspaces.
+- The Record Inspector UI is a host-owned SSOT component (`GraphTableInspector`) and may be reused by inspector surfaces that still consume GraphTableDb row primitives.
 - Editor mode must not mount a standalone inspector dock; inspector surfaces belong to Canvas mode (Floating Panel) or Graph Table workspaces only.
 - When the active 2D renderer is `flowEditor`, the Flow Editor Inspector is consolidated into the same Floating Panel "Inspector" surface via a portal slot id (`FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID`) to avoid duplicate inspector panels.
 - The Inspector view must render its layout even with no active selection so the Floating Panel always shows stable structure; inputs may be disabled but the surface must stay visible.

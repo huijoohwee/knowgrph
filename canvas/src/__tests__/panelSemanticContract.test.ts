@@ -173,9 +173,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   const embeddedWorkspacePath = path.resolve(root, 'src', 'components', 'EmbeddedWorkspaceShell.tsx')
   const canvasPreviewDockPath = path.resolve(root, 'src', 'components', 'CanvasPreviewDock.tsx')
   const toolMenuStatePath = path.resolve(root, 'src', 'features', 'toolbar', 'useToolMenuState.ts')
-  const graphTableHeaderPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableWorkspaceHeader.tsx')
   const graphTableToolbarPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableToolbar.tsx')
-  const graphTableLeftPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableWorkspaceLeft.tsx')
   const graphTableInspectorPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableInspector.tsx')
   const graphDataTablePath = path.resolve(root, 'src', 'lib', 'graph-data-table', 'ui', 'GraphDataTableTable.impl.tsx')
   const graphDataTableHeaderPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'GraphDataTableHeader.tsx')
@@ -198,8 +196,8 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   if (!responsiveCss.includes('.kg-workspace-header-row') || !responsiveCss.includes('.kg-embedded-workspace-main')) {
     throw new Error('Expected shared responsive CSS to own workspace header and embedded workspace bounds')
   }
-  if (!responsiveCss.includes('.kg-graph-table-grid-inspector-shell') || !responsiveCss.includes('.kg-graph-table-menu-form')) {
-    throw new Error('Expected shared responsive CSS to own graph-table mobile stacking and menu bounds')
+  if (!responsiveCss.includes('.kg-graph-table-menu-form')) {
+    throw new Error('Expected shared responsive CSS to own graph-table menu bounds')
   }
   if (!responsiveCss.includes('flex-wrap: nowrap') || !responsiveCss.includes('.kg-icon-button > span')) {
     throw new Error('Expected shared responsive CSS to forbid icon/text wrapping inside toolbar buttons')
@@ -237,25 +235,12 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
     throw new Error('Expected floating panel drag state to fully clamp mobile panels inside the viewport')
   }
 
-  const graphTableHeader = readUtf8(graphTableHeaderPath)
-  if (!graphTableHeader.includes('UI_TEXT_TRUNCATE') || !graphTableHeader.includes('kg-graph-table-header')) {
-    throw new Error('Expected GraphTableWorkspaceHeader to use shared ellipsis and bounded header classes')
-  }
-  if (!graphTableHeader.includes('kg-graph-table-nav') || !graphTableHeader.includes('kg-graph-table-actions')) {
-    throw new Error('Expected GraphTableWorkspaceHeader navigation and actions to stay viewport-bounded')
-  }
-
   const graphTableToolbar = readUtf8(graphTableToolbarPath)
   if (!graphTableToolbar.includes('kg-graph-table-toolbar') || !graphTableToolbar.includes('kg-graph-table-menu-form')) {
     throw new Error('Expected GraphTableToolbar controls and menus to use shared responsive classes')
   }
   if (!graphTableToolbar.includes('UI_TEXT_TRUNCATE') || !graphTableToolbar.includes('UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME')) {
     throw new Error('Expected GraphTableToolbar labels to ellipsize instead of pushing icons to new rows')
-  }
-
-  const graphTableLeft = readUtf8(graphTableLeftPath)
-  if (!graphTableLeft.includes('kg-graph-table-grid-inspector-shell') || !graphTableLeft.includes('kg-graph-table-inspector-resize')) {
-    throw new Error('Expected GraphTableWorkspaceLeft to expose responsive inspector stack classes')
   }
 
   const graphTableInspector = readUtf8(graphTableInspectorPath)
@@ -1458,14 +1443,18 @@ export const testWorkflowManagerReusesWorkspaceTableSsotForMultiDimView = () => 
   const root = process.cwd()
   const filePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
   const text = readUtf8(filePath)
+  const removedWorkspaceSymbol = ['GraphTable', 'Workspace'].join('')
   if (!text.includes("from '@/features/workspace-table/workspaceTablePreferencesStore'")) {
     throw new Error('Expected Workflow Manager to read workspace table mode from workspaceTablePreferencesStore SSOT')
   }
   if (!text.includes('workspaceEditorMode === \'multiDimTable\'')) {
     throw new Error('Expected Workflow Manager to gate multi-dimensional table view by workspaceEditorMode SSOT')
   }
-  if (!text.includes('<GraphTableWorkspace active />')) {
-    throw new Error('Expected Workflow Manager to render GraphTableWorkspace for multi-dimensional table mode')
+  if (!text.includes('<MultiDimTableSurface active ariaLabel="Workflow Multi-dimensional Table" />')) {
+    throw new Error('Expected Workflow Manager to render the shared Multi-dimensional Table surface')
+  }
+  if (text.includes(removedWorkspaceSymbol)) {
+    throw new Error('Expected Workflow Manager to avoid the removed graph-table workspace surface')
   }
   if (text.includes('Legacy graph-manager controls are suppressed for frontmatter workflow processing.')) {
     throw new Error('Expected Workflow Manager to remove dedicated workflow sections mode panel copy after Graph Fields consolidation')

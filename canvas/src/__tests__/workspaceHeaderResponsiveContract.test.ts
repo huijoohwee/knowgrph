@@ -17,7 +17,6 @@ export function testWorkspaceHeaderRowsUseSharedResponsiveOwner() {
   const markdownBacklinksListText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceBacklinksList.tsx')
   const markdownToolbarText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx')
   const resizeSeparatorText = readUtf8('src/components/ui/VerticalResizeSeparatorHr.tsx')
-  const graphTableHeaderText = readUtf8('src/features/graph-table/ui/GraphTableWorkspaceHeader.tsx')
 
   if (!classText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME')) {
     throw new Error('expected workspace header row class owner to be exported from the shared responsive class registry')
@@ -25,7 +24,7 @@ export function testWorkspaceHeaderRowsUseSharedResponsiveOwner() {
   if (!workspaceHeaderText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') || !markdownExplorerText.includes('WorkspaceHeaderRow')) {
     throw new Error('expected workspace header rows and explorer headers to consume the shared responsive owner')
   }
-  if (!cssText.includes('--kg-workspace-header-row-min-height') || !cssText.includes('.kg-graph-table-header')) {
+  if (!cssText.includes('--kg-workspace-header-row-min-height')) {
     throw new Error('expected workspace header row heights to live in shared responsive CSS')
   }
   if (
@@ -98,8 +97,7 @@ export function testWorkspaceHeaderRowsUseSharedResponsiveOwner() {
     !markdownExplorerSectionText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_SCROLL_SECONDARY_CLASSNAME') ||
     !markdownExplorerSectionText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_SECTION_BODY_CLASSNAME') ||
     !markdownExplorerSectionResizeHandleText.includes('HorizontalResizeSeparatorHr') ||
-    !markdownExplorerSectionResizeHandleText.includes('startPointerDrag') ||
-    !markdownExplorerSectionResizeHandleText.includes('createRafValueScheduler') ||
+    !markdownExplorerSectionResizeHandleText.includes('bindResizeSeparatorDragRuntime') ||
     !markdownExplorerSectionResizeHandleText.includes('resolveMarkdownExplorerSectionResize') ||
     !markdownExplorerSectionResizeText.includes('resolveMarkdownExplorerSectionResize') ||
     !markdownExplorerSectionResizeText.includes("sourceFiles-toc") ||
@@ -128,9 +126,7 @@ export function testWorkspaceHeaderRowsUseSharedResponsiveOwner() {
     [markdownExplorerText, markdownToolbarText].some(text => text.includes('min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)]')) ||
     markdownExplorerText.includes('UI_RESPONSIVE_WORKSPACE_HEADER_ROW_CLASSNAME') ||
     markdownExplorerText.includes('uiToolbarRowScrollJustifyBetweenClassName') ||
-    graphTableHeaderText.includes('min-h-[var(--kg-control-height,28px)]') ||
-    markdownToolbarText.includes('kg-markdown-workspace-toolbar-row kg-toolbar') ||
-    graphTableHeaderText.includes('kg-graph-table-header kg-toolbar')
+    markdownToolbarText.includes('kg-markdown-workspace-toolbar-row kg-toolbar')
   ) {
     throw new Error('expected workspace header consumers to stay free of local toolbar height literals and duplicated row-scroll wiring')
   }

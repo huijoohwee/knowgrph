@@ -316,7 +316,6 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["graphTable.cache.inferDateColumns","@/__tests__/graphTableDb.test","testGraphTableDbInfersAndUpgradesDateColumns"],
   ["graphTable.cache.updateCell","@/__tests__/graphTableDb.test","testGraphTableDbUpdatesCellValues"],
   ["graphTable.cache.createRow","@/__tests__/graphTableDb.test","testGraphTableDbAllocatesAndCreatesRows"],
-  ["ui.graphTable.autoSeed.singleMountPath","@/__tests__/graphTableAutoSeedOnOpen.test","testGraphTableAutoSeedsWhenManualAndDbEmpty"],
   ["ui.themeModePersistence","@/__tests__/theme.test","testThemeModePersistence"],
   ["ui.themeSystemModeApplyAndSubscribe","@/__tests__/theme.test","testThemeSystemModeApplyAndSubscribe"],
   ["ui.themeToolbar.singleButtonSystemLightDark","@/__tests__/theme.test","testToolbarThemeUsesSingleSharedCycleButton"],

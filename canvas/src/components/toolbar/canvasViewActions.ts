@@ -12,6 +12,7 @@ import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import {
   isFrontmatterOnlyCanvas2dRenderer,
   isFrontmatterOnlyPolicyActive,
+  isMultiDimTableCanvas2dRenderer,
   isTableGraphCanvas2dRenderer,
   supportsCanvas2dMinimap,
 } from '@/lib/config.render'
@@ -89,10 +90,19 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     if (id === 'renderer:menu') return
     const nextRenderer = id.slice('renderer:'.length) as Canvas2dRendererId
     const rendererChanged = nextRenderer !== canvas2dRenderer
+    const nextRendererIsMultiDimTable = isMultiDimTableCanvas2dRenderer(nextRenderer)
     if (canvasRenderMode !== '2d') setCanvasRenderMode('2d')
     if (rendererChanged) setCanvas2dRenderer(nextRenderer)
+    if (nextRendererIsMultiDimTable) {
+      if (frontmatterModeEnabled) setFrontmatterModeEnabled(false)
+      if (!multiDimTableModeEnabled || canvasRenderMode !== '2d' || !isTableGraphCanvas2dRenderer(canvas2dRenderer)) {
+        setMultiDimTableModeEnabled(true)
+      }
+      if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
+      return
+    }
+    if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
     if (isFrontmatterOnlyCanvas2dRenderer(nextRenderer)) {
-      if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
       if (!frontmatterModeEnabled) setFrontmatterModeEnabled(true)
       if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
     }

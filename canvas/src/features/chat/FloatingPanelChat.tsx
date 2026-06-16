@@ -132,7 +132,7 @@ export default function FloatingPanelChat() {
   const chatHistoryCloudUrl = useGraphStore(s => s.chatHistoryCloudUrl || null)
   const setChatHistoryWorkspacePath = useGraphStore(s => s.setChatHistoryWorkspacePath)
   const workspaceViewMode = useGraphStore(s => (s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'))
-  const editorWorkspacePane = useGraphStore(s => (s.editorWorkspacePane === 'graphTable' ? 'graphTable' : 'markdown'))
+  const editorWorkspacePane = useGraphStore(s => s.editorWorkspacePane)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const docLocationRevision = useGraphStore(s => s.docLocationRevision)

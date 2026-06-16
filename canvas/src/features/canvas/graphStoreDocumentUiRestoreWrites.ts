@@ -4,7 +4,7 @@ import type {
   SavedDocumentUiSelectionState,
   SavedDocumentUiViewState,
 } from '@/features/canvas/graphStoreDocumentUiRestoreState'
-import { resolveTableGraphCanvas2dRenderer } from '@/lib/config.render'
+import { resolveNonTableGraphCanvas2dRenderer, resolveTableGraphCanvas2dRenderer } from '@/lib/config.render'
 
 type GraphStoreApi = ReturnType<typeof useGraphStore.getState>
 
@@ -12,7 +12,7 @@ export function applySavedDocumentUiModeStateWrites(api: GraphStoreApi, modeStat
   const tableGraphMode = modeState.multiDimTableModeEnabled === true
   const canvas2dRenderer = tableGraphMode
     ? resolveTableGraphCanvas2dRenderer(modeState.canvas2dRenderer)
-    : modeState.canvas2dRenderer
+    : resolveNonTableGraphCanvas2dRenderer(modeState.canvas2dRenderer)
   if (modeState.documentSemanticMode) api.setDocumentSemanticMode(modeState.documentSemanticMode)
   if (modeState.canvasRenderMode) api.setCanvasRenderMode(modeState.canvasRenderMode)
   if (modeState.canvas3dMode) api.setCanvas3dMode(modeState.canvas3dMode)

@@ -7,7 +7,7 @@ import { lsSetInt } from '@/lib/persistence'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import type { GraphData } from '@/lib/graph/types'
 import type { ZoomRequest } from '@/lib/zoom/requests'
-import { isFrontmatterOnlyPolicyActive, resolveTableGraphCanvas2dRenderer } from '@/lib/config.render'
+import { isFrontmatterOnlyPolicyActive, resolveNonTableGraphCanvas2dRenderer, resolveTableGraphCanvas2dRenderer } from '@/lib/config.render'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -115,7 +115,7 @@ export const createUiSettingsModeActions = (
       const nextCanvasRenderMode = nextEnabled ? '2d' : state.canvasRenderMode
       const nextCanvas2dRenderer = nextEnabled
         ? resolveTableGraphCanvas2dRenderer(state.canvas2dRenderer)
-        : state.canvas2dRenderer
+        : resolveNonTableGraphCanvas2dRenderer(state.canvas2dRenderer)
       const rendererChanged =
         state.canvasRenderMode !== nextCanvasRenderMode ||
         state.canvas2dRenderer !== nextCanvas2dRenderer

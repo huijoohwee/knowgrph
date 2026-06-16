@@ -33,7 +33,7 @@ import {
   planCanvasSliceStorageMigrations,
 } from '@/hooks/store/canvasSliceStorageMigrations'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
-import { isCanvas2dRendererId, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { isCanvas2dRendererId, isFrontmatterOnlyPolicyActive, isMultiDimTableCanvas2dRenderer } from '@/lib/config.render'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -540,15 +540,22 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         schema: state.schema,
       })
       const nextRenderer = String(radialRenderer || '').trim().toLowerCase()
+      const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
+        canvasRenderMode: state.canvasRenderMode,
+        canvas2dRenderer: radialRenderer,
+      })
+      const nextMultiDimTableModeEnabled = !enforceFrontmatterOnly && isMultiDimTableCanvas2dRenderer(radialRenderer)
+      const nextDocumentSemanticMode = enforceFrontmatterOnly ? 'document' : state.documentSemanticMode
+      const nextFrontmatterModeEnabled = enforceFrontmatterOnly ? true : !nextMultiDimTableModeEnabled && state.frontmatterModeEnabled
       const nextCanvas3dMode = resolveCanvas3dMode({
         requested: normalizeCanvas3dMode(state.canvas3dMode),
         canvas2dRenderer: radialRenderer,
-        documentSemanticMode: state.documentSemanticMode,
-        frontmatterModeEnabled: state.frontmatterModeEnabled === true,
-        multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
+        documentSemanticMode: nextDocumentSemanticMode,
+        frontmatterModeEnabled: nextFrontmatterModeEnabled === true,
+        multiDimTableModeEnabled: nextMultiDimTableModeEnabled,
         schema: state.schema,
       })
-      if (state.canvas2dRenderer === radialRenderer) return {}
+      if (state.canvas2dRenderer === radialRenderer && state.documentSemanticMode === nextDocumentSemanticMode && state.frontmatterModeEnabled === nextFrontmatterModeEnabled && state.multiDimTableModeEnabled === nextMultiDimTableModeEnabled) return {}
       lsSetJsonCoalesced(LS_KEYS.canvas2dRenderer, radialRenderer, { signature: String(radialRenderer) })
       if (nextCanvas3dMode !== state.canvas3dMode) {
         lsSetJsonCoalesced(LS_KEYS.canvas3dMode, nextCanvas3dMode, { signature: String(nextCanvas3dMode) })
@@ -566,8 +573,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         mediaPanelDensity: state.mediaPanelDensity,
         collapsedGroupIds: state.collapsedGroupIds,
       }
-      const prevZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: state.canvas2dRenderer })
-      const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: radialRenderer })
+      const prevZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: state.canvas2dRenderer, multiDimTableModeEnabled: state.multiDimTableModeEnabled === true })
+      const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: radialRenderer, frontmatterModeEnabled: nextFrontmatterModeEnabled, multiDimTableModeEnabled: nextMultiDimTableModeEnabled })
       const zoomStateByKey = state.zoomStateByKey || {}
       const shouldSeedZoomAcrossRenderers =
         prevZoomKey
@@ -600,18 +607,10 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       const targetWidgets = Array.isArray(nextWidgetBy[radialRenderer]) ? nextWidgetBy[radialRenderer] : []
       const sourceValid = sourceWidgets.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
       const targetValid = targetWidgets.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
-      // Keep widget state renderer-scoped: Flow Editor must not inherit open panels from other renderers.
-      const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
-        canvasRenderMode: state.canvasRenderMode,
-        canvas2dRenderer: radialRenderer,
-      })
       const nextWidgets =
         enforceFrontmatterOnly
           ? targetValid.filter(id => eligibleFlowWidgetNodeIds.has(id))
           : targetValid
-      const nextDocumentSemanticMode = enforceFrontmatterOnly ? 'document' : state.documentSemanticMode
-      const nextFrontmatterModeEnabled = enforceFrontmatterOnly ? true : state.frontmatterModeEnabled
-      const nextMultiDimTableModeEnabled = enforceFrontmatterOnly ? false : state.multiDimTableModeEnabled
 
       return {
         canvas2dRenderer: radialRenderer,

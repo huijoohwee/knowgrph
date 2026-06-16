@@ -73,7 +73,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Graph Data Table, Graph Fields, Props Panel/Node Editor, Canvas (D3/Flow/3D), Canvas Preview, and Geospatial overlays must render from the same derived `GraphData` view (no per-surface re-derivation).
 - Canonical derivation API: `useActiveGraphRenderData()` in `knowgrph/canvas/src/hooks/useActiveGraphData.ts`.
 - Derivation rules (in order): keyword semantic mode may derive a keyword base graph → optional frontmatter Mermaid filter (document mode only) → optional group collapse (`collapsedGroupIds`).
-- SSOT consumers include `PreviewPanelView`, `DatasetInspectorSection`, and `GraphTableWorkspace` (host), plus extracted table/stats surfaces.
+- SSOT consumers include `PreviewPanelView`, `DatasetInspectorSection`, and `MultiDimTableSurface` (host), plus extracted table/stats surfaces.
 - Bounded verification: `canvas/src/__tests__/graphTableDb.test.ts` (`testGraphTableDbSyncsCollapsedView`) asserts table rows match the collapsed render view.
 
 ### Shared Surface Vocabulary + Events (SSOT)

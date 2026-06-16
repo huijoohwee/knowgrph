@@ -27,18 +27,6 @@
   - `LS_KEYS.graphDataTableSortRules`
   - `LS_KEYS.graphDataTableGroupKey`
 
-- Graph Table (Editor Workspace) view state keys (owned by the host workspace tool, not the curation plugin):
-  - `LS_KEYS.graphTablePanelCollapsed`
-  - `LS_KEYS.graphTableInspectorOpen`
-  - `LS_KEYS.graphTableInspectorWidthPx`
-  - `LS_KEYS.graphTableColumnVisibilityById`
-  - `LS_KEYS.graphTableFilters`
-  - `LS_KEYS.graphTableFilterMatch`
-  - `LS_KEYS.graphTableGroupBy`
-  - `LS_KEYS.graphTableSortRules`
-  - `LS_KEYS.graphTableRowHeightPreset`
-  - `LS_KEYS.graphTableColumnWidthsPx`
-
 ---
 
 ## Markdown Workspace UI

@@ -62,9 +62,9 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         } as Partial<GraphState>
       }),
 
-    setEditorWorkspacePane: (pane: 'markdown' | 'graphTable') =>
+    setEditorWorkspacePane: (_pane: 'markdown') =>
       set(state => {
-        const next = pane === 'graphTable' ? 'graphTable' : 'markdown'
+        const next = 'markdown'
         if (state.editorWorkspacePane === next) return {}
         return { editorWorkspacePane: lsSetJson(LS_KEYS.editorWorkspacePane, next) } as Partial<GraphState>
       }),

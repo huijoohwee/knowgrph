@@ -224,11 +224,6 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
-      'ui.workspacePane.gatesGraphTableSubscriptionsWhenInactive',
-      modPaneGate.testGraphTableWorkspaceGatesPersistedCollectionSubscriptionsByActive,
-    )
-    await execTest(
-      results,
       'ui.workspacePane.canvasToolbarStartsAtPaneBoundary',
       modPaneGate.testWorkspaceOpenCanvasToolbarDoesNotCoverEditorPaneControls,
     )
@@ -333,8 +328,8 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
-      'ui.graphTable.dbSync.selectionInspectorGatesSync',
-      modGraphTableSync.testGraphTableSelectionInspectorGatesDbSyncWhenGraphTablePaneIsActive,
+      'ui.graphTable.dbSync.selectionInspectorUsesWorkspaceSyncMode',
+      modGraphTableSync.testGraphTableSelectionInspectorUsesWorkspaceSyncModeOnly,
     )
     const modSourceFilesIngestStaleGuard = await import('../__tests__/sourceFilesIngestStaleGuard.test')
     await execTest(

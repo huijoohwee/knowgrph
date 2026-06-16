@@ -61,9 +61,7 @@ const modMultiDimTableGuidelines = () => import('@/__tests__/multiDimTableGuidel
 const modToolbarWorkspaceSelectCollapsed = () => import('@/__tests__/toolbarWorkspaceSelectCollapsed.test')
 const modGraphTableToolbarMenuPortal = () => import('@/__tests__/graphTableToolbarMenuPortal.test')
 const modOverlayZIndexOrdering = () => import('@/__tests__/overlayZIndexOrdering.test')
-const modGraphTableCloseExitsMultiDimMode = () => import('@/__tests__/graphTableCloseExitsMultiDimMode.test')
 const modEditorWorkspaceSelectExitsMultiDimMode = () => import('@/__tests__/editorWorkspaceSelectExitsMultiDimMode.test')
-const modGraphTableAutoSeedOnOpen = () => import('@/__tests__/graphTableAutoSeedOnOpen.test')
 const modWorkspaceResizerHandlersAttachAfterMount = () => import('@/__tests__/workspaceResizerHandlersAttachAfterMount.test')
 const modDocumentModeSelectMultiDimIsCanvasMode = () => import('@/__tests__/documentModeSelectMultiDimIsCanvasMode.test')
 
@@ -356,10 +354,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modOverlayZIndexOrdering()
     mod.testAnchorOverlayZIndexIsAboveFloatingPanels()
   })
-  await execTest(results, 'graphTable.close.exitsMultiDimMode', async () => {
-    const mod = await modGraphTableCloseExitsMultiDimMode()
-    mod.testClosingGraphTableResetsWorkspaceEditorModeWithoutTouchingCanvasModes()
-  })
   await execTest(results, 'toolbar.workspaceSelect.exitsMultiDimMode', async () => {
     const mod = await modEditorWorkspaceSelectExitsMultiDimMode()
     mod.testEditorWorkspaceSelectExitsMultiDimModeWhenSelectingEditor()
@@ -367,10 +361,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'toolbar.documentMode.multiDim.isCanvasMode', async () => {
     const mod = await modDocumentModeSelectMultiDimIsCanvasMode()
     mod.testDocumentModeSelectMultiDimIsCanvasModeOnly()
-  })
-  await execTest(results, 'graphTable.autoSeed.manualMode.emptyDb', async () => {
-    const mod = await modGraphTableAutoSeedOnOpen()
-    mod.testGraphTableAutoSeedsWhenManualAndDbEmpty()
   })
   await execTest(results, 'workspace.resizers.attachHandlers.afterMount', async () => {
     const mod = await modWorkspaceResizerHandlersAttachAfterMount()

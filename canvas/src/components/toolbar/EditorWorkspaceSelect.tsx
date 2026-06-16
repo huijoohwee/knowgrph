@@ -1,11 +1,10 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { Database, FileCode, Link2, Table } from 'lucide-react'
+import { Database, FileCode, Link2 } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import {
-  isWorkspaceTableOpen,
   openWorkspaceEditorPane,
 } from '@/features/workspace-table/workspaceTableSsot'
 import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
@@ -53,7 +52,6 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
   )
 
   const isEditor = workspaceViewMode === 'editor'
-  const isGraphTable = isWorkspaceTableOpen({ workspaceViewMode, editorWorkspacePane })
 
   const options = React.useMemo(
     () =>
@@ -72,7 +70,6 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
 
   const triggerTitle = UI_LABELS.workspaceView
   const triggerTooltip = (() => {
-    if (isGraphTable) return WORKSPACE_TABLE_TOOLBAR_UI.tableOpenedTooltip
     if (isEditor) return WORKSPACE_TABLE_TOOLBAR_UI.editorOnTooltip
     return WORKSPACE_TABLE_TOOLBAR_UI.editorOffTooltip
   })()
@@ -83,12 +80,8 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       const liveWorkspaceViewMode = state.workspaceViewMode
       const liveEditorWorkspacePane = state.editorWorkspacePane
       const liveWorkspaceCanvasPaneOpen = state.workspaceCanvasPaneOpen
-      const liveIsGraphTable = isWorkspaceTableOpen({
-        workspaceViewMode: liveWorkspaceViewMode,
-        editorWorkspacePane: liveEditorWorkspacePane,
-      })
 
-      if (liveWorkspaceViewMode === 'editor' && !liveIsGraphTable && liveWorkspaceCanvasPaneOpen === true) {
+      if (liveWorkspaceViewMode === 'editor' && liveWorkspaceCanvasPaneOpen === true) {
         return
       }
 
@@ -168,11 +161,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       onSelect={id => apply(id)}
       onTriggerClick={handleTriggerClick}
       renderButtonContent={() =>
-        isGraphTable ? (
-          <Table className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        )
+        <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       }
       renderOptionContent={option => (
         <>

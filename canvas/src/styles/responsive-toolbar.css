@@ -249,10 +249,6 @@
     touch-action: auto;
   }
 
-  .kg-graph-table-header {
-    --kg-workspace-header-row-min-height: var(--kg-control-height, 28px);
-  }
-
   .kg-toolbar-btn,
   .kg-workspace-mode-select {
     min-width: 0;
@@ -417,8 +413,6 @@
   .kg-monaco-editor-root,
   .kg-monaco-editor-shell,
   .kg-monaco-editor-host,
-  .kg-graph-table-header,
-  .kg-graph-table-nav,
   .kg-graph-table-toolbar,
   .kg-graph-table-actions {
     min-width: 0;
@@ -2583,8 +2577,6 @@
       max-height: 40dvh;
     }
 
-    .kg-graph-table-header,
-    .kg-graph-table-nav,
     .kg-graph-table-toolbar,
     .kg-graph-table-actions,
     .kg-data-view-header-controls,
@@ -2732,18 +2724,10 @@
       border-bottom-width: 1px;
     }
 
-    .kg-graph-table-grid-inspector-shell {
-      flex-direction: column;
-    }
-
     .kg-graph-table-inspector {
       width: 100% !important;
       max-height: 45dvh;
       border-top: 1px solid var(--kg-border);
-    }
-
-    .kg-graph-table-inspector-resize {
-      display: none;
     }
 
     .HeaderBar,

@@ -13,6 +13,7 @@ const CANVAS_VIEW_RENDERER_D3_TITLE = '2D Renderer: D3 Graph'
 const CANVAS_VIEW_RENDERER_DASHBOARD_TITLE = '2D Renderer: Dashboard'
 const CANVAS_VIEW_RENDERER_GALLERY_TITLE = '2D Renderer: Gallery'
 const CANVAS_VIEW_RENDERER_FLOWCHART_TITLE = '2D Renderer: Flowchart'
+const CANVAS_VIEW_RENDERER_MULTI_DIM_TABLE_TITLE = '2D Renderer: Multi-dimensional Table'
 const CANVAS_VIEW_RENDERER_GITGRAPH_TITLE = '2D Renderer: GitGraph'
 const CANVAS_VIEW_RENDERER_GANTT_TITLE = '2D Renderer: Gantt-timeline'
 const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow Canvas'
@@ -21,7 +22,7 @@ const CANVAS_VIEW_RENDERER_STORYBOARD_TITLE = '2D Renderer: Storyboard'
 const CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE = '2D Renderer: Flow Editor'
 const CANVAS_VIEW_RENDERER_DESIGN_TITLE = '2D Renderer: Design'
 const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP =
-  '2D Renderer: switch between D3, Dashboard, Flowchart, GitGraph, Gantt-timeline, Flow Canvas, Storyboard, Design, and Flow Editor.'
+  '2D Renderer: switch between D3, Dashboard, Flowchart, Multi-dimensional Table, GitGraph, Gantt-timeline, Flow Canvas, Storyboard, Design, and Flow Editor.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -179,8 +180,8 @@ export const UI_COPY = {
   chatHistoryCountStatus: (count: number) => `History: ${count} messages`,
   frontmatterModeTooltip: 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph',
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
-  multiDimTableModeTooltip: 'Multi-dimensional Table: focus canvas on table-to-graph derived view',
-  multiDimTableModeToggleTooltip: 'Multi-dimensional Table: toggle focus on table-to-graph derived view',
+  multiDimTableModeTooltip: 'Multi-dimensional Table: focus canvas on structured Markdown tables',
+  multiDimTableModeToggleTooltip: 'Multi-dimensional Table: toggle focus on structured Markdown tables',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
   nodeShapeModeTooltip: 'Node Shape: cycle between circle (default), rect, diamond, and hex nodes.',
   groupShapeRectTooltip: 'Cluster Shape: switch to Polygon shape.',
@@ -215,6 +216,7 @@ export const UI_COPY = {
   canvasViewRendererDashboardTitle: CANVAS_VIEW_RENDERER_DASHBOARD_TITLE,
   canvasViewRendererGalleryTitle: CANVAS_VIEW_RENDERER_GALLERY_TITLE,
   canvasViewRendererD3FlowchartTitle: CANVAS_VIEW_RENDERER_FLOWCHART_TITLE,
+  canvasViewRendererMultiDimTableTitle: CANVAS_VIEW_RENDERER_MULTI_DIM_TABLE_TITLE,
   canvasViewRendererGitGraphTitle: CANVAS_VIEW_RENDERER_GITGRAPH_TITLE,
   canvasViewRendererGanttTitle: CANVAS_VIEW_RENDERER_GANTT_TITLE,
   canvasViewRendererFlowTitle: CANVAS_VIEW_RENDERER_FLOW_TITLE,
@@ -553,9 +555,9 @@ export const UI_COPY = {
   toolbarEditorToggleTitle: 'Toggle Workspace View',
   toolbarEditorWorkspaceOnTooltip: 'Workspace View: Editor',
   toolbarEditorWorkspaceOffTooltip: 'Workspace View',
-  toolbarGraphDataTableToggleTitle: 'Open Workspace View: Multi-dimensional Table',
-  toolbarGraphDataTableWorkspaceOnTooltip: 'Workspace View: Multi-dimensional Table',
-  toolbarGraphDataTableWorkspaceOffTooltip: 'Workspace View',
+  toolbarMultiDimTableToggleTitle: 'Open Workspace View: Multi-dimensional Table',
+  toolbarMultiDimTableWorkspaceOnTooltip: 'Workspace View: Multi-dimensional Table',
+  toolbarMultiDimTableWorkspaceOffTooltip: 'Workspace View',
   markdownImportUrlPrompt: 'Enter Markdown URL (.md)',
   toolbarJsonImportUrlButtonLabel: 'URL',
   toolbarParserExportJsonButtonLabel: 'JSON',

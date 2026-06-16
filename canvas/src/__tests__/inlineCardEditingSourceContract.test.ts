@@ -9,7 +9,6 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   const animatic = readUtf8('../components/AnimaticCanvas.tsx')
   const markdownKanban = readUtf8('../features/markdown/ui/kanban/KanbanCard.tsx')
   const graphKanban = readUtf8('../features/graph-table/ui/GraphTableKanbanView.tsx')
-  const graphWorkspaceLeft = readUtf8('../features/graph-table/ui/GraphTableWorkspaceLeft.tsx')
   const flowEditorInspector = readUtf8('../components/FlowEditor/FlowEditorInspector.tsx')
   const storyboard = readUtf8('../components/StoryboardCanvas.tsx')
   const sharedCardFields = readUtf8('../lib/cards/graphNodeCardFields.ts')
@@ -126,10 +125,6 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   if (!graphKanban.includes('onUpdateCell?: (rowId: string, columnId: string, nextValue: unknown) => void')) {
     throw new Error('expected workflow kanban surface to own inline cell updates through a shared callback')
   }
-  if (!graphWorkspaceLeft.includes('onUpdateCell={props.onCellValueChanged}')) {
-    throw new Error('expected workflow kanban owner to wire inline card edits into the existing graph-table cell write path')
-  }
-
   for (const snippet of [
     'updateStoryboardCanonicalProperty',
     'STORYBOARD_SUMMARY_PROPERTY_KEYS',

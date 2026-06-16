@@ -9,17 +9,6 @@ export function testEmbeddedEditorShellPassesActiveToMarkdownWorkspace() {
   }
 }
 
-export function testGraphTableWorkspaceGatesPersistedCollectionSubscriptionsByActive() {
-  const p = resolve(process.cwd(), 'src', 'lib', 'graph-table', 'ui', 'GraphTableWorkspace.impl.tsx')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes('if (!active) return')) {
-    throw new Error('expected GraphTableWorkspace to gate persisted-collection subscriptions when inactive')
-  }
-  if (!text.includes('[active, activeTableId,')) {
-    throw new Error('expected GraphTableWorkspace subscription effect to depend on active')
-  }
-}
-
 export function testWorkspaceOpenCanvasToolbarDoesNotCoverEditorPaneControls() {
   const p = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
   const text = readFileSync(p, 'utf8')

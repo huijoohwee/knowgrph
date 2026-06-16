@@ -49,13 +49,14 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
 
-### Renderer Mode Matrix (2D: D3 Graph/Dashboard/Flowchart/GitGraph/Flow Canvas/Animatic/Storyboard/Design/Flow Editor; 3D; Voxel)
+### Renderer Mode Matrix (2D: D3 Graph/Dashboard/Flowchart/Multi-dimensional Table/GitGraph/Flow Canvas/Animatic/Storyboard/Design/Flow Editor; 3D; Voxel)
 
 - **Shared derivation SSOT**:
-  - Graph-derived renderers (2D D3 Graph/Dashboard/Flowchart/Flow Canvas/Animatic/Storyboard/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
+  - Graph-derived renderers (2D D3 Graph/Dashboard/Flowchart/Multi-dimensional Table/Flow Canvas/Animatic/Storyboard/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
   - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
   - GitGraph is a diagram-code renderer: it reuses active document/frontmatter Mermaid code authority, the shared Mermaid SVG cache, the shared D3 viewport controller, and the shared FloatingPanel shell for source-file command CRUD, but does not expand GitGraph commands into GraphData topology or mutate the display-graph pipeline.
   - Dashboard is a graph-derived D3 chart surface: it derives KPIs, time-series, bars, and table cards from active `GraphData` plus `GraphSchema`, reuses `readCanvasGridConfigFromSchema`, and does not introduce an alternate chart runtime, file-specific fixtures, or external-demo data.
+  - Multi-dimensional Table is a canonical 2D renderer id (`multiDimTable`) that mounts the existing Editor Workspace Viewer data-view surface (`MarkdownWorkspaceDerivedViewer` in `multiDimTable` mode) instead of the D3 renderer surface or GraphTable DB workspace. Selecting it through Canvas View Mode enables `multiDimTableModeEnabled`, clears conflicting Frontmatter mode, and leaves non-table renderer selection through the shared non-table fallback resolver instead of remapping D3/Flowchart as hidden table aliases.
 - **Frontmatter Mode On/Off**:
   - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes). Flow Editor uses a frontmatter-only derived view: keyword/table/composed-source derivations are disabled while Flow/Flow Editor frontmatter-only policy is active so other document modes/renderers cannot interfere with Flow Editor graph state.
   - If `flow` block metadata exists, flow-derived nodes/connections are the canonical parser input for renderer surfaces; parser wiring must not merge legacy top-level `edges` into the rendered graph.

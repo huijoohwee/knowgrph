@@ -50,13 +50,6 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/lib/graph-table/ui/GraphTableWorkspace.impl.tsx',
-    forbiddenSnippets: [
-      'collapsedGroupIds: (s.collapsedGroupIds || []) as string[]',
-      'openWidgetNodeIds: s.openWidgetNodeIds || []',
-    ],
-  },
-  {
     path: 'src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx',
     forbiddenSnippets: [
       'const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])',

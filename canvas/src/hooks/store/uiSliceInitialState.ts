@@ -140,10 +140,10 @@ export const createUiInitialState = (
 
     workspaceViewMode: initialWorkspaceViewMode,
 
-    editorWorkspacePane: lsJson<'markdown' | 'graphTable'>(
+    editorWorkspacePane: lsJson<'markdown'>(
       LS_KEYS.editorWorkspacePane,
       'markdown',
-      value => (value === 'graphTable' || value === 'markdown' ? value : 'markdown'),
+      value => (value === 'markdown' ? value : 'markdown'),
     ),
 
     workspaceCanvasPaneOpen: initialWorkspaceCanvasPaneOpen,

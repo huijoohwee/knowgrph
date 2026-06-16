@@ -37,7 +37,6 @@ export const testEmitTocFocusDispatchesSharedEvent = async () => {
 export const testTocFocusCallsitesUseSharedEmitterAndConstant = () => {
   const tocHook = readUtf8('src/features/markdown/ui/useMarkdownTocFocusState.ts')
   const selectionSlice = readUtf8('src/hooks/store/selectionSlice.ts')
-  const graphTableWorkspace = readUtf8('src/lib/graph-table/ui/GraphTableWorkspace.impl.tsx')
   const helper = readUtf8('src/features/markdown/ui/tocFocusEvents.ts')
 
   if (!tocHook.includes('TOC_FOCUS_EVENT')) {
@@ -49,10 +48,7 @@ export const testTocFocusCallsitesUseSharedEmitterAndConstant = () => {
   if (!selectionSlice.includes('emitTocFocus(tocId)')) {
     throw new Error('expected selection slice to use the shared TOC focus emitter')
   }
-  if (!graphTableWorkspace.includes('emitTocFocus(tocId)')) {
-    throw new Error('expected GraphTableWorkspace to use the shared TOC focus emitter')
-  }
-  if (selectionSlice.includes("'kg:tocFocus'") || graphTableWorkspace.includes("'kg:tocFocus'")) {
+  if (selectionSlice.includes("'kg:tocFocus'")) {
     throw new Error('expected TOC focus emitters to avoid inline event strings')
   }
   if (!helper.includes('export const TOC_FOCUS_EVENT')) {

@@ -33,9 +33,4 @@ export function testWorkspaceResizerHandlersAttachAfterMount() {
   if (!explorerBootstrapText.includes('const [resizeHandleEl, setResizeHandleEl]')) {
     throw new Error('expected explorer resizer bootstrap state to own the element-backed handle state')
   }
-
-  const graphTableText = read(['src', 'lib', 'graph-table', 'ui', 'GraphTableWorkspace.impl.tsx'])
-  if (!graphTableText.includes('const [inspectorDragHandleEl, setInspectorDragHandleEl]')) {
-    throw new Error('expected graph table inspector resizer owner to bind to an element-backed state')
-  }
 }

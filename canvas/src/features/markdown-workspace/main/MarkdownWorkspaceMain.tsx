@@ -41,6 +41,7 @@ import { workspaceTablePreferencesStore } from '@/features/workspace-table/works
 import { tryBuildWidgetBundleMarkdownFromJsonText } from '@/lib/graph/io/widgetBundle'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildJsonMarkdownSourceSemanticKey, serializeJsonMarkdownDraftToSourceText } from './jsonMarkdownEditing'
+import { applyStructuredSourceDataViewReplacement, buildStructuredSourceDataViewProjection } from './viewer/sourceStructuredDataViewTable'
 import {
   clearLocalEditorWorkspaceSurfaceSnapshot,
   publishLocalEditorWorkspaceSurfaceSnapshot,
@@ -347,27 +348,18 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   }, [activeJsonSourceKey, activeText, isMarkdown, markdownPaneVisible, viewerPaneVisible, widgetModeActive])
 
   const needsMarkdownViewerText = !showWebpageHtml || markdownPaneVisible || viewerPaneVisible
-  const needsSourceAttachedMarkdownTableText =
-    documentPanePreset === 'viewer'
-    && !!activePaneJsonPreviewText
-    && (markdownPaneVisible || (viewerPaneVisible && viewerMode !== 'multiDimTable'))
-  const sourceAttachedMarkdownTableKey = React.useMemo(
-    () => (
-      needsSourceAttachedMarkdownTableText && activePaneJsonPreviewText
-        ? buildJsonMarkdownSourceSemanticKey({ activeDocumentKey, text: activePaneJsonPreviewText })
-        : ''
-    ),
-    [activeDocumentKey, activePaneJsonPreviewText, needsSourceAttachedMarkdownTableText],
-  )
-  const sourceAttachedMarkdownTableText = React.useMemo(
-    () => (
-      sourceAttachedMarkdownTableKey && activePaneJsonPreviewText
-        ? buildMarkdownPipeTableFromRowsJsonArtifact(activePaneJsonPreviewText, sourceAttachedMarkdownTableKey)
-        : null
-    ),
-    [activePaneJsonPreviewText, sourceAttachedMarkdownTableKey],
-  )
+  const needsSourceAttachedMarkdownTableText = documentPanePreset === 'viewer' && (markdownPaneVisible || viewerPaneVisible), needsJsonSourceAttachedMarkdownTableText = needsSourceAttachedMarkdownTableText && !!activePaneJsonPreviewText
+  const structuredSourceDataViewProjection = React.useMemo(() => (needsSourceAttachedMarkdownTableText && isMarkdown ? buildStructuredSourceDataViewProjection(activeText) : null), [activeText, isMarkdown, needsSourceAttachedMarkdownTableText])
+  const sourceAttachedMarkdownTableKey = React.useMemo(() => (
+    needsJsonSourceAttachedMarkdownTableText && activePaneJsonPreviewText && !structuredSourceDataViewProjection
+      ? buildJsonMarkdownSourceSemanticKey({ activeDocumentKey, text: activePaneJsonPreviewText })
+      : ''
+  ), [activeDocumentKey, activePaneJsonPreviewText, needsJsonSourceAttachedMarkdownTableText, structuredSourceDataViewProjection])
+  const sourceAttachedMarkdownTableText = React.useMemo(() => (
+    structuredSourceDataViewProjection?.markdownText || (sourceAttachedMarkdownTableKey && activePaneJsonPreviewText ? buildMarkdownPipeTableFromRowsJsonArtifact(activePaneJsonPreviewText, sourceAttachedMarkdownTableKey) : null)
+  ), [activePaneJsonPreviewText, sourceAttachedMarkdownTableKey, structuredSourceDataViewProjection])
   const isSourceAttachedMarkdownTable = !!sourceAttachedMarkdownTableText
+  const isStructuredSourceAttachedMarkdownTable = !!structuredSourceDataViewProjection?.markdownText
 
   const isJsonMarkdownEditing = !isMarkdown && viewerKind === 'markdown' && !!jsonDerivedMarkdownBase
   const [jsonDerivedMarkdownDraft, setJsonDerivedMarkdownDraft] = React.useState<string | null>(null)
@@ -469,9 +461,16 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const commitMarkdownEditText = React.useCallback(
     (nextText: string) => {
       if (isSourceAttachedMarkdownTable) {
-        setViewerInlineMarkdownDraftText(null)
-        setViewerInlineViewerText(null)
-        return
+        setViewerInlineMarkdownDraftText(null); setViewerInlineViewerText(null)
+        if (isStructuredSourceAttachedMarkdownTable) {
+          // Structured source tables are derived projections, so raw source writes
+          // must round-trip through line/block replacements instead of committing the
+          // projection text verbatim back into the Markdown document.
+          return
+        }
+        const nextSourceText = serializeJsonMarkdownDraftToSourceText({ activeDocumentKey, editorUri, markdownText: String(nextText || '') })
+        jsonMarkdownRoundTripRef.current = { sourceKey: buildJsonMarkdownSourceSemanticKey({ activeDocumentKey, text: nextSourceText }), markdownText: String(nextText || '') }
+        if (nextSourceText !== activeText) setActiveText(nextSourceText); return
       }
       if (!isJsonMarkdownEditing) {
         setViewerInlineMarkdownDraftText(null)
@@ -496,7 +495,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         setActiveText(nextJsonText)
       }
     },
-    [activeDocumentKey, activeText, editorUri, isJsonMarkdownEditing, isSourceAttachedMarkdownTable, setActiveText],
+    [activeDocumentKey, activeText, editorUri, isJsonMarkdownEditing, isSourceAttachedMarkdownTable, isStructuredSourceAttachedMarkdownTable, setActiveText],
   )
   const frontmatterWarningSourceText = !isJsonMarkdownEditing && isMarkdown ? String(editableMarkdownText || '') : String(sourceEditorTextRaw || '')
   const frontmatterWarnings = React.useMemo(() => {
@@ -700,6 +699,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const startLine = Math.max(1, Math.floor(args.startLine || 1))
       const endLine = Math.max(startLine, Math.floor(args.endLine || startLine))
       const replacementLines = Array.isArray(args.replacementLines) ? args.replacementLines : []
+      const structuredNext = applyStructuredSourceDataViewReplacement({ sourceText: activeText, projection: structuredSourceDataViewProjection, startLine, endLine, replacementLines })
+      if (structuredNext != null) { if (structuredNext !== activeText) commitMarkdownEditText(structuredNext); return }
+      if (isStructuredSourceAttachedMarkdownTable) return
       const next = replaceMarkdownLineRange({
         markdownText: persistedEditableMarkdownText,
         startLine,
@@ -716,7 +718,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         void 0
       }
     },
-    [commitMarkdownEditText, disableViewerMutations, layoutMode, persistedEditableMarkdownText, revealLineInEditor],
+    [activeText, commitMarkdownEditText, disableViewerMutations, isStructuredSourceAttachedMarkdownTable, layoutMode, persistedEditableMarkdownText, revealLineInEditor, structuredSourceDataViewProjection],
   )
   const onInsertLineAfter = disableViewerMutations ? undefined : handleInsertLineAfter
   const onReorderLineBlock = disableViewerMutations ? undefined : handleReorderLineBlock
@@ -850,8 +852,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     />
   ) : null
 
-  const disableDerivedMarkdownMutations = !!disableViewerMutations || isSourceAttachedMarkdownTable
-  const derivedViewerText = viewerMode === 'multiDimTable' ? (activeJsonSourcePreviewText || viewerText) : viewerText
+  const disableDerivedMarkdownMutations = !!disableViewerMutations
+  const derivedViewerText = viewerMode === 'multiDimTable' ? (sourceAttachedMarkdownTableText || activeJsonSourcePreviewText || viewerText) : viewerText
 
   const markdownViewer = !viewerPaneVisible ? null : (viewerMode === 'read' || viewerMode === 'table') && viewerKind === 'markdown' ? (
     <MarkdownPreview

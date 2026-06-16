@@ -1,7 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
-import { openWorkspaceEditorPane, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { openWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 
 export type JsonImportWorkspaceTarget = 'editor' | 'multiDimTable' | 'canvas'
@@ -53,10 +53,11 @@ export function applyJsonImportWorkspaceTarget(args?: { preferFlowEditor?: boole
     return
   }
   workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
-  openWorkspaceTable({
+  openWorkspaceEditorPane({
     workspaceViewMode: store.workspaceViewMode,
     editorWorkspacePane: store.editorWorkspacePane,
     workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
+    pane: 'markdown',
     setWorkspaceViewMode: store.setWorkspaceViewMode,
     setWorkspaceViewState: store.setWorkspaceViewState,
     setEditorWorkspacePane: store.setEditorWorkspacePane,

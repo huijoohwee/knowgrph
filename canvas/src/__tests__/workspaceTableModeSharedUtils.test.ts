@@ -5,12 +5,15 @@ const readUtf8 = (relativePath: string): string => {
   return fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8')
 }
 
+const removedWorkspaceFilename = ['GraphTable', 'Workspace.impl.tsx'].join('')
+const removedWorkspaceSymbol = ['GraphTable', 'Workspace'].join('')
+
 export function testWorkspaceTableModeSharedUtilsOwnMultiDimModes() {
   const workspaceModeText = readUtf8('src/features/workspace-table/workspaceEditorMode.ts')
   const presentationText = readUtf8('src/features/workspace-table/workspaceEditorModePresentation.ts')
-  const graphHeaderText = readUtf8('src/features/graph-table/ui/GraphTableWorkspaceHeader.tsx')
   const viewerHeaderText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewHeader.tsx')
   const graphModePath = path.resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'graphTableViewMode.ts')
+  const graphWorkspacePath = path.resolve(process.cwd(), 'src', 'lib', 'graph-table', 'ui', removedWorkspaceFilename)
   const lsKeysText = readUtf8('src/lib/config.ls.keys.ts')
 
   if (fs.existsSync(graphModePath)) {
@@ -25,8 +28,8 @@ export function testWorkspaceTableModeSharedUtilsOwnMultiDimModes() {
   if (!presentationText.includes('WORKSPACE_TABLE_VIEW_MODE_SELECT_OPTIONS')) {
     throw new Error('expected shared workspace table presentation options to live upstream')
   }
-  if (!graphHeaderText.includes('WORKSPACE_TABLE_VIEW_MODE_SELECT_OPTIONS')) {
-    throw new Error('expected Multi-dimensional Table workspace header to reuse shared view mode options')
+  if (fs.existsSync(graphWorkspacePath)) {
+    throw new Error('expected removed graph-table workspace runtime to stay deleted in favor of the shared Multi-dimensional Table surface')
   }
   if (!viewerHeaderText.includes('getWorkspaceEditorModeLabel(props.viewerMode)')) {
     throw new Error('expected Editor Workspace Viewer Multi-dimensional Table to keep using shared workspace mode labels')
@@ -57,8 +60,6 @@ export function testWorkspaceDataViewTableFrameFillsPane() {
 
 export function testWorkspaceTableUserFacingCopyUsesMultiDimensionalTableSsot() {
   const sourcePaths = [
-    'src/features/graph-table/ui/GraphTableWorkspaceHeader.tsx',
-    'src/features/graph-table/ui/GraphTableWorkspaceLeft.tsx',
     'src/features/graph-table/ui/GraphTableToolbar.tsx',
     'src/features/graph-table/ui/GraphTableKanbanView.tsx',
     'src/features/markdown/ui/MarkdownSelectionToolbar.tsx',
@@ -148,7 +149,11 @@ export function testWorkspaceDataViewGraphToggleBridgesFloatingPanelToCanvasMode
   const activeViewText = readUtf8('src/hooks/active-graph-data/activeViewGraph.ts')
   const modeActionsText = readUtf8('src/hooks/store/uiSettingsSliceModeActions.ts')
   const renderConfigText = readUtf8('src/lib/config.render.ts')
+  const canvasViewportText = readUtf8('src/components/CanvasViewport.tsx')
+  const canvasTableSurfaceText = readUtf8('src/features/markdown-workspace/main/viewer/MultiDimTableSurface.tsx')
   const canvasViewActionsText = readUtf8('src/components/toolbar/canvasViewActions.ts')
+  const canvasViewMenuText = readUtf8('src/components/toolbar/canvasViewMenu.ts')
+  const uiCopyText = readUtf8('src/lib/config-copy/uiCopy.ts')
   const restoreWritesText = readUtf8('src/features/canvas/graphStoreDocumentUiRestoreWrites.ts')
 
   if (!settingsText.includes("props.onChangeLayoutMode?.(next ? 'multiDimTable' : 'table')")) {
@@ -172,13 +177,40 @@ export function testWorkspaceDataViewGraphToggleBridgesFloatingPanelToCanvasMode
   if (!renderConfigText.includes('resolveTableGraphCanvas2dRenderer')) {
     throw new Error('expected table graph renderer resolution to live in shared renderer config utilities')
   }
+  if (!renderConfigText.includes("export const TABLE_GRAPH_CANVAS_2D_RENDERER: Canvas2dRendererId = 'multiDimTable'")) {
+    throw new Error('expected Multi-dimensional Table to be the canonical table graph renderer id')
+  }
+  if (!renderConfigText.includes("surfaceId: 'multiDimTable'") || renderConfigText.includes("id === 'd3' || id === 'flowchart' || id === 'multiDimTable'")) {
+    throw new Error('expected Multi-dimensional Table renderer to use the shared table surface without D3-like routing')
+  }
+  if (!canvasViewportText.includes("import('@/features/markdown-workspace/main/viewer/MultiDimTableSurface')") || !canvasViewportText.includes("active2dSurface === 'multiDimTable'") || !canvasViewportText.includes('<MultiDimTableSurfaceLazy active ariaLabel="Canvas Multi-dimensional Table" />')) {
+    throw new Error('expected CanvasViewport to mount the shared Multi-dimensional Table surface')
+  }
+  if (!canvasTableSurfaceText.includes('MarkdownWorkspaceDerivedViewer') || !canvasTableSurfaceText.includes('viewerMode="multiDimTable"') || !canvasTableSurfaceText.includes('jsonSourceDocumentText')) {
+    throw new Error('expected Multi-dimensional Table to reuse Editor Workspace Viewer data-view owners')
+  }
+  if (canvasViewportText.includes("import('@/lib/graph-table/ui')") || canvasTableSurfaceText.includes(removedWorkspaceSymbol)) {
+    throw new Error('expected Canvas Multi-dimensional Table to avoid the removed graph-table workspace surface')
+  }
+  if (!uiCopyText.includes('2D Renderer: Multi-dimensional Table') || !canvasViewMenuText.includes('canvasViewRendererMultiDimTableTitle')) {
+    throw new Error('expected Multi-dimensional Table renderer to be labeled and exposed through shared Canvas View copy')
+  }
   if (!modeActionsText.includes('resolveTableGraphCanvas2dRenderer(state.canvas2dRenderer)')) {
     throw new Error('expected store-level Multi-dimensional Table mode to switch non-graph renderers through the shared resolver')
+  }
+  if (!modeActionsText.includes('resolveNonTableGraphCanvas2dRenderer(state.canvas2dRenderer)')) {
+    throw new Error('expected store-level Multi-dimensional Table mode to leave the table renderer through the shared resolver')
   }
   if (!canvasViewActionsText.includes('isTableGraphCanvas2dRenderer(canvas2dRenderer)')) {
     throw new Error('expected toolbar Multi-dimensional Table mode to reuse the shared graph-renderer predicate')
   }
+  if (!canvasViewActionsText.includes('isMultiDimTableCanvas2dRenderer(nextRenderer)')) {
+    throw new Error('expected Canvas View renderer selection to enter Multi-dimensional Table mode through the shared renderer helper')
+  }
   if (!restoreWritesText.includes('resolveTableGraphCanvas2dRenderer(modeState.canvas2dRenderer)')) {
     throw new Error('expected document UI restore to normalize stale saved renderers for restored Multi-dimensional Table mode')
+  }
+  if (!restoreWritesText.includes('resolveNonTableGraphCanvas2dRenderer(modeState.canvas2dRenderer)')) {
+    throw new Error('expected document UI restore to clear stale table renderers when restored table mode is off')
   }
 }

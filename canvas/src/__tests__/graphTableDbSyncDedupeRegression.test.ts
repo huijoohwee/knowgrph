@@ -21,14 +21,14 @@ export function testGraphTableDbSyncDoesNotUseModuleGlobalKeyGuards() {
   }
 }
 
-export function testGraphTableSelectionInspectorGatesDbSyncWhenGraphTablePaneIsActive() {
+export function testGraphTableSelectionInspectorUsesWorkspaceSyncModeOnly() {
   const p = resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableSelectionInspector.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('editorWorkspacePane') || !text.includes("workspaceViewMode")) {
-    throw new Error('expected GraphTableSelectionInspector to read editor workspace state')
+  if (text.includes('editorWorkspacePane') || text.includes("workspaceViewMode")) {
+    throw new Error('expected GraphTableSelectionInspector to avoid removed graph-table pane state')
   }
-  if (!text.includes('syncEnabled') || !text.includes("editorWorkspacePane !== 'graphTable'")) {
-    throw new Error('expected GraphTableSelectionInspector to disable sync when graphTable pane is active')
+  if (!text.includes("const syncEnabled = canvasWorkspaceSyncMode === 'realtime'")) {
+    throw new Error('expected GraphTableSelectionInspector sync to be gated by workspace sync mode only')
   }
   if (!text.includes("buildScopedGraphSemanticKey('graph-table-selection-inspector-base-graph'")) {
     throw new Error('expected GraphTableSelectionInspector to key base-graph fallback selection from the shared semantic graph helper')

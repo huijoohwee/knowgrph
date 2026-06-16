@@ -67,8 +67,6 @@ const buildFallbackInspectorRow = (
 }
 
 export default function GraphTableSelectionInspector() {
-  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
-  const editorWorkspacePane = useGraphStore(s => s.editorWorkspacePane)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY)
@@ -103,7 +101,7 @@ export default function GraphTableSelectionInspector() {
     return deriveGraphDataWithGroupCollapse({ graphData: baseGraphData, collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean) })
   }, [baseGraphData, collapsedGroupIdsKey])
 
-  const syncEnabled = (workspaceViewMode !== 'editor' || editorWorkspacePane !== 'graphTable') && canvasWorkspaceSyncMode === 'realtime'
+  const syncEnabled = canvasWorkspaceSyncMode === 'realtime'
   const graphSyncRevision = infiniteCanvasInteractionMode === 'interactive' ? graphDataRevision : graphContentRevision
   const { noteGraphWrite } = useGraphTableDbSync(graphSyncRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`, syncEnabled)
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])

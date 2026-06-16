@@ -85,6 +85,12 @@ export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxO
   if (resolveCanvas2dRendererId('Animatic') !== 'animatic') {
     throw new Error('expected shared renderer normalizer to resolve Animatic upstream')
   }
+  if (resolveCanvas2dRendererId('Multi-dimensional Table') !== 'multiDimTable') {
+    throw new Error('expected shared renderer normalizer to resolve Multi-dimensional Table upstream')
+  }
+  if (getCanvas2dRendererLabel('multiDimTable') !== 'Multi-dimensional Table' || getCanvas2dSurfaceId('multiDimTable') !== 'multiDimTable') {
+    throw new Error('expected Multi-dimensional Table renderer id to resolve to the shared table surface')
+  }
   if (getCanvas2dRendererLabel('animatic') !== 'Gantt-timeline' || getCanvas2dSurfaceId('animatic') !== 'gantt') {
     throw new Error('expected old Animatic renderer id to adapt onto the Gantt-timeline surface')
   }

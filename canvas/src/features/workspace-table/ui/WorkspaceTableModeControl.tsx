@@ -27,6 +27,7 @@ import {
   type WorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
 import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceEditorPane'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
@@ -56,7 +57,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
     })),
   )
 
-  const tableWorkspaceOpen = workspaceViewMode === 'editor' && editorWorkspacePane === 'graphTable'
+  const tableWorkspaceOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true
   const prefs = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
     workspaceTablePreferencesStore.getSnapshot,
@@ -69,28 +70,29 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const jsonTableMaxColumns = prefs.jsonTableMaxColumns
   const workspaceCellSelectPanelPlacement = prefs.workspaceCellSelectPanelPlacement as WorkspaceCellSelectPanelPlacement
 
-  const openWorkspaceTableFromControl = React.useCallback(() => {
-    if (editorWorkspacePane !== 'graphTable') setEditorWorkspacePane('graphTable')
-    if (workspaceViewMode !== 'editor' || workspaceCanvasPaneOpen !== true) {
-      if (setWorkspaceViewState) setWorkspaceViewState({ mode: 'editor', paneOpen: true })
-      else {
-        if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
-        if (workspaceCanvasPaneOpen !== true) setWorkspaceCanvasPaneOpen(true)
-      }
-    }
-    if (typeof window !== 'undefined') void warmGraphTableDb()
+  const openWorkspaceMultiDimTableFromControl = React.useCallback(() => {
+    void warmGraphTableDb()
+    openMarkdownWorkspaceEditorPane({
+      workspaceViewMode,
+      editorWorkspacePane,
+      workspaceCanvasPaneOpen,
+      setWorkspaceViewMode,
+      setWorkspaceViewState,
+      setEditorWorkspacePane,
+      setWorkspaceCanvasPaneOpen,
+    })
   }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceCanvasPaneOpen, setWorkspaceViewMode, setWorkspaceViewState, workspaceCanvasPaneOpen, workspaceViewMode])
 
   const handleWorkspaceEditorModeChanged = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const next = event.currentTarget.value as WorkspaceEditorMode
       workspaceTablePreferencesStore.setWorkspaceEditorMode(next)
-      openWorkspaceTableFromControl()
+      openWorkspaceMultiDimTableFromControl()
     },
-    [openWorkspaceTableFromControl],
+    [openWorkspaceMultiDimTableFromControl],
   )
 
-  const handleOpenTable = openWorkspaceTableFromControl
+  const handleOpenTable = openWorkspaceMultiDimTableFromControl
 
   const handleJsonImportTargetChanged = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     workspaceTablePreferencesStore.setJsonImportTarget(event.currentTarget.value as JsonImportWorkspaceTarget)
@@ -136,7 +138,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
         disabled={tableWorkspaceOpen}
       >
         <span className={UI_TEXT_TRUNCATE}>
-          {tableWorkspaceOpen ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip : UI_COPY.toolbarGraphDataTableToggleTitle}
+          {tableWorkspaceOpen ? UI_COPY.toolbarMultiDimTableWorkspaceOnTooltip : UI_COPY.toolbarMultiDimTableToggleTitle}
         </span>
       </button>
       <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>

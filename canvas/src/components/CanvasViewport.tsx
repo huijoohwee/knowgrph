@@ -25,6 +25,10 @@ const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const DashboardCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/DashboardCanvas'), { retries: 2, retryDelayMs: 50 }))
 const GalleryCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/GalleryCanvas'), { retries: 2, retryDelayMs: 50 }))
+const MultiDimTableSurfaceLazy = React.lazy(() =>
+  importWithRetry(() => import('@/features/markdown-workspace/main/viewer/MultiDimTableSurface'), { retries: 2, retryDelayMs: 50 })
+    .then(mod => ({ default: mod.MultiDimTableSurface })),
+)
 const MermaidGitGraphCanvasLazy = React.lazy(() => import('@/components/MermaidGitGraphCanvas'))
 const MermaidGanttCanvasLazy = React.lazy(() => import('@/components/MermaidGanttCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
@@ -177,6 +181,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'gallery' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gallery'}>
               {active2dSurface === 'gallery' ? <GalleryCanvasLazy active /> : null}
+            </section>
+            <section className={`absolute inset-0 flex min-h-0 min-w-0 bg-[var(--kg-panel-bg)] ${active2dSurface === 'multiDimTable' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'multiDimTable'}>
+              {active2dSurface === 'multiDimTable' ? <MultiDimTableSurfaceLazy active ariaLabel="Canvas Multi-dimensional Table" /> : null}
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'gitGraph' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gitGraph'}>
               {active2dSurface === 'gitGraph' ? <MermaidGitGraphCanvasLazy active /> : null}

@@ -7,8 +7,8 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { cn } from '@/lib/utils'
 import GraphFieldsView from '@/features/panels/views/GraphFieldsView'
-import GraphTableWorkspace from '@/features/graph-table/ui/GraphTableWorkspace'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { MultiDimTableSurface } from '@/features/markdown-workspace/main/viewer/MultiDimTableSurface'
 import {
   UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME,
   UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME,
@@ -52,7 +52,7 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
           <section className={`${UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME} min-h-0 h-full overflow-hidden`}>
             {multiDimTableView ? (
               <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_TABLE_FRAME_CLASSNAME, UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME, 'overflow-hidden')}>
-                <GraphTableWorkspace active />
+                <MultiDimTableSurface active ariaLabel="Workflow Multi-dimensional Table" />
               </section>
             ) : (
               <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME, 'h-full min-h-0 overflow-auto')}>
@@ -88,7 +88,7 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
           <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME, 'min-h-0 h-full overflow-hidden')} aria-label="Graph Fields and Field Settings">
             <section className="h-full min-h-0 overflow-hidden">
               {multiDimTableView ? (
-                <GraphTableWorkspace active />
+                <MultiDimTableSurface active ariaLabel="Workflow Multi-dimensional Table" />
               ) : (
                 <GraphFieldsView
                   onStatusChange={graphFieldsStatusNoop}

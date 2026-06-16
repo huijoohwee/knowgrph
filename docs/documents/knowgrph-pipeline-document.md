@@ -172,10 +172,10 @@ When changing shared packages that are wired via `file:` links (for example `sin
 
 - Render consumes the active `GraphData` view and applies schema-config-driven layout/styling:
   - [GraphCanvas.tsx](../../canvas/src/components/GraphCanvas.tsx)
-- Active `GraphData` for rendering is SSOT-derived to keep Canvas/D3, Flow, Multi-dimensional Table (host Graph Data Table backed by the persisted GraphTableDb cache), Graph Fields, and Props/Node Editor consistent:
+- Active `GraphData` for rendering is SSOT-derived to keep Canvas/D3, Flow, Multi-dimensional Table (`MultiDimTableSurface` over the Markdown data-view renderer), Graph Fields, and Props/Node Editor consistent:
   - Canonical hook: `useActiveGraphRenderData()` (`knowgrph/canvas/src/hooks/useActiveGraphData.ts`)
   - Derivation order: keyword semantic mode base → optional frontmatter Mermaid filter (document mode only) → optional group collapse (`collapsedGroupIds`)
-  - Example SSOT consumers (host): `PreviewPanelView`, `DatasetInspectorSection`, `GraphTableWorkspace`
+  - Example SSOT consumers (host): `PreviewPanelView`, `DatasetInspectorSection`, `MultiDimTableSurface`
   - Bounded regression test: `canvas/src/__tests__/graphTableDb.test.ts` (`testGraphTableDbSyncsCollapsedView`)
 - Layout + zoom correctness at runtime:
   - Layout position caches are isolated by all render-affecting toggles (datasetKey, semantic/frontmatter/layout, renderMode/renderVariant/layoutVariant/viewKey, mediaPanelDensity, renderMediaAsNodes) to prevent cross-mode contamination.

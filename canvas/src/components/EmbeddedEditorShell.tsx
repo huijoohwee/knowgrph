@@ -1,55 +1,17 @@
 import React from 'react'
-import { useGraphStore } from '@/hooks/useGraphStore'
 
 const MarkdownWorkspaceLazy = React.lazy(() =>
   import('@/lib/markdown-workspace-runtime').then(mod => ({ default: mod.MarkdownWorkspace })),
 )
-const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 
 export function EmbeddedEditorShell(props: { active: boolean }) {
-  const pane = useGraphStore(s => s.editorWorkspacePane)
-  const [graphTableWarmed, setGraphTableWarmed] = React.useState(pane === 'graphTable')
-  React.useEffect(() => {
-    if (pane === 'graphTable') setGraphTableWarmed(true)
-  }, [pane])
-
-  React.useEffect(() => {
-    if (graphTableWarmed) return
-    if (typeof window === 'undefined') return
-    const w = window as unknown as {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number
-      cancelIdleCallback?: (id: number) => void
-    }
-    const schedule = w.requestIdleCallback
-      ? () => w.requestIdleCallback?.(() => void import('@/features/graph-table/ui/GraphTableWorkspace'), { timeout: 2000 }) as number
-      : () => window.setTimeout(() => void import('@/features/graph-table/ui/GraphTableWorkspace'), 400)
-    const cancel = w.cancelIdleCallback
-      ? (id: number) => w.cancelIdleCallback?.(id)
-      : (id: number) => window.clearTimeout(id)
-    const id = schedule()
-    return () => cancel(id)
-  }, [graphTableWarmed])
-
-  const showGraphTable = pane === 'graphTable'
-  const showMarkdown = !showGraphTable
-
   return (
     <section className={`relative w-full h-full ${props.active ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!props.active}>
-      {showMarkdown ? (
-        <section className="absolute inset-0">
-          <React.Suspense fallback={null}>
-            <MarkdownWorkspaceLazy active={props.active} />
-          </React.Suspense>
-        </section>
-      ) : null}
-
-      {graphTableWarmed && showGraphTable ? (
-        <section className="absolute inset-0">
-          <React.Suspense fallback={<section className="p-3 text-sm opacity-70">Loading table…</section>}>
-            <GraphTableWorkspaceLazy active={props.active} />
-          </React.Suspense>
-        </section>
-      ) : null}
+      <section className="absolute inset-0">
+        <React.Suspense fallback={null}>
+          <MarkdownWorkspaceLazy active={props.active} />
+        </React.Suspense>
+      </section>
     </section>
   )
 }

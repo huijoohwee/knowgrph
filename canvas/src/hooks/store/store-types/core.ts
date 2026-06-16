@@ -63,7 +63,7 @@ export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
 
 export type WorkspaceViewMode = 'canvas' | 'editor'
 
-export type EditorWorkspacePane = 'markdown' | 'graphTable'
+export type EditorWorkspacePane = 'markdown'
 
 export type PdfImportProvider = 'native' | 'docling-remote'
 

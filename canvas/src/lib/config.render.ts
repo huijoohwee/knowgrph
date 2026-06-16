@@ -1,12 +1,12 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'gitGraph', 'gantt', 'flow', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'flowchart', 'gitGraph', 'gantt', 'flow', 'storyboard', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'storyboard', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -48,6 +48,14 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Bi',
     menuDescription: 'Bipartite flow',
     menuBadges: ['Block', 'Voxel'],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
+  multiDimTable: {
+    surfaceId: 'multiDimTable',
+    registryLabel: 'Multi-dimensional Table',
+    menuLabel: 'Table',
+    menuDescription: 'Structured table view',
+    menuBadges: ['Table', 'Data'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   gitGraph: {
@@ -119,6 +127,9 @@ const CANVAS_2D_RENDERER_ID_BY_NORMALIZED_TOKEN = (() => {
   const map = new Map<string, Canvas2dRendererId>()
   for (const rendererId of CANVAS_2D_RENDERERS) {
     map.set(normalizeCanvas2dRendererToken(rendererId), rendererId)
+    const spec = CANVAS_2D_RENDERER_SPECS[rendererId]
+    map.set(normalizeCanvas2dRendererToken(spec.registryLabel), rendererId)
+    map.set(normalizeCanvas2dRendererToken(spec.menuLabel), rendererId)
   }
   return map
 })()
@@ -160,14 +171,24 @@ export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): b
   return id === 'd3' || id === 'flowchart'
 }
 
-export const TABLE_GRAPH_CANVAS_2D_RENDERER: Canvas2dRendererId = 'd3'
+export const TABLE_GRAPH_CANVAS_2D_RENDERER: Canvas2dRendererId = 'multiDimTable'
+
+export const FALLBACK_TABLE_GRAPH_CANVAS_2D_RENDERER: Canvas2dRendererId = 'd3'
+
+export const isMultiDimTableCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'multiDimTable'
+}
 
 export const isTableGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return isD3Like2dRenderer(id)
+  return isMultiDimTableCanvas2dRenderer(id)
 }
 
 export const resolveTableGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): Canvas2dRendererId => {
   return isTableGraphCanvas2dRenderer(id) ? id : TABLE_GRAPH_CANVAS_2D_RENDERER
+}
+
+export const resolveNonTableGraphCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): Canvas2dRendererId => {
+  return isTableGraphCanvas2dRenderer(id) ? FALLBACK_TABLE_GRAPH_CANVAS_2D_RENDERER : (id || FALLBACK_TABLE_GRAPH_CANVAS_2D_RENDERER)
 }
 
 export const isFlowchartCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
@@ -232,7 +253,7 @@ export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined):
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isDashboardCanvas2dRenderer(id) && !isGalleryCanvas2dRenderer(id) && !isFlowchartCanvas2dRenderer(id) && !isGitGraphCanvas2dRenderer(id) && !isGanttCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isDashboardCanvas2dRenderer(id) && !isGalleryCanvas2dRenderer(id) && !isMultiDimTableCanvas2dRenderer(id) && !isFlowchartCanvas2dRenderer(id) && !isGitGraphCanvas2dRenderer(id) && !isGanttCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const
