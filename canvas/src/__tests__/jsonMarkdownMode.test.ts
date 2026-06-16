@@ -9,6 +9,8 @@ import {
   buildJsonMarkdownDocumentFromValue,
   tryBuildJsonMarkdownDocumentFromText,
 } from '@/features/markdown/jsonToMarkdownDocument'
+import { readMarkdownSourceFidelityTextFromJsonText } from '@/features/markdown/jsonMarkdownSourceFidelity'
+import { serializeJsonMarkdownDraftToSourceText } from '@/features/markdown-workspace/main/jsonMarkdownEditing'
 
 async function withWindowHarness(run: () => Promise<void>) {
   const storage = new MemoryStorage()
@@ -95,6 +97,50 @@ export async function testJsonMarkdownApplyJsonUpdatesJsonSourceAndMarkdown() {
       throw new Error('expected json markdown document builder to write the preferred mode back to workspace preferences')
     }
   })
+}
+
+export async function testJsonMarkdownSourceFidelityRoundTripsYamlFrontmatter() {
+  const markdown = [
+    '---',
+    'title: Knowgrph Strybldr Demo',
+    'strybldr_storyboard:',
+    '  version: 1',
+    '  runId: strybldr-videodb-recreate-77FAnT935IE',
+    '  workflow:',
+    '    stages:',
+    '      - Source',
+    '      - Storyboard',
+    '  cards:',
+    '    - id: readiness',
+    '      type: Runtime',
+    '      summary: Host-only key readiness.',
+    '---',
+    '',
+    '# Runtime',
+    '',
+    'Keep YAML-native storyboard data in frontmatter.',
+    '',
+  ].join('\n')
+  const jsonText = serializeJsonMarkdownDraftToSourceText({
+    activeDocumentKey: '/docs/knowgrph-strybldr-demo.md',
+    editorUri: 'file:///docs/knowgrph-strybldr-demo.md',
+    markdownText: markdown,
+  })
+  const restored = readMarkdownSourceFidelityTextFromJsonText(jsonText)
+  if (restored !== markdown) {
+    throw new Error('expected markdown source fidelity payload to preserve YAML frontmatter byte-for-byte')
+  }
+  const built = tryBuildJsonMarkdownDocumentFromText(jsonText, 'table')
+  if (!built || built.markdown !== markdown) {
+    throw new Error('expected JSON-to-Markdown builder to prefer the exact markdown source fidelity payload')
+  }
+  const parsed = JSON.parse(jsonText) as { metadata?: { markdownSource?: { text?: unknown } } }
+  if (parsed.metadata?.markdownSource?.text !== markdown) {
+    throw new Error('expected serialized JSON-LD metadata to carry the exact markdown source text')
+  }
+  if (jsonText.includes('strybldr_storyboard: |')) {
+    throw new Error('expected source fidelity payload to retain YAML-native storyboard frontmatter, not JSON literal frontmatter')
+  }
 }
 
 export async function testJsonMarkdownModeWithExternalJsonFiles() {

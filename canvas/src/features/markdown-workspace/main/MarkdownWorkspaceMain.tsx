@@ -41,6 +41,7 @@ import { workspaceTablePreferencesStore } from '@/features/workspace-table/works
 import { tryBuildWidgetBundleMarkdownFromJsonText } from '@/lib/graph/io/widgetBundle'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildJsonMarkdownSourceSemanticKey, serializeJsonMarkdownDraftToSourceText } from './jsonMarkdownEditing'
+import { readMarkdownSourceFidelityTextFromJsonText } from '@/features/markdown/jsonMarkdownSourceFidelity'
 import { applyStructuredSourceDataViewReplacement, buildStructuredSourceDataViewProjection } from './viewer/sourceStructuredDataViewTable'
 import {
   clearLocalEditorWorkspaceSurfaceSnapshot,
@@ -332,6 +333,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
     const text = String(activeText || '').trim()
     if (!text || (!text.startsWith('{') && !text.startsWith('['))) return null
+    const markdownSourceText = readMarkdownSourceFidelityTextFromJsonText(text)
+    if (markdownSourceText !== null) return markdownSourceText
     if (widgetModeActive) {
       const widgetBundleMarkdown = tryBuildWidgetBundleMarkdownFromJsonText(text)
       if (widgetBundleMarkdown) return widgetBundleMarkdown

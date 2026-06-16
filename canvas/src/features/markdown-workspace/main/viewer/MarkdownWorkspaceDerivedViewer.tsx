@@ -58,7 +58,10 @@ import {
   useWorkspaceDataViewFloatingRegistration,
   type WorkspaceDataViewFloatingBinding,
 } from './workspaceDataViewFloatingStore'
-import { UI_RESPONSIVE_WORKSPACE_DATA_VIEW_MAIN_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_WORKSPACE_DATA_VIEW_MAIN_CLASSNAME,
+  UI_RESPONSIVE_WORKSPACE_DATA_VIEW_ROOT_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { defaultDelimitedTextDelimiterForName } from '@/lib/delimited-text/delimitedText'
 import { parseDelimitedTextWithWorkerFallback } from '@/lib/delimited-text/delimitedTextWorkerBridge'
 import { isMarkdownWorkspaceDelimitedTextPath } from '../types'
@@ -97,6 +100,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   onInlineEditStateChange?: (active: boolean) => void
   onInlineDraftTextChange?: (nextText: string, options?: MarkdownInlineDraftTextChangeOptions) => void
   onViewerRootRef: (el: HTMLElement | null) => void
+  floatingPanelRegistrationOnly?: boolean
 }) {
   const panelTypography = usePanelTypography()
   const jsonLikeMarkdownText = React.useMemo(() => {
@@ -587,6 +591,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       },
       onSelectGeospatialView: handleSelectGeospatialView,
       onReset: onResetDataView,
+      onNewRecord: canMutate ? () => onNewRecord() : undefined,
       onAddColumn: canMutate ? onAddColumn : undefined,
       onDuplicateColumn: canMutate ? onDuplicateColumn : undefined,
       onDeleteColumn: canMutate ? onDeleteColumn : undefined,
@@ -599,6 +604,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     onAddColumn,
     onDeleteColumn,
     onDuplicateColumn,
+    onNewRecord,
     onResetDataView,
     onRenameColumn,
     props,
@@ -608,6 +614,8 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   ])
 
   useWorkspaceDataViewFloatingRegistration(viewSettingsBinding)
+
+  if (props.floatingPanelRegistrationOnly === true) return null
 
   if (props.viewerMode === 'read') {
     if (props.viewerKind === 'json') {
@@ -694,7 +702,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   }
 
   return (
-    <section className="h-full w-full flex flex-col" aria-label="Workspace data view">
+    <section className={`${UI_RESPONSIVE_WORKSPACE_DATA_VIEW_ROOT_CLASSNAME} h-full w-full flex flex-col`} aria-label="Workspace data view">
       <WorkspaceDataViewHeader
         title={props.title || 'Workspace'}
         viewerMode={props.viewerMode}
@@ -753,6 +761,8 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             onHideColumnInView={onHideColumnInView}
             onUpsertColumnFilter={onUpsertColumnFilter}
             onSetColumnSort={onSetColumnSort}
+            renderAllRows={selected.structuredSource === true}
+            orientation={viewConfig?.orientation === 'columns' ? 'columns' : 'rows'}
           />
         )}
       </main>

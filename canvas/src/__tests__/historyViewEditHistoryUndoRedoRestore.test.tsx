@@ -161,7 +161,7 @@ export async function testHistoryViewRelayQuickFilterScopesLogRows() {
     }
 
     const readVisibleRows = () =>
-      Array.from(dom.window.document.querySelectorAll('tbody tr')).map(row => String(row.textContent || ''))
+      Array.from(dom.window.document.querySelectorAll('tbody tr')).map(row => String((row as HTMLTableRowElement).textContent || ''))
 
     const allRows = readVisibleRows()
     if (!allRows.some(text => text.includes('chat:relay'))) {

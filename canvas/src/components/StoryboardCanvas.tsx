@@ -21,6 +21,8 @@ import {
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { createUniqueId } from '@/lib/ids'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import {
   DATA_VIEW_CHIP_ROW_CLASSNAME,
@@ -81,8 +83,23 @@ import {
 import { updateStrybldrStoryboardMarkdownCardOverride } from '@/features/strybldr/strybldrStoryboard'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, collectGraphKeywordTermStats } from '@/lib/graph/keywordTerms'
+import { WorkspaceDataViewNewRecordButton } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewNewRecordButton'
 
 type StoryboardDisplayMedia = { kind: 'image' | 'svg' | 'video' | 'audio' | 'iframe'; url: string; srcDoc?: string }
+
+const isStoryboardDisplayReference = (
+  reference: StoryboardCardReference,
+): reference is StoryboardCardReference & { kind: StoryboardDisplayMedia['kind'] } =>
+  reference.kind === 'image'
+  || reference.kind === 'svg'
+  || reference.kind === 'video'
+  || reference.kind === 'audio'
+  || reference.kind === 'iframe'
+
+const isStoryboardImageReference = (
+  reference: StoryboardCardReference,
+): reference is StoryboardCardReference & { kind: 'image' | 'svg' } =>
+  reference.kind === 'image' || reference.kind === 'svg'
 
 type StoryboardRenderedEdge = {
   id: string
@@ -103,6 +120,8 @@ const EMPTY_STORYBOARD_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4'
 const STORYBOARD_SCORECARD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 text-[11px] sm:grid-cols-2'
 const STORYBOARD_CANONICAL_TEXT_FIELDS = { summary: { propertyKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS, canonicalKey: 'summary' }, output: { propertyKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS, canonicalKey: 'output' }, action: { propertyKeys: STORYBOARD_ACTION_PROPERTY_KEYS, canonicalKey: 'action' }, dialogue: { propertyKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS, canonicalKey: 'dialogue' } } as const
+const STORYBOARD_NEW_CARD_NODE_TYPE = 'Storyboard'
+const STORYBOARD_NEW_CARD_LABEL = 'New storyboard card'
 const STORYBOARD_REFERENCE_DOWNLOAD_CLASS_NAME = [
   `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME} absolute right-1 top-1 z-10 rounded border shadow-sm`,
   UI_THEME_TOKENS.panel.border,
@@ -188,11 +207,11 @@ function StorytreeEdgeConnector(props: {
 
 function resolveStoryboardDisplayMedia(card: StoryboardCardModel): StoryboardDisplayMedia | null {
   if (card.media) return card.media
-  const firstReference = card.references.find(reference => reference.kind !== 'link')
-  if (!firstReference || firstReference.kind === 'link') return null
+  const firstVisualReference = card.references.find(isStoryboardDisplayReference)
+  if (!firstVisualReference) return null
   return {
-    kind: firstReference.kind,
-    url: firstReference.url,
+    kind: firstVisualReference.kind,
+    url: firstVisualReference.url,
   }
 }
 
@@ -389,12 +408,13 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { graphRevision, selectedNodeId, selectNode, updateNode, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
+  const { graphRevision, selectedNodeId, selectNode, updateNode, addNode, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
     useShallow(s => ({
       graphRevision: s.graphDataRevision || 0,
       selectedNodeId: String(s.selectedNodeId || '').trim(),
       selectNode: s.selectNode,
       updateNode: s.updateNode,
+      addNode: s.addNode,
       setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
       setMarkdownDocument: s.setMarkdownDocument,
       addHistory: s.addHistory,
@@ -488,6 +508,49 @@ export default function StoryboardCanvas({
   }, [board.lanes, currentPropertiesByCardId, storytreeFilter])
   const visibleCardIds = React.useMemo(() => visibleLanes.flatMap(lane => lane.cards.map(card => card.id)), [visibleLanes])
   const visibleCardKey = visibleCardIds.join('\u0000')
+  const handleNewStoryboardRecord = React.useCallback(() => {
+    const storeGraphData = useGraphStore.getState().graphData as GraphData | null
+    const baseGraphData = (storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }) as GraphData
+    const nodes = Array.isArray(baseGraphData.nodes) ? baseGraphData.nodes : []
+    const activeNodes = Array.isArray(graphData?.nodes) ? graphData.nodes : nodes
+    const usedIds = new Set<string>([
+      ...nodes.map(node => String(node.id || '').trim()).filter(Boolean),
+      ...activeNodes.map(node => String(node.id || '').trim()).filter(Boolean),
+    ])
+    const nextId = createUniqueId('storyboard-card-', usedIds)
+    const selectedCard = selectedNodeId ? cardById.get(selectedNodeId) || null : null
+    const targetLane = String(selectedCard?.lane || visibleLanes.find(lane => lane.cards.length > 0)?.id || STORYBOARD_EMPTY_LANE).trim() || STORYBOARD_EMPTY_LANE
+    const maxOrder = board.lanes.reduce((max, lane) => {
+      return lane.cards.reduce((laneMax, card) => Math.max(laneMax, Number.isFinite(card.order) ? card.order : 0), max)
+    }, 0)
+    const maxX = activeNodes.reduce((max, node) => Math.max(max, Number.isFinite(node.x) ? Number(node.x) : 0), 0)
+    const maxY = activeNodes.reduce((max, node) => Math.max(max, Number.isFinite(node.y) ? Number(node.y) : 0), 0)
+    const label = STORYBOARD_NEW_CARD_LABEL
+    const type = STORYBOARD_NEW_CARD_NODE_TYPE
+    const beforeIds = new Set<string>((storeGraphData?.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean))
+    const nextNode: GraphNode = {
+      id: nextId,
+      label,
+      type,
+      x: maxX + 48,
+      y: maxY + 48,
+      properties: {
+        lane: targetLane === STORYBOARD_EMPTY_LANE ? '' : targetLane,
+        order: maxOrder + 1,
+      } as never,
+    }
+    addNode(nextNode)
+    const committedGraphData = useGraphStore.getState().graphData as GraphData | null
+    const committedNodes = Array.isArray(committedGraphData?.nodes) ? committedGraphData.nodes : []
+    const exactId = committedNodes.find(node => String(node.id || '').trim() === nextId)?.id
+    const composedId = committedNodes.find(node => String(node.id || '').trim().endsWith(`::${nextId}`))?.id
+    const insertedId = committedNodes.find(node => {
+      const nodeId = String(node.id || '').trim()
+      if (!nodeId || beforeIds.has(nodeId)) return false
+      return String(node.label || '').trim() === label && String(node.type || '').trim() === type
+    })?.id
+    selectNode(String(exactId || composedId || insertedId || nextId))
+  }, [addNode, board.lanes, cardById, graphData, selectNode, selectedNodeId, visibleLanes])
   const registerCardElement = React.useCallback((cardId: string, element: HTMLElement | null) => {
     if (element) {
       cardElementsRef.current.set(cardId, element)
@@ -882,6 +945,7 @@ export default function StoryboardCanvas({
           <span className={['hidden text-[10px] sm:inline font-mono', UI_THEME_TOKENS.text.tertiary].join(' ')} title={board.semanticKey}>
             {board.semanticKey ? board.semanticKey.slice(0, 10) : 'empty'}
           </span>
+          <WorkspaceDataViewNewRecordButton onClick={handleNewStoryboardRecord} labelMode="hover" />
         </section>
       </header>
 
@@ -1000,7 +1064,7 @@ export default function StoryboardCanvas({
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
-                    const visualBriefReference = card.references.find(reference => reference.kind === 'image' || reference.kind === 'svg') || null
+                    const visualBriefReference = card.references.find(isStoryboardImageReference) || null
                     const storyboardCommandContextText = [
                       storyboardKeywordCommandContextText,
                       buildStoryboardInlineMediaCommandContext(card),

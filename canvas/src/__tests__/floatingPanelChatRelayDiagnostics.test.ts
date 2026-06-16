@@ -35,6 +35,9 @@ export function testBuildStorageChatRelayLogDescriptorBuildsReadyAndBlockedEntri
     authMode: 'byok',
     workspaceId: 'kgws:test-chat',
   })
+  if (readyDecision.kind !== 'ready') {
+    throw new Error(`expected ready relay decision fixture, got ${readyDecision.kind}`)
+  }
   const readyDescriptor = buildStorageChatRelayLogDescriptor({
     relayDecision: readyDecision,
     workspaceId: 'kgws:test-chat',
@@ -69,6 +72,9 @@ export function testBuildStorageChatRelayLogDescriptorBuildsReadyAndBlockedEntri
     authMode: 'serverManaged',
     workspaceId: 'kgws:test-chat',
   })
+  if (blockedDecision.kind !== 'blocked') {
+    throw new Error(`expected blocked relay decision fixture, got ${blockedDecision.kind}`)
+  }
   const blockedDescriptor = buildStorageChatRelayLogDescriptor({
     relayDecision: blockedDecision,
     workspaceId: 'kgws:test-chat',

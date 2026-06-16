@@ -34,12 +34,18 @@ const demoSourceUnitId = `videodb-recreate-${demoVideoId}-source`
 assert(!existsSync(legacyVideodbDemoPath), 'legacy knowgrph-videodb-demo.md must remain removed')
 assert(demoVideoId, 'Strybldr demo must declare kgYoutubeVideoId in validation input frontmatter')
 assert(demoWatchUrl, 'Strybldr demo must declare kgWebpageUrl in validation input frontmatter')
+assert(
+  readDemoFrontmatterValue('videodb_workflow_status') === 'VideoDB API + MCP workflow integrated into full SenseNova Text, Image, Video to VideoDB E2E pipeline',
+  'Strybldr demo must keep VideoDB workflow status in frontmatter',
+)
+assert(
+  readDemoFrontmatterValue('sensenova_workflow_status') === 'SenseNova API Text, Image, Video generation feeds VideoDB upload, index, search, stream, and local publish packet workflow; uncredentialed demo runs generate a local knowgrph animatic',
+  'Strybldr demo must keep SenseNova workflow status in frontmatter',
+)
+assert(readDemoFrontmatterValue('sensenova_credential_policy').startsWith('Server Managed Key uses host SENSENOVA_API_KEY'), 'Strybldr demo must keep SenseNova credential policy in frontmatter')
+assert(readDemoFrontmatterValue('videodb_credential_policy').startsWith('Server Managed Key uses host VIDEODB_API_KEY'), 'Strybldr demo must keep VideoDB credential policy in frontmatter')
 
 for (const requiredText of [
-  'videodb_workflow_status: "VideoDB API + MCP workflow integrated into full SenseNova Text, Image, Video to VideoDB E2E pipeline"',
-  'sensenova_workflow_status: "SenseNova API Text, Image, Video generation feeds VideoDB upload, index, search, stream, and local publish packet workflow; uncredentialed demo runs generate a local knowgrph animatic"',
-  'sensenova_credential_policy: "Server Managed Key uses host SENSENOVA_API_KEY',
-  'videodb_credential_policy: "Server Managed Key uses host VIDEODB_API_KEY',
   '2D Renderer: Storyboard',
   '2D Renderer: Storyboard',
   '2D Renderer: Flow Editor',
@@ -47,7 +53,6 @@ for (const requiredText of [
   `VideoDB API + MCP Recreate ${demoVideoId} Lane`,
   'Confirm MainPanel Integrations exposes SenseNova API readiness',
   'MainPanel MCP exposes `VideoDB Director MCP`',
-  `kgWebpageUrl: "${demoWatchUrl}"`,
   'SenseNova API readiness',
   'VideoDB Director MCP',
   'videodbMcpApiDocs.ts',
@@ -58,10 +63,17 @@ for (const requiredText of [
   assert(demoText.includes(requiredText), `Strybldr demo missing VideoDB recreate workflow text: ${requiredText}`)
 }
 
-const storyboardMatch = demoText.match(/```json strybldr-storyboard\n([\s\S]*?)\n```/)
-assert(storyboardMatch, 'Strybldr demo must include a strybldr-storyboard JSON payload')
+assert(demoFrontmatterBlock, 'Strybldr demo must expose YAML frontmatter')
+assert(demoText.includes('\nstrybldr_storyboard:\n'), 'Strybldr demo must keep the Strybldr storyboard payload in YAML frontmatter')
+assert(!demoText.includes('\nstrybldr_storyboard: |\n'), 'Strybldr demo must not store the Strybldr storyboard payload as a JSON string literal')
+assert(!/```json strybldr-storyboard/.test(demoText), 'Strybldr demo must not duplicate the Strybldr storyboard payload in the Markdown body')
 
-const storyboard = JSON.parse(storyboardMatch[1] || '{}') as StoryboardPayload
+const parsedFrontmatter = flowEditorParseResult?.graphData?.metadata && typeof flowEditorParseResult.graphData.metadata === 'object'
+  ? flowEditorParseResult.graphData.metadata as { frontmatterMeta?: Record<string, unknown> }
+  : {}
+const storyboardPayload = parsedFrontmatter.frontmatterMeta?.strybldr_storyboard
+assert(storyboardPayload && typeof storyboardPayload === 'object' && !Array.isArray(storyboardPayload), 'Strybldr demo frontmatter must expose strybldr_storyboard as a YAML object payload')
+const storyboard = storyboardPayload as StoryboardPayload
 const sources = storyboard.sources || []
 const elements = storyboard.elements || []
 const edges = storyboard.edges || []

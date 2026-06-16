@@ -95,7 +95,7 @@ function replaceMarkdownLineMediaName(line: string, owner: Extract<CommandMenuRi
 function replaceMarkdownLineMediaNameByHref(line: string, href: string, nextName: string): string {
   const normalizedHref = String(href || '').trim()
   if (!normalizedHref) return line
-  const ownerBase = { startLine: 1, href: normalizedHref } as const
+  const ownerBase = { type: 'markdownLine', startLine: 1, href: normalizedHref } as const
   let nextLine = replaceMarkdownLineMediaName(line, { ...ownerBase, syntax: 'image' }, nextName)
   nextLine = replaceMarkdownLineMediaName(nextLine, { ...ownerBase, syntax: 'link' }, nextName)
   const trimmed = nextLine.trim()

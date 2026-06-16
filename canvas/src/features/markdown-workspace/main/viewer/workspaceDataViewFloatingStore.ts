@@ -32,6 +32,7 @@ export type WorkspaceDataViewFloatingBinding = {
   onChangeLayoutMode?: (mode: WorkspaceEditorMode) => void
   onSelectGeospatialView?: () => void
   onReset?: () => void
+  onNewRecord?: () => void
   onAddColumn?: (args: { name: string; columnType: MarkdownDataViewColumnType }) => void
   onDuplicateColumn?: (columnId: string) => void
   onDeleteColumn?: (columnId: string) => void

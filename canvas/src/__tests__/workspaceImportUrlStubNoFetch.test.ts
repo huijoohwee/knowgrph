@@ -278,7 +278,7 @@ export async function testWorkspaceImportUrlYouTubeStrybldrCreatesStoryboardDocu
     if (focusPath !== storyPath) throw new Error(`expected import focus helper to preserve created path priority, got ${String(focusPath || '<none>')}`)
     const storyText = String((await fs.readFileText(storyPath)) || '')
     if (!storyText.includes('kgCanvas2dRenderer: "storyboard"')) throw new Error('expected generated Strybldr frontmatter')
-    if (!storyText.includes(`"mediaKind": "video"`)) throw new Error('expected URL source unit to preserve video media kind')
+    if (!/mediaKind:\s*["']?video["']?/.test(storyText)) throw new Error('expected URL source unit to preserve video media kind')
     if (!storyText.includes(watchUrl)) throw new Error('expected generated Strybldr source to preserve normalized URL provenance')
     const parsed = await loadGraphDataFromTextViaParser('youtube.strybldr.md', storyText, { applyToStore: false })
     if (parsed?.parserId !== 'strybldr-storyboard') throw new Error(`expected Strybldr parser, got ${String(parsed?.parserId || '')}`)

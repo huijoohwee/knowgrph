@@ -1,6 +1,7 @@
 import { buildFlowchartMarkdownFromJsonText, buildFlowchartMarkdownFromJsonValue } from '@/features/markdown/flowchartJsonToMarkdown'
 import { jsonToMarkdownPreferTable, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { buildJsonMarkdownConfigFromPreferences, readJsonMarkdownMode, writeJsonMarkdownMode } from '@/features/markdown/jsonMarkdownPreferences'
+import { readMarkdownSourceFidelityTextFromValue } from '@/features/markdown/jsonMarkdownSourceFidelity'
 
 export type JsonMarkdownDocumentResult = {
   markdown: string
@@ -14,6 +15,14 @@ export function tryBuildJsonMarkdownDocumentFromText(text: string, preferredMode
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null
   try {
     const parsed = JSON.parse(trimmed) as unknown
+    const markdownSourceText = readMarkdownSourceFidelityTextFromValue(parsed)
+    if (markdownSourceText !== null) {
+      return {
+        markdown: markdownSourceText,
+        jsonSourceText: trimmed,
+        mode: preferredMode || readJsonMarkdownMode(),
+      }
+    }
     return buildJsonMarkdownDocumentFromValue(parsed, { preferredMode, sourceText: trimmed })
   } catch {
     return null

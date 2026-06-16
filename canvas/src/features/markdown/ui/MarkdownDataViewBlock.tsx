@@ -365,6 +365,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
         void setGeospatialModeEnabled(true).catch(() => void 0)
       },
       onReset: () => setHeaderState({ searchQuery: '', visibleGroups: null, sortMode: 'none' }),
+      onNewRecord: canMutate ? () => handleNewRecord() : undefined,
       onAddColumn: canMutate ? handleAddColumn : undefined,
       onDuplicateColumn: canMutate ? handleDuplicateColumn : undefined,
       onDeleteColumn: canMutate ? handleDeleteColumn : undefined,
@@ -376,6 +377,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     handleAddColumn,
     handleDeleteColumn,
     handleDuplicateColumn,
+    handleNewRecord,
     handleRenameColumn,
     registrationId,
     settingsPanel,

@@ -7,6 +7,7 @@ import { coerceMarkdownDataViewColumnType } from '@/features/markdown/ui/markdow
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type WorkspaceDataViewLayout = 'kanban' | 'table'
+export type WorkspaceDataViewOrientation = 'rows' | 'columns'
 
 export type WorkspaceDataViewFilterOp = 'contains' | 'equals' | 'includes'
 
@@ -50,6 +51,7 @@ export type WorkspaceDataViewViewV2 = {
   columnTypesById: Record<string, MarkdownDataViewColumnType> | null
   filterGroups: WorkspaceDataViewFilterGroup[]
   sortRules: WorkspaceDataViewSortRule[]
+  orientation?: WorkspaceDataViewOrientation
   graphEnabled?: boolean
   geospatialViewEnabled?: boolean
   graphRolesByColumnId?: Record<string, WorkspaceDataViewGraphColumnRole> | null
@@ -305,6 +307,7 @@ const DEFAULT_VIEW: WorkspaceDataViewViewV2 = {
   columnTypesById: null,
   filterGroups: [{ id: 'g0', rules: [] }],
   sortRules: [],
+  orientation: 'rows',
 }
 
 const DEFAULT_STATE: WorkspaceDataViewStateV1 = {
@@ -320,6 +323,10 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 function normalizeWorkspaceDataViewLayout(v: unknown): WorkspaceDataViewLayout {
   const s = String(v || '').trim()
   return s === 'table' ? 'table' : 'kanban'
+}
+
+function normalizeWorkspaceDataViewOrientation(v: unknown): WorkspaceDataViewOrientation {
+  return String(v || '').trim() === 'columns' ? 'columns' : 'rows'
 }
 
 function normalizeFilterOp(v: unknown): WorkspaceDataViewFilterOp {
@@ -417,6 +424,7 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
 
     const sortRulesRaw = Array.isArray(raw.sortRules) ? raw.sortRules : []
     const sortRules = sortRulesRaw.map(coerceSortRule).filter((x): x is WorkspaceDataViewSortRule => !!x)
+    const orientation = normalizeWorkspaceDataViewOrientation(raw.orientation)
 
     const graphEnabled = typeof raw.graphEnabled === 'boolean' ? raw.graphEnabled : undefined
     const geospatialViewEnabled = typeof raw.geospatialViewEnabled === 'boolean' ? raw.geospatialViewEnabled : undefined
@@ -437,6 +445,7 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
       columnTypesById,
       filterGroups: normalizedGroups,
       sortRules,
+      orientation,
       graphEnabled,
       geospatialViewEnabled,
       graphRolesByColumnId,

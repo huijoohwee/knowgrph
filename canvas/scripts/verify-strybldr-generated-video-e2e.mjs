@@ -87,7 +87,7 @@ const assertImportedDemoFile = (entries, demoBasename, importUrl = '') => {
     [/implementation_contract:\s*"?docs\/documents\/knowgrph-strytree-prd-tad\.md"?/, 'Strytree implementation contract'],
     [/kgCanvas2dRenderer:\s*"?strybldr"?/, 'Strybldr renderer frontmatter'],
     [/kgStrybldrStoryboard:\s*true/, 'Strybldr storyboard marker'],
-    [/```json\s+strybldr-storyboard/, 'Strybldr storyboard payload'],
+    [/strybldr_storyboard:\s*(?:\n|$)/, 'Strybldr storyboard frontmatter payload'],
   ]
   if (importUrlText) required.push([importUrlText, 'external validation source'])
   const stem = basenameStem(demoBasename)
@@ -117,7 +117,7 @@ const waitForImportedDemoFile = async (page, demoBasename, importUrl = '') => {
         if (!text.includes('docs/documents/knowgrph-strytree-prd-tad.md')) continue
         if (!/kgCanvas2dRenderer:\s*"?strybldr"?/.test(text)) continue
         if (!/kgStrybldrStoryboard:\s*true/.test(text)) continue
-        if (!/```json\s+strybldr-storyboard/.test(text)) continue
+        if (!/strybldr_storyboard:\s*(?:\n|$)/.test(text)) continue
         if (importUrl && !text.includes(importUrl)) continue
         return path
       }

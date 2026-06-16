@@ -1,5 +1,6 @@
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { attachMarkdownSourceFidelityPayload } from '@/features/markdown/jsonMarkdownSourceFidelity'
 
 const JSON_MARKDOWN_EDIT_SCOPE = 'markdown-workspace-json-markdown'
 
@@ -20,5 +21,10 @@ export function serializeJsonMarkdownDraftToSourceText(args: {
   markdownText: string
 }): string {
   const name = String(args.activeDocumentKey || args.editorUri || 'workspace.md').trim() || 'workspace.md'
-  return JSON.stringify(buildMarkdownJsonLd(name, String(args.markdownText || '')), null, 2)
+  const markdownText = String(args.markdownText || '')
+  return JSON.stringify(attachMarkdownSourceFidelityPayload({
+    jsonValue: buildMarkdownJsonLd(name, markdownText),
+    documentName: name,
+    markdownText,
+  }), null, 2)
 }

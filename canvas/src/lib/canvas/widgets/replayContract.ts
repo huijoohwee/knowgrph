@@ -94,10 +94,11 @@ export async function resolveReplay(
   // Entitlement check (R4.5, R4.6).
   const entitlement = await entitlementChecker(widget.runId, requesterId)
   if (!entitlement.entitled) {
+    const denialReason = 'reason' in entitlement ? entitlement.reason : 'replay rejected: access denied'
     return {
       ok: false,
       code: 'unauthorized',
-      reason: entitlement.reason,
+      reason: denialReason,
     }
   }
 

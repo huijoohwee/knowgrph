@@ -43,9 +43,16 @@ export function testWorkspaceDataViewTableFrameFillsPane() {
   const viewerText = readUtf8('src/features/markdown-workspace/main/viewer/MarkdownWorkspaceDerivedViewer.tsx')
   const responsiveClassesText = readUtf8('src/lib/ui/responsiveElementClasses.ts')
   const responsiveCssText = readUtf8('src/styles/responsive-toolbar.css')
+  const canvasToolbarCssText = readUtf8('src/styles/responsive-canvas-toolbar.css')
 
+  if (!responsiveClassesText.includes('UI_RESPONSIVE_WORKSPACE_DATA_VIEW_ROOT_CLASSNAME')) {
+    throw new Error('expected workspace data-view root to use a shared responsive class')
+  }
   if (!responsiveClassesText.includes('UI_RESPONSIVE_WORKSPACE_DATA_VIEW_MAIN_CLASSNAME')) {
     throw new Error('expected workspace data-view body to use a shared responsive class')
+  }
+  if (!viewerText.includes('UI_RESPONSIVE_WORKSPACE_DATA_VIEW_ROOT_CLASSNAME')) {
+    throw new Error('expected MarkdownWorkspaceDerivedViewer to mark the workspace data-view root')
   }
   if (!viewerText.includes('UI_RESPONSIVE_WORKSPACE_DATA_VIEW_MAIN_CLASSNAME')) {
     throw new Error('expected MarkdownWorkspaceDerivedViewer to mark the workspace data-view body')
@@ -55,6 +62,112 @@ export function testWorkspaceDataViewTableFrameFillsPane() {
   }
   if (!responsiveCssText.includes('max-height: none') || !responsiveCssText.includes('max-block-size: none')) {
     throw new Error('expected workspace-hosted data-view tables to override the generic table max-height')
+  }
+  if (!canvasToolbarCssText.includes('.kg-canvas-page-surface .kg-workspace-data-view-root') || !canvasToolbarCssText.includes('--kg-toolbar-compact-surface-height')) {
+    throw new Error('expected canvas-hosted workspace data views to clear the compact toolbar surface')
+  }
+}
+
+export function testWorkspaceDataViewFloatingPanelOwnsQueryWorkbench() {
+  const floatingPanelViewText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewFloatingPanelView.tsx')
+  const settingsPanelText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPanel.tsx')
+  const floatingStoreText = readUtf8('src/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore.ts')
+  const propertiesSectionText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPropertiesSection.tsx')
+  const headerText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewHeader.tsx')
+  const newRecordButtonText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewNewRecordButton.tsx')
+  const responsiveCssText = readUtf8('src/styles/responsive-toolbar.css')
+  const canvasViewportText = readUtf8('src/components/CanvasViewport.tsx')
+  const bridgeText = readUtf8('src/features/markdown-workspace/main/viewer/CanvasWorkspaceDataViewFloatingRegistrationBridge.tsx')
+  const derivedViewerText = readUtf8('src/features/markdown-workspace/main/viewer/MarkdownWorkspaceDerivedViewer.tsx')
+  const multiDimTableSurfaceText = readUtf8('src/features/markdown-workspace/main/viewer/MultiDimTableSurface.tsx')
+  const storyboardCanvasText = readUtf8('src/components/StoryboardCanvas.tsx')
+
+  if (!floatingPanelViewText.includes('<WorkspaceDataViewSettingsPanel')) {
+    throw new Error('expected FloatingPanel View to delegate to the shared workspace data-view settings panel')
+  }
+  if (!floatingStoreText.includes('onNewRecord?: () => void') || !floatingPanelViewText.includes('onNewRecord={binding.onNewRecord}')) {
+    throw new Error('expected FloatingPanel View binding to own the shared New Record action')
+  }
+  if (!settingsPanelText.includes('<WorkspaceDataViewNewRecordButton') || !headerText.includes('<WorkspaceDataViewNewRecordButton')) {
+    throw new Error('expected header and FloatingPanel View to reuse the shared New Record button')
+  }
+  if (!storyboardCanvasText.includes('<WorkspaceDataViewNewRecordButton') || !storyboardCanvasText.includes('handleNewStoryboardRecord')) {
+    throw new Error('expected Storyboard to reuse the shared New Record action instead of a renderer-local control')
+  }
+  if (!newRecordButtonText.includes('kg-data-view-new-record-action--hover-label') || !newRecordButtonText.includes('MARKDOWN_DATA_VIEW_COPY.newRecordLabel')) {
+    throw new Error('expected shared New Record button to own hover-revealed label behavior and copy')
+  }
+  if (!responsiveCssText.includes('.kg-data-view-new-record-action--hover-label:hover') || !responsiveCssText.includes('.kg-data-view-new-record-label--hover')) {
+    throw new Error('expected New Record hover label behavior to live in shared responsive CSS')
+  }
+  if (!settingsPanelText.includes('props.onNewRecord?.()')) {
+    throw new Error('expected FloatingPanel View settings panel to render the shared New Record action')
+  }
+  if (!derivedViewerText.includes('onNewRecord: canMutate ? () => onNewRecord() : undefined')) {
+    throw new Error('expected derived workspace data views to pass New Record through the shared FloatingPanel View binding')
+  }
+  if (!multiDimTableSurfaceText.includes('useCanvasWorkspaceDataViewSource')) {
+    throw new Error('expected Multi-dimensional Table and Storyboard bridge to reuse the same canvas data-view source helper')
+  }
+  if (!canvasViewportText.includes('CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy') || !canvasViewportText.includes("active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view'")) {
+    throw new Error('expected Storyboard to register FloatingPanel View settings through the shared data-view bridge only when View is active')
+  }
+  if (!bridgeText.includes('MarkdownWorkspaceDerivedViewer') || !bridgeText.includes('floatingPanelRegistrationOnly') || !bridgeText.includes('useCanvasWorkspaceDataViewSource')) {
+    throw new Error('expected Storyboard FloatingPanel View bridge to reuse the shared derived-viewer registration path and canvas data-view source')
+  }
+  if (!derivedViewerText.includes('floatingPanelRegistrationOnly') || !derivedViewerText.includes('useWorkspaceDataViewFloatingRegistration(viewSettingsBinding)')) {
+    throw new Error('expected derived viewer to support headless FloatingPanel View registration without a renderer-local panel')
+  }
+  if (!multiDimTableSurfaceText.includes('useCanvasWorkspaceDataViewSource')) {
+    throw new Error('expected Multi-dimensional Table and Storyboard bridge to reuse the same canvas data-view source helper')
+  }
+  for (const expected of [
+    'View query workbench',
+    'View query roles',
+    'setOrientationFromWorkbench',
+    "orientation: nextOrientation",
+  ]) {
+    if (!settingsPanelText.includes(expected)) {
+      throw new Error(`expected FloatingPanel View settings to own ${expected}`)
+    }
+  }
+  if (settingsPanelText.includes("label: 'Fields'") || settingsPanelText.includes('Fields inventory') || settingsPanelText.includes('Fields inventory list')) {
+    throw new Error('expected FloatingPanel View query workbench to stop owning a standalone Fields inventory')
+  }
+  if (settingsPanelText.includes('View query status') || settingsPanelText.includes("togglePanel('sort', false)") || settingsPanelText.includes("togglePanel('filter', false)") || settingsPanelText.includes("togglePanel('group', false)")) {
+    throw new Error('expected FloatingPanel View query workbench to stop owning duplicate sort/filter/group status buttons')
+  }
+  for (const expected of [
+    "key: 'filter' as const",
+    "key: 'sort' as const",
+    "key: 'group' as const",
+    'value: filterRuleCount ?',
+    'value: sortColumnName',
+    'value: groupByColumnName',
+  ]) {
+    if (!settingsPanelText.includes(expected)) {
+      throw new Error(`expected existing Sort/Filter/Group sections to own ${expected}`)
+    }
+  }
+  for (const expected of [
+    'Properties field inventory',
+    'Properties field inventory list',
+    'Search properties',
+    'Hide property:',
+    'Show property:',
+  ]) {
+    if (!propertiesSectionText.includes(expected)) {
+      throw new Error(`expected Properties to own ${expected}`)
+    }
+  }
+  if (settingsPanelText.includes('perspective') || settingsPanelText.includes('settings_panel') || settingsPanelText.includes('group_rollup_mode_selector')) {
+    throw new Error('expected FloatingPanel View workbench to avoid copying Perspective DOM or implementation identifiers')
+  }
+  if (propertiesSectionText.includes('perspective') || propertiesSectionText.includes('settings_panel') || propertiesSectionText.includes('group_rollup_mode_selector')) {
+    throw new Error('expected Properties inventory to avoid copying Perspective DOM or implementation identifiers')
+  }
+  if (settingsPanelText.includes("<span className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Group</span>")) {
+    throw new Error('expected FloatingPanel View query workbench to avoid a duplicate Group selector label')
   }
 }
 

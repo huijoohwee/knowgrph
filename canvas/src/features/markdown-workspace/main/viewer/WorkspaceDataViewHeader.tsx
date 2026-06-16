@@ -1,16 +1,14 @@
 import React from 'react'
-import { ArrowUpDown, Filter, Layers, LayoutGrid, MoreHorizontal, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeftRight, ArrowUpDown, Filter, Layers, LayoutGrid, MoreHorizontal, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownWorkspaceDerivedViewerMode } from './MarkdownWorkspaceDerivedViewer'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import type { WorkspaceDataViewConfig } from './workspaceDataViewConfig'
 import { WorkspaceHeader } from '@/components/ui/WorkspaceHeader'
-import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
   UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
-  UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_SEARCH_FORM_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_SEARCH_INPUT_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
@@ -19,11 +17,9 @@ import {
   uiToolbarRowScrollInlineClassName,
   uiToolbarRowScrollJustifyEndClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
-import {
-  FLOATING_MENU_BUTTON_CLASSNAME,
-} from './floatingMenuStyles'
 import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
 import type { WorkspaceDataViewSettingsPanelKey } from './workspaceDataViewFloatingStore'
+import { WorkspaceDataViewNewRecordButton } from './WorkspaceDataViewNewRecordButton'
 
 type SortMode = 'none' | 'title_asc' | 'title_desc'
 export type WorkspaceDataViewHeaderState = {
@@ -72,6 +68,8 @@ export function WorkspaceDataViewHeader(props: {
     if (!id) return 'Group'
     return props.columns.find(c => c.id === id)?.name || 'Group'
   }, [props.columns, props.groupByColumnId])
+  const orientation = props.viewConfig?.orientation === 'columns' ? 'columns' : 'rows'
+  const pivotLabel = orientation === 'columns' ? 'Pivot: columns as records' : 'Pivot: rows as records'
 
   const openSettingsPanel = (panel: WorkspaceDataViewSettingsPanelKey) => {
     if (props.openSettingsPanel) {
@@ -155,6 +153,29 @@ export function WorkspaceDataViewHeader(props: {
             <ArrowUpDown className={icon14Class} aria-hidden="true" />
           </button>
 
+          {props.viewConfig ? (
+            <button
+              type="button"
+              className={squareIconButtonClassName}
+              aria-label={pivotLabel}
+              title={pivotLabel}
+              onMouseDown={event => {
+                event.stopPropagation()
+              }}
+              onClick={event => {
+                event.preventDefault()
+                event.stopPropagation()
+                if (!props.viewConfig) return
+                props.setViewConfig({
+                  ...props.viewConfig,
+                  orientation: orientation === 'columns' ? 'rows' : 'columns',
+                })
+              }}
+            >
+              <ArrowLeftRight className={icon14Class} aria-hidden="true" />
+            </button>
+          ) : null}
+
           <button
             type="button"
             className={squareIconButtonClassName}
@@ -183,14 +204,7 @@ export function WorkspaceDataViewHeader(props: {
           </button>
 
           {props.canMutate && props.onNewRecord ? (
-            <button
-              type="button"
-              className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
-              onClick={() => props.onNewRecord?.()}
-            >
-              <Plus className={icon14Class} aria-hidden="true" />
-              <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
-            </button>
+            <WorkspaceDataViewNewRecordButton onClick={() => props.onNewRecord?.()} labelMode="hover" />
           ) : null}
         </section>
       </section>

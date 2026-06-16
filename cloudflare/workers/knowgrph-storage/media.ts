@@ -23,6 +23,7 @@ import {
   MEDIA_AUTH_UNAUTHORIZED_CODE,
   defaultMediaAuthProvider,
   extractRunIdFromKey,
+  type MediaAuthResult,
   type MediaAuthProvider,
 } from './mediaAuth'
 
@@ -180,9 +181,9 @@ const enforceAuth = async (
 
   const result = await authProvider(request, runId)
   if (result.ok) return null
-
-  const status = result.code === MEDIA_AUTH_UNAUTHENTICATED_CODE ? 401 : 403
-  return errorResponse(status, result.code, result.authError)
+  const authFailure = result as Extract<MediaAuthResult, { ok: false }>
+  const status = authFailure.code === MEDIA_AUTH_UNAUTHENTICATED_CODE ? 401 : 403
+  return errorResponse(status, authFailure.code, authFailure.authError)
 }
 
 // -----------------------------------------------------------------------------

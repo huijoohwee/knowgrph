@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowUpDown, Filter, Globe2, LayoutGrid, RotateCcw, SlidersHorizontal, Table as TableIcon } from 'lucide-react'
+import { ArrowLeftRight, ArrowUpDown, Filter, Globe2, LayoutGrid, RotateCcw, SlidersHorizontal, Table as TableIcon } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { WorkspaceDataViewSettingsPropertiesSection } from './WorkspaceDataViewSettingsPropertiesSection'
@@ -14,9 +14,14 @@ import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSetti
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { UI_RESPONSIVE_DATA_VIEW_HEADER_ACTIONS_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_DATA_VIEW_HEADER_ACTIONS_CLASSNAME,
+  UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import type { WorkspaceDataViewFloatingBinding, WorkspaceDataViewSettingsPanelKey } from './workspaceDataViewFloatingStore'
+import { WorkspaceDataViewNewRecordButton } from './WorkspaceDataViewNewRecordButton'
 
 type WorkspaceDataViewSettingsPanelProps = Omit<WorkspaceDataViewFloatingBinding, 'registrationId'> & {
   title?: string
@@ -37,8 +42,20 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
   }, [props.columns.length, props.viewConfig.visibleColumnIds])
 
   const groupableColumns = React.useMemo(() => {
-    return props.columns.filter(c => c.kind === 'select' || c.kind === 'multi-select')
+    return props.columns
   }, [props.columns])
+  const currentSortRule = props.viewConfig.sortRules[0] || null
+  const filterRuleCount = props.viewConfig.filterGroups.reduce((count, group) => count + group.rules.length, 0)
+  const groupByColumnName = props.columns.find(column => column.id === props.viewConfig.groupByColumnId)?.name || 'None'
+  const sortColumnName = currentSortRule ? (props.columns.find(column => column.id === currentSortRule.columnId)?.name || currentSortRule.columnId) : 'None'
+  const orientation = props.viewConfig.orientation === 'columns' ? 'columns' : 'rows'
+  const setOrientationFromWorkbench = React.useCallback((nextOrientation: 'rows' | 'columns') => {
+    if (orientation === nextOrientation) return
+    props.setViewConfig({
+      ...props.viewConfig,
+      orientation: nextOrientation,
+    })
+  }, [orientation, props])
 
   const buildCollapsedState = React.useCallback(
     (expandedPanel?: WorkspaceDataViewSettingsPanelKey | null): Record<WorkspaceDataViewSettingsPanelKey, boolean> => ({
@@ -93,16 +110,19 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
     {
       key: 'filter' as const,
       title: MARKDOWN_DATA_VIEW_COPY.filterLabel,
+      value: filterRuleCount ? `${filterRuleCount} rule${filterRuleCount === 1 ? '' : 's'}` : 'None',
       icon: <Filter className="h-4 w-4" aria-hidden="true" />,
     },
     {
       key: 'sort' as const,
       title: MARKDOWN_DATA_VIEW_COPY.sortLabel,
+      value: sortColumnName,
       icon: <ArrowUpDown className="h-4 w-4" aria-hidden="true" />,
     },
     {
       key: 'group' as const,
       title: 'Group',
+      value: groupByColumnName,
       icon: <LayoutGrid className="h-4 w-4" aria-hidden="true" />,
     },
     {
@@ -110,7 +130,7 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
       title: 'Reset',
       icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
     },
-  ]), [props.viewerMode, shownCount])
+  ]), [filterRuleCount, groupByColumnName, props.viewerMode, shownCount, sortColumnName])
   const allCollapsed = React.useMemo(
     () => Object.values(collapsedByPanel).every(Boolean),
     [collapsedByPanel],
@@ -184,6 +204,35 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
     >
       <main className="kg-data-view-settings-layout flex h-full min-h-0 flex-col">
         <section className="min-w-0 flex-1 overflow-y-auto px-3 pb-3" aria-label="View settings panel">
+          <section className={['mt-3 rounded border p-2', UI_THEME_TOKENS.panel.border].join(' ')} aria-label="View query workbench">
+            <section className="mt-2 space-y-2" aria-label="View query roles">
+              <label className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
+                <span className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Projection</span>
+                <span className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-1`}>
+                  <ArrowLeftRight className={['h-4 w-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                  <select
+                    className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'text-left'].join(' ')}
+                    value={orientation}
+                    onChange={event => setOrientationFromWorkbench(event.target.value === 'columns' ? 'columns' : 'rows')}
+                  >
+                    <option value="rows">Rows as records</option>
+                    <option value="columns">Columns as records</option>
+                  </select>
+                </span>
+              </label>
+              <section className={['text-[11px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')} aria-label="View query summary">
+                {`Projection: ${orientation === 'columns' ? 'columns as records' : 'rows as records'}`}
+              </section>
+              {props.canMutate && props.onNewRecord ? (
+                <WorkspaceDataViewNewRecordButton
+                  className="w-full justify-center"
+                  labelMode="hover"
+                  onClick={() => props.onNewRecord?.()}
+                />
+              ) : null}
+            </section>
+          </section>
+
           <CollapsibleSection
             title={renderSectionTitle('layout')}
             collapsed={collapsedByPanel.layout}

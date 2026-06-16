@@ -78,6 +78,9 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
     ],
   })
   const text = serializeStrybldrStoryboardMarkdown(doc)
+  assert(text.includes('\nstrybldr_storyboard:\n'), 'expected serialized Strybldr markdown to store storyboard payload as YAML frontmatter')
+  assert(!text.includes('\nstrybldr_storyboard: |\n'), 'expected serialized Strybldr markdown not to store storyboard payload as a JSON string literal')
+  assert(!text.includes('```json strybldr-storyboard'), 'expected serialized Strybldr markdown not to duplicate storyboard payload in the Markdown body')
   const parsed = await loadGraphDataFromTextViaParser('demo.strybldr.md', text, { applyToStore: false })
   assert(parsed?.parserId === 'strybldr-storyboard', `expected strybldr parser, got ${parsed?.parserId}`)
   assert(parsed.graphData?.metadata && String((parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') === 'storyboard', 'expected Strybldr graph to advertise Storyboard renderer metadata')
@@ -990,7 +993,7 @@ export async function testStrybldrConsolidatedDemoGeneratesLocalPlayableAnimatic
     assert(text.includes('videodb_character_clips_contract'), 'expected consolidated demo to include the VideoDB character clips contract')
     assert(text.includes('video.generate_stream(timeline=subject_timeline_ranges)'), 'expected consolidated demo to include the VideoDB timeline stream primitive')
     assert(text.includes('subject_clip_urls:'), 'expected consolidated demo to keep subject clip URLs in the publish packet schema')
-    assert(text.includes('clip: ""'), 'expected consolidated demo to keep character clip URLs blank until live VideoDB responses')
+    assert(text.includes("creator_setup: ''"), 'expected consolidated demo to keep character clip URLs blank until live VideoDB responses')
     const handoff = buildStrybldrVideoHandoffFromGraphData(parsed.graphData)
     assert(handoff.cards.length >= 12, `expected consolidated demo handoff cards, got ${handoff.cards.length}`)
     assert(handoff.cards.some(card => card.id === 'videodb-character-clips-card'), 'expected consolidated demo handoff to include the VideoDB character clips card')

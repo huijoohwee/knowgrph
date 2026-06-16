@@ -17,6 +17,7 @@ export type DataViewCandidate = {
   table: TokenWithLines & TokensTable
   view: MarkdownDataView
   readonly?: boolean
+  structuredSource?: boolean
 }
 
 const DATA_VIEW_CANDIDATES_CACHE = new LRUCache<string, DataViewCandidate[]>(60)
@@ -212,6 +213,11 @@ const deriveCandidateBaseLabel = (markdownLines: string[], startLine: number, fa
   return `Table ${fallbackIndex}`
 }
 
+const isStructuredSourceCandidateLabel = (label: string): boolean => {
+  const normalized = String(label || '').trim().toLowerCase()
+  return normalized === 'markdown yaml frontmatter' || normalized === 'markdown body'
+}
+
 export const buildDataViewCandidates = (
   markdownText: string,
   candidatesKey: string,
@@ -244,6 +250,7 @@ export const buildDataViewCandidates = (
       label,
       table,
       view,
+      structuredSource: isStructuredSourceCandidateLabel(baseLabel),
     })
   }
   DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, candidates)

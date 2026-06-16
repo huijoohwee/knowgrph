@@ -52,7 +52,7 @@ const escapeHtml = (value: unknown): string => String(value || '').replace(/[&<>
 })
 
 export const resolveFallbackCanvas2dRenderer = (profile: ReturnType<typeof analyzeKgcRequest>): string =>
-  profile.signals.strybldr || profile.signals.storytree ? 'strybldr' : 'flowEditor'
+  profile.signals.strybldr || profile.signals.storytree ? 'storyboard' : 'flowEditor'
 
 export const shouldMaterializeHeadlessResponseSurface = (profile: ReturnType<typeof analyzeKgcRequest>): boolean =>
   profile.signals.headlessStructured ||
@@ -129,7 +129,7 @@ export const buildHeadlessResponseSurface = (args: {
   return {
     frontmatter: {
       kgCanvas2dRenderer: renderer,
-      ...(renderer === 'strybldr' ? { kgStrybldrStoryboard: true } : {}),
+      ...(args.profile.signals.strybldr || args.profile.signals.storytree ? { kgStrybldrStoryboard: true } : {}),
     },
     nodes: [
       {

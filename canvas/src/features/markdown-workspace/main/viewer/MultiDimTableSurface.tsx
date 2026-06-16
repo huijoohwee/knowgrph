@@ -1,19 +1,16 @@
 import React from 'react'
-import { useShallow } from 'zustand/react/shallow'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { splitMarkdownLines } from '@/lib/markdown'
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
-import { normalizeComposedSourcePath, readComposedSourceFilePath, resolvePreferredComposedSourceRawText } from '@/features/source-files/composedSourceSelection'
 import type { MarkdownInlineDraftTextChangeOptions } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { sanitizeInvalidDataUrls } from '@/features/markdown-workspace/main/sanitize'
 import { MarkdownWorkspaceDerivedViewer } from '@/features/markdown-workspace/main/viewer/MarkdownWorkspaceDerivedViewer'
 import {
   applyStructuredSourceDataViewReplacement,
-  buildStructuredSourceDataViewProjection,
 } from '@/features/markdown-workspace/main/viewer/sourceStructuredDataViewTable'
+import { useCanvasWorkspaceDataViewSource } from './workspaceDataViewCanvasSource'
 
 const NOOP_REVEAL_LINE = () => void 0
 const NOOP_VIEWER_ROOT_REF = () => void 0
@@ -21,47 +18,29 @@ const NOOP_VIEWER_ROOT_REF = () => void 0
 export function MultiDimTableSurface(props: { active?: boolean; ariaLabel?: string }) {
   const active = props.active !== false
   const panelTypography = usePanelTypography()
-  const { markdownDocumentName, markdownDocumentText, jsonSourceDocumentText, sourceFiles, setMarkdownDocument, setSourceFiles } = useGraphStore(
-    useShallow(s => ({
-      markdownDocumentName: s.markdownDocumentName || null,
-      markdownDocumentText: s.markdownDocumentText || '',
-      jsonSourceDocumentText: s.jsonSourceDocumentText || '',
-      sourceFiles: s.sourceFiles || [],
-      setMarkdownDocument: s.setMarkdownDocument,
-      setSourceFiles: s.setSourceFiles,
-    })),
-  )
+  const source = useCanvasWorkspaceDataViewSource('multi-dimensional-table.md')
   const [viewerInlineMarkdownDraftText, setViewerInlineMarkdownDraftText] = React.useState<string | null>(null)
   const [viewerInlineViewerText, setViewerInlineViewerText] = React.useState<string | null>(null)
-  const activeDocumentPath = String(markdownDocumentName || '').trim() || 'multi-dimensional-table.md'
-  const sourceMarkdownText = React.useMemo(() => (
-    resolvePreferredComposedSourceRawText({ sourceFiles, markdownDocumentName, fallbackName: markdownDocumentName }) || String(markdownDocumentText || '')
-  ), [markdownDocumentName, markdownDocumentText, sourceFiles])
-  const sourceStructuredProjection = React.useMemo(
-    () => buildStructuredSourceDataViewProjection(sourceMarkdownText),
-    [sourceMarkdownText],
-  )
-  const sourceStructuredTableText = sourceStructuredProjection?.markdownText || ''
-  const sourceBackedMarkdownText = sourceStructuredTableText || sourceMarkdownText
+  const activeDocumentPath = source.activeDocumentPath
+  const sourceBackedMarkdownText = source.sourceBackedMarkdownText
   const editableMarkdownText = viewerInlineMarkdownDraftText ?? sourceBackedMarkdownText
-  const persistedEditableMarkdownText = sourceMarkdownText
+  const persistedEditableMarkdownText = source.sourceMarkdownText
   const canMutate = persistedEditableMarkdownText.trim().length > 0
   const markdownText = React.useMemo(() => {
     const editableSource = String(viewerInlineViewerText ?? viewerInlineMarkdownDraftText ?? sourceBackedMarkdownText ?? '')
     if (editableSource.trim()) return sanitizeInvalidDataUrls(editableSource)
-    const jsonSource = String(jsonSourceDocumentText || '').trim()
-    return sanitizeInvalidDataUrls(jsonSource ? jsonSourceDocumentText : editableSource)
-  }, [jsonSourceDocumentText, sourceBackedMarkdownText, viewerInlineMarkdownDraftText, viewerInlineViewerText])
-  const title = activeDocumentPath.split('/').filter(Boolean).pop() || 'Workspace'
+    const jsonSource = String(source.jsonSourceDocumentText || '').trim()
+    return sanitizeInvalidDataUrls(jsonSource ? source.jsonSourceDocumentText : editableSource)
+  }, [source.jsonSourceDocumentText, sourceBackedMarkdownText, viewerInlineMarkdownDraftText, viewerInlineViewerText])
 
   const commitMarkdownEditText = React.useCallback((nextText: string) => {
     setViewerInlineMarkdownDraftText(null)
     setViewerInlineViewerText(null)
     const normalizedText = String(nextText || '')
-    const activePath = normalizeComposedSourcePath(markdownDocumentName || activeDocumentPath)
+    const activePath = source.normalizeActivePath()
     let sourceFilesChanged = false
-    const nextSourceFiles = sourceFiles.map(file => {
-      const sourcePath = readComposedSourceFilePath(file)
+    const nextSourceFiles = source.sourceFiles.map(file => {
+      const sourcePath = source.readSourceFilePath(file)
       if (!activePath || sourcePath !== activePath) return file
       if (String(file?.text || '') === normalizedText) return file
       sourceFilesChanged = true
@@ -69,9 +48,9 @@ export function MultiDimTableSurface(props: { active?: boolean; ariaLabel?: stri
       writeWorkspaceSourceTextIfPresent(nextFile, normalizedText, 'Multi-dimensional Table inline edit')
       return nextFile
     })
-    if (sourceFilesChanged) setSourceFiles(nextSourceFiles)
-    setMarkdownDocument(activePath || markdownDocumentName, normalizedText, { applyViewPreset: false })
-  }, [activeDocumentPath, markdownDocumentName, setMarkdownDocument, setSourceFiles, sourceFiles])
+    if (sourceFilesChanged) source.setSourceFiles(nextSourceFiles)
+    source.setMarkdownDocument(activePath || source.markdownDocumentName, normalizedText, { applyViewPreset: false })
+  }, [source])
 
   const handleInsertLineAfter = React.useCallback((afterLine: number) => {
     if (!canMutate) return
@@ -109,7 +88,7 @@ export function MultiDimTableSurface(props: { active?: boolean; ariaLabel?: stri
     const replacementLines = Array.isArray(args.replacementLines) ? args.replacementLines : []
     const structuredNext = applyStructuredSourceDataViewReplacement({
       sourceText: persistedEditableMarkdownText,
-      projection: sourceStructuredProjection,
+      projection: source.sourceStructuredProjection,
       startLine,
       endLine,
       replacementLines,
@@ -126,7 +105,7 @@ export function MultiDimTableSurface(props: { active?: boolean; ariaLabel?: stri
     })
     if (next === persistedEditableMarkdownText) return
     commitMarkdownEditText(next)
-  }, [canMutate, commitMarkdownEditText, persistedEditableMarkdownText, sourceStructuredProjection])
+  }, [canMutate, commitMarkdownEditText, persistedEditableMarkdownText, source.sourceStructuredProjection])
 
   const handleInlineEditStateChange = React.useCallback((activeEditing: boolean) => {
     if (!activeEditing) {
@@ -149,7 +128,7 @@ export function MultiDimTableSurface(props: { active?: boolean; ariaLabel?: stri
         viewerKind="markdown"
         viewerMode="multiDimTable"
         markdownText={markdownText}
-        title={title}
+        title={source.title}
         activeDocumentPath={activeDocumentPath}
         markdownWordWrap={true}
         markdownTextHighlight={false}

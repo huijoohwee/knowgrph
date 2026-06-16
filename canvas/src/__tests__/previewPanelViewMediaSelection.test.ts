@@ -89,7 +89,9 @@ const readCommandMenuMediaRowName = (row: Element): string => {
   return String(input?.value || row.textContent || '')
 }
 
-const setInputValue = (window: Window, input: HTMLInputElement, value: string) => {
+type InputHarnessWindow = Window & typeof globalThis
+
+const setInputValue = (window: InputHarnessWindow, input: HTMLInputElement, value: string) => {
   const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
   descriptor?.set?.call(input, value)
   const InputEventCtor = (window as unknown as { InputEvent?: typeof InputEvent }).InputEvent

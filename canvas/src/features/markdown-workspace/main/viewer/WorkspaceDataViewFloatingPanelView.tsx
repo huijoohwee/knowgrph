@@ -34,6 +34,7 @@ export function WorkspaceDataViewFloatingPanelView() {
       onChangeLayoutMode={binding.onChangeLayoutMode}
       onSelectGeospatialView={binding.onSelectGeospatialView}
       onReset={binding.onReset}
+      onNewRecord={binding.onNewRecord}
       onAddColumn={binding.onAddColumn}
       onDuplicateColumn={binding.onDuplicateColumn}
       onDeleteColumn={binding.onDeleteColumn}

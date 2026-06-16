@@ -2116,6 +2116,39 @@
     gap: var(--kg-data-view-action-gap, 0.5rem);
   }
 
+  .kg-data-view-new-record-action--hover-label {
+    width: var(--kg-data-view-new-record-action-collapsed-width, var(--kg-data-view-action-height, 2rem));
+    inline-size: var(--kg-data-view-new-record-action-collapsed-width, var(--kg-data-view-action-height, 2rem));
+    justify-content: center;
+    transition: inline-size 120ms ease, width 120ms ease;
+  }
+
+  .kg-data-view-new-record-action--hover-label .kg-data-view-new-record-label--hover {
+    max-width: 0;
+    max-inline-size: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    text-overflow: ellipsis;
+    transition: max-inline-size 120ms ease, max-width 120ms ease, opacity 80ms ease;
+    white-space: nowrap;
+  }
+
+  .kg-data-view-new-record-action--hover-label:hover,
+  .kg-data-view-new-record-action--hover-label:focus-visible,
+  .kg-data-view-new-record-action--hover-label:focus-within {
+    width: var(--kg-data-view-new-record-action-expanded-width, 8.75rem);
+    inline-size: var(--kg-data-view-new-record-action-expanded-width, 8.75rem);
+  }
+
+  .kg-data-view-new-record-action--hover-label:hover .kg-data-view-new-record-label--hover,
+  .kg-data-view-new-record-action--hover-label:focus-visible .kg-data-view-new-record-label--hover,
+  .kg-data-view-new-record-action--hover-label:focus-within .kg-data-view-new-record-label--hover {
+    max-width: var(--kg-data-view-new-record-label-max-width, 6.75rem);
+    max-inline-size: var(--kg-data-view-new-record-label-max-width, 6.75rem);
+    opacity: 1;
+  }
+
   .kg-data-view-icon-action {
     padding-inline: 0;
     flex: 0 0 auto;

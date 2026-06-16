@@ -2,6 +2,8 @@ import { hashText } from '@/features/parsers/hash'
 import type { CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { dump as stringifyYaml } from 'js-yaml'
 import {
   buildRenderableIframeUrl,
   buildRenderableMediaThumbnailUrl,
@@ -31,6 +33,13 @@ import type {
   StrytreeStorySnapshot,
 } from './strybldrTypes'
 const STRYBLDR_JSON_FENCE_RE = /```(?:json\s+)?strybldr-storyboard\s*\n([\s\S]*?)\n```/i
+const STRYBLDR_FRONTMATTER_PAYLOAD_KEY = 'strybldr_storyboard'
+const STRYBLDR_FRONTMATTER_PAYLOAD_KEYS = [
+  STRYBLDR_FRONTMATTER_PAYLOAD_KEY,
+  'strybldrStoryboard',
+  'kgStrybldrStoryboardPayload',
+] as const
+const STRYBLDR_FRONTMATTER_MARKER_RE = /^\s*---[\s\S]*?(?:^|\n)\s*kgStrybldrStoryboard:\s*(?:"true"|'true'|true|1)\s*(?:\n|$)[\s\S]*?\n---/m
 const DEFAULT_STRYBLDR_REMOTE_VIDEO_FRAME_SECONDS = 0
 const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
@@ -44,6 +53,18 @@ const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g,
 const shortHash = (value: unknown): string => hashText(String(value ?? '')).slice(0, 12)
 
 const yamlQuote = (value: string): string => `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+
+const yamlNestedBlock = (key: string, value: Record<string, unknown>): string[] => {
+  const yaml = stringifyYaml(value, {
+    lineWidth: -1,
+    noRefs: true,
+    sortKeys: false,
+  }).trimEnd()
+  return [
+    `${key}:`,
+    ...yaml.split('\n').map(line => `  ${line}`),
+  ]
+}
 
 const CORPUS_MEDIA_KINDS = new Set(['code', 'sql', 'script', 'doc', 'paper', 'image', 'video', 'data', 'model', 'unknown'])
 
@@ -95,7 +116,7 @@ const basenameWithoutExt = (value: string): string => {
 
 export const isStrybldrStoryboardMarkdown = (text: string): boolean => {
   const raw = String(text || '')
-  return /^\s*---[\s\S]*?\bkgStrybldrStoryboard:\s*true\b[\s\S]*?---/m.test(raw) || STRYBLDR_JSON_FENCE_RE.test(raw)
+  return STRYBLDR_FRONTMATTER_MARKER_RE.test(raw) || STRYBLDR_JSON_FENCE_RE.test(raw)
 }
 
 export const isStrybldrStoryboardGraphData = (graphData: GraphData | null | undefined): boolean => {
@@ -237,36 +258,28 @@ export const buildStrybldrStoryboardDocument = (args: {
 export const serializeStrybldrStoryboardMarkdown = (doc: StrybldrStoryboardDocument): string => {
   const first = doc.sources[0] || null
   const title = first ? `${sourceLabel(first)} Strybldr` : 'Strybldr'
-  const json = JSON.stringify(doc, null, 2)
   return [
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
     'kgCanvas2dRenderer: "storyboard"',
     `strybldrRunId: ${yamlQuote(doc.runId)}`,
+    ...yamlNestedBlock(STRYBLDR_FRONTMATTER_PAYLOAD_KEY, doc as unknown as Record<string, unknown>),
     '---',
     '',
     `# ${title}`,
-    '',
-    '```json strybldr-storyboard',
-    json,
-    '```',
     '',
   ].join('\n')
 }
 
 export const replaceStrybldrStoryboardMarkdownPayload = (text: string, doc: StrybldrStoryboardDocument): string | null => {
-  const raw = String(text || '')
-  if (!STRYBLDR_JSON_FENCE_RE.test(raw)) return null
-  return raw.replace(STRYBLDR_JSON_FENCE_RE, [
-    '```json strybldr-storyboard',
-    JSON.stringify(doc, null, 2),
-    '```',
-  ].join('\n'))
+  return replaceStrybldrStoryboardMarkdownRawPayload(text, doc as unknown as Record<string, unknown>)
 }
 
 const replaceStrybldrStoryboardMarkdownRawPayload = (text: string, payload: Record<string, unknown>): string | null => {
   const raw = String(text || '')
+  const frontmatterReplaced = replaceStrybldrStoryboardFrontmatterRawPayload(raw, payload)
+  if (frontmatterReplaced) return frontmatterReplaced
   if (!STRYBLDR_JSON_FENCE_RE.test(raw)) return null
   return raw.replace(STRYBLDR_JSON_FENCE_RE, [
     '```json strybldr-storyboard',
@@ -276,6 +289,8 @@ const replaceStrybldrStoryboardMarkdownRawPayload = (text: string, payload: Reco
 }
 
 const readStrybldrStoryboardRawPayload = (text: string): Record<string, unknown> | null => {
+  const frontmatterPayload = readStrybldrStoryboardFrontmatterRawPayload(text)
+  if (frontmatterPayload) return frontmatterPayload
   const match = String(text || '').match(STRYBLDR_JSON_FENCE_RE)
   if (!match) return null
   try {
@@ -284,6 +299,75 @@ const readStrybldrStoryboardRawPayload = (text: string): Record<string, unknown>
   } catch {
     return null
   }
+}
+
+const readStrybldrStoryboardFrontmatterRawPayload = (text: string): Record<string, unknown> | null => {
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(String(text || '')))
+  const meta = parsed.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta)
+    ? parsed.meta as Record<string, unknown>
+    : null
+  if (!meta) return null
+  for (const key of STRYBLDR_FRONTMATTER_PAYLOAD_KEYS) {
+    const value = meta[key]
+    if (!value) continue
+    if (typeof value === 'string') {
+      try {
+        const parsedPayload = JSON.parse(value)
+        return parsedPayload && typeof parsedPayload === 'object' && !Array.isArray(parsedPayload)
+          ? parsedPayload as Record<string, unknown>
+          : null
+      } catch {
+        return null
+      }
+    }
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>
+    }
+  }
+  return null
+}
+
+const replaceStrybldrStoryboardFrontmatterRawPayload = (text: string, payload: Record<string, unknown>): string | null => {
+  const raw = String(text || '')
+  const lines = splitMarkdownLines(raw)
+  if (!lines.length || !/^---\s*$/.test(lines[0] || '')) return null
+  let fenceEndIndex = -1
+  for (let index = 1; index < lines.length; index += 1) {
+    if (/^---\s*$/.test(lines[index] || '')) {
+      fenceEndIndex = index
+      break
+    }
+  }
+  if (fenceEndIndex <= 0) return null
+  const nextPayloadLines = yamlNestedBlock(STRYBLDR_FRONTMATTER_PAYLOAD_KEY, payload)
+  for (let index = 1; index < fenceEndIndex; index += 1) {
+    const line = lines[index] || ''
+    const match = /^(\s*)([A-Za-z0-9_.-]+)\s*:/.exec(line)
+    if (!match) continue
+    const baseIndent = (match[1] || '').length
+    if (baseIndent !== 0 || !STRYBLDR_FRONTMATTER_PAYLOAD_KEYS.includes(match[2] as typeof STRYBLDR_FRONTMATTER_PAYLOAD_KEYS[number])) continue
+    let endIndex = index + 1
+    while (endIndex < fenceEndIndex) {
+      const nextLine = lines[endIndex] || ''
+      if (nextLine.trim()) {
+        const nextIndent = (nextLine.match(/^\s*/) || [''])[0].length
+        if (nextIndent <= baseIndent) break
+      }
+      endIndex += 1
+    }
+    const indent = ' '.repeat(baseIndent)
+    const replacement = nextPayloadLines.map(nextLine => `${indent}${nextLine}`)
+    return [
+      ...lines.slice(0, index),
+      ...replacement,
+      ...lines.slice(endIndex),
+    ].join('\n')
+  }
+  return [
+    ...lines.slice(0, fenceEndIndex),
+    ...nextPayloadLines,
+    ...lines.slice(fenceEndIndex),
+  ].join('\n')
 }
 
 export const updateStrybldrStoryboardMarkdownCardOverride = (args: {
@@ -345,7 +429,7 @@ const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => 
             workspacePath,
             relativePath: normalizePath(source.relativePath || originalName),
             originalName,
-            mediaKind: source.mediaKind === 'image' ? 'image' : source.mediaKind || 'unknown',
+            mediaKind: readCorpusMediaKind(source.mediaKind),
             mimeHint: cleanText(source.mimeHint) || null,
             byteSize: Math.max(0, Number(source.byteSize || 0)),
             textHash: cleanText(source.textHash),
@@ -417,14 +501,8 @@ const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => 
 }
 
 export const parseStrybldrStoryboardMarkdown = (text: string): StrybldrStoryboardDocument | null => {
-  const raw = String(text || '')
-  const match = STRYBLDR_JSON_FENCE_RE.exec(raw)
-  if (!match?.[1]) return null
-  try {
-    return readParsedObject(JSON.parse(match[1]))
-  } catch {
-    return null
-  }
+  const rawPayload = readStrybldrStoryboardRawPayload(text)
+  return rawPayload ? readParsedObject(rawPayload) : null
 }
 
 const createEdge = (source: string, target: string, label: string): GraphEdge => ({

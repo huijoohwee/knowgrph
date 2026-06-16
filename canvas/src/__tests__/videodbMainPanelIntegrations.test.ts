@@ -80,23 +80,23 @@ assert(apiReferenceText.includes('video.generate_stream(timeline=subject_timelin
 const demoText = readFileSync(demoPath, 'utf8')
 for (const requiredText of [
   'deployed_api_claim: false',
-  'generation_job_id: ""',
-  'video_id: ""',
-  'index_job_id: ""',
-  'stream_url: ""',
-  'download_url: ""',
-  'publish_packet_path: ""',
+  "generation_job_id: ''",
+  "video_id: ''",
+  "index_job_id: ''",
+  "stream_url: ''",
+  "download_url: ''",
+  "publish_packet_path: ''",
   '2D Renderer: Flow Editor',
   '2D Renderer: Storyboard',
   '2D Renderer: Storyboard',
-  '```json strybldr-storyboard',
+  'strybldr_storyboard:',
   'POST /video/{id}/generate/video',
   'POST /video/{id}/index/',
   'POST /video/{id}/search/',
   'POST /video/{id}/stream/',
   'videodb_character_clips_contract',
   'video.generate_stream(timeline=subject_timeline_ranges)',
-  'clip: ""',
+  "clip: ''",
 ]) {
   assert(demoText.includes(requiredText), `demo missing required text: ${requiredText}`)
 }

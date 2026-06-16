@@ -51,6 +51,8 @@ type MarkdownDataViewTableViewProps = {
   onHideColumnInView?: (columnId: string) => void
   onUpsertColumnFilter?: (args: { columnId: string; columnKind: MarkdownDataView['columns'][number]['kind']; op: 'contains' | 'equals' | 'includes'; value: string }) => void
   onSetColumnSort?: (args: { columnId: string; direction: 'asc' | 'desc' }) => void
+  renderAllRows?: boolean
+  orientation?: 'rows' | 'columns'
 }
 
 const isTruthy = (raw: string): boolean => {
@@ -79,6 +81,7 @@ export function readMarkdownDataViewTableCellPreviewText(raw: string): string {
 export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTableView(props: MarkdownDataViewTableViewProps) {
   const { view, visibleColumnIds, columnTypesById, canMutate, onUpdateCell, onActivateRow } = props
   const canConfigure = props.canConfigure ?? canMutate
+  const orientation = props.orientation === 'columns' ? 'columns' : 'rows'
   const [editing, setEditing] = React.useState<{ rowId: string; colId: string; anchorEl: HTMLElement } | null>(null)
   const [draft, setDraft] = React.useState('')
   const [renderedRowLimit, setRenderedRowLimit] = React.useState(MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT)
@@ -132,8 +135,12 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
   )
 
   React.useEffect(() => {
+    if (props.renderAllRows) {
+      setRenderedRowLimit(view.rows.length)
+      return
+    }
     setRenderedRowLimit(MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT)
-  }, [view.rows, visibleColumnSignature])
+  }, [props.renderAllRows, view.rows, visibleColumnSignature])
 
   React.useEffect(() => {
     if (!editing) return
@@ -143,8 +150,8 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
   }, [editing, renderedRowLimit, view.rows])
 
   const renderedRows = React.useMemo(
-    () => view.rows.slice(0, Math.min(view.rows.length, renderedRowLimit)),
-    [renderedRowLimit, view.rows],
+    () => (props.renderAllRows ? view.rows : view.rows.slice(0, Math.min(view.rows.length, renderedRowLimit))),
+    [props.renderAllRows, renderedRowLimit, view.rows],
   )
   const hiddenRowCount = Math.max(0, view.rows.length - renderedRows.length)
 
@@ -221,6 +228,196 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     return list
   }, [editingMeta, view.rows])
 
+  const titleColumnIndex = React.useMemo(() => {
+    const index = view.columns.findIndex(column => column.id === view.titleColumnId)
+    return index >= 0 ? index : 0
+  }, [view.columns, view.titleColumnId])
+
+  if (orientation === 'columns') {
+    return (
+      <section className={UI_RESPONSIVE_DATA_VIEW_TABLE_FRAME_CLASSNAME} aria-label="Table view">
+        <table className="min-w-full border-collapse table-auto text-xs">
+          <thead className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
+            <tr>
+              <th className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}>
+                Field
+              </th>
+              {renderedRows.map((row, rowIndex) => {
+                const label = String(row.cells[titleColumnIndex] ?? '').trim() || `Row ${rowIndex + 1}`
+                return (
+                  <th
+                    key={row.id}
+                    className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
+                  >
+                    <span className={[UI_TEXT_TRUNCATE, 'block max-w-[14rem]'].join(' ')}>{readMarkdownDataViewTableCellPreviewText(label)}</span>
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody className={UI_THEME_TOKENS.table.text}>
+            {visibleColumnMeta.map(({ col: c, index: colIndex }) => {
+              const type = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
+              const Icon = iconByColumnType[type] || Type
+              const allowTypeEdit = Boolean(canConfigure && props.onChangeColumnType)
+              const filterOps = c.kind === 'multi-select'
+                ? [{ key: 'includes', label: 'includes' }, { key: 'contains', label: 'contains' }, { key: 'equals', label: 'equals' }]
+                : c.kind === 'select'
+                  ? [{ key: 'equals', label: 'equals' }, { key: 'contains', label: 'contains' }]
+                  : [{ key: 'contains', label: 'contains' }, { key: 'equals', label: 'equals' }]
+              return (
+                <tr key={c.id} className={`${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}>
+                  <th className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`}>
+                    <ColumnHeaderPropertyTypeMenu
+                      ariaLabel={`Column type: ${c.name}`}
+                      label={c.name}
+                      Icon={Icon}
+                      portal
+                      portalPlacement="bottom-start"
+                      toggleTargets="icon+chevron"
+                      menu={({ close }) => (
+                        <ColumnHeaderMenu
+                          ariaLabel={`Column menu: ${c.name}`}
+                          closeMenu={close}
+                          typeSummaryLabel="Type"
+                          typeValueLabel={labelForMarkdownDataViewColumnType(type)}
+                          disableTypeChange={!allowTypeEdit}
+                          renderTypeMenu={() => (
+                            <MarkdownDataViewColumnTypeMenu
+                              ariaLabel={`Column type: ${c.name}`}
+                              value={type}
+                              close={close}
+                              disabled={!allowTypeEdit}
+                              onSelect={(next) => {
+                                if (!allowTypeEdit) return
+                                props.onChangeColumnType?.({ columnId: c.id, nextType: next })
+                              }}
+                            />
+                          )}
+                          onHideInView={canConfigure && props.onHideColumnInView ? () => props.onHideColumnInView?.(c.id) : undefined}
+                          filter={
+                            canConfigure && props.onUpsertColumnFilter
+                              ? {
+                                  ops: filterOps,
+                                  defaultOp: filterOps[0]?.key || 'contains',
+                                  onApply: ({ op, value }) =>
+                                    props.onUpsertColumnFilter?.({
+                                      columnId: c.id,
+                                      columnKind: c.kind,
+                                      op: (op === 'includes' ? 'includes' : op === 'equals' ? 'equals' : 'contains'),
+                                      value,
+                                    }),
+                                }
+                              : undefined
+                          }
+                          disableSort
+                          disableInsert
+                          disableDuplicate
+                          disableDelete
+                          disableMoveLeft
+                          disableMoveRight
+                        />
+                      )}
+                    />
+                  </th>
+                  {renderedRows.map(row => {
+                    const value = String(row.cells[colIndex] ?? '')
+                    const displayValue = readMarkdownSigilDisplayText(value)
+                    const previewDisplayValue = readMarkdownDataViewTableCellPreviewText(displayValue)
+                    const previewRawValue = displayValue === value ? previewDisplayValue : readMarkdownDataViewTableCellPreviewText(value)
+                    const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
+                    const baseKind = columnTypeToBaseKind(uiType)
+                    const isEditing = editing?.rowId === row.id && editing?.colId === c.id
+                    const cellBase = `px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
+                    if (isEditing) {
+                      return (
+                        <td key={`${row.id}:${c.id}`} className={cellBase}>
+                          <InlineTextCellEditor
+                            key={`${row.id}:${c.id}`}
+                            ariaLabel={`Edit ${c.name}`}
+                            initialValue={value}
+                            textClassName={UI_THEME_TOKENS.text.primary}
+                            onCommit={(next) => handleInlineTextCommit(row.id, c.id, next)}
+                            onCancel={cancel}
+                          />
+                        </td>
+                      )
+                    }
+                    const chips = baseKind === 'multi-select' ? splitMultiValues(value) : []
+                    const href = uiType === 'link' ? safeLinkHref(value) : null
+                    const progressValue = uiType === 'progress' ? Number(value) : NaN
+                    return (
+                      <td
+                        key={`${row.id}:${c.id}`}
+                        className={cellBase}
+                        onClick={(e) => {
+                          const el = e.target as HTMLElement | null
+                          if (el?.closest('a,button,input,select,textarea')) return
+                          e.preventDefault()
+                          e.stopPropagation()
+                          startEdit(row.id, c.id, value, e.currentTarget)
+                        }}
+                        role={canMutate ? 'button' : undefined}
+                      >
+                        {uiType === 'checkbox' ? (
+                          <input
+                            type="checkbox"
+                            checked={isTruthy(value)}
+                            disabled={!canMutate}
+                            onChange={e => {
+                              if (!canMutate) return
+                              onUpdateCell({ rowId: row.id, columnId: c.id, nextValue: e.target.checked ? 'true' : '' })
+                            }}
+                          />
+                        ) : uiType === 'progress' && Number.isFinite(progressValue) ? (
+                          <section className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
+                            <progress className={UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME} value={Math.max(0, Math.min(100, progressValue))} max={100} />
+                            <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
+                          </section>
+                        ) : href ? (
+                          <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, 'underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">
+                            {previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue}
+                          </a>
+                        ) : baseKind === 'select' && value ? (
+                          <DataViewTagChip value={value} />
+                        ) : baseKind === 'multi-select' && chips.length ? (
+                          <section className={`${uiToolbarRowScrollClassName} gap-1`}>
+                            {chips.map(v => (
+                              <DataViewTagChip key={v} value={v} />
+                            ))}
+                          </section>
+                        ) : (
+                          <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>
+                            {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}
+                          </span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+            {hiddenRowCount > 0 ? (
+              <tr>
+                <td
+                  colSpan={renderedRows.length + 1}
+                  className={`px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder}`}
+                >
+                  <button
+                    type="button"
+                    className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 text-xs', UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg, 'px-2 py-1 rounded'].join(' ')}
+                    onClick={() => setRenderedRowLimit(limit => Math.min(view.rows.length, limit + MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT))}
+                  >
+                    <span className={UI_TEXT_TRUNCATE}>{`Show ${Math.min(hiddenRowCount, MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT)} more columns`}</span>
+                  </button>
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </section>
+    )
+  }
 
   return (
     <section className={UI_RESPONSIVE_DATA_VIEW_TABLE_FRAME_CLASSNAME} aria-label="Table view">

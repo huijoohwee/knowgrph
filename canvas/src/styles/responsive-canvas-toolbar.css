@@ -38,6 +38,10 @@
   max-inline-size: 100%;
 }
 
+.kg-canvas-page-surface .kg-workspace-data-view-root {
+  padding-block-start: calc(var(--kg-safe-top) + var(--kg-canvas-viewport-edge-gap) + var(--kg-toolbar-compact-surface-height, 38px) + 0.5rem);
+}
+
 .kg-canvas-bottom-panel {
   width: min(calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 42rem);
 }
@@ -75,5 +79,9 @@
     align-items: flex-end;
     padding-block-start: 0;
     padding-block-end: 0;
+  }
+
+  .kg-canvas-page-surface .kg-workspace-data-view-root {
+    padding-block-start: 0;
   }
 }

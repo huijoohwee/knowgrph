@@ -29,6 +29,10 @@ const MultiDimTableSurfaceLazy = React.lazy(() =>
   importWithRetry(() => import('@/features/markdown-workspace/main/viewer/MultiDimTableSurface'), { retries: 2, retryDelayMs: 50 })
     .then(mod => ({ default: mod.MultiDimTableSurface })),
 )
+const CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy = React.lazy(() =>
+  importWithRetry(() => import('@/features/markdown-workspace/main/viewer/CanvasWorkspaceDataViewFloatingRegistrationBridge'), { retries: 2, retryDelayMs: 50 })
+    .then(mod => ({ default: mod.CanvasWorkspaceDataViewFloatingRegistrationBridge })),
+)
 const MermaidGitGraphCanvasLazy = React.lazy(() => import('@/components/MermaidGitGraphCanvas'))
 const MermaidGanttCanvasLazy = React.lazy(() => import('@/components/MermaidGanttCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
@@ -196,6 +200,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
               {active2dSurface === 'storyboard' ? <StoryboardCanvasLazy active /> : null}
+              {active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view' ? (
+                <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="storyboard.md" />
+              ) : null}
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'design'}>
               {active2dSurface === 'design' ? <DesignCanvasLazy active /> : null}
