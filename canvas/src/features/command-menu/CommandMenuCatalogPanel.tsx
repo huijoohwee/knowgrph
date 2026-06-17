@@ -26,6 +26,7 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import {
+  buildUploadedMediaAccessUrl,
   readUploadedMediaKind,
   uploadMediaFileToKnowgrphStorage,
   type UploadedMediaStorageResult,
@@ -51,6 +52,50 @@ type UploadedMediaPanelItem = {
   status: 'uploading' | 'synced' | 'local'
   storage: UploadedMediaStorageResult | null
   error: string | null
+}
+
+const UPLOADED_MEDIA_PANEL_STORAGE_KEY = 'knowgrph:floating-panel-media:uploaded-cloudflare-items:v1'
+
+const isUploadedMediaPanelItemKind = (value: unknown): value is UploadedMediaPanelItem['kind'] =>
+  value === 'image' || value === 'audio' || value === 'video'
+
+const readStoredUploadedMediaPanelItems = (): UploadedMediaPanelItem[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY)
+    const parsed = JSON.parse(raw || '[]') as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap(value => {
+      const item = value as Partial<UploadedMediaPanelItem>
+      const storage = item.storage as UploadedMediaStorageResult | null
+      if (!item.id || !item.name || !isUploadedMediaPanelItemKind(item.kind) || !storage?.publicUrl || !storage.runId) return []
+      const accessUrl = buildUploadedMediaAccessUrl({ publicUrl: storage.publicUrl, runId: storage.runId })
+      return [{
+        id: String(item.id),
+        name: String(item.name),
+        kind: item.kind,
+        localUrl: '',
+        linkUrl: accessUrl,
+        contentType: String(item.contentType || storage.contentType || 'application/octet-stream'),
+        sizeBytes: Number(item.sizeBytes || 0),
+        status: 'synced' as const,
+        storage: { ...storage, accessUrl },
+        error: null,
+      }]
+    })
+  } catch {
+    return []
+  }
+}
+
+const writeStoredUploadedMediaPanelItems = (items: UploadedMediaPanelItem[]): void => {
+  if (typeof window === 'undefined') return
+  try {
+    const syncedItems = items.filter(item => item.status === 'synced' && item.storage)
+    window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify(syncedItems))
+  } catch {
+    void 0
+  }
 }
 
 function CommandPrefixType({
@@ -446,7 +491,7 @@ export function MediaCatalogPanel() {
   const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   const uploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const objectUrlsRef = React.useRef<Set<string>>(new Set())
-  const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>([])
+  const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const selectNode = useGraphStore(s => s.selectNode)
@@ -532,12 +577,16 @@ export function MediaCatalogPanel() {
       }
       setUploadedMediaItems(prev => [initialItem, ...prev])
       try {
-        const storage = await uploadMediaFileToKnowgrphStorage({ file })
+        const storage = await uploadMediaFileToKnowgrphStorage({ file, uploadNow: true })
         if (!storage) {
-          setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'local', error: 'Runtime storage sync did not confirm R2/D1/KV/DO persistence' } : item))
+          setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'local', error: 'Cloudflare media upload did not confirm R2/D1 persistence' } : item))
           continue
         }
-        setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'synced', linkUrl: storage.accessUrl, storage, error: null } : item))
+        setUploadedMediaItems(prev => {
+          const next = prev.map(item => item.id === id ? { ...item, status: 'synced' as const, linkUrl: storage.accessUrl, storage, error: null } : item)
+          writeStoredUploadedMediaPanelItems(next)
+          return next
+        })
         appendSyncedUploadedMediaSource({ itemId: id, name: file.name || `uploaded-${kind}`, kind, storage })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Upload failed'
