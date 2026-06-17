@@ -13,6 +13,7 @@ import {
   type UnifiedRow,
 } from '@/features/graph-data-table/graphDataTable'
 import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
+import { GraphDataTableEditableCellInput } from '@/features/graph-data-table/ui/GraphDataTableUiPrimitives'
 import { FrozenAreaResizeHandle, FROZEN_DATA_COLUMN_LEFT } from './GraphDataTableHeader'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
@@ -213,10 +214,9 @@ export const BodyCell = React.memo(function BodyCell({
         }}
       >
         {isActive ? (
-          <input
+          <GraphDataTableEditableCellInput
             defaultValue={row.label}
-            onBlur={event => {
-              const next = event.target.value
+            onCommit={next => {
               if (row.kind === 'node') updateNode(row.id, { label: next })
               else updateEdge(row.id, { label: next })
             }}
@@ -257,9 +257,9 @@ export const BodyCell = React.memo(function BodyCell({
       >
         {row.kind === 'node' ? (
           isActive ? (
-            <input
+            <GraphDataTableEditableCellInput
               defaultValue={row.type}
-              onBlur={event => updateNode(row.id, { type: event.target.value })}
+              onCommit={next => updateNode(row.id, { type: next })}
               className={textInputClassName}
             />
           ) : (
@@ -285,9 +285,9 @@ export const BodyCell = React.memo(function BodyCell({
       >
         {row.kind === 'edge' ? (
           isActive ? (
-            <input
+            <GraphDataTableEditableCellInput
               defaultValue={row.source}
-              onBlur={event => updateEdge(row.id, { source: event.target.value })}
+              onCommit={next => updateEdge(row.id, { source: next })}
               className={monoTextInputClassName}
               list="node-ids"
             />
@@ -314,9 +314,9 @@ export const BodyCell = React.memo(function BodyCell({
       >
         {row.kind === 'edge' ? (
           isActive ? (
-            <input
+            <GraphDataTableEditableCellInput
               defaultValue={row.target}
-              onBlur={event => updateEdge(row.id, { target: event.target.value })}
+              onCommit={next => updateEdge(row.id, { target: next })}
               className={monoTextInputClassName}
               list="node-ids"
             />

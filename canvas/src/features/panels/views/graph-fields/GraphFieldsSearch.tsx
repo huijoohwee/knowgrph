@@ -1,6 +1,7 @@
 import React from 'react'
 import { UI_COPY } from '@/lib/config'
 import { SearchIcon } from '@/features/graph-fields/ui/graphFieldIcons'
+import { GraphFieldsInlineTextInput } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME,
@@ -28,11 +29,11 @@ export function GraphFieldsSearch({
           className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}
           strokeWidth={uiIconStrokeWidth}
         />
-        <input
+        <GraphFieldsInlineTextInput
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={UI_COPY.searchFieldsPlaceholder}
-          className={`${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} bg-transparent text-xs outline-none ${UI_THEME_TOKENS.text.primary}`}
+          className={`${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} ${UI_THEME_TOKENS.text.primary}`}
           autoFocus
         />
       </section>

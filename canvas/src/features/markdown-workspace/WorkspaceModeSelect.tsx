@@ -1,4 +1,5 @@
 import React from 'react'
+import { PanelSelect } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_RESPONSIVE_WORKSPACE_MODE_TAB_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
@@ -89,7 +90,7 @@ export function WorkspaceModeSelect<T extends string>(props: {
     )
   }
   return (
-    <select
+    <PanelSelect
       className={`kg-workspace-mode-select h-6 min-w-0 max-w-full rounded px-1 border-0 outline-none ${panelTypography.microLabelClass} font-medium ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${activeClass}`}
       value={props.value}
       onChange={e => props.onChange(e.target.value as T)}
@@ -100,6 +101,6 @@ export function WorkspaceModeSelect<T extends string>(props: {
           {o.label}
         </option>
       ))}
-    </select>
+    </PanelSelect>
   )
 }

@@ -24,49 +24,55 @@
 
 ---
 
-## GraphTableDb Persisted Cache (Multi-dimensional Table backbone)
+## GraphRecordDb Persisted Cache (Graph Inspector Adjunct)
 
-- **Database**: `GraphTableDb` is a minimal persisted cache named `kg:graph-table` with five collections:
+- **Database**: `GraphRecordDb` is a minimal persisted cache named `kg:graph-table` with five collections:
   - `tables` (`GraphTableDoc`) for logical tables such as `nodes` and `edges`.
   - `columns` (`GraphColumnDoc`) for property columns with stable `columnId`, `kind`, and per-table `order`.
-  - `rows` (`GraphRowDoc`) for table rows keyed by `rowId` and `data: Record<string, JSONValue>`.
-  - `views` (`GraphViewDoc`) for per-table view configs (`sort`, `filters`).
-  - `meta` (`GraphMetaDoc`) for table-level JSON metadata and sync markers.
-- **Storage backend**: `GraphTableDb` uses the shared persisted collection store:
+  - `rows` (`GraphRecordRowDoc`) for table rows keyed by `rowId` and `data: Record<string, JSONValue>`.
+  - `views` (`GraphRecordViewDoc`) for per-table view configs (`sort`, `filters`).
+  - `meta` (`GraphRecordMetaDoc`) for table-level JSON metadata and sync markers.
+- **Storage backend**: `GraphRecordDb` uses the shared persisted collection store:
   - Persists to local storage when `globalThis.localStorage` is available.
   - Falls back to in-memory storage when local storage is unavailable (for example in tests).
   - Reuses the shared collection query/sort path for indexed reads and sort/filter operations.
-- **Multi-dimensional Table semantics (Workspace)**:
-  - Dimension 1: logical tables (`GraphTableId∈{nodes,edges}`) for node and edge rows.
-  - Dimension 2: property columns inferred from `GraphData` properties; base columns (`id`, `label`, `type`, `source`, `target`) are seeded via `ensureGraphTableSeed`.
-  - Dimension 3: saved views (`GraphViewDoc`) that hold sort/filter JSON, plus `GraphMetaDoc` for per-workspace sync metadata.
-  - Each `GraphRowDoc.data` cell stores a normalized JSON value (`JSONValue`) derived by `toJsonValueForDb`, so scalar, object, and array properties share a single JSON-based storage contract.
+- **Shared facade**: runtime consumers must import the shared row/column model through the neutral `lib/graph-record-db` facade; the older feature-level `graph-table-db` pass-through must stay removed.
+- **Graph inspector semantics (not the workspace surface)**:
+  - Dimension 1: logical tables (`GraphRecordTableId∈{nodes,edges}`) for node and edge rows.
+  - Dimension 2: property columns inferred from `GraphData` properties; base columns (`id`, `label`, `type`, `source`, `target`) are seeded via `ensureGraphRecordSeed`.
+  - Dimension 3: saved views (`GraphRecordViewDoc`) that hold sort/filter JSON, plus `GraphRecordMetaDoc` for per-workspace sync metadata.
+  - Each `GraphRecordRowDoc.data` cell stores a normalized JSON value (`JSONValue`) derived by `toJsonValueForDb`, so scalar, object, and array properties share a single JSON-based storage contract.
+- **Boundary**: `GraphRecordDb` backs graph-specific inspector/state flows only. Opening Workspace `Multi-dimensional Table` must not require pre-warming or routing through this cache because the workspace surface is owned by `MarkdownWorkspaceDerivedViewer`.
 
 ---
 
 ## Data Sync (Import → Persisted Cache → Grid)
 
-- **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table (Multi-dimensional Table workspace view) mirrors the store via the persisted `GraphTableDb` materialized view.
-  - Canvas View Mode “2D Renderer: Multi-dimensional Table” is the canonical canvas entry point for the Markdown data-view renderer. It reuses the Editor Workspace Viewer `MarkdownWorkspaceDerivedViewer` in `multiDimTable` mode; it does not route through the D3 renderer surface or the GraphTable DB workspace surface.
-  - Workspace toolbar “Workspace: Multi-dimensional Table” remains the only entry point for the Graph Data Table workspace.
+- **Source of truth**: Graph import commits `GraphData` into the store; the workspace `Multi-dimensional Table` reads from the shared markdown/data-view pipeline, while graph-specific inspector flows may mirror selection state through the persisted `GraphRecordDb` materialized view.
+  - Canvas View Mode “2D Renderer: Multi-dimensional Table” is the canonical canvas entry point for the Markdown data-view renderer. It reuses the Editor Workspace Viewer `MarkdownWorkspaceDerivedViewer` in `multiDimTable` mode; it does not route through the D3 renderer surface or the GraphRecordDb workspace surface.
+  - Workspace toolbar “Workspace: Multi-dimensional Table” remains the only entry point for the shared workspace surface and must stay decoupled from GraphRecordDb warm-up.
   - Workspace Editor `multiDimTable` must remain first-class in workspace preferences, Graph Data Table view selection, and local-storage persistence; the current DOM table renderer may be reused for that mode, but the mode contract itself must not be downgraded to plain `table`.
   - Table/Multi-dimensional Table/Kanban header controls, settings payloads, and hover `New Record` affordances must stay on the shared Workspace data-view owner so Storyboard/FloatingPanel `View` reuse the same utilities instead of mounting local renderer variants.
 - **Sync key**: table sync is keyed by a `(revision, collapsedGroupIdsKey)` pair plus a per-view `viewKey`:
   - In **Static** Canvas Interaction Mode, the revision is `graphContentRevision` (structure-only) so position-only drags do not cause table recomputation.
   - In **Interactive** Canvas Interaction Mode, the revision is `graphDataRevision` so table rows can reflect position-affecting edits when real-time sync is enabled.
 - **Workspace Sync Mode**:
-  - `canvasWorkspaceSyncMode = 'manual'` disables automatic sync and exposes a single **Sync now** button in the Graph Table header that runs a bounded `GraphData → GraphTableDb` sync for the current view.
+  - `canvasWorkspaceSyncMode = 'manual'` disables automatic sync and exposes a single **Sync now** button in the Graph Table header that runs a bounded `GraphData → GraphRecordDb` sync for the current view.
   - `canvasWorkspaceSyncMode = 'realtime'` enables automatic sync on revision changes using the same gated pipeline; sync remains deduped via per-view `lastGraphWriteRevision` and `lastSyncedRevision` to prevent loops.
+- **Neutral runtime owner**: the live Record Inspector sync hook and cell-to-store writeback helper belong to `graph-inspector`, and its scheduler identity must stay on the neutral `graph-record:runtime-persistence` scope rather than legacy `graph-table` hook ownership.
 - **Baseline anchor**: table sync uses the document-structure baseline graph and applies only group-collapse derivation; it must not depend on keyword/frontmatter mode so mode switches do not rewrite the table.
-- **Change detection**: `syncGraphDataToGraphTableDb`:
+- **Change detection**: `syncGraphDataToGraphRecordDb`:
   - Infers new property columns when it observes new properties on nodes/edges and upgrades column `kind` (for example from `text` to `date`) only when all non-empty values are compatible.
-  - Inserts or updates `GraphRowDoc` rows for changed nodes/edges and avoids rewriting unchanged rows, so noop syncs keep `updatedAtMs` stable.
-  - Serializes writes via a `withGraphTableDbWrite` queue to avoid concurrent write conflicts while still allowing concurrent callers.
+  - Inserts or updates `GraphRecordRowDoc` rows for changed nodes/edges and avoids rewriting unchanged rows, so noop syncs keep `updatedAtMs` stable.
+  - Serializes writes via a `withGraphRecordDbWrite` queue to avoid concurrent write conflicts while still allowing concurrent callers.
 
 ## Widget Parity
 
 - The Record Inspector must render the same Flow Editor widget panel as Flow Editor for any node id in the shared open list.
 - The open list remains SSOT in graph view state; the table must not keep a local open-state fork.
+- The live Record Inspector owner is a neutral graph-inspector surface; it must not be routed back through legacy `graph-table` workspace naming just because it still consumes shared graph-table persistence/helpers.
+- The live Record Inspector responsive chrome must also stay neutral: inspector-specific class names, detail-grid constants, and stylesheet imports belong to `graph-inspector`, not `graph-table`.
+- The live Record Inspector sync/writeback helpers must also stay neutral: `useGraphRecordDbSync` and `applyRecordCellUpdateToGraphStore` belong to `graph-inspector`, not `graph-table`.
 
 ### Column Rearrangement (Drag Header)
 
@@ -85,8 +91,8 @@
 
 Code references:
 
-- `knowgrph/canvas/src/features/graph-table/ui/GraphTableFastGrid.tsx`
-- `knowgrph/canvas/src/features/graph-table/ui/fast-grid/canvasGridRender.ts`
+- `knowgrph/canvas/src/features/graph-data-table/ui/GraphDataTableFastGrid.tsx`
+- `knowgrph/canvas/src/features/graph-data-table/ui/fast-grid/canvasGridRender.ts`
 
 ---
 

@@ -2,9 +2,12 @@ import React from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { PanelCheckbox, PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
+  UI_RESPONSIVE_DATA_VIEW_FIELD_INPUT_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_SETTINGS_LAYOUT_CHOICE_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_SETTINGS_ROW_VALUE_CLASSNAME,
   UI_RESPONSIVE_MENU_ROW_CLASSNAME,
@@ -56,3 +59,72 @@ export function LayoutChoice(props: { active: boolean; label: string; icon: Reac
     </button>
   )
 }
+
+type WorkspaceDataViewComfortableTextInputProps = React.InputHTMLAttributes<HTMLInputElement>
+
+export const WorkspaceDataViewComfortableTextInput = React.forwardRef<HTMLInputElement, WorkspaceDataViewComfortableTextInputProps>(
+  function WorkspaceDataViewComfortableTextInput({ className, ...props }, ref) {
+    return (
+      <PanelTextInput
+        {...props}
+        ref={ref}
+        className={cn(
+          UI_RESPONSIVE_DATA_VIEW_FIELD_INPUT_CLASSNAME,
+          'rounded border text-sm',
+          UI_THEME_TOKENS.input.bg,
+          UI_THEME_TOKENS.input.border,
+          UI_THEME_TOKENS.input.text,
+          className,
+        )}
+      />
+    )
+  },
+)
+
+type WorkspaceDataViewSearchInputProps = React.InputHTMLAttributes<HTMLInputElement>
+
+export const WorkspaceDataViewSearchInput = React.forwardRef<HTMLInputElement, WorkspaceDataViewSearchInputProps>(
+  function WorkspaceDataViewSearchInput({ className, ...props }, ref) {
+    return (
+      <PanelTextInput
+        {...props}
+        ref={ref}
+        variant="transparent"
+        className={cn(
+          UI_RESPONSIVE_DATA_VIEW_FIELD_INPUT_CLASSNAME,
+          'min-w-0 flex-1 bg-transparent text-xs outline-none',
+          UI_THEME_TOKENS.input.text,
+          className,
+        )}
+      />
+    )
+  },
+)
+
+type WorkspaceDataViewFieldSelectProps = React.SelectHTMLAttributes<HTMLSelectElement>
+
+export const WorkspaceDataViewFieldSelect = React.forwardRef<HTMLSelectElement, WorkspaceDataViewFieldSelectProps>(
+  function WorkspaceDataViewFieldSelect({ className, ...props }, ref) {
+    return (
+      <PanelSelect
+        {...props}
+        ref={ref}
+        className={cn(className)}
+      />
+    )
+  },
+)
+
+type WorkspaceDataViewCompactCheckboxProps = React.InputHTMLAttributes<HTMLInputElement>
+
+export const WorkspaceDataViewCompactCheckbox = React.forwardRef<HTMLInputElement, WorkspaceDataViewCompactCheckboxProps>(
+  function WorkspaceDataViewCompactCheckbox({ className, ...props }, ref) {
+    return (
+      <PanelCheckbox
+        {...props}
+        ref={ref}
+        className={cn(UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME, className)}
+      />
+    )
+  },
+)

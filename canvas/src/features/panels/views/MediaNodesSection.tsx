@@ -16,6 +16,7 @@ import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { PanelInlineLabeledRangeRow } from '@/features/panels/ui/PanelInlineLabeledRangeRow'
 
 const mediaStatsPanelClassName = `mt-2 border ${UI_THEME_TOKENS.table.cellBorder} rounded ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-auto`
 const mediaToggleShellClassName = `inline-flex rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.button.neutralSubtle}`
@@ -214,35 +215,26 @@ export default function MediaNodesSection({
                 </button>
               </section>
             </section>
-            <section className="flex items-center gap-2">
-              <span
-                className={[
-                  uiPanelMicroLabelTextSizeClass,
-                  uiPanelTextFontClass,
-                  UI_THEME_TOKENS.text.secondary,
-                ].join(' ')}
-              >
-                {RICH_MEDIA_DISPLAY_COPY.opacityLabel}
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={mediaNodeOpacity}
-                onChange={e => setMediaNodeOpacity(Number(e.target.value))}
-                className="w-24"
-              />
-              <span
-                className={[
-                  uiPanelMicroLabelTextSizeClass,
-                  uiPanelTextFontClass,
-                  `${UI_THEME_TOKENS.text.primary} w-10 text-right`,
-                ].join(' ')}
-              >
-                {Math.round(mediaNodeOpacity * 100)}%
-              </span>
-            </section>
+            <PanelInlineLabeledRangeRow
+              label={RICH_MEDIA_DISPLAY_COPY.opacityLabel}
+              valueLabel={`${Math.round(mediaNodeOpacity * 100)}%`}
+              min={0}
+              max={1}
+              step={0.05}
+              value={mediaNodeOpacity}
+              onChange={setMediaNodeOpacity}
+              labelClassName={[
+                uiPanelMicroLabelTextSizeClass,
+                uiPanelTextFontClass,
+                UI_THEME_TOKENS.text.secondary,
+              ].join(' ')}
+              rangeClassName="w-24"
+              valueClassName={[
+                uiPanelMicroLabelTextSizeClass,
+                uiPanelTextFontClass,
+                `${UI_THEME_TOKENS.text.primary} w-10 text-right`,
+              ].join(' ')}
+            />
           </section>
 
           <section className="mt-2 flex flex-col gap-1">

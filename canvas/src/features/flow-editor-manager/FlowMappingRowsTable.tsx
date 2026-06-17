@@ -3,6 +3,7 @@ import React from 'react'
 import { Trash2 } from 'lucide-react'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { PanelCheckbox, PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import {
@@ -52,6 +53,7 @@ export default function FlowMappingRowsTable({
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const tableFieldClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_FIELD_CLASSNAME} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`
+  const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   const tableHeaderCellClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_HEADER_CELL_CLASSNAME} text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`
   const tableActionHeaderCellClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_ACTION_HEADER_CELL_CLASSNAME} text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`
   const tableCellClassName = `${UI_RESPONSIVE_FLOW_MANAGER_TABLE_CELL_CLASSNAME} ${UI_THEME_TOKENS.panel.border}`
@@ -157,7 +159,7 @@ export default function FlowMappingRowsTable({
               </td>
               <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={keyId}>Key</label>
-                <input
+                <PanelTextInput
                   id={keyId}
                   className={tableFieldClassName}
                   value={r.key}
@@ -167,7 +169,7 @@ export default function FlowMappingRowsTable({
               </td>
               <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={typeId}>Type</label>
-                <select
+                <PanelSelect
                   id={typeId}
                   className={tableFieldClassName}
                   value={r.type}
@@ -181,11 +183,11 @@ export default function FlowMappingRowsTable({
                   {TYPE_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
-                </select>
+                </PanelSelect>
               </td>
               <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={valueId}>JSON Key</label>
-                <input
+                <PanelTextInput
                   id={valueId}
                   className={tableFieldClassName}
                   value={r.value}
@@ -195,9 +197,9 @@ export default function FlowMappingRowsTable({
               </td>
               <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={reqId}>Required</label>
-                <input
+                <PanelCheckbox
                   id={reqId}
-                  type="checkbox"
+                  className={selectionControlClassName}
                   checked={!!r.required}
                   onChange={e => onChange(r.id, { required: e.target.checked })}
                   disabled={isPort}
@@ -205,7 +207,7 @@ export default function FlowMappingRowsTable({
               </td>
               <td className={tableCellClassName}>
                 <label className="sr-only" htmlFor={dirId}>Direction</label>
-                <select
+                <PanelSelect
                   id={dirId}
                   className={tableFieldClassName}
                   value={r.direction}
@@ -219,7 +221,7 @@ export default function FlowMappingRowsTable({
                   {DIRECTION_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
-                </select>
+                </PanelSelect>
               </td>
               <td className={tableActionCellClassName}>
                 <button

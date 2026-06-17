@@ -12,7 +12,7 @@ import {
   UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { PanelCheckbox, PanelTextarea, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { renderChatContextScopeSettingInput, renderChatModelSettingInput, renderChatProviderSettingInput } from '@/features/settings/chatProviderSettingInput'
@@ -71,35 +71,72 @@ export const renderSettingInput = (
     typeof values.uiIconStrokeWidth === 'number' && Number.isFinite(values.uiIconStrokeWidth)
       ? values.uiIconStrokeWidth
       : 1.5
+  const setStringValue = (keyName: string, nextValue: string) => {
+    dirtyRef.current.add(keyName)
+    setValues(prev => ({ ...prev, [keyName]: nextValue }))
+  }
+  const renderSharedTextInput = (options: {
+    keyName?: string
+    value: string
+    className: string
+    placeholder?: string
+    readOnly?: boolean
+    spellCheck?: boolean
+    type?: React.HTMLInputTypeAttribute
+    autoComplete?: string
+  }) => (
+    <PanelTextInput
+      type={options.type}
+      value={options.value}
+      readOnly={options.readOnly}
+      placeholder={options.placeholder}
+      spellCheck={options.spellCheck}
+      autoComplete={options.autoComplete}
+      autoCorrect="off"
+      autoCapitalize="off"
+      className={options.className}
+      onChange={options.keyName ? e => setStringValue(options.keyName, e.target.value) : undefined}
+    />
+  )
+  const renderSharedTextarea = (options: {
+    keyName: string
+    value: string
+    rows: number
+    className: string
+    spellCheck?: boolean
+  }) => (
+    <PanelTextarea
+      rows={options.rows}
+      value={options.value}
+      spellCheck={options.spellCheck}
+      autoCorrect="off"
+      autoCapitalize="off"
+      className={options.className}
+      onChange={e => setStringValue(options.keyName, e.target.value)}
+    />
+  )
   if (!writable) {
     return <span className={`block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${UI_THEME_TOKENS.text.primary}`}>{String(v)}</span>
   }
   if (type === 'boolean') {
     return (
-      <input
-        type="checkbox"
+      <PanelCheckbox
         checked={Boolean(v)}
         onChange={e => {
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: e.target.checked }))
         }}
-        className={`w-4 h-4 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
       />
     )
   }
   if (key === 'payments.stripe.secretKey' || key === 'payments.stripe.webhookSecret') {
     const str = String(v || '')
-    return (
-      <PlainTextInputEditor
-        value={str}
-        onChange={next => {
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={uiPanelKeyValueInputClass}
-        inputType="password"
-      />
-    )
+    return renderSharedTextInput({
+      keyName: key,
+      value: str,
+      className: uiPanelKeyValueInputClass,
+      type: 'password',
+    })
   }
   if (key === 'uiIconColorClass' || key === 'uiIconHoverBgClass') {
     const str = String(v || '')
@@ -114,16 +151,13 @@ export const renderSettingInput = (
     const previewLabel = key === 'uiIconColorClass' ? 'Aa' : 'Hover'
     return (
       <section className={SETTINGS_PREVIEW_INLINE_ROW_CLASS_NAME}>
-        <PlainTextInputEditor value={previewLabel} readOnly className={previewClass} />
-        <PlainTextInputEditor
-          value={str}
-          onChange={next => {
-            dirtyRef.current.add(key)
-            setValues(prev => ({ ...prev, [key]: next }))
-          }}
-          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
-          placeholder={placeholder}
-        />
+        {renderSharedTextInput({ value: previewLabel, readOnly: true, className: previewClass })}
+        {renderSharedTextInput({
+          keyName: key,
+          value: str,
+          className: `${uiPanelKeyValueInputClass} flex-1 min-w-0`,
+          placeholder,
+        })}
       </section>
     )
   }
@@ -137,15 +171,12 @@ export const renderSettingInput = (
         <section className={previewClass}>
           <SettingsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
         </section>
-        <PlainTextInputEditor
-          value={str}
-          onChange={next => {
-            dirtyRef.current.add(key)
-            setValues(prev => ({ ...prev, [key]: next }))
-          }}
-          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
-          placeholder={placeholder}
-        />
+        {renderSharedTextInput({
+          keyName: key,
+          value: str,
+          className: `${uiPanelKeyValueInputClass} flex-1 min-w-0`,
+          placeholder,
+        })}
       </section>
     )
   }
@@ -160,15 +191,12 @@ export const renderSettingInput = (
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Scope</span>
         </section>
-        <PlainTextInputEditor
-          value={str}
-          onChange={next => {
-            dirtyRef.current.add(key)
-            setValues(prev => ({ ...prev, [key]: next }))
-          }}
-          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
-          placeholder={pillBaseClass}
-        />
+        {renderSharedTextInput({
+          keyName: key,
+          value: str,
+          className: `${uiPanelKeyValueInputClass} flex-1 min-w-0`,
+          placeholder: pillBaseClass,
+        })}
       </section>
     )
   }
@@ -240,15 +268,12 @@ export const renderSettingInput = (
             </span>
           </section>
         )}
-        <PlainTextInputEditor
-          value={str}
-          onChange={next => {
-            dirtyRef.current.add(key)
-            setValues(prev => ({ ...prev, [key]: next }))
-          }}
-          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
-          placeholder={placeholder}
-        />
+        {renderSharedTextInput({
+          keyName: key,
+          value: str,
+          className: `${uiPanelKeyValueInputClass} flex-1 min-w-0`,
+          placeholder,
+        })}
       </section>
     )
   }
@@ -263,15 +288,12 @@ export const renderSettingInput = (
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Badge</span>
         </section>
-        <PlainTextInputEditor
-          value={str}
-          onChange={next => {
-            dirtyRef.current.add(key)
-            setValues(prev => ({ ...prev, [key]: next }))
-          }}
-          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
-          placeholder={placeholder}
-        />
+        {renderSharedTextInput({
+          keyName: key,
+          value: str,
+          className: `${uiPanelKeyValueInputClass} flex-1 min-w-0`,
+          placeholder,
+        })}
       </section>
     )
   }
@@ -286,15 +308,12 @@ export const renderSettingInput = (
           <TagIcon className="w-3 h-3" aria-hidden="true" />
           <span>Badge</span>
         </section>
-        <PlainTextInputEditor
-          value={str}
-          onChange={next => {
-            dirtyRef.current.add(key)
-            setValues(prev => ({ ...prev, [key]: next }))
-          }}
-          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
-          placeholder={placeholder}
-        />
+        {renderSharedTextInput({
+          keyName: key,
+          value: str,
+          className: `${uiPanelKeyValueInputClass} flex-1 min-w-0`,
+          placeholder,
+        })}
       </section>
     )
   }
@@ -318,15 +337,12 @@ export const renderSettingInput = (
           }}
           className={`${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
         />
-        <PlainTextInputEditor
-          value={str}
-          onChange={next => {
-            dirtyRef.current.add(key)
-            setValues(prev => ({ ...prev, [key]: next }))
-          }}
-          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
-          placeholder={fallback}
-        />
+        {renderSharedTextInput({
+          keyName: key,
+          value: str,
+          className: `${uiPanelKeyValueInputClass} flex-1 min-w-0`,
+          placeholder: fallback,
+        })}
       </section>
     )
   }
@@ -392,17 +408,12 @@ export const renderSettingInput = (
 
   if (key === 'chatModel') {
     const str = String(v ?? '')
-    return (
-      <PlainTextInputEditor
-        value={str}
-        spellCheck={false}
-        onChange={next => {
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={uiPanelKeyValueInputLeftClass}
-      />
-    )
+    return renderSharedTextInput({
+      keyName: key,
+      value: str,
+      className: uiPanelKeyValueInputLeftClass,
+      spellCheck: false,
+    })
   }
 
   if (type === 'string' && Array.isArray(options) && options.length > 0) {
@@ -430,118 +441,80 @@ export const renderSettingInput = (
     const authModeRaw = String(values['maps.grabmaps.authMode'] || '').trim().toLowerCase()
     const authMode = authModeRaw === 'byok' ? 'byok' : 'serverManaged'
     if (authMode !== 'byok') {
-      return (
-        <PlainTextInputEditor
-          value=""
-          readOnly
-          placeholder="Server-managed Key"
-          className={uiPanelKeyValueInputClass}
-        />
-      )
+      return renderSharedTextInput({
+        value: '',
+        readOnly: true,
+        placeholder: 'Server-managed Key',
+        className: uiPanelKeyValueInputClass,
+      })
     }
     const str = String(v || '')
-    return (
-      <input
-        type="password"
-        value={str}
-        autoComplete="off"
-        spellCheck={false}
-        onChange={e => {
-          const next = e.target.value
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={uiPanelKeyValueInputClass}
-      />
-    )
+    return renderSharedTextInput({
+      keyName: key,
+      value: str,
+      className: uiPanelKeyValueInputClass,
+      type: 'password',
+      autoComplete: 'off',
+      spellCheck: false,
+    })
   }
   if (key === 'chatApiKey') {
     const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
     if (authMode !== 'byok') {
-      return (
-        <PlainTextInputEditor
-          value=""
-          readOnly
-          placeholder="Server-managed Key"
-          className={uiPanelKeyValueInputClass}
-        />
-      )
+      return renderSharedTextInput({
+        value: '',
+        readOnly: true,
+        placeholder: 'Server-managed Key',
+        className: uiPanelKeyValueInputClass,
+      })
     }
     const str = String(v || '')
-    return (
-      <input
-        type="password"
-        value={str}
-        autoComplete="off"
-        spellCheck={false}
-        onChange={e => {
-          const next = e.target.value
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={uiPanelKeyValueInputClass}
-      />
-    )
+    return renderSharedTextInput({
+      keyName: key,
+      value: str,
+      className: uiPanelKeyValueInputClass,
+      type: 'password',
+      autoComplete: 'off',
+      spellCheck: false,
+    })
   }
   if (key === 'integrationConfigsJson') {
     const str = String(v ?? '')
-    return (
-      <PlainTextInputEditor
-        value={str}
-        spellCheck={false}
-        onChange={next => {
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={uiPanelKeyValueInputLeftClass}
-      />
-    )
+    return renderSharedTextInput({
+      keyName: key,
+      value: str,
+      className: uiPanelKeyValueInputLeftClass,
+      spellCheck: false,
+    })
   }
   if (key === 'chatSystemPrompt') {
     const str = String(v ?? '')
-    return (
-      <PlainTextInputEditor
-        multiline
-        rows={4}
-        value={str}
-        spellCheck={false}
-        onChange={next => {
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={`${uiPanelKeyValueTextareaClass} ${UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME}`}
-      />
-    )
+    return renderSharedTextarea({
+      keyName: key,
+      value: str,
+      rows: 4,
+      spellCheck: false,
+      className: `${uiPanelKeyValueTextareaClass} ${UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME}`,
+    })
   }
   if (type === 'json') {
     const str = String(v ?? '')
-    return (
-      <PlainTextInputEditor
-        multiline
-        rows={6}
-        value={str}
-        spellCheck={false}
-        onChange={next => {
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={`${uiPanelKeyValueTextareaClass} ${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME}`}
-      />
-    )
+    return renderSharedTextarea({
+      keyName: key,
+      value: str,
+      rows: 6,
+      spellCheck: false,
+      className: `${uiPanelKeyValueTextareaClass} ${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME}`,
+    })
   }
   if (key === 'chatEndpointUrl') {
     const str = String(v ?? '')
-    return (
-      <PlainTextInputEditor
-        value={str}
-        spellCheck={false}
-        onChange={next => {
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={uiPanelKeyValueInputLeftClass}
-      />
-    )
+    return renderSharedTextInput({
+      keyName: key,
+      value: str,
+      className: uiPanelKeyValueInputLeftClass,
+      spellCheck: false,
+    })
   }
   if (options && options.length > 0) {
     const raw = String(v ?? '')
@@ -566,15 +539,18 @@ export const renderSettingInput = (
     )
   }
   return (
-    <PlainTextInputEditor
-      inputType={type === 'number' ? 'number' : 'text'}
+    <PanelTextInput
+      type={type === 'number' ? 'number' : 'text'}
       value={type === 'number' ? (isNaN(Number(v)) ? '' : String(Number(v))) : String(v ?? '')}
-      onChange={next => {
+      autoCorrect="off"
+      autoCapitalize="off"
+      className={uiPanelKeyValueInputClass}
+      onChange={e => {
+        const next = e.target.value
         const val = type === 'number' ? Number(next || '0') : next
         dirtyRef.current.add(key)
         setValues(prev => ({ ...prev, [key]: val }))
       }}
-      className={uiPanelKeyValueInputClass}
     />
   )
 }

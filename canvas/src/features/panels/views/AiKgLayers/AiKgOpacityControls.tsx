@@ -1,8 +1,8 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
-import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { PanelKeyTypeSliderNumberRow } from '@/features/panels/ui/PanelKeyTypeSliderNumberRow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   AI_KG_LAYER1_OPACITY_ROW_TOOLTIP,
@@ -14,8 +14,6 @@ import {
   LAYER2_OPACITY_TOOLTIP,
   LAYER3_OPACITY_TOOLTIP,
 } from '../AiKgLayersSectionTooltips'
-import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
-
 type AiKgOpacityControlsProps = {
   schema: GraphSchema
   setThreeConfig: (config: Partial<GraphSchema['three']>) => void
@@ -38,19 +36,35 @@ export default function AiKgOpacityControls({
   const layer1 = getLayerOpacityValue('1', 1.0)
   const layer2 = getLayerOpacityValue('2', 0.9)
   const layer3 = getLayerOpacityValue('3', 0.8)
-  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
-  const KeyTypeValueRow = (
-    props: Omit<
-      React.ComponentProps<typeof KeyTypeValueStaticRow>,
-      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
-    >,
-  ) => <KeyTypeValueStaticRow {...compactStaticRowProps} {...props} />
+  const normalizeLayerOpacity = (raw: number, fallbackValue: number) => {
+    const clamped = Number.isFinite(raw) ? Math.max(0.2, Math.min(1, raw)) : fallbackValue
+    return Math.round(clamped * 20) / 20
+  }
+  const setLayerOpacity = (layer: '1' | '2' | '3', nextValue: number) => {
+    setThreeConfig({
+      layerOpacityByLayer: {
+        ...(layerOpacityByLayer as Record<string, number>),
+        '1': layer === '1' ? nextValue : layer1,
+        '2': layer === '2' ? nextValue : layer2,
+        '3': layer === '3' ? nextValue : layer3,
+      },
+    })
+  }
 
   return (
     <>
-      <KeyTypeValueRow
+      <PanelKeyTypeSliderNumberRow
         density="compact"
-        layout="keyIconSliderInput"
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+        min={0.2}
+        max={1}
+        step={0.05}
+        value={Number(layer1)}
+        displayValue={Number(layer1.toFixed(2))}
+        fallbackValue={1}
+        normalizeValue={raw => normalizeLayerOpacity(raw, 1)}
+        onChange={next => setLayerOpacity('1', next)}
+        controlTooltip={LAYER1_OPACITY_TOOLTIP}
         keyNode={(
           <Tooltip
             content={AI_KG_LAYER1_OPACITY_ROW_TOOLTIP}
@@ -61,74 +75,19 @@ export default function AiKgOpacityControls({
             three.layerOpacityByLayer['1']
           </Tooltip>
         )}
-        typeNode={(
-          <Tooltip
-            content={LAYER1_OPACITY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="range"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={Number(layer1)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.2, Math.min(1, raw))
-                  : 1
-                const quantized = Math.round(clamped * 20) / 20
-                setThreeConfig({
-                  layerOpacityByLayer: {
-                    ...(layerOpacityByLayer as Record<string, number>),
-                    '1': quantized,
-                    '2': layer2,
-                    '3': layer3,
-                  },
-                })
-              }}
-              className="w-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={LAYER1_OPACITY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="number"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={Number(layer1.toFixed(2))}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.2, Math.min(1, raw))
-                  : 1
-                const quantized = Math.round(clamped * 20) / 20
-                setThreeConfig({
-                  layerOpacityByLayer: {
-                    ...(layerOpacityByLayer as Record<string, number>),
-                    '1': quantized,
-                    '2': layer2,
-                    '3': layer3,
-                  },
-                })
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
-          </Tooltip>
-        )}
       />
-      <KeyTypeValueRow
+      <PanelKeyTypeSliderNumberRow
         density="compact"
-        layout="keyIconSliderInput"
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+        min={0.2}
+        max={1}
+        step={0.05}
+        value={Number(layer2)}
+        displayValue={Number(layer2.toFixed(2))}
+        fallbackValue={0.9}
+        normalizeValue={raw => normalizeLayerOpacity(raw, 0.9)}
+        onChange={next => setLayerOpacity('2', next)}
+        controlTooltip={LAYER2_OPACITY_TOOLTIP}
         keyNode={(
           <Tooltip
             content={AI_KG_LAYER2_OPACITY_ROW_TOOLTIP}
@@ -139,74 +98,19 @@ export default function AiKgOpacityControls({
             three.layerOpacityByLayer['2']
           </Tooltip>
         )}
-        typeNode={(
-          <Tooltip
-            content={LAYER2_OPACITY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="range"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={Number(layer2)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.2, Math.min(1, raw))
-                  : 0.9
-                const quantized = Math.round(clamped * 20) / 20
-                setThreeConfig({
-                  layerOpacityByLayer: {
-                    ...(layerOpacityByLayer as Record<string, number>),
-                    '1': layer1,
-                    '2': quantized,
-                    '3': layer3,
-                  },
-                })
-              }}
-              className="w-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={LAYER2_OPACITY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="number"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={Number(layer2.toFixed(2))}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.2, Math.min(1, raw))
-                  : 0.9
-                const quantized = Math.round(clamped * 20) / 20
-                setThreeConfig({
-                  layerOpacityByLayer: {
-                    ...(layerOpacityByLayer as Record<string, number>),
-                    '1': layer1,
-                    '2': quantized,
-                    '3': layer3,
-                  },
-                })
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
-          </Tooltip>
-        )}
       />
-      <KeyTypeValueRow
+      <PanelKeyTypeSliderNumberRow
         density="compact"
-        layout="keyIconSliderInput"
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+        min={0.2}
+        max={1}
+        step={0.05}
+        value={Number(layer3)}
+        displayValue={Number(layer3.toFixed(2))}
+        fallbackValue={0.8}
+        normalizeValue={raw => normalizeLayerOpacity(raw, 0.8)}
+        onChange={next => setLayerOpacity('3', next)}
+        controlTooltip={LAYER3_OPACITY_TOOLTIP}
         keyNode={(
           <Tooltip
             content={AI_KG_LAYER3_OPACITY_ROW_TOOLTIP}
@@ -215,70 +119,6 @@ export default function AiKgOpacityControls({
             className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
             three.layerOpacityByLayer['3']
-          </Tooltip>
-        )}
-        typeNode={(
-          <Tooltip
-            content={LAYER3_OPACITY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="range"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={Number(layer3)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.2, Math.min(1, raw))
-                  : 0.8
-                const quantized = Math.round(clamped * 20) / 20
-                setThreeConfig({
-                  layerOpacityByLayer: {
-                    ...(layerOpacityByLayer as Record<string, number>),
-                    '1': layer1,
-                    '2': layer2,
-                    '3': quantized,
-                  },
-                })
-              }}
-              className="w-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={LAYER3_OPACITY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="number"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={Number(layer3.toFixed(2))}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.2, Math.min(1, raw))
-                  : 0.8
-                const quantized = Math.round(clamped * 20) / 20
-                setThreeConfig({
-                  layerOpacityByLayer: {
-                    ...(layerOpacityByLayer as Record<string, number>),
-                    '1': layer1,
-                    '2': layer2,
-                    '3': quantized,
-                  },
-                })
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
           </Tooltip>
         )}
       />

@@ -1,6 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { GraphRagCentralityToggleGroup } from '@/features/graphrag/ui/GraphRagCentralityToggleGroup'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -202,47 +203,38 @@ export default function GraphRagTextPipelineSection() {
         </section>
 
         {isGraphRag && (
-          <section className="flex flex-wrap items-center gap-3 text-xs">
-            <span className={`${UI_THEME_TOKENS.text.tertiary} font-semibold`}>Context-Aware Analytics</span>
-            <label className="inline-flex items-center gap-2">
-              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
-              <span>HITS</span>
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.closeness} onChange={e => update({ closeness: e.target.checked })} />
-              <span>Closeness</span>
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.pagerank} onChange={e => update({ pagerank: e.target.checked })} />
-              <span>PageRank</span>
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.betweenness} onChange={e => update({ betweenness: e.target.checked })} />
-              <span>Betweenness</span>
-            </label>
-            <button
-              type="button"
-              className={analyticsButtonClassName}
-              onClick={reset}
-            >
-              Reset
-            </button>
-            <button
-              type="button"
-              disabled={!canRecompute}
-              className={[
-                `px-2 py-0.5 rounded border ${UI_THEME_TOKENS.input.border}`,
-                canRecompute ? `${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}` : UI_THEME_TOKENS.text.tertiary,
-              ].join(' ')}
-              onClick={() => {
-                if (!canRecompute) return
-                const res = runGraphRagTextPipeline(sourceText, { centrality: cfg })
-                useGraphStore.getState().setGraphData(res.graphData)
-              }}
-            >
-              Recompute
-            </button>
-          </section>
+          <GraphRagCentralityToggleGroup
+            title="Context-Aware Analytics"
+            cfg={cfg}
+            onChange={update}
+            className="text-xs"
+            actions={(
+              <>
+                <button
+                  type="button"
+                  className={analyticsButtonClassName}
+                  onClick={reset}
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  disabled={!canRecompute}
+                  className={[
+                    `px-2 py-0.5 rounded border ${UI_THEME_TOKENS.input.border}`,
+                    canRecompute ? `${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}` : UI_THEME_TOKENS.text.tertiary,
+                  ].join(' ')}
+                  onClick={() => {
+                    if (!canRecompute) return
+                    const res = runGraphRagTextPipeline(sourceText, { centrality: cfg })
+                    useGraphStore.getState().setGraphData(res.graphData)
+                  }}
+                >
+                  Recompute
+                </button>
+              </>
+            )}
+          />
         )}
 
         <section className={GRAPH_RAG_TEXT_PIPELINE_STAGE_GRID_CLASS_NAME}>

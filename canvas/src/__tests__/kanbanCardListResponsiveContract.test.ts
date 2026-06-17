@@ -6,7 +6,7 @@ const readUtf8 = (relativePath: string): string => fs.readFileSync(path.resolve(
 export function testKanbanCardListsUseSharedResponsiveOwner() {
   const classText = readUtf8('src/lib/ui/responsiveElementClasses.ts')
   const cssText = readUtf8('src/styles/responsive-toolbar.css')
-  const graphTableKanbanText = readUtf8('src/features/graph-table/ui/GraphTableKanbanView.tsx')
+  const graphTableKanbanText = readUtf8('src/features/graph-data-table/ui/GraphDataTableKanbanView.tsx')
   const markdownKanbanGroupText = readUtf8('src/features/markdown/ui/kanban/KanbanGroup.tsx')
 
   if (!classText.includes("UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME = 'kg-data-view-kanban-card-list flex flex-col gap-2 list-none m-0 overflow-y-auto p-2'")) {

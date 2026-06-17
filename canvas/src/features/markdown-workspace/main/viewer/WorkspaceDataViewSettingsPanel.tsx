@@ -5,7 +5,7 @@ import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { WorkspaceDataViewSettingsPropertiesSection } from './WorkspaceDataViewSettingsPropertiesSection'
 import { WorkspaceDataViewSettingsFilterSection } from './WorkspaceDataViewSettingsFilterSection'
 import { WorkspaceDataViewSettingsSortSection } from './WorkspaceDataViewSettingsSortSection'
-import { LayoutChoice } from './WorkspaceDataViewSettingsPrimitives'
+import { LayoutChoice, WorkspaceDataViewCompactCheckbox } from './WorkspaceDataViewSettingsPrimitives'
 import { buildSuggestedRoles } from './workspaceDataViewGraphRoles'
 import { WORKSPACE_EDITOR_MODE_OPTIONS, type WorkspaceEditorMode } from '@/features/workspace-table/workspaceEditorMode'
 import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
@@ -312,9 +312,7 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                   Configure property mapping in Properties.
                 </section>
                 <label className="mt-3 flex min-w-0 max-w-full items-center gap-2" aria-label="Enable Multi-dimensional Table graph">
-                  <input
-                    type="checkbox"
-                    className="rounded"
+                  <WorkspaceDataViewCompactCheckbox
                     checked={props.viewConfig.graphEnabled === true}
                     onChange={e => setGraphEnabled(e.target.checked)}
                   />

@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphField, GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { computeFieldValueFrequencies } from '@/features/panels/views/graph-fields/fieldSamples'
+import { GraphFieldsCompactCheckbox } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
@@ -41,8 +42,8 @@ export default function FieldSamplesPanel({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   )
-  const compactSelectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
-  const selectionControlClassName = `${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const compactSelectionControlClassName = UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME
+  const selectionControlClassName = UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME
 
   const displayedSamples = samples
   const [selectedByValue, setSelectedByValue] = React.useState<Set<string>>(
@@ -176,9 +177,8 @@ export default function FieldSamplesPanel({
               </section>
               <section className="flex items-center gap-1 shrink-0">
                 <label className={`flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>
-                  <input
+                  <GraphFieldsCompactCheckbox
                     ref={selectAllRef}
-                    type="checkbox"
                     checked={displayedAllSelected}
                     onChange={e => {
                       if (e.target.checked) onSelectAllDisplayed()
@@ -216,8 +216,7 @@ export default function FieldSamplesPanel({
                   onClick={() => onToggleValue(sample.value)}
                 >
                   <span className="min-w-0 flex-1 inline-flex items-center gap-2">
-                    <input
-                      type="checkbox"
+                    <GraphFieldsCompactCheckbox
                       checked={selected}
                       readOnly
                       tabIndex={-1}

@@ -48,7 +48,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.pageLayouts.sharedResponsiveOwners","@/__tests__/viewportScrollPanelResponsiveContract.test","testPageLayoutsUseSharedResponsiveOwners"],
   ["ui.viewportScrollPanels.workspaceGraphTableSharedOwner","@/__tests__/viewportScrollPanelResponsiveContract.test","testWorkspaceAndGraphTablePanelsUseSharedViewportScrollOwner"],
   ["ui.documentVersionGitGraph.sharedResponsiveViewport","@/__tests__/viewportScrollPanelResponsiveContract.test","testDocumentVersionGitGraphUsesSharedResponsiveViewportOwner"],
-  ["ui.graphTable.responsiveMetricsOwner","@/__tests__/graphTableResponsiveMetricsContract.test","testGraphTableResponsiveMetricsOwnFixedChromeSizes"],
+  ["ui.graphDataTable.responsiveMetricsOwner","@/__tests__/graphTableResponsiveMetricsContract.test","testGraphDataTableResponsiveMetricsOwnFixedChromeSizes"],
   ["ui.graphStats.tokenListPanels.sharedResponsiveOwner","@/__tests__/graphStatsResponsiveContract.test","testGraphStatsTokenListPanelsUseSharedResponsiveOwner"],
   ["ui.graphStats.metricGrids.sharedResponsiveOwner","@/__tests__/graphStatsResponsiveContract.test","testGraphStatsMetricGridsUseSharedResponsiveOwner"],
   ["ui.graphStats.miniCharts.sharedResponsiveOwner","@/__tests__/graphStatsMiniChartResponsiveContract.test","testGraphStatsMiniChartsUseSharedResponsiveOwner"],

@@ -17,6 +17,7 @@ import {
 import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarStyles'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import {
@@ -118,6 +119,8 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
   const scopeColor = borderColor || '#9CA3AF'
   const colorInputValue =
     typeof scopeColor === 'string' && scopeColor.trim().startsWith('#') ? scopeColor.trim() : '#000000'
+  const fieldInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.text.primary}`
+  const typeSelectClassName = [MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, UI_RESPONSIVE_GRAPH_FIELDS_TYPE_SELECT_CLASSNAME, 'text-left'].join(' ')
 
   const scopeIconNode = field ? (
     <ScopeIcon scope={field.scope} className={`${iconSizeClass} ${UI_THEME_TOKENS.icon.color}`} strokeWidth={uiIconStrokeWidth} />
@@ -285,16 +288,16 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
               <section className="min-w-0">
                 {active && field && settings ? (
                   <section className="min-w-0 flex items-center gap-2">
-                    <input
+                    <PanelTextInput
                       value={settings.displayName}
                       onChange={e => updateGraphFieldSettings(field.id, { displayName: e.target.value })}
-                      className={`${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.text.primary}`}
+                      className={fieldInputClassName}
                       onClick={e => e.stopPropagation()}
                     />
-                    <select
+                    <PanelSelect
                       value={settings.fieldType}
                       onChange={e => updateGraphFieldSettings(field.id, { fieldType: e.target.value as GraphFieldType })}
-                      className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, UI_RESPONSIVE_GRAPH_FIELDS_TYPE_SELECT_CLASSNAME, 'text-left'].join(' ')}
+                      className={typeSelectClassName}
                       onClick={e => e.stopPropagation()}
                     >
                       {GRAPH_FIELD_TYPES.map(t => (
@@ -302,7 +305,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
                           {t}
                         </option>
                       ))}
-                    </select>
+                    </PanelSelect>
                   </section>
                 ) : (
                   <>

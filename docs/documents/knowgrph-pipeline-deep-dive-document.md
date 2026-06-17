@@ -32,7 +32,7 @@
 
 **Processing Flow**: Source input → `GraphData` (store) → renderer graph snapshot → scene state → visual output (Canvas/exports).
 
-**Multi-dimensional Table Flow**: Canonical `GraphData` (store) → persisted `GraphTableDb` cache (`kg:graph-table`) → host Multi-dimensional Table fast-grid + Record Inspector view.
+**Multi-dimensional Table Flow**: Canonical `GraphData` (store) → persisted `GraphRecordDb` cache (`kg:graph-table`) → host Multi-dimensional Table fast-grid + Record Inspector view.
 
 **Design Principles**: Config-driven derivation | single source of truth | bounded caches | stable references
 
@@ -50,7 +50,7 @@ Canonical GraphData (Zustand store)
   │      └─ Render (2D/3D Canvas, Rich Media overlays, exports)
   │
   └──► Multi-dimensional Table branch
-         ├─ Persisted GraphTableDb cache (kg:graph-table: tables/columns/rows/views/meta)
+         ├─ Persisted GraphRecordDb cache (kg:graph-table: tables/columns/rows/views/meta)
          └─ Host Multi-dimensional Table workspace (fast-grid + Record Inspector)
 ```
 
@@ -141,7 +141,7 @@ Canonical GraphData (Zustand store)
   - Derived field discovery: [graphFields.ts](../../canvas/src/features/graph-fields/graphFields.ts)
   - Sync visible columns and custom fields: [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)
 - Table materialization (Multi-dimensional Table):
-  - Persisted `GraphTableDb` cache (`kg:graph-table`) receives `GraphData` via `syncGraphDataToGraphTableDb`, writing normalized rows/columns/views/meta for the host Multi-dimensional Table workspace.
+  - Persisted `GraphRecordDb` cache (`kg:graph-table`) receives `GraphData` via `syncGraphDataToGraphRecordDb`, writing normalized rows/columns/views/meta for the host Multi-dimensional Table workspace.
   - Sync is gated by revision + view key and reuses the same document-structure baseline graph used for render derivation.
 - Responsibility (S-V-O): Store accepts graph data → validates edges → syncs derived fields → notifies subscribers.
 
@@ -197,7 +197,7 @@ Canonical GraphData (Zustand store)
   - Edge label baseline: [edgeLabels.ts](../../canvas/src/components/GraphCanvas/layers/edgeLabels.ts)
   - UI icon baseline alignment (Lucide): [index.css](../../canvas/src/index.css)
 - Table surfaces (Multi-dimensional Table):
-  - Host Graph Data Table workspace renders a canvas fast-grid over the persisted `GraphTableDb` materialization and shares the same derived `GraphData` and collapse state used by Canvas.
+  - Host Graph Data Table workspace renders a canvas fast-grid over the persisted `GraphRecordDb` materialization and shares the same derived `GraphData` and collapse state used by Canvas.
 - UI surfaces:
   - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](../../../singabldr/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 

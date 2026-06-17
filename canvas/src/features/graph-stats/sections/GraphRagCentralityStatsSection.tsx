@@ -4,12 +4,12 @@ import { AutoHeightMiniBarChart, type MiniBarChartDatum } from '@/features/panel
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
 import { useGraphRagTextCentralityConfig } from '@/features/graphrag/hooks/useGraphRagTextCentralityConfig'
+import { GraphRagCentralityToggleGroup } from '@/features/graphrag/ui/GraphRagCentralityToggleGroup'
 import type { StatsUiClasses } from '@/features/graph-stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { GRAPH_STATS_DETAIL_GRID_CLASS_NAME } from '@/features/graph-stats/graphStatsResponsiveClasses'
 import { UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
-const statsSelectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 const statsActionButtonClassName = `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
 
 type CentralityRow = {
@@ -142,49 +142,46 @@ export default function GraphRagCentralityStatsSection({
   return (
     <CollapsibleSection title="Context-Aware Analytics">
       <section className={['mt-2 space-y-3', ui.uiPanelKeyValueTextSizeClass, ui.uiPanelTextFontClass].join(' ')}>
-        <section className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex items-center gap-2">
-            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
-            <span>HITS (Hubs/Authorities)</span>
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.closeness} onChange={e => update({ closeness: e.target.checked })} />
-            <span>Closeness</span>
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.pagerank} onChange={e => update({ pagerank: e.target.checked })} />
-            <span>PageRank</span>
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.betweenness} onChange={e => update({ betweenness: e.target.checked })} />
-            <span>Betweenness</span>
-          </label>
-          <button
-            type="button"
-            className={[
-              ui.uiPanelMicroLabelTextSizeClass,
-              ui.uiPanelTextFontClass,
-              statsActionButtonClassName,
-            ].join(' ')}
-            onClick={reset}
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            disabled={!canRecompute}
-            className={[
-              ui.uiPanelMicroLabelTextSizeClass,
-              ui.uiPanelTextFontClass,
-              `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border`,
-              UI_THEME_TOKENS.panel.border,
-              canRecompute ? `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}` : UI_THEME_TOKENS.text.tertiary,
-            ].join(' ')}
-            onClick={recompute}
-          >
-            Recompute
-          </button>
-        </section>
+        <GraphRagCentralityToggleGroup
+          cfg={cfg}
+          onChange={update}
+          className="text-xs"
+          options={[
+            { key: 'hits', label: 'HITS (Hubs/Authorities)' },
+            { key: 'closeness', label: 'Closeness' },
+            { key: 'pagerank', label: 'PageRank' },
+            { key: 'betweenness', label: 'Betweenness' },
+          ]}
+          actions={(
+            <>
+              <button
+                type="button"
+                className={[
+                  ui.uiPanelMicroLabelTextSizeClass,
+                  ui.uiPanelTextFontClass,
+                  statsActionButtonClassName,
+                ].join(' ')}
+                onClick={reset}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                disabled={!canRecompute}
+                className={[
+                  ui.uiPanelMicroLabelTextSizeClass,
+                  ui.uiPanelTextFontClass,
+                  `${UI_RESPONSIVE_COMPACT_INLINE_CONTROL_CLASSNAME} rounded border`,
+                  UI_THEME_TOKENS.panel.border,
+                  canRecompute ? `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}` : UI_THEME_TOKENS.text.tertiary,
+                ].join(' ')}
+                onClick={recompute}
+              >
+                Recompute
+              </button>
+            </>
+          )}
+        />
 
         {selected && (
           <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-2`}>

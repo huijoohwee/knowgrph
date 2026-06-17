@@ -5,6 +5,7 @@ import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphField
 import { UI_COPY, UI_LABELS } from '@/lib/config.copy'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { GraphFieldsComfortableFieldSelect } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import FieldTemplatesSection from '@/features/panels/views/graph-fields/FieldTemplatesSection'
 import FieldLocalSchemaRowsEditor from '@/features/panels/views/graph-fields/FieldLocalSchemaRowsEditor'
 import FieldLocalSchemaValidationEditor, {
@@ -99,7 +100,7 @@ export default function FieldLocalSchemaSectionBody({
     <section className="p-3 space-y-3">
       <section className={schemaPanelClassName}>
         <section className="flex items-center gap-2">
-          <select
+          <GraphFieldsComfortableFieldSelect
             value={localSchemaScope}
             onChange={e => {
               const nextScope = e.target.value === 'edge' ? 'edge' : 'node'
@@ -118,8 +119,8 @@ export default function FieldLocalSchemaSectionBody({
           >
             <option value="node">{UI_COPY.graphFieldsScopeNodeLabel}</option>
             <option value="edge">{UI_COPY.graphFieldsScopeEdgeLabel}</option>
-          </select>
-          <select
+          </GraphFieldsComfortableFieldSelect>
+          <GraphFieldsComfortableFieldSelect
             value={localSchemaOwnerKey}
             onChange={e => {
               const v = e.target.value
@@ -139,7 +140,7 @@ export default function FieldLocalSchemaSectionBody({
                 </option>
               ))
             )}
-          </select>
+          </GraphFieldsComfortableFieldSelect>
         </section>
       </section>
 

@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
@@ -55,7 +56,7 @@ export default function ThreeSizingAndWidthControls({
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Node Sizing</span>}
           valueNode={(
-            <select
+            <PanelSelect
               className={uiPanelKeyValueInputClass}
               value={nodeSizingFormula}
               onChange={e => {
@@ -65,14 +66,14 @@ export default function ThreeSizingAndWidthControls({
             >
               <option value="schema">schema</option>
               <option value="importance">importance</option>
-            </select>
+            </PanelSelect>
           )}
         />
         <DefaultKeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Edge Width</span>}
           valueNode={(
-            <select
+            <PanelSelect
               className={uiPanelKeyValueInputClass}
               value={edgeWidthFormula}
               onChange={e => {
@@ -82,14 +83,14 @@ export default function ThreeSizingAndWidthControls({
             >
               <option value="schema">schema</option>
               <option value="weight">weight</option>
-            </select>
+            </PanelSelect>
           )}
         />
         <DefaultKeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Keyword Node Scale</span>}
           valueNode={(
-            <input
+            <PanelTextInput
               type="number"
               min={0.2}
               max={5}
@@ -107,7 +108,7 @@ export default function ThreeSizingAndWidthControls({
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Keyword Edge Scale</span>}
           valueNode={(
-            <input
+            <PanelTextInput
               type="number"
               min={0.2}
               max={5}
@@ -149,7 +150,7 @@ export default function ThreeSizingAndWidthControls({
 
               className="w-full h-full"
             >
-              <select
+              <PanelSelect
                 className={[UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME, 'text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
                 value={nodeSizingFormula}
                 onChange={e => {
@@ -160,7 +161,7 @@ export default function ThreeSizingAndWidthControls({
               >
                 <option value="schema">Schema (type-based)</option>
                 <option value="importance">Importance (visual:importance)</option>
-              </select>
+              </PanelSelect>
             </Tooltip>
           </RightAlignedValueCell>
         )}
@@ -187,7 +188,7 @@ export default function ThreeSizingAndWidthControls({
 
               className="w-full h-full"
             >
-              <select
+              <PanelSelect
                 className={[UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME, 'text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
                 value={edgeWidthFormula}
                 onChange={e => {
@@ -198,7 +199,7 @@ export default function ThreeSizingAndWidthControls({
               >
                 <option value="schema">Schema (label-based)</option>
                 <option value="weight">Weight (edge weight)</option>
-              </select>
+              </PanelSelect>
             </Tooltip>
           </RightAlignedValueCell>
         )}
@@ -219,7 +220,7 @@ export default function ThreeSizingAndWidthControls({
         typeNode={null}
         valueNode={(
           <RightAlignedValueCell>
-            <input
+            <PanelTextInput
               type="number"
               min={0.2}
               max={5}
@@ -250,7 +251,7 @@ export default function ThreeSizingAndWidthControls({
         typeNode={null}
         valueNode={(
           <RightAlignedValueCell>
-            <input
+            <PanelTextInput
               type="number"
               min={0.2}
               max={5}

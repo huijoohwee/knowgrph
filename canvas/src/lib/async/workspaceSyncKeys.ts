@@ -24,7 +24,7 @@ export const WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENC
 export const WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE = 'chat:history:runtime-persistence'
 export const WORKSPACE_SYNC_TASK_GRAPH_TABLE_VIEW_STATE = 'graph-table:view-state'
 export const WORKSPACE_SYNC_SCOPE_GRAPH_TABLE_VIEW_STATE_RUNTIME_PERSISTENCE = 'graph-table:view-state:runtime-persistence'
-export const WORKSPACE_SYNC_SCOPE_GRAPH_TABLE_RUNTIME_PERSISTENCE = 'graph-table:runtime-persistence'
+export const WORKSPACE_SYNC_SCOPE_GRAPH_RECORD_RUNTIME_PERSISTENCE = 'graph-record:runtime-persistence'
 
 export const WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE = 'canvas:tab-sync:runtime-persistence'
 export const WORKSPACE_SYNC_SCOPE_CANVAS_PREVIEW_WRITEBACK_RUNTIME_PERSISTENCE = 'canvas:preview-writeback:runtime-persistence'

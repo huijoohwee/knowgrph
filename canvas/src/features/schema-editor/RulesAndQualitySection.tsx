@@ -1,6 +1,7 @@
 import React from 'react'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { PanelCheckbox, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type RulesAndQualitySectionProps = {
@@ -29,7 +30,7 @@ export default function RulesAndQualitySection({
       <Subsection title="Performance">
         <section className="flex items-center gap-2 text-xs">
           <span className={inlineLabelClassName}>Hide labels below scale</span>
-          <input
+          <PanelTextInput
             type="number"
             min={0}
             max={4}
@@ -43,8 +44,7 @@ export default function RulesAndQualitySection({
       <Subsection title="Accessibility">
         <section className="flex items-center gap-2 text-xs">
           <label className={`flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`}>
-            <input
-              type="checkbox"
+            <PanelCheckbox
               className={selectionControlClassName}
               checked={!!schema.accessibility?.highContrast}
               onChange={e => setHighContrast(e.target.checked)}

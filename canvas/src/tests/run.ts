@@ -320,16 +320,16 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modWorkspaceSourceIndex.testWorkspaceSourceIndexCoalescesWrites,
     )
 
-    const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')
+    const modGraphRecordSync = await import('../__tests__/graphRecordDbSyncDedupeRegression.test')
     await execTest(
       results,
-      'ui.graphTable.dbSync.noModuleGlobalGuards',
-      modGraphTableSync.testGraphTableDbSyncDoesNotUseModuleGlobalKeyGuards,
+      'ui.graphRecord.dbSync.noModuleGlobalGuards',
+      modGraphRecordSync.testGraphRecordDbSyncDoesNotUseModuleGlobalKeyGuards,
     )
     await execTest(
       results,
-      'ui.graphTable.dbSync.selectionInspectorUsesWorkspaceSyncMode',
-      modGraphTableSync.testGraphTableSelectionInspectorUsesWorkspaceSyncModeOnly,
+      'ui.graphRecord.dbSync.selectionInspectorUsesWorkspaceSyncMode',
+      modGraphRecordSync.testGraphRecordSelectionInspectorUsesWorkspaceSyncModeOnly,
     )
     const modSourceFilesIngestStaleGuard = await import('../__tests__/sourceFilesIngestStaleGuard.test')
     await execTest(

@@ -52,6 +52,21 @@ export function testGraphRagTextPipelineSectionStageGridUsesResponsiveOwner() {
   }
 }
 
+export function testGraphRagTextPipelineSectionUsesSharedCentralityToggleGroup() {
+  const source = readFileSync(resolve(process.cwd(), 'src/features/panels/views/GraphRagTextPipelineSection.tsx'), 'utf8')
+  const sharedGroup = readFileSync(resolve(process.cwd(), 'src/features/graphrag/ui/GraphRagCentralityToggleGroup.tsx'), 'utf8')
+  if (
+    !source.includes("from '@/features/graphrag/ui/GraphRagCentralityToggleGroup'") ||
+    !source.includes('GraphRagCentralityToggleGroup') ||
+    source.includes('type="checkbox"')
+  ) {
+    throw new Error('expected GraphRAG text pipeline analytics toggles to consume the shared centrality toggle group')
+  }
+  if (!sharedGroup.includes("from '@/lib/ui/panelFormControls'") || !sharedGroup.includes('PanelCheckbox')) {
+    throw new Error('expected shared GraphRAG centrality toggle group to reuse the shared panel checkbox primitive')
+  }
+}
+
 export function testGraphRagAieBookDemoGridsUseResponsiveOwners() {
   const source = readFileSync(resolve(process.cwd(), 'src/features/demo/GraphRagAieBookChapterSummariesDemo.tsx'), 'utf8')
   for (const snippet of [

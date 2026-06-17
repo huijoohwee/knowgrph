@@ -2,6 +2,8 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { PanelCheckbox } from '@/lib/ui/panelFormControls'
+import { PanelKeyTypeSliderNumberRow } from '@/features/panels/ui/PanelKeyTypeSliderNumberRow'
 import {
   AI_KG_FORCE_BOX_FORCE_ROW_TOOLTIP,
   AI_KG_FORCE_BOX_FORCE_STRENGTH_ROW_TOOLTIP,
@@ -27,7 +29,6 @@ import {
 } from '../AiKgLayersSectionTooltips'
 import { OrchestratorTraversalDelayRow } from '@/features/panels/ui/OrchestratorTraversalDelayRow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 type AiKgForceControlsProps = {
@@ -49,6 +50,7 @@ export default function AiKgForceControls({
   setTraversalDelayMs,
   uiPanelKeyValueInputClass,
 }: AiKgForceControlsProps) {
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   const currentCharge = schema.layout?.forces?.charge ?? -CHARGE_STRENGTH_DEFAULT
   const separation = Math.abs(currentCharge)
 
@@ -59,19 +61,44 @@ export default function AiKgForceControls({
     typeof sampleCollisionType === 'string' && typeof collisionByType[sampleCollisionType] === 'number'
       ? (collisionByType[sampleCollisionType] as number)
       : COLLISION_RADIUS_DEFAULT
-  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
-  const KeyTypeValueRow = (
-    props: Omit<
-      React.ComponentProps<typeof KeyTypeValueStaticRow>,
-      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
-    >,
-  ) => <KeyTypeValueStaticRow {...compactStaticRowProps} {...props} />
+  const setBoxForceEnabled = (nextEnabled: boolean) => {
+    const forces = schema.layout?.forces || {}
+    setSchema({
+      ...schema,
+      layout: { ...schema.layout, forces: { ...forces, boxForce: nextEnabled } },
+    })
+  }
+  const setBoxForceStrength = (nextValue: number) => {
+    const forces = schema.layout?.forces || {}
+    setSchema({
+      ...schema,
+      layout: { ...schema.layout, forces: { ...forces, boxForceStrength: nextValue } },
+    })
+  }
 
   return (
     <>
-      <KeyTypeValueRow
+      <PanelKeyTypeSliderNumberRow
         density="compact"
-        layout="keyIconSliderInput"
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+        min={CHARGE_STRENGTH_MIN}
+        max={CHARGE_STRENGTH_MAX}
+        step={CHARGE_STRENGTH_INTERVAL}
+        value={Number(separation)}
+        displayValue={Number(
+          Math.round(separation / CHARGE_STRENGTH_INTERVAL) * CHARGE_STRENGTH_INTERVAL,
+        )}
+        fallbackValue={CHARGE_STRENGTH_DEFAULT}
+        normalizeValue={raw =>
+          Math.round(
+            Math.max(CHARGE_STRENGTH_MIN, Math.min(CHARGE_STRENGTH_MAX, raw)) / CHARGE_STRENGTH_INTERVAL,
+          ) * CHARGE_STRENGTH_INTERVAL
+        }
+        onChange={next => {
+          const nextCharge = -Math.abs(next)
+          setCharge(nextCharge)
+        }}
+        controlTooltip={CHARGE_STRENGTH_TOOLTIP}
         keyNode={(
           <Tooltip
             content={AI_KG_FORCE_CHARGE_ROW_TOOLTIP}
@@ -82,62 +109,6 @@ export default function AiKgForceControls({
             layout.forces.charge
           </Tooltip>
         )}
-        typeNode={(
-          <Tooltip
-            content={CHARGE_STRENGTH_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="range"
-              min={CHARGE_STRENGTH_MIN}
-              max={CHARGE_STRENGTH_MAX}
-              step={CHARGE_STRENGTH_INTERVAL}
-              value={Number(separation)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(CHARGE_STRENGTH_MIN, Math.min(CHARGE_STRENGTH_MAX, raw))
-                  : CHARGE_STRENGTH_DEFAULT
-                const quantized =
-                  Math.round(clamped / CHARGE_STRENGTH_INTERVAL) * CHARGE_STRENGTH_INTERVAL
-                const nextCharge = -Math.abs(quantized)
-                setCharge(nextCharge)
-              }}
-              className="w-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={CHARGE_STRENGTH_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full"
-          >
-            <input
-              type="number"
-              min={CHARGE_STRENGTH_MIN}
-              max={CHARGE_STRENGTH_MAX}
-              step={CHARGE_STRENGTH_INTERVAL}
-              value={Number(
-                Math.round(separation / CHARGE_STRENGTH_INTERVAL) * CHARGE_STRENGTH_INTERVAL,
-              )}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(CHARGE_STRENGTH_MIN, Math.min(CHARGE_STRENGTH_MAX, raw))
-                  : CHARGE_STRENGTH_DEFAULT
-                const quantized =
-                  Math.round(clamped / CHARGE_STRENGTH_INTERVAL) * CHARGE_STRENGTH_INTERVAL
-                const nextCharge = -Math.abs(quantized)
-                setCharge(nextCharge)
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
-          </Tooltip>
-        )}
       />
       <OrchestratorTraversalDelayRow
         density="compact"
@@ -145,9 +116,22 @@ export default function AiKgForceControls({
         onChangeTraversalDelayMs={setTraversalDelayMs}
         uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
       />
-      <KeyTypeValueRow
+      <PanelKeyTypeSliderNumberRow
         density="compact"
-        layout="keyIconSliderInput"
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+        min={COLLISION_RADIUS_MIN}
+        max={COLLISION_RADIUS_MAX}
+        step={COLLISION_RADIUS_INTERVAL}
+        value={clampCollisionRadius(currentCollision)}
+        fallbackValue={COLLISION_RADIUS_DEFAULT}
+        normalizeValue={raw => clampCollisionRadius(raw)}
+        onChange={next => {
+          const types = schema.catalog?.nodeTypes || []
+          types.forEach(t => {
+            if (t) setCollisionByType(t, next)
+          })
+        }}
+        controlTooltip={COLLISION_RADIUS_TOOLTIP}
         keyNode={(
           <Tooltip
             content={AI_KG_FORCE_COLLISION_ROW_TOOLTIP}
@@ -159,57 +143,9 @@ export default function AiKgForceControls({
             </span>
           </Tooltip>
         )}
-        typeNode={(
-          <Tooltip
-            content={COLLISION_RADIUS_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full h-full"
-          >
-            <input
-              type="range"
-              min={COLLISION_RADIUS_MIN}
-              max={COLLISION_RADIUS_MAX}
-              step={COLLISION_RADIUS_INTERVAL}
-              value={clampCollisionRadius(currentCollision)}
-              onChange={e => {
-                const next = clampCollisionRadius(e.target.value)
-                const types = schema.catalog?.nodeTypes || []
-                types.forEach(t => {
-                  if (t) setCollisionByType(t, next)
-                })
-              }}
-              className="w-full h-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={COLLISION_RADIUS_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full h-full"
-          >
-            <input
-              type="number"
-              min={COLLISION_RADIUS_MIN}
-              max={COLLISION_RADIUS_MAX}
-              step={COLLISION_RADIUS_INTERVAL}
-              value={clampCollisionRadius(currentCollision)}
-              onChange={e => {
-                const next = clampCollisionRadius(e.target.value)
-                const types = schema.catalog?.nodeTypes || []
-                types.forEach(t => {
-                  if (t) setCollisionByType(t, next)
-                })
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
-          </Tooltip>
-        )}
       />
-      <KeyTypeValueRow
-        density="compact"
+      <KeyTypeValueStaticRow
+        {...compactStaticRowProps}
         layout="keyIconValue"
         keyNode={(
           <Tooltip
@@ -229,25 +165,25 @@ export default function AiKgForceControls({
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
             <section className="flex items-center justify-end">
-              <input
-                type="checkbox"
+              <PanelCheckbox
                 checked={schema.layout?.forces?.boxForce !== false}
-                onChange={e => {
-                  const forces = schema.layout?.forces || {}
-                  setSchema({
-                    ...schema,
-                    layout: { ...schema.layout, forces: { ...forces, boxForce: e.target.checked } },
-                  })
-                }}
-                className={`${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} ${UI_THEME_TOKENS.input.border}`}
+                onChange={e => setBoxForceEnabled(e.target.checked)}
               />
             </section>
           </Tooltip>
         )}
       />
-      <KeyTypeValueRow
+      <PanelKeyTypeSliderNumberRow
         density="compact"
-        layout="keyIconSliderInput"
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+        min={0.01}
+        max={0.2}
+        step={0.01}
+        value={schema.layout?.forces?.boxForceStrength ?? 0.05}
+        fallbackValue={0.05}
+        normalizeValue={raw => Math.round(Math.max(0.01, Math.min(0.2, raw)) * 100) / 100}
+        onChange={setBoxForceStrength}
+        controlTooltip={BOX_FORCE_STRENGTH_TOOLTIP}
         keyNode={(
           <Tooltip
             content={AI_KG_FORCE_BOX_FORCE_STRENGTH_ROW_TOOLTIP}
@@ -256,64 +192,6 @@ export default function AiKgForceControls({
             className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
             layout.forces.boxForceStrength
-          </Tooltip>
-        )}
-        typeNode={(
-          <Tooltip
-            content={BOX_FORCE_STRENGTH_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full h-full"
-          >
-            <input
-              type="range"
-              min={0.01}
-              max={0.2}
-              step={0.01}
-              value={schema.layout?.forces?.boxForceStrength ?? 0.05}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.01, Math.min(0.2, raw))
-                  : 0.05
-                const quantized = Math.round(clamped * 100) / 100
-                const forces = schema.layout?.forces || {}
-                setSchema({
-                  ...schema,
-                  layout: { ...schema.layout, forces: { ...forces, boxForceStrength: quantized } },
-                })
-              }}
-              className="w-full h-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={BOX_FORCE_STRENGTH_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-            className="w-full h-full"
-          >
-            <input
-              type="number"
-              min={0.01}
-              max={0.2}
-              step={0.01}
-              value={schema.layout?.forces?.boxForceStrength ?? 0.05}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw)
-                  ? Math.max(0.01, Math.min(0.2, raw))
-                  : 0.05
-                const quantized = Math.round(clamped * 100) / 100
-                const forces = schema.layout?.forces || {}
-                setSchema({
-                  ...schema,
-                  layout: { ...schema.layout, forces: { ...forces, boxForceStrength: quantized } },
-                })
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
           </Tooltip>
         )}
       />

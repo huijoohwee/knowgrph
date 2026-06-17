@@ -5,6 +5,7 @@ import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PanelLabeledRangeField } from '@/features/panels/ui/PanelLabeledRangeField'
 import {
   UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME,
   UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME,
@@ -432,63 +433,63 @@ export function SchemaUiLayoutSection({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const layoutRangeFields = [
+    {
+      key: 'charge',
+      label: 'Charge',
+      min: -1000,
+      max: 1000,
+      step: 10,
+      value: layoutCharge,
+      onChange: setLayoutCharge,
+    },
+    {
+      key: 'center-strength',
+      label: 'Center Strength',
+      min: 0,
+      max: 5,
+      step: 0.1,
+      value: layoutCenterStrength,
+      onChange: setLayoutCenterStrength,
+    },
+    {
+      key: 'alpha-decay',
+      label: 'Alpha Decay',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      value: layoutAlphaDecay,
+      onChange: setLayoutAlphaDecay,
+    },
+    {
+      key: 'fit-padding',
+      label: 'Fit Padding',
+      min: 0,
+      max: 200,
+      step: 1,
+      value: fitPadding,
+      onChange: setFitPadding,
+    },
+  ]
 
   return (
     <section className="mt-2">
       <SchemaSubstepHeader title="Layout" label="Layout" />
       <section className={SCHEMA_UI_LAYOUT_CONTROL_GRID_CLASS_NAME}>
-        <section className="flex flex-col">
-          <label className={schemaLabelClassName}>Charge</label>
-          <input
-            type="range"
-            min="-1000"
-            max="1000"
-            step="10"
-            className="w-full"
-            value={layoutCharge}
-            onChange={e => setLayoutCharge(parseFloat(e.target.value))}
+        {layoutRangeFields.map(field => (
+          <PanelLabeledRangeField
+            key={field.key}
+            label={field.label}
+            valueLabel={field.value}
+            min={field.min}
+            max={field.max}
+            step={field.step}
+            value={field.value}
+            onChange={field.onChange}
+            labelClassName={schemaLabelClassName}
+            valueClassName={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}
           />
-          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutCharge}</section>
-        </section>
-        <section className="flex flex-col">
-          <label className={schemaLabelClassName}>Center Strength</label>
-          <input
-            type="range"
-            min="0"
-            max="5"
-            step="0.1"
-            className="w-full"
-            value={layoutCenterStrength}
-            onChange={e => setLayoutCenterStrength(parseFloat(e.target.value))}
-          />
-          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutCenterStrength}</section>
-        </section>
-        <section className="flex flex-col">
-          <label className={schemaLabelClassName}>Alpha Decay</label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            className="w-full"
-            value={layoutAlphaDecay}
-            onChange={e => setLayoutAlphaDecay(parseFloat(e.target.value))}
-          />
-          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{layoutAlphaDecay}</section>
-        </section>
-        <section className="flex flex-col">
-          <label className={schemaLabelClassName}>Fit Padding</label>
-          <input
-            type="range"
-            min="0"
-            max="200"
-            step="1"
-            className="w-full"
-            value={fitPadding}
-            onChange={e => setFitPadding(parseFloat(e.target.value))}
-          />
-          <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{fitPadding}</section>
-        </section>
+        ))}
       </section>
       <TwoColumnEditorGrid className="mt-2">
         <section className={SCHEMA_UI_EDITOR_COLUMN_CLASS_NAME}>

@@ -8,6 +8,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { reorderList } from '@/lib/reorder'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
+import { GraphFieldsFieldTextInput } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import {
   UI_RESPONSIVE_GRAPH_FIELDS_COMPACT_ICON_CELL_CLASSNAME,
   UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME,
@@ -56,6 +57,7 @@ export function SelectOptionsSection({
   const [draggingSelectOptionIndex, setDraggingSelectOptionIndex] = React.useState<number | null>(null)
   const [pendingFocusSelectOptionIndex, setPendingFocusSelectOptionIndex] = React.useState<number | null>(null)
   const selectOptionInputRefs = React.useRef<Map<number, HTMLInputElement | null>>(new Map())
+  const optionInputClassName = UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME
 
   React.useEffect(() => {
     if (pendingFocusSelectOptionIndex === null) return
@@ -146,7 +148,7 @@ export function SelectOptionsSection({
                 </svg>
               </section>
             </section>
-            <input
+            <GraphFieldsFieldTextInput
               value={opt}
               ref={el => {
                 if (!el) {
@@ -160,7 +162,8 @@ export function SelectOptionsSection({
                 next[idx] = e.target.value
                 setSelectedSelectOptions(next)
               }}
-              className={`${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} flex-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text}`}
+              className={`${optionInputClassName} flex-1`}
+              textSizeClassName={uiPanelKeyValueTextSizeClass}
             />
             <button
               type="button"

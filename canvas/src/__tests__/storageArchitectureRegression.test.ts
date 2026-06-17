@@ -232,14 +232,14 @@ export function testWorkspaceFsCacheOwnerUsesPersistedCollectionStore() {
   }
 }
 
-export function testGraphTableCacheOwnerUsesPersistedCollectionStore() {
-  const storagePath = resolve(process.cwd(), 'src', 'lib', 'graph-table-db', 'graphTableDb.impl.ts')
+export function testGraphRecordCacheOwnerUsesPersistedCollectionStore() {
+  const storagePath = resolve(process.cwd(), 'src', 'lib', 'graph-record-db', 'graphRecordDb.impl.ts')
   const storageText = readFileSync(storagePath, 'utf8')
   if (storageText.includes('createRxDatabase') || storageText.includes("from 'rxdb/")) {
-    throw new Error('expected graphTableDb cache owner to avoid legacy runtime seams once the cache layer is minimal')
+    throw new Error('expected graphRecordDb cache owner to avoid legacy runtime seams once the cache layer is minimal')
   }
   if (!storageText.includes('createPersistedCollectionDb')) {
-    throw new Error('expected graphTableDb cache owner to use the minimal persisted collection store')
+    throw new Error('expected graphRecordDb cache owner to use the minimal persisted collection store')
   }
 }
 

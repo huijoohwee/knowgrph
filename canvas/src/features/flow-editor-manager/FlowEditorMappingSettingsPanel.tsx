@@ -20,6 +20,7 @@ import {
 
 import type { FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 import FlowMappingRowsTable from '@/features/flow-editor-manager/FlowMappingRowsTable'
+import { PanelCheckbox, PanelField, PanelTextInput } from '@/lib/ui/panelFormControls'
 
 export type FlowEditorMappingEditorDraft = {
   id: string
@@ -91,44 +92,53 @@ export function FlowEditorMappingSettingsPanel(props: {
               <section className={UI_RESPONSIVE_FLOW_MANAGER_SECTION_HEADER_CLASSNAME} aria-label="Identity header">
                 <section className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Identity</section>
                 <label className={cn(UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME, panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
-                  <input type="checkbox" checked={!!draft.isEnabled} onChange={e => onChangeDraft({ isEnabled: e.target.checked })} />
+                  <PanelCheckbox checked={!!draft.isEnabled} onChange={e => onChangeDraft({ isEnabled: e.target.checked })} />
                   Enabled
                 </label>
               </section>
 
               <section className={cn(UI_RESPONSIVE_FLOW_MANAGER_SECTION_GRID_CLASSNAME, 'sm:grid-cols-3')} aria-label="Identity inputs">
                 <section className="sm:col-span-1">
-                  <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-manager-nodeType">
-                    Node Type
-                  </label>
-                  <input
-                    id="flow-editor-manager-nodeType"
-                    value={draft.nodeTypeId}
-                    onChange={e => onChangeDraft({ nodeTypeId: e.target.value })}
-                    className={fieldClassName}
-                  />
+                  <PanelField
+                    label="Node Type"
+                    className="grid gap-1"
+                    labelClassName={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                  >
+                    <PanelTextInput
+                      id="flow-editor-manager-nodeType"
+                      value={draft.nodeTypeId}
+                      onChange={e => onChangeDraft({ nodeTypeId: e.target.value })}
+                      className={fieldClassName}
+                    />
+                  </PanelField>
                 </section>
                 <section className="sm:col-span-1">
-                  <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-manager-editorType">
-                    Widget Type
-                  </label>
-                  <input
-                    id="flow-editor-manager-editorType"
-                    value={draft.widgetTypeId}
-                    onChange={e => onChangeDraft({ widgetTypeId: e.target.value })}
-                    className={fieldClassName}
-                  />
+                  <PanelField
+                    label="Widget Type"
+                    className="grid gap-1"
+                    labelClassName={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                  >
+                    <PanelTextInput
+                      id="flow-editor-manager-editorType"
+                      value={draft.widgetTypeId}
+                      onChange={e => onChangeDraft({ widgetTypeId: e.target.value })}
+                      className={fieldClassName}
+                    />
+                  </PanelField>
                 </section>
                 <section className="sm:col-span-1">
-                  <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-manager-formId">
-                    Form ID
-                  </label>
-                  <input
-                    id="flow-editor-manager-formId"
-                    value={draft.formId}
-                    onChange={e => onChangeDraft({ formId: e.target.value })}
-                    className={fieldClassName}
-                  />
+                  <PanelField
+                    label="Form ID"
+                    className="grid gap-1"
+                    labelClassName={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                  >
+                    <PanelTextInput
+                      id="flow-editor-manager-formId"
+                      value={draft.formId}
+                      onChange={e => onChangeDraft({ formId: e.target.value })}
+                      className={fieldClassName}
+                    />
+                  </PanelField>
                 </section>
               </section>
             </section>

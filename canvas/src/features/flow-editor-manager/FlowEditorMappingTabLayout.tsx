@@ -1,5 +1,6 @@
 import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { PanelCheckbox } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME,
@@ -49,12 +50,18 @@ export function FlowEditorMappingTabLayout(props: {
   deleteEditorRow: (id: string) => void
   reorderEditorRow: (id: string, direction: 'up' | 'down') => void
 }) {
+  const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+
   return (
     <section className="h-full min-h-0 flex flex-col" aria-label="Flow Editor Mapping">
       <header className={cn(UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME, UI_THEME_TOKENS.panel.border)}>
         <nav className={cn(UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME, 'flex-wrap')} aria-label="Mapping actions">
           <label className={`${UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME} ${props.panelTypographyMicroLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>
-            <input type="checkbox" checked={props.enabledOnly} onChange={e => props.setEnabledOnly(e.target.checked)} />
+            <PanelCheckbox
+              className={selectionControlClassName}
+              checked={props.enabledOnly}
+              onChange={e => props.setEnabledOnly(e.target.checked)}
+            />
             Enabled only
           </label>
           <menu className={cn(UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME, 'flex-wrap')} aria-label="Mapping toolbar">

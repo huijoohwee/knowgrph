@@ -176,7 +176,7 @@ When changing shared packages that are wired via `file:` links (for example `sin
   - Canonical hook: `useActiveGraphRenderData()` (`knowgrph/canvas/src/hooks/useActiveGraphData.ts`)
   - Derivation order: keyword semantic mode base → optional frontmatter Mermaid filter (document mode only) → optional group collapse (`collapsedGroupIds`)
   - Example SSOT consumers (host): `PreviewPanelView`, `DatasetInspectorSection`, `MultiDimTableSurface`
-  - Bounded regression test: `canvas/src/__tests__/graphTableDb.test.ts` (`testGraphTableDbSyncsCollapsedView`)
+  - Bounded regression test: `canvas/src/__tests__/graphRecordDb.test.ts` (`testGraphRecordDbSyncsCollapsedGraphViewRows`)
 - Layout + zoom correctness at runtime:
   - Layout position caches are isolated by all render-affecting toggles (datasetKey, semantic/frontmatter/layout, renderMode/renderVariant/layoutVariant/viewKey, mediaPanelDensity, renderMediaAsNodes) to prevent cross-mode contamination.
   - Fit-to-screen and zoom-to-selection must react to viewport changes (resize/UI chrome) and must no-op when the view is pinned.

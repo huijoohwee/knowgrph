@@ -162,7 +162,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["markdown.jsonToMarkdown.preferTable.avoidsListStyle","@/__tests__/jsonToMarkdownTableHeaderUnion.test","testJsonToMarkdownPreferTableAvoidsListStyleForJsonBackedObject"],
   ["ui.detailsMenu.toggleGuard","@/__tests__/detailsMenuToggleGuard.test","testDetailsMenuToggleGuardOnlyOpensFromToggleTarget"],
   ["ui.typeMenu.closesClosestDetails","@/__tests__/detailsMenuToggleGuard.test","testTypeMenuClosesClosestDetailsWhenSelecting"],
-  ["ui.graphTable.header.propertyTypeMenu","@/__tests__/graphTableHeaderPropertyTypeMenu.test","testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect"],
+  ["ui.graphDataTable.header.propertyTypeMenu","@/__tests__/graphTableHeaderPropertyTypeMenu.test","testGraphDataTableFastGridHeaderPropertyTypeMenuCallsOnSelect"],
   ["markdownDataView.header.propertyTypeMenu","@/__tests__/markdownDataViewHeaderPropertyTypeMenu.test","testMarkdownDataViewHeaderPropertyTypeMenuCallsOnChangeColumnType"],
   ["markdownDataView.header.propertyTypeMenu.readOnly","@/__tests__/markdownDataViewHeaderPropertyTypeMenuReadOnly.test","testMarkdownDataViewHeaderPropertyTypeMenuOpensInReadOnly"],
   ["markdownDataView.header.propertyTypeMenu.configMode","@/__tests__/markdownDataViewHeaderPropertyTypeMenuConfigMode.test","testMarkdownDataViewHeaderPropertyTypeMenuAllowsConfigWhenCellsReadOnly"],

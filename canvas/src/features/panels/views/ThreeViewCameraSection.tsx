@@ -1,7 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
-import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
+import { PanelKeyTypeCheckboxValueRow } from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'
+import { PanelKeyTypeRangeValueRow } from '@/features/panels/ui/PanelKeyTypeRangeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -35,7 +35,6 @@ export default function ThreeViewCameraSection({
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
   const selectionControlClassName = `${UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
-  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   return (
     <CollapsibleSection
       title="Camera and navigation"
@@ -45,162 +44,94 @@ export default function ThreeViewCameraSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Camera Damping</span>}
+          min={0}
+          max={0.3}
+          step={0.01}
+          value={Number(schema.three?.cameraDampingFactor ?? 0.08)}
+          onChange={next => setThreeConfig({ cameraDampingFactor: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={0.3}
-                step={0.01}
-                value={Number(schema.three?.cameraDampingFactor ?? 0.08)}
-                onChange={e =>
-                  setThreeConfig({ cameraDampingFactor: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={CAMERA_DAMPING_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.cameraDampingFactor ?? 0.08)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={CAMERA_DAMPING_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.cameraDampingFactor ?? 0.08)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Rotate Speed</span>}
+          min={0.1}
+          max={2}
+          step={0.05}
+          value={Number(schema.three?.cameraRotateSpeed ?? 0.6)}
+          onChange={next => setThreeConfig({ cameraRotateSpeed: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.1}
-                max={2}
-                step={0.05}
-                value={Number(schema.three?.cameraRotateSpeed ?? 0.6)}
-                onChange={e =>
-                  setThreeConfig({ cameraRotateSpeed: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={ROTATE_SPEED_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.cameraRotateSpeed ?? 0.6)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={ROTATE_SPEED_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.cameraRotateSpeed ?? 0.6)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Zoom Speed</span>}
+          min={0.2}
+          max={2}
+          step={0.05}
+          value={Number(schema.three?.cameraZoomSpeed ?? 0.8)}
+          onChange={next => setThreeConfig({ cameraZoomSpeed: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.2}
-                max={2}
-                step={0.05}
-                value={Number(schema.three?.cameraZoomSpeed ?? 0.8)}
-                onChange={e =>
-                  setThreeConfig({ cameraZoomSpeed: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={ZOOM_SPEED_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.cameraZoomSpeed ?? 0.8)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={ZOOM_SPEED_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.cameraZoomSpeed ?? 0.8)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Pan Speed</span>}
+          min={0.1}
+          max={2}
+          step={0.05}
+          value={Number(schema.three?.cameraPanSpeed ?? 0.5)}
+          onChange={next => setThreeConfig({ cameraPanSpeed: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.1}
-                max={2}
-                step={0.05}
-                value={Number(schema.three?.cameraPanSpeed ?? 0.5)}
-                onChange={e =>
-                  setThreeConfig({ cameraPanSpeed: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={PAN_SPEED_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.cameraPanSpeed ?? 0.5)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={PAN_SPEED_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.cameraPanSpeed ?? 0.5)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeCheckboxValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Auto Rotate</span>}
-          valueNode={(
-            <input
-              type="checkbox"
-              className={selectionControlClassName}
-              checked={Boolean(schema.three?.cameraAutoRotate ?? false)}
-              disabled={voxelModeActive}
-              onChange={e =>
-                setThreeConfig({ cameraAutoRotate: e.target.checked })
-              }
-            />
-          )}
-          {...compactStaticRowProps}
+          checked={Boolean(schema.three?.cameraAutoRotate ?? false)}
+          disabled={voxelModeActive}
+          onChange={next => setThreeConfig({ cameraAutoRotate: next })}
+          checkboxClassName={selectionControlClassName}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Auto Rotate Speed</span>}
+          min={0}
+          max={3}
+          step={0.1}
+          value={Number(schema.three?.cameraAutoRotateSpeed ?? 0.4)}
+          disabled={voxelModeActive}
+          onChange={next => setThreeConfig({ cameraAutoRotateSpeed: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={3}
-                step={0.1}
-                value={Number(schema.three?.cameraAutoRotateSpeed ?? 0.4)}
-                disabled={voxelModeActive}
-                onChange={e =>
-                  setThreeConfig({ cameraAutoRotateSpeed: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={AUTO_ROTATE_SPEED_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.cameraAutoRotateSpeed ?? 0.4)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={AUTO_ROTATE_SPEED_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.cameraAutoRotateSpeed ?? 0.4)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

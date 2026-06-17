@@ -1,8 +1,8 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/graph-table/ui/GraphTableInspector'
+import { GraphRecordInspector, type GraphRecordInspectorRow } from '@/features/graph-inspector/ui/GraphRecordInspector'
 import FlowEditorInspector from '@/components/FlowEditor/FlowEditorInspector'
-import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
+import type { GraphRecordColumnDoc } from '@/lib/graph-record-db'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -34,7 +34,7 @@ export async function testInspectorTypographyUsesUiSettings() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    const columns: GraphColumnDoc[] = [
+    const columns: GraphRecordColumnDoc[] = [
       {
         pk: 'nodes:label',
         tableId: 'nodes',
@@ -48,7 +48,7 @@ export async function testInspectorTypographyUsesUiSettings() {
       },
     ]
 
-    const row: GraphTableInspectorRow = {
+    const row: GraphRecordInspectorRow = {
       tableId: 'nodes',
       rowId: 'n1',
       order: 0,
@@ -60,7 +60,7 @@ export async function testInspectorTypographyUsesUiSettings() {
         React.createElement(
           'div',
           {},
-          React.createElement(GraphTableInspector, {
+          React.createElement(GraphRecordInspector, {
             columns,
             row,
             onClose: () => void 0,

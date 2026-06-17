@@ -1,5 +1,6 @@
 import React from 'react'
 import { ArrowLeftRight, ArrowUpDown, Filter, Layers, LayoutGrid, MoreHorizontal, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownWorkspaceDerivedViewerMode } from './MarkdownWorkspaceDerivedViewer'
@@ -119,8 +120,9 @@ export function WorkspaceDataViewHeader(props: {
             >
               <Search className={icon12Class} aria-hidden="true" />
               <span className="sr-only">{MARKDOWN_DATA_VIEW_COPY.searchLabel}</span>
-              <input
+              <PanelTextInput
                 ref={searchInputRef}
+                variant="transparent"
                 className={[UI_RESPONSIVE_DATA_VIEW_SEARCH_INPUT_CLASSNAME, 'bg-transparent outline-none text-xs', UI_THEME_TOKENS.input.text].join(' ')}
                 placeholder={MARKDOWN_DATA_VIEW_COPY.searchPlaceholder}
                 value={props.state.searchQuery}

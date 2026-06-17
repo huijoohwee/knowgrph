@@ -81,7 +81,7 @@
 - Workspace view mode: `LS_KEYS.workspaceViewMode` (`Canvas | Editor | Table`)
 - Editor sections:
   - Markdown Workspace (SSOT text + Explorer)
-  - Multi-dimensional Table (host-owned Graph Data Table: canvas fast-grid + Record Inspector split, backed by the persisted GraphTableDb cache over JSON GraphData; opened only via Workspace toolbar “Workspace: Multi-dimensional Table”, never via Document Mode “Multi-dimensional Table Mode” which is canvas-layout only).
+  - Multi-dimensional Table (host-owned Graph Data Table: canvas fast-grid + Record Inspector split, backed by the persisted GraphRecordDb cache over JSON GraphData; opened only via Workspace toolbar “Workspace: Multi-dimensional Table”, never via Document Mode “Multi-dimensional Table Mode” which is canvas-layout only).
 
 **Stability constraints**
 - The Canvas is mounted once (single `CanvasViewport`) and resized into the right Canvas pane for Editor/Table; do not mount a second preview surface.

@@ -39,6 +39,11 @@ import AdvancedSection from '@/features/schema-editor/AdvancedSection'
 import SchemaUiEditor from '@/features/schema/ui/SchemaUiEditor'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldGraphLayersSection'
+import {
+  GraphFieldsCompactCheckbox,
+  GraphFieldsComfortableFieldSelect,
+  GraphFieldsComfortableTextInput,
+} from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
@@ -105,6 +110,13 @@ export default function FieldSettingsPanel({
   const secondaryActionButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`
   const fieldLabelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`
   const fieldHintClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const compactCheckboxClassName = UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME
+  const comfortableInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME} w-full`
+  const comfortableSelectClassName = [
+    MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME,
+    UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME,
+    'w-full text-left',
+  ].join(' ')
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
@@ -294,9 +306,8 @@ export default function FieldSettingsPanel({
               <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
                 <section className={`flex items-center justify-between ${uiPanelKeyValueTextSizeClass}`}>
                   <span className={UI_THEME_TOKENS.text.primary}>Voxel animation</span>
-                  <input
-                    type="checkbox"
-                    className={`${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
+                  <GraphFieldsCompactCheckbox
+                    className={compactCheckboxClassName}
                     checked={schema.three?.voxelAnimationEnabled !== false}
                     onChange={e => {
                       const current = schema as GraphSchema
@@ -359,11 +370,12 @@ export default function FieldSettingsPanel({
                       {UI_LABELS.name}
                     </label>
                     <section className="mt-1">
-                      <input
+                      <GraphFieldsComfortableTextInput
                         id="graph-fields-display-name"
                         value={selectedSettings.displayName}
                         onChange={e => updateSelectedSettings({ displayName: e.target.value })}
-                        className={`${UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+                        className={comfortableInputClassName}
+                        textSizeClassName={uiPanelKeyValueTextSizeClass}
                       />
                     </section>
                   </section>
@@ -372,18 +384,19 @@ export default function FieldSettingsPanel({
                       {UI_LABELS.type}
                     </label>
                     <section className="mt-1">
-                      <select
+                      <GraphFieldsComfortableFieldSelect
                         id="graph-fields-type"
                         value={selectedSettings.fieldType}
                         onChange={e => updateSelectedSettings({ fieldType: e.target.value as GraphFieldType })}
-                        className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME, 'w-full text-left'].join(' ')}
+                        className={comfortableSelectClassName}
+                        textSizeClassName={uiPanelKeyValueTextSizeClass}
                       >
                         {GRAPH_FIELD_TYPES.map(t => (
                           <option key={t} value={t}>
                             {t}
                           </option>
                         ))}
-                      </select>
+                      </GraphFieldsComfortableFieldSelect>
                       {suggestedFieldType ? (
                         <section className={`${fieldHintClassName} mt-1`}>
                           Suggested: {suggestedFieldType}

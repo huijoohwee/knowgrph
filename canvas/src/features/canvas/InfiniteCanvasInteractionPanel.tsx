@@ -11,6 +11,7 @@ import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 import { DEFAULT_PHYSICS2D_TUNING, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
 import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
+import { PanelLabeledRangeCard } from '@/features/panels/ui/PanelLabeledRangeCard'
 
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
@@ -210,6 +211,98 @@ export function InfiniteCanvasInteractionPanel() {
       ],
     },
   ]
+  const physics2dRangeCards = [
+    {
+      key: 'charge',
+      label: 'Charge scale',
+      valueLabel: physics2d.chargeScale.toFixed(2),
+      min: 0.1,
+      max: 2,
+      step: 0.01,
+      value: physics2d.chargeScale,
+      onChange: (next: number) => setPhysics2d({ physics2dChargeScale: next }),
+    },
+    {
+      key: 'collide',
+      label: 'Collide strength',
+      valueLabel: physics2d.collideStrengthScale.toFixed(2),
+      min: 0.1,
+      max: 2,
+      step: 0.01,
+      value: physics2d.collideStrengthScale,
+      onChange: (next: number) => setPhysics2d({ physics2dCollideStrengthScale: next }),
+    },
+    {
+      key: 'bbox',
+      label: 'BBox strength',
+      valueLabel: physics2d.bboxStrengthScale.toFixed(2),
+      min: 0.1,
+      max: 2,
+      step: 0.01,
+      value: physics2d.bboxStrengthScale,
+      onChange: (next: number) => setPhysics2d({ physics2dBboxStrengthScale: next }),
+    },
+    {
+      key: 'velocity-decay-bias',
+      label: 'Velocity decay bias',
+      valueLabel: physics2d.velocityDecayBias.toFixed(2),
+      min: -0.25,
+      max: 0.25,
+      step: 0.01,
+      value: physics2d.velocityDecayBias,
+      onChange: (next: number) => setPhysics2d({ physics2dVelocityDecayBias: next }),
+    },
+    {
+      key: 'max-speed',
+      label: 'Max speed scale',
+      valueLabel: physics2d.maxSpeedScale.toFixed(2),
+      min: 0.3,
+      max: 3,
+      step: 0.01,
+      value: physics2d.maxSpeedScale,
+      onChange: (next: number) => setPhysics2d({ physics2dMaxSpeedScale: next }),
+    },
+    {
+      key: 'strict-overlap',
+      label: 'Strict overlap',
+      valueLabel: physics2d.strictOverlapScale.toFixed(2),
+      min: 0.3,
+      max: 3,
+      step: 0.01,
+      value: physics2d.strictOverlapScale,
+      onChange: (next: number) => setPhysics2d({ physics2dStrictOverlapScale: next }),
+    },
+    {
+      key: 'label-nudge',
+      label: 'Label nudge',
+      valueLabel: physics2d.labelNudgeScale.toFixed(2),
+      min: 0.2,
+      max: 3,
+      step: 0.01,
+      value: physics2d.labelNudgeScale,
+      onChange: (next: number) => setPhysics2d({ physics2dLabelNudgeScale: next }),
+    },
+    {
+      key: 'drag-charge',
+      label: 'Drag charge scale',
+      valueLabel: physics2d.dragChargeScale.toFixed(2),
+      min: 0.1,
+      max: 1,
+      step: 0.01,
+      value: physics2d.dragChargeScale,
+      onChange: (next: number) => setPhysics2d({ physics2dDragChargeScale: next }),
+    },
+    {
+      key: 'drag-distance-max',
+      label: 'Drag distanceMax',
+      valueLabel: `${Math.round(physics2d.dragDistanceMaxPx)}px`,
+      min: 120,
+      max: 6000,
+      step: 10,
+      value: physics2d.dragDistanceMaxPx,
+      onChange: (next: number) => setPhysics2d({ physics2dDragDistanceMaxPx: next }),
+    },
+  ]
 
   return (
     <section className="space-y-4">
@@ -277,8 +370,8 @@ export function InfiniteCanvasInteractionPanel() {
               </button>
             </TwoColumnEditorGrid>
           </section>
-          <section className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
-            <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+          <PanelLabeledRangeCard
+            label={(
               <Tooltip
                 content="Higher values make the simulation respond faster to drags but can cause large global movement."
                 maxWidthPx={260}
@@ -286,20 +379,14 @@ export function InfiniteCanvasInteractionPanel() {
               >
                 <span>Drag alphaTarget</span>
               </Tooltip>
-              <span className="font-mono">{Number.isFinite(graphDragAlphaTarget2d) ? graphDragAlphaTarget2d.toFixed(2) : '0.00'}</span>
-            </section>
-            <section className="mt-1">
-              <input
-                type="range"
-                min={0}
-                max={0.6}
-                step={0.01}
-                value={Number.isFinite(graphDragAlphaTarget2d) ? graphDragAlphaTarget2d : 0}
-                onChange={e => setGraphDragAlphaTarget2d(Number(e.target.value))}
-                className="w-full"
-              />
-            </section>
-          </section>
+            )}
+            valueLabel={Number.isFinite(graphDragAlphaTarget2d) ? graphDragAlphaTarget2d.toFixed(2) : '0.00'}
+            min={0}
+            max={0.6}
+            step={0.01}
+            value={Number.isFinite(graphDragAlphaTarget2d) ? graphDragAlphaTarget2d : 0}
+            onChange={setGraphDragAlphaTarget2d}
+          />
           <TwoColumnEditorGrid>
             <button
               type="button"
@@ -365,77 +452,18 @@ export function InfiniteCanvasInteractionPanel() {
             </section>
 
             <section className="mt-2 space-y-2">
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Charge scale</span>
-                  <span className="font-mono">{physics2d.chargeScale.toFixed(2)}</span>
-                </section>
-                <input type="range" min={0.1} max={2} step={0.01} value={physics2d.chargeScale} onChange={e => setPhysics2d({ physics2dChargeScale: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Collide strength</span>
-                  <span className="font-mono">{physics2d.collideStrengthScale.toFixed(2)}</span>
-                </section>
-                <input type="range" min={0.1} max={2} step={0.01} value={physics2d.collideStrengthScale} onChange={e => setPhysics2d({ physics2dCollideStrengthScale: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>BBox strength</span>
-                  <span className="font-mono">{physics2d.bboxStrengthScale.toFixed(2)}</span>
-                </section>
-                <input type="range" min={0.1} max={2} step={0.01} value={physics2d.bboxStrengthScale} onChange={e => setPhysics2d({ physics2dBboxStrengthScale: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Velocity decay bias</span>
-                  <span className="font-mono">{physics2d.velocityDecayBias.toFixed(2)}</span>
-                </section>
-                <input type="range" min={-0.25} max={0.25} step={0.01} value={physics2d.velocityDecayBias} onChange={e => setPhysics2d({ physics2dVelocityDecayBias: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Max speed scale</span>
-                  <span className="font-mono">{physics2d.maxSpeedScale.toFixed(2)}</span>
-                </section>
-                <input type="range" min={0.3} max={3} step={0.01} value={physics2d.maxSpeedScale} onChange={e => setPhysics2d({ physics2dMaxSpeedScale: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Strict overlap</span>
-                  <span className="font-mono">{physics2d.strictOverlapScale.toFixed(2)}</span>
-                </section>
-                <input type="range" min={0.3} max={3} step={0.01} value={physics2d.strictOverlapScale} onChange={e => setPhysics2d({ physics2dStrictOverlapScale: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Label nudge</span>
-                  <span className="font-mono">{physics2d.labelNudgeScale.toFixed(2)}</span>
-                </section>
-                <input type="range" min={0.2} max={3} step={0.01} value={physics2d.labelNudgeScale} onChange={e => setPhysics2d({ physics2dLabelNudgeScale: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Drag charge scale</span>
-                  <span className="font-mono">{physics2d.dragChargeScale.toFixed(2)}</span>
-                </section>
-                <input type="range" min={0.1} max={1} step={0.01} value={physics2d.dragChargeScale} onChange={e => setPhysics2d({ physics2dDragChargeScale: Number(e.target.value) })} className="w-full" />
-              </section>
-
-              <section>
-                <section className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
-                  <span>Drag distanceMax</span>
-                  <span className="font-mono">{Math.round(physics2d.dragDistanceMaxPx)}px</span>
-                </section>
-                <input type="range" min={120} max={6000} step={10} value={physics2d.dragDistanceMaxPx} onChange={e => setPhysics2d({ physics2dDragDistanceMaxPx: Number(e.target.value) })} className="w-full" />
-              </section>
+              {physics2dRangeCards.map(card => (
+                <PanelLabeledRangeCard
+                  key={card.key}
+                  label={card.label}
+                  valueLabel={card.valueLabel}
+                  min={card.min}
+                  max={card.max}
+                  step={card.step}
+                  value={card.value}
+                  onChange={card.onChange}
+                />
+              ))}
             </section>
           </section>
         </section>

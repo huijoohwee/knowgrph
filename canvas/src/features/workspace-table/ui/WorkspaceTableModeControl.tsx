@@ -26,7 +26,6 @@ import {
   WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_OPTIONS,
   type WorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
-import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceEditorPane'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { PanelField, PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
@@ -72,7 +71,6 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const workspaceCellSelectPanelPlacement = prefs.workspaceCellSelectPanelPlacement as WorkspaceCellSelectPanelPlacement
 
   const openWorkspaceMultiDimTableFromControl = React.useCallback(() => {
-    void warmGraphTableDb()
     openMarkdownWorkspaceEditorPane({
       workspaceViewMode,
       editorWorkspacePane,

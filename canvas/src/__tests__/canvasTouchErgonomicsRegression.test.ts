@@ -131,10 +131,10 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const monacoTextEditorText = readUtf8(path.resolve(root, 'src/lib/monaco/MonacoTextEditor.impl.tsx'))
   const workspaceWidthDefaultsText = readUtf8(path.resolve(root, 'src/features/workspace-table/workspaceViewCanvasDefaults.ts'))
   const workspacePaneRuntimeText = readUtf8(path.resolve(root, 'src/features/canvas/useCanvasWorkspacePaneRuntime.ts'))
-  const graphTableToolbarText = readUtf8(path.resolve(root, 'src/features/graph-table/ui/GraphTableToolbar.tsx'))
+  const graphTableToolbarText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableToolbar.tsx'))
   const workspaceActionsPanelText = readUtf8(path.resolve(root, 'src/features/workspace-actions/WorkspaceActionsPanel.tsx'))
-  const graphTableDomTableText = readUtf8(path.resolve(root, 'src/features/graph-table/ui/GraphTableDomTableView.tsx'))
-  const graphTableKanbanViewText = readUtf8(path.resolve(root, 'src/features/graph-table/ui/GraphTableKanbanView.tsx'))
+  const graphTableDomTableText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableDomTableView.tsx'))
+  const graphTableKanbanViewText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableKanbanView.tsx'))
   const graphDataTableFieldsPanelText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableFieldsPanel.tsx'))
   const graphDataTableFilterPanelText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableFilterPanel.tsx'))
   const graphDataTableSortPanelText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableSortPanel.tsx'))
@@ -146,6 +146,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const graphDataTableBodyText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableBody.tsx'))
   const graphDataTableRowsText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/GraphDataTableRows.tsx'))
   const graphFieldsSettingsPanelText = readUtf8(path.resolve(root, 'src/features/panels/views/graph-fields/FieldSettingsPanel.tsx'))
+  const graphFieldsPanelControlsText = readUtf8(path.resolve(root, 'src/features/panels/views/graph-fields/GraphFieldsPanelControls.tsx'))
   const graphFieldsTemplatesText = readUtf8(path.resolve(root, 'src/features/panels/views/graph-fields/FieldTemplatesSection.tsx'))
   const graphFieldsValidationText = readUtf8(path.resolve(root, 'src/features/panels/views/graph-fields/FieldLocalSchemaValidationEditor.tsx'))
   const graphFieldsLocalSchemaRowsText = readUtf8(path.resolve(root, 'src/features/panels/views/graph-fields/FieldLocalSchemaRowsEditor.tsx'))
@@ -263,7 +264,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const markdownBubbleToolbarText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.bubbleToolbarOverlay.tsx'))
   const markdownSelectionToolbarText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownSelectionToolbar.tsx'))
   const markdownSidebarSectionText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownSidebarSection.tsx'))
-  const dateCellEditorText = readUtf8(path.resolve(root, 'src/features/graph-table/ui/fast-grid/DateCellEditor.tsx'))
+  const dateCellEditorText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/fast-grid/DateCellEditor.tsx'))
   const flowMappingRowsTableText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/FlowMappingRowsTable.tsx'))
   const expandCollapseAllButtonText = readUtf8(path.resolve(root, 'src/features/panels/ui/ExpandCollapseAllButton.tsx'))
   const floatingMenuStylesText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/main/viewer/floatingMenuStyles.ts'))
@@ -447,9 +448,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !responsiveElementClassesText.includes('UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_DEFAULT_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME') ||
-    !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_TABLE_FLOATING_PANEL_CLASSNAME') ||
-    !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME') ||
-    !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_TABLE_NARROW_FLOATING_PANEL_CLASSNAME') ||
+    !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_FLOATING_PANEL_CLASSNAME') ||
+    !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_WIDE_FLOATING_PANEL_CLASSNAME') ||
+    !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_NARROW_FLOATING_PANEL_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_HEADER_CELL_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_HEADER_CONTENT_CLASSNAME') ||
     !responsiveElementClassesText.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_BODY_CELL_CLASSNAME') ||
@@ -692,10 +693,10 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !responsiveToolbarCssText.includes('--kg-media-overlay-action-sm-size') ||
     !responsiveToolbarCssText.includes('.kg-media-overlay-action--default') ||
     !responsiveToolbarCssText.includes('--kg-media-overlay-action-size') ||
-    !responsiveToolbarCssText.includes('.kg-graph-table-floating-panel') ||
-    !responsiveToolbarCssText.includes('.kg-graph-table-floating-panel--narrow') ||
-    !responsiveToolbarCssText.includes('--kg-graph-table-floating-panel-width') ||
-    !responsiveToolbarCssText.includes('--kg-graph-table-floating-panel-max-height') ||
+    !responsiveToolbarCssText.includes('.kg-graph-data-table-floating-panel') ||
+    !responsiveToolbarCssText.includes('.kg-graph-data-table-floating-panel--narrow') ||
+    !responsiveToolbarCssText.includes('--kg-graph-data-table-floating-panel-width') ||
+    !responsiveToolbarCssText.includes('--kg-graph-data-table-floating-panel-max-height') ||
     !responsiveToolbarCssText.includes('.kg-graph-data-table-cell-text') ||
     !responsiveToolbarCssText.includes('.kg-graph-data-table-cell-text--kind') ||
     !responsiveToolbarCssText.includes('.kg-graph-data-table-cell-text--id') ||
@@ -1477,8 +1478,10 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !graphFieldsDefaultValueText.includes('UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_TEXT_EXPANDED_EDITOR_CLASSNAME') ||
     !graphFieldsDefaultValueText.includes('UI_RESPONSIVE_GRAPH_FIELDS_DEFAULT_JSON_EDITOR_CLASSNAME') ||
     !graphFieldsDefaultValueText.includes('UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME') ||
-    !graphFieldsDecimalPlacesText.includes('UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME') ||
-    !graphFieldsCurrencyText.includes('UI_RESPONSIVE_GRAPH_FIELDS_SHORT_FIELD_INPUT_CLASSNAME') ||
+    !graphFieldsPanelControlsText.includes('UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME') ||
+    !graphFieldsDecimalPlacesText.includes('GraphFieldsFieldSelect') ||
+    !graphFieldsPanelControlsText.includes('UI_RESPONSIVE_GRAPH_FIELDS_SHORT_FIELD_INPUT_CLASSNAME') ||
+    !graphFieldsCurrencyText.includes('GraphFieldsShortTextInput') ||
     !graphFieldsSelectOptionsText.includes('UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME') ||
     !graphFieldsLocalSchemaRowsText.includes('UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME') ||
     !graphFieldsListRowText.includes('UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME') ||
@@ -2547,8 +2550,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected pane toggles to keep Explorer, bin, JSON, Markdown, Viewer, HTML, Canvas order')
   }
   if (
-    !responsiveToolbarCssText.includes('.kg-graph-table-menu-row') ||
-    !graphTableToolbarText.includes('kg-graph-table-menu-field') ||
+    !responsiveToolbarCssText.includes('.kg-graph-data-table-menu-row') ||
+    !graphTableToolbarText.includes('kg-graph-data-table-menu-field') ||
     !graphTableToolbarText.includes('UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME') ||
     graphTableToolbarText.includes("const inputHeightClass = 'h-[var(--kg-control-height,28px)]'")
   ) {
@@ -2561,8 +2564,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected Workspace Actions sample dataset select to use the shared responsive toolbar field owner')
   }
   if (
-    ![graphDataTableFieldsPanelText, graphDataTableFilterPanelText, graphDataTableSortPanelText].every(text => text.includes('UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME')) ||
-    !graphDataTableGroupPanelText.includes('UI_RESPONSIVE_GRAPH_TABLE_NARROW_FLOATING_PANEL_CLASSNAME') ||
+    ![graphDataTableFieldsPanelText, graphDataTableFilterPanelText, graphDataTableSortPanelText].every(text => text.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_WIDE_FLOATING_PANEL_CLASSNAME')) ||
+    !graphDataTableGroupPanelText.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_NARROW_FLOATING_PANEL_CLASSNAME') ||
     [graphDataTableFieldsPanelText, graphDataTableFilterPanelText, graphDataTableSortPanelText, graphDataTableGroupPanelText].some(text =>
       text.includes('max-h-96') ||
       text.includes('max-h-80') ||
@@ -2588,8 +2591,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected Markdown gutter and graph-table content-start offsets to live in shared responsive content-start owners')
   }
   if (
-    !responsiveToolbarCssText.includes('.kg-graph-table-kanban-lane') ||
-    !graphTableKanbanViewText.includes('kg-graph-table-kanban-lane') ||
+    !responsiveToolbarCssText.includes('.kg-graph-data-table-kanban-lane') ||
+    !graphTableKanbanViewText.includes('kg-graph-data-table-kanban-lane') ||
     !graphTableKanbanViewText.includes('UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME') ||
     !markdownDataViewKanbanGroupText.includes('UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME') ||
     graphTableKanbanViewText.includes('max-h-[min(65vh,720px)]') ||
@@ -2677,7 +2680,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   ) {
     throw new Error('expected graph-data-table sizing, panel choices, buttons, cell text clamps, and row scope indicator width to live in shared responsive owners')
   }
-  const graphTableDbText = readUtf8(path.resolve(root, 'src/lib/graph-table-db/graphTableDb.impl.ts'))
+  const graphRecordDbText = readUtf8(path.resolve(root, 'src/lib/graph-record-db/graphRecordDb.impl.ts'))
   const kanbanReorderText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/kanbanReorder.ts'))
   const kanbanShortcutCopyText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/kanbanShortcutCopy.ts'))
   const panelConfigText = readUtf8(path.resolve(root, 'src/features/panels/config.ts'))
@@ -2764,7 +2767,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!kanbanReorderText.includes('export const resolveKanbanGroupOrder') || !graphTableKanbanViewText.includes('resolveKanbanGroupOrder({')) {
     throw new Error('expected graph-table kanban lanes to reuse the shared lane ordering helper instead of local alphabetical sorting')
   }
-  if (!graphTableDbText.includes('export const reorderGraphTableRows') || graphTableDbText.includes('await doc.incrementalPatch({ order: nextOrder, data: nextData, updatedAtMs: now })')) {
+  if (!graphRecordDbText.includes('export const reorderGraphRecordRows') || graphRecordDbText.includes('await doc.incrementalPatch({ order: nextOrder, data: nextData, updatedAtMs: now })')) {
     throw new Error('expected graph-table db owner to persist manual row reorder upstream and preserve it during graph sync')
   }
   if (!responsiveToolbarCssText.includes('.kg-toast-card') || !toastHostText.includes('kg-toast-list')) {

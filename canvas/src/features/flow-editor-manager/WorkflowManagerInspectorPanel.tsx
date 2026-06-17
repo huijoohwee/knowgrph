@@ -5,8 +5,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 
-const GraphTableSelectionInspectorLazy = React.lazy(
-  () => import('@/features/graph-table/ui/GraphTableSelectionInspector'),
+const GraphRecordSelectionInspectorLazy = React.lazy(
+  () => import('@/features/graph-inspector/ui/GraphRecordSelectionInspector'),
 )
 
 export default function WorkflowManagerInspectorPanel() {
@@ -28,8 +28,7 @@ export default function WorkflowManagerInspectorPanel() {
 
   return (
     <React.Suspense fallback={null}>
-      <GraphTableSelectionInspectorLazy />
+      <GraphRecordSelectionInspectorLazy />
     </React.Suspense>
   )
 }
-

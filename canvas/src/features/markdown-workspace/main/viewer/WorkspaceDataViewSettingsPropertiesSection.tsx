@@ -24,6 +24,11 @@ import { getDataViewIconButtonClassName } from '@/lib/ui/dataViewToolbarButton'
 import { WORKSPACE_DATA_VIEW_GRAPH_ROLE_OPTIONS, inferRoleForColumn } from './workspaceDataViewGraphRoles'
 import type { WorkspaceDataViewGraphColumnRole } from './workspaceDataViewConfig'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import {
+  WorkspaceDataViewComfortableTextInput,
+  WorkspaceDataViewFieldSelect,
+  WorkspaceDataViewSearchInput,
+} from './WorkspaceDataViewSettingsPrimitives'
 
 const PROPERTY_ICON_BUTTON_CLASS = getDataViewIconButtonClassName({ variant: 'ghost' })
 const PROPERTY_SMALL_ICON_BUTTON_CLASS = getDataViewIconButtonClassName({ size: 'sm', variant: 'ghost' })
@@ -186,8 +191,8 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
       <section className="mb-3 space-y-2" aria-label="Properties field inventory">
         <label className={['flex min-w-0 items-center gap-2 rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border].join(' ')}>
           <Search className={['h-4 w-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-          <input
-            className={[UI_RESPONSIVE_DATA_VIEW_FIELD_INPUT_CLASSNAME, 'min-w-0 flex-1 bg-transparent text-xs outline-none', UI_THEME_TOKENS.input.text].join(' ')}
+          <WorkspaceDataViewSearchInput
+            className={[UI_RESPONSIVE_DATA_VIEW_FIELD_INPUT_CLASSNAME, UI_THEME_TOKENS.input.text].join(' ')}
             value={fieldSearchQuery}
             onChange={event => setFieldSearchQuery(event.target.value)}
             placeholder="Search properties"
@@ -369,7 +374,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                   />
 
                   {editingColumnId === c.id ? (
-                    <input
+                    <WorkspaceDataViewComfortableTextInput
                       autoFocus
                       className={COLUMN_NAME_EDIT_INPUT_CLASS}
                       value={editingName}
@@ -454,7 +459,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                     <label className="block flex-1 min-w-0">
                       <span className="sr-only">Table-to-graph map</span>
                       <section className="relative">
-                        <select
+                        <WorkspaceDataViewFieldSelect
                           className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
                           value={graphRole}
                           onChange={e => {
@@ -467,7 +472,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                               {option.label}
                             </option>
                           ))}
-                        </select>
+                        </WorkspaceDataViewFieldSelect>
                       </section>
                     </label>
                   </section>
@@ -498,7 +503,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                           <Icon className={icon14} aria-hidden="true" />
                         </span>
                         {editingColumnId === c.id ? (
-                          <input
+                          <WorkspaceDataViewComfortableTextInput
                             autoFocus
                             className={COLUMN_NAME_EDIT_INPUT_CLASS}
                             value={editingName}
@@ -580,7 +585,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                           <label className="block flex-1 min-w-0">
                             <span className="sr-only">Table-to-graph map</span>
                             <section className="relative">
-                              <select
+                              <WorkspaceDataViewFieldSelect
                                 className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
                                 value={graphRole}
                                 onChange={e => {
@@ -593,7 +598,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                                     {option.label}
                                   </option>
                                 ))}
-                              </select>
+                              </WorkspaceDataViewFieldSelect>
                             </section>
                           </label>
                         </section>

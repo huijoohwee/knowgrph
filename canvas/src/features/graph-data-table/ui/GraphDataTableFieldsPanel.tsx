@@ -1,6 +1,10 @@
 import React from 'react'
 import { GripVertical, Search as SearchIcon } from 'lucide-react'
-import { secondaryButtonClassName } from '@/features/graph-data-table/ui/GraphDataTableUiPrimitives'
+import {
+  GraphDataTablePanelCheckbox,
+  GraphDataTablePanelSearchInput,
+  secondaryButtonClassName,
+} from '@/features/graph-data-table/ui/GraphDataTableUiPrimitives'
 import { type GraphDataTableColumnKey } from '@/features/graph-data-table/graphDataTable'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
@@ -12,7 +16,7 @@ import {
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_INPUT_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SEARCH_ROW_CLASSNAME,
-  UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_WIDE_FLOATING_PANEL_CLASSNAME,
   UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
@@ -81,7 +85,7 @@ export function FieldsPanel({
   }, [])
 
   return (
-    <section className={`z-50 flex ${UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-4 ${UI_THEME_TOKENS.text.primary} shadow-md ${panelTypography.panelTextClass}`}>
+    <section className={`z-50 flex ${UI_RESPONSIVE_GRAPH_DATA_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-4 ${UI_THEME_TOKENS.text.primary} shadow-md ${panelTypography.panelTextClass}`}>
       <header className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
         <section className="font-medium">{panelTitle}</section>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
@@ -94,7 +98,7 @@ export function FieldsPanel({
             className={`pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 ${UI_THEME_TOKENS.text.tertiary} ${iconSizeClass}`}
             strokeWidth={uiIconStrokeWidth}
           />
-          <input
+          <GraphDataTablePanelSearchInput
             value={fieldsQuery}
             onChange={event => setFieldsQuery(event.target.value)}
             placeholder={UI_COPY.searchFieldsPlaceholder}
@@ -140,8 +144,7 @@ export function FieldsPanel({
                       {label}
                     </span>
                   </section>
-                  <input
-                    type="checkbox"
+                  <GraphDataTablePanelCheckbox
                     className={selectionControlClassName}
                     checked={isVisible}
                     onChange={event => setColumnVisibility(key, event.target.checked)}

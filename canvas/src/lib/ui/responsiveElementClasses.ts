@@ -146,13 +146,13 @@ export const UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_DEFAULT_CLASSNAME = 'kg-media-ov
 
 export const UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME = 'kg-media-overlay-action-icon'
 
-export const UI_RESPONSIVE_GRAPH_TABLE_FLOATING_PANEL_CLASSNAME = 'kg-graph-table-floating-panel'
+export const UI_RESPONSIVE_GRAPH_DATA_TABLE_FLOATING_PANEL_CLASSNAME = 'kg-graph-data-table-floating-panel'
 
-export const UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME = 'kg-graph-table-floating-panel kg-graph-table-floating-panel--wide'
+export const UI_RESPONSIVE_GRAPH_DATA_TABLE_WIDE_FLOATING_PANEL_CLASSNAME = 'kg-graph-data-table-floating-panel kg-graph-data-table-floating-panel--wide'
 
-export const UI_RESPONSIVE_GRAPH_TABLE_NARROW_FLOATING_PANEL_CLASSNAME = 'kg-graph-table-floating-panel kg-graph-table-floating-panel--narrow'
+export const UI_RESPONSIVE_GRAPH_DATA_TABLE_NARROW_FLOATING_PANEL_CLASSNAME = 'kg-graph-data-table-floating-panel kg-graph-data-table-floating-panel--narrow'
 
-export const UI_RESPONSIVE_GRAPH_TABLE_CODE_EDITOR_CLASSNAME = 'kg-graph-table-code-editor'
+export const UI_RESPONSIVE_GRAPH_DATA_TABLE_CODE_EDITOR_CLASSNAME = 'kg-graph-data-table-code-editor'
 
 export const UI_RESPONSIVE_GRAPH_DATA_TABLE_HEADER_CELL_CLASSNAME = 'kg-graph-data-table-header-cell'
 

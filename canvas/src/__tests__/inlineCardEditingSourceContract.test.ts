@@ -8,12 +8,12 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   const sharedEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
   const animatic = readUtf8('../components/AnimaticCanvas.tsx')
   const markdownKanban = readUtf8('../features/markdown/ui/kanban/KanbanCard.tsx')
-  const graphKanban = readUtf8('../features/graph-table/ui/GraphTableKanbanView.tsx')
+  const graphKanban = readUtf8('../features/graph-data-table/ui/GraphDataTableKanbanView.tsx')
   const flowEditorInspector = readUtf8('../components/FlowEditor/FlowEditorInspector.tsx')
   const storyboard = readUtf8('../components/StoryboardCanvas.tsx')
   const sharedCardFields = readUtf8('../lib/cards/graphNodeCardFields.ts')
-  const graphStoreSync = readUtf8('../features/graph-table/lib/applyCellUpdateToGraphStore.ts')
-  const graphTableDb = readUtf8('../lib/graph-table-db/graphTableDb.impl.ts')
+  const graphStoreSync = readUtf8('../features/graph-inspector/lib/applyRecordCellUpdateToGraphStore.ts')
+  const graphRecordDb = readUtf8('../lib/graph-record-db/graphRecordDb.impl.ts')
   const commandMenus = readUtf8('../lib/cards/CardInlineTextCommandMenus.tsx')
   const blockInlineMenus = readUtf8('../lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx')
   const commandCatalog = readUtf8('../lib/command-menu/inlineCommandMenuCatalog.ts')
@@ -158,7 +158,7 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   if (!graphStoreSync.includes("if (normalizedValue == null) delete properties[key]")) {
     throw new Error('expected graph-store sync to delete cleared inline card values instead of persisting stale blanks')
   }
-  if (!graphTableDb.includes('if (normalizedValue == null) delete data[columnId]')) {
+  if (!graphRecordDb.includes('if (normalizedValue == null) delete data[columnId]')) {
     throw new Error('expected graph-table db writes to delete cleared inline card values at the source row document')
   }
 }

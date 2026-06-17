@@ -1,7 +1,6 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
-import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
+import { PanelKeyTypeRangeValueRow } from '@/features/panels/ui/PanelKeyTypeRangeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeSelectionConfig } from '@/lib/graph/schema'
@@ -34,7 +33,6 @@ export default function ThreeViewLinksSection({
   const selectionConfig = getThreeSelectionConfig(schema)
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
-  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
 
   return (
     <CollapsibleSection
@@ -45,223 +43,133 @@ export default function ThreeViewLinksSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Arrow Length</span>}
+          min={2}
+          max={24}
+          step={1}
+          value={Number(schema.three?.linkDirectionalArrowLength ?? 8)}
+          onChange={next => setThreeConfig({ linkDirectionalArrowLength: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={2}
-                max={24}
-                step={1}
-                value={Number(schema.three?.linkDirectionalArrowLength ?? 8)}
-                onChange={e =>
-                  setThreeConfig({ linkDirectionalArrowLength: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={ARROW_LENGTH_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.linkDirectionalArrowLength ?? 8)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={ARROW_LENGTH_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.linkDirectionalArrowLength ?? 8)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Link Opacity</span>}
+          min={0}
+          max={1}
+          step={0.05}
+          value={Number(schema.three?.linkOpacity ?? 0.6)}
+          onChange={next => setThreeConfig({ linkOpacity: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={Number(schema.three?.linkOpacity ?? 0.6)}
-                onChange={e => setThreeConfig({ linkOpacity: Number(e.target.value) })}
-              />
-              <Tooltip
-                content={LINK_OPACITY_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.linkOpacity ?? 0.6)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={LINK_OPACITY_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.linkOpacity ?? 0.6)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Default Curvature</span>}
+          min={0}
+          max={1.5}
+          step={0.05}
+          value={Number(schema.three?.linkCurvature ?? 0.0)}
+          onChange={next => setThreeConfig({ linkCurvature: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={1.5}
-                step={0.05}
-                value={Number(schema.three?.linkCurvature ?? 0.0)}
-                onChange={e => setThreeConfig({ linkCurvature: Number(e.target.value) })}
-              />
-              <Tooltip
-                content={LINK_CURVATURE_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.linkCurvature ?? 0.0)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={LINK_CURVATURE_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.linkCurvature ?? 0.0)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Curve Rotation</span>}
+          min={-Math.PI}
+          max={Math.PI}
+          step={0.05}
+          value={Number(schema.three?.linkCurveRotation ?? 0.0)}
+          onChange={next => setThreeConfig({ linkCurveRotation: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={-Math.PI}
-                max={Math.PI}
-                step={0.05}
-                value={Number(schema.three?.linkCurveRotation ?? 0.0)}
-                onChange={e => setThreeConfig({ linkCurveRotation: Number(e.target.value) })}
-              />
-              <Tooltip
-                content={CURVE_ROTATION_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.linkCurveRotation ?? 0.0)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={CURVE_ROTATION_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.linkCurveRotation ?? 0.0)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Directional Particles</span>}
+          min={0}
+          max={32}
+          step={1}
+          value={Number(schema.three?.linkDirectionalParticles ?? 0)}
+          onChange={next => setThreeConfig({ linkDirectionalParticles: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={32}
-                step={1}
-                value={Number(schema.three?.linkDirectionalParticles ?? 0)}
-                onChange={e =>
-                  setThreeConfig({ linkDirectionalParticles: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={DIRECTIONAL_PARTICLES_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.linkDirectionalParticles ?? 0)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={DIRECTIONAL_PARTICLES_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.linkDirectionalParticles ?? 0)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Arrow Position</span>}
+          min={0.2}
+          max={1}
+          step={0.05}
+          value={Number(schema.three?.linkDirectionalArrowRelPos ?? 0.85)}
+          onChange={next => setThreeConfig({ linkDirectionalArrowRelPos: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.2}
-                max={1}
-                step={0.05}
-                value={Number(schema.three?.linkDirectionalArrowRelPos ?? 0.85)}
-                onChange={e =>
-                  setThreeConfig({ linkDirectionalArrowRelPos: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={ARROW_POSITION_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.linkDirectionalArrowRelPos ?? 0.85)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={ARROW_POSITION_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.linkDirectionalArrowRelPos ?? 0.85)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Particle Speed</span>}
+          min={0.1}
+          max={2}
+          step={0.05}
+          value={Number(schema.three?.linkDirectionalParticleSpeed ?? 0.6)}
+          onChange={next => setThreeConfig({ linkDirectionalParticleSpeed: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.1}
-                max={2}
-                step={0.05}
-                value={Number(schema.three?.linkDirectionalParticleSpeed ?? 0.6)}
-                onChange={e =>
-                  setThreeConfig({ linkDirectionalParticleSpeed: Number(e.target.value) })
-                }
-              />
-              <Tooltip
-                content={PARTICLE_SPEED_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.linkDirectionalParticleSpeed ?? 0.6)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={PARTICLE_SPEED_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(schema.three?.linkDirectionalParticleSpeed ?? 0.6)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Selected Edge Width</span>}
+          min={1}
+          max={6}
+          step={0.25}
+          value={Number(selectionConfig.selectedEdgeWidth)}
+          onChange={next => setThreeConfig({ selection: { selectedEdgeWidth: next } })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={1}
-                max={6}
-                step={0.25}
-                value={Number(selectionConfig.selectedEdgeWidth)}
-                onChange={e =>
-                  setThreeConfig({ selection: { selectedEdgeWidth: Number(e.target.value) } })
-                }
-              />
-              <Tooltip
-                content={SELECTED_EDGE_WIDTH_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(selectionConfig.selectedEdgeWidth)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip content={SELECTED_EDGE_WIDTH_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>
+                {String(selectionConfig.selectedEdgeWidth)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

@@ -75,7 +75,7 @@
 
 ### Multi-dimensional Table / Graph Data Table (Host)
 
-- The Editor/Table workspace hosts a **Multi-dimensional Table**: a local-first Graph Data Table backed by the minimal persisted `GraphTableDb` cache (`kg:graph-table`) with logical `nodes`/`edges` tables over JSON `GraphData`, inferred property columns, per-table views, and sync metadata.
+- The Editor/Table workspace hosts a **Multi-dimensional Table**: a local-first Graph Data Table backed by the minimal persisted `GraphRecordDb` cache (`kg:graph-table`) with logical `nodes`/`edges` tables over JSON `GraphData`, inferred property columns, per-table views, and sync metadata.
 - The UI surface is a canvas fast-grid optimized for large datasets and selection-sync with Canvas and TOC.
 - The surface must be observer-safe and scroll-stable: avoid ResizeObserver→state loops, avoid scroll/resize feedback loops, and ensure pinned header/columns are fully opaque (no bleed-through).
 - Implementation notes and guardrails live in `docs/documents/knowgrph-graph-data-table-fast-grid-document.md`.

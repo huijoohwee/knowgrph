@@ -2,10 +2,10 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { GraphTableFastGridHeader } from '@/features/graph-table/ui/GraphTableFastGridHeader'
-import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useGraphTableGridModel'
-import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
-import type { GraphTableGridRow } from '@/features/graph-table/ui/graphTableTypes'
+import { GraphDataTableFastGridHeader } from '@/features/graph-data-table/ui/GraphDataTableFastGridHeader'
+import { useGraphDataTableGridModel } from '@/features/graph-data-table/ui/fast-grid/useGraphDataTableGridModel'
+import type { GraphRecordColumnDoc } from '@/lib/graph-record-db'
+import type { GraphDataTableGridRow } from '@/features/graph-data-table/ui/graphDataTableTypes'
 
 const tick = async () => {
   await new Promise<void>(resolve => {
@@ -14,9 +14,9 @@ const tick = async () => {
 }
 
 function Harness(props: {
-  columns: GraphColumnDoc[]
-  rows: GraphTableGridRow[]
-  onColumnKindChanged: (columnId: string, nextKind: GraphColumnDoc['kind']) => void
+  columns: GraphRecordColumnDoc[]
+  rows: GraphDataTableGridRow[]
+  onColumnKindChanged: (columnId: string, nextKind: GraphRecordColumnDoc['kind']) => void
 }) {
   const viewportRef = React.useRef<HTMLElement | null>(null)
   const headerScrollableContentRef = React.useRef<HTMLElement | null>(null)
@@ -28,7 +28,7 @@ function Harness(props: {
   const [selectedColumnId, setSelectedColumnId] = React.useState<string | null>(null)
   void selectedColumnId
 
-  const model = useGraphTableGridModel({
+  const model = useGraphDataTableGridModel({
     columns: props.columns,
     rows: props.rows,
     columnVisibilityById: {},
@@ -48,7 +48,7 @@ function Harness(props: {
         ref={viewportRef}
         style={{ position: 'relative', width: '640px', height: '240px', overflow: 'auto' }}
       />
-      <GraphTableFastGridHeader
+      <GraphDataTableFastGridHeader
         headerHeight={28}
         viewportClientWidth={640}
         panelTextClass=""
@@ -72,7 +72,7 @@ function Harness(props: {
   )
 }
 
-export async function testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect() {
+export async function testGraphDataTableFastGridHeaderPropertyTypeMenuCallsOnSelect() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('section')
@@ -81,7 +81,7 @@ export async function testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect(
   const root = createRoot(container as unknown as HTMLElement)
 
   try {
-    const columns: GraphColumnDoc[] = [
+    const columns: GraphRecordColumnDoc[] = [
       {
         pk: 'nodes:label',
         tableId: 'nodes',
@@ -94,8 +94,8 @@ export async function testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect(
         updatedAtMs: 1,
       },
     ]
-    const rows: GraphTableGridRow[] = [{ id: 'n1', __order: 1, label: 'Hello' } as unknown as GraphTableGridRow]
-    const calls: Array<{ columnId: string; nextKind: GraphColumnDoc['kind'] }> = []
+    const rows: GraphDataTableGridRow[] = [{ id: 'n1', __order: 1, label: 'Hello' } as unknown as GraphDataTableGridRow]
+    const calls: Array<{ columnId: string; nextKind: GraphRecordColumnDoc['kind'] }> = []
 
     root.render(React.createElement(Harness, { columns, rows, onColumnKindChanged: (columnId, nextKind) => calls.push({ columnId, nextKind }) }))
     for (let i = 0; i < 40; i += 1) await tick()

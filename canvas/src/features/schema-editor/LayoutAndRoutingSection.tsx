@@ -1,6 +1,7 @@
 import React from 'react'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
@@ -25,7 +26,6 @@ export default function LayoutAndRoutingSection({
 }: LayoutAndRoutingSectionProps) {
   const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.secondary}`
   const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
-  const selectClassName = `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
     <section className="space-y-3">
       <section className={sectionHeadingClassName}>Layout</section>
@@ -33,7 +33,7 @@ export default function LayoutAndRoutingSection({
         <section className="space-y-2">
           <section className="flex items-center gap-2 text-xs">
             <span className={inlineLabelClassName}>Charge</span>
-            <input
+            <PanelTextInput
               type="number"
               step={10}
               value={schema.layout?.forces?.charge ?? -300}
@@ -41,7 +41,7 @@ export default function LayoutAndRoutingSection({
               className={uiPanelKeyValueInputClass}
             />
             <span className={`ml-4 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Alpha Decay</span>
-            <input
+            <PanelTextInput
               type="number"
               min={0}
               max={1}
@@ -61,7 +61,7 @@ export default function LayoutAndRoutingSection({
               const routing = schema.edgeRouting || {}
               const mode = routing.mode || 'quadratic'
               return (
-                <select
+                <PanelSelect
                   value={mode}
                   onChange={e => {
                     const nextMode = e.target.value === 'straight' ? 'straight' : 'quadratic'
@@ -75,11 +75,11 @@ export default function LayoutAndRoutingSection({
                       },
                     })
                   }}
-                  className={selectClassName}
+                  className={UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME}
                 >
                   <option value="quadratic">Quadratic</option>
                   <option value="straight">Straight</option>
-                </select>
+                </PanelSelect>
               )
             })()}
           </section>
@@ -88,7 +88,7 @@ export default function LayoutAndRoutingSection({
       <Subsection title="3D Layout">
         <section className="flex items-center gap-2 text-xs">
           <span className={inlineLabelClassName}>Sphere Radius</span>
-          <input
+          <PanelTextInput
             type="number"
             min={20}
             max={400}
@@ -98,7 +98,7 @@ export default function LayoutAndRoutingSection({
             className={uiPanelKeyValueInputClass}
           />
           <span className={`ml-4 ${UI_THEME_TOKENS.text.secondary}`}>Seed</span>
-          <input
+          <PanelTextInput
             type="number"
             min={0}
             max={999999}
@@ -108,7 +108,7 @@ export default function LayoutAndRoutingSection({
             className={uiPanelKeyValueInputClass}
           />
           <span className={`ml-4 ${UI_THEME_TOKENS.text.secondary}`}>Min Spacing</span>
-          <input
+          <PanelTextInput
             type="number"
             min={0}
             max={200}

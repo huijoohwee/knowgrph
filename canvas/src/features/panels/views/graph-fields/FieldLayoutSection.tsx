@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_GRAPH_FIELDS_OWNER_VALUE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
@@ -54,7 +55,7 @@ export default function FieldLayoutSection({
           </section>
           <section className="flex items-center gap-2">
             <section className={ownerValueClassName}>{ownerKey}</section>
-            <input
+            <PanelTextInput
               type="number"
               min={0}
               max={200}
@@ -72,7 +73,7 @@ export default function FieldLayoutSection({
           </section>
           <section className="flex items-center gap-2">
             <section className={ownerValueClassName}>{ownerKey}</section>
-            <input
+            <PanelTextInput
               type="number"
               min={10}
               max={400}
@@ -88,7 +89,7 @@ export default function FieldLayoutSection({
           </section>
           <section className="flex items-center gap-2">
             <section className={ownerValueClassName}>{ownerKey}</section>
-            <input
+            <PanelTextInput
               type="number"
               min={0}
               max={2}

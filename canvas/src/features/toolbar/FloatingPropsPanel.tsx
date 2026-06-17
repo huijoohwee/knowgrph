@@ -32,6 +32,7 @@ import {
   uiToolbarSettingsPanelFooterClassName,
   uiToolbarSettingsPanelTextActionClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { PanelRangeInput, PanelSelect, PanelTextInput, readPanelBooleanChoiceButtonClassName } from '@/lib/ui/panelFormControls'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const FLOATING_MEDIA_VIEW_OPTIONS = [
@@ -200,7 +201,7 @@ export function FloatingPropsPanel() {
             <label className={panelFieldLabelClassName}>
               Type
             </label>
-            <select
+            <PanelSelect
               value={newType}
               onChange={e => setNewType(e.target.value)}
               className={panelFieldPrimarySelectClassName}
@@ -222,13 +223,13 @@ export function FloatingPropsPanel() {
                   entity
                 </option>
               )}
-            </select>
+            </PanelSelect>
           </section>
           <section className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
             <label className={panelFieldLabelClassName}>
               Label
             </label>
-            <input
+            <PanelTextInput
               value={newLabel}
               onChange={e => setNewLabel(e.target.value)}
               className={panelFieldTextInputClassName}
@@ -238,7 +239,7 @@ export function FloatingPropsPanel() {
             <label className={panelFieldLabelClassName}>
               Edge Label
             </label>
-            <select
+            <PanelSelect
               value={newEdgeLabel}
               onChange={e => setNewEdgeLabel(e.target.value)}
               className={panelFieldTextInputClassName}
@@ -253,7 +254,7 @@ export function FloatingPropsPanel() {
                   link
                 </option>
               )}
-            </select>
+            </PanelSelect>
           </section>
         </section>
         <FloatingPropsPanelMenuButton onClick={doAddNode} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
@@ -360,14 +361,12 @@ export function FloatingPropsPanel() {
               {RICH_MEDIA_DISPLAY_COPY.opacityLabel}
             </label>
             <section className={panelFieldRangeValueClassName}>
-              <input
-                type="range"
+              <PanelRangeInput
                 min={0}
                 max={1}
                 step={0.05}
                 value={mediaNodeOpacity}
                 onChange={e => setMediaNodeOpacity(Number(e.target.value))}
-                className="flex-1"
               />
               <span
                 className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} shrink-0 text-right`}
@@ -380,7 +379,7 @@ export function FloatingPropsPanel() {
             <label className={panelFieldLabelClassName}>
               Kind
             </label>
-            <select
+            <PanelSelect
               value={mediaKind}
               onChange={e => {
                 const v = e.target.value
@@ -393,13 +392,13 @@ export function FloatingPropsPanel() {
                   {option}
                 </option>
               ))}
-            </select>
+            </PanelSelect>
           </section>
           <section className={`mb-2 ${UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}`}>
             <label className={panelFieldLabelClassName}>
               URL
             </label>
-            <input
+            <PanelTextInput
               value={mediaUrl}
               onChange={e => setMediaUrl(e.target.value)}
               className={panelFieldTextInputClassName}
@@ -412,14 +411,20 @@ export function FloatingPropsPanel() {
             <section className={panelFieldToggleValueClassName}>
               <button
                 type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${!mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+                className={readPanelBooleanChoiceButtonClassName({
+                  active: !mediaInteractive,
+                  className: uiPanelKeyValueTextSizeClass,
+                })}
                 onClick={() => setMediaInteractive(false)}
               >
                 Off
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+                className={readPanelBooleanChoiceButtonClassName({
+                  active: mediaInteractive,
+                  className: uiPanelKeyValueTextSizeClass,
+                })}
                 onClick={() => setMediaInteractive(true)}
               >
                 On
@@ -451,7 +456,7 @@ export function FloatingPropsPanel() {
             <label className={panelFieldWideLabelClassName}>
               Anti-line strength
             </label>
-            <input
+            <PanelTextInput
               type="number"
               step={0.01}
               min={0}
@@ -475,7 +480,7 @@ export function FloatingPropsPanel() {
             <label className={panelFieldWideLabelClassName}>
               Post-fit strength
             </label>
-            <input
+            <PanelTextInput
               type="number"
               step={0.01}
               min={0}
@@ -499,7 +504,7 @@ export function FloatingPropsPanel() {
             <label className={panelFieldWideLabelClassName}>
               Post-fit alpha max
             </label>
-            <input
+            <PanelTextInput
               type="number"
               step={0.01}
               min={0}

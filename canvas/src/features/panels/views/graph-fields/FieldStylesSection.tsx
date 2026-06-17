@@ -2,13 +2,11 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { GraphFieldsCompactCheckbox } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
-import {
-  UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME,
-  UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
-} from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   KeyTypeValueStaticRow,
   RightAlignedValueCell,
@@ -71,7 +69,6 @@ export default function FieldStylesSection({
   const colorPickerClassName = `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:opacity-50`
   const colorInputClassName = `${uiPanelKeyValueInputClass} min-w-0 flex-1 ${uiPanelMonospaceTextClass} disabled:opacity-50`
   const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
-  const selectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
   const KeyTypeValueRow = (
     props: Omit<
@@ -103,11 +100,11 @@ export default function FieldStylesSection({
                   value={isHexColor(nodeFillNormalized) ? nodeFillNormalized : '#000000'}
                   onChange={e => updateNodeStyle(ownerKey, { color: e.target.value })}
                 />
-                <PlainTextInputEditor
+                <PanelTextInput
                   className={colorInputClassName}
                   disabled={!hasOwner}
                   value={nodeFillRaw}
-                  onChange={next => updateNodeStyle(ownerKey, { color: next })}
+                  onChange={e => updateNodeStyle(ownerKey, { color: e.target.value })}
                   placeholder="#28A745"
                 />
               </RightAlignedValueCell>
@@ -119,7 +116,7 @@ export default function FieldStylesSection({
             keyNode={<span className={keyLabelClassName}>Radius</span>}
             valueNode={(
               <RightAlignedValueCell>
-                <input
+                <PanelTextInput
                   type="number"
                   min={2}
                   max={60}
@@ -145,11 +142,11 @@ export default function FieldStylesSection({
                   value={isHexColor(nodeStrokeNormalized) ? nodeStrokeNormalized : '#000000'}
                   onChange={e => updateNodeStroke(ownerKey, { color: e.target.value })}
                 />
-                <PlainTextInputEditor
+                <PanelTextInput
                   className={colorInputClassName}
                   disabled={!hasOwner}
                   value={nodeStrokeRaw}
-                  onChange={next => updateNodeStroke(ownerKey, { color: next })}
+                  onChange={e => updateNodeStroke(ownerKey, { color: e.target.value })}
                   placeholder="#ffffff"
                 />
               </RightAlignedValueCell>
@@ -161,7 +158,7 @@ export default function FieldStylesSection({
             keyNode={<span className={keyLabelClassName}>Stroke width</span>}
             valueNode={(
               <RightAlignedValueCell>
-                <input
+                <PanelTextInput
                   type="number"
                   min={0}
                   max={8}
@@ -196,11 +193,11 @@ export default function FieldStylesSection({
                   value={isHexColor(edgeColorNormalized) ? edgeColorNormalized : '#000000'}
                   onChange={e => updateEdgeStyle(ownerKey, { color: e.target.value })}
                 />
-                <PlainTextInputEditor
+                <PanelTextInput
                   className={colorInputClassName}
                   disabled={!hasOwner}
                   value={edgeColorRaw}
-                  onChange={next => updateEdgeStyle(ownerKey, { color: next })}
+                  onChange={e => updateEdgeStyle(ownerKey, { color: e.target.value })}
                   placeholder="#999999"
                 />
               </RightAlignedValueCell>
@@ -212,7 +209,7 @@ export default function FieldStylesSection({
             keyNode={<span className={keyLabelClassName}>Width</span>}
             valueNode={(
               <RightAlignedValueCell>
-                <input
+                <PanelTextInput
                   type="number"
                   min={0.5}
                   max={8}
@@ -231,9 +228,7 @@ export default function FieldStylesSection({
             keyNode={<span className={keyLabelClassName}>Arrow</span>}
             valueNode={(
               <RightAlignedValueCell>
-                <input
-                  type="checkbox"
-                  className={selectionControlClassName}
+                <GraphFieldsCompactCheckbox
                   checked={!!schema.edgeStyles[ownerKey]?.arrow}
                   disabled={!hasOwner}
                   onChange={e => setEdgeArrow(ownerKey, e.target.checked)}
@@ -252,7 +247,7 @@ export default function FieldStylesSection({
           keyNode={<span className={keyLabelClassName}>Font size</span>}
           valueNode={(
             <RightAlignedValueCell>
-              <input
+              <PanelTextInput
                 type="number"
                 min={8}
                 max={32}
@@ -276,10 +271,10 @@ export default function FieldStylesSection({
                 value={isHexColor(labelColorNormalized) ? labelColorNormalized : '#000000'}
                 onChange={e => setLabelStyles({ color: e.target.value })}
               />
-              <PlainTextInputEditor
+              <PanelTextInput
                 className={colorInputClassName.replace(' disabled:opacity-50', '')}
                 value={labelColorRaw}
-                onChange={next => setLabelStyles({ color: next })}
+                onChange={e => setLabelStyles({ color: e.target.value })}
                 placeholder="#111111"
               />
             </RightAlignedValueCell>
@@ -291,7 +286,7 @@ export default function FieldStylesSection({
           keyNode={<span className={keyLabelClassName}>Offset dx</span>}
           valueNode={(
             <RightAlignedValueCell>
-              <input
+              <PanelTextInput
                 type="number"
                 step={1}
                 value={schema.labelStyles?.offset?.dx ?? 12}
@@ -307,7 +302,7 @@ export default function FieldStylesSection({
           keyNode={<span className={keyLabelClassName}>Offset dy</span>}
           valueNode={(
             <RightAlignedValueCell>
-              <input
+              <PanelTextInput
                 type="number"
                 step={1}
                 value={schema.labelStyles?.offset?.dy ?? 4}

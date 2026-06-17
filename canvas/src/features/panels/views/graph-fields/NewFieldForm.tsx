@@ -2,7 +2,7 @@ import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { FieldKeyIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { GRAPH_FIELD_TYPES, type GraphFieldType } from '@/features/graph-fields/graphFields'
-import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import { GraphFieldsComfortableFieldSelect, GraphFieldsInlineTextInput } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME,
@@ -43,8 +43,8 @@ export function NewFieldForm({
   const sectionClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_PANEL_STRIP_CLASSNAME} border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg}`
   const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
   const inputShellClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_SHELL_CLASSNAME} mt-1 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-500 dark:focus-within:ring-blue-400`
-  const textInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} bg-transparent text-xs ${UI_THEME_TOKENS.input.text} outline-none placeholder:text-[color:var(--kg-text-tertiary)]`
-  const selectClassName = [MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME, 'text-left'].join(' ')
+  const textInputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} placeholder:text-[color:var(--kg-text-tertiary)]`
+  const selectClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_INLINE_FIELD_CLASSNAME} text-left`
   const actionButtonClassName = `${UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME} App-toolbar__btn rounded border ${uiPanelKeyValueTextSizeClass}`
 
   return (
@@ -64,7 +64,7 @@ export function NewFieldForm({
                 className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}
                 strokeWidth={uiIconStrokeWidth}
               />
-              <input
+              <GraphFieldsInlineTextInput
                 value={newFieldKey}
                 onChange={e => setNewFieldKey(e.target.value)}
                 placeholder={UI_COPY.fieldNamePlaceholder}
@@ -78,32 +78,34 @@ export function NewFieldForm({
           <section className="flex-1">
             <section className={labelClassName}>{UI_LABELS.scope}</section>
             <section className="mt-1">
-              <select
+              <GraphFieldsComfortableFieldSelect
                 value={newFieldScope}
                 onChange={e =>
                   setNewFieldScope(e.target.value === 'edge' ? 'edge' : 'node')
                 }
                 className={selectClassName}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
               >
                 <option value="node">Node</option>
                 <option value="edge">Edge</option>
-              </select>
+              </GraphFieldsComfortableFieldSelect>
             </section>
           </section>
           <section className="flex-1">
             <section className={labelClassName}>{UI_LABELS.type}</section>
             <section className="mt-1">
-              <select
+              <GraphFieldsComfortableFieldSelect
                 value={newFieldType}
                 onChange={e => setNewFieldType(e.target.value as GraphFieldType)}
                 className={selectClassName}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
               >
                 {GRAPH_FIELD_TYPES.map(t => (
                   <option key={t} value={t}>
                     {t}
                   </option>
                 ))}
-              </select>
+              </GraphFieldsComfortableFieldSelect>
             </section>
           </section>
         </section>

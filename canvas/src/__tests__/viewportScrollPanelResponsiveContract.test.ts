@@ -99,8 +99,8 @@ export function testDocumentVersionGitGraphUsesSharedResponsiveViewportOwner() {
 
 export function testWorkspaceAndGraphTablePanelsUseSharedViewportScrollOwner() {
   const explorerText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceExplorer.tsx')
-  const domTableText = readUtf8('src/features/graph-table/ui/GraphTableDomTableView.tsx')
-  const inspectorText = readUtf8('src/features/graph-table/ui/GraphTableInspector.tsx')
+  const domTableText = readUtf8('src/features/graph-data-table/ui/GraphDataTableDomTableView.tsx')
+  const inspectorText = readUtf8('src/features/graph-inspector/ui/GraphRecordInspector.tsx')
 
   if (!explorerText.includes('UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_CONTENT_CLASSNAME') || !domTableText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME') || !inspectorText.includes('UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME')) {
     throw new Error('expected Explorer to consume the shared section-scroll stack owner and Graph Table panels to consume the shared viewport scroll owner')

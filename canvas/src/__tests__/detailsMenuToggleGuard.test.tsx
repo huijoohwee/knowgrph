@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client'
 
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
-import { GraphTableColumnKindMenu } from '@/features/graph-table/ui/GraphTableColumnKindMenu'
-import type { GraphColumnKind } from '@/features/graph-table-db/graphTableDb'
+import { GraphDataTableColumnKindMenu } from '@/features/graph-data-table/ui/GraphDataTableColumnKindMenu'
+import type { GraphRecordColumnKind } from '@/lib/graph-record-db'
 
 const tick = async () => {
   await new Promise<void>(resolve => {
@@ -83,13 +83,13 @@ export async function testTypeMenuClosesClosestDetailsWhenSelecting() {
   const root = createRoot(container as unknown as HTMLElement)
 
   try {
-    let selected: GraphColumnKind | null = null
+    let selected: GraphRecordColumnKind | null = null
     root.render(
       React.createElement(
         'details',
         { open: true },
         React.createElement('summary', null, 'Open'),
-        React.createElement(GraphTableColumnKindMenu, {
+        React.createElement(GraphDataTableColumnKindMenu, {
           ariaLabel: 'Property type',
           value: 'text',
           onSelect: (next) => {

@@ -421,7 +421,7 @@ If you want narrative output (e.g., “why this site ranks #1”), do it as:
    - ring polygons + point-in-polygon
    - distance-to-nearest
 5. **FastGrid table**:
-   - rely on existing syncGraphData→GraphTableDb; ensure metrics are on candidate properties
+   - rely on existing syncGraphData→GraphRecordDb; ensure metrics are on candidate properties
 
 ---
 

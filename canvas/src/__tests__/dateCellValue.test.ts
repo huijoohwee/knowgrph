@@ -1,4 +1,4 @@
-import { formatDateDraftFromCellValue, normalizeDateDraftToValue } from '@/features/graph-table/ui/fast-grid/dateCellValue'
+import { formatDateDraftFromCellValue, normalizeDateDraftToValue } from '@/features/graph-data-table/ui/fast-grid/dateCellValue'
 
 export function testGraphTableDateNormalizeAcceptsYmd() {
   const r = normalizeDateDraftToValue('2026-2-7')

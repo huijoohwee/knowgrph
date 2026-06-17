@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { PanelCheckbox } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import {
@@ -29,6 +30,7 @@ export default function WidgetRegistryTable({
 }) {
   const panelTypography = usePanelTypography()
   const selected = String(selectedId || '').trim()
+  const selectionControlClassName = cn('rounded', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.selectionControl)
 
   return (
     <section className="h-full min-h-0 overflow-auto">
@@ -72,8 +74,8 @@ export default function WidgetRegistryTable({
                 onClick={() => onSelect(e.id)}
               >
                 <td className={UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_TABLE_CELL_CLASSNAME}>
-                  <input
-                    type="checkbox"
+                  <PanelCheckbox
+                    className={selectionControlClassName}
                     checked={!!e.isEnabled}
                     onChange={ev => onToggleEnabled(e.id, ev.target.checked)}
                     onClick={ev => ev.stopPropagation()}

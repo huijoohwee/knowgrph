@@ -1,6 +1,7 @@
 import { Plus, Eraser } from 'lucide-react'
 import {
   FilterCombobox,
+  GraphDataTableInlineCheckbox,
   iconButtonClassName,
   secondaryButtonClassName,
   type FilterComboboxOption,
@@ -21,7 +22,7 @@ import {
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SCROLL_STACK_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME,
-  UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_WIDE_FLOATING_PANEL_CLASSNAME,
   UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
@@ -62,7 +63,7 @@ export function SortPanel({
   const selectionControlClassName = `${UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
-    <section className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}>
+    <section className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_DATA_TABLE_WIDE_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}>
       <header className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
         <section className="font-medium">{panelTitle}</section>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
@@ -71,16 +72,14 @@ export function SortPanel({
       </header>
       <section className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
         <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
-          <input
-            id="auto-sort-checkbox"
-            type="checkbox"
-            className={selectionControlClassName}
+          <GraphDataTableInlineCheckbox
             checked={isAutoSortEnabled}
-            onChange={event => setIsAutoSortEnabled(event.target.checked)}
+            onChange={setIsAutoSortEnabled}
+            label={UI_COPY.graphDataTableAutoSortWhileEditingLabel}
+            className={UI_THEME_TOKENS.text.secondary}
+            checkboxClassName={selectionControlClassName}
+            labelClassName="select-none"
           />
-          <label htmlFor="auto-sort-checkbox" className={`select-none ${UI_THEME_TOKENS.text.secondary}`}>
-            {UI_COPY.graphDataTableAutoSortWhileEditingLabel}
-          </label>
         </section>
         <button type="button" className={secondaryButtonClassName} onClick={resetSortRules}>
           {UI_LABELS.reset}

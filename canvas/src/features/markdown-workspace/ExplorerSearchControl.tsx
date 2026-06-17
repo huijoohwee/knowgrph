@@ -1,5 +1,6 @@
 import React from 'react'
 import { Search } from 'lucide-react'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 import {
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
   UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
@@ -42,8 +43,9 @@ export const ExplorerSearchControl = React.memo(function ExplorerSearchControl(p
 
   return (
     <label className={`kg-explorer-search-control ${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-1`} aria-label="Search files">
-      <input
+      <PanelTextInput
         ref={searchInputRef}
+        variant="transparent"
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder="Search"

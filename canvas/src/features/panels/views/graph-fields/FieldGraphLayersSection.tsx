@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 import { GRAPH_FIELDS_COMPACT_FIELD_GRID_CLASS_NAME, GRAPH_FIELDS_TRIPLE_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
@@ -140,7 +140,7 @@ export function FieldGraphLayersSection({
               <section className={labelClassName}>
                 Fill color
               </section>
-              <PlainTextInputEditor
+              <PanelTextInput
                 defaultValue={fillValue}
                 onBlur={e => updateStyle({ fill: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
@@ -151,7 +151,7 @@ export function FieldGraphLayersSection({
               <section className={labelClassName}>
                 Stroke color
               </section>
-              <PlainTextInputEditor
+              <PanelTextInput
                 defaultValue={strokeValue}
                 onBlur={e => updateStyle({ stroke: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
@@ -164,7 +164,7 @@ export function FieldGraphLayersSection({
               <section className={labelClassName}>
                 Fill opacity
               </section>
-              <input
+              <PanelTextInput
                 type="number"
                 min={0}
                 max={1}
@@ -183,7 +183,7 @@ export function FieldGraphLayersSection({
               <section className={labelClassName}>
                 Stroke width
               </section>
-              <input
+              <PanelTextInput
                 type="number"
                 min={0}
                 max={10}
@@ -202,7 +202,7 @@ export function FieldGraphLayersSection({
               <section className={labelClassName}>
                 Dash pattern
               </section>
-              <PlainTextInputEditor
+              <PanelTextInput
                 defaultValue={dashValue}
                 onBlur={e => updateStyle({ dash: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
@@ -322,7 +322,7 @@ export function GraphLayerMetadataPresetsSection({
           <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill color
           </section>
-          <PlainTextInputEditor
+          <PanelTextInput
             defaultValue={fillValue}
             onBlur={e => updateDefaultStyle({ fill: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
@@ -332,7 +332,7 @@ export function GraphLayerMetadataPresetsSection({
           <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default stroke color
           </section>
-          <PlainTextInputEditor
+          <PanelTextInput
             defaultValue={strokeValue}
             onBlur={e => updateDefaultStyle({ stroke: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
@@ -344,7 +344,7 @@ export function GraphLayerMetadataPresetsSection({
           <section className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill opacity
           </section>
-          <input
+          <PanelTextInput
             type="number"
             min={0}
             max={1}
@@ -362,7 +362,7 @@ export function GraphLayerMetadataPresetsSection({
           <section className={labelClassName}>
             Default stroke width
           </section>
-          <input
+          <PanelTextInput
             type="number"
             min={0}
             max={10}
@@ -380,7 +380,7 @@ export function GraphLayerMetadataPresetsSection({
           <section className={labelClassName}>
             Default dash pattern
           </section>
-          <PlainTextInputEditor
+          <PanelTextInput
             defaultValue={dashValue}
             onBlur={e => updateDefaultStyle({ dash: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
@@ -396,7 +396,7 @@ export function GraphLayerMetadataPresetsSection({
             <section className={labelClassName}>
               Grouping logic
             </section>
-            <PlainTextInputEditor
+            <PanelTextInput
               defaultValue={groupingLogicValue}
               onBlur={e => {
                 const raw = e.target.value.trim()
@@ -409,7 +409,7 @@ export function GraphLayerMetadataPresetsSection({
             <section className={labelClassName}>
               Layer
             </section>
-            <input
+            <PanelTextInput
               type="number"
               defaultValue={layerValue}
               onBlur={e => {
@@ -428,7 +428,7 @@ export function GraphLayerMetadataPresetsSection({
             <section className={labelClassName}>
               Label
             </section>
-            <PlainTextInputEditor
+            <PanelTextInput
               defaultValue={labelValue}
               onBlur={e => {
                 const raw = e.target.value
@@ -441,7 +441,7 @@ export function GraphLayerMetadataPresetsSection({
             <section className={labelClassName}>
               Tooltip
             </section>
-            <PlainTextInputEditor
+            <PanelTextInput
               defaultValue={tooltipValue}
               onBlur={e => {
                 const raw = e.target.value
@@ -455,7 +455,7 @@ export function GraphLayerMetadataPresetsSection({
           <section className={labelClassName}>
             Schema styling entrypoint
           </section>
-          <PlainTextInputEditor
+          <PanelTextInput
             defaultValue={schemaEntrypointValue}
             onBlur={e => {
               const raw = e.target.value

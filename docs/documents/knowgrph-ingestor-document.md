@@ -384,7 +384,7 @@ knowgrph_parser/
 | Parsing           | Normalized content (Markdown or JSON/JSON-LD) | JSON-LD or GraphData           | Parsers build structured graph representation (Markdown→JSON-LD→GraphData; JSON/JSON-LD→GraphData) | Debounced for large inputs; optional worker offload |
 | Media Extraction  | Parsed content                 | Media node properties          | Extract URLs, resolve relative paths                        | Regex/DOM-based, O(n) in content length      |
 | Graph Construction| JSON-LD or raw nodes/edges     | GraphData                      | Normalize to canonical GraphData structure                  | Structural sharing for efficiency            |
-| Store Update      | GraphData                      | Updated store state            | Zustand store sets graphData and derived state (including Multi-dimensional Table materialization via GraphTableDb) | Immutable updates                            |
+| Store Update      | GraphData                      | Updated store state            | Zustand store sets graphData and derived state (including Multi-dimensional Table materialization via GraphRecordDb) | Immutable updates                            |
 | UI Rendering      | Store state                    | Visual display                 | Canvas, Multi-dimensional Table, singabldr tables, panels react to store changes | Memoized selectors, virtualization           |
 
 ---

@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_GRAPH_FIELDS_COMFORTABLE_FIELD_INPUT_CLASSNAME,
@@ -108,7 +109,7 @@ export default function FieldEndpointsAndCardinalitySection({
                   <label className={fieldLabelClassName} htmlFor="graph-fields-endpoint-sources">
                     {UI_COPY.sourcesPlaceholder}
                   </label>
-                  <input
+                  <PanelTextInput
                     id="graph-fields-endpoint-sources"
                     value={sourcesText}
                     onChange={e => setSourcesText(e.target.value)}
@@ -124,7 +125,7 @@ export default function FieldEndpointsAndCardinalitySection({
                   <label className={fieldLabelClassName} htmlFor="graph-fields-endpoint-targets">
                     {UI_COPY.targetsPlaceholder}
                   </label>
-                  <input
+                  <PanelTextInput
                     id="graph-fields-endpoint-targets"
                     value={targetsText}
                     onChange={e => setTargetsText(e.target.value)}
@@ -147,7 +148,7 @@ export default function FieldEndpointsAndCardinalitySection({
               </section>
               <section className="flex items-center gap-2">
                 <section className={ownerValueClassName}>{ownerKey}</section>
-                <input
+                <PanelTextInput
                   type="number"
                   min={0}
                   placeholder={UI_COPY.minPlaceholder}
@@ -158,7 +159,7 @@ export default function FieldEndpointsAndCardinalitySection({
                   }}
                   className={uiPanelKeyValueInputClass}
                 />
-                <input
+                <PanelTextInput
                   type="number"
                   min={0}
                   placeholder={UI_COPY.maxPlaceholder}
@@ -178,7 +179,7 @@ export default function FieldEndpointsAndCardinalitySection({
               </section>
               <section className="flex items-center gap-2">
                 <section className={ownerValueClassName}>{ownerKey}</section>
-                <input
+                <PanelTextInput
                   type="number"
                   min={0}
                   placeholder={UI_COPY.maxPerNodePlaceholder}

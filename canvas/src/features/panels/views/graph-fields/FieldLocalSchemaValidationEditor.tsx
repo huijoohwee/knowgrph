@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { UI_COPY } from '@/lib/config.copy'
+import { GraphFieldsCompactCheckbox, GraphFieldsFieldSelect } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { GRAPH_FIELDS_DENSE_FIELD_GRID_CLASS_NAME, GRAPH_FIELDS_DENSE_TRIPLE_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
@@ -70,8 +71,7 @@ export default function FieldLocalSchemaValidationEditor({
   focusValidationControl,
 }: FieldLocalSchemaValidationEditorProps) {
   const validationActionButtonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`
-  const validationSelectClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
-  const validationCheckboxClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const validationSelectClassName = UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME
   const validationPanelClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_VALIDATION_EDITOR_CLASSNAME} rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`
   return (
     <section className="space-y-3">
@@ -175,9 +175,7 @@ export default function FieldLocalSchemaValidationEditor({
                 key={p}
                 className={`${uiPanelKeyValueTextSizeClass} flex items-center gap-1`}
               >
-                <input
-                  type="checkbox"
-                  className={validationCheckboxClassName}
+                <GraphFieldsCompactCheckbox
                   id={getValidationControlId('required', p)}
                   checked={localValidationRequiredSet.has(p)}
                   onChange={e => {
@@ -237,7 +235,7 @@ export default function FieldLocalSchemaValidationEditor({
               className={`${uiPanelKeyValueTextSizeClass} flex items-center gap-1`}
             >
               <span className={`${UI_RESPONSIVE_SCHEMA_PROPERTY_NAME_CLASSNAME} ${UI_THEME_TOKENS.text.primary}`}>{p}</span>
-              <select
+              <GraphFieldsFieldSelect
                 id={getValidationControlId('type', p)}
                 value={localValidationTypesMap[p] ?? 'string'}
                 onChange={e => {
@@ -248,31 +246,33 @@ export default function FieldLocalSchemaValidationEditor({
                   })
                 }}
                 className={`flex-1 ${validationSelectClassName}`}
+                textSizeClassName="text-xs"
               >
                 <option value="string">string</option>
                 <option value="number">number</option>
                 <option value="boolean">boolean</option>
                 <option value="array">array</option>
                 <option value="object">object</option>
-              </select>
+              </GraphFieldsFieldSelect>
             </section>
           ))}
         </section>
         {validationPropertyNames.length > 0 ? (
           <section className="mt-1 flex flex-wrap items-center gap-1">
-            <select
+            <GraphFieldsFieldSelect
               value={localValidationBulkType}
               onChange={e =>
                 setLocalValidationBulkType(e.target.value as PropertySpec['type'])
               }
               className={validationSelectClassName}
+              textSizeClassName="text-xs"
             >
               <option value="string">string</option>
               <option value="number">number</option>
               <option value="boolean">boolean</option>
               <option value="array">array</option>
               <option value="object">object</option>
-            </select>
+            </GraphFieldsFieldSelect>
             <button
               type="button"
               className={validationActionButtonClassName}

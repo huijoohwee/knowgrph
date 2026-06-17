@@ -1,14 +1,14 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid'
-import { GraphTableDomTableView } from '@/features/graph-table/ui/GraphTableDomTableView'
-import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
+import { GraphDataTableFastGrid } from '@/features/graph-data-table/ui/GraphDataTableFastGrid'
+import { GraphDataTableDomTableView } from '@/features/graph-data-table/ui/GraphDataTableDomTableView'
+import type { GraphRecordColumnDoc } from '@/lib/graph-record-db'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 
-export async function testGraphTableTypographyUsesUiSettings() {
+export async function testGraphDataTableTypographyUsesUiSettings() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -38,7 +38,7 @@ export async function testGraphTableTypographyUsesUiSettings() {
       microLabelClass: 'font-serif text-[10px]',
     }
 
-    const columns: GraphColumnDoc[] = [
+    const columns: GraphRecordColumnDoc[] = [
       {
         pk: 'nodes:label',
         tableId: 'nodes',
@@ -53,7 +53,7 @@ export async function testGraphTableTypographyUsesUiSettings() {
     ]
 
     root.render(
-      React.createElement(GraphTableFastGrid, {
+      React.createElement(GraphDataTableFastGrid, {
         tableId: 'nodes',
         columns,
         rows: [{ id: 'n1', __order: 0, label: 'Hello' }],
@@ -103,7 +103,7 @@ export async function testGraphTableTypographyUsesUiSettings() {
   }
 }
 
-export async function testGraphTableDomTableViewAppliesCompactDensityHeight() {
+export async function testGraphDataTableDomTableViewAppliesCompactDensityHeight() {
   const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
@@ -115,7 +115,7 @@ export async function testGraphTableDomTableViewAppliesCompactDensityHeight() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    const columns: GraphColumnDoc[] = [
+    const columns: GraphRecordColumnDoc[] = [
       {
         pk: 'nodes:label',
         tableId: 'nodes',
@@ -130,7 +130,7 @@ export async function testGraphTableDomTableViewAppliesCompactDensityHeight() {
     ]
 
     root.render(
-      <GraphTableDomTableView
+      <GraphDataTableDomTableView
         tableId="nodes"
         columns={columns}
         rows={[{ id: 'n1', __order: 0, label: 'Hello' }]}

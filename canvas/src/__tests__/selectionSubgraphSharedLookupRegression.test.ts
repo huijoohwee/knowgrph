@@ -48,7 +48,7 @@ export function testSelectionSubgraphForIdsPreservesNeighborhoodBehavior() {
 export function testSelectionSubgraphSsotReusesSharedLookupAndSemanticCache() {
   const selectionSubgraphText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'selectionSubgraph.ts'), 'utf8')
   const selectionInspectorText = readFileSync(
-    resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableSelectionInspector.tsx'),
+    resolve(process.cwd(), 'src', 'features', 'graph-inspector', 'ui', 'GraphRecordSelectionInspector.tsx'),
     'utf8',
   )
   const datasetInspectorText = readFileSync(
@@ -77,7 +77,7 @@ export function testSelectionSubgraphSsotReusesSharedLookupAndSemanticCache() {
     || selectionInspectorText.includes('nodes.find(')
     || selectionInspectorText.includes('edges.find(')
   ) {
-    throw new Error('expected GraphTableSelectionInspector fallback rows to reuse the shared base graph lookup instead of scanning raw arrays')
+    throw new Error('expected GraphRecordSelectionInspector fallback rows to reuse the shared base graph lookup instead of scanning raw arrays')
   }
 
   if (

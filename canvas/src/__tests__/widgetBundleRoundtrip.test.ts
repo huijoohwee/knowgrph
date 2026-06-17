@@ -84,22 +84,22 @@ export function testWidgetBundleJsonTextHelperUsesSharedSemanticCache() {
 }
 
 export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() {
-  const graphTableInspectorPath = resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableInspector.tsx')
+  const graphTableInspectorPath = resolve(process.cwd(), 'src', 'features', 'graph-inspector', 'ui', 'GraphRecordInspector.tsx')
   const graphTableInspectorText = readFileSync(graphTableInspectorPath, 'utf8')
   if (!graphTableInspectorText.includes('buildWidgetBundleJsonText({')) {
-    throw new Error('expected GraphTableInspector widget copy path to reuse the shared widget bundle JSON helper')
+    throw new Error('expected GraphRecordInspector widget copy path to reuse the shared widget bundle JSON helper')
   }
   if (!graphTableInspectorText.includes('graphRevision: graphDataRevision')) {
-    throw new Error('expected GraphTableInspector widget copy path to pass graph revision metadata into the shared widget bundle JSON helper')
+    throw new Error('expected GraphRecordInspector widget copy path to pass graph revision metadata into the shared widget bundle JSON helper')
   }
   if (!graphTableInspectorText.includes('effectiveWidgetRegistry: s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY')) {
-    throw new Error('expected GraphTableInspector widget flows to reuse the store effective widget registry SSOT')
+    throw new Error('expected GraphRecordInspector widget flows to reuse the store effective widget registry SSOT')
   }
   if (graphTableInspectorText.includes('graphLookupSnapshotRef')) {
-    throw new Error('expected GraphTableInspector to rely on the shared graph lookup cache instead of preserving a local graph snapshot ref')
+    throw new Error('expected GraphRecordInspector to rely on the shared graph lookup cache instead of preserving a local graph snapshot ref')
   }
   if (!graphTableInspectorText.includes('preferCurrentGraphDataRefs: true')) {
-    throw new Error('expected GraphTableInspector shared graph lookup to preserve current graph references on cache refresh')
+    throw new Error('expected GraphRecordInspector shared graph lookup to preserve current graph references on cache refresh')
   }
 
   const flowEditorMappingRegistryIoPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'FlowEditorMappingRegistryIo.ts')

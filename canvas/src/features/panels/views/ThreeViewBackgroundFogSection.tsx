@@ -1,14 +1,12 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
-import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
+import { PanelKeyTypeColorTextValueRow } from '@/features/panels/ui/PanelKeyTypeColorTextValueRow'
+import { PanelKeyTypeRangeValueRow } from '@/features/panels/ui/PanelKeyTypeRangeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { FOG_NEAR_TOOLTIP, FOG_FAR_TOOLTIP } from '@/features/panels/views/ThreeViewTuningTooltips'
 import { THREE_VIEW_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/threeViewResponsiveClasses'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 interface ThreeViewBackgroundFogSectionProps {
   schema: GraphSchema
@@ -27,8 +25,6 @@ export default function ThreeViewBackgroundFogSection({
 }: ThreeViewBackgroundFogSectionProps) {
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
-  const colorInputClassName = `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
-  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   return (
     <CollapsibleSection
       title="Background and fog"
@@ -38,117 +34,59 @@ export default function ThreeViewBackgroundFogSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeColorTextValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Background Color</span>}
-          valueNode={(
-            <section className="flex items-center gap-2">
-              <input
-                type="color"
-                className={colorInputClassName}
-                value={
-                  (() => {
-                    const raw = String(schema.three?.backgroundColor ?? '')
-                    const normalized = raw.trim() || '#020617'
-                    return normalized.startsWith('#') &&
-                      (normalized.length === 4 || normalized.length === 7)
-                      ? normalized
-                      : '#000000'
-                  })()
-                }
-                onChange={e => setThreeConfig({ backgroundColor: e.target.value })}
-              />
-              <PlainTextInputEditor
-                className={uiPanelKeyValueInputClass}
-                value={String(schema.three?.backgroundColor ?? '')}
-                onChange={next => setThreeConfig({ backgroundColor: next })}
-                placeholder="#020617"
-              />
-            </section>
-          )}
-          {...compactStaticRowProps}
+          value={String(schema.three?.backgroundColor ?? '')}
+          onChange={next => setThreeConfig({ backgroundColor: next })}
+          textInputClassName={uiPanelKeyValueInputClass}
+          placeholder="#020617"
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeColorTextValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Fog Color (blank = off)</span>}
-          valueNode={(
-            <section className="flex items-center gap-2">
-              <input
-                type="color"
-                className={colorInputClassName}
-                value={
-                  (() => {
-                    const raw = String(schema.three?.fogColor ?? '')
-                    const normalized = raw.trim() || '#1e1b4b'
-                    return normalized.startsWith('#') &&
-                      (normalized.length === 4 || normalized.length === 7)
-                      ? normalized
-                      : '#000000'
-                  })()
-                }
-                onChange={e => setThreeConfig({ fogColor: e.target.value })}
-              />
-              <PlainTextInputEditor
-                className={uiPanelKeyValueInputClass}
-                value={String(schema.three?.fogColor ?? '')}
-                onChange={next => setThreeConfig({ fogColor: next })}
-                placeholder="#1e1b4b"
-              />
-            </section>
-          )}
-          {...compactStaticRowProps}
+          value={String(schema.three?.fogColor ?? '')}
+          onChange={next => setThreeConfig({ fogColor: next })}
+          textInputClassName={uiPanelKeyValueInputClass}
+          placeholder="#1e1b4b"
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Fog Near</span>}
+          min={50}
+          max={400}
+          step={5}
+          value={Number(schema.three?.fogNear ?? 180)}
+          onChange={next => setThreeConfig({ fogNear: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={50}
-                max={400}
-                step={5}
-                value={Number(schema.three?.fogNear ?? 180)}
-                onChange={e => setThreeConfig({ fogNear: Number(e.target.value) })}
-              />
-              <Tooltip
-                content={FOG_NEAR_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.fogNear ?? 180)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip
+              content={FOG_NEAR_TOOLTIP}
+              maxWidthPx={260}
+            >
+              <span className={valueTextClassName}>
+                {String(schema.three?.fogNear ?? 180)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
-        <KeyTypeValueStaticRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Fog Far</span>}
+          min={80}
+          max={600}
+          step={5}
+          value={Number(schema.three?.fogFar ?? 360)}
+          onChange={next => setThreeConfig({ fogFar: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={80}
-                max={600}
-                step={5}
-                value={Number(schema.three?.fogFar ?? 360)}
-                onChange={e => setThreeConfig({ fogFar: Number(e.target.value) })}
-              />
-              <Tooltip
-                content={FOG_FAR_TOOLTIP}
-                maxWidthPx={260}
-
-              >
-                <span className={valueTextClassName}>
-                  {String(schema.three?.fogFar ?? 360)}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip
+              content={FOG_FAR_TOOLTIP}
+              maxWidthPx={260}
+            >
+              <span className={valueTextClassName}>
+                {String(schema.three?.fogFar ?? 360)}
+              </span>
+            </Tooltip>
           )}
-          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

@@ -124,7 +124,7 @@ export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueC
   const overlays2dPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts')
   const previewPanelPath = resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx')
   const commandMenuRichMediaInventoryPath = resolve(process.cwd(), 'src', 'lib', 'command-menu', 'commandMenuRichMediaInventory.ts')
-  const graphTableInspectorPath = resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableInspector.tsx')
+  const graphTableInspectorPath = resolve(process.cwd(), 'src', 'features', 'graph-inspector', 'ui', 'GraphRecordInspector.tsx')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const flowDataflowText = readFileSync(flowDataflowPath, 'utf8')
   const flowCanvasStateText = readFileSync(flowCanvasStatePath, 'utf8')
@@ -162,7 +162,7 @@ export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueC
     throw new Error('expected PreviewPanelView graph media path to thread semantic graph key caching through the shared Command Menu rich-media inventory')
   }
   if (!graphTableInspectorText.includes('graphSemanticKey,')) {
-    throw new Error('expected GraphTableInspector widget preview path to thread a semantic graph key into connected-value caching')
+    throw new Error('expected GraphRecordInspector widget preview path to thread a semantic graph key into connected-value caching')
   }
   if (!overlaySurfaceText.includes('frontmatterVisibleSceneDisplayRef.current.key !== frontmatterVisibleGraphSemanticKey')) {
     throw new Error('expected FlowEditor overlay surface to invalidate frontmatter scene derivation on semantic graph keys instead of raw graph identity')

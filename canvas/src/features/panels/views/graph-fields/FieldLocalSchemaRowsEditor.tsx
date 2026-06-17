@@ -6,7 +6,7 @@ import {
   KeyTypeValueStaticRow,
   RightAlignedValueCell,
 } from 'grph-shared/react/keyTypeValueRow'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { GraphFieldsFieldTextInput } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
@@ -51,7 +51,7 @@ export default function FieldLocalSchemaRowsEditor({
   const sectionDividerClassName = UI_THEME_TOKENS.panel.divider
   const headerLabelClassName = `font-semibold ${UI_THEME_TOKENS.text.secondary}`
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
-  const inputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const inputClassName = `${UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME} w-full`
   const actionButtonClassName = `App-toolbar__btn border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary}`
   const suggestionTextClassName = `${uiPanelKeyValueTextSizeClass} flex flex-wrap items-center gap-1 ${UI_THEME_TOKENS.text.tertiary}`
 
@@ -179,9 +179,10 @@ export default function FieldLocalSchemaRowsEditor({
                   {localSchemaFacet === 'localRules' ? (
                     <span className={keyLabelClassName}>Rule {index + 1}</span>
                   ) : (
-                    <PlainTextInputEditor
+                    <GraphFieldsFieldTextInput
                       value={row.key}
-                      onChange={raw => {
+                      onChange={e => {
+                        const raw = e.target.value
                         const next = localSchemaRows.slice()
                         if (
                           localSchemaFacet === 'properties' &&
@@ -250,6 +251,7 @@ export default function FieldLocalSchemaRowsEditor({
                         setLocalSchemaRows(next)
                       }}
                       className={inputClassName}
+                      textSizeClassName="text-xs"
                       placeholder="key"
                       list={
                         localSchemaFacet === 'properties'
@@ -272,14 +274,16 @@ export default function FieldLocalSchemaRowsEditor({
               }
               valueNode={
                 <RightAlignedValueCell className="gap-1">
-                  <PlainTextInputEditor
+                  <GraphFieldsFieldTextInput
                     value={row.value}
-                    onChange={nextValue => {
+                    onChange={e => {
+                      const nextValue = e.target.value
                       const next = localSchemaRows.slice()
                       next[index] = { ...row, value: nextValue }
                       setLocalSchemaRows(next)
                     }}
                     className={`${inputClassName} ${uiPanelMonospaceTextClass}`}
+                    textSizeClassName="text-xs"
                     placeholder={
                       localSchemaFacet === 'localRules'
                         ? '{"target":"node"}'

@@ -66,6 +66,9 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const canvasSimpleKeyValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasSimpleKeyValueRow.tsx'))
   const canvasKeyTypeValueValueCell = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueValueCell.tsx'))
   const canvasKeyTypeValueStaticRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueStaticRow.tsx'))
+  const panelKeyTypeCheckboxValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'PanelKeyTypeCheckboxValueRow.tsx'))
+  const panelKeyTypeRangeValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'PanelKeyTypeRangeValueRow.tsx'))
+  const panelKeyTypeSliderNumberRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'PanelKeyTypeSliderNumberRow.tsx'))
   const orchestratorTraversalDelayRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'OrchestratorTraversalDelayRow.tsx'))
   const rightAlignedTooltipInput = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'RightAlignedTooltipInput.tsx'))
   const helpViewSectionFileNames = ['HelpShortcutsSection.tsx', 'HelpCheatsheetSection.tsx', 'HelpPanelTourSection.tsx', 'HelpWorkflowLinksSection.tsx', 'HelpIconsSection.tsx']
@@ -273,7 +276,9 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     || !rightAlignedTooltipInput.includes('export interface RightAlignedTooltipInputProps')
     || !rightAlignedTooltipInput.includes('export function RightAlignedTooltipInput')
     || !rightAlignedTooltipInput.includes("from 'grph-shared/react/keyTypeValueRow'")
-    || !rightAlignedTooltipInput.includes('PlainTextInputEditor')
+    || !rightAlignedTooltipInput.includes("from '@/lib/ui/panelFormControls'")
+    || !rightAlignedTooltipInput.includes('PanelTextInput')
+    || rightAlignedTooltipInput.includes('PlainTextInputEditor')
   ) {
     throw new Error('Expected RightAlignedTooltipInput to move into a dedicated editable bridge module while preserving the shared right-aligned value-cell owner')
   }
@@ -1181,52 +1186,66 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected the remaining editable KTV row consumers to import the dedicated direct-shared editable row bridge instead of the legacy KeyTypeValueRow wrapper')
   }
   if (
-    !threeViewSelectionSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !threeViewSelectionSection.includes('KeyTypeValueStaticRow') ||
-    !threeViewSelectionSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !threeViewSelectionSection.includes('useCanvasKeyTypeValueStaticRowProps')
+    !threeViewSelectionSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
+    !threeViewSelectionSection.includes('PanelKeyTypeRangeValueRow')
   ) {
-    throw new Error('Expected three-view selection rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected three-view selection rows to consume the shared panel KTV range-value row owner')
   }
   if (
-    !threeViewLinksSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !threeViewLinksSection.includes('KeyTypeValueStaticRow') ||
-    !threeViewLinksSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !threeViewLinksSection.includes('useCanvasKeyTypeValueStaticRowProps')
+    !threeViewLinksSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
+    !threeViewLinksSection.includes('PanelKeyTypeRangeValueRow')
   ) {
-    throw new Error('Expected three-view link rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected three-view link rows to consume the shared panel KTV range-value row owner')
   }
   if (
-    !threeViewStarfieldSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !threeViewStarfieldSection.includes('KeyTypeValueStaticRow') ||
-    !threeViewStarfieldSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !threeViewStarfieldSection.includes('useCanvasKeyTypeValueStaticRowProps')
+    !threeViewStarfieldSection.includes("from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'") ||
+    !threeViewStarfieldSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
+    !threeViewStarfieldSection.includes('PanelKeyTypeCheckboxValueRow') ||
+    !threeViewStarfieldSection.includes('PanelKeyTypeRangeValueRow')
   ) {
-    throw new Error('Expected three-view starfield rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected three-view starfield rows to consume the shared panel KTV checkbox and range-value row owners for starfield controls')
   }
   if (
-    !threeViewBackgroundFogSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !threeViewBackgroundFogSection.includes('KeyTypeValueStaticRow') ||
-    !threeViewBackgroundFogSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !threeViewBackgroundFogSection.includes('useCanvasKeyTypeValueStaticRowProps')
+    !threeViewBackgroundFogSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
+    !threeViewBackgroundFogSection.includes('PanelKeyTypeRangeValueRow')
   ) {
-    throw new Error('Expected three-view background/fog rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected three-view background/fog fog-distance rows to consume the shared panel KTV range-value row owner')
   }
   if (
-    !threeViewCameraSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !threeViewCameraSection.includes('KeyTypeValueStaticRow') ||
-    !threeViewCameraSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !threeViewCameraSection.includes('useCanvasKeyTypeValueStaticRowProps')
+    !panelKeyTypeCheckboxValueRow.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !panelKeyTypeCheckboxValueRow.includes('KeyTypeValueStaticRow') ||
+    !panelKeyTypeCheckboxValueRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !panelKeyTypeCheckboxValueRow.includes('useCanvasKeyTypeValueStaticRowProps') ||
+    !panelKeyTypeCheckboxValueRow.includes("from '@/lib/ui/panelFormControls'") ||
+    !panelKeyTypeCheckboxValueRow.includes('PanelCheckbox')
   ) {
-    throw new Error('Expected three-view camera rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected the shared panel KTV checkbox row owner to bridge root KTV runtime props with the shared checkbox primitive')
   }
   if (
-    !threeViewGlobeEffectsSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !threeViewGlobeEffectsSection.includes('KeyTypeValueStaticRow') ||
-    !threeViewGlobeEffectsSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !threeViewGlobeEffectsSection.includes('useCanvasKeyTypeValueStaticRowProps')
+    !panelKeyTypeRangeValueRow.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !panelKeyTypeRangeValueRow.includes('KeyTypeValueStaticRow') ||
+    !panelKeyTypeRangeValueRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !panelKeyTypeRangeValueRow.includes('useCanvasKeyTypeValueStaticRowProps') ||
+    !panelKeyTypeRangeValueRow.includes("from '@/lib/ui/panelFormControls'") ||
+    !panelKeyTypeRangeValueRow.includes('PanelRangeInput')
   ) {
-    throw new Error('Expected three-view globe-effects rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected the shared panel KTV range-value row owner to bridge root KTV runtime props with the shared range primitive')
+  }
+  if (
+    !threeViewCameraSection.includes("from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'") ||
+    !threeViewCameraSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
+    !threeViewCameraSection.includes('PanelKeyTypeCheckboxValueRow') ||
+    !threeViewCameraSection.includes('PanelKeyTypeRangeValueRow')
+  ) {
+    throw new Error('Expected three-view camera rows to consume the shared panel KTV checkbox and range-value row owners')
+  }
+  if (
+    !threeViewGlobeEffectsSection.includes("from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'") ||
+    !threeViewGlobeEffectsSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
+    !threeViewGlobeEffectsSection.includes('PanelKeyTypeCheckboxValueRow') ||
+    !threeViewGlobeEffectsSection.includes('PanelKeyTypeRangeValueRow')
+  ) {
+    throw new Error('Expected three-view globe-effects rows to consume the shared panel KTV checkbox and range-value row owners')
   }
   if (
     !threeViewLayoutSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
@@ -1237,20 +1256,27 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected three-view layout rows to import the shared static KTV row owner and root static-row prop helper directly')
   }
   if (
-    !aiKgForceControls.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !aiKgForceControls.includes('KeyTypeValueStaticRow') ||
-    !aiKgForceControls.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !aiKgForceControls.includes('useCanvasKeyTypeValueStaticRowProps')
+    !panelKeyTypeSliderNumberRow.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !panelKeyTypeSliderNumberRow.includes('KeyTypeValueStaticRow') ||
+    !panelKeyTypeSliderNumberRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !panelKeyTypeSliderNumberRow.includes('useCanvasKeyTypeValueStaticRowProps') ||
+    !panelKeyTypeSliderNumberRow.includes("from '@/lib/ui/panelFormControls'") ||
+    !panelKeyTypeSliderNumberRow.includes('PanelRangeInput') ||
+    !panelKeyTypeSliderNumberRow.includes('PanelTextInput')
   ) {
-    throw new Error('Expected AI KG force controls to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected the shared panel KTV slider-number row owner to bridge root KTV runtime props with shared range and number primitives')
   }
   if (
-    !aiKgOpacityControls.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !aiKgOpacityControls.includes('KeyTypeValueStaticRow') ||
-    !aiKgOpacityControls.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !aiKgOpacityControls.includes('useCanvasKeyTypeValueStaticRowProps')
+    !aiKgForceControls.includes("from '@/features/panels/ui/PanelKeyTypeSliderNumberRow'") ||
+    !aiKgForceControls.includes('PanelKeyTypeSliderNumberRow')
   ) {
-    throw new Error('Expected AI KG opacity controls to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected AI KG force controls to consume the shared panel KTV slider-number row owner')
+  }
+  if (
+    !aiKgOpacityControls.includes("from '@/features/panels/ui/PanelKeyTypeSliderNumberRow'") ||
+    !aiKgOpacityControls.includes('PanelKeyTypeSliderNumberRow')
+  ) {
+    throw new Error('Expected AI KG opacity controls to consume the shared panel KTV slider-number row owner')
   }
   if (
     !commandCatalogPanel.includes("from 'grph-shared/react/keyTypeValueRow'") ||
@@ -1288,9 +1314,12 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     !threeSizingAndWidthControls.includes("from 'grph-shared/react/keyTypeValueRow'") ||
     !threeSizingAndWidthControls.includes('KeyTypeValueStaticRow') ||
     !threeSizingAndWidthControls.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !threeSizingAndWidthControls.includes('useCanvasKeyTypeValueStaticRowProps')
+    !threeSizingAndWidthControls.includes('useCanvasKeyTypeValueStaticRowProps') ||
+    !threeSizingAndWidthControls.includes("from '@/lib/ui/panelFormControls'") ||
+    !threeSizingAndWidthControls.includes('PanelSelect') ||
+    !threeSizingAndWidthControls.includes('PanelTextInput')
   ) {
-    throw new Error('Expected shared three-view sizing and width controls to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected shared three-view sizing and width controls to import the shared static KTV row owner, root static-row prop helper, and root panel select/text primitives directly')
   }
   if (
     !orchestratorTraversalPanels.includes("from 'grph-shared/react/keyTypeValueRow'") ||
@@ -1301,12 +1330,17 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected orchestrator traversal preset rows to import the shared static KTV row owner and root static-row prop helper directly')
   }
   if (
-    !orchestratorTraversalDelayRow.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !orchestratorTraversalDelayRow.includes('KeyTypeValueStaticRow') ||
-    !orchestratorTraversalDelayRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !orchestratorTraversalDelayRow.includes('useCanvasKeyTypeValueStaticRowProps')
+    !orchestratorTraversalDelayRow.includes("from '@/features/panels/ui/PanelKeyTypeSliderNumberRow'") ||
+    !orchestratorTraversalDelayRow.includes('PanelKeyTypeSliderNumberRow')
   ) {
-    throw new Error('Expected orchestrator traversal delay rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected orchestrator traversal delay rows to consume the shared panel KTV slider-number row owner')
+  }
+  if (
+    !graphRagWorkflowIndexingSection.includes("from '@/features/panels/ui/PanelKeyTypeSliderNumberRow'") ||
+    !graphRagWorkflowIndexingSection.includes('PanelKeyTypeSliderNumberRow') ||
+    graphRagWorkflowIndexingSection.includes('type="range"')
+  ) {
+    throw new Error('Expected GraphRAG workflow indexing slider rows to consume the shared panel KTV slider-number row owner instead of local raw range inputs')
   }
   if (
     !fieldStylesSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
@@ -1388,6 +1422,22 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
       throw new Error(`Expected FloatingPanel KTV surface ${fileName} to inherit shared KTV rows and responsive grid owners`)
     }
   }
+  if (
+    !threeViewLayoutSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
+    !threeViewLayoutSection.includes("from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'") ||
+    !threeViewLayoutSection.includes('PanelKeyTypeRangeValueRow') ||
+    !threeViewLayoutSection.includes('PanelKeyTypeCheckboxValueRow')
+  ) {
+    throw new Error('Expected ThreeViewLayoutSection.impl.tsx to consume the shared panel KTV range and checkbox row owners')
+  }
+  if (
+    !threeViewBackgroundFogSection.includes("from '@/features/panels/ui/PanelKeyTypeColorTextValueRow'") ||
+    !threeViewBackgroundFogSection.includes('PanelKeyTypeColorTextValueRow') ||
+    !threeViewStarfieldSection.includes("from '@/features/panels/ui/PanelKeyTypeColorTextValueRow'") ||
+    !threeViewStarfieldSection.includes('PanelKeyTypeColorTextValueRow')
+  ) {
+    throw new Error('Expected ThreeView background fog and starfield sections to consume the shared specialized panel color/text KTV row owner')
+  }
   for (const [fileName, source] of [
     ['RenderSettingsSection.impl.tsx', renderSettingsSection],
     ['RendererPaletteSettings.tsx', rendererPaletteSettings],
@@ -1410,6 +1460,9 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   if (
     !['resolveChatModelIdForProvider', 'inferChatProviderFromModelId', 'resolveChatModelSelectionValues', 'args.values.chatProvider', 'readOnly'].every(snippet => settingsChatProviderInput.includes(snippet))
     || ['resolveChatProviderSelectionValues', '[selected, ...args.options]', '[resolved, ...args.options]'].some(snippet => settingsChatProviderInput.includes(snippet))
+    || !settingsChatProviderInput.includes("from '@/lib/ui/panelFormControls'")
+    || !settingsChatProviderInput.includes('PanelTextInput')
+    || !settingsChatProviderInput.includes('PanelSelect')
   ) {
     throw new Error('Expected chatProvider to derive from chatModel while chatModel dropdowns normalize stale provider models without duplicate legacy options')
   }

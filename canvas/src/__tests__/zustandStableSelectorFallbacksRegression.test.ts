@@ -43,7 +43,7 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/features/graph-table/ui/GraphTableInspector.tsx',
+    path: 'src/features/graph-inspector/ui/GraphRecordInspector.tsx',
     forbiddenSnippets: [
       'widgetRegistry: s.widgetRegistry || []',
       'openWidgetNodeIds: s.openWidgetNodeIds || []',
@@ -76,7 +76,7 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/features/graph-table/ui/GraphTableSelectionInspector.tsx',
+    path: 'src/features/graph-inspector/ui/GraphRecordSelectionInspector.tsx',
     forbiddenSnippets: [
       'const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])',
       'const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])',

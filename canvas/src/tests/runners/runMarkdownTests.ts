@@ -59,7 +59,7 @@ const modMarkdownViewerListInlineEditNoEdgeRows = () => import('@/__tests__/mark
 const modMarkdownViewerInlineEditTableReadOnlySurface = () => import('@/__tests__/markdownViewerInlineEditTableReadOnlySurface.test')
 const modMultiDimTableGuidelines = () => import('@/__tests__/multiDimTableGuidelines.test')
 const modToolbarWorkspaceSelectCollapsed = () => import('@/__tests__/toolbarWorkspaceSelectCollapsed.test')
-const modGraphTableToolbarMenuPortal = () => import('@/__tests__/graphTableToolbarMenuPortal.test')
+const modGraphDataTableToolbarMenuPortal = () => import('@/__tests__/graphDataTableToolbarMenuPortal.test')
 const modOverlayZIndexOrdering = () => import('@/__tests__/overlayZIndexOrdering.test')
 const modEditorWorkspaceSelectExitsMultiDimMode = () => import('@/__tests__/editorWorkspaceSelectExitsMultiDimMode.test')
 const modWorkspaceResizerHandlersAttachAfterMount = () => import('@/__tests__/workspaceResizerHandlersAttachAfterMount.test')
@@ -347,8 +347,8 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     mod.testToolbarAlwaysExpandedWithoutCollapseControls()
   })
   await execTest(results, 'graphTable.toolbar.menus.portalToAvoidClipping', async () => {
-    const mod = await modGraphTableToolbarMenuPortal()
-    mod.testGraphTableToolbarUsesPortalMenusToAvoidClipping()
+    const mod = await modGraphDataTableToolbarMenuPortal()
+    mod.testGraphDataTableToolbarUsesPortalMenusToAvoidClipping()
   })
   await execTest(results, 'ui.overlay.zIndex.ordering', async () => {
     const mod = await modOverlayZIndexOrdering()

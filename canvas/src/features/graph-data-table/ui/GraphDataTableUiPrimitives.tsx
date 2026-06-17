@@ -3,10 +3,12 @@ import { ChevronDown } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { PanelCheckbox, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import {
   UI_RESPONSIVE_GRAPH_DATA_TABLE_ICON_BUTTON_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_CHOICE_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_SECONDARY_BUTTON_CLASSNAME,
@@ -73,6 +75,81 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
         </DropdownPanel>
       )}
     </>
+  )
+}
+
+type GraphDataTablePanelCheckboxProps = React.InputHTMLAttributes<HTMLInputElement>
+
+export const GraphDataTablePanelCheckbox = React.forwardRef<HTMLInputElement, GraphDataTablePanelCheckboxProps>(
+  function GraphDataTablePanelCheckbox({ className, ...props }, ref) {
+    return (
+      <PanelCheckbox
+        {...props}
+        ref={ref}
+        className={className}
+      />
+    )
+  },
+)
+
+type GraphDataTablePanelSearchInputProps = React.InputHTMLAttributes<HTMLInputElement>
+
+export const GraphDataTablePanelSearchInput = React.forwardRef<HTMLInputElement, GraphDataTablePanelSearchInputProps>(
+  function GraphDataTablePanelSearchInput({ className, ...props }, ref) {
+    return (
+      <PanelTextInput
+        {...props}
+        ref={ref}
+        className={className}
+      />
+    )
+  },
+)
+
+type GraphDataTableInlineCheckboxProps = {
+  checked: boolean
+  onChange: (next: boolean) => void
+  label: React.ReactNode
+  className?: string
+  checkboxClassName?: string
+  labelClassName?: string
+}
+
+export function GraphDataTableInlineCheckbox({
+  checked,
+  onChange,
+  label,
+  className,
+  checkboxClassName,
+  labelClassName,
+}: GraphDataTableInlineCheckboxProps) {
+  return (
+    <label className={[UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME, className].filter(Boolean).join(' ')}>
+      <GraphDataTablePanelCheckbox
+        className={checkboxClassName}
+        checked={checked}
+        onChange={event => onChange(event.target.checked)}
+      />
+      <span className={labelClassName}>{label}</span>
+    </label>
+  )
+}
+
+type GraphDataTableEditableCellInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onBlur'> & {
+  onCommit: (next: string) => void
+}
+
+export function GraphDataTableEditableCellInput({
+  onCommit,
+  className,
+  ...props
+}: GraphDataTableEditableCellInputProps) {
+  return (
+    <PanelTextInput
+      {...props}
+      className={className}
+      onBlur={event => onCommit(event.target.value)}
+    />
   )
 }
 

@@ -413,8 +413,8 @@
   .kg-monaco-editor-root,
   .kg-monaco-editor-shell,
   .kg-monaco-editor-host,
-  .kg-graph-table-toolbar,
-  .kg-graph-table-actions {
+  .kg-graph-data-table-toolbar,
+  .kg-graph-data-table-actions {
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
@@ -428,7 +428,7 @@
     touch-action: manipulation;
   }
 
-  .kg-graph-table-menu-form {
+  .kg-graph-data-table-menu-form {
     width: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
     max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
     max-height: var(--kg-overlay-max-height);
@@ -436,13 +436,13 @@
     overscroll-behavior: contain;
   }
 
-  .kg-graph-table-menu-form--narrow {
+  .kg-graph-data-table-menu-form--narrow {
     width: min(14rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
   }
 
   .kg-safe-viewport-panel,
   .kg-anchor-preview-overlay,
-  .kg-graph-table-floating-panel {
+  .kg-graph-data-table-floating-panel {
     max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
     max-inline-size: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
   }
@@ -460,10 +460,10 @@
     max-inline-size: 100%;
   }
 
-  .kg-graph-table-floating-panel {
-    width: min(var(--kg-graph-table-floating-panel-width, 34rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
-    max-height: min(var(--kg-graph-table-floating-panel-max-height, 24rem), var(--kg-overlay-max-height));
-    max-block-size: min(var(--kg-graph-table-floating-panel-max-height, 24rem), var(--kg-overlay-max-height));
+  .kg-graph-data-table-floating-panel {
+    width: min(var(--kg-graph-data-table-floating-panel-width, 34rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+    max-height: min(var(--kg-graph-data-table-floating-panel-max-height, 24rem), var(--kg-overlay-max-height));
+    max-block-size: min(var(--kg-graph-data-table-floating-panel-max-height, 24rem), var(--kg-overlay-max-height));
     min-width: 0;
     min-inline-size: 0;
   }
@@ -474,16 +474,16 @@
     min-inline-size: 0;
   }
 
-  .kg-graph-table-floating-panel--narrow {
-    --kg-graph-table-floating-panel-width: 24rem;
-    --kg-graph-table-floating-panel-max-height: 20rem;
+  .kg-graph-data-table-floating-panel--narrow {
+    --kg-graph-data-table-floating-panel-width: 24rem;
+    --kg-graph-data-table-floating-panel-max-height: 20rem;
   }
 
-  .kg-graph-table-code-editor {
+  .kg-graph-data-table-code-editor {
     width: 100%;
-    height: min(var(--kg-graph-table-code-editor-height, 13.75rem), calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 1.5rem));
+    height: min(var(--kg-graph-data-table-code-editor-height, 13.75rem), calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 1.5rem));
     max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 1.5rem);
-    min-height: min(var(--kg-graph-table-code-editor-min-height, 8rem), calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 1.5rem));
+    min-height: min(var(--kg-graph-data-table-code-editor-min-height, 8rem), calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 1.5rem));
     min-width: 0;
     max-width: 100%;
   }
@@ -2268,9 +2268,9 @@
   .kg-explorer-search-control,
   .kg-explorer-search-input,
   .kg-workspace-pane-toggles,
-  .kg-graph-table-menu-row,
-  .kg-graph-table-menu-field,
-  .kg-graph-table-kanban-lane,
+  .kg-graph-data-table-menu-row,
+  .kg-graph-data-table-menu-field,
+  .kg-graph-data-table-kanban-lane,
   .kg-responsive-kanban-lane,
   .kg-toast-list,
   .kg-toast-card {
@@ -2283,8 +2283,8 @@
   }
 
   .kg-workspace-pane-toggles label,
-  .kg-graph-table-menu-row,
-  .kg-graph-table-menu-field {
+  .kg-graph-data-table-menu-row,
+  .kg-graph-data-table-menu-field {
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
@@ -2317,7 +2317,7 @@
     max-width: 7.5rem;
   }
 
-  .kg-graph-table-kanban-lane {
+  .kg-graph-data-table-kanban-lane {
     width: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 2rem));
   }
 
@@ -2614,8 +2614,8 @@
       max-height: 40dvh;
     }
 
-    .kg-graph-table-toolbar,
-    .kg-graph-table-actions,
+    .kg-graph-data-table-toolbar,
+    .kg-graph-data-table-actions,
     .kg-data-view-header-controls,
     .kg-data-view-actions,
     .kg-data-view-header-options,
@@ -2719,22 +2719,22 @@
       height: 1rem;
     }
 
-    .kg-graph-table-menu-row {
+    .kg-graph-data-table-menu-row {
       width: 100%;
       align-items: center;
     }
 
-    .kg-graph-table-menu-field {
+    .kg-graph-data-table-menu-field {
       flex: 1 1 8rem;
     }
 
-    .kg-graph-table-menu-field > span {
+    .kg-graph-data-table-menu-field > span {
       display: block;
       margin-bottom: 0.25rem;
     }
 
-    .kg-graph-table-menu-field select,
-    .kg-graph-table-menu-field input {
+    .kg-graph-data-table-menu-field select,
+    .kg-graph-data-table-menu-field input {
       margin-left: 0 !important;
       width: 100%;
     }
@@ -2761,7 +2761,7 @@
       border-bottom-width: 1px;
     }
 
-    .kg-graph-table-inspector {
+    .kg-graph-record-inspector {
       width: 100% !important;
       max-height: 45dvh;
       border-top: 1px solid var(--kg-border);

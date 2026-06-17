@@ -14,6 +14,7 @@ import {
   UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
@@ -387,6 +388,9 @@ export function FloatingPanelChatFooter({
       ) : null}
       {modelOptions.length > 0 && (
         <section className={UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME} data-kg-chat-model-control="true">
+          <label htmlFor={chatModelSelectId} className="sr-only">
+            {UI_COPY.chatModelSelectLabel}
+          </label>
           {apiKeyPrompt ? (
             <button
               type="button"
@@ -430,7 +434,7 @@ export function FloatingPanelChatFooter({
               <Bot className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
             </span>
           )}
-          <select
+          <PanelSelect
             id={chatModelSelectId}
             aria-label={UI_COPY.chatModelSelectLabel}
             data-kg-chat-model-select="true"
@@ -448,7 +452,7 @@ export function FloatingPanelChatFooter({
                 {option}
               </option>
             ))}
-          </select>
+          </PanelSelect>
         </section>
       )}
       {apiKeyPrompt && isApiKeyExpanded ? (
@@ -465,7 +469,7 @@ export function FloatingPanelChatFooter({
           >
             <KeyRound className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
           </span>
-          <input
+          <PanelTextInput
             id={chatApiKeyInputId}
             aria-label={`${apiKeyPrompt.providerLabel} BYOK API key`}
             data-kg-chat-api-key-input="true"

@@ -3,6 +3,7 @@ import { CHAT_CONTEXT_SCOPE_OPTIONS, normalizeChatContextScopeOption } from '@/f
 import { getChatProviderLabel, normalizeChatProviderId, resolveChatModelIdForProvider } from '@/lib/chatEndpoint'
 import { inferChatProviderFromModelId } from '@/lib/chatEndpointProviderInference'
 import { resolveChatModelSelectionValues } from '@/lib/chatProviderSelection'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 
 type SettingsValues = Record<string, string | number | boolean>
 
@@ -23,7 +24,7 @@ export const renderChatProviderSettingInput = (args: {
   const derivedProvider = inferChatProviderFromModelId(args.values.chatModel || args.value, currentProvider)
 
   return (
-    <input
+    <PanelTextInput
       value={derivedProvider || currentProvider}
       readOnly
       aria-readonly="true"
@@ -55,7 +56,7 @@ export const renderChatModelSettingInput = (args: {
       : args.options,
   ))
   return (
-    <select
+    <PanelSelect
       value={resolved || normalized}
       onChange={event => {
         const next = String(event.target.value || '').trim()
@@ -78,7 +79,7 @@ export const renderChatModelSettingInput = (args: {
           {option}
         </option>
       ))}
-    </select>
+    </PanelSelect>
   )
 }
 
@@ -92,7 +93,7 @@ export const renderChatContextScopeSettingInput = (args: {
   if (args.keyName !== 'chatContextScope') return null
   const normalized = normalizeChatContextScopeOption(args.value)
   return (
-    <select
+    <PanelSelect
       value={normalized}
       onChange={event => {
         const value = event.target.value
@@ -107,6 +108,6 @@ export const renderChatContextScopeSettingInput = (args: {
           {option.label}
         </option>
       ))}
-    </select>
+    </PanelSelect>
   )
 }

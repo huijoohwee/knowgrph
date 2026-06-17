@@ -12,6 +12,7 @@ import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import type { MarkdownPresentationApi } from './markdownWorkspaceTypes'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { PanelCheckbox } from '@/lib/ui/panelFormControls'
 import { WorkspaceModeSelect } from './WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -91,6 +92,53 @@ export type MarkdownWorkspaceToolbarProps = {
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `kg-toolbar-btn ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+
+type WorkspacePaneToggleProps = {
+  label: string
+  title: string
+  ariaLabel: string
+  checked: boolean
+  labelClassName: string
+  textClassName: string
+  disabled?: boolean
+  ariaDisabled?: boolean | 'true'
+  onChange?: React.ChangeEventHandler<HTMLInputElement>
+  icon?: React.ReactNode
+  labelProps?: Omit<React.LabelHTMLAttributes<HTMLLabelElement>, 'className' | 'title'>
+}
+
+function WorkspacePaneToggle({
+  label,
+  title,
+  ariaLabel,
+  checked,
+  labelClassName,
+  textClassName,
+  disabled,
+  ariaDisabled,
+  onChange,
+  icon,
+  labelProps,
+}: WorkspacePaneToggleProps) {
+  return (
+    <label
+      {...labelProps}
+      className={labelClassName}
+      title={title}
+    >
+      <PanelCheckbox
+        className="kg-workspace-pane-toggle-input"
+        aria-label={ariaLabel}
+        checked={checked}
+        disabled={disabled}
+        aria-disabled={ariaDisabled}
+        onChange={onChange}
+      />
+      {icon}
+      <span className={textClassName}>{label}</span>
+    </label>
+  )
+}
 
 export function MarkdownWorkspaceToolbar({
   explorerOpen,
@@ -339,112 +387,101 @@ export function MarkdownWorkspaceToolbar({
               aria-label="Workspace panes"
               title="Workspace panes"
             >
-              <label className={`kg-workspace-pane-toggle ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`} title="Explorer pane">
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show Explorer pane"
-                  checked={explorerOpen}
-                  onChange={() => setExplorerOpen(!explorerOpen)}
-                />
-                <span className={paneToggleTextClassName}>Explorer</span>
-              </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.bin)} title={paneToggleTitle('bin', effectivePaneAvailability.bin)}>
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show binary model pane"
-                  checked={effectivePaneAvailability.bin}
-                  disabled
-                  aria-disabled="true"
-                />
-                <span className={paneToggleTextClassName}>bin</span>
-              </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.json)} title={paneToggleTitle('JSON', effectivePaneAvailability.json)}>
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show JSON editor pane"
-                  checked={effectivePaneVisibility.json}
-                  disabled={!effectivePaneAvailability.json}
-                  aria-disabled={!effectivePaneAvailability.json}
-                  onChange={() => {
-                    if (!effectivePaneAvailability.json) return
-                    handleContentPaneToggle('json')
-                  }}
-                />
-                <span className={paneToggleTextClassName}>JSON</span>
-              </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.markdown)} title={paneToggleTitle('Markdown editor pane', effectivePaneAvailability.markdown)}>
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show Markdown editor pane"
-                  checked={effectivePaneVisibility.markdown}
-                  disabled={!effectivePaneAvailability.markdown}
-                  aria-disabled={!effectivePaneAvailability.markdown}
-                  onChange={() => {
-                    if (!effectivePaneAvailability.markdown) return
-                    handleContentPaneToggle('markdown')
-                  }}
-                />
-                <span className={paneToggleTextClassName}>Markdown</span>
-              </label>
+              <WorkspacePaneToggle
+                label="Explorer"
+                title="Explorer pane"
+                ariaLabel="Show Explorer pane"
+                checked={explorerOpen}
+                onChange={() => setExplorerOpen(!explorerOpen)}
+                labelClassName={`kg-workspace-pane-toggle ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`}
+                textClassName={paneToggleTextClassName}
+              />
+              <WorkspacePaneToggle
+                label="bin"
+                title={paneToggleTitle('bin', effectivePaneAvailability.bin)}
+                ariaLabel="Show binary model pane"
+                checked={effectivePaneAvailability.bin}
+                disabled
+                ariaDisabled="true"
+                labelClassName={paneToggleLabelClass(effectivePaneAvailability.bin)}
+                textClassName={paneToggleTextClassName}
+              />
+              <WorkspacePaneToggle
+                label="JSON"
+                title={paneToggleTitle('JSON', effectivePaneAvailability.json)}
+                ariaLabel="Show JSON editor pane"
+                checked={effectivePaneVisibility.json}
+                disabled={!effectivePaneAvailability.json}
+                ariaDisabled={!effectivePaneAvailability.json}
+                onChange={() => {
+                  if (!effectivePaneAvailability.json) return
+                  handleContentPaneToggle('json')
+                }}
+                labelClassName={paneToggleLabelClass(effectivePaneAvailability.json)}
+                textClassName={paneToggleTextClassName}
+              />
+              <WorkspacePaneToggle
+                label="Markdown"
+                title={paneToggleTitle('Markdown editor pane', effectivePaneAvailability.markdown)}
+                ariaLabel="Show Markdown editor pane"
+                checked={effectivePaneVisibility.markdown}
+                disabled={!effectivePaneAvailability.markdown}
+                ariaDisabled={!effectivePaneAvailability.markdown}
+                onChange={() => {
+                  if (!effectivePaneAvailability.markdown) return
+                  handleContentPaneToggle('markdown')
+                }}
+                labelClassName={paneToggleLabelClass(effectivePaneAvailability.markdown)}
+                textClassName={paneToggleTextClassName}
+              />
               {showDocumentVersionGraphToggle ? (
-                <label
-                  className={`kg-workspace-pane-toggle relative z-[260] ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`}
+                <WorkspacePaneToggle
+                  label="diff"
                   title="Document version graph"
-                  data-kg-markdown-workspace-document-version-graph-toggle="1"
-                >
-                  <input
-                    className="kg-workspace-pane-toggle-input"
-                    type="checkbox"
-                    aria-label="Show document version graph"
-                    checked={documentVersionGraphOpen}
-                    onChange={event => setDocumentVersionGraphOpen?.(event.currentTarget.checked)}
-                  />
-                  <FileDiff className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} aria-hidden="true" />
-                  <span className={paneToggleTextClassName}>diff</span>
-                </label>
+                  ariaLabel="Show document version graph"
+                  checked={documentVersionGraphOpen}
+                  onChange={event => setDocumentVersionGraphOpen?.(event.currentTarget.checked)}
+                  labelClassName={`kg-workspace-pane-toggle relative z-[260] ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`}
+                  textClassName={paneToggleTextClassName}
+                  icon={<FileDiff className={MARKDOWN_WORKSPACE_TOOLBAR_GLYPH_CLASSNAME} strokeWidth={1.6} aria-hidden="true" />}
+                  labelProps={{ 'data-kg-markdown-workspace-document-version-graph-toggle': '1' }}
+                />
               ) : null}
-              <label className={`${paneToggleLabelClass(effectivePaneAvailability.viewer)} kg-workspace-pane-toggle--viewer`} title={paneToggleTitle('Viewer preview pane', effectivePaneAvailability.viewer)}>
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show Viewer preview pane"
-                  checked={effectivePaneVisibility.viewer}
-                  disabled={!effectivePaneAvailability.viewer}
-                  aria-disabled={!effectivePaneAvailability.viewer}
-                  onChange={() => {
-                    if (!effectivePaneAvailability.viewer) return
-                    handleSplitPaneToggle('viewer')
-                  }}
-                />
-                <span className={paneToggleTextClassName}>Viewer</span>
-              </label>
-              <label className={paneToggleLabelClass(htmlPaneAvailable)} title={paneToggleTitle('HTML', htmlPaneAvailable)}>
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show HTML viewer pane"
-                  checked={htmlPaneChecked}
-                  disabled={!htmlPaneAvailable}
-                  aria-disabled={!htmlPaneAvailable}
-                  onChange={handleHtmlPaneToggle}
-                />
-                <span className={paneToggleTextClassName}>HTML</span>
-              </label>
+              <WorkspacePaneToggle
+                label="Viewer"
+                title={paneToggleTitle('Viewer preview pane', effectivePaneAvailability.viewer)}
+                ariaLabel="Show Viewer preview pane"
+                checked={effectivePaneVisibility.viewer}
+                disabled={!effectivePaneAvailability.viewer}
+                ariaDisabled={!effectivePaneAvailability.viewer}
+                onChange={() => {
+                  if (!effectivePaneAvailability.viewer) return
+                  handleSplitPaneToggle('viewer')
+                }}
+                labelClassName={`${paneToggleLabelClass(effectivePaneAvailability.viewer)} kg-workspace-pane-toggle--viewer`}
+                textClassName={paneToggleTextClassName}
+              />
+              <WorkspacePaneToggle
+                label="HTML"
+                title={paneToggleTitle('HTML', htmlPaneAvailable)}
+                ariaLabel="Show HTML viewer pane"
+                checked={htmlPaneChecked}
+                disabled={!htmlPaneAvailable}
+                ariaDisabled={!htmlPaneAvailable}
+                onChange={handleHtmlPaneToggle}
+                labelClassName={paneToggleLabelClass(htmlPaneAvailable)}
+                textClassName={paneToggleTextClassName}
+              />
               {typeof canvasOpen === 'boolean' && typeof setCanvasOpen === 'function' ? (
-                <label className={`kg-workspace-pane-toggle ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`} title="Canvas pane">
-                  <input
-                    className="kg-workspace-pane-toggle-input"
-                    type="checkbox"
-                    aria-label="Show Canvas pane"
-                    checked={canvasOpen}
-                    onChange={() => setCanvasOpen(!canvasOpen)}
-                  />
-                  <span className={paneToggleTextClassName}>Canvas</span>
-                </label>
+                <WorkspacePaneToggle
+                  label="Canvas"
+                  title="Canvas pane"
+                  ariaLabel="Show Canvas pane"
+                  checked={canvasOpen}
+                  onChange={() => setCanvasOpen(!canvasOpen)}
+                  labelClassName={`kg-workspace-pane-toggle ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`}
+                  textClassName={paneToggleTextClassName}
+                />
               ) : null}
             </fieldset>
           </li>

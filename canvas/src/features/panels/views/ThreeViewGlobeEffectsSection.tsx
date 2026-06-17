@@ -1,7 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
-import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
+import { PanelKeyTypeCheckboxValueRow } from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'
+import { PanelKeyTypeRangeValueRow } from '@/features/panels/ui/PanelKeyTypeRangeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -40,13 +40,6 @@ export default function ThreeViewGlobeEffectsSection({
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
   const selectionControlClassName = `${UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
-  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
-  const KeyTypeValueRow = (
-    props: Omit<
-      React.ComponentProps<typeof KeyTypeValueStaticRow>,
-      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
-    >,
-  ) => <KeyTypeValueStaticRow {...compactStaticRowProps} {...props} />
   return (
     <CollapsibleSection
       title="Globe effects"
@@ -56,420 +49,294 @@ export default function ThreeViewGlobeEffectsSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeCheckboxValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Enable Effects</span>}
-          valueNode={(
-            <input
-              type="checkbox"
-              className={selectionControlClassName}
-              checked={globeEffectsEnabled}
-              onChange={e => setThreeConfig({ globeEffectsEnabled: e.target.checked })}
-            />
-          )}
+          checked={globeEffectsEnabled}
+          onChange={next => setThreeConfig({ globeEffectsEnabled: next })}
+          checkboxClassName={selectionControlClassName}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeCheckboxValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Label Depth Fade</span>}
-          valueNode={(
-            <input
-              type="checkbox"
-              className={selectionControlClassName}
-              checked={schema.three?.globeLabelDepthFade !== false}
-              onChange={e => setThreeConfig({ globeLabelDepthFade: e.target.checked })}
-            />
-          )}
+          checked={schema.three?.globeLabelDepthFade !== false}
+          onChange={next => setThreeConfig({ globeLabelDepthFade: next })}
+          checkboxClassName={selectionControlClassName}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeCheckboxValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Label Back-face Culling</span>}
-          valueNode={(
-            <input
-              type="checkbox"
-              className={selectionControlClassName}
-              checked={schema.three?.globeLabelBackfaceCulling !== false}
-              onChange={e => setThreeConfig({ globeLabelBackfaceCulling: e.target.checked })}
-            />
-          )}
+          checked={schema.three?.globeLabelBackfaceCulling !== false}
+          onChange={next => setThreeConfig({ globeLabelBackfaceCulling: next })}
+          checkboxClassName={selectionControlClassName}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Auto Rotate Speed</span>}
-          valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={0.4}
-                step={0.01}
-                value={Number(schema.three?.globeAutoRotateSpeed ?? 0.08)}
-                onChange={e => setThreeConfig({ globeAutoRotateSpeed: Number(e.target.value) })}
-              />
-              <span className={valueTextClassName}>{String(schema.three?.globeAutoRotateSpeed ?? 0.08)}</span>
-            </>
-          )}
+          min={0}
+          max={0.4}
+          step={0.01}
+          value={Number(schema.three?.globeAutoRotateSpeed ?? 0.08)}
+          onChange={next => setThreeConfig({ globeAutoRotateSpeed: next })}
+          valueNode={<span className={valueTextClassName}>{String(schema.three?.globeAutoRotateSpeed ?? 0.08)}</span>}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeCheckboxValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipse Camera Path</span>}
-          valueNode={(
-            <input
-              type="checkbox"
-              className={selectionControlClassName}
-              checked={schema.three?.globeCameraEllipseEnabled !== false}
-              onChange={e => setThreeConfig({ globeCameraEllipseEnabled: e.target.checked })}
-            />
-          )}
+          checked={schema.three?.globeCameraEllipseEnabled !== false}
+          onChange={next => setThreeConfig({ globeCameraEllipseEnabled: next })}
+          checkboxClassName={selectionControlClassName}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipse Speed</span>}
+          min={0}
+          max={0.4}
+          step={0.01}
+          value={Number(schema.three?.globeCameraEllipseSpeed ?? 0.045)}
+          onChange={next => setThreeConfig({ globeCameraEllipseSpeed: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={0.4}
-                step={0.01}
-                value={Number(schema.three?.globeCameraEllipseSpeed ?? 0.045)}
-                onChange={e => setThreeConfig({ globeCameraEllipseSpeed: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_CAMERA_ELLIPSE_SPEED_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseSpeed ?? 0.045)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_CAMERA_ELLIPSE_SPEED_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseSpeed ?? 0.045)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipse Radius X</span>}
+          min={0.4}
+          max={2.2}
+          step={0.02}
+          value={Number(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}
+          onChange={next => setThreeConfig({ globeCameraEllipseRadiusXFactor: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.4}
-                max={2.2}
-                step={0.02}
-                value={Number(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}
-                onChange={e => setThreeConfig({ globeCameraEllipseRadiusXFactor: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipse Radius Z</span>}
+          min={0.4}
+          max={2.2}
+          step={0.02}
+          value={Number(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}
+          onChange={next => setThreeConfig({ globeCameraEllipseRadiusZFactor: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.4}
-                max={2.2}
-                step={0.02}
-                value={Number(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}
-                onChange={e => setThreeConfig({ globeCameraEllipseRadiusZFactor: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipse Height</span>}
+          min={0}
+          max={1}
+          step={0.02}
+          value={Number(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}
+          onChange={next => setThreeConfig({ globeCameraEllipseHeightFactor: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.02}
-                value={Number(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}
-                onChange={e => setThreeConfig({ globeCameraEllipseHeightFactor: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_CAMERA_ELLIPSE_HEIGHT_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_CAMERA_ELLIPSE_HEIGHT_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipse Follow</span>}
+          min={0.02}
+          max={1}
+          step={0.02}
+          value={Number(schema.three?.globeCameraEllipseFollow ?? 0.06)}
+          onChange={next => setThreeConfig({ globeCameraEllipseFollow: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.02}
-                max={1}
-                step={0.02}
-                value={Number(schema.three?.globeCameraEllipseFollow ?? 0.06)}
-                onChange={e => setThreeConfig({ globeCameraEllipseFollow: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_CAMERA_ELLIPSE_FOLLOW_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseFollow ?? 0.06)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_CAMERA_ELLIPSE_FOLLOW_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseFollow ?? 0.06)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeCheckboxValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Hub Orbit</span>}
-          valueNode={(
-            <input
-              type="checkbox"
-              className={selectionControlClassName}
-              checked={schema.three?.globeHubOrbitEnabled !== false}
-              onChange={e => setThreeConfig({ globeHubOrbitEnabled: e.target.checked })}
-            />
-          )}
+          checked={schema.three?.globeHubOrbitEnabled !== false}
+          onChange={next => setThreeConfig({ globeHubOrbitEnabled: next })}
+          checkboxClassName={selectionControlClassName}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Hub Orbit Strength</span>}
+          min={0}
+          max={1.8}
+          step={0.02}
+          value={Number(schema.three?.globeHubOrbitStrength ?? 0.22)}
+          onChange={next => setThreeConfig({ globeHubOrbitStrength: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={1.8}
-                step={0.02}
-                value={Number(schema.three?.globeHubOrbitStrength ?? 0.22)}
-                onChange={e => setThreeConfig({ globeHubOrbitStrength: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_HUB_ORBIT_STRENGTH_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitStrength ?? 0.22)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_HUB_ORBIT_STRENGTH_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitStrength ?? 0.22)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Hub Orbit Speed</span>}
+          min={0}
+          max={2.2}
+          step={0.02}
+          value={Number(schema.three?.globeHubOrbitSpeed ?? 0.24)}
+          onChange={next => setThreeConfig({ globeHubOrbitSpeed: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={2.2}
-                step={0.02}
-                value={Number(schema.three?.globeHubOrbitSpeed ?? 0.24)}
-                onChange={e => setThreeConfig({ globeHubOrbitSpeed: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_HUB_ORBIT_SPEED_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitSpeed ?? 0.24)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_HUB_ORBIT_SPEED_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitSpeed ?? 0.24)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Hub Orbit Radius</span>}
+          min={0.05}
+          max={0.8}
+          step={0.01}
+          value={Number(schema.three?.globeHubOrbitRadiusFactor ?? 0.2)}
+          onChange={next => setThreeConfig({ globeHubOrbitRadiusFactor: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.05}
-                max={0.8}
-                step={0.01}
-                value={Number(schema.three?.globeHubOrbitRadiusFactor ?? 0.2)}
-                onChange={e => setThreeConfig({ globeHubOrbitRadiusFactor: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_HUB_ORBIT_RADIUS_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitRadiusFactor ?? 0.2)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_HUB_ORBIT_RADIUS_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitRadiusFactor ?? 0.2)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipsoid Axis X</span>}
+          min={0.5}
+          max={1.8}
+          step={0.02}
+          value={Number(schema.three?.globeSphereEllipsoidX ?? 1.08)}
+          onChange={next => setThreeConfig({ globeSphereEllipsoidX: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.5}
-                max={1.8}
-                step={0.02}
-                value={Number(schema.three?.globeSphereEllipsoidX ?? 1.08)}
-                onChange={e => setThreeConfig({ globeSphereEllipsoidX: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidX ?? 1.08)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidX ?? 1.08)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipsoid Axis Y</span>}
+          min={0.5}
+          max={1.8}
+          step={0.02}
+          value={Number(schema.three?.globeSphereEllipsoidY ?? 0.88)}
+          onChange={next => setThreeConfig({ globeSphereEllipsoidY: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.5}
-                max={1.8}
-                step={0.02}
-                value={Number(schema.three?.globeSphereEllipsoidY ?? 0.88)}
-                onChange={e => setThreeConfig({ globeSphereEllipsoidY: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidY ?? 0.88)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidY ?? 0.88)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Ellipsoid Axis Z</span>}
+          min={0.5}
+          max={1.8}
+          step={0.02}
+          value={Number(schema.three?.globeSphereEllipsoidZ ?? 1)}
+          onChange={next => setThreeConfig({ globeSphereEllipsoidZ: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0.5}
-                max={1.8}
-                step={0.02}
-                value={Number(schema.three?.globeSphereEllipsoidZ ?? 1)}
-                onChange={e => setThreeConfig({ globeSphereEllipsoidZ: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidZ ?? 1)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidZ ?? 1)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Particle Count</span>}
+          min={0}
+          max={4000}
+          step={40}
+          value={Number(schema.three?.globeParticleCount ?? 720)}
+          onChange={next => setThreeConfig({ globeParticleCount: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={4000}
-                step={40}
-                value={Number(schema.three?.globeParticleCount ?? 720)}
-                onChange={e => setThreeConfig({ globeParticleCount: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_PARTICLE_COUNT_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeParticleCount ?? 720)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_PARTICLE_COUNT_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeParticleCount ?? 720)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Atmosphere Opacity</span>}
+          min={0}
+          max={0.8}
+          step={0.02}
+          value={Number(schema.three?.globeAtmosphereOpacity ?? 0.22)}
+          onChange={next => setThreeConfig({ globeAtmosphereOpacity: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={0.8}
-                step={0.02}
-                value={Number(schema.three?.globeAtmosphereOpacity ?? 0.22)}
-                onChange={e => setThreeConfig({ globeAtmosphereOpacity: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_ATMOSPHERE_OPACITY_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeAtmosphereOpacity ?? 0.22)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_ATMOSPHERE_OPACITY_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeAtmosphereOpacity ?? 0.22)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Grid Density</span>}
+          min={4}
+          max={36}
+          step={1}
+          value={Number(schema.three?.globeGridDensity ?? 12)}
+          onChange={next => setThreeConfig({ globeGridDensity: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={4}
-                max={36}
-                step={1}
-                value={Number(schema.three?.globeGridDensity ?? 12)}
-                onChange={e => setThreeConfig({ globeGridDensity: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_GRID_DENSITY_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeGridDensity ?? 12)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_GRID_DENSITY_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeGridDensity ?? 12)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Orbit Rings</span>}
+          min={0}
+          max={10}
+          step={1}
+          value={Number(schema.three?.globeOrbitRingCount ?? 4)}
+          onChange={next => setThreeConfig({ globeOrbitRingCount: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={10}
-                step={1}
-                value={Number(schema.three?.globeOrbitRingCount ?? 4)}
-                onChange={e => setThreeConfig({ globeOrbitRingCount: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_ORBIT_RING_COUNT_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeOrbitRingCount ?? 4)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_ORBIT_RING_COUNT_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeOrbitRingCount ?? 4)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Tool Nodes</span>}
-          valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={80}
-                step={1}
-                value={Number(schema.three?.globeToolNodeCount ?? 24)}
-                onChange={e => setThreeConfig({ globeToolNodeCount: Number(e.target.value) })}
-              />
-              <span className={valueTextClassName}>{String(schema.three?.globeToolNodeCount ?? 24)}</span>
-            </>
-          )}
+          min={0}
+          max={80}
+          step={1}
+          value={Number(schema.three?.globeToolNodeCount ?? 24)}
+          onChange={next => setThreeConfig({ globeToolNodeCount: next })}
+          valueNode={<span className={valueTextClassName}>{String(schema.three?.globeToolNodeCount ?? 24)}</span>}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Great-circle Arcs</span>}
+          min={0}
+          max={36}
+          step={1}
+          value={Number(schema.three?.globeArcCount ?? 12)}
+          onChange={next => setThreeConfig({ globeArcCount: next })}
           valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={36}
-                step={1}
-                value={Number(schema.three?.globeArcCount ?? 12)}
-                onChange={e => setThreeConfig({ globeArcCount: Number(e.target.value) })}
-              />
-              <Tooltip content={GLOBE_ARC_COUNT_TOOLTIP} maxWidthPx={260}>
-                <span className={valueTextClassName}>{String(schema.three?.globeArcCount ?? 12)}</span>
-              </Tooltip>
-            </>
+            <Tooltip content={GLOBE_ARC_COUNT_TOOLTIP} maxWidthPx={260}>
+              <span className={valueTextClassName}>{String(schema.three?.globeArcCount ?? 12)}</span>
+            </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
+        <PanelKeyTypeRangeValueRow
+          density="compact"
           keyNode={<span className={keyLabelClassName}>Arc Travelers</span>}
-          valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={4}
-                step={1}
-                value={Number(schema.three?.globeArcTravelerCount ?? 1)}
-                onChange={e => setThreeConfig({ globeArcTravelerCount: Number(e.target.value) })}
-              />
-              <span className={valueTextClassName}>{String(schema.three?.globeArcTravelerCount ?? 1)}</span>
-            </>
-          )}
+          min={0}
+          max={4}
+          step={1}
+          value={Number(schema.three?.globeArcTravelerCount ?? 1)}
+          onChange={next => setThreeConfig({ globeArcTravelerCount: next })}
+          valueNode={<span className={valueTextClassName}>{String(schema.three?.globeArcTravelerCount ?? 1)}</span>}
         />
       </section>
     </CollapsibleSection>

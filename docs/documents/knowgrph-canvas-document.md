@@ -96,10 +96,10 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - **Performance**: opt-in perf overlay toggle plus read-only perf metrics (render updates/sec, state updates/sec, last layout init).
   - **Interaction Modes**:
     - **Canvas Interaction Mode**: `infiniteCanvasInteractionMode∈{static,interactive}` controls how aggressively the infinite canvas applies force-directed layout and overlay interactivity:
-      - `static` (default) runs D3 force layout to a bounded stable state and then freezes simulation; rich media and markdown overlays forward wheel/pan to the canvas so drag/pan/zoom stay primary; Graph Data Table and GraphTableDb treat position-only updates as non-syncing metadata (no background churn).
+      - `static` (default) runs D3 force layout to a bounded stable state and then freezes simulation; rich media and markdown overlays forward wheel/pan to the canvas so drag/pan/zoom stay primary; Graph Data Table and GraphRecordDb treat position-only updates as non-syncing metadata (no background churn).
       - `interactive` keeps D3 forces running continuously and enables full overlay interactivity (iframes/images/videos/markdown blocks accept wheel/pointer events and do not forward to canvas) while preserving the same SSOT GraphData and layout keys.
     - **Workspace Sync Mode**: `canvasWorkspaceSyncMode∈{manual,realtime}` controls when Canvas↔Graph Table syncing happens:
-      - `manual` (default) disables automatic GraphTableDb sync from Canvas and surfaces a single **Sync now** action in the Graph Table toolbar; Canvas edits only sync to tables on explicit user actions.
+      - `manual` (default) disables automatic GraphRecordDb sync from Canvas and surfaces a single **Sync now** action in the Graph Table toolbar; Canvas edits only sync to tables on explicit user actions.
       - `realtime` enables automatic sync, still gated by revision+viewKey to avoid loops: in static mode the sync key is `graphContentRevision` (structure-only), in interactive mode it is `graphDataRevision` (including position-only changes).
 - Viewport field groups are read-only views over the existing settings and schema; mutating the underlying behavior remains the responsibility of the Render and Settings panels.
 - Forbid duplicate/legacy “Arrange” surfaces (canvas overlays or editor tabs) that reintroduce conflicting gesture ownership, parallel Interaction UIs, or duplicate actions.
@@ -181,7 +181,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ### Record Inspector (SSOT)
 
-- The Record Inspector UI is a host-owned SSOT component (`GraphTableInspector`) and may be reused by inspector surfaces that still consume GraphTableDb row primitives.
+- The Record Inspector UI is a host-owned SSOT component (`GraphRecordInspector`) and may be reused by inspector surfaces that still consume GraphRecordDb row primitives.
 - Editor mode must not mount a standalone inspector dock; inspector surfaces belong to Canvas mode (Floating Panel) or Graph Table workspaces only.
 - When the active 2D renderer is `flowEditor`, the Flow Editor Inspector is consolidated into the same Floating Panel "Inspector" surface via a portal slot id (`FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID`) to avoid duplicate inspector panels.
 - The Inspector view must render its layout even with no active selection so the Floating Panel always shows stable structure; inputs may be disabled but the surface must stay visible.

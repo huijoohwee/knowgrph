@@ -39,8 +39,8 @@ export type GraphFieldsSelectedView =
   | { kind: 'selectionInspector' }
   | null
 
-const GraphTableSelectionInspectorLazy = React.lazy(
-  () => import('@/features/graph-table/ui/GraphTableSelectionInspector'),
+const GraphRecordSelectionInspectorLazy = React.lazy(
+  () => import('@/features/graph-inspector/ui/GraphRecordSelectionInspector'),
 )
 
 type GraphFieldsViewProps = {
@@ -287,7 +287,7 @@ export default function GraphFieldsView({
           <section ref={fieldSettingsPaneRef} className={GRAPH_FIELDS_MAIN_SETTINGS_PANE_CLASS_NAME}>
             {selectedGlobalView?.kind === 'selectionInspector' ? (
               <React.Suspense fallback={null}>
-                <GraphTableSelectionInspectorLazy />
+                <GraphRecordSelectionInspectorLazy />
               </React.Suspense>
             ) : (
               <FieldSettingsPanel

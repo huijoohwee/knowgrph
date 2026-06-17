@@ -453,7 +453,8 @@ flowchart TB
 | Workspace FS | Bootstrap startup | `features/source-files/sourceFilesBootstrapStartup.ts` | Built |
 | Source Files | Minimal persisted cache | `features/source-files/sourceFilesDb.ts` | Built |
 | Source Files | Markdown folder cache | `features/source-files/markdownFsCache.ts` | Built |
-| Graph Table | Minimal persisted cache | `lib/graph-table-db/graphTableDb.impl.ts` | Built |
+| Graph Record DB | Minimal persisted cache facade | `lib/graph-record-db/index.ts` | Built |
+| Graph Record DB | Minimal persisted cache implementation | `lib/graph-record-db/graphRecordDb.impl.ts` | Built |
 | Cache store | Shared keyed rows + change events | `lib/storage/persistedCollectionStore.ts` | Built |
 | SF ↔ Storage | Push bridge | `features/source-files/sourceFilesStorageSync.ts` | Built |
 | SF ↔ Storage | Pull apply | `features/source-files/sourceFilesInboundStorageApply.ts` | Built |

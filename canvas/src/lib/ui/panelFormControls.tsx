@@ -6,27 +6,27 @@ export const PANEL_FORM_LABEL_TEXT_CLASSNAME = cn('text-[10px]', UI_THEME_TOKENS
 export const PANEL_FORM_SECTION_LABEL_TEXT_CLASSNAME = cn('block text-xs mb-1', UI_THEME_TOKENS.text.secondary)
 
 const PANEL_FORM_SINGLE_LINE_FILLED_CONTROL_CLASSNAME = cn(
-  'w-full rounded-md border px-2 py-1 text-xs',
+  'w-full min-w-0 max-w-full h-6 rounded-md border px-2 py-1 text-xs',
   UI_THEME_TOKENS.input.bg,
   UI_THEME_TOKENS.input.border,
   UI_THEME_TOKENS.input.text,
 )
 
 const PANEL_FORM_MULTI_LINE_FILLED_CONTROL_CLASSNAME = cn(
-  'w-full resize-y rounded-md border px-2 py-1 text-xs',
+  'w-full resize rounded-md border px-2 py-1 text-xs',
   UI_THEME_TOKENS.input.bg,
   UI_THEME_TOKENS.input.border,
   UI_THEME_TOKENS.input.text,
 )
 
 const PANEL_FORM_SINGLE_LINE_TRANSPARENT_CONTROL_CLASSNAME = cn(
-  'w-full rounded border bg-transparent px-2 py-1 text-xs',
+  'w-full min-w-0 max-w-full h-6 rounded border bg-transparent px-2 py-1 text-xs',
   UI_THEME_TOKENS.panel.border,
   UI_THEME_TOKENS.text.primary,
 )
 
 const PANEL_FORM_MULTI_LINE_TRANSPARENT_CONTROL_CLASSNAME = cn(
-  'w-full resize-y rounded border bg-transparent px-2 py-1 text-xs',
+  'w-full resize rounded border bg-transparent px-2 py-1 text-xs',
   UI_THEME_TOKENS.panel.border,
   UI_THEME_TOKENS.text.primary,
 )
@@ -62,6 +62,26 @@ type PanelTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
 type PanelSelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   variant?: PanelFormControlVariant
 }
+type PanelCheckboxProps = React.InputHTMLAttributes<HTMLInputElement>
+type PanelRangeInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> & {
+  variant?: PanelFormControlVariant
+}
+
+const PANEL_FORM_CHECKBOX_CLASSNAME = cn(
+  'h-4 w-4 rounded',
+  UI_THEME_TOKENS.input.border,
+  UI_THEME_TOKENS.input.selectionControl,
+)
+
+const PANEL_FORM_RANGE_FILLED_CONTROL_CLASSNAME = cn(
+  'w-full min-w-0 flex-1 accent-[color:var(--kg-accent)]',
+  UI_THEME_TOKENS.input.selectionControl,
+)
+
+const PANEL_FORM_RANGE_TRANSPARENT_CONTROL_CLASSNAME = cn(
+  'w-full min-w-0 flex-1 bg-transparent accent-[color:var(--kg-accent)]',
+  UI_THEME_TOKENS.input.selectionControl,
+)
 
 export const PanelTextInput = React.forwardRef<HTMLInputElement, PanelTextInputProps>(function PanelTextInput(
   { className, variant = 'filled', ...props },
@@ -105,6 +125,30 @@ export const PanelSelect = React.forwardRef<HTMLSelectElement, PanelSelectProps>
       ref={ref}
       className={cn(
         variant === 'transparent' ? PANEL_FORM_SINGLE_LINE_TRANSPARENT_CONTROL_CLASSNAME : PANEL_FORM_SINGLE_LINE_FILLED_CONTROL_CLASSNAME,
+        className,
+      )}
+    />
+  )
+})
+
+export const PanelCheckbox = React.forwardRef<HTMLInputElement, PanelCheckboxProps>(function PanelCheckbox(
+  { className, ...props },
+  ref,
+) {
+  return <input {...props} ref={ref} type="checkbox" className={cn(PANEL_FORM_CHECKBOX_CLASSNAME, className)} />
+})
+
+export const PanelRangeInput = React.forwardRef<HTMLInputElement, PanelRangeInputProps>(function PanelRangeInput(
+  { className, variant = 'filled', ...props },
+  ref,
+) {
+  return (
+    <input
+      {...props}
+      ref={ref}
+      type="range"
+      className={cn(
+        variant === 'transparent' ? PANEL_FORM_RANGE_TRANSPARENT_CONTROL_CLASSNAME : PANEL_FORM_RANGE_FILLED_CONTROL_CLASSNAME,
         className,
       )}
     />
@@ -169,6 +213,21 @@ export function readPanelChoiceSurfaceClassName(options: {
     active
       ? `${UI_THEME_TOKENS.button.activeBorder} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
       : `${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
+    className,
+  )
+}
+
+export function readPanelBooleanChoiceButtonClassName(options: {
+  active: boolean
+  className?: string
+}): string {
+  const { active, className } = options
+  return cn(
+    'App-toolbar__btn border',
+    UI_THEME_TOKENS.input.border,
+    active
+      ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+      : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`,
     className,
   )
 }

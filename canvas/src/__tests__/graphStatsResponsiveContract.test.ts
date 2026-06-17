@@ -48,3 +48,14 @@ export function testGraphStatsMetricGridsUseSharedResponsiveOwner() {
     throw new Error('expected graph-stats sections to stay free of fixed two-column metric grid literals')
   }
 }
+
+export function testGraphRagCentralityStatsUsesSharedCentralityToggleGroup() {
+  const centralityText = readUtf8('src/features/graph-stats/sections/GraphRagCentralityStatsSection.tsx')
+  if (
+    !centralityText.includes("from '@/features/graphrag/ui/GraphRagCentralityToggleGroup'") ||
+    !centralityText.includes('GraphRagCentralityToggleGroup') ||
+    centralityText.includes('type="checkbox"')
+  ) {
+    throw new Error('expected GraphRAG centrality stats toggles to consume the shared centrality toggle group')
+  }
+}

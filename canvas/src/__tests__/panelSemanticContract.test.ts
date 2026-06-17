@@ -173,8 +173,8 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   const embeddedWorkspacePath = path.resolve(root, 'src', 'components', 'EmbeddedWorkspaceShell.tsx')
   const canvasPreviewDockPath = path.resolve(root, 'src', 'components', 'CanvasPreviewDock.tsx')
   const toolMenuStatePath = path.resolve(root, 'src', 'features', 'toolbar', 'useToolMenuState.ts')
-  const graphTableToolbarPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableToolbar.tsx')
-  const graphTableInspectorPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableInspector.tsx')
+  const graphTableToolbarPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'GraphDataTableToolbar.tsx')
+  const graphTableInspectorPath = path.resolve(root, 'src', 'features', 'graph-inspector', 'ui', 'GraphRecordInspector.tsx')
   const graphDataTablePath = path.resolve(root, 'src', 'lib', 'graph-data-table', 'ui', 'GraphDataTableTable.impl.tsx')
   const graphDataTableHeaderPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'GraphDataTableHeader.tsx')
   const graphDataTableBodyPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'GraphDataTableBody.tsx')
@@ -196,7 +196,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   if (!responsiveCss.includes('.kg-workspace-header-row') || !responsiveCss.includes('.kg-embedded-workspace-main')) {
     throw new Error('Expected shared responsive CSS to own workspace header and embedded workspace bounds')
   }
-  if (!responsiveCss.includes('.kg-graph-table-menu-form')) {
+  if (!responsiveCss.includes('.kg-graph-data-table-menu-form')) {
     throw new Error('Expected shared responsive CSS to own graph-table menu bounds')
   }
   if (!responsiveCss.includes('flex-wrap: nowrap') || !responsiveCss.includes('.kg-icon-button > span')) {
@@ -236,22 +236,22 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   }
 
   const graphTableToolbar = readUtf8(graphTableToolbarPath)
-  if (!graphTableToolbar.includes('kg-graph-table-toolbar') || !graphTableToolbar.includes('kg-graph-table-menu-form')) {
-    throw new Error('Expected GraphTableToolbar controls and menus to use shared responsive classes')
+  if (!graphTableToolbar.includes('kg-graph-data-table-toolbar') || !graphTableToolbar.includes('kg-graph-data-table-menu-form')) {
+    throw new Error('Expected GraphDataTableToolbar controls and menus to use shared responsive classes')
   }
   if (!graphTableToolbar.includes('UI_TEXT_TRUNCATE') || !graphTableToolbar.includes('UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME')) {
-    throw new Error('Expected GraphTableToolbar labels to ellipsize instead of pushing icons to new rows')
+    throw new Error('Expected GraphDataTableToolbar labels to ellipsize instead of pushing icons to new rows')
   }
 
   const graphTableInspector = readUtf8(graphTableInspectorPath)
   if (
-    !graphTableInspector.includes('kg-graph-table-inspector') ||
-    !graphTableInspector.includes('GRAPH_TABLE_INSPECTOR_DETAIL_GRID_CLASS_NAME') || graphTableInspector.includes('grid-cols-[minmax(0,120px)_minmax(0,1fr)]') ||
-    !graphTableInspector.includes('UI_RESPONSIVE_GRAPH_TABLE_CODE_EDITOR_CLASSNAME') ||
+    !graphTableInspector.includes('GRAPH_RECORD_INSPECTOR_ROOT_CLASS_NAME') ||
+    !graphTableInspector.includes('GRAPH_RECORD_INSPECTOR_DETAIL_GRID_CLASS_NAME') || graphTableInspector.includes('grid-cols-[minmax(0,120px)_minmax(0,1fr)]') ||
+    !graphTableInspector.includes('UI_RESPONSIVE_GRAPH_DATA_TABLE_CODE_EDITOR_CLASSNAME') ||
     graphTableInspector.includes('h-[220px]') ||
-    !responsiveCss.includes('.kg-graph-table-code-editor')
+    !responsiveCss.includes('.kg-graph-data-table-code-editor')
   ) {
-    throw new Error('Expected GraphTableInspector to avoid fixed overflow columns and local fixed code editor heights on mobile')
+    throw new Error('Expected GraphRecordInspector to avoid fixed overflow columns and local fixed code editor heights on mobile')
   }
   const graphDataTable = readUtf8(graphDataTablePath)
   const graphDataTableHeader = readUtf8(graphDataTableHeaderPath)
@@ -477,7 +477,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const columnHeaderPropertyTypeMenuPath = path.resolve(root, 'src', 'components', 'ui', 'ColumnHeaderPropertyTypeMenu.tsx')
   const typeMenuPath = path.resolve(root, 'src', 'components', 'ui', 'TypeMenu.tsx')
   const graphDataTableHeaderPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'GraphDataTableHeader.tsx')
-  const graphTableFastGridHeaderPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableFastGridHeader.tsx')
+  const graphTableFastGridHeaderPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'GraphDataTableFastGridHeader.tsx')
   const dataViewHeaderPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewHeader.tsx')
   const dataViewPanelPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsPanel.tsx')
   const dataViewPropertiesPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsPropertiesSection.tsx')
@@ -487,7 +487,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const dataViewAddColumnPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewAddColumnMenu.tsx')
   const dataViewTablePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewTableView.tsx')
   const kanbanCardPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanCard.tsx')
-  const dateCellEditorPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'fast-grid', 'DateCellEditor.tsx')
+  const dateCellEditorPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'fast-grid', 'DateCellEditor.tsx')
   const flowMappingRowsTablePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowMappingRowsTable.tsx')
   const widgetRegistryTablePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'WidgetRegistryTable.tsx')
   const widgetRegistryFieldsEditorPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'WidgetRegistryFieldsEditor.tsx')
@@ -1349,8 +1349,8 @@ export const testWorkspaceTableModeControlAvoidsToolbarSsotBridge = () => {
   if (text.includes("from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('Expected WorkspaceTableModeControl to avoid workspaceTableSsot imports that can pull toolbar chunks into SettingsView')
   }
-  if (!text.includes("from '@/features/graph-table-db/graphTableDb'")) {
-    throw new Error('Expected WorkspaceTableModeControl to warm GraphTableDb directly')
+  if (text.includes("from '@/lib/graph-record-db'") || text.includes('warmGraphRecordDb(')) {
+    throw new Error('Expected WorkspaceTableModeControl to avoid the legacy GraphRecordDb warm-up and open the shared Multi-dimensional Table surface directly')
   }
 }
 
@@ -1585,7 +1585,7 @@ export const testWorkflowManagerConsolidatedEntriesReuseGraphFieldsRightPane = (
   if (!graphFieldsText.includes('isGraphFieldsSelectionInspectorEntryLabel')) {
     throw new Error('Expected GraphFieldsView to detect selection-inspector entry requests inside the shared Graph Fields pane model')
   }
-  if (!graphFieldsText.includes('GraphTableSelectionInspectorLazy')) {
+  if (!graphFieldsText.includes('GraphRecordSelectionInspectorLazy')) {
     throw new Error('Expected GraphFieldsView to reuse the shared selection inspector inside the existing settings pane')
   }
   if (!graphFieldsText.includes('handledEntryOpenTokenRef')) {

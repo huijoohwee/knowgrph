@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { GraphField, GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
+import { GraphFieldsCompactCheckbox } from '@/features/panels/views/graph-fields/GraphFieldsPanelControls'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { GRAPH_FIELDS_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
@@ -74,7 +75,6 @@ export default function FieldSchemaSection({
   const constraintsPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.neutralSubtle} p-2 space-y-2`
   const constraintLabelClassName = `flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
   const constraintStatusClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
-  const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
     <section className={panelClassName}>
@@ -102,9 +102,7 @@ export default function FieldSchemaSection({
           </label>
           <section className="mt-1 flex items-center gap-4">
             <label className={constraintLabelClassName}>
-              <input
-                type="checkbox"
-                className={selectionControlClassName}
+              <GraphFieldsCompactCheckbox
                 checked={!!spec?.required}
                 onChange={e => upsertProperty({ required: e.target.checked })}
                 disabled={!ownerKey}
@@ -112,9 +110,7 @@ export default function FieldSchemaSection({
               <span>required</span>
             </label>
             <label className={constraintLabelClassName}>
-              <input
-                type="checkbox"
-                className={selectionControlClassName}
+              <GraphFieldsCompactCheckbox
                 checked={!!spec?.uniqueness}
                 onChange={e => upsertProperty({ uniqueness: e.target.checked })}
                 disabled={!ownerKey}

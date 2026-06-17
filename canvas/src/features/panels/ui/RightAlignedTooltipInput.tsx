@@ -1,9 +1,9 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { RightAlignedValueCell } from 'grph-shared/react/keyTypeValueRow'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 
 export interface RightAlignedTooltipInputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -47,47 +47,22 @@ export function RightAlignedTooltipInput({
         contentClassName={contentClassName}
         className="w-full h-full"
       >
-        {String(inputProps.type || 'text').toLowerCase() === 'text' ? (
-          <PlainTextInputEditor
-            inputType="text"
-            value={typeof inputProps.value === 'string' ? inputProps.value : String(inputProps.value ?? '')}
-            defaultValue={
-              typeof inputProps.defaultValue === 'string'
-                ? inputProps.defaultValue
-                : typeof inputProps.defaultValue === 'number'
-                  ? String(inputProps.defaultValue)
-                  : undefined
-            }
-            id={inputProps.id}
-            placeholder={inputProps.placeholder}
-            disabled={inputProps.disabled}
-            readOnly={inputProps.readOnly}
-            list={inputProps.list}
-            min={inputProps.min}
-            max={inputProps.max}
-            step={inputProps.step}
-            autoComplete={inputProps.autoComplete}
-            spellCheck={
-              typeof inputProps.spellCheck === 'boolean'
-                ? inputProps.spellCheck
+        <PanelTextInput
+          {...inputProps}
+          type={String(inputProps.type || 'text').toLowerCase()}
+          value={typeof inputProps.value === 'string' ? inputProps.value : String(inputProps.value ?? '')}
+          defaultValue={
+            typeof inputProps.defaultValue === 'string'
+              ? inputProps.defaultValue
+              : typeof inputProps.defaultValue === 'number'
+                ? String(inputProps.defaultValue)
                 : undefined
-            }
-            onBlur={inputProps.onBlur}
-            onKeyDown={inputProps.onKeyDown}
-            onChange={next => {
-              inputProps.onChange?.({
-                target: { value: next },
-                currentTarget: { value: next },
-              } as unknown as React.ChangeEvent<HTMLInputElement>)
-            }}
-            className={mergedClassName}
-          />
-        ) : (
-          <input
-            {...inputProps}
-            className={mergedClassName}
-          />
-        )}
+          }
+          spellCheck={typeof inputProps.spellCheck === 'boolean' ? inputProps.spellCheck : undefined}
+          autoCorrect="off"
+          autoCapitalize="off"
+          className={mergedClassName}
+        />
       </Tooltip>
     </RightAlignedValueCell>
   )

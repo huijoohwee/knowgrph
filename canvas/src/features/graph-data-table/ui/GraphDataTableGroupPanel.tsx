@@ -1,5 +1,8 @@
 import { Eraser } from 'lucide-react'
-import { secondaryButtonClassName } from '@/features/graph-data-table/ui/GraphDataTableUiPrimitives'
+import {
+  GraphDataTableInlineCheckbox,
+  secondaryButtonClassName,
+} from '@/features/graph-data-table/ui/GraphDataTableUiPrimitives'
 import { uiDataTableToggleActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { type GraphDataTableColumnKey } from '@/features/graph-data-table/graphDataTable'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -11,13 +14,12 @@ import {
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_DIVIDER_STACK_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_CHOICE_CLASSNAME,
-  UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPACIOUS_SCROLL_STACK_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_STACK_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME,
   UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_WRAP_ROW_CLASSNAME,
-  UI_RESPONSIVE_GRAPH_TABLE_NARROW_FLOATING_PANEL_CLASSNAME,
+  UI_RESPONSIVE_GRAPH_DATA_TABLE_NARROW_FLOATING_PANEL_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 
@@ -70,7 +72,7 @@ export function GroupPanel({
 
   return (
     <section
-      className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_TABLE_NARROW_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}
+      className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex ${UI_RESPONSIVE_GRAPH_DATA_TABLE_NARROW_FLOATING_PANEL_CLASSNAME} flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}
       aria-label="Group Panel"
     >
       <section className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_HEADER_ROW_CLASSNAME} ${panelTypography.textSizeClass}`}>
@@ -121,42 +123,34 @@ export function GroupPanel({
           <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_SPLIT_ROW_CLASSNAME}>
             <section className={`${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.graphDataTableAggregateNumericFieldsLabel}</section>
             <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_ROW_CLASSNAME}>
-              <label className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME} ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-                <input
-                  type="checkbox"
-                  className={selectionControlClassName}
-                  checked={includeMixedNumericFields}
-                  onChange={event => setIncludeMixedNumericFields(event.target.checked)}
-                />
-                <span>Include mixed</span>
-              </label>
-              <label className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME} ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-                <input
-                  type="checkbox"
-                  className={selectionControlClassName}
-                  checked={includeIdAsNumeric}
-                  onChange={event => setIncludeIdAsNumeric(event.target.checked)}
-                />
-                <span>Treat ID as numeric</span>
-              </label>
-              <label className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME} ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-                <input
-                  type="checkbox"
-                  className={selectionControlClassName}
-                  checked={includeSourceAsNumeric}
-                  onChange={event => setIncludeSourceAsNumeric(event.target.checked)}
-                />
-                <span>Treat Source as numeric</span>
-              </label>
-              <label className={`${UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_INLINE_CONTROL_CLASSNAME} ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-                <input
-                  type="checkbox"
-                  className={selectionControlClassName}
-                  checked={includeTargetAsNumeric}
-                  onChange={event => setIncludeTargetAsNumeric(event.target.checked)}
-                />
-                <span>Treat Target as numeric</span>
-              </label>
+              <GraphDataTableInlineCheckbox
+                checked={includeMixedNumericFields}
+                onChange={setIncludeMixedNumericFields}
+                label="Include mixed"
+                className={`${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
+                checkboxClassName={selectionControlClassName}
+              />
+              <GraphDataTableInlineCheckbox
+                checked={includeIdAsNumeric}
+                onChange={setIncludeIdAsNumeric}
+                label="Treat ID as numeric"
+                className={`${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
+                checkboxClassName={selectionControlClassName}
+              />
+              <GraphDataTableInlineCheckbox
+                checked={includeSourceAsNumeric}
+                onChange={setIncludeSourceAsNumeric}
+                label="Treat Source as numeric"
+                className={`${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
+                checkboxClassName={selectionControlClassName}
+              />
+              <GraphDataTableInlineCheckbox
+                checked={includeTargetAsNumeric}
+                onChange={setIncludeTargetAsNumeric}
+                label="Treat Target as numeric"
+                className={`${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
+                checkboxClassName={selectionControlClassName}
+              />
             </section>
           </section>
           <section className={UI_RESPONSIVE_GRAPH_DATA_TABLE_PANEL_WRAP_ROW_CLASSNAME}>

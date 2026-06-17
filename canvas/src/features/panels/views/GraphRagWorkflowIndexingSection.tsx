@@ -2,6 +2,7 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { CanvasEditableKeyTypeValueRow as KeyTypeValueRow } from '@/features/panels/ui/CanvasEditableKeyTypeValueRow'
+import { PanelKeyTypeSliderNumberRow } from '@/features/panels/ui/PanelKeyTypeSliderNumberRow'
 import { RightAlignedTooltipInput } from '@/features/panels/ui/RightAlignedTooltipInput'
 import type { GraphRagWorkflowJsonLd } from '@/features/panels/utils/graphragConfig'
 import {
@@ -106,6 +107,21 @@ export function GraphRagWorkflowIndexingSection({
     s => s.uiPanelTextFontClass || 'font-sans',
   )
   const sectionTextClassName = `${UI_THEME_TOKENS.text.primary} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`
+  const updateMaxHops = React.useCallback(
+    (raw: number) => {
+      const hops = Number.isFinite(raw)
+        ? Math.max(1, Math.min(8, Math.floor(raw)))
+        : 3
+      onUpdateWorkflow(current => {
+        const next: GraphRagWorkflowJsonLd = {
+          ...current,
+          maxHops: hops,
+        }
+        return next
+      })
+    },
+    [onUpdateWorkflow],
+  )
 
   return (
     <CollapsibleSection
@@ -235,8 +251,21 @@ export function GraphRagWorkflowIndexingSection({
               />
             )}
           />
-          <KeyTypeValueRow
-            layout="keyIconSliderInput"
+          <PanelKeyTypeSliderNumberRow
+            density="compact"
+            uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+            min={128}
+            max={4096}
+            step={128}
+            value={workflowDoc.chunking?.chunkSize ?? 1024}
+            fallbackValue={1024}
+            normalizeValue={raw =>
+              Number.isFinite(raw)
+                ? Math.max(128, Math.min(4096, Math.floor(raw)))
+                : 1024
+            }
+            onChange={updateChunkSize}
+            controlTooltip={CHUNK_SIZE_TOOLTIP}
             keyNode={(
               <Tooltip
                 content={GRAPHRAG_CHUNK_SIZE_KEY_TOOLTIP}
@@ -245,48 +274,6 @@ export function GraphRagWorkflowIndexingSection({
                 className="break-words"
               >
                 chunking.chunkSize
-              </Tooltip>
-            )}
-            typeNode={(
-              <Tooltip
-                content={CHUNK_SIZE_TOOLTIP}
-                maxWidthPx={260}
-                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-                className="w-full h-full"
-              >
-                <input
-                  type="range"
-                  min={128}
-                  max={4096}
-                  step={128}
-                  value={workflowDoc.chunking?.chunkSize ?? 1024}
-                  onChange={e => {
-                    const raw = Number(e.target.value)
-                    updateChunkSize(raw)
-                  }}
-                  className="w-full h-full"
-                />
-              </Tooltip>
-            )}
-            valueNode={(
-              <Tooltip
-                content={CHUNK_SIZE_TOOLTIP}
-                maxWidthPx={260}
-                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-                className="w-full h-full"
-              >
-                <input
-                  type="number"
-                  min={128}
-                  max={4096}
-                  step={128}
-                  value={workflowDoc.chunking?.chunkSize ?? 1024}
-                  onChange={e => {
-                    const raw = Number(e.target.value)
-                    updateChunkSize(raw)
-                  }}
-                  className={uiPanelKeyValueInputClass}
-                />
               </Tooltip>
             )}
           />
@@ -366,8 +353,21 @@ export function GraphRagWorkflowIndexingSection({
               />
             )}
           />
-          <KeyTypeValueRow
-            layout="keyIconSliderInput"
+          <PanelKeyTypeSliderNumberRow
+            density="compact"
+            uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+            min={1}
+            max={8}
+            step={1}
+            value={workflowDoc.maxHops}
+            fallbackValue={3}
+            normalizeValue={raw =>
+              Number.isFinite(raw)
+                ? Math.max(1, Math.min(8, Math.floor(raw)))
+                : 3
+            }
+            onChange={updateMaxHops}
+            controlTooltip={MAX_HOPS_TOOLTIP}
             keyNode={(
               <Tooltip
                 content={GRAPHRAG_MAX_HOPS_KEY_TOOLTIP}
@@ -376,66 +376,6 @@ export function GraphRagWorkflowIndexingSection({
                 className="break-words"
               >
                 maxHops
-              </Tooltip>
-            )}
-            typeNode={(
-              <Tooltip
-                content={MAX_HOPS_TOOLTIP}
-                maxWidthPx={260}
-                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-                className="w-full h-full"
-              >
-                <input
-                  type="range"
-                  min={1}
-                  max={8}
-                  step={1}
-                  value={workflowDoc.maxHops}
-                  onChange={e => {
-                    const raw = Number(e.target.value)
-                    const hops = Number.isFinite(raw)
-                      ? Math.max(1, Math.min(8, Math.floor(raw)))
-                      : 3
-                    onUpdateWorkflow(current => {
-                      const next: GraphRagWorkflowJsonLd = {
-                        ...current,
-                        maxHops: hops,
-                      }
-                      return next
-                    })
-                  }}
-                  className="w-full h-full"
-                />
-              </Tooltip>
-            )}
-            valueNode={(
-              <Tooltip
-                content={MAX_HOPS_TOOLTIP}
-                maxWidthPx={260}
-                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-                className="w-full h-full"
-              >
-                <input
-                  type="number"
-                  min={1}
-                  max={8}
-                  step={1}
-                  value={workflowDoc.maxHops}
-                  onChange={e => {
-                    const raw = Number(e.target.value)
-                    const hops = Number.isFinite(raw)
-                      ? Math.max(1, Math.min(8, Math.floor(raw)))
-                      : 3
-                    onUpdateWorkflow(current => {
-                      const next: GraphRagWorkflowJsonLd = {
-                        ...current,
-                        maxHops: hops,
-                      }
-                      return next
-                    })
-                  }}
-                  className={uiPanelKeyValueInputClass}
-                />
               </Tooltip>
             )}
           />
