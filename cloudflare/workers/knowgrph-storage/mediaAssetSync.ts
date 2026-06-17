@@ -121,7 +121,7 @@ const buildMediaAssetListResponse = async (
       return {
         artifactId: artifact.id,
         objectKey,
-        publicPath: `${KNOWGRPH_STORAGE_ROUTE_PATHS.mediaPrefix}/${objectKey}`,
+        publicPath: `${KNOWGRPH_STORAGE_ROUTE_PATHS.mediaPrefix}${objectKey}`,
         runId: artifact.runId,
         stageId: artifact.stageId,
         shotId: artifact.shotId,
