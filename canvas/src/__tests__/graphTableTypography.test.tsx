@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid'
+import { GraphTableDomTableView } from '@/features/graph-table/ui/GraphTableDomTableView'
 import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -90,6 +91,75 @@ export async function testGraphTableTypographyUsesUiSettings() {
     const cls = String(viewport.getAttribute('class') || '')
     if (!cls.includes('font-serif') || !cls.includes('text-[15px]')) {
       throw new Error(`expected grid viewport to inherit panel text typography, got ${JSON.stringify(cls)}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testGraphTableDomTableViewAppliesCompactDensityHeight() {
+  const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+
+    const columns: GraphColumnDoc[] = [
+      {
+        pk: 'nodes:label',
+        tableId: 'nodes',
+        columnId: 'label',
+        name: 'Label',
+        kind: 'text',
+        order: 1,
+        hidden: false,
+        createdAtMs: 0,
+        updatedAtMs: 0,
+      },
+    ]
+
+    root.render(
+      <GraphTableDomTableView
+        tableId="nodes"
+        columns={columns}
+        rows={[{ id: 'n1', __order: 0, label: 'Hello' }]}
+        selectedRowIds={[]}
+        columnVisibilityById={{}}
+        filterMatch="all"
+        filterClauses={[]}
+        groupBy=""
+        sortRules={[]}
+        rowHeightPreset="compact"
+        columnWidthsPxById={{}}
+        onRowClicked={() => void 0}
+        onSelectionChanged={() => void 0}
+      />,
+    )
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const headerCells = Array.from(container.querySelectorAll('thead th')) as HTMLTableCellElement[]
+    if (headerCells.length === 0) throw new Error('expected graph table header cells')
+    if (headerCells.some(cell => cell.style.height !== '22px')) {
+      throw new Error(`expected compact header density height, got ${headerCells.map(cell => cell.style.height).join(',')}`)
+    }
+
+    const bodyCells = Array.from(container.querySelectorAll('tbody td')) as HTMLTableCellElement[]
+    if (bodyCells.length === 0) throw new Error('expected graph table body cells')
+    if (bodyCells.some(cell => cell.style.height !== '22px')) {
+      throw new Error(`expected compact body density height, got ${bodyCells.map(cell => cell.style.height).join(',')}`)
     }
   } finally {
     try {

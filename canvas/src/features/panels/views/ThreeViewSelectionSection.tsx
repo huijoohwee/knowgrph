@@ -1,6 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -26,6 +27,7 @@ export default function ThreeViewSelectionSection({
 }: ThreeViewSelectionSectionProps) {
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
 
   return (
     <CollapsibleSection
@@ -36,7 +38,7 @@ export default function ThreeViewSelectionSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Selected Node Glow</span>}
           valueNode={(
@@ -64,8 +66,9 @@ export default function ThreeViewSelectionSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Dimmed Node Opacity</span>}
           valueNode={(
@@ -93,8 +96,9 @@ export default function ThreeViewSelectionSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Dimmed Edge Opacity</span>}
           valueNode={(
@@ -122,6 +126,7 @@ export default function ThreeViewSelectionSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

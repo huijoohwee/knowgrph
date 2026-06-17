@@ -1,6 +1,6 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -35,6 +35,7 @@ import {
 import ThreeSizingAndWidthControls from '@/features/panels/views/shared/ThreeSizingAndWidthControls'
 import { THREE_VIEW_FIELD_GRID_CLASS_NAME } from '@/features/panels/views/threeViewResponsiveClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 const keyLabelClassName = UI_THEME_TOKENS.text.primary
 const valueLabelClassName = UI_THEME_TOKENS.text.secondary
 const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
@@ -58,6 +59,13 @@ export default function ThreeViewLayoutSection({
   const layer1 = typeof layerOpacityByLayer['1'] === 'number' ? layerOpacityByLayer['1'] : 1.0
   const layer2 = typeof layerOpacityByLayer['2'] === 'number' ? layerOpacityByLayer['2'] : 0.9
   const layer3 = typeof layerOpacityByLayer['3'] === 'number' ? layerOpacityByLayer['3'] : 0.8
+  const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
+  const KeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...staticRowProps} {...props} />
 
   return (
     <CollapsibleSection

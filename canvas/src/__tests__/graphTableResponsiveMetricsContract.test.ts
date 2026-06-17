@@ -9,6 +9,8 @@ export function testGraphTableResponsiveMetricsOwnFixedChromeSizes() {
   const domTableText = readUtf8('src/features/graph-table/ui/GraphTableDomTableView.tsx')
   const dateCellEditorText = readUtf8('src/features/graph-table/ui/fast-grid/DateCellEditor.tsx')
   const fastGridText = readUtf8('src/features/graph-table/ui/GraphTableFastGrid.tsx')
+  const toolbarText = readUtf8('src/features/graph-table/ui/GraphTableToolbar.tsx')
+  const viewStateText = readUtf8('src/features/graph-table/ui/graphTableViewState.ts')
   const inspectorText = readUtf8('src/features/graph-table/ui/GraphTableInspector.tsx')
   const graphTableCssText = readUtf8('src/styles/graph-table-responsive.css')
   const indexCssText = readUtf8('src/index.css')
@@ -32,6 +34,9 @@ export function testGraphTableResponsiveMetricsOwnFixedChromeSizes() {
   if (!gridModelText.includes('GRAPH_TABLE_SELECT_COLUMN_WIDTH_PX') || !gridModelText.includes('GRAPH_TABLE_DATA_COLUMN_DEFAULT_WIDTH_PX')) {
     throw new Error('expected graph-table grid model to consume shared responsive metrics')
   }
+  if (!fastGridText.includes('readDataViewRowPixelHeight') || !domTableText.includes('readDataViewRowPixelHeight') || !toolbarText.includes('DATA_VIEW_ROW_HEIGHT_OPTIONS') || !viewStateText.includes('parseDataViewRowHeightPreset')) {
+    throw new Error('expected graph-table row-height controls and renderers to consume the shared data-view density owner')
+  }
   if (!domTableText.includes('selectColumnWidth') || !domTableText.includes('orderColumnWidth')) {
     throw new Error('expected DOM graph table to read pinned column widths from the shared model')
   }
@@ -44,7 +49,7 @@ export function testGraphTableResponsiveMetricsOwnFixedChromeSizes() {
   if (!indexCssText.includes("@import './styles/graph-table-responsive.css';") || !graphTableCssText.includes('.kg-graph-table-inspector-detail-grid') || !graphTableCssText.includes('--kg-graph-table-inspector-label-width') || !graphTableCssText.includes('40vw')) {
     throw new Error('expected graph-table inspector detail grid sizing to stay viewport-safe in the graph-table responsive stylesheet')
   }
-  if (!responsiveElementClassesText.includes("UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME = 'absolute inset-0 pointer-events-none'") || !responsiveElementClassesText.includes('`${UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME} z-0`') || domTableText.includes('width: 44') || domTableText.includes('width: 72') || dateCellEditorText.includes('width: 260') || fastGridText.includes('width: 1, height: 1') || fastGridText.includes('className="absolute inset-0 z-0 pointer-events-none"')) {
+  if (!responsiveElementClassesText.includes("UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME = 'absolute inset-0 pointer-events-none'") || !responsiveElementClassesText.includes('`${UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME} z-0`') || domTableText.includes('width: 44') || domTableText.includes('width: 72') || dateCellEditorText.includes('width: 260') || fastGridText.includes('width: 1, height: 1') || fastGridText.includes('className="absolute inset-0 z-0 pointer-events-none"') || fastGridText.includes("props.rowHeightPreset === 'compact' ? 22 : 28") || domTableText.includes("props.rowHeightPreset === 'compact' ? 22 : 28")) {
     throw new Error('expected graph-table component files to stay free of local fixed chrome size literals')
   }
 }

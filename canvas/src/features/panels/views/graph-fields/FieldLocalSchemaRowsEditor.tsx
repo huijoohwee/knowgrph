@@ -3,9 +3,9 @@ import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import { UI_LABELS } from '@/lib/config.copy'
 import {
-  KeyTypeValueRow,
+  KeyTypeValueStaticRow,
   RightAlignedValueCell,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/react/keyTypeValueRow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_GRAPH_FIELDS_FIELD_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
@@ -19,7 +19,9 @@ type FieldLocalSchemaRowsEditorProps = {
   localSchemaScope: 'node' | 'edge'
   localSchemaOwnerKey: string
   uiPanelKeyValueTextSizeClass: string
+  uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
+  uiPanelRowDensityCompactClass: string
   localSchemaRows: FieldLocalSchemaRow[]
   setLocalSchemaRows: React.Dispatch<React.SetStateAction<FieldLocalSchemaRow[]>>
   suggestedPropertyKeys: string[]
@@ -35,7 +37,9 @@ export default function FieldLocalSchemaRowsEditor({
   localSchemaScope,
   localSchemaOwnerKey,
   uiPanelKeyValueTextSizeClass,
+  uiPanelTextFontClass,
   uiPanelMonospaceTextClass,
+  uiPanelRowDensityCompactClass,
   localSchemaRows,
   setLocalSchemaRows,
   suggestedPropertyKeys,
@@ -54,7 +58,7 @@ export default function FieldLocalSchemaRowsEditor({
   return (
     <section className={panelClassName} aria-label="Schema Rows Editor">
       <header className={`px-2 border-b ${sectionDividerClassName}`}>
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           keyNode={
             <span className={headerLabelClassName}>
               {localSchemaFacet === 'localRules' ? 'Rule' : 'Key'}
@@ -65,8 +69,10 @@ export default function FieldLocalSchemaRowsEditor({
               {localSchemaFacet === 'localRules' ? 'Rule JSON' : 'Value JSON'}
             </span>
           }
-          density="compact"
           layout="keyValue"
+          textSizeClassName={uiPanelKeyValueTextSizeClass}
+          fontClassName={uiPanelTextFontClass}
+          densityClassName={uiPanelRowDensityCompactClass}
         />
       </header>
       <section className="max-h-72 overflow-auto">
@@ -163,7 +169,7 @@ export default function FieldLocalSchemaRowsEditor({
           }
 
           return (
-            <KeyTypeValueRow
+            <KeyTypeValueStaticRow
               key={row.id}
               layout="keyValue"
               align="center"
@@ -315,6 +321,10 @@ export default function FieldLocalSchemaRowsEditor({
                   ) : null}
                 </RightAlignedValueCell>
               }
+              textSizeClassName={uiPanelKeyValueTextSizeClass}
+              fontClassName={uiPanelTextFontClass}
+              densityClassName={uiPanelRowDensityCompactClass}
+              activeClassName={UI_THEME_TOKENS.table.rowHoverHighlight}
             />
           )
         })}

@@ -70,6 +70,11 @@ Python scripts in `knowgrph_parser/` support offline parsing and pipeline artifa
   pnpm run dev
   ```
 
+- If a local browser session shows `Failed to fetch dynamically imported module` after lazy-bundle renames or deleted-module cleanup:
+  - Reload once so Vite requests the current chunk graph.
+  - If the tab still serves stale chunks, restart the dev server and reopen the page.
+  - `main.tsx` unregisters localhost service workers in dev mode to prevent a cached production PWA shell from pinning stale chunk URLs.
+
 - Run tests:
 
   ```bash

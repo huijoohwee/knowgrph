@@ -1,7 +1,7 @@
 import React from 'react'
 import { CommandMenuReferenceCatalog } from '@/features/command-menu/CommandMenuCatalogPanel'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
 import { HELP_STEP_COPY } from '@/features/panels/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'

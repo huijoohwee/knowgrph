@@ -36,6 +36,15 @@ import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS } from './markdownEditSurfaceLayout'
+import {
+  coerceDataViewFieldLineMode,
+  coerceDataViewRowHeightPreset,
+  readDataViewFieldLineClassName,
+  readDataViewHeaderPaddingClassName,
+  readDataViewTablePaddingClassName,
+  type DataViewFieldLineMode,
+  type DataViewRowHeightPreset,
+} from '@/lib/ui/dataViewDensity'
 
 type MarkdownDataViewTableViewProps = {
   view: MarkdownDataView
@@ -53,6 +62,8 @@ type MarkdownDataViewTableViewProps = {
   onSetColumnSort?: (args: { columnId: string; direction: 'asc' | 'desc' }) => void
   renderAllRows?: boolean
   orientation?: 'rows' | 'columns'
+  rowHeightPreset?: DataViewRowHeightPreset
+  fieldLineMode?: DataViewFieldLineMode
 }
 
 const isTruthy = (raw: string): boolean => {
@@ -82,6 +93,11 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
   const { view, visibleColumnIds, columnTypesById, canMutate, onUpdateCell, onActivateRow } = props
   const canConfigure = props.canConfigure ?? canMutate
   const orientation = props.orientation === 'columns' ? 'columns' : 'rows'
+  const rowHeightPreset = coerceDataViewRowHeightPreset(props.rowHeightPreset)
+  const fieldLineMode = coerceDataViewFieldLineMode(props.fieldLineMode)
+  const cellPaddingClassName = readDataViewTablePaddingClassName(rowHeightPreset)
+  const headerPaddingClassName = readDataViewHeaderPaddingClassName(rowHeightPreset)
+  const fieldLineClassName = readDataViewFieldLineClassName(fieldLineMode)
   const [editing, setEditing] = React.useState<{ rowId: string; colId: string; anchorEl: HTMLElement } | null>(null)
   const [draft, setDraft] = React.useState('')
   const [renderedRowLimit, setRenderedRowLimit] = React.useState(MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT)
@@ -239,7 +255,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
         <table className="min-w-full border-collapse table-auto text-xs">
           <thead className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
             <tr>
-              <th className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}>
+              <th className={`${headerPaddingClassName} text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}>
                 Field
               </th>
               {renderedRows.map((row, rowIndex) => {
@@ -247,7 +263,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                 return (
                   <th
                     key={row.id}
-                    className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
+                    className={`${headerPaddingClassName} text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
                   >
                     <span className={[UI_TEXT_TRUNCATE, 'block max-w-[14rem]'].join(' ')}>{readMarkdownDataViewTableCellPreviewText(label)}</span>
                   </th>
@@ -267,7 +283,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   : [{ key: 'contains', label: 'contains' }, { key: 'equals', label: 'equals' }]
               return (
                 <tr key={c.id} className={`${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}>
-                  <th className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`}>
+                  <th className={`${headerPaddingClassName} text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`}>
                     <ColumnHeaderPropertyTypeMenu
                       ariaLabel={`Column type: ${c.name}`}
                       label={c.name}
@@ -328,7 +344,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                     const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
                     const baseKind = columnTypeToBaseKind(uiType)
                     const isEditing = editing?.rowId === row.id && editing?.colId === c.id
-                    const cellBase = `px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
+                    const cellBase = `${cellPaddingClassName} border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
                     if (isEditing) {
                       return (
                         <td key={`${row.id}:${c.id}`} className={cellBase}>
@@ -375,7 +391,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                             <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
                           </section>
                         ) : href ? (
-                          <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, 'underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">
+                          <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, 'underline', UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">
                             {previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue}
                           </a>
                         ) : baseKind === 'select' && value ? (
@@ -387,7 +403,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                             ))}
                           </section>
                         ) : (
-                          <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>
+                          <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>
                             {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}
                           </span>
                         )}
@@ -401,7 +417,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
               <tr>
                 <td
                   colSpan={renderedRows.length + 1}
-                  className={`px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder}`}
+                  className={`${cellPaddingClassName} border-b ${UI_THEME_TOKENS.table.cellBorder}`}
                 >
                   <button
                     type="button"
@@ -437,7 +453,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
               return (
               <th
                 key={c.id}
-                className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
+                className={`${headerPaddingClassName} text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
               >
                 <section className="flex min-w-0 items-center gap-2 overflow-hidden">
                   <ColumnHeaderPropertyTypeMenu
@@ -499,7 +515,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             })}
             {canMutate && props.onAddColumn ? (
               <th
-                className={`px-2 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
+                className={`${headerPaddingClassName} text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
               >
                 <MarkdownDataViewAddColumnMenu
                   ariaLabel="Add column"
@@ -537,7 +553,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                 const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
                 const baseKind = columnTypeToBaseKind(uiType)
                 const isEditing = editing?.rowId === r.id && editing?.colId === c.id
-                const cellBase = `px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
+                const cellBase = `${cellPaddingClassName} border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
                 if (isEditing) {
                   const isSelect = baseKind === 'select' && uiType !== 'checkbox'
                   const isCheckbox = uiType === 'checkbox'
@@ -621,7 +637,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
                       </section>
                     ) : href ? (
-                      <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, 'underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
+                      <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, 'underline', UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
                         {previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue}
                       </a>
                     ) : baseKind === 'select' && value ? (
@@ -633,7 +649,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         ))}
                       </section>
                     ) : (
-                      <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
+                      <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
                         {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}
                       </span>
                     )}
@@ -641,7 +657,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                 )
               })}
               {canMutate && props.onAddColumn ? (
-                <td className={`px-2 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder}`} />
+                <td className={`${headerPaddingClassName} border-b ${UI_THEME_TOKENS.table.cellBorder}`} />
               ) : null}
             </tr>
           ))}
@@ -649,7 +665,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             <tr>
               <td
                 colSpan={visibleColumnMeta.length + (canMutate && props.onAddColumn ? 1 : 0)}
-                className={`px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder}`}
+                className={`${cellPaddingClassName} border-b ${UI_THEME_TOKENS.table.cellBorder}`}
               >
                 <button
                   type="button"
@@ -666,7 +682,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             <tr>
               <td
                 colSpan={visibleColumnMeta.length + (canMutate && props.onAddColumn ? 1 : 0)}
-                className={`px-3 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder}`}
+                className={`${cellPaddingClassName} border-b ${UI_THEME_TOKENS.table.cellBorder}`}
               >
                 <button
                   type="button"

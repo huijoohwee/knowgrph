@@ -1,10 +1,8 @@
 import React from 'react'
 import CollapsibleSubsection from '@/features/panels/ui/CollapsibleSubsection'
-import {
-  KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
-  RightAlignedTooltipInput,
-  SimpleKeyValueRow,
-} from '@/features/panels/ui/KeyTypeValueRow'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
+import { RightAlignedTooltipInput } from '@/features/panels/ui/RightAlignedTooltipInput'
+import { SimpleKeyValueRow } from 'grph-shared/react/keyTypeValueRow'
 import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalog'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -16,6 +14,9 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
   const { examples, onApplyExample } = props
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const uiPanelRowDensityCompactClass = useGraphStore(
+    s => s.uiPanelRowDensityCompactClass || 'py-0.5',
+  )
 
   const [selectedExampleId, setSelectedExampleId] = React.useState<string>('')
 
@@ -60,7 +61,13 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
 
       <CollapsibleSubsection title="Dataset fetch limits">
         <section className="space-y-1">
-          <SimpleKeyValueRow label="Timeout (ms)" density="compact" className="px-1">
+          <SimpleKeyValueRow
+            label="Timeout (ms)"
+            className="px-1"
+            textSizeClassName={uiPanelKeyValueTextSizeClass}
+            fontClassName={uiPanelTextFontClass}
+            densityClassName={uiPanelRowDensityCompactClass}
+          >
             <RightAlignedTooltipInput
               tooltip="Bounded fetch timeout. Range: 1,000–60,000 ms."
               type="number"
@@ -72,7 +79,13 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
               onClick={e => e.stopPropagation()}
             />
           </SimpleKeyValueRow>
-          <SimpleKeyValueRow label="Max bytes" density="compact" className="px-1">
+          <SimpleKeyValueRow
+            label="Max bytes"
+            className="px-1"
+            textSizeClassName={uiPanelKeyValueTextSizeClass}
+            fontClassName={uiPanelTextFontClass}
+            densityClassName={uiPanelRowDensityCompactClass}
+          >
             <RightAlignedTooltipInput
               tooltip="Bounded fetch size. Range: 64 KB–50 MB."
               type="number"

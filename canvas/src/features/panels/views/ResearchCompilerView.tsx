@@ -19,6 +19,7 @@ import {
   uiToolbarButtonPrimarySolidClassName,
   uiToolbarRowScrollInlineClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { PanelField, PanelReadOnlyField, PanelTextInput, PanelTextarea } from '@/lib/ui/panelFormControls'
 
 const DEFAULT_RESEARCH_PROMPT = 'Evaluate whether the selected operating thesis is investable from the current workspace sources.'
 
@@ -100,36 +101,36 @@ export default function ResearchCompilerView({ searchQuery = '' }: { searchQuery
     <section className="h-full min-h-0 overflow-y-auto pr-1" data-kg-research-compiler-panel="1" aria-label="Research compiler">
       <section className="grid gap-3 pb-3">
         <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-          <label className="grid gap-1">
-            <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Thesis prompt</span>
-            <textarea
-              className={`min-h-24 resize-y rounded border ${UI_THEME_TOKENS.panel.border} bg-transparent p-2 text-sm ${UI_THEME_TOKENS.text.primary}`}
+          <PanelField label="Thesis prompt" variant="section" layout="compact" labelClassName="font-semibold">
+            <PanelTextarea
+              variant="transparent"
+              className="min-h-24 p-2 text-sm"
               value={prompt}
               onChange={event => setPrompt(event.currentTarget.value)}
               data-kg-research-thesis-prompt="1"
             />
-          </label>
+          </PanelField>
           <section className={`${uiToolbarRowScrollInlineClassName} mt-2 gap-2`} aria-label="Research budget">
-            <label className="grid gap-1">
-              <span className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.tertiary}`}>Input tokens</span>
-              <input
-                className={`w-28 rounded border ${UI_THEME_TOKENS.panel.border} bg-transparent px-2 py-1 text-sm`}
+            <PanelField label="Input tokens" layout="compact" labelClassName="text-[11px] font-semibold">
+              <PanelTextInput
+                variant="transparent"
+                className="w-28 text-sm"
                 type="number"
                 min={1}
                 value={maxInputTokens}
                 onChange={event => setMaxInputTokens(Number(event.currentTarget.value))}
               />
-            </label>
-            <label className="grid gap-1">
-              <span className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.tertiary}`}>Output tokens</span>
-              <input
-                className={`w-28 rounded border ${UI_THEME_TOKENS.panel.border} bg-transparent px-2 py-1 text-sm`}
+            </PanelField>
+            <PanelField label="Output tokens" layout="compact" labelClassName="text-[11px] font-semibold">
+              <PanelTextInput
+                variant="transparent"
+                className="w-28 text-sm"
                 type="number"
                 min={1}
                 value={maxOutputTokens}
                 onChange={event => setMaxOutputTokens(Number(event.currentTarget.value))}
               />
-            </label>
+            </PanelField>
             <button
               type="button"
               className={`App-toolbar__btn ${uiToolbarButtonPrimarySolidClassName} ml-auto`}
@@ -179,20 +180,17 @@ export default function ResearchCompilerView({ searchQuery = '' }: { searchQuery
             {resultSummary.status === 'ready' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" /> : null}
             {resultSummary.status === 'error' ? <XCircle className="h-4 w-4 text-red-600" aria-hidden="true" /> : null}
           </header>
-          <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Run ID</dt>
-            <dd className="truncate font-mono">{resultSummary.runId || 'pending'}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Claims</dt>
-            <dd>{resultSummary.claimCount}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Evidence</dt>
-            <dd>{resultSummary.evidenceCount}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Candidates</dt>
-            <dd>{resultSummary.candidateNodeCount} nodes / {resultSummary.candidateEdgeCount} edges</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Cache hits</dt>
-            <dd>{resultSummary.cacheHits}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Active graph mutated</dt>
-            <dd>{String(resultSummary.activeGraphMutated)}</dd>
-          </dl>
+          <section className="mt-2 grid grid-cols-2 gap-2">
+            <PanelReadOnlyField label="Run ID" value={resultSummary.runId || 'pending'} valueClassName="truncate font-mono" />
+            <PanelReadOnlyField label="Claims" value={resultSummary.claimCount} />
+            <PanelReadOnlyField label="Evidence" value={resultSummary.evidenceCount} />
+            <PanelReadOnlyField
+              label="Candidates"
+              value={`${resultSummary.candidateNodeCount} nodes / ${resultSummary.candidateEdgeCount} edges`}
+            />
+            <PanelReadOnlyField label="Cache hits" value={resultSummary.cacheHits} />
+            <PanelReadOnlyField label="Active graph mutated" value={String(resultSummary.activeGraphMutated)} />
+          </section>
           {resultSummary.error ? <p className="mt-2 text-xs text-red-600">{resultSummary.error}</p> : null}
         </section>
 
@@ -227,12 +225,17 @@ export default function ResearchCompilerView({ searchQuery = '' }: { searchQuery
                 )
               })}
             </section>
-            <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">
-              <dt className={UI_THEME_TOKENS.text.tertiary}>Apply owner</dt>
-              <dd className="truncate font-mono">{reviewAudit?.apply_owner || RESEARCH_THESIS_KGC_APPLY_OWNER}</dd>
-              <dt className={UI_THEME_TOKENS.text.tertiary}>Accepted delta</dt>
-              <dd>{reviewAudit?.accepted_delta.nodes.length || 0} nodes / {reviewAudit?.accepted_delta.edges.length || 0} edges</dd>
-            </dl>
+            <section className="mt-2 grid grid-cols-2 gap-2">
+              <PanelReadOnlyField
+                label="Apply owner"
+                value={reviewAudit?.apply_owner || RESEARCH_THESIS_KGC_APPLY_OWNER}
+                valueClassName="truncate font-mono"
+              />
+              <PanelReadOnlyField
+                label="Accepted delta"
+                value={`${reviewAudit?.accepted_delta.nodes.length || 0} nodes / ${reviewAudit?.accepted_delta.edges.length || 0} edges`}
+              />
+            </section>
           </section>
         ) : null}
       </section>

@@ -9,6 +9,13 @@ import { LayoutChoice } from './WorkspaceDataViewSettingsPrimitives'
 import { buildSuggestedRoles } from './workspaceDataViewGraphRoles'
 import { WORKSPACE_EDITOR_MODE_OPTIONS, type WorkspaceEditorMode } from '@/features/workspace-table/workspaceEditorMode'
 import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
+import {
+  DATA_VIEW_FIELD_LINE_OPTIONS,
+  DATA_VIEW_ROW_HEIGHT_OPTIONS,
+  readDataViewFieldLineLabel,
+  readDataViewRowHeightLabel,
+} from '@/lib/ui/dataViewDensity'
+import { PanelField, PanelSelect, PanelTextInput, readPanelChoiceSurfaceClassName } from '@/lib/ui/panelFormControls'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
@@ -49,6 +56,8 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
   const groupByColumnName = props.columns.find(column => column.id === props.viewConfig.groupByColumnId)?.name || 'None'
   const sortColumnName = currentSortRule ? (props.columns.find(column => column.id === currentSortRule.columnId)?.name || currentSortRule.columnId) : 'None'
   const orientation = props.viewConfig.orientation === 'columns' ? 'columns' : 'rows'
+  const rowHeightPreset = props.viewConfig.rowHeightPreset === 'compact' ? 'compact' : 'comfortable'
+  const fieldLineMode = props.viewConfig.fieldLineMode === 'double' ? 'double' : 'single'
   const setOrientationFromWorkbench = React.useCallback((nextOrientation: 'rows' | 'columns') => {
     if (orientation === nextOrientation) return
     props.setViewConfig({
@@ -206,20 +215,24 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
         <section className="min-w-0 flex-1 overflow-y-auto px-3 pb-3" aria-label="View settings panel">
           <section className={['mt-3 rounded border p-2', UI_THEME_TOKENS.panel.border].join(' ')} aria-label="View query workbench">
             <section className="mt-2 space-y-2" aria-label="View query roles">
-              <label className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}>
-                <span className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Projection</span>
+              <PanelField
+                label="Projection"
+                variant="section"
+                className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}
+                labelClassName={UI_TEXT_TRUNCATE}
+              >
                 <span className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-1`}>
                   <ArrowLeftRight className={['h-4 w-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                  <select
+                  <PanelSelect
                     className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'text-left'].join(' ')}
                     value={orientation}
                     onChange={event => setOrientationFromWorkbench(event.target.value === 'columns' ? 'columns' : 'rows')}
                   >
                     <option value="rows">Rows as records</option>
                     <option value="columns">Columns as records</option>
-                  </select>
+                  </PanelSelect>
                 </span>
-              </label>
+              </PanelField>
               <section className={['text-[11px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')} aria-label="View query summary">
                 {`Projection: ${orientation === 'columns' ? 'columns as records' : 'rows as records'}`}
               </section>
@@ -243,12 +256,9 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
             headerClassName={VIEW_SECTION_HEADER_SPACING_CLASS_NAME}
           >
             <section className="space-y-4" aria-label="Layout">
-              <label className="block">
-                <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>
-                  View name
-                </span>
-                <input
-                  className={['w-full text-sm px-3 py-2 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text].join(' ')}
+              <PanelField label="View name" variant="section">
+                <PanelTextInput
+                  className="px-3 py-2 text-sm"
                   value={props.viewConfig.name}
                   onChange={e => {
                     const nextName = e.target.value
@@ -257,7 +267,7 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                   }}
                   placeholder="View name"
                 />
-              </label>
+              </PanelField>
 
               <section>
                 <section className={['flex items-center gap-2 text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>
@@ -312,6 +322,81 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                     {MARKDOWN_DATA_VIEW_COPY.graphRenderingToggleLabel}
                   </span>
                 </label>
+              </fieldset>
+
+              <fieldset className={['rounded border p-3', UI_THEME_TOKENS.panel.border].join(' ')}>
+                <legend className={['px-1 text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
+                  Density
+                </legend>
+                <section className="space-y-3">
+                  <fieldset className="space-y-2">
+                    <legend className={['text-xs font-medium', UI_THEME_TOKENS.text.secondary].join(' ')}>
+                      {`Row height: ${readDataViewRowHeightLabel(rowHeightPreset)}`}
+                    </legend>
+                    <section className="grid grid-cols-2 gap-2">
+                      {DATA_VIEW_ROW_HEIGHT_OPTIONS.map(option => {
+                        const active = rowHeightPreset === option.value
+                        return (
+                          <label
+                            key={option.value}
+                            className="block"
+                          >
+                            <input
+                              type="radio"
+                              name="workspace-data-view-row-height"
+                              className="sr-only"
+                              checked={active}
+                              onChange={() => {
+                                if (rowHeightPreset === option.value) return
+                                props.setViewConfig({ ...props.viewConfig, rowHeightPreset: option.value })
+                              }}
+                            />
+                            <span className={readPanelChoiceSurfaceClassName({ active })}>
+                              <span className="block text-sm font-medium">{option.label}</span>
+                              <span className={['mt-1 block text-[11px]', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary].join(' ')}>
+                                {option.description}
+                              </span>
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </section>
+                  </fieldset>
+
+                  <fieldset className="space-y-2">
+                    <legend className={['text-xs font-medium', UI_THEME_TOKENS.text.secondary].join(' ')}>
+                      {`Field line: ${readDataViewFieldLineLabel(fieldLineMode)}`}
+                    </legend>
+                    <section className="grid grid-cols-2 gap-2">
+                      {DATA_VIEW_FIELD_LINE_OPTIONS.map(option => {
+                        const active = fieldLineMode === option.value
+                        return (
+                          <label
+                            key={option.value}
+                            className="block"
+                          >
+                            <input
+                              type="radio"
+                              name="workspace-data-view-field-line"
+                              className="sr-only"
+                              checked={active}
+                              onChange={() => {
+                                if (fieldLineMode === option.value) return
+                                props.setViewConfig({ ...props.viewConfig, fieldLineMode: option.value })
+                              }}
+                            />
+                            <span className={readPanelChoiceSurfaceClassName({ active, multiline: true })}>
+                              <span className="block text-sm font-medium">{option.label}</span>
+                              <span className={['mt-1 block text-[11px]', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary].join(' ')}>
+                                {option.description}
+                              </span>
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </section>
+                  </fieldset>
+                </section>
               </fieldset>
             </section>
           </CollapsibleSection>
@@ -375,25 +460,24 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
             headerClassName={VIEW_SECTION_HEADER_SPACING_CLASS_NAME}
           >
             <section aria-label="Group" className="space-y-2">
-              <section className={['text-sm font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>
-                Group by
-              </section>
-              <select
-                className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
-                value={props.viewConfig.groupByColumnId || ''}
-                onChange={e => {
-                  const nextGroupByColumnId = e.target.value || null
-                  if ((props.viewConfig.groupByColumnId || null) === nextGroupByColumnId) return
-                  props.setViewConfig({ ...props.viewConfig, groupByColumnId: nextGroupByColumnId })
-                }}
-              >
-                <option value="">None</option>
-                {groupableColumns.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <PanelField label="Group by" variant="section">
+                <PanelSelect
+                  className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
+                  value={props.viewConfig.groupByColumnId || ''}
+                  onChange={e => {
+                    const nextGroupByColumnId = e.target.value || null
+                    if ((props.viewConfig.groupByColumnId || null) === nextGroupByColumnId) return
+                    props.setViewConfig({ ...props.viewConfig, groupByColumnId: nextGroupByColumnId })
+                  }}
+                >
+                  <option value="">None</option>
+                  {groupableColumns.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </PanelSelect>
+              </PanelField>
               <section className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
                 Grouping is available for Select / Multi-select properties.
               </section>

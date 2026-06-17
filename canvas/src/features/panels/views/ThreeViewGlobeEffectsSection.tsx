@@ -1,6 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -39,6 +40,13 @@ export default function ThreeViewGlobeEffectsSection({
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
   const selectionControlClassName = `${UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
+  const KeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...compactStaticRowProps} {...props} />
   return (
     <CollapsibleSection
       title="Globe effects"

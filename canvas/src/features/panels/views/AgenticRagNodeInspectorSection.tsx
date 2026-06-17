@@ -8,7 +8,7 @@ import {
 import type { AgenticRagNodeView } from '@/lib/graph/types'
 import { ORCHESTRATOR_AGENTIC_COPY } from '@/features/panels/config'
 import { type AgenticPathInfo } from '@/features/panels/views/AgenticRagNodeInspectorSectionModel'
-import { SimpleKeyValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { SimpleKeyValueRow } from 'grph-shared/react/keyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getChipClass } from '@/lib/ui'
 import {
@@ -43,6 +43,9 @@ export function AgenticRagNodeInspectorSection({
   const uiIconPillBadgeTextSizeClass = useGraphStore(s => s.uiIconPillBadgeTextSizeClass)
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
+  )
+  const uiPanelRowDensityCompactClass = useGraphStore(
+    s => s.uiPanelRowDensityCompactClass || 'py-0.5',
   )
   const inspectorPanelClassName = `mt-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1`
   const inspectorHeadingClassName = `${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`
@@ -106,16 +109,20 @@ export function AgenticRagNodeInspectorSection({
         <section className={inspectorBodyClassName}>
           <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             <SimpleKeyValueRow
-              density="compact"
               label={<span className={inspectorLabelClassName}>Id</span>}
+              textSizeClassName={uiPanelKeyValueTextSizeClass}
+              fontClassName={uiPanelTextFontClass}
+              densityClassName={uiPanelRowDensityCompactClass}
             >
               <span className={`${uiPanelMonospaceTextClass} break-all`}>
                 {selectedAgenticNode.id}
               </span>
             </SimpleKeyValueRow>
             <SimpleKeyValueRow
-              density="compact"
               label={<span className={inspectorLabelClassName}>Labels</span>}
+              textSizeClassName={uiPanelKeyValueTextSizeClass}
+              fontClassName={uiPanelTextFontClass}
+              densityClassName={uiPanelRowDensityCompactClass}
             >
               <span className={`${uiPanelMonospaceTextClass} break-words`}>
                 {selectedAgenticNode.labels.join(', ')}
@@ -125,9 +132,11 @@ export function AgenticRagNodeInspectorSection({
           <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             {selectedAgenticNode.chunkText && (
               <SimpleKeyValueRow
-                density="compact"
                 align="start"
                 label={<span className={inspectorLabelClassName}>chunk_text</span>}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
+                fontClassName={uiPanelTextFontClass}
+                densityClassName={uiPanelRowDensityCompactClass}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   {String(selectedAgenticNode.chunkText).slice(0, 240)}
@@ -137,8 +146,10 @@ export function AgenticRagNodeInspectorSection({
             )}
             {selectedAgenticNode.embedding && (
               <SimpleKeyValueRow
-                density="compact"
                 label={<span className={inspectorLabelClassName}>embedding</span>}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
+                fontClassName={uiPanelTextFontClass}
+                densityClassName={uiPanelRowDensityCompactClass}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   [{selectedAgenticNode.embedding.length} values]
@@ -147,8 +158,10 @@ export function AgenticRagNodeInspectorSection({
             )}
             {selectedAgenticNode.geo && (
               <SimpleKeyValueRow
-                density="compact"
                 label={<span className={inspectorLabelClassName}>geo</span>}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
+                fontClassName={uiPanelTextFontClass}
+                densityClassName={uiPanelRowDensityCompactClass}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   lat={selectedAgenticNode.geo.lat}, lng={selectedAgenticNode.geo.lng}
@@ -157,8 +170,10 @@ export function AgenticRagNodeInspectorSection({
             )}
             {selectedAgenticNode.mediaKind && (
               <SimpleKeyValueRow
-                density="compact"
                 label={<span className={inspectorLabelClassName}>media.kind</span>}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
+                fontClassName={uiPanelTextFontClass}
+                densityClassName={uiPanelRowDensityCompactClass}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   {selectedAgenticNode.mediaKind}
@@ -167,8 +182,10 @@ export function AgenticRagNodeInspectorSection({
             )}
             {selectedAgenticNode.mediaUrl && (
               <SimpleKeyValueRow
-                density="compact"
                 label={<span className={inspectorLabelClassName}>media.url</span>}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
+                fontClassName={uiPanelTextFontClass}
+                densityClassName={uiPanelRowDensityCompactClass}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-all`}>
                   {selectedAgenticNode.mediaUrl}
@@ -182,13 +199,15 @@ export function AgenticRagNodeInspectorSection({
                 return (
                   <SimpleKeyValueRow
                     key={key}
-                    density="compact"
                     align="start"
                     label={(
                       <span className={inspectorLabelClassName}>
                         provenance.{key}
                       </span>
                     )}
+                    textSizeClassName={uiPanelKeyValueTextSizeClass}
+                    fontClassName={uiPanelTextFontClass}
+                    densityClassName={uiPanelRowDensityCompactClass}
                   >
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {typeof value === 'string' ? value : JSON.stringify(value)}
@@ -201,9 +220,11 @@ export function AgenticRagNodeInspectorSection({
           <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             {selectedAgenticNode.graphRAGPath && (
               <SimpleKeyValueRow
-                density="compact"
                 align="start"
                 label={<span className={inspectorLabelClassName}>graphRAGPath</span>}
+                textSizeClassName={uiPanelKeyValueTextSizeClass}
+                fontClassName={uiPanelTextFontClass}
+                densityClassName={uiPanelRowDensityCompactClass}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   {JSON.stringify(selectedAgenticNode.graphRAGPath)}
@@ -213,8 +234,10 @@ export function AgenticRagNodeInspectorSection({
             {agenticPathInfo && (
               <>
                 <SimpleKeyValueRow
-                  density="compact"
                   label={<span className={inspectorLabelClassName}>graphRAGPath type</span>}
+                  textSizeClassName={uiPanelKeyValueTextSizeClass}
+                  fontClassName={uiPanelTextFontClass}
+                  densityClassName={uiPanelRowDensityCompactClass}
                 >
                   <span
                     className={getChipClass('selected', {
@@ -227,9 +250,11 @@ export function AgenticRagNodeInspectorSection({
                 </SimpleKeyValueRow>
                 {agenticPathInfo.query && (
                   <SimpleKeyValueRow
-                    density="compact"
                     align="start"
                     label={<span className={inspectorLabelClassName}>query</span>}
+                    textSizeClassName={uiPanelKeyValueTextSizeClass}
+                    fontClassName={uiPanelTextFontClass}
+                    densityClassName={uiPanelRowDensityCompactClass}
                   >
                     <span className={`${uiPanelMonospaceTextClass} break-words`}>
                       {agenticPathInfo.query}
@@ -238,9 +263,11 @@ export function AgenticRagNodeInspectorSection({
                 )}
                 {agenticPathInfo.example && (
                   <SimpleKeyValueRow
-                    density="compact"
                     align="start"
                     label={<span className={inspectorLabelClassName}>example</span>}
+                    textSizeClassName={uiPanelKeyValueTextSizeClass}
+                    fontClassName={uiPanelTextFontClass}
+                    densityClassName={uiPanelRowDensityCompactClass}
                   >
                     <span className={`${uiPanelMonospaceTextClass} break-words`}>
                       {agenticPathInfo.example}
@@ -249,9 +276,11 @@ export function AgenticRagNodeInspectorSection({
                 )}
                 {agenticPathInfo.traverse.length > 0 && (
                   <SimpleKeyValueRow
-                    density="compact"
                     align="start"
                     label={<span className={inspectorLabelClassName}>traverse</span>}
+                    textSizeClassName={uiPanelKeyValueTextSizeClass}
+                    fontClassName={uiPanelTextFontClass}
+                    densityClassName={uiPanelRowDensityCompactClass}
                   >
                     <span className="flex flex-wrap gap-1 mt-[1px]">
                       {agenticPathInfo.traverse.map(id => (
@@ -271,9 +300,11 @@ export function AgenticRagNodeInspectorSection({
                 )}
                 {agenticPathInfo.hops.length > 0 && (
                   <SimpleKeyValueRow
-                    density="compact"
                     align="start"
                     label={<span className={inspectorLabelClassName}>hops</span>}
+                    textSizeClassName={uiPanelKeyValueTextSizeClass}
+                    fontClassName={uiPanelTextFontClass}
+                    densityClassName={uiPanelRowDensityCompactClass}
                   >
                     <span className="flex flex-wrap gap-1 mt-[1px]">
                       {agenticPathInfo.hops.map((hop, index) => (
@@ -293,9 +324,11 @@ export function AgenticRagNodeInspectorSection({
                 )}
                 {agenticPathInfo.multiHop.length > 0 && (
                   <SimpleKeyValueRow
-                    density="compact"
                     align="start"
                     label={<span className={inspectorLabelClassName}>multiHop</span>}
+                    textSizeClassName={uiPanelKeyValueTextSizeClass}
+                    fontClassName={uiPanelTextFontClass}
+                    densityClassName={uiPanelRowDensityCompactClass}
                   >
                     <span className="flex flex-wrap gap-1 mt-[1px]">
                       {agenticPathInfo.multiHop.map((hop, index) => (
@@ -318,39 +351,45 @@ export function AgenticRagNodeInspectorSection({
           </section>
           <section className={AGENTIC_RAG_NODE_INSPECTOR_DENSE_GRID_CLASS_NAME}>
             <SimpleKeyValueRow
-              density="compact"
               align="start"
               label={(
                 <span className={inspectorLabelClassName}>
                   {AGENTIC_RAG_SCHEMA_LABEL}
                 </span>
               )}
+              textSizeClassName={uiPanelKeyValueTextSizeClass}
+              fontClassName={uiPanelTextFontClass}
+              densityClassName={uiPanelRowDensityCompactClass}
             >
               <span className={`${uiPanelMonospaceTextClass} break-all`}>
                 {AGENTIC_RAG_SCHEMA_URL}
               </span>
             </SimpleKeyValueRow>
             <SimpleKeyValueRow
-              density="compact"
               align="start"
               label={(
                 <span className={inspectorLabelClassName}>
                   {AGENTIC_RAG_CONTEXT_LABEL}
                 </span>
               )}
+              textSizeClassName={uiPanelKeyValueTextSizeClass}
+              fontClassName={uiPanelTextFontClass}
+              densityClassName={uiPanelRowDensityCompactClass}
             >
               <span className={`${uiPanelMonospaceTextClass} break-all`}>
                 {AGENTIC_RAG_CONTEXT_URL}
               </span>
             </SimpleKeyValueRow>
             <SimpleKeyValueRow
-              density="compact"
               align="start"
               label={(
                 <span className={inspectorLabelClassName}>
                   {GRAPHRAG_PATH_IRI_LABEL}
                 </span>
               )}
+              textSizeClassName={uiPanelKeyValueTextSizeClass}
+              fontClassName={uiPanelTextFontClass}
+              densityClassName={uiPanelRowDensityCompactClass}
             >
               <span className={`${uiPanelMonospaceTextClass} break-all`}>
                 {AGENTIC_RAG_GRAPH_RAG_PATH_IRI}

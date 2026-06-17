@@ -751,6 +751,8 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             view={displayedView || selected.view}
             visibleColumnIds={visibleColumnIds}
             columnTypesById={columnTypesById}
+            rowHeightPreset={viewConfig?.rowHeightPreset}
+            fieldLineMode={viewConfig?.fieldLineMode}
             canMutate={canMutate}
             canConfigure={true}
             onUpdateCell={onUpdateCell}

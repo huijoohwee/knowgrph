@@ -5,6 +5,7 @@ import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storybo
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { JSONValue } from '@/lib/graph/types'
+import { PanelSelect } from '@/lib/ui/panelFormControls'
 import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
@@ -103,8 +104,7 @@ export function StrybldrCameraFloatingPanelView() {
       <section className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} px-1 pb-2`}>
         {selectedCard ? (
           <section className="space-y-2 py-1">
-            <select
-              className={cn('w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+            <PanelSelect
               value={selectedCard.id}
               aria-label="Camera card"
               onChange={e => setSelectedCardId(e.target.value)}
@@ -114,7 +114,7 @@ export function StrybldrCameraFloatingPanelView() {
                   {card.lane}: {card.title}
                 </option>
               ))}
-            </select>
+            </PanelSelect>
             <StrybldrCameraPanel
               selectedCardId={selectedCard.id}
               selectedCardTitle={selectedCard.title}

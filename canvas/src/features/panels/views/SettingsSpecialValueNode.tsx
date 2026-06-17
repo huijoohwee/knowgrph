@@ -9,7 +9,7 @@ import {
   KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME,
   KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME,
   KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from '@/features/panels/ui/canvasKeyTypeValueValueCell'
 
 type SettingsSpecialValueNodeProps = {
   area: string

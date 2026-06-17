@@ -18,6 +18,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
+import { PanelField, PanelTextarea } from '@/lib/ui/panelFormControls'
 import {
   STRYBLDR_CAMERA_ANGLES,
   STRYBLDR_CAMERA_LEVELS,
@@ -496,13 +497,15 @@ export function StrybldrCameraPanel({
         onChange={shot => setDraft(current => ({ ...current, shot }))}
       />
 
-      <textarea
-        className={cn('min-h-16 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
-        value={draft.note}
-        aria-label="Strybldr camera note"
-        placeholder="Add a note (optional)"
-        onChange={e => setDraft(current => ({ ...current, note: e.target.value }))}
-      />
+      <PanelField label="Note">
+        <PanelTextarea
+          className="mt-1 min-h-16"
+          value={draft.note}
+          aria-label="Strybldr camera note"
+          placeholder="Add a note (optional)"
+          onChange={e => setDraft(current => ({ ...current, note: e.target.value }))}
+        />
+      </PanelField>
       <button
         type="button"
         className={cn(

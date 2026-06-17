@@ -1,8 +1,8 @@
 import React from 'react'
 import {
-  KeyTypeValueRow,
+  KeyTypeValueStaticRow,
   RightAlignedValueCell,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/react/keyTypeValueRow'
 import {
   MainPanelTypeIcon,
   type MainPanelTypeIconKey,
@@ -57,10 +57,24 @@ export function HelpKtvRow({
   id,
   dataKgAnchor,
 }: HelpKtvRowProps) {
+  const uiPanelKeyValueTextSizeClass = useGraphStore(
+    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+  )
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  )
+  const uiPanelRowDensityDefaultClass = useGraphStore(
+    s => s.uiPanelRowDensityDefaultClass || 'py-1',
+  )
+  const uiPanelRowDensityCompactClass = useGraphStore(
+    s => s.uiPanelRowDensityCompactClass || 'py-0.5',
+  )
   const resolvedTypeNode = typeNode ?? (iconKey ? <HelpKtvTypeIcon iconKey={iconKey} /> : null)
+  const densityClassName =
+    density === 'compact' ? uiPanelRowDensityCompactClass : uiPanelRowDensityDefaultClass
 
   return (
-    <KeyTypeValueRow
+    <KeyTypeValueStaticRow
       keyNode={keyNode}
       typeNode={resolvedTypeNode}
       valueNode={(
@@ -69,7 +83,10 @@ export function HelpKtvRow({
         </RightAlignedValueCell>
       )}
       align={align}
-      density={density}
+      textSizeClassName={uiPanelKeyValueTextSizeClass}
+      fontClassName={uiPanelTextFontClass}
+      densityClassName={densityClassName}
+      activeClassName={UI_THEME_TOKENS.table.rowHoverHighlight}
       className={className}
       id={id}
       dataKgAnchor={dataKgAnchor}

@@ -2,7 +2,7 @@ import React from 'react'
 import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import { KeyTypeValueStaticRow, RightAlignedValueCell } from 'grph-shared/react/keyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphBehavior, GraphSchema } from '@/lib/graph/schema'
 import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
@@ -98,7 +98,16 @@ export default function RenderSettingsSection({
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
+  const uiPanelRowDensityCompactClass = useGraphStore(
+    s => s.uiPanelRowDensityCompactClass || 'py-0.5',
+  )
   const neutralToolbarButtonClassName = `App-toolbar__btn ${uiToolbarButtonMutedClassName}`
+  const compactStaticRowProps = {
+    textSizeClassName: uiPanelKeyValueTextSizeClass,
+    fontClassName: uiPanelTextFontClass,
+    densityClassName: uiPanelRowDensityCompactClass,
+    activeClassName: UI_THEME_TOKENS.table.rowHoverHighlight,
+  } as const
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
     schema.layout?.mode === 'block' ? 'block' : 'radial'
@@ -532,9 +541,8 @@ export default function RenderSettingsSection({
               2D layout
             </section>
             <section className="mt-1 grid grid-cols-1 gap-1">
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.mode</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -555,10 +563,10 @@ export default function RenderSettingsSection({
                     </select>
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.fitPadding</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -572,10 +580,10 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.forces.bboxCollidePadding</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -593,10 +601,10 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.forces.groupBboxCollidePadding</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -614,10 +622,10 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.rectNodes.maxZoomMinimapWidthRatio</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -648,10 +656,10 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.rectNodes.maxZoomMinimapHeightRatio</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -682,10 +690,10 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.hideLabelsBelowScale</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -699,10 +707,10 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.labelRelax.maxNodesForRelax</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -716,10 +724,10 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
-              <KeyTypeValueRow
+              <KeyTypeValueStaticRow
                 layout="keyValue"
-                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.labelRelax.maxNodeLabels</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -733,6 +741,7 @@ export default function RenderSettingsSection({
                     />
                   </RightAlignedValueCell>
                 )}
+                {...compactStaticRowProps}
               />
             </section>
           </section>

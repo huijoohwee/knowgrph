@@ -5,7 +5,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/ui/keyTypeValueRows'
 import { useFloatingPropsPanelModel } from '@/features/toolbar/useFloatingPropsPanelModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'

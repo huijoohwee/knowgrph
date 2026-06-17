@@ -1,6 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { FOG_NEAR_TOOLTIP, FOG_FAR_TOOLTIP } from '@/features/panels/views/ThreeViewTuningTooltips'
@@ -27,6 +28,7 @@ export default function ThreeViewBackgroundFogSection({
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
   const colorInputClassName = `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   return (
     <CollapsibleSection
       title="Background and fog"
@@ -36,7 +38,7 @@ export default function ThreeViewBackgroundFogSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Background Color</span>}
           valueNode={(
@@ -64,8 +66,9 @@ export default function ThreeViewBackgroundFogSection({
               />
             </section>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Fog Color (blank = off)</span>}
           valueNode={(
@@ -93,8 +96,9 @@ export default function ThreeViewBackgroundFogSection({
               />
             </section>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Fog Near</span>}
           valueNode={(
@@ -118,8 +122,9 @@ export default function ThreeViewBackgroundFogSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Fog Far</span>}
           valueNode={(
@@ -143,6 +148,7 @@ export default function ThreeViewBackgroundFogSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

@@ -1,10 +1,11 @@
 import React from 'react'
 import { AtSign, FileAudio, FileCode2, Hash, ImageIcon, Slash, Video, type LucideIcon } from 'lucide-react'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import {
   KeyTypeValueHeader,
-  KeyTypeValueRow,
   KeyTypeValueSectionStack,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/react/keyTypeValueLayout'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import {
   INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID,
   INLINE_KEYWORD_COMMAND_ACTIONS,
@@ -60,19 +61,24 @@ function CommandCatalogRow({
   Icon,
   prefix,
   title,
+  compactStaticRowProps,
 }: {
   action: InlineCommandMenuActionSpec
   Icon: LucideIcon
   prefix: string
   title: string
+  compactStaticRowProps: Pick<
+    React.ComponentProps<typeof KeyTypeValueStaticRow>,
+    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+  >
 }) {
   return (
     <section
       data-kg-command-menu-action={action.id}
       data-kg-command-menu-prefix={prefix}
     >
-      <KeyTypeValueRow
-        density="compact"
+      <KeyTypeValueStaticRow
+        {...compactStaticRowProps}
         align="start"
         keyNode={(
           <span className="flex min-w-0 flex-col leading-4">
@@ -132,12 +138,17 @@ function MediaCandidateRow({
   onSelect,
   onNameDraftChange,
   onRename,
+  compactStaticRowProps,
 }: {
   item: CommandMenuRichMediaItem
   displayName: string
   onSelect: (item: CommandMenuRichMediaItem) => void
   onNameDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
+  compactStaticRowProps: Pick<
+    React.ComponentProps<typeof KeyTypeValueStaticRow>,
+    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+  >
 }) {
   const Icon = getMediaIcon(item.kind)
   const source = item.source === 'graph' ? (item.panelTitle || 'Graph node media') : 'Markdown media'
@@ -150,8 +161,8 @@ function MediaCandidateRow({
       data-kg-command-menu-media-kind={item.kind}
       data-kg-command-menu-media-source={item.source}
     >
-      <KeyTypeValueRow
-        density="compact"
+      <KeyTypeValueStaticRow
+        {...compactStaticRowProps}
         align="start"
         keyNode={(
           <span className="flex min-w-0 items-center gap-2">
@@ -235,7 +246,16 @@ function MediaCandidateNameInput({
   )
 }
 
-function MediaActionRow({ action }: { action: InlineCommandMenuActionSpec }) {
+function MediaActionRow({
+  action,
+  compactStaticRowProps,
+}: {
+  action: InlineCommandMenuActionSpec
+  compactStaticRowProps: Pick<
+    React.ComponentProps<typeof KeyTypeValueStaticRow>,
+    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+  >
+}) {
   const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
   const Icon = mediaKind === 'video' ? Video : ImageIcon
   return (
@@ -243,8 +263,8 @@ function MediaActionRow({ action }: { action: InlineCommandMenuActionSpec }) {
       data-kg-command-menu-media-action={action.id}
       data-kg-command-menu-prefix="@"
     >
-      <KeyTypeValueRow
-        density="compact"
+      <KeyTypeValueStaticRow
+        {...compactStaticRowProps}
         align="start"
         keyNode={(
           <span className="flex min-w-0 flex-col leading-4">
@@ -278,6 +298,7 @@ export function CommandMenuReferenceCatalog({
   compactHeader?: boolean
 }) {
   const panelTypography = usePanelTypography()
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   return (
     <section className={cn('min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass, className)} aria-label="Command Menu" data-kg-command-menu-ktv-layout="1" data-kg-command-menu-reference-catalog="1">
       <header className={cn('mb-1 flex items-center justify-between gap-2 px-1 py-1', compactHeader ? '' : UI_THEME_TOKENS.panel.bg)}>
@@ -308,6 +329,7 @@ export function CommandMenuReferenceCatalog({
               Icon={group.Icon}
               prefix={group.label}
               title={group.title}
+              compactStaticRowProps={compactStaticRowProps}
             />
           ))
         ))}
@@ -319,6 +341,7 @@ export function CommandMenuReferenceCatalog({
 
 export function CommandMenuCatalogPanel() {
   const panelTypography = usePanelTypography()
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const selectNode = useGraphStore(s => s.selectNode)
@@ -424,10 +447,11 @@ export function CommandMenuCatalogPanel() {
               onSelect={handleSelectMedia}
               onNameDraftChange={handleMediaNameDraftChange}
               onRename={handleRenameMedia}
+              compactStaticRowProps={compactStaticRowProps}
             />
           ))}
           {mediaActions.map(action => (
-            <MediaActionRow key={action.id} action={action} />
+            <MediaActionRow key={action.id} action={action} compactStaticRowProps={compactStaticRowProps} />
           ))}
         </KeyTypeValueSectionStack>
       </section>

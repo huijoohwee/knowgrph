@@ -1,15 +1,17 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
+import { RightAlignedValueCell } from '@/features/panels/ui/canvasKeyTypeValueValueCell'
+import { CanvasEditableKeyTypeValueRow as KeyTypeValueRow } from '@/features/panels/ui/CanvasEditableKeyTypeValueRow'
+import { RightAlignedTooltipInput } from '@/features/panels/ui/RightAlignedTooltipInput'
+import {
+  KTV_STATUS_TEXT_CLASS_NAME,
+  shouldFlushKeyTypeValueSectionTop,
+} from 'grph-shared/ui/keyTypeValueRows'
 import {
   KeyTypeValueHeader,
   KeyTypeValueSectionStack,
-  KeyTypeValueRow,
-  KTV_STATUS_TEXT_CLASS_NAME,
-  RightAlignedTooltipInput,
-  RightAlignedValueCell,
-  shouldFlushKeyTypeValueSectionTop,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/react/keyTypeValueLayout'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_SECTION_CHIP_CHROME_CLASS_NAME, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'

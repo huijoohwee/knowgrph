@@ -1,7 +1,7 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
@@ -9,6 +9,10 @@ import {
   UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME,
   UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
+import {
+  KeyTypeValueStaticRow,
+  RightAlignedValueCell,
+} from 'grph-shared/react/keyTypeValueRow'
 
 type FieldStylesSectionProps = {
   schema: GraphSchema
@@ -68,6 +72,13 @@ export default function FieldStylesSection({
   const colorInputClassName = `${uiPanelKeyValueInputClass} min-w-0 flex-1 ${uiPanelMonospaceTextClass} disabled:opacity-50`
   const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
   const selectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
+  const KeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...staticRowProps} {...props} />
 
   return (
     <section className={panelClassName}>

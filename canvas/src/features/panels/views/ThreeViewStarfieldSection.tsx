@@ -1,6 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -35,6 +36,7 @@ export default function ThreeViewStarfieldSection({
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
   const selectionControlClassName = `${UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   const colorPickerClassName = `${UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   return (
     <CollapsibleSection
       title="Starfield"
@@ -44,7 +46,7 @@ export default function ThreeViewStarfieldSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Starfield</span>}
           valueNode={(
@@ -55,8 +57,9 @@ export default function ThreeViewStarfieldSection({
               onChange={e => setThreeConfig({ starfieldEnabled: e.target.checked })}
             />
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Star Count</span>}
           valueNode={(
@@ -80,8 +83,9 @@ export default function ThreeViewStarfieldSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Starfield Radius</span>}
           valueNode={(
@@ -113,8 +117,9 @@ export default function ThreeViewStarfieldSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Starfield Brightness</span>}
           valueNode={(
@@ -138,8 +143,9 @@ export default function ThreeViewStarfieldSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Starfield Color</span>}
           valueNode={(
@@ -167,6 +173,7 @@ export default function ThreeViewStarfieldSection({
               />
             </section>
           )}
+          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

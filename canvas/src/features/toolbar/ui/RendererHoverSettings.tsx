@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow';
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -11,10 +11,19 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 
 export function RendererHoverSettings() {
-  const { schema, setSchema } = useGraphStore(
+  const {
+    schema,
+    setSchema,
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    uiPanelRowDensityCompactClass,
+  } = useGraphStore(
     useShallow((s) => ({
       schema: s.schema,
       setSchema: s.setSchema,
+      uiPanelKeyValueTextSizeClass: s.uiPanelKeyValueTextSizeClass || 'text-sm',
+      uiPanelTextFontClass: s.uiPanelTextFontClass || 'font-sans',
+      uiPanelRowDensityCompactClass: s.uiPanelRowDensityCompactClass || 'py-0.5',
     }))
   );
 
@@ -36,8 +45,7 @@ export function RendererHoverSettings() {
   };
 
   return (
-    <KeyTypeValueRow
-      density="compact"
+    <KeyTypeValueStaticRow
       layout="keyIconValue"
       keyNode={
         <Tooltip
@@ -87,6 +95,10 @@ export function RendererHoverSettings() {
           </section>
         </Tooltip>
       }
+      textSizeClassName={uiPanelKeyValueTextSizeClass}
+      fontClassName={uiPanelTextFontClass}
+      densityClassName={uiPanelRowDensityCompactClass}
+      activeClassName={UI_THEME_TOKENS.table.rowHoverHighlight}
     />
   );
 }

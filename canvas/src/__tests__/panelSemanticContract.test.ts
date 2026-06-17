@@ -1185,53 +1185,45 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
 
 export const testKeyValueRowsKeepMobileGridConsistency = () => {
   const root = process.cwd()
-  const filePath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'KeyTypeValueRow.tsx')
   const sharedKtvRowsPath = path.resolve(root, '..', 'grph-shared', 'src', 'ui', 'keyTypeValueRows.ts')
+  const sharedKtvRowPath = path.resolve(root, '..', 'grph-shared', 'src', 'react', 'keyTypeValueRow.tsx')
   const statusBadgePath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'StatusBadge.tsx')
-  const text = readUtf8(filePath)
   const sharedKtvRows = readUtf8(sharedKtvRowsPath)
+  const sharedKtvRow = readUtf8(sharedKtvRowPath)
   const statusBadge = readUtf8(statusBadgePath)
-  if (text.includes('grid-cols-1 sm:grid-cols-')) {
-    throw new Error('Expected KeyTypeValueRow layouts to preserve KTV grid columns on narrow widths')
+  if (sharedKtvRow.includes('grid-cols-1 sm:grid-cols-')) {
+    throw new Error('Expected the upstream shared KTV row runtime to preserve grid columns on narrow widths instead of introducing ad hoc breakpoint overrides')
   }
   if (
-    !text.includes('KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME')
+    !sharedKtvRow.includes('KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME')
     || !sharedKtvRows.includes('grid-cols-[minmax(0,0.95fr)_minmax(2.75rem,0.42fr)_minmax(0,1.2fr)]')
     || !sharedKtvRows.includes('sm:grid-cols-[minmax(0,1fr)_minmax(3rem,4.75rem)_minmax(0,1.45fr)]')
   ) {
-    throw new Error('Expected default Key/Type/Value rows to keep the shared KTV grid with a wider bounded Value column')
+    throw new Error('Expected the upstream shared KTV row runtime to keep the shared default Key/Type/Value grid with a wider bounded Value column')
   }
   if (
-    !text.includes('KTV_KEY_VALUE_GRID_CLASS_NAME')
+    !sharedKtvRow.includes('KTV_KEY_VALUE_GRID_CLASS_NAME')
     || !sharedKtvRows.includes('grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]')
   ) {
-    throw new Error('Expected simple Key/Value rows to keep a mobile two-column grid')
+    throw new Error('Expected the upstream shared KTV row runtime to keep the shared simple Key/Value mobile two-column grid')
   }
-  if (!text.includes('flex min-w-0 items-center justify-center')) {
-    throw new Error('Expected icon spacer cells to remain in the mobile grid instead of hiding')
+  if (!sharedKtvRow.includes('flex min-w-0 items-center justify-center')) {
+    throw new Error('Expected the upstream shared KTV row runtime to preserve icon spacer cells in the mobile grid instead of hiding them')
   }
-  if (!text.includes('justify-start sm:justify-end')) {
-    throw new Error('Expected right-aligned value cells to relax to start alignment on narrow widths')
+  if (!sharedKtvRow.includes('justify-start sm:justify-end')) {
+    throw new Error('Expected the upstream shared KTV row runtime to preserve right-aligned value cells that relax to start alignment on narrow widths')
   }
-  if (
-    !text.includes('KTV_ROW_TEXT_CELL_CLASS_NAME')
-    || !sharedKtvRows.includes('export const KTV_ROW_TEXT_CELL_CLASS_NAME')
-    || !sharedKtvRows.includes('overflow-hidden')
-  ) {
-    throw new Error('Expected KeyTypeValueRow cells to clip instead of allowing messy mobile overflow')
+  if (!sharedKtvRows.includes('export const KTV_ROW_TEXT_CELL_CLASS_NAME') || !sharedKtvRows.includes('overflow-hidden')) {
+    throw new Error('Expected upstream shared KTV cells to clip instead of allowing messy mobile overflow')
   }
   if (!sharedKtvRows.includes('self-stretch px-2') || sharedKtvRows.includes('border-x ${UI_THEME_TOKENS.panel.border}')) {
     throw new Error('Expected KTV Value cells to keep shared left/right alignment without grid border lines')
   }
-  if (
-    !text.includes('KTV_ROW_LABEL_CELL_CLASS_NAME')
-    || !sharedKtvRows.includes('export const KTV_ROW_LABEL_CELL_CLASS_NAME')
-    || !sharedKtvRows.includes('text-ellipsis whitespace-nowrap')
-  ) {
-    throw new Error('Expected KeyTypeValueRow labels to use ellipsis on narrow widths')
+  if (!sharedKtvRows.includes('export const KTV_ROW_LABEL_CELL_CLASS_NAME') || !sharedKtvRows.includes('text-ellipsis whitespace-nowrap')) {
+    throw new Error('Expected upstream shared KTV labels to use ellipsis on narrow widths')
   }
-  if (text.includes('break-words')) {
-    throw new Error('Expected KeyTypeValueRow cells to avoid messy wrapped setting keys and values')
+  if (sharedKtvRow.includes('break-words')) {
+    throw new Error('Expected upstream shared KTV cells to avoid messy wrapped setting keys and values')
   }
   if (
     !statusBadge.includes('min-w-0 max-w-full') ||
@@ -1410,8 +1402,8 @@ export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
   if (!sourceFileRowsText.includes('SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT = 5')) {
     throw new Error('Expected Source File Management lead row count to stay owned by the rows module')
   }
-  if (!sourceFileRowsText.includes("from '@/features/panels/ui/KeyTypeValueRow'")) {
-    throw new Error('Expected Source File Management settings to reuse the MainPanel Key/Type/Value row primitive')
+  if (!sourceFileRowsText.includes("from 'grph-shared/react/keyTypeValueRow'")) {
+    throw new Error('Expected Source File Management settings to reuse the shared Key/Type/Value row primitive from the upstream owner')
   }
   if (!sourceFileRowsText.includes('buildSettingsRowAnchorId')) {
     throw new Error('Expected Source File Management settings to reuse the shared settings row anchor helper')

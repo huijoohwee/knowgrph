@@ -23,7 +23,9 @@ type FieldLocalSchemaSectionProps = {
   selectedGlobalView: GraphFieldsSelectedView | null
   setSelectedGlobalView: React.Dispatch<React.SetStateAction<GraphFieldsSelectedView>>
   uiPanelKeyValueTextSizeClass: string
+  uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
+  uiPanelRowDensityCompactClass: string
   localSchemaNodeTypes: string[]
   localSchemaEdgeLabels: string[]
 }
@@ -35,7 +37,9 @@ export default function FieldLocalSchemaSection({
   selectedGlobalView,
   setSelectedGlobalView,
   uiPanelKeyValueTextSizeClass,
+  uiPanelTextFontClass,
   uiPanelMonospaceTextClass,
+  uiPanelRowDensityCompactClass,
   localSchemaNodeTypes,
   localSchemaEdgeLabels,
 }: FieldLocalSchemaSectionProps) {
@@ -475,7 +479,9 @@ export default function FieldLocalSchemaSection({
       hasLocalSchemaOwner={hasLocalSchemaOwner}
       localSchemaError={localSchemaError}
       uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+      uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      uiPanelRowDensityCompactClass={uiPanelRowDensityCompactClass}
       setSelectedGlobalView={setSelectedGlobalView}
       applyLocalSchemaText={applyLocalSchemaText}
       resetLocalSchemaText={resetLocalSchemaText}

@@ -3,6 +3,7 @@ import { ArrowUpDown } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
+import { PanelField, PanelSelect } from '@/lib/ui/panelFormControls'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewSortDirection, WorkspaceDataViewSortRule } from './workspaceDataViewConfig'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { DataViewToolbarButton } from '@/lib/ui/dataViewToolbarButton'
@@ -41,9 +42,8 @@ export function WorkspaceDataViewSettingsSortSection(props: {
     <section aria-label="Sort">
       <section className={['rounded border p-2 space-y-2', UI_THEME_TOKENS.panel.border].join(' ')} aria-label="Sort rules">
         <section className={`${uiToolbarRowScrollClassName} gap-2`}>
-          <label className="min-w-0 flex-1">
-            <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Field</span>
-            <select
+          <PanelField label="Field" variant="section" layout="compact" className="min-w-0 flex-1">
+            <PanelSelect
               className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
               value={current?.columnId || ''}
               onChange={e => setSort({ columnId: e.target.value })}
@@ -53,19 +53,18 @@ export function WorkspaceDataViewSettingsSortSection(props: {
                   {c.name}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="min-w-0">
-            <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Dir</span>
-            <select
+            </PanelSelect>
+          </PanelField>
+          <PanelField label="Dir" variant="section" layout="compact" className="min-w-0">
+            <PanelSelect
               className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME].join(' ')}
               value={current?.direction || 'asc'}
               onChange={e => setSort({ direction: e.target.value === 'desc' ? 'desc' : 'asc' })}
             >
               <option value="asc">ASC</option>
               <option value="desc">DESC</option>
-            </select>
-          </label>
+            </PanelSelect>
+          </PanelField>
         </section>
 
         <section className="flex min-w-0 max-w-full items-center justify-end">

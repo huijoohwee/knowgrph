@@ -3,6 +3,7 @@ import { Check, Clapperboard, Film, Heart, LocateFixed, Lock, Play, RefreshCw, W
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { PanelField, PanelSelect, PanelTextInput, PanelTextarea } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
@@ -563,8 +564,7 @@ export function StrybldrFloatingPanelView({
                 </section>
                 {selectedStorytreeCard ? (
                   <>
-                    <select
-                      className={cn('w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    <PanelSelect
                       value={selectedStorytreeCard.id}
                       aria-label="Strybldr storytree branch"
                       onChange={e => setSelectedStorytreeCardId(e.target.value)}
@@ -574,7 +574,7 @@ export function StrybldrFloatingPanelView({
                           {card.title}
                         </option>
                       ))}
-                    </select>
+                    </PanelSelect>
                     <section className={STRYBLDR_STORYTREE_ACTION_GRID_CLASS_NAME}>
                       <button
                         type="button"
@@ -625,8 +625,8 @@ export function StrybldrFloatingPanelView({
             {selectedCard ? (
               <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr card editor">
                 <section className="flex items-center gap-2">
-                  <select
-                    className={cn('min-w-0 flex-1 rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                  <PanelSelect
+                    className="min-w-0 flex-1"
                     value={selectedCard.id}
                     aria-label="Strybldr card"
                     onChange={e => setSelectedCardId(e.target.value)}
@@ -636,7 +636,7 @@ export function StrybldrFloatingPanelView({
                         {card.lane}: {card.title}
                       </option>
                     ))}
-                  </select>
+                  </PanelSelect>
                   <button
                     type="button"
                     className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
@@ -646,52 +646,47 @@ export function StrybldrFloatingPanelView({
                     <Check className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />
                   </button>
                 </section>
-                <label className="block">
-                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Title</section>
-                  <input
-                    className={cn('mt-1 w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                <PanelField label="Title">
+                  <PanelTextInput
+                    className="mt-1"
                     value={draft.title}
                     aria-label="Strybldr card title"
                     onChange={e => setDraft(cur => ({ ...cur, title: e.target.value }))}
                   />
-                </label>
-                <label className="block">
-                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Summary</section>
-                  <textarea
-                    className={cn('mt-1 min-h-14 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                </PanelField>
+                <PanelField label="Summary">
+                  <PanelTextarea
+                    className="mt-1 min-h-14"
                     value={draft.summary}
                     aria-label="Strybldr card summary"
                     onChange={e => setDraft(cur => ({ ...cur, summary: e.target.value }))}
                   />
-                </label>
-                <label className="block">
-                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Action</section>
-                  <textarea
-                    className={cn('mt-1 min-h-12 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                </PanelField>
+                <PanelField label="Action">
+                  <PanelTextarea
+                    className="mt-1 min-h-12"
                     value={draft.action}
                     aria-label="Strybldr card action"
                     onChange={e => setDraft(cur => ({ ...cur, action: e.target.value }))}
                   />
-                </label>
-                <label className="block">
-                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Prompt</section>
-                  <textarea
-                    className={cn('mt-1 min-h-14 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                </PanelField>
+                <PanelField label="Prompt">
+                  <PanelTextarea
+                    className="mt-1 min-h-14"
                     value={draft.prompt}
                     aria-label="Strybldr card prompt"
                     onChange={e => setDraft(cur => ({ ...cur, prompt: e.target.value }))}
                   />
-                </label>
-                <label className="block">
-                  <section className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Order</section>
-                  <input
+                </PanelField>
+                <PanelField label="Order">
+                  <PanelTextInput
                     type="number"
-                    className={cn('mt-1 w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    className="mt-1"
                     value={draft.order}
                     aria-label="Strybldr card order"
                     onChange={e => setDraft(cur => ({ ...cur, order: e.target.value }))}
                   />
-                </label>
+                </PanelField>
               </section>
             ) : null}
             {board.lanes.map(lane => (

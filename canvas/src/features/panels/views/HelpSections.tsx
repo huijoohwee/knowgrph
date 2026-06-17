@@ -3,8 +3,8 @@ import type { HelpStepKey } from '@/features/panels/config';
 import {
   KeyTypeValueHeader,
   KeyTypeValueSectionStack,
-  shouldFlushKeyTypeValueSectionTop,
-} from '@/features/panels/ui/KeyTypeValueRow';
+} from 'grph-shared/react/keyTypeValueLayout';
+import { shouldFlushKeyTypeValueSectionTop } from 'grph-shared/ui/keyTypeValueRows';
 import { HelpCheatsheetSection } from './HelpCheatsheetSection';
 import { HelpCommandMenuSection } from './HelpCommandMenuSection';
 import { HelpIconsSection } from './HelpIconsSection';

@@ -49,9 +49,11 @@ export const renderChatModelSettingInput = (args: {
   const provider = inferChatProviderFromModelId(selected, args.values.chatProvider)
   const resolved = resolveChatModelIdForProvider(selected, provider, { preserveUnknownCustomModel: true })
   const normalized = args.options.includes(resolved) ? resolved : args.options[0] || ''
-  const modelOptions = resolved && !args.options.includes(resolved)
-    ? [resolved, ...args.options]
-    : args.options
+  const modelOptions = Array.from(new Set(
+    resolved && !args.options.includes(resolved)
+      ? [resolved].concat(args.options)
+      : args.options,
+  ))
   return (
     <select
       value={resolved || normalized}

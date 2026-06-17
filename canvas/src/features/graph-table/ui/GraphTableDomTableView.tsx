@@ -13,6 +13,7 @@ import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useG
 import { getCellTextByKind } from '@/features/graph-table/ui/fast-grid/canvasGridRender'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { readDataViewHeaderPixelHeight, readDataViewRowPixelHeight } from '@/lib/ui/dataViewDensity'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME, UI_RESPONSIVE_VIEWPORT_SCROLL_PANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
@@ -39,6 +40,8 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
   onRowClicked: (rowId: string) => void
   onSelectionChanged: (selectedRowIds: string[]) => void
 }) {
+  const rowHeightPx = readDataViewRowPixelHeight(props.rowHeightPreset)
+  const headerHeightPx = readDataViewHeaderPixelHeight(props.rowHeightPreset)
   const model = useGraphTableGridModel({
     columns: props.columns,
     rows: props.rows,
@@ -49,8 +52,8 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
     sortRules: props.sortRules,
     columnWidthsPxById: props.columnWidthsPxById,
     columnOrderIds: props.columnOrderIds,
-    headerHeight: 28,
-    rowHeight: props.rowHeightPreset === 'compact' ? 22 : 28,
+    headerHeight: headerHeightPx,
+    rowHeight: rowHeightPx,
     selectedRowIds: props.selectedRowIds,
   })
 
@@ -64,7 +67,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
       <table className="min-w-full border-separate border-spacing-0">
         <thead className="sticky top-0 z-10">
           <tr className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.cellBorder}`}>
-            <th className={`sticky left-0 z-20 border-b border-r ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`} style={{ width: selectColumnWidth }}>
+            <th className={`sticky left-0 z-20 border-b border-r ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`} style={{ width: selectColumnWidth, height: headerHeightPx }}>
               <input
                 type="checkbox"
                 aria-label={model.allSelected ? 'Deselect all rows' : 'Select all rows'}
@@ -77,7 +80,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
             </th>
             <th
               className={`sticky ${UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME} z-20 border-b border-r px-2 text-left ${props.panelTypography?.microLabelClass || ''} ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
-              style={{ width: orderColumnWidth }}
+              style={{ width: orderColumnWidth, height: headerHeightPx }}
             >
               #
             </th>
@@ -85,7 +88,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
               <th
                 key={col.id}
                 className={`border-b border-r px-2 text-left ${props.panelTypography?.microLabelClass || ''} ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.secondary}`}
-                style={{ width: col.width }}
+                style={{ width: col.width, height: headerHeightPx }}
               >
                 <span className={UI_TEXT_TRUNCATE}>{col.title}</span>
               </th>
@@ -97,7 +100,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
             if (item.kind === 'group') {
               return (
                 <tr key={`g:${item.label}:${idx}`} className={UI_THEME_TOKENS.table.rowBg}>
-                  <td colSpan={2 + dataCols.length} className={`border-b px-2 py-1 font-semibold ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.secondary}`}>
+                  <td colSpan={2 + dataCols.length} className={`border-b px-2 py-1 font-semibold ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.secondary}`} style={{ height: rowHeightPx }}>
                     <span className={UI_TEXT_TRUNCATE} title={readMarkdownSigilDisplayText(item.label)}>
                       {renderMarkdownSigilInlineText(item.label)} ({item.count})
                     </span>
@@ -115,7 +118,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
                 aria-current={selected ? 'true' : undefined}
                 onClick={() => props.onRowClicked(row.id)}
               >
-                <td className={`sticky left-0 z-10 border-b border-r ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.rowBg}`}>
+                <td className={`sticky left-0 z-10 border-b border-r ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.rowBg}`} style={{ height: rowHeightPx }}>
                   <input
                     type="checkbox"
                     checked={selected}
@@ -130,6 +133,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
                 </td>
                 <td
                   className={`sticky ${UI_RESPONSIVE_CONTENT_START_OFFSET_CLASSNAME} z-10 border-b border-r px-2 ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.rowBg} ${UI_THEME_TOKENS.text.tertiary}`}
+                  style={{ height: rowHeightPx }}
                 >
                   {String((row as any).__order ?? '')}
                 </td>
@@ -138,7 +142,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
                   const text = getCellTextByKind(raw, col.dataKind)
                   const displayText = readMarkdownSigilDisplayText(text)
                   return (
-                    <td key={col.id} className={`border-b border-r px-2 ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.primary}`}>
+                    <td key={col.id} className={`border-b border-r px-2 ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.primary}`} style={{ height: rowHeightPx }}>
                       <span className={UI_TEXT_TRUNCATE} title={displayText}>{renderMarkdownSigilInlineText(text)}</span>
                     </td>
                   )

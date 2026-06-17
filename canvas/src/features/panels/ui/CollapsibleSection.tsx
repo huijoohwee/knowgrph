@@ -10,7 +10,7 @@ import {
   UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { KTV_SECTION_TITLE_CLASS_NAME } from './KeyTypeValueRow'
+import { KTV_SECTION_TITLE_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
 
 interface CollapsibleSectionProps {
   title: React.ReactNode

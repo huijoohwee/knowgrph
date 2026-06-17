@@ -1,6 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeSelectionConfig } from '@/lib/graph/schema'
@@ -33,6 +34,7 @@ export default function ThreeViewLinksSection({
   const selectionConfig = getThreeSelectionConfig(schema)
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
 
   return (
     <CollapsibleSection
@@ -43,7 +45,7 @@ export default function ThreeViewLinksSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Arrow Length</span>}
           valueNode={(
@@ -69,8 +71,9 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Link Opacity</span>}
           valueNode={(
@@ -94,8 +97,9 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Default Curvature</span>}
           valueNode={(
@@ -119,8 +123,9 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Curve Rotation</span>}
           valueNode={(
@@ -144,8 +149,9 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Directional Particles</span>}
           valueNode={(
@@ -171,8 +177,9 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Arrow Position</span>}
           valueNode={(
@@ -198,8 +205,9 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Particle Speed</span>}
           valueNode={(
@@ -225,8 +233,9 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Selected Edge Width</span>}
           valueNode={(
@@ -252,6 +261,7 @@ export default function ThreeViewLinksSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

@@ -234,7 +234,7 @@
 - Clean interactions: clicking inside a value control does not toggle expand/collapse; only row click toggles.
 
 **Implementation anchors**
-- Key/Type/Value row grid: `canvas/src/features/panels/ui/KeyTypeValueRow.tsx`
+- Key/Type/Value compatibility entrypoint: `canvas/src/features/panels/ui/canvasKeyTypeValueCompatibility.ts`
 - Settings surface + status/action pills: `canvas/src/features/panels/views/SettingsView.tsx`
 - Settings input renderer (composite controls + alignment/height): `canvas/src/features/settings/ui.tsx` (`renderSettingInput`)
 

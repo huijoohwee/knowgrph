@@ -1,6 +1,6 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { shouldFlushKeyTypeValueSectionTop } from '@/features/panels/ui/KeyTypeValueRow'
+import { shouldFlushKeyTypeValueSectionTop } from 'grph-shared/ui/keyTypeValueRows'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'

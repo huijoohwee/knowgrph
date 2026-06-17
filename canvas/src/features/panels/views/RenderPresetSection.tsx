@@ -8,7 +8,8 @@ import {
   RENDER_TRAVERSAL_BUTTON_LABEL_GRAPH_RAG,
 } from '@/lib/config'
 import { buildCleanSchema } from '@/features/schema-editor/utils'
-import { KeyTypeValueRow, RightAlignedTooltipInput } from '@/features/panels/ui/KeyTypeValueRow'
+import { CanvasEditableKeyTypeValueRow as KeyTypeValueRow } from '@/features/panels/ui/CanvasEditableKeyTypeValueRow'
+import { RightAlignedTooltipInput } from '@/features/panels/ui/RightAlignedTooltipInput'
 import { buildNumericTooltip } from '@/lib/config'
 import {
   TRAVERSAL_MAX_DEPTH_DEFAULT,

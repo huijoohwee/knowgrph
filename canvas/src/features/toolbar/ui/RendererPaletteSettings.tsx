@@ -1,5 +1,8 @@
 import React from 'react';
-import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow';
+import {
+  KeyTypeValueStaticRow,
+  RightAlignedValueCell,
+} from 'grph-shared/react/keyTypeValueRow';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema';
@@ -24,6 +27,15 @@ export function RendererPaletteSettings() {
       s.uiPanelKeyValueInputClass ||
       PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass
   );
+  const uiPanelKeyValueTextSizeClass = useGraphStore(
+    (s) => s.uiPanelKeyValueTextSizeClass || 'text-sm'
+  );
+  const uiPanelTextFontClass = useGraphStore(
+    (s) => s.uiPanelTextFontClass || 'font-sans'
+  );
+  const uiPanelRowDensityCompactClass = useGraphStore(
+    (s) => s.uiPanelRowDensityCompactClass || 'py-0.5'
+  );
 
   const { palette, handleUpdatePaletteColor, normalizeColorForPicker } = useRendererPalette();
 
@@ -45,10 +57,9 @@ export function RendererPaletteSettings() {
         </Tooltip>
       </section>
       {nodeTypes.map((type) => (
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           key={`node-${type}`}
           layout="keyIconValue"
-          density="compact"
           keyNode={
             <Tooltip
               content={RENDERER_PALETTE_ENTRY_KEY_TOOLTIP}
@@ -90,14 +101,17 @@ export function RendererPaletteSettings() {
               </Tooltip>
             </RightAlignedValueCell>
           }
+          textSizeClassName={uiPanelKeyValueTextSizeClass}
+          fontClassName={uiPanelTextFontClass}
+          densityClassName={uiPanelRowDensityCompactClass}
+          activeClassName={UI_THEME_TOKENS.table.rowHoverHighlight}
         />
       ))}
 
       {edgeTypes.map((type) => (
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           key={`edge-${type}`}
           layout="keyIconValue"
-          density="compact"
           keyNode={
             <Tooltip
               content={RENDERER_PALETTE_ENTRY_KEY_TOOLTIP}
@@ -139,6 +153,10 @@ export function RendererPaletteSettings() {
               </Tooltip>
             </RightAlignedValueCell>
           }
+          textSizeClassName={uiPanelKeyValueTextSizeClass}
+          fontClassName={uiPanelTextFontClass}
+          densityClassName={uiPanelRowDensityCompactClass}
+          activeClassName={UI_THEME_TOKENS.table.rowHoverHighlight}
         />
       ))}
     </section>

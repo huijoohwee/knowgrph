@@ -3,6 +3,7 @@ import { CircleCheck, ListChecks, Type, Plus, ArrowLeft } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewFilterRule, WorkspaceDataViewFilterOp } from './workspaceDataViewConfig'
+import { PanelField, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
@@ -145,17 +146,17 @@ export function WorkspaceDataViewFilterMenu(props: {
               </section>
             </fieldset>
           ) : (
-            <label className="block">
-              <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>
-                {target.op === 'equals' ? 'Equals' : target.op === 'includes' ? 'Includes' : 'Contains'}
-              </span>
-              <input
-                className={['w-full text-xs px-2 py-1.5 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text].join(' ')}
+            <PanelField
+              label={target.op === 'equals' ? 'Equals' : target.op === 'includes' ? 'Includes' : 'Contains'}
+              variant="section"
+            >
+              <PanelTextInput
+                className="py-1.5 text-xs"
                 value={draftValue}
                 onChange={e => setDraftValue(e.target.value)}
                 placeholder={target.column.kind === 'multi-select' ? 'e.g. 1' : 'Type…'}
               />
-            </label>
+            </PanelField>
           )}
 
           <section className="mt-2 flex items-center justify-end">

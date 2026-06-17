@@ -1,5 +1,5 @@
 import React from 'react'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { requestMarkdownExplorerSourceFilesOpen } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { LS_KEYS } from '@/lib/config'
@@ -11,6 +11,7 @@ import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui
 import { uiToolbarRowScrollClassName, uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
   'source file management',
@@ -140,6 +141,13 @@ export function SourceFileManagementSettingsRows({
       workspaceBacked,
     }
   }, [sourceFiles])
+  const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
+  const KeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...staticRowProps} {...props} />
 
   const openSourceFiles = React.useCallback(() => {
     requestMarkdownExplorerSourceFilesOpen()

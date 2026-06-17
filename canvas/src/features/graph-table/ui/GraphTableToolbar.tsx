@@ -25,6 +25,8 @@ import {
   type GraphTableSortDirection,
 } from './graphTableViewState'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { DATA_VIEW_ROW_HEIGHT_OPTIONS, readDataViewRowHeightLabel } from '@/lib/ui/dataViewDensity'
+import { PanelField, PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
@@ -73,6 +75,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
   const toolbarFieldClass = UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME
   const menuRowClass = `kg-graph-table-menu-row ${uiToolbarRowScrollClassName} gap-2`
   const menuFieldClass = 'kg-graph-table-menu-field min-w-0 max-w-full'
+  const menuFieldLabelClass = UI_TEXT_TRUNCATE
   const toggleColumn = (columnId: string) => {
     const next = { ...props.columnVisibilityById }
     const current = props.columnVisibilityById[columnId]
@@ -178,54 +181,56 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         menu={
           <form className={['kg-graph-table-menu-form rounded border p-2 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
             <fieldset className="space-y-2">
-              <label className={menuRowClass}>
-                <span className={UI_TEXT_TRUNCATE}>Match</span>
-                <select
-                  value={props.filterMatch}
-                  onChange={e => props.setFilterMatch(e.target.value === 'any' ? 'any' : 'all')}
-                  className={`${toolbarFieldClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
-                >
-                  <option value="all">All</option>
-                  <option value="any">Any</option>
-                </select>
-              </label>
+              <section className={menuRowClass}>
+                <PanelField label="Match" variant="section" layout="compact" className="min-w-0 flex-1" labelClassName={menuFieldLabelClass}>
+                  <PanelSelect
+                    variant="transparent"
+                    value={props.filterMatch}
+                    onChange={e => props.setFilterMatch(e.target.value === 'any' ? 'any' : 'all')}
+                    className={toolbarFieldClass}
+                  >
+                    <option value="all">All</option>
+                    <option value="any">Any</option>
+                  </PanelSelect>
+                </PanelField>
+              </section>
               {props.filterClauses.map(clause => (
                 <section key={clause.id} className={menuRowClass}>
-                  <label className={menuFieldClass}>
-                    <span className={UI_TEXT_TRUNCATE}>Field</span>
-                    <select
+                  <PanelField label="Field" variant="section" layout="compact" className={menuFieldClass} labelClassName={menuFieldLabelClass}>
+                    <PanelSelect
+                      variant="transparent"
                       value={clause.columnId}
                       onChange={e => updateFilterClause(clause.id, { columnId: e.target.value })}
-                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={toolbarFieldClass}
                     >
                       {props.columns.map(c => (
                         <option key={c.columnId} value={c.columnId}>
                           {c.name}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className={menuFieldClass}>
-                    <span className={UI_TEXT_TRUNCATE}>Op</span>
-                    <select
+                    </PanelSelect>
+                  </PanelField>
+                  <PanelField label="Op" variant="section" layout="compact" className={menuFieldClass} labelClassName={menuFieldLabelClass}>
+                    <PanelSelect
+                      variant="transparent"
                       value={clause.operator}
                       onChange={e => updateFilterClause(clause.id, { operator: e.target.value as GraphTableFilterOperator })}
-                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={toolbarFieldClass}
                     >
                       <option value="contains">contains</option>
                       <option value="equals">equals</option>
                       <option value="startsWith">startsWith</option>
                       <option value="endsWith">endsWith</option>
-                    </select>
-                  </label>
-                  <label className={menuFieldClass}>
-                    <span className={UI_TEXT_TRUNCATE}>Value</span>
-                    <input
+                    </PanelSelect>
+                  </PanelField>
+                  <PanelField label="Value" variant="section" layout="compact" className={menuFieldClass} labelClassName={menuFieldLabelClass}>
+                    <PanelTextInput
+                      variant="transparent"
                       value={clause.value}
                       onChange={e => updateFilterClause(clause.id, { value: e.target.value })}
-                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={toolbarFieldClass}
                     />
-                  </label>
+                  </PanelField>
                   <button
                     type="button"
                     className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -256,12 +261,17 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         }
       />
 
-      <label className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
-        <span className={UI_TEXT_TRUNCATE}>Group</span>
-        <select
+      <PanelField
+        label="Group"
+        variant="section"
+        layout="compact"
+        className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}
+        labelClassName={UI_TEXT_TRUNCATE}
+      >
+        <PanelSelect
           value={props.groupBy}
           onChange={e => props.setGroupBy(e.target.value)}
-          className={`${toolbarFieldClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+          className={toolbarFieldClass}
         >
           <option value="">None</option>
           {props.columns.map(c => (
@@ -269,8 +279,8 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
               {c.name}
             </option>
           ))}
-        </select>
-      </label>
+        </PanelSelect>
+      </PanelField>
 
       <DetailsMenu
         ariaLabel="Sort"
@@ -284,31 +294,31 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
             <fieldset className="space-y-2">
               {props.sortRules.map(rule => (
                 <section key={rule.id} className={menuRowClass}>
-                  <label className={menuFieldClass}>
-                    <span className={UI_TEXT_TRUNCATE}>Field</span>
-                    <select
+                  <PanelField label="Field" variant="section" layout="compact" className={menuFieldClass} labelClassName={menuFieldLabelClass}>
+                    <PanelSelect
+                      variant="transparent"
                       value={rule.columnId}
                       onChange={e => updateSortRule(rule.id, { columnId: e.target.value })}
-                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={toolbarFieldClass}
                     >
                       {props.columns.map(c => (
                         <option key={c.columnId} value={c.columnId}>
                           {c.name}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className={menuFieldClass}>
-                    <span className={UI_TEXT_TRUNCATE}>Direction</span>
-                    <select
+                    </PanelSelect>
+                  </PanelField>
+                  <PanelField label="Direction" variant="section" layout="compact" className={menuFieldClass} labelClassName={menuFieldLabelClass}>
+                    <PanelSelect
+                      variant="transparent"
                       value={rule.direction}
                       onChange={e => updateSortRule(rule.id, { direction: e.target.value as GraphTableSortDirection })}
-                      className={`${toolbarFieldClass} ml-2 px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                      className={toolbarFieldClass}
                     >
                       <option value="asc">asc</option>
                       <option value="desc">desc</option>
-                    </select>
-                  </label>
+                    </PanelSelect>
+                  </PanelField>
                   <button
                     type="button"
                     className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -340,15 +350,18 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
       />
 
       <label className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
-        <span className={UI_TEXT_TRUNCATE}>Row height</span>
-        <select
+        <span className={UI_TEXT_TRUNCATE}>{`Row height: ${readDataViewRowHeightLabel(props.rowHeightPreset)}`}</span>
+        <PanelSelect
           value={props.rowHeightPreset}
           onChange={e => props.setRowHeightPreset(e.target.value === 'compact' ? 'compact' : 'comfortable')}
-          className={`${toolbarFieldClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+          className={toolbarFieldClass}
         >
-          <option value="comfortable">Comfortable</option>
-          <option value="compact">Compact</option>
-        </select>
+          {DATA_VIEW_ROW_HEIGHT_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </PanelSelect>
       </label>
 
       {hasCustomWidths ? (

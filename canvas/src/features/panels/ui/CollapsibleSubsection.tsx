@@ -2,7 +2,7 @@ import React, { useCallback, useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { KTV_HEADER_LABEL_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import { KTV_HEADER_LABEL_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
 import { UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 

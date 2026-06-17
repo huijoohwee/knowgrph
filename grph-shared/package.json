@@ -157,6 +157,16 @@
       "import": "./dist/react/rafOnceScheduler.js",
       "default": "./dist/react/rafOnceScheduler.js"
     },
+    "./react/keyTypeValueLayout": {
+      "types": "./dist/react/keyTypeValueLayout.d.ts",
+      "import": "./dist/react/keyTypeValueLayout.js",
+      "default": "./dist/react/keyTypeValueLayout.js"
+    },
+    "./react/keyTypeValueRow": {
+      "types": "./dist/react/keyTypeValueRow.d.ts",
+      "import": "./dist/react/keyTypeValueRow.js",
+      "default": "./dist/react/keyTypeValueRow.js"
+    },
     "./config/env": {
       "types": "./dist/config/env.d.ts",
       "import": "./dist/config/env.js",
@@ -394,6 +404,16 @@
     "package.json",
     "README.md"
   ],
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "~5.8.3"
+  },
   "dependencies": {
     "yjs": "^13.6.31"
   }

@@ -3,7 +3,7 @@ import { SettingsSpecialValueNode, shouldRenderSettingsSpecialValueNode } from '
 import {
   KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME,
   KTV_VALUE_ROW_SCROLL_CLASS_NAME,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from '@/features/panels/ui/canvasKeyTypeValueValueCell'
 import type { SettingsEntry } from './useSettingsView.helpers'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
 

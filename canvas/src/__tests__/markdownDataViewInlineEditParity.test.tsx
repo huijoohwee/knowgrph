@@ -152,6 +152,60 @@ export async function testMarkdownDataViewInlineEditLongTextCellsRenderBoundedPr
   }
 }
 
+export async function testMarkdownDataViewInlineEditAppliesDensityClassesFromViewControls() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const view: MarkdownDataView = {
+      columns: [
+        { id: 'c1', name: 'Name', kind: 'text' },
+        { id: 'c2', name: 'Notes', kind: 'text' },
+      ],
+      rows: [
+        { id: 'r1', cells: ['Alpha', 'This is a longer note that should stay readable across two preview lines.'] },
+      ],
+      titleColumnId: 'c1',
+      groupByColumnId: null,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownDataViewTableView
+        view={view}
+        canMutate
+        onUpdateCell={() => {}}
+        rowHeightPreset="compact"
+        fieldLineMode="double"
+      />,
+    )
+    await tick()
+    await tick()
+
+    const noteCell = Array.from(dom.window.document.querySelectorAll('tbody td')).find(td => String(td.textContent || '').includes('longer note')) as HTMLTableCellElement | null
+    if (!noteCell) throw new Error('expected note cell')
+    if (!noteCell.className.includes('py-1.5')) {
+      throw new Error(`expected compact row-height class, got ${noteCell.className}`)
+    }
+
+    const noteValue = noteCell.querySelector('span')
+    if (!noteValue) throw new Error('expected note preview span')
+    if (!noteValue.className.includes('line-clamp-2')) {
+      throw new Error(`expected field-line clamp class, got ${noteValue.className}`)
+    }
+    if (noteValue.className.includes('truncate')) {
+      throw new Error('expected double-line field mode not to use single-line truncation')
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownDataViewInlineEditTextCellPreservesTdSurfaceAndCommits() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {

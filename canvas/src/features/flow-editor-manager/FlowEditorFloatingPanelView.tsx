@@ -1,7 +1,17 @@
 import React from 'react'
 import { ArrowDownToDot, ArrowUpFromDot } from 'lucide-react'
 import { HorizontalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
-import { KeyTypeValueHeader, KeyTypeValueRow, KeyTypeValueSectionStack, KTV_STATUS_TEXT_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import {
+  resolveCanvasKeyTypeValueDensityClassName,
+  useCanvasKeyTypeValueRuntime,
+  useCanvasKeyTypeValueStaticRowProps,
+} from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { KTV_STATUS_TEXT_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
+import {
+  KeyTypeValueHeader,
+  KeyTypeValueSectionStack,
+} from 'grph-shared/react/keyTypeValueLayout'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
@@ -50,11 +60,16 @@ function FlowEditorPortRowView({
   selected,
   selectionActive,
   onSelect,
+  staticRowProps,
 }: {
   row: FlowEditorPortRow
   selected: boolean
   selectionActive: boolean
   onSelect: (rowKey: string) => void
+  staticRowProps: Pick<
+    React.ComponentProps<typeof KeyTypeValueStaticRow>,
+    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+  >
 }) {
   return (
     <section
@@ -67,10 +82,10 @@ function FlowEditorPortRowView({
       data-kg-flow-editor-port-selected={selected ? 'true' : 'false'}
       data-kg-flow-editor-port-dimmed={selectionActive && !selected ? 'true' : 'false'}
     >
-      <KeyTypeValueRow
-        density="compact"
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
         align="start"
-        isActive={selected}
+        activeClassName={selected ? UI_THEME_TOKENS.table.rowSelected : staticRowProps.activeClassName}
         onClick={() => onSelect(row.key)}
         keyNode={(
           <span className="flex min-w-0 flex-col leading-4">
@@ -98,6 +113,15 @@ function FlowEditorPortRowView({
 }
 
 function FlowEditorPortDetailRows({ row }: { row: FlowEditorPortRow | null }) {
+  const ktvRuntime = useCanvasKeyTypeValueRuntime()
+  const compactDensityClassName = resolveCanvasKeyTypeValueDensityClassName(ktvRuntime, 'compact')
+  const compactStaticRowProps = {
+    textSizeClassName: ktvRuntime.uiPanelKeyValueTextSizeClass,
+    fontClassName: ktvRuntime.uiPanelTextFontClass,
+    densityClassName: compactDensityClassName,
+    activeClassName: UI_THEME_TOKENS.table.rowHoverHighlight,
+  } as const
+
   if (!row) {
     return (
       <section className={cn('px-1 py-2', KTV_STATUS_TEXT_CLASS_NAME)} data-kg-flow-editor-port-detail-empty="1">
@@ -115,32 +139,32 @@ function FlowEditorPortDetailRows({ row }: { row: FlowEditorPortRow | null }) {
     >
       <KeyTypeValueHeader keyLabel="Property" typeLabel="Type" valueLabel="Value" stickyOffsetClassName="top-0" />
       <KeyTypeValueSectionStack>
-        <KeyTypeValueRow
-          density="compact"
+        <KeyTypeValueStaticRow
+          {...compactStaticRowProps}
           keyNode="Node"
           typeNode={row.nodeType}
           valueNode={<span className="min-w-0 truncate">{row.nodeLabel}</span>}
         />
-        <KeyTypeValueRow
-          density="compact"
+        <KeyTypeValueStaticRow
+          {...compactStaticRowProps}
           keyNode="Node ID"
           typeNode="id"
           valueNode={<span className="min-w-0 truncate font-mono text-[11px]">{row.nodeId}</span>}
         />
-        <KeyTypeValueRow
-          density="compact"
+        <KeyTypeValueStaticRow
+          {...compactStaticRowProps}
           keyNode="Port"
           typeNode={<DirectionChip direction={row.direction} />}
           valueNode={<span className="min-w-0 truncate font-mono text-[11px]">{row.portKey}</span>}
         />
-        <KeyTypeValueRow
-          density="compact"
+        <KeyTypeValueStaticRow
+          {...compactStaticRowProps}
           keyNode="Socket"
           typeNode="type"
           valueNode={<span className="min-w-0 truncate">{row.socketType}</span>}
         />
-        <KeyTypeValueRow
-          density="compact"
+        <KeyTypeValueStaticRow
+          {...compactStaticRowProps}
           align="start"
           keyNode="Edges"
           typeNode={`${row.connectedEdgeCount}`}
@@ -152,6 +176,7 @@ function FlowEditorPortDetailRows({ row }: { row: FlowEditorPortRow | null }) {
 }
 
 export function FlowEditorFloatingPanelView() {
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   const graphData = useActiveGraphRenderData(true)
   const summary = React.useMemo(() => buildFlowEditorPortRows(graphData), [graphData])
   const selectedRowKey = useGraphStore(s => s.flowEditorSelectedPortRowKey || '')
@@ -254,6 +279,7 @@ export function FlowEditorFloatingPanelView() {
                     selected={selectedRowKey === row.key}
                     selectionActive={!!selectedRowKey}
                     onSelect={handleSelectRow}
+                    staticRowProps={compactStaticRowProps}
                   />
                 ))}
               </KeyTypeValueSectionStack>

@@ -7,7 +7,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/ui/keyTypeValueRows'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'

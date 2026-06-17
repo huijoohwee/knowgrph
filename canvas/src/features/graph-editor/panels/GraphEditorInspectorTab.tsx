@@ -9,6 +9,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { readGroupBoundsOverrideSource } from '@/lib/canvas/groupBoundsOverrides'
 import { resetGroupBoundsOverrideInStore } from '@/lib/canvas/groupBoundsOverridesStore'
 import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
+import { PanelField, PanelReadOnlyField, PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 
 export function GraphEditorInspectorTab() {
   const {
@@ -94,28 +95,25 @@ export function GraphEditorInspectorTab() {
       <section className="space-y-3" aria-label="Inspector node">
         <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Node</section>
         <section className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedNode.id}</section>
-        <label className="block">
-          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</section>
-          <input
-            className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+        <PanelField label="Label">
+          <PanelTextInput
+            className="mt-1 text-sm"
             value={String(selectedNode.label || '')}
             onChange={e => updateNode(selectedNode.id, { label: e.target.value })}
             aria-label="Node label"
           />
-        </label>
-        <label className="block">
-          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Type</section>
-          <input
-            className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+        </PanelField>
+        <PanelField label="Type">
+          <PanelTextInput
+            className="mt-1 text-sm"
             value={String(selectedNode.type || '')}
             onChange={e => updateNode(selectedNode.id, { type: e.target.value })}
             aria-label="Node type"
           />
-        </label>
-        <label className="block">
-          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Subgraph</section>
-          <select
-            className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+        </PanelField>
+        <PanelField label="Subgraph">
+          <PanelSelect
+            className="mt-1 text-sm"
             value={nodeSubgraphId}
             onChange={e => setNodeSubgraph(e.target.value)}
             aria-label="Node subgraph"
@@ -126,8 +124,8 @@ export function GraphEditorInspectorTab() {
                 {sg.label}
               </option>
             ))}
-          </select>
-        </label>
+          </PanelSelect>
+        </PanelField>
       </section>
     )
   }
@@ -137,24 +135,17 @@ export function GraphEditorInspectorTab() {
       <section className="space-y-3" aria-label="Inspector edge">
         <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Edge</section>
         <section className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedEdge.id}</section>
-        <label className="block">
-          <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Label</section>
-          <input
-            className={`mt-1 w-full rounded-md border px-2 py-1 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+        <PanelField label="Label">
+          <PanelTextInput
+            className="mt-1 text-sm"
             value={String(selectedEdge.label || '')}
             onChange={e => updateEdge(selectedEdge.id, { label: e.target.value })}
             aria-label="Edge label"
           />
-        </label>
+        </PanelField>
         <TwoColumnEditorGrid>
-          <section>
-            <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Source</section>
-            <section className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.source)}</section>
-          </section>
-          <section>
-            <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Target</section>
-            <section className={`mt-0.5 font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{String(selectedEdge.target)}</section>
-          </section>
+          <PanelReadOnlyField label="Source" value={String(selectedEdge.source)} valueClassName="mt-0.5 font-mono" />
+          <PanelReadOnlyField label="Target" value={String(selectedEdge.target)} valueClassName="mt-0.5 font-mono" />
         </TwoColumnEditorGrid>
       </section>
     )
@@ -165,11 +156,11 @@ export function GraphEditorInspectorTab() {
       <section className="space-y-3" aria-label="Inspector subgraph">
         <section className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Subgraph</section>
         <section className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{subgraphGroupId(selectedSubgraph.id)}</section>
-        <section className={`text-sm ${UI_THEME_TOKENS.text.secondary}`}>{selectedSubgraph.memberNodeIds.length} nodes</section>
+        <PanelReadOnlyField label="Nodes" value={`${selectedSubgraph.memberNodeIds.length} nodes`} valueClassName="text-sm" />
         {selectedGroupBoundsOverride.source ? (
           <section className="space-y-2" aria-label="Bounds override">
             <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</section>
-            <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</section>
+            <PanelReadOnlyField label="Source" value={selectedGroupBoundsOverride.source} />
             <button
               type="button"
               className={`w-full rounded-md border px-2 py-1 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -193,7 +184,7 @@ export function GraphEditorInspectorTab() {
         {selectedGroupBoundsOverride.source ? (
           <section className="space-y-2" aria-label="Bounds override">
             <section className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</section>
-            <section className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</section>
+            <PanelReadOnlyField label="Source" value={selectedGroupBoundsOverride.source} />
             <button
               type="button"
               className={`w-full rounded-md border px-2 py-1 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}

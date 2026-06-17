@@ -21,6 +21,7 @@ import { DateCellEditor, type DateCellEditorState } from '@/features/graph-table
 import { GraphTableFastGridHeader } from '@/features/graph-table/ui/GraphTableFastGridHeader'
 import { GRAPH_TABLE_GRID_SPACER_STYLE } from '@/features/graph-table/ui/graphTableResponsiveMetrics'
 import { UI_RESPONSIVE_PASSIVE_BASE_LAYER_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { readDataViewHeaderPixelHeight, readDataViewRowPixelHeight } from '@/lib/ui/dataViewDensity'
 
 export type GraphTableFastGridProps = {
   tableId: GraphTableId
@@ -89,8 +90,8 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
     })
   }, [])
 
-  const rowHeight = props.rowHeightPreset === 'compact' ? 22 : 28
-  const headerHeight = rowHeight
+  const rowHeight = readDataViewRowPixelHeight(props.rowHeightPreset)
+  const headerHeight = readDataViewHeaderPixelHeight(props.rowHeightPreset)
 
   const model = useGraphTableGridModel({
     columns: props.columns,

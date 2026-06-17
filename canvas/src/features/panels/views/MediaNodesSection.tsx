@@ -4,7 +4,7 @@ import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_SECTION_TITLE_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/ui/keyTypeValueRows'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildNodeMediaInventory, type NodeMediaInventoryRow } from '@/components/GraphCanvas/helpers'

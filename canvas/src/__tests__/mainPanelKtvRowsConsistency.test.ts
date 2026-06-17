@@ -6,11 +6,14 @@ const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encodin
 
 export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const root = process.cwd()
-  const keyTypeValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'KeyTypeValueRow.tsx'))
+  const legacyKeyTypeValueRowPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'KeyTypeValueRow.tsx')
   const collapsibleSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'CollapsibleSection.tsx'))
   const collapsibleSubsection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'CollapsibleSubsection.tsx'))
   const sharedKtvRows = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'ui', 'keyTypeValueRows.ts'))
+  const sharedKtvLayout = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'react', 'keyTypeValueLayout.tsx'))
+  const sharedKtvRow = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'react', 'keyTypeValueRow.tsx'))
   const sharedPanelTypography = readUtf8(path.resolve(root, '..', 'grph-shared', 'src', 'ui', 'panelTypography.ts'))
+  const sharedTsconfig = readUtf8(path.resolve(root, '..', 'grph-shared', 'tsconfig.json'))
   const sectionChipChrome = readUtf8(path.resolve(root, 'src', 'lib', 'ui', 'sectionChipChrome.ts'))
   const settingsEntryRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsEntryRow.tsx'))
   const settingsEntryInput = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'settingsEntryRow.input.tsx'))
@@ -50,6 +53,21 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const helpSections = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpSections.tsx'))
   const helpView = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpView.tsx'))
   const helpKtvLayout = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpKtvLayout.tsx'))
+  const agenticRagNodeInspectorSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'AgenticRagNodeInspectorSection.tsx'))
+  const orchestratorTraversalSequenceSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'OrchestratorTraversalSequenceSection.tsx'))
+  const commandCatalogPanel = readUtf8(path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx'))
+  const flowEditorFloatingPanelView = readUtf8(path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorFloatingPanelView.tsx'))
+  const canvasEditableKeyTypeValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'CanvasEditableKeyTypeValueRow.tsx'))
+  const canvasKeyTypeValueCompatibility = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueCompatibility.ts'))
+  const canvasKeyTypeValueHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueHeader.tsx'))
+  const canvasKeyTypeValueMarkdownBridge = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueMarkdownBridge.tsx'))
+  const canvasKeyTypeValueRowAdapter = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueRowAdapter.tsx'))
+  const canvasKeyTypeValueRuntime = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueRuntime.ts'))
+  const canvasSimpleKeyValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasSimpleKeyValueRow.tsx'))
+  const canvasKeyTypeValueValueCell = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueValueCell.tsx'))
+  const canvasKeyTypeValueStaticRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueStaticRow.tsx'))
+  const orchestratorTraversalDelayRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'OrchestratorTraversalDelayRow.tsx'))
+  const rightAlignedTooltipInput = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'RightAlignedTooltipInput.tsx'))
   const helpViewSectionFileNames = ['HelpShortcutsSection.tsx', 'HelpCheatsheetSection.tsx', 'HelpPanelTourSection.tsx', 'HelpWorkflowLinksSection.tsx', 'HelpIconsSection.tsx']
   const helpViewSectionTexts = helpViewSectionFileNames.map(fileName => [
     fileName,
@@ -59,6 +77,8 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const fieldSettingsPanel = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'FieldSettingsPanel.tsx'))
   const graphFieldsListPanel = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'GraphFieldsListPanel.tsx'))
   const fieldSamplesPanel = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'FieldSamplesPanel.tsx'))
+  const fieldLocalSchemaRowsEditor = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'FieldLocalSchemaRowsEditor.tsx'))
+  const helpCommandMenuSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpCommandMenuSection.tsx'))
   const graphFieldSettingSectionTexts = ['DefaultValueSection.tsx', 'CurrencySection.tsx', 'DecimalPlacesSection.tsx', 'UrlProtocolSection.tsx', 'SelectOptionsSection.tsx'].map(fileName => [
     fileName,
     readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', fileName)),
@@ -81,16 +101,29 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const renderSettingsSection = readUtf8(path.resolve(root, 'src', 'lib', 'panels', 'views', 'RenderSettingsSection.impl.tsx'))
   const rendererPaletteSettings = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'ui', 'RendererPaletteSettings.tsx'))
   const rendererHoverSettings = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'ui', 'RendererHoverSettings.tsx'))
+  const renderPresetSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'RenderPresetSection.tsx'))
   const threeViewLayoutSection = readUtf8(path.resolve(root, 'src', 'lib', 'panels', 'views', 'ThreeViewLayoutSection.impl.tsx'))
+  const threeViewBackgroundFogSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewBackgroundFogSection.tsx'))
+  const threeViewCameraSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewCameraSection.tsx'))
+  const threeViewGlobeEffectsSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewGlobeEffectsSection.tsx'))
+  const threeViewLinksSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewLinksSection.tsx'))
+  const threeViewSelectionSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewSelectionSection.tsx'))
+  const threeViewStarfieldSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewStarfieldSection.tsx'))
+  const aiKgForceControls = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'AiKgLayers', 'AiKgForceControls.tsx'))
+  const aiKgOpacityControls = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'AiKgLayers', 'AiKgOpacityControls.tsx'))
   const aiKgLayersSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'AiKgLayersSection.tsx'))
   const graphRagWorkflowSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphRagWorkflowSection.tsx'))
   const graphRagWorkflowIndexingSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphRagWorkflowIndexingSection.tsx'))
+  const orchestratorTraversalPanels = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'OrchestratorTraversalPanels.tsx'))
+  const sourceFileManagementRows = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SourceFileManagementSettingsRows.tsx'))
+  const threeSizingAndWidthControls = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'shared', 'ThreeSizingAndWidthControls.tsx'))
   const threeViewTuningSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'ThreeViewTuningSection.tsx'))
   const schemaEditorUiClasses = readUtf8(path.resolve(root, 'src', 'features', 'schema-editor', 'useSchemaEditorUiClasses.ts'))
   const graphFieldSharedInputClassSectionTexts = ['DefaultValueSection.tsx', 'FieldStylesSection.tsx', 'FieldGraphLayersSection.tsx', 'FieldEndpointsAndCardinalitySection.tsx', 'FieldLayoutSection.tsx'].map(fileName => [
     fileName,
     readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', fileName)),
   ] as const)
+  const fieldStylesSection = graphFieldSharedInputClassSectionTexts.find(([fileName]) => fileName === 'FieldStylesSection.tsx')?.[1] || ''
   const mainPanelTabsDoc = readUtf8(path.resolve(root, '..', 'docs', 'documents', 'knowgrph-mainpanel-tabs.md'))
   const mainPanelHelpCheatsheetDoc = readUtf8(path.resolve(root, '..', 'docs', 'documents', 'knowgrph-mainpanel-help-cheatsheet.md'))
   const mainPanelHelpDevDoc = readUtf8(path.resolve(root, '..', 'docs', 'documents', 'knowgrph-mainpanel-help-dev.md'))
@@ -160,43 +193,207 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     docRows.set(cells[0] || '', { type: cells[1] || '', value: cells[2] || '' })
   }
 
-  if (!keyTypeValueRow.includes("from 'grph-shared/ui/keyTypeValueRows'")) {
-    throw new Error('Expected KeyTypeValueRow to import the shared KTV row class contract')
+  if (fs.existsSync(legacyKeyTypeValueRowPath)) {
+    throw new Error('Expected legacy KeyTypeValueRow.tsx to be removed once the dedicated canvas KTV compatibility entrypoint owns the broad surface')
   }
-  for (const exportedClassName of ['KTV_ROW_TEXT_CELL_CLASS_NAME', 'KTV_ROW_LABEL_CELL_CLASS_NAME', 'KTV_ROW_VALUE_CELL_CLASS_NAME', 'KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME']) {
+  if (!canvasKeyTypeValueCompatibility.includes("from 'grph-shared/ui/keyTypeValueRows'")) {
+    throw new Error('Expected the dedicated canvas KTV compatibility entrypoint to import the shared KTV row class contract')
+  }
+  for (const exportedClassName of [
+    'KTV_ROW_TEXT_CELL_CLASS_NAME',
+    'KTV_ROW_LABEL_CELL_CLASS_NAME',
+    'KTV_ROW_VALUE_CELL_CLASS_NAME',
+    'KTV_KEY_TYPE_VALUE_GRID_CLASS_NAME',
+    'KTV_SECTION_STACK_CLASS_NAME',
+    'KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME',
+    'KTV_HEADER_LABEL_TEXT_SIZE_CLASS_NAME',
+    'KTV_STATUS_TEXT_SIZE_CLASS_NAME',
+    'KTV_HEADER_LABEL_CLASS_NAME',
+    'KTV_SECTION_TITLE_CLASS_NAME',
+    'KTV_STATUS_TEXT_CLASS_NAME',
+  ]) {
     if (!sharedKtvRows.includes(`export const ${exportedClassName}`)) {
       throw new Error(`Expected shared KTV rows module to export ${exportedClassName}`)
     }
   }
-  const valueCellUses = keyTypeValueRow.match(/KTV_ROW_VALUE_CELL_CLASS_NAME/g)?.length ?? 0
-  if (valueCellUses < 5) {
-    throw new Error('Expected all KeyTypeValueRow layouts to reuse the shared value-cell class')
+  if (!sharedKtvRows.includes('export function shouldFlushKeyTypeValueSectionTop')) {
+    throw new Error('Expected shared KTV rows module to export the KTV section seam helper')
   }
-  for (const sharedValueRowExport of ['KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME', 'KTV_VALUE_ROW_SCROLL_CLASS_NAME', 'KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME', 'KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME', 'KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME']) {
-    if (!keyTypeValueRow.includes(`export const ${sharedValueRowExport}`)) {
-      throw new Error(`Expected KeyTypeValueRow to export shared ${sharedValueRowExport}`)
+  if (
+    !sharedKtvLayout.includes('export interface KeyTypeValueHeaderProps') ||
+    !sharedKtvLayout.includes('export interface KeyTypeValueSectionStackProps') ||
+    !sharedKtvLayout.includes('export function KeyTypeValueHeader') ||
+    !sharedKtvLayout.includes('export function KeyTypeValueSectionStack') ||
+    !sharedKtvLayout.includes('KTV_SECTION_STACK_CLASS_NAME')
+  ) {
+    throw new Error('Expected grph-shared to own the structural KTV header and section-stack React shell')
+  }
+  if (
+    !sharedPackageJson.includes('"./react/keyTypeValueLayout"') ||
+    !sharedPackageJson.includes('"./react/keyTypeValueRow"') ||
+    !sharedTsconfig.includes('"jsx": "react-jsx"') ||
+    !sharedTsconfig.includes('"src/**/*.tsx"')
+  ) {
+    throw new Error('Expected grph-shared to expose and compile the shared KTV React layout and row entries')
+  }
+  const valueCellUses = sharedKtvRow.match(/KTV_ROW_VALUE_CELL_CLASS_NAME/g)?.length ?? 0
+  if (valueCellUses < 5) {
+    throw new Error('Expected all shared static KTV row layouts to reuse the shared value-cell class')
+  }
+  if (!sharedKtvRow.includes('export function SimpleKeyValueRow')) {
+    throw new Error('Expected grph-shared to expose the shared simple KTV row helper')
+  }
+  for (const sharedValueRowExport of ['KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME', 'KTV_VALUE_ROW_SCROLL_CLASS_NAME', 'KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME', 'KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME']) {
+    if (!sharedKtvRows.includes(`export const ${sharedValueRowExport}`)) {
+      throw new Error(`Expected shared KTV rows module to export ${sharedValueRowExport}`)
     }
   }
   if (
-    !keyTypeValueRow.includes("from '@/features/toolbar/ui/toolbarStyles'")
-    || !keyTypeValueRow.includes('uiToolbarRowScrollClassName')
-    || !keyTypeValueRow.includes('${KTV_ROW_VALUE_CELL_CLASS_NAME} ${KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME}')
+    !canvasKeyTypeValueValueCell.includes("from 'grph-shared/ui/keyTypeValueRows'")
+    || !canvasKeyTypeValueValueCell.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !canvasKeyTypeValueValueCell.includes("from '@/lib/ui/responsiveElementClasses'")
+    || !canvasKeyTypeValueValueCell.includes('export const KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME')
+    || !canvasKeyTypeValueValueCell.includes('export interface RightAlignedValueCellProps')
   ) {
-    throw new Error('Expected KeyTypeValueRow Value cells to own the shared horizontal row-scroll utility')
+    throw new Error('Expected the canvas value-cell compatibility owner to live in a dedicated module')
   }
-  if (!keyTypeValueRow.includes("const rootClassName = [KTV_VALUE_ROW_SCROLL_CLASS_NAME, className || '']")) {
-    throw new Error('Expected RightAlignedValueCell to reuse the shared horizontal KTV Value row utility')
+  if (
+    !canvasKeyTypeValueValueCell.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !sharedKtvRow.includes('${KTV_ROW_VALUE_CELL_CLASS_NAME} ${KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME}')
+    || !sharedKtvRow.includes('export function KeyTypeValueStaticRow')
+  ) {
+    throw new Error('Expected the shared KTV row runtime to own the horizontal value-cell row-scroll utility')
+  }
+  if (!sharedKtvRow.includes("const rootClassName = [KTV_VALUE_ROW_SCROLL_CLASS_NAME, className || '']")) {
+    throw new Error('Expected RightAlignedValueCell to remain owned by the shared KTV row runtime')
+  }
+  if (
+    canvasKeyTypeValueCompatibility.includes('export function RightAlignedTooltipInput')
+    || canvasKeyTypeValueCompatibility.includes('export interface RightAlignedTooltipInputProps')
+    || !rightAlignedTooltipInput.includes('export interface RightAlignedTooltipInputProps')
+    || !rightAlignedTooltipInput.includes('export function RightAlignedTooltipInput')
+    || !rightAlignedTooltipInput.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !rightAlignedTooltipInput.includes('PlainTextInputEditor')
+  ) {
+    throw new Error('Expected RightAlignedTooltipInput to move into a dedicated editable bridge module while preserving the shared right-aligned value-cell owner')
+  }
+  if (
+    !canvasEditableKeyTypeValueRow.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !canvasEditableKeyTypeValueRow.includes('export function CanvasEditableKeyTypeValueRow')
+    || !canvasEditableKeyTypeValueRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'")
+    || !canvasEditableKeyTypeValueRow.includes("from '@/features/panels/ui/canvasKeyTypeValueMarkdownBridge'")
+    || !canvasEditableKeyTypeValueRow.includes('useCanvasKeyTypeValueStaticRowProps')
+    || !canvasEditableKeyTypeValueRow.includes('renderKeyTypeValueMarkdownSigilBridgeNode')
+  ) {
+    throw new Error('Expected editable KTV rows to use a dedicated direct-shared bridge that reuses canvas static-row props and markdown-sigil rendering')
+  }
+  if (
+    !canvasKeyTypeValueMarkdownBridge.includes('export const renderKeyTypeValueMarkdownSigilBridgeNode')
+    || !canvasKeyTypeValueMarkdownBridge.includes('renderMarkdownSigilInlineText')
+  ) {
+    throw new Error('Expected markdown-sigil KTV rendering to live in a dedicated bridge module')
+  }
+  if (
+    !canvasKeyTypeValueRuntime.includes('export interface CanvasKeyTypeValueRuntime')
+    || !canvasKeyTypeValueRuntime.includes('export const resolveCanvasKeyTypeValueDensityClassName')
+    || !canvasKeyTypeValueRuntime.includes('export function useCanvasKeyTypeValueRuntime')
+    || !canvasKeyTypeValueRuntime.includes('export function useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected canvas KTV runtime/default helpers to live in a dedicated runtime module')
+  }
+  if (
+    !canvasKeyTypeValueStaticRow.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !canvasKeyTypeValueStaticRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'")
+    || !canvasKeyTypeValueStaticRow.includes("from '@/features/panels/ui/canvasKeyTypeValueMarkdownBridge'")
+    || !canvasKeyTypeValueStaticRow.includes('export interface KeyTypeValueRowProps')
+    || !canvasKeyTypeValueStaticRow.includes('export interface CanvasKeyTypeValueStaticRowProps')
+    || !canvasKeyTypeValueStaticRow.includes('export function CanvasKeyTypeValueStaticRow')
+  ) {
+    throw new Error('Expected the canvas static-row compatibility owner and shared row prop shape to live in a dedicated compatibility-row module')
+  }
+  if (
+    !canvasKeyTypeValueHeader.includes("from 'grph-shared/react/keyTypeValueLayout'")
+    || !canvasKeyTypeValueHeader.includes("from '@/features/panels/ui/canvasKeyTypeValueMarkdownBridge'")
+    || !canvasKeyTypeValueHeader.includes('export interface CanvasKeyTypeValueHeaderProps')
+    || !canvasKeyTypeValueHeader.includes('export function KeyTypeValueHeader')
+  ) {
+    throw new Error('Expected the canvas header compatibility owner to live in a dedicated header module')
+  }
+  if (
+    !canvasSimpleKeyValueRow.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !canvasSimpleKeyValueRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'")
+    || !canvasSimpleKeyValueRow.includes('export interface SimpleKeyValueRowProps')
+    || !canvasSimpleKeyValueRow.includes('export function SimpleKeyValueRow')
+  ) {
+    throw new Error('Expected the canvas simple-row compatibility owner to live in a dedicated module')
+  }
+  if (
+    !canvasKeyTypeValueValueCell.includes('export const KTV_VALUE_CELL_ROW_SCROLL_CLASS_NAME')
+    || !canvasKeyTypeValueValueCell.includes('export const KTV_VALUE_ROW_SCROLL_CLASS_NAME')
+    || !canvasKeyTypeValueValueCell.includes('export const KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME')
+    || !canvasKeyTypeValueValueCell.includes('export const KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME')
+    || !canvasKeyTypeValueValueCell.includes('export const KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME')
+    || !canvasKeyTypeValueValueCell.includes('export const RightAlignedValueCell = SharedRightAlignedValueCell')
+  ) {
+    throw new Error('Expected the dedicated canvas value-cell compatibility owner to centralize the remaining KTV value-row utility exports')
+  }
+  if (
+    !canvasKeyTypeValueRowAdapter.includes("from '@/features/panels/ui/canvasKeyTypeValueStaticRow'")
+    || !canvasKeyTypeValueRowAdapter.includes('export function KeyTypeValueRow')
+    || !canvasKeyTypeValueRowAdapter.includes('return <CanvasKeyTypeValueStaticRow {...props} />')
+  ) {
+    throw new Error('Expected the canvas row compatibility adapter to live in a dedicated module')
+  }
+  if (
+    !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasKeyTypeValueMarkdownBridge'") ||
+    !canvasKeyTypeValueCompatibility.includes('export { renderKeyTypeValueMarkdownSigilBridgeNode }') ||
+    !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasKeyTypeValueHeader'") ||
+    !canvasKeyTypeValueCompatibility.includes('export { KeyTypeValueHeader }') ||
+    !canvasKeyTypeValueCompatibility.includes('CanvasKeyTypeValueHeaderProps') ||
+    !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasSimpleKeyValueRow'") ||
+    !canvasKeyTypeValueCompatibility.includes('export { SimpleKeyValueRow }') ||
+    !canvasKeyTypeValueCompatibility.includes('SimpleKeyValueRowProps') ||
+    !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasKeyTypeValueValueCell'") ||
+    !canvasKeyTypeValueCompatibility.includes('export type { RightAlignedValueCellProps }') ||
+    !canvasKeyTypeValueCompatibility.includes('KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME') ||
+    !canvasKeyTypeValueCompatibility.includes('RightAlignedValueCell') ||
+    !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasKeyTypeValueStaticRow'") ||
+    !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !canvasKeyTypeValueCompatibility.includes('export {') ||
+    !canvasKeyTypeValueCompatibility.includes('useCanvasKeyTypeValueRuntime') ||
+    !canvasKeyTypeValueCompatibility.includes('useCanvasKeyTypeValueStaticRowProps') ||
+    !canvasKeyTypeValueCompatibility.includes('resolveCanvasKeyTypeValueDensityClassName') ||
+    !canvasKeyTypeValueCompatibility.includes('export {') ||
+    !canvasKeyTypeValueCompatibility.includes('CanvasKeyTypeValueStaticRow') ||
+    !canvasKeyTypeValueCompatibility.includes('KeyTypeValueRowProps') ||
+    !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasKeyTypeValueRowAdapter'") ||
+    !canvasKeyTypeValueCompatibility.includes('export { KeyTypeValueRow }')
+  ) {
+    throw new Error('Expected the dedicated canvas KTV compatibility entrypoint to isolate row adapter ownership, simple-row ownership, header ownership, value-cell ownership, static-row ownership, markdown-sigil rendering, and runtime/default helpers behind dedicated modules while re-exporting them for compatibility')
+  }
+  if (
+    !canvasSimpleKeyValueRow.includes('SharedSimpleKeyValueRow')
+    || !canvasSimpleKeyValueRow.includes('<SharedSimpleKeyValueRow')
+  ) {
+    throw new Error('Expected the dedicated canvas simple-row compatibility owner to delegate to the shared KTV row helper')
   }
   if (
     !sharedKtvRows.includes('self-stretch px-2')
     || sharedKtvRows.includes('border-x ${UI_THEME_TOKENS.panel.border}')
-    || !keyTypeValueRow.includes('${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center ${KTV_HEADER_LABEL_CLASS_NAME}')
+    || !sharedKtvLayout.includes('${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center ${KTV_HEADER_LABEL_CLASS_NAME}')
   ) {
     throw new Error('Expected shared KTV Value cells to preserve header/body left-right alignment without grid border lines')
   }
 
   if (!settingsEntryRow.includes('RightAlignedValueCell') || !settingsEntryRow.includes('valueNode={<RightAlignedValueCell>')) {
     throw new Error('Expected SettingsEntryRow values to use the shared KTV value cell')
+  }
+  if (
+    !settingsEntryRow.includes("from '@/features/panels/ui/canvasKeyTypeValueValueCell'")
+    || !settingsEntryRow.includes("from 'grph-shared/ui/keyTypeValueRows'")
+    || settingsEntryRow.includes("from '@/features/panels/ui/KeyTypeValueRow'")
+  ) {
+    throw new Error('Expected SettingsEntryRow to import value-cell compatibility helpers and shared status text sizing directly instead of routing through the legacy KeyTypeValueRow wrapper')
   }
   for (const [fileName, source] of [
     ['SettingsView.tsx', settingsView],
@@ -246,33 +443,82 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   ) {
     throw new Error('Expected SettingsEntryRow Value cells to avoid section metadata/description assist nodes')
   }
-  if (!keyTypeValueRow.includes('export function KeyTypeValueHeader') || !keyTypeValueRow.includes('actions?: React.ReactNode')) {
-    throw new Error('Expected KTV sticky headers to be centralized beside KeyTypeValueRow with a shared action slot')
+  if (!canvasKeyTypeValueHeader.includes('export function KeyTypeValueHeader') || !sharedKtvLayout.includes('actions?: ReactNode')) {
+    throw new Error('Expected KTV sticky headers to be centralized through the shared KTV React layout action slot')
   }
   if (
-    !keyTypeValueRow.includes('export const KTV_SECTION_STACK_CLASS_NAME')
-    || !keyTypeValueRow.includes('export function KeyTypeValueSectionStack')
-    || !keyTypeValueRow.includes('export function shouldFlushKeyTypeValueSectionTop')
+    !canvasKeyTypeValueCompatibility.includes("from 'grph-shared/ui/keyTypeValueRows'")
+    || !canvasKeyTypeValueHeader.includes("from 'grph-shared/react/keyTypeValueLayout'")
+    || !canvasKeyTypeValueHeader.includes('SharedKeyTypeValueHeader')
+    || !canvasKeyTypeValueCompatibility.includes("from '@/features/panels/ui/canvasKeyTypeValueHeader'")
+    || !canvasKeyTypeValueCompatibility.includes('export { KeyTypeValueHeader }')
+    || !canvasKeyTypeValueCompatibility.includes("export { KeyTypeValueSectionStack } from 'grph-shared/react/keyTypeValueLayout'")
+    || !canvasKeyTypeValueCompatibility.includes('shouldFlushKeyTypeValueSectionTop')
   ) {
-    throw new Error('Expected KTV section seam spacing to be centralized beside the shared KTV header')
+    throw new Error('Expected the dedicated canvas KTV compatibility entrypoint to re-export the header compatibility owner while delegating the structural shell to grph-shared')
   }
   if (
-    !keyTypeValueRow.includes('export const KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME = PANEL_TYPOGRAPHY_DEFAULTS.textSizeClass')
-    || !keyTypeValueRow.includes('export const KTV_HEADER_LABEL_TEXT_SIZE_CLASS_NAME')
-    || !keyTypeValueRow.includes('export const KTV_STATUS_TEXT_SIZE_CLASS_NAME')
-    || !keyTypeValueRow.includes('export const KTV_HEADER_LABEL_CLASS_NAME')
-    || !keyTypeValueRow.includes('export const KTV_SECTION_TITLE_CLASS_NAME')
-    || !keyTypeValueRow.includes('export const KTV_STATUS_TEXT_CLASS_NAME')
+    !canvasKeyTypeValueCompatibility.includes('KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME')
+    || !canvasKeyTypeValueCompatibility.includes('KTV_HEADER_LABEL_CLASS_NAME')
+    || !canvasKeyTypeValueCompatibility.includes('KTV_SECTION_TITLE_CLASS_NAME')
+    || !canvasKeyTypeValueCompatibility.includes('KTV_STATUS_TEXT_CLASS_NAME')
+    || canvasKeyTypeValueCompatibility.includes('export const KTV_SECTION_TITLE_CLASS_NAME =')
   ) {
-    throw new Error('Expected KTV typography hierarchy to be centralized beside the shared KTV header')
+    throw new Error('Expected KTV typography hierarchy to come from the shared KTV row contract instead of local constant duplication')
+  }
+  for (const [consumerName, consumerSource] of [
+    ['Workspace actions', workspaceActionsPanel],
+    ['Field settings panel', fieldSettingsPanel],
+    ['Floating chat', floatingPanelChat],
+    ['Help command menu', helpCommandMenuSection],
+    ['Settings runtime', settingsViewRuntime],
+    ['Media Nodes', mediaNodesSection],
+    ['Widget palette', widgetPalette],
+    ['Field samples panel', fieldSamplesPanel],
+    ['Floating props', floatingPropsPanel],
+    ['Graph fields list', graphFieldsListPanel],
+    ['Help shortcuts', helpShortcutsSection],
+    ['Help panel tour', helpPanelTourSection],
+    ['Help icons', helpIconsSection],
+    ['Help cheatsheet', helpCheatsheetSection],
+    ['Help workflow links', helpWorkflowLinksSection],
+    ['MainPanel section header', mainPanelSectionHeader],
+    ['MainPanel graph fields header', mainPanelGraphFieldsHeader],
+    ['Collapsible subsection', collapsibleSubsection],
+    ...graphFieldSettingSectionTexts.map(([fileName, source]) => [`Graph field ${fileName}`, source] as const),
+  ] as const) {
+    if (
+      !consumerSource.includes("from 'grph-shared/ui/keyTypeValueRows'")
+      || consumerSource.includes("from '@/features/panels/ui/KeyTypeValueRow'")
+    ) {
+      throw new Error(`Expected ${consumerName} to import shared KTV typography/constants directly instead of routing through the legacy KeyTypeValueRow wrapper`)
+    }
+  }
+  if (
+    !settingsView.includes("from 'grph-shared/react/keyTypeValueLayout'") ||
+    !collaborationView.includes("from 'grph-shared/react/keyTypeValueLayout'") ||
+    !helpSections.includes("from 'grph-shared/react/keyTypeValueLayout'") ||
+    !commandCatalogPanel.includes("from 'grph-shared/react/keyTypeValueLayout'") ||
+    !flowEditorFloatingPanelView.includes("from 'grph-shared/react/keyTypeValueLayout'")
+  ) {
+    throw new Error('Expected high-fanout KTV header/stack consumers to import the shared KTV React layout owner')
+  }
+  if (
+    !agenticRagNodeInspectorSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !orchestratorTraversalSequenceSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !workspaceActionsPanel.includes("from 'grph-shared/react/keyTypeValueRow'")
+  ) {
+    throw new Error('Expected simple read-only KTV consumers to import the shared KTV simple-row owner directly')
   }
   if (
     !collapsibleSection.includes('KTV_SECTION_TITLE_CLASS_NAME')
+    || !collapsibleSection.includes("from 'grph-shared/ui/keyTypeValueRows'")
+    || collapsibleSection.includes("./KeyTypeValueRow")
     || collapsibleSection.includes('overflow-hidden text-xs font-semibold')
     || !collaborationView.includes('KTV_STATUS_TEXT_CLASS_NAME')
     || collaborationView.includes('const noteClassName = `text-xs ${UI_THEME_TOKENS.text.secondary}`')
   ) {
-    throw new Error('Expected Collaboration KTV section titles and status notes to reuse the shared typography hierarchy')
+    throw new Error('Expected Collaboration KTV section titles and status notes to reuse the shared typography hierarchy directly from upstream without deleted wrapper imports')
   }
   if (
     !sectionChipChrome.includes('UI_SECTION_CHIP_CHROME_CLASS_NAME')
@@ -466,12 +712,12 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
       throw new Error(`Expected graph field ${consumerName} to avoid local row/control typography fallbacks`)
     }
   }
-  if (!keyTypeValueRow.includes('z-20 border-b ${UI_THEME_TOKENS.panel.border}')) {
+  if (!sharedKtvLayout.includes('z-20 border-b ${UI_THEME_TOKENS.panel.border}')) {
     throw new Error('Expected KTV sticky headers to own the shared bottom divider')
   }
   if (
-    !keyTypeValueRow.includes('${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center ${KTV_HEADER_LABEL_CLASS_NAME}')
-    || !keyTypeValueRow.includes('sm:justify-end')
+    !sharedKtvLayout.includes('${KTV_ROW_VALUE_CELL_CLASS_NAME} items-center ${KTV_HEADER_LABEL_CLASS_NAME}')
+    || !sharedKtvLayout.includes('sm:justify-end')
   ) {
     throw new Error('Expected the shared KTV header Value cell to preserve responsive value alignment')
   }
@@ -870,11 +1116,205 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected MainPanel Help to reuse the shared KTV column header')
   }
   if (
-    !helpKtvLayout.includes("from '@/features/panels/ui/KeyTypeValueRow'")
-    || !helpKtvLayout.includes('KeyTypeValueRow')
+    !helpKtvLayout.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !helpKtvLayout.includes('KeyTypeValueStaticRow')
     || !helpKtvLayout.includes('RightAlignedValueCell')
   ) {
-    throw new Error('Expected MainPanel Help KTV layout to wrap the shared KTV row/value primitives')
+    throw new Error('Expected MainPanel Help KTV layout to import the shared static KTV row/value primitives directly')
+  }
+  if (
+    !graphRagWorkflowSection.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !graphRagWorkflowSection.includes('KeyTypeValueStaticRow')
+    || !graphRagWorkflowSection.includes('RightAlignedValueCell')
+  ) {
+    throw new Error('Expected GraphRAG workflow rows to import the shared static KTV row/value primitives directly')
+  }
+  if (
+    !fieldLocalSchemaRowsEditor.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !fieldLocalSchemaRowsEditor.includes('KeyTypeValueStaticRow')
+    || !fieldLocalSchemaRowsEditor.includes('RightAlignedValueCell')
+  ) {
+    throw new Error('Expected graph-field local schema rows to import the shared static KTV row/value primitives directly')
+  }
+  if (
+    !renderSettingsSection.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !renderSettingsSection.includes('KeyTypeValueStaticRow')
+    || !renderSettingsSection.includes('RightAlignedValueCell')
+  ) {
+    throw new Error('Expected render settings compact 2D layout rows to import the shared static KTV row/value primitives directly')
+  }
+  if (
+    !rendererPaletteSettings.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !rendererPaletteSettings.includes('KeyTypeValueStaticRow')
+    || !rendererPaletteSettings.includes('RightAlignedValueCell')
+  ) {
+    throw new Error('Expected renderer palette rows to import the shared static KTV row/value primitives directly')
+  }
+  if (
+    !rendererHoverSettings.includes("from 'grph-shared/react/keyTypeValueRow'")
+    || !rendererHoverSettings.includes('KeyTypeValueStaticRow')
+  ) {
+    throw new Error('Expected renderer hover rows to import the shared static KTV row owner directly')
+  }
+  if (
+    !workspaceActionsPanel.includes("from '@/features/panels/ui/RightAlignedTooltipInput'")
+    || !collaborationView.includes("from '@/features/panels/ui/RightAlignedTooltipInput'")
+    || !renderPresetSection.includes("from '@/features/panels/ui/RightAlignedTooltipInput'")
+    || !graphRagWorkflowIndexingSection.includes("from '@/features/panels/ui/RightAlignedTooltipInput'")
+  ) {
+    throw new Error('Expected the remaining editable KTV consumers to import RightAlignedTooltipInput from the dedicated editable bridge module')
+  }
+  if (
+    !collaborationView.includes("from '@/features/panels/ui/canvasKeyTypeValueValueCell'")
+    || collaborationView.includes("from '@/features/panels/ui/KeyTypeValueRow'")
+  ) {
+    throw new Error('Expected CollaborationView to import RightAlignedValueCell from the dedicated canvas value-cell compatibility owner')
+  }
+  if (
+    !collaborationView.includes("from '@/features/panels/ui/CanvasEditableKeyTypeValueRow'")
+    || !renderPresetSection.includes("from '@/features/panels/ui/CanvasEditableKeyTypeValueRow'")
+    || !graphRagWorkflowIndexingSection.includes("from '@/features/panels/ui/CanvasEditableKeyTypeValueRow'")
+    || !collaborationView.includes('CanvasEditableKeyTypeValueRow as KeyTypeValueRow')
+    || !renderPresetSection.includes('CanvasEditableKeyTypeValueRow as KeyTypeValueRow')
+    || !graphRagWorkflowIndexingSection.includes('CanvasEditableKeyTypeValueRow as KeyTypeValueRow')
+  ) {
+    throw new Error('Expected the remaining editable KTV row consumers to import the dedicated direct-shared editable row bridge instead of the legacy KeyTypeValueRow wrapper')
+  }
+  if (
+    !threeViewSelectionSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeViewSelectionSection.includes('KeyTypeValueStaticRow') ||
+    !threeViewSelectionSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeViewSelectionSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected three-view selection rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !threeViewLinksSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeViewLinksSection.includes('KeyTypeValueStaticRow') ||
+    !threeViewLinksSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeViewLinksSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected three-view link rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !threeViewStarfieldSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeViewStarfieldSection.includes('KeyTypeValueStaticRow') ||
+    !threeViewStarfieldSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeViewStarfieldSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected three-view starfield rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !threeViewBackgroundFogSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeViewBackgroundFogSection.includes('KeyTypeValueStaticRow') ||
+    !threeViewBackgroundFogSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeViewBackgroundFogSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected three-view background/fog rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !threeViewCameraSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeViewCameraSection.includes('KeyTypeValueStaticRow') ||
+    !threeViewCameraSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeViewCameraSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected three-view camera rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !threeViewGlobeEffectsSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeViewGlobeEffectsSection.includes('KeyTypeValueStaticRow') ||
+    !threeViewGlobeEffectsSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeViewGlobeEffectsSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected three-view globe-effects rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !threeViewLayoutSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeViewLayoutSection.includes('KeyTypeValueStaticRow') ||
+    !threeViewLayoutSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeViewLayoutSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected three-view layout rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !aiKgForceControls.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !aiKgForceControls.includes('KeyTypeValueStaticRow') ||
+    !aiKgForceControls.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !aiKgForceControls.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected AI KG force controls to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !aiKgOpacityControls.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !aiKgOpacityControls.includes('KeyTypeValueStaticRow') ||
+    !aiKgOpacityControls.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !aiKgOpacityControls.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected AI KG opacity controls to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !commandCatalogPanel.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !commandCatalogPanel.includes('KeyTypeValueStaticRow') ||
+    !commandCatalogPanel.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !commandCatalogPanel.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected command-menu catalog rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !flowEditorFloatingPanelView.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !flowEditorFloatingPanelView.includes('KeyTypeValueStaticRow') ||
+    !flowEditorFloatingPanelView.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !flowEditorFloatingPanelView.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected Flow Editor floating-panel rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !settingsEntryRow.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !settingsEntryRow.includes('KeyTypeValueStaticRow') ||
+    !settingsEntryRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !settingsEntryRow.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected Settings entry rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !sourceFileManagementRows.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !sourceFileManagementRows.includes('KeyTypeValueStaticRow') ||
+    !sourceFileManagementRows.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !sourceFileManagementRows.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected Source File Management rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !threeSizingAndWidthControls.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !threeSizingAndWidthControls.includes('KeyTypeValueStaticRow') ||
+    !threeSizingAndWidthControls.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !threeSizingAndWidthControls.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected shared three-view sizing and width controls to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !orchestratorTraversalPanels.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !orchestratorTraversalPanels.includes('KeyTypeValueStaticRow') ||
+    !orchestratorTraversalPanels.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !orchestratorTraversalPanels.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected orchestrator traversal preset rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !orchestratorTraversalDelayRow.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !orchestratorTraversalDelayRow.includes('KeyTypeValueStaticRow') ||
+    !orchestratorTraversalDelayRow.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !orchestratorTraversalDelayRow.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected orchestrator traversal delay rows to import the shared static KTV row owner and root static-row prop helper directly')
+  }
+  if (
+    !fieldStylesSection.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !fieldStylesSection.includes('KeyTypeValueStaticRow') ||
+    !fieldStylesSection.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !fieldStylesSection.includes('useCanvasKeyTypeValueStaticRowProps')
+  ) {
+    throw new Error('Expected graph-field style rows to import the shared static KTV row owner and root static-row prop helper directly')
   }
   if (
     !helpKtvLayout.includes("from '@/features/panels/ui/mainPanelHelpIconLibrary'")
@@ -915,24 +1355,26 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected Settings value editors to share responsive value alignment')
   }
   if (
-    !settingsEntryRowValue.includes("from '@/features/panels/ui/KeyTypeValueRow'")
+    !settingsEntryRowValue.includes("from '@/features/panels/ui/canvasKeyTypeValueValueCell'")
     || !settingsEntryRowValue.includes('KTV_VALUE_ROW_SCROLL_CLASS_NAME')
     || !settingsEntryRowValue.includes('KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME')
+    || settingsEntryRowValue.includes("from '@/features/panels/ui/KeyTypeValueRow'")
     || settingsEntryRowValue.includes("from '@/features/toolbar/ui/toolbarStyles'")
     || settingsEntryRowValue.includes('UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME')
     || settingsEntryRowValue.includes('space-y-1')
   ) {
-    throw new Error('Expected Settings value assist controls to reuse the shared horizontal KTV Value row utilities')
+    throw new Error('Expected Settings value assist controls to import the dedicated canvas value-row utilities directly')
   }
   if (
-    !settingsSpecialValueNode.includes("from '@/features/panels/ui/KeyTypeValueRow'")
+    !settingsSpecialValueNode.includes("from '@/features/panels/ui/canvasKeyTypeValueValueCell'")
     || !settingsSpecialValueNode.includes('KTV_VALUE_ROW_SCROLL_SPACIOUS_CLASS_NAME')
     || !settingsSpecialValueNode.includes('KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME')
     || !settingsSpecialValueNode.includes('KTV_VALUE_ROW_STATUS_SHELL_CLASS_NAME')
+    || settingsSpecialValueNode.includes("from '@/features/panels/ui/KeyTypeValueRow'")
     || settingsSpecialValueNode.includes("from '@/features/toolbar/ui/toolbarStyles'")
     || settingsSpecialValueNode.includes('UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME')
   ) {
-    throw new Error('Expected special Settings value rows to reuse shared horizontal KTV Value row utilities')
+    throw new Error('Expected special Settings value rows to import the dedicated canvas value-row utilities directly')
   }
   for (const [fileName, source] of [
     ['RenderSettingsSection.impl.tsx', renderSettingsSection],
@@ -940,7 +1382,9 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     ['RendererHoverSettings.tsx', rendererHoverSettings],
     ['ThreeViewLayoutSection.impl.tsx', threeViewLayoutSection],
   ] as const) {
-    if (!source.includes('KeyTypeValueRow') || (fileName === 'ThreeViewLayoutSection.impl.tsx' && !source.includes('THREE_VIEW_FIELD_GRID_CLASS_NAME')) || (fileName === 'RenderSettingsSection.impl.tsx' && !source.includes('RENDER_SETTINGS_PRESETS_GRID_CLASS_NAME')) || source.includes('grid grid-cols-2 gap-3')) {
+    const usesSharedKtvRowOwner =
+      source.includes('KeyTypeValueRow') || source.includes('KeyTypeValueStaticRow')
+    if (!usesSharedKtvRowOwner || (fileName === 'ThreeViewLayoutSection.impl.tsx' && !source.includes('THREE_VIEW_FIELD_GRID_CLASS_NAME')) || (fileName === 'RenderSettingsSection.impl.tsx' && !source.includes('RENDER_SETTINGS_PRESETS_GRID_CLASS_NAME')) || source.includes('grid grid-cols-2 gap-3')) {
       throw new Error(`Expected FloatingPanel KTV surface ${fileName} to inherit shared KTV rows and responsive grid owners`)
     }
   }

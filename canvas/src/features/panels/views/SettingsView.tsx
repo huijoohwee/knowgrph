@@ -3,7 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import {
   KeyTypeValueHeader,
   KeyTypeValueSectionStack,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/react/keyTypeValueLayout'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import {
   uiDangerButtonClassName,

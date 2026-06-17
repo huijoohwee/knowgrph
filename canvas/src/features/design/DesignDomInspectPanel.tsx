@@ -4,6 +4,7 @@ import { FileCode } from 'lucide-react'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PanelReadOnlyField } from '@/lib/ui/panelFormControls'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
@@ -40,10 +41,13 @@ function KeyValueRow(props: { k: string; v: string | number | null }) {
   const v = props.v
   const value = v == null ? '' : String(v)
   return (
-    <section className={DESIGN_DOM_INSPECT_ROW_GRID_CLASS_NAME}>
-      <section className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>{props.k}</section>
-      <section className={cn('text-xs font-mono break-words', UI_THEME_TOKENS.text.primary)}>{value || '—'}</section>
-    </section>
+    <PanelReadOnlyField
+      label={props.k}
+      value={value || '—'}
+      className={DESIGN_DOM_INSPECT_ROW_GRID_CLASS_NAME}
+      labelClassName="font-mono"
+      valueClassName={cn('font-mono break-words', UI_THEME_TOKENS.text.primary)}
+    />
   )
 }
 

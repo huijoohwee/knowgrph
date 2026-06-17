@@ -1,7 +1,10 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import {
+  KeyTypeValueStaticRow,
+  RightAlignedValueCell,
+} from 'grph-shared/react/keyTypeValueRow'
 import {
   AGENTIC_RAG_CONTEXT_IRI_TOOLTIP,
   GRAPHRAG_WORKFLOW_SUMMARY_TOOLTIP,
@@ -42,11 +45,20 @@ export function AgenticContextGraphContextUrlRow({
   onChangeAgenticContextUrl,
   mode,
 }: AgenticContextGraphContextUrlRowProps) {
+  const uiPanelKeyValueTextSizeClass = useGraphStore(
+    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+  )
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  )
+  const uiPanelRowDensityDefaultClass = useGraphStore(
+    s => s.uiPanelRowDensityDefaultClass || 'py-1',
+  )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
   return (
-    <KeyTypeValueRow
+    <KeyTypeValueStaticRow
       layout="keyIconValue"
       keyNode={(
         <Tooltip
@@ -99,6 +111,10 @@ export function AgenticContextGraphContextUrlRow({
         </section>
       )}
       align="start"
+      textSizeClassName={uiPanelKeyValueTextSizeClass}
+      fontClassName={uiPanelTextFontClass}
+      densityClassName={uiPanelRowDensityDefaultClass}
+      activeClassName={UI_THEME_TOKENS.table.rowHoverHighlight}
     />
   )
 }
@@ -139,6 +155,15 @@ export function GraphRagWorkflowSection({
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
+  const uiPanelKeyValueTextSizeClass = useGraphStore(
+    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+  )
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  )
+  const uiPanelRowDensityDefaultClass = useGraphStore(
+    s => s.uiPanelRowDensityDefaultClass || 'py-1',
+  )
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
@@ -150,7 +175,7 @@ export function GraphRagWorkflowSection({
       data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
       className={graphRagWorkflowSummaryClassName}
     >
-      <KeyTypeValueRow
+      <KeyTypeValueStaticRow
         layout="keyValue"
         className={graphRagWorkflowRowClassName}
         keyNode={<span className="break-words">{UI_COPY.graphRagWorkflowRowLabel}</span>}
@@ -195,6 +220,10 @@ export function GraphRagWorkflowSection({
             </section>
           </Tooltip>
         )}
+        textSizeClassName={uiPanelKeyValueTextSizeClass}
+        fontClassName={uiPanelTextFontClass}
+        densityClassName={uiPanelRowDensityDefaultClass}
+        activeClassName={UI_THEME_TOKENS.table.rowHoverHighlight}
       />
       <OrchestratorTraversalDelayRow
         traversalDelayMs={traversalDelayMs}

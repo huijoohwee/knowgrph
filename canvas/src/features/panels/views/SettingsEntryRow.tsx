@@ -1,12 +1,11 @@
 import Tooltip from '@/features/panels/ui/Tooltip'
-import {
-  KTV_STATUS_TEXT_SIZE_CLASS_NAME,
-  KeyTypeValueRow,
-  RightAlignedValueCell,
-} from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { RightAlignedValueCell } from '@/features/panels/ui/canvasKeyTypeValueValueCell'
 import { MainPanelTypeIcon, resolveMainPanelSettingTypeIconKey } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
+import { KTV_STATUS_TEXT_SIZE_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
 import { SettingsEntryDetailsTable } from './SettingsEntryDetailsTable'
 import { buildSettingsEntryInputNode } from './settingsEntryRow.input'
 import { buildSettingsEntryTooltips } from './settingsEntryRow.tooltips'
@@ -91,10 +90,12 @@ export function SettingsEntryRow({
     ui,
     values,
   })
+  const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
 
   return (
     <li>
-      <KeyTypeValueRow
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
         id={anchorId}
         dataKgAnchor={anchorId}
         keyNode={(

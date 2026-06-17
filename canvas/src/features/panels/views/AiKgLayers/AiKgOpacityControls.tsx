@@ -1,7 +1,7 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
@@ -14,6 +14,7 @@ import {
   LAYER2_OPACITY_TOOLTIP,
   LAYER3_OPACITY_TOOLTIP,
 } from '../AiKgLayersSectionTooltips'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 type AiKgOpacityControlsProps = {
   schema: GraphSchema
@@ -37,6 +38,13 @@ export default function AiKgOpacityControls({
   const layer1 = getLayerOpacityValue('1', 1.0)
   const layer2 = getLayerOpacityValue('2', 0.9)
   const layer3 = getLayerOpacityValue('3', 0.8)
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
+  const KeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...compactStaticRowProps} {...props} />
 
   return (
     <>

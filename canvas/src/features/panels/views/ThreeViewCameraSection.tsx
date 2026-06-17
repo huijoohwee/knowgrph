@@ -1,6 +1,7 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -34,6 +35,7 @@ export default function ThreeViewCameraSection({
   const keyLabelClassName = UI_THEME_TOKENS.text.secondary
   const valueTextClassName = UI_THEME_TOKENS.text.tertiary
   const selectionControlClassName = `${UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME} rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   return (
     <CollapsibleSection
       title="Camera and navigation"
@@ -43,7 +45,7 @@ export default function ThreeViewCameraSection({
       stickyOffsetClassName="top-6"
     >
       <section className={THREE_VIEW_FIELD_GRID_CLASS_NAME}>
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Camera Damping</span>}
           valueNode={(
@@ -69,8 +71,9 @@ export default function ThreeViewCameraSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Rotate Speed</span>}
           valueNode={(
@@ -96,8 +99,9 @@ export default function ThreeViewCameraSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Zoom Speed</span>}
           valueNode={(
@@ -123,8 +127,9 @@ export default function ThreeViewCameraSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Pan Speed</span>}
           valueNode={(
@@ -150,8 +155,9 @@ export default function ThreeViewCameraSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Auto Rotate</span>}
           valueNode={(
@@ -165,8 +171,9 @@ export default function ThreeViewCameraSection({
               }
             />
           )}
+          {...compactStaticRowProps}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Auto Rotate Speed</span>}
           valueNode={(
@@ -193,6 +200,7 @@ export default function ThreeViewCameraSection({
               </Tooltip>
             </>
           )}
+          {...compactStaticRowProps}
         />
       </section>
     </CollapsibleSection>

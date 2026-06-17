@@ -29,7 +29,7 @@ import {
 import { computeFilteredLists } from '@/features/schema-editor/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import { KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
 import FieldSchemaSection from '@/features/panels/views/graph-fields/FieldSchemaSection'
 import FieldStylesSection from '@/features/panels/views/graph-fields/FieldStylesSection'
 import FieldLayoutSection from '@/features/panels/views/graph-fields/FieldLayoutSection'
@@ -95,6 +95,12 @@ export default function FieldSettingsPanel({
   )
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
+  )
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  )
+  const uiPanelRowDensityCompactClass = useGraphStore(
+    s => s.uiPanelRowDensityCompactClass || 'py-0.5',
   )
   const secondaryActionButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`
   const fieldLabelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`
@@ -328,7 +334,9 @@ export default function FieldSettingsPanel({
             selectedGlobalView={selectedGlobalView}
             setSelectedGlobalView={setSelectedGlobalView}
             uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+            uiPanelTextFontClass={uiPanelTextFontClass}
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+            uiPanelRowDensityCompactClass={uiPanelRowDensityCompactClass}
             localSchemaNodeTypes={localSchemaNodeTypes}
             localSchemaEdgeLabels={localSchemaEdgeLabels}
           />

@@ -2,7 +2,7 @@ import React from 'react'
 import { ChevronDown } from 'lucide-react'
 import { type TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import type { OrchestratorTraversalSectionViewModel } from '@/features/panels/views/OrchestratorTraversalSectionModel'
-import { SimpleKeyValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { SimpleKeyValueRow } from 'grph-shared/react/keyTypeValueRow'
 import {
   TraversalQueryExampleEditor,
   TraverseNodesListEditor,
@@ -187,6 +187,15 @@ interface GenericTraversalDetailsProps {
 }
 
 function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps) {
+  const uiPanelKeyValueTextSizeClass = useGraphStore(
+    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+  )
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  )
+  const uiPanelRowDensityCompactClass = useGraphStore(
+    s => s.uiPanelRowDensityCompactClass || 'py-0.5',
+  )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
@@ -194,16 +203,20 @@ function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps
   return (
     <section className="space-y-1">
       <SimpleKeyValueRow
-        density="compact"
         label={<span className={UI_THEME_TOKENS.text.tertiary}>{UI_COPY.orchestratorTraversalGenericStartNodeLabel}</span>}
+        textSizeClassName={uiPanelKeyValueTextSizeClass}
+        fontClassName={uiPanelTextFontClass}
+        densityClassName={uiPanelRowDensityCompactClass}
       >
         <span className={`${uiPanelMonospaceTextClass} break-words`}>
           {lastTraversal.startNodeId}
         </span>
       </SimpleKeyValueRow>
       <SimpleKeyValueRow
-        density="compact"
         label={<span className={UI_THEME_TOKENS.text.tertiary}>{UI_COPY.orchestratorTraversalGenericMaxDepthLabel}</span>}
+        textSizeClassName={uiPanelKeyValueTextSizeClass}
+        fontClassName={uiPanelTextFontClass}
+        densityClassName={uiPanelRowDensityCompactClass}
       >
         <span className={`${uiPanelMonospaceTextClass} break-words`}>
           {lastTraversal.maxDepth}
@@ -211,8 +224,10 @@ function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps
       </SimpleKeyValueRow>
       {lastTraversal.labelFilter.trim().length > 0 && (
         <SimpleKeyValueRow
-          density="compact"
           label={<span className={UI_THEME_TOKENS.text.tertiary}>{UI_COPY.orchestratorTraversalGenericEdgeLabelsLabel}</span>}
+          textSizeClassName={uiPanelKeyValueTextSizeClass}
+          fontClassName={uiPanelTextFontClass}
+          densityClassName={uiPanelRowDensityCompactClass}
         >
           <span className={`${uiPanelMonospaceTextClass} break-words`}>
             {lastTraversal.labelFilter}

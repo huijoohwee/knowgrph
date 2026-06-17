@@ -1,5 +1,5 @@
 import React from 'react'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import {
   ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS,
@@ -9,6 +9,7 @@ import {
 } from '@/features/panels/utils/orchestratorTraversal'
 import { ORCHESTRATOR_TRAVERSAL_DELAY_ROW_TOOLTIP } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 export function OrchestratorTraversalDelayRow(props: {
   traversalDelayMs: number
@@ -17,10 +18,11 @@ export function OrchestratorTraversalDelayRow(props: {
   density?: 'compact' | 'default'
 }) {
   const { traversalDelayMs, onChangeTraversalDelayMs, uiPanelKeyValueInputClass, density } = props
+  const staticRowProps = useCanvasKeyTypeValueStaticRowProps(density)
   return (
-    <KeyTypeValueRow
-      density={density}
+    <KeyTypeValueStaticRow
       layout="keyIconSliderInput"
+      {...staticRowProps}
       keyNode={(
         <Tooltip
           content={ORCHESTRATOR_TRAVERSAL_DELAY_ROW_TOOLTIP}

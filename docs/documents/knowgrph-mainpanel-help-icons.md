@@ -46,6 +46,7 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | mainPanel.commerce | mainPanel.commerce | Commerce operations | MainPanel tab for ACP, Stripe, Web3, OpenBOX, proof, and trace readiness. |
 | mainPanel.research | mainPanel.research | Thesis compiler | MainPanel tab for compiling selected Source Files into reviewable thesis candidates. |
 | mainPanel.design | mainPanel.design | Design surface | MainPanel tab for design renderer and page/component inspection. |
+| mainPanel.skillsCommands | mainPanel.skillsCommands | Skills and commands | MainPanel tab for skill discovery, command references, and guided operator actions. |
 | mainPanel.workflowManager | mainPanel.workflowManager | Workflow curation | MainPanel tab for graph fields, mappings, and workflow registry management. |
 | mainPanel.dashboard | mainPanel.dashboard | Surface summary | MainPanel tab for runtime status and dashboard metrics. |
 | mainPanel.preview | mainPanel.preview | Rendered preview | MainPanel tab for previewing rendered output. |

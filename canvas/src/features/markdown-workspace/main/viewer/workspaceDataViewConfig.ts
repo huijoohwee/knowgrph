@@ -4,6 +4,12 @@ import { getLocalStorage, readJsonFromStorage, writeJsonToStorage } from '@/lib/
 import type { MarkdownDataView, MarkdownDataViewColumnKind } from '@/features/markdown/ui/markdownDataViewModel'
 import type { MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
 import { coerceMarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
+import {
+  coerceDataViewFieldLineMode,
+  coerceDataViewRowHeightPreset,
+  type DataViewFieldLineMode,
+  type DataViewRowHeightPreset,
+} from '@/lib/ui/dataViewDensity'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type WorkspaceDataViewLayout = 'kanban' | 'table'
@@ -52,6 +58,8 @@ export type WorkspaceDataViewViewV2 = {
   filterGroups: WorkspaceDataViewFilterGroup[]
   sortRules: WorkspaceDataViewSortRule[]
   orientation?: WorkspaceDataViewOrientation
+  rowHeightPreset?: DataViewRowHeightPreset
+  fieldLineMode?: DataViewFieldLineMode
   graphEnabled?: boolean
   geospatialViewEnabled?: boolean
   graphRolesByColumnId?: Record<string, WorkspaceDataViewGraphColumnRole> | null
@@ -308,6 +316,8 @@ const DEFAULT_VIEW: WorkspaceDataViewViewV2 = {
   filterGroups: [{ id: 'g0', rules: [] }],
   sortRules: [],
   orientation: 'rows',
+  rowHeightPreset: 'comfortable',
+  fieldLineMode: 'single',
 }
 
 const DEFAULT_STATE: WorkspaceDataViewStateV1 = {
@@ -425,6 +435,8 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
     const sortRulesRaw = Array.isArray(raw.sortRules) ? raw.sortRules : []
     const sortRules = sortRulesRaw.map(coerceSortRule).filter((x): x is WorkspaceDataViewSortRule => !!x)
     const orientation = normalizeWorkspaceDataViewOrientation(raw.orientation)
+    const rowHeightPreset = coerceDataViewRowHeightPreset(raw.rowHeightPreset)
+    const fieldLineMode = coerceDataViewFieldLineMode(raw.fieldLineMode)
 
     const graphEnabled = typeof raw.graphEnabled === 'boolean' ? raw.graphEnabled : undefined
     const geospatialViewEnabled = typeof raw.geospatialViewEnabled === 'boolean' ? raw.geospatialViewEnabled : undefined
@@ -446,6 +458,8 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
       filterGroups: normalizedGroups,
       sortRules,
       orientation,
+      rowHeightPreset,
+      fieldLineMode,
       graphEnabled,
       geospatialViewEnabled,
       graphRolesByColumnId,

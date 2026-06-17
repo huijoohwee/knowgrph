@@ -1,10 +1,14 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
-import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  KeyTypeValueStaticRow,
+  RightAlignedValueCell,
+} from 'grph-shared/react/keyTypeValueRow'
 
 type SharedThreeSizingAndWidthControlsProps = {
   schema: GraphSchema
@@ -29,11 +33,25 @@ export default function ThreeSizingAndWidthControls({
   const keywordNodeSizeScale = clampScale(keywordNodeSizeScaleRaw)
   const keywordEdgeWidthScale = clampScale(keywordEdgeWidthScaleRaw)
   const keyLabelClassName = `${UI_THEME_TOKENS.text.secondary} break-words`
+  const defaultStaticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
+  const DefaultKeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...defaultStaticRowProps} {...props} />
+  const CompactKeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...compactStaticRowProps} {...props} />
 
   if (variant === 'simple') {
     return (
       <>
-        <KeyTypeValueRow
+        <DefaultKeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Node Sizing</span>}
           valueNode={(
@@ -50,7 +68,7 @@ export default function ThreeSizingAndWidthControls({
             </select>
           )}
         />
-        <KeyTypeValueRow
+        <DefaultKeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Edge Width</span>}
           valueNode={(
@@ -67,7 +85,7 @@ export default function ThreeSizingAndWidthControls({
             </select>
           )}
         />
-        <KeyTypeValueRow
+        <DefaultKeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Keyword Node Scale</span>}
           valueNode={(
@@ -85,7 +103,7 @@ export default function ThreeSizingAndWidthControls({
             />
           )}
         />
-        <KeyTypeValueRow
+        <DefaultKeyTypeValueRow
           layout="keyValue"
           keyNode={<span className={keyLabelClassName}>Keyword Edge Scale</span>}
           valueNode={(
@@ -109,8 +127,7 @@ export default function ThreeSizingAndWidthControls({
 
   return (
     <>
-      <KeyTypeValueRow
-        density="compact"
+      <CompactKeyTypeValueRow
         layout="keyIconValue"
         keyNode={(
           <Tooltip
@@ -148,8 +165,7 @@ export default function ThreeSizingAndWidthControls({
           </RightAlignedValueCell>
         )}
       />
-      <KeyTypeValueRow
-        density="compact"
+      <CompactKeyTypeValueRow
         layout="keyIconValue"
         keyNode={(
           <Tooltip
@@ -187,8 +203,7 @@ export default function ThreeSizingAndWidthControls({
           </RightAlignedValueCell>
         )}
       />
-      <KeyTypeValueRow
-        density="compact"
+      <CompactKeyTypeValueRow
         layout="keyIconValue"
         keyNode={(
           <Tooltip
@@ -219,8 +234,7 @@ export default function ThreeSizingAndWidthControls({
           </RightAlignedValueCell>
         )}
       />
-      <KeyTypeValueRow
-        density="compact"
+      <CompactKeyTypeValueRow
         layout="keyIconValue"
         keyNode={(
           <Tooltip

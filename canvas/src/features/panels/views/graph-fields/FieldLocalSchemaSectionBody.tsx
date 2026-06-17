@@ -24,7 +24,9 @@ type FieldLocalSchemaSectionBodyProps = {
   hasLocalSchemaOwner: boolean
   localSchemaError: string
   uiPanelKeyValueTextSizeClass: string
+  uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
+  uiPanelRowDensityCompactClass: string
   setSelectedGlobalView: React.Dispatch<React.SetStateAction<GraphFieldsSelectedView>>
   applyLocalSchemaText: () => void
   resetLocalSchemaText: () => void
@@ -63,7 +65,9 @@ export default function FieldLocalSchemaSectionBody({
   hasLocalSchemaOwner,
   localSchemaError,
   uiPanelKeyValueTextSizeClass,
+  uiPanelTextFontClass,
   uiPanelMonospaceTextClass,
+  uiPanelRowDensityCompactClass,
   setSelectedGlobalView,
   applyLocalSchemaText,
   resetLocalSchemaText,
@@ -225,7 +229,9 @@ export default function FieldLocalSchemaSectionBody({
               localSchemaScope={localSchemaScope}
               localSchemaOwnerKey={localSchemaOwnerKey}
               uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+              uiPanelTextFontClass={uiPanelTextFontClass}
               uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+              uiPanelRowDensityCompactClass={uiPanelRowDensityCompactClass}
               localSchemaRows={localSchemaRows}
               setLocalSchemaRows={setLocalSchemaRows}
               suggestedPropertyKeys={suggestedPropertyKeys}

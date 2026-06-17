@@ -1,6 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { KTV_SECTION_TITLE_CLASS_NAME } from '@/features/panels/ui/KeyTypeValueRow'
+import { KTV_SECTION_TITLE_CLASS_NAME } from 'grph-shared/ui/keyTypeValueRows'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export const MAIN_PANEL_SECTION_HEADER_ROOT_CLASS_NAME =

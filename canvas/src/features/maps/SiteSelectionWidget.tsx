@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PanelField, PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 
 export default function SiteSelectionWidget() {
   const [isExpanded, setIsExpanded] = useState(true)
@@ -98,37 +99,71 @@ export default function SiteSelectionWidget() {
       className={`border-b ${UI_THEME_TOKENS.panel.border}`}
       flushTop={true}
     >
-      <div className={`p-2 space-y-4 ${UI_THEME_TOKENS.text.primary} text-xs`}>
+      <section className={`p-2 space-y-4 ${UI_THEME_TOKENS.text.primary} text-xs`}>
         {/* Candidate Sites & Lease Inputs */}
         <section className={`p-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-white/5`}>
           <h3 className="font-semibold mb-2">1. Candidates & Structured Inputs</h3>
           {candidates.map((c, i) => (
-            <div key={c.id} className={`grid grid-cols-2 gap-2 mb-2 pb-2 ${i !== candidates.length - 1 ? 'border-b border-white/10' : ''}`}>
-              <div>
-                <label className="block text-[10px] opacity-70">Label</label>
-                <input type="text" value={c.label} onChange={e => updateCandidate(c.id, 'label', e.target.value)} className={`w-full bg-transparent border ${UI_THEME_TOKENS.panel.border} rounded p-1`} />
-              </div>
-              <div>
-                <label className="block text-[10px] opacity-70">Base Rent ($/mo)</label>
-                <input type="number" value={c.baseRent} onChange={e => updateCandidate(c.id, 'baseRent', e.target.value)} className={`w-full bg-transparent border ${UI_THEME_TOKENS.panel.border} rounded p-1`} />
-              </div>
-              <div>
-                <label className="block text-[10px] opacity-70">Daily Customers</label>
-                <input type="number" value={c.dailyCustomers} onChange={e => updateCandidate(c.id, 'dailyCustomers', e.target.value)} className={`w-full bg-transparent border ${UI_THEME_TOKENS.panel.border} rounded p-1`} />
-              </div>
-              <div>
-                <label className="block text-[10px] opacity-70">Avg Spend ($)</label>
-                <input type="number" value={c.averageSpend} onChange={e => updateCandidate(c.id, 'averageSpend', e.target.value)} className={`w-full bg-transparent border ${UI_THEME_TOKENS.panel.border} rounded p-1`} />
-              </div>
-              <div>
-                <label className="block text-[10px] opacity-70">Initial Invest ($)</label>
-                <input type="number" value={c.initialInvestment} onChange={e => updateCandidate(c.id, 'initialInvestment', e.target.value)} className={`w-full bg-transparent border ${UI_THEME_TOKENS.panel.border} rounded p-1`} />
-              </div>
-              <div>
-                <label className="block text-[10px] opacity-70">Lease (Months)</label>
-                <input type="number" value={c.leaseTermMonths} onChange={e => updateCandidate(c.id, 'leaseTermMonths', e.target.value)} className={`w-full bg-transparent border ${UI_THEME_TOKENS.panel.border} rounded p-1`} />
-              </div>
-            </div>
+            <fieldset
+              key={c.id}
+              className={`grid grid-cols-2 gap-2 mb-2 pb-2 ${i !== candidates.length - 1 ? 'border-b border-white/10' : ''}`}
+            >
+              <legend className="sr-only">{`Candidate ${c.label || i + 1}`}</legend>
+              <PanelField label="Label" layout="compact" labelClassName="text-[10px] opacity-70">
+                <PanelTextInput
+                  variant="transparent"
+                  type="text"
+                  value={c.label}
+                  onChange={e => updateCandidate(c.id, 'label', e.target.value)}
+                  className="px-1 text-xs"
+                />
+              </PanelField>
+              <PanelField label="Base Rent ($/mo)" layout="compact" labelClassName="text-[10px] opacity-70">
+                <PanelTextInput
+                  variant="transparent"
+                  type="number"
+                  value={c.baseRent}
+                  onChange={e => updateCandidate(c.id, 'baseRent', e.target.value)}
+                  className="px-1 text-xs"
+                />
+              </PanelField>
+              <PanelField label="Daily Customers" layout="compact" labelClassName="text-[10px] opacity-70">
+                <PanelTextInput
+                  variant="transparent"
+                  type="number"
+                  value={c.dailyCustomers}
+                  onChange={e => updateCandidate(c.id, 'dailyCustomers', e.target.value)}
+                  className="px-1 text-xs"
+                />
+              </PanelField>
+              <PanelField label="Avg Spend ($)" layout="compact" labelClassName="text-[10px] opacity-70">
+                <PanelTextInput
+                  variant="transparent"
+                  type="number"
+                  value={c.averageSpend}
+                  onChange={e => updateCandidate(c.id, 'averageSpend', e.target.value)}
+                  className="px-1 text-xs"
+                />
+              </PanelField>
+              <PanelField label="Initial Invest ($)" layout="compact" labelClassName="text-[10px] opacity-70">
+                <PanelTextInput
+                  variant="transparent"
+                  type="number"
+                  value={c.initialInvestment}
+                  onChange={e => updateCandidate(c.id, 'initialInvestment', e.target.value)}
+                  className="px-1 text-xs"
+                />
+              </PanelField>
+              <PanelField label="Lease (Months)" layout="compact" labelClassName="text-[10px] opacity-70">
+                <PanelTextInput
+                  variant="transparent"
+                  type="number"
+                  value={c.leaseTermMonths}
+                  onChange={e => updateCandidate(c.id, 'leaseTermMonths', e.target.value)}
+                  className="px-1 text-xs"
+                />
+              </PanelField>
+            </fieldset>
           ))}
           <button onClick={addCandidate} className={`mt-1 w-full px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} hover:bg-white/10`}>
             + Add Candidate Site
@@ -153,14 +188,23 @@ export default function SiteSelectionWidget() {
         {/* DCF Analysis & Stress Testing */}
         <section className={`p-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-white/5`}>
           <h3 className="font-semibold mb-2">4. Economics & Stress Testing</h3>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <label className="whitespace-nowrap">Stress Scenario:</label>
-            <select value={scenario} onChange={e => setScenario(e.target.value)} className={`flex-1 min-w-0 bg-transparent border ${UI_THEME_TOKENS.panel.border} rounded p-1`}>
+          <PanelField
+            label="Stress Scenario"
+            layout="compact"
+            className="mb-2"
+            labelClassName="whitespace-nowrap text-xs"
+          >
+            <PanelSelect
+              variant="transparent"
+              value={scenario}
+              onChange={e => setScenario(e.target.value)}
+              className="flex-1 min-w-0 px-1 text-xs"
+            >
               <option value="baseline">Baseline</option>
               <option value="downside">Downside (-10% Rev, +5% Cost)</option>
               <option value="severe">Severe (-25% Rev, +10% Cost)</option>
-            </select>
-          </div>
+            </PanelSelect>
+          </PanelField>
           <button 
             onClick={handleRunDCF}
             className={`w-full px-2 py-2 mt-2 rounded border ${UI_THEME_TOKENS.panel.border} hover:bg-white/10 font-semibold bg-white/5`}
@@ -189,7 +233,7 @@ export default function SiteSelectionWidget() {
             </div>
           )}
         </section>
-      </div>
+      </section>
     </CollapsibleSection>
   )
 }

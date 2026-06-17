@@ -1,6 +1,6 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import {
   AI_KG_FORCE_BOX_FORCE_ROW_TOOLTIP,
@@ -28,6 +28,7 @@ import {
 import { OrchestratorTraversalDelayRow } from '@/features/panels/ui/OrchestratorTraversalDelayRow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 type AiKgForceControlsProps = {
   schema: GraphSchema
@@ -58,6 +59,13 @@ export default function AiKgForceControls({
     typeof sampleCollisionType === 'string' && typeof collisionByType[sampleCollisionType] === 'number'
       ? (collisionByType[sampleCollisionType] as number)
       : COLLISION_RADIUS_DEFAULT
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
+  const KeyTypeValueRow = (
+    props: Omit<
+      React.ComponentProps<typeof KeyTypeValueStaticRow>,
+      'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+    >,
+  ) => <KeyTypeValueStaticRow {...compactStaticRowProps} {...props} />
 
   return (
     <>

@@ -11,7 +11,7 @@ import { TraversalPresetSection } from '@/features/panels/views/RenderPresetSect
 import { OrchestratorTraversalSectionContent } from '@/features/panels/views/OrchestratorTraversalSection'
 import { buildOrchestratorTraversalSectionViewModel } from '@/features/panels/views/OrchestratorTraversalSectionModel'
 import type { GraphRagPathHelper } from '@/features/panels/views/OrchestratorTraversalPanelsModel'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
@@ -25,6 +25,7 @@ import {
   uiToolbarButtonMutedClassName,
   uiToolbarButtonPrimarySolidClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 const inlineNodeButtonClassName = `${UI_RESPONSIVE_CHIP_CLASSNAME} border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const helperPanelClassName = `mb-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1`
@@ -89,6 +90,8 @@ function GraphRagPathTraverseHelperSection({
   uiPanelTextFontClass,
 }: GraphRagPathTraverseHelperSectionProps) {
   if (!graphRagPathHelper) return null
+  const defaultStaticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
+  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
 
   return (
     <section className={helperPanelClassName}>
@@ -102,7 +105,8 @@ function GraphRagPathTraverseHelperSection({
         {UI_COPY.orchestratorGraphRagPathTraverseHelperTitle}
       </section>
       <section className="space-y-1">
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
+          {...defaultStaticRowProps}
           layout="keyIconValue"
           keyNode={(
             <span className={helperLabelClassName}>{UI_COPY.orchestratorControlsLabel}</span>
@@ -168,8 +172,8 @@ function GraphRagPathTraverseHelperSection({
             </section>
           )}
         />
-        <KeyTypeValueRow
-          density="compact"
+        <KeyTypeValueStaticRow
+          {...compactStaticRowProps}
           layout="keyIconValue"
           keyNode={(
             <span className={helperLabelClassName}>{UI_COPY.orchestratorSequenceLabel}</span>
@@ -244,6 +248,7 @@ function DuckDbQueryPresetsSection({
 }: DuckDbQueryPresetsSectionProps) {
   const activePreset = presets.find(preset => preset.id === activePresetId) || null
   if (!activePreset) return null
+  const defaultStaticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
 
   return (
     <section className={helperPanelClassName}>
@@ -263,7 +268,8 @@ function DuckDbQueryPresetsSection({
         </Tooltip>
       </section>
       <section className="space-y-1">
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
+          {...defaultStaticRowProps}
           layout="keyIconValue"
           keyNode={(
             <Tooltip
@@ -389,7 +395,8 @@ function DuckDbQueryPresetsSection({
             </section>
           )}
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
+          {...defaultStaticRowProps}
           layout="keyIconValue"
           keyNode={(
             <Tooltip
@@ -421,7 +428,8 @@ function DuckDbQueryPresetsSection({
           )}
           align="start"
         />
-        <KeyTypeValueRow
+        <KeyTypeValueStaticRow
+          {...defaultStaticRowProps}
           layout="keyIconValue"
           keyNode={(
             <Tooltip

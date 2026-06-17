@@ -29,6 +29,7 @@ import {
 import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceEditorPane'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import { PanelField, PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
 
@@ -114,11 +115,19 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
     workspaceTablePreferencesStore.setWorkspaceCellSelectPanelPlacement(event.currentTarget.value as WorkspaceCellSelectPanelPlacement)
   }, [])
 
+  const inlineFieldRowClassName = `${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`
+  const inlineFieldLabelClassName = `mb-0 min-w-0 ${UI_TEXT_TRUNCATE}`
+  const numberFieldClassName = `App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+
   return (
     <section className={className || 'flex min-w-0 max-w-full flex-col gap-2 overflow-hidden'} aria-label={UI_COPY.markdownDataViewTitleDefault}>
-      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
-        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>Workspace editor view</span>
-        <select
+      <PanelField
+        label="Workspace editor view"
+        variant="section"
+        className={inlineFieldRowClassName}
+        labelClassName={inlineFieldLabelClassName}
+      >
+        <PanelSelect
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceEditorMode}
           onChange={handleWorkspaceEditorModeChanged}
@@ -129,8 +138,8 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
               {getWorkspaceEditorModeLabel(option)}
             </option>
           ))}
-        </select>
-      </label>
+        </PanelSelect>
+      </PanelField>
       <button
         type="button"
         className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -141,9 +150,13 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
           {tableWorkspaceOpen ? UI_COPY.toolbarMultiDimTableWorkspaceOnTooltip : UI_COPY.toolbarMultiDimTableToggleTitle}
         </span>
       </button>
-      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
-        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>Select panel position</span>
-        <select
+      <PanelField
+        label="Select panel position"
+        variant="section"
+        className={inlineFieldRowClassName}
+        labelClassName={inlineFieldLabelClassName}
+      >
+        <PanelSelect
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceCellSelectPanelPlacement}
           onChange={handleWorkspaceCellSelectPanelPlacementChanged}
@@ -154,11 +167,15 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
               {WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_LABELS[option]}
             </option>
           ))}
-        </select>
-      </label>
-      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
-        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON import target</span>
-        <select
+        </PanelSelect>
+      </PanelField>
+      <PanelField
+        label="JSON import target"
+        variant="section"
+        className={inlineFieldRowClassName}
+        labelClassName={inlineFieldLabelClassName}
+      >
+        <PanelSelect
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonImportTarget}
           onChange={handleJsonImportTargetChanged}
@@ -169,11 +186,15 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
               {JSON_IMPORT_WORKSPACE_TARGET_LABELS[option]}
             </option>
           ))}
-        </select>
-      </label>
-      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
-        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON markdown mode</span>
-        <select
+        </PanelSelect>
+      </PanelField>
+      <PanelField
+        label="JSON markdown mode"
+        variant="section"
+        className={inlineFieldRowClassName}
+        labelClassName={inlineFieldLabelClassName}
+      >
+        <PanelSelect
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonMarkdownMode}
           onChange={handleJsonMarkdownModeChanged}
@@ -184,32 +205,40 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
               {JSON_MARKDOWN_MODE_LABELS[option]}
             </option>
           ))}
-        </select>
-      </label>
-      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
-        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON table max rows</span>
-        <input
+        </PanelSelect>
+      </PanelField>
+      <PanelField
+        label="JSON table max rows"
+        variant="section"
+        className={inlineFieldRowClassName}
+        labelClassName={inlineFieldLabelClassName}
+      >
+        <PanelTextInput
           type="number"
-          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          className={numberFieldClassName}
           value={jsonTableMaxRows}
           min={JSON_MARKDOWN_TABLE_LIMIT_MIN}
           max={JSON_MARKDOWN_TABLE_LIMIT_MAX}
           onChange={handleJsonTableMaxRowsChanged}
           aria-label="JSON table max rows"
         />
-      </label>
-      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
-        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON table max columns</span>
-        <input
+      </PanelField>
+      <PanelField
+        label="JSON table max columns"
+        variant="section"
+        className={inlineFieldRowClassName}
+        labelClassName={inlineFieldLabelClassName}
+      >
+        <PanelTextInput
           type="number"
-          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          className={numberFieldClassName}
           value={jsonTableMaxColumns}
           min={JSON_MARKDOWN_TABLE_LIMIT_MIN}
           max={JSON_MARKDOWN_TABLE_LIMIT_MAX}
           onChange={handleJsonTableMaxColumnsChanged}
           aria-label="JSON table max columns"
         />
-      </label>
+      </PanelField>
     </section>
   )
 }

@@ -1,4 +1,6 @@
-export type GraphTableRowHeightPreset = 'compact' | 'comfortable'
+import { parseDataViewRowHeightPreset, type DataViewRowHeightPreset } from '@/lib/ui/dataViewDensity'
+
+export type GraphTableRowHeightPreset = DataViewRowHeightPreset
 
 export type GraphTableFilterMatch = 'all' | 'any'
 
@@ -28,9 +30,7 @@ export const makeGraphTableRuleId = (): string => {
 }
 
 export const parseRowHeightPreset = (raw: unknown): GraphTableRowHeightPreset | null => {
-  if (raw === 'compact') return 'compact'
-  if (raw === 'comfortable') return 'comfortable'
-  return null
+  return parseDataViewRowHeightPreset(raw)
 }
 
 export const parseFilterMatch = (raw: unknown): GraphTableFilterMatch | null => {

@@ -71,7 +71,7 @@ import type {
 import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
-} from '@/features/panels/ui/KeyTypeValueRow'
+} from 'grph-shared/ui/keyTypeValueRows'
 import {
   parseChatSkillSlashInvocation,
 } from './chatSkillRegistry'

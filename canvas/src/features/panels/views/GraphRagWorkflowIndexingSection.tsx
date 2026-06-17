@@ -1,7 +1,8 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { KeyTypeValueRow, RightAlignedTooltipInput } from '@/features/panels/ui/KeyTypeValueRow'
+import { CanvasEditableKeyTypeValueRow as KeyTypeValueRow } from '@/features/panels/ui/CanvasEditableKeyTypeValueRow'
+import { RightAlignedTooltipInput } from '@/features/panels/ui/RightAlignedTooltipInput'
 import type { GraphRagWorkflowJsonLd } from '@/features/panels/utils/graphragConfig'
 import {
   IGNORE_CODEBASE_PATHS_LABEL,

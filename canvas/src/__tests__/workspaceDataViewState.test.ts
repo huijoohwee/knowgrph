@@ -29,6 +29,12 @@ export function testWorkspaceDataViewStateDuplicateDelete() {
   if (cfg.v !== 2) {
     throw new Error('expected current view config to stay v2')
   }
+  if (cfg.rowHeightPreset !== 'comfortable') {
+    throw new Error(`expected default row height preset, got ${String(cfg.rowHeightPreset)}`)
+  }
+  if (cfg.fieldLineMode !== 'single') {
+    throw new Error(`expected default field line mode, got ${String(cfg.fieldLineMode)}`)
+  }
   if (!cfg.id) {
     throw new Error('expected view config to have stable id')
   }
@@ -84,6 +90,8 @@ export function testWorkspaceDataViewConfigColumnCrudCleanup() {
     columnTypesById: { summary: 'text' },
     filterGroups: [{ id: 'g0', rules: [{ id: 'r0', columnId: 'summary', columnKind: 'text', op: 'contains', value: 'sync' }] }],
     sortRules: [{ id: 's0', columnId: 'summary', direction: 'asc' }],
+    rowHeightPreset: 'compact',
+    fieldLineMode: 'double',
     graphRolesByColumnId: { summary: 'node' },
   })
   if (!base) {
@@ -103,6 +111,9 @@ export function testWorkspaceDataViewConfigColumnCrudCleanup() {
   }
   if (duplicated.graphRolesByColumnId?.summary_copy !== 'node') {
     throw new Error('expected duplicated column to inherit graph role')
+  }
+  if (duplicated.rowHeightPreset !== 'compact' || duplicated.fieldLineMode !== 'double') {
+    throw new Error('expected duplicated config to retain density settings')
   }
 
   const removed = removeWorkspaceDataViewConfigColumn({

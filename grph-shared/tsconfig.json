@@ -8,10 +8,10 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": false,
+    "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "noEmitOnError": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
-
