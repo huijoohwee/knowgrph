@@ -10,7 +10,9 @@ import {
   buildKnowgrphStorageMediaAssetListPath,
   buildKnowgrphStorageMediaAssetPersistPath,
   buildKnowgrphStorageMediaPath,
+  type KnowgrphMediaAssetDeleteResponse,
   type KnowgrphMediaAssetListResponse,
+  type KnowgrphMediaAssetRenameResponse,
   type KnowgrphMediaArtifactKind,
   type KnowgrphMediaAssetPersistRequest,
   type KnowgrphMediaAssetPersistResponse,
@@ -108,6 +110,27 @@ export type UploadedMediaStorageResult = {
   response: KnowgrphMediaAssetPersistResponse
 }
 
+const readMediaAssetAuthToken = (storage: Pick<UploadedMediaStorageResult, 'accessUrl' | 'publicUrl' | 'runId'>): string => {
+  const fallbackBase = typeof window !== 'undefined' ? window.location.origin : 'https://example.invalid'
+  const fromAccessUrl = (() => {
+    try {
+      return new URL(storage.accessUrl, fallbackBase).searchParams.get('kg_media_token') || ''
+    } catch {
+      return ''
+    }
+  })()
+  if (fromAccessUrl) return fromAccessUrl
+  const accessUrl = buildUploadedMediaAccessUrl({ publicUrl: storage.publicUrl, runId: storage.runId })
+  try {
+    return new URL(accessUrl, fallbackBase).searchParams.get('kg_media_token') || ''
+  } catch {
+    return ''
+  }
+}
+
+const artifactIdFromStorage = (storage: UploadedMediaStorageResult): string =>
+  storage.response.artifactId || `${storage.runId}:${storage.stageId}:${storage.shotId}`
+
 export const listUploadedMediaFromKnowgrphStorage = async (args: {
   workspaceId?: string | null
   fetchImpl?: typeof fetch
@@ -166,6 +189,63 @@ export const listUploadedMediaFromKnowgrphStorage = async (args: {
       },
     }]
   })
+}
+
+export const renameUploadedMediaInKnowgrphStorage = async (args: {
+  storage: UploadedMediaStorageResult
+  name: string
+  fetchImpl?: typeof fetch
+}): Promise<UploadedMediaStorageResult | null> => {
+  const nextName = normalizeString(args.name)
+  if (!nextName) return null
+  const fetchImpl = args.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null)
+  if (!fetchImpl) return null
+  const authToken = readMediaAssetAuthToken(args.storage)
+  if (!authToken) return null
+  const baseUrl = readKnowgrphStorageBaseUrl()
+  const response = await fetchImpl(resolveKnowgrphStorageApiUrl(buildKnowgrphStorageMediaAssetPersistPath(), baseUrl), {
+    method: 'PATCH',
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${authToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      workspaceId: args.storage.workspaceId,
+      artifactId: artifactIdFromStorage(args.storage),
+      name: nextName,
+    }),
+  })
+  if (!response.ok) return null
+  const body = await response.json().catch(() => null) as KnowgrphMediaAssetRenameResponse | null
+  if (!body || body.ok !== true || !body.artifact) return null
+  return listUploadedMediaFromKnowgrphStorage({
+    workspaceId: args.storage.workspaceId,
+    fetchImpl,
+    limit: 100,
+  }).then(items => items.find(item => artifactIdFromStorage(item) === body.artifact.artifactId) || null)
+}
+
+export const deleteUploadedMediaFromKnowgrphStorage = async (args: {
+  storage: UploadedMediaStorageResult
+  fetchImpl?: typeof fetch
+}): Promise<KnowgrphMediaAssetDeleteResponse | null> => {
+  const fetchImpl = args.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null)
+  if (!fetchImpl) return null
+  const authToken = readMediaAssetAuthToken(args.storage)
+  if (!authToken) return null
+  const baseUrl = readKnowgrphStorageBaseUrl()
+  const path = `${buildKnowgrphStorageMediaAssetPersistPath()}?workspaceId=${encodeURIComponent(args.storage.workspaceId)}&artifactId=${encodeURIComponent(artifactIdFromStorage(args.storage))}`
+  const response = await fetchImpl(resolveKnowgrphStorageApiUrl(path, baseUrl), {
+    method: 'DELETE',
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${authToken}`,
+    },
+  })
+  if (!response.ok) return null
+  const body = await response.json().catch(() => null) as KnowgrphMediaAssetDeleteResponse | null
+  return body && body.ok === true ? body : null
 }
 
 export const uploadMediaFileToKnowgrphStorage = async (args: {

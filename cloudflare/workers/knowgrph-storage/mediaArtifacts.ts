@@ -322,6 +322,40 @@ export async function listRecentMediaArtifacts(
 }
 
 // -----------------------------------------------------------------------------
+// update/delete media artifact — operator-owned metadata mutation
+// -----------------------------------------------------------------------------
+
+export async function updateMediaArtifactProvenance(
+  db: D1DatabaseLike,
+  workspaceId: string,
+  id: string,
+  provenanceJson: string,
+  nowIso: string,
+): Promise<MediaArtifactRecord | null> {
+  await execute(
+    db,
+    'UPDATE media_artifacts SET provenance_json = ?, version = version + 1, updated_at = ? WHERE workspace_id = ? AND id = ?',
+    [provenanceJson, nowIso, workspaceId, id],
+  )
+  return readMediaArtifact(db, id, workspaceId)
+}
+
+export async function deleteMediaArtifact(
+  db: D1DatabaseLike,
+  workspaceId: string,
+  id: string,
+): Promise<MediaArtifactRecord | null> {
+  const existing = await readMediaArtifact(db, id, workspaceId)
+  if (!existing) return null
+  await execute(
+    db,
+    'DELETE FROM media_artifacts WHERE workspace_id = ? AND id = ?',
+    [workspaceId, id],
+  )
+  return existing
+}
+
+// -----------------------------------------------------------------------------
 // findMediaArtifactByHash — content-hash dedupe lookup (R3.9)
 // -----------------------------------------------------------------------------
 

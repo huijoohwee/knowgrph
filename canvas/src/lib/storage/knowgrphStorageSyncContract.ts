@@ -430,6 +430,25 @@ export type KnowgrphMediaAssetListResponse = {
   artifacts: KnowgrphMediaAssetListItem[]
 }
 
+export type KnowgrphMediaAssetRenameResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  artifact: KnowgrphMediaAssetListItem
+}
+
+export type KnowgrphMediaAssetDeleteResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  artifactId: string
+  objectKey: string
+  storage: {
+    r2: 'deleted' | 'binding_missing' | 'skipped'
+    d1: 'deleted' | 'missing'
+  }
+}
+
 export type KnowgrphCollaborationDocumentKind = 'markdown' | 'json'
 
 export type KnowgrphCollaborationSaveRequest = {

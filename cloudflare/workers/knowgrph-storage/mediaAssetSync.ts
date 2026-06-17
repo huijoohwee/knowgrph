@@ -10,9 +10,13 @@ import {
 import { normalizeNumber, normalizeString } from './db'
 import type { D1DatabaseLike } from './db'
 import {
+  deleteMediaArtifact,
   findMediaArtifactByHash,
   listRecentMediaArtifacts,
+  readMediaArtifact,
+  updateMediaArtifactProvenance,
   upsertMediaArtifact,
+  type MediaArtifactRecord,
 } from './mediaArtifacts'
 import {
   MEDIA_AUTH_UNAUTHENTICATED_CODE,
@@ -27,7 +31,7 @@ const MEDIA_ASSET_ACCESS_TTL_SECONDS_MAX = 24 * 60 * 60
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'POST,OPTIONS',
+  'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
   'access-control-allow-headers': 'content-type,authorization',
   'access-control-max-age': '86400',
 }
@@ -71,6 +75,15 @@ const readRequestWorkspaceId = (request: Request): string => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
 
+const parseJsonObject = (value: string): Record<string, unknown> => {
+  try {
+    const parsed = JSON.parse(value || '{}')
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
+  } catch {
+    return {}
+  }
+}
+
 const isMediaAssetPersistRequest = (value: unknown): value is KnowgrphMediaAssetPersistRequest => {
   if (!isRecord(value)) return false
   return (
@@ -96,6 +109,27 @@ const isMediaAssetPersistRequest = (value: unknown): value is KnowgrphMediaAsset
 export const isKnowgrphStorageMediaAssetRoute = (pathname: string): boolean =>
   normalizeString(pathname) === KNOWGRPH_STORAGE_ROUTE_PATHS.mediaAssetPersist
 
+const serializeMediaArtifact = (artifact: MediaArtifactRecord) => {
+  const objectKey =
+    normalizeString(artifact.durableR2Url).replace(/^\/?api\/storage\/media\//, '') ||
+    `${artifact.runId}/${artifact.stageId}/${artifact.shotId}`
+  return {
+    artifactId: artifact.id,
+    objectKey,
+    publicPath: `${KNOWGRPH_STORAGE_ROUTE_PATHS.mediaPrefix}${objectKey}`,
+    runId: artifact.runId,
+    stageId: artifact.stageId,
+    shotId: artifact.shotId,
+    kind: artifact.kind,
+    contentHash: artifact.contentHash,
+    mediaType: artifact.mediaType,
+    provenance: parseJsonObject(artifact.provenanceJson),
+    version: artifact.version,
+    createdAt: artifact.createdAt,
+    updatedAt: artifact.updatedAt,
+  }
+}
+
 const buildMediaAssetListResponse = async (
   request: Request,
   db: D1DatabaseLike,
@@ -114,33 +148,99 @@ const buildMediaAssetListResponse = async (
     ok: true,
     apiVersion: KNOWGRPH_STORAGE_API_VERSION,
     workspaceId,
-    artifacts: artifacts.map(artifact => {
-      const objectKey =
-        normalizeString(artifact.durableR2Url).replace(/^\/?api\/storage\/media\//, '') ||
-        `${artifact.runId}/${artifact.stageId}/${artifact.shotId}`
-      return {
-        artifactId: artifact.id,
-        objectKey,
-        publicPath: `${KNOWGRPH_STORAGE_ROUTE_PATHS.mediaPrefix}${objectKey}`,
-        runId: artifact.runId,
-        stageId: artifact.stageId,
-        shotId: artifact.shotId,
-        kind: artifact.kind,
-        contentHash: artifact.contentHash,
-        mediaType: artifact.mediaType,
-        provenance: (() => {
-          try {
-            const parsed = JSON.parse(artifact.provenanceJson || '{}')
-            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
-          } catch {
-            return {}
-          }
-        })(),
-        version: artifact.version,
-        createdAt: artifact.createdAt,
-        updatedAt: artifact.updatedAt,
-      }
-    }),
+    artifacts: artifacts.map(serializeMediaArtifact),
+  })
+}
+
+const readArtifactMutationParams = async (request: Request): Promise<{
+  workspaceId: string
+  artifactId: string
+  nextName: string
+}> => {
+  const url = new URL(request.url)
+  const body = request.method === 'PATCH' ? await readJsonBody(request) : null
+  const record = isRecord(body) ? body : {}
+  return {
+    workspaceId: normalizeString(record.workspaceId || url.searchParams.get('workspaceId') || ''),
+    artifactId: normalizeString(record.artifactId || url.searchParams.get('artifactId') || ''),
+    nextName: normalizeString(record.name || record.fileName || ''),
+  }
+}
+
+const handleMediaAssetRename = async (
+  request: Request,
+  db: D1DatabaseLike,
+  authProvider: MediaAuthProvider,
+): Promise<Response> => {
+  const params = await readArtifactMutationParams(request)
+  if (!params.workspaceId || !params.artifactId || !params.nextName) {
+    return errorResponse(400, 'bad_request', 'workspaceId, artifactId, and name are required')
+  }
+  const existing = await readMediaArtifact(db, params.artifactId, params.workspaceId)
+  if (!existing) return errorResponse(404, 'not_found', `media artifact not found: ${params.artifactId}`)
+  const auth = await authProvider(request, existing.runId)
+  if (auth.ok === false) {
+    const status = auth.code === MEDIA_AUTH_UNAUTHENTICATED_CODE ? 401 : 403
+    return errorResponse(status, auth.code, auth.authError)
+  }
+  const provenance = {
+    ...parseJsonObject(existing.provenanceJson),
+    fileName: params.nextName,
+    renamedAtMs: Date.now(),
+  }
+  const updated = await updateMediaArtifactProvenance(
+    db,
+    params.workspaceId,
+    params.artifactId,
+    JSON.stringify(provenance),
+    new Date().toISOString(),
+  )
+  if (!updated) return errorResponse(404, 'not_found', `media artifact not found: ${params.artifactId}`)
+  return json(200, {
+    ok: true,
+    apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+    workspaceId: params.workspaceId,
+    artifact: serializeMediaArtifact(updated),
+  })
+}
+
+const handleMediaAssetDelete = async (
+  request: Request,
+  env: KnowgrphStorageWorkerEnv,
+  db: D1DatabaseLike,
+  authProvider: MediaAuthProvider,
+): Promise<Response> => {
+  const params = await readArtifactMutationParams(request)
+  if (!params.workspaceId || !params.artifactId) {
+    return errorResponse(400, 'bad_request', 'workspaceId and artifactId are required')
+  }
+  const existing = await readMediaArtifact(db, params.artifactId, params.workspaceId)
+  if (!existing) return errorResponse(404, 'not_found', `media artifact not found: ${params.artifactId}`)
+  const auth = await authProvider(request, existing.runId)
+  if (auth.ok === false) {
+    const status = auth.code === MEDIA_AUTH_UNAUTHENTICATED_CODE ? 401 : 403
+    return errorResponse(status, auth.code, auth.authError)
+  }
+  const deleted = await deleteMediaArtifact(db, params.workspaceId, params.artifactId)
+  const objectKey = serializeMediaArtifact(existing).objectKey
+  let r2Status: 'deleted' | 'binding_missing' | 'skipped' = 'skipped'
+  const bucket = env.KNOWGRPH_STORAGE_BLOB_BUCKET
+  if (bucket && typeof bucket.delete === 'function') {
+    await bucket.delete(objectKey)
+    r2Status = 'deleted'
+  } else {
+    r2Status = 'binding_missing'
+  }
+  return json(200, {
+    ok: true,
+    apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+    workspaceId: params.workspaceId,
+    artifactId: params.artifactId,
+    objectKey,
+    storage: {
+      r2: r2Status,
+      d1: deleted ? 'deleted' : 'missing',
+    },
   })
 }
 
@@ -252,6 +352,12 @@ export const handleMediaAssetPersist = async (
 ): Promise<Response> => {
   if (request.method === 'GET') {
     return buildMediaAssetListResponse(request, db)
+  }
+  if (request.method === 'PATCH') {
+    return handleMediaAssetRename(request, db, authProvider)
+  }
+  if (request.method === 'DELETE') {
+    return handleMediaAssetDelete(request, env, db, authProvider)
   }
   if (request.method !== 'POST') {
     return errorResponse(405, 'bad_request', 'unsupported media asset route method')
