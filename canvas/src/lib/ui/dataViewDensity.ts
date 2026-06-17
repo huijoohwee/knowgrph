@@ -65,6 +65,28 @@ export function readDataViewHeaderPaddingClassName(preset: DataViewRowHeightPres
 
 export function readDataViewFieldLineClassName(mode: DataViewFieldLineMode): string {
   return mode === 'double'
-    ? 'block overflow-hidden whitespace-pre-wrap break-words line-clamp-2'
+    ? 'overflow-hidden whitespace-pre-wrap break-words line-clamp-2'
     : 'block truncate'
+}
+
+export function readDataViewSingleLineControlClassName(preset: DataViewRowHeightPreset): string {
+  return preset === 'compact' ? 'h-6 px-2 py-1 text-xs' : 'h-7 px-3 py-1.5 text-xs'
+}
+
+export function readDataViewControlPaddingClassName(preset: DataViewRowHeightPreset): string {
+  return preset === 'compact' ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-xs'
+}
+
+export function readDataViewMultiLineControlClassName(options: {
+  rowHeightPreset: DataViewRowHeightPreset
+  fieldLineMode: DataViewFieldLineMode
+}): string {
+  const rowClassName = readDataViewControlPaddingClassName(options.rowHeightPreset)
+  return options.fieldLineMode === 'double'
+    ? `${rowClassName} min-h-12`
+    : `${rowClassName} min-h-8`
+}
+
+export function readDataViewMultiLineControlRows(mode: DataViewFieldLineMode): number {
+  return mode === 'double' ? 2 : 1
 }

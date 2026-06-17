@@ -12,6 +12,9 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   docPrefix: '/api/storage/doc/',
   defaultDocPrefix: '/api/storage/doc-default/',
   blobPrefix: '/api/storage/blob/',
+  mediaAssetPersist: '/api/storage/media/assets',
+  mediaAssetPrefix: '/api/storage/media/assets/',
+  mediaPrefix: '/api/storage/media/',
   sourceFilesIndex: '/api/storage/source-files',
   sourceFilesIndexPrefix: '/api/storage/source-files/',
   sourceFilesLlms: '/api/storage/llms.txt',
@@ -19,6 +22,10 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
 
 export const KNOWGRPH_STORAGE_D1_BINDING_NAME = 'DB'
 export const KNOWGRPH_STORAGE_R2_BLOB_BINDING_NAME = 'KNOWGRPH_STORAGE_BLOB_BUCKET'
+export const KNOWGRPH_STORAGE_R2_MEDIA_BINDING_NAME = KNOWGRPH_STORAGE_R2_BLOB_BINDING_NAME
+export const KNOWGRPH_STORAGE_R2_MEDIA_OBJECT_PREFIX = 'airvio'
+export const KNOWGRPH_STORAGE_MEDIA_ACCESS_KV_BINDING_NAME = 'KNOWGRPH_MEDIA_ACCESS_KV'
+export const KNOWGRPH_STORAGE_CANVAS_ROOM_BINDING_NAME = 'KNOWGRPH_CANVAS_ROOM'
 export const KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID = 'kgws:canonical-docs'
 export const CLOUDFLARE_PAY_PER_CRAWL_DOC_URL =
   'https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/index.md'
@@ -357,6 +364,49 @@ export type KnowgrphStorageBlobUploadResponse = {
   publicPath: string
 }
 
+export type KnowgrphMediaArtifactKind = 'text' | 'image' | 'audio' | 'video' | 'binary'
+
+export type KnowgrphMediaAssetPersistRequest = {
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  objectKey: string
+  runId: string
+  stageId: string
+  shotId: string
+  kind: KnowgrphMediaArtifactKind
+  durableR2Url: string
+  contentHash: string
+  mediaType: string | null
+  provenance: Record<string, unknown>
+  layout?: Record<string, unknown> | null
+  version: number
+  presignedUrl?: string | null
+  accessTtlSeconds?: number | null
+  collaborationRoomId?: string | null
+}
+
+export type KnowgrphMediaAssetPersistResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  artifactId: string
+  objectKey: string
+  publicPath: string
+  durableR2Url: string
+  contentHash: string
+  storage: {
+    r2: 'confirmed'
+    d1: 'persisted' | 'reused'
+    kv: 'cached' | 'binding_missing' | 'skipped'
+    durableObject: 'broadcasted' | 'binding_missing' | 'skipped'
+  }
+  access: {
+    cacheKey: string | null
+    expiresAtMs: number | null
+    url: string | null
+  }
+}
+
 export type KnowgrphCollaborationDocumentKind = 'markdown' | 'json'
 
 export type KnowgrphCollaborationSaveRequest = {
@@ -405,11 +455,32 @@ export type KnowgrphStorageR2BucketLike = {
   delete?: (key: string) => Promise<void>
 }
 
+export type KnowgrphStorageKvNamespaceLike = {
+  put: (
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number; metadata?: Record<string, unknown> },
+  ) => Promise<void>
+  get?: (key: string, type?: 'text' | 'json') => Promise<unknown>
+  delete?: (key: string) => Promise<void>
+}
+
+export type KnowgrphStorageDurableObjectStubLike = {
+  fetch: (request: Request | string, init?: RequestInit) => Promise<Response>
+}
+
+export type KnowgrphStorageDurableObjectNamespaceLike = {
+  idFromName: (name: string) => unknown
+  get: (id: unknown) => KnowgrphStorageDurableObjectStubLike
+}
+
 export type KnowgrphStorageWorkerEnv = {
   DB: unknown
   KNOWGRPH_STORAGE_SIGNING_SECRET?: string
   KNOWGRPH_STORAGE_CHAT_PROXY_BASE_URL?: string
   KNOWGRPH_STORAGE_BLOB_BUCKET?: KnowgrphStorageR2BucketLike
+  KNOWGRPH_MEDIA_ACCESS_KV?: KnowgrphStorageKvNamespaceLike
+  KNOWGRPH_CANVAS_ROOM?: KnowgrphStorageDurableObjectNamespaceLike
   KNOWGRPH_STORAGE_BLOB_MAX_BYTES?: string
   KNOWGRPH_STORAGE_GITHUB_TOKEN?: string
   KNOWGRPH_STORAGE_GITHUB_OWNER?: string
@@ -461,6 +532,12 @@ export const buildKnowgrphStorageDefaultDocPath = (canonicalPath: string): strin
 
 export const buildKnowgrphStorageBlobPath = (workspaceId: string, canonicalPath: string): string =>
   `${KNOWGRPH_STORAGE_ROUTE_PATHS.blobPrefix}${encodeURIComponent(String(workspaceId || '').trim())}/${encodeURIComponent(String(canonicalPath || '').trim())}`
+
+export const buildKnowgrphStorageMediaPath = (objectKey: string): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.mediaPrefix}${String(objectKey || '').trim().split('/').map(encodeURIComponent).join('/')}`
+
+export const buildKnowgrphStorageMediaAssetPersistPath = (): string =>
+  KNOWGRPH_STORAGE_ROUTE_PATHS.mediaAssetPersist
 
 export const buildKnowgrphStorageSourceFilesIndexPath = (workspaceId?: string | null): string => {
   const normalizedWorkspaceId = String(workspaceId || '').trim()

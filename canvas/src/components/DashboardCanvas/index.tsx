@@ -469,7 +469,7 @@ function DashboardMetricTile(props: {
             canEdit={props.canEdit}
             onCommit={nextValue => props.onCommitMetricLabel(metric.id, nextValue)}
             displayClassName="m-0 truncate text-[11px] font-medium"
-            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-[11px] font-medium leading-5`}
+            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-[11px] font-medium leading-5`}
           />
         </section>
         <p className="m-0 mt-1 truncate text-xl font-semibold leading-tight">{metric.value}</p>
@@ -480,7 +480,7 @@ function DashboardMetricTile(props: {
           canEdit={props.canEdit}
           onCommit={nextValue => props.onCommitMetricDetail(metric.id, nextValue)}
           displayClassName="m-0 mt-1 truncate text-[11px] opacity-80"
-          editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} mt-1 px-0 py-0 text-[11px] leading-5`}
+          editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} mt-1 text-[11px] leading-5`}
         />
       </section>
     </section>
@@ -573,7 +573,7 @@ function DashboardTableRows(props: {
               canEdit={props.canEditRows && rowMovable}
               onCommit={nextValue => props.onCommitRowLabel?.(row.id, nextValue)}
               displayClassName="m-0 truncate text-xs font-medium text-[var(--kg-text-primary)]"
-              editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-xs font-medium leading-5`}
+              editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-xs font-medium leading-5`}
             />
             {row.detail ? <p className="m-0 mt-0.5 truncate text-[11px] text-[var(--kg-text-tertiary)]" title={row.detail}>{row.detail}</p> : null}
           </section>
@@ -652,7 +652,7 @@ function DashboardCardView(props: {
             canEdit={props.canEditCardText}
             onCommit={nextValue => props.onCommitCardText?.(card.id, 'title', nextValue)}
             displayClassName={`m-0 truncate text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}
-            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
+            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-sm font-semibold leading-5`}
           />
         </section>
         <section className="min-w-0" data-kg-dashboard-card-inline-edit="subtitle">
@@ -663,7 +663,7 @@ function DashboardCardView(props: {
             canEdit={props.canEditCardText}
             onCommit={nextValue => props.onCommitCardText?.(card.id, 'subtitle', nextValue)}
             displayClassName={`m-0 mt-1 truncate text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}
-            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} mt-1 px-0 py-0 text-[11px] leading-5`}
+            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} mt-1 text-[11px] leading-5`}
           />
         </section>
       </header>
@@ -697,7 +697,7 @@ function DashboardCardView(props: {
             rows={3}
             onCommit={nextValue => props.onCommitCardText?.(card.id, 'footnote', nextValue)}
             displayClassName={`m-0 text-[11px] leading-5 ${UI_THEME_TOKENS.text.secondary}`}
-            editorClassName={`${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-[11px] leading-5`}
+            editorClassName={`${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-[11px] leading-5`}
           />
         </section>
       ) : null}

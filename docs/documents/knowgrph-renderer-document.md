@@ -146,7 +146,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Quick controls for `renderer:palette` and hover tooltip content.
   - The full Render Settings section (collapsible) for layout, camera, selection, and presets.
 - Renderer ownership stays in the Floating Panel renderer view; no secondary bottom-surface tab or duplicate renderer controls are allowed.
-- MainPanel Help `Command Menu` is the canonical command-browser surface for `/`, `@`, and `#` inventory. Floating Panel `commandMenu` owns the current `@` rich-media list. Both reuse the same command definitions and media/reference groupings consumed by inline editors and Workflow Manager fields; neither owns a second insertion pipeline.
+- MainPanel Help `Command Menu` is the canonical command-browser surface for `/`, `@`, and `#` inventory. Floating Panel `media` owns the current `@` rich-media list. Both reuse the same command definitions and media/reference groupings consumed by inline editors and Workflow Manager fields; neither owns a second insertion pipeline.
 - Tooltip semantics are standardized:
   - Key tooltips follow Role → Actions → Outcome.
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).

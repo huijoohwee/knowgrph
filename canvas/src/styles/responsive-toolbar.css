@@ -1865,13 +1865,9 @@
   }
 
   .kg-data-view-table-value {
-    display: block;
     max-width: min(var(--kg-data-view-table-value-max-width, 24rem), 100%);
     max-inline-size: min(var(--kg-data-view-table-value-max-width, 24rem), 100%);
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .kg-data-view-table-progress {

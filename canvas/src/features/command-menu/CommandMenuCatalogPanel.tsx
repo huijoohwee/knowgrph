@@ -1,5 +1,5 @@
 import React from 'react'
-import { AtSign, FileAudio, FileCode2, Hash, ImageIcon, Slash, Video, type LucideIcon } from 'lucide-react'
+import { AtSign, FileAudio, FileCode2, Hash, ImageIcon, Slash, Upload, Video, type LucideIcon } from 'lucide-react'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import {
   KeyTypeValueHeader,
@@ -25,6 +25,11 @@ import {
 } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
+import {
+  readUploadedMediaKind,
+  uploadMediaFileToKnowgrphStorage,
+  type UploadedMediaStorageResult,
+} from '@/lib/storage/uploadedMediaStorage'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
@@ -34,6 +39,19 @@ const commandMenuCatalogGroups = [
   { key: 'variable', label: '@', title: 'Variable commands', Icon: AtSign, actions: INLINE_VARIABLE_COMMAND_ACTIONS },
   { key: 'keyword', label: '#', title: 'Keyword commands', Icon: Hash, actions: INLINE_KEYWORD_COMMAND_ACTIONS },
 ] as const
+
+type UploadedMediaPanelItem = {
+  id: string
+  name: string
+  kind: 'image' | 'audio' | 'video'
+  localUrl: string
+  linkUrl: string
+  contentType: string
+  sizeBytes: number
+  status: 'uploading' | 'synced' | 'local'
+  storage: UploadedMediaStorageResult | null
+  error: string | null
+}
 
 function CommandPrefixType({
   Icon,
@@ -286,6 +304,90 @@ function MediaActionRow({
   )
 }
 
+function buildUploadedMediaMarkdown(args: {
+  name: string
+  kind: UploadedMediaPanelItem['kind']
+  url: string
+  contentHash: string
+  objectKey: string
+}): string {
+  const title = args.name.replace(/[\]\n\r]/g, ' ').trim() || 'Uploaded media'
+  const escapedTitle = title.replace(/"/g, '&quot;')
+  const header = [
+    `# Uploaded Media: ${title}`,
+    '',
+    `content_hash: ${args.contentHash}`,
+    `object_key: ${args.objectKey}`,
+    '',
+  ].join('\n')
+  if (args.kind === 'image') return `${header}![${title}](${args.url})\n`
+  if (args.kind === 'audio') return `${header}<audio src="${args.url}" title="${escapedTitle}" controls></audio>\n`
+  return `${header}<video src="${args.url}" title="${escapedTitle}" controls></video>\n`
+}
+
+function UploadedMediaRow({
+  item,
+  compactStaticRowProps,
+}: {
+  item: UploadedMediaPanelItem
+  compactStaticRowProps: Pick<
+    React.ComponentProps<typeof KeyTypeValueStaticRow>,
+    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
+  >
+}) {
+  const Icon = getMediaIcon(item.kind)
+  const storage = item.storage?.response.storage
+  const storageLabel = storage
+    ? `R2 ${storage.r2}; D1 ${storage.d1}; KV ${storage.kv}; DO ${storage.durableObject}`
+    : item.status === 'uploading'
+      ? 'Uploading to runtime storage'
+      : item.error || 'Local preview; runtime sync disabled or unavailable'
+  return (
+    <section
+      data-kg-media-upload-item={item.id}
+      data-kg-media-upload-kind={item.kind}
+      data-kg-media-upload-status={item.status}
+    >
+      <KeyTypeValueStaticRow
+        {...compactStaticRowProps}
+        align="start"
+        keyNode={(
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={cn('inline-flex h-8 w-14 shrink-0 overflow-hidden rounded-full border p-[2px] shadow-sm', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+              {item.kind === 'image' ? (
+                <img src={item.linkUrl} alt="" className="h-full w-full rounded-full object-cover" data-kg-command-menu-media-thumbnail="1" />
+              ) : (
+                <Icon className={cn('m-auto h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+              )}
+            </span>
+            <span className="flex min-w-0 flex-col leading-4">
+              <span className={cn('truncate font-semibold', UI_THEME_TOKENS.text.primary)} title={item.name}>{item.name}</span>
+              <span className={cn('truncate font-mono text-[11px] font-normal', UI_THEME_TOKENS.text.tertiary)}>{item.kind}</span>
+            </span>
+          </span>
+        )}
+        typeNode={<CommandPrefixType Icon={Icon} label="@" title={`${item.kind} upload`} />}
+        valueNode={(
+          <span className="flex min-w-0 flex-col leading-4">
+            <a
+              href={item.linkUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={cn('truncate text-[11px] underline-offset-2 hover:underline', UI_THEME_TOKENS.text.secondary)}
+              title={item.linkUrl}
+            >
+              {item.status === 'synced' ? 'Open Cloudflare media link' : 'Open local media link'}
+            </a>
+            <span className={cn('truncate text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={storageLabel}>
+              {storageLabel}
+            </span>
+          </span>
+        )}
+      />
+    </section>
+  )
+}
+
 export function CommandMenuReferenceCatalog({
   className,
   title = 'Command Menu',
@@ -339,9 +441,12 @@ export function CommandMenuReferenceCatalog({
   )
 }
 
-export function CommandMenuCatalogPanel() {
+export function MediaCatalogPanel() {
   const panelTypography = usePanelTypography()
   const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
+  const uploadInputRef = React.useRef<HTMLInputElement | null>(null)
+  const objectUrlsRef = React.useRef<Set<string>>(new Set())
+  const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>([])
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const selectNode = useGraphStore(s => s.selectNode)
@@ -362,6 +467,84 @@ export function CommandMenuCatalogPanel() {
     () => INLINE_VARIABLE_COMMAND_ACTIONS.filter(action => action.id === 'insert-image' || action.id === 'insert-video'),
     [],
   )
+  React.useEffect(() => () => {
+    objectUrlsRef.current.forEach(url => {
+      try {
+        URL.revokeObjectURL(url)
+      } catch {
+        void 0
+      }
+    })
+    objectUrlsRef.current.clear()
+  }, [])
+  const appendSyncedUploadedMediaSource = React.useCallback((args: {
+    itemId: string
+    name: string
+    kind: UploadedMediaPanelItem['kind']
+    storage: UploadedMediaStorageResult
+  }) => {
+    const sourceId = `media-upload:${args.storage.contentHash}`
+    const currentSourceFiles = useGraphStore.getState().sourceFiles || []
+    if (currentSourceFiles.some(file => String(file?.id || '') === sourceId)) return
+    const text = buildUploadedMediaMarkdown({
+      name: args.name,
+      kind: args.kind,
+      url: args.storage.accessUrl,
+      contentHash: args.storage.contentHash,
+      objectKey: args.storage.objectKey,
+    })
+    const nextFile = {
+      id: sourceId,
+      name: `${args.name || args.itemId}.media.md`,
+      text,
+      enabled: true,
+      geoLayerEnabled: false,
+      status: 'idle' as const,
+      parsedTextHash: '',
+      source: {
+        kind: 'local' as const,
+        path: `workspace:/media/${args.storage.objectKey}.md`,
+      },
+    }
+    setSourceFiles([...currentSourceFiles, nextFile])
+  }, [setSourceFiles])
+  const handleUploadMediaFiles = React.useCallback(async (fileList: FileList | null) => {
+    const files = Array.from(fileList || [])
+    for (const file of files) {
+      const kind = readUploadedMediaKind(file)
+      if (!kind) continue
+      const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `media-upload-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const localUrl = URL.createObjectURL(file)
+      objectUrlsRef.current.add(localUrl)
+      const initialItem: UploadedMediaPanelItem = {
+        id,
+        name: file.name || `uploaded-${kind}`,
+        kind,
+        localUrl,
+        linkUrl: localUrl,
+        contentType: file.type || 'application/octet-stream',
+        sizeBytes: file.size,
+        status: 'uploading',
+        storage: null,
+        error: null,
+      }
+      setUploadedMediaItems(prev => [initialItem, ...prev])
+      try {
+        const storage = await uploadMediaFileToKnowgrphStorage({ file })
+        if (!storage) {
+          setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'local', error: 'Runtime storage sync did not confirm R2/D1/KV/DO persistence' } : item))
+          continue
+        }
+        setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'synced', linkUrl: storage.accessUrl, storage, error: null } : item))
+        appendSyncedUploadedMediaSource({ itemId: id, name: file.name || `uploaded-${kind}`, kind, storage })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Upload failed'
+        setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'local', error: message } : item))
+      }
+    }
+  }, [appendSyncedUploadedMediaSource])
   const handleSelectMedia = React.useCallback((item: CommandMenuRichMediaItem) => {
     setMermaidFocus(null)
     setActiveMediaKey(item.key)
@@ -421,13 +604,36 @@ export function CommandMenuCatalogPanel() {
   }, [markdownDocumentName, markdownDocumentText, setMarkdownDocument, setSourceFiles, sourceFiles, updateNode])
 
   return (
-    <section className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Command Menu" data-kg-command-menu-ktv-layout="1" data-kg-command-menu-media-panel="1">
+    <section className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Media" data-kg-media-ktv-layout="1" data-kg-media-panel="1">
       <header className={cn('mb-1 flex items-center justify-between gap-2 px-1 py-1', UI_THEME_TOKENS.panel.bg)}>
         <section className="min-w-0">
-          <h2 className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Command Menu</h2>
+          <h2 className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Media</h2>
           <p className={cn('truncate text-[10px]', UI_THEME_TOKENS.text.tertiary)}>@ image, audio, video, and rich media</p>
         </section>
-        <section className="flex shrink-0 items-center gap-1" aria-label="Command prefixes">
+        <section className="flex shrink-0 items-center gap-1" aria-label="Media actions">
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept="image/*,audio/*,video/*"
+            multiple
+            className="sr-only"
+            aria-label="Upload Media"
+            data-kg-media-upload-input="1"
+            onChange={event => {
+              void handleUploadMediaFiles(event.currentTarget.files)
+              event.currentTarget.value = ''
+            }}
+          />
+          <button
+            type="button"
+            className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+            title="Upload Media"
+            aria-label="Upload Media"
+            data-kg-media-upload-button="1"
+            onClick={() => uploadInputRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
+          </button>
           <span
             className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
             title="@ media commands"
@@ -436,9 +642,16 @@ export function CommandMenuCatalogPanel() {
           </span>
         </section>
       </header>
-      <section data-kg-command-menu-media-list="1">
+      <section data-kg-media-list="1">
         <KeyTypeValueHeader keyLabel="Media" typeLabel="Prefix" valueLabel="Source / action" stickyOffsetClassName="top-0" />
         <KeyTypeValueSectionStack>
+          {uploadedMediaItems.map(item => (
+            <UploadedMediaRow
+              key={item.id}
+              item={item}
+              compactStaticRowProps={compactStaticRowProps}
+            />
+          ))}
           {mediaItems.map(item => (
             <MediaCandidateRow
               key={item.key}
@@ -459,4 +672,4 @@ export function CommandMenuCatalogPanel() {
   )
 }
 
-export default CommandMenuCatalogPanel
+export default MediaCatalogPanel

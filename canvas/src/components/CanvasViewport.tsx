@@ -209,6 +209,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'flowEditor' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flowEditor'}>
               {active2dSurface === 'flowEditor' ? <FlowEditorCanvasLazy active /> : null}
+              {active2dSurface === 'flowEditor' && floatingPanelOpen && floatingPanelView === 'view' ? (
+                <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="flow-editor.md" />
+              ) : null}
             </section>
           </section>
         )}

@@ -1630,9 +1630,10 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !flowEditorInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     !flowEditorInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_COMPACT_FRAME_CLASSNAME') ||
     !flowEditorInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_LARGE_FRAME_CLASSNAME') ||
-    !flowEditorInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     !flowEditorInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME') ||
     !nodeOverlayEditorRegistrySectionText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    flowEditorInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    flowEditorInlineValueEditorText.includes('whitespace-pre-wrap break-words') ||
     flowEditorInlineValueEditorText.includes(staleFlowEditorInlineValueSingleLineSizingClass()) ||
     [flowEditorInspectorText, flowEditorInlineValueEditorText, nodeOverlayEditorRegistrySectionText].some(text =>
       ['h-20 px-2 py-1', 'h-24 px-2 py-1', 'h-28 px-2 py-1', 'min-h-24 px-2 py-1'].some(snippet => text.includes(snippet))
@@ -1655,14 +1656,14 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected shared card title and multiline editor sizing to use neutral card editor owners across Storyboard, Flow Inspector, and Kanban surfaces')
   }
   if (
-    !nodeOverlayEditorFormText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     !settingsUiText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     !settingsUiText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME') ||
+    nodeOverlayEditorFormText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     nodeOverlayEditorFormText.includes("'h-24'") ||
     settingsUiText.includes('min-h-24') ||
     settingsUiText.includes('min-h-16')
   ) {
-    throw new Error('expected Flow envelope and settings textareas to use shared responsive panel code editor frames')
+    throw new Error('expected Flow envelope inline values to defer density to shared panel primitives while settings textareas use shared responsive panel code editor frames')
   }
   const colorSwatchConsumerTexts = [
     settingsUiText,

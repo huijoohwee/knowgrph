@@ -127,8 +127,9 @@ function verifyMediaAuth(request, runId, options = {}) {
 
 function extractRunIdFromKey(objectKey) {
   const parts = objectKey.split("/");
-  if (parts.length < 2 || parts[0] !== "runs") return null;
-  const runId = parts[1];
+  const runsIndex = parts.indexOf("runs");
+  if (runsIndex < 0 || parts.length <= runsIndex + 1) return null;
+  const runId = parts[runsIndex + 1];
   return runId && runId.length > 0 ? runId : null;
 }
 
@@ -171,7 +172,9 @@ function normalizeString(v) {
 function isValidMediaObjectKey(key) {
   if (!key) return false;
   const segments = key.split("/").filter(Boolean);
-  if (segments.length < 4) return false;
+  const runsIndex = segments.indexOf("runs");
+  if (runsIndex < 1) return false;
+  if (segments.length !== runsIndex + 4) return false;
   for (const seg of segments) {
     if (seg === "." || seg === "..") return false;
     if (/[\u0000-\u001f\u007f]/.test(seg)) return false;
@@ -194,7 +197,7 @@ function readMediaObjectKey(pathname) {
 }
 
 function readMediaBucket(env) {
-  const bucket = env.KNOWGRPH_MEDIA_BUCKET;
+  const bucket = env.KNOWGRPH_STORAGE_BLOB_BUCKET;
   if (!bucket || typeof bucket.put !== "function" || typeof bucket.get !== "function") return null;
   return bucket;
 }
@@ -216,13 +219,13 @@ async function handleMediaWrite(request, env, authProvider) {
   authProvider = authProvider ?? ((req, runId) => verifyMediaAuth(req, runId));
   const objectKey = readMediaObjectKey(new URL(request.url).pathname);
   if (!objectKey) {
-    return authErrorResponse(400, "bad_request", "invalid media object key; expected runs/{runId}/{stageId}/{shotId}.{ext}");
+    return authErrorResponse(400, "bad_request", "invalid media object key; expected airvio/runs/{runId}/{stageId}/{shotId}.{ext}");
   }
   const authErr = await enforceAuth(request, objectKey, authProvider);
   if (authErr) return authErr;
 
   const bucket = readMediaBucket(env);
-  if (!bucket) return authErrorResponse(500, "server_error", "missing Cloudflare R2 binding KNOWGRPH_MEDIA_BUCKET");
+  if (!bucket) return authErrorResponse(500, "server_error", "missing Cloudflare R2 binding KNOWGRPH_STORAGE_BLOB_BUCKET");
 
   const contentType = normalizeString(request.headers.get("content-type")) || "application/octet-stream";
   const contentHash = normalizeString(request.headers.get("content-hash") || request.headers.get("x-knowgrph-content-hash")) || null;
@@ -250,13 +253,13 @@ async function handleMediaRead(request, env, authProvider) {
   authProvider = authProvider ?? ((req, runId) => verifyMediaAuth(req, runId));
   const objectKey = readMediaObjectKey(new URL(request.url).pathname);
   if (!objectKey) {
-    return authErrorResponse(400, "bad_request", "invalid media object key; expected runs/{runId}/{stageId}/{shotId}.{ext}");
+    return authErrorResponse(400, "bad_request", "invalid media object key; expected airvio/runs/{runId}/{stageId}/{shotId}.{ext}");
   }
   const authErr = await enforceAuth(request, objectKey, authProvider);
   if (authErr) return authErr;
 
   const bucket = readMediaBucket(env);
-  if (!bucket) return authErrorResponse(500, "server_error", "missing Cloudflare R2 binding KNOWGRPH_MEDIA_BUCKET");
+  if (!bucket) return authErrorResponse(500, "server_error", "missing Cloudflare R2 binding KNOWGRPH_STORAGE_BLOB_BUCKET");
 
   const object =
     request.method === "HEAD" && typeof bucket.head === "function"
@@ -284,7 +287,7 @@ const TEST_RUN_ID = "run-test-001";
 const TEST_STAGE_ID = "render";
 const TEST_SHOT_ID = "shot-1";
 const TEST_EXT = "png";
-const TEST_OBJECT_KEY = `runs/${TEST_RUN_ID}/${TEST_STAGE_ID}/${TEST_SHOT_ID}.${TEST_EXT}`;
+const TEST_OBJECT_KEY = `airvio/runs/${TEST_RUN_ID}/${TEST_STAGE_ID}/${TEST_SHOT_ID}.${TEST_EXT}`;
 const TEST_URL = `https://airvio.co${KNOWGRPH_MEDIA_ROUTE_PREFIX}${TEST_OBJECT_KEY}`;
 
 /** Build a valid base64url token payload for the given runId. */
@@ -336,7 +339,7 @@ function makeMockBucket(initialObjects = new Map()) {
 }
 
 function makeEnv(bucket) {
-  return { KNOWGRPH_MEDIA_BUCKET: bucket };
+  return { KNOWGRPH_STORAGE_BLOB_BUCKET: bucket };
 }
 
 function makeWriteRequest(headers = {}) {
@@ -517,7 +520,7 @@ test("MEDIA_AUTH_UNAUTHORIZED_CODE is 'authorization_failed'", () => {
 // ---------------------------------------------------------------------------
 
 test("extractRunIdFromKey returns the runId from a valid key", () => {
-  assert.equal(extractRunIdFromKey("runs/run-abc/render/shot-1.png"), "run-abc");
+  assert.equal(extractRunIdFromKey("airvio/runs/run-abc/render/shot-1.png"), "run-abc");
 });
 
 test("extractRunIdFromKey returns null for a malformed key", () => {

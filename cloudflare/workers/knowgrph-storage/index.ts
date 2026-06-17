@@ -38,11 +38,13 @@ import {
 import { handleCrawlerSourceFiles, isKnowgrphStorageCrawlerRoute } from './crawler'
 import { handleBlobRead, handleBlobUpload, isKnowgrphStorageBlobRoute } from './blob'
 import { handleMediaRead, handleMediaWrite, isKnowgrphStorageMediaRoute } from './media'
+import { handleMediaAssetPersist, isKnowgrphStorageMediaAssetRoute } from './mediaAssetSync'
 import {
   KNOWGRPH_STORAGE_DOC_VIEW_HEADERS,
   readPublishedMarkdown,
 } from '../shared/publishedDoc'
 import { handleCollaborationSave } from './collaborationBridge'
+import { KnowgrphCanvasSyncRoom } from './canvasSyncRoom'
 import {
   handleChatAudit,
   handleChatPolicies,
@@ -112,6 +114,8 @@ const readJsonBody = async (request: Request): Promise<unknown> => {
     return null
   }
 }
+
+export { KnowgrphCanvasSyncRoom }
 
 const isPushRequest = (value: unknown): value is KnowgrphStoragePushRequest => {
   if (!value || typeof value !== 'object') return false
@@ -564,9 +568,11 @@ export const createKnowgrphStorageWorker = () => ({
         }
         return errorResponse(405, 'bad_request', 'unsupported chat route method')
       }
+      if (isKnowgrphStorageMediaAssetRoute(url.pathname)) {
+        return await handleMediaAssetPersist(request, env, db)
+      }
       if (isKnowgrphStorageMediaRoute(url.pathname)) {
         if (request.method === 'PUT' || request.method === 'POST') return await handleMediaWrite(request, env)
-        if (request.method === 'GET' || request.method === 'HEAD') return await handleMediaRead(request, env)
         if (request.method === 'GET' || request.method === 'HEAD') return await handleMediaRead(request, env)
       }
       if (isKnowgrphStorageBlobRoute(url.pathname)) {

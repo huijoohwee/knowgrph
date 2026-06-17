@@ -5,6 +5,7 @@
 //
 // Auth strategy (offline-testable, no shared secret):
 //   Authorization: Bearer <token>
+//   or ?kg_media_token=<token> for browser-openable, short-lived media links.
 //   where <token> is a base64url-encoded JSON object: { runId, expiresAt }
 //
 // Verification:
@@ -85,7 +86,8 @@ function parseTokenPayload(token: string): { runId: string; expiresAt: number } 
 // -----------------------------------------------------------------------------
 // verifyMediaAuth — pure helper, unit-testable
 //
-// Reads the `Authorization: Bearer <token>` header, decodes the token, and
+// Reads the `Authorization: Bearer <token>` header or `kg_media_token` URL
+// query parameter, decodes the token, and
 // checks:
 //   1. Header present and has a non-empty token → else 401
 //   2. Token is parseable and not expired       → else 401
@@ -106,18 +108,17 @@ export function verifyMediaAuth(
 ): MediaAuthResult {
   const now = options.now ?? Date.now
 
-  // 1. Extract Authorization header
+  // 1. Extract Authorization header or query token
   const authHeader = request.headers.get('authorization') ?? ''
   const bearerPrefix = 'Bearer '
-  if (!authHeader.startsWith(bearerPrefix)) {
-    return {
-      ok: false,
-      authError: 'authentication required',
-      code: MEDIA_AUTH_UNAUTHENTICATED_CODE,
+  let token = authHeader.startsWith(bearerPrefix) ? authHeader.slice(bearerPrefix.length).trim() : ''
+  if (!token) {
+    try {
+      token = new URL(request.url).searchParams.get('kg_media_token')?.trim() || ''
+    } catch {
+      token = ''
     }
   }
-
-  const token = authHeader.slice(bearerPrefix.length).trim()
   if (!token) {
     return {
       ok: false,
@@ -157,14 +158,14 @@ export function verifyMediaAuth(
 }
 
 // -----------------------------------------------------------------------------
-// extractRunIdFromKey — parse runId from R2 key "runs/{runId}/..."
+// extractRunIdFromKey — parse runId from R2 key ".../runs/{runId}/..."
 // -----------------------------------------------------------------------------
 
 export function extractRunIdFromKey(objectKey: string): string | null {
-  // Expected shape: runs/{runId}/{stageId}/{shotId}.{ext}
   const parts = objectKey.split('/')
-  if (parts.length < 2 || parts[0] !== 'runs') return null
-  const runId = parts[1]
+  const runsIndex = parts.indexOf('runs')
+  if (runsIndex < 0 || parts.length <= runsIndex + 1) return null
+  const runId = parts[runsIndex + 1]
   return runId && runId.length > 0 ? runId : null
 }
 

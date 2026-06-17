@@ -132,6 +132,111 @@ export function testStorageSyncDocumentDeclaresGeneratedBinaryArtifactPersistenc
   }
 }
 
+export function testMainPanelCloudflareMediaAssetSyncUsesSharedRuntimeContract() {
+  const contractText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'storage', 'knowgrphStorageSyncContract.ts'), 'utf8')
+  const topologyText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'storage', 'cloudflareMediaAssetTopology.ts'), 'utf8')
+  const uploadHelperText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'storage', 'uploadedMediaStorage.ts'), 'utf8')
+  const commandMenuText = readFileSync(resolve(process.cwd(), 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx'), 'utf8')
+  const helpCloudflareText = readFileSync(resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'HelpCloudflareMediaSection.tsx'), 'utf8')
+  const helpSectionsText = readFileSync(resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'HelpSections.tsx'), 'utf8')
+  const workerIndexText = readFileSync(resolve(process.cwd(), '..', 'cloudflare', 'workers', 'knowgrph-storage', 'index.ts'), 'utf8')
+  const assetSyncText = readFileSync(resolve(process.cwd(), '..', 'cloudflare', 'workers', 'knowgrph-storage', 'mediaAssetSync.ts'), 'utf8')
+  const mediaAuthText = readFileSync(resolve(process.cwd(), '..', 'cloudflare', 'workers', 'knowgrph-storage', 'mediaAuth.ts'), 'utf8')
+  const canvasRoomText = readFileSync(resolve(process.cwd(), '..', 'cloudflare', 'workers', 'knowgrph-storage', 'canvasSyncRoom.ts'), 'utf8')
+  const wranglerText = readFileSync(resolve(process.cwd(), '..', 'cloudflare', 'workers', 'knowgrph-storage', 'wrangler.toml'), 'utf8')
+  const requiredContractFragments = [
+    "mediaAssetPersist: '/api/storage/media/assets'",
+    "mediaPrefix: '/api/storage/media/'",
+    'KNOWGRPH_STORAGE_R2_MEDIA_BINDING_NAME = KNOWGRPH_STORAGE_R2_BLOB_BINDING_NAME',
+    "KNOWGRPH_STORAGE_R2_MEDIA_OBJECT_PREFIX = 'airvio'",
+    "KNOWGRPH_STORAGE_MEDIA_ACCESS_KV_BINDING_NAME = 'KNOWGRPH_MEDIA_ACCESS_KV'",
+    "KNOWGRPH_STORAGE_CANVAS_ROOM_BINDING_NAME = 'KNOWGRPH_CANVAS_ROOM'",
+    'KnowgrphMediaAssetPersistRequest',
+    'KnowgrphMediaAssetPersistResponse',
+  ]
+  for (const fragment of requiredContractFragments) {
+    if (!contractText.includes(fragment)) {
+      throw new Error(`expected shared storage contract to declare Cloudflare media asset fragment: ${fragment}`)
+    }
+  }
+  for (const fragment of [
+    'CLOUDFLARE_MEDIA_ASSET_SYNC_SERVICES',
+    'buildKnowgrphStorageMediaAssetPersistPath()',
+    "buildKnowgrphStorageMediaPath('airvio/runs/{runId}/{stageId}/{shotId}.{ext}')",
+    "id: 'r2'",
+    "id: 'd1'",
+    "id: 'kv'",
+    "id: 'durableObject'",
+    'https://developers.cloudflare.com/r2/api/workers/workers-api-reference/',
+    'https://developers.cloudflare.com/d1/worker-api/',
+    'https://developers.cloudflare.com/kv/api/write-key-value-pairs/',
+    'https://developers.cloudflare.com/durable-objects/best-practices/websockets/',
+  ]) {
+    if (!topologyText.includes(fragment)) {
+      throw new Error(`expected Cloudflare media asset topology to own service fragment: ${fragment}`)
+    }
+  }
+  if (commandMenuText.includes('CLOUDFLARE_MEDIA_ASSET_SYNC_SERVICES')
+    || commandMenuText.includes('data-kg-command-menu-cloudflare-media-service')
+    || commandMenuText.includes("bindingName: 'KNOWGRPH_STORAGE_BLOB_BUCKET'")) {
+    throw new Error('expected FloatingPanel Media to avoid owning Cloudflare storage configuration rows')
+  }
+  if (!helpCloudflareText.includes('CLOUDFLARE_MEDIA_ASSET_SYNC_SERVICES')
+    || !helpCloudflareText.includes('data-kg-main-panel-cloudflare-media-service')
+    || !helpCloudflareText.includes('data-kg-main-panel-cloudflare-binding')
+    || !helpSectionsText.includes('<HelpCloudflareMediaSection')) {
+    throw new Error('expected MainPanel Help to project the shared Cloudflare media topology without local binding literals')
+  }
+  for (const fragment of [
+    'uploadMediaFileToKnowgrphStorage',
+    'readUploadedMediaKind',
+    'KNOWGRPH_STORAGE_R2_MEDIA_OBJECT_PREFIX',
+    '`${KNOWGRPH_STORAGE_R2_MEDIA_OBJECT_PREFIX}/runs/${runId}/${stageId}/${shotId}.${readFileExtension(args.file)}`',
+    'buildKnowgrphStorageMediaPath(objectKey)',
+    'buildKnowgrphStorageMediaAssetPersistPath()',
+    'kg_media_token',
+    'presignedUrl: accessUrl',
+    "source: 'floatingPanel.media.upload'",
+  ]) {
+    if (!uploadHelperText.includes(fragment)) {
+      throw new Error(`expected Upload Media helper to reuse Cloudflare media runtime fragment: ${fragment}`)
+    }
+  }
+  if (!mediaAuthText.includes("searchParams.get('kg_media_token')")
+    || !mediaAuthText.includes('browser-openable, short-lived media links')) {
+    throw new Error('expected media auth to accept short-lived query tokens for browser-openable media links')
+  }
+  for (const fragment of [
+    'handleMediaAssetPersist',
+    'isKnowgrphStorageMediaAssetRoute',
+    'upsertMediaArtifact',
+    'findMediaArtifactByHash',
+    'KNOWGRPH_STORAGE_BLOB_BUCKET',
+    'KNOWGRPH_MEDIA_ACCESS_KV',
+    'KNOWGRPH_CANVAS_ROOM',
+    'presignedUrl',
+  ]) {
+    if (!assetSyncText.includes(fragment) && !workerIndexText.includes(fragment)) {
+      throw new Error(`expected storage Worker to wire Cloudflare media asset runtime fragment: ${fragment}`)
+    }
+  }
+  if (!canvasRoomText.includes('class KnowgrphCanvasSyncRoom')
+    || !canvasRoomText.includes("`asset:${workspaceId}:${roomId}:${artifactId}`")
+    || !canvasRoomText.includes('this.state.storage.put(storageKey')) {
+    throw new Error('expected Durable Object canvas room to persist media asset sync notifications')
+  }
+  if (!wranglerText.includes('KNOWGRPH_STORAGE_BLOB_BUCKET')
+    || !wranglerText.includes('knowgrph-storage-blobs')
+    || wranglerText.includes('KNOWGRPH_MEDIA_BUCKET')
+    || !wranglerText.includes('KNOWGRPH_CANVAS_ROOM')
+    || !wranglerText.includes('KnowgrphCanvasSyncRoom')) {
+    throw new Error('expected knowgrph-storage wrangler config to bind media bytes to knowgrph-storage-blobs and the canvas sync Durable Object')
+  }
+  if (/id\s*=\s*"(operator|fake|placeholder|todo|test)[^"]*"/i.test(wranglerText)) {
+    throw new Error('expected wrangler config to avoid fake KV namespace ids for media access cache')
+  }
+}
+
 export function testBrowserCacheLegacyShimFilesAreRemoved() {
   const storagePath = resolve(process.cwd(), 'src', 'lib', 'storage', 'rxdbStorage.ts')
   const recoveryPath = resolve(process.cwd(), 'src', 'lib', 'storage', 'rxdbRecovery.ts')

@@ -261,7 +261,7 @@ export const PANEL_SURFACE_ROLE_OWNERS: Record<PanelSurfaceRoleKey, PanelSurface
   history: 'bottomSurface.history',
 }
 
-export type HelpStepKey = 'shortcuts' | 'cheatsheet' | 'commandMenu' | 'panelTour' | 'workflowLinks' | 'icons'
+export type HelpStepKey = 'shortcuts' | 'cheatsheet' | 'commandMenu' | 'cloudflareMedia' | 'panelTour' | 'workflowLinks' | 'icons'
 
 export interface HelpStepCopy {
   id: HelpStepKey
@@ -293,7 +293,15 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Reference the shared `/` and `@` command catalog used by inline editors, Workflow Manager graph fields, canvas cards, widgets, and Markdown Viewer blocks.',
     descriptionLong:
-      'The Command Menu section is the reference owner for shared slash actions, variable actions, reference actions, keyword actions, and media insertion commands. Runtime insertion still happens in the active editor; FloatingPanel Command Menu owns the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list.',
+      'The Command Menu section is the reference owner for shared slash actions, variable actions, reference actions, keyword actions, and media insertion commands. Runtime insertion still happens in the active editor; FloatingPanel Media owns the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list.',
+  },
+  cloudflareMedia: {
+    id: 'cloudflareMedia',
+    title: 'Cloudflare media',
+    descriptionShort:
+      'Runtime storage references for generated media: R2 blobs, D1 provenance, KV access-cache TTL, and Durable Object canvas-room sync.',
+    descriptionLong:
+      'Cloudflare media documents the runtime-ready storage topology for generated image, audio, and video assets without repo-local fake ids. R2 owns blobs, D1 owns media metadata and provenance, KV owns bounded access-cache TTL entries when bound, and Durable Objects own multi-user canvas-room sync state.',
   },
   panelTour: {
     id: 'panelTour',
@@ -310,9 +318,9 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
   icons: {
     id: 'icons',
     title: 'Icon Library',
-    descriptionShort: `These icons appear in MainPanel Collaboration Type rows, settings-derived MainPanel tabs, FloatingPanel view buttons including Command Menu, and the ${UI_LABELS.graphFields} section header/table. Icons in this legend reuse the same UI Density: Icons settings so panel and data-view surfaces stay visually aligned.`,
+    descriptionShort: `These icons appear in MainPanel Collaboration Type rows, settings-derived MainPanel tabs, FloatingPanel view buttons including Media, and the ${UI_LABELS.graphFields} section header/table. Icons in this legend reuse the same UI Density: Icons settings so panel and data-view surfaces stay visually aligned.`,
     descriptionLong:
-      `The Icon Library documents how MainPanel type icons, FloatingPanel view icons including Command Menu, scope, origin, visibility, and field-type icons map to shared panel concepts so Collaboration, Integrations, MCP, Maps, Commerce, Settings, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, Workflow Manager graph fields, Schema Configurator, and AgenticRAG pipelines interpret the same visual language consistently. The legend follows the shared UI Density: Icons settings so toolbar, header, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, and tooltip icons remain visually aligned.`,
+      `The Icon Library documents how MainPanel type icons, FloatingPanel view icons including Media, scope, origin, visibility, and field-type icons map to shared panel concepts so Collaboration, Integrations, MCP, Maps, Commerce, Settings, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, Workflow Manager graph fields, Schema Configurator, and AgenticRAG pipelines interpret the same visual language consistently. The legend follows the shared UI Density: Icons settings so toolbar, header, ${MARKDOWN_DATA_VIEW_COPY.titleDefault}, and tooltip icons remain visually aligned.`,
   },
 }
 

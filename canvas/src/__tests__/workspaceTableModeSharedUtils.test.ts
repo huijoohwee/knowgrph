@@ -130,6 +130,9 @@ export function testWorkspaceDataViewFloatingPanelOwnsQueryWorkbench() {
   if (!canvasViewportText.includes('CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy') || !canvasViewportText.includes("active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view'")) {
     throw new Error('expected Storyboard to register FloatingPanel View settings through the shared data-view bridge only when View is active')
   }
+  if (!canvasViewportText.includes("active2dSurface === 'flowEditor' && floatingPanelOpen && floatingPanelView === 'view'") || !canvasViewportText.includes('fallbackDocumentName="flow-editor.md"')) {
+    throw new Error('expected Flow Editor to register FloatingPanel View settings through the shared data-view bridge only when View is active')
+  }
   if (!bridgeText.includes('MarkdownWorkspaceDerivedViewer') || !bridgeText.includes('floatingPanelRegistrationOnly') || !bridgeText.includes('useCanvasWorkspaceDataViewSource')) {
     throw new Error('expected Storyboard FloatingPanel View bridge to reuse the shared derived-viewer registration path and canvas data-view source')
   }

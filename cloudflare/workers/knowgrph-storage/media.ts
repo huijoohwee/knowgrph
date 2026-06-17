@@ -4,8 +4,8 @@
 // Requirements R3.3, R4.1, R4.2, R4.4, R4.5, R4.6, R9.3, R9.4, R9.5
 //
 // Routes:
-//   PUT  /api/storage/media/runs/{runId}/{stageId}/{shotId}.{ext}  — write
-//   GET|HEAD /api/storage/media/runs/{runId}/{stageId}/{shotId}.{ext} — read/replay
+//   PUT  /api/storage/media/airvio/runs/{runId}/{stageId}/{shotId}.{ext}  — write
+//   GET|HEAD /api/storage/media/airvio/runs/{runId}/{stageId}/{shotId}.{ext} — read/replay
 //
 // Auth: run-scoped Bearer token (see mediaAuth.ts).
 // Both read and write require a verified token for the matching runId.
@@ -39,13 +39,12 @@ export const KNOWGRPH_MEDIA_ROUTE_PREFIX = '/api/storage/media/'
 
 // -----------------------------------------------------------------------------
 // Env duck-type — avoids import cycle with the canvas contract.
-// The worker env is known to carry KNOWGRPH_MEDIA_BUCKET at runtime via
-// wrangler.toml; we widen the accepted env rather than adding to the shared
-// contract (which is owned by the canvas SPA).
+// Media bytes share the canonical generated-artifact R2 bucket so uploaded
+// objects appear under the operator-owned knowgrph-storage-blobs/airvio/ prefix.
 // -----------------------------------------------------------------------------
 
 export interface KnowgrphStorageMediaEnv {
-  KNOWGRPH_MEDIA_BUCKET?: KnowgrphStorageR2BucketLike
+  KNOWGRPH_STORAGE_BLOB_BUCKET?: KnowgrphStorageR2BucketLike
   [key: string]: unknown
 }
 
@@ -103,8 +102,8 @@ export const isKnowgrphStorageMediaRoute = (
 // -----------------------------------------------------------------------------
 // Key extraction
 //
-// Path format:  /api/storage/media/runs/{runId}/{stageId}/{shotId}.{ext}
-// R2 object key: runs/{runId}/{stageId}/{shotId}.{ext}
+// Path format:  /api/storage/media/airvio/runs/{runId}/{stageId}/{shotId}.{ext}
+// R2 object key: airvio/runs/{runId}/{stageId}/{shotId}.{ext}
 //
 // Validation mirrors blob.ts: no traversal segments, no control characters.
 // -----------------------------------------------------------------------------
@@ -112,7 +111,9 @@ export const isKnowgrphStorageMediaRoute = (
 const isValidMediaObjectKey = (key: string): boolean => {
   if (!key) return false
   const segments = key.split('/').filter(Boolean)
-  if (segments.length < 4) return false // runs + runId + stageId + shotId.ext
+  const runsIndex = segments.indexOf('runs')
+  if (runsIndex < 1) return false
+  if (segments.length !== runsIndex + 4) return false
   for (const seg of segments) {
     if (seg === '.' || seg === '..') return false
     // eslint-disable-next-line no-control-regex
@@ -148,7 +149,7 @@ const readMediaObjectKey = (pathname: string): string | null => {
 // -----------------------------------------------------------------------------
 
 const readMediaBucket = (env: KnowgrphStorageMediaEnv): KnowgrphStorageR2BucketLike | null => {
-  const bucket = env.KNOWGRPH_MEDIA_BUCKET
+  const bucket = env.KNOWGRPH_STORAGE_BLOB_BUCKET
   if (!bucket || typeof bucket.put !== 'function' || typeof bucket.get !== 'function') return null
   return bucket
 }
@@ -187,7 +188,7 @@ const enforceAuth = async (
 }
 
 // -----------------------------------------------------------------------------
-// WRITE — PUT /api/storage/media/runs/{runId}/{stageId}/{shotId}.{ext}
+// WRITE — PUT /api/storage/media/airvio/runs/{runId}/{stageId}/{shotId}.{ext}
 //
 // Requirements R3.3, R4.1, R4.2, R4.5, R4.6, R9.3, R9.4, R9.5
 // Reads optional `content-hash` header and stores it as customMetadata.
@@ -201,7 +202,7 @@ export const handleMediaWrite = async (
 ): Promise<Response> => {
   const objectKey = readMediaObjectKey(new URL(request.url).pathname)
   if (!objectKey) {
-    return errorResponse(400, 'bad_request', 'invalid media object key; expected runs/{runId}/{stageId}/{shotId}.{ext}')
+    return errorResponse(400, 'bad_request', 'invalid media object key; expected airvio/runs/{runId}/{stageId}/{shotId}.{ext}')
   }
 
   // Auth check — must come before any R2 or data access
@@ -210,7 +211,7 @@ export const handleMediaWrite = async (
 
   const bucket = readMediaBucket(env)
   if (!bucket) {
-    return errorResponse(500, 'server_error', 'missing Cloudflare R2 binding KNOWGRPH_MEDIA_BUCKET')
+    return errorResponse(500, 'server_error', 'missing Cloudflare R2 binding KNOWGRPH_STORAGE_BLOB_BUCKET')
   }
 
   const contentType =
@@ -256,7 +257,7 @@ export const handleMediaWrite = async (
 }
 
 // -----------------------------------------------------------------------------
-// READ — GET|HEAD /api/storage/media/runs/{runId}/{stageId}/{shotId}.{ext}
+// READ — GET|HEAD /api/storage/media/airvio/runs/{runId}/{stageId}/{shotId}.{ext}
 //
 // Requirements R4.1, R4.2, R4.4, R4.5, R4.6, R9.3, R9.4, R9.5
 // Returns the stored bytes (or headers only for HEAD).
@@ -271,7 +272,7 @@ export const handleMediaRead = async (
 ): Promise<Response> => {
   const objectKey = readMediaObjectKey(new URL(request.url).pathname)
   if (!objectKey) {
-    return errorResponse(400, 'bad_request', 'invalid media object key; expected runs/{runId}/{stageId}/{shotId}.{ext}')
+    return errorResponse(400, 'bad_request', 'invalid media object key; expected airvio/runs/{runId}/{stageId}/{shotId}.{ext}')
   }
 
   // Auth check — must come before any R2 or data access
@@ -280,7 +281,7 @@ export const handleMediaRead = async (
 
   const bucket = readMediaBucket(env)
   if (!bucket) {
-    return errorResponse(500, 'server_error', 'missing Cloudflare R2 binding KNOWGRPH_MEDIA_BUCKET')
+    return errorResponse(500, 'server_error', 'missing Cloudflare R2 binding KNOWGRPH_STORAGE_BLOB_BUCKET')
   }
 
   const object =

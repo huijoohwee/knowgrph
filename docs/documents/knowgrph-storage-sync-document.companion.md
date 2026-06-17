@@ -578,6 +578,23 @@ flowchart TB
 
 ---
 
+### ADR-013: Persist Collaborative AI Media Through R2, D1, KV, And Durable Objects
+
+**Status**: Accepted
+**Date**: 2026-06-17
+
+**Context**: FloatingPanel Media is the scoped rich-media browser. AI/LLM-generated image, audio, and video assets need durable bytes, searchable provenance, short-lived access reuse, and multi-user canvas-room notification without making D1 the collaboration SSOT.
+
+**Decision**: MainPanel Help projects the shared Cloudflare media topology; FloatingPanel Media remains the scoped rich-media browser. Storage Worker route `/api/storage/media/assets` confirms the existing R2 object under `KNOWGRPH_STORAGE_BLOB_BUCKET` in the `knowgrph-storage-blobs/airvio/` object prefix, writes `media_artifacts` D1 metadata/provenance, writes a KV access-cache entry only when a real `KNOWGRPH_MEDIA_ACCESS_KV` namespace is bound, and notifies the `KNOWGRPH_CANVAS_ROOM` Durable Object when a collaboration room id is present. KV namespace ids are operator-owned and must not be faked in repo config.
+
+**TCO Impact**: R2/D1/KV/DO stay inside Cloudflare free-tier targets at MVP scale. The route deduplicates by content hash, caches access URLs with bounded TTL, and avoids re-running providers for collaborative replay.
+
+**Deployment gate**: No Prod/Cloudflare claim exists until the operator binds a real KV namespace, runs Worker deploy validation, and proves the specific artifact through R2 read, D1 row, KV status, and room notification status.
+
+**VCC**: `Verify: policy.storage.mainPanel.cloudflareMediaAssetSyncContract passes and Worker asset-sync route returns r2=confirmed, d1=persisted|reused, kv=cached|binding_missing, durableObject=broadcasted|binding_missing|skipped`
+
+---
+
 ## Deployment Phases
 
 ### Phase 1 — Worker + D1 (DONE)

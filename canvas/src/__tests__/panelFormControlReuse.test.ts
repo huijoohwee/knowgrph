@@ -5,6 +5,8 @@ const readUtf8 = (relativePath: string): string => fs.readFileSync(path.resolve(
 
 export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity() {
   const sharedControlsText = readUtf8('src/lib/ui/panelFormControls.tsx')
+  const dataViewDensityText = readUtf8('src/lib/ui/dataViewDensity.ts')
+  const responsiveToolbarCssText = readUtf8('src/styles/responsive-toolbar.css')
   const explorerSearchControlText = readUtf8('src/features/markdown-workspace/ExplorerSearchControl.tsx')
   const markdownWorkspaceToolbarText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx')
   const workspaceModeSelectText = readUtf8('src/features/markdown-workspace/WorkspaceModeSelect.tsx')
@@ -19,11 +21,17 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const strybldrCameraPanelText = readUtf8('src/features/strybldr/StrybldrCameraPanel.tsx')
   const strybldrCameraFloatingText = readUtf8('src/features/strybldr/StrybldrCameraFloatingPanelView.tsx')
   const dataViewSettingsText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPanel.tsx')
+  const dataViewFloatingStoreText = readUtf8('src/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore.ts')
   const dataViewSettingsPrimitivesText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPrimitives.tsx')
   const dataViewPropertiesText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPropertiesSection.tsx')
   const dataViewFilterMenuText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewFilterMenu.tsx')
   const dataViewSortSectionText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsSortSection.tsx')
   const graphTableToolbarText = readUtf8('src/features/graph-data-table/ui/GraphDataTableToolbar.tsx')
+  const cardInlineTextEditorText = readUtf8('src/lib/cards/CardInlineTextEditor.tsx')
+  const storyboardCanvasText = readUtf8('src/components/StoryboardCanvas.tsx')
+  const flowEditorInlineValueEditorText = readUtf8('src/components/FlowEditor/FlowEditorInlineValueEditor.tsx')
+  const flowEditorInspectorText = readUtf8('src/components/FlowEditor/FlowEditorInspector.tsx')
+  const nodeOverlayEditorFormText = readUtf8('src/components/FlowEditor/NodeOverlayEditorForm.tsx')
   const graphEditorInspectorText = readUtf8('src/features/graph-editor/panels/GraphEditorInspectorTab.tsx')
   const researchCompilerText = readUtf8('src/features/panels/views/ResearchCompilerView.tsx')
   const siteSelectionWidgetText = readUtf8('src/features/maps/SiteSelectionWidget.tsx')
@@ -43,6 +51,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const widgetRegistrySchemaMappingsEditorText = readUtf8('src/features/flow-editor-manager/WidgetRegistrySchemaMappingsEditor.tsx')
   const flowManagerRegistryEditorPrimitivesText = readUtf8('src/features/flow-editor-manager/FlowManagerRegistryEditorPrimitives.tsx')
   const floatingPropsPanelText = readUtf8('src/features/toolbar/FloatingPropsPanel.tsx')
+  const toolbarToolMenuText = readUtf8('src/lib/toolbar/ToolbarToolMenu.impl.tsx')
   const panelLabeledRangeCardText = readUtf8('src/features/panels/ui/PanelLabeledRangeCard.tsx')
   const panelLabeledRangeFieldText = readUtf8('src/features/panels/ui/PanelLabeledRangeField.tsx')
   const panelInlineLabeledRangeRowText = readUtf8('src/features/panels/ui/PanelInlineLabeledRangeRow.tsx')
@@ -175,14 +184,99 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     !sharedControlsText.includes("type PanelFieldVariant = 'micro' | 'section'") ||
     !sharedControlsText.includes("type PanelFieldLayout = 'block' | 'compact'") ||
     !sharedControlsText.includes("type PanelFormControlVariant = 'filled' | 'transparent'") ||
+    !sharedControlsText.includes('PanelFormDensityProvider') ||
+    !sharedControlsText.includes('readDataViewControlPaddingClassName') ||
+    !sharedControlsText.includes('readDataViewSingleLineControlClassName') ||
+    !sharedControlsText.includes('readDataViewMultiLineControlClassName') ||
+    !sharedControlsText.includes('readDataViewMultiLineControlRows') ||
+    !dataViewDensityText.includes("'overflow-hidden whitespace-pre-wrap break-words line-clamp-2'") ||
+    dataViewDensityText.includes("'block overflow-hidden whitespace-pre-wrap break-words line-clamp-2'") ||
     !sharedControlsText.includes('readPanelChoiceSurfaceClassName') ||
     !sharedControlsText.includes('readPanelBooleanChoiceButtonClassName') ||
-    !sharedControlsText.includes('h-6 rounded-md border px-2 py-1 text-xs') ||
-    !sharedControlsText.includes('w-full resize rounded-md border px-2 py-1 text-xs') ||
+    !sharedControlsText.includes('React.createContext<PanelFormDensityContextValue | null>(null)') ||
+    !sharedControlsText.includes("densityContext?.rowHeightPreset || 'compact'") ||
+    !sharedControlsText.includes('rows={nextFieldLineMode ? readDataViewMultiLineControlRows(nextFieldLineMode) : rows}') ||
+    !sharedControlsText.includes('w-full min-w-0 max-w-full resize-y rounded-md border') ||
+    !sharedControlsText.includes('w-full min-w-0 max-w-full resize-y rounded border bg-transparent') ||
+    sharedControlsText.includes('w-full resize rounded') ||
     !sharedControlsText.includes('h-4 w-4 rounded') ||
     !sharedControlsText.includes('type="range"')
   ) {
     throw new Error('expected panel form controls to expose shared semantic field, read-only field, fixed single-line, resizable multi-line, select, checkbox, range, transparent-variant, and shared choice-surface utilities')
+  }
+
+  if (
+    !toolbarToolMenuText.includes('PanelFormDensityProvider') ||
+    !toolbarToolMenuText.includes('useWorkspaceDataViewFloatingDensity') ||
+    !toolbarToolMenuText.includes('data-kg-floating-panel-row-height={panelFormDensity.rowHeightPreset}') ||
+    !toolbarToolMenuText.includes('data-kg-floating-panel-field-line={panelFormDensity.fieldLineMode}')
+  ) {
+    throw new Error('expected FloatingPanel View density to feed shared panel form primitives through the FloatingPanel shell')
+  }
+
+  const dataViewTableValueCssSource = responsiveToolbarCssText.match(/\.kg-data-view-table-value\s\{[\s\S]*?\n\s{2}\}/)?.[0] || ''
+  if (
+    !dataViewTableValueCssSource ||
+    dataViewTableValueCssSource.includes('display: block') ||
+    dataViewTableValueCssSource.includes('white-space: nowrap') ||
+    dataViewTableValueCssSource.includes('text-overflow: ellipsis')
+  ) {
+    throw new Error('expected Multi-dimensional Table value density to be owned by shared field-line classes instead of base table CSS')
+  }
+
+  if (
+    !cardInlineTextEditorText.includes("from '@/lib/ui/panelFormControls'") ||
+    !cardInlineTextEditorText.includes('PanelTextInput') ||
+    !cardInlineTextEditorText.includes('PanelTextarea') ||
+    !cardInlineTextEditorText.includes('useWorkspaceDataViewFloatingDensity') ||
+    !cardInlineTextEditorText.includes('readDataViewFieldLineClassName') ||
+    !cardInlineTextEditorText.includes('rowHeightPreset={editorDensity.rowHeightPreset}') ||
+    !cardInlineTextEditorText.includes('fieldLineMode={editorDensity.fieldLineMode}') ||
+    !cardInlineTextEditorText.includes('density={editorDensity.rowHeightPreset}') ||
+    !cardInlineTextEditorText.includes('multiline ? readDataViewFieldLineClassName(editorDensity.fieldLineMode)') ||
+    cardInlineTextEditorText.includes('PlainTextInputEditor')
+  ) {
+    throw new Error('expected shared CardInlineTextEditor to render density-aware panel text input, textarea, and display-surface primitives')
+  }
+
+  if (
+    !storyboardCanvasText.includes('CardInlineTextEditor') ||
+    storyboardCanvasText.includes('px-0 py-0')
+  ) {
+    throw new Error('expected Storyboard card inline editors to avoid local padding overrides so shared panel density can apply')
+  }
+
+  if (
+    !flowEditorInlineValueEditorText.includes('CardInlineTextEditor') ||
+    flowEditorInlineValueEditorText.includes('PlainTextInputEditor') ||
+    flowEditorInlineValueEditorText.includes('<textarea') ||
+    flowEditorInlineValueEditorText.includes('<input') ||
+    flowEditorInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    flowEditorInlineValueEditorText.includes('whitespace-pre-wrap break-words') ||
+    !flowEditorInspectorText.includes('CardInlineTextEditor') ||
+    flowEditorInspectorText.includes('px-0 py-0')
+  ) {
+    throw new Error('expected Flow Editor inline textareas to route through shared CardInlineTextEditor without local raw controls or padding overrides')
+  }
+  const flowEnvelopeValueBoxClassSource = nodeOverlayEditorFormText.match(/const flowEnvelopeValueBoxClass = React\.useMemo\(\(\) => \{[\s\S]*?\n\s{2}\}, \[[^\]]*\]\)/)?.[0] || ''
+  if (
+    !flowEnvelopeValueBoxClassSource ||
+    flowEnvelopeValueBoxClassSource.includes('keyValueInputClass') ||
+    flowEnvelopeValueBoxClassSource.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME')
+  ) {
+    throw new Error('expected Flow envelope multiline widget values to avoid single-line and fixed code-frame sizing classes')
+  }
+
+  if (
+    !dataViewFloatingStoreText.includes('WorkspaceDataViewFloatingDensity') ||
+    !dataViewFloatingStoreText.includes('readBindingDensity') ||
+    !dataViewFloatingStoreText.includes('bindingDensityChanged') ||
+    !dataViewFloatingStoreText.includes('setWorkspaceDataViewFloatingDensity') ||
+    !dataViewFloatingStoreText.includes('useWorkspaceDataViewFloatingDensity') ||
+    !dataViewSettingsText.includes('setWorkspaceDataViewFloatingDensity({ rowHeightPreset: option.value, fieldLineMode })') ||
+    !dataViewSettingsText.includes('setWorkspaceDataViewFloatingDensity({ rowHeightPreset, fieldLineMode: option.value })')
+  ) {
+    throw new Error('expected View density controls to publish row-height and field-line changes to the shared FloatingPanel primitive density snapshot')
   }
 
   if (
@@ -191,7 +285,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     !strybldrPanelText.includes('PanelTextInput') ||
     !strybldrPanelText.includes('PanelTextarea') ||
     !strybldrPanelText.includes('PanelSelect') ||
-    strybldrPanelText.includes("mt-1 min-h-14 w-full resize-y rounded-md border px-2 py-1 text-xs")
+    strybldrPanelText.includes('className="mt-1 min-h-')
   ) {
     throw new Error('expected Strybldr floating panel card fields to consume the shared panel form controls')
   }

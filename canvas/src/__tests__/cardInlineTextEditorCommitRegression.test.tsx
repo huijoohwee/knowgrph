@@ -3,6 +3,14 @@ import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
+import {
+  clearWorkspaceDataViewFloatingBinding,
+  setWorkspaceDataViewFloatingBinding,
+  setWorkspaceDataViewFloatingDensity,
+  useWorkspaceDataViewFloatingDensity,
+  type WorkspaceDataViewFloatingBinding,
+} from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
+import { coerceWorkspaceDataViewConfig, type WorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
@@ -13,6 +21,39 @@ import { waitForFrames } from '@/tests/lib/reactRootHarness'
 
 const readUtf8 = (relativePath: string) => {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+}
+
+const buildFloatingBinding = (viewConfig: WorkspaceDataViewConfig): WorkspaceDataViewFloatingBinding => ({
+  registrationId: 'storybook-refresh-density',
+  contextLabel: 'Storyboard',
+  activePanel: 'layout',
+  canMutate: true,
+  viewerLayout: 'kanban',
+  viewerMode: 'multiDimTable',
+  allowMultiDimLayout: true,
+  columns: [],
+  groupByColumnId: null,
+  viewConfig,
+  setViewConfig: () => void 0,
+  onChangeLayout: () => void 0,
+})
+
+const buildViewConfig = (density: { rowHeightPreset: 'compact' | 'comfortable'; fieldLineMode: 'single' | 'double' }): WorkspaceDataViewConfig => {
+  const viewConfig = coerceWorkspaceDataViewConfig({
+    v: 2,
+    id: 'v0',
+    name: 'Kanban View',
+    layout: 'kanban',
+    groupByColumnId: null,
+    visibleColumnIds: null,
+    columnTypesById: null,
+    filterGroups: [{ id: 'g0', rules: [] }],
+    sortRules: [],
+    rowHeightPreset: density.rowHeightPreset,
+    fieldLineMode: density.fieldLineMode,
+  })
+  if (!viewConfig) throw new Error('expected test view config to coerce')
+  return viewConfig
 }
 
 export function testPlainTextInputEditorUsesReactChangeContract() {
@@ -35,14 +76,18 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
   const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
   const flowEditorOverlayProxy = readUtf8('../lib/canvas/flow-editor-overlay-proxy.ts')
   for (const snippet of [
-    '<PlainTextInputEditor',
-    'value={draft}',
-    'onChange={setDraft}',
+    '<PanelTextarea',
+    '<PanelTextInput',
+    'value: draft',
+    'setDraft(event.currentTarget.value)',
+    'rowHeightPreset={editorDensity.rowHeightPreset}',
+    'fieldLineMode={editorDensity.fieldLineMode}',
+    'density={editorDensity.rowHeightPreset}',
     "editActivation = 'doubleClick'",
     'data-kg-card-inline-edit-activation={editActivation}',
     'onPointerDown={event => {',
     'shouldOpenMarkdownViewerInlineEditorFromReadClick',
-    'onBlur={event => {',
+    'onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {',
     'commit()',
     "if (multiline && event.key === 'Enter' && (event.metaKey || event.ctrlKey))",
     'onCommit?.(next)',
@@ -53,6 +98,55 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
   }
   if (!flowEditorOverlayProxy.includes('[data-kg-card-inline-edit="1"]')) {
     throw new Error('expected Flow Editor overlay pointer routing to treat shared card inline editors as interactive controls')
+  }
+}
+
+export async function testWorkspaceDataViewFloatingDensityResyncsSameRegistrationViewConfig() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const snapshots: string[] = []
+
+  function DensityProbe() {
+    const density = useWorkspaceDataViewFloatingDensity()
+    snapshots.push(`${density.rowHeightPreset}:${density.fieldLineMode}`)
+    return React.createElement('span', { 'data-density': `${density.rowHeightPreset}:${density.fieldLineMode}` })
+  }
+
+  try {
+    await act(async () => {
+      root.render(React.createElement(DensityProbe))
+      await waitForFrames(dom.window, 4)
+    })
+
+    await act(async () => {
+      setWorkspaceDataViewFloatingBinding(buildFloatingBinding(buildViewConfig({
+        rowHeightPreset: 'comfortable',
+        fieldLineMode: 'single',
+      })))
+      await waitForFrames(dom.window, 4)
+    })
+
+    await act(async () => {
+      setWorkspaceDataViewFloatingBinding(buildFloatingBinding(buildViewConfig({
+        rowHeightPreset: 'comfortable',
+        fieldLineMode: 'double',
+      })))
+      await waitForFrames(dom.window, 4)
+    })
+
+    const latestDensity = container.querySelector('[data-density]')?.getAttribute('data-density')
+    if (latestDensity !== 'comfortable:double') {
+      throw new Error(`expected same-registration binding update to resync persisted density after refresh, got ${String(latestDensity)} snapshots=${snapshots.join(',')}`)
+    }
+  } finally {
+    clearWorkspaceDataViewFloatingBinding('storybook-refresh-density')
+    setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'comfortable', fieldLineMode: 'single' })
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
   }
 }
 
@@ -127,6 +221,183 @@ export async function testCardInlineTextEditorAllowsSharedClickActivation() {
       throw new Error(`expected click activation to preserve current card value, got ${JSON.stringify(input.value)}`)
     }
   } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorMultilineRowsFollowViewDensity() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  const readOpenedTextareaRows = async (fieldLineMode: 'single' | 'double') => {
+    await act(async () => {
+      setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'compact', fieldLineMode })
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Review element cards, revise prompts, then send the approved sequence to video generation.',
+          ariaLabel: 'Action text',
+          placeholder: 'Add action',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          rows: 3,
+          onCommit: () => void 0,
+        }),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
+
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 4)
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Action text"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
+    const rows = textarea.rows
+    const className = textarea.className
+
+    await act(async () => {
+      textarea.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 4)
+    })
+
+    return { rows, className }
+  }
+
+  try {
+    const single = await readOpenedTextareaRows('single')
+    if (single.rows !== 1 || !single.className.includes('min-h-8')) {
+      throw new Error(`expected single-line View density to open card textarea with one row, got rows=${single.rows} class=${single.className}`)
+    }
+
+    const double = await readOpenedTextareaRows('double')
+    if (double.rows !== 2 || !double.className.includes('min-h-12') || !double.className.includes('resize-y')) {
+      throw new Error(`expected two-line View density to open card textarea with two rows, got rows=${double.rows} class=${double.className}`)
+    }
+    if (double.className.split(/\s+/).includes('resize')) {
+      throw new Error(`expected card textarea resizing to keep width fixed with resize-y, got class=${double.className}`)
+    }
+  } finally {
+    setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'comfortable', fieldLineMode: 'single' })
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorDisplaySurfaceFollowsViewDensity() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  const readDisplayClassName = async (fieldLineMode: 'single' | 'double') => {
+    await act(async () => {
+      setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'compact', fieldLineMode })
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Review element cards, revise prompts, then send the approved sequence to video generation.',
+          ariaLabel: 'Action text',
+          placeholder: 'Add action',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          rows: 3,
+          displayClassName: 'm-0 mt-1 text-xs leading-5 whitespace-pre-wrap break-words',
+          onCommit: () => void 0,
+        }),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
+    return display.className
+  }
+
+  try {
+    const singleClassName = await readDisplayClassName('single')
+    if (!singleClassName.includes('truncate')) {
+      throw new Error(`expected single-line View density to clamp card display surface to one line, got class=${singleClassName}`)
+    }
+
+    const doubleClassName = await readDisplayClassName('double')
+    if (!doubleClassName.includes('line-clamp-2')) {
+      throw new Error(`expected two-line View density to clamp card display surface to two lines, got class=${doubleClassName}`)
+    }
+    if (doubleClassName.split(/\s+/).includes('block')) {
+      throw new Error(`expected two-line card display surface to avoid block display overriding line-clamp-2, got class=${doubleClassName}`)
+    }
+  } finally {
+    setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'comfortable', fieldLineMode: 'single' })
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testFlowEditorInlineValueEditorReusesDensityAwareCardSurfaceAndTextarea() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'compact', fieldLineMode: 'double' })
+      root.render(
+        React.createElement(FlowEditorInlineValueEditor, {
+          id: 'flow-widget-value',
+          value: 'Widget output should reuse the shared card surface and textarea density controls.',
+          active: true,
+          ariaLabel: 'Widget value',
+          multiline: true,
+          rows: 6,
+          className: 'h-6 whitespace-pre-wrap break-words',
+          onCommit: () => void 0,
+        }),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Flow Editor widget value display to reuse CardInlineTextEditor')
+    if (!display.className.includes('line-clamp-2')) {
+      throw new Error(`expected Flow Editor widget display surface to reuse two-line field density, got class=${display.className}`)
+    }
+    if (display.className.split(/\s+/).includes('block')) {
+      throw new Error(`expected Flow Editor widget display surface to avoid block overriding line-clamp-2, got class=${display.className}`)
+    }
+    if (display.className.includes('h-6')) {
+      throw new Error(`expected Flow Editor widget display surface to ignore single-line/editor sizing classes, got class=${display.className}`)
+    }
+
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 4)
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Widget value"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected Flow Editor widget value to open a shared textarea')
+    if (textarea.rows !== 2 || !textarea.className.includes('min-h-12') || !textarea.className.includes('resize-y')) {
+      throw new Error(`expected Flow Editor widget textarea to use two-line panel density instead of caller rows, got rows=${textarea.rows} class=${textarea.className}`)
+    }
+    if (textarea.className.split(/\s+/).includes('resize')) {
+      throw new Error(`expected Flow Editor widget textarea resizing to keep width fixed with resize-y, got class=${textarea.className}`)
+    }
+  } finally {
+    setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'comfortable', fieldLineMode: 'single' })
     await act(async () => {
       root.unmount()
     })

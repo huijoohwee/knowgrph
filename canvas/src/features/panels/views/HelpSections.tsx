@@ -6,6 +6,7 @@ import {
 } from 'grph-shared/react/keyTypeValueLayout';
 import { shouldFlushKeyTypeValueSectionTop } from 'grph-shared/ui/keyTypeValueRows';
 import { HelpCheatsheetSection } from './HelpCheatsheetSection';
+import { HelpCloudflareMediaSection } from './HelpCloudflareMediaSection';
 import { HelpCommandMenuSection } from './HelpCommandMenuSection';
 import { HelpIconsSection } from './HelpIconsSection';
 import { HelpPanelTourSection } from './HelpPanelTourSection';
@@ -53,6 +54,10 @@ export function HelpSections({
         <HelpCommandMenuSection
           collapsed={collapsedBySection.commandMenu}
           onToggle={next => onToggleSection('commandMenu', next)}
+        />
+        <HelpCloudflareMediaSection
+          collapsed={collapsedBySection.cloudflareMedia}
+          onToggle={next => onToggleSection('cloudflareMedia', next)}
         />
         <HelpPanelTourSection
           collapsed={collapsedBySection.panelTour}

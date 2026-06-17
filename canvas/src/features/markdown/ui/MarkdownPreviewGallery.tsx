@@ -239,7 +239,7 @@ function MarkdownPreviewGalleryCard(props: {
             canEdit={props.canEditCardText}
             onCommit={nextValue => props.onCommitCardText(card.id, 'title', nextValue)}
             displayClassName={`m-0 truncate text-xs font-semibold leading-4 ${UI_THEME_TOKENS.text.primary}`}
-            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-xs font-semibold leading-4`}
+            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-xs font-semibold leading-4`}
           />
         </section>
       </header>
@@ -278,7 +278,7 @@ function MarkdownPreviewGalleryCard(props: {
             rows={3}
             onCommit={nextValue => props.onCommitCardText(card.id, 'summary', nextValue)}
             displayClassName={`m-0 line-clamp-2 text-[10px] leading-4 ${UI_THEME_TOKENS.text.secondary}`}
-            editorClassName={`${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-[10px] leading-4`}
+            editorClassName={`${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-[10px] leading-4`}
           />
         </section>
         <p

@@ -49,6 +49,8 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { WorkspaceDataViewFloatingPanelView } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewFloatingPanelView'
+import { PanelFormDensityProvider } from '@/lib/ui/panelFormControls'
+import { useWorkspaceDataViewFloatingDensity } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
 
 type RequestedFloatingPanelView = FloatingPanelView; type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
@@ -106,7 +108,7 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 })
 
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
-const CommandMenuCatalogPanelLazy = React.lazy(() => import('@/features/command-menu/CommandMenuCatalogPanel'))
+const MediaCatalogPanelLazy = React.lazy(() => import('@/features/command-menu/CommandMenuCatalogPanel'))
 const FlowEditorFloatingPanelViewLazy = React.lazy(() =>
   import('@/features/flow-editor-manager/FlowEditorFloatingPanelView').then(mod => ({ default: mod.FlowEditorFloatingPanelView })),
 )
@@ -310,6 +312,7 @@ export function ToolbarToolMenu({
   const [floatingPanelMinimized, setFloatingPanelMinimized] = React.useState(false)
   const floatingPanelView = useGraphStore(s => (s.floatingPanelView || 'propsPanel') as FloatingPanelView)
   const setFloatingPanelView = useGraphStore(s => s.setFloatingPanelView)
+  const panelFormDensity = useWorkspaceDataViewFloatingDensity()
   const [managedHeaderActions, setManagedHeaderActions] = React.useState<FloatingHeaderActions>({
     apply: undefined,
     reset: undefined,
@@ -508,7 +511,7 @@ export function ToolbarToolMenu({
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
       { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
-      { view: 'commandMenu', title: 'Command Menu', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.commandMenu },
+      { view: 'media', title: 'Media', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.media },
       { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
       { view: 'interaction', title: 'Interaction', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.interaction },
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
@@ -644,6 +647,8 @@ export function ToolbarToolMenu({
           className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-0 ${UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME} p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
           style={toolMenuCardStyle}
           data-kg-floating-panel-root="true"
+          data-kg-floating-panel-row-height={panelFormDensity.rowHeightPreset}
+          data-kg-floating-panel-field-line={panelFormDensity.fieldLineMode}
         >
           <header className={`${uiToolbarRowScrollJustifyBetweenClassName} w-full gap-1 sm:gap-2`} onPointerDown={handleFloatingPanelPointerDown}>
             <nav className={`${uiToolbarRowScrollClassName} flex-1 gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
@@ -679,6 +684,8 @@ export function ToolbarToolMenu({
         className={`pointer-events-auto ModalContainer flex ${UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME} flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
         style={{ ...toolMenuCardStyle, ...floatingPanelSizeStyle }}
         data-kg-floating-panel-root="true"
+        data-kg-floating-panel-row-height={panelFormDensity.rowHeightPreset}
+        data-kg-floating-panel-field-line={panelFormDensity.fieldLineMode}
       >
         <section className={`px-2 py-1 flex h-full ${UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME} min-w-0 flex-col gap-1`} aria-label="Floating panel">
           <header className={`${uiToolbarRowScrollJustifyBetweenClassName} w-full gap-1 select-none sm:gap-2 ${!floatingPanelPinned ? 'cursor-move' : ''}`} onPointerDown={handleFloatingPanelPointerDown}>
@@ -705,11 +712,12 @@ export function ToolbarToolMenu({
             />
           </header>
           <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
+            <PanelFormDensityProvider value={panelFormDensity}>
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
             {floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />}
-            {floatingPanelView === 'commandMenu' && (
+            {floatingPanelView === 'media' && (
               <React.Suspense fallback={null}>
-                <CommandMenuCatalogPanelLazy />
+                <MediaCatalogPanelLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'camera' && (
@@ -828,6 +836,7 @@ export function ToolbarToolMenu({
                 />
               </section>
             )}
+            </PanelFormDensityProvider>
           </section>
         </section>
       </aside>

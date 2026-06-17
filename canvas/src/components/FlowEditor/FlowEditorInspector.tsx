@@ -163,7 +163,7 @@ export default function FlowEditorInspector({
               editActivation="click"
               onCommit={onSetNodeLabel}
               displayClassName={cn('mt-2 text-sm font-semibold leading-5', UI_THEME_TOKENS.text.primary)}
-              editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
+              editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-sm font-semibold leading-5`}
             />
             <section className="mt-3 flex flex-col gap-2">
               {selectedNodeCardFields.map(field => (
@@ -190,7 +190,7 @@ export default function FlowEditorInspector({
                       )
                     }}
                     displayClassName={cn('m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary)}
-                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
+                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-xs leading-5`}
                   />
                 </section>
               ))}

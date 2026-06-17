@@ -460,7 +460,7 @@ export const GraphDataTableKanbanView = React.memo(function GraphDataTableKanban
                           props.onUpdateCell(row.id, titleColumn.columnId, nextValue)
                         }}
                         displayClassName={['font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
-                        editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-medium leading-5`}
+                        editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-sm font-medium leading-5`}
                       />
                       {meta ? (
                         <section className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayMeta}>
@@ -488,7 +488,7 @@ export const GraphDataTableKanbanView = React.memo(function GraphDataTableKanban
                                     props.onUpdateCell(row.id, entry.id, nextValue)
                                   }}
                                   displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                                  editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
+                                  editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-xs leading-5`}
                                 />
                               </section>
                             )

@@ -1,32 +1,40 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  readDataViewControlPaddingClassName,
+  readDataViewMultiLineControlClassName,
+  readDataViewMultiLineControlRows,
+  readDataViewSingleLineControlClassName,
+  type DataViewFieldLineMode,
+  type DataViewRowHeightPreset,
+} from '@/lib/ui/dataViewDensity'
 import { cn } from '@/lib/utils'
 
 export const PANEL_FORM_LABEL_TEXT_CLASSNAME = cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)
 export const PANEL_FORM_SECTION_LABEL_TEXT_CLASSNAME = cn('block text-xs mb-1', UI_THEME_TOKENS.text.secondary)
 
 const PANEL_FORM_SINGLE_LINE_FILLED_CONTROL_CLASSNAME = cn(
-  'w-full min-w-0 max-w-full h-6 rounded-md border px-2 py-1 text-xs',
+  'w-full min-w-0 max-w-full rounded-md border',
   UI_THEME_TOKENS.input.bg,
   UI_THEME_TOKENS.input.border,
   UI_THEME_TOKENS.input.text,
 )
 
 const PANEL_FORM_MULTI_LINE_FILLED_CONTROL_CLASSNAME = cn(
-  'w-full resize rounded-md border px-2 py-1 text-xs',
+  'w-full min-w-0 max-w-full resize-y rounded-md border',
   UI_THEME_TOKENS.input.bg,
   UI_THEME_TOKENS.input.border,
   UI_THEME_TOKENS.input.text,
 )
 
 const PANEL_FORM_SINGLE_LINE_TRANSPARENT_CONTROL_CLASSNAME = cn(
-  'w-full min-w-0 max-w-full h-6 rounded border bg-transparent px-2 py-1 text-xs',
+  'w-full min-w-0 max-w-full rounded border bg-transparent',
   UI_THEME_TOKENS.panel.border,
   UI_THEME_TOKENS.text.primary,
 )
 
 const PANEL_FORM_MULTI_LINE_TRANSPARENT_CONTROL_CLASSNAME = cn(
-  'w-full resize rounded border bg-transparent px-2 py-1 text-xs',
+  'w-full min-w-0 max-w-full resize-y rounded border bg-transparent',
   UI_THEME_TOKENS.panel.border,
   UI_THEME_TOKENS.text.primary,
 )
@@ -34,6 +42,10 @@ const PANEL_FORM_MULTI_LINE_TRANSPARENT_CONTROL_CLASSNAME = cn(
 type PanelFormControlVariant = 'filled' | 'transparent'
 type PanelFieldVariant = 'micro' | 'section'
 type PanelFieldLayout = 'block' | 'compact'
+type PanelFormDensityContextValue = {
+  rowHeightPreset: DataViewRowHeightPreset
+  fieldLineMode: DataViewFieldLineMode
+}
 type PanelReadOnlyFieldProps = {
   label: React.ReactNode
   value: React.ReactNode
@@ -55,12 +67,16 @@ export type PanelFieldProps = {
 
 type PanelTextInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   variant?: PanelFormControlVariant
+  density?: DataViewRowHeightPreset
 }
 type PanelTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   variant?: PanelFormControlVariant
+  rowHeightPreset?: DataViewRowHeightPreset
+  fieldLineMode?: DataViewFieldLineMode
 }
 type PanelSelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   variant?: PanelFormControlVariant
+  density?: DataViewRowHeightPreset
 }
 type PanelCheckboxProps = React.InputHTMLAttributes<HTMLInputElement>
 type PanelRangeInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> & {
@@ -83,16 +99,38 @@ const PANEL_FORM_RANGE_TRANSPARENT_CONTROL_CLASSNAME = cn(
   UI_THEME_TOKENS.input.selectionControl,
 )
 
+const PanelFormDensityContext = React.createContext<PanelFormDensityContextValue | null>(null)
+
+export function PanelFormDensityProvider({
+  value,
+  children,
+}: {
+  value: PanelFormDensityContextValue
+  children: React.ReactNode
+}) {
+  return (
+    <PanelFormDensityContext.Provider value={value}>
+      {children}
+    </PanelFormDensityContext.Provider>
+  )
+}
+
+function usePanelFormDensity(): PanelFormDensityContextValue | null {
+  return React.useContext(PanelFormDensityContext)
+}
+
 export const PanelTextInput = React.forwardRef<HTMLInputElement, PanelTextInputProps>(function PanelTextInput(
-  { className, variant = 'filled', ...props },
+  { className, variant = 'filled', density, ...props },
   ref,
 ) {
+  const densityContext = usePanelFormDensity()
   return (
     <input
       {...props}
       ref={ref}
       className={cn(
         variant === 'transparent' ? PANEL_FORM_SINGLE_LINE_TRANSPARENT_CONTROL_CLASSNAME : PANEL_FORM_SINGLE_LINE_FILLED_CONTROL_CLASSNAME,
+        readDataViewSingleLineControlClassName(density || densityContext?.rowHeightPreset || 'compact'),
         className,
       )}
     />
@@ -100,15 +138,25 @@ export const PanelTextInput = React.forwardRef<HTMLInputElement, PanelTextInputP
 })
 
 export const PanelTextarea = React.forwardRef<HTMLTextAreaElement, PanelTextareaProps>(function PanelTextarea(
-  { className, variant = 'filled', ...props },
+  { className, variant = 'filled', rowHeightPreset, fieldLineMode, rows, ...props },
   ref,
 ) {
+  const densityContext = usePanelFormDensity()
+  const nextRowHeightPreset = rowHeightPreset || densityContext?.rowHeightPreset || 'compact'
+  const nextFieldLineMode = fieldLineMode || densityContext?.fieldLineMode || null
   return (
     <textarea
       {...props}
       ref={ref}
+      rows={nextFieldLineMode ? readDataViewMultiLineControlRows(nextFieldLineMode) : rows}
       className={cn(
         variant === 'transparent' ? PANEL_FORM_MULTI_LINE_TRANSPARENT_CONTROL_CLASSNAME : PANEL_FORM_MULTI_LINE_FILLED_CONTROL_CLASSNAME,
+        nextFieldLineMode
+          ? readDataViewMultiLineControlClassName({
+            rowHeightPreset: nextRowHeightPreset,
+            fieldLineMode: nextFieldLineMode,
+          })
+          : readDataViewControlPaddingClassName(nextRowHeightPreset),
         className,
       )}
     />
@@ -116,15 +164,17 @@ export const PanelTextarea = React.forwardRef<HTMLTextAreaElement, PanelTextarea
 })
 
 export const PanelSelect = React.forwardRef<HTMLSelectElement, PanelSelectProps>(function PanelSelect(
-  { className, variant = 'filled', ...props },
+  { className, variant = 'filled', density, ...props },
   ref,
 ) {
+  const densityContext = usePanelFormDensity()
   return (
     <select
       {...props}
       ref={ref}
       className={cn(
         variant === 'transparent' ? PANEL_FORM_SINGLE_LINE_TRANSPARENT_CONTROL_CLASSNAME : PANEL_FORM_SINGLE_LINE_FILLED_CONTROL_CLASSNAME,
+        readDataViewSingleLineControlClassName(density || densityContext?.rowHeightPreset || 'compact'),
         className,
       )}
     />

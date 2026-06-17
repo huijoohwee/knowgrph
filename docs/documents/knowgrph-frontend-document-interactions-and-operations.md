@@ -83,12 +83,13 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 - Indexed or imported media references must survive blur, block rerender, canvas card reprojection, and document reload through the same owner-path persistence used by the active text surface.
 - Inserted inline image/video references inside Cards and Widgets render as font-height tokenized thumbnail pills using shared knowgrph border, panel background, and shadow tokens.
 - Floating Panel `@` media rows render compact list thumbnails with the same token family, but may be larger than inline text-height inserts.
-- Floating Panel `Command Menu` media names are inline-editable: graph media names commit through the owning graph node label, and markdown media names commit through the owning link or image-alt line.
+- Floating Panel `Media` names are inline-editable: graph media names commit through the owning graph node label, and markdown media names commit through the owning link or image-alt line.
+- Floating Panel `Media` exposes Upload Media for image, audio, and video files. Uploaded files render as local session rows first; when runtime storage confirms the Worker media PUT route and media asset persist route, the row exposes the Cloudflare access link and the generated Markdown reference joins the shared media inventory.
 - `#` keyword browsing is backed by the full active graph keyword inventory in MainPanel Dashboard and by the same centralized graph-wide context when inline card editors open the `#` command menu. Reusable keyword browsing must not collapse to only the currently selected subgraph.
 
 **Command Menu Surfaces**:
 - MainPanel Help `Command Menu` is the discovery and inspection view over the full shared `/`, `@`, and `#` command catalog used inline.
-- Floating Panel `Command Menu` is the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list. It is the rich-media browsing SSOT, may show derived thumbnails and source URLs, and feeds Preview Panel selection without duplicating the media gallery there; command keys, prefixes, media candidate resolution, insertion payloads, and persistence rules remain shared.
+- Floating Panel `Media` is the current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media list. It is the rich-media browsing SSOT, may show derived thumbnails and source URLs, and feeds Preview Panel selection without duplicating the media gallery there; command keys, prefixes, media candidate resolution, insertion payloads, and persistence rules remain shared.
 
 ### Full Screen Presentation
 

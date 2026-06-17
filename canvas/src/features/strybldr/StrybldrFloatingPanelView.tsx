@@ -656,7 +656,7 @@ export function StrybldrFloatingPanelView({
                 </PanelField>
                 <PanelField label="Summary">
                   <PanelTextarea
-                    className="mt-1 min-h-14"
+                    className="mt-1"
                     value={draft.summary}
                     aria-label="Strybldr card summary"
                     onChange={e => setDraft(cur => ({ ...cur, summary: e.target.value }))}
@@ -664,7 +664,7 @@ export function StrybldrFloatingPanelView({
                 </PanelField>
                 <PanelField label="Action">
                   <PanelTextarea
-                    className="mt-1 min-h-12"
+                    className="mt-1"
                     value={draft.action}
                     aria-label="Strybldr card action"
                     onChange={e => setDraft(cur => ({ ...cur, action: e.target.value }))}
@@ -672,7 +672,7 @@ export function StrybldrFloatingPanelView({
                 </PanelField>
                 <PanelField label="Prompt">
                   <PanelTextarea
-                    className="mt-1 min-h-14"
+                    className="mt-1"
                     value={draft.prompt}
                     aria-label="Strybldr card prompt"
                     onChange={e => setDraft(cur => ({ ...cur, prompt: e.target.value }))}

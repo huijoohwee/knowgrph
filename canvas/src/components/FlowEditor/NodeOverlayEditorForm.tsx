@@ -13,7 +13,6 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
-  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import {
@@ -371,16 +370,14 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
-      keyValueInputClass,
       textSizeClass,
       'text-left',
-      UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
       monospaceTextClass,
       UI_THEME_TOKENS.input.bg,
       UI_THEME_TOKENS.input.border,
       UI_THEME_TOKENS.input.text,
     )
-  }, [keyValueInputClass, monospaceTextClass, textSizeClass])
+  }, [monospaceTextClass, textSizeClass])
   const frontmatterWidgetRegistrySection = React.useMemo(
     () => resolveFrontmatterWidgetRegistrySectionState({
       node: nodeHelperSnapshot,

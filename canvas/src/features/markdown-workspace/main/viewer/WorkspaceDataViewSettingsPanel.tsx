@@ -27,7 +27,7 @@ import {
   UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
-import type { WorkspaceDataViewFloatingBinding, WorkspaceDataViewSettingsPanelKey } from './workspaceDataViewFloatingStore'
+import { setWorkspaceDataViewFloatingDensity, type WorkspaceDataViewFloatingBinding, type WorkspaceDataViewSettingsPanelKey } from './workspaceDataViewFloatingStore'
 import { WorkspaceDataViewNewRecordButton } from './WorkspaceDataViewNewRecordButton'
 
 type WorkspaceDataViewSettingsPanelProps = Omit<WorkspaceDataViewFloatingBinding, 'registrationId'> & {
@@ -346,6 +346,7 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                               checked={active}
                               onChange={() => {
                                 if (rowHeightPreset === option.value) return
+                                setWorkspaceDataViewFloatingDensity({ rowHeightPreset: option.value, fieldLineMode })
                                 props.setViewConfig({ ...props.viewConfig, rowHeightPreset: option.value })
                               }}
                             />
@@ -380,6 +381,7 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                               checked={active}
                               onChange={() => {
                                 if (fieldLineMode === option.value) return
+                                setWorkspaceDataViewFloatingDensity({ rowHeightPreset, fieldLineMode: option.value })
                                 props.setViewConfig({ ...props.viewConfig, fieldLineMode: option.value })
                               }}
                             />

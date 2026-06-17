@@ -336,7 +336,7 @@ function StoryboardDetailRow(props: {
           rows={3}
           onCommit={props.onCommit}
           displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-          editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
+          editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-xs leading-5`}
         />
       </section>
     </section>
@@ -1657,7 +1657,7 @@ export default function StoryboardCanvas({
                                       updateStoryboardTitle(card.id, nextValue)
                                     }}
                                     displayClassName={['m-0 truncate text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}
-                                    editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
+                                    editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-sm font-semibold leading-5`}
                                   />
                                   {card.slugline ? (
                                     <p className={['m-0 mt-1 text-[11px] uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
@@ -1703,7 +1703,7 @@ export default function StoryboardCanvas({
                                     rows={3}
                                     onCommit={commitCardProperty('summary')}
                                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
+                                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-xs leading-5`}
                                   />
                                 </section>
                               ) : null}
@@ -1855,7 +1855,7 @@ export default function StoryboardCanvas({
                                         })
                                       }}
                                       displayClassName={['m-0 mt-2 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                                      editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
+                                      editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-xs leading-5`}
                                     />
                                   ) : null}
                                   <section className="mt-2 flex items-center gap-2">

@@ -230,7 +230,7 @@ The base loop remains TCO-zero. Paid spend is opt-in and visible.
 | Card Inline Command Bridge | `canvas/src/lib/cards/CardInlineTextCommandMenus.tsx`, `canvas/src/lib/cards/CardInlineTextEditor.tsx` | Bind shared `/`, `@`, and `#` command menus into inline card editing and commit accepted actions through card-owner persistence. |
 | Shared Data-view / Kanban Utilities | `canvas/src/features/markdown-workspace/data-view/*`, `canvas/src/lib/graph-data-table/*`, `canvas/src/lib/kanban/*` | Keep Storyboard, Editor Workspace Multi-dimensional Table/Kanban, and FloatingPanel `View` on the same header/settings/new-record and row/column utility owners instead of surface-local forks. |
 | Floating Panel | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx` | Host Strybldr review and analysis controls. |
-| Floating Panel Command Menu | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx` | Host the right-of-`View` command-browser surface using the shared FloatingPanel Geo KTV-style layout and the same command catalog consumed inline. |
+| Floating Panel Media | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx` | Host the right-of-`View` rich-media browser using the shared FloatingPanel Geo KTV-style layout and the same media candidate resolver consumed inline. |
 | Toolbar Run All | `canvas/src/components/Toolbar.tsx` and `canvas/src/features/canvas/utils.ts` | Reuse the shared workflow Run All event for Flow Editor and Strybldr. |
 | BytePlus Video Owner | `canvas/src/features/chat/byteplusRunGeneration.ts` | Existing bounded video task generation and polling. |
 

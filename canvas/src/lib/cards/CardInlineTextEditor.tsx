@@ -1,5 +1,5 @@
 import React from 'react'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { useWorkspaceDataViewFloatingDensity } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
 import {
   CardInlineTextCommandMenus,
@@ -7,8 +7,10 @@ import {
 } from '@/lib/cards/CardInlineTextCommandMenus'
 import { hasCardMarkdownPreviewSyntax } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { readDataViewFieldLineClassName } from '@/lib/ui/dataViewDensity'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from '@/lib/markdown-core/ui/markdownInlineEditActivation'
+import { PanelTextInput, PanelTextarea } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type CardInlineTextEditActivation = 'doubleClick' | 'click'
@@ -133,6 +135,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const lastEditingRef = React.useRef(editing)
   const lastCommandPersistedDraftRef = React.useRef('')
   const commandSelectionRef = React.useRef<{ start: number; end: number }>({ start: 0, end: 0 })
+  const editorDensity = useWorkspaceDataViewFloatingDensity()
 
   const isCommandMenuTarget = React.useCallback((target: EventTarget | null): boolean => {
     if (!isElementEventTarget(target)) return false
@@ -260,61 +263,79 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   }, [])
 
   if (editing && canEdit) {
+    const commonEditorProps = {
+      id,
+      value: draft,
+      placeholder,
+      spellCheck: true,
+      'aria-label': ariaLabel,
+      autoComplete: 'off',
+      autoCorrect: 'off',
+      autoCapitalize: 'off',
+      className: editorClassName,
+      onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setDraft(event.currentTarget.value)
+      },
+      onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const relatedTarget = event.relatedTarget
+        if (isCommandMenuTarget(relatedTarget)) return
+        if (commandMode) return
+        commit()
+      },
+      onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        event.stopPropagation()
+        if (event.key === 'Escape') {
+          if (commandMode) {
+            event.preventDefault()
+            closeCommandMenu()
+            return
+          }
+          event.preventDefault()
+          cancel()
+          return
+        }
+        if (enableMarkdownCommandMenus && !event.metaKey && !event.ctrlKey && !event.altKey && (event.key === '/' || event.key === '@' || event.key === '#')) {
+          event.preventDefault()
+          openCommandMenu(event.key === '/' ? 'slash' : event.key === '@' ? 'variable' : 'keyword')
+          return
+        }
+        if (!multiline && event.key === 'Enter') {
+          event.preventDefault()
+          commit()
+          return
+        }
+        if (multiline && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault()
+          commit()
+        }
+      },
+      onDoubleClick: (event: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        event.stopPropagation()
+      },
+      [CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1',
+    }
     return (
       <section
         ref={commandRootRef}
         className="relative h-full min-h-0 w-full"
         {...{ [CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE]: '1' }}
       >
-        <PlainTextInputEditor
-          id={id}
-          ref={inputRef}
-          value={draft}
-          onChange={setDraft}
-          onBlur={event => {
-            const relatedTarget = event.relatedTarget
-            if (isCommandMenuTarget(relatedTarget)) return
-            if (commandMode) return
-            commit()
-          }}
-          onKeyDown={event => {
-            event.stopPropagation()
-            if (event.key === 'Escape') {
-              if (commandMode) {
-                event.preventDefault()
-                closeCommandMenu()
-                return
-              }
-              event.preventDefault()
-              cancel()
-              return
-            }
-            if (enableMarkdownCommandMenus && !event.metaKey && !event.ctrlKey && !event.altKey && (event.key === '/' || event.key === '@' || event.key === '#')) {
-              event.preventDefault()
-              openCommandMenu(event.key === '/' ? 'slash' : event.key === '@' ? 'variable' : 'keyword')
-              return
-            }
-            if (!multiline && event.key === 'Enter') {
-              event.preventDefault()
-              commit()
-              return
-            }
-            if (multiline && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault()
-              commit()
-            }
-          }}
-          placeholder={placeholder}
-          ariaLabel={ariaLabel}
-          multiline={multiline}
-          rows={rows ?? (multiline ? 3 : undefined)}
-          spellCheck
-          className={editorClassName}
-          dataAttributes={{ [CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1' }}
-          onDoubleClick={event => {
-            event.stopPropagation()
-          }}
-        />
+        {multiline ? (
+          <PanelTextarea
+            {...commonEditorProps}
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
+            rows={rows ?? 3}
+            rowHeightPreset={editorDensity.rowHeightPreset}
+            fieldLineMode={editorDensity.fieldLineMode}
+          />
+        ) : (
+          <PanelTextInput
+            {...commonEditorProps}
+            ref={inputRef as React.Ref<HTMLInputElement>}
+            type="text"
+            density={editorDensity.rowHeightPreset}
+          />
+        )}
         {enableMarkdownCommandMenus ? (
           <CardInlineTextCommandMenus
             commandMode={commandMode}
@@ -341,6 +362,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       id={id}
       className={[
         displayClassName || '',
+        multiline ? readDataViewFieldLineClassName(editorDensity.fieldLineMode) : '',
         canEdit ? 'cursor-text' : '',
         showPlaceholder ? emptyClassName || `${UI_THEME_TOKENS.text.tertiary} italic` : '',
       ].join(' ').trim()}

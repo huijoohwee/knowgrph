@@ -268,7 +268,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
               })
             }}
             displayClassName={['text-sm font-semibold leading-5 m-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
-            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} px-0 py-0 text-sm font-semibold leading-5`}
+            editorClassName={`${UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME} text-sm font-semibold leading-5`}
           />
         </section>
         <menu
@@ -478,7 +478,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                       })
                     }}
                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
-                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} px-0 py-0 text-xs leading-5`}
+                    editorClassName={`mt-1 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-xs leading-5`}
                   />
                 </section>
               )

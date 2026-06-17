@@ -1465,6 +1465,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const commandCatalogPanelPath = path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx')
   const helpSectionsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpSections.tsx')
   const helpCommandMenuSectionPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpCommandMenuSection.tsx')
+  const helpCloudflareMediaSectionPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpCloudflareMediaSection.tsx')
   const launcherPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarMenuLauncher.tsx')
   const typesPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarToolMenuTypes.ts')
   const text = readUtf8(filePath)
@@ -1474,6 +1475,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const commandCatalogPanelText = readUtf8(commandCatalogPanelPath)
   const helpSectionsText = readUtf8(helpSectionsPath)
   const helpCommandMenuSectionText = readUtf8(helpCommandMenuSectionPath)
+  const helpCloudflareMediaSectionText = readUtf8(helpCloudflareMediaSectionPath)
   const launcherText = readUtf8(launcherPath)
   const typesText = readUtf8(typesPath)
   if (text.includes("view: 'designLayers'")) {
@@ -1482,23 +1484,23 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!text.includes("view: 'view'")) {
     throw new Error('Expected FloatingPanel to expose a dedicated View tab beside Props Panel')
   }
-  if (text.indexOf("view: 'commandMenu'") <= text.indexOf("view: 'view'")) {
-    throw new Error('Expected FloatingPanel to place Command Menu immediately after View in the primary view list')
+  if (text.indexOf("view: 'media'") <= text.indexOf("view: 'view'")) {
+    throw new Error('Expected FloatingPanel to place Media immediately after View in the primary view list')
   }
   if (!text.includes("floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />")) {
     throw new Error('Expected FloatingPanel to render the dedicated View settings surface')
   }
-  if (!text.includes("floatingPanelView === 'commandMenu'") || !text.includes('<CommandMenuCatalogPanelLazy />')) {
-    throw new Error('Expected FloatingPanel to render the Command Menu media view')
+  if (!text.includes("floatingPanelView === 'media'") || !text.includes('<MediaCatalogPanelLazy />')) {
+    throw new Error('Expected FloatingPanel to render the Media view')
   }
-  if (!iconLibraryText.includes('floatingPanel.commandMenu') || !iconLibraryText.includes('commandMenu: \'floatingPanel.commandMenu\'')) {
-    throw new Error('Expected FloatingPanel icon SSOT to include Command Menu')
+  if (!iconLibraryText.includes('floatingPanel.media') || !iconLibraryText.includes('media: \'floatingPanel.media\'')) {
+    throw new Error('Expected FloatingPanel icon SSOT to include Media')
   }
-  if (!floatingPanelTypesText.includes("| 'commandMenu'")) {
-    throw new Error('Expected FloatingPanel view type to include Command Menu')
+  if (!floatingPanelTypesText.includes("| 'media'")) {
+    throw new Error('Expected FloatingPanel view type to include Media')
   }
-  if (!uiSliceInitialStateText.includes("view === 'commandMenu'")) {
-    throw new Error('Expected FloatingPanel view setter whitelist to accept Command Menu')
+  if (!uiSliceInitialStateText.includes("view === 'media'")) {
+    throw new Error('Expected FloatingPanel view setter whitelist to accept Media')
   }
   if (!helpSectionsText.includes('<HelpCommandMenuSection') || !helpCommandMenuSectionText.includes('<CommandMenuReferenceCatalog')) {
     throw new Error('Expected MainPanel Help to own the shared Command Menu reference catalog section')
@@ -1509,8 +1511,23 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!commandCatalogPanelText.includes('data-kg-command-menu-reference-catalog') || !commandCatalogPanelText.includes('data-kg-command-menu-prefix')) {
     throw new Error('Expected MainPanel Help Command Menu reference catalog to expose shared prefix rows for /, @, and # actions')
   }
-  if (!commandCatalogPanelText.includes('useCommandMenuRichMediaInventory') || !commandCatalogPanelText.includes('data-kg-command-menu-media-panel') || !commandCatalogPanelText.includes('data-kg-command-menu-media-list')) {
-    throw new Error('Expected FloatingPanel Command Menu to own the shared @ rich-media candidate list')
+  if (!commandCatalogPanelText.includes('useCommandMenuRichMediaInventory') || !commandCatalogPanelText.includes('data-kg-media-panel') || !commandCatalogPanelText.includes('data-kg-media-list')) {
+    throw new Error('Expected FloatingPanel Media to own the shared @ rich-media candidate list')
+  }
+  if (!commandCatalogPanelText.includes('data-kg-media-upload-button') || !commandCatalogPanelText.includes('data-kg-media-upload-input') || !commandCatalogPanelText.includes('accept="image/*,audio/*,video/*"')) {
+    throw new Error('Expected FloatingPanel Media to expose an Upload Media control for image, audio, and video files')
+  }
+  if (!commandCatalogPanelText.includes('uploadMediaFileToKnowgrphStorage') || !commandCatalogPanelText.includes('data-kg-media-upload-item') || !commandCatalogPanelText.includes('Open Cloudflare media link')) {
+    throw new Error('Expected FloatingPanel Media upload rows to reuse the Cloudflare media storage helper and expose synced links')
+  }
+  if (
+    commandCatalogPanelText.includes('data-kg-command-menu-cloudflare-media-service')
+    || commandCatalogPanelText.includes('CLOUDFLARE_MEDIA_ASSET_SYNC_SERVICES')
+  ) {
+    throw new Error('Expected FloatingPanel Media to avoid Cloudflare storage configuration rows')
+  }
+  if (!helpSectionsText.includes('<HelpCloudflareMediaSection') || !helpCloudflareMediaSectionText.includes('data-kg-main-panel-cloudflare-media-service')) {
+    throw new Error('Expected MainPanel Help to own the Cloudflare media runtime configuration rows')
   }
   if (
     !commandCatalogPanelText.includes('data-kg-command-menu-media-thumbnail')
@@ -1519,7 +1536,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
     || !commandCatalogPanelText.includes('UI_THEME_TOKENS.input.bg')
     || !commandCatalogPanelText.includes('shadow-sm')
   ) {
-    throw new Error('Expected FloatingPanel Command Menu media thumbnails to use tokenized mention-style pill chrome')
+    throw new Error('Expected FloatingPanel Media thumbnails to use tokenized mention-style pill chrome')
   }
   if (
     !commandCatalogPanelText.includes('data-kg-command-menu-media-name-input')
@@ -1527,13 +1544,13 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
     || !commandCatalogPanelText.includes("owner.type === 'graphNodeLabel'")
     || !commandCatalogPanelText.includes('setMarkdownDocument(markdownDocumentName, nextText')
   ) {
-    throw new Error('Expected FloatingPanel Command Menu media names to be inline-editable through graph and markdown owners')
+    throw new Error('Expected FloatingPanel Media names to be inline-editable through graph and markdown owners')
   }
-  if (!commandCatalogPanelText.includes('KeyTypeValueHeader') || !commandCatalogPanelText.includes('KeyTypeValueRow') || !commandCatalogPanelText.includes('KeyTypeValueSectionStack')) {
-    throw new Error('Expected Command Menu panel to reuse the FloatingPanel KTV layout primitives')
+  if (!commandCatalogPanelText.includes('KeyTypeValueHeader') || !commandCatalogPanelText.includes('KeyTypeValueStaticRow') || !commandCatalogPanelText.includes('KeyTypeValueSectionStack')) {
+    throw new Error('Expected Media panel to reuse the FloatingPanel KTV layout primitives')
   }
-  if (!commandCatalogPanelText.includes('data-kg-command-menu-ktv-layout')) {
-    throw new Error('Expected Command Menu panel to expose the KTV layout verification marker')
+  if (!commandCatalogPanelText.includes('data-kg-media-ktv-layout')) {
+    throw new Error('Expected Media panel to expose the KTV layout verification marker')
   }
   if (text.includes("floatingPanelView === 'designLayers'")) {
     throw new Error('Expected FloatingPanel to avoid rendering designLayers branch after consolidation')

@@ -3,7 +3,6 @@ import React from 'react'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
-  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
   UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
@@ -37,12 +36,12 @@ export const FlowEditorInlineValueEditor = React.memo(function FlowEditorInlineV
   const baseDisplayClass = cn(
     'w-full min-w-0 rounded border outline-none',
     multiline
-      ? `${UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME} px-2 py-1 whitespace-pre-wrap break-words`
+      ? 'px-2 py-1'
       : `${UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME} truncate`,
     UI_THEME_TOKENS.input.bg,
     UI_THEME_TOKENS.input.border,
     UI_THEME_TOKENS.input.text,
-    className,
+    multiline ? null : className,
     displayClassName,
   )
   const baseEditorClass = cn(

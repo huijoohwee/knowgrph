@@ -20,6 +20,13 @@ migrations_dir = "../../d1/migrations"
 binding = "KNOWGRPH_STORAGE_BLOB_BUCKET"
 bucket_name = "knowgrph-storage-blobs"
 
-[[r2_buckets]]
-binding = "KNOWGRPH_MEDIA_BUCKET"
-bucket_name = "knowgrph-media"
+# Optional operator-owned KV binding for generated-media access URL cache.
+# Bind a real namespace as KNOWGRPH_MEDIA_ACCESS_KV before Cloudflare deployment.
+
+[[durable_objects.bindings]]
+name = "KNOWGRPH_CANVAS_ROOM"
+class_name = "KnowgrphCanvasSyncRoom"
+
+[[migrations]]
+tag = "v1_knowgrph_canvas_sync_room"
+new_sqlite_classes = [ "KnowgrphCanvasSyncRoom" ]

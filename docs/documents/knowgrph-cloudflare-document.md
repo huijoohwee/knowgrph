@@ -300,6 +300,7 @@ flowchart LR
 | Pages Functions | Serve agent-ready routes, Markdown negotiation, and MCP metadata | `.well-known`, `/knowgrph/mcp`, Link headers | `cloudflare/pages/knowgrph-agent-ready*.mjs` | Cloudflare Pages Functions; FOSS alternative is self-hosted Node edge router | Implemented |
 | Storage Worker | Serve D1-backed Source Files indexes and doc views | `airvio.co/api/storage/*` | `cloudflare/workers/knowgrph-storage/wrangler.toml` | Cloudflare Workers; FOSS alternative is self-hosted HTTP API + SQLite/Postgres | Implemented |
 | D1 database | Persist Source Files, storage sync rows, Stripe sessions, and ACP proof/trace rows | Worker `DB` binding | `knowgrph-storage` D1 binding | Cloudflare D1; FOSS alternative is local SQLite, but not globally hosted | Implemented |
+| Generated media asset store | Persist AI image/audio/video bytes, metadata, access cache, and canvas-room notification | R2 `KNOWGRPH_STORAGE_BLOB_BUCKET` (`knowgrph-storage-blobs/airvio/` object prefix), D1 `media_artifacts`, optional KV `KNOWGRPH_MEDIA_ACCESS_KV`, DO `KNOWGRPH_CANVAS_ROOM` | `/api/storage/media/*`, `/api/storage/media/assets`, `cloudflare/workers/knowgrph-storage/mediaAssetSync.ts` | Cloudflare R2/D1/KV/Durable Objects; FOSS alternative is MinIO + SQLite + Redis + WebSocket room service | Dev source implemented; KV binding remains operator-owned before live claim |
 | Payment Worker | Isolate checkout/payment route family | `airvio.co/api/payments/*`, `.well-known/acp-config`, `/checkout/sessions*` | `cloudflare/workers/knowgrph-payment/wrangler.toml` | Cloudflare Workers; FOSS alternative is self-hosted payment webhook service | Implemented |
 | DNS-AID publisher | Upsert SVCB discovery records | Cloudflare REST API | `CLOUDFLARE_DNS_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_ZONE_NAME` | Cloudflare DNS; FOSS alternative is another authoritative DNS provider with SVCB + DNSSEC | Implemented |
 | DNS-AID checker | Validate public DNSSEC-authenticated SVCB answers | DoH JSON, SVCB RFC3597 parser | `scripts/dns-aid-records.mjs` | FOSS local script; no vendor lock-in beyond DNS host | Implemented |
@@ -312,6 +313,7 @@ flowchart LR
 | Pages app route | HTTPS | HTML, Markdown, JSON metadata | Public | Return route-specific status; avoid app-shell fallback for known metadata routes |
 | HTTP MCP route | HTTPS JSON-RPC | JSON-RPC requests/responses | Public read-only surface | Reject unsupported methods/tools without mutation |
 | Storage Worker routes | HTTPS | Markdown, JSON, plain text | Public read routes | Derive from D1; omit deleted records; no local file fallback |
+| Media asset route | HTTPS | JSON metadata over `/api/storage/media/assets`; bytes over `/api/storage/media/*` | Run-scoped bearer token | Confirm R2 before D1 write; return explicit KV/DO binding status; no fake namespace ids |
 | Payment Worker routes | HTTPS | JSON/HTTP payment endpoints | Provider-specific secrets in Worker env and D1 payment tables/columns | Keep payment errors isolated from storage reads; readiness verifies remote D1 tables and webhook-processing columns before live smoke |
 | DNS-AID publish | Cloudflare REST API | DNS record JSON | `CLOUDFLARE_DNS_API_TOKEN` or `CLOUDFLARE_API_TOKEN` with zone DNS edit | Fail fast on missing token, invalid permission, DNSSEC inactive, or Cloudflare validation errors |
 | DNS-AID verify | DNS-over-HTTPS | `application/dns-json`, type 64 answers | Public resolver | Require `AD=true`; decode RFC3597 SVCB answers for custom parameters |
@@ -322,6 +324,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | Build | Vite + sync script | TypeScript/Markdown/assets | Static assets + Pages control files | publish mirror | Build or sync exits non-zero |
 | Store Source Files | Storage Worker | Workspace/Source File sync payloads | D1 rows | Cloudflare D1 | Worker route validation and D1 migration checks |
+| Store generated media | Storage Worker | R2 object key + provenance payload | D1 `media_artifacts` row + optional KV access cache + DO room notification | R2, D1, optional KV, Durable Object storage | Reject missing R2 object; report `binding_missing` for unbound optional services |
 | Serve crawler docs | Storage Worker | HTTP GET route params | Markdown/index/doc-view response | D1 read | 404/empty-state responses without import side effects |
 | Serve agent metadata | Pages Functions | HTTP GET/HEAD/POST | JSON, Markdown, Link headers, MCP responses | generated artifacts | route-specific failures; no stale local docs fallback |
 | Publish DNS-AID | DNS-AID script | record contract from `scripts/dns-aid-records.mjs` | Cloudflare DNS SVCB records | Cloudflare DNS | REST API error exits non-zero |

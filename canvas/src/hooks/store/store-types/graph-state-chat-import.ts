@@ -50,7 +50,7 @@ import type {
 export type FloatingPanelView =
   | 'propsPanel'
   | 'view'
-  | 'commandMenu'
+  | 'media'
   | 'camera'
   | 'interaction'
   | 'design'
